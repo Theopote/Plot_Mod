@@ -108,21 +108,6 @@ public final class RoadGenerationResultAssembler {
             null);
     }
 
-    /**
-     * @deprecated 使用 {@link #mergeJunctionBlocks(RoadGenerationResult, RoadJunctionGenerator.JunctionBlocks, RoadGenerationPipelineHost, String, String)}
-     */
-    @Deprecated(since = "1.x", forRemoval = true)
-    public static void mergeJunctionBlocksWithConfigDefaults(
-            RoadGenerationResult target,
-            RoadJunctionGenerator.JunctionBlocks junction,
-            RoadGenerationPipelineHost host) {
-        if (host == null) {
-            return;
-        }
-        String fallback = host.config().getSelectedMaterial().getPrimaryMaterial();
-        mergeJunctionBlocks(target, junction, host, fallback, fallback);
-    }
-
     public static String resolveJunctionMaterial(
             RoadNode node,
             RoadNetwork network,

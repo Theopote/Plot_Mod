@@ -90,18 +90,6 @@ public final class RoadPlanGeometry {
         return total;
     }
 
-    /** @deprecated 使用 {@link #designLength} */
-    @Deprecated
-    public static double planLength(RoadNetwork network, Road road) {
-        return designLength(network, road);
-    }
-
-    /** @deprecated 使用 {@link #instanceLength} */
-    @Deprecated
-    public static double instanceChainLength(RoadNetwork network, Road road) {
-        return instanceLength(network, road);
-    }
-
     public static Optional<Vec2d> pointAtStation(RoadNetwork network, Road road, double chainageMeters) {
         if (hasDesignAlignment(network, road)) {
             return HorizontalAlignmentGeometry.poseAt(road.getHorizontalAlignment(), chainageMeters)

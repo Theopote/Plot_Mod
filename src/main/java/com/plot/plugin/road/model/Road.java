@@ -139,12 +139,6 @@ public class Road {
         }
     }
 
-    /** @deprecated 使用 {@link #applyStyle(RoadStyle)} */
-    @Deprecated
-    public void applyPreset(RoadStyle preset) {
-        applyStyle(preset);
-    }
-
     public String getStyleId() {
         return styleId;
     }

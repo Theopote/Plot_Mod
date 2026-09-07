@@ -666,12 +666,6 @@ public final class RoadCrossSectionPreviewRenderer {
             );
         }
 
-        /** @deprecated 使用 {@link #fromStyle(RoadStyle)} */
-        @Deprecated
-        public static CrossSectionLayout fromPreset(RoadStyle preset) {
-            return fromStyle(preset);
-        }
-
         public float totalWidthBlocks() {
             return roadBlocks
                 + leftShoulderBlocks + rightShoulderBlocks

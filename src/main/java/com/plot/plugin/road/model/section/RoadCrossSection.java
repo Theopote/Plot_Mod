@@ -73,12 +73,6 @@ public class RoadCrossSection {
         return style.toCrossSection();
     }
 
-    /** @deprecated 使用 {@link #fromStyle(RoadStyle)} */
-    @Deprecated
-    public static RoadCrossSection fromPreset(RoadStyle preset) {
-        return fromStyle(preset);
-    }
-
     public static RoadCrossSection fromLegacy(
             Integer width,
             String material,

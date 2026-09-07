@@ -270,12 +270,6 @@ public class RoadNetwork {
         return true;
     }
 
-    /** @deprecated 使用 {@link #assignEdgeToRoad(String, String)} */
-    @Deprecated
-    public void linkEdgeToRoad(String roadId, String edgeId) {
-        assignEdgeToRoad(edgeId, roadId);
-    }
-
     /**
      * 修正 Road.segmentIds 与 RoadEdge.roadId 的双向归属一致性。
      */

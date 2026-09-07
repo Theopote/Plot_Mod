@@ -123,18 +123,6 @@ public final class RoadStationing {
         return RoadPlanGeometry.instanceLength(network, road);
     }
 
-    /** @deprecated 使用 {@link #canonicalLength} */
-    @Deprecated
-    public static double totalLength(RoadNetwork network, Road road) {
-        return canonicalLength(network, road);
-    }
-
-    /** @deprecated 使用 {@link #designLength} */
-    @Deprecated
-    public static double planLength(RoadNetwork network, Road road) {
-        return designLength(network, road);
-    }
-
     public static Optional<String> chainEntryNodeId(RoadNetwork network, Road road) {
         List<OrientedRoadSegment> segments = orientedSegments(network, road);
         if (segments.isEmpty()) {

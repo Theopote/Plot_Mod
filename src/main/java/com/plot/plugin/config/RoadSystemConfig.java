@@ -268,12 +268,6 @@ public class RoadSystemConfig {
     public RoadStyle findStyle(String styleId) {
         return RoadStyleCatalog.findById(this, styleId);
     }
-
-    /** @deprecated 使用 {@link #getStyles()} */
-    @Deprecated
-    public List<RoadStyle> getPresets() {
-        return presets;
-    }
     
     public float getMaxSlope() {
         return maxSlope;
@@ -740,12 +734,6 @@ public class RoadSystemConfig {
         this.selectedMaterial = MaterialMix.single(resolvedRoadMaterial);
         this.selectedSidewalkMaterial = resolvedSidewalkMaterial;
         this.selectedPreset = style.id;
-    }
-
-    /** @deprecated 使用 {@link #applyStyle(RoadStyle)} */
-    @Deprecated
-    public void applyPreset(RoadStyle style) {
-        applyStyle(style);
     }
 
     /**

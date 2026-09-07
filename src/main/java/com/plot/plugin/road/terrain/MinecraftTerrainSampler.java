@@ -54,16 +54,4 @@ public final class MinecraftTerrainSampler implements TerrainSampler {
     public boolean isRoadClearableDecoration(int worldX, int y, int worldZ) {
         return terrainService.isClearableNaturalDecoration(worldX, y, worldZ);
     }
-
-    /** @deprecated 请改用 {@link EngineeringTerrainService#isEngineeringTerrain} */
-    @Deprecated
-    static boolean countsAsEngineeringTerrain(net.minecraft.block.BlockState state) {
-        return EngineeringTerrainService.isEngineeringTerrain(state);
-    }
-
-    /** @deprecated 请改用 {@link EngineeringTerrainService#isNaturalDecoration} */
-    @Deprecated
-    static boolean isNaturalDecoration(net.minecraft.block.BlockState state) {
-        return EngineeringTerrainService.isNaturalDecoration(state);
-    }
 }
