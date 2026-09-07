@@ -1,14 +1,15 @@
 package com.plot.plugin.road.golden;
 
+import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import net.minecraft.util.math.BlockPos;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Semantic Acceptance：手写正确性断言（不可由 Snapshot 生成 expected）。
@@ -42,8 +43,7 @@ public final class RoadSemanticAcceptanceAssertions {
     public static void assertBridgeSemantics(RoadGoldenHarness.Run run) {
         assertTrue(run.metrics().bridgeCount() > 0, "bridge scenario must classify bridge");
         assertTrue(run.metrics().bridgeBlocks() > 0, "bridge must produce deck/support blocks");
-        assertTrue(run.metrics().fillVolume() == 0,
-            "bridge must not fill valley as ordinary roadbed");
+        assertEquals(0, run.metrics().fillVolume(), "bridge must not fill valley as ordinary roadbed");
     }
 
     public static void assertTunnelSemantics(RoadGoldenHarness.Run run) {
@@ -54,7 +54,7 @@ public final class RoadSemanticAcceptanceAssertions {
     public static void assertGradeSeparated(RoadGoldenHarness.Run run) {
         assertTrue(run.metrics().surfaceBlocks() > 0);
         assertTrue(run.network().getNodes().values().stream()
-            .anyMatch(n -> n.isGradeSeparated()),
+            .anyMatch(RoadNode::isGradeSeparated),
             "grade separation must be configured");
     }
 
@@ -77,6 +77,11 @@ public final class RoadSemanticAcceptanceAssertions {
             return !columns.isEmpty();
         }
         long seed = columns.iterator().next();
+        Set<Long> visited = getLongs(seed, columns);
+        return visited.size() == columns.size();
+    }
+
+    private static @NotNull Set<Long> getLongs(long seed, Set<Long> columns) {
         Set<Long> visited = new HashSet<>();
         ArrayDeque<Long> queue = new ArrayDeque<>();
         queue.add(seed);
@@ -92,7 +97,7 @@ public final class RoadSemanticAcceptanceAssertions {
                 }
             }
         }
-        return visited.size() == columns.size();
+        return visited;
     }
 
     private static long pack(int x, int z) {

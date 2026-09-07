@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Stream;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -50,9 +51,7 @@ class RoadDeprecatedApiInventoryTest {
     void batchARemovedSymbolsAbsentFromProduction() throws IOException {
         for (String symbol : BATCH_A_REMOVED_SYMBOLS) {
             long hits = countProductionReferences(symbol);
-            assertTrue(
-                hits == 0,
-                () -> "Batch A removed symbol reintroduced in production: " + symbol + " (" + hits + " hits)");
+            assertEquals(0, hits, () -> "Batch A removed symbol reintroduced in production: " + symbol + " (" + hits + " hits)");
         }
     }
 
@@ -60,9 +59,7 @@ class RoadDeprecatedApiInventoryTest {
     void batchBRemovedSymbolsAbsentFromProduction() throws IOException {
         for (String symbol : BATCH_B_REMOVED_SYMBOLS) {
             long hits = countProductionReferences(symbol);
-            assertTrue(
-                hits == 0,
-                () -> "Batch B removed symbol reintroduced in production: " + symbol + " (" + hits + " hits)");
+            assertEquals(0, hits, () -> "Batch B removed symbol reintroduced in production: " + symbol + " (" + hits + " hits)");
         }
     }
 
@@ -70,9 +67,7 @@ class RoadDeprecatedApiInventoryTest {
     void batchCRemovedSymbolsAbsentFromProduction() throws IOException {
         for (String symbol : BATCH_C_REMOVED_SYMBOLS) {
             long hits = countProductionReferences(symbol);
-            assertTrue(
-                hits == 0,
-                () -> "Batch C removed symbol reintroduced in production: " + symbol + " (" + hits + " hits)");
+            assertEquals(0, hits, () -> "Batch C removed symbol reintroduced in production: " + symbol + " (" + hits + " hits)");
         }
     }
 

@@ -6,6 +6,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -28,7 +29,7 @@ class RoadNetworkPerformanceBenchmarkTest {
         LOGGER.info(result.summary());
         System.out.println("[RoadNetworkBenchmark] " + result.summary());
 
-        assertTrue(result.edgeCount() == edgeCount, "edge count");
+        assertEquals(result.edgeCount(), edgeCount, "edge count");
         assertTrue(result.snapshotMillis() >= 0);
         assertTrue(result.previewMillis() >= 0);
         assertTrue(result.placementRecords() > 0, scaleId + " must produce placements");
@@ -52,8 +53,8 @@ class RoadNetworkPerformanceBenchmarkTest {
         System.out.println("[RoadNetworkBenchmark] " + n04.summary());
         System.out.println("[RoadNetworkBenchmark] " + n05.summary());
 
-        assertTrue(n04.edgeCount() == 2500);
-        assertTrue(n05.edgeCount() == 5000);
+        assertEquals(2500, n04.edgeCount());
+        assertEquals(5000, n05.edgeCount());
         assertTrue(n04.placementRecords() > 0);
         assertTrue(n05.placementRecords() > 0);
     }

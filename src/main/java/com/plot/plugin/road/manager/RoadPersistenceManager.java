@@ -4,7 +4,6 @@ import com.plot.core.context.PluginContext;
 import com.plot.core.model.Project;
 import com.plot.core.persistence.ContentFingerprint;
 import com.plot.core.persistence.ProjectPathResolver;
-import com.plot.plugin.road.model.CorruptedRoadNetworkException;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNetworkFormatException;
 import com.plot.plugin.road.model.RoadNetworkHistory;
@@ -124,7 +123,7 @@ public final class RoadPersistenceManager {
 
     private void reportLoadFailure(Path file, IOException e) {
         LOGGER.error("加载道路网络失败: {}", e.getMessage(), e);
-        if (e instanceof CorruptedRoadNetworkException || e instanceof RoadNetworkFormatException) {
+        if (e instanceof RoadNetworkFormatException) {
             status.error(e.getMessage());
             return;
         }

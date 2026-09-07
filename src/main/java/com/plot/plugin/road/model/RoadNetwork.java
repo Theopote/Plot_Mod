@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.JsonParser;
 import com.plot.api.geometry.Vec2d;
@@ -17,13 +16,10 @@ import com.plot.plugin.road.alignment.HorizontalAlignmentPersistence;
 import com.plot.plugin.road.alignment.HorizontalAlignmentPersistence.AlignmentData;
 import com.plot.plugin.road.vertical.VerticalAlignmentPersistence;
 import com.plot.plugin.road.vertical.VerticalAlignmentPersistence.VerticalAlignmentData;
-import com.plot.plugin.road.model.VariableCrossSectionPersistence;
 import com.plot.plugin.road.model.VariableCrossSectionPersistence.VariableCrossSectionsData;
-import com.plot.plugin.road.model.StationFacilityPersistence;
 import com.plot.plugin.road.model.StationFacilityPersistence.StationFacilitiesData;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.station.CenterlineEditOperation;
-import com.plot.plugin.road.station.CenterlineEditStationPolicy;
 import com.plot.plugin.road.station.RoadStationDataTransforms;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.model.section.BikeLane;
@@ -579,13 +575,6 @@ public class RoadNetwork {
                     PlotI18n.error("error.plot.road.network.invalid_json"));
             }
             root = element.getAsJsonObject();
-        } catch (RoadNetworkFormatException e) {
-            throw e;
-        } catch (JsonSyntaxException e) {
-            throw new RoadNetworkFormatException(
-                RoadNetworkFormatException.Reason.INVALID_JSON,
-                PlotI18n.error("error.plot.road.network.invalid_json"),
-                e);
         } catch (RuntimeException e) {
             throw new RoadNetworkFormatException(
                 RoadNetworkFormatException.Reason.INVALID_JSON,

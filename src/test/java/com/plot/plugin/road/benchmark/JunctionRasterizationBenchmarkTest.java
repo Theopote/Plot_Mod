@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -138,7 +139,7 @@ class JunctionRasterizationBenchmarkTest {
         for (RoadNode node : junctions) {
             var connected = node.getConnectedEdgeIds().stream()
                 .map(junctionCase.network()::getEdge)
-                .filter(e -> e != null)
+                .filter(Objects::nonNull)
                 .toList();
             var polygon = RoadJunctionGeometry.buildJunctionFillPolygon(
                 node.getId(),
@@ -146,7 +147,7 @@ class JunctionRasterizationBenchmarkTest {
                 edge -> 3.0,
                 RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS,
                 0.0);
-            if (polygon != null && !polygon.isEmpty()) {
+            if (!polygon.isEmpty()) {
                 vertices += polygon.size();
                 bboxArea += polygonBoundingArea(polygon);
             }
