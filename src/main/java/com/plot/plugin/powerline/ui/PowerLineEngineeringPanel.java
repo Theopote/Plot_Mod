@@ -4,10 +4,8 @@ import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.engineering.optimization.AutoTowerOptimizationProposer;
 import com.plot.plugin.powerline.engineering.optimization.OptimizationAction;
 import com.plot.plugin.powerline.engineering.optimization.OptimizationActionType;
-import com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver;
 import com.plot.plugin.powerline.engineering.EngineeringSeverity;
 import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
-import com.plot.plugin.powerline.engineering.analysis.PowerLineEngineeringAnalyzer;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -32,7 +30,7 @@ public final class PowerLineEngineeringPanel {
         }
 
         PowerLineUiWidgets.renderLineSelector(ctx);
-        renderProfileControls(line);
+        PowerLineUiWidgets.renderEngineeringProfileControls(ctx, line, true);
         renderAnalysisControls(line);
 
         LineEngineeringReport report = ctx.state().getEngineeringState().getLastEngineeringReport();
@@ -40,57 +38,6 @@ public final class PowerLineEngineeringPanel {
             renderReportSummary(report);
             renderIssueList(report);
         }
-    }
-
-    private void renderProfileControls(PowerLineFootprint line) {
-        ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.powerline.engineering.profile_section"));
-
-        EngineeringRuleProfileResolver resolver = new EngineeringRuleProfileResolver();
-        var profiles = resolver.listAll();
-        String[] labels = new String[profiles.size()];
-        String[] ids = new String[profiles.size()];
-        for (int i = 0; i < profiles.size(); i++) {
-            labels[i] = profiles.get(i).getName();
-            ids[i] = profiles.get(i).getId();
-        }
-        String currentId = line.effectiveEngineeringProfileId();
-        int current = 0;
-        for (int i = 0; i < ids.length; i++) {
-            if (ids[i].equals(currentId)) {
-                current = i;
-                break;
-            }
-        }
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.beginCombo(PlotI18n.tr("plugin.powerline.engineering.profile"), labels[current])) {
-            for (int i = 0; i < labels.length; i++) {
-                if (ImGui.selectable(labels[i], current == i)) {
-                    ctx.pushEditSnapshot();
-                    line.setEngineeringProfileId(ids[i]);
-                }
-            }
-            ImGui.endCombo();
-        }
-
-        boolean analysisEnabled = line.isEngineeringAnalysisEnabled();
-        if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.engineering.enabled"), analysisEnabled)) {
-            ctx.pushEditSnapshot();
-            line.setEngineeringAnalysisEnabled(!analysisEnabled);
-        }
-        boolean autoSelect = line.isAutomaticTowerSelectionEnabled();
-        if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.engineering.auto_select"), autoSelect)) {
-            ctx.pushEditSnapshot();
-            line.setAutomaticTowerSelectionEnabled(!autoSelect);
-            ctx.invalidatePreview();
-        }
-        boolean overlay = ctx.state().getEngineeringState().isOverlayEnabled();
-        if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.engineering.overlay"), overlay)) {
-            ctx.state().getEngineeringState().setOverlayEnabled(!overlay);
-        }
-        ImGui.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.powerline.engineering.disclaimer"));
     }
 
     private void renderAnalysisControls(PowerLineFootprint line) {

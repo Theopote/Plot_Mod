@@ -59,6 +59,7 @@ public final class PowerLineEditPanel {
         renderPoleControls(line);
         renderMaterialControls(line);
         renderTowerFamilyControls(line);
+        PowerLineUiWidgets.renderEngineeringProfileControls(ctx, line, false);
         renderPoleDesignControls(line);
         renderPoleRoleInspector(line);
 
