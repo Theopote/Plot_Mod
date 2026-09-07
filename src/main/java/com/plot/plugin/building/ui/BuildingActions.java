@@ -13,7 +13,9 @@ import com.plot.plugin.building.BuildingFootprintPickSession;
 import com.plot.plugin.building.BuildingFootprintValidator;
 import com.plot.plugin.building.BuildingGenerator;
 import com.plot.plugin.building.BuildingGeometryUtils;
+import com.plot.plugin.building.BuildingBatchEditor;
 import com.plot.plugin.building.BuildingHeightDistribution;
+import com.plot.plugin.building.preset.BuildingPresetApplier;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.generation.DistrictBuildReport;
 import com.plot.plugin.building.generation.DistrictGenerationResult;
@@ -209,6 +211,52 @@ public final class BuildingActions {
         long seed = BuildingHeightDistribution.defaultSeed(state.getProject(), targets);
         state.setHeightDistSeed(seed);
         return seed;
+    }
+
+    public void previewEntireDistrict() {
+        state.getSelection().selectAll(state.getProject().getBuildings().keySet());
+        calculateDistrictPreview(new ArrayList<>(state.getProject().getBuildings().values()), true);
+    }
+
+    public boolean prepareGenerateEntireDistrict() {
+        state.getSelection().selectAll(state.getProject().getBuildings().keySet());
+        return calculateDistrictPreview(new ArrayList<>(state.getProject().getBuildings().values()), true);
+    }
+
+    public void applyMassingToSelected(BuildingFootprint primary, List<BuildingFootprint> targets) {
+        if (primary == null || targets == null || targets.isEmpty()) {
+            return;
+        }
+        state.getProjectHistory().push(state.getProject());
+        BuildingBatchEditor.ApplyResult result =
+            BuildingBatchEditor.apply(primary, targets, state.getBatchFieldMask());
+        invalidatePreview();
+        state.setProjectStatus(PlotI18n.tr("plugin.building.batch_apply_success", result.updated()));
+    }
+
+    public void applyPresetToBuilding(String presetId, BuildingFootprint building) {
+        if (presetId == null || presetId.isBlank() || building == null) {
+            return;
+        }
+        state.getProjectHistory().push(state.getProject());
+        BuildingPresetApplier.apply(presetId, building);
+        invalidatePreview();
+        state.setProjectStatus(PlotI18n.tr(
+            "plugin.building.preset_applied",
+            PlotI18n.tr("preset.building." + presetId)));
+    }
+
+    public void applyPresetToSelected(String presetId, List<BuildingFootprint> targets) {
+        if (presetId == null || presetId.isBlank() || targets == null || targets.isEmpty()) {
+            return;
+        }
+        state.getProjectHistory().push(state.getProject());
+        BuildingBatchEditor.ApplyResult result = BuildingBatchEditor.applyPreset(presetId, targets);
+        invalidatePreview();
+        state.setProjectStatus(PlotI18n.tr(
+            "plugin.building.preset_applied_batch",
+            PlotI18n.tr("preset.building." + presetId),
+            result.updated()));
     }
 
     public void buildInWorld() {

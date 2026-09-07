@@ -7,8 +7,6 @@ import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 
-import java.util.ArrayList;
-
 /** 建筑总览 Tab 与删除确认弹窗。 */
 public final class BuildingOverviewPanel {
     private final BuildingUiContext ctx;
@@ -105,52 +103,9 @@ public final class BuildingOverviewPanel {
         ImGui.endChild();
     }
 
-    /** Massing-first 片区入口：预览 / 生成整片（细节参数见 Edit Tab）。 */
+    /** Massing-first 片区入口：预览 / 生成整片。 */
     private void renderDistrictMassingHome() {
-        int count = ctx.project().getBuildingCount();
-        if (count == 0) {
-            return;
-        }
-
-        ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.building.district_massing_home"));
-        ImGui.textColored(PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.building.district_massing_home_hint"));
-
-        BuildingDistrictMassingWidgets.renderHeightDistribution(
-            ctx,
-            "overview",
-            BuildingDistrictMassingWidgets.HeightDistributionTarget.ALL_WHEN_EMPTY);
-        ImGui.spacing();
-
-        var readiness = ctx.host().projection().checkWorldModificationReadiness();
-        boolean generateDisabled = !readiness.ready() || ctx.host().placement().isBusy();
-
-        float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
-        if (ImGui.button(PlotI18n.tr("plugin.building.preview_all", count), half, 0)) {
-            ctx.selection().selectAll(ctx.project().getBuildings().keySet());
-            ctx.actions().calculateDistrictPreview(
-                new ArrayList<>(ctx.project().getBuildings().values()),
-                true);
-        }
-        ImGui.sameLine();
-        if (generateDisabled) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(PlotI18n.tr("plugin.building.generate_all", count), half, 0)) {
-            ctx.selection().selectAll(ctx.project().getBuildings().keySet());
-            if (ctx.actions().calculateDistrictPreview(
-                    new ArrayList<>(ctx.project().getBuildings().values()),
-                    true)) {
-                ctx.setBuildConfirmPending(true);
-            }
-        }
-        if (generateDisabled) {
-            ImGui.endDisabled();
-        }
-        if (!readiness.ready()) {
-            ImGui.textColored(PluginUiColors.ERROR_SOFT, readiness.message());
-        }
+        BuildingDistrictMassingWidgets.renderOverviewHome(ctx);
     }
 
     public void renderDeleteConfirmPopup() {

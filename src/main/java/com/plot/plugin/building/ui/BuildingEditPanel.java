@@ -1,12 +1,9 @@
 package com.plot.plugin.building.ui;
 
 import com.plot.core.material.MaterialMix;
-import com.plot.plugin.building.BuildingBatchEditor;
 import com.plot.plugin.building.BuildingListHelper;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.spec.OpeningSpec;
-import com.plot.plugin.building.preset.BuildingPresetApplier;
-import com.plot.plugin.building.preset.BuildingPresetCatalog;
 import com.plot.plugin.building.site.BuildingSiteElevationResolver;
 import com.plot.plugin.earthwork.design.BuildingPadElevationService;
 import com.plot.plugin.ui.PluginUiColors;
@@ -73,13 +70,7 @@ public final class BuildingEditPanel {
                 ImGuiTreeNodeFlags.DefaultOpen)) {
             return;
         }
-        renderPresetSelector(primary);
-        ImGui.spacing();
-        renderBatchApplyPanel(primary);
-        BuildingDistrictMassingWidgets.renderHeightDistribution(
-            ctx,
-            "edit",
-            BuildingDistrictMassingWidgets.HeightDistributionTarget.SELECTED_ONLY);
+        BuildingDistrictMassingWidgets.renderEditDistrictTools(ctx, primary);
     }
 
     private void renderBasicMassing(BuildingFootprint building) {
@@ -262,134 +253,6 @@ public final class BuildingEditPanel {
         }
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.canopy_enabled"))) {
             renderCanopySettings(building);
-        }
-    }
-    private void renderBatchApplyPanel(BuildingFootprint primary) {
-        int count = ctx.selection().size();
-        ImGui.textColored(PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.building.batch_edit_hint", count, primary.getName()));
-
-        ImBoolean floors = new ImBoolean(ctx.batchFieldMask().floors);
-        ImBoolean floorHeight = new ImBoolean(ctx.batchFieldMask().floorHeight);
-        ImBoolean wall = new ImBoolean(ctx.batchFieldMask().wallThickness);
-        ImBoolean materials = new ImBoolean(ctx.batchFieldMask().materials);
-        ImBoolean roof = new ImBoolean(ctx.batchFieldMask().roof);
-        ImBoolean windows = new ImBoolean(ctx.batchFieldMask().windows);
-
-        if (ImGui.checkbox(PlotI18n.tr("plugin.building.batch_field_floors"), floors)) {
-            ctx.batchFieldMask().floors = floors.get();
-        }
-        ImGui.sameLine();
-        if (ImGui.checkbox(PlotI18n.tr("plugin.building.batch_field_floor_height"), floorHeight)) {
-            ctx.batchFieldMask().floorHeight = floorHeight.get();
-        }
-        if (ImGui.checkbox(PlotI18n.tr("plugin.building.batch_field_wall"), wall)) {
-            ctx.batchFieldMask().wallThickness = wall.get();
-        }
-        ImGui.sameLine();
-        if (ImGui.checkbox(PlotI18n.tr("plugin.building.batch_field_materials"), materials)) {
-            ctx.batchFieldMask().materials = materials.get();
-        }
-        if (ImGui.checkbox(PlotI18n.tr("plugin.building.batch_field_roof"), roof)) {
-            ctx.batchFieldMask().roof = roof.get();
-        }
-        ImGui.sameLine();
-        if (ImGui.checkbox(PlotI18n.tr("plugin.building.batch_field_windows"), windows)) {
-            ctx.batchFieldMask().windows = windows.get();
-        }
-
-        boolean applyDisabled = !ctx.batchFieldMask().anyEnabled();
-        if (applyDisabled) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(
-                PlotI18n.tr("plugin.building.apply_to_selected", count),
-                ImGui.getContentRegionAvailX(),
-                0)) {
-            applyMassingToSelected(primary);
-        }
-        if (applyDisabled) {
-            ImGui.endDisabled();
-        }
-    }
-
-    private void applyMassingToSelected(BuildingFootprint primary) {
-        List<BuildingFootprint> targets = ctx.selection().resolve(ctx.project());
-        if (targets.isEmpty()) {
-            return;
-        }
-        ctx.projectHistory().push(ctx.project());
-        BuildingBatchEditor.ApplyResult result =
-            BuildingBatchEditor.apply(primary, targets, ctx.batchFieldMask());
-        ctx.invalidatePreview();
-        ctx.setProjectStatus(PlotI18n.tr("plugin.building.batch_apply_success", result.updated()));
-    }
-    private void renderPresetSelector(BuildingFootprint building) {
-        List<BuildingPresetCatalog.BuildingPreset> presets = BuildingPresetCatalog.all();
-        String[] labels = presets.stream()
-            .map(p -> PlotI18n.tr("preset.building." + p.id()))
-            .toArray(String[]::new);
-        String[] ids = presets.stream()
-            .map(BuildingPresetCatalog.BuildingPreset::id)
-            .toArray(String[]::new);
-
-        int currentIndex = 0;
-        String currentPreset = building.getPresetId();
-        for (int i = 0; i < ids.length; i++) {
-            if (ids[i].equals(currentPreset)) {
-                currentIndex = i;
-                break;
-            }
-        }
-
-        ImGui.text(PlotI18n.tr("plugin.building.preset_section"));
-        ImInt presetIndex = new ImInt(currentIndex);
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.combo("##building_preset", presetIndex, labels)) {
-            // selection only; apply on button
-        }
-        UIUtils.renderEngineeringTooltip("hint.plot.building.preset");
-
-        if (!currentPreset.isBlank()) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.building.preset_active", PlotI18n.tr("preset.building." + currentPreset)));
-        }
-
-        int selectedCount = ctx.selection().size();
-        float buttonWidth = selectedCount > 1
-            ? (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f
-            : ImGui.getContentRegionAvailX();
-
-        if (ImGui.button(PlotI18n.tr("plugin.building.apply_preset"), buttonWidth, 0)) {
-            int picked = presetIndex.get();
-            if (picked >= 0 && picked < ids.length) {
-                ctx.projectHistory().push(ctx.project());
-                BuildingPresetApplier.apply(ids[picked], building);
-                ctx.invalidatePreview();
-                ctx.setProjectStatus(PlotI18n.tr(
-                    "plugin.building.preset_applied",
-                    PlotI18n.tr("preset.building." + ids[picked])));
-            }
-        }
-
-        if (selectedCount > 1) {
-            ImGui.sameLine();
-            if (ImGui.button(
-                    PlotI18n.tr("plugin.building.apply_preset_to_selected", selectedCount),
-                    buttonWidth,
-                    0)) {
-                int picked = presetIndex.get();
-                if (picked >= 0 && picked < ids.length) {
-                    ctx.projectHistory().push(ctx.project());
-                    BuildingBatchEditor.ApplyResult result =
-                        BuildingBatchEditor.applyPreset(ids[picked], ctx.selection().resolve(ctx.project()));
-                    ctx.invalidatePreview();
-                    ctx.setProjectStatus(PlotI18n.tr(
-                        "plugin.building.preset_applied_batch",
-                        PlotI18n.tr("preset.building." + ids[picked]),
-                        result.updated()));
-                }
-            }
         }
     }
     private void renderParapetSettings(BuildingFootprint building) {

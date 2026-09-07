@@ -46,19 +46,21 @@
 
 ## 默认 UI 结构
 
-**Overview Tab（片区 Massing 首页）**  
+**Overview Tab（片区 Massing 首页）** — `BuildingDistrictMassingWidgets.renderOverviewHome`  
 Height Distribution、预览全部 / 生成全部
+
+**Edit Tab — 片区多选** — `BuildingDistrictMassingWidgets.renderEditDistrictTools`  
+Height Distribution、Preset、Batch Apply
 
 **Edit Tab — 基础体量（默认展开）**  
 Floors / Height、层高、墙厚、墙材、屋顶、基准标高
-
-**Edit Tab — 片区多选**  
-Height Distribution、Preset、Batch Apply
 
 **Edit Tab — 高级细节（折叠）**  
 Windows、Doors、Facade、FloorPlate、Parapet、Balcony、Canopy
 
 ---
+
+## v1 Stabilized 验收清单
 
 | 项 | 状态 |
 |----|------|
