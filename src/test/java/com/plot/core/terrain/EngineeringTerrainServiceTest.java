@@ -1,6 +1,10 @@
 package com.plot.core.terrain;
 
+import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
+
+import java.util.Set;
+import java.util.function.Predicate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -67,6 +71,24 @@ class EngineeringTerrainServiceTest {
             EngineeringTerrainService.classifyTraits(false, false, false, false, false, false, false));
         assertEquals(EngineeringTerrainBlockRole.ENGINEERING_TERRAIN,
             EngineeringTerrainService.classifyTraits(false, false, false, false, false, false, true));
+    }
+
+    @Test
+    void clearableNaturalDecorationAtTreatsStandaloneLogsAsStructure() {
+        Set<Long> logs = Set.of(BlockPos.asLong(0, 64, 0));
+        Set<Long> terrain = Set.of(BlockPos.asLong(0, 63, 0));
+        Predicate<BlockPos> isLog = pos -> logs.contains(pack(pos));
+        Predicate<BlockPos> isLeaf = pos -> pos.equals(new BlockPos(1, 66, 0));
+        Predicate<BlockPos> isTerrain = pos -> terrain.contains(pack(pos));
+
+        assertFalse(EngineeringTerrainService.isClearableNaturalDecorationAt(
+            new BlockPos(0, 64, 0), isLog, isLeaf, isTerrain, pos -> false));
+        assertTrue(EngineeringTerrainService.isClearableNaturalDecorationAt(
+            new BlockPos(1, 66, 0), isLog, isLeaf, isTerrain, pos -> false));
+    }
+
+    private static long pack(BlockPos pos) {
+        return BlockPos.asLong(pos.getX(), pos.getY(), pos.getZ());
     }
 
     @Test

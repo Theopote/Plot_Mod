@@ -1,5 +1,6 @@
 package com.plot.core.terrain;
 
+import java.util.function.Predicate;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.registry.tag.BlockTags;
@@ -14,6 +15,9 @@ import org.slf4j.LoggerFactory;
  * <p>
  * 统一「现状地面」语义：排除空气、流体与自然附着物（含原木、树叶、花草等），
  * 并执行区块加载检查。
+ * <p>
+ * 「自然附着物」({@link #isNaturalDecoration}) 与「可清理附着物」
+ * ({@link #isClearableNaturalDecoration}) 不同：原木仅在 {@link NaturalTreeClassifier} 判定为自然树时可清理。
  */
 public final class EngineeringTerrainService {
     public static final int DEFAULT_GROUND_ELEVATION = 64;
@@ -187,10 +191,49 @@ public final class EngineeringTerrainService {
             return false;
         }
         try {
-            return isNaturalDecoration(world.getBlockState(new BlockPos(worldX, y, worldZ)));
+            BlockPos pos = new BlockPos(worldX, y, worldZ);
+            BlockState state = world.getBlockState(pos);
+            return isClearableNaturalDecoration(TerrainBlockReaders.of(world), pos, state);
         } catch (Exception e) {
             return false;
         }
+    }
+
+    /**
+     * 可清理的自然附着物：草花、树叶、以及判定为自然树的原木。
+     * 单独原木柱 / 木梁（无足够树叶）视为人工构筑，不可清理。
+     */
+    public static boolean isClearableNaturalDecoration(
+            TerrainBlockReader reader,
+            BlockPos pos,
+            BlockState state) {
+        if (state == null || state.isAir() || !state.getFluidState().isEmpty()) {
+            return false;
+        }
+        if (state.isIn(BlockTags.LOGS)) {
+            return NaturalTreeClassifier.looksLikeNaturalTree(reader, pos);
+        }
+        return state.isReplaceable()
+            || state.isIn(BlockTags.LEAVES)
+            || state.isIn(BlockTags.FLOWERS);
+    }
+
+    /**
+     * 按坐标 predicate 判定可清理附着物（测试与无 {@link BlockState} 场景）。
+     */
+    public static boolean isClearableNaturalDecorationAt(
+            BlockPos pos,
+            Predicate<BlockPos> isLog,
+            Predicate<BlockPos> isLeaf,
+            Predicate<BlockPos> isTerrain,
+            Predicate<BlockPos> isFlowerOrReplaceable) {
+        if (pos == null || isLog == null || isLeaf == null || isTerrain == null || isFlowerOrReplaceable == null) {
+            return false;
+        }
+        if (isLog.test(pos)) {
+            return NaturalTreeClassifier.looksLikeNaturalTree(pos, isLog, isLeaf, isTerrain);
+        }
+        return isFlowerOrReplaceable.test(pos) || isLeaf.test(pos);
     }
 
     public static EngineeringTerrainBlockRole classifyBlock(BlockState state) {

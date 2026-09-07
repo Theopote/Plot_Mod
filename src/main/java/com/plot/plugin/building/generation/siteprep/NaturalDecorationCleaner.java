@@ -1,8 +1,8 @@
 package com.plot.plugin.building.generation.siteprep;
 
 import com.plot.core.terrain.EngineeringTerrainService;
-import net.minecraft.block.BlockState;
-import net.minecraft.registry.tag.BlockTags;
+import com.plot.core.terrain.NaturalTreeClassifier;
+import com.plot.core.terrain.TerrainBlockReaders;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
@@ -25,12 +25,12 @@ public final class NaturalDecorationCleaner {
     public static final int MAX_TREE_CLEAR_RADIUS = 6;
     public static final int MAX_VERTICAL_RANGE = 16;
 
-    /** 判定自然树时，在种子周围搜索树叶的半径。 */
-    public static final int TREE_LEAF_SEARCH_RADIUS = 3;
-    /** 附近至少这么多树叶才认为是自然树（保守：宁可漏清树，也不删木建筑）。 */
-    public static final int MIN_NEARBY_LEAVES = 3;
-    /** 树干底部向下找工程地面的最大距离。 */
-    public static final int TRUNK_BASE_SEARCH_DEPTH = 8;
+    /** @see NaturalTreeClassifier#TREE_LEAF_SEARCH_RADIUS */
+    public static final int TREE_LEAF_SEARCH_RADIUS = NaturalTreeClassifier.TREE_LEAF_SEARCH_RADIUS;
+    /** @see NaturalTreeClassifier#MIN_NEARBY_LEAVES */
+    public static final int MIN_NEARBY_LEAVES = NaturalTreeClassifier.MIN_NEARBY_LEAVES;
+    /** @see NaturalTreeClassifier#TRUNK_BASE_SEARCH_DEPTH */
+    public static final int TRUNK_BASE_SEARCH_DEPTH = NaturalTreeClassifier.TRUNK_BASE_SEARCH_DEPTH;
 
     private NaturalDecorationCleaner() {
     }
@@ -40,14 +40,7 @@ public final class NaturalDecorationCleaner {
      * 无树叶的原木柱 / 木梁 → false（应按人工构筑处理）。
      */
     public static boolean looksLikeNaturalTree(World world, BlockPos seedLog) {
-        if (world == null || seedLog == null || !isLog(world, seedLog)) {
-            return false;
-        }
-        return looksLikeNaturalTree(
-            seedLog,
-            pos -> isLog(world, pos),
-            pos -> isLeaf(world, pos),
-            pos -> isEngineeringTerrainBlock(world, pos));
+        return NaturalTreeClassifier.looksLikeNaturalTree(world, seedLog);
     }
 
     /**
@@ -58,17 +51,7 @@ public final class NaturalDecorationCleaner {
             Predicate<BlockPos> isLog,
             Predicate<BlockPos> isLeaf,
             Predicate<BlockPos> isTerrain) {
-        if (seedLog == null || isLog == null || isLeaf == null || isTerrain == null) {
-            return false;
-        }
-        if (!isLog.test(seedLog)) {
-            return false;
-        }
-        int leafCount = countNearby(seedLog, TREE_LEAF_SEARCH_RADIUS, MAX_VERTICAL_RANGE, isLeaf);
-        if (leafCount < MIN_NEARBY_LEAVES) {
-            return false;
-        }
-        return hasTerrainNearTrunkBase(seedLog, isLog, isTerrain);
+        return NaturalTreeClassifier.looksLikeNaturalTree(seedLog, isLog, isLeaf, isTerrain);
     }
 
     /**
@@ -153,73 +136,14 @@ public final class NaturalDecorationCleaner {
         if (world == null || pos == null) {
             return false;
         }
-        try {
-            BlockState state = world.getBlockState(pos);
-            return state.isIn(BlockTags.LOGS);
-        } catch (Exception e) {
-            return false;
-        }
+        return NaturalTreeClassifier.isLog(TerrainBlockReaders.of(world), pos);
     }
 
     public static boolean isLeaf(World world, BlockPos pos) {
         if (world == null || pos == null) {
             return false;
         }
-        try {
-            BlockState state = world.getBlockState(pos);
-            return state.isIn(BlockTags.LEAVES);
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    private static boolean isEngineeringTerrainBlock(World world, BlockPos pos) {
-        try {
-            return EngineeringTerrainService.isEngineeringTerrain(world.getBlockState(pos));
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    private static boolean hasTerrainNearTrunkBase(
-            BlockPos seedLog,
-            Predicate<BlockPos> isLog,
-            Predicate<BlockPos> isTerrain) {
-        BlockPos base = seedLog;
-        for (int i = 0; i < TRUNK_BASE_SEARCH_DEPTH; i++) {
-            BlockPos below = base.down();
-            if (!isLog.test(below)) {
-                break;
-            }
-            base = below;
-        }
-        for (int dy = 1; dy <= 2; dy++) {
-            if (isTerrain.test(base.down(dy))) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static int countNearby(
-            BlockPos center,
-            int horizontalRadius,
-            int verticalRange,
-            Predicate<BlockPos> match) {
-        int count = 0;
-        for (int dx = -horizontalRadius; dx <= horizontalRadius; dx++) {
-            for (int dz = -horizontalRadius; dz <= horizontalRadius; dz++) {
-                for (int dy = -verticalRange; dy <= verticalRange; dy++) {
-                    if (dx == 0 && dy == 0 && dz == 0) {
-                        continue;
-                    }
-                    if (match.test(center.add(dx, dy, dz))) {
-                        count++;
-                    }
-                }
-            }
-        }
-        return count;
+        return NaturalTreeClassifier.isLeaf(TerrainBlockReaders.of(world), pos);
     }
 
     private static boolean withinTreeBounds(BlockPos seed, BlockPos pos) {
