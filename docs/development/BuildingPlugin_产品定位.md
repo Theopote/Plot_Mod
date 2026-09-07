@@ -56,7 +56,9 @@ Height Distribution、Preset、Batch Apply
 Floors / Height、层高、墙厚、墙材、屋顶、基准标高
 
 **Edit Tab — 高级细节（折叠）**  
-Windows、Doors、Facade、FloorPlate、Parapet、Balcony、Canopy
+Windows、Doors、Facade、FloorPlate（楼板材质 + 上部退台/塔楼）、Parapet、Balcony、Canopy
+
+> **FloorPlate 高级能力**：复杂多板轮廓（L 形塔楼、分立面等）仍可通过 JSON / 引擎 Spec 配置；默认 UI 仅暴露「裙房 + 上部 uniform inset」两板模式。检测到非简单两板时显示提示并提供「重置为统一轮廓」。
 
 ---
 

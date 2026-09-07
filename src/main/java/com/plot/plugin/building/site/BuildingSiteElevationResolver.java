@@ -1,17 +1,19 @@
 package com.plot.plugin.building.site;
 
+import com.plot.api.building.BuildingPadElevationMode;
+import com.plot.api.building.BuildingPadElevationStatus;
+import com.plot.api.building.IBuildingPadElevationService;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.plugin.IPlugin;
 import com.plot.core.plugin.PluginManager;
-import com.plot.plugin.EarthworkPlugin;
 import com.plot.plugin.building.model.BuildingFootprint;
-import com.plot.plugin.earthwork.design.BuildingPadElevationService;
-import com.plot.plugin.earthwork.design.BuildingPadElevationService.PadElevationStatus;
 
 import java.util.List;
 
 /**
  * 从土方插件解析与建筑关联的垫层设计标高（单向：土方 → 建筑）。
+ * <p>
+ * 仅依赖 {@link IBuildingPadElevationService} 契约，不引用 Earthwork 实现类。
  */
 public final class BuildingSiteElevationResolver {
     private BuildingSiteElevationResolver() {
@@ -25,46 +27,44 @@ public final class BuildingSiteElevationResolver {
     }
 
     public static Integer resolveEarthworkPadElevation(String buildingId, List<Vec2d> footprintPoints) {
-        IPlugin plugin = PluginManager.getInstance().getPlugin("earthwork_balance");
-        if (plugin instanceof EarthworkPlugin earthwork) {
-            return earthwork.resolveBuildingPadDesignElevation(buildingId, footprintPoints);
+        IBuildingPadElevationService service = padElevationService();
+        if (service == null) {
+            return null;
         }
-        return null;
+        return service.resolveEarthworkOwnedPadElevation(buildingId, footprintPoints);
     }
 
-    public static PadElevationStatus describePadLink(BuildingFootprint footprint) {
+    public static BuildingPadElevationStatus describePadLink(BuildingFootprint footprint) {
         if (footprint == null || footprint.getId() == null || footprint.getId().isBlank()) {
-            return PadElevationStatus.none();
+            return BuildingPadElevationStatus.none();
         }
         return describePadLink(footprint.getId(), footprint.getOuterPoints());
     }
 
-    public static PadElevationStatus describePadLink(String buildingId, List<Vec2d> footprintPoints) {
+    public static BuildingPadElevationStatus describePadLink(String buildingId, List<Vec2d> footprintPoints) {
         if (buildingId == null || buildingId.isBlank()) {
-            return PadElevationStatus.none();
+            return BuildingPadElevationStatus.none();
         }
-        IPlugin plugin = PluginManager.getInstance().getPlugin("earthwork_balance");
-        if (plugin instanceof EarthworkPlugin earthwork) {
-            return earthwork.describeBuildingPadLink(buildingId, footprintPoints);
+        IBuildingPadElevationService service = padElevationService();
+        if (service == null) {
+            return BuildingPadElevationStatus.none();
         }
-        return PadElevationStatus.none();
+        return service.describePadLink(buildingId, footprintPoints);
     }
 
     /** EARTHWORK_OWNED 垫层已关联但当前无法解析设计标高。 */
-    public static boolean isEarthworkOwnedUnresolved(PadElevationStatus status) {
+    public static boolean isEarthworkOwnedUnresolved(BuildingPadElevationStatus status) {
         return status != null
-            && status.mode() == BuildingPadElevationService.PadElevationMode.EARTHWORK_OWNED
+            && status.mode() == BuildingPadElevationMode.EARTHWORK_OWNED
             && status.isLinked()
             && status.resolvedElevation() == null;
     }
 
-    /**
-     * 供土方 UI 显示：建筑侧不含循环依赖的基准标高（仅手动标高；地形采样不在 UI 中展开）。
-     */
-    public static Integer resolveBuildingManualBaseElevation(BuildingFootprint footprint) {
-        if (footprint == null) {
-            return null;
+    private static IBuildingPadElevationService padElevationService() {
+        IPlugin plugin = PluginManager.getInstance().getPlugin("earthwork_balance");
+        if (plugin instanceof IBuildingPadElevationService service) {
+            return service;
         }
-        return footprint.getManualBaseElevation();
+        return null;
     }
 }

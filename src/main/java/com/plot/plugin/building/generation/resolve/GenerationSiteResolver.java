@@ -10,9 +10,9 @@ import com.plot.plugin.building.model.spec.BuildingDefinition;
 import com.plot.plugin.building.site.BuildingSiteAnalysis;
 import com.plot.plugin.building.site.BuildingSiteAnalyzer;
 import com.plot.plugin.building.site.BuildingSiteColumnSample;
+import com.plot.api.building.BuildingPadElevationStatus;
 import com.plot.plugin.building.site.BuildingSiteElevationResolver;
 import com.plot.plugin.building.site.SiteIssue;
-import com.plot.plugin.earthwork.design.BuildingPadElevationService;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
@@ -153,7 +153,7 @@ public final class GenerationSiteResolver {
         Integer requested = definition != null ? definition.foundation().manualBaseElevation() : null;
 
         Integer resolvedPad = null;
-        BuildingPadElevationService.PadElevationStatus padLink = BuildingPadElevationService.PadElevationStatus.none();
+        BuildingPadElevationStatus padLink = BuildingPadElevationStatus.none();
         if (footprint != null) {
             padLink = BuildingSiteElevationResolver.describePadLink(footprint);
             resolvedPad = BuildingSiteElevationResolver.resolveEarthworkPadElevation(footprint);
@@ -179,7 +179,7 @@ public final class GenerationSiteResolver {
         return decide(
             requested,
             resolvedPad,
-            BuildingPadElevationService.PadElevationStatus.none(),
+            BuildingPadElevationStatus.none(),
             analysis,
             groundElevations,
             result);
@@ -188,7 +188,7 @@ public final class GenerationSiteResolver {
     public static ResolvedSiteElevation decide(
             Integer requested,
             Integer resolvedPad,
-            BuildingPadElevationService.PadElevationStatus padLink,
+            BuildingPadElevationStatus padLink,
             BuildingSiteAnalysis analysis,
             List<Integer> groundElevations,
             BuildingGenerationResult result) {

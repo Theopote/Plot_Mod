@@ -1,11 +1,11 @@
 package com.plot.plugin.building.ui;
 
+import com.plot.api.building.BuildingPadElevationMode;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.building.BuildingListHelper;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.spec.OpeningSpec;
 import com.plot.plugin.building.site.BuildingSiteElevationResolver;
-import com.plot.plugin.earthwork.design.BuildingPadElevationService;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
@@ -82,6 +82,14 @@ public final class BuildingEditPanel {
         }
         if (floorsChanged) {
             building.setFloors(floors[0]);
+            BuildingFloorPlateUi.SimpleTowerState tower = BuildingFloorPlateUi.readState(building);
+            if (tower.enabled() && !tower.custom()) {
+                BuildingFloorPlateUi.applySimpleTower(
+                    building,
+                    Math.min(tower.towerStartFloor(), Math.max(1, building.getFloors() - 1)),
+                    tower.insetDistance());
+            }
+            clampWindowSettings(building);
             ctx.invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.floors");
@@ -171,14 +179,82 @@ public final class BuildingEditPanel {
             renderFacadeMaterials(building);
         }
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.floor_plate"))) {
-            BuildingUiWidgets.renderMaterialMixButton(ctx, PlotI18n.tr("plugin.building.floor_material"), building.getFloorMaterial(),
-                mix -> {
-                    ctx.projectHistory().push(ctx.project());
-                    building.setFloorMaterial(mix);
-                    ctx.invalidatePreview();
-                });
+            renderFloorPlateSettings(building);
         }
         renderAdvancedAccessories(building);
+    }
+
+    private void renderFloorPlateSettings(BuildingFootprint building) {
+        BuildingUiWidgets.renderMaterialMixButton(ctx, PlotI18n.tr("plugin.building.floor_material"), building.getFloorMaterial(),
+            mix -> {
+                ctx.projectHistory().push(ctx.project());
+                building.setFloorMaterial(mix);
+                ctx.invalidatePreview();
+            });
+        UIUtils.renderEngineeringTooltip("hint.plot.building.floor_material");
+
+        if (building.getFloors() < 2) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.floor_plate_setback_requires_floors"));
+            return;
+        }
+
+        BuildingFloorPlateUi.SimpleTowerState state = BuildingFloorPlateUi.readState(building);
+        ImBoolean setbackEnabled = new ImBoolean(state.enabled() && !state.custom());
+        if (state.custom()) {
+            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.building.floor_plate_custom_hint"));
+            if (ImGui.button(PlotI18n.tr("plugin.building.floor_plate_reset_uniform"))) {
+                ctx.projectHistory().push(ctx.project());
+                BuildingFloorPlateUi.clearFloorPlates(building);
+                ctx.invalidatePreview();
+            }
+            return;
+        }
+
+        if (ImGui.checkbox(PlotI18n.tr("plugin.building.floor_plate_upper_setback"), setbackEnabled)) {
+            ctx.projectHistory().push(ctx.project());
+            if (setbackEnabled.get()) {
+                BuildingFloorPlateUi.applySimpleTower(
+                    building,
+                    state.towerStartFloor(),
+                    state.insetDistance());
+            } else {
+                BuildingFloorPlateUi.clearFloorPlates(building);
+            }
+            ctx.invalidatePreview();
+        }
+        UIUtils.renderEngineeringTooltip("hint.plot.building.floor_plate_setback");
+
+        if (!setbackEnabled.get()) {
+            return;
+        }
+
+        int[] towerStart = {state.towerStartFloor()};
+        boolean towerStartChanged = ImGui.sliderInt(
+            "##floor_plate_tower_start",
+            towerStart,
+            1,
+            Math.max(1, building.getFloors() - 1),
+            PlotI18n.tr("plugin.building.floor_plate_tower_start", towerStart[0]));
+        if (ImGui.isItemActivated()) {
+            ctx.projectHistory().push(ctx.project());
+        }
+
+        int insetBlocks = (int) Math.round(state.insetDistance());
+        int[] inset = {Math.max(1, insetBlocks)};
+        boolean insetChanged = ImGui.sliderInt(
+            "##floor_plate_inset",
+            inset,
+            1,
+            (int) BuildingFloorPlateUi.MAX_INSET,
+            PlotI18n.tr("plugin.building.floor_plate_inset", inset[0]));
+        if (ImGui.isItemActivated()) {
+            ctx.projectHistory().push(ctx.project());
+        }
+
+        if (towerStartChanged || insetChanged) {
+            BuildingFloorPlateUi.applySimpleTower(building, towerStart[0], inset[0]);
+            ctx.invalidatePreview();
+        }
     }
 
     private void renderFacadeMaterials(BuildingFootprint building) {
@@ -371,8 +447,7 @@ public final class BuildingEditPanel {
     }
 
     static void renderEarthworkPadElevationHint(BuildingFootprint building) {
-        BuildingPadElevationService.PadElevationStatus status =
-            BuildingSiteElevationResolver.describePadLink(building);
+        var status = BuildingSiteElevationResolver.describePadLink(building);
         if (!status.isLinked()) {
             return;
         }

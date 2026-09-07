@@ -4,8 +4,9 @@ import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.site.BuildingSiteAnalysis;
 import com.plot.plugin.building.site.BuildingSiteAnalyzer;
 import com.plot.plugin.building.site.BuildingSiteColumnSample;
+import com.plot.api.building.BuildingPadElevationMode;
+import com.plot.api.building.BuildingPadElevationStatus;
 import com.plot.plugin.building.site.BuildingSiteElevationResolver;
-import com.plot.plugin.earthwork.design.BuildingPadElevationService;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -24,8 +25,8 @@ class GenerationSiteResolverPadUnresolvedTest {
             BuildingSiteAnalyzerTestHelper.land(70));
         BuildingSiteAnalysis analysis = BuildingSiteAnalyzer.analyzeSamples(
             samples, com.plot.plugin.building.site.TerrainElevationStrategy.BALANCED);
-        var padLink = new BuildingPadElevationService.PadElevationStatus(
-            BuildingPadElevationService.PadElevationMode.EARTHWORK_OWNED,
+        var padLink = new BuildingPadElevationStatus(
+            BuildingPadElevationMode.EARTHWORK_OWNED,
             "Pad A",
             "Site 1",
             null);
@@ -53,8 +54,8 @@ class GenerationSiteResolverPadUnresolvedTest {
         GenerationSiteResolver.ResolvedSiteElevation site = GenerationSiteResolver.decide(
             null,
             72,
-            new BuildingPadElevationService.PadElevationStatus(
-                BuildingPadElevationService.PadElevationMode.EARTHWORK_OWNED,
+            new BuildingPadElevationStatus(
+                BuildingPadElevationMode.EARTHWORK_OWNED,
                 "Pad A",
                 "Site 1",
                 72),
@@ -73,8 +74,8 @@ class GenerationSiteResolverPadUnresolvedTest {
         BuildingSiteAnalysis analysis = BuildingSiteAnalyzer.analyzeSamples(
             List.of(BuildingSiteAnalyzerTestHelper.land(64)),
             com.plot.plugin.building.site.TerrainElevationStrategy.BALANCED);
-        var padLink = new BuildingPadElevationService.PadElevationStatus(
-            BuildingPadElevationService.PadElevationMode.EARTHWORK_OWNED,
+        var padLink = new BuildingPadElevationStatus(
+            BuildingPadElevationMode.EARTHWORK_OWNED,
             "Pad A",
             "Site 1",
             null);
@@ -94,16 +95,16 @@ class GenerationSiteResolverPadUnresolvedTest {
     @Test
     void isEarthworkOwnedUnresolvedDetectsLinkedWithoutElevation() {
         assertTrue(BuildingSiteElevationResolver.isEarthworkOwnedUnresolved(
-            new BuildingPadElevationService.PadElevationStatus(
-                BuildingPadElevationService.PadElevationMode.EARTHWORK_OWNED,
+            new BuildingPadElevationStatus(
+                BuildingPadElevationMode.EARTHWORK_OWNED,
                 "Pad",
                 "Site",
                 null)));
         assertFalse(BuildingSiteElevationResolver.isEarthworkOwnedUnresolved(
-            BuildingPadElevationService.PadElevationStatus.none()));
+            BuildingPadElevationStatus.none()));
         assertFalse(BuildingSiteElevationResolver.isEarthworkOwnedUnresolved(
-            new BuildingPadElevationService.PadElevationStatus(
-                BuildingPadElevationService.PadElevationMode.BUILDING_LINKED,
+            new BuildingPadElevationStatus(
+                BuildingPadElevationMode.BUILDING_LINKED,
                 "Pad",
                 "Site",
                 null)));

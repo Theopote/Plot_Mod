@@ -1,5 +1,7 @@
 package com.plot.plugin.earthwork.design;
 
+import com.plot.api.building.BuildingPadElevationMode;
+import com.plot.api.building.BuildingPadElevationStatus;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.WorldViewBounds;
@@ -118,10 +120,10 @@ class BuildingPadElevationServiceTest {
         site.addZone(pad);
         project.addSite(site);
 
-        BuildingPadElevationService.PadElevationStatus status =
+        BuildingPadElevationStatus status =
             BuildingPadElevationService.describePadLink(project, "b1", footprint(), null, null);
 
-        assertEquals(BuildingPadElevationService.PadElevationMode.BUILDING_LINKED, status.mode());
+        assertEquals(BuildingPadElevationMode.BUILDING_LINKED, status.mode());
         assertEquals("pad-1", status.zoneName());
     }
 
@@ -132,10 +134,10 @@ class BuildingPadElevationServiceTest {
         site.addZone(createPad("pad-1", "b1", 75));
         project.addSite(site);
 
-        BuildingPadElevationService.PadElevationStatus status =
+        BuildingPadElevationStatus status =
             BuildingPadElevationService.describePadLink(project, "b1", footprint(), null, null);
 
-        assertEquals(BuildingPadElevationService.PadElevationMode.EARTHWORK_OWNED, status.mode());
+        assertEquals(BuildingPadElevationMode.EARTHWORK_OWNED, status.mode());
         assertEquals(75, status.resolvedElevation());
     }
 

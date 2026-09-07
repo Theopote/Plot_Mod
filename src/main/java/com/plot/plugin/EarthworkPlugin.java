@@ -20,6 +20,9 @@ import com.plot.plugin.earthwork.manager.EarthworkPreviewManager;
 import com.plot.plugin.earthwork.manager.EarthworkUIManager;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkProjectHistory;
+import com.plot.api.building.BuildingPadElevationMode;
+import com.plot.api.building.BuildingPadElevationStatus;
+import com.plot.api.building.IBuildingPadElevationService;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.earthwork.design.BuildingPadElevationService;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
@@ -38,7 +41,7 @@ import java.nio.file.Path;
 /**
  * 土方平衡插件：负责生命周期与持久化编排，ImGui 界面由 {@link EarthworkUIManager} 承担。
  */
-public class EarthworkPlugin extends Plugin {
+public class EarthworkPlugin extends Plugin implements IBuildingPadElevationService {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/EarthworkPlugin");
     private static final String DEFAULT_PROJECT_FILE = "default.json";
 
@@ -286,6 +289,16 @@ public class EarthworkPlugin extends Plugin {
         return getDataFolder().toPath().resolve("projects");
     }
 
+    @Override
+    public Integer resolveEarthworkOwnedPadElevation(String buildingId, java.util.List<Vec2d> footprintPoints) {
+        return resolveBuildingPadDesignElevation(buildingId, footprintPoints);
+    }
+
+    @Override
+    public BuildingPadElevationStatus describePadLink(String buildingId, java.util.List<Vec2d> footprintPoints) {
+        return describeBuildingPadLink(buildingId, footprintPoints);
+    }
+
     /**
      * 解析与建筑关联、由土方主导标高的 BUILDING_PAD 设计标高。
      * 垫层跟随建筑标高（{@code BUILDING_BASE_ELEVATION}）时返回 {@code null}，避免循环依赖。
@@ -310,12 +323,12 @@ public class EarthworkPlugin extends Plugin {
         }
     }
 
-    public BuildingPadElevationService.PadElevationStatus describeBuildingPadLink(
+    public BuildingPadElevationStatus describeBuildingPadLink(
             String buildingId,
             java.util.List<Vec2d> footprintPoints) {
         synchronized (projectLock) {
             if (uiContext == null || buildingId == null || buildingId.isBlank()) {
-                return BuildingPadElevationService.PadElevationStatus.none();
+                return BuildingPadElevationStatus.none();
             }
             DesignTerrainGrid previewGrid = null;
             EarthworkGenerationResult preview = uiContext.previewManager().getLastGenerationResult();

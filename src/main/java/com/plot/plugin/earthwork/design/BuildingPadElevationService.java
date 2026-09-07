@@ -1,5 +1,7 @@
 package com.plot.plugin.earthwork.design;
 
+import com.plot.api.building.BuildingPadElevationMode;
+import com.plot.api.building.BuildingPadElevationStatus;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.geometry.PolygonRegionUtils;
@@ -32,14 +34,32 @@ public final class BuildingPadElevationService {
     public record PadMatch(EarthworkSite site, GradingZone zone) {
     }
 
+    /** @deprecated use {@link BuildingPadElevationMode} */
+    @Deprecated
     public enum PadElevationMode {
         NONE,
-        /** 垫层标高跟随建筑（{@link DesignSurfaceElevationSource#BUILDING_BASE_ELEVATION}）。 */
         BUILDING_LINKED,
-        /** 垫层标高由土方主导，建筑生成时读取。 */
-        EARTHWORK_OWNED
+        EARTHWORK_OWNED;
+
+        BuildingPadElevationMode toApi() {
+            return switch (this) {
+                case NONE -> BuildingPadElevationMode.NONE;
+                case BUILDING_LINKED -> BuildingPadElevationMode.BUILDING_LINKED;
+                case EARTHWORK_OWNED -> BuildingPadElevationMode.EARTHWORK_OWNED;
+            };
+        }
+
+        static PadElevationMode fromApi(BuildingPadElevationMode mode) {
+            return switch (mode) {
+                case NONE -> NONE;
+                case BUILDING_LINKED -> BUILDING_LINKED;
+                case EARTHWORK_OWNED -> EARTHWORK_OWNED;
+            };
+        }
     }
 
+    /** @deprecated use {@link BuildingPadElevationStatus} */
+    @Deprecated
     public record PadElevationStatus(
             PadElevationMode mode,
             String zoneName,
@@ -47,7 +67,23 @@ public final class BuildingPadElevationService {
             Integer resolvedElevation) {
 
         public static PadElevationStatus none() {
-            return new PadElevationStatus(PadElevationMode.NONE, "", "", null);
+            return fromApi(BuildingPadElevationStatus.none());
+        }
+
+        public static PadElevationStatus fromApi(BuildingPadElevationStatus status) {
+            return new PadElevationStatus(
+                PadElevationMode.fromApi(status.mode()),
+                status.zoneName(),
+                status.siteName(),
+                status.resolvedElevation());
+        }
+
+        public BuildingPadElevationStatus toApi() {
+            return new BuildingPadElevationStatus(
+                mode.toApi(),
+                zoneName,
+                siteName,
+                resolvedElevation);
         }
 
         public boolean isLinked() {
@@ -55,18 +91,18 @@ public final class BuildingPadElevationService {
         }
     }
 
-    public static PadElevationStatus describePadLink(
+    public static BuildingPadElevationStatus describePadLink(
             EarthworkProject project,
             String buildingId,
             List<Vec2d> footprintPoints,
             DesignTerrainGrid previewGrid,
             ICoordinateService coordinateService) {
         if (project == null || buildingId == null || buildingId.isBlank()) {
-            return PadElevationStatus.none();
+            return BuildingPadElevationStatus.none();
         }
         Optional<PadMatch> padMatch = findBuildingPad(project, buildingId);
         if (padMatch.isEmpty()) {
-            return PadElevationStatus.none();
+            return BuildingPadElevationStatus.none();
         }
         PadMatch match = padMatch.get();
         GradingZone zone = match.zone();
@@ -79,13 +115,14 @@ public final class BuildingPadElevationService {
             : match.site().getId();
 
         if (!isEarthworkOwnedElevation(surface)) {
-            return new PadElevationStatus(PadElevationMode.BUILDING_LINKED, zoneName, siteName, null);
+            return new BuildingPadElevationStatus(
+                BuildingPadElevationMode.BUILDING_LINKED, zoneName, siteName, null);
         }
 
         Optional<Integer> elevation = resolveEarthworkOwnedPadElevation(
             project, buildingId, footprintPoints, previewGrid, coordinateService);
-        return new PadElevationStatus(
-            PadElevationMode.EARTHWORK_OWNED,
+        return new BuildingPadElevationStatus(
+            BuildingPadElevationMode.EARTHWORK_OWNED,
             zoneName,
             siteName,
             elevation.orElse(null));

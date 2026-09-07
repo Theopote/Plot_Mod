@@ -15,7 +15,6 @@ import com.plot.core.tool.ToolManager;
 import com.plot.plugin.BuildingPlugin;
 import com.plot.plugin.RoadSystemPlugin;
 import com.plot.plugin.building.model.BuildingFootprint;
-import com.plot.plugin.building.site.BuildingSiteElevationResolver;
 import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.*;
 import com.plot.plugin.earthwork.design.GradingSurfaceResolver;
@@ -1281,7 +1280,7 @@ public final class EarthworkEditPanel {
             == DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION;
 
         if (useBuildingElevation) {
-            Integer manual = BuildingSiteElevationResolver.resolveBuildingManualBaseElevation(footprint);
+            Integer manual = footprint.getManualBaseElevation();
             if (manual != null) {
                 ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
                     "plugin.earthwork.pad_follows_building_manual", manual));
