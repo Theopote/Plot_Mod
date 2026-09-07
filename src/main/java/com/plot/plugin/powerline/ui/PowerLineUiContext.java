@@ -5,6 +5,8 @@ import com.plot.core.model.Shape;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.PowerLineGenerator;
 import com.plot.plugin.powerline.PowerLineSelectionSet;
+import com.plot.plugin.powerline.design.PoleDesignResolver;
+import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerLineProject;
 import com.plot.plugin.powerline.model.PowerLineProjectHistory;
@@ -105,6 +107,33 @@ public final class PowerLineUiContext {
 
     public void deleteLines(List<String> ids) {
         actions.deleteLines(ids);
+    }
+
+    public void onProjectLoaded(String filePath, Path projectsDir, Path designProjectsDir) {
+        actions.onProjectLoaded(filePath, projectsDir, designProjectsDir);
+    }
+
+    public void onProjectSaved(String filePath, Path projectsDir, Path designProjectsDir) {
+        actions.onProjectSaved(filePath, projectsDir, designProjectsDir);
+    }
+
+    public void persistProject(Path projectsDir, Path designProjectsDir) {
+        actions.persistProject(projectsDir, designProjectsDir);
+    }
+
+    public void loadProjectForCurrentProject(
+            Path projectsDir,
+            Path designProjectsDir,
+            String defaultFile) {
+        actions.loadProjectForCurrentProject(projectsDir, designProjectsDir, defaultFile);
+    }
+
+    public PoleDesignResolver designResolver() {
+        return actions.designResolver();
+    }
+
+    public PowerLineDesignProject designProject() {
+        return state.getDesignProject();
     }
 
     public void onProjectLoaded(String filePath, Path projectsDir) {

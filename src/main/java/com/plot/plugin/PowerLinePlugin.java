@@ -105,19 +105,19 @@ public class PowerLinePlugin extends Plugin {
         if (uiContext == null) {
             return;
         }
-        uiContext.onProjectLoaded(filePath, getProjectsDir());
+        uiContext.onProjectLoaded(filePath, getProjectsDir(), getDesignProjectsDir());
     }
 
     private void onProjectSaved(String filePath) {
         if (uiContext == null) {
             return;
         }
-        uiContext.onProjectSaved(filePath, getProjectsDir());
+        uiContext.onProjectSaved(filePath, getProjectsDir(), getDesignProjectsDir());
     }
 
     private void persistProject() {
         if (uiContext != null) {
-            uiContext.persistProject(getProjectsDir());
+            uiContext.persistProject(getProjectsDir(), getDesignProjectsDir());
         }
     }
 
@@ -130,11 +130,18 @@ public class PowerLinePlugin extends Plugin {
             onProjectLoaded(current.getFilePath());
             return;
         }
-        uiContext.loadProjectForCurrentProject(getProjectsDir(), DEFAULT_PROJECT_FILE);
+        uiContext.loadProjectForCurrentProject(
+            getProjectsDir(),
+            getDesignProjectsDir(),
+            DEFAULT_PROJECT_FILE);
     }
 
     private Path getProjectsDir() {
         return getDataFolder().toPath().resolve("projects");
+    }
+
+    private Path getDesignProjectsDir() {
+        return getDataFolder().toPath().resolve("pole-designs");
     }
 
     public List<PowerLineFootprint> listLines() {

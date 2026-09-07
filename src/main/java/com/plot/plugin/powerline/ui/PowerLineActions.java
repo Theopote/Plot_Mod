@@ -13,6 +13,9 @@ import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.PowerLineGenerator;
 import com.plot.plugin.powerline.PowerLinePathUtils;
 import com.plot.plugin.powerline.PowerPoleLayoutUtils;
+import com.plot.plugin.powerline.design.PoleDesign;
+import com.plot.plugin.powerline.design.PoleDesignResolver;
+import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerLineProject;
 import com.plot.plugin.road.terrain.MinecraftTerrainSampler;
@@ -126,7 +129,7 @@ public final class PowerLineActions {
         TerrainSampler terrain = MinecraftTerrainSampler.of(world, host.coordinates());
         PowerLineGenerationResult result;
         try {
-            result = generator.generate(line, terrain);
+            result = generator.generate(line, terrain, designResolver());
         } catch (Exception e) {
             LOGGER.error("电力线路预览生成失败: {}", e.getMessage(), e);
             state.setLastGenerationResult(null);
@@ -271,30 +274,51 @@ public final class PowerLineActions {
         state.setProjectStatus(PlotI18n.tr("plugin.powerline.deleted", ids.size()));
     }
 
-    public void onProjectLoaded(String filePath, Path projectsDir) {
+    public PoleDesignResolver designResolver() {
+        return new PoleDesignResolver(state.getDesignProject());
+    }
+
+    public void onProjectLoaded(String filePath, Path projectsDir, Path designProjectsDir) {
         if (filePath == null || filePath.isBlank()) {
             return;
         }
         String targetFile = ProjectPathResolver.sidecarFileName(filePath);
         Path file = projectsDir.resolve(targetFile);
-        if (loadProjectFile(file)) {
+        boolean loaded = loadProjectFile(file);
+        loadDesignProjectFile(designProjectsDir.resolve(targetFile));
+        if (loaded) {
             state.setCurrentProjectFile(targetFile);
             state.setProjectStatus(PlotI18n.tr("plugin.powerline.project.loaded", filePath));
         }
     }
 
-    public void onProjectSaved(String filePath, Path projectsDir) {
+    public void onProjectSaved(String filePath, Path projectsDir, Path designProjectsDir) {
         if (filePath == null || filePath.isBlank()) {
             return;
         }
         state.setCurrentProjectFile(ProjectPathResolver.sidecarFileName(filePath));
-        if (saveProjectFile(projectsDir.resolve(state.getCurrentProjectFile()))) {
+        boolean saved = saveProjectFile(projectsDir.resolve(state.getCurrentProjectFile()));
+        saveDesignProjectFile(designProjectsDir.resolve(state.getCurrentProjectFile()));
+        if (saved) {
             state.setProjectStatus(PlotI18n.tr("plugin.powerline.project.saved", filePath));
         }
     }
 
-    public void persistProject(Path projectsDir) {
+    public void persistProject(Path projectsDir, Path designProjectsDir) {
         saveProjectFile(projectsDir.resolve(state.getCurrentProjectFile()));
+        saveDesignProjectFile(designProjectsDir.resolve(state.getCurrentProjectFile()));
+    }
+
+    public void onProjectLoaded(String filePath, Path projectsDir) {
+        onProjectLoaded(filePath, projectsDir, projectsDir.getParent().resolve("pole-designs"));
+    }
+
+    public void onProjectSaved(String filePath, Path projectsDir) {
+        onProjectSaved(filePath, projectsDir, projectsDir.getParent().resolve("pole-designs"));
+    }
+
+    public void persistProject(Path projectsDir) {
+        persistProject(projectsDir, projectsDir.getParent().resolve("pole-designs"));
     }
 
     public boolean loadProjectFile(Path file) {
@@ -315,23 +339,70 @@ public final class PowerLineActions {
         }
     }
 
-    public void loadProjectForCurrentProject(Path projectsDir, String defaultProjectFile) {
+    public void loadProjectForCurrentProject(Path projectsDir, Path designProjectsDir, String defaultProjectFile) {
         Project current = host.appState().getCurrentProject();
         if (current != null && current.getFilePath() != null && !current.getFilePath().isBlank()) {
-            onProjectLoaded(current.getFilePath(), projectsDir);
+            onProjectLoaded(current.getFilePath(), projectsDir, designProjectsDir);
             return;
         }
-        Path file = projectsDir.resolve(defaultProjectFile);
-        if (loadProjectFile(file)) {
+        if (loadProjectFile(projectsDir.resolve(defaultProjectFile))) {
             state.setCurrentProjectFile(defaultProjectFile);
             state.setProjectStatus(PlotI18n.tr("plugin.powerline.project.default_loaded"));
         }
+        loadDesignProjectFile(designProjectsDir.resolve(defaultProjectFile));
+    }
+
+    public void loadProjectForCurrentProject(Path projectsDir, String defaultProjectFile) {
+        loadProjectForCurrentProject(
+            projectsDir,
+            projectsDir.getParent().resolve("pole-designs"),
+            defaultProjectFile);
     }
 
     private void resetAfterProjectLoad() {
         state.setLineNameEditingId("");
         state.getSelectedPaths().clear();
+        state.setPoleDesignerOpen(false);
+        state.setPoleDesignerEditingId("");
         clearPreview();
+    }
+
+    private boolean loadDesignProjectFile(Path file) {
+        try {
+            state.setDesignProject(PowerLineDesignProject.loadFrom(file));
+            state.getDesignContentFingerprint().reset();
+            return true;
+        } catch (IOException e) {
+            LOGGER.error("加载杆塔设计工程失败: {}", e.getMessage(), e);
+            state.setDesignProject(new PowerLineDesignProject());
+            return false;
+        }
+    }
+
+    private boolean saveDesignProjectFile(Path file) {
+        if (file == null || state.getDesignProject() == null) {
+            return false;
+        }
+        try {
+            String json = state.getDesignProject().toJson();
+            if (state.getDesignContentFingerprint().isUnchanged(json, file)) {
+                return true;
+            }
+            state.getDesignProject().saveTo(file);
+            state.getDesignContentFingerprint().markSaved(json, file);
+            return true;
+        } catch (IOException e) {
+            LOGGER.error("保存杆塔设计工程失败: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    public void savePoleDesign(PoleDesign design) {
+        if (design == null) {
+            return;
+        }
+        state.getDesignProject().addDesign(design.copy());
+        state.setProjectStatus(PlotI18n.tr("plugin.powerline.design.saved", design.getName()));
     }
 
     private boolean saveProjectFile(Path file) {

@@ -4,6 +4,7 @@ import com.plot.core.model.Shape;
 import com.plot.core.persistence.ContentFingerprint;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.PowerLineSelectionSet;
+import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineProject;
 import com.plot.plugin.powerline.model.PowerLineProjectHistory;
 import imgui.type.ImString;
@@ -14,6 +15,7 @@ import java.util.List;
 /** 电力线路插件可变 UI/会话状态。 */
 public final class PowerLinePluginState {
     private PowerLineProject project = new PowerLineProject();
+    private PowerLineDesignProject designProject = new PowerLineDesignProject();
     private final PowerLineProjectHistory projectHistory = new PowerLineProjectHistory();
     private final PowerLineSelectionSet selection = new PowerLineSelectionSet();
     private final List<Shape> selectedPaths = new ArrayList<>();
@@ -29,6 +31,38 @@ public final class PowerLinePluginState {
     private volatile String projectStatus = "";
     private String currentProjectFile = "default.json";
     private final ContentFingerprint.Tracker contentFingerprint = new ContentFingerprint.Tracker();
+    private final ContentFingerprint.Tracker designContentFingerprint = new ContentFingerprint.Tracker();
+
+    private boolean poleDesignerOpen = false;
+    private String poleDesignerEditingId = "";
+
+    public PowerLineDesignProject getDesignProject() {
+        return designProject;
+    }
+
+    public void setDesignProject(PowerLineDesignProject designProject) {
+        this.designProject = designProject != null ? designProject : new PowerLineDesignProject();
+    }
+
+    public ContentFingerprint.Tracker getDesignContentFingerprint() {
+        return designContentFingerprint;
+    }
+
+    public boolean isPoleDesignerOpen() {
+        return poleDesignerOpen;
+    }
+
+    public void setPoleDesignerOpen(boolean poleDesignerOpen) {
+        this.poleDesignerOpen = poleDesignerOpen;
+    }
+
+    public String getPoleDesignerEditingId() {
+        return poleDesignerEditingId;
+    }
+
+    public void setPoleDesignerEditingId(String poleDesignerEditingId) {
+        this.poleDesignerEditingId = poleDesignerEditingId != null ? poleDesignerEditingId : "";
+    }
 
     public PowerLineProject getProject() {
         return project;

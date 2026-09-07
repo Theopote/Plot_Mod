@@ -1,17 +1,25 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.design.PoleDesign;
+import com.plot.plugin.powerline.design.PoleDesignCatalog;
+import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.type.ImInt;
+
+import java.util.List;
 
 /** 电力线路编辑 Tab。 */
 public final class PowerLineEditPanel {
     private final PowerLineUiContext ctx;
+    private final PoleDesignerPanel poleDesignerPanel;
 
-    public PowerLineEditPanel(PowerLineUiContext ctx) {
+    public PowerLineEditPanel(PowerLineUiContext ctx, PoleDesignerPanel poleDesignerPanel) {
         this.ctx = ctx;
+        this.poleDesignerPanel = poleDesignerPanel;
     }
 
     public void render() {
@@ -40,6 +48,7 @@ public final class PowerLineEditPanel {
         renderSpacingControls(line);
         renderPoleControls(line);
         renderMaterialControls(line);
+        renderPoleDesignControls(line);
 
         if (ctx.hasMinSpacingWarning(line)) {
             ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.powerline.min_spacing_warning"));
@@ -130,5 +139,63 @@ public final class PowerLineEditPanel {
             line.getPoleMaterial(),
             MaterialMix.single(PowerLineFootprint.DEFAULT_POLE_MATERIAL),
             line::setPoleMaterial);
+    }
+
+    private void renderPoleDesignControls(PowerLineFootprint line) {
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr("plugin.powerline.pole_design_section"));
+
+        PoleDesignResolver resolver = ctx.designResolver();
+        List<PoleDesign> designs = resolver.listAll();
+        String noneLabel = PlotI18n.tr("plugin.powerline.pole_design_default");
+        String[] labels = new String[designs.size() + 1];
+        String[] ids = new String[designs.size() + 1];
+        labels[0] = noneLabel;
+        ids[0] = "";
+        for (int i = 0; i < designs.size(); i++) {
+            PoleDesign design = designs.get(i);
+            String prefix = PoleDesignCatalog.isBuiltinId(design.getId())
+                ? PlotI18n.tr("plugin.powerline.pole_design.builtin_prefix")
+                : "";
+            labels[i + 1] = prefix + design.getName();
+            ids[i + 1] = design.getId();
+        }
+
+        int current = 0;
+        String selectedId = line.getPoleDesignId() != null ? line.getPoleDesignId() : "";
+        for (int i = 0; i < ids.length; i++) {
+            if (ids[i].equals(selectedId)) {
+                current = i;
+                break;
+            }
+        }
+
+        ImInt designIndex = new ImInt(current);
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - 110);
+        if (ImGui.beginCombo(PlotI18n.tr("plugin.powerline.pole_design"), labels[current])) {
+            for (int i = 0; i < labels.length; i++) {
+                if (ImGui.selectable(labels[i], designIndex.get() == i)) {
+                    designIndex.set(i);
+                    line.setPoleDesignId(ids[i].isBlank() ? null : ids[i]);
+                    PoleDesign selected = resolver.find(ids[i]);
+                    if (selected != null) {
+                        line.setPoleHeight(selected.totalHeight());
+                    }
+                    ctx.projectHistory().push(ctx.project());
+                    ctx.clearPreview();
+                }
+            }
+            ImGui.endCombo();
+        }
+
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.open_designer"), 0, 0)) {
+            poleDesignerPanel.open(line.getPoleDesignId());
+        }
+        if (line.getPoleDesignId() != null && !line.getPoleDesignId().isBlank()) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                "plugin.powerline.pole_design_height_hint",
+                (int) line.getPoleHeight()));
+        }
     }
 }

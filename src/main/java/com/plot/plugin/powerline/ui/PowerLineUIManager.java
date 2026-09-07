@@ -12,13 +12,15 @@ public final class PowerLineUIManager {
     private final PowerLineAdoptPanel adoptPanel;
     private final PowerLineEditPanel editPanel;
     private final PowerLineGeneratePanel generatePanel;
+    private final PoleDesignerPanel poleDesignerPanel;
 
     public PowerLineUIManager(PowerLineUiContext ctx) {
         this.ctx = ctx;
         this.toolbarPanel = new PowerLineToolbarPanel(ctx);
         this.overviewPanel = new PowerLineOverviewPanel(ctx);
         this.adoptPanel = new PowerLineAdoptPanel(ctx);
-        this.editPanel = new PowerLineEditPanel(ctx);
+        this.poleDesignerPanel = new PoleDesignerPanel(ctx);
+        this.editPanel = new PowerLineEditPanel(ctx, poleDesignerPanel);
         this.generatePanel = new PowerLineGeneratePanel(ctx);
     }
 
@@ -43,5 +45,6 @@ public final class PowerLineUIManager {
     public void renderDeferredModals() {
         overviewPanel.renderDeleteConfirmPopup();
         generatePanel.renderBuildConfirmPopup();
+        poleDesignerPanel.render();
     }
 }
