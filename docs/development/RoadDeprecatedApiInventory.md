@@ -1,6 +1,6 @@
 # Road Deprecated API Inventory
 
-> Phase G — Stabilization。**Batch A 已于 2026-09-07 删除**；下文保留审计记录。
+> Phase G — Stabilization。**Batch A / Batch B 已于 2026-09-07 删除**；下文保留审计记录。
 >
 > 生成日期：2026-09-07  
 > 范围：`com.plot.plugin.road.*` 及道路相关 `RoadSystemConfig` 条目
@@ -24,8 +24,8 @@
 | 状态 | 数量 | 说明 |
 |------|------|------|
 | **已删除（Batch A）** | 13 | 2026-09-07 移除，见下方删除记录 |
+| **已删除（Batch B）** | 3 | 2026-09-07 移除委托类 + 枚举 |
 | **保留（兼容层）** | 4 | Gson / style id / 测试或内部 alias |
-| **迁移后删除（Batch B）** | 2 | 仅测试仍引用，需先改测试 |
 
 ---
 
@@ -46,6 +46,16 @@
 | 11 | `MinecraftTerrainSampler` 两个 static 委托 | `EngineeringTerrainService` |
 | 12 | `RoadSystemConfig.getPresets` | `getStyles` |
 | 13 | `RoadSystemConfig.applyPreset` | `applyStyle` |
+
+---
+
+## Batch B 删除记录（2026-09-07）
+
+| # | 已删除 API | Replacement |
+|---|-----------|-------------|
+| 16 | `RoadSegmentTopologyAnalyzer`（整类） | `RoadTopologyInvariantValidator` + `RoadTopologyViolationKind` |
+| 17 | `RoadSegmentTopologyKind`（整类） | `RoadTopologyViolationKind` |
+| 18 | `VoxelGradeDiscretizer`（整类） | `com.plot.core.geometry.VoxelElevationDiscretizer` |
 
 ---
 
@@ -257,13 +267,13 @@
 
 | 字段 | 值 |
 |------|-----|
-| **位置** | `RoadSegmentTopologyAnalyzer.java` |
+| **位置** | ~~`RoadSegmentTopologyAnalyzer.java`~~ |
 | **Replacement** | `RoadTopologyInvariantValidator` + `RoadTopologyViolationKind` |
 | **Internal usages** | 0 |
-| **Test usages** | 1 — `RoadSegmentTopologyAnalyzerTest` |
+| **Test usages** | 已迁移 — `RoadTopologyInvariantValidatorTest` |
 | **Persistence** | 否 |
 | **ADR** | `docs/decisions/0004-road-topology-invariant.md` |
-| **safeToRemove** | **否** — 先迁移测试，再删类 |
+| **safeToRemove** | **已删除（Batch B，2026-09-07）** |
 
 ---
 
@@ -271,12 +281,12 @@
 
 | 字段 | 值 |
 |------|-----|
-| **位置** | `VoxelGradeDiscretizer.java` |
+| **位置** | ~~`VoxelGradeDiscretizer.java`~~ |
 | **Replacement** | `com.plot.core.geometry.VoxelElevationDiscretizer` |
 | **Internal usages** | 0 |
-| **Test usages** | 1 — `VoxelGradeDiscretizerTest` |
+| **Test usages** | 已迁移 — `VoxelVerticalProfileTest` + core `VoxelElevationDiscretizerTest` |
 | **Persistence** | 否 |
-| **safeToRemove** | **否** — 先迁移测试 |
+| **safeToRemove** | **已删除（Batch B，2026-09-07）** |
 
 ---
 
@@ -291,12 +301,11 @@
 
 ## 建议删除顺序（剩余）
 
-1. **Batch B（测试迁移）**：#16、#17 — 改测试 import 后删类  
-2. **Batch C（持久化）**：#15 — 需 `road_system.json` v2 或兼容层  
-3. **保留 indefinitely**：#14 `city_secondary` 别名
+1. **Batch C（持久化）**：#15 — 需 `road_system.json` v2 或兼容层  
+2. **保留 indefinitely**：#14 `city_secondary` 别名
 
 ---
 
 ## 自动化守卫
 
-`RoadDeprecatedApiInventoryTest` 验证 Batch A 符号未重新引入生产代码，并监控 Batch B 委托类未被生产引用。
+`RoadDeprecatedApiInventoryTest` 验证 Batch A / Batch B 符号未重新引入生产代码。

@@ -73,7 +73,7 @@ Accepted — 2026-08-30（**定义原则 + 检测框架**；enforce 与 `RoadTop
 ## Consequences
 
 - 工程检查 UI 按 violation kind 分项提示（见 `plugin.road.validation.road_*` i18n）。
-- `RoadSegmentTopologyAnalyzer` 标记 `@Deprecated`，新代码使用 `RoadTopologyInvariantValidator`。
+- ~~`RoadSegmentTopologyAnalyzer`~~ 已于 2026-09-07 删除；使用 `RoadTopologyInvariantValidator`。
 - 认领 / 编辑流程可在后续迭代中 **主动维护不变量**（例如 adopt 后 `applyTopologicalOrder`、分叉时自动拆 Road）。  
   **部分已实现（2026-08-30）**：
   - 认领 / 求交后：`RoadNetworkBuilder` 已调用 `applyTopologicalOrderToAllRoads`
@@ -89,4 +89,4 @@ Accepted — 2026-08-30（**定义原则 + 检测框架**；enforce 与 `RoadTop
 
 ## Supersedes / Updates
 
-- 更新 ADR 0003：per-Road 检测由 `RoadSegmentTopologyAnalyzer` 汇总 warning，升级为 ADR 0004 四类不变量。
+- 更新 ADR 0003：per-Road 检测由 ~~`RoadSegmentTopologyAnalyzer`~~（已删除）汇总 warning，升级为 ADR 0004 四类不变量。

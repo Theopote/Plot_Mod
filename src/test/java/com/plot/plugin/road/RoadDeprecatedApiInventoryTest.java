@@ -34,10 +34,11 @@ class RoadDeprecatedApiInventoryTest {
         "getPresets("
     );
 
-    /** 整类 deprecated；生产代码不应引用（测试除外）。 */
-    private static final List<String> DEPRECATED_TYPES_PRODUCTION_FORBIDDEN = List.of(
+    /** Batch B 已删除；生产代码中不应再出现这些符号。 */
+    private static final List<String> BATCH_B_REMOVED_SYMBOLS = List.of(
         "VoxelGradeDiscretizer",
-        "RoadSegmentTopologyAnalyzer"
+        "RoadSegmentTopologyAnalyzer",
+        "RoadSegmentTopologyKind"
     );
 
     @Test
@@ -51,12 +52,12 @@ class RoadDeprecatedApiInventoryTest {
     }
 
     @Test
-    void deprecatedDelegateTypesUnusedInProduction() throws IOException {
-        for (String type : DEPRECATED_TYPES_PRODUCTION_FORBIDDEN) {
-            long hits = countProductionReferences(type);
+    void batchBRemovedSymbolsAbsentFromProduction() throws IOException {
+        for (String symbol : BATCH_B_REMOVED_SYMBOLS) {
+            long hits = countProductionReferences(symbol);
             assertTrue(
                 hits == 0,
-                () -> "Deprecated type still referenced in production: " + type + " (" + hits + " hits)");
+                () -> "Batch B removed symbol reintroduced in production: " + symbol + " (" + hits + " hits)");
         }
     }
 
@@ -67,22 +68,9 @@ class RoadDeprecatedApiInventoryTest {
         try (Stream<Path> paths = Files.walk(MAIN_SOURCES)) {
             return paths
                 .filter(path -> path.toString().endsWith(".java"))
-                .filter(path -> !isExcludedReferenceFile(path, symbol))
                 .mapToLong(path -> countOccurrences(path, symbol))
                 .sum();
         }
-    }
-
-    private static boolean isExcludedReferenceFile(Path path, String symbol) {
-        String fileName = path.getFileName().toString();
-        if ("RoadSegmentTopologyAnalyzer".equals(symbol)) {
-            return fileName.equals("RoadSegmentTopologyKind.java")
-                || fileName.equals("RoadSegmentTopologyAnalyzer.java");
-        }
-        if ("VoxelGradeDiscretizer".equals(symbol)) {
-            return fileName.equals("VoxelGradeDiscretizer.java");
-        }
-        return false;
     }
 
     private static long countOccurrences(Path file, String symbol) {

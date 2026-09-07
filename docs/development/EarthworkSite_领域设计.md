@@ -1164,7 +1164,7 @@ v3 为**当前写入版本**，在 v2 基础上规范化：
 - 代码入口：`EarthworkProject`、`GradingRegion`、`TerrainSnapshot`、`EarthworkGenerator`
 - 合成与平衡：`DesignTerrainComposer`、`DesignSurfaceResolver`、`SiteWideBalanceAdjuster`、`EarthworkOptimizationSolver`、`EarthworkAllocationMatrix`、`EarthworkProjectReport`
 - 区域几何：`RegionGeometry`、`PolygonRegionUtils`（孔洞感知 `contains` / 面积 / 格点采样）
-- 体素离散：`com.plot.core.geometry.VoxelElevationDiscretizer`（道路 `VoxelGradeDiscretizer` 委托）
+- 体素离散：`com.plot.core.geometry.VoxelElevationDiscretizer`
 - 建筑对接：`BuildingFootprint`、`BuildingFoundationUtils.computeBaseElevation`
 - 道路对接：`TerrainSampler.sampleSurfaceY`、`RoadGenerator`
 - 集成测试：`DesignTerrainComposerTest`（重叠、排除区、孔洞分区、全场平衡端到端）、`PolygonRegionUtilsTest`、`EarthworkProjectTest`（`holes` JSON 往返）
