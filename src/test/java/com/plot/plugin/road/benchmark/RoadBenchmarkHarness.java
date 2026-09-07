@@ -7,20 +7,12 @@ import com.plot.plugin.road.RoadJunctionGenerator;
 import com.plot.plugin.road.RoadNetworkEngineeringValidator;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadNetworkValidationReport;
-import com.plot.plugin.road.alignment.DerivedCenterlineSynchronizer;
-import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
-import com.plot.plugin.road.model.RoadNode;
-import com.plot.plugin.road.pipeline.EdgeGenerationResult;
-import com.plot.plugin.road.pipeline.RoadGenerationPipelineHost;
-import com.plot.plugin.road.pipeline.RoadGenerationResultAssembler;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.terrain.FlatTerrainSampler;
 import com.plot.plugin.road.terrain.TerrainSampler;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * 道路性能基准 harness：不依赖 Minecraft World，直接注入 {@link TerrainSampler}。
@@ -91,56 +83,17 @@ public final class RoadBenchmarkHarness {
             RoadNetwork network,
             RoadGenerator generator,
             TerrainSampler terrain) {
-        DerivedCenterlineSynchronizer.synchronizeAll(
-            network,
-            generator.getConfig().getPathSampleDistance());
+        long generationStart = System.nanoTime();
+        RoadNetworkGenerator networkGenerator = new RoadNetworkGenerator(generator);
+        RoadNetworkGenerator.PreviewResult preview =
+            networkGenerator.generatePreview(network, terrain);
+        long generationNanos = System.nanoTime() - generationStart;
 
-        Map<String, Integer> nodeElevations =
-            generator.resolveNetworkNodeElevations(network, terrain);
-
-        Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
-        long junctionStart = System.nanoTime();
-        RoadJunctionGenerator junctionGenerator = new RoadJunctionGenerator(generator);
-        Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults = new LinkedHashMap<>();
-        Set<String> failedEdgeIds = new java.util.LinkedHashSet<>();
-
-        for (RoadEdge edge : network.getEdges().values()) {
-            RoadNode start = network.getNode(edge.getStartNodeId());
-            RoadNode end = network.getNode(edge.getEndNodeId());
-            EdgeGenerationResult outcome = generator.generateEdgeOutcome(
-                network, edge, start, end, terrain, nodeElevations);
-            if (outcome.isSuccess()) {
-                edgeResults.put(edge.getId(), outcome.geometry());
-            } else if (outcome.isFailed()) {
-                failedEdgeIds.add(edge.getId());
-            }
-        }
-        for (RoadNode node : network.getNodes().values()) {
-            if (node.getDegree() < 3) {
-                continue;
-            }
-            if (!RoadNetworkGenerator.shouldGenerateJunction(node, failedEdgeIds)) {
-                continue;
-            }
-            RoadJunctionGenerator.JunctionBlocks junctionBlocks =
-                junctionGenerator.generateJunction(node, network, terrain, nodeElevations);
-            if (!junctionBlocks.isEmpty()) {
-                junctionResults.put(node.getId(), junctionBlocks);
-            }
-        }
-        long junctionNanos = System.nanoTime() - junctionStart;
-
-        RoadGenerationPipelineHost host = new RoadGenerationPipelineHost(
-            CONFIG,
-            null,
-            BlockProjectionHandler.getInstance());
-        RoadGenerationResult aggregate = RoadGenerationResultAssembler.aggregateNetwork(
-            network,
-            edgeResults.values(),
-            junctionResults,
-            host);
-
-        return new PreviewRun(aggregate, edgeResults, junctionResults, junctionNanos);
+        return new PreviewRun(
+            preview.aggregate(),
+            preview.edgeResults(),
+            preview.networkResult().getJunctionResults(),
+            generationNanos);
     }
 
     public static RoadSystemConfig benchmarkConfig() {

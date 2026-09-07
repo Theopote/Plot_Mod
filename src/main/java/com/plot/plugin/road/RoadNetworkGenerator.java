@@ -143,32 +143,42 @@ public class RoadNetworkGenerator {
     }
 
     public NetworkGenerationResult generateAll(RoadNetwork network, World world) {
-        NetworkGenerationResult networkResult = new NetworkGenerationResult();
         if (network == null || world == null) {
+            return new NetworkGenerationResult();
+        }
+        return generateAll(network, roadGenerator.createTerrainSampler(world));
+    }
+
+    /**
+     * 在路网快照上生成，避免预览/落地修改 live 派生 {@code centerlinePoints}。
+     */
+    public NetworkGenerationResult generateAll(RoadNetwork network, TerrainSampler terrain) {
+        NetworkGenerationResult networkResult = new NetworkGenerationResult();
+        if (network == null || terrain == null || network.getEdges().isEmpty()) {
             return networkResult;
         }
 
-        TerrainSampler terrain = roadGenerator.createTerrainSampler(world);
+        RoadNetwork generationNetwork = network.snapshot();
         int synchronizedRoads = DerivedCenterlineSynchronizer.synchronizeAll(
-            network,
+            generationNetwork,
             roadGenerator.getConfig().getPathSampleDistance());
         if (synchronizedRoads > 0) {
-            LOGGER.debug("生成前已同步 {} 条道路的设计平面线形到派生中心线", synchronizedRoads);
+            LOGGER.debug("生成前已在快照上同步 {} 条道路的设计平面线形到派生中心线", synchronizedRoads);
         }
         Map<String, Integer> nodeElevations =
-            roadGenerator.resolveNetworkNodeElevations(network, terrain);
+            roadGenerator.resolveNetworkNodeElevations(generationNetwork, terrain);
         networkResult.setNodeElevations(nodeElevations);
 
-        for (RoadEdge edge : network.getEdges().values()) {
-            RoadNode start = network.getNode(edge.getStartNodeId());
-            RoadNode end = network.getNode(edge.getEndNodeId());
+        for (RoadEdge edge : generationNetwork.getEdges().values()) {
+            RoadNode start = generationNetwork.getNode(edge.getStartNodeId());
+            RoadNode end = generationNetwork.getNode(edge.getEndNodeId());
             EdgeGenerationResult edgeOutcome = roadGenerator.generateEdgeOutcome(
-                network, edge, start, end, terrain, nodeElevations);
+                generationNetwork, edge, start, end, terrain, nodeElevations);
             networkResult.recordEdgeOutcome(edge.getId(), edgeOutcome);
         }
 
         Set<String> failedEdgeIds = networkResult.getFailedEdgeIds();
-        for (RoadNode node : network.getNodes().values()) {
+        for (RoadNode node : generationNetwork.getNodes().values()) {
             if (node.getDegree() < 3) {
                 continue;
             }
@@ -179,7 +189,7 @@ public class RoadNetworkGenerator {
                 continue;
             }
             RoadJunctionGenerator.JunctionBlocks junctionBlocks =
-                junctionGenerator.generateJunction(node, network, terrain, nodeElevations);
+                junctionGenerator.generateJunction(node, generationNetwork, terrain, nodeElevations);
             if (!junctionBlocks.isEmpty()) {
                 networkResult.junctionResults.put(node.getId(), junctionBlocks);
             }
@@ -217,13 +227,32 @@ public class RoadNetworkGenerator {
     }
 
     public PreviewResult generatePreview(RoadNetwork network, World world) {
-        NetworkGenerationResult networkResult = generateAll(network, world);
+        if (network == null || world == null) {
+            return emptyPreviewResult();
+        }
+        return generatePreview(network, roadGenerator.createTerrainSampler(world));
+    }
+
+    /**
+     * 无 World 的预览入口（基准 / Golden / 单元测试）。
+     */
+    public PreviewResult generatePreview(RoadNetwork network, TerrainSampler terrain) {
+        NetworkGenerationResult networkResult = generateAll(network, terrain);
         RoadGenerationResult aggregate = aggregateNetworkResult(network, networkResult);
         return new PreviewResult(
             aggregate,
             networkResult.getEdgeResults(),
             networkResult.getNodeElevations(),
             networkResult);
+    }
+
+    private static PreviewResult emptyPreviewResult() {
+        NetworkGenerationResult empty = new NetworkGenerationResult();
+        return new PreviewResult(
+            new RoadGenerationResult(0),
+            Map.of(),
+            Map.of(),
+            empty);
     }
 
     public record PreviewResult(

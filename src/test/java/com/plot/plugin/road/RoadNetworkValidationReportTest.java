@@ -25,8 +25,8 @@ class RoadNetworkValidationReportTest {
         RoadNetworkValidationReport topology = new RoadNetworkValidationReport(List.of(
             RoadNetworkValidationReport.Item.warning("plugin.road.validation.topology_issues", 2)));
 
-        assertTrue(pending.blocksBuild());
-        assertTrue(topology.blocksBuild());
+        assertFalse(pending.blocksBuild());
+        assertFalse(topology.blocksBuild());
     }
 
     @Test

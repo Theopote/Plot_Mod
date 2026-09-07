@@ -40,7 +40,7 @@ public final class RoadNetworkManager {
 
     private final RoadSystemConfig config;
     private final RoadNetworkHistory history = new RoadNetworkHistory();
-    private final RoadNetworkBuilder networkBuilder = new RoadNetworkBuilder();
+    private final RoadNetworkBuilder networkBuilder;
     private final RoadProjectStatus status;
 
     private RoadNetwork network = new RoadNetwork();
@@ -79,8 +79,16 @@ public final class RoadNetworkManager {
     private boolean adoptIntersectionRepairPending = false;
 
     public RoadNetworkManager(RoadSystemConfig config, RoadProjectStatus status) {
+        this(config, status, new RoadNetworkBuilder());
+    }
+
+    RoadNetworkManager(
+            RoadSystemConfig config,
+            RoadProjectStatus status,
+            RoadNetworkBuilder networkBuilder) {
         this.config = config;
         this.status = status;
+        this.networkBuilder = networkBuilder;
     }
 
     /**
@@ -645,6 +653,7 @@ public final class RoadNetworkManager {
             RoadGeometryUtils.groupConnectedPathsForAdoption(selectedPaths);
 
         for (List<Vec2d> pathPoints : adoptionGroups) {
+            String networkBeforeAdopt = network.toJson();
             try {
                 if (!historyPushed) {
                     pushHistory();
@@ -665,15 +674,15 @@ public final class RoadNetworkManager {
                     lastSelectedEdgeId = result.edges().getFirst().getId();
                 }
             } catch (IllegalArgumentException | IllegalStateException e) {
-                // 可恢复的业务逻辑错误
+                network = RoadNetwork.parseSnapshot(networkBeforeAdopt);
                 failedCount++;
                 LOGGER.warn("认领单条道路失败: {}", e.getMessage());
             } catch (OutOfMemoryError | StackOverflowError e) {
-                // 严重错误，立即停止
+                network = RoadNetwork.parseSnapshot(networkBeforeAdopt);
                 LOGGER.error("严重错误，停止认领: {}", e.getMessage(), e);
                 throw e;
             } catch (Exception e) {
-                // 其他未预期的错误
+                network = RoadNetwork.parseSnapshot(networkBeforeAdopt);
                 failedCount++;
                 LOGGER.error("认领单条道路时发生未知错误: {}", e.getMessage(), e);
                 // 如果失败率过高，停止处理
@@ -685,6 +694,9 @@ public final class RoadNetworkManager {
         }
 
         if (adoptedCount == 0) {
+            if (historyPushed) {
+                undo();
+            }
             status.error(PlotI18n.tr("plugin.road.adopt_failed"));
             return;
         }

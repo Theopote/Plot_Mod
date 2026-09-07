@@ -50,10 +50,6 @@ public record RoadNetworkValidationReport(List<Item> items) {
             if (item.level() == Level.ERROR) {
                 return true;
             }
-            if ("plugin.road.validation.intersections_pending".equals(item.messageKey())
-                    || "plugin.road.validation.topology_issues".equals(item.messageKey())) {
-                return true;
-            }
         }
         return false;
     }

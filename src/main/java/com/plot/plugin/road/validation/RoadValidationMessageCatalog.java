@@ -155,6 +155,8 @@ public final class RoadValidationMessageCatalog {
             IssueTemplate.ok("horizontal_centerline_ok"));
         map.put("plugin.road.validation.horizontal_alignment_centerline_deviation",
             IssueTemplate.warning("horizontal_centerline_deviation", RoadValidationAction.MATERIALIZE_ALIGNMENT));
+        map.put("plugin.road.validation.horizontal_alignment_centerline_unresolved",
+            IssueTemplate.error("horizontal_centerline_unresolved", RoadValidationAction.MATERIALIZE_ALIGNMENT));
         map.put("plugin.road.validation.horizontal_alignment_junction_ok",
             IssueTemplate.ok("horizontal_junction_ok"));
         map.put("plugin.road.validation.horizontal_alignment_junction_conflict",

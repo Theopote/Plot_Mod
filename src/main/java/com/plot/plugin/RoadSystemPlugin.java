@@ -78,6 +78,7 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
             previewManager.setNetworkGenerator(new RoadNetworkGenerator(roadGenerator));
         } catch (Exception e) {
             LOGGER.error("初始化道路生成器失败: {}", e.getMessage(), e);
+            throw new RuntimeException("道路插件初始化失败", e);
         }
 
         try {

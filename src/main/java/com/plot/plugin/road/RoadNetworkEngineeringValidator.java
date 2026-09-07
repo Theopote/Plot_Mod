@@ -47,12 +47,16 @@ public final class RoadNetworkEngineeringValidator {
 
     /**
      * 不依赖地形采样的生成前硬校验。所有预览/落地入口都应先执行此检查。
+     * <p>
+     * 仅包含会使生成几何不可信的硬阻断项；一般 Warning（如道路分叉、未对齐交叉）不在此升格。
      */
     public static RoadNetworkValidationReport analyzePreGeneration(RoadNetwork network) {
         List<RoadNetworkValidationReport.Item> items = new ArrayList<>();
-        if (network != null) {
+        if (network != null && !network.getEdges().isEmpty()) {
             addShortRoadVerticalAlignmentBlocker(items, network);
             addFlatRoadJunctionConflictBlocker(items, network);
+            addIntersectionIncompleteBlocker(items, network);
+            addHorizontalAlignmentPreflightBlockers(items, network);
         }
         return new RoadNetworkValidationReport(items);
     }
@@ -373,6 +377,64 @@ public final class RoadNetworkEngineeringValidator {
             items.add(RoadNetworkValidationReport.Item.error(
                 "plugin.road.validation.flat_junction_conflict", count));
         }
+    }
+
+    private static void addIntersectionIncompleteBlocker(
+            List<RoadNetworkValidationReport.Item> items,
+            RoadNetwork network) {
+        IntersectionProbeResult intersectionProbe =
+            new RoadNetworkBuilder().probeIntersectionCompleteness(network);
+        if (intersectionProbe.isIncomplete()) {
+            items.add(RoadNetworkValidationReport.Item.error(
+                "plugin.road.validation.intersections_incomplete"));
+        }
+    }
+
+    private static void addHorizontalAlignmentPreflightBlockers(
+            List<RoadNetworkValidationReport.Item> items,
+            RoadNetwork network) {
+        if (!hasHorizontalAlignmentRoads(network)) {
+            return;
+        }
+
+        int topologyMismatchCount = countHorizontalAlignmentTopologyMismatches(network);
+        if (topologyMismatchCount > 0) {
+            items.add(RoadNetworkValidationReport.Item.error(
+                "plugin.road.validation.horizontal_alignment_topology_mismatch",
+                topologyMismatchCount));
+        }
+
+        int junctionConflictCount = countHorizontalAlignmentJunctionConflicts(network);
+        if (junctionConflictCount > 0) {
+            items.add(RoadNetworkValidationReport.Item.error(
+                "plugin.road.validation.horizontal_alignment_junction_conflict",
+                junctionConflictCount));
+        }
+
+        int centerlineUnresolvedCount = countHorizontalAlignmentCenterlineUnresolved(network);
+        if (centerlineUnresolvedCount > 0) {
+            items.add(RoadNetworkValidationReport.Item.error(
+                "plugin.road.validation.horizontal_alignment_centerline_unresolved",
+                centerlineUnresolvedCount));
+        }
+    }
+
+    private static int countHorizontalAlignmentCenterlineUnresolved(RoadNetwork network) {
+        int count = 0;
+        for (Road road : network.getRoads().values()) {
+            if (!HorizontalAlignmentCenterlineConsistency.isEvaluable(network, road)) {
+                continue;
+            }
+            HorizontalAlignmentCenterlineConsistency.Report report =
+                HorizontalAlignmentCenterlineConsistency.evaluate(network, road);
+            if (!report.lengthMatches()
+                    || !report.isConsistent(
+                        HORIZONTAL_ALIGNMENT_LENGTH_TOLERANCE,
+                        HORIZONTAL_ALIGNMENT_POINT_TOLERANCE)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private static void addShortRoadVerticalAlignmentBlocker(

@@ -1,6 +1,11 @@
 package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.alignment.HorizontalAlignmentElement;
+import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
+import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
@@ -83,6 +88,105 @@ class RoadNetworkEngineeringValidatorTest {
         network.createEdge(start.getId(), end.getId(), List.of(
             new Vec2d(0, 0), new Vec2d(length, 0)), road.getId());
         return network;
+    }
+
+    @Test
+    void preGenerationBlocksHaCenterlineUnresolved() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("r1");
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(100, 0));
+        network.createEdge(
+            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
+
+        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(new Vec2d(0, 8), 0.0, List.of());
+        alignment.addElement(HorizontalAlignmentElement.tangent(100.0));
+        road.setHorizontalAlignment(alignment);
+
+        RoadNetworkValidationReport report =
+            RoadNetworkEngineeringValidator.analyzePreGeneration(network);
+
+        assertTrue(report.blocksBuild());
+        assertTrue(hasError(report, "plugin.road.validation.horizontal_alignment_centerline_unresolved"));
+    }
+
+    @Test
+    void preGenerationBlocksHaJunctionConflict() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("a");
+        network.createRoad("b");
+        RoadNode shared = network.createNode(new Vec2d(0, 0));
+        RoadNode endA = network.createNode(new Vec2d(100, 0));
+        RoadNode endB = network.createNode(new Vec2d(0, 100));
+        network.createEdge(
+            shared.getId(), endA.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(100, 0)), roadA.getId());
+        network.createEdge(
+            shared.getId(), endB.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(0, 100)),
+            network.getRoads().values().stream().filter(r -> !r.getId().equals("a")).findFirst().orElseThrow().getId());
+
+        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(new Vec2d(0, 5), 0.0, List.of());
+        alignment.addElement(HorizontalAlignmentElement.tangent(100.0));
+        roadA.setHorizontalAlignment(alignment);
+
+        RoadNetworkValidationReport report =
+            RoadNetworkEngineeringValidator.analyzePreGeneration(network);
+
+        assertTrue(report.blocksBuild());
+        assertTrue(hasError(report, "plugin.road.validation.horizontal_alignment_junction_conflict"));
+    }
+
+    @Test
+    void preGenerationBlocksHaTopologyMismatch() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("r1");
+        RoadNode start = network.createNode(new Vec2d(0, 0));
+        RoadNode end = network.createNode(new Vec2d(100, 0));
+        network.createEdge(
+            start.getId(), end.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
+
+        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(new Vec2d(0, 0), 0.0, List.of());
+        alignment.addElement(HorizontalAlignmentElement.tangent(90.0));
+        road.setHorizontalAlignment(alignment);
+
+        RoadNetworkValidationReport report =
+            RoadNetworkEngineeringValidator.analyzePreGeneration(network);
+
+        assertTrue(report.blocksBuild());
+        assertTrue(hasError(report, "plugin.road.validation.horizontal_alignment_topology_mismatch"));
+    }
+
+    @Test
+    void preGenerationDoesNotBlockRoadBranchingOrPendingIntersections() {
+        RoadNetwork fork = new RoadNetwork();
+        Road road = fork.createRoad();
+        RoadNode a = fork.createNode(new Vec2d(0, 0));
+        RoadNode b = fork.createNode(new Vec2d(10, 0));
+        RoadNode c = fork.createNode(new Vec2d(20, 0));
+        RoadNode d = fork.createNode(new Vec2d(10, 10));
+        fork.createEdge(a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+        fork.createEdge(b.getId(), c.getId(), List.of(new Vec2d(10, 0), new Vec2d(20, 0)), road.getId());
+        fork.createEdge(b.getId(), d.getId(), List.of(new Vec2d(10, 0), new Vec2d(10, 10)), road.getId());
+        assertFalse(RoadNetworkEngineeringValidator.analyzePreGeneration(fork).blocksBuild());
+
+        RoadNetwork crossing = new RoadNetwork();
+        Road roadA = crossing.createRoad("road-a");
+        Road roadB = crossing.createRoad("road-b");
+        RoadNode aStart = crossing.createNode(new Vec2d(0, 5));
+        RoadNode aEnd = crossing.createNode(new Vec2d(10, 5));
+        crossing.createEdge(aStart.getId(), aEnd.getId(), List.of(
+            new Vec2d(0, 5), new Vec2d(10, 5)), roadA.getId());
+        RoadNode bStart = crossing.createNode(new Vec2d(5, 5));
+        RoadNode bEnd = crossing.createNode(new Vec2d(5, 10));
+        crossing.createEdge(bStart.getId(), bEnd.getId(), List.of(
+            new Vec2d(5, 5), new Vec2d(5, 10)), roadB.getId());
+
+        RoadNetworkValidationReport full = RoadNetworkEngineeringValidator.analyze(
+            crossing, Map.of(), new RoadSystemConfig("test"));
+        assertTrue(hasWarning(full, "plugin.road.validation.intersections_pending"));
+        assertFalse(RoadNetworkEngineeringValidator.analyzePreGeneration(crossing).blocksBuild());
     }
 
     @Test
@@ -384,6 +488,11 @@ class RoadNetworkEngineeringValidatorTest {
 
         assertTrue(hasOk(report, "plugin.road.validation.intersections_resolved"));
         assertFalse(report.hasIntersectionWork());
+    }
+
+    private static boolean hasError(RoadNetworkValidationReport report, String key) {
+        return report.items().stream().anyMatch(item ->
+            item.level() == RoadNetworkValidationReport.Level.ERROR && item.messageKey().equals(key));
     }
 
     private static boolean hasWarning(RoadNetworkValidationReport report, String key) {

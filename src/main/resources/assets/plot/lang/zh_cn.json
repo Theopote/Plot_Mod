@@ -476,6 +476,7 @@
   "plugin.road.validation.horizontal_alignment_length_mismatch": "%d 条道路平面线形桩号范围与总长不一致",
   "plugin.road.validation.horizontal_alignment_centerline_ok": "平面线形与中心线一致",
   "plugin.road.validation.horizontal_alignment_centerline_deviation": "%d 条道路平面线形与折线中心线存在偏差",
+  "plugin.road.validation.horizontal_alignment_centerline_unresolved": "%d 条道路平面线形与中心线未对齐，生成几何不可信",
   "plugin.road.validation.horizontal_alignment_junction_ok": "平面线形与共享路口节点一致",
   "plugin.road.validation.horizontal_alignment_junction_conflict": "%d 条道路平面线形端点与共享路口冲突",
   "plugin.road.validation.horizontal_alignment_topology_ok": "平面线形与道路链节点界一致",
