@@ -214,7 +214,8 @@ public final class EarthworkUiContext {
             project,
             region,
             EarthworkUiLookups.createBuildingFootprintLookup(),
-            EarthworkUiLookups.createRoadSurfaceLookup());
+            EarthworkUiLookups.createRoadSurfaceLookup(),
+            config.getWorkMode());
     }
 
     /** 选项拖动/切换时合并到下一次渲染线程计算，避免每帧同步跑完整管线。 */

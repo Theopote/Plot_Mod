@@ -8,6 +8,10 @@ package com.plot.plugin.earthwork.model;
  */
 public class VerticalAdjustmentPolicy {
     public static final int UNBOUNDED_RANGE = 32;
+    /** Quick 模式默认自动平衡搜索半幅（±8）。 */
+    public static final int QUICK_AUTO_BALANCE_RANGE = 8;
+    /** Builder 模式自动平衡搜索半幅上限（±16）。 */
+    public static final int BUILDER_AUTO_BALANCE_RANGE = 16;
     public static final int ROAD_BOUNDED_RANGE = 1;
     public static final int LANDSCAPE_RANGE = 3;
     public static final float DEFAULT_WEIGHT = 1.0f;
@@ -84,8 +88,18 @@ public class VerticalAdjustmentPolicy {
             case ROAD_CORRIDOR -> locked();
             case LANDSCAPE, TERRAIN_FIT -> adjustable(LANDSCAPE_RANGE, LANDSCAPE_WEIGHT);
             case FLAT, SLOPED -> autoBalance
-                ? adjustable(UNBOUNDED_RANGE, DEFAULT_WEIGHT)
+                ? adjustable(QUICK_AUTO_BALANCE_RANGE, DEFAULT_WEIGHT)
                 : locked();
+        };
+    }
+
+    /** 按工作模式限制全场统一 ΔY 离散搜索半幅。 */
+    public static int maxAutoBalanceHalfRange(EarthworkWorkMode workMode) {
+        EarthworkWorkMode safeMode = workMode != null ? workMode : EarthworkWorkMode.QUICK;
+        return switch (safeMode) {
+            case QUICK -> QUICK_AUTO_BALANCE_RANGE;
+            case BUILDER -> BUILDER_AUTO_BALANCE_RANGE;
+            case LEARN -> UNBOUNDED_RANGE;
         };
     }
 

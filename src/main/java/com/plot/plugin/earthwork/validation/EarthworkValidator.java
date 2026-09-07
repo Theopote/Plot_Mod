@@ -4,6 +4,9 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.earthwork.design.BuildingFootprintLookup;
 import com.plot.plugin.earthwork.design.BuildingFootprintResolver;
 import com.plot.plugin.earthwork.design.GradingSurfaceResolver;
+import com.plot.plugin.earthwork.design.ResolutionResult;
+import com.plot.plugin.earthwork.design.RoadCorridorSurfaceResolver;
+import com.plot.plugin.earthwork.design.RoadSurfaceLookup;
 import com.plot.plugin.earthwork.grading.ZoneOverlapAnalyzer;
 import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.DesignSurfaceElevationSource;
@@ -44,6 +47,17 @@ public final class EarthworkValidator {
             EarthworkProject project,
             GradingRegion previewRegion,
             BuildingFootprintLookup buildingLookup) {
+        return analyzePrePreview(project, previewRegion, buildingLookup, null);
+    }
+
+    /**
+     * @param roadLookup 可选；提供时校验道路走廊设计面是否可解析（fail closed）。
+     */
+    public static EarthworkValidationReport analyzePrePreview(
+            EarthworkProject project,
+            GradingRegion previewRegion,
+            BuildingFootprintLookup buildingLookup,
+            RoadSurfaceLookup roadLookup) {
         List<EarthworkValidationReport.Item> items = new ArrayList<>();
         if (project == null) {
             items.add(EarthworkValidationReport.Item.error("plugin.earthwork.validation.project_missing"));
@@ -56,11 +70,7 @@ public final class EarthworkValidator {
 
         validateRegion(previewRegion, items);
         EarthworkSite site = project.getActiveSite();
-        if (site.delegatesToLegacyGenerator()) {
-            return new EarthworkValidationReport(items);
-        }
-
-        validateSite(site, previewRegion, buildingLookup, items);
+        validateSite(site, previewRegion, buildingLookup, roadLookup, items);
         return new EarthworkValidationReport(items);
     }
 
@@ -139,6 +149,7 @@ public final class EarthworkValidator {
             EarthworkSite site,
             GradingRegion previewRegion,
             BuildingFootprintLookup buildingLookup,
+            RoadSurfaceLookup roadLookup,
             List<EarthworkValidationReport.Item> items) {
         site.refreshSiteBoundaryIfNeeded();
         if (site.getSiteBoundary().size() < 3 && site.getZoneCount() == 0) {
@@ -151,7 +162,7 @@ public final class EarthworkValidator {
                 continue;
             }
             enabledZones++;
-            validateZone(zone, buildingLookup, items);
+            validateZone(zone, buildingLookup, roadLookup, items);
         }
         if (enabledZones == 0) {
             items.add(EarthworkValidationReport.Item.error("plugin.earthwork.validation.no_enabled_zones"));
@@ -220,6 +231,7 @@ public final class EarthworkValidator {
     private static void validateZone(
             GradingZone zone,
             BuildingFootprintLookup buildingLookup,
+            RoadSurfaceLookup roadLookup,
             List<EarthworkValidationReport.Item> items) {
         GradingRegion region = zone.getRegion();
         if (region.getOuterPoints().size() < 3) {
@@ -250,10 +262,8 @@ public final class EarthworkValidator {
             validateExcavationPitBuildingReference(zone, buildingLookup, items);
         }
 
-        if (type == GradingZoneType.ROAD_CORRIDOR && isBlank(zone.getRoadEdgeRef())) {
-            items.add(EarthworkValidationReport.Item.warning(
-                "plugin.earthwork.validation.road_corridor_no_reference",
-                zone.getName()));
+        if (type == GradingZoneType.ROAD_CORRIDOR) {
+            validateRoadCorridorReference(zone, roadLookup, items);
         }
 
         validateHoles(region, items);
@@ -262,6 +272,27 @@ public final class EarthworkValidator {
     /**
      * 自动坑底依赖建筑基准：缺引用或无法解析一律 ERROR（禁止回退到场地默认标高后仍生成）。
      */
+    private static void validateRoadCorridorReference(
+            GradingZone zone,
+            RoadSurfaceLookup roadLookup,
+            List<EarthworkValidationReport.Item> items) {
+        ResolutionResult<Void> resolution =
+            RoadCorridorSurfaceResolver.validateDesignSurface(zone, zone.getDesignSurface(), roadLookup);
+        if (resolution.status() == ResolutionResult.Status.MISSING_REFERENCE) {
+            items.add(EarthworkValidationReport.Item.error(
+                "plugin.earthwork.validation.road_corridor_no_reference",
+                zone.getName()));
+            return;
+        }
+        if (resolution.status() == ResolutionResult.Status.INVALID_REFERENCE) {
+            String ref = RoadCorridorSurfaceResolver.resolveRoadEdgeRef(zone, zone.getDesignSurface());
+            items.add(EarthworkValidationReport.Item.error(
+                "plugin.earthwork.validation.road_corridor_unresolved_design_surface",
+                zone.getName(),
+                ref));
+        }
+    }
+
     private static void validateExcavationPitBuildingReference(
             GradingZone zone,
             BuildingFootprintLookup buildingLookup,

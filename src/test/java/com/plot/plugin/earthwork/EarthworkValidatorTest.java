@@ -3,6 +3,7 @@ package com.plot.plugin.earthwork;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.RegionGeometry;
 import com.plot.plugin.earthwork.design.BuildingFootprintLookup;
+import com.plot.plugin.earthwork.design.RoadSurfaceLookup;
 import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.DesignSurfaceElevationSource;
 import com.plot.plugin.earthwork.model.EarthworkProject;
@@ -204,5 +205,60 @@ class EarthworkValidatorTest {
         assertFalse(report.warnings().stream()
             .anyMatch(item ->
                 "plugin.earthwork.validation.site_balance_may_adjust_building_pad".equals(item.messageKey())));
+    }
+
+    @Test
+    void roadCorridorWithoutReferenceIsError() {
+        EarthworkProject project = new EarthworkProject();
+        EarthworkSite site = project.getActiveSite();
+        GradingZone corridor = new GradingZone("corridor", RegionGeometry.of(rectangleOutline(0, 5, 0, 5)));
+        corridor.setType(GradingZoneType.ROAD_CORRIDOR);
+        site.addZone(corridor);
+        site.recomputeSiteBoundaryFromZones();
+
+        EarthworkValidationReport report = EarthworkValidator.analyzePrePreview(
+            project, corridor.getRegion(), BuildingFootprintLookup.NONE, RoadSurfaceLookup.NONE);
+
+        assertTrue(report.blocksPreview());
+        assertTrue(report.errors().stream()
+            .anyMatch(item ->
+                "plugin.earthwork.validation.road_corridor_no_reference".equals(item.messageKey())));
+    }
+
+    @Test
+    void roadCorridorUnresolvedDesignSurfaceIsError() {
+        EarthworkProject project = new EarthworkProject();
+        EarthworkSite site = project.getActiveSite();
+        GradingZone corridor = new GradingZone("corridor", RegionGeometry.of(rectangleOutline(0, 5, 0, 5)));
+        corridor.setType(GradingZoneType.ROAD_CORRIDOR);
+        corridor.setRoadEdgeRef("edge-main");
+        site.addZone(corridor);
+        site.recomputeSiteBoundaryFromZones();
+
+        EarthworkValidationReport report = EarthworkValidator.analyzePrePreview(
+            project, corridor.getRegion(), BuildingFootprintLookup.NONE, RoadSurfaceLookup.NONE);
+
+        assertTrue(report.blocksPreview());
+        assertTrue(report.errors().stream()
+            .anyMatch(item ->
+                "plugin.earthwork.validation.road_corridor_unresolved_design_surface".equals(item.messageKey())));
+    }
+
+    @Test
+    void roadCorridorResolvedDesignSurfacePasses() {
+        EarthworkProject project = new EarthworkProject();
+        EarthworkSite site = project.getActiveSite();
+        GradingZone corridor = new GradingZone("corridor", RegionGeometry.of(rectangleOutline(0, 5, 0, 5)));
+        corridor.setType(GradingZoneType.ROAD_CORRIDOR);
+        corridor.setRoadEdgeRef("edge-main");
+        site.addZone(corridor);
+        site.recomputeSiteBoundaryFromZones();
+
+        RoadSurfaceLookup lookup = (edgeId, point) -> "edge-main".equals(edgeId) ? 68 : null;
+        EarthworkValidationReport report = EarthworkValidator.analyzePrePreview(
+            project, corridor.getRegion(), BuildingFootprintLookup.NONE, lookup);
+
+        assertFalse(report.errors().stream()
+            .anyMatch(item -> item.messageKey().contains("road_corridor")));
     }
 }

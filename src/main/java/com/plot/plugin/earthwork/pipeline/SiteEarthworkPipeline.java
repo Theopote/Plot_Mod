@@ -8,12 +8,10 @@ import com.plot.plugin.earthwork.grading.DesignTerrainBuilder;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.EarthworkSiteBoundaryUtils;
 import com.plot.plugin.earthwork.model.GradingRegion;
-import com.plot.plugin.earthwork.model.GradingZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * 场地级土方管线：Capture → Compose → Volume/Voxel → Retaining Wall。
@@ -43,10 +41,6 @@ public final class SiteEarthworkPipeline {
             return result;
         }
 
-        if (site.delegatesToLegacyGenerator()) {
-            return executeLegacyDelegate(site, context, result);
-        }
-
         List<Vec2d> siteBoundary = EarthworkSiteBoundaryUtils.resolveCaptureBoundary(site);
         if (siteBoundary.size() < 3) {
             LOGGER.warn("场地红线点数不足");
@@ -68,7 +62,8 @@ public final class SiteEarthworkPipeline {
             terrain,
             operations.coordinateService(),
             context.buildingLookup(),
-            context.roadLookup());
+            context.roadLookup(),
+            context.workMode());
         result.designTerrainGrid = design.grid();
         result.resolvedElevationMin = design.grid().minTargetY();
         result.resolvedElevationMax = design.grid().maxTargetY();
@@ -84,32 +79,10 @@ public final class SiteEarthworkPipeline {
             site, context.world(), result, design.grid(), design.zoneEvaluators());
 
         result.syncChangedBlocksFromPlacements();
-        result.attachPlayerInsights();
+        result.attachPlayerInsights(!site.hasActiveSlopeTreatment());
         result.projectReport = EarthworkProjectReport.Builder.buildFromProject(
             null, site, result.siteVolumeReport);
         operations.applyZoneLastReports(site, result);
-        return result;
-    }
-
-    private EarthworkGenerationResult executeLegacyDelegate(
-            EarthworkSite site,
-            EarthworkPipelineContext context,
-            EarthworkGenerationResult result) {
-        GradingZone zone = site.getLegacyDelegateZone();
-        EarthworkGenerationResult delegated = operations.generateLegacyRegion(
-            zone.getRegion(),
-            context.world(),
-            context.terrainSnapshot(),
-            zone.getEdgeSettings());
-        operations.copyGenerationResult(result, delegated);
-        result.syncChangedBlocksFromPlacements();
-        result.attachPlayerInsights();
-        result.siteVolumeReport = new SiteEarthworkReport(
-            delegated.volumeReport,
-            Map.of(zone.getId(), delegated.volumeReport));
-        result.projectReport = EarthworkProjectReport.Builder.buildFromProject(
-            null, site, result.siteVolumeReport);
-        site.setLastReport(result.siteVolumeReport.totals());
         return result;
     }
 }

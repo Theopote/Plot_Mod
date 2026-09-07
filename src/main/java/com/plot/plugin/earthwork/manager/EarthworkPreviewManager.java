@@ -6,12 +6,13 @@ import com.plot.core.context.PluginContext;
 import com.plot.plugin.earthwork.design.BuildingFootprintLookup;
 import com.plot.plugin.earthwork.design.BuildingFootprintResolver;
 import com.plot.plugin.earthwork.design.RoadSurfaceLookup;
+import com.plot.plugin.earthwork.design.RoadCorridorSurfaceResolver;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkSite;
+import com.plot.plugin.earthwork.model.EarthworkWorkMode;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.pipeline.EarthworkPipelines;
-import com.plot.plugin.earthwork.pipeline.LegacyRegionPipeline;
 import com.plot.plugin.earthwork.pipeline.SiteEarthworkPipeline;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshotCache;
@@ -40,7 +41,6 @@ public final class EarthworkPreviewManager {
 
     private final PluginContext host;
     private final SiteEarthworkPipeline sitePipeline;
-    private final LegacyRegionPipeline legacyPipeline;
     private final TerrainSnapshotCache terrainCache;
     private final Consumer<String> statusSink;
 
@@ -56,18 +56,16 @@ public final class EarthworkPreviewManager {
             EarthworkPipelines.Bundle pipelines,
             TerrainSnapshotCache terrainCache,
             Consumer<String> statusSink) {
-        this(host, pipelines.site(), pipelines.legacy(), terrainCache, statusSink);
+        this(host, pipelines.site(), terrainCache, statusSink);
     }
 
     public EarthworkPreviewManager(
             PluginContext host,
             SiteEarthworkPipeline sitePipeline,
-            LegacyRegionPipeline legacyPipeline,
             TerrainSnapshotCache terrainCache,
             Consumer<String> statusSink) {
         this.host = Objects.requireNonNull(host, "host");
         this.sitePipeline = Objects.requireNonNull(sitePipeline, "sitePipeline");
-        this.legacyPipeline = Objects.requireNonNull(legacyPipeline, "legacyPipeline");
         this.terrainCache = Objects.requireNonNull(terrainCache, "terrainCache");
         this.statusSink = statusSink != null ? statusSink : msg -> {};
     }
@@ -86,6 +84,15 @@ public final class EarthworkPreviewManager {
             GradingRegion region,
             BuildingFootprintLookup buildingLookup,
             RoadSurfaceLookup roadLookup) {
+        return calculatePreview(project, region, buildingLookup, roadLookup, EarthworkWorkMode.QUICK);
+    }
+
+    public boolean calculatePreview(
+            EarthworkProject project,
+            GradingRegion region,
+            BuildingFootprintLookup buildingLookup,
+            RoadSurfaceLookup roadLookup,
+            EarthworkWorkMode workMode) {
         World world = getClientWorld();
         if (world == null) {
             statusSink.accept(PlotI18n.tr("plugin.earthwork.generate_world_unavailable"));
@@ -97,7 +104,7 @@ public final class EarthworkPreviewManager {
         }
 
         EarthworkValidationReport validation = EarthworkValidator.analyzePrePreview(
-            project, region, buildingLookup);
+            project, region, buildingLookup, roadLookup);
         lastValidationReport = validation;
         if (validation.blocksPreview()) {
             statusSink.accept(validation.firstBlockingMessage());
@@ -112,18 +119,17 @@ public final class EarthworkPreviewManager {
         long started = System.nanoTime();
         EarthworkSite site = project.getActiveSite();
         try {
-            if (site.delegatesToLegacyGenerator()) {
-                TerrainSnapshot terrain = terrainCache.captureFresh(region, world, host.coordinates());
-                lastGenerationResult = legacyPipeline.execute(
-                    region, world, terrain, null, site.getMaterialModel());
-            } else {
-                TerrainSnapshot terrain = terrainCache.captureFreshSite(site, world, host.coordinates());
-                lastGenerationResult = sitePipeline.execute(
-                    com.plot.plugin.earthwork.pipeline.EarthworkPipelineContext.of(
-                        site, world, terrain, region, buildingLookup, roadLookup));
-            }
+            TerrainSnapshot terrain = terrainCache.captureFreshSite(site, world, host.coordinates());
+            lastGenerationResult = sitePipeline.execute(
+                com.plot.plugin.earthwork.pipeline.EarthworkPipelineContext.of(
+                    site, world, terrain, region, buildingLookup, roadLookup, workMode));
         } catch (BuildingFootprintResolver.UnresolvedBuildingReferenceException e) {
             LOGGER.error("土方预览被建筑引用阻断: {}", e.getMessage());
+            lastGenerationResult = null;
+            statusSink.accept(e.getMessage());
+            return false;
+        } catch (RoadCorridorSurfaceResolver.UnresolvedRoadDesignSurfaceException e) {
+            LOGGER.error("土方预览被道路设计面阻断: {}", e.getMessage());
             lastGenerationResult = null;
             statusSink.accept(e.getMessage());
             return false;
@@ -150,6 +156,7 @@ public final class EarthworkPreviewManager {
                 lastGenerationResult.placementRecords.size());
         }
         statusSink.accept(PlotI18n.tr("plugin.earthwork.generate_preview_ready"));
+        projectPreview();
         return true;
     }
 

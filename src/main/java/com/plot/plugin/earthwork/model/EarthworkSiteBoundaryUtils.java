@@ -174,6 +174,10 @@ public final class EarthworkSiteBoundaryUtils {
         return margin;
     }
 
+    public static boolean hasActiveSlopeTreatment(Collection<GradingZone> zones) {
+        return resolveEdgeSlopeMarginBlocks(zones) > 0;
+    }
+
     /**
      * 统一的地形捕获边界：场地红线 + 活跃边坡最大 reach。
      * Preview capture、Pipeline capture、Cache fingerprint 均应使用此边界。

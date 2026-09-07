@@ -162,17 +162,7 @@ public final class DesignSurfaceResolver {
             }
             case EXCAVATION_PIT -> resolveExcavationPit(
                 zone, surface, terrain, buildingLookup, siteDefaultElevation, policy);
-            case ROAD_CORRIDOR -> ResolvedDesignSurface.of(
-                zone.getId(),
-                ResolvedDesignSource.ROAD_CORRIDOR,
-                ResolutionResult.Status.RESOLVED,
-                policy,
-                cell -> RoadCorridorSurfaceResolver.evaluateTargetY(
-                    cell.center(),
-                    zone,
-                    surface,
-                    roadLookup,
-                    siteDefaultElevation));
+            case ROAD_CORRIDOR -> resolveRoadCorridor(zone, surface, roadLookup, policy);
             case LEVEL_PAD, SINGLE_SLOPE_PLANE, THREE_POINT_PLANE, BEST_FIT_PLANE ->
                 resolvePlaneBased(zone, kind, terrain, transformer, deferBalanceToSite, policy);
             default -> resolvePlaneBased(
@@ -201,6 +191,27 @@ public final class DesignSurfaceResolver {
             policy,
             cell -> y,
             elevation.detail());
+    }
+
+    private static ResolvedDesignSurface resolveRoadCorridor(
+            GradingZone zone,
+            DesignSurface surface,
+            RoadSurfaceLookup roadLookup,
+            VerticalAdjustmentPolicy policy) {
+        ResolutionResult<Void> resolution =
+            RoadCorridorSurfaceResolver.validateDesignSurface(zone, surface, roadLookup);
+        ZoneTargetEvaluator evaluator = cell -> RoadCorridorSurfaceResolver.evaluateTargetY(
+            cell.center(),
+            zone,
+            surface,
+            roadLookup);
+        return new ResolvedDesignSurface(
+            zone.getId(),
+            ResolvedDesignSource.ROAD_CORRIDOR,
+            resolution.status(),
+            policy,
+            evaluator,
+            resolution.detail());
     }
 
     private static ResolvedDesignSurface resolveExcavationPit(

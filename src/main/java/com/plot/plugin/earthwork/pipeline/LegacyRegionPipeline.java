@@ -21,6 +21,8 @@ import java.util.List;
 
 /**
  * 单分区 legacy 管线：Capture → Resolve → Volume/Voxel。
+ * <p>
+ * 仅用于单元测试、解析基准与旧 fixture；玩家 Preview / Build 主路径见 {@link SiteEarthworkPipeline}。
  */
 public final class LegacyRegionPipeline {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/LegacyRegionPipeline");
@@ -90,7 +92,8 @@ public final class LegacyRegionPipeline {
         volumeCalculator.computeFromPlane(
             region, world, terrain, plane, result, region.getPreviewGridSize(), edgeSettings, balanceMaterials);
         result.syncChangedBlocksFromPlacements();
-        result.attachPlayerInsights();
+        boolean allowLegacyShiftCurve = edgeSettings == null || !edgeSettings.hasActiveTreatment();
+        result.attachPlayerInsights(allowLegacyShiftCurve);
 
         region.setLastVolumeReport(result.volumeReport);
         region.setLastResolvedElevation(result.resolvedElevation);

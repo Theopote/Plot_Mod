@@ -643,6 +643,8 @@ class DesignTerrainComposerTest {
     private static void enableFlexibleBalance(EarthworkSite site) {
         for (GradingZone zone : site.getGradingZones().values()) {
             zone.getRegion().setAutoBalance(true);
+            zone.setVerticalAdjustmentPolicy(
+                VerticalAdjustmentPolicy.adjustable(VerticalAdjustmentPolicy.UNBOUNDED_RANGE, 1.0f));
         }
     }
 

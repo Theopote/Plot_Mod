@@ -2,6 +2,7 @@ package com.plot.plugin.earthwork;
 
 import com.plot.plugin.earthwork.design.BuildingFootprintLookup;
 import com.plot.plugin.earthwork.design.DesignTerrainComposer;
+import com.plot.plugin.earthwork.design.RoadCorridorSurfaceResolver;
 import com.plot.plugin.earthwork.design.RoadSurfaceLookup;
 import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class PhaseDPlusCompositionTest {
 
@@ -53,6 +55,36 @@ class PhaseDPlusCompositionTest {
         DesignTerrainCell cell = DesignTerrainComposer.compose(
             site, terrain, null, BuildingFootprintLookup.NONE, lookup).grid().get(5, 5);
         assertEquals(68, cell.targetY());
+    }
+
+    @Test
+    void roadCorridorWithoutLookupFailsClosed() {
+        EarthworkSite site = new EarthworkSite();
+        site.setSiteBoundary(List.of(
+            new Vec2d(0, 0),
+            new Vec2d(10, 0),
+            new Vec2d(10, 10),
+            new Vec2d(0, 10)
+        ));
+
+        GradingZone corridor = new GradingZone(List.of(
+            new Vec2d(0, 0),
+            new Vec2d(10, 0),
+            new Vec2d(10, 10),
+            new Vec2d(0, 10)
+        ));
+        corridor.setType(GradingZoneType.ROAD_CORRIDOR);
+        corridor.setRoadEdgeRef("edge-main");
+        site.addZone(corridor);
+
+        TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
+            new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 65)
+        ));
+
+        assertThrows(
+            RoadCorridorSurfaceResolver.UnresolvedRoadDesignSurfaceException.class,
+            () -> DesignTerrainComposer.compose(
+                site, terrain, null, BuildingFootprintLookup.NONE, RoadSurfaceLookup.NONE));
     }
 
     @Test

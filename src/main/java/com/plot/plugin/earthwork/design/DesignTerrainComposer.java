@@ -13,8 +13,11 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.geometry.RegionGeometry;
 import com.plot.plugin.earthwork.model.Breakline;
+import com.plot.plugin.earthwork.design.ResolutionResult;
+import com.plot.plugin.earthwork.design.ResolvedDesignSource;
 import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkSite;
+import com.plot.plugin.earthwork.model.EarthworkWorkMode;
 import com.plot.plugin.earthwork.model.ExclusionZone;
 import com.plot.plugin.earthwork.model.GradingZone;
 import com.plot.plugin.earthwork.model.GradingZoneType;
@@ -73,9 +76,20 @@ public final class DesignTerrainComposer {
             ICoordinateService transformer,
             BuildingFootprintLookup buildingLookup,
             RoadSurfaceLookup roadLookup) {
+        return compose(site, terrain, transformer, buildingLookup, roadLookup, EarthworkWorkMode.QUICK);
+    }
+
+    public static ComposeResult compose(
+            EarthworkSite site,
+            TerrainSnapshot terrain,
+            ICoordinateService transformer,
+            BuildingFootprintLookup buildingLookup,
+            RoadSurfaceLookup roadLookup,
+            EarthworkWorkMode workMode) {
         if (site == null || terrain == null || terrain.isEmpty()) {
             return new ComposeResult(new DesignTerrainGrid(), Map.of(), Map.of());
         }
+        EarthworkWorkMode safeWorkMode = workMode != null ? workMode : EarthworkWorkMode.QUICK;
 
         DesignTerrainGrid grid = new DesignTerrainGrid();
         initializeCells(grid, terrain);
@@ -83,6 +97,7 @@ public final class DesignTerrainComposer {
         applyExclusionZones(grid, site.getExclusionZones());
         Map<String, ResolvedDesignSurface> resolvedSurfaces =
             DesignSurfaceResolver.resolveZoneSurfaces(site, terrain, buildingLookup, roadLookup, transformer);
+        requireResolvableRoadCorridors(resolvedSurfaces);
         Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators =
             ResolvedDesignSurface.toEvaluatorMap(resolvedSurfaces);
         List<Breakline> effectiveBreaklines = mergeEffectiveBreaklines(site);
@@ -106,7 +121,8 @@ public final class DesignTerrainComposer {
             resolvedSurfaces,
             coverageByCellKey,
             effectiveBreaklines,
-            cumulativeZoneOffsets);
+            cumulativeZoneOffsets,
+            safeWorkMode);
         recordBalanceOffsets(site, cumulativeZoneOffsets, cumulativeUniformOffset);
 
         Map<String, ResolvedDesignSurface> finalResolved =
@@ -122,6 +138,24 @@ public final class DesignTerrainComposer {
         breaklines.addAll(RetainingEdgeBreaklineAdapter.toNoBlendBreaklines(site.getRetainingEdges()));
         breaklines.addAll(ZoneBoundaryRetainingEdgeAdapter.toNoBlendBreaklines(site.getGradingZones().values()));
         return breaklines;
+    }
+
+    private static void requireResolvableRoadCorridors(Map<String, ResolvedDesignSurface> resolvedSurfaces) {
+        if (resolvedSurfaces == null || resolvedSurfaces.isEmpty()) {
+            return;
+        }
+        for (ResolvedDesignSurface surface : resolvedSurfaces.values()) {
+            if (surface == null || surface.source() != ResolvedDesignSource.ROAD_CORRIDOR) {
+                continue;
+            }
+            if (surface.status() == ResolutionResult.Status.MISSING_REFERENCE
+                || surface.status() == ResolutionResult.Status.INVALID_REFERENCE) {
+                String message = surface.detail() != null && !surface.detail().isBlank()
+                    ? surface.detail()
+                    : "Road corridor design surface is not resolved";
+                throw new RoadCorridorSurfaceResolver.UnresolvedRoadDesignSurfaceException(message);
+            }
+        }
     }
 
     private static void initializeCells(DesignTerrainGrid grid, TerrainSnapshot terrain) {
@@ -218,7 +252,8 @@ public final class DesignTerrainComposer {
             Map<String, ResolvedDesignSurface> resolvedSurfaces,
             Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageByCellKey,
             List<Breakline> effectiveBreaklines,
-            Map<String, Integer> cumulativeZoneOffsets) {
+            Map<String, Integer> cumulativeZoneOffsets,
+            EarthworkWorkMode workMode) {
         if (!shouldRunSiteBalance(site)) {
             return 0;
         }
@@ -233,7 +268,8 @@ public final class DesignTerrainComposer {
                 resolvedSurfaces,
                 coverageByCellKey,
                 effectiveBreaklines,
-                Map.of());
+                Map.of(),
+                workMode);
         }
 
         // CONSTRAINED_ZONE_OPTIMIZATION：先启发分区 ΔY，再对残余统一偏移做边坡耦合离散搜索。
@@ -267,14 +303,15 @@ public final class DesignTerrainComposer {
                 resolvedSurfaces,
                 coverageByCellKey,
                 effectiveBreaklines,
-                Map.copyOf(cumulativeZoneOffsets));
+                Map.copyOf(cumulativeZoneOffsets),
+                workMode);
         }
         return cumulativeUniformOffset;
     }
 
     /**
      * 对累计分区偏移之上的统一 ΔY 做边坡耦合离散搜索，并把网格留在最优候选状态。
-     * 搜索半幅取可调分区 {@link VerticalAdjustmentPolicy} 允许范围（至少默认 ±3，至多 ±32）。
+     * 搜索半幅取可调分区 {@link VerticalAdjustmentPolicy} 允许范围，再按工作模式封顶（Quick ±8 / Builder ±16 / Learn ±32）。
      */
     private static int applySlopeCoupledUniformSearch(
             DesignTerrainGrid grid,
@@ -284,9 +321,10 @@ public final class DesignTerrainComposer {
             Map<String, ResolvedDesignSurface> resolvedSurfaces,
             Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageByCellKey,
             List<Breakline> effectiveBreaklines,
-            Map<String, Integer> zoneOffsets) {
+            Map<String, Integer> zoneOffsets,
+            EarthworkWorkMode workMode) {
         Map<String, Integer> safeZone = zoneOffsets != null ? zoneOffsets : Map.of();
-        int halfRange = resolveUniformSearchHalfRange(site, resolvedSurfaces);
+        int halfRange = resolveUniformSearchHalfRange(site, resolvedSurfaces, workMode);
         SlopeCoupledVerticalSearch.SearchResult search = SlopeCoupledVerticalSearch.searchUniform(halfRange, dy -> {
             restoreCells(grid, baseDesign);
             applyAccumulatedOffsets(grid, site, safeZone, dy);
@@ -313,10 +351,11 @@ public final class DesignTerrainComposer {
 
     private static int resolveUniformSearchHalfRange(
             EarthworkSite site,
-            Map<String, ResolvedDesignSurface> resolvedSurfaces) {
+            Map<String, ResolvedDesignSurface> resolvedSurfaces,
+            EarthworkWorkMode workMode) {
         int halfRange = SlopeCoupledVerticalSearch.DEFAULT_HALF_RANGE;
         if (site == null) {
-            return halfRange;
+            return Math.min(halfRange, VerticalAdjustmentPolicy.maxAutoBalanceHalfRange(workMode));
         }
         for (GradingZone zone : site.getGradingZones().values()) {
             if (zone == null || !zone.isEnabled()) {
@@ -334,7 +373,7 @@ public final class DesignTerrainComposer {
             halfRange = Math.max(halfRange, Math.abs(policy.getMinOffset()));
             halfRange = Math.max(halfRange, Math.abs(policy.getMaxOffset()));
         }
-        return Math.min(halfRange, VerticalAdjustmentPolicy.UNBOUNDED_RANGE);
+        return Math.min(halfRange, VerticalAdjustmentPolicy.maxAutoBalanceHalfRange(workMode));
     }
 
     private static boolean allZero(Map<String, Integer> offsets) {

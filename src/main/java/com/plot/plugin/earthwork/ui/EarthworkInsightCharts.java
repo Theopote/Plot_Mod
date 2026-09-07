@@ -66,7 +66,9 @@ public final class EarthworkInsightCharts {
         if (!mode.showsLearnVisuals()) {
             return;
         }
-        if (curve != null && !curve.isEmpty()) {
+        if (preview.elevationVolumeCurveRequiresSlopeCoupledSolver) {
+            renderSlopeCoupledCurveHint(preview);
+        } else if (curve != null && !curve.isEmpty()) {
             renderRecommendations(ctx, region, preview, curve);
             renderCurve(curve, preview.resolvedElevation);
         }
@@ -81,11 +83,33 @@ public final class EarthworkInsightCharts {
             return;
         }
         renderHeatmap(preview.designTerrainGrid);
-        if (curve != null && !curve.isEmpty()) {
+        if (preview.elevationVolumeCurveRequiresSlopeCoupledSolver) {
+            renderSlopeCoupledCurveHint(preview);
+        } else if (curve != null && !curve.isEmpty()) {
             renderCurve(curve, preview.resolvedElevation);
         }
         if (preview.sectionProfile != null && !preview.sectionProfile.isEmpty()) {
             renderProfile(preview.sectionProfile);
+        }
+    }
+
+    static void renderSlopeCoupledCurveHint(EarthworkGenerationResult preview) {
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.earthwork.curve_slope_coupled_only"));
+        if (preview.resolvedElevationMin != preview.resolvedElevationMax) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr(
+                    "plugin.earthwork.curve_slope_coupled_resolved",
+                    preview.resolvedElevationMin,
+                    preview.resolvedElevationMax));
+        } else {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr(
+                    "plugin.earthwork.curve_slope_coupled_resolved_flat",
+                    preview.resolvedElevation));
         }
     }
 

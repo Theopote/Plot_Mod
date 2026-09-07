@@ -271,7 +271,10 @@ public class EarthworkSite {
     }
 
     /**
-     * MVP：单分区且类型受支持时，委托 {@code LegacyRegionPipeline}。
+     * 单分区 Quick 场景的兼容形状探测（旧 fixture / 迁移测试）。
+     * <p>
+     * 玩家 Preview / Build 主路径已统一走 {@link com.plot.plugin.earthwork.pipeline.SiteEarthworkPipeline}，
+     * 不再据此切换 {@code LegacyRegionPipeline}。
      */
     public boolean delegatesToLegacyGenerator() {
         if (gradingZones.size() != 1) {
@@ -295,6 +298,11 @@ public class EarthworkSite {
         if (siteBoundary == null || siteBoundary.size() < 3) {
             siteBoundary = new ArrayList<>(EarthworkSiteBoundaryUtils.resolveSiteBoundary(gradingZones.values()));
         }
+    }
+
+    /** 任一启用分区配置了非垂直边坡处理（自然坡 / 放坡带）。 */
+    public boolean hasActiveSlopeTreatment() {
+        return EarthworkSiteBoundaryUtils.hasActiveSlopeTreatment(gradingZones.values());
     }
 
     public void recomputeSiteBoundaryFromZones() {

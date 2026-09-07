@@ -8,6 +8,7 @@ import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 import com.plot.plugin.earthwork.design.RoadSurfaceLookup;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.model.EarthworkSite;
+import com.plot.plugin.earthwork.model.EarthworkWorkMode;
 
 import java.util.Map;
 
@@ -39,8 +40,18 @@ public final class DesignTerrainBuilder {
             ICoordinateService transformer,
             BuildingFootprintLookup buildingLookup,
             RoadSurfaceLookup roadLookup) {
+        return build(site, terrain, transformer, buildingLookup, roadLookup, EarthworkWorkMode.QUICK);
+    }
+
+    public static BuildResult build(
+            EarthworkSite site,
+            TerrainSnapshot terrain,
+            ICoordinateService transformer,
+            BuildingFootprintLookup buildingLookup,
+            RoadSurfaceLookup roadLookup,
+            EarthworkWorkMode workMode) {
         DesignTerrainComposer.ComposeResult composed = DesignTerrainComposer.compose(
-            site, terrain, transformer, buildingLookup, roadLookup);
+            site, terrain, transformer, buildingLookup, roadLookup, workMode);
         return new BuildResult(composed.grid(), composed.zoneEvaluators());
     }
 }

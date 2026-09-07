@@ -4,6 +4,7 @@ import com.plot.plugin.earthwork.design.BuildingFootprintLookup;
 import com.plot.plugin.earthwork.design.RoadSurfaceLookup;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.model.EarthworkSite;
+import com.plot.plugin.earthwork.model.EarthworkWorkMode;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import net.minecraft.world.World;
 
@@ -16,11 +17,13 @@ public record EarthworkPipelineContext(
         TerrainSnapshot terrainSnapshot,
         GradingRegion previewRegion,
         BuildingFootprintLookup buildingLookup,
-        RoadSurfaceLookup roadLookup) {
+        RoadSurfaceLookup roadLookup,
+        EarthworkWorkMode workMode) {
 
     public EarthworkPipelineContext {
         buildingLookup = buildingLookup != null ? buildingLookup : BuildingFootprintLookup.NONE;
         roadLookup = roadLookup != null ? roadLookup : RoadSurfaceLookup.NONE;
+        workMode = workMode != null ? workMode : EarthworkWorkMode.QUICK;
     }
 
     public static EarthworkPipelineContext of(
@@ -28,7 +31,7 @@ public record EarthworkPipelineContext(
             World world,
             TerrainSnapshot terrainSnapshot) {
         return new EarthworkPipelineContext(
-            site, world, terrainSnapshot, null, BuildingFootprintLookup.NONE, RoadSurfaceLookup.NONE);
+            site, world, terrainSnapshot, null, BuildingFootprintLookup.NONE, RoadSurfaceLookup.NONE, EarthworkWorkMode.QUICK);
     }
 
     public static EarthworkPipelineContext of(
@@ -37,7 +40,7 @@ public record EarthworkPipelineContext(
             TerrainSnapshot terrainSnapshot,
             GradingRegion previewRegion) {
         return new EarthworkPipelineContext(
-            site, world, terrainSnapshot, previewRegion, BuildingFootprintLookup.NONE, RoadSurfaceLookup.NONE);
+            site, world, terrainSnapshot, previewRegion, BuildingFootprintLookup.NONE, RoadSurfaceLookup.NONE, EarthworkWorkMode.QUICK);
     }
 
     public static EarthworkPipelineContext of(
@@ -47,7 +50,18 @@ public record EarthworkPipelineContext(
             GradingRegion previewRegion,
             BuildingFootprintLookup buildingLookup,
             RoadSurfaceLookup roadLookup) {
+        return of(site, world, terrainSnapshot, previewRegion, buildingLookup, roadLookup, EarthworkWorkMode.QUICK);
+    }
+
+    public static EarthworkPipelineContext of(
+            EarthworkSite site,
+            World world,
+            TerrainSnapshot terrainSnapshot,
+            GradingRegion previewRegion,
+            BuildingFootprintLookup buildingLookup,
+            RoadSurfaceLookup roadLookup,
+            EarthworkWorkMode workMode) {
         return new EarthworkPipelineContext(
-            site, world, terrainSnapshot, previewRegion, buildingLookup, roadLookup);
+            site, world, terrainSnapshot, previewRegion, buildingLookup, roadLookup, workMode);
     }
 }

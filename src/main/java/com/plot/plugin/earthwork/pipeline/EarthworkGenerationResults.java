@@ -23,6 +23,8 @@ public final class EarthworkGenerationResults {
         target.designTerrainGrid = source.designTerrainGrid;
         target.elevationVolumeCurve = source.elevationVolumeCurve;
         target.sectionProfile = source.sectionProfile;
+        target.elevationVolumeCurveRequiresSlopeCoupledSolver =
+            source.elevationVolumeCurveRequiresSlopeCoupledSolver;
         target.resolvedElevation = source.resolvedElevation;
         target.resolvedElevationMin = source.resolvedElevationMin;
         target.resolvedElevationMax = source.resolvedElevationMax;

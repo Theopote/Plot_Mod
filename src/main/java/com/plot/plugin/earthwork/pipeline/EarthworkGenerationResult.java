@@ -30,6 +30,8 @@ public class EarthworkGenerationResult {
     public DesignTerrainGrid designTerrainGrid;
     public EarthworkElevationVolumeCurve elevationVolumeCurve = EarthworkElevationVolumeCurve.EMPTY;
     public EarthworkSectionProfile sectionProfile = EarthworkSectionProfile.EMPTY;
+    /** 自然边坡场景下禁用整网平移近似曲线，仅展示耦合求解的最终方量。 */
+    public boolean elevationVolumeCurveRequiresSlopeCoupledSolver = false;
     public int resolvedElevation;
     public int resolvedElevationMin;
     public int resolvedElevationMax;
@@ -57,14 +59,29 @@ public class EarthworkGenerationResult {
     }
 
     public void attachPlayerInsights() {
+        attachPlayerInsights(true);
+    }
+
+    /**
+     * @param allowLegacyShiftCurve 为 {@code false} 时跳过整网 ΔY 平移近似曲线（自然边坡需逐候选重建坡面）。
+     */
+    public void attachPlayerInsights(boolean allowLegacyShiftCurve) {
+        elevationVolumeCurveRequiresSlopeCoupledSolver = !allowLegacyShiftCurve;
+        if (designTerrainGrid != null && designTerrainGrid.cellCount() > 0) {
+            sectionProfile = EarthworkSectionProfile.fromGrid(designTerrainGrid);
+        } else {
+            sectionProfile = EarthworkSectionProfile.EMPTY;
+        }
+        if (!allowLegacyShiftCurve) {
+            elevationVolumeCurve = EarthworkElevationVolumeCurve.EMPTY;
+            return;
+        }
         if (designTerrainGrid != null && designTerrainGrid.cellCount() > 0) {
             elevationVolumeCurve = EarthworkElevationVolumeCurve.fromGrid(designTerrainGrid, resolvedElevation);
-            sectionProfile = EarthworkSectionProfile.fromGrid(designTerrainGrid);
             return;
         }
         elevationVolumeCurve = EarthworkElevationVolumeCurve.fromTerrain(
             existingTerrainSnapshot, resolvedElevation);
-        sectionProfile = EarthworkSectionProfile.EMPTY;
     }
 
     public enum ChangeType {

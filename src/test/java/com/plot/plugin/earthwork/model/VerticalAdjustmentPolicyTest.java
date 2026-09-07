@@ -34,6 +34,15 @@ class VerticalAdjustmentPolicyTest {
             GradingZoneType.FLAT, true, DesignSurfaceKind.LEVEL_PAD).allowsVerticalAdjustment());
         assertFalse(VerticalAdjustmentPolicy.defaultFor(
             GradingZoneType.FLAT, false, DesignSurfaceKind.LEVEL_PAD).allowsVerticalAdjustment());
+
+        VerticalAdjustmentPolicy flatAuto = VerticalAdjustmentPolicy.defaultFor(
+            GradingZoneType.FLAT, true, DesignSurfaceKind.LEVEL_PAD);
+        assertEquals(-VerticalAdjustmentPolicy.QUICK_AUTO_BALANCE_RANGE, flatAuto.getMinOffset());
+        assertEquals(VerticalAdjustmentPolicy.QUICK_AUTO_BALANCE_RANGE, flatAuto.getMaxOffset());
+
+        assertEquals(8, VerticalAdjustmentPolicy.maxAutoBalanceHalfRange(EarthworkWorkMode.QUICK));
+        assertEquals(16, VerticalAdjustmentPolicy.maxAutoBalanceHalfRange(EarthworkWorkMode.BUILDER));
+        assertEquals(32, VerticalAdjustmentPolicy.maxAutoBalanceHalfRange(EarthworkWorkMode.LEARN));
     }
 
     @Test
