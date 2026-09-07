@@ -49,6 +49,13 @@ public final class DistrictMassingGenerator {
             }
             try {
                 BuildingGenerationResult result = generateFn.generate(building);
+                if (result != null && result.skippedDueToSiteAnalysis) {
+                    district.addSkipped(
+                        building,
+                        DistrictGenerationResult.SkipReason.SITE_ANALYSIS_FAILED,
+                        null);
+                    continue;
+                }
                 if (result == null || result.placementRecords.isEmpty()) {
                     district.addSkipped(
                         building,

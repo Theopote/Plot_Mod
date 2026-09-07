@@ -22,7 +22,8 @@ public final class DistrictGenerationResult {
     public enum SkipReason {
         EMPTY("plugin.building.district_skip_empty"),
         ERROR("plugin.building.district_skip_error"),
-        INVALID("plugin.building.district_skip_invalid");
+        INVALID("plugin.building.district_skip_invalid"),
+        SITE_ANALYSIS_FAILED("plugin.building.district_skip_site_analysis");
 
         private final String i18nKey;
 

@@ -72,11 +72,15 @@ public final class GenerationSiteResolver {
         String buildingId = resolveBuildingId(definition, footprint);
         BuildingSiteAnalyzer.AnalysisBundle bundle =
             BuildingSiteAnalyzer.analyze(buildingId, massing, world, coordinateService);
-        if (bundle.analysisFailed()) {
-            addWarning(result, "plugin.building.warn.site_analysis_failed");
-        }
         if (bundle.unloadedColumnCount() > 0) {
             addWarning(result, "plugin.building.warn.chunk_unloaded");
+        }
+        if (mustSkipDueToFailedSiteAnalysis(definition, footprint, bundle)) {
+            addWarning(result, "plugin.building.warn.site_analysis_unavailable_skip");
+            return SiteResolveBundle.skip(bundle);
+        }
+        if (bundle.analysisFailed()) {
+            addWarning(result, "plugin.building.warn.site_analysis_failed");
         }
         ResolvedSiteElevation site = resolveWithAnalysis(
             definition,
@@ -87,6 +91,37 @@ public final class GenerationSiteResolver {
             result);
         return new SiteResolveBundle(
             site, bundle.analysis(), bundle.columnSamples(), bundle.groundElevations());
+    }
+
+    /**
+     * 场地采样失败且既无手动标高、也无已解析垫层时，不得用默认 Y=64 继续生成。
+     */
+    public static boolean mustSkipDueToFailedSiteAnalysis(
+            BuildingDefinition definition,
+            BuildingFootprint footprint,
+            BuildingSiteAnalyzer.AnalysisBundle bundle) {
+        if (bundle == null || !bundle.analysisFailed()) {
+            return false;
+        }
+        Integer requested = definition != null ? definition.foundation().manualBaseElevation() : null;
+        if (requested != null) {
+            return false;
+        }
+        return resolvePadElevation(definition, footprint) == null;
+    }
+
+    private static Integer resolvePadElevation(
+            BuildingDefinition definition,
+            BuildingFootprint footprint) {
+        if (footprint != null) {
+            return BuildingSiteElevationResolver.resolveEarthworkPadElevation(footprint);
+        }
+        if (definition != null && definition.footprint() != null) {
+            return BuildingSiteElevationResolver.resolveEarthworkPadElevation(
+                definition.footprint().id(),
+                definition.footprint().outerPoints());
+        }
+        return null;
     }
 
     private static String resolveBuildingId(BuildingDefinition definition, BuildingFootprint footprint) {
@@ -255,7 +290,8 @@ public final class GenerationSiteResolver {
             ResolvedSiteElevation site,
             BuildingSiteAnalysis analysis,
             Map<Long, BuildingSiteColumnSample> columnSamples,
-            List<Integer> groundElevations) {
+            List<Integer> groundElevations,
+            boolean generationSkipped) {
 
         public SiteResolveBundle {
             analysis = analysis != null
@@ -270,7 +306,24 @@ public final class GenerationSiteResolver {
                 ResolvedSiteElevation site,
                 BuildingSiteAnalysis analysis,
                 Map<Long, BuildingSiteColumnSample> columnSamples) {
-            this(site, analysis, columnSamples, List.of());
+            this(site, analysis, columnSamples, List.of(), false);
+        }
+
+        public SiteResolveBundle(
+                ResolvedSiteElevation site,
+                BuildingSiteAnalysis analysis,
+                Map<Long, BuildingSiteColumnSample> columnSamples,
+                List<Integer> groundElevations) {
+            this(site, analysis, columnSamples, groundElevations, false);
+        }
+
+        static SiteResolveBundle skip(BuildingSiteAnalyzer.AnalysisBundle bundle) {
+            return new SiteResolveBundle(
+                null,
+                bundle != null ? bundle.analysis() : null,
+                bundle != null ? bundle.columnSamples() : Map.of(),
+                bundle != null ? bundle.groundElevations() : List.of(),
+                true);
         }
     }
 

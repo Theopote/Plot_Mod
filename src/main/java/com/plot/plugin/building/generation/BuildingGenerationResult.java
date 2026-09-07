@@ -21,6 +21,9 @@ public class BuildingGenerationResult {
     public final List<String> warnings = new ArrayList<>();
     public BuildingFootprint.RoofType effectiveRoofType = BuildingFootprint.RoofType.FLAT;
 
+    /** 场地分析失败且无法确定标高（无 manual / pad）时由 Factory 置位，禁止 Y=64 盲生成。 */
+    public boolean skippedDueToSiteAnalysis;
+
     /** 单栋预览用场地摘要（可选）。 */
     public SitePreviewSummary sitePreview;
 

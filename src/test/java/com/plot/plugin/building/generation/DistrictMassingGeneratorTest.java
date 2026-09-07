@@ -149,6 +149,32 @@ class DistrictMassingGeneratorTest {
     }
 
     @Test
+    void siteAnalysisFailedSkipsWithoutAbortingOthers() {
+        BuildingFootprint ok = building("ok", 0);
+        BuildingFootprint skipped = building("site-fail", 20);
+
+        DistrictGenerationResult district = DistrictMassingGenerator.generate(
+            List.of(ok, skipped),
+            footprint -> {
+                if ("site-fail".equals(footprint.getId())) {
+                    BuildingGenerationResult result = new BuildingGenerationResult();
+                    result.skippedDueToSiteAnalysis = true;
+                    result.warnings.add("plugin.building.warn.site_analysis_unavailable_skip");
+                    return result;
+                }
+                return generateOne(footprint);
+            });
+
+        assertEquals(1, district.buildingsGenerated());
+        assertEquals(1, district.buildingsSkipped());
+        assertEquals(2, district.buildingsAttempted());
+        assertEquals(
+            DistrictGenerationResult.SkipReason.SITE_ANALYSIS_FAILED,
+            district.skippedOutcomes().getFirst().skipReason());
+        assertTrue(district.hasPlacements());
+    }
+
+    @Test
     void emptyInputReturnsEmptyDistrict() {
         DistrictGenerationResult district = DistrictMassingGenerator.generate(
             List.of(),

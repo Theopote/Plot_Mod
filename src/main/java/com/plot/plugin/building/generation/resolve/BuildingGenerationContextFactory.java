@@ -133,6 +133,10 @@ public final class BuildingGenerationContextFactory {
         }
         GenerationSiteResolver.SiteResolveBundle siteBundle = GenerationSiteResolver.resolve(
             definition, footprint, massing, world, coordinateService, result);
+        if (siteBundle.generationSkipped()) {
+            result.skippedDueToSiteAnalysis = true;
+            return null;
+        }
         MaterialResolver.ResolvedMaterials materials = MaterialResolver.resolve(definition);
         attachSitePreview(result, siteBundle);
         return new ResolvedBuildingDefinition(
@@ -198,6 +202,10 @@ public final class BuildingGenerationContextFactory {
             BuildingGenerationResult result) {
         ResolvedBuildingDefinition resolved = resolve(
             definition, footprint, world, coordinateService, result);
+        if (result.skippedDueToSiteAnalysis) {
+            return BuildingGenerationContext.fromResolved(
+                footprint, definition, world, coordinateService, projectionService, result, null);
+        }
         return BuildingGenerationContext.fromResolved(
             footprint, definition, world, coordinateService, projectionService, result, resolved);
     }
