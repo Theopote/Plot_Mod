@@ -56,20 +56,79 @@ public final class PoleDesignPreviewRenderer {
 
         drawList.addRectFilled(x0, y0, x1, y1, COLOR_BG);
         drawList.addRect(x0, y0, x1, y1, COLOR_BORDER);
+        drawThumbnail(design, drawList, x0, y0, x1, y1, previewView == 1, true);
+        ImGui.dummy(width, PREVIEW_HEIGHT);
+    }
+
+    /**
+     * 在矩形区域内绘制杆塔侧视/正视缩略图（用于样式卡片等）。
+     */
+    public static void drawThumbnail(
+            PoleDesign design,
+            ImDrawList drawList,
+            float x0,
+            float y0,
+            float x1,
+            float y1,
+            boolean frontView) {
+        drawThumbnail(design, drawList, x0, y0, x1, y1, frontView, false);
+    }
+
+    private static void drawThumbnail(
+            PoleDesign design,
+            ImDrawList drawList,
+            float x0,
+            float y0,
+            float x1,
+            float y1,
+            boolean frontView,
+            boolean includeAttachmentLabels) {
+        if (design == null || drawList == null) {
+            return;
+        }
+        float padding = includeAttachmentLabels ? 8f : 5f;
+        float width = x1 - x0;
+        float height = y1 - y0;
+        if (width < 8f || height < 8f) {
+            return;
+        }
 
         int totalHeight = Math.max(1, design.totalHeight());
-        float scale = (PREVIEW_HEIGHT - 16f) / totalHeight;
+        float scale = (height - padding * 2f) / totalHeight;
         float centerX = x0 + width * 0.5f;
-        float baseY = y1 - 8f;
+        float baseY = y1 - padding;
 
         if (design.hasTowerStructure()) {
-            renderTowerStructure(design.getTowerStructure(), drawList, centerX, baseY, scale, previewView == 1);
+            renderTowerStructure(design.getTowerStructure(), drawList, centerX, baseY, scale, frontView);
         } else {
             renderLegacyLayers(design, drawList, centerX, baseY, scale);
         }
 
-        renderAttachments(design, drawList, centerX, baseY, scale, previewView == 1);
-        ImGui.dummy(width, PREVIEW_HEIGHT);
+        if (includeAttachmentLabels) {
+            renderAttachments(design, drawList, centerX, baseY, scale, frontView);
+        } else {
+            renderAttachmentDots(design, drawList, centerX, baseY, scale, frontView);
+        }
+    }
+
+    private static void renderAttachmentDots(
+            PoleDesign design,
+            ImDrawList drawList,
+            float centerX,
+            float baseY,
+            float scale,
+            boolean frontView) {
+        for (ConductorAttachment attachment : design.getAttachments()) {
+            if (!attachment.isEnabled()) {
+                continue;
+            }
+            float markerY = baseY - (float) attachment.getVerticalOffset() * scale;
+            float offset = frontView
+                ? (float) attachment.getLongitudinalOffset()
+                : (float) attachment.getLateralOffset();
+            float markerX = centerX + offset * scale * 6f;
+            drawList.addCircleFilled(markerX, markerY, 2.5f, COLOR_WIRE);
+        }
     }
 
     private static void renderLegacyLayers(

@@ -185,6 +185,7 @@ public class PowerLineProject {
         List<LayoutConstraintData> layoutConstraints = new ArrayList<>();
         String engineeringProfileId;
         boolean engineeringAnalysisEnabled;
+        boolean terrainAvoidanceEnabled;
         boolean automaticTowerSelectionEnabled;
     }
 
@@ -221,6 +222,7 @@ public class PowerLineProject {
                 }
                 lineData.engineeringProfileId = line.getEngineeringProfileId();
                 lineData.engineeringAnalysisEnabled = line.isEngineeringAnalysisEnabled();
+                lineData.terrainAvoidanceEnabled = line.isTerrainAvoidanceEnabled();
                 lineData.automaticTowerSelectionEnabled = line.isAutomaticTowerSelectionEnabled();
                 data.lines.add(lineData);
             }
@@ -292,6 +294,7 @@ public class PowerLineProject {
                 }
                 footprint.setEngineeringProfileId(lineData.engineeringProfileId);
                 footprint.setEngineeringAnalysisEnabled(lineData.engineeringAnalysisEnabled);
+                footprint.setTerrainAvoidanceEnabled(lineData.terrainAvoidanceEnabled);
                 footprint.setAutomaticTowerSelectionEnabled(lineData.automaticTowerSelectionEnabled);
                 project.addLine(footprint);
             }

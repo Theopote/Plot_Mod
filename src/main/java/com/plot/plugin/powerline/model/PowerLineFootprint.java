@@ -34,6 +34,7 @@ public class PowerLineFootprint {
     private final List<PoleLayoutConstraint> layoutConstraints = new ArrayList<>();
     private String engineeringProfileId;
     private boolean engineeringAnalysisEnabled = false;
+    private boolean terrainAvoidanceEnabled = false;
     private boolean automaticTowerSelectionEnabled;
 
     public PowerLineFootprint(List<Vec2d> pathPoints) {
@@ -255,6 +256,14 @@ public class PowerLineFootprint {
         this.engineeringAnalysisEnabled = engineeringAnalysisEnabled;
     }
 
+    public boolean isTerrainAvoidanceEnabled() {
+        return terrainAvoidanceEnabled;
+    }
+
+    public void setTerrainAvoidanceEnabled(boolean terrainAvoidanceEnabled) {
+        this.terrainAvoidanceEnabled = terrainAvoidanceEnabled;
+    }
+
     public boolean isAutomaticTowerSelectionEnabled() {
         return automaticTowerSelectionEnabled;
     }
@@ -301,6 +310,7 @@ public class PowerLineFootprint {
         hash = 31 * hash + layoutConstraints.hashCode();
         hash = 31 * hash + Objects.hashCode(engineeringProfileId);
         hash = 31 * hash + Boolean.hashCode(engineeringAnalysisEnabled);
+        hash = 31 * hash + Boolean.hashCode(terrainAvoidanceEnabled);
         hash = 31 * hash + Boolean.hashCode(automaticTowerSelectionEnabled);
         return hash;
     }

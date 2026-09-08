@@ -72,11 +72,13 @@ public final class PowerLineRoutePanel {
     }
 
     private void renderTerrainAvoidance(PowerLineFootprint line) {
-        boolean enabled = line.isEngineeringAnalysisEnabled();
+        boolean enabled = line.isTerrainAvoidanceEnabled();
         if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.route.avoid_terrain"), enabled)) {
             ctx.pushEditSnapshot();
-            line.setEngineeringAnalysisEnabled(!enabled);
+            line.setTerrainAvoidanceEnabled(!enabled);
+            ctx.invalidatePreview();
         }
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.avoid_terrain_hint"));
     }
 
     private void renderAdvancedSpacing(PowerLineFootprint line) {

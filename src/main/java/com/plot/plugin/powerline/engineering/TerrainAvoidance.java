@@ -1,0 +1,239 @@
+package com.plot.plugin.powerline.engineering;
+
+import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.powerline.PowerLineGenerationResult;
+import com.plot.plugin.powerline.PowerLineOverrideUtils;
+import com.plot.plugin.powerline.PowerPoleLayoutUtils;
+import com.plot.plugin.powerline.design.PoleDesignResolver;
+import com.plot.plugin.powerline.design.family.TowerFamily;
+import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
+import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
+import com.plot.plugin.powerline.engineering.analysis.SpanAnalysis;
+import com.plot.plugin.powerline.engineering.clearance.ClearanceAnalysis;
+import com.plot.plugin.powerline.engineering.clearance.ClearanceChecker;
+import com.plot.plugin.powerline.engineering.optimization.LineOptimizationEngine;
+import com.plot.plugin.powerline.engineering.optimization.OptimizationAction;
+import com.plot.plugin.powerline.engineering.optimization.OptimizationActionType;
+import com.plot.plugin.powerline.engineering.optimization.OptimizationResult;
+import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
+import com.plot.plugin.powerline.geometry.PowerLineGeometryModel;
+import com.plot.plugin.powerline.model.PoleLayoutConstraint;
+import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.road.terrain.TerrainSampler;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/** 装饰性地形避让：检测导线碰地/穿山，并尝试自动修正。 */
+public final class TerrainAvoidance {
+    public static final double SAFETY_MARGIN_BLOCKS = 1.5;
+    public static final String PROFILE_ID = "terrain/decorative";
+
+    private TerrainAvoidance() {
+    }
+
+    public static EngineeringRuleProfile decorativeProfile() {
+        EngineeringRuleProfile profile = new EngineeringRuleProfile(PROFILE_ID, "Terrain Avoidance");
+        profile.getClearance().setMinimumGroundClearance(SAFETY_MARGIN_BLOCKS);
+        profile.getSpan().setMaximumSpan(500.0);
+        profile.getSpan().setMinimumSpan(1.0);
+        profile.getTower().setPreferredHeightMargin(2.0);
+        return profile;
+    }
+
+    /** 只检测导线与地形表面的碰撞（不含完整工程规则）。 */
+    public static LineEngineeringReport analyzeCollisions(
+            PowerLineGeometryModel geometry,
+            TerrainSampler terrain) {
+        LineEngineeringReport report = new LineEngineeringReport();
+        report.setProfileId(PROFILE_ID);
+        report.setProfileName("Terrain Avoidance");
+        if (geometry == null || terrain == null) {
+            return report;
+        }
+        for (ConductorSpanGeometry span : geometry.getConductorSpans()) {
+            if (span.getSamples().isEmpty()) {
+                continue;
+            }
+            com.plot.plugin.powerline.engineering.analysis.SpanAnalysis spanAnalysis =
+                new com.plot.plugin.powerline.engineering.analysis.SpanAnalysis();
+            spanAnalysis.setId(span.getSpanId());
+            spanAnalysis.setStartPoleSiteId(span.getStartPoleSiteId());
+            spanAnalysis.setEndPoleSiteId(span.getEndPoleSiteId());
+            spanAnalysis.setHorizontalLength(span.getSpanLength());
+            ClearanceAnalysis clearance = ClearanceChecker.analyzeSpan(span, terrain);
+            spanAnalysis.setMinimumGroundClearance(clearance.getMinimumClearance());
+            EngineeringIssue issue = ClearanceChecker.toIssue(
+                clearance,
+                SAFETY_MARGIN_BLOCKS,
+                EngineeringSeverity.ERROR);
+            if (issue != null) {
+                spanAnalysis.addIssue(issue);
+            }
+            report.addSpan(spanAnalysis);
+        }
+        return report;
+    }
+
+    /**
+     * 尝试一次自动修正：更高杆塔 → 加高电杆 → 插入中间杆塔。
+     *
+     * @return 是否修改了线路参数
+     */
+    public static boolean applyOneFix(
+            PowerLineFootprint line,
+            LineEngineeringReport report,
+            PowerLineGenerationResult result,
+            PoleDesignResolver designResolver) {
+        if (line == null || report == null || !hasTerrainIssues(report)) {
+            return false;
+        }
+        if (tryTallerTower(line, report, result, designResolver)) {
+            return true;
+        }
+        if (tryRaisePoleHeight(line)) {
+            return true;
+        }
+        return tryInsertPole(line, report, result);
+    }
+
+    public static boolean hasTerrainIssues(LineEngineeringReport report) {
+        if (report == null) {
+            return false;
+        }
+        return report.getIssues().stream()
+            .anyMatch(issue -> EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM.equals(issue.ruleId()));
+    }
+
+    private static boolean tryTallerTower(
+            PowerLineFootprint line,
+            LineEngineeringReport report,
+            PowerLineGenerationResult result,
+            PoleDesignResolver designResolver) {
+        if (!line.hasTowerFamily() || designResolver == null || result == null) {
+            return false;
+        }
+        TowerFamily family = new TowerFamilyResolver().find(line.getTowerFamilyId());
+        if (family == null) {
+            return false;
+        }
+        List<String> resolvedIds = new ArrayList<>();
+        for (var placement : result.polePlacements) {
+            resolvedIds.add(placement.resolvedDesignId());
+        }
+        LineOptimizationEngine.PowerLineGeometrySites sites =
+            new LineOptimizationEngine.PowerLineGeometrySites(result.poleSites, resolvedIds);
+        OptimizationResult optimization = LineOptimizationEngine.propose(
+            report,
+            sites,
+            line,
+            decorativeProfile(),
+            designResolver);
+        for (OptimizationAction action : optimization.getActions()) {
+            if (action.getType() == OptimizationActionType.SELECT_TALLER_TOWER
+                    && action.getProposedDesignId() != null) {
+                PowerLineOverrideUtils.setDesignOverride(
+                    line,
+                    action.getStationing(),
+                    action.getProposedDesignId());
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean tryRaisePoleHeight(PowerLineFootprint line) {
+        if (line.hasTowerFamily() || line.hasPoleDesign()) {
+            return false;
+        }
+        double next = Math.min(64.0, line.getPoleHeight() + 2.0);
+        if (next <= line.getPoleHeight()) {
+            return false;
+        }
+        line.setPoleHeight(next);
+        return true;
+    }
+
+    private static boolean tryInsertPole(
+            PowerLineFootprint line,
+            LineEngineeringReport report,
+            PowerLineGenerationResult result) {
+        SpanAnalysis targetSpan = firstTerrainSpan(report);
+        if (targetSpan == null) {
+            return false;
+        }
+        double stationing = stationingForSpan(line, targetSpan, result);
+        if (stationing < 0 || hasNearbyConstraint(line, stationing)) {
+            return false;
+        }
+        line.addLayoutConstraint(new PoleLayoutConstraint(
+            stationing,
+            "terrain avoidance"));
+        return true;
+    }
+
+    private static SpanAnalysis firstTerrainSpan(LineEngineeringReport report) {
+        for (SpanAnalysis span : report.getSpans()) {
+            for (EngineeringIssue issue : span.getIssues()) {
+                if (EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM.equals(issue.ruleId())) {
+                    return span;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static double stationingForSpan(
+            PowerLineFootprint line,
+            SpanAnalysis span,
+            PowerLineGenerationResult result) {
+        if (result != null
+                && span.getStartPoleSiteId() != null
+                && span.getEndPoleSiteId() != null) {
+            com.plot.plugin.powerline.model.PowerPoleSite start = null;
+            com.plot.plugin.powerline.model.PowerPoleSite end = null;
+            for (var site : result.poleSites) {
+                if (span.getStartPoleSiteId().equals(site.getId())) {
+                    start = site;
+                }
+                if (span.getEndPoleSiteId().equals(site.getId())) {
+                    end = site;
+                }
+            }
+            if (start != null && end != null) {
+                return (start.getStationing() + end.getStationing()) * 0.5;
+            }
+        }
+        Vec2d midpoint = midpointAlongPath(line.getPathPoints());
+        return PowerPoleLayoutUtils.computeStationing(line.getPathPoints(), midpoint);
+    }
+
+    private static Vec2d midpointAlongPath(List<Vec2d> pathPoints) {
+        double total = 0.0;
+        for (int i = 1; i < pathPoints.size(); i++) {
+            total += pathPoints.get(i - 1).distance(pathPoints.get(i));
+        }
+        double half = total * 0.5;
+        double walked = 0.0;
+        for (int i = 1; i < pathPoints.size(); i++) {
+            Vec2d a = pathPoints.get(i - 1);
+            Vec2d b = pathPoints.get(i);
+            double segment = a.distance(b);
+            if (walked + segment >= half) {
+                double t = segment > 0 ? (half - walked) / segment : 0.0;
+                return new Vec2d(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
+            }
+            walked += segment;
+        }
+        return pathPoints.get(pathPoints.size() - 1).copy();
+    }
+
+    private static boolean hasNearbyConstraint(PowerLineFootprint line, double stationing) {
+        for (PoleLayoutConstraint constraint : line.getLayoutConstraints()) {
+            if (Math.abs(constraint.getRequiredStationing() - stationing) < 4.0) {
+                return true;
+            }
+        }
+        return false;
+    }
+}

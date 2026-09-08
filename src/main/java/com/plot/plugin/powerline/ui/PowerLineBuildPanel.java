@@ -58,6 +58,17 @@ public final class PowerLineBuildPanel {
     }
 
     private void renderFriendlyStatus(PowerLineFootprint line) {
+        ImGui.text(PlotI18n.tr("plugin.powerline.build.status_section"));
+        if (PowerLineFriendlyStatus.spacingLooksGood(line)) {
+            ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.powerline.build.status.spacing_ok"));
+        }
+        ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.powerline.build.status.corners_ok"));
+
+        if (line.isTerrainAvoidanceEnabled()) {
+            renderTerrainStatus(line);
+            return;
+        }
+
         if (!line.isEngineeringAnalysisEnabled()) {
             ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.powerline.build.status.decorative"));
             return;
@@ -68,17 +79,27 @@ public final class PowerLineBuildPanel {
             report = ctx.actions().analyzeEngineering(line);
         }
 
-        ImGui.text(PlotI18n.tr("plugin.powerline.build.status_section"));
-        if (PowerLineFriendlyStatus.spacingLooksGood(line)) {
-            ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.powerline.build.status.spacing_ok"));
-        }
-        ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.powerline.build.status.corners_ok"));
-
         if (report == null || report.getIssues().isEmpty()) {
             ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.powerline.build.status.all_good"));
             return;
         }
 
+        renderIssueList(report);
+    }
+
+    private void renderTerrainStatus(PowerLineFootprint line) {
+        LineEngineeringReport report = ctx.state().getEngineeringState().getLastTerrainReport();
+        if (report == null && ctx.hasValidPreview(line)) {
+            report = ctx.actions().analyzeTerrainCollisions(line);
+        }
+        if (report == null || !PowerLineFriendlyStatus.hasTerrainIssues(report)) {
+            ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.powerline.build.status.terrain_ok"));
+            return;
+        }
+        renderIssueList(report);
+    }
+
+    private void renderIssueList(LineEngineeringReport report) {
         int shown = 0;
         for (var issue : report.getIssues()) {
             if (shown >= 4) {

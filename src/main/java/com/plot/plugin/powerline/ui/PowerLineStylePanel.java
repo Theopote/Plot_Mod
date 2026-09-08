@@ -51,19 +51,28 @@ public final class PowerLineStylePanel {
             {TowerFamily.STANDARD_LATTICE_3_PHASE_ID, PlotI18n.tr("plugin.powerline.style.pack.lattice")},
             {TowerFamily.GRADED_LATTICE_3_PHASE_ID, PlotI18n.tr("plugin.powerline.style.pack.adaptive")},
         };
-        float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX() * 2f) / 3f;
+
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float totalWidth = PowerLineStyleCardRenderer.cardWidth() * packs.length
+            + spacing * (packs.length - 1);
+        float startX = ImGui.getCursorPosX();
+        if (totalWidth < ImGui.getContentRegionAvail().x) {
+            ImGui.setCursorPosX(startX + (ImGui.getContentRegionAvail().x - totalWidth) * 0.5f);
+        }
+
         for (int i = 0; i < packs.length; i++) {
             if (i > 0) {
-                ImGui.sameLine();
+                ImGui.sameLine(0f, spacing);
             }
             boolean active = packs[i][0].equals(selected);
-            if (ImGui.button(packs[i][1] + (active ? " *" : ""), buttonWidth, 48)) {
+            if (PowerLineStyleCardRenderer.renderStyleCard(packs[i][0], packs[i][1], active)) {
                 ctx.pushEditSnapshot();
                 line.setTowerFamilyId(packs[i][0].isBlank() ? null : packs[i][0]);
                 ctx.invalidatePreview();
             }
         }
         ImGui.newLine();
+
         if (line.hasTowerFamily()) {
             var family = new com.plot.plugin.powerline.design.family.TowerFamilyResolver().find(line.getTowerFamilyId());
             String name = family != null ? family.getName() : line.getTowerFamilyId();

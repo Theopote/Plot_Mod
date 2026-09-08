@@ -115,6 +115,18 @@ public final class PowerLineActions {
     }
 
     public boolean calculatePreview(PowerLineFootprint line) {
+        if (!calculatePreviewCore(line)) {
+            return false;
+        }
+        if (line.isTerrainAvoidanceEnabled()) {
+            runTerrainAvoidance(line);
+        } else {
+            state.getEngineeringState().setLastTerrainReport(null);
+        }
+        return state.getLastGenerationResult() != null;
+    }
+
+    private boolean calculatePreviewCore(PowerLineFootprint line) {
         World world = getClientWorld();
         if (world == null || generator == null) {
             state.setProjectStatus(PlotI18n.tr("plugin.powerline.generate_world_unavailable"));
@@ -156,6 +168,70 @@ public final class PowerLineActions {
             String.format("%.1f", result.wireLength),
             result.warnings.size()));
         return true;
+    }
+
+    public LineEngineeringReport analyzeTerrainCollisions(PowerLineFootprint line) {
+        if (line == null || !line.isTerrainAvoidanceEnabled()) {
+            state.getEngineeringState().setLastTerrainReport(null);
+            return null;
+        }
+        World world = getClientWorld();
+        if (world == null) {
+            return null;
+        }
+        if (!hasValidPreview(line) && !calculatePreviewCore(line)) {
+            return null;
+        }
+        PowerLineGenerationResult result = state.getLastGenerationResult();
+        if (result == null) {
+            return null;
+        }
+        TerrainSampler terrain = MinecraftTerrainSampler.of(world, host.coordinates());
+        LineEngineeringReport report = com.plot.plugin.powerline.engineering.TerrainAvoidance
+            .analyzeCollisions(result.toGeometryModel(), terrain);
+        state.getEngineeringState().setLastTerrainReport(report);
+        state.getEngineeringState().setLastAnalyzedFootprintId(line.getId());
+        return report;
+    }
+
+    public void runTerrainAvoidance(PowerLineFootprint line) {
+        if (line == null || !line.isTerrainAvoidanceEnabled()) {
+            return;
+        }
+        World world = getClientWorld();
+        if (world == null) {
+            return;
+        }
+        TerrainSampler terrain = MinecraftTerrainSampler.of(world, host.coordinates());
+        boolean adjusted = false;
+        for (int attempt = 0; attempt < 4; attempt++) {
+            PowerLineGenerationResult result = state.getLastGenerationResult();
+            if (result == null) {
+                break;
+            }
+            LineEngineeringReport report = com.plot.plugin.powerline.engineering.TerrainAvoidance
+                .analyzeCollisions(result.toGeometryModel(), terrain);
+            state.getEngineeringState().setLastTerrainReport(report);
+            state.getEngineeringState().setLastAnalyzedFootprintId(line.getId());
+            if (!com.plot.plugin.powerline.engineering.TerrainAvoidance.hasTerrainIssues(report)) {
+                if (adjusted) {
+                    state.setProjectStatus(PlotI18n.tr("plugin.powerline.terrain.auto_fixed"));
+                }
+                return;
+            }
+            if (!com.plot.plugin.powerline.engineering.TerrainAvoidance.applyOneFix(
+                    line, report, result, designResolver())) {
+                state.setProjectStatus(PlotI18n.tr("plugin.powerline.terrain.manual_needed"));
+                return;
+            }
+            adjusted = true;
+            if (!calculatePreviewCore(line)) {
+                return;
+            }
+        }
+        if (adjusted) {
+            state.setProjectStatus(PlotI18n.tr("plugin.powerline.terrain.auto_fixed"));
+        }
     }
 
     private void projectGhosts(PowerLineGenerationResult result) {

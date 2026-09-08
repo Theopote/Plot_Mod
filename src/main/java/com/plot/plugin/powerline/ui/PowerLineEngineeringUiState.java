@@ -6,6 +6,7 @@ import com.plot.plugin.powerline.engineering.optimization.OptimizationResult;
 /** 工程分析与会话状态扩展。 */
 public final class PowerLineEngineeringUiState {
     private LineEngineeringReport lastEngineeringReport;
+    private LineEngineeringReport lastTerrainReport;
     private String lastAnalyzedFootprintId;
     private OptimizationResult pendingOptimization;
     private boolean optimizationConfirmPending;
@@ -17,6 +18,14 @@ public final class PowerLineEngineeringUiState {
 
     public void setLastEngineeringReport(LineEngineeringReport lastEngineeringReport) {
         this.lastEngineeringReport = lastEngineeringReport;
+    }
+
+    public LineEngineeringReport getLastTerrainReport() {
+        return lastTerrainReport;
+    }
+
+    public void setLastTerrainReport(LineEngineeringReport lastTerrainReport) {
+        this.lastTerrainReport = lastTerrainReport;
     }
 
     public String getLastAnalyzedFootprintId() {

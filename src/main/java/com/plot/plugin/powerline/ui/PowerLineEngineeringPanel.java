@@ -22,22 +22,33 @@ public final class PowerLineEngineeringPanel {
     }
 
     public void renderSmartFixSection(PowerLineFootprint line) {
-        if (!line.isEngineeringAnalysisEnabled()) {
+        if (!line.isTerrainAvoidanceEnabled() && !line.isEngineeringAnalysisEnabled()) {
             return;
         }
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.powerline.build.smart_fix"));
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.build.auto_adjust"), 0, 0)) {
-            ctx.actions().proposeClearanceFix(line);
-            ctx.state().getEngineeringState().setOptimizationConfirmPending(true);
+        if (line.isTerrainAvoidanceEnabled()) {
+            if (ImGui.button(PlotI18n.tr("plugin.powerline.build.terrain_auto_adjust"), 0, 0)) {
+                ctx.pushEditSnapshot();
+                ctx.calculatePreview(line);
+            }
         }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.build.smart_towers"), 0, 0)) {
-            ctx.pushEditSnapshot();
-            line.setAutomaticTowerSelectionEnabled(true);
-            ctx.invalidatePreview();
-            ctx.actions().proposeAutoTowerSelection(line);
-            ctx.state().getEngineeringState().setOptimizationConfirmPending(true);
+        if (line.isEngineeringAnalysisEnabled()) {
+            if (line.isTerrainAvoidanceEnabled()) {
+                ImGui.sameLine();
+            }
+            if (ImGui.button(PlotI18n.tr("plugin.powerline.build.engineering_fix"), 0, 0)) {
+                ctx.actions().proposeClearanceFix(line);
+                ctx.state().getEngineeringState().setOptimizationConfirmPending(true);
+            }
+            ImGui.sameLine();
+            if (ImGui.button(PlotI18n.tr("plugin.powerline.build.smart_towers"), 0, 0)) {
+                ctx.pushEditSnapshot();
+                line.setAutomaticTowerSelectionEnabled(true);
+                ctx.invalidatePreview();
+                ctx.actions().proposeAutoTowerSelection(line);
+                ctx.state().getEngineeringState().setOptimizationConfirmPending(true);
+            }
         }
     }
 
