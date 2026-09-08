@@ -14,15 +14,12 @@ import imgui.flag.ImGuiTreeNodeFlags;
 /** 建造 Tab：预览、友好状态、智能修正、生成。 */
 public final class PowerLineBuildPanel {
     private final PowerLineUiContext ctx;
-    private final PowerLineGeneratePanel generatePanel;
+    private final PowerLineBuildActions buildActions;
     private final PowerLineEngineeringPanel engineeringPanel;
 
-    public PowerLineBuildPanel(
-            PowerLineUiContext ctx,
-            PowerLineGeneratePanel generatePanel,
-            PowerLineEngineeringPanel engineeringPanel) {
+    public PowerLineBuildPanel(PowerLineUiContext ctx, PowerLineEngineeringPanel engineeringPanel) {
         this.ctx = ctx;
-        this.generatePanel = generatePanel;
+        this.buildActions = new PowerLineBuildActions(ctx);
         this.engineeringPanel = engineeringPanel;
     }
 
@@ -40,7 +37,7 @@ public final class PowerLineBuildPanel {
         renderFriendlyStatus(line);
         engineeringPanel.renderSmartFixSection(line);
         ImGui.separator();
-        generatePanel.renderBuildActions(line);
+        buildActions.render(line);
         renderAdvancedChecks(line);
     }
 
@@ -201,12 +198,34 @@ public final class PowerLineBuildPanel {
         ImGui.spacing();
         ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.powerline.build.advanced_checks"), ImGuiTreeNodeFlags.None)) {
+            renderAdvancedPreviewDetails(line);
             engineeringPanel.renderAdvancedChecksSection(line);
         }
     }
 
+    private void renderAdvancedPreviewDetails(PowerLineFootprint line) {
+        PowerLineGenerationResult result = ctx.hasValidPreview(line) ? ctx.lastGenerationResult() : null;
+        if (result == null) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.no_preview"));
+            return;
+        }
+        ImGui.text(PlotI18n.tr("plugin.powerline.block_count_result", result.blockCount()));
+        if (result.warnings.isEmpty()) {
+            return;
+        }
+        ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
+            "plugin.powerline.clearance_warnings",
+            result.warnings.size()));
+        ImGui.beginChild("powerline_build_advanced_warnings", 0, 80, true);
+        for (String warning : result.warnings) {
+            ImGui.textWrapped(warning);
+        }
+        ImGui.endChild();
+        ImGui.separator();
+    }
+
     public void renderBuildConfirmPopup() {
-        generatePanel.renderBuildConfirmPopup();
+        buildActions.renderBuildConfirmPopup();
     }
 
     public void renderOptimizationConfirmPopup() {

@@ -21,9 +21,8 @@ public final class PowerLineUIManager {
         this.poleDesignerPanel = new PoleDesignerPanel(ctx);
         this.routePanel = new PowerLineRoutePanel(ctx);
         this.stylePanel = new PowerLineStylePanel(ctx, poleDesignerPanel);
-        PowerLineGeneratePanel generatePanel = new PowerLineGeneratePanel(ctx);
         PowerLineEngineeringPanel engineeringPanel = new PowerLineEngineeringPanel(ctx);
-        this.buildPanel = new PowerLineBuildPanel(ctx, generatePanel, engineeringPanel);
+        this.buildPanel = new PowerLineBuildPanel(ctx, engineeringPanel);
     }
 
     public void render() {

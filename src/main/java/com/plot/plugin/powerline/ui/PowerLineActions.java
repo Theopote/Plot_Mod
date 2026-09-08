@@ -645,6 +645,7 @@ public final class PowerLineActions {
         state.setPathSelection(PowerLinePathSelectionAnalysis.EMPTY);
         state.setPoleDesignerOpen(false);
         state.setPoleDesignerEditingId("");
+        state.getDesignDraftHistory().clear();
         invalidatePreview();
     }
 

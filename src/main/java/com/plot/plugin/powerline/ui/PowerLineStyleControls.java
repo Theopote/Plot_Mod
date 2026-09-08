@@ -23,6 +23,10 @@ import java.util.StringJoiner;
 
 /** Style / Advanced 面板共享的样式控件（材质、杆型、角色等）。 */
 public final class PowerLineStyleControls {
+    private static final TowerRole[] TOWER_ROLES = TowerRole.values();
+    /** Combo index 0 = Auto; 1..TOWER_ROLES.length = explicit role. */
+    private static final int ROLE_COMBO_OPTION_COUNT = 1 + TOWER_ROLES.length;
+
     private final PowerLineUiContext ctx;
 
     public PowerLineStyleControls(PowerLineUiContext ctx) {
@@ -231,7 +235,7 @@ public final class PowerLineStyleControls {
             int roleIndex = roleComboIndex(override, site);
             ImGui.setNextItemWidth(140);
             if (ImGui.beginCombo("##role", roleComboLabel(roleIndex))) {
-                for (int option = 0; option < 7; option++) {
+                for (int option = 0; option < ROLE_COMBO_OPTION_COUNT; option++) {
                     if (ImGui.selectable(roleComboLabel(option), roleIndex == option)) {
                         ctx.pushEditSnapshot();
                         applyRoleSelection(line, site, option);
@@ -267,36 +271,32 @@ public final class PowerLineStyleControls {
         if (override == null || override.getRoleOverride() == null) {
             return 0;
         }
-        return switch (override.getRoleOverride()) {
-            case SUSPENSION -> 1;
-            case ANGLE -> 2;
-            case DEAD_END -> 3;
-            case TERMINAL -> 4;
-            case SPECIAL -> 5;
-        };
+        TowerRole role = override.getRoleOverride();
+        for (int i = 0; i < TOWER_ROLES.length; i++) {
+            if (TOWER_ROLES[i] == role) {
+                return i + 1;
+            }
+        }
+        return 0;
     }
 
     private static String roleComboLabel(int index) {
-        return switch (index) {
-            case 0 -> PlotI18n.tr("plugin.powerline.pole_role_auto");
-            case 1 -> PlotI18n.tr("plugin.powerline.pole_role_suspension");
-            case 2 -> PlotI18n.tr("plugin.powerline.pole_role_angle");
-            case 3 -> PlotI18n.tr("plugin.powerline.pole_role_dead_end");
-            case 4 -> PlotI18n.tr("plugin.powerline.pole_role_terminal");
-            case 5 -> PlotI18n.tr("plugin.powerline.pole_role_special");
-            default -> PlotI18n.tr("plugin.powerline.pole_role_auto");
-        };
+        if (index == 0) {
+            return PlotI18n.tr("plugin.powerline.pole_role_auto");
+        }
+        if (index >= 1 && index <= TOWER_ROLES.length) {
+            return localizedRoleName(TOWER_ROLES[index - 1]);
+        }
+        return PlotI18n.tr("plugin.powerline.pole_role_auto");
     }
 
     private static void applyRoleSelection(PowerLineFootprint line, PowerPoleSite site, int option) {
-        switch (option) {
-            case 0 -> PowerLineOverrideUtils.setRoleOverride(line, site.getStationing(), null);
-            case 1 -> PowerLineOverrideUtils.setRoleOverride(line, site.getStationing(), TowerRole.SUSPENSION);
-            case 2 -> PowerLineOverrideUtils.setRoleOverride(line, site.getStationing(), TowerRole.ANGLE);
-            case 3 -> PowerLineOverrideUtils.setRoleOverride(line, site.getStationing(), TowerRole.DEAD_END);
-            case 4 -> PowerLineOverrideUtils.setRoleOverride(line, site.getStationing(), TowerRole.TERMINAL);
-            case 5 -> PowerLineOverrideUtils.setRoleOverride(line, site.getStationing(), TowerRole.SPECIAL);
-            default -> { }
+        if (option == 0) {
+            PowerLineOverrideUtils.setRoleOverride(line, site.getStationing(), null);
+            return;
+        }
+        if (option >= 1 && option <= TOWER_ROLES.length) {
+            PowerLineOverrideUtils.setRoleOverride(line, site.getStationing(), TOWER_ROLES[option - 1]);
         }
     }
 }

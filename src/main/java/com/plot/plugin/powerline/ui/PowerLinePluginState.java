@@ -6,6 +6,7 @@ import com.plot.plugin.powerline.PowerLinePathSelectionAnalysis;
 import com.plot.plugin.powerline.PowerLineSelectionSet;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineProject;
+import com.plot.plugin.powerline.model.PoleDesignDraftHistory;
 import com.plot.plugin.powerline.model.PowerLineProjectHistory;
 import imgui.type.ImString;
 
@@ -17,6 +18,7 @@ public final class PowerLinePluginState {
     private PowerLineProject project = new PowerLineProject();
     private PowerLineDesignProject designProject = new PowerLineDesignProject();
     private final PowerLineProjectHistory projectHistory = new PowerLineProjectHistory();
+    private final PoleDesignDraftHistory designDraftHistory = new PoleDesignDraftHistory();
     private final PowerLineSelectionSet selection = new PowerLineSelectionSet();
     private PowerLinePathSelectionAnalysis pathSelection = PowerLinePathSelectionAnalysis.EMPTY;
 
@@ -76,6 +78,10 @@ public final class PowerLinePluginState {
 
     public PowerLineProjectHistory getProjectHistory() {
         return projectHistory;
+    }
+
+    public PoleDesignDraftHistory getDesignDraftHistory() {
+        return designDraftHistory;
     }
 
     public PowerLineSelectionSet getSelection() {

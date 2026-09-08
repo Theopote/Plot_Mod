@@ -6,26 +6,26 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
-/** 电力线路建造动作（Build Tab 子面板）。 */
-public final class PowerLineGeneratePanel {
+/** 建造 Tab 操作按钮（预览 / 落地）。 */
+final class PowerLineBuildActions {
     private final PowerLineUiContext ctx;
 
-    public PowerLineGeneratePanel(PowerLineUiContext ctx) {
+    PowerLineBuildActions(PowerLineUiContext ctx) {
         this.ctx = ctx;
     }
 
-    void renderBuildActions(PowerLineFootprint line) {
+    void render(PowerLineFootprint line) {
         float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
         ctx.syncPreviewValidity(line);
 
         com.plot.api.world.PlacementReadiness readiness =
             ctx.host().projection().checkWorldModificationReadiness();
+        boolean hasPreview = ctx.hasValidPreview(line);
 
         if (ImGui.button(PlotI18n.tr("plugin.powerline.calc_preview"), half, 0)) {
             ctx.calculatePreview(line);
         }
         ImGui.sameLine();
-        boolean hasPreview = ctx.hasValidPreview(line);
         if (!hasPreview) {
             ImGui.beginDisabled();
         }
@@ -36,12 +36,6 @@ public final class PowerLineGeneratePanel {
             ImGui.endDisabled();
         }
 
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.build_direct"), ImGui.getContentRegionAvailX(), 0)) {
-            if (ctx.calculatePreview(line)) {
-                ctx.setBuildConfirmPending(true);
-            }
-        }
-
         if (!readiness.ready()) {
             ImGui.textColored(PluginUiColors.ERROR_SOFT, readiness.message());
         }
@@ -50,37 +44,9 @@ public final class PowerLineGeneratePanel {
             ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.powerline.preview_stale"));
         }
 
-        PowerLineGenerationResult result = ctx.hasValidPreview(line) ? ctx.lastGenerationResult() : null;
-        if (result != null) {
-            renderPreviewStats(line, result, readiness);
-        }
-    }
-
-    private void renderPreviewStats(
-            PowerLineFootprint line,
-            PowerLineGenerationResult result,
-            com.plot.api.world.PlacementReadiness readiness) {
-        ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.powerline.preview_stats"));
-        ImGui.text(PlotI18n.tr("plugin.powerline.pole_count_result", result.poleCount));
-        ImGui.text(PlotI18n.tr(
-            "plugin.powerline.wire_length_result",
-            String.format("%.1f", result.wireLength)));
-        ImGui.text(PlotI18n.tr("plugin.powerline.block_count_result", result.blockCount()));
-        if (!result.warnings.isEmpty()) {
-            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
-                "plugin.powerline.clearance_warnings",
-                result.warnings.size()));
-            ImGui.beginChild("powerline_warnings", 0, 80, true);
-            for (String warning : result.warnings) {
-                ImGui.textWrapped(warning);
-            }
-            ImGui.endChild();
-        }
-
         boolean buildDisabled = !readiness.ready()
             || ctx.host().placement().isBusy()
-            || !ctx.hasValidPreview(line);
+            || !hasPreview;
         if (buildDisabled) {
             ImGui.beginDisabled();
         }
@@ -94,7 +60,7 @@ public final class PowerLineGeneratePanel {
         }
     }
 
-    public void renderBuildConfirmPopup() {
+    void renderBuildConfirmPopup() {
         if (PowerLineUiWidgets.beginDeferredPopupModal(
                 "##powerline_build_confirm",
                 ctx.buildConfirmPending(),

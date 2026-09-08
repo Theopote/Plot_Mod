@@ -4,7 +4,7 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
-/** 电力线路认领 Tab。 */
+/** 电力线路路径认领（Route Tab）。 */
 public final class PowerLineAdoptPanel {
     private final PowerLineUiContext ctx;
 
@@ -28,7 +28,11 @@ public final class PowerLineAdoptPanel {
                 PluginUiColors.WARNING,
                 PlotI18n.tr("plugin.powerline.adopt_reject_curve"));
         }
-        if (!selection.hasCanvasSelection()) {
+        if (!selection.unsupported().isEmpty() && !selection.canAdopt()) {
+            ImGui.textColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr("plugin.powerline.adopt_unsupported_hint"));
+        } else if (!selection.hasCanvasSelection()) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.draw_path_hint"));
         }
 
@@ -36,9 +40,10 @@ public final class PowerLineAdoptPanel {
         if (ImGui.button(PlotI18n.tr("plugin.powerline.pick_path"), 0, 0)) {
             ctx.activatePathPickTool();
         }
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.pick_mode_hint"));
 
         ImGui.spacing();
-        boolean adoptDisabled = !selection.hasCanvasSelection();
+        boolean adoptDisabled = !selection.canAdopt();
         if (adoptDisabled) {
             ImGui.beginDisabled();
         }
@@ -47,6 +52,9 @@ public final class PowerLineAdoptPanel {
             : PlotI18n.tr("plugin.powerline.adopt");
         if (ImGui.button(label, 0, 0)) {
             ctx.adoptSelectedPaths();
+        }
+        if (adoptDisabled && ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.powerline.adopt_unsupported_hint"));
         }
         if (adoptDisabled) {
             ImGui.endDisabled();

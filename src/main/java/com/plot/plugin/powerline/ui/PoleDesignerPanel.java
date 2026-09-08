@@ -7,12 +7,12 @@ import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
-import com.plot.plugin.powerline.design.ConductorAttachmentPresets;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.PoleLayer;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
@@ -49,6 +49,7 @@ public final class PoleDesignerPanel {
             ctx.state().setPoleDesignerEditingId("");
         }
         designNameBuffer.set(draft.getName());
+        ctx.state().getDesignDraftHistory().clear();
         ctx.state().setPoleDesignerOpen(true);
     }
 
@@ -65,6 +66,8 @@ public final class PoleDesignerPanel {
             return;
         }
 
+        renderDraftHistoryControls();
+        ImGui.separator();
         renderPresetSelector();
         ImGui.separator();
         PoleDesignPreviewRenderer.render(draft);
@@ -80,6 +83,41 @@ public final class PoleDesignerPanel {
 
         renderPresetConfirmPopup();
         ImGui.end();
+    }
+
+    private void renderDraftHistoryControls() {
+        boolean undoDisabled = !ctx.state().getDesignDraftHistory().canUndo();
+        if (undoDisabled) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.undo"), 0, 0)) {
+            applyDraftFromHistory(ctx.state().getDesignDraftHistory().undo(draft));
+        }
+        if (undoDisabled) {
+            ImGui.endDisabled();
+        }
+        ImGui.sameLine();
+        boolean redoDisabled = !ctx.state().getDesignDraftHistory().canRedo();
+        if (redoDisabled) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.redo"), 0, 0)) {
+            applyDraftFromHistory(ctx.state().getDesignDraftHistory().redo(draft));
+        }
+        if (redoDisabled) {
+            ImGui.endDisabled();
+        }
+    }
+
+    private void pushDraftSnapshot() {
+        if (draft != null) {
+            ctx.state().getDesignDraftHistory().push(draft);
+        }
+    }
+
+    private void applyDraftFromHistory(PoleDesign restored) {
+        draft = restored;
+        designNameBuffer.set(draft.getName());
     }
 
     private void renderPresetSelector() {
@@ -108,11 +146,13 @@ public final class PoleDesignerPanel {
         ImGui.text(PlotI18n.tr("plugin.powerline.design.structure"));
         boolean useTower = draft.hasTowerStructure();
         if (ImGui.radioButton(PlotI18n.tr("plugin.powerline.design.structure_legacy"), !useTower)) {
+            pushDraftSnapshot();
             draft.clearTowerStructure();
         }
         ImGui.sameLine();
         if (ImGui.radioButton(PlotI18n.tr("plugin.powerline.design.structure_tower"), useTower)) {
             if (!draft.hasTowerStructure()) {
+                pushDraftSnapshot();
                 draft.setTowerStructure(TowerStructurePresets.taperedLatticeTower());
             }
         }
@@ -123,6 +163,7 @@ public final class PoleDesignerPanel {
 
         TowerStructureDesign structure = draft.getTowerStructure();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.structure_preset_lattice"), 0, 0)) {
+            pushDraftSnapshot();
             draft.setTowerStructure(TowerStructurePresets.taperedLatticeTower());
         }
 
@@ -137,23 +178,34 @@ public final class PoleDesignerPanel {
             if (ImGui.inputFloat("H", height)) {
                 station.setHeight(height.get());
             }
+            if (ImGui.isItemActivated()) {
+                pushDraftSnapshot();
+            }
             ImGui.sameLine();
             ImGui.setNextItemWidth(50);
             if (ImGui.inputFloat("W", width)) {
                 station.setHalfWidth(width.get());
+            }
+            if (ImGui.isItemActivated()) {
+                pushDraftSnapshot();
             }
             ImGui.sameLine();
             ImGui.setNextItemWidth(50);
             if (ImGui.inputFloat("D", depth)) {
                 station.setHalfDepth(depth.get());
             }
+            if (ImGui.isItemActivated()) {
+                pushDraftSnapshot();
+            }
             ImGui.sameLine();
             if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.delete_layer"))) {
+                pushDraftSnapshot();
                 structure.removeStation(station.getId());
             }
             ImGui.popID();
         }
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.structure_add_station"), 0, 0)) {
+            pushDraftSnapshot();
             double nextHeight = structure.maxHeight() + 8;
             structure.addStation(new TowerStation(null, nextHeight, 2, 2));
             structure.setBays(TowerStructurePresets.defaultBaysForStations(structure.getStations()));
@@ -170,23 +222,34 @@ public final class PoleDesignerPanel {
             if (ImGui.inputFloat(PlotI18n.tr("plugin.powerline.design.structure_arm_height"), baseHeight)) {
                 arm.setBaseHeight(baseHeight.get());
             }
+            if (ImGui.isItemActivated()) {
+                pushDraftSnapshot();
+            }
             ImGui.sameLine();
             ImGui.setNextItemWidth(60);
             if (ImGui.inputFloat(PlotI18n.tr("plugin.powerline.design.structure_arm_reach"), reach)) {
                 arm.setLateralReach(reach.get());
+            }
+            if (ImGui.isItemActivated()) {
+                pushDraftSnapshot();
             }
             ImGui.sameLine();
             ImGui.setNextItemWidth(60);
             if (ImGui.inputFloat(PlotI18n.tr("plugin.powerline.design.structure_arm_drop"), verticalDrop)) {
                 arm.setVerticalDrop(verticalDrop.get());
             }
+            if (ImGui.isItemActivated()) {
+                pushDraftSnapshot();
+            }
             ImGui.sameLine();
             if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.delete_layer"))) {
+                pushDraftSnapshot();
                 structure.removeArm(arm.getId());
             }
             ImGui.popID();
         }
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.structure_add_arm"), 0, 0)) {
+            pushDraftSnapshot();
             structure.addArm(new TowerArm(null, structure.maxHeight() - 2, 4));
         }
     }
@@ -194,14 +257,17 @@ public final class PoleDesignerPanel {
     private void renderAttachmentList() {
         ImGui.text(PlotI18n.tr("plugin.powerline.design.attachments"));
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.attachment_preset_single"), 0, 0)) {
+            pushDraftSnapshot();
             draft.setAttachments(ConductorAttachmentPresets.singleConductor(12.0));
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.attachment_preset_3phase_h"), 0, 0)) {
+            pushDraftSnapshot();
             draft.setAttachments(ConductorAttachmentPresets.threePhaseHorizontal(12.0));
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.attachment_preset_3phase_v"), 0, 0)) {
+            pushDraftSnapshot();
             draft.setAttachments(ConductorAttachmentPresets.threePhaseVertical(12.0));
         }
 
@@ -212,6 +278,7 @@ public final class PoleDesignerPanel {
             ImGui.popID();
         }
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.add_attachment"), 0, 0)) {
+            pushDraftSnapshot();
             draft.addAttachment(new ConductorAttachment());
         }
     }
@@ -220,6 +287,7 @@ public final class PoleDesignerPanel {
         ImGui.text(PlotI18n.tr("plugin.powerline.design.attachment_row", attachment.getName()));
         ImGui.sameLine();
         if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.delete_layer"))) {
+            pushDraftSnapshot();
             draft.removeAttachment(attachment.getId());
         }
 
@@ -232,6 +300,9 @@ public final class PoleDesignerPanel {
                 "%.1f")) {
             attachment.setLateralOffset(lateral[0]);
         }
+        if (ImGui.isItemActivated()) {
+            pushDraftSnapshot();
+        }
         float[] vertical = {(float) attachment.getVerticalOffset()};
         if (ImGui.sliderFloat(
                 PlotI18n.tr("plugin.powerline.design.attachment_vertical", vertical[0]),
@@ -240,6 +311,9 @@ public final class PoleDesignerPanel {
                 64f,
                 "%.1f")) {
             attachment.setVerticalOffset(vertical[0]);
+        }
+        if (ImGui.isItemActivated()) {
+            pushDraftSnapshot();
         }
         float[] longitudinal = {(float) attachment.getLongitudinalOffset()};
         if (ImGui.sliderFloat(
@@ -250,10 +324,16 @@ public final class PoleDesignerPanel {
                 "%.1f")) {
             attachment.setLongitudinalOffset(longitudinal[0]);
         }
+        if (ImGui.isItemActivated()) {
+            pushDraftSnapshot();
+        }
         ImInt insulatorLength = new ImInt(attachment.getInsulatorLength());
         ImGui.setNextItemWidth(80);
         if (ImGui.inputInt(PlotI18n.tr("plugin.powerline.design.attachment_insulator"), insulatorLength)) {
             attachment.setInsulatorLength(insulatorLength.get());
+        }
+        if (ImGui.isItemActivated()) {
+            pushDraftSnapshot();
         }
     }
 
@@ -268,6 +348,7 @@ public final class PoleDesignerPanel {
         }
         applyPendingLayerActions();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.add_layer"), 0, 0)) {
+            pushDraftSnapshot();
             draft.getLayers().add(new PoleLayer(
                 PoleLayer.Shape.COLUMN,
                 1,
@@ -284,6 +365,7 @@ public final class PoleDesignerPanel {
         ImInt shapeIndex = new ImInt(layer.getShape().ordinal());
         ImGui.setNextItemWidth(90);
         if (ImGui.combo("##shape", shapeIndex, shapeLabels)) {
+            pushDraftSnapshot();
             layer.setShape(PoleLayer.Shape.values()[shapeIndex.get()]);
         }
         ImGui.sameLine();
@@ -293,6 +375,9 @@ public final class PoleDesignerPanel {
         if (ImGui.inputInt("##height", height)) {
             layer.setHeight(height.get());
         }
+        if (ImGui.isItemActivated()) {
+            pushDraftSnapshot();
+        }
         ImGui.sameLine();
 
         if (layer.getShape() == PoleLayer.Shape.CROSSARM) {
@@ -301,16 +386,19 @@ public final class PoleDesignerPanel {
             if (ImGui.inputInt("##arm", armLength)) {
                 layer.setCrossarmLength(armLength.get());
             }
+            if (ImGui.isItemActivated()) {
+                pushDraftSnapshot();
+            }
             ImGui.sameLine();
         }
 
-        PowerLineUiWidgets.renderMaterialMixPicker(
-            ctx,
+        UIUtils.renderMaterialMixPicker(
             "layer_mat_" + index,
             "",
             layer.getMaterial(),
             MaterialMix.single(PowerLineFootprint.DEFAULT_POLE_MATERIAL),
-            layer::setMaterial);
+            layer::setMaterial,
+            this::pushDraftSnapshot);
         ImGui.sameLine();
 
         if (index > 0 && ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.move_up"))) {
@@ -328,6 +416,10 @@ public final class PoleDesignerPanel {
     }
 
     private void applyPendingLayerActions() {
+        if (pendingLayerActions.isEmpty()) {
+            return;
+        }
+        pushDraftSnapshot();
         for (LayerAction action : pendingLayerActions) {
             switch (action.type()) {
                 case MOVE_UP -> moveLayer(action.index(), -1);
@@ -349,6 +441,9 @@ public final class PoleDesignerPanel {
     private void renderSaveActions() {
         if (ImGui.inputText(PlotI18n.tr("plugin.powerline.design.name"), designNameBuffer)) {
             draft.setName(designNameBuffer.get());
+        }
+        if (ImGui.isItemActivated()) {
+            pushDraftSnapshot();
         }
 
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.save"), 0, 0)) {
@@ -393,6 +488,7 @@ public final class PoleDesignerPanel {
             ctx.actions().savePoleDesign(draft);
         }
         designNameBuffer.set(draft.getName());
+        ctx.state().getDesignDraftHistory().clear();
     }
 
     private void renderPresetConfirmPopup() {
@@ -404,6 +500,7 @@ public final class PoleDesignerPanel {
             if (ImGui.button(PlotI18n.tr("button.plot.confirm"), 120, 0)) {
                 PoleDesign preset = PoleDesignCatalog.findBuiltin(pendingPresetId);
                 if (preset != null) {
+                    pushDraftSnapshot();
                     draft = preset.copy();
                     designNameBuffer.set(draft.getName());
                     ctx.state().setPoleDesignerEditingId("");
