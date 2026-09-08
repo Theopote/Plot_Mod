@@ -8,6 +8,7 @@ import com.plot.plugin.powerline.engineering.selection.TowerSelectionContext;
 import com.plot.plugin.powerline.engineering.selection.TowerSelectionResult;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
+import com.plot.plugin.powerline.PowerLineGenerationI18n;
 import com.plot.plugin.powerline.model.TowerRole;
 
 import java.util.ArrayList;
@@ -50,7 +51,7 @@ public final class PoleDesignAssignmentResolver {
         if (overrideId != null && !overrideId.isBlank()) {
             PoleDesign design = designResolver.find(overrideId);
             if (design == null) {
-                warnings.add("Pole design override not found: " + overrideId);
+                warnings.add(PowerLineGenerationI18n.poleDesignOverrideNotFound(overrideId));
             } else {
                 return new AssignmentResult(design, overrideId, warnings);
             }
@@ -68,7 +69,7 @@ public final class PoleDesignAssignmentResolver {
         if (footprint.hasTowerFamily()) {
             TowerFamily family = familyResolver.find(footprint.getTowerFamilyId());
             if (family == null) {
-                warnings.add("Tower family not found: " + footprint.getTowerFamilyId());
+                warnings.add(PowerLineGenerationI18n.towerFamilyNotFound(footprint.getTowerFamilyId()));
             } else {
                 AssignmentResult fromFamily = resolveFromFamily(site, family, footprint, warnings);
                 if (fromFamily.design != null) {
@@ -81,7 +82,7 @@ public final class PoleDesignAssignmentResolver {
             String id = footprint.getPoleDesignId();
             PoleDesign design = designResolver.find(id);
             if (design == null) {
-                warnings.add("Line pole design not found: " + id);
+                warnings.add(PowerLineGenerationI18n.linePoleDesignNotFound(id));
                 return new AssignmentResult(null, id, warnings);
             }
             return new AssignmentResult(design, id, warnings);
@@ -104,7 +105,7 @@ public final class PoleDesignAssignmentResolver {
         }
         PoleDesign design = designResolver.find(selection.getSelectedDesignId());
         if (design == null) {
-            warnings.add("Auto-selected design not found: " + selection.getSelectedDesignId());
+            warnings.add(PowerLineGenerationI18n.autoSelectedDesignNotFound(selection.getSelectedDesignId()));
             return new AssignmentResult(null, selection.getSelectedDesignId(), warnings);
         }
         return new AssignmentResult(design, selection.getSelectedDesignId(), warnings);
@@ -118,7 +119,7 @@ public final class PoleDesignAssignmentResolver {
         TowerRole role = site.getRole();
         String designId = family.getDesignId(role);
         if (designId == null || designId.isBlank()) {
-            warnings.add("No design mapped for role " + role + " in family " + family.getId());
+            warnings.add(PowerLineGenerationI18n.noDesignForRole(role, family.getId()));
             designId = family.getDesignId(TowerRole.SUSPENSION);
         }
         if (designId == null || designId.isBlank()) {
@@ -131,7 +132,7 @@ public final class PoleDesignAssignmentResolver {
         }
         PoleDesign design = designResolver.find(designId);
         if (design == null) {
-            warnings.add("Family role design not found: " + designId);
+            warnings.add(PowerLineGenerationI18n.familyRoleDesignNotFound(designId));
             return new AssignmentResult(null, designId, warnings);
         }
         return new AssignmentResult(design, designId, warnings);

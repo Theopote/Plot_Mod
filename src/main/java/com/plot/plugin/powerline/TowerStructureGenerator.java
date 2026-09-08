@@ -425,9 +425,7 @@ public final class TowerStructureGenerator {
             maxY = Math.max(maxY, groundY);
         }
         if (maxY - minY > UNEVEN_BASE_WARNING_THRESHOLD) {
-            result.warnings.add(String.format(
-                "Tower base terrain uneven by %d blocks",
-                maxY - minY));
+            result.warnings.add(PowerLineGenerationI18n.towerBaseUneven(maxY - minY));
         }
     }
 

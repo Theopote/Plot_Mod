@@ -25,18 +25,6 @@ public class PowerLineProject {
         .create();
 
     private final Map<String, PowerLineFootprint> lines = new LinkedHashMap<>();
-    private String selectedEngineeringProfileId;
-
-    public String getSelectedEngineeringProfileId() {
-        return selectedEngineeringProfileId;
-    }
-
-    public void setSelectedEngineeringProfileId(String selectedEngineeringProfileId) {
-        this.selectedEngineeringProfileId = selectedEngineeringProfileId != null
-            && selectedEngineeringProfileId.isBlank()
-            ? null
-            : selectedEngineeringProfileId;
-    }
 
     public Map<String, PowerLineFootprint> getLines() {
         return Collections.unmodifiableMap(new LinkedHashMap<>(lines));
@@ -192,12 +180,10 @@ public class PowerLineProject {
     }
 
     static class ProjectData {
-        String selectedEngineeringProfileId;
         List<LineData> lines = new ArrayList<>();
 
         static ProjectData from(PowerLineProject project) {
             ProjectData data = new ProjectData();
-            data.selectedEngineeringProfileId = project.getSelectedEngineeringProfileId();
             for (PowerLineFootprint line : project.lines.values()) {
                 LineData lineData = new LineData();
                 lineData.id = line.getId();
@@ -234,7 +220,6 @@ public class PowerLineProject {
 
         PowerLineProject toProject() {
             PowerLineProject project = new PowerLineProject();
-            project.setSelectedEngineeringProfileId(selectedEngineeringProfileId);
             if (lines == null) {
                 return project;
             }

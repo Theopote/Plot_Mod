@@ -16,6 +16,7 @@ import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
+import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
 import imgui.type.ImString;
@@ -33,6 +34,7 @@ public final class PoleDesignerPanel {
     private String pendingPresetId = "";
     private boolean presetConfirmPending = false;
     private final List<LayerAction> pendingLayerActions = new ArrayList<>();
+    private final ImBoolean designerWindowOpen = new ImBoolean(false);
 
     public PoleDesignerPanel(PowerLineUiContext ctx) {
         this.ctx = ctx;
@@ -50,6 +52,7 @@ public final class PoleDesignerPanel {
         }
         designNameBuffer.set(draft.getName());
         ctx.state().getDesignDraftHistory().clear();
+        designerWindowOpen.set(true);
         ctx.state().setPoleDesignerOpen(true);
     }
 
@@ -59,10 +62,15 @@ public final class PoleDesignerPanel {
         }
 
         ImGui.setNextWindowSize(480, 560, imgui.flag.ImGuiCond.FirstUseEver);
+        designerWindowOpen.set(true);
         if (!ImGui.begin(
                 PlotI18n.tr("plugin.powerline.design.window", draft.getName()),
+                designerWindowOpen,
                 ImGuiWindowFlags.None)) {
             ImGui.end();
+            if (!designerWindowOpen.get()) {
+                closeDesigner();
+            }
             return;
         }
 
@@ -83,6 +91,13 @@ public final class PoleDesignerPanel {
 
         renderPresetConfirmPopup();
         ImGui.end();
+        if (!designerWindowOpen.get()) {
+            closeDesigner();
+        }
+    }
+
+    private void closeDesigner() {
+        ctx.state().setPoleDesignerOpen(false);
     }
 
     private void renderDraftHistoryControls() {
@@ -456,7 +471,7 @@ public final class PoleDesignerPanel {
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 0, 0)) {
-            ctx.state().setPoleDesignerOpen(false);
+            closeDesigner();
         }
 
         if (ImGui.beginPopup("##pole_design_save_as")) {

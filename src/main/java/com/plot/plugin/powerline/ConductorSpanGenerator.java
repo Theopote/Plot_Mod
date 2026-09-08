@@ -89,8 +89,7 @@ public final class ConductorSpanGenerator {
             ResolvedAttachment startAttachment = startById.get(id);
             ResolvedAttachment endAttachment = endById.get(id);
             if (endAttachment == null) {
-                result.warnings.add(String.format(
-                    "Missing attachment '%s' (%s) on downstream pole at (%.1f, %.1f)",
+                result.warnings.add(PowerLineGenerationI18n.missingAttachmentDownstream(
                     startAttachment.name(),
                     id,
                     end.planPosition().x,
@@ -98,8 +97,7 @@ public final class ConductorSpanGenerator {
                 continue;
             }
             if (startAttachment.role() != endAttachment.role()) {
-                result.warnings.add(String.format(
-                    "Attachment role mismatch for '%s': %s vs %s — skipping span",
+                result.warnings.add(PowerLineGenerationI18n.attachmentRoleMismatch(
                     id,
                     startAttachment.role(),
                     endAttachment.role()));
@@ -121,8 +119,7 @@ public final class ConductorSpanGenerator {
         for (String id : endById.keySet()) {
             if (!startById.containsKey(id)) {
                 ResolvedAttachment endAttachment = endById.get(id);
-                result.warnings.add(String.format(
-                    "Missing attachment '%s' (%s) on upstream pole at (%.1f, %.1f)",
+                result.warnings.add(PowerLineGenerationI18n.missingAttachmentUpstream(
                     endAttachment.name(),
                     id,
                     start.planPosition().x,
@@ -325,8 +322,7 @@ public final class ConductorSpanGenerator {
         }
         int groundY = terrain.sampleSurfaceY(planPoint);
         if (wireY < groundY + CLEARANCE_MARGIN) {
-            result.warnings.add(String.format(
-                "Clearance warning at (%.1f, %.1f): wire Y=%d, ground Y=%d",
+            result.warnings.add(PowerLineGenerationI18n.clearanceAtPoint(
                 planPoint.x,
                 planPoint.y,
                 wireY,

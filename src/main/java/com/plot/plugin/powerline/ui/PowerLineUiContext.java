@@ -181,22 +181,6 @@ public final class PowerLineUiContext {
         return state.getDesignProject();
     }
 
-    public void onProjectLoaded(String filePath, Path projectsDir) {
-        actions.onProjectLoaded(filePath, projectsDir);
-    }
-
-    public void onProjectSaved(String filePath, Path projectsDir) {
-        actions.onProjectSaved(filePath, projectsDir);
-    }
-
-    public void persistProject(Path projectsDir) {
-        actions.persistProject(projectsDir);
-    }
-
-    public void loadProjectForCurrentProject(Path projectsDir, String defaultFile) {
-        actions.loadProjectForCurrentProject(projectsDir, defaultFile);
-    }
-
     public void activatePathPickTool() {
         actions.activatePathPickTool();
     }

@@ -64,7 +64,7 @@ class PowerLineTowerIntegrationTest {
             projection()).generate(line, flatTerrain(64), new PoleDesignResolver(designs));
 
         assertTrue(result.structureBlockCount > 0);
-        assertFalse(result.warnings.stream().anyMatch(w -> w.contains("Missing attachment")));
+        assertFalse(result.warnings.stream().anyMatch(w -> w.contains("missing_attachment_downstream")));
     }
 
     @Test
@@ -129,7 +129,7 @@ class PowerLineTowerIntegrationTest {
                 unevenTerrain(),
                 new PoleDesignResolver(designs));
 
-        assertTrue(result.warnings.stream().anyMatch(w -> w.contains("uneven")));
+        assertTrue(result.warnings.stream().anyMatch(w -> w.contains("tower_base_uneven")));
     }
 
     private static Set<Integer> wireZValues(PowerLineGenerationResult result, int wireY) {

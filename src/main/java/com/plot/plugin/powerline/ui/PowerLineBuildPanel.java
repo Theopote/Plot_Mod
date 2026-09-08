@@ -1,5 +1,6 @@
 package com.plot.plugin.powerline.ui;
 
+import com.plot.plugin.powerline.PowerLineGenerationI18n;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
@@ -174,7 +175,8 @@ public final class PowerLineBuildPanel {
         }
         ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.powerline.build.status.terrain_warning"));
         renderIssueList(report);
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.build.terrain_auto_adjust"), 0, 0)) {
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.terrain_apply_fix_hint"));
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.build.terrain_apply_fix"), 0, 0)) {
             ctx.autoAdjustTerrain(line);
         }
     }
@@ -218,7 +220,7 @@ public final class PowerLineBuildPanel {
             result.warnings.size()));
         ImGui.beginChild("powerline_build_advanced_warnings", 0, 80, true);
         for (String warning : result.warnings) {
-            ImGui.textWrapped(warning);
+            ImGui.textWrapped(PowerLineGenerationI18n.localize(warning));
         }
         ImGui.endChild();
         ImGui.separator();

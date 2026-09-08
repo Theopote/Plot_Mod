@@ -590,18 +590,6 @@ public final class PowerLineActions {
         saveDesignProjectFile(designProjectsDir.resolve(state.getCurrentProjectFile()));
     }
 
-    public void onProjectLoaded(String filePath, Path projectsDir) {
-        onProjectLoaded(filePath, projectsDir, projectsDir.getParent().resolve("pole-designs"));
-    }
-
-    public void onProjectSaved(String filePath, Path projectsDir) {
-        onProjectSaved(filePath, projectsDir, projectsDir.getParent().resolve("pole-designs"));
-    }
-
-    public void persistProject(Path projectsDir) {
-        persistProject(projectsDir, projectsDir.getParent().resolve("pole-designs"));
-    }
-
     public boolean loadProjectFile(Path file) {
         try {
             PowerLineProject loaded = PowerLineProject.loadFrom(file);
@@ -631,13 +619,6 @@ public final class PowerLineActions {
             state.setProjectStatus(PlotI18n.tr("plugin.powerline.project.default_loaded"));
         }
         loadDesignProjectFile(designProjectsDir.resolve(defaultProjectFile));
-    }
-
-    public void loadProjectForCurrentProject(Path projectsDir, String defaultProjectFile) {
-        loadProjectForCurrentProject(
-            projectsDir,
-            projectsDir.getParent().resolve("pole-designs"),
-            defaultProjectFile);
     }
 
     private void resetAfterProjectLoad() {
