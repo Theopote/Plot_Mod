@@ -158,7 +158,7 @@ public class PowerLineGenerator {
             usesAttachmentConductors = design.hasEnabledAttachments();
             for (TowerValidationIssue issue : TowerStructureValidator.validate(design)) {
                 if (issue.severity() != com.plot.plugin.powerline.design.structure.TowerValidationSeverity.INFO) {
-                    result.warnings.add(issue.message());
+                    result.warnings.add(issue.localizedMessage());
                 }
             }
             for (ResolvedAttachment attachment : attachments) {

@@ -58,10 +58,7 @@ public final class ClearanceChecker {
         return new SimpleEngineeringIssue(
             EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM,
             severity,
-            String.format(
-                "Ground clearance %.1f < required %.1f blocks",
-                analysis.getMinimumClearance(),
-                requiredClearance),
+            EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM,
             EngineeringIssueLocation.at(
                 analysis.getCriticalLocation(),
                 0.0),

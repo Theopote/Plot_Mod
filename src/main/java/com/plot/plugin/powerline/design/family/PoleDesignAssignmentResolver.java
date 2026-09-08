@@ -2,6 +2,7 @@ package com.plot.plugin.powerline.design.family;
 
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
+import com.plot.plugin.powerline.engineering.EngineeringI18n;
 import com.plot.plugin.powerline.engineering.selection.AutomaticTowerSelector;
 import com.plot.plugin.powerline.engineering.selection.TowerSelectionContext;
 import com.plot.plugin.powerline.engineering.selection.TowerSelectionResult;
@@ -96,7 +97,7 @@ public final class PoleDesignAssignmentResolver {
         AutomaticTowerSelector selector = new AutomaticTowerSelector(designResolver);
         TowerSelectionResult selection = selector.select(selectionContext);
         for (String reason : selection.getReasons()) {
-            warnings.add(reason);
+            warnings.add(EngineeringI18n.selectionReasonToken(reason));
         }
         if (!selection.hasSelection()) {
             return AssignmentResult.empty();

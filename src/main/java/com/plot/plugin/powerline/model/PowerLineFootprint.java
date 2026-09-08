@@ -33,7 +33,7 @@ public class PowerLineFootprint {
     private final List<PoleOverride> poleOverrides = new ArrayList<>();
     private final List<PoleLayoutConstraint> layoutConstraints = new ArrayList<>();
     private String engineeringProfileId;
-    private boolean engineeringAnalysisEnabled = true;
+    private boolean engineeringAnalysisEnabled = false;
     private boolean automaticTowerSelectionEnabled;
 
     public PowerLineFootprint(List<Vec2d> pathPoints) {

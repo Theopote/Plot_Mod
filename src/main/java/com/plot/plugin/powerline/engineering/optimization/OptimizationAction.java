@@ -10,6 +10,8 @@ public class OptimizationAction {
     private String currentDesignId;
     private String proposedDesignId;
     private String message;
+    private String messageKey;
+    private Object[] messageArgs;
 
     public OptimizationActionType getType() {
         return type;
@@ -73,5 +75,22 @@ public class OptimizationAction {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public String getMessageKey() {
+        return messageKey;
+    }
+
+    public void setMessageKey(String messageKey) {
+        this.messageKey = messageKey;
+    }
+
+    public Object[] getMessageArgs() {
+        return messageArgs != null ? messageArgs : new Object[0];
+    }
+
+    public void setMessageKey(String messageKey, Object... args) {
+        this.messageKey = messageKey;
+        this.messageArgs = args;
     }
 }

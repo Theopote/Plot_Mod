@@ -23,31 +23,32 @@ public final class TowerStructureValidator {
         TowerStructureDesign structure = design.getTowerStructure();
         List<TowerStation> stations = structure.getStations();
         if (structure.sortedStations().size() < 2) {
-            issues.add(new TowerValidationIssue(
+            issues.add(TowerValidationIssue.of(
                 TowerValidationSeverity.ERROR,
-                "Tower structure requires at least 2 stations"));
+                "plugin.powerline.tower_validation.min_stations"));
         }
 
         Set<Double> heights = new HashSet<>();
         for (TowerStation station : stations) {
             if (!heights.add(station.getHeight())) {
-                issues.add(new TowerValidationIssue(
+                issues.add(TowerValidationIssue.of(
                     TowerValidationSeverity.ERROR,
-                    "Duplicate station height: " + station.getHeight()));
+                    "plugin.powerline.tower_validation.duplicate_station",
+                    station.getHeight()));
             }
             if (station.getHalfWidth() < 0 || station.getHalfDepth() < 0) {
-                issues.add(new TowerValidationIssue(
+                issues.add(TowerValidationIssue.of(
                     TowerValidationSeverity.ERROR,
-                    "Station dimensions must be non-negative"));
+                    "plugin.powerline.tower_validation.negative_dimensions"));
             }
         }
 
         for (TowerBay bay : structure.getBays()) {
             if (structure.findStation(bay.getLowerStationId()) == null
                     || structure.findStation(bay.getUpperStationId()) == null) {
-                issues.add(new TowerValidationIssue(
+                issues.add(TowerValidationIssue.of(
                     TowerValidationSeverity.ERROR,
-                    "Bay references missing station"));
+                    "plugin.powerline.tower_validation.missing_station_ref"));
             }
         }
 
@@ -57,37 +58,34 @@ public final class TowerStructureValidator {
                 continue;
             }
             if (attachment.getVerticalOffset() > maxHeight + 2) {
-                issues.add(new TowerValidationIssue(
+                issues.add(TowerValidationIssue.of(
                     TowerValidationSeverity.WARNING,
-                    String.format(
-                        "Attachment '%s' height %.1f exceeds tower top %.1f",
-                        attachment.getName(),
-                        attachment.getVerticalOffset(),
-                        maxHeight)));
+                    "plugin.powerline.tower_validation.attachment_above_top",
+                    attachment.getName(),
+                    attachment.getVerticalOffset(),
+                    maxHeight));
             }
             double maxReach = Math.max(structure.maxHalfWidth(), structure.maxHalfDepth());
             for (TowerArm arm : structure.getArms()) {
                 maxReach = Math.max(maxReach, arm.getLateralReach());
             }
             if (Math.abs(attachment.getLateralOffset()) > maxReach + 1) {
-                issues.add(new TowerValidationIssue(
+                issues.add(TowerValidationIssue.of(
                     TowerValidationSeverity.WARNING,
-                    String.format(
-                        "Attachment '%s' lateral %.1f may be outside structural support envelope",
-                        attachment.getName(),
-                        attachment.getLateralOffset())));
+                    "plugin.powerline.tower_validation.attachment_lateral",
+                    attachment.getName(),
+                    attachment.getLateralOffset()));
             }
         }
 
         for (TowerArm arm : structure.getArms()) {
             if (arm.getBaseHeight() > maxHeight) {
-                issues.add(new TowerValidationIssue(
+                issues.add(TowerValidationIssue.of(
                     TowerValidationSeverity.WARNING,
-                    String.format(
-                        "Arm '%s' base height %.1f is above tower top %.1f",
-                        arm.getId(),
-                        arm.getBaseHeight(),
-                        maxHeight)));
+                    "plugin.powerline.tower_validation.arm_above_top",
+                    arm.getId(),
+                    arm.getBaseHeight(),
+                    maxHeight));
             }
         }
 

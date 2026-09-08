@@ -32,8 +32,8 @@ public final class PowerLineUIManager {
             renderTab("plugin.powerline.tab.overview", overviewPanel::render);
             renderTab("plugin.powerline.tab.adopt", adoptPanel::render);
             renderTab("plugin.powerline.tab.edit", editPanel::render);
-            renderTab("plugin.powerline.tab.engineering", engineeringPanel::render);
             renderTab("plugin.powerline.tab.generate", generatePanel::render);
+            renderTab("plugin.powerline.tab.engineering_advanced", engineeringPanel::render);
             ImGui.endTabBar();
         }
     }

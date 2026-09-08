@@ -43,10 +43,10 @@ public final class LineOptimizationEngine {
                     action.setType(OptimizationActionType.INSERT_POLE);
                     action.setSpanId(span.getId());
                     action.setStationing(span.getHorizontalLength() * 0.5);
-                    action.setMessage(String.format(
-                        "Insert pole near station %.0f to split span %.0f blocks",
+                    action.setMessageKey(
+                        "plugin.powerline.engineering.reason.insert_pole",
                         action.getStationing(),
-                        span.getHorizontalLength()));
+                        span.getHorizontalLength());
                     result.addAction(action);
                     result.setEstimatedErrorsResolved(result.getEstimatedErrorsResolved() + 1);
                 } else if (EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM.equals(issue.ruleId())
@@ -75,7 +75,7 @@ public final class LineOptimizationEngine {
             OptimizationAction review = new OptimizationAction();
             review.setType(OptimizationActionType.MANUAL_REVIEW);
             review.setSpanId(span.getId());
-            review.setMessage("Manual design override — review clearance manually");
+            review.setMessageKey("plugin.powerline.engineering.reason.manual_review");
             result.addAction(review);
             return;
         }
@@ -104,7 +104,7 @@ public final class LineOptimizationEngine {
         action.setSpanId(span.getId());
         action.setCurrentDesignId(currentDesignId(site, sites));
         action.setProposedDesignId(selection.getSelectedDesignId());
-        action.setMessage("clearance");
+        action.setMessageKey("plugin.powerline.engineering.reason.clearance");
         result.addAction(action);
         result.setEstimatedErrorsResolved(result.getEstimatedErrorsResolved() + 1);
     }

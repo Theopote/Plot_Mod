@@ -9,7 +9,7 @@ public final class PowerLineEngineeringUiState {
     private String lastAnalyzedFootprintId;
     private OptimizationResult pendingOptimization;
     private boolean optimizationConfirmPending;
-    private boolean overlayEnabled = true;
+    private boolean overlayEnabled = false;
 
     public LineEngineeringReport getLastEngineeringReport() {
         return lastEngineeringReport;

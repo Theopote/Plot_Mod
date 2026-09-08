@@ -5,6 +5,7 @@ import com.plot.plugin.powerline.PolePlacement;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
+import com.plot.plugin.powerline.engineering.EngineeringI18n;
 import com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver;
 import com.plot.plugin.powerline.engineering.selection.AutomaticTowerSelector;
 import com.plot.plugin.powerline.engineering.selection.TowerSelectionContext;
@@ -62,7 +63,7 @@ public final class AutoTowerOptimizationProposer {
             action.setStationing(site.getStationing());
             action.setCurrentDesignId(currentId);
             action.setProposedDesignId(proposedId);
-            action.setMessage(buildReason(site, selection));
+            action.setMessageKey(buildReasonKey(site, selection), buildReasonArgs(site, selection));
             result.addAction(action);
         }
         return result;
@@ -94,14 +95,24 @@ public final class AutoTowerOptimizationProposer {
         return context;
     }
 
-    private static String buildReason(PowerPoleSite site, TowerSelectionResult selection) {
+    private static String buildReasonKey(PowerPoleSite site, TowerSelectionResult selection) {
         if (site.getDeflectionAngle() > 5.0) {
-            return String.format("%.0f° deflection", site.getDeflectionAngle());
+            return "plugin.powerline.engineering.reason.deflection";
         }
         if (!selection.getReasons().isEmpty()) {
-            return selection.getReasons().getFirst();
+            return "plugin.powerline.engineering.reason.selection_summary";
         }
-        return "engineering suitability";
+        return "plugin.powerline.engineering.reason.suitability";
+    }
+
+    private static Object[] buildReasonArgs(PowerPoleSite site, TowerSelectionResult selection) {
+        if (site.getDeflectionAngle() > 5.0) {
+            return new Object[] {site.getDeflectionAngle()};
+        }
+        if (!selection.getReasons().isEmpty()) {
+            return new Object[] {EngineeringI18n.selectionReasonToken(selection.getReasons().getFirst())};
+        }
+        return new Object[0];
     }
 
     public static String designLabel(PoleDesignResolver resolver, String designId) {

@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.design.PoleDesignResolver;
+import com.plot.plugin.powerline.engineering.EngineeringI18n;
 import com.plot.plugin.powerline.engineering.optimization.AutoTowerOptimizationProposer;
 import com.plot.plugin.powerline.engineering.optimization.OptimizationAction;
 import com.plot.plugin.powerline.engineering.optimization.OptimizationActionType;
@@ -30,6 +31,9 @@ public final class PowerLineEngineeringPanel {
         }
 
         PowerLineUiWidgets.renderLineSelector(ctx);
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.powerline.engineering.advanced_intro"));
         PowerLineUiWidgets.renderEngineeringProfileControls(ctx, line, true);
         renderAnalysisControls(line);
 
@@ -81,7 +85,9 @@ public final class PowerLineEngineeringPanel {
                 : issue.severity() == EngineeringSeverity.WARNING
                     ? PluginUiColors.WARNING
                     : PluginUiColors.HINT_GRAY;
-            ImGui.textColored(color, "[%s] %s".formatted(issue.severity(), issue.message()));
+            ImGui.textColored(color, "[%s] %s".formatted(
+                EngineeringI18n.severityLabel(issue.severity()),
+                EngineeringI18n.issueMessage(issue)));
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr(
@@ -130,7 +136,7 @@ public final class PowerLineEngineeringPanel {
             ImGui.textWrapped(PlotI18n.tr(
                 "plugin.powerline.engineering.proposal_insert_pole",
                 action.getStationing(),
-                action.getMessage() != null ? action.getMessage() : ""));
+                EngineeringI18n.optimizationReason(action)));
             return;
         }
         if (action.getType() == OptimizationActionType.SELECT_TALLER_TOWER) {
@@ -141,9 +147,9 @@ public final class PowerLineEngineeringPanel {
                 action.getPoleIndex() > 0 ? action.getPoleIndex() : "?",
                 from,
                 to,
-                action.getMessage() != null ? action.getMessage() : ""));
+                EngineeringI18n.optimizationReason(action)));
             return;
         }
-        ImGui.textWrapped(action.getMessage() != null ? action.getMessage() : action.getType().name());
+        ImGui.textWrapped(EngineeringI18n.optimizationReason(action));
     }
 }

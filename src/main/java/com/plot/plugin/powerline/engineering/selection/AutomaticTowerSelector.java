@@ -9,6 +9,7 @@ import com.plot.plugin.powerline.model.TowerRole;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 /** 基于工程元数据的确定性塔型选择（只读规划，不修改用户设计定义）。 */
@@ -22,7 +23,7 @@ public final class AutomaticTowerSelector {
     public TowerSelectionResult select(TowerSelectionContext context) {
         TowerSelectionResult result = new TowerSelectionResult();
         if (context == null || context.getSite() == null || context.getFamily() == null) {
-            result.addReason("NO_SUITABLE_TOWER: missing context");
+            result.addReason("missing_context");
             result.setFallbackUsed(true);
             return result;
         }
@@ -34,9 +35,9 @@ public final class AutomaticTowerSelector {
             if (fallbackId != null) {
                 result.setSelectedDesignId(fallbackId);
                 result.setFallbackUsed(true);
-                result.addReason("No engineering metadata — using family default");
+                result.addReason("family_default");
             } else {
-                result.addReason("NO_SUITABLE_TOWER");
+                result.addReason("no_suitable_tower");
             }
             return result;
         }
@@ -62,7 +63,7 @@ public final class AutomaticTowerSelector {
         }
 
         if (viable.isEmpty()) {
-            result.addReason("NO_SUITABLE_TOWER");
+            result.addReason("no_suitable_tower");
             String fallbackId = context.getFamily().getDesignId(role);
             if (fallbackId != null) {
                 result.setSelectedDesignId(fallbackId);
@@ -75,16 +76,17 @@ public final class AutomaticTowerSelector {
         TowerCandidate best = viable.getFirst();
         result.setSelectedDesignId(best.getPoleDesignId());
         result.addReason(String.format(
-            "Selected design with score %.1f (height %.0f, span cap %.0f, angle cap %.0f°)",
+            Locale.ROOT,
+            "selected_score|%.1f|%.0f|%.0f|%.0f",
             best.getScore(),
             best.getNominalHeight(),
             best.getSupportedMaxSpan(),
             best.getSupportedMaxAngle()));
         if (context.getDeflectionAngle() > 0.5) {
-            result.addReason(String.format("Route deflection %.0f°", context.getDeflectionAngle()));
+            result.addReason(String.format(Locale.ROOT, "route_deflection|%.0f", context.getDeflectionAngle()));
         }
         if (context.maxAdjacentSpan() > 0.5) {
-            result.addReason(String.format("Adjacent span up to %.0f blocks", context.maxAdjacentSpan()));
+            result.addReason(String.format(Locale.ROOT, "adjacent_span|%.0f", context.maxAdjacentSpan()));
         }
         return result;
     }
@@ -123,14 +125,14 @@ public final class AutomaticTowerSelector {
 
     private static String filterReason(TowerCandidate candidate, TowerSelectionContext context) {
         if (candidate.getSupportedMaxAngle() + 1e-6 < context.getDeflectionAngle()) {
-            return "insufficient angle capacity";
+            return "insufficient_angle";
         }
         if (candidate.getSupportedMaxSpan() + 1e-6 < context.maxAdjacentSpan()) {
-            return "insufficient span capacity";
+            return "insufficient_span";
         }
         if (context.getRequiredAttachmentHeight() > 0.5
                 && candidate.getNominalHeight() + 1e-6 < context.getRequiredAttachmentHeight()) {
-            return "insufficient height for clearance";
+            return "insufficient_height";
         }
         return null;
     }

@@ -45,9 +45,9 @@ public final class TowerStructureGenerator {
         for (TowerValidationIssue issue : TowerStructureValidator.validate(
                 wrapForValidation(structure))) {
             if (issue.severity().name().equals("ERROR")) {
-                result.warnings.add(issue.message());
+                result.warnings.add(issue.localizedMessage());
             } else if (issue.severity().name().equals("WARNING")) {
-                result.warnings.add(issue.message());
+                result.warnings.add(issue.localizedMessage());
             }
         }
 

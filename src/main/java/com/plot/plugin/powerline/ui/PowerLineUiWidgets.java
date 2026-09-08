@@ -7,6 +7,8 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiCond;
+import imgui.flag.ImGuiTreeNodeFlags;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -62,8 +64,31 @@ public final class PowerLineUiWidgets {
             PowerLineUiContext ctx,
             PowerLineFootprint line,
             boolean includeOverlayToggle) {
+        renderEngineeringProfileControls(ctx, line, includeOverlayToggle, false);
+    }
+
+    public static void renderAdvancedEngineeringSection(PowerLineUiContext ctx, PowerLineFootprint line) {
         ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.powerline.engineering.profile_section"));
+        ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
+        if (ImGui.collapsingHeader(
+                PlotI18n.tr("plugin.powerline.engineering.advanced_section"),
+                ImGuiTreeNodeFlags.None)) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.engineering.advanced_hint"));
+            renderEngineeringProfileControls(ctx, line, false, true);
+        }
+    }
+
+    private static void renderEngineeringProfileControls(
+            PowerLineUiContext ctx,
+            PowerLineFootprint line,
+            boolean includeOverlayToggle,
+            boolean nestedInSection) {
+        if (!nestedInSection) {
+            ImGui.separator();
+            ImGui.text(PlotI18n.tr("plugin.powerline.engineering.profile_section"));
+        }
 
         EngineeringRuleProfileResolver resolver = new EngineeringRuleProfileResolver();
         var profiles = resolver.listAll();

@@ -184,7 +184,7 @@ public class PowerLineProject {
         List<PoleOverrideData> poleOverrides = new ArrayList<>();
         List<LayoutConstraintData> layoutConstraints = new ArrayList<>();
         String engineeringProfileId;
-        boolean engineeringAnalysisEnabled = true;
+        boolean engineeringAnalysisEnabled;
         boolean automaticTowerSelectionEnabled;
     }
 

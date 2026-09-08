@@ -63,10 +63,7 @@ public final class PowerLineEngineeringAnalyzer {
                 spanAnalysis.addIssue(new SimpleEngineeringIssue(
                     EngineeringRuleIds.SPAN_MAXIMUM,
                     EngineeringSeverity.ERROR,
-                    String.format(
-                        "Span length %.1f exceeds maximum %.1f blocks",
-                        span.getSpanLength(),
-                        profile.getSpan().getMaximumSpan()),
+                    EngineeringRuleIds.SPAN_MAXIMUM,
                     EngineeringIssueLocation.at(midpoint(span), 0.0),
                     span.getSpanLength(),
                     profile.getSpan().getMaximumSpan()));
@@ -74,10 +71,7 @@ public final class PowerLineEngineeringAnalyzer {
                 spanAnalysis.addIssue(new SimpleEngineeringIssue(
                     EngineeringRuleIds.SPAN_MINIMUM,
                     EngineeringSeverity.WARNING,
-                    String.format(
-                        "Span length %.1f below minimum %.1f blocks",
-                        span.getSpanLength(),
-                        profile.getSpan().getMinimumSpan()),
+                    EngineeringRuleIds.SPAN_MINIMUM,
                     EngineeringIssueLocation.at(midpoint(span), 0.0),
                     span.getSpanLength(),
                     profile.getSpan().getMinimumSpan()));
@@ -123,10 +117,7 @@ public final class PowerLineEngineeringAnalyzer {
                 poleAnalysis.addIssue(new SimpleEngineeringIssue(
                     EngineeringRuleIds.TOWER_ROLE_ANGLE,
                     EngineeringSeverity.WARNING,
-                    String.format(
-                        "Suspension tower at %.0f° route deflection (max %.0f°)",
-                        site.getDeflectionAngle(),
-                        profile.getAngle().getSuspensionMaxAngle()),
+                    EngineeringRuleIds.TOWER_ROLE_ANGLE,
                     EngineeringIssueLocation.at(site.getPlanPosition(), site.getStationing()),
                     site.getDeflectionAngle(),
                     profile.getAngle().getSuspensionMaxAngle()));
@@ -179,15 +170,12 @@ public final class PowerLineEngineeringAnalyzer {
                     poleAnalysis.addIssue(new SimpleEngineeringIssue(
                         ruleId,
                         EngineeringSeverity.WARNING,
-                        String.format(
-                            "Attachment separation %.1f < required %.1f blocks (%s ↔ %s)",
-                            distance,
-                            required,
-                            left.id(),
-                            right.id()),
+                        ruleId,
                         EngineeringIssueLocation.at(site.getPlanPosition(), site.getStationing()),
                         distance,
-                        required));
+                        required,
+                        left.id(),
+                        right.id()));
                 }
             }
         }
@@ -208,9 +196,7 @@ public final class PowerLineEngineeringAnalyzer {
             poleAnalysis.addIssue(new SimpleEngineeringIssue(
                 EngineeringRuleIds.TOWER_BASE_UNEVEN,
                 EngineeringSeverity.WARNING,
-                String.format(
-                    "Uneven tower base: ground offset variation %.1f blocks",
-                    unevenness),
+                EngineeringRuleIds.TOWER_BASE_UNEVEN,
                 EngineeringIssueLocation.at(site.getPlanPosition(), site.getStationing()),
                 unevenness,
                 profile.getTower().getMaximumBaseUnevenness()));
