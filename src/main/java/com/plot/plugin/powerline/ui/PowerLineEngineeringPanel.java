@@ -12,7 +12,7 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
-/** 电力线路工程分析 Tab。 */
+/** 电力线路工程分析（Build Tab：高级检查 / 智能修正）。 */
 public final class PowerLineEngineeringPanel {
     private final PowerLineUiContext ctx;
 
@@ -48,29 +48,6 @@ public final class PowerLineEngineeringPanel {
         }
         PowerLineUiWidgets.renderEngineeringProfileControls(ctx, line, true);
         renderAnalysisControls(line);
-        LineEngineeringReport report = ctx.actions().cachedEngineeringReport(line);
-        if (report != null) {
-            renderReportSummary(report);
-            renderIssueList(report);
-        }
-    }
-
-    public void render() {
-        ctx.selection().retainExisting(ctx.project());
-        PowerLineFootprint line = ctx.selection().primary(ctx.project());
-        if (line == null) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.select_line_hint"));
-            PowerLineUiWidgets.renderLineSelector(ctx);
-            return;
-        }
-
-        PowerLineUiWidgets.renderLineSelector(ctx);
-        ImGui.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.powerline.engineering.advanced_intro"));
-        PowerLineUiWidgets.renderEngineeringProfileControls(ctx, line, true);
-        renderAnalysisControls(line);
-
         LineEngineeringReport report = ctx.actions().cachedEngineeringReport(line);
         if (report != null) {
             renderReportSummary(report);

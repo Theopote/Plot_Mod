@@ -12,8 +12,6 @@ public final class PowerLineUIManager {
     private final PoleDesignerPanel poleDesignerPanel;
     private final PowerLineRoutePanel routePanel;
     private final PowerLineStylePanel stylePanel;
-    private final PowerLineGeneratePanel generatePanel;
-    private final PowerLineEngineeringPanel engineeringPanel;
     private final PowerLineBuildPanel buildPanel;
 
     public PowerLineUIManager(PowerLineUiContext ctx) {
@@ -23,8 +21,8 @@ public final class PowerLineUIManager {
         this.poleDesignerPanel = new PoleDesignerPanel(ctx);
         this.routePanel = new PowerLineRoutePanel(ctx);
         this.stylePanel = new PowerLineStylePanel(ctx, poleDesignerPanel);
-        this.generatePanel = new PowerLineGeneratePanel(ctx);
-        this.engineeringPanel = new PowerLineEngineeringPanel(ctx);
+        PowerLineGeneratePanel generatePanel = new PowerLineGeneratePanel(ctx);
+        PowerLineEngineeringPanel engineeringPanel = new PowerLineEngineeringPanel(ctx);
         this.buildPanel = new PowerLineBuildPanel(ctx, generatePanel, engineeringPanel);
     }
 

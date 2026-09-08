@@ -410,6 +410,21 @@ public final class PowerLineActions {
         }
     }
 
+    public void selectAll(java.util.Collection<String> ids) {
+        String previousPrimary = state.getSelection().primaryId();
+        state.getSelection().selectAll(ids);
+        if (!state.getSelection().primaryId().equals(previousPrimary)) {
+            invalidatePreview();
+        }
+    }
+
+    public void clearSelection() {
+        if (!state.getSelection().isEmpty()) {
+            state.getSelection().clear();
+            invalidatePreview();
+        }
+    }
+
     public void buildInWorld() {
         PowerLineFootprint line = state.getSelection().primary(state.getProject());
         if (!ensurePreviewReadyForBuild(line)) {

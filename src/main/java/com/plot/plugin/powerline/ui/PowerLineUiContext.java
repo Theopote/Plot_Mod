@@ -126,6 +126,14 @@ public final class PowerLineUiContext {
         actions.selectLine(lineId, multiToggle);
     }
 
+    public void selectAll(java.util.Collection<String> lineIds) {
+        actions.selectAll(lineIds);
+    }
+
+    public void clearSelection() {
+        actions.clearSelection();
+    }
+
     public boolean requestBuildConfirm(PowerLineFootprint line) {
         return actions.requestBuildConfirm(line);
     }

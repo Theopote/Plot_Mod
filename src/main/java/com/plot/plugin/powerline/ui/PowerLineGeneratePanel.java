@@ -6,26 +6,12 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
-/** 电力线路生成 Tab。 */
+/** 电力线路建造动作（Build Tab 子面板）。 */
 public final class PowerLineGeneratePanel {
     private final PowerLineUiContext ctx;
 
     public PowerLineGeneratePanel(PowerLineUiContext ctx) {
         this.ctx = ctx;
-    }
-
-    public void render() {
-        ctx.selection().retainExisting(ctx.project());
-        PowerLineFootprint line = ctx.selection().primary(ctx.project());
-        float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
-
-        if (line == null) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.select_line_hint"));
-            PowerLineUiWidgets.renderLineSelector(ctx);
-            return;
-        }
-
-        renderBuildActions(line);
     }
 
     void renderBuildActions(PowerLineFootprint line) {

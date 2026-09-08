@@ -28,11 +28,11 @@ public final class PowerLineOverviewPanel {
 
         float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX() * 2) / 3.0f;
         if (ImGui.button(PlotI18n.tr("plugin.powerline.select_all"), buttonWidth, 0)) {
-            ctx.selection().selectAll(ctx.project().getLines().keySet());
+            ctx.selectAll(ctx.project().getLines().keySet());
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.clear_selection"), buttonWidth, 0)) {
-            ctx.selection().clear();
+            ctx.clearSelection();
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.delete_selected"), buttonWidth, 0)) {
