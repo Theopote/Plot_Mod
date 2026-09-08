@@ -1,8 +1,10 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
@@ -137,5 +139,38 @@ public final class PowerLineUiWidgets {
         ImGui.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.engineering.disclaimer"));
+    }
+
+    /** 杆塔角色统计（仅 Advanced 区展示）。 */
+    public static void renderTowerRoleStats(PowerLineGenerationResult result) {
+        if (result == null || result.poleCount <= 0) {
+            return;
+        }
+        ImGui.text(PlotI18n.tr("plugin.powerline.build.role_stats_section"));
+        if (result.roleCount(TowerRole.SUSPENSION) > 0) {
+            ImGui.text(PlotI18n.tr(
+                "plugin.powerline.role_stats_suspension",
+                result.roleCount(TowerRole.SUSPENSION)));
+        }
+        if (result.roleCount(TowerRole.ANGLE) > 0) {
+            ImGui.text(PlotI18n.tr(
+                "plugin.powerline.role_stats_angle",
+                result.roleCount(TowerRole.ANGLE)));
+        }
+        if (result.roleCount(TowerRole.DEAD_END) > 0) {
+            ImGui.text(PlotI18n.tr(
+                "plugin.powerline.role_stats_dead_end",
+                result.roleCount(TowerRole.DEAD_END)));
+        }
+        if (result.roleCount(TowerRole.TERMINAL) > 0) {
+            ImGui.text(PlotI18n.tr(
+                "plugin.powerline.role_stats_terminal",
+                result.roleCount(TowerRole.TERMINAL)));
+        }
+        if (result.roleCount(TowerRole.SPECIAL) > 0) {
+            ImGui.text(PlotI18n.tr(
+                "plugin.powerline.role_stats_special",
+                result.roleCount(TowerRole.SPECIAL)));
+        }
     }
 }

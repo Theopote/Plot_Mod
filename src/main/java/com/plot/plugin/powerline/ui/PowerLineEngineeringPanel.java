@@ -53,6 +53,11 @@ public final class PowerLineEngineeringPanel {
     }
 
     public void renderAdvancedChecksSection(PowerLineFootprint line) {
+        var result = ctx.hasValidPreview(line) ? ctx.lastGenerationResult() : null;
+        if (result != null) {
+            PowerLineUiWidgets.renderTowerRoleStats(result);
+            ImGui.separator();
+        }
         PowerLineUiWidgets.renderEngineeringProfileControls(ctx, line, true);
         renderAnalysisControls(line);
         LineEngineeringReport report = ctx.state().getEngineeringState().getLastEngineeringReport();

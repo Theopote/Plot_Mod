@@ -2,7 +2,6 @@ package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
-import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -85,31 +84,6 @@ public final class PowerLineGeneratePanel {
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.powerline.preview_stats"));
         ImGui.text(PlotI18n.tr("plugin.powerline.pole_count_result", result.poleCount));
-        if (result.roleCount(TowerRole.SUSPENSION) > 0) {
-            ImGui.text(PlotI18n.tr(
-                "plugin.powerline.role_stats_suspension",
-                result.roleCount(TowerRole.SUSPENSION)));
-        }
-        if (result.roleCount(TowerRole.ANGLE) > 0) {
-            ImGui.text(PlotI18n.tr(
-                "plugin.powerline.role_stats_angle",
-                result.roleCount(TowerRole.ANGLE)));
-        }
-        if (result.roleCount(TowerRole.DEAD_END) > 0) {
-            ImGui.text(PlotI18n.tr(
-                "plugin.powerline.role_stats_dead_end",
-                result.roleCount(TowerRole.DEAD_END)));
-        }
-        if (result.roleCount(TowerRole.TERMINAL) > 0) {
-            ImGui.text(PlotI18n.tr(
-                "plugin.powerline.role_stats_terminal",
-                result.roleCount(TowerRole.TERMINAL)));
-        }
-        if (result.roleCount(TowerRole.SPECIAL) > 0) {
-            ImGui.text(PlotI18n.tr(
-                "plugin.powerline.role_stats_special",
-                result.roleCount(TowerRole.SPECIAL)));
-        }
         ImGui.text(PlotI18n.tr(
             "plugin.powerline.wire_length_result",
             String.format("%.1f", result.wireLength)));

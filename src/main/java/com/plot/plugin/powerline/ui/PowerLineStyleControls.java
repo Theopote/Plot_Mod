@@ -6,6 +6,9 @@ import com.plot.plugin.powerline.PowerPoleLayoutUtils;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
+import com.plot.plugin.powerline.design.family.TowerFamily;
+import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
+import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
 import com.plot.plugin.powerline.style.PowerLineStylePackCatalog;
 import com.plot.plugin.powerline.model.PoleOverride;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -65,7 +68,16 @@ public final class PowerLineStyleControls {
     }
 
     public void renderPoleDesignControls(PowerLineFootprint line, PoleDesignerPanel poleDesignerPanel) {
-        ImGui.separator();
+        renderPoleDesignControls(line, poleDesignerPanel, false);
+    }
+
+    public void renderPoleDesignControls(
+            PowerLineFootprint line,
+            PoleDesignerPanel poleDesignerPanel,
+            boolean nestedInAdvanced) {
+        if (!nestedInAdvanced) {
+            ImGui.separator();
+        }
         String sectionLabel = line.hasTowerFamily()
             ? PlotI18n.tr("plugin.powerline.pole_design_fallback")
             : PlotI18n.tr("plugin.powerline.pole_design_section");
@@ -111,6 +123,51 @@ public final class PowerLineStyleControls {
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.open_designer"), 0, 0)) {
             poleDesignerPanel.open(line.getPoleDesignId());
+        }
+    }
+
+    public void renderTowerFamilyControls(PowerLineFootprint line) {
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr("plugin.powerline.tower_family_section"));
+
+        TowerFamilyResolver familyResolver = new TowerFamilyResolver();
+        List<TowerFamily> families = familyResolver.listAll();
+        String noneLabel = PlotI18n.tr("plugin.powerline.tower_family_none");
+        String[] labels = new String[families.size() + 1];
+        String[] ids = new String[families.size() + 1];
+        labels[0] = noneLabel;
+        ids[0] = "";
+        for (int i = 0; i < families.size(); i++) {
+            TowerFamily family = families.get(i);
+            String prefix = TowerFamilyCatalog.isBuiltinId(family.getId())
+                ? PlotI18n.tr("plugin.powerline.tower_family_builtin_prefix")
+                : "";
+            labels[i + 1] = prefix + family.getName();
+            ids[i + 1] = family.getId();
+        }
+
+        int current = 0;
+        String selectedId = line.getTowerFamilyId() != null ? line.getTowerFamilyId() : "";
+        for (int i = 0; i < ids.length; i++) {
+            if (ids[i].equals(selectedId)) {
+                current = i;
+                break;
+            }
+        }
+
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.beginCombo(PlotI18n.tr("plugin.powerline.tower_family"), labels[current])) {
+            for (int i = 0; i < labels.length; i++) {
+                if (ImGui.selectable(labels[i], current == i)) {
+                    ctx.pushEditSnapshot();
+                    line.setTowerFamilyId(ids[i].isBlank() ? null : ids[i]);
+                    if (!ids[i].isBlank()) {
+                        line.setPoleDesignId(null);
+                    }
+                    onStyleEdited(line);
+                }
+            }
+            ImGui.endCombo();
         }
     }
 

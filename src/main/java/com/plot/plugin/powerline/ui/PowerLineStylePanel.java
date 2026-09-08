@@ -49,7 +49,6 @@ public final class PowerLineStylePanel {
         ImGui.text(PlotI18n.tr("plugin.powerline.style.section.wire"));
         renderSagPresets(line);
         styleControls.renderMaterialControls(line);
-        styleControls.renderPoleDesignControls(line, poleDesignerPanel);
         renderAdvancedStyle(line);
     }
 
@@ -137,6 +136,11 @@ public final class PowerLineStylePanel {
         if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.powerline.style.advanced"), ImGuiTreeNodeFlags.None)) {
             return;
         }
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.powerline.style.advanced_hint"));
+        styleControls.renderPoleDesignControls(line, poleDesignerPanel, true);
+        styleControls.renderTowerFamilyControls(line);
         styleControls.renderPoleHeightControls(line);
         styleControls.renderPoleRoleInspector(line);
     }
