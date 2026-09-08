@@ -7,7 +7,8 @@ import com.plot.plugin.powerline.engineering.optimization.OptimizationResult;
 public final class PowerLineEngineeringUiState {
     private LineEngineeringReport lastEngineeringReport;
     private LineEngineeringReport lastTerrainReport;
-    private String lastAnalyzedFootprintId;
+    private PowerLineAnalysisKey engineeringReportKey;
+    private PowerLineAnalysisKey terrainReportKey;
     private OptimizationResult pendingOptimization;
     private boolean optimizationConfirmPending;
     private boolean overlayEnabled = false;
@@ -28,12 +29,20 @@ public final class PowerLineEngineeringUiState {
         this.lastTerrainReport = lastTerrainReport;
     }
 
-    public String getLastAnalyzedFootprintId() {
-        return lastAnalyzedFootprintId;
+    public PowerLineAnalysisKey getEngineeringReportKey() {
+        return engineeringReportKey;
     }
 
-    public void setLastAnalyzedFootprintId(String lastAnalyzedFootprintId) {
-        this.lastAnalyzedFootprintId = lastAnalyzedFootprintId;
+    public void setEngineeringReportKey(PowerLineAnalysisKey engineeringReportKey) {
+        this.engineeringReportKey = engineeringReportKey;
+    }
+
+    public PowerLineAnalysisKey getTerrainReportKey() {
+        return terrainReportKey;
+    }
+
+    public void setTerrainReportKey(PowerLineAnalysisKey terrainReportKey) {
+        this.terrainReportKey = terrainReportKey;
     }
 
     public boolean isOverlayEnabled() {
@@ -58,6 +67,13 @@ public final class PowerLineEngineeringUiState {
 
     public void setOptimizationConfirmPending(boolean optimizationConfirmPending) {
         this.optimizationConfirmPending = optimizationConfirmPending;
+    }
+
+    public void clearAnalysisReports() {
+        lastEngineeringReport = null;
+        lastTerrainReport = null;
+        engineeringReportKey = null;
+        terrainReportKey = null;
     }
 
     public void clearOptimization() {

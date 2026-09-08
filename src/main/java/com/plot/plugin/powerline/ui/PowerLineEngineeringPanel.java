@@ -48,7 +48,7 @@ public final class PowerLineEngineeringPanel {
         }
         PowerLineUiWidgets.renderEngineeringProfileControls(ctx, line, true);
         renderAnalysisControls(line);
-        LineEngineeringReport report = ctx.state().getEngineeringState().getLastEngineeringReport();
+        LineEngineeringReport report = ctx.actions().cachedEngineeringReport(line);
         if (report != null) {
             renderReportSummary(report);
             renderIssueList(report);
@@ -71,7 +71,7 @@ public final class PowerLineEngineeringPanel {
         PowerLineUiWidgets.renderEngineeringProfileControls(ctx, line, true);
         renderAnalysisControls(line);
 
-        LineEngineeringReport report = ctx.state().getEngineeringState().getLastEngineeringReport();
+        LineEngineeringReport report = ctx.actions().cachedEngineeringReport(line);
         if (report != null) {
             renderReportSummary(report);
             renderIssueList(report);

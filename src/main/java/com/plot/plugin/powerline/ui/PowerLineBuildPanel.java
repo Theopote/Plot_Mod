@@ -108,10 +108,12 @@ public final class PowerLineBuildPanel {
             return;
         }
 
-        LineEngineeringReport report = ctx.state().getEngineeringState().getLastEngineeringReport();
-        if (report == null && ctx.hasValidPreview(line)) {
-            report = ctx.actions().analyzeEngineering(line);
+        if (!ctx.hasValidPreview(line)) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.no_preview"));
+            return;
         }
+
+        LineEngineeringReport report = ctx.actions().cachedEngineeringReport(line);
 
         if (report == null || report.getIssues().isEmpty()) {
             ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.powerline.build.status.all_good"));
@@ -164,10 +166,11 @@ public final class PowerLineBuildPanel {
     }
 
     private void renderTerrainStatus(PowerLineFootprint line) {
-        LineEngineeringReport report = ctx.state().getEngineeringState().getLastTerrainReport();
-        if (report == null && ctx.hasValidPreview(line)) {
-            report = ctx.actions().analyzeTerrainCollisions(line);
+        if (!ctx.hasValidPreview(line)) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.no_preview"));
+            return;
         }
+        LineEngineeringReport report = ctx.actions().cachedTerrainReport(line);
         if (report == null || !PowerLineFriendlyStatus.hasTerrainIssues(report)) {
             ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.powerline.build.status.terrain_ok"));
             return;
@@ -176,9 +179,6 @@ public final class PowerLineBuildPanel {
         renderIssueList(report);
         if (ImGui.button(PlotI18n.tr("plugin.powerline.build.terrain_auto_adjust"), 0, 0)) {
             ctx.autoAdjustTerrain(line);
-            if (line.isEngineeringAnalysisEnabled() && ctx.hasValidPreview(line)) {
-                ctx.actions().analyzeEngineering(line);
-            }
         }
     }
 

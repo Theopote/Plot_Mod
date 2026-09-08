@@ -46,16 +46,17 @@ public final class PowerLineEngineeringCanvasRenderer {
             return;
         }
         LineEngineeringReport report = engineering.getLastEngineeringReport();
-        if (report == null || !line.getId().equals(engineering.getLastAnalyzedFootprintId())) {
+        PowerLinePreviewKey previewKey = state.getPreviewKey();
+        PowerLineAnalysisKey reportKey = engineering.getEngineeringReportKey();
+        if (report == null
+                || reportKey == null
+                || previewKey == null
+                || !reportKey.matches(line, state.getDesignProject(), previewKey)) {
             return;
         }
         PowerLineGenerationResult generation = state.getLastGenerationResult();
         if (generation == null || generation.footprint == null
                 || !line.getId().equals(generation.footprint.getId())) {
-            return;
-        }
-        PowerLinePreviewKey previewKey = state.getPreviewKey();
-        if (previewKey == null || !previewKey.matches(line, state.getDesignProject())) {
             return;
         }
 

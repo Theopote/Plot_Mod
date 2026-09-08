@@ -118,11 +118,7 @@ public final class PowerLineActions {
         if (!calculatePreviewCore(line)) {
             return false;
         }
-        if (line.isTerrainAvoidanceEnabled()) {
-            analyzeTerrainCollisions(line);
-        } else {
-            state.getEngineeringState().setLastTerrainReport(null);
-        }
+        syncPreviewAnalysis(line);
         return state.getLastGenerationResult() != null;
     }
 
@@ -144,6 +140,7 @@ public final class PowerLineActions {
             return false;
         }
         runTerrainAvoidance(line);
+        syncPreviewAnalysis(line);
         return state.getLastGenerationResult() != null;
     }
 
@@ -193,7 +190,7 @@ public final class PowerLineActions {
 
     public LineEngineeringReport analyzeTerrainCollisions(PowerLineFootprint line) {
         if (line == null || !line.isTerrainAvoidanceEnabled()) {
-            state.getEngineeringState().setLastTerrainReport(null);
+            clearTerrainReport();
             return null;
         }
         World world = getClientWorld();
@@ -203,16 +200,107 @@ public final class PowerLineActions {
         if (!hasValidPreview(line) && !calculatePreviewCore(line)) {
             return null;
         }
+        LineEngineeringReport report = computeTerrainReport(line, world);
+        storeTerrainReport(report);
+        return report;
+    }
+
+    public LineEngineeringReport cachedTerrainReport(PowerLineFootprint line) {
+        return validatedReport(
+            line,
+            state.getEngineeringState().getLastTerrainReport(),
+            state.getEngineeringState().getTerrainReportKey());
+    }
+
+    public LineEngineeringReport cachedEngineeringReport(PowerLineFootprint line) {
+        return validatedReport(
+            line,
+            state.getEngineeringState().getLastEngineeringReport(),
+            state.getEngineeringState().getEngineeringReportKey());
+    }
+
+    private void syncPreviewAnalysis(PowerLineFootprint line) {
+        if (!hasValidPreview(line)) {
+            clearAnalysisReports();
+            return;
+        }
+        World world = getClientWorld();
+        if (world == null) {
+            clearAnalysisReports();
+            return;
+        }
+        if (line.isTerrainAvoidanceEnabled()) {
+            storeTerrainReport(computeTerrainReport(line, world));
+        } else {
+            clearTerrainReport();
+        }
+        if (line.isEngineeringAnalysisEnabled()) {
+            storeEngineeringReport(computeEngineeringReport(line, world));
+        } else {
+            clearEngineeringReport();
+        }
+    }
+
+    private LineEngineeringReport computeTerrainReport(PowerLineFootprint line, World world) {
         PowerLineGenerationResult result = state.getLastGenerationResult();
         if (result == null) {
             return null;
         }
         TerrainSampler terrain = MinecraftTerrainSampler.of(world, host.coordinates());
-        LineEngineeringReport report = com.plot.plugin.powerline.engineering.TerrainAvoidance
+        return com.plot.plugin.powerline.engineering.TerrainAvoidance
             .analyzeCollisions(result.toGeometryModel(), terrain);
+    }
+
+    private LineEngineeringReport computeEngineeringReport(PowerLineFootprint line, World world) {
+        PowerLineGenerationResult result = state.getLastGenerationResult();
+        if (result == null) {
+            return null;
+        }
+        com.plot.plugin.powerline.engineering.EngineeringRuleProfile profile =
+            new com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver()
+                .find(line.effectiveEngineeringProfileId());
+        TerrainSampler terrain = MinecraftTerrainSampler.of(world, host.coordinates());
+        return com.plot.plugin.powerline.engineering.analysis.PowerLineEngineeringAnalyzer
+            .analyze(result.toGeometryModel(), terrain, profile);
+    }
+
+    private void storeTerrainReport(LineEngineeringReport report) {
         state.getEngineeringState().setLastTerrainReport(report);
-        state.getEngineeringState().setLastAnalyzedFootprintId(line.getId());
+        state.getEngineeringState().setTerrainReportKey(PowerLineAnalysisKey.capture(state.getPreviewKey()));
+    }
+
+    private void storeEngineeringReport(LineEngineeringReport report) {
+        state.getEngineeringState().setLastEngineeringReport(report);
+        state.getEngineeringState().setEngineeringReportKey(PowerLineAnalysisKey.capture(state.getPreviewKey()));
+    }
+
+    private LineEngineeringReport validatedReport(
+            PowerLineFootprint line,
+            LineEngineeringReport report,
+            PowerLineAnalysisKey analysisKey) {
+        if (report == null || analysisKey == null || !hasValidPreview(line)) {
+            return null;
+        }
+        PowerLinePreviewKey previewKey = state.getPreviewKey();
+        if (previewKey == null
+                || !analysisKey.matches(line, state.getDesignProject(), previewKey)) {
+            return null;
+        }
         return report;
+    }
+
+    private void clearAnalysisReports() {
+        state.getEngineeringState().clearAnalysisReports();
+    }
+
+    private void clearTerrainReport() {
+        state.getEngineeringState().setLastTerrainReport(null);
+        state.getEngineeringState().setTerrainReportKey(null);
+    }
+
+    private void clearEngineeringReport() {
+        state.getEngineeringState().setLastEngineeringReport(null);
+        state.getEngineeringState().setEngineeringReportKey(null);
     }
 
     private void runTerrainAvoidance(PowerLineFootprint line) {
@@ -232,8 +320,7 @@ public final class PowerLineActions {
             }
             LineEngineeringReport report = com.plot.plugin.powerline.engineering.TerrainAvoidance
                 .analyzeCollisions(result.toGeometryModel(), terrain);
-            state.getEngineeringState().setLastTerrainReport(report);
-            state.getEngineeringState().setLastAnalyzedFootprintId(line.getId());
+            storeTerrainReport(report);
             if (!com.plot.plugin.powerline.engineering.TerrainAvoidance.hasTerrainIssues(report)) {
                 if (adjusted) {
                     state.setProjectStatus(PlotI18n.tr("plugin.powerline.terrain.auto_fixed"));
@@ -274,6 +361,7 @@ public final class PowerLineActions {
         }
         state.setLastGenerationResult(null);
         state.setPreviewKey(null);
+        clearAnalysisReports();
     }
 
     /**
@@ -634,7 +722,7 @@ public final class PowerLineActions {
             return null;
         }
         if (!line.isEngineeringAnalysisEnabled()) {
-            state.getEngineeringState().setLastEngineeringReport(null);
+            clearEngineeringReport();
             return null;
         }
         World world = getClientWorld();
@@ -642,21 +730,11 @@ public final class PowerLineActions {
             state.setProjectStatus(PlotI18n.tr("plugin.powerline.generate_world_unavailable"));
             return null;
         }
-        if (!hasValidPreview(line) && !calculatePreview(line)) {
+        if (!hasValidPreview(line) && !calculatePreviewCore(line)) {
             return null;
         }
-        PowerLineGenerationResult result = state.getLastGenerationResult();
-        if (result == null) {
-            return null;
-        }
-        com.plot.plugin.powerline.engineering.EngineeringRuleProfile profile =
-            new com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver()
-                .find(line.effectiveEngineeringProfileId());
-        TerrainSampler terrain = MinecraftTerrainSampler.of(world, host.coordinates());
-        LineEngineeringReport report = com.plot.plugin.powerline.engineering.analysis.PowerLineEngineeringAnalyzer
-            .analyze(result.toGeometryModel(), terrain, profile);
-        state.getEngineeringState().setLastEngineeringReport(report);
-        state.getEngineeringState().setLastAnalyzedFootprintId(line.getId());
+        LineEngineeringReport report = computeEngineeringReport(line, world);
+        storeEngineeringReport(report);
         return report;
     }
 
@@ -678,7 +756,7 @@ public final class PowerLineActions {
     }
 
     public OptimizationResult proposeClearanceFix(PowerLineFootprint line) {
-        LineEngineeringReport report = state.getEngineeringState().getLastEngineeringReport();
+        LineEngineeringReport report = cachedEngineeringReport(line);
         if (report == null) {
             report = analyzeEngineering(line);
         }

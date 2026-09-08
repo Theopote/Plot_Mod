@@ -37,9 +37,6 @@ public final class PowerLineGeneratePanel {
 
         if (ImGui.button(PlotI18n.tr("plugin.powerline.calc_preview"), half, 0)) {
             ctx.calculatePreview(line);
-            if (line.isEngineeringAnalysisEnabled()) {
-                ctx.actions().analyzeEngineering(line);
-            }
         }
         ImGui.sameLine();
         boolean hasPreview = ctx.hasValidPreview(line);
@@ -55,9 +52,6 @@ public final class PowerLineGeneratePanel {
 
         if (ImGui.button(PlotI18n.tr("plugin.powerline.build_direct"), ImGui.getContentRegionAvailX(), 0)) {
             if (ctx.calculatePreview(line)) {
-                if (line.isEngineeringAnalysisEnabled()) {
-                    ctx.actions().analyzeEngineering(line);
-                }
                 ctx.setBuildConfirmPending(true);
             }
         }
