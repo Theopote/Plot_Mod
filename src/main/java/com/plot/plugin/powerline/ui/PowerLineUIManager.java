@@ -9,31 +9,34 @@ public final class PowerLineUIManager {
     private final PowerLineUiContext ctx;
     private final PowerLineToolbarPanel toolbarPanel;
     private final PowerLineOverviewPanel overviewPanel;
-    private final PowerLineAdoptPanel adoptPanel;
+    private final PoleDesignerPanel poleDesignerPanel;
     private final PowerLineEditPanel editPanel;
+    private final PowerLineRoutePanel routePanel;
+    private final PowerLineStylePanel stylePanel;
     private final PowerLineGeneratePanel generatePanel;
     private final PowerLineEngineeringPanel engineeringPanel;
-    private final PoleDesignerPanel poleDesignerPanel;
+    private final PowerLineBuildPanel buildPanel;
 
     public PowerLineUIManager(PowerLineUiContext ctx) {
         this.ctx = ctx;
         this.toolbarPanel = new PowerLineToolbarPanel(ctx);
         this.overviewPanel = new PowerLineOverviewPanel(ctx);
-        this.adoptPanel = new PowerLineAdoptPanel(ctx);
         this.poleDesignerPanel = new PoleDesignerPanel(ctx);
         this.editPanel = new PowerLineEditPanel(ctx, poleDesignerPanel);
+        this.routePanel = new PowerLineRoutePanel(ctx);
+        this.stylePanel = new PowerLineStylePanel(ctx, editPanel, poleDesignerPanel);
         this.generatePanel = new PowerLineGeneratePanel(ctx);
         this.engineeringPanel = new PowerLineEngineeringPanel(ctx);
+        this.buildPanel = new PowerLineBuildPanel(ctx, generatePanel, engineeringPanel);
     }
 
     public void render() {
         toolbarPanel.render();
         if (ImGui.beginTabBar("##powerline_tabs", ImGuiTabBarFlags.None)) {
             renderTab("plugin.powerline.tab.overview", overviewPanel::render);
-            renderTab("plugin.powerline.tab.adopt", adoptPanel::render);
-            renderTab("plugin.powerline.tab.edit", editPanel::render);
-            renderTab("plugin.powerline.tab.generate", generatePanel::render);
-            renderTab("plugin.powerline.tab.engineering_advanced", engineeringPanel::render);
+            renderTab("plugin.powerline.tab.route", routePanel::render);
+            renderTab("plugin.powerline.tab.style", stylePanel::render);
+            renderTab("plugin.powerline.tab.build", buildPanel::render);
             ImGui.endTabBar();
         }
     }
@@ -47,8 +50,8 @@ public final class PowerLineUIManager {
 
     public void renderDeferredModals() {
         overviewPanel.renderDeleteConfirmPopup();
-        generatePanel.renderBuildConfirmPopup();
-        engineeringPanel.renderOptimizationConfirmPopup();
+        buildPanel.renderBuildConfirmPopup();
+        buildPanel.renderOptimizationConfirmPopup();
         poleDesignerPanel.render();
     }
 }

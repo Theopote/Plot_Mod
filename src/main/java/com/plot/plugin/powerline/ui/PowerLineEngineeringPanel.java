@@ -21,6 +21,36 @@ public final class PowerLineEngineeringPanel {
         this.ctx = ctx;
     }
 
+    public void renderSmartFixSection(PowerLineFootprint line) {
+        if (!line.isEngineeringAnalysisEnabled()) {
+            return;
+        }
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr("plugin.powerline.build.smart_fix"));
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.build.auto_adjust"), 0, 0)) {
+            ctx.actions().proposeClearanceFix(line);
+            ctx.state().getEngineeringState().setOptimizationConfirmPending(true);
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.build.smart_towers"), 0, 0)) {
+            ctx.pushEditSnapshot();
+            line.setAutomaticTowerSelectionEnabled(true);
+            ctx.invalidatePreview();
+            ctx.actions().proposeAutoTowerSelection(line);
+            ctx.state().getEngineeringState().setOptimizationConfirmPending(true);
+        }
+    }
+
+    public void renderAdvancedChecksSection(PowerLineFootprint line) {
+        PowerLineUiWidgets.renderEngineeringProfileControls(ctx, line, true);
+        renderAnalysisControls(line);
+        LineEngineeringReport report = ctx.state().getEngineeringState().getLastEngineeringReport();
+        if (report != null) {
+            renderReportSummary(report);
+            renderIssueList(report);
+        }
+    }
+
     public void render() {
         ctx.selection().retainExisting(ctx.project());
         PowerLineFootprint line = ctx.selection().primary(ctx.project());

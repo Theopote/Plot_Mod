@@ -113,6 +113,23 @@ public final class PowerLineEditPanel {
     }
 
     private void renderPoleControls(PowerLineFootprint line) {
+        renderPoleHeightControlsPublic(line);
+        float[] sagRatio = {(float) (line.getSagRatio() * 100f)};
+        if (ImGui.sliderFloat(
+                PlotI18n.tr("plugin.powerline.sag_ratio", sagRatio[0]),
+                sagRatio,
+                0f,
+                50f,
+                "%.0f%%")) {
+            line.setSagRatio(sagRatio[0] / 100f);
+            ctx.invalidatePreview();
+        }
+        if (ImGui.isItemActivated()) {
+            ctx.pushEditSnapshot();
+        }
+    }
+
+    void renderPoleHeightControlsPublic(PowerLineFootprint line) {
         if (line.hasPoleDesign() || line.hasTowerFamily()) {
             PoleDesign design = line.hasPoleDesign()
                 ? ctx.designResolver().find(line.getPoleDesignId())
@@ -139,23 +156,13 @@ public final class PowerLineEditPanel {
                 ctx.pushEditSnapshot();
             }
         }
-
-        float[] sagRatio = {(float) (line.getSagRatio() * 100f)};
-        if (ImGui.sliderFloat(
-                PlotI18n.tr("plugin.powerline.sag_ratio", sagRatio[0]),
-                sagRatio,
-                0f,
-                50f,
-                "%.0f%%")) {
-            line.setSagRatio(sagRatio[0] / 100f);
-            ctx.invalidatePreview();
-        }
-        if (ImGui.isItemActivated()) {
-            ctx.pushEditSnapshot();
-        }
     }
 
     private void renderMaterialControls(PowerLineFootprint line) {
+        renderMaterialControlsPublic(line);
+    }
+
+    void renderMaterialControlsPublic(PowerLineFootprint line) {
         PowerLineUiWidgets.renderMaterialMixPicker(
             ctx,
             "wire_material",
@@ -231,6 +238,10 @@ public final class PowerLineEditPanel {
     }
 
     private void renderPoleDesignControls(PowerLineFootprint line) {
+        renderPoleDesignControlsPublic(line, poleDesignerPanel);
+    }
+
+    void renderPoleDesignControlsPublic(PowerLineFootprint line, PoleDesignerPanel poleDesignerPanel) {
         ImGui.separator();
         String sectionLabel = line.hasTowerFamily()
             ? PlotI18n.tr("plugin.powerline.pole_design_fallback")
@@ -281,6 +292,10 @@ public final class PowerLineEditPanel {
     }
 
     private void renderPoleRoleInspector(PowerLineFootprint line) {
+        renderPoleRoleInspectorPublic(line);
+    }
+
+    void renderPoleRoleInspectorPublic(PowerLineFootprint line) {
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.powerline.pole_roles_section"));
 
