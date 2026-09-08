@@ -67,14 +67,14 @@ public final class PoleDesignerPanel {
 
         renderPresetSelector();
         ImGui.separator();
+        PoleDesignPreviewRenderer.render(draft);
+        ImGui.text(PlotI18n.tr("plugin.powerline.design.total_height", draft.totalHeight()));
+        ImGui.separator();
         renderStructureSection();
         ImGui.separator();
         renderLayerList();
         ImGui.separator();
         renderAttachmentList();
-        ImGui.separator();
-        PoleDesignPreviewRenderer.render(draft);
-        ImGui.text(PlotI18n.tr("plugin.powerline.design.total_height", draft.totalHeight()));
         ImGui.separator();
         renderSaveActions();
 

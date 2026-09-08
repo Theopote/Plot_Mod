@@ -18,7 +18,9 @@ import imgui.type.ImInt;
  * 杆塔预览（侧视 / 正视切换）。
  */
 public final class PoleDesignPreviewRenderer {
-    private static final float PREVIEW_HEIGHT = 140f;
+    private static final float PREVIEW_HEIGHT = 200f;
+    private static final float THUMBNAIL_PADDING = 5f;
+    private static final float DESIGNER_PADDING = 14f;
     private static final int COLOR_BG = 0xFF2A2A2A;
     private static final int COLOR_BORDER = 0xFF606060;
     private static final int COLOR_WIRE = 0xFF9E9E9E;
@@ -47,17 +49,20 @@ public final class PoleDesignPreviewRenderer {
             return;
         }
 
+        ImGui.beginChild("##pole_design_preview_canvas", 0, PREVIEW_HEIGHT + 4f, true);
+        float childWidth = ImGui.getContentRegionAvail().x;
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
         float x0 = origin.x;
         float y0 = origin.y;
-        float x1 = x0 + width;
+        float x1 = x0 + childWidth;
         float y1 = y0 + PREVIEW_HEIGHT;
 
         drawList.addRectFilled(x0, y0, x1, y1, COLOR_BG);
         drawList.addRect(x0, y0, x1, y1, COLOR_BORDER);
-        drawThumbnail(design, drawList, x0, y0, x1, y1, previewView == 1, true);
-        ImGui.dummy(width, PREVIEW_HEIGHT);
+        drawThumbnail(design, drawList, x0, y0, x1, y1, previewView == 1, true, true);
+        ImGui.dummy(childWidth, PREVIEW_HEIGHT);
+        ImGui.endChild();
     }
 
     /**
@@ -83,32 +88,106 @@ public final class PoleDesignPreviewRenderer {
             float y1,
             boolean frontView,
             boolean includeAttachmentLabels) {
+        drawThumbnail(design, drawList, x0, y0, x1, y1, frontView, includeAttachmentLabels, false);
+    }
+
+    private static void drawThumbnail(
+            PoleDesign design,
+            ImDrawList drawList,
+            float x0,
+            float y0,
+            float x1,
+            float y1,
+            boolean frontView,
+            boolean includeAttachmentLabels,
+            boolean designerPreview) {
         if (design == null || drawList == null) {
             return;
         }
-        float padding = includeAttachmentLabels ? 8f : 5f;
+        float padding = designerPreview ? DESIGNER_PADDING : THUMBNAIL_PADDING;
         float width = x1 - x0;
         float height = y1 - y0;
         if (width < 8f || height < 8f) {
             return;
         }
 
-        int totalHeight = Math.max(1, design.totalHeight());
-        float scale = (height - padding * 2f) / totalHeight;
+        PreviewLayout layout = computeLayout(design, width, height, padding, frontView, designerPreview);
         float centerX = x0 + width * 0.5f;
-        float baseY = y1 - padding;
+        float baseY = y0 + layout.baseYOffset + layout.contentHeight;
 
         if (design.hasTowerStructure()) {
-            renderTowerStructure(design.getTowerStructure(), drawList, centerX, baseY, scale, frontView);
+            renderTowerStructure(design.getTowerStructure(), drawList, centerX, baseY, layout.scale, frontView);
         } else {
-            renderLegacyLayers(design, drawList, centerX, baseY, scale);
+            renderLegacyLayers(design, drawList, centerX, baseY, layout.scale);
         }
 
         if (includeAttachmentLabels) {
-            renderAttachments(design, drawList, centerX, baseY, scale, frontView);
+            renderAttachments(design, drawList, centerX, baseY, layout.scale, frontView);
         } else {
-            renderAttachmentDots(design, drawList, centerX, baseY, scale, frontView);
+            renderAttachmentDots(design, drawList, centerX, baseY, layout.scale, frontView);
         }
+    }
+
+    static PreviewLayout computeLayout(
+            PoleDesign design,
+            float width,
+            float height,
+            float padding,
+            boolean frontView,
+            boolean centerVertically) {
+        int totalHeight = Math.max(1, design.totalHeight());
+        float innerWidth = Math.max(1f, width - padding * 2f);
+        float innerHeight = Math.max(1f, height - padding * 2f);
+        float scale = innerHeight / totalHeight;
+
+        for (int i = 0; i < 8; i++) {
+            float halfWidth = estimateHalfWidthPx(design, scale, frontView);
+            if (halfWidth * 2f <= innerWidth) {
+                break;
+            }
+            scale *= innerWidth / Math.max(1f, halfWidth * 2f);
+        }
+
+        float contentHeight = totalHeight * scale;
+        float baseYOffset = innerHeight - contentHeight;
+        if (centerVertically) {
+            baseYOffset = (innerHeight - contentHeight) * 0.5f;
+        }
+        return new PreviewLayout(scale, contentHeight, baseYOffset + padding);
+    }
+
+    static float estimateHalfWidthPx(PoleDesign design, float scale, boolean frontView) {
+        float maxHalf = 8f;
+        if (!design.hasTowerStructure()) {
+            for (PoleLayer layer : design.getLayers()) {
+                if (layer.getShape() == PoleLayer.Shape.CROSSARM) {
+                    maxHalf = Math.max(maxHalf, layer.getCrossarmLength() * scale * 3f);
+                } else if (layer.getShape() == PoleLayer.Shape.COLUMN) {
+                    maxHalf = Math.max(maxHalf, 6f);
+                }
+            }
+        } else {
+            TowerStructureDesign structure = design.getTowerStructure();
+            for (TowerStation station : structure.sortedStations()) {
+                maxHalf = Math.max(maxHalf, horizontalExtent(station, frontView) * scale * 6f);
+            }
+            for (TowerArm arm : structure.getArms()) {
+                maxHalf = Math.max(maxHalf, (float) arm.getLateralReach() * scale * 6f);
+            }
+        }
+        for (ConductorAttachment attachment : design.getAttachments()) {
+            if (!attachment.isEnabled()) {
+                continue;
+            }
+            float offset = frontView
+                ? (float) attachment.getLongitudinalOffset()
+                : (float) attachment.getLateralOffset();
+            maxHalf = Math.max(maxHalf, Math.abs(offset) * scale * 6f + 8f);
+        }
+        return maxHalf;
+    }
+
+    record PreviewLayout(float scale, float contentHeight, float baseYOffset) {
     }
 
     private static void renderAttachmentDots(
