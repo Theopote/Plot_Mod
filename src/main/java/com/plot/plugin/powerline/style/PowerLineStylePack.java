@@ -16,6 +16,9 @@ public final class PowerLineStylePack {
     public static final String SMART_TOWERS_ID = "pack/smart_towers";
     public static final String TAPERED_TOWER_ID = "pack/tapered_tower";
     public static final String FANTASY_COPPER_ID = "pack/fantasy_copper";
+    public static final String JAPANESE_STREET_ID = "pack/japanese_street";
+    public static final String WASTELAND_WIND_ID = "pack/wasteland_wind";
+    public static final String OLD_EUROPEAN_ID = "pack/old_european";
 
     private final String id;
     private final String labelKey;
@@ -111,6 +114,9 @@ public final class PowerLineStylePack {
         LATTICE,
         ADAPTIVE,
         TAPERED,
-        COPPER
+        COPPER,
+        JAPANESE,
+        WASTELAND_WIND,
+        OLD_EUROPEAN
     }
 }

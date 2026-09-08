@@ -26,6 +26,9 @@ public final class PowerLineStylePackCatalog {
         packs.add(smartTowers());
         packs.add(taperedTower());
         packs.add(fantasyCopper());
+        packs.add(japaneseStreet());
+        packs.add(wastelandWind());
+        packs.add(oldEuropean());
         return packs;
     }
 
@@ -162,5 +165,44 @@ public final class PowerLineStylePackCatalog {
             MaterialMix.single("minecraft:copper_block"),
             MaterialMix.single("minecraft:lightning_rod"),
             PowerLineUiPresets.WireSag.LOOSE);
+    }
+
+    public static PowerLineStylePack japaneseStreet() {
+        return new PowerLineStylePack(
+            PowerLineStylePack.JAPANESE_STREET_ID,
+            "plugin.powerline.style.pack.japanese_street",
+            PowerLineStylePack.StylePreviewKind.JAPANESE,
+            null,
+            PoleDesignCatalog.JAPANESE_STREET_POLE_ID,
+            MaterialMix.single("minecraft:iron_bars"),
+            MaterialMix.single("minecraft:dark_oak_fence"),
+            MaterialMix.single("minecraft:chain"),
+            PowerLineUiPresets.WireSag.LIGHT);
+    }
+
+    public static PowerLineStylePack wastelandWind() {
+        return new PowerLineStylePack(
+            PowerLineStylePack.WASTELAND_WIND_ID,
+            "plugin.powerline.style.pack.wasteland_wind",
+            PowerLineStylePack.StylePreviewKind.WASTELAND_WIND,
+            null,
+            PoleDesignCatalog.WASTELAND_WIND_TURBINE_ID,
+            MaterialMix.single("minecraft:chain"),
+            MaterialMix.single("minecraft:weathered_copper"),
+            MaterialMix.single("minecraft:chain"),
+            PowerLineUiPresets.WireSag.LOOSE);
+    }
+
+    public static PowerLineStylePack oldEuropean() {
+        return new PowerLineStylePack(
+            PowerLineStylePack.OLD_EUROPEAN_ID,
+            "plugin.powerline.style.pack.old_european",
+            PowerLineStylePack.StylePreviewKind.OLD_EUROPEAN,
+            null,
+            PoleDesignCatalog.OLD_EUROPEAN_POLE_ID,
+            MaterialMix.single("minecraft:iron_bars"),
+            MaterialMix.single("minecraft:birch_fence"),
+            MaterialMix.single("minecraft:chain"),
+            PowerLineUiPresets.WireSag.NATURAL);
     }
 }

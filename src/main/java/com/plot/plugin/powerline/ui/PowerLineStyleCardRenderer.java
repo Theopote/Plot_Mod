@@ -108,8 +108,25 @@ public final class PowerLineStyleCardRenderer {
             case ADAPTIVE -> drawAdaptivePreview(drawList, x0, y0, x1, y1);
             case TAPERED -> drawDesignPreview(drawList, PoleDesignCatalog.taperedLatticeTower(), x0, y0, x1, y1);
             case COPPER -> drawDesignPreview(drawList, PoleDesignCatalog.fantasyCopperPole(), x0, y0, x1, y1);
+            case JAPANESE -> drawJapanesePreview(drawList, x0, y0, x1, y1);
+            case WASTELAND_WIND -> drawWastelandWindPreview(drawList, x0, y0, x1, y1);
+            case OLD_EUROPEAN -> drawDesignPreview(drawList, PoleDesignCatalog.oldEuropeanPole(), x0, y0, x1, y1);
             default -> drawWoodPreview(drawList, x0, y0, x1, y1);
         }
+    }
+
+    private static void drawJapanesePreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {
+        drawDesignPreview(drawList, PoleDesignCatalog.japaneseStreetPole(), x0, y0, x1, y1);
+        float wireY = y0 + (y1 - y0) * 0.28f;
+        drawList.addLine(x0 + 6f, wireY, x1 - 6f, wireY, 0xFFB0BEC5, 1.2f);
+    }
+
+    private static void drawWastelandWindPreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {
+        drawDesignPreview(drawList, PoleDesignCatalog.wastelandWindTurbine(), x0, y0, x1, y1);
+        float hubX = x0 + (x1 - x0) * 0.5f;
+        float hubY = y0 + (y1 - y0) * 0.22f;
+        drawList.addLine(hubX, hubY, x1 - 4f, hubY - 10f, 0xFFE07040, 2f);
+        drawList.addCircleFilled(hubX, hubY, 3f, 0xFF8D6E63);
     }
 
     private static void drawWoodPreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {

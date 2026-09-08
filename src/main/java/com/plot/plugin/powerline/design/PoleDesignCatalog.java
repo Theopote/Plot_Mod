@@ -20,6 +20,9 @@ public final class PoleDesignCatalog {
     public static final String TAPERED_LATTICE_TOWER_ID = "preset/tapered_lattice_tower";
     public static final String URBAN_CONCRETE_POLE_ID = "preset/urban_concrete_pole";
     public static final String FANTASY_COPPER_POLE_ID = "preset/fantasy_copper_pole";
+    public static final String JAPANESE_STREET_POLE_ID = "preset/japanese_street_pole";
+    public static final String WASTELAND_WIND_TURBINE_ID = "preset/wasteland_wind_turbine";
+    public static final String OLD_EUROPEAN_POLE_ID = "preset/old_european_pole";
 
     private PoleDesignCatalog() {
     }
@@ -32,6 +35,9 @@ public final class PoleDesignCatalog {
         designs.add(taperedLatticeTower());
         designs.add(urbanConcretePole());
         designs.add(fantasyCopperPole());
+        designs.add(japaneseStreetPole());
+        designs.add(wastelandWindTurbine());
+        designs.add(oldEuropeanPole());
         return designs;
     }
 
@@ -157,6 +163,86 @@ public final class PoleDesignCatalog {
             PoleLayer.Shape.CAP,
             1,
             MaterialMix.single("minecraft:amethyst_cluster")));
+        design.setLayers(layers);
+        return design;
+    }
+
+    /** 日式街区电杆：深色木杆 + 双层横担 + 灯笼。 */
+    public static PoleDesign japaneseStreetPole() {
+        PoleDesign design = new PoleDesign(JAPANESE_STREET_POLE_ID, "Japanese Street Pole");
+        List<PoleLayer> layers = new ArrayList<>();
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            6,
+            MaterialMix.single("minecraft:dark_oak_fence")));
+        PoleLayer lowerArm = new PoleLayer(
+            PoleLayer.Shape.CROSSARM,
+            1,
+            MaterialMix.single("minecraft:dark_oak_slab"));
+        lowerArm.setCrossarmLength(4);
+        layers.add(lowerArm);
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            3,
+            MaterialMix.single("minecraft:dark_oak_fence")));
+        PoleLayer upperArm = new PoleLayer(
+            PoleLayer.Shape.CROSSARM,
+            1,
+            MaterialMix.single("minecraft:dark_oak_slab"));
+        upperArm.setCrossarmLength(5);
+        layers.add(upperArm);
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.CAP,
+            1,
+            MaterialMix.single("minecraft:lantern")));
+        design.setLayers(layers);
+        return design;
+    }
+
+    /** 废土风电塔：锈蚀塔身 + 长桨叶横担。 */
+    public static PoleDesign wastelandWindTurbine() {
+        PoleDesign design = new PoleDesign(WASTELAND_WIND_TURBINE_ID, "Wasteland Wind Turbine");
+        List<PoleLayer> layers = new ArrayList<>();
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            12,
+            MaterialMix.single("minecraft:weathered_copper")));
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            4,
+            MaterialMix.single("minecraft:oxidized_copper")));
+        PoleLayer blade = new PoleLayer(
+            PoleLayer.Shape.CROSSARM,
+            1,
+            MaterialMix.single("minecraft:orange_terracotta"));
+        blade.setCrossarmLength(9);
+        layers.add(blade);
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.CAP,
+            1,
+            MaterialMix.single("minecraft:iron_trapdoor")));
+        design.setLayers(layers);
+        return design;
+    }
+
+    /** 老式欧洲电线杆：浅色木杆 + 宽横担 + 瓷瓶装饰帽。 */
+    public static PoleDesign oldEuropeanPole() {
+        PoleDesign design = new PoleDesign(OLD_EUROPEAN_POLE_ID, "Old European Pole");
+        List<PoleLayer> layers = new ArrayList<>();
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            9,
+            MaterialMix.single("minecraft:birch_fence")));
+        PoleLayer crossarm = new PoleLayer(
+            PoleLayer.Shape.CROSSARM,
+            1,
+            MaterialMix.single("minecraft:birch_slab"));
+        crossarm.setCrossarmLength(6);
+        layers.add(crossarm);
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.CAP,
+            1,
+            MaterialMix.single("minecraft:quartz_block")));
         design.setLayers(layers);
         return design;
     }

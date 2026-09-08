@@ -17,8 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class PowerLineStyleCardRendererTest {
 
     @Test
-    void catalogContainsEightStylePacks() {
-        assertEquals(8, PowerLineStylePackCatalog.defaultPacks().size());
+    void catalogContainsElevenStylePacks() {
+        assertEquals(11, PowerLineStylePackCatalog.defaultPacks().size());
     }
 
     @Test
@@ -41,11 +41,16 @@ class PowerLineStyleCardRendererTest {
     }
 
     @Test
-    void detectFindsPackByStoredId() {
+    void applyJapaneseStreetSetsDesign() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
-        PowerLineStylePackCatalog.fantasyCopper().apply(line);
-        PowerLineStylePack detected = PowerLineStylePackCatalog.detect(line);
-        assertNotNull(detected);
-        assertEquals(PowerLineStylePack.FANTASY_COPPER_ID, detected.getId());
+        PowerLineStylePackCatalog.japaneseStreet().apply(line);
+        assertEquals(PoleDesignCatalog.JAPANESE_STREET_POLE_ID, line.getPoleDesignId());
+    }
+
+    @Test
+    void applyWastelandWindSetsDesign() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
+        PowerLineStylePackCatalog.wastelandWind().apply(line);
+        assertEquals(PoleDesignCatalog.WASTELAND_WIND_TURBINE_ID, line.getPoleDesignId());
     }
 }
