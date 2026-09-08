@@ -4,7 +4,7 @@ import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
 import com.plot.plugin.powerline.style.PowerLineStylePack;
-import com.plot.plugin.powerline.style.PowerLineStylePackCatalog;
+import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
@@ -56,9 +56,19 @@ public final class PowerLineStyleCardRenderer {
 
         ImGui.invisibleButton(buttonId, CARD_WIDTH, CARD_HEIGHT);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(label);
+            renderPackTooltip(pack, label);
         }
         return ImGui.isItemClicked(0);
+    }
+
+    private static void renderPackTooltip(PowerLineStylePack pack, String label) {
+        ImGui.beginTooltip();
+        ImGui.text(label);
+        ImGui.separator();
+        ImGui.pushTextWrapPos(ImGui.getFontSize() * 24f);
+        ImGui.textWrapped(PlotI18n.tr(pack.getDescriptionKey()));
+        ImGui.popTextWrapPos();
+        ImGui.endTooltip();
     }
 
     public static float cardWidth() {

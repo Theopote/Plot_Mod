@@ -48,6 +48,13 @@ class PowerLineStyleCardRendererTest {
     }
 
     @Test
+    void descriptionKeyFollowsLabelConvention() {
+        PowerLineStylePack pack = PowerLineStylePackCatalog.steampunkBrass();
+        assertEquals(pack.getLabelKey() + ".desc", pack.getDescriptionKey());
+        assertEquals("plugin.powerline.style.pack.steampunk_brass.desc", pack.getDescriptionKey());
+    }
+
+    @Test
     void applyWastelandWindSetsDesign() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
         PowerLineStylePackCatalog.wastelandWind().apply(line);

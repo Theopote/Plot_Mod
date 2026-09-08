@@ -62,6 +62,11 @@ public final class PowerLineStylePack {
         return labelKey;
     }
 
+    /** i18n 键：{@code labelKey + ".desc"} */
+    public String getDescriptionKey() {
+        return labelKey + ".desc";
+    }
+
     public StylePreviewKind getPreviewKind() {
         return previewKind;
     }
