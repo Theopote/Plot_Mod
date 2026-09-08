@@ -4,6 +4,7 @@ import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
 import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.style.PowerLineStylePackCatalog;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -154,6 +155,7 @@ public final class PowerLineEditPanel {
                 if (ImGui.selectable(labels[i], current == i)) {
                     ctx.pushEditSnapshot();
                     line.setTowerFamilyId(ids[i].isBlank() ? null : ids[i]);
+                    PowerLineStylePackCatalog.clearStylePackIfDrifted(line);
                     ctx.invalidatePreview();
                 }
             }

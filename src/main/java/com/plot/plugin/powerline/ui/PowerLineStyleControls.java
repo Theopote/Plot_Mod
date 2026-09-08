@@ -6,6 +6,7 @@ import com.plot.plugin.powerline.PowerPoleLayoutUtils;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
+import com.plot.plugin.powerline.style.PowerLineStylePackCatalog;
 import com.plot.plugin.powerline.model.PoleOverride;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
@@ -34,7 +35,7 @@ public final class PowerLineStyleControls {
             MaterialMix.single(PowerLineFootprint.DEFAULT_WIRE_MATERIAL),
             mix -> {
                 line.setWireMaterial(mix);
-                ctx.invalidatePreview();
+                onStyleEdited(line);
             });
         PowerLineUiWidgets.renderMaterialMixPicker(
             ctx,
@@ -44,7 +45,7 @@ public final class PowerLineStyleControls {
             MaterialMix.single("minecraft:chain"),
             mix -> {
                 line.setGroundWireMaterial(mix);
-                ctx.invalidatePreview();
+                onStyleEdited(line);
             });
         PowerLineUiWidgets.renderMaterialMixPicker(
             ctx,
@@ -54,8 +55,13 @@ public final class PowerLineStyleControls {
             MaterialMix.single(PowerLineFootprint.DEFAULT_POLE_MATERIAL),
             mix -> {
                 line.setPoleMaterial(mix);
-                ctx.invalidatePreview();
+                onStyleEdited(line);
             });
+    }
+
+    private void onStyleEdited(PowerLineFootprint line) {
+        PowerLineStylePackCatalog.clearStylePackIfDrifted(line);
+        ctx.invalidatePreview();
     }
 
     public void renderPoleDesignControls(PowerLineFootprint line, PoleDesignerPanel poleDesignerPanel) {
@@ -96,7 +102,7 @@ public final class PowerLineStyleControls {
                 if (ImGui.selectable(labels[i], current == i)) {
                     ctx.pushEditSnapshot();
                     line.setPoleDesignId(ids[i].isBlank() ? null : ids[i]);
-                    ctx.invalidatePreview();
+                    onStyleEdited(line);
                 }
             }
             ImGui.endCombo();

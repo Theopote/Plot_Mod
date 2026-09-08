@@ -70,9 +70,9 @@ public final class PowerLineStylePackCatalog {
         if (line == null) {
             return null;
         }
-        PowerLineStylePreset byId = find(line.getStylePackId());
-        if (byId != null && byId.matches(line)) {
-            return byId;
+        PowerLineStylePreset active = activePreset(line);
+        if (active != null) {
+            return active;
         }
         for (PowerLineStylePreset preset : defaultPacks()) {
             if (preset.matchesBundle(line)) {
@@ -80,6 +80,29 @@ public final class PowerLineStylePackCatalog {
             }
         }
         return null;
+    }
+
+    /** 当前仍与 footprint 配置一致的已选预设（需有 {@code stylePackId}）。 */
+    public static PowerLineStylePreset activePreset(PowerLineFootprint line) {
+        if (line == null || line.getStylePackId() == null) {
+            return null;
+        }
+        PowerLineStylePreset preset = find(line.getStylePackId());
+        if (preset != null && preset.matchesBundle(line)) {
+            return preset;
+        }
+        return null;
+    }
+
+    /** 手动改动后若与预设包不一致，清除 {@code stylePackId} 以进入「自定义」状态。 */
+    public static void clearStylePackIfDrifted(PowerLineFootprint line) {
+        if (line == null || line.getStylePackId() == null) {
+            return;
+        }
+        PowerLineStylePreset preset = find(line.getStylePackId());
+        if (preset == null || !preset.matchesBundle(line)) {
+            line.setStylePackId(null);
+        }
     }
 
     public static PowerLineStylePreset classicWood() {

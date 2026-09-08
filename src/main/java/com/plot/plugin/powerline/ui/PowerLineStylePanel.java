@@ -54,7 +54,7 @@ public final class PowerLineStylePanel {
     }
 
     private void renderStylePackGrid(PowerLineFootprint line, java.util.List<PowerLineStylePreset> packs) {
-        PowerLineStylePreset active = PowerLineStylePackCatalog.detect(line);
+        PowerLineStylePreset active = PowerLineStylePackCatalog.activePreset(line);
         float spacing = ImGui.getStyle().getItemSpacingX();
 
         for (int i = 0; i < packs.size(); i++) {
@@ -74,7 +74,7 @@ public final class PowerLineStylePanel {
     }
 
     private void renderStylePackStatus(PowerLineFootprint line) {
-        PowerLineStylePreset active = PowerLineStylePackCatalog.detect(line);
+        PowerLineStylePreset active = PowerLineStylePackCatalog.activePreset(line);
         if (active != null) {
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
@@ -107,6 +107,7 @@ public final class PowerLineStylePanel {
             if (PowerLineSagCardRenderer.renderSagCard(sag, label, selected)) {
                 ctx.pushEditSnapshot();
                 PowerLineUiPresets.applySag(line, sag);
+                PowerLineStylePackCatalog.clearStylePackIfDrifted(line);
                 ctx.invalidatePreview();
             }
         }
@@ -122,6 +123,7 @@ public final class PowerLineStylePanel {
                     (float) (PowerLineUiPresets.ADVANCED_SAG_MAX_RATIO * 100f),
                     "%.0f%%")) {
                 PowerLineUiPresets.applyAdvancedSag(line, sagRatio[0] / 100f);
+                PowerLineStylePackCatalog.clearStylePackIfDrifted(line);
                 ctx.invalidatePreview();
             }
             if (ImGui.isItemActivated()) {

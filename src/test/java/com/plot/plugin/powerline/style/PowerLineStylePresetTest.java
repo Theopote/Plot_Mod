@@ -12,6 +12,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -63,6 +64,28 @@ class PowerLineStylePresetTest {
     }
 
     @Test
+    void clearStylePackWhenWireMaterialDrifts() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
+        PowerLineStylePackCatalog.classicWood().apply(line);
+        line.setWireMaterial(MaterialMix.single("minecraft:chain"));
+
+        PowerLineStylePackCatalog.clearStylePackIfDrifted(line);
+
+        assertNull(line.getStylePackId());
+        assertNull(PowerLineStylePackCatalog.activePreset(line));
+    }
+
+    @Test
+    void activePresetRequiresMatchingBundle() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
+        PowerLineStylePackCatalog.classicWood().apply(line);
+        line.setWireMaterial(MaterialMix.single("minecraft:chain"));
+
+        assertNull(PowerLineStylePackCatalog.activePreset(line));
+        assertFalse(PowerLineStylePackCatalog.classicWood().matchesBundle(line));
+    }
+
+    @Test
     void woodPoleDesignHasExplicitConductorAttachments() {
         assertTrue(PoleDesignCatalog.simpleWoodPole().hasEnabledAttachments());
         assertEquals(
@@ -71,5 +94,16 @@ class PowerLineStylePresetTest {
         assertEquals(
             3,
             PowerLineStylePreset.countConductors(PoleDesignCatalog.doubleWoodPole()));
+    }
+
+    @Test
+    void clearStylePackKeepsIdWhenStillMatching() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
+        PowerLineStylePackCatalog.classicWood().apply(line);
+
+        PowerLineStylePackCatalog.clearStylePackIfDrifted(line);
+
+        assertEquals(PowerLineStylePreset.RUSTIC_WOOD_ID, line.getStylePackId());
+        assertNotNull(PowerLineStylePackCatalog.activePreset(line));
     }
 }
