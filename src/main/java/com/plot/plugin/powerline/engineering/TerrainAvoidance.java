@@ -168,7 +168,7 @@ public final class TerrainAvoidance {
         }
         line.addLayoutConstraint(new PoleLayoutConstraint(
             stationing,
-            "terrain avoidance"));
+            "plugin.powerline.route.auto_pole.reason.terrain"));
         return true;
     }
 

@@ -144,5 +144,36 @@ public final class PowerLineRoutePanel {
         if (ctx.hasMinSpacingWarning(line)) {
             ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.powerline.min_spacing_warning"));
         }
+        renderAutoAddedPoles(line);
+    }
+
+    private void renderAutoAddedPoles(PowerLineFootprint line) {
+        var constraints = line.getLayoutConstraints();
+        if (constraints.isEmpty()) {
+            return;
+        }
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr("plugin.powerline.route.auto_poles.section"));
+        ImGui.spacing();
+        for (int i = 0; i < constraints.size(); i++) {
+            var constraint = constraints.get(i);
+            ImGui.pushID("powerline_auto_pole_" + i);
+            ImGui.text(PlotI18n.tr(
+                "plugin.powerline.route.auto_poles.entry",
+                String.format("%.1f", constraint.getRequiredStationing()),
+                PowerLineAutoPoleLabels.friendlyReason(constraint)));
+            if (ImGui.button(PlotI18n.tr("plugin.powerline.route.auto_poles.remove"), 0, 0)) {
+                ctx.pushEditSnapshot();
+                line.removeLayoutConstraint(i);
+                ctx.invalidatePreview();
+            }
+            ImGui.popID();
+            ImGui.spacing();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.route.auto_poles.clear_all"), 0, 0)) {
+            ctx.pushEditSnapshot();
+            line.clearLayoutConstraints();
+            ctx.invalidatePreview();
+        }
     }
 }

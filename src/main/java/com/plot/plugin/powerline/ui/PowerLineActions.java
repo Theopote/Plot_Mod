@@ -805,7 +805,7 @@ public final class PowerLineActions {
                 case INSERT_POLE -> line.addLayoutConstraint(
                     new com.plot.plugin.powerline.model.PoleLayoutConstraint(
                         action.getStationing(),
-                        action.getMessage()));
+                        layoutConstraintReason(action)));
                 default -> { }
             }
         }
@@ -817,5 +817,16 @@ public final class PowerLineActions {
     private World getClientWorld() {
         MinecraftClient client = MinecraftClient.getInstance();
         return client != null ? client.world : null;
+    }
+
+    private static String layoutConstraintReason(
+            com.plot.plugin.powerline.engineering.optimization.OptimizationAction action) {
+        if (action.getMessageKey() != null && !action.getMessageKey().isBlank()) {
+            return action.getMessageKey();
+        }
+        if (action.getMessage() != null && !action.getMessage().isBlank()) {
+            return action.getMessage();
+        }
+        return "plugin.powerline.route.auto_pole.reason.engineering";
     }
 }

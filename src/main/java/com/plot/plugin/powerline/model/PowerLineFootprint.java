@@ -252,6 +252,12 @@ public class PowerLineFootprint {
         layoutConstraints.clear();
     }
 
+    public void removeLayoutConstraint(int index) {
+        if (index >= 0 && index < layoutConstraints.size()) {
+            layoutConstraints.remove(index);
+        }
+    }
+
     public String getEngineeringProfileId() {
         return engineeringProfileId;
     }
@@ -301,8 +307,7 @@ public class PowerLineFootprint {
     }
 
     public int estimatePoleCount() {
-        return com.plot.plugin.powerline.PowerPoleLayoutUtils.computePolePositions(
-            pathPoints, cornerAngleThreshold, maxPoleSpacing).size();
+        return com.plot.plugin.powerline.PowerPoleLayoutUtils.computePoleSites(this).size();
     }
 
     /**

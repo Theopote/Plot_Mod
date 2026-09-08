@@ -3,6 +3,7 @@ package com.plot.plugin.powerline.ui;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.powerline.PowerPoleLayoutUtils;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.model.PowerPoleSite;
 import com.plot.plugin.powerline.model.PowerLineProject;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.canvas.Canvas;
@@ -162,12 +163,9 @@ public final class PowerLineOverviewRenderer {
             PowerLineFootprint line,
             MapViewport viewport,
             boolean selected) {
-        List<Vec2d> poles = PowerPoleLayoutUtils.computePolePositions(
-            line.getPathPoints(),
-            line.getCornerAngleThreshold(),
-            line.getMaxPoleSpacing());
         int color = selected ? COLOR_SELECTED_RING : 0xFFE0E0E0;
-        for (Vec2d pole : poles) {
+        for (PowerPoleSite site : PowerPoleLayoutUtils.computePoleSites(line)) {
+            Vec2d pole = site.getPlanPosition();
             float sx = toScreenX(pole.x, viewport);
             float sy = toScreenY(pole.y, viewport);
             drawList.addCircleFilled(sx, sy, POLE_RADIUS, color);
