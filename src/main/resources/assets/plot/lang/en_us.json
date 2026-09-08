@@ -3338,6 +3338,7 @@
   "plugin.powerline.style.advanced": "Advanced style",
   "plugin.powerline.build.summary": "Preview summary",
   "plugin.powerline.build.no_preview": "Calculate preview to see pole and wire counts.",
+  "plugin.powerline.build.sag_preset": "Sag: %s",
   "plugin.powerline.build.status.decorative": "✓ Decorative mode — terrain checks off",
   "plugin.powerline.build.status_section": "Looks good?",
   "plugin.powerline.build.status.spacing_ok": "✓ Spacing looks reasonable",

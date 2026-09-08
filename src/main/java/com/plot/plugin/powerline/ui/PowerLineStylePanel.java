@@ -85,14 +85,26 @@ public final class PowerLineStylePanel {
     private void renderSagPresets(PowerLineFootprint line) {
         ImGui.text(PlotI18n.tr("plugin.powerline.style.sag"));
         PowerLineUiPresets.WireSag current = PowerLineUiPresets.detectSag(line);
+
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float totalWidth = PowerLineSagCardRenderer.CARD_WIDTH * PowerLineUiPresets.WireSag.values().length
+            + spacing * (PowerLineUiPresets.WireSag.values().length - 1);
+        float startX = ImGui.getCursorPosX();
+        if (totalWidth < ImGui.getContentRegionAvail().x) {
+            ImGui.setCursorPosX(startX + (ImGui.getContentRegionAvail().x - totalWidth) * 0.5f);
+        }
+
         for (PowerLineUiPresets.WireSag sag : PowerLineUiPresets.WireSag.values()) {
+            if (sag != PowerLineUiPresets.WireSag.values()[0]) {
+                ImGui.sameLine(0f, spacing);
+            }
             boolean selected = sag == current;
-            if (ImGui.radioButton(PlotI18n.tr("plugin.powerline.style.sag." + sag.name().toLowerCase()), selected)) {
+            String label = PlotI18n.tr("plugin.powerline.style.sag." + sag.name().toLowerCase());
+            if (PowerLineSagCardRenderer.renderSagCard(sag, label, selected)) {
                 ctx.pushEditSnapshot();
                 PowerLineUiPresets.applySag(line, sag);
                 ctx.invalidatePreview();
             }
-            ImGui.sameLine();
         }
         ImGui.newLine();
 

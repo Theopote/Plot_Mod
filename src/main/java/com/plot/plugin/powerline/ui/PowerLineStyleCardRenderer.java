@@ -81,6 +81,24 @@ public final class PowerLineStyleCardRenderer {
         return CARD_HEIGHT;
     }
 
+    public static final float COMPACT_WIDTH = 72f;
+    public static final float COMPACT_HEIGHT = 80f;
+    private static final float COMPACT_PREVIEW_HEIGHT = 56f;
+
+    /** 只读紧凑风格预览（Build 摘要等）。 */
+    public static void renderCompactStylePreview(String familyId) {
+        ImVec2 origin = ImGui.getCursorScreenPos();
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        float x0 = origin.x;
+        float y0 = origin.y;
+        float x1 = x0 + COMPACT_WIDTH;
+        float y1 = y0 + COMPACT_HEIGHT;
+        drawList.addRectFilled(x0, y0, x1, y1, COLOR_BG);
+        drawList.addRect(x0, y0, x1, y1, COLOR_BORDER, 3f, 0, 1f);
+        drawPreview(drawList, familyId, x0 + 2f, y0 + 2f, x1 - 2f, y0 + COMPACT_PREVIEW_HEIGHT);
+        ImGui.dummy(COMPACT_WIDTH, COMPACT_HEIGHT);
+    }
+
     private static void drawPreview(
             ImDrawList drawList,
             String familyId,

@@ -3338,6 +3338,7 @@
   "plugin.powerline.style.advanced": "高级样式",
   "plugin.powerline.build.summary": "预览摘要",
   "plugin.powerline.build.no_preview": "请先计算预览以查看杆塔与导线数量。",
+  "plugin.powerline.build.sag_preset": "垂度：%s",
   "plugin.powerline.build.status.decorative": "✓ 装饰模式 — 未启用地形检查",
   "plugin.powerline.build.status_section": "看起来合理吗？",
   "plugin.powerline.build.status.spacing_ok": "✓ 间距看起来合理",

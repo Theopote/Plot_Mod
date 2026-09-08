@@ -57,16 +57,27 @@ public final class PowerLineRoutePanel {
     private void renderSpacingPresets(PowerLineFootprint line) {
         ImGui.text(PlotI18n.tr("plugin.powerline.route.spacing"));
         PowerLineUiPresets.SpacingDensity current = PowerLineUiPresets.detectSpacing(line);
+
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float totalWidth = PowerLineSpacingCardRenderer.CARD_WIDTH
+            * PowerLineUiPresets.SpacingDensity.values().length
+            + spacing * (PowerLineUiPresets.SpacingDensity.values().length - 1);
+        float startX = ImGui.getCursorPosX();
+        if (totalWidth < ImGui.getContentRegionAvail().x) {
+            ImGui.setCursorPosX(startX + (ImGui.getContentRegionAvail().x - totalWidth) * 0.5f);
+        }
+
         for (PowerLineUiPresets.SpacingDensity density : PowerLineUiPresets.SpacingDensity.values()) {
+            if (density != PowerLineUiPresets.SpacingDensity.values()[0]) {
+                ImGui.sameLine(0f, spacing);
+            }
             boolean selected = density == current;
-            if (ImGui.radioButton(
-                    PlotI18n.tr("plugin.powerline.route.spacing." + density.name().toLowerCase()),
-                    selected)) {
+            String label = PlotI18n.tr("plugin.powerline.route.spacing." + density.name().toLowerCase());
+            if (PowerLineSpacingCardRenderer.renderSpacingCard(density, label, selected)) {
                 ctx.pushEditSnapshot();
                 PowerLineUiPresets.applySpacing(line, density);
                 ctx.invalidatePreview();
             }
-            ImGui.sameLine();
         }
         ImGui.newLine();
     }

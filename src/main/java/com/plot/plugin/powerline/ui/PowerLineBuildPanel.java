@@ -51,10 +51,21 @@ public final class PowerLineBuildPanel {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.no_preview"));
             return;
         }
+
+        String familyId = line.hasTowerFamily() ? line.getTowerFamilyId() : "";
+        PowerLineStyleCardRenderer.renderCompactStylePreview(familyId);
+        ImGui.sameLine();
+        ImGui.beginGroup();
         ImGui.text(PlotI18n.tr("plugin.powerline.pole_count_result", result.poleCount));
         ImGui.text(PlotI18n.tr(
             "plugin.powerline.wire_length_result",
             String.format("%.1f", result.wireLength)));
+        PowerLineUiPresets.WireSag sag = PowerLineUiPresets.detectSag(line);
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.powerline.build.sag_preset",
+                PlotI18n.tr("plugin.powerline.style.sag." + sag.name().toLowerCase())));
+        ImGui.endGroup();
     }
 
     private void renderFriendlyStatus(PowerLineFootprint line) {
