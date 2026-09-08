@@ -119,10 +119,31 @@ public final class PowerLineActions {
             return false;
         }
         if (line.isTerrainAvoidanceEnabled()) {
-            runTerrainAvoidance(line);
+            analyzeTerrainCollisions(line);
         } else {
             state.getEngineeringState().setLastTerrainReport(null);
         }
+        return state.getLastGenerationResult() != null;
+    }
+
+    /**
+     * 地形自动调整：修改线路参数后重新生成预览。调用前会 push 撤销快照。
+     *
+     * @return 调整后是否仍有有效预览
+     */
+    public boolean autoAdjustTerrain(PowerLineFootprint line) {
+        if (line == null || !line.isTerrainAvoidanceEnabled()) {
+            return false;
+        }
+        if (getClientWorld() == null || generator == null) {
+            state.setProjectStatus(PlotI18n.tr("plugin.powerline.generate_world_unavailable"));
+            return false;
+        }
+        state.getProjectHistory().push(state.getProject());
+        if (!hasValidPreview(line) && !calculatePreviewCore(line)) {
+            return false;
+        }
+        runTerrainAvoidance(line);
         return state.getLastGenerationResult() != null;
     }
 
@@ -194,7 +215,7 @@ public final class PowerLineActions {
         return report;
     }
 
-    public void runTerrainAvoidance(PowerLineFootprint line) {
+    private void runTerrainAvoidance(PowerLineFootprint line) {
         if (line == null || !line.isTerrainAvoidanceEnabled()) {
             return;
         }

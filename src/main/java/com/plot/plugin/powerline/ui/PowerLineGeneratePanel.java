@@ -5,7 +5,6 @@ import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
-import imgui.flag.ImGuiWindowFlags;
 
 /** 电力线路生成 Tab。 */
 public final class PowerLineGeneratePanel {
@@ -116,14 +115,10 @@ public final class PowerLineGeneratePanel {
     }
 
     public void renderBuildConfirmPopup() {
-        if (!ctx.buildConfirmPending()) {
-            return;
-        }
-        ImGui.openPopup("##powerline_build_confirm");
-        ctx.setBuildConfirmPending(false);
-        if (ImGui.beginPopupModal(
+        if (PowerLineUiWidgets.beginDeferredPopupModal(
                 "##powerline_build_confirm",
-                ImGuiWindowFlags.AlwaysAutoResize)) {
+                ctx.buildConfirmPending(),
+                () -> ctx.setBuildConfirmPending(false))) {
             PowerLineFootprint line = ctx.selection().primary(ctx.project());
             PowerLineGenerationResult result = ctx.hasValidPreview(line) ? ctx.lastGenerationResult() : null;
             int blocks = result != null ? result.blockCount() : 0;

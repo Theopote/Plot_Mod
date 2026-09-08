@@ -172,7 +172,14 @@ public final class PowerLineBuildPanel {
             ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.powerline.build.status.terrain_ok"));
             return;
         }
+        ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.powerline.build.status.terrain_warning"));
         renderIssueList(report);
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.build.terrain_auto_adjust"), 0, 0)) {
+            ctx.autoAdjustTerrain(line);
+            if (line.isEngineeringAnalysisEnabled() && ctx.hasValidPreview(line)) {
+                ctx.actions().analyzeEngineering(line);
+            }
+        }
     }
 
     private void renderIssueList(LineEngineeringReport report) {

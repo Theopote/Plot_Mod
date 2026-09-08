@@ -11,7 +11,6 @@ import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
-import imgui.flag.ImGuiWindowFlags;
 
 /** 电力线路工程分析 Tab。 */
 public final class PowerLineEngineeringPanel {
@@ -22,33 +21,22 @@ public final class PowerLineEngineeringPanel {
     }
 
     public void renderSmartFixSection(PowerLineFootprint line) {
-        if (!line.isTerrainAvoidanceEnabled() && !line.isEngineeringAnalysisEnabled()) {
+        if (!line.isEngineeringAnalysisEnabled()) {
             return;
         }
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.powerline.build.smart_fix"));
-        if (line.isTerrainAvoidanceEnabled()) {
-            if (ImGui.button(PlotI18n.tr("plugin.powerline.build.terrain_auto_adjust"), 0, 0)) {
-                ctx.pushEditSnapshot();
-                ctx.calculatePreview(line);
-            }
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.build.engineering_fix"), 0, 0)) {
+            ctx.actions().proposeClearanceFix(line);
+            ctx.state().getEngineeringState().setOptimizationConfirmPending(true);
         }
-        if (line.isEngineeringAnalysisEnabled()) {
-            if (line.isTerrainAvoidanceEnabled()) {
-                ImGui.sameLine();
-            }
-            if (ImGui.button(PlotI18n.tr("plugin.powerline.build.engineering_fix"), 0, 0)) {
-                ctx.actions().proposeClearanceFix(line);
-                ctx.state().getEngineeringState().setOptimizationConfirmPending(true);
-            }
-            ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("plugin.powerline.build.smart_towers"), 0, 0)) {
-                ctx.pushEditSnapshot();
-                line.setAutomaticTowerSelectionEnabled(true);
-                ctx.invalidatePreview();
-                ctx.actions().proposeAutoTowerSelection(line);
-                ctx.state().getEngineeringState().setOptimizationConfirmPending(true);
-            }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.build.smart_towers"), 0, 0)) {
+            ctx.pushEditSnapshot();
+            line.setAutomaticTowerSelectionEnabled(true);
+            ctx.invalidatePreview();
+            ctx.actions().proposeAutoTowerSelection(line);
+            ctx.state().getEngineeringState().setOptimizationConfirmPending(true);
         }
     }
 
@@ -147,12 +135,10 @@ public final class PowerLineEngineeringPanel {
     }
 
     public void renderOptimizationConfirmPopup() {
-        if (!ctx.state().getEngineeringState().isOptimizationConfirmPending()) {
-            return;
-        }
-        ImGui.openPopup("##powerline_engineering_opt_confirm");
-        ctx.state().getEngineeringState().setOptimizationConfirmPending(false);
-        if (ImGui.beginPopupModal("##powerline_engineering_opt_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
+        if (PowerLineUiWidgets.beginDeferredPopupModal(
+                "##powerline_engineering_opt_confirm",
+                ctx.state().getEngineeringState().isOptimizationConfirmPending(),
+                () -> ctx.state().getEngineeringState().setOptimizationConfirmPending(false))) {
             var optimization = ctx.state().getEngineeringState().getPendingOptimization();
             ImGui.text(PlotI18n.tr("plugin.powerline.engineering.proposed_changes"));
             if (optimization != null && !optimization.getActions().isEmpty()) {

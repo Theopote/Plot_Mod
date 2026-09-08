@@ -396,12 +396,10 @@ public final class PoleDesignerPanel {
     }
 
     private void renderPresetConfirmPopup() {
-        if (!presetConfirmPending) {
-            return;
-        }
-        ImGui.openPopup("##pole_preset_confirm");
-        presetConfirmPending = false;
-        if (ImGui.beginPopupModal("##pole_preset_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
+        if (PowerLineUiWidgets.beginDeferredPopupModal(
+                "##pole_preset_confirm",
+                presetConfirmPending,
+                () -> presetConfirmPending = false)) {
             ImGui.text(PlotI18n.tr("plugin.powerline.design.preset_confirm"));
             if (ImGui.button(PlotI18n.tr("button.plot.confirm"), 120, 0)) {
                 PoleDesign preset = PoleDesignCatalog.findBuiltin(pendingPresetId);

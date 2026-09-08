@@ -117,7 +117,7 @@ public final class TerrainTestFixtures {
     }
 
     /**
-     * 模拟 UI {@code runTerrainAvoidance} 的修正循环。
+     * 模拟 UI {@code autoAdjustTerrain} 的修正循环。
      *
      * @return 是否在尝试次数内消除地形碰撞
      */

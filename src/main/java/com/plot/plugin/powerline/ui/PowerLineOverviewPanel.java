@@ -4,7 +4,6 @@ import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
-import imgui.flag.ImGuiWindowFlags;
 
 /** 电力线路概览 Tab。 */
 public final class PowerLineOverviewPanel {
@@ -90,14 +89,10 @@ public final class PowerLineOverviewPanel {
     }
 
     public void renderDeleteConfirmPopup() {
-        if (!ctx.deleteConfirmPending()) {
-            return;
-        }
-        ImGui.openPopup("##powerline_delete_confirm");
-        ctx.setDeleteConfirmPending(false);
-        if (ImGui.beginPopupModal(
+        if (PowerLineUiWidgets.beginDeferredPopupModal(
                 "##powerline_delete_confirm",
-                ImGuiWindowFlags.AlwaysAutoResize)) {
+                ctx.deleteConfirmPending(),
+                () -> ctx.setDeleteConfirmPending(false))) {
             ImGui.text(PlotI18n.tr(
                 "plugin.powerline.delete_confirm",
                 ctx.pendingDeleteLineIds().size()));

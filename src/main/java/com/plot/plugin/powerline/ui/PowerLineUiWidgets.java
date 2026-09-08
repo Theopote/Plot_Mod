@@ -11,6 +11,7 @@ import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.flag.ImGuiWindowFlags;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -172,5 +173,24 @@ public final class PowerLineUiWidgets {
                 "plugin.powerline.role_stats_special",
                 result.roleCount(TowerRole.SPECIAL)));
         }
+    }
+
+    /**
+     * Deferred modal popup: {@code openRequest} only triggers {@link ImGui#openPopup} once;
+     * ImGui keeps the modal open until the user closes it.
+     *
+     * @return true when the modal is visible this frame (caller must {@link ImGui#endPopup()})
+     */
+    public static boolean beginDeferredPopupModal(
+            String popupId,
+            boolean openRequest,
+            Runnable onOpenRequested) {
+        if (openRequest) {
+            ImGui.openPopup(popupId);
+            if (onOpenRequested != null) {
+                onOpenRequested.run();
+            }
+        }
+        return ImGui.beginPopupModal(popupId, ImGuiWindowFlags.AlwaysAutoResize);
     }
 }

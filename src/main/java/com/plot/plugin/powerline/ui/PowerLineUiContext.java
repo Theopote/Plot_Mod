@@ -93,6 +93,10 @@ public final class PowerLineUiContext {
         return actions.calculatePreview(line);
     }
 
+    public boolean autoAdjustTerrain(PowerLineFootprint line) {
+        return actions.autoAdjustTerrain(line);
+    }
+
     public void clearPreview() {
         actions.clearPreview();
     }
