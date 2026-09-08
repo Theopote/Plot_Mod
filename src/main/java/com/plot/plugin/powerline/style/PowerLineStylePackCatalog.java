@@ -29,6 +29,9 @@ public final class PowerLineStylePackCatalog {
         packs.add(japaneseStreet());
         packs.add(wastelandWind());
         packs.add(oldEuropean());
+        packs.add(steampunkBrass());
+        packs.add(modernHvGlass());
+        packs.add(suburbanLamp());
         return packs;
     }
 
@@ -204,5 +207,44 @@ public final class PowerLineStylePackCatalog {
             MaterialMix.single("minecraft:birch_fence"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.NATURAL);
+    }
+
+    public static PowerLineStylePack steampunkBrass() {
+        return new PowerLineStylePack(
+            PowerLineStylePack.STEAMPUNK_BRASS_ID,
+            "plugin.powerline.style.pack.steampunk_brass",
+            PowerLineStylePack.StylePreviewKind.STEAMPUNK,
+            null,
+            PoleDesignCatalog.STEAMPUNK_BRASS_TOWER_ID,
+            MaterialMix.single("minecraft:chain"),
+            MaterialMix.single("minecraft:copper_block"),
+            MaterialMix.single("minecraft:lightning_rod"),
+            PowerLineUiPresets.WireSag.NATURAL);
+    }
+
+    public static PowerLineStylePack modernHvGlass() {
+        return new PowerLineStylePack(
+            PowerLineStylePack.MODERN_HV_GLASS_ID,
+            "plugin.powerline.style.pack.modern_hv_glass",
+            PowerLineStylePack.StylePreviewKind.MODERN_HV_GLASS,
+            null,
+            PoleDesignCatalog.MODERN_HV_GLASS_TOWER_ID,
+            MaterialMix.single("minecraft:iron_bars"),
+            MaterialMix.single("minecraft:iron_block"),
+            MaterialMix.single("minecraft:light_blue_stained_glass"),
+            PowerLineUiPresets.WireSag.STRAIGHT);
+    }
+
+    public static PowerLineStylePack suburbanLamp() {
+        return new PowerLineStylePack(
+            PowerLineStylePack.SUBURBAN_LAMP_ID,
+            "plugin.powerline.style.pack.suburban_lamp",
+            PowerLineStylePack.StylePreviewKind.SUBURBAN_LAMP,
+            null,
+            PoleDesignCatalog.SUBURBAN_LAMP_POLE_ID,
+            MaterialMix.single("minecraft:iron_bars"),
+            MaterialMix.single("minecraft:iron_bars"),
+            MaterialMix.single("minecraft:chain"),
+            PowerLineUiPresets.WireSag.LIGHT);
     }
 }

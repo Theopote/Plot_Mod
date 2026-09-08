@@ -11,13 +11,13 @@ class PoleDesignCatalogStylePackTest {
     void newStylePackPoleDesignsAreRegistered() {
         assertNotNull(PoleDesignCatalog.findBuiltin(PoleDesignCatalog.URBAN_CONCRETE_POLE_ID));
         assertNotNull(PoleDesignCatalog.findBuiltin(PoleDesignCatalog.FANTASY_COPPER_POLE_ID));
-        assertEquals(9, PoleDesignCatalog.defaultDesigns().size());
+        assertEquals(12, PoleDesignCatalog.defaultDesigns().size());
     }
 
     @Test
-    void japaneseAndWastelandDesignsAreRegistered() {
-        assertNotNull(PoleDesignCatalog.findBuiltin(PoleDesignCatalog.JAPANESE_STREET_POLE_ID));
-        assertNotNull(PoleDesignCatalog.findBuiltin(PoleDesignCatalog.WASTELAND_WIND_TURBINE_ID));
-        assertNotNull(PoleDesignCatalog.findBuiltin(PoleDesignCatalog.OLD_EUROPEAN_POLE_ID));
+    void steampunkAndModernHvDesignsAreRegistered() {
+        assertNotNull(PoleDesignCatalog.findBuiltin(PoleDesignCatalog.STEAMPUNK_BRASS_TOWER_ID));
+        assertNotNull(PoleDesignCatalog.findBuiltin(PoleDesignCatalog.MODERN_HV_GLASS_TOWER_ID));
+        assertNotNull(PoleDesignCatalog.findBuiltin(PoleDesignCatalog.SUBURBAN_LAMP_POLE_ID));
     }
 }

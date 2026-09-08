@@ -19,6 +19,9 @@ public final class PowerLineStylePack {
     public static final String JAPANESE_STREET_ID = "pack/japanese_street";
     public static final String WASTELAND_WIND_ID = "pack/wasteland_wind";
     public static final String OLD_EUROPEAN_ID = "pack/old_european";
+    public static final String STEAMPUNK_BRASS_ID = "pack/steampunk_brass";
+    public static final String MODERN_HV_GLASS_ID = "pack/modern_hv_glass";
+    public static final String SUBURBAN_LAMP_ID = "pack/suburban_lamp";
 
     private final String id;
     private final String labelKey;
@@ -117,6 +120,9 @@ public final class PowerLineStylePack {
         COPPER,
         JAPANESE,
         WASTELAND_WIND,
-        OLD_EUROPEAN
+        OLD_EUROPEAN,
+        STEAMPUNK,
+        MODERN_HV_GLASS,
+        SUBURBAN_LAMP
     }
 }

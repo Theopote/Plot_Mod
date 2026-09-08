@@ -17,8 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class PowerLineStyleCardRendererTest {
 
     @Test
-    void catalogContainsElevenStylePacks() {
-        assertEquals(11, PowerLineStylePackCatalog.defaultPacks().size());
+    void catalogContainsFourteenStylePacks() {
+        assertEquals(14, PowerLineStylePackCatalog.defaultPacks().size());
     }
 
     @Test

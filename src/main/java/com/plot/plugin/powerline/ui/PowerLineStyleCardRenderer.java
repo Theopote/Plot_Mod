@@ -111,8 +111,39 @@ public final class PowerLineStyleCardRenderer {
             case JAPANESE -> drawJapanesePreview(drawList, x0, y0, x1, y1);
             case WASTELAND_WIND -> drawWastelandWindPreview(drawList, x0, y0, x1, y1);
             case OLD_EUROPEAN -> drawDesignPreview(drawList, PoleDesignCatalog.oldEuropeanPole(), x0, y0, x1, y1);
+            case STEAMPUNK -> drawSteampunkPreview(drawList, x0, y0, x1, y1);
+            case MODERN_HV_GLASS -> drawModernHvGlassPreview(drawList, x0, y0, x1, y1);
+            case SUBURBAN_LAMP -> drawSuburbanLampPreview(drawList, x0, y0, x1, y1);
             default -> drawWoodPreview(drawList, x0, y0, x1, y1);
         }
+    }
+
+    private static void drawSteampunkPreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {
+        drawDesignPreview(drawList, PoleDesignCatalog.steampunkBrassTower(), x0, y0, x1, y1);
+        float cx = x0 + (x1 - x0) * 0.5f;
+        float cy = y0 + (y1 - y0) * 0.18f;
+        drawList.addCircle(cx, cy, 4f, 0xFFFFD54F, 8, 1.5f);
+        float wireY = y0 + (y1 - y0) * 0.32f;
+        drawList.addLine(x0 + 6f, wireY, x1 - 6f, wireY, 0xFFB87333, 1.5f);
+    }
+
+    private static void drawModernHvGlassPreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {
+        drawDesignPreview(drawList, PoleDesignCatalog.modernHvGlassTower(), x0, y0, x1, y1);
+        float wireY = y0 + (y1 - y0) * 0.26f;
+        float left = x0 + (x1 - x0) * 0.22f;
+        float mid = x0 + (x1 - x0) * 0.5f;
+        float right = x1 - (x1 - x0) * 0.22f;
+        drawList.addLine(left, wireY, right, wireY, 0xFF9E9E9E, 1.2f);
+        drawList.addCircleFilled(left, wireY, 3f, 0xFF80D8FF);
+        drawList.addCircleFilled(mid, wireY, 3f, 0xFF80D8FF);
+        drawList.addCircleFilled(right, wireY, 3f, 0xFF80D8FF);
+    }
+
+    private static void drawSuburbanLampPreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {
+        drawDesignPreview(drawList, PoleDesignCatalog.suburbanLampPole(), x0, y0, x1, y1);
+        float glowX = x0 + (x1 - x0) * 0.5f;
+        float glowY = y0 + (y1 - y0) * 0.16f;
+        drawList.addCircleFilled(glowX, glowY, 4f, 0xFF4FC3F7);
     }
 
     private static void drawJapanesePreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {

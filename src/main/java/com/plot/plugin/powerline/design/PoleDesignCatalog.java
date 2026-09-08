@@ -23,6 +23,9 @@ public final class PoleDesignCatalog {
     public static final String JAPANESE_STREET_POLE_ID = "preset/japanese_street_pole";
     public static final String WASTELAND_WIND_TURBINE_ID = "preset/wasteland_wind_turbine";
     public static final String OLD_EUROPEAN_POLE_ID = "preset/old_european_pole";
+    public static final String STEAMPUNK_BRASS_TOWER_ID = "preset/steampunk_brass_tower";
+    public static final String MODERN_HV_GLASS_TOWER_ID = "preset/modern_hv_glass_tower";
+    public static final String SUBURBAN_LAMP_POLE_ID = "preset/suburban_lamp_pole";
 
     private PoleDesignCatalog() {
     }
@@ -38,6 +41,9 @@ public final class PoleDesignCatalog {
         designs.add(japaneseStreetPole());
         designs.add(wastelandWindTurbine());
         designs.add(oldEuropeanPole());
+        designs.add(steampunkBrassTower());
+        designs.add(modernHvGlassTower());
+        designs.add(suburbanLampPole());
         return designs;
     }
 
@@ -243,6 +249,86 @@ public final class PoleDesignCatalog {
             PoleLayer.Shape.CAP,
             1,
             MaterialMix.single("minecraft:quartz_block")));
+        design.setLayers(layers);
+        return design;
+    }
+
+    /** 蒸汽朋克铜塔：铜柱 + 黄铜横担 + 齿轮顶饰。 */
+    public static PoleDesign steampunkBrassTower() {
+        PoleDesign design = new PoleDesign(STEAMPUNK_BRASS_TOWER_ID, "Steampunk Brass Tower");
+        List<PoleLayer> layers = new ArrayList<>();
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            5,
+            MaterialMix.single("minecraft:copper_block")));
+        PoleLayer brassArm = new PoleLayer(
+            PoleLayer.Shape.CROSSARM,
+            1,
+            MaterialMix.single("minecraft:gold_block"));
+        brassArm.setCrossarmLength(6);
+        layers.add(brassArm);
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            4,
+            MaterialMix.single("minecraft:cut_copper")));
+        PoleLayer rodArm = new PoleLayer(
+            PoleLayer.Shape.CROSSARM,
+            1,
+            MaterialMix.single("minecraft:lightning_rod"));
+        rodArm.setCrossarmLength(7);
+        layers.add(rodArm);
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.CAP,
+            1,
+            MaterialMix.single("minecraft:gold_block")));
+        design.setLayers(layers);
+        return design;
+    }
+
+    /** 现代高压塔：钢构塔身 + 玻璃绝缘子横担。 */
+    public static PoleDesign modernHvGlassTower() {
+        PoleDesign design = new PoleDesign(MODERN_HV_GLASS_TOWER_ID, "Modern HV Glass Tower");
+        List<PoleLayer> layers = new ArrayList<>();
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            10,
+            MaterialMix.single("minecraft:iron_block")));
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            5,
+            MaterialMix.single("minecraft:iron_bars")));
+        PoleLayer glassArm = new PoleLayer(
+            PoleLayer.Shape.CROSSARM,
+            1,
+            MaterialMix.single("minecraft:sea_lantern"));
+        glassArm.setCrossarmLength(8);
+        layers.add(glassArm);
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.CAP,
+            1,
+            MaterialMix.single("minecraft:light_blue_stained_glass")));
+        design.setLayers(layers);
+        return design;
+    }
+
+    /** 郊区路灯线：铸铁杆 + 暖色灯头（街区氛围）。 */
+    public static PoleDesign suburbanLampPole() {
+        PoleDesign design = new PoleDesign(SUBURBAN_LAMP_POLE_ID, "Suburban Lamp Pole");
+        List<PoleLayer> layers = new ArrayList<>();
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            9,
+            MaterialMix.single("minecraft:iron_bars")));
+        PoleLayer arm = new PoleLayer(
+            PoleLayer.Shape.CROSSARM,
+            1,
+            MaterialMix.single("minecraft:iron_bars"));
+        arm.setCrossarmLength(5);
+        layers.add(arm);
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.CAP,
+            1,
+            MaterialMix.single("minecraft:soul_lantern")));
         design.setLayers(layers);
         return design;
     }
