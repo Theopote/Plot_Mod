@@ -36,6 +36,7 @@ public final class PowerLineRoutePanel {
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.powerline.route.section.placement"));
         renderSpacingPresets(line);
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.spacing_hint"));
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.corner_hint"));
         renderTerrainAvoidance(line);
         renderAdvancedSpacing(line);
@@ -112,6 +113,9 @@ public final class PowerLineRoutePanel {
         if (ImGui.isItemActivated()) {
             ctx.pushEditSnapshot();
         }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.powerline.recommended_min_spacing"));
+        }
 
         float[] maxSpacing = {(float) line.getMaxPoleSpacing()};
         if (ImGui.sliderFloat(
@@ -125,6 +129,9 @@ public final class PowerLineRoutePanel {
         }
         if (ImGui.isItemActivated()) {
             ctx.pushEditSnapshot();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.powerline.recommended_max_spacing"));
         }
 
         float[] cornerAngle = {(float) line.getCornerAngleThreshold()};
