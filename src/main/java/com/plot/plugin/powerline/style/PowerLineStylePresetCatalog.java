@@ -12,49 +12,49 @@ import java.util.List;
 import java.util.Map;
 
 /** 内置线路风格预设目录。 */
-public final class PowerLineStylePackCatalog {
-    private PowerLineStylePackCatalog() {
+public final class PowerLineStylePresetCatalog {
+    private PowerLineStylePresetCatalog() {
     }
 
-    public static List<PowerLineStylePreset> decorativePacks() {
-        List<PowerLineStylePreset> packs = new ArrayList<>();
-        packs.add(classicWood());
-        packs.add(doubleWood());
-        packs.add(urbanConcrete());
-        packs.add(simpleSteel());
-        packs.add(modernUtility());
-        packs.add(classicLattice());
-        packs.add(heavyLattice());
-        packs.add(compactLattice());
-        packs.add(oldEuropean());
-        packs.add(japaneseStreet());
-        packs.add(fantasyCopper());
-        packs.add(steampunkBrass());
-        packs.add(wastelandWind());
-        packs.add(abandoned());
-        packs.add(suburbanLamp());
-        packs.add(rustic());
-        return packs;
+    public static List<PowerLineStylePreset> decorativePresets() {
+        List<PowerLineStylePreset> presets = new ArrayList<>();
+        presets.add(classicWood());
+        presets.add(doubleWood());
+        presets.add(urbanConcrete());
+        presets.add(simpleSteel());
+        presets.add(modernUtility());
+        presets.add(classicLattice());
+        presets.add(heavyLattice());
+        presets.add(compactLattice());
+        presets.add(oldEuropean());
+        presets.add(japaneseStreet());
+        presets.add(fantasyCopper());
+        presets.add(steampunkBrass());
+        presets.add(wastelandWind());
+        presets.add(abandoned());
+        presets.add(suburbanLamp());
+        presets.add(rustic());
+        return presets;
     }
 
-    public static List<PowerLineStylePreset> engineeringPacks() {
-        List<PowerLineStylePreset> packs = new ArrayList<>();
-        packs.add(smartTowers());
-        packs.add(taperedTower());
-        packs.add(modernHvGlass());
-        return packs;
+    public static List<PowerLineStylePreset> engineeringPresets() {
+        List<PowerLineStylePreset> presets = new ArrayList<>();
+        presets.add(smartTowers());
+        presets.add(taperedTower());
+        presets.add(modernHvGlass());
+        return presets;
     }
 
-    public static List<PowerLineStylePreset> defaultPacks() {
-        List<PowerLineStylePreset> packs = new ArrayList<>(decorativePacks());
-        packs.addAll(engineeringPacks());
-        return packs;
+    public static List<PowerLineStylePreset> defaultPresets() {
+        List<PowerLineStylePreset> presets = new ArrayList<>(decorativePresets());
+        presets.addAll(engineeringPresets());
+        return presets;
     }
 
     public static Map<String, PowerLineStylePreset> indexById() {
         Map<String, PowerLineStylePreset> indexed = new LinkedHashMap<>();
-        for (PowerLineStylePreset pack : defaultPacks()) {
-            indexed.put(pack.getId(), pack);
+        for (PowerLineStylePreset preset : defaultPresets()) {
+            indexed.put(preset.getId(), preset);
         }
         return indexed;
     }
@@ -74,7 +74,7 @@ public final class PowerLineStylePackCatalog {
         if (active != null) {
             return active;
         }
-        for (PowerLineStylePreset preset : defaultPacks()) {
+        for (PowerLineStylePreset preset : defaultPresets()) {
             if (preset.matchesBundle(line)) {
                 return preset;
             }
@@ -82,7 +82,7 @@ public final class PowerLineStylePackCatalog {
         return null;
     }
 
-    /** 当前仍与 footprint 配置一致的已选预设（需有 {@code stylePackId}）。 */
+    /** 当前仍与 footprint 配置一致的已选预设（需有 {@code stylePackId}，持久化字段待 rename）。 */
     public static PowerLineStylePreset activePreset(PowerLineFootprint line) {
         if (line == null || line.getStylePackId() == null) {
             return null;
@@ -94,8 +94,8 @@ public final class PowerLineStylePackCatalog {
         return null;
     }
 
-    /** 手动改动后若与预设包不一致，清除 {@code stylePackId} 以进入「自定义」状态。 */
-    public static void clearStylePackIfDrifted(PowerLineFootprint line) {
+    /** 手动改动后若与预设不一致，清除 {@code stylePackId} 以进入「自定义」状态。 */
+    public static void clearStylePresetIfDrifted(PowerLineFootprint line) {
         if (line == null || line.getStylePackId() == null) {
             return;
         }

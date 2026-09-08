@@ -29,6 +29,7 @@ public class PowerLineFootprint {
     private MaterialMix poleMaterial = MaterialMix.single(DEFAULT_POLE_MATERIAL);
     private String poleDesignId;
     private String towerFamilyId;
+    /** 当前选中的风格预设 id；项目 JSON 仍用 {@code stylePackId} 键（待迁移为 stylePresetId）。 */
     private String stylePackId;
     private MaterialMix groundWireMaterial = MaterialMix.single("minecraft:chain");
     private final List<PoleOverride> poleOverrides = new ArrayList<>();
@@ -175,8 +176,18 @@ public class PowerLineFootprint {
         return stylePackId;
     }
 
+    /** 同 {@link #getStylePackId()}；命名对齐 {@link com.plot.plugin.powerline.style.PowerLineStylePreset}。 */
+    public String getStylePresetId() {
+        return stylePackId;
+    }
+
     public void setStylePackId(String stylePackId) {
         this.stylePackId = stylePackId != null && stylePackId.isBlank() ? null : stylePackId;
+    }
+
+    /** 同 {@link #setStylePackId(String)}。 */
+    public void setStylePresetId(String stylePresetId) {
+        setStylePackId(stylePresetId);
     }
 
     public MaterialMix getGroundWireMaterial() {

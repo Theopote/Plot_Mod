@@ -124,7 +124,7 @@ public final class PowerLineStylePreset {
         if (line == null) {
             return;
         }
-        line.setStylePackId(id);
+        line.setStylePresetId(id);
         if (towerFamilyId != null && !towerFamilyId.isBlank()) {
             line.setTowerFamilyId(towerFamilyId);
             line.setPoleDesignId(null);
@@ -145,8 +145,8 @@ public final class PowerLineStylePreset {
         if (!matchesBundle(line)) {
             return false;
         }
-        String packId = line.getStylePackId();
-        return packId == null || packId.isBlank() || Objects.equals(id, packId);
+        String presetId = line.getStylePresetId();
+        return presetId == null || presetId.isBlank() || Objects.equals(id, presetId);
     }
 
     public boolean matchesBundle(PowerLineFootprint line) {

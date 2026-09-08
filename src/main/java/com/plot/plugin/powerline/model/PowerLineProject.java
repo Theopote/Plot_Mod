@@ -180,6 +180,7 @@ public class PowerLineProject {
         MaterialMix poleMaterial;
         String poleDesignId;
         String towerFamilyId;
+        /** JSON key {@code stylePackId}; rename to stylePresetId when schema migrates. */
         String stylePackId;
         MaterialMix groundWireMaterial;
         List<PoleOverrideData> poleOverrides = new ArrayList<>();

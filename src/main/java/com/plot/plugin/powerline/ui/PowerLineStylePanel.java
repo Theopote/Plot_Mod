@@ -2,7 +2,7 @@ package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
-import com.plot.plugin.powerline.style.PowerLineStylePackCatalog;
+import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -11,7 +11,7 @@ import imgui.flag.ImGuiTreeNodeFlags;
 
 /** 样式 Tab：塔型主题、下垂、材质。 */
 public final class PowerLineStylePanel {
-    private static final int STYLE_PACK_COLUMNS = 4;
+    private static final int STYLE_PRESET_COLUMNS = 4;
 
     private final PowerLineUiContext ctx;
     private final PowerLineStyleControls styleControls;
@@ -37,14 +37,14 @@ public final class PowerLineStylePanel {
         PowerLineUiWidgets.renderLineSelector(ctx);
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.powerline.style.section.tower"));
-        renderStylePackGrid(line, PowerLineStylePackCatalog.decorativePacks());
+        renderStylePresetGrid(line, PowerLineStylePresetCatalog.decorativePresets());
         ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
         if (ImGui.collapsingHeader(
                 PlotI18n.tr("plugin.powerline.style.section.tower_engineering"),
                 ImGuiTreeNodeFlags.None)) {
-            renderStylePackGrid(line, PowerLineStylePackCatalog.engineeringPacks());
+            renderStylePresetGrid(line, PowerLineStylePresetCatalog.engineeringPresets());
         }
-        renderStylePackStatus(line);
+        renderStylePresetStatus(line);
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.powerline.style.section.wire"));
         renderSagPresets(line);
@@ -52,28 +52,28 @@ public final class PowerLineStylePanel {
         renderAdvancedStyle(line);
     }
 
-    private void renderStylePackGrid(PowerLineFootprint line, java.util.List<PowerLineStylePreset> packs) {
-        PowerLineStylePreset active = PowerLineStylePackCatalog.activePreset(line);
+    private void renderStylePresetGrid(PowerLineFootprint line, java.util.List<PowerLineStylePreset> presets) {
+        PowerLineStylePreset active = PowerLineStylePresetCatalog.activePreset(line);
         float spacing = ImGui.getStyle().getItemSpacingX();
 
-        for (int i = 0; i < packs.size(); i++) {
-            if (i > 0 && i % STYLE_PACK_COLUMNS != 0) {
+        for (int i = 0; i < presets.size(); i++) {
+            if (i > 0 && i % STYLE_PRESET_COLUMNS != 0) {
                 ImGui.sameLine(0f, spacing);
             }
-            PowerLineStylePreset pack = packs.get(i);
-            boolean selected = active != null && active.getId().equals(pack.getId());
-            String label = PlotI18n.tr(pack.getLabelKey());
-            if (PowerLineStyleCardRenderer.renderStyleCard(pack, label, selected)) {
+            PowerLineStylePreset preset = presets.get(i);
+            boolean selected = active != null && active.getId().equals(preset.getId());
+            String label = PlotI18n.tr(preset.getLabelKey());
+            if (PowerLineStyleCardRenderer.renderStyleCard(preset, label, selected)) {
                 ctx.pushEditSnapshot();
-                pack.apply(line);
+                preset.apply(line);
                 ctx.invalidatePreview();
             }
         }
         ImGui.newLine();
     }
 
-    private void renderStylePackStatus(PowerLineFootprint line) {
-        PowerLineStylePreset active = PowerLineStylePackCatalog.activePreset(line);
+    private void renderStylePresetStatus(PowerLineFootprint line) {
+        PowerLineStylePreset active = PowerLineStylePresetCatalog.activePreset(line);
         if (active != null) {
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
@@ -106,7 +106,7 @@ public final class PowerLineStylePanel {
             if (PowerLineSagCardRenderer.renderSagCard(sag, label, selected)) {
                 ctx.pushEditSnapshot();
                 PowerLineUiPresets.applySag(line, sag);
-                PowerLineStylePackCatalog.clearStylePackIfDrifted(line);
+                PowerLineStylePresetCatalog.clearStylePresetIfDrifted(line);
                 ctx.invalidatePreview();
             }
         }
@@ -122,7 +122,7 @@ public final class PowerLineStylePanel {
                     (float) (PowerLineUiPresets.ADVANCED_SAG_MAX_RATIO * 100f),
                     "%.0f%%")) {
                 PowerLineUiPresets.applyAdvancedSag(line, sagRatio[0] / 100f);
-                PowerLineStylePackCatalog.clearStylePackIfDrifted(line);
+                PowerLineStylePresetCatalog.clearStylePresetIfDrifted(line);
                 ctx.invalidatePreview();
             }
             if (ImGui.isItemActivated()) {

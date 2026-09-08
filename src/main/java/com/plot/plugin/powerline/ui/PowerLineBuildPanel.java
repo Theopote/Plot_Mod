@@ -2,7 +2,7 @@ package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
-import com.plot.plugin.powerline.style.PowerLineStylePackCatalog;
+import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
 import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.ui.PluginUiColors;
@@ -54,7 +54,7 @@ public final class PowerLineBuildPanel {
             return;
         }
 
-        PowerLineStylePreset activePreset = PowerLineStylePackCatalog.activePreset(line);
+        PowerLineStylePreset activePreset = PowerLineStylePresetCatalog.activePreset(line);
         if (activePreset != null) {
             PowerLineStyleCardRenderer.renderCompactStylePreview(activePreset);
         } else {

@@ -24,7 +24,7 @@ class PowerLineStylePresetTest {
         line.setTowerFamilyId(TowerFamily.STANDARD_LATTICE_3_PHASE_ID);
         line.setWireMaterial(MaterialMix.single("minecraft:chain"));
 
-        PowerLineStylePreset preset = PowerLineStylePackCatalog.classicWood();
+        PowerLineStylePreset preset = PowerLineStylePresetCatalog.classicWood();
         preset.apply(line);
 
         assertEquals(PowerLineStylePreset.RUSTIC_WOOD_ID, line.getStylePackId());
@@ -40,49 +40,49 @@ class PowerLineStylePresetTest {
     @Test
     void partialMatchDoesNotCountAsBundle() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
-        PowerLineStylePackCatalog.classicWood().apply(line);
+        PowerLineStylePresetCatalog.classicWood().apply(line);
         line.setWireMaterial(MaterialMix.single("minecraft:chain"));
 
-        assertFalse(PowerLineStylePackCatalog.classicWood().matchesBundle(line));
+        assertFalse(PowerLineStylePresetCatalog.classicWood().matchesBundle(line));
     }
 
     @Test
     void detectFindsPresetByStoredIdAndBundle() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
-        PowerLineStylePackCatalog.rustic().apply(line);
+        PowerLineStylePresetCatalog.rustic().apply(line);
 
-        PowerLineStylePreset detected = PowerLineStylePackCatalog.detect(line);
+        PowerLineStylePreset detected = PowerLineStylePresetCatalog.detect(line);
         assertEquals(PowerLineStylePreset.RUSTIC_ID, detected.getId());
         assertEquals(PowerLineStylePreset.ConductorLayout.SINGLE, detected.getConductorLayout());
     }
 
     @Test
     void latticePresetUsesThreePhaseConductors() {
-        PowerLineStylePreset preset = PowerLineStylePackCatalog.classicLattice();
+        PowerLineStylePreset preset = PowerLineStylePresetCatalog.classicLattice();
         assertEquals(3, preset.conductorCount());
         assertEquals(PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL, preset.getConductorLayout());
     }
 
     @Test
-    void clearStylePackWhenWireMaterialDrifts() {
+    void clearStylePresetWhenWireMaterialDrifts() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
-        PowerLineStylePackCatalog.classicWood().apply(line);
+        PowerLineStylePresetCatalog.classicWood().apply(line);
         line.setWireMaterial(MaterialMix.single("minecraft:chain"));
 
-        PowerLineStylePackCatalog.clearStylePackIfDrifted(line);
+        PowerLineStylePresetCatalog.clearStylePresetIfDrifted(line);
 
         assertNull(line.getStylePackId());
-        assertNull(PowerLineStylePackCatalog.activePreset(line));
+        assertNull(PowerLineStylePresetCatalog.activePreset(line));
     }
 
     @Test
     void activePresetRequiresMatchingBundle() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
-        PowerLineStylePackCatalog.classicWood().apply(line);
+        PowerLineStylePresetCatalog.classicWood().apply(line);
         line.setWireMaterial(MaterialMix.single("minecraft:chain"));
 
-        assertNull(PowerLineStylePackCatalog.activePreset(line));
-        assertFalse(PowerLineStylePackCatalog.classicWood().matchesBundle(line));
+        assertNull(PowerLineStylePresetCatalog.activePreset(line));
+        assertFalse(PowerLineStylePresetCatalog.classicWood().matchesBundle(line));
     }
 
     @Test
@@ -97,24 +97,24 @@ class PowerLineStylePresetTest {
     }
 
     @Test
-    void clearStylePackKeepsIdWhenStillMatching() {
+    void clearStylePresetKeepsIdWhenStillMatching() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
-        PowerLineStylePackCatalog.classicWood().apply(line);
+        PowerLineStylePresetCatalog.classicWood().apply(line);
 
-        PowerLineStylePackCatalog.clearStylePackIfDrifted(line);
+        PowerLineStylePresetCatalog.clearStylePresetIfDrifted(line);
 
         assertEquals(PowerLineStylePreset.RUSTIC_WOOD_ID, line.getStylePackId());
-        assertNotNull(PowerLineStylePackCatalog.activePreset(line));
+        assertNotNull(PowerLineStylePresetCatalog.activePreset(line));
     }
 
     @Test
     void buildSummaryUsesActivePresetNotStoredId() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
-        PowerLineStylePackCatalog.classicWood().apply(line);
+        PowerLineStylePresetCatalog.classicWood().apply(line);
         line.setWireMaterial(MaterialMix.single("minecraft:chain"));
 
         assertEquals(PowerLineStylePreset.RUSTIC_WOOD_ID, line.getStylePackId());
-        assertNull(PowerLineStylePackCatalog.activePreset(line));
-        assertFalse(PowerLineStylePackCatalog.classicWood().matchesBundle(line));
+        assertNull(PowerLineStylePresetCatalog.activePreset(line));
+        assertFalse(PowerLineStylePresetCatalog.classicWood().matchesBundle(line));
     }
 }
