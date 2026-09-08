@@ -4,6 +4,12 @@ import com.plot.plugin.powerline.model.PowerLineFootprint;
 
 /** 玩家友好的线路参数预设（内部仍映射到 footprint 数值）。 */
 public final class PowerLineUiPresets {
+    /** 预设卡片上限（Loose）。 */
+    public static final double PRESET_SAG_MAX_RATIO = 0.22;
+    /** Advanced 滑块上限。 */
+    public static final double ADVANCED_SAG_MAX_RATIO = 0.35;
+    private static final double SAG_MATCH_TOLERANCE = 0.01;
+
     public enum SpacingDensity {
         DENSE(12.0, 4.0),
         NORMAL(20.0, 6.0),
@@ -65,16 +71,16 @@ public final class PowerLineUiPresets {
             return WireSag.NATURAL;
         }
         double ratio = line.getSagRatio();
-        if (ratio <= 0.05) {
-            return WireSag.STRAIGHT;
+        for (WireSag sag : WireSag.values()) {
+            if (Math.abs(ratio - sag.ratio()) <= SAG_MATCH_TOLERANCE) {
+                return sag;
+            }
         }
-        if (ratio <= 0.10) {
-            return WireSag.LIGHT;
-        }
-        if (ratio <= 0.18) {
-            return WireSag.NATURAL;
-        }
-        return WireSag.LOOSE;
+        return null;
+    }
+
+    public static boolean isPresetSag(PowerLineFootprint line) {
+        return detectSag(line) != null;
     }
 
     public static void applySpacing(PowerLineFootprint line, SpacingDensity density) {
@@ -83,6 +89,17 @@ public final class PowerLineUiPresets {
     }
 
     public static void applySag(PowerLineFootprint line, WireSag sag) {
-        line.setSagRatio(sag.ratio());
+        if (line == null || sag == null) {
+            return;
+        }
+        line.setSagRatio(Math.min(sag.ratio(), PRESET_SAG_MAX_RATIO));
+    }
+
+    public static void applyAdvancedSag(PowerLineFootprint line, double ratio) {
+        if (line == null) {
+            return;
+        }
+        double clamped = Math.max(0.0, Math.min(ratio, ADVANCED_SAG_MAX_RATIO));
+        line.setSagRatio(clamped);
     }
 }

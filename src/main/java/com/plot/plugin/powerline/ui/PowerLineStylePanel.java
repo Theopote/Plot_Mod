@@ -38,7 +38,14 @@ public final class PowerLineStylePanel {
         PowerLineUiWidgets.renderLineSelector(ctx);
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.powerline.style.section.tower"));
-        renderStylePack(line);
+        renderStylePackGrid(line, PowerLineStylePackCatalog.decorativePacks());
+        ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
+        if (ImGui.collapsingHeader(
+                PlotI18n.tr("plugin.powerline.style.section.tower_engineering"),
+                ImGuiTreeNodeFlags.None)) {
+            renderStylePackGrid(line, PowerLineStylePackCatalog.engineeringPacks());
+        }
+        renderStylePackStatus(line);
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.powerline.style.section.wire"));
         renderSagPresets(line);
@@ -47,9 +54,8 @@ public final class PowerLineStylePanel {
         renderAdvancedStyle(line);
     }
 
-    private void renderStylePack(PowerLineFootprint line) {
+    private void renderStylePackGrid(PowerLineFootprint line, java.util.List<PowerLineStylePack> packs) {
         PowerLineStylePack active = PowerLineStylePackCatalog.detect(line);
-        java.util.List<PowerLineStylePack> packs = PowerLineStylePackCatalog.defaultPacks();
         float spacing = ImGui.getStyle().getItemSpacingX();
 
         for (int i = 0; i < packs.size(); i++) {
@@ -66,7 +72,10 @@ public final class PowerLineStylePanel {
             }
         }
         ImGui.newLine();
+    }
 
+    private void renderStylePackStatus(PowerLineFootprint line) {
+        PowerLineStylePack active = PowerLineStylePackCatalog.detect(line);
         if (active != null) {
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
@@ -111,9 +120,9 @@ public final class PowerLineStylePanel {
                     PlotI18n.tr("plugin.powerline.sag_ratio", sagRatio[0]),
                     sagRatio,
                     0f,
-                    35f,
+                    (float) (PowerLineUiPresets.ADVANCED_SAG_MAX_RATIO * 100f),
                     "%.0f%%")) {
-                line.setSagRatio(sagRatio[0] / 100f);
+                PowerLineUiPresets.applyAdvancedSag(line, sagRatio[0] / 100f);
                 ctx.invalidatePreview();
             }
             if (ImGui.isItemActivated()) {

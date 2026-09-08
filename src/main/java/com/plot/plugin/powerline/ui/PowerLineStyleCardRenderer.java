@@ -110,11 +110,14 @@ public final class PowerLineStyleCardRenderer {
             float y1) {
         switch (pack.getPreviewKind()) {
             case WOOD -> drawWoodPreview(drawList, x0, y0, x1, y1);
+            case DOUBLE_WOOD -> drawDesignPreview(drawList, PoleDesignCatalog.doubleWoodPole(), x0, y0, x1, y1);
             case URBAN -> drawDesignPreview(drawList, PoleDesignCatalog.urbanConcretePole(), x0, y0, x1, y1);
             case STEEL_POLE -> drawDesignPreview(drawList, PoleDesignCatalog.modernSteelPole(), x0, y0, x1, y1);
+            case MODERN_UTILITY -> drawModernUtilityPreview(drawList, x0, y0, x1, y1);
             case LATTICE_POLE -> drawDesignPreview(drawList, PoleDesignCatalog.latticeSteelTower(), x0, y0, x1, y1);
             case LATTICE -> drawDesignPreview(
                 drawList, TowerFamilyDesignPresets.latticeSuspension(), x0, y0, x1, y1);
+            case HEAVY_LATTICE -> drawDesignPreview(drawList, PoleDesignCatalog.heavyLatticeTower(), x0, y0, x1, y1);
             case ADAPTIVE -> drawAdaptivePreview(drawList, x0, y0, x1, y1);
             case TAPERED -> drawDesignPreview(drawList, PoleDesignCatalog.taperedLatticeTower(), x0, y0, x1, y1);
             case COPPER -> drawDesignPreview(drawList, PoleDesignCatalog.fantasyCopperPole(), x0, y0, x1, y1);
@@ -124,8 +127,31 @@ public final class PowerLineStyleCardRenderer {
             case STEAMPUNK -> drawSteampunkPreview(drawList, x0, y0, x1, y1);
             case MODERN_HV_GLASS -> drawModernHvGlassPreview(drawList, x0, y0, x1, y1);
             case SUBURBAN_LAMP -> drawSuburbanLampPreview(drawList, x0, y0, x1, y1);
+            case ABANDONED -> drawAbandonedPreview(drawList, x0, y0, x1, y1);
+            case RUSTIC -> drawRusticPreview(drawList, x0, y0, x1, y1);
             default -> drawWoodPreview(drawList, x0, y0, x1, y1);
         }
+    }
+
+    private static void drawModernUtilityPreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {
+        drawDesignPreview(drawList, PoleDesignCatalog.modernUtilityPole(), x0, y0, x1, y1);
+        float boxX = x0 + (x1 - x0) * 0.5f;
+        float boxY = y0 + (y1 - y0) * 0.55f;
+        drawList.addRectFilled(boxX - 5f, boxY - 4f, boxX + 5f, boxY + 4f, 0xFF616161);
+        float wireY = y0 + (y1 - y0) * 0.3f;
+        drawList.addLine(x0 + 8f, wireY, x1 - 8f, wireY, 0xFF9E9E9E, 1.2f);
+    }
+
+    private static void drawAbandonedPreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {
+        drawDesignPreview(drawList, PoleDesignCatalog.abandonedPole(), x0, y0, x1, y1);
+        float wireY = y0 + (y1 - y0) * 0.42f;
+        drawList.addLine(x0 + 10f, wireY + 2f, x1 - 14f, wireY - 1f, 0xFF757575, 1f);
+    }
+
+    private static void drawRusticPreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {
+        drawDesignPreview(drawList, PoleDesignCatalog.rusticWoodPole(), x0, y0, x1, y1);
+        float wireY = y0 + (y1 - y0) * 0.36f;
+        drawList.addLine(x0 + 8f, wireY, x1 - 8f, wireY, 0xFF8D6E63, 1.2f);
     }
 
     private static void drawSteampunkPreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {

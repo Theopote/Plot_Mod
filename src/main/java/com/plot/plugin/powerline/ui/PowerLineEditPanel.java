@@ -119,9 +119,9 @@ public final class PowerLineEditPanel {
                 PlotI18n.tr("plugin.powerline.sag_ratio", sagRatio[0]),
                 sagRatio,
                 0f,
-                50f,
+                (float) (PowerLineUiPresets.ADVANCED_SAG_MAX_RATIO * 100f),
                 "%.0f%%")) {
-            line.setSagRatio(sagRatio[0] / 100f);
+            PowerLineUiPresets.applyAdvancedSag(line, sagRatio[0] / 100f);
             ctx.invalidatePreview();
         }
         if (ImGui.isItemActivated()) {

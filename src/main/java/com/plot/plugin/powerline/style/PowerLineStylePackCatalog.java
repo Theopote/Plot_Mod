@@ -16,22 +16,40 @@ public final class PowerLineStylePackCatalog {
     private PowerLineStylePackCatalog() {
     }
 
-    public static List<PowerLineStylePack> defaultPacks() {
+    /** 装饰向风格（默认展示）。 */
+    public static List<PowerLineStylePack> decorativePacks() {
         List<PowerLineStylePack> packs = new ArrayList<>();
-        packs.add(rusticWood());
+        packs.add(classicWood());
+        packs.add(doubleWood());
         packs.add(urbanConcrete());
-        packs.add(industrialSteel());
-        packs.add(compactLattice());
+        packs.add(simpleSteel());
+        packs.add(modernUtility());
         packs.add(classicLattice());
+        packs.add(heavyLattice());
+        packs.add(compactLattice());
+        packs.add(oldEuropean());
+        packs.add(japaneseStreet());
+        packs.add(fantasyCopper());
+        packs.add(steampunkBrass());
+        packs.add(wastelandWind());
+        packs.add(abandoned());
+        packs.add(suburbanLamp());
+        packs.add(rustic());
+        return packs;
+    }
+
+    /** 工程/自适应塔型（折叠在高级区）。 */
+    public static List<PowerLineStylePack> engineeringPacks() {
+        List<PowerLineStylePack> packs = new ArrayList<>();
         packs.add(smartTowers());
         packs.add(taperedTower());
-        packs.add(fantasyCopper());
-        packs.add(japaneseStreet());
-        packs.add(wastelandWind());
-        packs.add(oldEuropean());
-        packs.add(steampunkBrass());
         packs.add(modernHvGlass());
-        packs.add(suburbanLamp());
+        return packs;
+    }
+
+    public static List<PowerLineStylePack> defaultPacks() {
+        List<PowerLineStylePack> packs = new ArrayList<>(decorativePacks());
+        packs.addAll(engineeringPacks());
         return packs;
     }
 
@@ -66,13 +84,32 @@ public final class PowerLineStylePackCatalog {
         return null;
     }
 
-    public static PowerLineStylePack rusticWood() {
+    public static PowerLineStylePack classicWood() {
         return new PowerLineStylePack(
             PowerLineStylePack.RUSTIC_WOOD_ID,
-            "plugin.powerline.style.pack.rustic_wood",
+            "plugin.powerline.style.pack.classic_wood",
             PowerLineStylePack.StylePreviewKind.WOOD,
             null,
             PoleDesignCatalog.SIMPLE_WOOD_POLE_ID,
+            MaterialMix.single("minecraft:iron_bars"),
+            MaterialMix.single("minecraft:oak_fence"),
+            MaterialMix.single("minecraft:chain"),
+            PowerLineUiPresets.WireSag.NATURAL);
+    }
+
+    /** @deprecated 使用 {@link #classicWood()} */
+    @Deprecated
+    public static PowerLineStylePack rusticWood() {
+        return classicWood();
+    }
+
+    public static PowerLineStylePack doubleWood() {
+        return new PowerLineStylePack(
+            PowerLineStylePack.DOUBLE_WOOD_ID,
+            "plugin.powerline.style.pack.double_wood",
+            PowerLineStylePack.StylePreviewKind.DOUBLE_WOOD,
+            null,
+            PoleDesignCatalog.DOUBLE_WOOD_POLE_ID,
             MaterialMix.single("minecraft:iron_bars"),
             MaterialMix.single("minecraft:oak_fence"),
             MaterialMix.single("minecraft:chain"),
@@ -92,10 +129,10 @@ public final class PowerLineStylePackCatalog {
             PowerLineUiPresets.WireSag.LIGHT);
     }
 
-    public static PowerLineStylePack industrialSteel() {
+    public static PowerLineStylePack simpleSteel() {
         return new PowerLineStylePack(
             PowerLineStylePack.INDUSTRIAL_STEEL_ID,
-            "plugin.powerline.style.pack.industrial_steel",
+            "plugin.powerline.style.pack.simple_steel",
             PowerLineStylePack.StylePreviewKind.STEEL_POLE,
             null,
             PoleDesignCatalog.MODERN_STEEL_POLE_ID,
@@ -103,6 +140,25 @@ public final class PowerLineStylePackCatalog {
             MaterialMix.single("minecraft:iron_block"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.LIGHT);
+    }
+
+    /** @deprecated 使用 {@link #simpleSteel()} */
+    @Deprecated
+    public static PowerLineStylePack industrialSteel() {
+        return simpleSteel();
+    }
+
+    public static PowerLineStylePack modernUtility() {
+        return new PowerLineStylePack(
+            PowerLineStylePack.MODERN_UTILITY_ID,
+            "plugin.powerline.style.pack.modern_utility",
+            PowerLineStylePack.StylePreviewKind.MODERN_UTILITY,
+            null,
+            PoleDesignCatalog.MODERN_UTILITY_POLE_ID,
+            MaterialMix.single("minecraft:iron_bars"),
+            MaterialMix.single("minecraft:iron_bars"),
+            MaterialMix.single("minecraft:chain"),
+            PowerLineUiPresets.WireSag.STRAIGHT);
     }
 
     public static PowerLineStylePack compactLattice() {
@@ -127,6 +183,19 @@ public final class PowerLineStylePackCatalog {
             null,
             MaterialMix.single("minecraft:iron_bars"),
             MaterialMix.single("minecraft:iron_bars"),
+            MaterialMix.single("minecraft:chain"),
+            PowerLineUiPresets.WireSag.NATURAL);
+    }
+
+    public static PowerLineStylePack heavyLattice() {
+        return new PowerLineStylePack(
+            PowerLineStylePack.HEAVY_LATTICE_ID,
+            "plugin.powerline.style.pack.heavy_lattice",
+            PowerLineStylePack.StylePreviewKind.HEAVY_LATTICE,
+            null,
+            PoleDesignCatalog.HEAVY_LATTICE_TOWER_ID,
+            MaterialMix.single("minecraft:iron_bars"),
+            MaterialMix.single("minecraft:iron_block"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.NATURAL);
     }
@@ -246,5 +315,31 @@ public final class PowerLineStylePackCatalog {
             MaterialMix.single("minecraft:iron_bars"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.LIGHT);
+    }
+
+    public static PowerLineStylePack abandoned() {
+        return new PowerLineStylePack(
+            PowerLineStylePack.ABANDONED_ID,
+            "plugin.powerline.style.pack.abandoned",
+            PowerLineStylePack.StylePreviewKind.ABANDONED,
+            null,
+            PoleDesignCatalog.ABANDONED_POLE_ID,
+            MaterialMix.single("minecraft:chain"),
+            MaterialMix.single("minecraft:mossy_cobblestone"),
+            MaterialMix.single("minecraft:chain"),
+            PowerLineUiPresets.WireSag.LOOSE);
+    }
+
+    public static PowerLineStylePack rustic() {
+        return new PowerLineStylePack(
+            PowerLineStylePack.RUSTIC_ID,
+            "plugin.powerline.style.pack.rustic",
+            PowerLineStylePack.StylePreviewKind.RUSTIC,
+            null,
+            PoleDesignCatalog.RUSTIC_WOOD_POLE_ID,
+            MaterialMix.single("minecraft:iron_bars"),
+            MaterialMix.single("minecraft:spruce_fence"),
+            MaterialMix.single("minecraft:vine"),
+            PowerLineUiPresets.WireSag.LOOSE);
     }
 }

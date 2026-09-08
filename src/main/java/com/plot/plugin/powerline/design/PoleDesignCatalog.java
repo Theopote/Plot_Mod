@@ -14,7 +14,9 @@ import java.util.Map;
  */
 public final class PoleDesignCatalog {
     public static final String SIMPLE_WOOD_POLE_ID = "preset/simple_wood_pole";
+    public static final String DOUBLE_WOOD_POLE_ID = "preset/double_wood_pole";
     public static final String LATTICE_STEEL_TOWER_ID = "preset/lattice_steel_tower";
+    public static final String HEAVY_LATTICE_TOWER_ID = "preset/heavy_lattice_tower";
     public static final String MODERN_STEEL_POLE_ID = "preset/modern_steel_pole";
 
     public static final String TAPERED_LATTICE_TOWER_ID = "preset/tapered_lattice_tower";
@@ -26,6 +28,9 @@ public final class PoleDesignCatalog {
     public static final String STEAMPUNK_BRASS_TOWER_ID = "preset/steampunk_brass_tower";
     public static final String MODERN_HV_GLASS_TOWER_ID = "preset/modern_hv_glass_tower";
     public static final String SUBURBAN_LAMP_POLE_ID = "preset/suburban_lamp_pole";
+    public static final String MODERN_UTILITY_POLE_ID = "preset/modern_utility_pole";
+    public static final String ABANDONED_POLE_ID = "preset/abandoned_pole";
+    public static final String RUSTIC_WOOD_POLE_ID = "preset/rustic_wood_pole";
 
     private PoleDesignCatalog() {
     }
@@ -33,7 +38,9 @@ public final class PoleDesignCatalog {
     public static List<PoleDesign> defaultDesigns() {
         List<PoleDesign> designs = new ArrayList<>();
         designs.add(simpleWoodPole());
+        designs.add(doubleWoodPole());
         designs.add(latticeSteelTower());
+        designs.add(heavyLatticeTower());
         designs.add(modernSteelPole());
         designs.add(taperedLatticeTower());
         designs.add(urbanConcretePole());
@@ -44,6 +51,9 @@ public final class PoleDesignCatalog {
         designs.add(steampunkBrassTower());
         designs.add(modernHvGlassTower());
         designs.add(suburbanLampPole());
+        designs.add(modernUtilityPole());
+        designs.add(abandonedPole());
+        designs.add(rusticWoodPole());
         return designs;
     }
 
@@ -79,6 +89,34 @@ public final class PoleDesignCatalog {
         return design;
     }
 
+    /** 双横担木杆：经典 H 型配电杆。 */
+    public static PoleDesign doubleWoodPole() {
+        PoleDesign design = new PoleDesign(DOUBLE_WOOD_POLE_ID, "Double Wood Pole");
+        List<PoleLayer> layers = new ArrayList<>();
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            5,
+            MaterialMix.single("minecraft:oak_fence")));
+        PoleLayer lowerArm = new PoleLayer(
+            PoleLayer.Shape.CROSSARM,
+            1,
+            MaterialMix.single("minecraft:oak_slab"));
+        lowerArm.setCrossarmLength(4);
+        layers.add(lowerArm);
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            4,
+            MaterialMix.single("minecraft:oak_fence")));
+        PoleLayer upperArm = new PoleLayer(
+            PoleLayer.Shape.CROSSARM,
+            1,
+            MaterialMix.single("minecraft:oak_slab"));
+        upperArm.setCrossarmLength(5);
+        layers.add(upperArm);
+        design.setLayers(layers);
+        return design;
+    }
+
     public static PoleDesign latticeSteelTower() {
         PoleDesign design = new PoleDesign(LATTICE_STEEL_TOWER_ID, "Lattice Steel Tower");
         List<PoleLayer> layers = new ArrayList<>();
@@ -110,6 +148,46 @@ public final class PoleDesignCatalog {
             PoleLayer.Shape.CAP,
             1,
             MaterialMix.single("minecraft:lantern")));
+        design.setLayers(layers);
+        return design;
+    }
+
+    /** 重型格构塔：更高、更宽横担，适合醒目输电走廊。 */
+    public static PoleDesign heavyLatticeTower() {
+        PoleDesign design = new PoleDesign(HEAVY_LATTICE_TOWER_ID, "Heavy Lattice Tower");
+        List<PoleLayer> layers = new ArrayList<>();
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            5,
+            MaterialMix.single("minecraft:iron_block")));
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            4,
+            MaterialMix.single("minecraft:iron_bars")));
+        PoleLayer lowerArm = new PoleLayer(
+            PoleLayer.Shape.CROSSARM,
+            1,
+            MaterialMix.single("minecraft:iron_bars"));
+        lowerArm.setCrossarmLength(9);
+        layers.add(lowerArm);
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            4,
+            MaterialMix.single("minecraft:iron_block")));
+        PoleLayer upperArm = new PoleLayer(
+            PoleLayer.Shape.CROSSARM,
+            1,
+            MaterialMix.single("minecraft:iron_bars"));
+        upperArm.setCrossarmLength(7);
+        layers.add(upperArm);
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            3,
+            MaterialMix.single("minecraft:iron_bars")));
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.CAP,
+            1,
+            MaterialMix.single("minecraft:iron_block")));
         design.setLayers(layers);
         return design;
     }
@@ -329,6 +407,72 @@ public final class PoleDesignCatalog {
             PoleLayer.Shape.CAP,
             1,
             MaterialMix.single("minecraft:soul_lantern")));
+        design.setLayers(layers);
+        return design;
+    }
+
+    /** 现代配电杆：钢杆 + 变压器箱 + 短横担。 */
+    public static PoleDesign modernUtilityPole() {
+        PoleDesign design = new PoleDesign(MODERN_UTILITY_POLE_ID, "Modern Utility Pole");
+        List<PoleLayer> layers = new ArrayList<>();
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            8,
+            MaterialMix.single("minecraft:iron_bars")));
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            2,
+            MaterialMix.single("minecraft:iron_block")));
+        PoleLayer crossarm = new PoleLayer(
+            PoleLayer.Shape.CROSSARM,
+            1,
+            MaterialMix.single("minecraft:iron_bars"));
+        crossarm.setCrossarmLength(4);
+        layers.add(crossarm);
+        design.setLayers(layers);
+        return design;
+    }
+
+    /** 废弃电杆：风化木杆 + 歪斜短横担。 */
+    public static PoleDesign abandonedPole() {
+        PoleDesign design = new PoleDesign(ABANDONED_POLE_ID, "Abandoned Pole");
+        List<PoleLayer> layers = new ArrayList<>();
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            7,
+            MaterialMix.single("minecraft:mossy_cobblestone")));
+        PoleLayer crossarm = new PoleLayer(
+            PoleLayer.Shape.CROSSARM,
+            1,
+            MaterialMix.single("minecraft:spruce_slab"));
+        crossarm.setCrossarmLength(3);
+        layers.add(crossarm);
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.CAP,
+            1,
+            MaterialMix.single("minecraft:cobweb")));
+        design.setLayers(layers);
+        return design;
+    }
+
+    /** 粗朴木杆：云杉 + 苔石横担，林间野趣。 */
+    public static PoleDesign rusticWoodPole() {
+        PoleDesign design = new PoleDesign(RUSTIC_WOOD_POLE_ID, "Rustic Wood Pole");
+        List<PoleLayer> layers = new ArrayList<>();
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            8,
+            MaterialMix.single("minecraft:spruce_fence")));
+        PoleLayer crossarm = new PoleLayer(
+            PoleLayer.Shape.CROSSARM,
+            1,
+            MaterialMix.single("minecraft:mossy_cobblestone_slab"));
+        crossarm.setCrossarmLength(5);
+        layers.add(crossarm);
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.CAP,
+            1,
+            MaterialMix.single("minecraft:vine")));
         design.setLayers(layers);
         return design;
     }

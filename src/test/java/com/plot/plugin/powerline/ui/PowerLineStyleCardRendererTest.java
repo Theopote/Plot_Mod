@@ -17,18 +17,34 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class PowerLineStyleCardRendererTest {
 
     @Test
-    void catalogContainsFourteenStylePacks() {
-        assertEquals(14, PowerLineStylePackCatalog.defaultPacks().size());
+    void catalogContainsNineteenStylePacks() {
+        assertEquals(19, PowerLineStylePackCatalog.defaultPacks().size());
+        assertEquals(16, PowerLineStylePackCatalog.decorativePacks().size());
+        assertEquals(3, PowerLineStylePackCatalog.engineeringPacks().size());
     }
 
     @Test
-    void applyRusticWoodSetsPoleDesignAndPackId() {
+    void applyClassicWoodSetsPoleDesignAndPackId() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
-        PowerLineStylePack pack = PowerLineStylePackCatalog.rusticWood();
+        PowerLineStylePack pack = PowerLineStylePackCatalog.classicWood();
         pack.apply(line);
         assertEquals(PowerLineStylePack.RUSTIC_WOOD_ID, line.getStylePackId());
         assertEquals(PoleDesignCatalog.SIMPLE_WOOD_POLE_ID, line.getPoleDesignId());
         assertNull(line.getTowerFamilyId());
+    }
+
+    @Test
+    void applyDoubleWoodSetsDesign() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
+        PowerLineStylePackCatalog.doubleWood().apply(line);
+        assertEquals(PoleDesignCatalog.DOUBLE_WOOD_POLE_ID, line.getPoleDesignId());
+    }
+
+    @Test
+    void applyHeavyLatticeSetsDesign() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
+        PowerLineStylePackCatalog.heavyLattice().apply(line);
+        assertEquals(PoleDesignCatalog.HEAVY_LATTICE_TOWER_ID, line.getPoleDesignId());
     }
 
     @Test

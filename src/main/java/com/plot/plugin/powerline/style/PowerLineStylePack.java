@@ -9,10 +9,13 @@ import java.util.Objects;
 /** 一条线路的「风格包」：塔型、材质、垂度等一组装饰性默认值。 */
 public final class PowerLineStylePack {
     public static final String RUSTIC_WOOD_ID = "pack/rustic_wood";
+    public static final String DOUBLE_WOOD_ID = "pack/double_wood";
     public static final String URBAN_CONCRETE_ID = "pack/urban_concrete";
     public static final String INDUSTRIAL_STEEL_ID = "pack/industrial_steel";
+    public static final String MODERN_UTILITY_ID = "pack/modern_utility";
     public static final String COMPACT_LATTICE_ID = "pack/compact_lattice";
     public static final String CLASSIC_LATTICE_ID = "pack/classic_lattice";
+    public static final String HEAVY_LATTICE_ID = "pack/heavy_lattice";
     public static final String SMART_TOWERS_ID = "pack/smart_towers";
     public static final String TAPERED_TOWER_ID = "pack/tapered_tower";
     public static final String FANTASY_COPPER_ID = "pack/fantasy_copper";
@@ -22,6 +25,8 @@ public final class PowerLineStylePack {
     public static final String STEAMPUNK_BRASS_ID = "pack/steampunk_brass";
     public static final String MODERN_HV_GLASS_ID = "pack/modern_hv_glass";
     public static final String SUBURBAN_LAMP_ID = "pack/suburban_lamp";
+    public static final String ABANDONED_ID = "pack/abandoned";
+    public static final String RUSTIC_ID = "pack/rustic";
 
     private final String id;
     private final String labelKey;
@@ -116,10 +121,13 @@ public final class PowerLineStylePack {
 
     public enum StylePreviewKind {
         WOOD,
+        DOUBLE_WOOD,
         URBAN,
         STEEL_POLE,
+        MODERN_UTILITY,
         LATTICE_POLE,
         LATTICE,
+        HEAVY_LATTICE,
         ADAPTIVE,
         TAPERED,
         COPPER,
@@ -128,6 +136,8 @@ public final class PowerLineStylePack {
         OLD_EUROPEAN,
         STEAMPUNK,
         MODERN_HV_GLASS,
-        SUBURBAN_LAMP
+        SUBURBAN_LAMP,
+        ABANDONED,
+        RUSTIC
     }
 }

@@ -63,18 +63,24 @@ public final class PowerLineBuildPanel {
             "plugin.powerline.wire_length_result",
             String.format("%.1f", result.wireLength)));
         PowerLineUiPresets.WireSag sag = PowerLineUiPresets.detectSag(line);
-        ImGui.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.powerline.build.sag_preset",
-                PlotI18n.tr("plugin.powerline.style.sag." + sag.name().toLowerCase())));
+        if (sag != null) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.build.sag_preset",
+                    PlotI18n.tr("plugin.powerline.style.sag." + sag.name().toLowerCase())));
+        } else {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr(
+                    "plugin.powerline.build.sag_custom",
+                    (int) Math.round(line.getSagRatio() * 100.0)));
+        }
         ImGui.endGroup();
     }
 
     private void renderFriendlyStatus(PowerLineFootprint line) {
         ImGui.text(PlotI18n.tr("plugin.powerline.build.status_section"));
-        if (PowerLineFriendlyStatus.spacingLooksGood(line)) {
-            ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.powerline.build.status.spacing_ok"));
-        }
+        renderSpacingStatus(line);
         ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.powerline.build.status.corners_ok"));
 
         if (line.isTerrainAvoidanceEnabled()) {
@@ -98,6 +104,34 @@ public final class PowerLineBuildPanel {
         }
 
         renderIssueList(report);
+    }
+
+    private void renderSpacingStatus(PowerLineFootprint line) {
+        PowerLineFriendlyStatus.SpacingEvaluation spacing = PowerLineFriendlyStatus.evaluateSpacing(line);
+        switch (spacing.kind()) {
+            case OK -> ImGui.textColored(
+                PluginUiColors.STATUS_OK,
+                PlotI18n.tr("plugin.powerline.build.status.spacing_ok"));
+            case SETTINGS_ONLY -> ImGui.textColored(
+                PluginUiColors.STATUS_OK,
+                PlotI18n.tr("plugin.powerline.build.status.spacing_settings_ok"));
+            case INVALID_SETTINGS -> ImGui.textColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr("plugin.powerline.build.status.spacing_invalid"));
+            case TOO_CLOSE -> ImGui.textColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr(
+                    "plugin.powerline.build.status.spacing_too_close",
+                    String.format("%.1f", spacing.worstSpan()),
+                    String.format("%.1f", spacing.limit())));
+            case TOO_FAR -> ImGui.textColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr(
+                    "plugin.powerline.build.status.spacing_too_far",
+                    String.format("%.1f", spacing.worstSpan()),
+                    String.format("%.1f", spacing.limit())));
+            default -> { }
+        }
     }
 
     private void renderTerrainStatus(PowerLineFootprint line) {

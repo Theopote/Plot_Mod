@@ -11,7 +11,7 @@ class PoleDesignCatalogStylePackTest {
     void newStylePackPoleDesignsAreRegistered() {
         assertNotNull(PoleDesignCatalog.findBuiltin(PoleDesignCatalog.URBAN_CONCRETE_POLE_ID));
         assertNotNull(PoleDesignCatalog.findBuiltin(PoleDesignCatalog.FANTASY_COPPER_POLE_ID));
-        assertEquals(12, PoleDesignCatalog.defaultDesigns().size());
+        assertEquals(17, PoleDesignCatalog.defaultDesigns().size());
     }
 
     @Test
