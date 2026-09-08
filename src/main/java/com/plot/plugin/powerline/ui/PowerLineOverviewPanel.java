@@ -42,30 +42,51 @@ public final class PowerLineOverviewPanel {
             ctx.setDeleteConfirmPending(true);
         }
 
-        ImGui.beginChild("powerline_overview_list", 0, 220, true);
+        PowerLineOverviewRenderer.renderProjectMap(
+            ctx.project(),
+            ctx.selection().ids(),
+            lineId -> ctx.selectLine(lineId, ImGui.getIO().getKeyCtrl()));
+
+        ImGui.spacing();
+        ImGui.beginChild("powerline_overview_list", 0, 0, true);
         for (PowerLineFootprint line : ctx.project().getLines().values()) {
-            ImGui.pushID(line.getId());
-            boolean selected = ctx.selection().contains(line.getId());
-            if (ImGui.selectable(line.getName() + "##row", selected)) {
-                ctx.selectLine(line.getId(), ImGui.getIO().getKeyCtrl());
-            }
-            ImGui.sameLine();
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-                "plugin.powerline.overview_item",
-                line.estimatePoleCount(),
-                String.format("%.1f", line.computePathLength())));
-            if (ImGui.button(PlotI18n.tr("plugin.powerline.locate"), 60, 0)) {
-                ctx.locateLine(line);
-            }
-            ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("plugin.powerline.delete"), 60, 0)) {
-                ctx.pendingDeleteLineIds().clear();
-                ctx.pendingDeleteLineIds().add(line.getId());
-                ctx.setDeleteConfirmPending(true);
-            }
-            ImGui.popID();
+            renderLineRow(line);
         }
         ImGui.endChild();
+    }
+
+    private void renderLineRow(PowerLineFootprint line) {
+        ImGui.pushID(line.getId());
+        boolean selected = ctx.selection().contains(line.getId());
+
+        if (PowerLineOverviewRenderer.renderLineThumbnail(line, selected)) {
+            ctx.selectLine(line.getId(), ImGui.getIO().getKeyCtrl());
+        }
+        ImGui.sameLine();
+
+        float columnWidth = Math.max(120f, ImGui.getContentRegionAvailX() - 8f);
+        ImGui.beginGroup();
+        ImGui.setNextItemWidth(columnWidth);
+        if (ImGui.selectable(line.getName() + "##row", selected)) {
+            ctx.selectLine(line.getId(), ImGui.getIO().getKeyCtrl());
+        }
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+            "plugin.powerline.overview_item",
+            line.estimatePoleCount(),
+            String.format("%.1f", line.computePathLength())));
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.locate"), 60, 0)) {
+            ctx.locateLine(line);
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.delete"), 60, 0)) {
+            ctx.pendingDeleteLineIds().clear();
+            ctx.pendingDeleteLineIds().add(line.getId());
+            ctx.setDeleteConfirmPending(true);
+        }
+        ImGui.endGroup();
+
+        ImGui.separator();
+        ImGui.popID();
     }
 
     public void renderDeleteConfirmPopup() {
