@@ -1,5 +1,6 @@
 package com.plot.plugin.powerline.ui;
 
+import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.powerline.PowerPoleLayoutUtils;
 import com.plot.plugin.powerline.engineering.EngineeringIssue;
 import com.plot.plugin.powerline.engineering.EngineeringRuleIds;
@@ -15,8 +16,21 @@ import java.util.List;
 /** 将工程分析结果翻译为玩家友好的提示文案。 */
 public final class PowerLineFriendlyStatus {
     private static final double SPACING_TOLERANCE = 0.15;
+    private static final double POLE_POSITION_TOLERANCE = 0.15;
 
     private PowerLineFriendlyStatus() {
+    }
+
+    public enum CornerKind {
+        OK,
+        NO_PATH,
+        MISSING
+    }
+
+    public record CornerEvaluation(CornerKind kind, int missingCount) {
+        public static CornerEvaluation ok() {
+            return new CornerEvaluation(CornerKind.OK, 0);
+        }
     }
 
     public enum SpacingKind {
@@ -134,5 +148,27 @@ public final class PowerLineFriendlyStatus {
             return new SpacingEvaluation(SpacingKind.TOO_FAR, worstLong, maxAllowed);
         }
         return SpacingEvaluation.of(SpacingKind.OK);
+    }
+
+    public static CornerEvaluation evaluateCornerPoles(PowerLineFootprint line) {
+        if (line == null || line.getPathPoints().size() < 2) {
+            return new CornerEvaluation(CornerKind.NO_PATH, 0);
+        }
+
+        List<Vec2d> mandatory = PowerPoleLayoutUtils.mandatoryPolePoints(
+            line.getPathPoints(),
+            line.getCornerAngleThreshold());
+        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(line);
+
+        int missing = 0;
+        for (Vec2d required : mandatory) {
+            if (!PowerPoleLayoutUtils.hasSiteNear(sites, required, POLE_POSITION_TOLERANCE)) {
+                missing++;
+            }
+        }
+        if (missing > 0) {
+            return new CornerEvaluation(CornerKind.MISSING, missing);
+        }
+        return CornerEvaluation.ok();
     }
 }

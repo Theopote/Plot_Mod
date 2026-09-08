@@ -30,7 +30,12 @@ class PoleDesignSerializationTest {
 
     @Test
     void legacyDesignWithoutAttachmentsStillLoads() {
-        PoleDesign source = PoleDesignCatalog.simpleWoodPole();
+        PoleDesign source = new PoleDesign("legacy-wood", "Legacy Wood");
+        source.getLayers().add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            8,
+            MaterialMix.single("minecraft:oak_fence")));
+
         String json = source.toJson().replace(",\"attachments\":[]", "");
 
         PoleDesign restored = PoleDesign.fromJson(json);

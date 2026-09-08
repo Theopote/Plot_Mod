@@ -44,4 +44,25 @@ class PowerLineFriendlyStatusTest {
             PowerLineFriendlyStatus.SpacingKind.TOO_CLOSE,
             PowerLineFriendlyStatus.evaluateSpacing(line).kind());
     }
+
+    @Test
+    void cornerPathHasSitesAtMandatoryPoints() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(
+            new Vec2d(0, 0),
+            new Vec2d(10, 0),
+            new Vec2d(10, 10)));
+
+        assertEquals(
+            PowerLineFriendlyStatus.CornerKind.OK,
+            PowerLineFriendlyStatus.evaluateCornerPoles(line).kind());
+    }
+
+    @Test
+    void straightPathCoversEndpoints() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
+
+        assertEquals(
+            PowerLineFriendlyStatus.CornerKind.OK,
+            PowerLineFriendlyStatus.evaluateCornerPoles(line).kind());
+    }
 }

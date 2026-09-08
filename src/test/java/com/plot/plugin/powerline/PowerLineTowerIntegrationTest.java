@@ -82,7 +82,8 @@ class PowerLineTowerIntegrationTest {
                 new PoleDesignResolver(new PowerLineDesignProject()));
 
         assertTrue(legacyResult.structureBlockCount == 0);
-        int wireY = PoleDesignCatalog.simpleWoodPole().wireHangHeightFromGround(64);
+        PoleDesign pole = PoleDesignCatalog.simpleWoodPole();
+        int wireY = 64 + (int) pole.getAttachments().getFirst().getVerticalOffset();
         WireTestSupport.assertHorizontalWireCoversX(legacyResult, wireY, 0, 20);
     }
 

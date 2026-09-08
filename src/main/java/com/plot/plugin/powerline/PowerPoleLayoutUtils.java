@@ -33,7 +33,7 @@ public final class PowerPoleLayoutUtils {
         }
 
         double maxSpacing = Math.max(0.1, maxPoleSpacing);
-        List<Vec2d> mandatory = collectMandatoryPoints(pathPoints, cornerAngleThreshold);
+        List<Vec2d> mandatory = mandatoryPolePoints(pathPoints, cornerAngleThreshold);
         if (mandatory.isEmpty()) {
             return List.of();
         }
@@ -210,7 +210,14 @@ public final class PowerPoleLayoutUtils {
         return TowerRoleClassifier.computeDeflectionAngle(incoming, outgoing);
     }
 
-    private static List<Vec2d> collectMandatoryPoints(List<Vec2d> pathPoints, double cornerAngleThreshold) {
+    /** 必须立杆的路径点：起点、转角顶点、终点。 */
+    public static List<Vec2d> mandatoryPolePoints(List<Vec2d> pathPoints, double cornerAngleThreshold) {
+        if (pathPoints == null || pathPoints.isEmpty()) {
+            return List.of();
+        }
+        if (pathPoints.size() == 1) {
+            return List.of(pathPoints.getFirst().copy());
+        }
         List<Vec2d> mandatory = new ArrayList<>();
         mandatory.add(pathPoints.getFirst().copy());
         for (int i = 1; i < pathPoints.size() - 1; i++) {
@@ -220,6 +227,22 @@ public final class PowerPoleLayoutUtils {
         }
         mandatory.add(pathPoints.getLast().copy());
         return mandatory;
+    }
+
+    public static boolean hasSiteNear(List<PowerPoleSite> sites, Vec2d point, double tolerance) {
+        if (sites == null || point == null) {
+            return false;
+        }
+        for (PowerPoleSite site : sites) {
+            if (site.getPlanPosition().distance(point) <= tolerance) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static List<Vec2d> collectMandatoryPoints(List<Vec2d> pathPoints, double cornerAngleThreshold) {
+        return mandatoryPolePoints(pathPoints, cornerAngleThreshold);
     }
 
     public static boolean isCorner(List<Vec2d> pathPoints, int index, double cornerAngleThreshold) {

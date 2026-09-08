@@ -1,7 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.model.PowerLineFootprint;
-import com.plot.plugin.powerline.style.PowerLineStylePack;
+import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.plugin.powerline.style.PowerLineStylePackCatalog;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -14,15 +14,14 @@ public final class PowerLineStylePanel {
     private static final int STYLE_PACK_COLUMNS = 4;
 
     private final PowerLineUiContext ctx;
-    private final PowerLineEditPanel editPanel;
+    private final PowerLineStyleControls styleControls;
     private final PoleDesignerPanel poleDesignerPanel;
 
     public PowerLineStylePanel(
             PowerLineUiContext ctx,
-            PowerLineEditPanel editPanel,
             PoleDesignerPanel poleDesignerPanel) {
         this.ctx = ctx;
-        this.editPanel = editPanel;
+        this.styleControls = new PowerLineStyleControls(ctx);
         this.poleDesignerPanel = poleDesignerPanel;
     }
 
@@ -49,20 +48,20 @@ public final class PowerLineStylePanel {
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.powerline.style.section.wire"));
         renderSagPresets(line);
-        editPanel.renderMaterialControlsPublic(line);
-        editPanel.renderPoleDesignControlsPublic(line, poleDesignerPanel);
+        styleControls.renderMaterialControls(line);
+        styleControls.renderPoleDesignControls(line, poleDesignerPanel);
         renderAdvancedStyle(line);
     }
 
-    private void renderStylePackGrid(PowerLineFootprint line, java.util.List<PowerLineStylePack> packs) {
-        PowerLineStylePack active = PowerLineStylePackCatalog.detect(line);
+    private void renderStylePackGrid(PowerLineFootprint line, java.util.List<PowerLineStylePreset> packs) {
+        PowerLineStylePreset active = PowerLineStylePackCatalog.detect(line);
         float spacing = ImGui.getStyle().getItemSpacingX();
 
         for (int i = 0; i < packs.size(); i++) {
             if (i > 0 && i % STYLE_PACK_COLUMNS != 0) {
                 ImGui.sameLine(0f, spacing);
             }
-            PowerLineStylePack pack = packs.get(i);
+            PowerLineStylePreset pack = packs.get(i);
             boolean selected = active != null && active.getId().equals(pack.getId());
             String label = PlotI18n.tr(pack.getLabelKey());
             if (PowerLineStyleCardRenderer.renderStyleCard(pack, label, selected)) {
@@ -75,7 +74,7 @@ public final class PowerLineStylePanel {
     }
 
     private void renderStylePackStatus(PowerLineFootprint line) {
-        PowerLineStylePack active = PowerLineStylePackCatalog.detect(line);
+        PowerLineStylePreset active = PowerLineStylePackCatalog.detect(line);
         if (active != null) {
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
@@ -136,7 +135,7 @@ public final class PowerLineStylePanel {
         if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.powerline.style.advanced"), ImGuiTreeNodeFlags.None)) {
             return;
         }
-        editPanel.renderPoleHeightControlsPublic(line);
-        editPanel.renderPoleRoleInspectorPublic(line);
+        styleControls.renderPoleHeightControls(line);
+        styleControls.renderPoleRoleInspector(line);
     }
 }

@@ -1,8 +1,10 @@
 package com.plot.plugin.powerline.design;
 
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.design.ConductorAttachmentPresets;
 import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.style.PowerLineStylePreset;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -86,7 +88,24 @@ public final class PoleDesignCatalog {
         crossarm.setCrossarmLength(5);
         layers.add(crossarm);
         design.setLayers(layers);
+        wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.SINGLE);
         return design;
+    }
+
+    /** 按风格预设为杆塔设计配置导线挂点。 */
+    static void wireConductorLayout(PoleDesign design, PowerLineStylePreset.ConductorLayout layout) {
+        if (design == null || layout == null || design.hasEnabledAttachments()) {
+            return;
+        }
+        double offset = Math.max(1.0, design.totalHeight() - 1.0);
+        switch (layout) {
+            case SINGLE -> design.setAttachments(ConductorAttachmentPresets.singleConductor(offset));
+            case THREE_PHASE_HORIZONTAL -> design.setAttachments(
+                ConductorAttachmentPresets.threePhaseHorizontal(offset, -2.0, 0.0, 2.0));
+            case THREE_PHASE_VERTICAL -> design.setAttachments(
+                ConductorAttachmentPresets.threePhaseVertical(offset));
+            default -> design.setAttachments(ConductorAttachmentPresets.singleConductor(offset));
+        }
     }
 
     /** 双横担木杆：经典 H 型配电杆。 */
@@ -114,6 +133,7 @@ public final class PoleDesignCatalog {
         upperArm.setCrossarmLength(5);
         layers.add(upperArm);
         design.setLayers(layers);
+        wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
         return design;
     }
 
@@ -149,6 +169,7 @@ public final class PoleDesignCatalog {
             1,
             MaterialMix.single("minecraft:lantern")));
         design.setLayers(layers);
+        wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
         return design;
     }
 
@@ -189,6 +210,7 @@ public final class PoleDesignCatalog {
             1,
             MaterialMix.single("minecraft:iron_block")));
         design.setLayers(layers);
+        wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
         return design;
     }
 
@@ -210,6 +232,7 @@ public final class PoleDesignCatalog {
             1,
             MaterialMix.single("minecraft:glowstone")));
         design.setLayers(layers);
+        wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.SINGLE);
         return design;
     }
 
@@ -227,6 +250,7 @@ public final class PoleDesignCatalog {
         crossarm.setCrossarmLength(5);
         layers.add(crossarm);
         design.setLayers(layers);
+        wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.SINGLE);
         return design;
     }
 
@@ -248,6 +272,7 @@ public final class PoleDesignCatalog {
             1,
             MaterialMix.single("minecraft:amethyst_cluster")));
         design.setLayers(layers);
+        wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.SINGLE);
         return design;
     }
 
@@ -280,6 +305,7 @@ public final class PoleDesignCatalog {
             1,
             MaterialMix.single("minecraft:lantern")));
         design.setLayers(layers);
+        wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
         return design;
     }
 
@@ -306,6 +332,7 @@ public final class PoleDesignCatalog {
             1,
             MaterialMix.single("minecraft:iron_trapdoor")));
         design.setLayers(layers);
+        wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.SINGLE);
         return design;
     }
 
@@ -328,6 +355,7 @@ public final class PoleDesignCatalog {
             1,
             MaterialMix.single("minecraft:quartz_block")));
         design.setLayers(layers);
+        wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.SINGLE);
         return design;
     }
 
@@ -360,6 +388,7 @@ public final class PoleDesignCatalog {
             1,
             MaterialMix.single("minecraft:gold_block")));
         design.setLayers(layers);
+        wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
         return design;
     }
 
@@ -386,6 +415,7 @@ public final class PoleDesignCatalog {
             1,
             MaterialMix.single("minecraft:light_blue_stained_glass")));
         design.setLayers(layers);
+        wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
         return design;
     }
 
@@ -408,6 +438,7 @@ public final class PoleDesignCatalog {
             1,
             MaterialMix.single("minecraft:soul_lantern")));
         design.setLayers(layers);
+        wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.SINGLE);
         return design;
     }
 
@@ -430,6 +461,7 @@ public final class PoleDesignCatalog {
         crossarm.setCrossarmLength(4);
         layers.add(crossarm);
         design.setLayers(layers);
+        wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
         return design;
     }
 
@@ -452,6 +484,7 @@ public final class PoleDesignCatalog {
             1,
             MaterialMix.single("minecraft:cobweb")));
         design.setLayers(layers);
+        wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.SINGLE);
         return design;
     }
 
@@ -474,6 +507,7 @@ public final class PoleDesignCatalog {
             1,
             MaterialMix.single("minecraft:vine")));
         design.setLayers(layers);
+        wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.SINGLE);
         return design;
     }
 

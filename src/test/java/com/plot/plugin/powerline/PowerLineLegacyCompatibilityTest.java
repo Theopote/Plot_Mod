@@ -6,6 +6,7 @@ import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.PlacementReadiness;
 import com.plot.api.world.WorldViewBounds;
 import com.plot.core.command.BlockRecord;
+import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
@@ -38,8 +39,8 @@ class PowerLineLegacyCompatibilityTest {
                 new PoleDesignResolver(new PowerLineDesignProject()));
 
         Set<Integer> wireZs = new HashSet<>();
-        int wireY = 64 + PoleDesignCatalog.simpleWoodPole().wireHangHeightFromGround(64) - 64;
-        wireY = PoleDesignCatalog.simpleWoodPole().wireHangHeightFromGround(64);
+        PoleDesign pole = PoleDesignCatalog.simpleWoodPole();
+        int wireY = 64 + (int) pole.getAttachments().getFirst().getVerticalOffset();
         for (BlockRecord record : result.placementRecords.values()) {
             if (record.pos.getY() == wireY && "minecraft:iron_bars".equals(record.newBlockId)) {
                 wireZs.add(record.pos.getZ());

@@ -50,4 +50,32 @@ class PowerPoleLayoutUtilsTest {
         assertEquals(4, poles.size());
         assertEquals(5.0, poles.get(1).distance(poles.get(2)), 1e-6);
     }
+
+    @Test
+    void mandatoryPolePointsIncludeCornersAndEndpoints() {
+        List<Vec2d> path = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(10, 0),
+            new Vec2d(10, 10));
+        List<Vec2d> mandatory = PowerPoleLayoutUtils.mandatoryPolePoints(path, 5.0);
+
+        assertEquals(3, mandatory.size());
+        assertEquals(10.0, mandatory.get(1).x, 1e-6);
+        assertEquals(0.0, mandatory.get(1).y, 1e-6);
+    }
+
+    @Test
+    void computedSitesCoverMandatoryPoints() {
+        List<Vec2d> path = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(10, 0),
+            new Vec2d(10, 10));
+        List<Vec2d> mandatory = PowerPoleLayoutUtils.mandatoryPolePoints(path, 5.0);
+        List<com.plot.plugin.powerline.model.PowerPoleSite> sites =
+            PowerPoleLayoutUtils.computePoleSites(path, 5.0, 50.0);
+
+        for (Vec2d point : mandatory) {
+            assertTrue(PowerPoleLayoutUtils.hasSiteNear(sites, point, 0.15));
+        }
+    }
 }

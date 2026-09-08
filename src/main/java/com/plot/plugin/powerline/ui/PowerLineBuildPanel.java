@@ -1,7 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.PowerLineGenerationResult;
-import com.plot.plugin.powerline.style.PowerLineStylePack;
+import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.plugin.powerline.style.PowerLineStylePackCatalog;
 import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -54,7 +54,7 @@ public final class PowerLineBuildPanel {
             return;
         }
 
-        PowerLineStylePack stylePack = PowerLineStylePackCatalog.detect(line);
+        PowerLineStylePreset stylePack = PowerLineStylePackCatalog.detect(line);
         PowerLineStyleCardRenderer.renderCompactStylePreview(stylePack);
         ImGui.sameLine();
         ImGui.beginGroup();
@@ -81,7 +81,7 @@ public final class PowerLineBuildPanel {
     private void renderFriendlyStatus(PowerLineFootprint line) {
         ImGui.text(PlotI18n.tr("plugin.powerline.build.status_section"));
         renderSpacingStatus(line);
-        ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.powerline.build.status.corners_ok"));
+        renderCornerStatus(line);
 
         if (line.isTerrainAvoidanceEnabled()) {
             renderTerrainStatus(line);
@@ -130,6 +130,20 @@ public final class PowerLineBuildPanel {
                     "plugin.powerline.build.status.spacing_too_far",
                     String.format("%.1f", spacing.worstSpan()),
                     String.format("%.1f", spacing.limit())));
+            default -> { }
+        }
+    }
+
+    private void renderCornerStatus(PowerLineFootprint line) {
+        PowerLineFriendlyStatus.CornerEvaluation corners = PowerLineFriendlyStatus.evaluateCornerPoles(line);
+        switch (corners.kind()) {
+            case OK -> ImGui.textColored(
+                PluginUiColors.STATUS_OK,
+                PlotI18n.tr("plugin.powerline.build.status.corners_ok"));
+            case MISSING -> ImGui.textColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr("plugin.powerline.build.status.corners_missing", corners.missingCount()));
+            case NO_PATH -> { }
             default -> { }
         }
     }

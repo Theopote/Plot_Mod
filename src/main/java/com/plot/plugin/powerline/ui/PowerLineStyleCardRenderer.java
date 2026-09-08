@@ -3,7 +3,7 @@ package com.plot.plugin.powerline.ui;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
-import com.plot.plugin.powerline.style.PowerLineStylePack;
+import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -29,7 +29,7 @@ public final class PowerLineStyleCardRenderer {
     /**
      * 绘制可点击的风格卡片；返回是否被点击。
      */
-    public static boolean renderStyleCard(PowerLineStylePack pack, String label, boolean selected) {
+    public static boolean renderStyleCard(PowerLineStylePreset pack, String label, boolean selected) {
         if (pack == null) {
             return false;
         }
@@ -61,7 +61,7 @@ public final class PowerLineStyleCardRenderer {
         return ImGui.isItemClicked(0);
     }
 
-    private static void renderPackTooltip(PowerLineStylePack pack, String label) {
+    private static void renderPackTooltip(PowerLineStylePreset pack, String label) {
         ImGui.beginTooltip();
         ImGui.text(label);
         ImGui.separator();
@@ -84,7 +84,7 @@ public final class PowerLineStyleCardRenderer {
     private static final float COMPACT_PREVIEW_HEIGHT = 56f;
 
     /** 只读紧凑风格预览（Build 摘要等）。 */
-    public static void renderCompactStylePreview(PowerLineStylePack pack) {
+    public static void renderCompactStylePreview(PowerLineStylePreset pack) {
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
         float x0 = origin.x;
@@ -103,7 +103,7 @@ public final class PowerLineStyleCardRenderer {
 
     private static void drawPackPreview(
             ImDrawList drawList,
-            PowerLineStylePack pack,
+            PowerLineStylePreset pack,
             float x0,
             float y0,
             float x1,

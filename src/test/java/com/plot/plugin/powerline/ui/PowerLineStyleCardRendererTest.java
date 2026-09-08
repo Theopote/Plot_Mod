@@ -3,7 +3,7 @@ package com.plot.plugin.powerline.ui;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
-import com.plot.plugin.powerline.style.PowerLineStylePack;
+import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.plugin.powerline.style.PowerLineStylePackCatalog;
 import com.plot.api.geometry.Vec2d;
 import org.junit.jupiter.api.Test;
@@ -26,9 +26,9 @@ class PowerLineStyleCardRendererTest {
     @Test
     void applyClassicWoodSetsPoleDesignAndPackId() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
-        PowerLineStylePack pack = PowerLineStylePackCatalog.classicWood();
+        PowerLineStylePreset pack = PowerLineStylePackCatalog.classicWood();
         pack.apply(line);
-        assertEquals(PowerLineStylePack.RUSTIC_WOOD_ID, line.getStylePackId());
+        assertEquals(PowerLineStylePreset.RUSTIC_WOOD_ID, line.getStylePackId());
         assertEquals(PoleDesignCatalog.SIMPLE_WOOD_POLE_ID, line.getPoleDesignId());
         assertNull(line.getTowerFamilyId());
     }
@@ -50,8 +50,7 @@ class PowerLineStyleCardRendererTest {
     @Test
     void applyClassicLatticeSetsTowerFamily() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
-        PowerLineStylePack pack = PowerLineStylePackCatalog.classicLattice();
-        pack.apply(line);
+        PowerLineStylePackCatalog.classicLattice().apply(line);
         assertEquals(TowerFamily.STANDARD_LATTICE_3_PHASE_ID, line.getTowerFamilyId());
         assertNull(line.getPoleDesignId());
     }
@@ -65,7 +64,7 @@ class PowerLineStyleCardRendererTest {
 
     @Test
     void descriptionKeyFollowsLabelConvention() {
-        PowerLineStylePack pack = PowerLineStylePackCatalog.steampunkBrass();
+        PowerLineStylePreset pack = PowerLineStylePackCatalog.steampunkBrass();
         assertEquals(pack.getLabelKey() + ".desc", pack.getDescriptionKey());
         assertEquals("plugin.powerline.style.pack.steampunk_brass.desc", pack.getDescriptionKey());
     }
