@@ -18,6 +18,8 @@ public final class PoleDesignCatalog {
     public static final String MODERN_STEEL_POLE_ID = "preset/modern_steel_pole";
 
     public static final String TAPERED_LATTICE_TOWER_ID = "preset/tapered_lattice_tower";
+    public static final String URBAN_CONCRETE_POLE_ID = "preset/urban_concrete_pole";
+    public static final String FANTASY_COPPER_POLE_ID = "preset/fantasy_copper_pole";
 
     private PoleDesignCatalog() {
     }
@@ -28,6 +30,8 @@ public final class PoleDesignCatalog {
         designs.add(latticeSteelTower());
         designs.add(modernSteelPole());
         designs.add(taperedLatticeTower());
+        designs.add(urbanConcretePole());
+        designs.add(fantasyCopperPole());
         return designs;
     }
 
@@ -115,6 +119,44 @@ public final class PoleDesignCatalog {
             PoleLayer.Shape.CAP,
             1,
             MaterialMix.single("minecraft:glowstone")));
+        design.setLayers(layers);
+        return design;
+    }
+
+    public static PoleDesign urbanConcretePole() {
+        PoleDesign design = new PoleDesign(URBAN_CONCRETE_POLE_ID, "Urban Concrete Pole");
+        List<PoleLayer> layers = new ArrayList<>();
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            9,
+            MaterialMix.single("minecraft:stone_bricks")));
+        PoleLayer crossarm = new PoleLayer(
+            PoleLayer.Shape.CROSSARM,
+            1,
+            MaterialMix.single("minecraft:smooth_stone_slab"));
+        crossarm.setCrossarmLength(5);
+        layers.add(crossarm);
+        design.setLayers(layers);
+        return design;
+    }
+
+    public static PoleDesign fantasyCopperPole() {
+        PoleDesign design = new PoleDesign(FANTASY_COPPER_POLE_ID, "Fantasy Copper Pole");
+        List<PoleLayer> layers = new ArrayList<>();
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            9,
+            MaterialMix.single("minecraft:copper_block")));
+        PoleLayer crossarm = new PoleLayer(
+            PoleLayer.Shape.CROSSARM,
+            1,
+            MaterialMix.single("minecraft:lightning_rod"));
+        crossarm.setCrossarmLength(6);
+        layers.add(crossarm);
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.CAP,
+            1,
+            MaterialMix.single("minecraft:amethyst_cluster")));
         design.setLayers(layers);
         return design;
     }

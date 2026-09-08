@@ -2,17 +2,18 @@ package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
-import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
+import com.plot.plugin.powerline.style.PowerLineStylePack;
+import com.plot.plugin.powerline.style.PowerLineStylePackCatalog;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
 
 /** 样式 Tab 的杆塔风格卡片（缩略图 + 标签 + 选中高亮）。 */
 public final class PowerLineStyleCardRenderer {
-    public static final float CARD_WIDTH = 108f;
-    public static final float CARD_HEIGHT = 112f;
-    private static final float PREVIEW_HEIGHT = 76f;
+    public static final float CARD_WIDTH = 96f;
+    public static final float CARD_HEIGHT = 108f;
+    private static final float PREVIEW_HEIGHT = 72f;
     private static final float LABEL_PADDING = 4f;
 
     private static final int COLOR_BG = 0xFF1E1E1E;
@@ -22,20 +23,17 @@ public final class PowerLineStyleCardRenderer {
     private static final int COLOR_LABEL = 0xFFE8E8E8;
     private static final int COLOR_LABEL_DIM = 0xFFB0B0B0;
 
-    public enum StylePreviewKind {
-        WOOD,
-        LATTICE,
-        ADAPTIVE
-    }
-
     private PowerLineStyleCardRenderer() {
     }
 
     /**
      * 绘制可点击的风格卡片；返回是否被点击。
      */
-    public static boolean renderStyleCard(String familyId, String label, boolean selected) {
-        String buttonId = "##powerline_style_card_" + familyKey(familyId);
+    public static boolean renderStyleCard(PowerLineStylePack pack, String label, boolean selected) {
+        if (pack == null) {
+            return false;
+        }
+        String buttonId = "##powerline_style_card_" + pack.getId().replace('/', '_');
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
         float x0 = origin.x;
@@ -50,7 +48,7 @@ public final class PowerLineStyleCardRenderer {
         drawList.addRect(x0, y0, x1, y1, borderColor, 4f, 0, borderThickness);
 
         float previewY1 = y0 + PREVIEW_HEIGHT;
-        drawPreview(drawList, familyId, x0 + 2f, y0 + 2f, x1 - 2f, previewY1 - 2f);
+        drawPackPreview(drawList, pack, x0 + 2f, y0 + 2f, x1 - 2f, previewY1 - 2f);
 
         float labelY = previewY1 + LABEL_PADDING;
         int labelColor = selected ? COLOR_LABEL : COLOR_LABEL_DIM;
@@ -61,16 +59,6 @@ public final class PowerLineStyleCardRenderer {
             ImGui.setTooltip(label);
         }
         return ImGui.isItemClicked(0);
-    }
-
-    public static StylePreviewKind previewKindFor(String familyId) {
-        if (familyId == null || familyId.isBlank()) {
-            return StylePreviewKind.WOOD;
-        }
-        if (TowerFamily.GRADED_LATTICE_3_PHASE_ID.equals(familyId)) {
-            return StylePreviewKind.ADAPTIVE;
-        }
-        return StylePreviewKind.LATTICE;
     }
 
     public static float cardWidth() {
@@ -86,7 +74,7 @@ public final class PowerLineStyleCardRenderer {
     private static final float COMPACT_PREVIEW_HEIGHT = 56f;
 
     /** 只读紧凑风格预览（Build 摘要等）。 */
-    public static void renderCompactStylePreview(String familyId) {
+    public static void renderCompactStylePreview(PowerLineStylePack pack) {
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
         float x0 = origin.x;
@@ -95,23 +83,32 @@ public final class PowerLineStyleCardRenderer {
         float y1 = y0 + COMPACT_HEIGHT;
         drawList.addRectFilled(x0, y0, x1, y1, COLOR_BG);
         drawList.addRect(x0, y0, x1, y1, COLOR_BORDER, 3f, 0, 1f);
-        drawPreview(drawList, familyId, x0 + 2f, y0 + 2f, x1 - 2f, y0 + COMPACT_PREVIEW_HEIGHT);
+        if (pack != null) {
+            drawPackPreview(drawList, pack, x0 + 2f, y0 + 2f, x1 - 2f, y0 + COMPACT_PREVIEW_HEIGHT);
+        } else {
+            drawWoodPreview(drawList, x0 + 2f, y0 + 2f, x1 - 2f, y0 + COMPACT_PREVIEW_HEIGHT);
+        }
         ImGui.dummy(COMPACT_WIDTH, COMPACT_HEIGHT);
     }
 
-    private static void drawPreview(
+    private static void drawPackPreview(
             ImDrawList drawList,
-            String familyId,
+            PowerLineStylePack pack,
             float x0,
             float y0,
             float x1,
             float y1) {
-        StylePreviewKind kind = previewKindFor(familyId);
-        switch (kind) {
+        switch (pack.getPreviewKind()) {
             case WOOD -> drawWoodPreview(drawList, x0, y0, x1, y1);
-            case LATTICE -> drawDesignPreview(drawList, TowerFamilyDesignPresets.latticeSuspension(), x0, y0, x1, y1);
+            case URBAN -> drawDesignPreview(drawList, PoleDesignCatalog.urbanConcretePole(), x0, y0, x1, y1);
+            case STEEL_POLE -> drawDesignPreview(drawList, PoleDesignCatalog.modernSteelPole(), x0, y0, x1, y1);
+            case LATTICE_POLE -> drawDesignPreview(drawList, PoleDesignCatalog.latticeSteelTower(), x0, y0, x1, y1);
+            case LATTICE -> drawDesignPreview(
+                drawList, TowerFamilyDesignPresets.latticeSuspension(), x0, y0, x1, y1);
             case ADAPTIVE -> drawAdaptivePreview(drawList, x0, y0, x1, y1);
-            default -> { }
+            case TAPERED -> drawDesignPreview(drawList, PoleDesignCatalog.taperedLatticeTower(), x0, y0, x1, y1);
+            case COPPER -> drawDesignPreview(drawList, PoleDesignCatalog.fantasyCopperPole(), x0, y0, x1, y1);
+            default -> drawWoodPreview(drawList, x0, y0, x1, y1);
         }
     }
 
@@ -183,9 +180,5 @@ public final class PowerLineStyleCardRenderer {
             }
         }
         return suffix;
-    }
-
-    private static String familyKey(String familyId) {
-        return familyId == null || familyId.isBlank() ? "wood" : familyId.replace('/', '_');
     }
 }

@@ -1,6 +1,8 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.PowerLineGenerationResult;
+import com.plot.plugin.powerline.style.PowerLineStylePack;
+import com.plot.plugin.powerline.style.PowerLineStylePackCatalog;
 import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.ui.PluginUiColors;
@@ -52,8 +54,8 @@ public final class PowerLineBuildPanel {
             return;
         }
 
-        String familyId = line.hasTowerFamily() ? line.getTowerFamilyId() : "";
-        PowerLineStyleCardRenderer.renderCompactStylePreview(familyId);
+        PowerLineStylePack stylePack = PowerLineStylePackCatalog.detect(line);
+        PowerLineStyleCardRenderer.renderCompactStylePreview(stylePack);
         ImGui.sameLine();
         ImGui.beginGroup();
         ImGui.text(PlotI18n.tr("plugin.powerline.pole_count_result", result.poleCount));

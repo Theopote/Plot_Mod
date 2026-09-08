@@ -1,7 +1,8 @@
 package com.plot.plugin.powerline.ui;
 
-import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.style.PowerLineStylePack;
+import com.plot.plugin.powerline.style.PowerLineStylePackCatalog;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -10,6 +11,8 @@ import imgui.flag.ImGuiTreeNodeFlags;
 
 /** 样式 Tab：塔型主题、下垂、材质。 */
 public final class PowerLineStylePanel {
+    private static final int STYLE_PACK_COLUMNS = 4;
+
     private final PowerLineUiContext ctx;
     private final PowerLineEditPanel editPanel;
     private final PoleDesignerPanel poleDesignerPanel;
@@ -45,40 +48,33 @@ public final class PowerLineStylePanel {
     }
 
     private void renderStylePack(PowerLineFootprint line) {
-        String selected = line.hasTowerFamily() ? line.getTowerFamilyId() : "";
-        String[][] packs = {
-            {"", PlotI18n.tr("plugin.powerline.style.pack.wood")},
-            {TowerFamily.STANDARD_LATTICE_3_PHASE_ID, PlotI18n.tr("plugin.powerline.style.pack.lattice")},
-            {TowerFamily.GRADED_LATTICE_3_PHASE_ID, PlotI18n.tr("plugin.powerline.style.pack.adaptive")},
-        };
-
+        PowerLineStylePack active = PowerLineStylePackCatalog.detect(line);
+        java.util.List<PowerLineStylePack> packs = PowerLineStylePackCatalog.defaultPacks();
         float spacing = ImGui.getStyle().getItemSpacingX();
-        float totalWidth = PowerLineStyleCardRenderer.cardWidth() * packs.length
-            + spacing * (packs.length - 1);
-        float startX = ImGui.getCursorPosX();
-        if (totalWidth < ImGui.getContentRegionAvail().x) {
-            ImGui.setCursorPosX(startX + (ImGui.getContentRegionAvail().x - totalWidth) * 0.5f);
-        }
 
-        for (int i = 0; i < packs.length; i++) {
-            if (i > 0) {
+        for (int i = 0; i < packs.size(); i++) {
+            if (i > 0 && i % STYLE_PACK_COLUMNS != 0) {
                 ImGui.sameLine(0f, spacing);
             }
-            boolean active = packs[i][0].equals(selected);
-            if (PowerLineStyleCardRenderer.renderStyleCard(packs[i][0], packs[i][1], active)) {
+            PowerLineStylePack pack = packs.get(i);
+            boolean selected = active != null && active.getId().equals(pack.getId());
+            String label = PlotI18n.tr(pack.getLabelKey());
+            if (PowerLineStyleCardRenderer.renderStyleCard(pack, label, selected)) {
                 ctx.pushEditSnapshot();
-                line.setTowerFamilyId(packs[i][0].isBlank() ? null : packs[i][0]);
+                pack.apply(line);
                 ctx.invalidatePreview();
             }
         }
         ImGui.newLine();
 
-        if (line.hasTowerFamily()) {
-            var family = new com.plot.plugin.powerline.design.family.TowerFamilyResolver().find(line.getTowerFamilyId());
-            String name = family != null ? family.getName() : line.getTowerFamilyId();
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.style.selected", name));
+        if (active != null) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr(
+                    "plugin.powerline.style.selected_pack",
+                    PlotI18n.tr(active.getLabelKey())));
         } else {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.style.selected_wood"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.style.custom"));
         }
     }
 

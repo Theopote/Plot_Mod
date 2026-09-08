@@ -180,6 +180,7 @@ public class PowerLineProject {
         MaterialMix poleMaterial;
         String poleDesignId;
         String towerFamilyId;
+        String stylePackId;
         MaterialMix groundWireMaterial;
         List<PoleOverrideData> poleOverrides = new ArrayList<>();
         List<LayoutConstraintData> layoutConstraints = new ArrayList<>();
@@ -213,6 +214,7 @@ public class PowerLineProject {
                 lineData.poleMaterial = line.getPoleMaterial();
                 lineData.poleDesignId = line.getPoleDesignId();
                 lineData.towerFamilyId = line.getTowerFamilyId();
+                lineData.stylePackId = line.getStylePackId();
                 lineData.groundWireMaterial = line.getGroundWireMaterial();
                 for (PoleOverride override : line.getPoleOverrides()) {
                     lineData.poleOverrides.add(PoleOverrideData.from(override));
@@ -271,6 +273,7 @@ public class PowerLineProject {
                 }
                 footprint.setPoleDesignId(lineData.poleDesignId);
                 footprint.setTowerFamilyId(lineData.towerFamilyId);
+                footprint.setStylePackId(lineData.stylePackId);
                 if (lineData.groundWireMaterial != null) {
                     footprint.setGroundWireMaterial(lineData.groundWireMaterial);
                 }

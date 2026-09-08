@@ -29,6 +29,7 @@ public class PowerLineFootprint {
     private MaterialMix poleMaterial = MaterialMix.single(DEFAULT_POLE_MATERIAL);
     private String poleDesignId;
     private String towerFamilyId;
+    private String stylePackId;
     private MaterialMix groundWireMaterial = MaterialMix.single("minecraft:chain");
     private final List<PoleOverride> poleOverrides = new ArrayList<>();
     private final List<PoleLayoutConstraint> layoutConstraints = new ArrayList<>();
@@ -170,6 +171,14 @@ public class PowerLineFootprint {
         return towerFamilyId != null && !towerFamilyId.isBlank();
     }
 
+    public String getStylePackId() {
+        return stylePackId;
+    }
+
+    public void setStylePackId(String stylePackId) {
+        this.stylePackId = stylePackId != null && stylePackId.isBlank() ? null : stylePackId;
+    }
+
     public MaterialMix getGroundWireMaterial() {
         return groundWireMaterial;
     }
@@ -305,6 +314,7 @@ public class PowerLineFootprint {
         hash = 31 * hash + materialFingerprint(poleMaterial);
         hash = 31 * hash + Objects.hashCode(poleDesignId);
         hash = 31 * hash + Objects.hashCode(towerFamilyId);
+        hash = 31 * hash + Objects.hashCode(stylePackId);
         hash = 31 * hash + materialFingerprint(groundWireMaterial);
         hash = 31 * hash + poleOverrides.hashCode();
         hash = 31 * hash + layoutConstraints.hashCode();
