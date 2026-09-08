@@ -106,4 +106,15 @@ class PowerLineStylePresetTest {
         assertEquals(PowerLineStylePreset.RUSTIC_WOOD_ID, line.getStylePackId());
         assertNotNull(PowerLineStylePackCatalog.activePreset(line));
     }
+
+    @Test
+    void buildSummaryUsesActivePresetNotStoredId() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
+        PowerLineStylePackCatalog.classicWood().apply(line);
+        line.setWireMaterial(MaterialMix.single("minecraft:chain"));
+
+        assertEquals(PowerLineStylePreset.RUSTIC_WOOD_ID, line.getStylePackId());
+        assertNull(PowerLineStylePackCatalog.activePreset(line));
+        assertFalse(PowerLineStylePackCatalog.classicWood().matchesBundle(line));
+    }
 }

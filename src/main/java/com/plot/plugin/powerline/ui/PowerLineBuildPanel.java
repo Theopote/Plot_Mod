@@ -54,10 +54,25 @@ public final class PowerLineBuildPanel {
             return;
         }
 
-        PowerLineStylePreset stylePack = PowerLineStylePackCatalog.detect(line);
-        PowerLineStyleCardRenderer.renderCompactStylePreview(stylePack);
+        PowerLineStylePreset activePreset = PowerLineStylePackCatalog.activePreset(line);
+        if (activePreset != null) {
+            PowerLineStyleCardRenderer.renderCompactStylePreview(activePreset);
+        } else {
+            PowerLineStyleCardRenderer.renderCompactCustomStylePreview();
+        }
         ImGui.sameLine();
         ImGui.beginGroup();
+        if (activePreset != null) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr(
+                    "plugin.powerline.build.style_preset",
+                    PlotI18n.tr(activePreset.getLabelKey())));
+        } else {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.build.style_custom"));
+        }
         ImGui.text(PlotI18n.tr("plugin.powerline.pole_count_result", result.poleCount));
         ImGui.text(PlotI18n.tr(
             "plugin.powerline.wire_length_result",

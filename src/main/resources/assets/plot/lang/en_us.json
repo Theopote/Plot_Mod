@@ -3382,6 +3382,8 @@
   "plugin.powerline.style.sag_advanced": "Advanced sag",
   "plugin.powerline.style.advanced": "Advanced style",
   "plugin.powerline.build.summary": "Preview summary",
+  "plugin.powerline.build.style_preset": "Style: %s",
+  "plugin.powerline.build.style_custom": "Custom style",
   "plugin.powerline.build.no_preview": "Calculate preview to see pole and wire counts.",
   "plugin.powerline.build.sag_preset": "Sag: %s",
   "plugin.powerline.build.sag_custom": "Sag: %s%% (advanced)",

@@ -3382,6 +3382,8 @@
   "plugin.powerline.style.sag_advanced": "高级垂度",
   "plugin.powerline.style.advanced": "高级样式",
   "plugin.powerline.build.summary": "预览摘要",
+  "plugin.powerline.build.style_preset": "样式：%s",
+  "plugin.powerline.build.style_custom": "自定义样式",
   "plugin.powerline.build.no_preview": "请先计算预览以查看杆塔与导线数量。",
   "plugin.powerline.build.sag_preset": "垂度：%s",
   "plugin.powerline.build.sag_custom": "垂度：%s%%（高级）",

@@ -22,6 +22,11 @@ public final class PowerLineStyleCardRenderer {
     private static final int COLOR_SELECTED_RING = 0xFF4DA6FF;
     private static final int COLOR_LABEL = 0xFFE8E8E8;
     private static final int COLOR_LABEL_DIM = 0xFFB0B0B0;
+    private static final int COLOR_CUSTOM_BG = 0xFF171717;
+    private static final int COLOR_CUSTOM_BORDER = 0xFF757575;
+    private static final int COLOR_CUSTOM_ACCENT = 0xFF78909C;
+    private static final int COLOR_CUSTOM_SLIDER = 0xFF546E7A;
+    private static final int COLOR_CUSTOM_KNOB = 0xFFB0BEC5;
 
     private PowerLineStyleCardRenderer() {
     }
@@ -83,7 +88,7 @@ public final class PowerLineStyleCardRenderer {
     public static final float COMPACT_HEIGHT = 80f;
     private static final float COMPACT_PREVIEW_HEIGHT = 56f;
 
-    /** 只读紧凑风格预览（Build 摘要等）。 */
+    /** 只读紧凑风格预览（Build 摘要等，已选预设）。 */
     public static void renderCompactStylePreview(PowerLineStylePreset pack) {
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
@@ -95,9 +100,21 @@ public final class PowerLineStyleCardRenderer {
         drawList.addRect(x0, y0, x1, y1, COLOR_BORDER, 3f, 0, 1f);
         if (pack != null) {
             drawPackPreview(drawList, pack, x0 + 2f, y0 + 2f, x1 - 2f, y0 + COMPACT_PREVIEW_HEIGHT);
-        } else {
-            drawWoodPreview(drawList, x0 + 2f, y0 + 2f, x1 - 2f, y0 + COMPACT_PREVIEW_HEIGHT);
         }
+        ImGui.dummy(COMPACT_WIDTH, COMPACT_HEIGHT);
+    }
+
+    /** 自定义样式占位图（Build 摘要：未选中或未匹配的风格预设）。 */
+    public static void renderCompactCustomStylePreview() {
+        ImVec2 origin = ImGui.getCursorScreenPos();
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        float x0 = origin.x;
+        float y0 = origin.y;
+        float x1 = x0 + COMPACT_WIDTH;
+        float y1 = y0 + COMPACT_HEIGHT;
+        drawList.addRectFilled(x0, y0, x1, y1, COLOR_CUSTOM_BG);
+        drawDashedRect(drawList, x0 + 1f, y0 + 1f, x1 - 1f, y1 - 1f, COLOR_CUSTOM_BORDER, 3f, 1f, 4f, 3f);
+        drawCustomStylePreview(drawList, x0 + 2f, y0 + 2f, x1 - 2f, y0 + COMPACT_PREVIEW_HEIGHT);
         ImGui.dummy(COMPACT_WIDTH, COMPACT_HEIGHT);
     }
 
@@ -201,6 +218,100 @@ public final class PowerLineStyleCardRenderer {
         PoleDesignPreviewRenderer.drawThumbnail(design, drawList, x0, y0, x1, y1, false);
         float wireY = y0 + (y1 - y0) * 0.38f;
         drawList.addLine(x0 + 8f, wireY, x1 - 8f, wireY, 0xFF9E9E9E, 1.2f);
+    }
+
+    /** 自定义样式：材质色块 + 调节滑条 + 虚线导线。 */
+    private static void drawCustomStylePreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {
+        float swatchSize = 6f;
+        float swatchY = y1 - swatchSize - 3f;
+        float swatchGap = 4f;
+        float swatchX = x0 + 6f;
+        drawList.addRectFilled(swatchX, swatchY, swatchX + swatchSize, swatchY + swatchSize, 0xFF9E9E9E);
+        swatchX += swatchSize + swatchGap;
+        drawList.addRectFilled(swatchX, swatchY, swatchX + swatchSize, swatchY + swatchSize, 0xFF8D6E63);
+        swatchX += swatchSize + swatchGap;
+        drawList.addRectFilled(swatchX, swatchY, swatchX + swatchSize, swatchY + swatchSize, 0xFF546E7A);
+
+        float sliderLeft = x0 + 8f;
+        float sliderRight = x1 - 8f;
+        drawCustomSlider(drawList, sliderLeft, y0 + 8f, sliderRight, 0.35f);
+        drawCustomSlider(drawList, sliderLeft, y0 + 16f, sliderRight, 0.62f);
+        drawCustomSlider(drawList, sliderLeft, y0 + 24f, sliderRight, 0.48f);
+
+        float poleX = x0 + (x1 - x0) * 0.72f;
+        float poleTop = y0 + 10f;
+        float poleBottom = swatchY - 2f;
+        drawList.addLine(poleX, poleTop, poleX, poleBottom, COLOR_CUSTOM_ACCENT, 1.8f);
+
+        float wireLeft = x0 + 10f;
+        float wireRight = x1 - 10f;
+        float wireBase = y0 + (y1 - y0) * 0.42f;
+        drawDashedLine(drawList, wireLeft, wireBase, wireRight, wireBase - 4f, COLOR_CUSTOM_ACCENT, 1.2f, 4f, 3f);
+    }
+
+    private static void drawCustomSlider(
+            ImDrawList drawList,
+            float left,
+            float y,
+            float right,
+            float knobT) {
+        drawList.addLine(left, y, right, y, COLOR_CUSTOM_SLIDER, 1.2f);
+        float knobX = left + (right - left) * knobT;
+        drawList.addCircleFilled(knobX, y, 2.5f, COLOR_CUSTOM_KNOB);
+    }
+
+    private static void drawDashedRect(
+            ImDrawList drawList,
+            float x0,
+            float y0,
+            float x1,
+            float y1,
+            int color,
+            float cornerRadius,
+            float thickness,
+            float dashLen,
+            float gapLen) {
+        drawDashedLine(drawList, x0 + cornerRadius, y0, x1 - cornerRadius, y0, color, thickness, dashLen, gapLen);
+        drawDashedLine(drawList, x1, y0 + cornerRadius, x1, y1 - cornerRadius, color, thickness, dashLen, gapLen);
+        drawDashedLine(drawList, x1 - cornerRadius, y1, x0 + cornerRadius, y1, color, thickness, dashLen, gapLen);
+        drawDashedLine(drawList, x0, y1 - cornerRadius, x0, y0 + cornerRadius, color, thickness, dashLen, gapLen);
+    }
+
+    private static void drawDashedLine(
+            ImDrawList drawList,
+            float x0,
+            float y0,
+            float x1,
+            float y1,
+            int color,
+            float thickness,
+            float dashLen,
+            float gapLen) {
+        float dx = x1 - x0;
+        float dy = y1 - y0;
+        float len = (float) Math.sqrt(dx * dx + dy * dy);
+        if (len < 0.001f) {
+            return;
+        }
+        float ux = dx / len;
+        float uy = dy / len;
+        float pos = 0f;
+        boolean drawing = true;
+        while (pos < len) {
+            float segment = drawing ? dashLen : gapLen;
+            float next = Math.min(pos + segment, len);
+            if (drawing) {
+                drawList.addLine(
+                    x0 + ux * pos,
+                    y0 + uy * pos,
+                    x0 + ux * next,
+                    y0 + uy * next,
+                    color,
+                    thickness);
+            }
+            pos = next;
+            drawing = !drawing;
+        }
     }
 
     private static void drawDesignPreview(
