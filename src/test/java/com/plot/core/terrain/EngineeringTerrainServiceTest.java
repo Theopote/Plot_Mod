@@ -2,12 +2,17 @@ package com.plot.core.terrain;
 
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EngineeringTerrainServiceTest {
@@ -47,8 +52,91 @@ class EngineeringTerrainServiceTest {
         assertTrue(service.findWaterSurface(0, 0).isEmpty());
         assertEquals(EngineeringTerrainService.DEFAULT_GROUND_ELEVATION, service.sampleSolidSurface(0, 0));
         assertFalse(service.isSolidEngineeringBlock(0, 64, 0));
+        assertFalse(service.isWireObstruction(0, 64, 0));
         assertFalse(service.isClearableNaturalDecoration(0, 64, 0));
         assertFalse(service.isChunkLoaded(0, 0));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("wireVsEngineeringBlockCases")
+    void wireObstructionDiffersFromSolidEngineeringBlock(
+            String label,
+            EngineeringTerrainBlockRole role,
+            boolean expectSolidEngineering,
+            boolean expectWireObstruction) {
+        assertEquals(expectSolidEngineering, expectsSolidEngineeringBlock(role), label);
+        assertEquals(expectWireObstruction, expectsWireObstruction(role), label);
+        if (expectWireObstruction && !expectSolidEngineering) {
+            assertNotEquals(
+                expectsSolidEngineeringBlock(role),
+                expectsWireObstruction(role),
+                label + " should distinguish wire collision from engineering ground");
+        }
+    }
+
+    @Test
+    void naturalDecorationAndStructuresBlockWiresButNotEngineeringGround() {
+        assertTrue(expectsWireObstruction(EngineeringTerrainBlockRole.NATURAL_DECORATION));
+        assertFalse(expectsSolidEngineeringBlock(EngineeringTerrainBlockRole.NATURAL_DECORATION));
+
+        assertTrue(expectsWireObstruction(EngineeringTerrainBlockRole.OTHER_SOLID));
+        assertFalse(expectsSolidEngineeringBlock(EngineeringTerrainBlockRole.OTHER_SOLID));
+    }
+
+    @Test
+    void onlyEngineeringTerrainCountsAsSolidEngineeringBlock() {
+        assertTrue(expectsSolidEngineeringBlock(EngineeringTerrainBlockRole.ENGINEERING_TERRAIN));
+        assertTrue(expectsWireObstruction(EngineeringTerrainBlockRole.ENGINEERING_TERRAIN));
+    }
+
+    @Test
+    void airAndFluidAreNeitherWireNorEngineeringGround() {
+        assertFalse(expectsWireObstruction(EngineeringTerrainBlockRole.AIR));
+        assertFalse(expectsSolidEngineeringBlock(EngineeringTerrainBlockRole.AIR));
+        assertFalse(expectsWireObstruction(EngineeringTerrainBlockRole.FLUID));
+        assertFalse(expectsSolidEngineeringBlock(EngineeringTerrainBlockRole.FLUID));
+    }
+
+    @Test
+    void classifyTraitsMatchesServiceSemantics() {
+        EngineeringTerrainBlockRole grass = EngineeringTerrainService.classifyTraits(
+            false, false, true, false, false, false);
+        assertEquals(EngineeringTerrainBlockRole.NATURAL_DECORATION, grass);
+        assertTrue(expectsWireObstruction(grass));
+        assertFalse(expectsSolidEngineeringBlock(grass));
+
+        EngineeringTerrainBlockRole dirt = EngineeringTerrainService.classifyTraits(
+            false, false, false, false, false, false, true);
+        assertEquals(EngineeringTerrainBlockRole.ENGINEERING_TERRAIN, dirt);
+        assertTrue(expectsWireObstruction(dirt));
+        assertTrue(expectsSolidEngineeringBlock(dirt));
+
+        EngineeringTerrainBlockRole brick = EngineeringTerrainService.classifyTraits(
+            false, false, false, false, false, false, false);
+        assertEquals(EngineeringTerrainBlockRole.OTHER_SOLID, brick);
+        assertTrue(expectsWireObstruction(brick));
+        assertFalse(expectsSolidEngineeringBlock(brick));
+    }
+
+    static Stream<Arguments> wireVsEngineeringBlockCases() {
+        return Stream.of(
+            Arguments.of("air", EngineeringTerrainBlockRole.AIR, false, false),
+            Arguments.of("fluid", EngineeringTerrainBlockRole.FLUID, false, false),
+            Arguments.of("engineering_terrain", EngineeringTerrainBlockRole.ENGINEERING_TERRAIN, true, true),
+            Arguments.of("oak_log", EngineeringTerrainBlockRole.NATURAL_DECORATION, false, true),
+            Arguments.of("oak_leaves", EngineeringTerrainBlockRole.NATURAL_DECORATION, false, true),
+            Arguments.of("short_grass", EngineeringTerrainBlockRole.NATURAL_DECORATION, false, true),
+            Arguments.of("brick_wall", EngineeringTerrainBlockRole.OTHER_SOLID, false, true));
+    }
+
+    /** Mirrors {@link EngineeringTerrainService#isSolidEngineeringBlock} classification. */
+    private static boolean expectsSolidEngineeringBlock(EngineeringTerrainBlockRole role) {
+        return role == EngineeringTerrainBlockRole.ENGINEERING_TERRAIN;
+    }
+
+    /** Mirrors {@link EngineeringTerrainService#isWireObstruction} classification. */
+    private static boolean expectsWireObstruction(EngineeringTerrainBlockRole role) {
+        return role != EngineeringTerrainBlockRole.AIR && role != EngineeringTerrainBlockRole.FLUID;
     }
 
     @Test
