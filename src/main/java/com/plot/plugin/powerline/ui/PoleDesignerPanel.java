@@ -15,7 +15,10 @@ import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.PoleLayer;
+import com.plot.plugin.powerline.design.family.TowerFamily;
+import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -27,11 +30,19 @@ import imgui.type.ImInt;
 import imgui.type.ImString;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /** 杆塔分层设计器独立窗口。 */
 public final class PoleDesignerPanel {
+    private static final TowerRole[] FAMILY_EDIT_ROLES = {
+        TowerRole.SUSPENSION,
+        TowerRole.ANGLE,
+        TowerRole.DEAD_END,
+        TowerRole.TERMINAL
+    };
+
     private final PowerLineUiContext ctx;
     private PoleDesign draft;
     private final ImString designNameBuffer = new ImString(64);
@@ -39,6 +50,8 @@ public final class PoleDesignerPanel {
     private int selectedPresetIndex = 0;
     private String pendingPresetId = "";
     private boolean presetConfirmPending = false;
+    private boolean familyRolePickerPending = false;
+    private String pendingFamilyId = "";
     private final List<LayerAction> pendingLayerActions = new ArrayList<>();
     private final ImBoolean designerWindowOpen = new ImBoolean(false);
 
@@ -63,7 +76,24 @@ public final class PoleDesignerPanel {
         ctx.state().setPoleDesignerOpen(true);
     }
 
+    /**
+     * 塔型族没有单一 {@code poleDesignId}：先选角色，再打开对应设计。
+     * 不要用 {@link #open}{@code null}——那会落到空白设计。
+     */
+    public void requestCustomizeFamily(String familyId) {
+        if (familyId == null || familyId.isBlank()) {
+            return;
+        }
+        TowerFamily family = new TowerFamilyResolver().find(familyId);
+        if (family == null || editableFamilyRoles(family).isEmpty()) {
+            return;
+        }
+        pendingFamilyId = familyId;
+        familyRolePickerPending = true;
+    }
+
     public void render() {
+        renderFamilyRolePickerPopup();
         if (!ctx.state().isPoleDesignerOpen() || draft == null) {
             return;
         }
@@ -818,6 +848,61 @@ public final class PoleDesignerPanel {
             }
             ImGui.endPopup();
         }
+    }
+
+    private void renderFamilyRolePickerPopup() {
+        if (!PowerLineUiWidgets.beginDeferredPopupModal(
+                "##pole_family_role_picker",
+                familyRolePickerPending,
+                () -> familyRolePickerPending = false)) {
+            return;
+        }
+        TowerFamily family = new TowerFamilyResolver().find(pendingFamilyId);
+        ImGui.text(PlotI18n.tr("plugin.powerline.design.family_pick_title"));
+        if (family != null) {
+            ImGui.textColored(
+                com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
+                family.getName());
+            ImGui.spacing();
+            for (Map.Entry<TowerRole, String> entry : editableFamilyRoles(family).entrySet()) {
+                String label = familyRoleLabel(entry.getKey());
+                if (ImGui.button(label + "##family_role_" + entry.getKey().name(), 220, 0)) {
+                    open(entry.getValue());
+                    ImGui.closeCurrentPopup();
+                }
+            }
+        }
+        ImGui.spacing();
+        if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
+            ImGui.closeCurrentPopup();
+        }
+        ImGui.endPopup();
+    }
+
+    /** 塔族可编辑角色 → designId（Regular / Corner / Dead-end / Terminal）。 */
+    static Map<TowerRole, String> editableFamilyRoles(TowerFamily family) {
+        Map<TowerRole, String> roles = new LinkedHashMap<>();
+        if (family == null) {
+            return roles;
+        }
+        for (TowerRole role : FAMILY_EDIT_ROLES) {
+            String designId = family.getDesignId(role);
+            if (designId == null || designId.isBlank()) {
+                continue;
+            }
+            roles.put(role, designId);
+        }
+        return roles;
+    }
+
+    private static String familyRoleLabel(TowerRole role) {
+        return switch (role) {
+            case SUSPENSION -> PlotI18n.tr("plugin.powerline.design.family_role_regular");
+            case ANGLE -> PlotI18n.tr("plugin.powerline.design.family_role_corner");
+            case DEAD_END -> PlotI18n.tr("plugin.powerline.design.family_role_dead_end");
+            case TERMINAL -> PlotI18n.tr("plugin.powerline.design.family_role_terminal");
+            case SPECIAL -> PlotI18n.tr("plugin.powerline.pole_role_special");
+        };
     }
 
     private static PoleDesign newBlankDesign() {

@@ -126,7 +126,11 @@ public final class PowerLineStyleControls {
 
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.open_designer"), 0, 0)) {
-            poleDesignerPanel.open(line.getPoleDesignId());
+            if (line.hasTowerFamily() && !line.hasPoleDesign()) {
+                poleDesignerPanel.requestCustomizeFamily(line.getTowerFamilyId());
+            } else {
+                poleDesignerPanel.open(line.getPoleDesignId());
+            }
         }
     }
 

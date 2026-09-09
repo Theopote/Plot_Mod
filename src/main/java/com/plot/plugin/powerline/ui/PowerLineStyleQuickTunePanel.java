@@ -110,6 +110,14 @@ public final class PowerLineStyleQuickTunePanel {
     }
 
     private void renderTowerStyleRow(PowerLineFootprint line) {
+        if (line.hasTowerFamily()) {
+            renderValueRow(
+                PlotI18n.tr("plugin.powerline.style.quick_tune.tower_style"),
+                resolveTowerLabel(line),
+                PlotI18n.tr("plugin.powerline.style.quick_tune.customize_family"),
+                () -> poleDesignerPanel.requestCustomizeFamily(line.getTowerFamilyId()));
+            return;
+        }
         renderValueRow(
             PlotI18n.tr("plugin.powerline.style.quick_tune.tower_style"),
             resolveTowerLabel(line),
