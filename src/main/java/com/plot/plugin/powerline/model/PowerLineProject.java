@@ -159,8 +159,8 @@ public class PowerLineProject {
         String name;
         List<Vec2dData> pathPoints = new ArrayList<>();
         String roadId;
-        double minPoleSpacing = 6.0;
-        double maxPoleSpacing = 20.0;
+        double minPoleSpacing = 15.0;
+        double maxPoleSpacing = 30.0;
         double cornerAngleThreshold = 5.0;
         double poleHeight = 10.0;
         double sagRatio = 0.15;
@@ -178,6 +178,7 @@ public class PowerLineProject {
         boolean engineeringAnalysisEnabled;
         boolean terrainAvoidanceEnabled;
         boolean automaticTowerSelectionEnabled;
+        boolean spacingCustomized;
     }
 
     static class ProjectData {
@@ -215,6 +216,7 @@ public class PowerLineProject {
                 lineData.engineeringAnalysisEnabled = line.isEngineeringAnalysisEnabled();
                 lineData.terrainAvoidanceEnabled = line.isTerrainAvoidanceEnabled();
                 lineData.automaticTowerSelectionEnabled = line.isAutomaticTowerSelectionEnabled();
+                lineData.spacingCustomized = line.isSpacingCustomized();
                 data.lines.add(lineData);
             }
             return data;
@@ -288,6 +290,7 @@ public class PowerLineProject {
                 footprint.setEngineeringAnalysisEnabled(lineData.engineeringAnalysisEnabled);
                 footprint.setTerrainAvoidanceEnabled(lineData.terrainAvoidanceEnabled);
                 footprint.setAutomaticTowerSelectionEnabled(lineData.automaticTowerSelectionEnabled);
+                footprint.setSpacingCustomized(lineData.spacingCustomized);
                 project.addLine(footprint);
             }
             return project;

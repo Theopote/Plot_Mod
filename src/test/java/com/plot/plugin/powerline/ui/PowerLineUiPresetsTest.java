@@ -1,6 +1,8 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.style.PoleSpacingProfile;
+import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
 import com.plot.api.geometry.Vec2d;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -11,11 +13,12 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 class PowerLineUiPresetsTest {
     @Test
-    void applySpacingSetsMinAndMax() {
+    void applySpacingUsesActiveStyleCharacter() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
+        PowerLineStylePresetCatalog.classicWood().apply(line);
         PowerLineUiPresets.applySpacing(line, PowerLineUiPresets.SpacingDensity.SPARSE);
-        assertEquals(30.0, line.getMaxPoleSpacing());
-        assertEquals(10.0, line.getMinPoleSpacing());
+        assertEquals(PoleSpacingProfile.streetWood().sparseMaxSpacing(), line.getMaxPoleSpacing(), 1.0);
+        assertEquals(15.0, line.getMinPoleSpacing());
         assertEquals(PowerLineUiPresets.SpacingDensity.SPARSE, PowerLineUiPresets.detectSpacing(line));
     }
 

@@ -48,6 +48,7 @@ public final class PowerLineStylePreset {
     private final MaterialMix groundWireMaterial;
     private final PowerLineUiPresets.WireSag sagPreset;
     private final ConductorLayout conductorLayout;
+    private final PoleSpacingProfile spacingProfile;
 
     public PowerLineStylePreset(
             String id,
@@ -59,7 +60,8 @@ public final class PowerLineStylePreset {
             MaterialMix poleMaterial,
             MaterialMix groundWireMaterial,
             PowerLineUiPresets.WireSag sagPreset,
-            ConductorLayout conductorLayout) {
+            ConductorLayout conductorLayout,
+            PoleSpacingProfile spacingProfile) {
         this.id = id;
         this.labelKey = labelKey;
         this.previewKind = previewKind;
@@ -70,6 +72,9 @@ public final class PowerLineStylePreset {
         this.groundWireMaterial = groundWireMaterial;
         this.sagPreset = sagPreset;
         this.conductorLayout = conductorLayout != null ? conductorLayout : ConductorLayout.SINGLE;
+        this.spacingProfile = spacingProfile != null
+            ? spacingProfile
+            : PoleSpacingProfile.streetWood();
     }
 
     public String getId() {
@@ -120,6 +125,10 @@ public final class PowerLineStylePreset {
         return conductorLayout.conductorCount();
     }
 
+    public PoleSpacingProfile getSpacingProfile() {
+        return spacingProfile;
+    }
+
     public void apply(PowerLineFootprint line) {
         if (line == null) {
             return;
@@ -136,6 +145,9 @@ public final class PowerLineStylePreset {
         line.setPoleMaterial(poleMaterial);
         line.setGroundWireMaterial(groundWireMaterial);
         PowerLineUiPresets.applySag(line, sagPreset);
+        if (!line.isSpacingCustomized()) {
+            PowerLineSpacingPolicy.applyStyleDefaultSpacing(line, spacingProfile);
+        }
     }
 
     public boolean matches(PowerLineFootprint line) {

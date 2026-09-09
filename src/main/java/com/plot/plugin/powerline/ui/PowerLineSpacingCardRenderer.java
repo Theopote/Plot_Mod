@@ -1,5 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
+import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.style.PowerLineSpacingPolicy;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
@@ -24,6 +26,7 @@ public final class PowerLineSpacingCardRenderer {
     }
 
     public static boolean renderSpacingCard(
+            PowerLineFootprint line,
             PowerLineUiPresets.SpacingDensity density,
             String label,
             boolean selected) {
@@ -37,7 +40,7 @@ public final class PowerLineSpacingCardRenderer {
 
         drawCardShell(drawList, x0, y0, x1, y1, selected);
         float previewBottom = y0 + PREVIEW_HEIGHT;
-        drawSpacingPreview(drawList, density, x0 + 6f, y0 + 6f, x1 - 6f, previewBottom - 4f);
+        drawSpacingPreview(drawList, line, density, x0 + 6f, y0 + 6f, x1 - 6f, previewBottom - 4f);
 
         float labelY = previewBottom + LABEL_PADDING;
         int labelColor = selected ? COLOR_LABEL : COLOR_LABEL_DIM;
@@ -52,6 +55,7 @@ public final class PowerLineSpacingCardRenderer {
 
     static void drawSpacingPreview(
             ImDrawList drawList,
+            PowerLineFootprint line,
             PowerLineUiPresets.SpacingDensity density,
             float x0,
             float y0,
@@ -60,7 +64,7 @@ public final class PowerLineSpacingCardRenderer {
         float midY = (y0 + y1) * 0.5f;
         drawList.addLine(x0, midY, x1, midY, COLOR_PATH, 1.5f);
 
-        int poleCount = poleCountFor(density);
+        int poleCount = poleCountFor(line, density);
         for (int i = 0; i < poleCount; i++) {
             float t = poleCount == 1 ? 0.5f : (float) i / (poleCount - 1);
             float x = x0 + (x1 - x0) * t;
@@ -69,12 +73,13 @@ public final class PowerLineSpacingCardRenderer {
         }
     }
 
-    static int poleCountFor(PowerLineUiPresets.SpacingDensity density) {
-        return switch (density) {
-            case DENSE -> 6;
-            case NORMAL -> 4;
-            case SPARSE -> 3;
-        };
+    static int poleCountFor(PowerLineFootprint line, PowerLineUiPresets.SpacingDensity density) {
+        double span = PowerLineSpacingPolicy.profileFor(line).maxSpacingFor(density);
+        if (span <= 0.0) {
+            return 4;
+        }
+        int poles = (int) Math.round(200.0 / span) + 1;
+        return Math.max(3, Math.min(8, poles));
     }
 
     private static void drawCardShell(

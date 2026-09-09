@@ -1,6 +1,8 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.style.PowerLineSpacingPolicy;
+import com.plot.plugin.powerline.style.PoleSpacingProfile;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -36,6 +38,14 @@ public final class PowerLineRoutePanel {
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.powerline.route.section.placement"));
         renderSpacingPresets(line);
+        PoleSpacingProfile spacingProfile = PowerLineSpacingPolicy.profileFor(line);
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr(
+                "plugin.powerline.route.spacing_style_range",
+                spacingProfile.recommendedMin(),
+                spacingProfile.preferred(),
+                spacingProfile.recommendedMax()));
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.spacing_hint"));
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.corner_hint"));
         renderTerrainAvoidance(line);
@@ -74,7 +84,7 @@ public final class PowerLineRoutePanel {
             }
             boolean selected = density == current;
             String label = PlotI18n.tr("plugin.powerline.route.spacing." + density.name().toLowerCase());
-            if (PowerLineSpacingCardRenderer.renderSpacingCard(density, label, selected)) {
+            if (PowerLineSpacingCardRenderer.renderSpacingCard(line, density, label, selected)) {
                 ctx.pushEditSnapshot();
                 PowerLineUiPresets.applySpacing(line, density);
                 ctx.invalidatePreview();
@@ -100,14 +110,17 @@ public final class PowerLineRoutePanel {
                 ImGuiTreeNodeFlags.None)) {
             return;
         }
+        float sliderMin = (float) PowerLineFootprint.MIN_CONFIGURABLE_SPACING;
+        float sliderMax = (float) PowerLineSpacingPolicy.sliderMax(line);
         float[] minSpacing = {(float) line.getMinPoleSpacing()};
         if (ImGui.sliderFloat(
                 PlotI18n.tr("plugin.powerline.min_pole_spacing", minSpacing[0]),
                 minSpacing,
-                1f,
-                30f,
+                sliderMin,
+                sliderMax,
                 "%.1f")) {
             line.setMinPoleSpacing(minSpacing[0]);
+            line.setSpacingCustomized(true);
             ctx.invalidatePreview();
         }
         if (ImGui.isItemActivated()) {
@@ -121,10 +134,11 @@ public final class PowerLineRoutePanel {
         if (ImGui.sliderFloat(
                 PlotI18n.tr("plugin.powerline.max_pole_spacing", maxSpacing[0]),
                 maxSpacing,
-                1f,
-                60f,
+                sliderMin,
+                sliderMax,
                 "%.1f")) {
             line.setMaxPoleSpacing(maxSpacing[0]);
+            line.setSpacingCustomized(true);
             ctx.invalidatePreview();
         }
         if (ImGui.isItemActivated()) {
@@ -133,6 +147,8 @@ public final class PowerLineRoutePanel {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.powerline.recommended_max_spacing"));
         }
+
+        renderSpacingRecommendation(line);
 
         float[] cornerAngle = {(float) line.getCornerAngleThreshold()};
         if (ImGui.sliderFloat(
@@ -148,10 +164,32 @@ public final class PowerLineRoutePanel {
             ctx.pushEditSnapshot();
         }
 
-        if (ctx.hasMinSpacingWarning(line)) {
-            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.powerline.min_spacing_warning"));
-        }
+        ctx.actions().closestMandatorySpacingViolation(line).ifPresent(distance -> ImGui.textColored(
+            PluginUiColors.WARNING,
+            PlotI18n.tr("plugin.powerline.min_spacing_warning", distance)));
         renderAutoAddedPoles(line);
+    }
+
+    private void renderSpacingRecommendation(PowerLineFootprint line) {
+        var preset = com.plot.plugin.powerline.style.PowerLineStylePresetCatalog.activePreset(line);
+        if (preset == null || !line.isSpacingCustomized()) {
+            return;
+        }
+        if (!PowerLineSpacingPolicy.differsFromStyleRecommendation(line, preset)) {
+            return;
+        }
+        PoleSpacingProfile profile = preset.getSpacingProfile();
+        ImGui.textColored(
+            PluginUiColors.WARNING,
+            PlotI18n.tr(
+                "plugin.powerline.route.spacing_recommendation",
+                profile.preferred(),
+                line.getMaxPoleSpacing()));
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.route.apply_recommended_spacing"), 0, 0)) {
+            ctx.pushEditSnapshot();
+            PowerLineSpacingPolicy.applyStyleDefaultSpacing(line, profile);
+            ctx.invalidatePreview();
+        }
     }
 
     private void renderAutoAddedPoles(PowerLineFootprint line) {

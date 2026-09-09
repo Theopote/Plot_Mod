@@ -2,6 +2,7 @@ package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.PowerLineSagUtils;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.style.PowerLineSpacingPolicy;
 
 /** 玩家友好的线路参数预设（内部仍映射到 footprint 数值）。 */
 public final class PowerLineUiPresets {
@@ -13,26 +14,11 @@ public final class PowerLineUiPresets {
     public static final float ADVANCED_MAX_SAG_DEPTH_MAX = 64f;
     private static final double SAG_MATCH_TOLERANCE = 0.01;
 
+    /** 相对当前风格性格的疏松 / 标准 / 紧凑档距。 */
     public enum SpacingDensity {
-        DENSE(12.0, 4.0),
-        NORMAL(20.0, 6.0),
-        SPARSE(30.0, 10.0);
-
-        private final double maxSpacing;
-        private final double minSpacing;
-
-        SpacingDensity(double maxSpacing, double minSpacing) {
-            this.maxSpacing = maxSpacing;
-            this.minSpacing = minSpacing;
-        }
-
-        public double maxSpacing() {
-            return maxSpacing;
-        }
-
-        public double minSpacing() {
-            return minSpacing;
-        }
+        DENSE,
+        NORMAL,
+        SPARSE
     }
 
     public enum WireSag {
@@ -56,17 +42,7 @@ public final class PowerLineUiPresets {
     }
 
     public static SpacingDensity detectSpacing(PowerLineFootprint line) {
-        if (line == null) {
-            return SpacingDensity.NORMAL;
-        }
-        double max = line.getMaxPoleSpacing();
-        if (max <= 14.0) {
-            return SpacingDensity.DENSE;
-        }
-        if (max >= 26.0) {
-            return SpacingDensity.SPARSE;
-        }
-        return SpacingDensity.NORMAL;
+        return PowerLineSpacingPolicy.detectDensity(line);
     }
 
     public static WireSag detectSag(PowerLineFootprint line) {
@@ -87,8 +63,7 @@ public final class PowerLineUiPresets {
     }
 
     public static void applySpacing(PowerLineFootprint line, SpacingDensity density) {
-        line.setMaxPoleSpacing(density.maxSpacing());
-        line.setMinPoleSpacing(density.minSpacing());
+        PowerLineSpacingPolicy.applyDensity(line, density);
     }
 
     public static void applySag(PowerLineFootprint line, WireSag sag) {

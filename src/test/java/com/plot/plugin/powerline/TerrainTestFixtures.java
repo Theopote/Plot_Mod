@@ -219,8 +219,8 @@ public final class TerrainTestFixtures {
 
     public static PowerLineFootprint rollingHillLine() {
         PowerLineFootprint line = WireTestSupport.horizontalLine(60.0);
-        line.setMaxPoleSpacing(80.0);
         PowerLineStylePresetCatalog.classicWood().apply(line);
+        line.setMaxPoleSpacing(80.0);
         line.setSagRatio(0.15);
         return line;
     }

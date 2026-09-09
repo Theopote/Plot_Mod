@@ -116,7 +116,8 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:oak_fence"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.NATURAL,
-            PowerLineStylePreset.ConductorLayout.SINGLE);
+            PowerLineStylePreset.ConductorLayout.SINGLE,
+            PoleSpacingProfile.streetWood());
     }
 
     /** @deprecated 使用 {@link #classicWood()} */
@@ -136,7 +137,8 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:oak_fence"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.NATURAL,
-            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
+            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL,
+            new PoleSpacingProfile(20, 35, 50));
     }
 
     public static PowerLineStylePreset urbanConcrete() {
@@ -150,7 +152,8 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:stone_bricks"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.LIGHT,
-            PowerLineStylePreset.ConductorLayout.SINGLE);
+            PowerLineStylePreset.ConductorLayout.SINGLE,
+            new PoleSpacingProfile(20, 40, 60));
     }
 
     public static PowerLineStylePreset simpleSteel() {
@@ -164,7 +167,8 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:iron_block"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.LIGHT,
-            PowerLineStylePreset.ConductorLayout.SINGLE);
+            PowerLineStylePreset.ConductorLayout.SINGLE,
+            new PoleSpacingProfile(30, 60, 90));
     }
 
     /** @deprecated 使用 {@link #simpleSteel()} */
@@ -184,7 +188,8 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:iron_bars"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.STRAIGHT,
-            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
+            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL,
+            new PoleSpacingProfile(25, 45, 65));
     }
 
     public static PowerLineStylePreset compactLattice() {
@@ -198,7 +203,8 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:iron_bars"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.NATURAL,
-            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
+            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL,
+            new PoleSpacingProfile(50, 90, 140));
     }
 
     public static PowerLineStylePreset classicLattice() {
@@ -212,7 +218,8 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:iron_bars"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.NATURAL,
-            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
+            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL,
+            new PoleSpacingProfile(100, 200, 300));
     }
 
     public static PowerLineStylePreset heavyLattice() {
@@ -226,7 +233,8 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:iron_block"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.NATURAL,
-            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
+            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL,
+            new PoleSpacingProfile(70, 130, 200));
     }
 
     public static PowerLineStylePreset smartTowers() {
@@ -240,7 +248,8 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:iron_block"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.STRAIGHT,
-            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
+            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL,
+            new PoleSpacingProfile(100, 200, 300));
     }
 
     public static PowerLineStylePreset taperedTower() {
@@ -254,7 +263,8 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:iron_bars"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.LIGHT,
-            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
+            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL,
+            new PoleSpacingProfile(70, 130, 200));
     }
 
     public static PowerLineStylePreset fantasyCopper() {
@@ -268,7 +278,8 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:copper_block"),
             MaterialMix.single("minecraft:lightning_rod"),
             PowerLineUiPresets.WireSag.LOOSE,
-            PowerLineStylePreset.ConductorLayout.SINGLE);
+            PowerLineStylePreset.ConductorLayout.SINGLE,
+            new PoleSpacingProfile(30, 60, 90));
     }
 
     public static PowerLineStylePreset japaneseStreet() {
@@ -282,7 +293,8 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:dark_oak_fence"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.LIGHT,
-            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
+            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL,
+            new PoleSpacingProfile(15, 30, 45));
     }
 
     public static PowerLineStylePreset wastelandWind() {
@@ -296,7 +308,8 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:weathered_copper"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.LOOSE,
-            PowerLineStylePreset.ConductorLayout.SINGLE);
+            PowerLineStylePreset.ConductorLayout.SINGLE,
+            new PoleSpacingProfile(30, 60, 90));
     }
 
     public static PowerLineStylePreset oldEuropean() {
@@ -310,7 +323,8 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:birch_fence"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.NATURAL,
-            PowerLineStylePreset.ConductorLayout.SINGLE);
+            PowerLineStylePreset.ConductorLayout.SINGLE,
+            PoleSpacingProfile.streetWood());
     }
 
     public static PowerLineStylePreset steampunkBrass() {
@@ -324,7 +338,8 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:copper_block"),
             MaterialMix.single("minecraft:lightning_rod"),
             PowerLineUiPresets.WireSag.NATURAL,
-            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
+            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL,
+            new PoleSpacingProfile(70, 130, 200));
     }
 
     public static PowerLineStylePreset modernHvGlass() {
@@ -338,7 +353,8 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:iron_block"),
             MaterialMix.single("minecraft:light_blue_stained_glass"),
             PowerLineUiPresets.WireSag.STRAIGHT,
-            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
+            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL,
+            new PoleSpacingProfile(100, 200, 300));
     }
 
     public static PowerLineStylePreset suburbanLamp() {
@@ -352,7 +368,8 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:iron_bars"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.LIGHT,
-            PowerLineStylePreset.ConductorLayout.SINGLE);
+            PowerLineStylePreset.ConductorLayout.SINGLE,
+            new PoleSpacingProfile(30, 60, 90));
     }
 
     public static PowerLineStylePreset abandoned() {
@@ -366,7 +383,8 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:mossy_cobblestone"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.LOOSE,
-            PowerLineStylePreset.ConductorLayout.SINGLE);
+            PowerLineStylePreset.ConductorLayout.SINGLE,
+            PoleSpacingProfile.streetWood());
     }
 
     public static PowerLineStylePreset rustic() {
@@ -380,7 +398,8 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:spruce_fence"),
             MaterialMix.single("minecraft:vine"),
             PowerLineUiPresets.WireSag.LOOSE,
-            PowerLineStylePreset.ConductorLayout.SINGLE);
+            PowerLineStylePreset.ConductorLayout.SINGLE,
+            PoleSpacingProfile.streetWood());
     }
 
     private static PowerLineStylePreset preset(
@@ -393,7 +412,8 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix poleMaterial,
             MaterialMix groundWireMaterial,
             PowerLineUiPresets.WireSag sagPreset,
-            PowerLineStylePreset.ConductorLayout conductorLayout) {
+            PowerLineStylePreset.ConductorLayout conductorLayout,
+            PoleSpacingProfile spacingProfile) {
         return new PowerLineStylePreset(
             id,
             labelKey,
@@ -404,6 +424,7 @@ public final class PowerLineStylePresetCatalog {
             poleMaterial,
             groundWireMaterial,
             sagPreset,
-            conductorLayout);
+            conductorLayout,
+            spacingProfile);
     }
 }

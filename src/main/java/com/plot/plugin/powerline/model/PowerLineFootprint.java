@@ -16,13 +16,17 @@ import java.util.UUID;
 public class PowerLineFootprint {
     public static final String DEFAULT_POLE_MATERIAL = "minecraft:oak_fence";
     public static final String DEFAULT_WIRE_MATERIAL = "minecraft:iron_bars";
+    /** 玩家可在 Route 高级区配置的最小间距下限（格）。 */
+    public static final double MIN_CONFIGURABLE_SPACING = 5.0;
+    /** 高级滑块绝对上限（格）。 */
+    public static final double ABSOLUTE_MAX_POLE_SPACING = 300.0;
 
     private final String id;
     private String name;
     private List<Vec2d> pathPoints = new ArrayList<>();
     private String roadId;
-    private double minPoleSpacing = 6.0;
-    private double maxPoleSpacing = 20.0;
+    private double minPoleSpacing = 15.0;
+    private double maxPoleSpacing = 30.0;
     private double cornerAngleThreshold = 5.0;
     private double poleHeight = 10.0;
     private double sagRatio = 0.15;
@@ -41,6 +45,8 @@ public class PowerLineFootprint {
     private boolean engineeringAnalysisEnabled = false;
     private boolean terrainAvoidanceEnabled = false;
     private boolean automaticTowerSelectionEnabled;
+    /** 玩家曾在 Route 高级区手工调整间距；切换风格时不自动覆盖。 */
+    private boolean spacingCustomized;
 
     public PowerLineFootprint(List<Vec2d> pathPoints) {
         this.id = UUID.randomUUID().toString();
@@ -93,7 +99,7 @@ public class PowerLineFootprint {
     }
 
     public void setMinPoleSpacing(double minPoleSpacing) {
-        this.minPoleSpacing = Math.max(1.0, minPoleSpacing);
+        this.minPoleSpacing = Math.max(MIN_CONFIGURABLE_SPACING, minPoleSpacing);
         if (this.maxPoleSpacing < this.minPoleSpacing) {
             this.maxPoleSpacing = this.minPoleSpacing;
         }
@@ -104,7 +110,9 @@ public class PowerLineFootprint {
     }
 
     public void setMaxPoleSpacing(double maxPoleSpacing) {
-        this.maxPoleSpacing = Math.max(getMinPoleSpacing(), maxPoleSpacing);
+        this.maxPoleSpacing = Math.min(
+            ABSOLUTE_MAX_POLE_SPACING,
+            Math.max(getMinPoleSpacing(), maxPoleSpacing));
     }
 
     public double getCornerAngleThreshold() {
@@ -316,6 +324,14 @@ public class PowerLineFootprint {
         this.automaticTowerSelectionEnabled = automaticTowerSelectionEnabled;
     }
 
+    public boolean isSpacingCustomized() {
+        return spacingCustomized;
+    }
+
+    public void setSpacingCustomized(boolean spacingCustomized) {
+        this.spacingCustomized = spacingCustomized;
+    }
+
     public double computePathLength() {
         double length = 0.0;
         for (int i = 1; i < pathPoints.size(); i++) {
@@ -357,6 +373,7 @@ public class PowerLineFootprint {
         hash = 31 * hash + Boolean.hashCode(engineeringAnalysisEnabled);
         hash = 31 * hash + Boolean.hashCode(terrainAvoidanceEnabled);
         hash = 31 * hash + Boolean.hashCode(automaticTowerSelectionEnabled);
+        hash = 31 * hash + Boolean.hashCode(spacingCustomized);
         return hash;
     }
 

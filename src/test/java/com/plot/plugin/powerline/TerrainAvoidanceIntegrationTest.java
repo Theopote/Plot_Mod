@@ -25,8 +25,8 @@ class TerrainAvoidanceIntegrationTest {
     @Test
     void saggingSpanDetectsCollisionInValley() {
         PowerLineFootprint line = WireTestSupport.horizontalLine(60.0);
-        line.setMaxPoleSpacing(80.0);
         PowerLineStylePresetCatalog.classicWood().apply(line);
+        line.setMaxPoleSpacing(80.0);
         line.setSagRatio(0.28);
 
         TerrainSampler terrain = TerrainTestFixtures.valley(72, 66, 30.0, 18.0);
@@ -38,8 +38,8 @@ class TerrainAvoidanceIntegrationTest {
     @Test
     void flatTerrainLinePassesWithoutTerrainIssues() {
         PowerLineFootprint line = WireTestSupport.horizontalLine(60.0);
-        line.setMaxPoleSpacing(80.0);
         PowerLineStylePresetCatalog.classicWood().apply(line);
+        line.setMaxPoleSpacing(80.0);
         line.setSagRatio(0.03);
 
         PowerLineGenerationResult result = TerrainTestFixtures.generate(
@@ -64,8 +64,8 @@ class TerrainAvoidanceIntegrationTest {
     @Test
     void fixLoopDoesNotMutateLineWhenAlreadyClear() {
         PowerLineFootprint line = WireTestSupport.horizontalLine(60.0);
-        line.setMaxPoleSpacing(80.0);
         PowerLineStylePresetCatalog.classicWood().apply(line);
+        line.setMaxPoleSpacing(80.0);
         line.setSagRatio(0.03);
 
         assertTrue(TerrainTestFixtures.applyTerrainFix(line, TerrainTestFixtures.flatTerrain(64), 2));
@@ -87,8 +87,8 @@ class TerrainAvoidanceIntegrationTest {
     @Test
     void cliffCrossingCanFailClearanceWithoutMidPole() {
         PowerLineFootprint line = WireTestSupport.horizontalLine(40.0);
-        line.setMaxPoleSpacing(80.0);
         PowerLineStylePresetCatalog.classicWood().apply(line);
+        line.setMaxPoleSpacing(80.0);
         line.setSagRatio(0.10);
 
         TerrainSampler terrain = TerrainTestFixtures.cliff(64, 82, 20.0);

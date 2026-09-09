@@ -1,8 +1,10 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.style.PowerLineSpacingPolicy;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
+import com.plot.plugin.powerline.style.PoleSpacingProfile;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -45,6 +47,7 @@ public final class PowerLineStylePanel {
             renderStylePresetGrid(line, PowerLineStylePresetCatalog.engineeringPresets());
         }
         renderStylePresetStatus(line);
+        renderSpacingRecommendation(line);
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.powerline.style.section.wire"));
         renderSagPresets(line);
@@ -82,6 +85,28 @@ public final class PowerLineStylePanel {
                     PlotI18n.tr(active.getLabelKey())));
         } else {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.style.custom"));
+        }
+    }
+
+    private void renderSpacingRecommendation(PowerLineFootprint line) {
+        PowerLineStylePreset active = PowerLineStylePresetCatalog.activePreset(line);
+        if (active == null || !line.isSpacingCustomized()) {
+            return;
+        }
+        if (!PowerLineSpacingPolicy.differsFromStyleRecommendation(line, active)) {
+            return;
+        }
+        PoleSpacingProfile profile = active.getSpacingProfile();
+        ImGui.textColored(
+            PluginUiColors.WARNING,
+            PlotI18n.tr(
+                "plugin.powerline.style.spacing_recommendation",
+                profile.preferred(),
+                line.getMaxPoleSpacing()));
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.style.apply_recommended_spacing"), 0, 0)) {
+            ctx.pushEditSnapshot();
+            PowerLineSpacingPolicy.applyStyleDefaultSpacing(line, profile);
+            ctx.invalidatePreview();
         }
     }
 

@@ -71,6 +71,24 @@ class PowerLineStyleConsistencyTest {
 
     @ParameterizedTest
     @MethodSource("allPresets")
+    void styleApplySetsSpacingCharacter(PowerLineStylePreset preset) {
+        PowerLineFootprint line = sampleLine();
+        preset.apply(line);
+
+        assertEquals(
+            preset.getSpacingProfile().recommendedMin(),
+            line.getMinPoleSpacing(),
+            0.01,
+            preset.getId() + " min spacing");
+        assertEquals(
+            preset.getSpacingProfile().preferred(),
+            line.getMaxPoleSpacing(),
+            0.01,
+            preset.getId() + " preferred spacing");
+    }
+
+    @ParameterizedTest
+    @MethodSource("allPresets")
     void sagPresetApplied(PowerLineStylePreset preset) {
         PowerLineFootprint line = sampleLine();
         preset.apply(line);

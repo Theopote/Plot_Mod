@@ -25,6 +25,14 @@ class PowerLineFootprintTest {
     }
 
     @Test
+    void minSpacingCannotGoBelowConfigurableFloor() {
+        PowerLineFootprint footprint = new PowerLineFootprint(
+            List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
+        footprint.setMinPoleSpacing(2.0);
+        assertEquals(PowerLineFootprint.MIN_CONFIGURABLE_SPACING, footprint.getMinPoleSpacing(), 1e-6);
+    }
+
+    @Test
     void loweringMaxSpacingKeepsMinWithinBounds() {
         PowerLineFootprint footprint = new PowerLineFootprint(
             java.util.List.of(
