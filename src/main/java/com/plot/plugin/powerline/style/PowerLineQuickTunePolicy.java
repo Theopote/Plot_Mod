@@ -49,10 +49,18 @@ public final class PowerLineQuickTunePolicy {
     }
 
     public static boolean supportsPoleHeightTune(PowerLineFootprint line) {
+        return supportsPoleHeightTune(line, null);
+    }
+
+    public static boolean supportsPoleHeightTune(PowerLineFootprint line, PoleDesignResolver resolver) {
         if (line == null || line.hasTowerFamily()) {
             return false;
         }
-        return !line.hasPoleDesign() || hasColumnLayers(resolveDesign(line, null));
+        if (!line.hasPoleDesign()) {
+            return true;
+        }
+        PoleDesign design = resolveDesign(line, resolver);
+        return design != null && hasColumnLayers(design);
     }
 
     public static boolean supportsCrossarmTune(PowerLineFootprint line, PoleDesignResolver resolver) {
@@ -67,7 +75,7 @@ public final class PowerLineQuickTunePolicy {
             PowerLineFootprint line,
             PowerLineStylePreset base,
             PoleDesignResolver resolver) {
-        if (!supportsPoleHeightTune(line)) {
+        if (!supportsPoleHeightTune(line, resolver)) {
             return null;
         }
         if (!line.hasPoleDesign()) {
@@ -251,6 +259,9 @@ public final class PowerLineQuickTunePolicy {
     }
 
     private static int sumColumnHeight(PoleDesign design) {
+        if (design == null || design.getLayers() == null) {
+            return 0;
+        }
         int total = 0;
         for (PoleLayer layer : design.getLayers()) {
             if (layer.getShape() == PoleLayer.Shape.COLUMN) {
@@ -261,6 +272,9 @@ public final class PowerLineQuickTunePolicy {
     }
 
     private static int maxCrossarmLength(PoleDesign design) {
+        if (design == null || design.getLayers() == null) {
+            return 0;
+        }
         int max = 0;
         for (PoleLayer layer : design.getLayers()) {
             if (layer.getShape() == PoleLayer.Shape.CROSSARM) {
@@ -271,6 +285,9 @@ public final class PowerLineQuickTunePolicy {
     }
 
     private static int countColumnLayers(PoleDesign design) {
+        if (design == null || design.getLayers() == null) {
+            return 0;
+        }
         int count = 0;
         for (PoleLayer layer : design.getLayers()) {
             if (layer.getShape() == PoleLayer.Shape.COLUMN) {

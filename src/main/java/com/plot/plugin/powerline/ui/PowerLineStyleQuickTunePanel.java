@@ -17,6 +17,7 @@ import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiTreeNodeFlags;
 
 /** Base preset 下的 Quick Customize（Tower / Wires 分区）。 */
@@ -90,7 +91,7 @@ public final class PowerLineStyleQuickTunePanel {
         ImGui.text(PlotI18n.tr("plugin.powerline.style.section.tower_tune"));
         ImGui.separator();
         renderTowerStyleRow(line);
-        if (PowerLineQuickTunePolicy.supportsPoleHeightTune(line)) {
+        if (PowerLineQuickTunePolicy.supportsPoleHeightTune(line, ctx.designResolver())) {
             renderPoleHeightRow(line, base);
         }
         if (PowerLineQuickTunePolicy.supportsCrossarmTune(line, ctx.designResolver())) {
@@ -191,9 +192,10 @@ public final class PowerLineStyleQuickTunePanel {
     }
 
     private void renderGroundWireInAdvanced(PowerLineFootprint line) {
-        if (!ImGui.treeNodeEx(
+        ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
+        if (!ImGui.collapsingHeader(
                 PlotI18n.tr("plugin.powerline.style.quick_tune.ground_wire"),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
+                ImGuiTreeNodeFlags.None)) {
             return;
         }
         PowerLineUiWidgets.renderMaterialMixPicker(
@@ -207,7 +209,6 @@ public final class PowerLineStyleQuickTunePanel {
                 PowerLineStyleEditor.afterStyleEdit(line);
                 ctx.invalidatePreview();
             });
-        ImGui.treePop();
     }
 
     private void renderFooter(PowerLineFootprint line, PowerLineStylePreset base) {

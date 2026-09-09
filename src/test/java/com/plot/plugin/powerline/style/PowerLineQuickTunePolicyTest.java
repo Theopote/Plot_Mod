@@ -55,4 +55,12 @@ class PowerLineQuickTunePolicyTest {
         assertFalse(PowerLineQuickTunePolicy.supportsPoleHeightTune(line));
         assertFalse(PowerLineQuickTunePolicy.supportsCrossarmTune(line, null));
     }
+
+    @Test
+    void missingPoleDesignDoesNotThrow() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
+        line.setPoleDesignId("missing-design-id");
+        assertFalse(PowerLineQuickTunePolicy.supportsPoleHeightTune(line));
+        assertFalse(PowerLineQuickTunePolicy.supportsCrossarmTune(line, null));
+    }
 }
