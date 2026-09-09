@@ -87,6 +87,9 @@ public final class PowerLineActions {
                 List<Vec2d> points = PowerLinePathUtils.extractPathPoints(shape);
                 PowerLineFootprint line = new PowerLineFootprint(points);
                 line.setName(PlotI18n.tr("plugin.powerline.default_name", adopted + 1));
+                com.plot.plugin.powerline.style.PowerLineStyleEditor.selectPreset(
+                    line,
+                    com.plot.plugin.powerline.style.PowerLineStylePresetCatalog.classicWood());
                 state.getProject().addLine(line);
                 adoptedIds.add(line.getId());
                 adopted++;
@@ -308,7 +311,7 @@ public final class PowerLineActions {
             return;
         }
         TerrainSampler terrain = MinecraftTerrainSampler.of(world, host.coordinates());
-        boolean adjusted = false;
+        int fixesApplied = 0;
         for (int attempt = 0; attempt < 4; attempt++) {
             PowerLineGenerationResult result = state.getLastGenerationResult();
             if (result == null) {
@@ -318,23 +321,38 @@ public final class PowerLineActions {
                 .analyzeCollisions(result.toGeometryModel(), terrain);
             storeTerrainReport(report);
             if (!com.plot.plugin.powerline.engineering.TerrainAvoidance.hasTerrainIssues(report)) {
-                if (adjusted) {
-                    state.setProjectStatus(PlotI18n.tr("plugin.powerline.terrain.auto_fixed"));
-                }
+                applyTerrainFixStatus(fixesApplied, 0);
                 return;
             }
             if (!com.plot.plugin.powerline.engineering.TerrainAvoidance.applyOneFix(
                     line, report, result, designResolver())) {
-                state.setProjectStatus(PlotI18n.tr("plugin.powerline.terrain.manual_needed"));
+                applyTerrainFixStatus(
+                    fixesApplied,
+                    com.plot.plugin.powerline.engineering.TerrainAvoidance.countTerrainIssues(report));
                 return;
             }
-            adjusted = true;
+            fixesApplied++;
             if (!calculatePreviewCore(line)) {
                 return;
             }
         }
-        if (adjusted) {
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.terrain.auto_fixed"));
+        PowerLineGenerationResult finalResult = state.getLastGenerationResult();
+        if (finalResult == null) {
+            return;
+        }
+        PowerLineValidationReport finalReport = com.plot.plugin.powerline.engineering.TerrainAvoidance
+            .analyzeCollisions(finalResult.toGeometryModel(), terrain);
+        storeTerrainReport(finalReport);
+        applyTerrainFixStatus(
+            fixesApplied,
+            com.plot.plugin.powerline.engineering.TerrainAvoidance.countTerrainIssues(finalReport));
+    }
+
+    private void applyTerrainFixStatus(int fixesApplied, int remainingIssues) {
+        String message = com.plot.plugin.powerline.engineering.TerrainAvoidance
+            .resolveStatusMessage(fixesApplied, remainingIssues);
+        if (message != null) {
+            state.setProjectStatus(message);
         }
     }
 

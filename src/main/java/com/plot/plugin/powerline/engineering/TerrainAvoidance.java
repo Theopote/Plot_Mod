@@ -63,11 +63,41 @@ public final class TerrainAvoidance {
     }
 
     public static boolean hasTerrainIssues(PowerLineValidationReport report) {
+        return countTerrainIssues(report) > 0;
+    }
+
+    /** 地形碰撞 / 净空问题数量。 */
+    public static int countTerrainIssues(PowerLineValidationReport report) {
         if (report == null) {
-            return false;
+            return 0;
         }
-        return report.getIssues().stream()
-            .anyMatch(issue -> EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM.equals(issue.ruleId()));
+        int count = 0;
+        for (PowerLineIssue issue : report.getIssues()) {
+            if (EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM.equals(issue.ruleId())) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * 自动修正结束后的状态文案：完全修复 / 部分修复 / 需手动。
+     *
+     * @return i18n 状态字符串；未做任何修正且无问题时返回 {@code null}
+     */
+    public static String resolveStatusMessage(int fixesApplied, int remainingIssues) {
+        if (remainingIssues <= 0) {
+            return fixesApplied > 0
+                ? com.plot.utils.PlotI18n.tr("plugin.powerline.terrain.auto_fixed")
+                : null;
+        }
+        if (fixesApplied > 0) {
+            return com.plot.utils.PlotI18n.tr(
+                "plugin.powerline.terrain.partially_fixed",
+                fixesApplied,
+                remainingIssues);
+        }
+        return com.plot.utils.PlotI18n.tr("plugin.powerline.terrain.manual_needed");
     }
 
     private static boolean tryTallerTower(
