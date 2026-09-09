@@ -186,6 +186,21 @@ public final class EngineeringTerrainService {
         }
     }
 
+    /**
+     * 导线碰撞检测：任意非空气、非流体方块（含自然附着物与人工构筑）。
+     */
+    public boolean isWireObstruction(int worldX, int y, int worldZ) {
+        if (world == null || !isChunkLoaded(worldX, worldZ)) {
+            return false;
+        }
+        try {
+            EngineeringTerrainBlockRole role = classifyBlock(world.getBlockState(new BlockPos(worldX, y, worldZ)));
+            return role != EngineeringTerrainBlockRole.AIR && role != EngineeringTerrainBlockRole.FLUID;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public boolean isClearableNaturalDecoration(int worldX, int y, int worldZ) {
         if (world == null || !isChunkLoaded(worldX, worldZ)) {
             return false;

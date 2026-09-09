@@ -83,8 +83,18 @@ class PowerLineGeneratorDesignTest {
             }
 
             @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return sampleSurfaceY(planPoint);
+            }
+
+            @Override
             public boolean isSolidBlock(int worldX, int y, int worldZ) {
                 return false;
+            }
+
+            @Override
+            public boolean isWireObstruction(int worldX, int blockY, int worldZ) {
+                return blockY <= sampleSurfaceY(new Vec2d(worldX, worldZ));
             }
         };
 

@@ -42,11 +42,21 @@ class TerrainAvoidanceTest {
 
     @Test
     void clearanceAtSafetyMarginPasses() {
-        ConductorSpanGeometry span = spanSample(new Vec2d(10, 0), 64 + TerrainAvoidance.SAFETY_MARGIN_BLOCKS);
+        double groundTop = 64 + 1;
+        ConductorSpanGeometry span = spanSample(new Vec2d(10, 0), groundTop + TerrainAvoidance.SAFETY_MARGIN_BLOCKS);
         LineEngineeringReport report = TerrainAvoidance.analyzeCollisions(
             geometry(span),
             TerrainTestFixtures.flatTerrain(64));
         assertFalse(TerrainAvoidance.hasTerrainIssues(report));
+    }
+
+    @Test
+    void detectsWireThroughOverheadObstructionMissedBySurfaceY() {
+        ConductorSpanGeometry span = spanSample(new Vec2d(10, 0), 70.0);
+        LineEngineeringReport report = TerrainAvoidance.analyzeCollisions(
+            geometry(span),
+            TerrainTestFixtures.groundWithOverheadObstruction(64, 70));
+        assertTrue(TerrainAvoidance.hasTerrainIssues(report));
     }
 
     @Test

@@ -29,7 +29,17 @@ public final class TerrainTestFixtures {
             }
 
             @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return y;
+            }
+
+            @Override
             public boolean isSolidBlock(int worldX, int blockY, int worldZ) {
+                return blockY <= y;
+            }
+
+            @Override
+            public boolean isWireObstruction(int worldX, int blockY, int worldZ) {
                 return blockY <= y;
             }
         };
@@ -55,10 +65,43 @@ public final class TerrainTestFixtures {
             public boolean isSolidBlock(int worldX, int blockY, int worldZ) {
                 return false;
             }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return sampleSurfaceY(planPoint);
+            }
+
+            @Override
+            public boolean isWireObstruction(int worldX, int blockY, int worldZ) {
+                return blockY <= sampleSurfaceY(new Vec2d(worldX, worldZ));
+            }
         };
     }
 
-    /** 两端高、中间低的谷地（V 形剖面）。 */
+    /** 工程地面低、但柱顶有树/建筑障碍（sampleSurfaceY 仍返回地面）。 */
+    public static TerrainSampler groundWithOverheadObstruction(int groundY, int obstructionY) {
+        return new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return groundY;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return obstructionY;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int blockY, int worldZ) {
+                return blockY <= groundY;
+            }
+
+            @Override
+            public boolean isWireObstruction(int worldX, int blockY, int worldZ) {
+                return blockY <= groundY || blockY == obstructionY;
+            }
+        };
+    }
     public static TerrainSampler valley(int rimY, int floorY, double centerX, double halfWidth) {
         return new TerrainSampler() {
             @Override
@@ -78,6 +121,16 @@ public final class TerrainTestFixtures {
             public boolean isSolidBlock(int worldX, int blockY, int worldZ) {
                 return false;
             }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return sampleSurfaceY(planPoint);
+            }
+
+            @Override
+            public boolean isWireObstruction(int worldX, int blockY, int worldZ) {
+                return blockY <= sampleSurfaceY(new Vec2d(worldX, worldZ));
+            }
         };
     }
 
@@ -92,6 +145,16 @@ public final class TerrainTestFixtures {
             @Override
             public boolean isSolidBlock(int worldX, int blockY, int worldZ) {
                 return false;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return sampleSurfaceY(planPoint);
+            }
+
+            @Override
+            public boolean isWireObstruction(int worldX, int blockY, int worldZ) {
+                return blockY <= sampleSurfaceY(new Vec2d(worldX, worldZ));
             }
         };
     }

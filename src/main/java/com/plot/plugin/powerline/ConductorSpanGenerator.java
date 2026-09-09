@@ -7,6 +7,7 @@ import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.powerline.design.AttachmentRole;
+import com.plot.plugin.powerline.engineering.clearance.WireClearance;
 import com.plot.plugin.powerline.geometry.ConductorSample;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -198,7 +199,7 @@ public final class ConductorSpanGenerator {
         }
 
         for (int i = 0; i < sampleCount; i++) {
-            checkClearance(planPoints[i], (int) Math.round(worldY[i]), terrain, result);
+            checkClearance(worldX[i], worldY[i], worldZ[i], planPoints[i], terrain, result);
         }
 
         for (BlockPos pos : wireBlocks) {
@@ -272,7 +273,7 @@ public final class ConductorSpanGenerator {
         }
 
         for (int i = 0; i < sampleCount; i++) {
-            checkClearance(planPoints[i], (int) Math.round(worldY[i]), terrain, result);
+            checkClearance(worldX[i], worldY[i], worldZ[i], planPoints[i], terrain, result);
         }
 
         for (BlockPos pos : wireBlocks) {
@@ -313,20 +314,22 @@ public final class ConductorSpanGenerator {
     }
 
     private static void checkClearance(
+            double worldX,
+            double worldY,
+            double worldZ,
             Vec2d planPoint,
-            int wireY,
             TerrainSampler terrain,
             PowerLineGenerationResult result) {
-        if (terrain == null) {
+        if (terrain == null || planPoint == null) {
             return;
         }
-        int groundY = terrain.sampleSurfaceY(planPoint);
-        if (wireY < groundY + CLEARANCE_MARGIN) {
+        double clearance = WireClearance.computeSampleClearance(worldX, worldY, worldZ, planPoint, terrain);
+        if (clearance < CLEARANCE_MARGIN) {
             result.warnings.add(PowerLineGenerationI18n.clearanceAtPoint(
                 planPoint.x,
                 planPoint.y,
-                wireY,
-                groundY));
+                (int) Math.round(worldY),
+                (int) Math.round(worldY - clearance)));
         }
     }
 

@@ -81,6 +81,16 @@ class PowerLineEngineeringTest {
             public boolean isSolidBlock(int worldX, int y, int worldZ) {
                 return false;
             }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return sampleSurfaceY(planPoint);
+            }
+
+            @Override
+            public boolean isWireObstruction(int worldX, int y, int worldZ) {
+                return y <= (worldX > 30 ? 70 : 64);
+            }
         };
         var analysis = ClearanceChecker.analyzeSpan(span, terrain);
         assertTrue(analysis.getMinimumClearance() < 6.0);
@@ -105,9 +115,20 @@ class PowerLineEngineeringTest {
             public boolean isSolidBlock(int worldX, int y, int worldZ) {
                 return false;
             }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return sampleSurfaceY(planPoint);
+            }
+
+            @Override
+            public boolean isWireObstruction(int worldX, int y, int worldZ) {
+                int surface = worldX > 25 && worldX < 35 ? 64 : 50;
+                return y <= surface;
+            }
         };
         var analysis = ClearanceChecker.analyzeSpan(span, terrain);
-        assertEquals(1.0, analysis.getMinimumClearance(), 0.5);
+        assertEquals(0.0, analysis.getMinimumClearance(), 0.5);
         assertTrue(analysis.getCriticalLocation().x >= 25 && analysis.getCriticalLocation().x <= 35);
     }
 
@@ -297,17 +318,7 @@ class PowerLineEngineeringTest {
     }
 
     private static TerrainSampler flatTerrain(int y) {
-        return new TerrainSampler() {
-            @Override
-            public int sampleSurfaceY(Vec2d planPoint) {
-                return y;
-            }
-
-            @Override
-            public boolean isSolidBlock(int worldX, int y, int worldZ) {
-                return false;
-            }
-        };
+        return TerrainTestFixtures.flatTerrain(y);
     }
 
     private static ICoordinateService identityCoordinates() {

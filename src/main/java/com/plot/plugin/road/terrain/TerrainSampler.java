@@ -22,8 +22,17 @@ public interface TerrainSampler {
 
     /**
      * 世界方块坐标处是否为实心方块（非空气）。
+     * <p>
+     * 道路/土方语义：仅 {@link com.plot.core.terrain.EngineeringTerrainService#isSolidEngineeringBlock} 等工程自然地体。
      */
     boolean isSolidBlock(int worldX, int y, int worldZ);
+
+    /**
+     * 导线净空检测：该位置是否为阻挡导线的实心体（含树木、人工构筑等，不含空气与流体）。
+     */
+    default boolean isWireObstruction(int worldX, int y, int worldZ) {
+        return isSolidBlock(worldX, y, worldZ);
+    }
 
     /** Highest block that may need inspection/clearing; defaults to the engineering surface. */
     default int sampleColumnTopY(Vec2d planPoint) {

@@ -42,6 +42,11 @@ public final class MinecraftTerrainSampler implements TerrainSampler {
     }
 
     @Override
+    public boolean isWireObstruction(int worldX, int y, int worldZ) {
+        return terrainService.isWireObstruction(worldX, y, worldZ);
+    }
+
+    @Override
     public int sampleColumnTopY(Vec2d planPoint) {
         if (planPoint == null) {
             return DEFAULT_SEA_LEVEL;

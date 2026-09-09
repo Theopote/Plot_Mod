@@ -29,12 +29,11 @@ public final class ClearanceChecker {
         int criticalTerrainY = 0;
 
         for (ConductorSample sample : span.getSamples()) {
-            int terrainY = terrain.sampleSurfaceY(sample.planPoint());
-            double clearance = sample.worldY() - terrainY;
+            double clearance = WireClearanceMath.computeSampleClearance(sample, terrain);
             if (clearance < minClearance) {
                 minClearance = clearance;
                 critical = sample;
-                criticalTerrainY = terrainY;
+                criticalTerrainY = WireClearanceMath.obstructionTopY(sample, terrain);
             }
         }
 
