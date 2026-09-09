@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
+import com.plot.plugin.powerline.equipment.InsulatorType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -115,7 +116,7 @@ public class PoleDesign {
 
     /** 为无挂点的旧设计/自定义杆型补上单导线挂点。 */
     public void ensureDefaultConductorAttachments() {
-        if (hasEnabledAttachments()) {
+        if (attachments != null && !attachments.isEmpty()) {
             return;
         }
         double offset = totalHeight();
@@ -230,6 +231,8 @@ public class PoleDesign {
         int insulatorLength;
         String bundleVisual;
         String armId;
+        String insulatorType;
+        String insulatorAssemblyId;
         boolean enabled = true;
     }
 
@@ -273,6 +276,8 @@ public class PoleDesign {
                     attachmentData.bundleVisual = attachment.getBundleVisual().name();
                 }
                 attachmentData.armId = attachment.getArmId();
+                attachmentData.insulatorType = attachment.getInsulatorType().name();
+                attachmentData.insulatorAssemblyId = attachment.getInsulatorAssemblyId();
                 attachmentData.enabled = attachment.isEnabled();
                 data.attachments.add(attachmentData);
             }
@@ -323,6 +328,8 @@ public class PoleDesign {
                     attachment.setInsulatorLength(attachmentData.insulatorLength);
                     attachment.setBundleVisual(BundleVisual.parse(attachmentData.bundleVisual));
                     attachment.setArmId(attachmentData.armId);
+                    attachment.setInsulatorType(InsulatorType.parse(attachmentData.insulatorType));
+                    attachment.setInsulatorAssemblyId(attachmentData.insulatorAssemblyId);
                     attachment.setEnabled(attachmentData.enabled);
                     restoredAttachments.add(attachment);
                 }

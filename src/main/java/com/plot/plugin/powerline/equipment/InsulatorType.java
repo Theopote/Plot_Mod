@@ -4,5 +4,16 @@ package com.plot.plugin.powerline.equipment;
 public enum InsulatorType {
     SUSPENSION,
     STRAIN,
-    VERTICAL
+    VERTICAL;
+
+    public static InsulatorType parse(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return SUSPENSION;
+        }
+        try {
+            return valueOf(raw.trim().toUpperCase());
+        } catch (IllegalArgumentException ignored) {
+            return SUSPENSION;
+        }
+    }
 }
