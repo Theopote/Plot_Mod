@@ -28,8 +28,8 @@ class ConductorArrangementTest {
     @Test
     void megaLatticeDesignMatchesArrangementChannelCount() {
         var design = TowerFamilyDesignPresets.megaLatticeSuspension();
-        assertEquals(8, design.getAttachments().size());
-        assertEquals(6, ConductorArrangement.megaIndustrialBundled().phaseConductorCount());
+        assertEquals(5, design.getAttachments().size());
+        assertEquals(3, ConductorArrangement.megaIndustrialBundled().phaseConductorCount());
     }
 
     @Test

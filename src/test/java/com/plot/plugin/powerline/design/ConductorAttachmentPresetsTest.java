@@ -21,20 +21,19 @@ class ConductorAttachmentPresetsTest {
     }
 
     @Test
-    void bundledThreePhaseCreatesSubconductorsPerPhase() {
+    void bundledThreePhaseCreatesLogicalPhaseAttachmentsWithTwinVisual() {
         var attachments = ConductorAttachmentPresets.bundledThreePhaseHorizontal(18, -9, 0, 9, 2, 0.8);
-        assertEquals(6, attachments.size());
-        assertTrue(attachments.stream().anyMatch(a -> "phase_a_1".equals(a.getId())));
-        assertTrue(attachments.stream().anyMatch(a -> "phase_c_2".equals(a.getId())));
+        assertEquals(3, attachments.size());
+        assertTrue(attachments.stream().anyMatch(a -> ConductorAttachmentPresets.PHASE_A_ID.equals(a.getId())));
+        assertTrue(attachments.stream().anyMatch(a -> ConductorAttachmentPresets.PHASE_C_ID.equals(a.getId())));
         assertTrue(attachments.stream()
-            .filter(a -> a.getRole() != AttachmentRole.TOP_WIRE)
             .allMatch(a -> a.getBundleVisual() == BundleVisual.TWIN));
     }
 
     @Test
     void heavyTransmissionDesignHasBundledPhasesAndTwinTopWires() {
         var design = TowerFamilyDesignPresets.hvTransmissionSuspension();
-        assertEquals(8, design.getAttachments().size());
+        assertEquals(5, design.getAttachments().size());
         long topWires = design.getAttachments().stream()
             .filter(a -> a.getRole() == AttachmentRole.TOP_WIRE)
             .count();
@@ -45,13 +44,13 @@ class ConductorAttachmentPresetsTest {
     void heavyLatticePresetExpectsSixPhaseConductors() {
         PowerLineStylePreset preset = PowerLineStylePresetCatalog.heavyLattice();
         assertEquals(TowerFamily.HEAVY_TRANSMISSION_ID, preset.getTowerFamilyId());
-        assertEquals(6, preset.expectedConductorCount());
+        assertEquals(3, preset.expectedConductorCount());
     }
 
     @Test
     void classicLatticeSuspensionHasBundledPhasesAndTwinTopWires() {
         var design = TowerFamilyDesignPresets.latticeSuspension();
-        assertEquals(8, design.getAttachments().size());
+        assertEquals(5, design.getAttachments().size());
         long topWires = design.getAttachments().stream()
             .filter(a -> a.getRole() == AttachmentRole.TOP_WIRE)
             .count();
@@ -67,7 +66,7 @@ class ConductorAttachmentPresetsTest {
     @Test
     void megaLatticePresetExpectsSixPhaseConductors() {
         PowerLineStylePreset preset = PowerLineStylePresetCatalog.megaLattice();
-        assertEquals(6, preset.expectedConductorCount());
+        assertEquals(3, preset.expectedConductorCount());
     }
 
     @Test
@@ -80,6 +79,6 @@ class ConductorAttachmentPresetsTest {
     void classicLatticePresetExpectsSixPhaseConductors() {
         PowerLineStylePreset preset = PowerLineStylePresetCatalog.classicLattice();
         assertEquals(TowerFamily.STANDARD_LATTICE_3_PHASE_ID, preset.getTowerFamilyId());
-        assertEquals(6, preset.expectedConductorCount());
+        assertEquals(3, preset.expectedConductorCount());
     }
 }

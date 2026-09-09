@@ -2,6 +2,7 @@ package com.plot.plugin.powerline.equipment;
 
 import com.plot.plugin.powerline.PowerLineAttachmentResolver;
 import com.plot.plugin.powerline.ResolvedAttachment;
+import com.plot.plugin.powerline.design.ConductorAttachmentPresets;
 import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
 import com.plot.plugin.powerline.PoleFrame;
 import com.plot.api.geometry.Vec2d;
@@ -16,7 +17,7 @@ class InsulatorAssemblyCatalogTest {
     void megaLatticeSuspensionUsesTwinStringAssembly() {
         var design = TowerFamilyDesignPresets.megaLatticeSuspension();
         var phase = design.getAttachments().stream()
-            .filter(a -> "phase_a_1".equals(a.getId()))
+            .filter(a -> ConductorAttachmentPresets.PHASE_A_ID.equals(a.getId()))
             .findFirst()
             .orElseThrow();
         assertEquals(InsulatorAssemblyCatalog.TWIN_STRING_ID, phase.getInsulatorAssemblyId());
@@ -39,7 +40,7 @@ class InsulatorAssemblyCatalogTest {
         var resolver = new PowerLineAttachmentResolver(null);
         PoleFrame frame = PoleFrame.fromPole(new Vec2d(0, 0), new Vec2d(1, 0), 64);
         ResolvedAttachment resolved = resolver.resolve(design, frame).stream()
-            .filter(a -> "phase_b_1".equals(a.id()))
+            .filter(a -> ConductorAttachmentPresets.PHASE_B_ID.equals(a.id()))
             .findFirst()
             .orElseThrow();
         assertEquals(InsulatorMountStyle.TWIN_COLUMN, resolved.mountStyle());

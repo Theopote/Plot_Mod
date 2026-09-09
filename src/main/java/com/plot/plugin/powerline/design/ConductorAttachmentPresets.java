@@ -56,6 +56,9 @@ public final class ConductorAttachmentPresets {
         return wires;
     }
 
+    /**
+     * 分裂三相：每相一个逻辑挂点，{@link BundleVisual} 负责体素截面（不再按 bundleCount 拆多个挂点）。
+     */
     public static List<ConductorAttachment> bundledThreePhaseHorizontal(
             double verticalOffset,
             double lateralA,
@@ -63,10 +66,10 @@ public final class ConductorAttachmentPresets {
             double lateralC,
             int bundleCount,
             double bundleSpacing) {
-        List<ConductorAttachment> attachments = new ArrayList<>();
-        attachments.addAll(bundlePhase(PHASE_A_ID, "A", AttachmentRole.PHASE_A, lateralA, verticalOffset, bundleCount, bundleSpacing));
-        attachments.addAll(bundlePhase(PHASE_B_ID, "B", AttachmentRole.PHASE_B, lateralB, verticalOffset, bundleCount, bundleSpacing));
-        attachments.addAll(bundlePhase(PHASE_C_ID, "C", AttachmentRole.PHASE_C, lateralC, verticalOffset, bundleCount, bundleSpacing));
+        List<ConductorAttachment> attachments = new ArrayList<>(3);
+        attachments.addAll(bundlePhase(PHASE_A_ID, "A", AttachmentRole.PHASE_A, lateralA, verticalOffset, bundleCount));
+        attachments.addAll(bundlePhase(PHASE_B_ID, "B", AttachmentRole.PHASE_B, lateralB, verticalOffset, bundleCount));
+        attachments.addAll(bundlePhase(PHASE_C_ID, "C", AttachmentRole.PHASE_C, lateralC, verticalOffset, bundleCount));
         return attachments;
     }
 
@@ -128,26 +131,11 @@ public final class ConductorAttachmentPresets {
             AttachmentRole role,
             double centerLateral,
             double verticalOffset,
-            int bundleCount,
-            double bundleSpacing) {
+            int bundleCount) {
         int count = Math.max(1, bundleCount);
-        List<ConductorAttachment> bundle = new ArrayList<>(count);
-        BundleVisual strandVisual = BundleVisual.forSubconductorCount(count);
-        if (count == 1) {
-            ConductorAttachment attachment = createPhase(baseId, name, role, centerLateral, verticalOffset);
-            attachment.setBundleVisual(strandVisual);
-            bundle.add(attachment);
-            return bundle;
-        }
-        double totalSpan = (count - 1) * bundleSpacing;
-        double start = centerLateral - totalSpan / 2.0;
-        for (int i = 0; i < count; i++) {
-            String id = baseId + "_" + (i + 1);
-            ConductorAttachment attachment = createPhase(id, name + (i + 1), role, start + i * bundleSpacing, verticalOffset);
-            attachment.setBundleVisual(strandVisual);
-            bundle.add(attachment);
-        }
-        return bundle;
+        ConductorAttachment attachment = createPhase(baseId, name, role, centerLateral, verticalOffset);
+        attachment.setBundleVisual(BundleVisual.forSubconductorCount(count));
+        return List.of(attachment);
     }
 
     private static ConductorAttachment topWire(String id, String name, double lateral, double vertical) {

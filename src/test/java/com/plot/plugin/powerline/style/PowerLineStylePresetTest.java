@@ -59,7 +59,7 @@ class PowerLineStylePresetTest {
     @Test
     void latticePresetUsesBundledTransmissionConductors() {
         PowerLineStylePreset preset = PowerLineStylePresetCatalog.classicLattice();
-        assertEquals(6, preset.expectedConductorCount());
+        assertEquals(3, preset.expectedConductorCount());
         assertEquals(PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL, preset.getConductorLayout());
     }
 

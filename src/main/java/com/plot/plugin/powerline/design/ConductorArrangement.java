@@ -93,7 +93,7 @@ public final class ConductorArrangement {
                 new ConductorChannel(ConductorAttachmentPresets.PHASE_C_ID, "C", AttachmentRole.PHASE_C, 0, 1)));
     }
 
-    /** 分裂三相 + 双顶线（6 相线挂点 + 2 顶线）。 */
+    /** 分裂三相 + 双顶线（3 逻辑相线 + TWIN/QUAD 截面 + 2 顶线）。 */
     public static ConductorArrangement megaIndustrialBundled() {
         return fromAttachments(
             CATALOG_MEGA_INDUSTRIAL,
