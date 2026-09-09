@@ -99,7 +99,7 @@ public final class PowerLineStyleEditor {
         overrides.setMaxSagDepth(overrideMaxSagDepth(line));
         overrides.setWireMaterial(overrideMaterial(line.getWireMaterial(), preset.getWireMaterial()));
         overrides.setPoleMaterial(overrideMaterial(line.getPoleMaterial(), preset.getPoleMaterial()));
-        overrides.setGroundWireMaterial(overrideMaterial(line.getGroundWireMaterial(), preset.getGroundWireMaterial()));
+        overrides.setTopWireMaterial(overrideMaterial(line.getTopWireMaterial(), preset.getTopWireMaterial()));
         overrides.setPoleDesignId(overrideId(line.getPoleDesignId(), preset.getPoleDesignId()));
         overrides.setTowerFamilyId(overrideId(line.getTowerFamilyId(), preset.getTowerFamilyId()));
         syncSpacingOverrides(line);

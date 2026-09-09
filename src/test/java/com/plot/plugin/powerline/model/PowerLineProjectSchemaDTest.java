@@ -9,6 +9,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PowerLineProjectSchemaDTest {
 
@@ -17,7 +18,7 @@ class PowerLineProjectSchemaDTest {
         PowerLineProject project = new PowerLineProject();
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
         line.setTowerFamilyId(TowerFamily.STANDARD_LATTICE_3_PHASE_ID);
-        line.setGroundWireMaterial(MaterialMix.single("minecraft:chain"));
+        line.setTopWireMaterial(MaterialMix.single("minecraft:chain"));
         PoleOverride override = new PoleOverride(20.0);
         override.setRoleOverride(TowerRole.DEAD_END);
         line.addPoleOverride(override);
@@ -27,8 +28,26 @@ class PowerLineProjectSchemaDTest {
         PowerLineFootprint restoredLine = restored.getLine(line.getId());
         assertNotNull(restoredLine);
         assertEquals(TowerFamily.STANDARD_LATTICE_3_PHASE_ID, restoredLine.getTowerFamilyId());
-        assertEquals("minecraft:chain", restoredLine.getGroundWireMaterial().getPrimaryMaterial());
+        assertEquals("minecraft:chain", restoredLine.getTopWireMaterial().getPrimaryMaterial());
+        assertTrue(project.toJson().contains("\"topWireMaterial\""), "new saves should use topWireMaterial JSON key");
         assertEquals(1, restoredLine.getPoleOverrides().size());
         assertEquals(TowerRole.DEAD_END, restoredLine.getPoleOverrides().getFirst().getRoleOverride());
+    }
+
+    @Test
+    void legacyGroundWireMaterialJsonStillLoads() {
+        String legacyJson = """
+            {
+              "lines": [{
+                "id": "line-legacy",
+                "pathPoints": [{"x": 0, "y": 0}, {"x": 40, "y": 0}],
+                "groundWireMaterial": "minecraft:chain"
+              }]
+            }
+            """;
+        PowerLineProject restored = PowerLineProject.fromJson(legacyJson);
+        PowerLineFootprint line = restored.getLine("line-legacy");
+        assertNotNull(line);
+        assertEquals("minecraft:chain", line.getTopWireMaterial().getPrimaryMaterial());
     }
 }

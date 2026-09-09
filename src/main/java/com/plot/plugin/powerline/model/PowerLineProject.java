@@ -154,6 +154,13 @@ public class PowerLineProject {
         }
     }
 
+    private static MaterialMix resolveTopWireMaterial(LineData lineData) {
+        if (lineData.topWireMaterial != null) {
+            return lineData.topWireMaterial;
+        }
+        return lineData.groundWireMaterial;
+    }
+
     static class LineData {
         String id;
         String name;
@@ -171,6 +178,8 @@ public class PowerLineProject {
         String towerFamilyId;
         /** JSON key {@code stylePackId}; rename to stylePresetId when schema migrates. */
         String stylePackId;
+        MaterialMix topWireMaterial;
+        /** Legacy JSON key; prefer {@link #topWireMaterial}. */
         MaterialMix groundWireMaterial;
         List<PoleOverrideData> poleOverrides = new ArrayList<>();
         List<LayoutConstraintData> layoutConstraints = new ArrayList<>();
@@ -205,7 +214,7 @@ public class PowerLineProject {
                 lineData.poleDesignId = line.getPoleDesignId();
                 lineData.towerFamilyId = line.getTowerFamilyId();
                 lineData.stylePackId = line.getStylePackId();
-                lineData.groundWireMaterial = line.getGroundWireMaterial();
+                lineData.topWireMaterial = line.getTopWireMaterial();
                 for (PoleOverride override : line.getPoleOverrides()) {
                     lineData.poleOverrides.add(PoleOverrideData.from(override));
                 }
@@ -265,8 +274,9 @@ public class PowerLineProject {
                 footprint.setPoleDesignId(lineData.poleDesignId);
                 footprint.setTowerFamilyId(lineData.towerFamilyId);
                 footprint.setStylePackId(lineData.stylePackId);
-                if (lineData.groundWireMaterial != null) {
-                    footprint.setGroundWireMaterial(lineData.groundWireMaterial);
+                MaterialMix topWire = resolveTopWireMaterial(lineData);
+                if (topWire != null) {
+                    footprint.setTopWireMaterial(topWire);
                 }
                 if (lineData.poleOverrides != null) {
                     List<PoleOverride> overrides = new ArrayList<>();

@@ -45,7 +45,7 @@ public final class PowerLineStylePreset {
     private final String poleDesignId;
     private final MaterialMix wireMaterial;
     private final MaterialMix poleMaterial;
-    private final MaterialMix groundWireMaterial;
+    private final MaterialMix topWireMaterial;
     private final PowerLineUiPresets.WireSag sagPreset;
     private final ConductorLayout conductorLayout;
     private final PoleSpacingProfile spacingProfile;
@@ -58,7 +58,7 @@ public final class PowerLineStylePreset {
             String poleDesignId,
             MaterialMix wireMaterial,
             MaterialMix poleMaterial,
-            MaterialMix groundWireMaterial,
+            MaterialMix topWireMaterial,
             PowerLineUiPresets.WireSag sagPreset,
             ConductorLayout conductorLayout,
             PoleSpacingProfile spacingProfile) {
@@ -69,7 +69,7 @@ public final class PowerLineStylePreset {
         this.poleDesignId = poleDesignId;
         this.wireMaterial = wireMaterial;
         this.poleMaterial = poleMaterial;
-        this.groundWireMaterial = groundWireMaterial;
+        this.topWireMaterial = topWireMaterial;
         this.sagPreset = sagPreset;
         this.conductorLayout = conductorLayout != null ? conductorLayout : ConductorLayout.SINGLE;
         this.spacingProfile = spacingProfile != null
@@ -109,8 +109,14 @@ public final class PowerLineStylePreset {
         return poleMaterial;
     }
 
+    public MaterialMix getTopWireMaterial() {
+        return topWireMaterial;
+    }
+
+    /** @deprecated use {@link #getTopWireMaterial()} */
+    @Deprecated
     public MaterialMix getGroundWireMaterial() {
-        return groundWireMaterial;
+        return getTopWireMaterial();
     }
 
     public PowerLineUiPresets.WireSag getSagPreset() {
@@ -143,7 +149,7 @@ public final class PowerLineStylePreset {
         }
         line.setWireMaterial(wireMaterial);
         line.setPoleMaterial(poleMaterial);
-        line.setGroundWireMaterial(groundWireMaterial);
+        line.setTopWireMaterial(topWireMaterial);
         PowerLineUiPresets.applySag(line, sagPreset);
         if (!line.isSpacingCustomized()) {
             PowerLineSpacingPolicy.applyStyleDefaultSpacing(line, spacingProfile);
@@ -177,7 +183,7 @@ public final class PowerLineStylePreset {
         if (!materialMatches(poleMaterial, line.getPoleMaterial())) {
             return false;
         }
-        if (!materialMatches(groundWireMaterial, line.getGroundWireMaterial())) {
+        if (!materialMatches(topWireMaterial, line.getTopWireMaterial())) {
             return false;
         }
         if (!sagMatches(sagPreset, line.getSagRatio())) {

@@ -8,7 +8,7 @@ public class StyleOverrides {
     private Double maxSagDepth;
     private MaterialMix wireMaterial;
     private MaterialMix poleMaterial;
-    private MaterialMix groundWireMaterial;
+    private MaterialMix topWireMaterial;
     private Double preferredSpacing;
     private Double recommendedMinSpacing;
     private String poleDesignId;
@@ -46,12 +46,24 @@ public class StyleOverrides {
         this.poleMaterial = poleMaterial != null ? poleMaterial.copy() : null;
     }
 
-    public MaterialMix getGroundWireMaterial() {
-        return groundWireMaterial;
+    public MaterialMix getTopWireMaterial() {
+        return topWireMaterial;
     }
 
+    public void setTopWireMaterial(MaterialMix topWireMaterial) {
+        this.topWireMaterial = topWireMaterial != null ? topWireMaterial.copy() : null;
+    }
+
+    /** @deprecated use {@link #getTopWireMaterial()} */
+    @Deprecated
+    public MaterialMix getGroundWireMaterial() {
+        return getTopWireMaterial();
+    }
+
+    /** @deprecated use {@link #setTopWireMaterial(MaterialMix)} */
+    @Deprecated
     public void setGroundWireMaterial(MaterialMix groundWireMaterial) {
-        this.groundWireMaterial = groundWireMaterial != null ? groundWireMaterial.copy() : null;
+        setTopWireMaterial(groundWireMaterial);
     }
 
     public Double getPreferredSpacing() {
@@ -91,7 +103,7 @@ public class StyleOverrides {
             && maxSagDepth == null
             && wireMaterial == null
             && poleMaterial == null
-            && groundWireMaterial == null
+            && topWireMaterial == null
             && preferredSpacing == null
             && recommendedMinSpacing == null
             && poleDesignId == null
@@ -104,7 +116,7 @@ public class StyleOverrides {
         if (maxSagDepth != null) count++;
         if (wireMaterial != null) count++;
         if (poleMaterial != null) count++;
-        if (groundWireMaterial != null) count++;
+        if (topWireMaterial != null) count++;
         if (preferredSpacing != null || recommendedMinSpacing != null) count++;
         if (poleDesignId != null) count++;
         if (towerFamilyId != null) count++;
@@ -116,7 +128,7 @@ public class StyleOverrides {
         maxSagDepth = null;
         wireMaterial = null;
         poleMaterial = null;
-        groundWireMaterial = null;
+        topWireMaterial = null;
         preferredSpacing = null;
         recommendedMinSpacing = null;
         poleDesignId = null;
@@ -129,7 +141,7 @@ public class StyleOverrides {
         copy.maxSagDepth = maxSagDepth;
         copy.wireMaterial = wireMaterial != null ? wireMaterial.copy() : null;
         copy.poleMaterial = poleMaterial != null ? poleMaterial.copy() : null;
-        copy.groundWireMaterial = groundWireMaterial != null ? groundWireMaterial.copy() : null;
+        copy.topWireMaterial = topWireMaterial != null ? topWireMaterial.copy() : null;
         copy.preferredSpacing = preferredSpacing;
         copy.recommendedMinSpacing = recommendedMinSpacing;
         copy.poleDesignId = poleDesignId;

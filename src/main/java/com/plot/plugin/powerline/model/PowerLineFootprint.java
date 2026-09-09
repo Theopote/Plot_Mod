@@ -39,7 +39,8 @@ public class PowerLineFootprint {
     private String towerFamilyId;
     /** 当前选中的风格预设 id；项目 JSON 仍用 {@code stylePackId} 键（待迁移为 stylePresetId）。 */
     private String stylePackId;
-    private MaterialMix groundWireMaterial = MaterialMix.single("minecraft:chain");
+    /** 塔顶架空装饰线材质（视觉层次），非电气接地系统。 */
+    private MaterialMix topWireMaterial = MaterialMix.single("minecraft:chain");
     private final List<PoleOverride> poleOverrides = new ArrayList<>();
     private final List<PoleLayoutConstraint> layoutConstraints = new ArrayList<>();
     private String engineeringProfileId;
@@ -219,14 +220,26 @@ public class PowerLineFootprint {
         setStylePackId(stylePresetId);
     }
 
-    public MaterialMix getGroundWireMaterial() {
-        return groundWireMaterial;
+    public MaterialMix getTopWireMaterial() {
+        return topWireMaterial;
     }
 
-    public void setGroundWireMaterial(MaterialMix groundWireMaterial) {
-        this.groundWireMaterial = groundWireMaterial != null
-            ? groundWireMaterial.copy()
+    public void setTopWireMaterial(MaterialMix topWireMaterial) {
+        this.topWireMaterial = topWireMaterial != null
+            ? topWireMaterial.copy()
             : MaterialMix.single("minecraft:chain");
+    }
+
+    /** @deprecated use {@link #getTopWireMaterial()} */
+    @Deprecated
+    public MaterialMix getGroundWireMaterial() {
+        return getTopWireMaterial();
+    }
+
+    /** @deprecated use {@link #setTopWireMaterial(MaterialMix)} */
+    @Deprecated
+    public void setGroundWireMaterial(MaterialMix groundWireMaterial) {
+        setTopWireMaterial(groundWireMaterial);
     }
 
     public List<PoleOverride> getPoleOverrides() {
@@ -377,7 +390,7 @@ public class PowerLineFootprint {
         hash = 31 * hash + Objects.hashCode(poleDesignId);
         hash = 31 * hash + Objects.hashCode(towerFamilyId);
         hash = 31 * hash + Objects.hashCode(stylePackId);
-        hash = 31 * hash + materialFingerprint(groundWireMaterial);
+        hash = 31 * hash + materialFingerprint(topWireMaterial);
         hash = 31 * hash + poleOverrides.hashCode();
         hash = 31 * hash + layoutConstraints.hashCode();
         hash = 31 * hash + Objects.hashCode(engineeringProfileId);

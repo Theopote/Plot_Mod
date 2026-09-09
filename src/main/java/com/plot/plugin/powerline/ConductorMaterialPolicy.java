@@ -14,7 +14,7 @@ public final class ConductorMaterialPolicy {
             return MaterialMix.single(PowerLineFootprint.DEFAULT_WIRE_MATERIAL);
         }
         if (role == AttachmentRole.GROUND_WIRE) {
-            return footprint.getGroundWireMaterial();
+            return footprint.getTopWireMaterial();
         }
         return footprint.getWireMaterial();
     }

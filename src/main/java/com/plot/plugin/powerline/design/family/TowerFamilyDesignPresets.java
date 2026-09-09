@@ -26,6 +26,7 @@ public final class TowerFamilyDesignPresets {
     public static final String LATTICE_SUSPENSION_SMALL_ID = "preset/lattice_suspension_s";
     public static final String LATTICE_SUSPENSION_MEDIUM_ID = "preset/lattice_suspension_m";
     public static final String LATTICE_SUSPENSION_TALL_ID = "preset/lattice_suspension_l";
+    /** 塔顶装饰线挂点 id（视觉顶线，非电气接地）。 */
     public static final String GROUND_WIRE_ID = "ground_wire";
 
     private TowerFamilyDesignPresets() {

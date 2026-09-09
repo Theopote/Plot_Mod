@@ -398,7 +398,7 @@ public final class PowerLineStylePresetCatalog {
             String poleDesignId,
             MaterialMix wireMaterial,
             MaterialMix poleMaterial,
-            MaterialMix groundWireMaterial,
+            MaterialMix topWireMaterial,
             PowerLineUiPresets.WireSag sagPreset,
             PowerLineStylePreset.ConductorLayout conductorLayout,
             PoleSpacingProfile spacingProfile) {
@@ -410,7 +410,7 @@ public final class PowerLineStylePresetCatalog {
             poleDesignId,
             wireMaterial,
             poleMaterial,
-            groundWireMaterial,
+            topWireMaterial,
             sagPreset,
             conductorLayout,
             spacingProfile);

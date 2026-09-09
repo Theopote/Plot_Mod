@@ -46,12 +46,12 @@ public final class PowerLineStyleControls {
             });
         PowerLineUiWidgets.renderMaterialMixPicker(
             ctx,
-            "ground_wire_material",
-            PlotI18n.tr("plugin.powerline.ground_wire_material"),
-            line.getGroundWireMaterial(),
+            "top_wire_material",
+            PlotI18n.tr("plugin.powerline.top_wire_material"),
+            line.getTopWireMaterial(),
             MaterialMix.single("minecraft:chain"),
             mix -> {
-                line.setGroundWireMaterial(mix);
+                line.setTopWireMaterial(mix);
                 onStyleEdited(line);
             });
         PowerLineUiWidgets.renderMaterialMixPicker(

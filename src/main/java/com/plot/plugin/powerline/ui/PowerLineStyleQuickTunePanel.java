@@ -106,7 +106,7 @@ public final class PowerLineStyleQuickTunePanel {
         renderWireLayoutRow(line, base);
         renderWireMaterialRow(line, base);
         renderSagRow(line);
-        renderGroundWireInAdvanced(line);
+        renderTopWireInAdvanced(line);
     }
 
     private void renderTowerStyleRow(PowerLineFootprint line) {
@@ -191,21 +191,21 @@ public final class PowerLineStyleQuickTunePanel {
         renderInlineSagSegments(line, labels, selected);
     }
 
-    private void renderGroundWireInAdvanced(PowerLineFootprint line) {
+    private void renderTopWireInAdvanced(PowerLineFootprint line) {
         ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
         if (!ImGui.collapsingHeader(
-                PlotI18n.tr("plugin.powerline.style.quick_tune.ground_wire"),
+                PlotI18n.tr("plugin.powerline.style.quick_tune.top_wire"),
                 ImGuiTreeNodeFlags.None)) {
             return;
         }
         PowerLineUiWidgets.renderMaterialMixPicker(
             ctx,
-            "quick_ground_wire_material",
-            PlotI18n.tr("plugin.powerline.ground_wire_material"),
-            line.getGroundWireMaterial(),
+            "quick_top_wire_material",
+            PlotI18n.tr("plugin.powerline.top_wire_material"),
+            line.getTopWireMaterial(),
             MaterialMix.single("minecraft:chain"),
             mix -> {
-                line.setGroundWireMaterial(mix);
+                line.setTopWireMaterial(mix);
                 PowerLineStyleEditor.afterStyleEdit(line);
                 ctx.invalidatePreview();
             });
