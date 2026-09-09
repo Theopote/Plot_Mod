@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.PowerLineGenerationResult;
+import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -69,11 +70,26 @@ final class PowerLineBuildActions {
             PowerLineGenerationResult result = ctx.hasValidPreview(line) ? ctx.lastGenerationResult() : null;
             int blocks = result != null ? result.blockCount() : 0;
             ImGui.text(PlotI18n.tr("plugin.powerline.build_confirm", blocks));
+            PowerLineValidationReport report = line != null ? ctx.actions().cachedEngineeringReport(line) : null;
+            PowerLineValidationReport terrain = line != null ? ctx.state().getValidationState().getLastTerrainReport() : null;
+            int issueCount = report != null ? report.errorCount() + report.warningCount() : 0;
+            int terrainHits = terrain != null ? terrain.errorCount() + terrain.warningCount() : 0;
+            if (issueCount == 0) {
+                issueCount = terrainHits;
+            }
+            if (issueCount > 0) {
+                ImGui.textColored(
+                    PluginUiColors.WARNING,
+                    PlotI18n.tr("plugin.powerline.build_confirm_issues", issueCount, terrainHits));
+            }
             boolean canBuild = result != null && ctx.requestBuildConfirm(line);
             if (!canBuild) {
                 ImGui.beginDisabled();
             }
-            if (ImGui.button(PlotI18n.tr("button.plot.confirm"), 120, 0)) {
+            String confirmLabel = issueCount > 0
+                ? PlotI18n.tr("plugin.powerline.build_anyway")
+                : PlotI18n.tr("button.plot.confirm");
+            if (ImGui.button(confirmLabel, 120, 0)) {
                 ctx.buildInWorld();
                 ImGui.closeCurrentPopup();
             }
@@ -81,7 +97,12 @@ final class PowerLineBuildActions {
                 ImGui.endDisabled();
             }
             ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
+            if (ImGui.button(
+                    issueCount > 0
+                        ? PlotI18n.tr("plugin.powerline.build_return_adjust")
+                        : PlotI18n.tr("button.plot.cancel"),
+                    120,
+                    0)) {
                 ImGui.closeCurrentPopup();
             }
             ImGui.endPopup();

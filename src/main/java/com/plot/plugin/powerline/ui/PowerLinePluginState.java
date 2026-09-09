@@ -32,6 +32,7 @@ public final class PowerLinePluginState {
     private boolean buildConfirmPending = false;
 
     private volatile String projectStatus = "";
+    private ProjectStatusSeverity projectStatusSeverity = ProjectStatusSeverity.INFO;
     private String currentProjectFile = "default.json";
     private final ContentFingerprint.Tracker contentFingerprint = new ContentFingerprint.Tracker();
     private final ContentFingerprint.Tracker designContentFingerprint = new ContentFingerprint.Tracker();
@@ -148,8 +149,17 @@ public final class PowerLinePluginState {
         return projectStatus;
     }
 
+    public ProjectStatusSeverity getProjectStatusSeverity() {
+        return projectStatusSeverity;
+    }
+
     public void setProjectStatus(String projectStatus) {
+        setProjectStatus(projectStatus, ProjectStatusSeverity.INFO);
+    }
+
+    public void setProjectStatus(String projectStatus, ProjectStatusSeverity severity) {
         this.projectStatus = projectStatus != null ? projectStatus : "";
+        this.projectStatusSeverity = severity != null ? severity : ProjectStatusSeverity.INFO;
     }
 
     public String getCurrentProjectFile() {

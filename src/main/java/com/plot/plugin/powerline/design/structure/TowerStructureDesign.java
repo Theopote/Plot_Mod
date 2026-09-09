@@ -387,10 +387,12 @@ public class TowerStructureDesign {
                     }
                     TowerBay bay = new TowerBay(bayData.lowerStationId, bayData.upperStationId);
                     if (bayData.frontBackBracing != null) {
-                        bay.setFrontBackBracing(BracingPattern.valueOf(bayData.frontBackBracing));
+                        bay.setFrontBackBracing(
+                            TowerStructureEnums.bracingOrDefault(bayData.frontBackBracing, BracingPattern.NONE));
                     }
                     if (bayData.sideBracing != null) {
-                        bay.setSideBracing(BracingPattern.valueOf(bayData.sideBracing));
+                        bay.setSideBracing(
+                            TowerStructureEnums.bracingOrDefault(bayData.sideBracing, BracingPattern.NONE));
                     }
                     bay.setHorizontalRing(bayData.horizontalRing);
                     design.addBay(bay);
@@ -403,12 +405,12 @@ public class TowerStructureDesign {
                     }
                     TowerArm arm = new TowerArm(armData.id, armData.baseHeight, armData.lateralReach);
                     if (armData.side != null) {
-                        arm.setSide(TowerArmSide.valueOf(armData.side));
+                        arm.setSide(TowerStructureEnums.armSideOrDefault(armData.side, TowerArmSide.BOTH));
                     }
                     arm.setLongitudinalHalfWidth(armData.longitudinalHalfWidth);
                     arm.setVerticalDrop(armData.verticalDrop);
                     if (armData.bracing != null) {
-                        arm.setBracing(BracingPattern.valueOf(armData.bracing));
+                        arm.setBracing(TowerStructureEnums.bracingOrDefault(armData.bracing, BracingPattern.NONE));
                     }
                     if (armData.material != null) {
                         arm.setMaterial(armData.material);
@@ -421,9 +423,13 @@ public class TowerStructureDesign {
                     if (decorationData == null || decorationData.kind == null) {
                         continue;
                     }
+                    TowerDecorationKind kind = TowerStructureEnums.decorationKindOrNull(decorationData.kind);
+                    if (kind == null) {
+                        continue;
+                    }
                     TowerDecoration decoration = new TowerDecoration(
                         decorationData.id,
-                        TowerDecorationKind.valueOf(decorationData.kind),
+                        kind,
                         decorationData.baseHeight);
                     decoration.setLateralOffset(decorationData.lateralOffset);
                     decoration.setLongitudinalOffset(decorationData.longitudinalOffset);

@@ -26,6 +26,14 @@ public final class SpacingCheck implements LineValidationCheck {
                     PowerLineIssueLocation.at(SpanValidationSupport.midpoint(span), 0.0),
                     span.getSpanLength(),
                     context.limits().maximumSpan()));
+            } else if (span.getSpanLength() < ValidationLimits.ABSOLUTE_MIN_VISUAL_SPAN) {
+                spanAnalysis.addIssue(new SimplePowerLineIssue(
+                    EngineeringRuleIds.SPAN_MINIMUM,
+                    PowerLineIssueSeverity.ERROR,
+                    EngineeringRuleIds.SPAN_MINIMUM,
+                    PowerLineIssueLocation.at(SpanValidationSupport.midpoint(span), 0.0),
+                    span.getSpanLength(),
+                    ValidationLimits.ABSOLUTE_MIN_VISUAL_SPAN));
             } else if (span.getSpanLength() < context.limits().minimumSpan()) {
                 spanAnalysis.addIssue(new SimplePowerLineIssue(
                     EngineeringRuleIds.SPAN_MINIMUM,

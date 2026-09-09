@@ -10,9 +10,14 @@ public record ValidationLimits(
         double wireOverlapThreshold,
         double suspensionAngleWarning) {
 
-    public static final double DEFAULT_MIN_GROUND_CLEARANCE = 6.0;
+    /** 装饰性碰地阈值：约 1～1.5 格即视为穿山，不再用 6 格专业净空。 */
+    public static final double DEFAULT_MIN_GROUND_CLEARANCE = 1.5;
     public static final double DEFAULT_MAX_SPAN = 40.0;
-    public static final double DEFAULT_MIN_SPAN = 6.0;
+    /** 硬下限：杆距几乎叠在一起。 */
+    public static final double ABSOLUTE_MIN_VISUAL_SPAN = 5.0;
+    /** @deprecated 使用 {@link #ABSOLUTE_MIN_VISUAL_SPAN} 或线路 {@code minPoleSpacing} */
+    @Deprecated
+    public static final double DEFAULT_MIN_SPAN = ABSOLUTE_MIN_VISUAL_SPAN;
     public static final double DEFAULT_SUSPENSION_ANGLE = 5.0;
     public static final double DEFAULT_OVERLAP_THRESHOLD = 0.25;
     public static final double TOWER_PREFERRED_HEIGHT_MARGIN = 2.0;
@@ -21,9 +26,7 @@ public record ValidationLimits(
         double configuredMax = footprint != null ? footprint.getMaxPoleSpacing() : 0.0;
         double configuredMin = footprint != null ? footprint.getMinPoleSpacing() : 0.0;
         double maxSpan = configuredMax > 0.0 ? configuredMax : DEFAULT_MAX_SPAN;
-        double minSpan = configuredMin > 0.0
-            ? Math.min(configuredMin, DEFAULT_MIN_SPAN)
-            : DEFAULT_MIN_SPAN;
+        double minSpan = configuredMin > 0.0 ? configuredMin : ABSOLUTE_MIN_VISUAL_SPAN;
         double suspensionAngle = footprint != null
             ? footprint.getCornerAngleThreshold()
             : DEFAULT_SUSPENSION_ANGLE;

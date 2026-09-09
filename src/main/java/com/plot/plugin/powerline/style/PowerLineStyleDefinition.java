@@ -250,7 +250,9 @@ public final class PowerLineStyleDefinition {
         if (expected == null || actual == null) {
             return false;
         }
-        return Objects.equals(expected.getPrimaryMaterial(), actual.getPrimaryMaterial());
+        return Objects.equals(expected.getPrimaryMaterial(), actual.getPrimaryMaterial())
+            && Objects.equals(blankToNull(expected.getAccentMaterial()), blankToNull(actual.getAccentMaterial()))
+            && Float.compare(expected.getAccentRatio(), actual.getAccentRatio()) == 0;
     }
 
     private static double sanitizeMaxSagDepth(double maxSagDepth) {

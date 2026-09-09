@@ -27,15 +27,14 @@ public final class PowerLineValidationPanel {
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.powerline.build.smart_fix"));
         if (ImGui.button(PlotI18n.tr("plugin.powerline.build.engineering_fix"), 0, 0)) {
+            ctx.state().getValidationState().setPendingEnableAutomaticTowers(false);
             ctx.actions().proposeClearanceFix(line);
             ctx.state().getValidationState().setOptimizationConfirmPending(true);
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.build.smart_towers"), 0, 0)) {
-            ctx.pushEditSnapshot();
-            line.setAutomaticTowerSelectionEnabled(true);
-            ctx.invalidatePreview();
             ctx.actions().proposeAutoTowerSelection(line);
+            ctx.state().getValidationState().setPendingEnableAutomaticTowers(true);
             ctx.state().getValidationState().setOptimizationConfirmPending(true);
         }
     }
@@ -63,10 +62,12 @@ public final class PowerLineValidationPanel {
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.engineering.auto_select_towers"), 0, 0)) {
             ctx.actions().proposeAutoTowerSelection(line);
+            ctx.state().getValidationState().setPendingEnableAutomaticTowers(true);
             ctx.state().getValidationState().setOptimizationConfirmPending(true);
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.engineering.fix_clearance"), 0, 0)) {
+            ctx.state().getValidationState().setPendingEnableAutomaticTowers(false);
             ctx.actions().proposeClearanceFix(line);
             ctx.state().getValidationState().setOptimizationConfirmPending(true);
         }
@@ -115,7 +116,8 @@ public final class PowerLineValidationPanel {
                 () -> ctx.state().getValidationState().setOptimizationConfirmPending(false))) {
             var optimization = ctx.state().getValidationState().getPendingOptimization();
             ImGui.text(PlotI18n.tr("plugin.powerline.engineering.proposed_changes"));
-            if (optimization != null && !optimization.getActions().isEmpty()) {
+            boolean hasChanges = optimization != null && !optimization.getActions().isEmpty();
+            if (hasChanges) {
                 PoleDesignResolver resolver = ctx.designResolver();
                 for (OptimizationAction action : optimization.getActions()) {
                     renderProposedAction(action, resolver);
@@ -123,13 +125,18 @@ public final class PowerLineValidationPanel {
             } else {
                 ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.engineering.no_changes"));
             }
-            if (ImGui.button(PlotI18n.tr("button.plot.confirm"), 120, 0)) {
-                PowerLineFootprint line = ctx.selection().primary(ctx.project());
-                ctx.actions().applyPendingOptimization(line);
-                ImGui.closeCurrentPopup();
-            }
-            ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
+            if (hasChanges) {
+                if (ImGui.button(PlotI18n.tr("button.plot.confirm"), 120, 0)) {
+                    PowerLineFootprint line = ctx.selection().primary(ctx.project());
+                    ctx.actions().applyPendingOptimization(line);
+                    ImGui.closeCurrentPopup();
+                }
+                ImGui.sameLine();
+                if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
+                    ctx.state().getValidationState().clearOptimization();
+                    ImGui.closeCurrentPopup();
+                }
+            } else if (ImGui.button(PlotI18n.tr("button.plot.close"), 120, 0)) {
                 ctx.state().getValidationState().clearOptimization();
                 ImGui.closeCurrentPopup();
             }

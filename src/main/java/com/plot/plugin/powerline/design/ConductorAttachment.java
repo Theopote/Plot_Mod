@@ -185,15 +185,45 @@ public class ConductorAttachment {
             && Double.compare(longitudinalOffset, other.longitudinalOffset) == 0
             && role == other.role
             && insulatorLength == other.insulatorLength
+            && insulatorType == other.insulatorType
+            && Objects.equals(insulatorAssemblyId, other.insulatorAssemblyId)
+            && bundleVisual == other.bundleVisual
+            && Objects.equals(armId, other.armId)
             && enabled == other.enabled
-            && Objects.equals(
-                insulatorMaterial != null ? insulatorMaterial.getPrimaryMaterial() : null,
-                other.insulatorMaterial != null ? other.insulatorMaterial.getPrimaryMaterial() : null);
+            && materialEquals(insulatorMaterial, other.insulatorMaterial);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, name, lateralOffset, verticalOffset, longitudinalOffset, role, insulatorLength, enabled);
+        return Objects.hash(
+            id,
+            name,
+            lateralOffset,
+            verticalOffset,
+            longitudinalOffset,
+            role,
+            insulatorLength,
+            insulatorType,
+            insulatorAssemblyId,
+            bundleVisual,
+            armId,
+            enabled,
+            insulatorMaterial != null ? insulatorMaterial.getPrimaryMaterial() : null,
+            insulatorMaterial != null ? insulatorMaterial.getAccentMaterial() : null,
+            insulatorMaterial != null ? insulatorMaterial.getAccentRatio() : 0f);
+    }
+
+    private static boolean materialEquals(MaterialMix a, MaterialMix b) {
+        if (a == null || b == null) {
+            return a == b;
+        }
+        return Objects.equals(a.getPrimaryMaterial(), b.getPrimaryMaterial())
+            && Objects.equals(blankToNull(a.getAccentMaterial()), blankToNull(b.getAccentMaterial()))
+            && Float.compare(a.getAccentRatio(), b.getAccentRatio()) == 0;
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 
     private static double clamp(double value, double min, double max) {

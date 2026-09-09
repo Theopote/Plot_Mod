@@ -392,7 +392,6 @@ public final class TowerFamilyDesignPresets {
             double maxAngle) {
         TowerEngineeringMetadata metadata = new TowerEngineeringMetadata();
         metadata.setNominalHeight(height);
-        metadata.setPreferredSpan(Math.min(maxSpan, 20));
         metadata.setMaxRecommendedSpan(maxSpan);
         metadata.setMaxRecommendedDeflectionAngle(maxAngle);
         metadata.setSupportedRoles(EnumSet.of(role));

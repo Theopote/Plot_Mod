@@ -133,7 +133,16 @@ public final class PowerLineStyleEditor {
         if (actual == null || expected == null) {
             return null;
         }
-        return Objects.equals(actual.getPrimaryMaterial(), expected.getPrimaryMaterial()) ? null : actual.copy();
+        if (Objects.equals(actual.getPrimaryMaterial(), expected.getPrimaryMaterial())
+                && Objects.equals(blankToNull(actual.getAccentMaterial()), blankToNull(expected.getAccentMaterial()))
+                && Float.compare(actual.getAccentRatio(), expected.getAccentRatio()) == 0) {
+            return null;
+        }
+        return actual.copy();
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 
     private static String overrideId(String actual, String expected) {

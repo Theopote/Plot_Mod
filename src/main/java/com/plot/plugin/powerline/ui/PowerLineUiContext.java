@@ -74,12 +74,20 @@ public final class PowerLineUiContext {
         return state.getProjectStatus();
     }
 
+    public ProjectStatusSeverity projectStatusSeverity() {
+        return state.getProjectStatusSeverity();
+    }
+
     public void pushEditSnapshot() {
         state.getProjectHistory().push(state.getProject());
     }
 
     public void setProjectStatus(String status) {
         state.setProjectStatus(status);
+    }
+
+    public void setProjectStatus(String status, ProjectStatusSeverity severity) {
+        state.setProjectStatus(status, severity);
     }
 
     public void updateSelectedPaths() {

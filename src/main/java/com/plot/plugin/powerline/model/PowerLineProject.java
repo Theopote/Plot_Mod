@@ -19,6 +19,9 @@ import java.util.Map;
  * 电力线路项目（管理已认领的线路）。
  */
 public class PowerLineProject {
+    /** Current on-disk schema. Missing / 0 = legacy; migrations happen in {@link ProjectData}. */
+    public static final int SCHEMA_VERSION = 3;
+
     private static final Gson GSON = new GsonBuilder()
         .setPrettyPrinting()
         .registerTypeAdapter(MaterialMix.class, new MaterialMixTypeAdapter())
@@ -188,19 +191,21 @@ public class PowerLineProject {
         MaterialMix groundWireMaterial;
         List<PoleOverrideData> poleOverrides = new ArrayList<>();
         List<LayoutConstraintData> layoutConstraints = new ArrayList<>();
-        boolean lineChecksEnabled;
+        boolean lineChecksEnabled = true;
         /** Legacy JSON key; prefer {@link #lineChecksEnabled}. */
         boolean engineeringAnalysisEnabled;
-        boolean terrainAvoidanceEnabled;
+        boolean terrainAvoidanceEnabled = true;
         boolean automaticTowerSelectionEnabled;
         boolean spacingCustomized;
     }
 
     static class ProjectData {
+        int schemaVersion = SCHEMA_VERSION;
         List<LineData> lines = new ArrayList<>();
 
         static ProjectData from(PowerLineProject project) {
             ProjectData data = new ProjectData();
+            data.schemaVersion = SCHEMA_VERSION;
             for (PowerLineFootprint line : project.lines.values()) {
                 LineData lineData = new LineData();
                 lineData.id = line.getId();

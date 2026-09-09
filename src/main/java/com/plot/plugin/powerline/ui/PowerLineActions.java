@@ -112,7 +112,7 @@ public final class PowerLineActions {
         } else if (adopted > 1) {
             state.setProjectStatus(PlotI18n.tr("plugin.powerline.adopt_success_batch", adopted));
         } else {
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.adopt_success"));
+            state.setProjectStatus(PlotI18n.tr("plugin.powerline.adopt_success"), ProjectStatusSeverity.SUCCESS);
         }
     }
 
@@ -125,7 +125,7 @@ public final class PowerLineActions {
     }
 
     /**
-     * 地形自动调整：修改线路参数后重新生成预览。调用前会 push 撤销快照。
+     * 地形自动调整：修改线路参数后重新生成预览。仅在确实有地形问题时 push 撤销快照。
      *
      * @return 调整后是否仍有有效预览
      */
@@ -134,13 +134,29 @@ public final class PowerLineActions {
             return false;
         }
         if (getClientWorld() == null || generator == null) {
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.generate_world_unavailable"));
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.generate_world_unavailable"),
+                ProjectStatusSeverity.ERROR);
             return false;
         }
-        state.getProjectHistory().push(state.getProject());
         if (!hasValidPreview(line) && !calculatePreviewCore(line)) {
             return false;
         }
+        PowerLineGenerationResult peek = state.getLastGenerationResult();
+        if (peek == null) {
+            return false;
+        }
+        World world = getClientWorld();
+        TerrainSampler terrain = MinecraftTerrainSampler.of(world, host.coordinates());
+        PowerLineValidationReport peekReport = com.plot.plugin.powerline.engineering.TerrainAvoidance
+            .analyzeCollisions(peek.toGeometryModel(), terrain);
+        storeTerrainReport(peekReport);
+        if (!com.plot.plugin.powerline.engineering.TerrainAvoidance.hasTerrainIssues(peekReport)) {
+            applyTerrainFixStatus(0, 0);
+            syncPreviewAnalysis(line);
+            return true;
+        }
+        state.getProjectHistory().push(state.getProject());
         runTerrainAvoidance(line);
         syncPreviewAnalysis(line);
         return state.getLastGenerationResult() != null;
@@ -149,7 +165,7 @@ public final class PowerLineActions {
     private boolean calculatePreviewCore(PowerLineFootprint line) {
         World world = getClientWorld();
         if (world == null || generator == null) {
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.generate_world_unavailable"));
+            state.setProjectStatus(PlotI18n.tr("plugin.powerline.generate_world_unavailable"), ProjectStatusSeverity.ERROR);
             return false;
         }
         if (line == null) {
@@ -169,13 +185,13 @@ public final class PowerLineActions {
         } catch (Exception e) {
             LOGGER.error("电力线路预览生成失败: {}", e.getMessage(), e);
             state.setLastGenerationResult(null);
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.generate_empty_result"));
+            state.setProjectStatus(PlotI18n.tr("plugin.powerline.generate_empty_result"), ProjectStatusSeverity.WARNING);
             return false;
         }
 
         if (result.blockCount() == 0) {
             state.setLastGenerationResult(null);
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.generate_empty_result"));
+            state.setProjectStatus(PlotI18n.tr("plugin.powerline.generate_empty_result"), ProjectStatusSeverity.WARNING);
             return false;
         }
 
@@ -186,7 +202,8 @@ public final class PowerLineActions {
             "plugin.powerline.preview_ready",
             result.poleCount,
             String.format("%.1f", result.wireLength),
-            result.warnings.size()));
+            result.warnings.size()),
+            result.warnings.isEmpty() ? ProjectStatusSeverity.SUCCESS : ProjectStatusSeverity.WARNING);
         return true;
     }
 
@@ -352,7 +369,10 @@ public final class PowerLineActions {
         String message = com.plot.plugin.powerline.engineering.TerrainAvoidance
             .resolveStatusMessage(fixesApplied, remainingIssues);
         if (message != null) {
-            state.setProjectStatus(message);
+            ProjectStatusSeverity severity = remainingIssues > 0
+                ? (fixesApplied > 0 ? ProjectStatusSeverity.WARNING : ProjectStatusSeverity.WARNING)
+                : (fixesApplied > 0 ? ProjectStatusSeverity.SUCCESS : ProjectStatusSeverity.INFO);
+            state.setProjectStatus(message, severity);
         }
     }
 
@@ -449,7 +469,7 @@ public final class PowerLineActions {
         synchronized (projectLock) {
             PowerLineGenerationResult last = state.getLastGenerationResult();
             if (last == null || last.placementRecords.isEmpty()) {
-                state.setProjectStatus(PlotI18n.tr("plugin.powerline.build_no_blocks"));
+                state.setProjectStatus(PlotI18n.tr("plugin.powerline.build_no_blocks"), ProjectStatusSeverity.WARNING);
                 return;
             }
             resultSnapshot = last;
@@ -474,7 +494,7 @@ public final class PowerLineActions {
                 host.commands().pushExecuted(command);
             }
             if (result != null && result.isFullSuccess()) {
-                state.setProjectStatus(PlotI18n.tr("plugin.powerline.build_success", result.success()));
+                state.setProjectStatus(PlotI18n.tr("plugin.powerline.build_success", result.success()), ProjectStatusSeverity.SUCCESS);
             } else if (result != null && result.success() > 0) {
                 state.setProjectStatus(PlotI18n.tr(
                     "plugin.powerline.build_partial",
@@ -497,7 +517,7 @@ public final class PowerLineActions {
             return false;
         }
         if (!hasValidPreview(line)) {
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.preview_stale"));
+            state.setProjectStatus(PlotI18n.tr("plugin.powerline.preview_stale"), ProjectStatusSeverity.WARNING);
             return false;
         }
         return true;
@@ -516,7 +536,7 @@ public final class PowerLineActions {
         if (canvas != null && canvas.getCamera() != null) {
             canvas.getCamera().setOffset(centroid);
             selectLine(line.getId(), false);
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.locate_success", line.getName()));
+            state.setProjectStatus(PlotI18n.tr("plugin.powerline.locate_success", line.getName()), ProjectStatusSeverity.SUCCESS);
         }
     }
 
@@ -592,10 +612,18 @@ public final class PowerLineActions {
         String targetFile = ProjectPathResolver.sidecarFileName(filePath);
         Path file = projectsDir.resolve(targetFile);
         boolean loaded = loadProjectFile(file);
-        loadDesignProjectFile(designProjectsDir.resolve(targetFile));
+        boolean designsLoaded = loadDesignProjectFile(designProjectsDir.resolve(targetFile));
         if (loaded) {
             state.setCurrentProjectFile(targetFile);
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.project.loaded", filePath));
+            if (designsLoaded) {
+                state.setProjectStatus(
+                    PlotI18n.tr("plugin.powerline.project.loaded", filePath),
+                    ProjectStatusSeverity.SUCCESS);
+            } else {
+                state.setProjectStatus(
+                    PlotI18n.tr("plugin.powerline.project.loaded_designs_failed", filePath),
+                    ProjectStatusSeverity.WARNING);
+            }
         }
     }
 
@@ -607,7 +635,7 @@ public final class PowerLineActions {
         boolean saved = saveProjectFile(projectsDir.resolve(state.getCurrentProjectFile()));
         saveDesignProjectFile(designProjectsDir.resolve(state.getCurrentProjectFile()));
         if (saved) {
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.project.saved", filePath));
+            state.setProjectStatus(PlotI18n.tr("plugin.powerline.project.saved", filePath), ProjectStatusSeverity.SUCCESS);
         }
     }
 
@@ -629,7 +657,7 @@ public final class PowerLineActions {
             return true;
         } catch (IOException e) {
             LOGGER.error("加载电力线路项目失败: {}", e.getMessage(), e);
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.project.load_failed", file.getFileName()));
+            state.setProjectStatus(PlotI18n.tr("plugin.powerline.project.load_failed", file.getFileName()), ProjectStatusSeverity.ERROR);
             return false;
         }
     }
@@ -694,7 +722,7 @@ public final class PowerLineActions {
         if (isDesignReferencedByAnyLine(design.getId())) {
             invalidatePreview();
         }
-        state.setProjectStatus(PlotI18n.tr("plugin.powerline.design.saved", design.getName()));
+        state.setProjectStatus(PlotI18n.tr("plugin.powerline.design.saved", design.getName()), ProjectStatusSeverity.SUCCESS);
     }
 
     private boolean isDesignReferencedByAnyLine(String designId) {
@@ -723,7 +751,7 @@ public final class PowerLineActions {
             return true;
         } catch (IOException e) {
             LOGGER.error("保存电力线路项目失败: {}", e.getMessage(), e);
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.project.save_failed", file.getFileName()));
+            state.setProjectStatus(PlotI18n.tr("plugin.powerline.project.save_failed", file.getFileName()), ProjectStatusSeverity.ERROR);
             return false;
         }
     }
@@ -750,7 +778,7 @@ public final class PowerLineActions {
         }
         World world = getClientWorld();
         if (world == null) {
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.generate_world_unavailable"));
+            state.setProjectStatus(PlotI18n.tr("plugin.powerline.generate_world_unavailable"), ProjectStatusSeverity.ERROR);
             return null;
         }
         if (!hasValidPreview(line) && !calculatePreviewCore(line)) {
@@ -762,7 +790,7 @@ public final class PowerLineActions {
     }
 
     public OptimizationResult proposeAutoTowerSelection(PowerLineFootprint line) {
-        if (line == null || !line.isAutomaticTowerSelectionEnabled()) {
+        if (line == null) {
             return null;
         }
         if (!hasValidPreview(line) && !calculatePreview(line)) {
@@ -819,9 +847,17 @@ public final class PowerLineActions {
     public void applyPendingOptimization(PowerLineFootprint line) {
         OptimizationResult optimization = state.getValidationState().getPendingOptimization();
         if (optimization == null || line == null) {
+            state.getValidationState().clearOptimization();
+            return;
+        }
+        if (optimization.getActions().isEmpty()) {
+            state.getValidationState().clearOptimization();
             return;
         }
         state.getProjectHistory().push(state.getProject());
+        if (state.getValidationState().isPendingEnableAutomaticTowers()) {
+            line.setAutomaticTowerSelectionEnabled(true);
+        }
         for (com.plot.plugin.powerline.engineering.optimization.OptimizationAction action : optimization.getActions()) {
             switch (action.getType()) {
                 case SELECT_TALLER_TOWER -> com.plot.plugin.powerline.PowerLineOverrideUtils.setDesignOverride(
@@ -837,7 +873,9 @@ public final class PowerLineActions {
         }
         state.getValidationState().clearOptimization();
         invalidatePreview();
-        state.setProjectStatus(PlotI18n.tr("plugin.powerline.engineering.applied"));
+        state.setProjectStatus(
+            PlotI18n.tr("plugin.powerline.engineering.applied"),
+            ProjectStatusSeverity.SUCCESS);
     }
 
     private World getClientWorld() {

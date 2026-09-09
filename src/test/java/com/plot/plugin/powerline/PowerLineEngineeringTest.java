@@ -52,20 +52,19 @@ class PowerLineEngineeringTest {
 
     @Test
     void saggingConductorFailsAtMidspan() {
+        // Decorative clearance (~1.5): deep sag on short poles must still flag near-ground contact.
         PowerLineFootprint line = horizontalLine(60);
-        line.setSagRatio(0.25);
-        line.setTowerFamilyId(TowerFamily.STANDARD_LATTICE_3_PHASE_ID);
+        line.setSagRatio(0.45);
+        line.setMaxSagDepth(40);
+        line.setPoleHeight(8.0);
+        line.setPoleDesignId(com.plot.plugin.powerline.design.PoleDesignCatalog.SIMPLE_WOOD_POLE_ID);
         line.setMaxPoleSpacing(80);
+        line.setTerrainAvoidanceEnabled(true);
+        line.setLineChecksEnabled(true);
         TerrainSampler terrain = flatTerrain(64);
         PowerLineGenerationResult result = generate(line, terrain);
-        ValidationLimits limits = new ValidationLimits(
-            line.getMaxPoleSpacing(),
-            line.getMinPoleSpacing(),
-            20.0,
-            ValidationLimits.DEFAULT_OVERLAP_THRESHOLD,
-            line.getCornerAngleThreshold());
         PowerLineValidationReport report = com.plot.plugin.powerline.engineering.validation.PowerLineValidator
-            .validate(result.toGeometryModel(), terrain, line, limits);
+            .validate(result.toGeometryModel(), terrain, line);
         assertTrue(report.getIssues().stream()
             .anyMatch(i -> EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM.equals(i.ruleId())));
     }

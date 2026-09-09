@@ -2,20 +2,25 @@ package com.plot.plugin.powerline.design.structure;
 
 import com.plot.core.material.MaterialMix;
 
-/** 内置塔体装饰预设。 */
+import java.util.UUID;
+
+/** 内置塔体装饰模板；每次创建生成唯一 id，避免删除时误删同名装饰。 */
 public final class TowerDecorationCatalog {
     private TowerDecorationCatalog() {
     }
 
     public static TowerDecoration beaconAtTop(double towerTopHeight) {
-        TowerDecoration decoration = new TowerDecoration("deco_beacon", TowerDecorationKind.BEACON, towerTopHeight + 1);
+        TowerDecoration decoration = new TowerDecoration(
+            uniqueId("deco_beacon"),
+            TowerDecorationKind.BEACON,
+            towerTopHeight + 1);
         decoration.setMaterial(MaterialMix.single("minecraft:beacon"));
         return decoration;
     }
 
     public static TowerDecoration warningLightAtTop(double towerTopHeight) {
         TowerDecoration decoration = new TowerDecoration(
-            "deco_warning_light",
+            uniqueId("deco_warning_light"),
             TowerDecorationKind.WARNING_LIGHT,
             towerTopHeight + 1);
         decoration.setMaterial(MaterialMix.single("minecraft:sea_lantern"));
@@ -24,7 +29,7 @@ public final class TowerDecorationCatalog {
 
     public static TowerDecoration antennaAtTop(double towerTopHeight) {
         TowerDecoration decoration = new TowerDecoration(
-            "deco_antenna",
+            uniqueId("deco_antenna"),
             TowerDecorationKind.ANTENNA,
             towerTopHeight);
         decoration.setSize(5);
@@ -34,7 +39,7 @@ public final class TowerDecorationCatalog {
 
     public static TowerDecoration platformAtTop(double towerTopHeight) {
         TowerDecoration decoration = new TowerDecoration(
-            "deco_platform",
+            uniqueId("deco_platform"),
             TowerDecorationKind.PLATFORM,
             towerTopHeight);
         decoration.setSize(2.0);
@@ -51,5 +56,9 @@ public final class TowerDecorationCatalog {
             case ANTENNA -> antennaAtTop(towerTopHeight);
             case PLATFORM -> platformAtTop(towerTopHeight);
         };
+    }
+
+    private static String uniqueId(String prefix) {
+        return prefix + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
     }
 }

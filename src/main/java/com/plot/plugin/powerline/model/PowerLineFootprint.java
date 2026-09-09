@@ -44,8 +44,8 @@ public class PowerLineFootprint {
     private MaterialMix topWireMaterial = MaterialMix.single("minecraft:chain");
     private final List<PoleOverride> poleOverrides = new ArrayList<>();
     private final List<PoleLayoutConstraint> layoutConstraints = new ArrayList<>();
-    private boolean lineChecksEnabled = false;
-    private boolean terrainAvoidanceEnabled = false;
+    private boolean lineChecksEnabled = true;
+    private boolean terrainAvoidanceEnabled = true;
     private boolean automaticTowerSelectionEnabled;
     /** 玩家曾在 Route 高级区手工调整间距；切换风格时不自动覆盖。 */
     private boolean spacingCustomized;

@@ -369,17 +369,20 @@ public final class PoleDesignerPanel {
         if (ImGui.isItemActivated()) {
             pushDraftSnapshot();
         }
-        ImGui.sameLine();
-        ImFloat size = new ImFloat((float) decoration.getSize());
-        ImGui.setNextItemWidth(55);
-        String sizeLabel = decoration.getKind() == TowerDecorationKind.PLATFORM
-            ? PlotI18n.tr("plugin.powerline.design.decoration_platform_radius")
-            : PlotI18n.tr("plugin.powerline.design.decoration_antenna_height");
-        if (ImGui.inputFloat(sizeLabel, size)) {
-            decoration.setSize(size.get());
-        }
-        if (ImGui.isItemActivated()) {
-            pushDraftSnapshot();
+        if (decoration.getKind() == TowerDecorationKind.ANTENNA
+                || decoration.getKind() == TowerDecorationKind.PLATFORM) {
+            ImGui.sameLine();
+            ImFloat size = new ImFloat((float) decoration.getSize());
+            ImGui.setNextItemWidth(55);
+            String sizeLabel = decoration.getKind() == TowerDecorationKind.PLATFORM
+                ? PlotI18n.tr("plugin.powerline.design.decoration_platform_radius")
+                : PlotI18n.tr("plugin.powerline.design.decoration_antenna_height");
+            if (ImGui.inputFloat(sizeLabel, size)) {
+                decoration.setSize(size.get());
+            }
+            if (ImGui.isItemActivated()) {
+                pushDraftSnapshot();
+            }
         }
         ImGui.sameLine();
         if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.decoration_snap_top"))) {

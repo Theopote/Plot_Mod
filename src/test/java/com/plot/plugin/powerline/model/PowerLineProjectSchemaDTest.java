@@ -36,6 +36,14 @@ class PowerLineProjectSchemaDTest {
     }
 
     @Test
+    void schemaVersionIsWritten() {
+        PowerLineProject project = new PowerLineProject();
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
+        project.addLine(line);
+        assertTrue(project.toJson().contains("\"schemaVersion\": " + PowerLineProject.SCHEMA_VERSION));
+    }
+
+    @Test
     void lineChecksEnabledJsonRoundTrip() {
         PowerLineProject project = new PowerLineProject();
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));

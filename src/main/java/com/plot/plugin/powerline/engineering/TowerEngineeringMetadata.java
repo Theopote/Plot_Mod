@@ -6,10 +6,9 @@ import java.util.EnumSet;
 import java.util.Objects;
 import java.util.Set;
 
-/** 杆塔规划能力元数据（非结构计算结果）。 */
+/** 杆塔规划能力元数据（非结构计算结果）。间距权威来源是 {@code PoleSpacingProfile}，此处不含 preferredSpan。 */
 public class TowerEngineeringMetadata {
     private double nominalHeight = 18.0;
-    private double preferredSpan = 20.0;
     private double maxRecommendedSpan = 40.0;
     private double maxRecommendedDeflectionAngle = 5.0;
     private Set<TowerRole> supportedRoles = EnumSet.of(TowerRole.SUSPENSION);
@@ -20,14 +19,6 @@ public class TowerEngineeringMetadata {
 
     public void setNominalHeight(double nominalHeight) {
         this.nominalHeight = Math.max(1.0, nominalHeight);
-    }
-
-    public double getPreferredSpan() {
-        return preferredSpan;
-    }
-
-    public void setPreferredSpan(double preferredSpan) {
-        this.preferredSpan = Math.max(1.0, preferredSpan);
     }
 
     public double getMaxRecommendedSpan() {
@@ -63,7 +54,6 @@ public class TowerEngineeringMetadata {
     public TowerEngineeringMetadata copy() {
         TowerEngineeringMetadata copy = new TowerEngineeringMetadata();
         copy.nominalHeight = nominalHeight;
-        copy.preferredSpan = preferredSpan;
         copy.maxRecommendedSpan = maxRecommendedSpan;
         copy.maxRecommendedDeflectionAngle = maxRecommendedDeflectionAngle;
         copy.supportedRoles = getSupportedRoles();

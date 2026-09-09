@@ -19,6 +19,9 @@ import java.util.Map;
  * 用户自定义杆塔设计工程（与线路工程分开存储）。
  */
 public class PowerLineDesignProject {
+    /** Current on-disk design sidecar schema. Missing / 0 = legacy. */
+    public static final int SCHEMA_VERSION = 3;
+
     private static final Gson GSON = new GsonBuilder()
         .setPrettyPrinting()
         .registerTypeAdapter(MaterialMix.class, new MaterialMixTypeAdapter())
@@ -93,10 +96,12 @@ public class PowerLineDesignProject {
     }
 
     static class ProjectData {
+        int schemaVersion = SCHEMA_VERSION;
         List<DesignRefData> designs = new ArrayList<>();
 
         static ProjectData from(PowerLineDesignProject project) {
             ProjectData data = new ProjectData();
+            data.schemaVersion = SCHEMA_VERSION;
             for (PoleDesign design : project.designs.values()) {
                 DesignRefData ref = new DesignRefData();
                 ref.json = design.toJson();

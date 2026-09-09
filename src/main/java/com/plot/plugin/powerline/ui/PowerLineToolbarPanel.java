@@ -1,6 +1,5 @@
 package com.plot.plugin.powerline.ui;
 
-import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
@@ -45,7 +44,7 @@ public final class PowerLineToolbarPanel {
         }
 
         if (!ctx.projectStatus().isEmpty()) {
-            ImGui.textColored(PluginUiColors.STATUS_OK, ctx.projectStatus());
+            ImGui.textColored(ctx.projectStatusSeverity().color(), ctx.projectStatus());
         }
         ImGui.separator();
     }

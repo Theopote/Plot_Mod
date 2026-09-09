@@ -37,6 +37,24 @@ class ConductorAttachmentTest {
     }
 
     @Test
+    void equalsIncludesStructuralFields() {
+        ConductorAttachment a = ConductorAttachmentPresets.threePhaseHorizontal(12.0).getFirst();
+        ConductorAttachment b = a.copy();
+        assertEquals(a, b);
+
+        b.setBundleVisual(BundleVisual.TWIN);
+        assertFalse(a.equals(b));
+
+        b = a.copy();
+        b.setInsulatorAssemblyId("assembly_x");
+        assertFalse(a.equals(b));
+
+        b = a.copy();
+        b.setArmId("arm_1");
+        assertFalse(a.equals(b));
+    }
+
+    @Test
     void disabledAttachmentCanBeStored() {
         ConductorAttachment attachment = new ConductorAttachment("phase_a", "A");
         attachment.setEnabled(false);
