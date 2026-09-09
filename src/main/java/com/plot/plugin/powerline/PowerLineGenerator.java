@@ -12,8 +12,9 @@ import com.plot.plugin.powerline.design.family.PoleDesignAssignmentResolver;
 import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
 import com.plot.plugin.powerline.placement.GenerationVoxelSink;
 import com.plot.plugin.powerline.placement.PoleLayerVoxelPlacer;
-import com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver;
+import com.plot.plugin.powerline.design.ConductorAttachmentPresets;
 import com.plot.plugin.powerline.engineering.selection.TowerSelectionContext;
+import com.plot.plugin.powerline.engineering.validation.ValidationLimits;
 import com.plot.plugin.powerline.design.structure.TowerStructureValidator;
 import com.plot.plugin.powerline.design.structure.TowerValidationIssue;
 import com.plot.plugin.powerline.equipment.JumperWireGenerator;
@@ -137,6 +138,10 @@ public class PowerLineGenerator {
             assignmentResolver.resolve(site, footprint, selectionContext);
         result.warnings.addAll(assignment.warnings());
         PoleDesign design = assignment.design();
+        if (design != null && !design.hasEnabledAttachments()) {
+            design = design.copy();
+            design.ensureDefaultConductorAttachments();
+        }
 
         int legacyWireHangY;
         List<ResolvedAttachment> attachments = List.of();
@@ -168,6 +173,10 @@ public class PowerLineGenerator {
         } else {
             legacyWireHangY = groundY + (int) Math.round(footprint.getPoleHeight());
             generateDefaultPole(planPoint, groundY, legacyWireHangY, footprint, result);
+            PoleDesign synthetic = new PoleDesign("_default_pole", "Default");
+            synthetic.setAttachments(ConductorAttachmentPresets.singleConductor(footprint.getPoleHeight()));
+            attachments = attachmentResolver.resolve(synthetic, frame);
+            usesAttachmentConductors = !attachments.isEmpty();
         }
 
         result.recordRole(site.getRole());
@@ -202,8 +211,7 @@ public class PowerLineGenerator {
         if (footprint.hasTowerFamily()) {
             context.setFamily(new TowerFamilyResolver().find(footprint.getTowerFamilyId()));
         }
-        context.setProfile(new EngineeringRuleProfileResolver().find(footprint.effectiveSagDefaultsId()));
-        context.setRequiredGroundClearance(context.getProfile().getClearance().getMinimumGroundClearance());
+        context.setRequiredGroundClearance(ValidationLimits.DEFAULT_MIN_GROUND_CLEARANCE);
         return context;
     }
 

@@ -32,20 +32,18 @@ public class PowerLineFootprint {
     private double cornerAngleThreshold = 5.0;
     private double poleHeight = 10.0;
     private double sagRatio = 0.15;
-    /** 单跨最大下垂深度（格），{@code <= 0} 表示沿用工程 profile 或不限制。 */
+    /** 单跨最大下垂深度（格），{@code <= 0} 表示不限制。 */
     private double maxSagDepth = PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH;
     private MaterialMix wireMaterial = MaterialMix.single(DEFAULT_WIRE_MATERIAL);
     private MaterialMix poleMaterial = MaterialMix.single(DEFAULT_POLE_MATERIAL);
     private String poleDesignId;
     private String towerFamilyId;
-    /** 当前选中的风格预设 id；项目 JSON 仍用 {@code stylePackId} 键（待迁移为 stylePresetId）。 */
-    private String stylePackId;
+    /** 当前选中的风格预设 id。 */
+    private String stylePresetId;
     /** 塔顶架空装饰线材质（视觉层次），非电气接地系统。 */
     private MaterialMix topWireMaterial = MaterialMix.single("minecraft:chain");
     private final List<PoleOverride> poleOverrides = new ArrayList<>();
     private final List<PoleLayoutConstraint> layoutConstraints = new ArrayList<>();
-    /** 生成侧弧垂/净空默认值 id（内部，非玩家选项）。 */
-    private String sagDefaultsId;
     private boolean lineChecksEnabled = false;
     private boolean terrainAvoidanceEnabled = false;
     private boolean automaticTowerSelectionEnabled;
@@ -204,22 +202,24 @@ public class PowerLineFootprint {
         return towerFamilyId != null && !towerFamilyId.isBlank();
     }
 
-    public String getStylePackId() {
-        return stylePackId;
-    }
-
-    /** 同 {@link #getStylePackId()}；命名对齐 {@link com.plot.plugin.powerline.style.PowerLineStylePreset}。 */
     public String getStylePresetId() {
-        return stylePackId;
+        return stylePresetId;
     }
 
-    public void setStylePackId(String stylePackId) {
-        this.stylePackId = stylePackId != null && stylePackId.isBlank() ? null : stylePackId;
-    }
-
-    /** 同 {@link #setStylePackId(String)}。 */
     public void setStylePresetId(String stylePresetId) {
-        setStylePackId(stylePresetId);
+        this.stylePresetId = stylePresetId != null && stylePresetId.isBlank() ? null : stylePresetId;
+    }
+
+    /** @deprecated use {@link #getStylePresetId()} */
+    @Deprecated
+    public String getStylePackId() {
+        return getStylePresetId();
+    }
+
+    /** @deprecated use {@link #setStylePresetId(String)} */
+    @Deprecated
+    public void setStylePackId(String stylePackId) {
+        setStylePresetId(stylePackId);
     }
 
     public MaterialMix getTopWireMaterial() {
@@ -300,40 +300,6 @@ public class PowerLineFootprint {
         if (index >= 0 && index < layoutConstraints.size()) {
             layoutConstraints.remove(index);
         }
-    }
-
-    public String getSagDefaultsId() {
-        return sagDefaultsId;
-    }
-
-    public void setSagDefaultsId(String sagDefaultsId) {
-        this.sagDefaultsId = sagDefaultsId != null && sagDefaultsId.isBlank()
-            ? null
-            : sagDefaultsId;
-    }
-
-    public String effectiveSagDefaultsId() {
-        return sagDefaultsId != null && !sagDefaultsId.isBlank()
-            ? sagDefaultsId
-            : com.plot.plugin.powerline.engineering.EngineeringRuleProfile.INTERNAL_SAG_DEFAULTS_ID;
-    }
-
-    /** @deprecated use {@link #getSagDefaultsId()} */
-    @Deprecated
-    public String getEngineeringProfileId() {
-        return getSagDefaultsId();
-    }
-
-    /** @deprecated use {@link #setSagDefaultsId(String)} */
-    @Deprecated
-    public void setEngineeringProfileId(String engineeringProfileId) {
-        setSagDefaultsId(engineeringProfileId);
-    }
-
-    /** @deprecated use {@link #effectiveSagDefaultsId()} */
-    @Deprecated
-    public String effectiveEngineeringProfileId() {
-        return effectiveSagDefaultsId();
     }
 
     public boolean isLineChecksEnabled() {
@@ -436,11 +402,10 @@ public class PowerLineFootprint {
         hash = 31 * hash + materialFingerprint(poleMaterial);
         hash = 31 * hash + Objects.hashCode(poleDesignId);
         hash = 31 * hash + Objects.hashCode(towerFamilyId);
-        hash = 31 * hash + Objects.hashCode(stylePackId);
+        hash = 31 * hash + Objects.hashCode(stylePresetId);
         hash = 31 * hash + materialFingerprint(topWireMaterial);
         hash = 31 * hash + poleOverrides.hashCode();
         hash = 31 * hash + layoutConstraints.hashCode();
-        hash = 31 * hash + Objects.hashCode(sagDefaultsId);
         hash = 31 * hash + Boolean.hashCode(lineChecksEnabled);
         hash = 31 * hash + Boolean.hashCode(terrainAvoidanceEnabled);
         hash = 31 * hash + Boolean.hashCode(automaticTowerSelectionEnabled);

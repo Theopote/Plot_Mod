@@ -49,12 +49,11 @@ public final class TerrainCollisionCheck implements LineValidationCheck {
             geometry,
             terrain,
             null,
-            null,
             new ValidationLimits(
                 Double.MAX_VALUE,
                 0.0,
                 TerrainAvoidance.SAFETY_MARGIN_BLOCKS,
-                ValidationLimits.fromFootprint(null, null).wireOverlapThreshold(),
+                ValidationLimits.DEFAULT_OVERLAP_THRESHOLD,
                 Double.MAX_VALUE));
         new TerrainCollisionCheck().apply(context, report);
         return report;

@@ -1,7 +1,6 @@
 package com.plot.plugin.powerline;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.plugin.powerline.engineering.EngineeringRuleProfileCatalog;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import org.junit.jupiter.api.Test;
 
@@ -16,29 +15,22 @@ class PowerLineSagPolicyTest {
     }
 
     @Test
-    void lineCapTakesPrecedenceOverProfile() {
+    void lineCapIsUsedWhenSet() {
         PowerLineFootprint line = sampleLine();
         line.setMaxSagDepth(8.0);
-        var profile = EngineeringRuleProfileCatalog.genericPlanning();
-        profile.getSag().setMaxSagDepth(16.0);
-        assertEquals(8.0, PowerLineSagPolicy.resolveMaxSagDepth(line, profile));
+        assertEquals(8.0, PowerLineSagPolicy.resolveMaxSagDepth(line));
     }
 
     @Test
-    void fallsBackToProfileWhenLineUnlimited() {
+    void unlimitedWhenExplicitlyZero() {
         PowerLineFootprint line = sampleLine();
         line.setMaxSagDepth(0.0);
-        var profile = EngineeringRuleProfileCatalog.genericPlanning();
-        profile.getSag().setMaxSagDepth(10.0);
-        assertEquals(10.0, PowerLineSagPolicy.resolveMaxSagDepth(line, profile));
+        assertEquals(0.0, PowerLineSagPolicy.resolveMaxSagDepth(line));
     }
 
     @Test
-    void unlimitedWhenNeitherCaps() {
+    void defaultCapWhenUnset() {
         PowerLineFootprint line = sampleLine();
-        line.setMaxSagDepth(0.0);
-        var profile = EngineeringRuleProfileCatalog.genericPlanning();
-        profile.getSag().setMaxSagDepth(0.0);
-        assertEquals(0.0, PowerLineSagPolicy.resolveMaxSagDepth(line, profile));
+        assertEquals(PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH, PowerLineSagPolicy.resolveMaxSagDepth(line));
     }
 }

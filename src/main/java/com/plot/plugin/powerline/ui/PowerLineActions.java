@@ -782,11 +782,14 @@ public final class PowerLineActions {
             sites = new com.plot.plugin.powerline.engineering.optimization.LineOptimizationEngine.PowerLineGeometrySites(
                 com.plot.plugin.powerline.PowerPoleLayoutUtils.computePoleSites(line));
         }
-        com.plot.plugin.powerline.engineering.EngineeringRuleProfile profile =
-            new com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver()
-                .find(line.effectiveSagDefaultsId());
         OptimizationResult optimization = com.plot.plugin.powerline.engineering.optimization.LineOptimizationEngine
-            .propose(report, sites, line, profile, designResolver());
+            .propose(
+                report,
+                sites,
+                line,
+                com.plot.plugin.powerline.engineering.validation.ValidationLimits.DEFAULT_MIN_GROUND_CLEARANCE,
+                com.plot.plugin.powerline.engineering.validation.ValidationLimits.TOWER_PREFERRED_HEIGHT_MARGIN,
+                designResolver());
         state.getValidationState().setPendingOptimization(optimization);
         return optimization;
     }

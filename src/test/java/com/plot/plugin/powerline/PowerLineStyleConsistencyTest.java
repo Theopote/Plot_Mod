@@ -40,7 +40,7 @@ class PowerLineStyleConsistencyTest {
         PowerLineFootprint line = sampleLine();
         preset.apply(line);
 
-        assertEquals(preset.getId(), line.getStylePackId());
+        assertEquals(preset.getId(), line.getStylePresetId());
         assertTrue(preset.matchesBundle(line), preset.getId() + " should match after apply()");
         PowerLineStylePreset active = PowerLineStylePresetCatalog.activePreset(line);
         assertNotNull(active, preset.getId() + " should be active preset");

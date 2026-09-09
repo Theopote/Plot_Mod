@@ -2,8 +2,6 @@ package com.plot.plugin.powerline.ui;
 
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
-import com.plot.plugin.powerline.engineering.EngineeringRuleProfile;
-import com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver;
 import com.plot.plugin.powerline.PowerLineSagPolicy;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.TowerRole;
@@ -130,9 +128,7 @@ public final class PowerLineUiWidgets {
                 ctx.state().getValidationState().setOverlayEnabled(!overlay);
             }
         }
-        EngineeringRuleProfile activeProfile = new EngineeringRuleProfileResolver()
-            .find(line.effectiveSagDefaultsId());
-        renderSagDepthControls(ctx, line, activeProfile);
+        renderSagDepthControls(ctx, line);
         ImGui.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.validation.disclaimer"));
@@ -140,9 +136,8 @@ public final class PowerLineUiWidgets {
 
     private static void renderSagDepthControls(
             PowerLineUiContext ctx,
-            PowerLineFootprint line,
-            EngineeringRuleProfile profile) {
-        double effective = PowerLineSagPolicy.resolveMaxSagDepth(line, profile);
+            PowerLineFootprint line) {
+        double effective = PowerLineSagPolicy.resolveMaxSagDepth(line);
         if (effective > 0.0) {
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,

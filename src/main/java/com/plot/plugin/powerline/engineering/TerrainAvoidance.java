@@ -32,15 +32,6 @@ public final class TerrainAvoidance {
     private TerrainAvoidance() {
     }
 
-    public static EngineeringRuleProfile decorativeProfile() {
-        EngineeringRuleProfile profile = new EngineeringRuleProfile(PROFILE_ID, "Terrain Avoidance");
-        profile.getClearance().setMinimumGroundClearance(SAFETY_MARGIN_BLOCKS);
-        profile.getSpan().setMaximumSpan(500.0);
-        profile.getSpan().setMinimumSpan(1.0);
-        profile.getTower().setPreferredHeightMargin(2.0);
-        return profile;
-    }
-
     /** 只检测导线与地形表面的碰撞（不含完整工程规则）。 */
     public static PowerLineValidationReport analyzeCollisions(
             PowerLineGeometryModel geometry,
@@ -101,7 +92,8 @@ public final class TerrainAvoidance {
             report,
             sites,
             line,
-            decorativeProfile(),
+            SAFETY_MARGIN_BLOCKS,
+            com.plot.plugin.powerline.engineering.validation.ValidationLimits.TOWER_PREFERRED_HEIGHT_MARGIN,
             designResolver);
         for (OptimizationAction action : optimization.getActions()) {
             if (action.getType() == OptimizationActionType.SELECT_TALLER_TOWER

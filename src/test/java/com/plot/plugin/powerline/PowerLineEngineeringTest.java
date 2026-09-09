@@ -11,8 +11,6 @@ import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
 import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
 import com.plot.plugin.powerline.engineering.EngineeringRuleIds;
-import com.plot.plugin.powerline.engineering.EngineeringRuleProfile;
-import com.plot.plugin.powerline.engineering.EngineeringRuleProfileCatalog;
 import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.engineering.clearance.ClearanceChecker;
 import com.plot.plugin.powerline.engineering.validation.ValidationLimits;
@@ -60,15 +58,14 @@ class PowerLineEngineeringTest {
         line.setMaxPoleSpacing(80);
         TerrainSampler terrain = flatTerrain(64);
         PowerLineGenerationResult result = generate(line, terrain);
-        EngineeringRuleProfile profile = EngineeringRuleProfileCatalog.genericPlanning();
-        profile.getClearance().setMinimumGroundClearance(20);
+        ValidationLimits limits = new ValidationLimits(
+            line.getMaxPoleSpacing(),
+            line.getMinPoleSpacing(),
+            20.0,
+            ValidationLimits.DEFAULT_OVERLAP_THRESHOLD,
+            line.getCornerAngleThreshold());
         PowerLineValidationReport report = com.plot.plugin.powerline.engineering.validation.PowerLineValidator
-            .validate(
-                result.toGeometryModel(),
-                terrain,
-                line,
-                profile,
-                ValidationLimits.fromFootprint(line, profile));
+            .validate(result.toGeometryModel(), terrain, line, limits);
         assertTrue(report.getIssues().stream()
             .anyMatch(i -> EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM.equals(i.ruleId())));
     }
@@ -174,18 +171,17 @@ class PowerLineEngineeringTest {
 
     @Test
     void shortSpanProducesWarning() {
-        EngineeringRuleProfile profile = EngineeringRuleProfileCatalog.genericPlanning();
-        profile.getSpan().setMinimumSpan(30);
         PowerLineFootprint line = horizontalLine(10);
         line.setMaxPoleSpacing(100);
         PowerLineGenerationResult result = generate(line, flatTerrain(64));
+        ValidationLimits limits = new ValidationLimits(
+            100.0,
+            30.0,
+            ValidationLimits.DEFAULT_MIN_GROUND_CLEARANCE,
+            ValidationLimits.DEFAULT_OVERLAP_THRESHOLD,
+            ValidationLimits.DEFAULT_SUSPENSION_ANGLE);
         PowerLineValidationReport report = com.plot.plugin.powerline.engineering.validation.PowerLineValidator
-            .validate(
-                result.toGeometryModel(),
-                flatTerrain(64),
-                line,
-                profile,
-                ValidationLimits.fromFootprint(line, profile));
+            .validate(result.toGeometryModel(), flatTerrain(64), line, limits);
         assertTrue(report.getIssues().stream()
             .anyMatch(i -> EngineeringRuleIds.SPAN_MINIMUM.equals(i.ruleId())));
     }
@@ -219,7 +215,6 @@ class PowerLineEngineeringTest {
         site.setRole(TowerRole.SUSPENSION);
         context.setSite(site);
         context.setFamily(TowerFamilyCatalog.gradedLattice3Phase());
-        context.setProfile(EngineeringRuleProfileCatalog.genericPlanning());
         context.setRequiredAttachmentHeight(22);
         context.setIncomingSpan(25);
         context.setOutgoingSpan(25);
@@ -246,7 +241,6 @@ class PowerLineEngineeringTest {
         TowerSelectionContext context = new TowerSelectionContext();
         context.setSite(middle);
         context.setFamily(TowerFamilyCatalog.gradedLattice3Phase());
-        context.setProfile(EngineeringRuleProfileCatalog.genericPlanning());
         context.setRequiredAttachmentHeight(22);
         context.setIncomingSpan(40);
         context.setOutgoingSpan(40);

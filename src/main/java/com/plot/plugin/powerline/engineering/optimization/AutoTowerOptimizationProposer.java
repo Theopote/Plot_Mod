@@ -1,15 +1,14 @@
 package com.plot.plugin.powerline.engineering.optimization;
 
 import com.plot.plugin.powerline.PowerLineGenerationResult;
-import com.plot.plugin.powerline.PolePlacement;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
 import com.plot.plugin.powerline.engineering.PowerLineValidationI18n;
-import com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver;
 import com.plot.plugin.powerline.engineering.selection.AutomaticTowerSelector;
 import com.plot.plugin.powerline.engineering.selection.TowerSelectionContext;
 import com.plot.plugin.powerline.engineering.selection.TowerSelectionResult;
+import com.plot.plugin.powerline.engineering.validation.ValidationLimits;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 
@@ -35,10 +34,11 @@ public final class AutoTowerOptimizationProposer {
             return result;
         }
 
-        var profile = new EngineeringRuleProfileResolver().find(footprint.effectiveSagDefaultsId());
         AutomaticTowerSelector selector = new AutomaticTowerSelector(designResolver);
         var sites = generation.poleSites;
         var placements = generation.polePlacements;
+        double groundClearance = ValidationLimits.DEFAULT_MIN_GROUND_CLEARANCE;
+        double heightMargin = ValidationLimits.TOWER_PREFERRED_HEIGHT_MARGIN;
 
         for (int i = 0; i < sites.size(); i++) {
             PowerPoleSite site = sites.get(i);
@@ -46,7 +46,8 @@ public final class AutoTowerOptimizationProposer {
                 continue;
             }
             String currentId = i < placements.size() ? placements.get(i).resolvedDesignId() : null;
-            TowerSelectionContext context = buildContext(site, sites, i, footprint, family, profile);
+            TowerSelectionContext context = buildContext(
+                site, sites, i, family, groundClearance, heightMargin);
             TowerSelectionResult selection = selector.select(context);
             if (!selection.hasSelection()) {
                 continue;
@@ -73,13 +74,12 @@ public final class AutoTowerOptimizationProposer {
             PowerPoleSite site,
             java.util.List<PowerPoleSite> sites,
             int index,
-            PowerLineFootprint footprint,
             com.plot.plugin.powerline.design.family.TowerFamily family,
-            com.plot.plugin.powerline.engineering.EngineeringRuleProfile profile) {
+            double groundClearance,
+            double heightMargin) {
         TowerSelectionContext context = new TowerSelectionContext();
         context.setSite(site);
         context.setFamily(family);
-        context.setProfile(profile);
         context.setDeflectionAngle(site.getDeflectionAngle());
         if (index > 0) {
             context.setIncomingSpan(site.getPlanPosition().distance(sites.get(index - 1).getPlanPosition()));
@@ -87,11 +87,8 @@ public final class AutoTowerOptimizationProposer {
         if (index < sites.size() - 1) {
             context.setOutgoingSpan(site.getPlanPosition().distance(sites.get(index + 1).getPlanPosition()));
         }
-        context.setRequiredGroundClearance(profile.getClearance().getMinimumGroundClearance());
-        context.setRequiredAttachmentHeight(
-            profile.getClearance().getMinimumGroundClearance()
-                + profile.getTower().getPreferredHeightMargin()
-                + 12.0);
+        context.setRequiredGroundClearance(groundClearance);
+        context.setRequiredAttachmentHeight(groundClearance + heightMargin + 12.0);
         return context;
     }
 

@@ -24,10 +24,18 @@ final class SpanValidationSupport {
                 && span.getEndPoleIndex() < geometry.getPlacements().size()) {
             var start = geometry.getPlacements().get(span.getStartPoleIndex());
             var end = geometry.getPlacements().get(span.getEndPoleIndex());
-            spanAnalysis.setElevationDifference(Math.abs(start.legacyWireHangY() - end.legacyWireHangY()));
+            spanAnalysis.setElevationDifference(Math.abs(
+                conductorWorldY(start) - conductorWorldY(end)));
         }
         report.addSpan(spanAnalysis);
         return spanAnalysis;
+    }
+
+    private static double conductorWorldY(com.plot.plugin.powerline.PolePlacement placement) {
+        if (placement.attachments() != null && !placement.attachments().isEmpty()) {
+            return placement.attachments().getFirst().conductorWorldY();
+        }
+        return placement.legacyWireHangY();
     }
 
     static Vec2d midpoint(ConductorSpanGeometry span) {

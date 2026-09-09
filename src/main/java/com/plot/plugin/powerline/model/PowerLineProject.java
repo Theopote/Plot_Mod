@@ -180,16 +180,14 @@ public class PowerLineProject {
         MaterialMix poleMaterial;
         String poleDesignId;
         String towerFamilyId;
-        /** JSON key {@code stylePackId}; rename to stylePresetId when schema migrates. */
+        String stylePresetId;
+        /** Legacy JSON key; prefer {@link #stylePresetId}. */
         String stylePackId;
         MaterialMix topWireMaterial;
         /** Legacy JSON key; prefer {@link #topWireMaterial}. */
         MaterialMix groundWireMaterial;
         List<PoleOverrideData> poleOverrides = new ArrayList<>();
         List<LayoutConstraintData> layoutConstraints = new ArrayList<>();
-        String sagDefaultsId;
-        /** Legacy JSON key; prefer {@link #sagDefaultsId}. */
-        String engineeringProfileId;
         boolean lineChecksEnabled;
         /** Legacy JSON key; prefer {@link #lineChecksEnabled}. */
         boolean engineeringAnalysisEnabled;
@@ -221,7 +219,7 @@ public class PowerLineProject {
                 lineData.poleMaterial = line.getPoleMaterial();
                 lineData.poleDesignId = line.getPoleDesignId();
                 lineData.towerFamilyId = line.getTowerFamilyId();
-                lineData.stylePackId = line.getStylePackId();
+                lineData.stylePresetId = line.getStylePresetId();
                 lineData.topWireMaterial = line.getTopWireMaterial();
                 for (PoleOverride override : line.getPoleOverrides()) {
                     lineData.poleOverrides.add(PoleOverrideData.from(override));
@@ -229,7 +227,6 @@ public class PowerLineProject {
                 for (PoleLayoutConstraint constraint : line.getLayoutConstraints()) {
                     lineData.layoutConstraints.add(LayoutConstraintData.from(constraint));
                 }
-                lineData.sagDefaultsId = line.getSagDefaultsId();
                 lineData.lineChecksEnabled = line.isLineChecksEnabled();
                 lineData.terrainAvoidanceEnabled = line.isTerrainAvoidanceEnabled();
                 lineData.automaticTowerSelectionEnabled = line.isAutomaticTowerSelectionEnabled();
@@ -281,7 +278,7 @@ public class PowerLineProject {
                 }
                 footprint.setPoleDesignId(lineData.poleDesignId);
                 footprint.setTowerFamilyId(lineData.towerFamilyId);
-                footprint.setStylePackId(lineData.stylePackId);
+                footprint.setStylePresetId(resolveStylePresetId(lineData));
                 MaterialMix topWire = resolveTopWireMaterial(lineData);
                 if (topWire != null) {
                     footprint.setTopWireMaterial(topWire);
@@ -304,7 +301,6 @@ public class PowerLineProject {
                     }
                     footprint.setLayoutConstraints(constraints);
                 }
-                footprint.setSagDefaultsId(resolveSagDefaultsId(lineData));
                 footprint.setLineChecksEnabled(resolveLineChecksEnabled(lineData));
                 footprint.setTerrainAvoidanceEnabled(lineData.terrainAvoidanceEnabled);
                 footprint.setAutomaticTowerSelectionEnabled(lineData.automaticTowerSelectionEnabled);
@@ -315,11 +311,11 @@ public class PowerLineProject {
             return project;
         }
 
-        private static String resolveSagDefaultsId(LineData lineData) {
-            if (lineData.sagDefaultsId != null && !lineData.sagDefaultsId.isBlank()) {
-                return lineData.sagDefaultsId;
+        private static String resolveStylePresetId(LineData lineData) {
+            if (lineData.stylePresetId != null && !lineData.stylePresetId.isBlank()) {
+                return lineData.stylePresetId;
             }
-            return lineData.engineeringProfileId;
+            return lineData.stylePackId;
         }
     }
 }

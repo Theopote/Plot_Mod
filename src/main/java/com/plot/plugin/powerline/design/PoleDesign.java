@@ -113,6 +113,18 @@ public class PoleDesign {
         return false;
     }
 
+    /** 为无挂点的旧设计/自定义杆型补上单导线挂点。 */
+    public void ensureDefaultConductorAttachments() {
+        if (hasEnabledAttachments()) {
+            return;
+        }
+        double offset = totalHeight();
+        if (offset <= 0.0) {
+            offset = 10.0;
+        }
+        setAttachments(ConductorAttachmentPresets.singleConductor(offset));
+    }
+
     public TowerStructureDesign getTowerStructure() {
         return towerStructure;
     }
@@ -199,7 +211,12 @@ public class PoleDesign {
 
     public static PoleDesign fromJson(String json) {
         DesignData data = GSON.fromJson(json, DesignData.class);
-        return data != null ? data.toDesign() : null;
+        if (data == null) {
+            return null;
+        }
+        PoleDesign design = data.toDesign();
+        design.ensureDefaultConductorAttachments();
+        return design;
     }
 
     static class AttachmentData {

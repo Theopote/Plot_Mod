@@ -21,7 +21,7 @@ public final class SagCheck implements LineValidationCheck {
         if (context.geometry() == null || context.footprint() == null) {
             return;
         }
-        double maxSagDepth = PowerLineSagPolicy.resolveMaxSagDepth(context.footprint(), context.profile());
+        double maxSagDepth = PowerLineSagPolicy.resolveMaxSagDepth(context.footprint());
         if (maxSagDepth <= 0.0) {
             return;
         }

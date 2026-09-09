@@ -4,16 +4,16 @@ import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
 import com.plot.plugin.powerline.engineering.EngineeringRuleIds;
-import com.plot.plugin.powerline.engineering.EngineeringRuleProfile;
 import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.engineering.analysis.SpanAnalysis;
 import com.plot.plugin.powerline.engineering.selection.AutomaticTowerSelector;
 import com.plot.plugin.powerline.engineering.selection.TowerSelectionContext;
 import com.plot.plugin.powerline.engineering.selection.TowerSelectionResult;
+import com.plot.plugin.powerline.engineering.validation.ValidationLimits;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 
-/** 基于工程报告提出优化方案（不自动应用）。 */
+/** 基于检查报告提出优化方案（不自动应用）。 */
 public final class LineOptimizationEngine {
     private LineOptimizationEngine() {
     }
@@ -22,10 +22,11 @@ public final class LineOptimizationEngine {
             PowerLineValidationReport report,
             PowerLineGeometrySites sites,
             PowerLineFootprint footprint,
-            EngineeringRuleProfile profile,
+            double groundClearance,
+            double heightMargin,
             PoleDesignResolver designResolver) {
         OptimizationResult result = new OptimizationResult();
-        if (report == null || footprint == null || profile == null) {
+        if (report == null || footprint == null) {
             return result;
         }
 
@@ -53,7 +54,15 @@ public final class LineOptimizationEngine {
                         && selector != null
                         && family != null
                         && sites != null) {
-                    proposeTallerTower(result, span, sites, family, profile, selector, issue.location().stationing());
+                    proposeTallerTower(
+                        result,
+                        span,
+                        sites,
+                        family,
+                        groundClearance,
+                        heightMargin,
+                        selector,
+                        issue.location().stationing());
                 }
             }
         }
@@ -67,7 +76,8 @@ public final class LineOptimizationEngine {
             SpanAnalysis span,
             PowerLineGeometrySites sites,
             TowerFamily family,
-            EngineeringRuleProfile profile,
+            double groundClearance,
+            double heightMargin,
             AutomaticTowerSelector selector,
             double stationingHint) {
         PowerPoleSite site = sites.findNearest(stationingHint);
@@ -83,13 +93,9 @@ public final class LineOptimizationEngine {
         TowerSelectionContext context = new TowerSelectionContext();
         context.setSite(site);
         context.setFamily(family);
-        context.setProfile(profile);
         context.setDeflectionAngle(site.getDeflectionAngle());
-        context.setRequiredGroundClearance(profile.getClearance().getMinimumGroundClearance());
-        context.setRequiredAttachmentHeight(
-            profile.getClearance().getMinimumGroundClearance()
-                + profile.getTower().getPreferredHeightMargin()
-                + 12.0);
+        context.setRequiredGroundClearance(groundClearance);
+        context.setRequiredAttachmentHeight(groundClearance + heightMargin + 12.0);
 
         TowerSelectionResult selection = selector.select(context);
         if (!selection.hasSelection()) {

@@ -29,7 +29,7 @@ class PowerLineStyleCardRendererTest {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
         PowerLineStylePreset pack = PowerLineStylePresetCatalog.classicWood();
         pack.apply(line);
-        assertEquals(PowerLineStylePreset.RUSTIC_WOOD_ID, line.getStylePackId());
+        assertEquals(PowerLineStylePreset.RUSTIC_WOOD_ID, line.getStylePresetId());
         assertEquals(PoleDesignCatalog.SIMPLE_WOOD_POLE_ID, line.getPoleDesignId());
         assertNull(line.getTowerFamilyId());
     }

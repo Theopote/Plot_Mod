@@ -29,7 +29,7 @@ class PoleDesignSerializationTest {
     }
 
     @Test
-    void legacyDesignWithoutAttachmentsStillLoads() {
+    void legacyDesignWithoutAttachmentsGetsDefaultOnLoad() {
         PoleDesign source = new PoleDesign("legacy-wood", "Legacy Wood");
         source.getLayers().add(new PoleLayer(
             PoleLayer.Shape.COLUMN,
@@ -40,7 +40,7 @@ class PoleDesignSerializationTest {
 
         PoleDesign restored = PoleDesign.fromJson(json);
         assertNotNull(restored);
-        assertTrue(restored.getAttachments().isEmpty());
+        assertEquals(1, restored.getAttachments().size());
         assertFalse(restored.getLayers().isEmpty());
     }
 }

@@ -34,7 +34,7 @@ class PowerLineStyleDefinitionTest {
         preset.apply(fromPreset);
         preset.getDefinition().applyTo(fromDefinition, preset.getId());
 
-        assertEquals(fromPreset.getStylePackId(), fromDefinition.getStylePackId());
+        assertEquals(fromPreset.getStylePresetId(), fromDefinition.getStylePresetId());
         assertEquals(fromPreset.getPoleDesignId(), fromDefinition.getPoleDesignId());
         assertEquals(fromPreset.getWireMaterial().getPrimaryMaterial(), fromDefinition.getWireMaterial().getPrimaryMaterial());
         assertTrue(preset.getDefinition().matches(fromDefinition));

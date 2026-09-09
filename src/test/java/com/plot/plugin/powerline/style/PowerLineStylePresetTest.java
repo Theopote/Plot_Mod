@@ -27,7 +27,7 @@ class PowerLineStylePresetTest {
         PowerLineStylePreset preset = PowerLineStylePresetCatalog.classicWood();
         preset.apply(line);
 
-        assertEquals(PowerLineStylePreset.RUSTIC_WOOD_ID, line.getStylePackId());
+        assertEquals(PowerLineStylePreset.RUSTIC_WOOD_ID, line.getStylePresetId());
         assertEquals(PoleDesignCatalog.SIMPLE_WOOD_POLE_ID, line.getPoleDesignId());
         assertNull(line.getTowerFamilyId());
         assertEquals("minecraft:oak_fence", line.getPoleMaterial().getPrimaryMaterial());
@@ -71,7 +71,7 @@ class PowerLineStylePresetTest {
 
         PowerLineStyleEditor.afterStyleEdit(line);
 
-        assertEquals(PowerLineStylePreset.JAPANESE_STREET_ID, line.getStylePackId());
+        assertEquals(PowerLineStylePreset.JAPANESE_STREET_ID, line.getStylePresetId());
         assertNotNull(PowerLineStylePresetCatalog.activePreset(line));
         assertTrue(PowerLineStyleEditor.isModified(line));
         assertFalse(PowerLineStylePresetCatalog.matchesBaseBundle(line));
@@ -107,7 +107,7 @@ class PowerLineStylePresetTest {
 
         PowerLineStyleEditor.afterStyleEdit(line);
 
-        assertEquals(PowerLineStylePreset.RUSTIC_WOOD_ID, line.getStylePackId());
+        assertEquals(PowerLineStylePreset.RUSTIC_WOOD_ID, line.getStylePresetId());
         assertNotNull(PowerLineStylePresetCatalog.activePreset(line));
         assertFalse(PowerLineStyleEditor.isModified(line));
     }
@@ -126,7 +126,7 @@ class PowerLineStylePresetTest {
 
         PowerLineStyleEditor.resetToBasePreset(line);
 
-        assertEquals(PowerLineStylePreset.JAPANESE_STREET_ID, line.getStylePackId());
+        assertEquals(PowerLineStylePreset.JAPANESE_STREET_ID, line.getStylePresetId());
         assertFalse(PowerLineStyleEditor.isModified(line));
         assertTrue(PowerLineStylePresetCatalog.japaneseStreet().matchesBundle(line));
         assertEquals(30.0, line.getMaxPoleSpacing(), 0.1);

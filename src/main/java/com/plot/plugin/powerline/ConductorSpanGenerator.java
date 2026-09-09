@@ -7,7 +7,6 @@ import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.powerline.design.AttachmentRole;
-import com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver;
 import com.plot.plugin.powerline.engineering.clearance.WireClearance;
 import com.plot.plugin.powerline.geometry.ConductorSample;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
@@ -44,22 +43,7 @@ public final class ConductorSpanGenerator {
             return;
         }
 
-        if (start.usesAttachmentConductors() || end.usesAttachmentConductors()) {
-            generateAttachmentConductors(
-                start,
-                end,
-                startPoleIndex,
-                endPoleIndex,
-                startSiteId,
-                endSiteId,
-                footprint,
-                terrain,
-                result,
-                projectionHandler);
-            return;
-        }
-
-        generateLegacyCenterConductor(
+        generateAttachmentConductors(
             start,
             end,
             startPoleIndex,
@@ -69,7 +53,6 @@ public final class ConductorSpanGenerator {
             footprint,
             terrain,
             result,
-            coordinateTransformer,
             projectionHandler);
     }
 
@@ -212,104 +195,16 @@ public final class ConductorSpanGenerator {
         result.conductorSpans.add(geometry);
     }
 
-    private static void generateLegacyCenterConductor(
-            PolePlacement start,
-            PolePlacement end,
-            int startPoleIndex,
-            int endPoleIndex,
-            String startSiteId,
-            String endSiteId,
-            PowerLineFootprint footprint,
-            TerrainSampler terrain,
-            PowerLineGenerationResult result,
-            ICoordinateService coordinateTransformer,
-            IBlockProjectionService projectionHandler) {
-        double spanLength = start.planPosition().distance(end.planPosition());
-        if (spanLength < 1e-6) {
-            return;
-        }
-        result.wireLength += spanLength;
-
-        int sampleCount = PowerLineWireRasterizer.computeWireSampleCount(spanLength, WIRE_SAMPLES_PER_BLOCK);
-        int segmentCount = sampleCount - 1;
-        List<Double> sagProfile = PowerLineSagUtils.computeSagProfile(
-            spanLength,
-            start.legacyWireHangY(),
-            end.legacyWireHangY(),
-            footprint.getSagRatio(),
-            sampleCount,
-            maxSagDepthFor(footprint));
-
-        double[] worldX = new double[sampleCount];
-        double[] worldY = new double[sampleCount];
-        double[] worldZ = new double[sampleCount];
-        Vec2d[] planPoints = new Vec2d[sampleCount];
-
-        for (int i = 0; i < sampleCount; i++) {
-            double t = (double) i / segmentCount;
-            planPoints[i] = start.planPosition().lerp(end.planPosition(), t);
-            double[] worldXz = planToWorldXz(planPoints[i], coordinateTransformer);
-            worldX[i] = worldXz[0];
-            worldZ[i] = worldXz[1];
-            worldY[i] = sagProfile.get(i);
-        }
-
-        ConductorSpanGeometry geometry = new ConductorSpanGeometry();
-        geometry.setSpanId(startSiteId + "->" + endSiteId + ":legacy");
-        geometry.setAttachmentId("legacy_center");
-        geometry.setRole(AttachmentRole.AUXILIARY);
-        geometry.setStartPoleIndex(startPoleIndex);
-        geometry.setEndPoleIndex(endPoleIndex);
-        geometry.setStartPoleSiteId(startSiteId);
-        geometry.setEndPoleSiteId(endSiteId);
-        geometry.setSpanLength(spanLength);
-        for (int i = 0; i < sampleCount; i++) {
-            geometry.addSample(new ConductorSample(worldX[i], worldY[i], worldZ[i], planPoints[i].copy()));
-        }
-
-        MaterialMix wireMaterial = footprint.getWireMaterial();
-        LinkedHashSet<BlockPos> wireBlocks = new LinkedHashSet<>();
-        for (int i = 0; i < segmentCount; i++) {
-            wireBlocks.addAll(PowerLineWireRasterizer.rasterizeLine3D(
-                worldX[i], worldY[i], worldZ[i],
-                worldX[i + 1], worldY[i + 1], worldZ[i + 1]));
-        }
-
-        for (int i = 0; i < sampleCount; i++) {
-            checkClearance(worldX[i], worldY[i], worldZ[i], planPoints[i], terrain, result);
-        }
-
-        for (BlockPos pos : wireBlocks) {
-            String blockId = MaterialMixResolver.resolve(wireMaterial, pos, footprint.getId());
-            recordBlock(result, pos, blockId, projectionHandler);
-        }
-        result.conductorSpans.add(geometry);
-    }
-
     private static double lerp(double a, double b, double t) {
         return a + (b - a) * t;
-    }
-
-    private static double[] planToWorldXz(Vec2d planPoint, ICoordinateService coordinateTransformer) {
-        if (planPoint == null) {
-            return new double[] {0.0, 0.0};
-        }
-        if (coordinateTransformer != null) {
-            Vec2d worldPos = coordinateTransformer.canvasToMinecraftWorld(planPoint);
-            if (worldPos != null) {
-                return new double[] {worldPos.x, worldPos.y};
-            }
-        }
-        return new double[] {planPoint.x, planPoint.y};
     }
 
     private static double maxSagDepthFor(PowerLineFootprint footprint) {
         if (footprint == null) {
             return PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH;
         }
-        return PowerLineSagPolicy.resolveMaxSagDepth(
-            footprint,
-            new EngineeringRuleProfileResolver().find(footprint.effectiveSagDefaultsId()));
+        double resolved = PowerLineSagPolicy.resolveMaxSagDepth(footprint);
+        return resolved > 0.0 ? resolved : PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH;
     }
 
     private static void checkClearance(

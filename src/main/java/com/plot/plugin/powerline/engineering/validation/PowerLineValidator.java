@@ -1,8 +1,5 @@
 package com.plot.plugin.powerline.engineering.validation;
 
-import com.plot.plugin.powerline.engineering.EngineeringRuleProfile;
-import com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver;
-import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.geometry.PowerLineGeometryModel;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.road.terrain.TerrainSampler;
@@ -32,35 +29,25 @@ public final class PowerLineValidator {
             PowerLineGeometryModel geometry,
             TerrainSampler terrain,
             PowerLineFootprint footprint) {
-        EngineeringRuleProfile profile = footprint != null
-            ? new EngineeringRuleProfileResolver().find(footprint.effectiveSagDefaultsId())
-            : defaultProfile();
-        ValidationLimits limits = ValidationLimits.fromFootprint(footprint, profile);
-        return validate(geometry, terrain, footprint, profile, limits);
+        return validate(geometry, terrain, footprint, ValidationLimits.fromFootprint(footprint));
     }
 
     public static PowerLineValidationReport validate(
             PowerLineGeometryModel geometry,
             TerrainSampler terrain,
             PowerLineFootprint footprint,
-            EngineeringRuleProfile profile,
             ValidationLimits limits) {
         PowerLineValidationReport report = new PowerLineValidationReport();
-        if (geometry == null || profile == null || limits == null) {
+        if (geometry == null || limits == null) {
             return report;
         }
         report.setProfileId(VALIDATION_PROFILE_ID);
         report.setProfileName(null);
         LineValidationContext context = new LineValidationContext(
-            geometry, terrain, footprint, profile, limits);
+            geometry, terrain, footprint, limits);
         for (LineValidationCheck check : CHECKS) {
             check.apply(context, report);
         }
         return report;
-    }
-
-    private static EngineeringRuleProfile defaultProfile() {
-        return new EngineeringRuleProfileResolver()
-            .find(EngineeringRuleProfile.GENERIC_PLANNING_ID);
     }
 }

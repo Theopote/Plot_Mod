@@ -1,7 +1,6 @@
 package com.plot.plugin.powerline.engineering.selection;
 
 import com.plot.plugin.powerline.design.family.TowerFamily;
-import com.plot.plugin.powerline.engineering.EngineeringRuleProfile;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 
 /** 自动塔型选择上下文。 */
@@ -13,7 +12,6 @@ public class TowerSelectionContext {
     private double requiredAttachmentHeight;
     private double requiredGroundClearance;
     private TowerFamily family;
-    private EngineeringRuleProfile profile;
 
     public PowerPoleSite getSite() {
         return site;
@@ -69,14 +67,6 @@ public class TowerSelectionContext {
 
     public void setFamily(TowerFamily family) {
         this.family = family;
-    }
-
-    public EngineeringRuleProfile getProfile() {
-        return profile;
-    }
-
-    public void setProfile(EngineeringRuleProfile profile) {
-        this.profile = profile;
     }
 
     public double maxAdjacentSpan() {

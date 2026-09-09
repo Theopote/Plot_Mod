@@ -85,33 +85,34 @@ class PowerLineProjectSchemaDTest {
     }
 
     @Test
-    void sagDefaultsIdJsonRoundTrip() {
+    void stylePresetIdJsonRoundTrip() {
         PowerLineProject project = new PowerLineProject();
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
-        line.setSagDefaultsId("profile/custom_sag");
+        line.setStylePresetId("pack/rustic_wood");
         project.addLine(line);
 
         PowerLineProject restored = PowerLineProject.fromJson(project.toJson());
         PowerLineFootprint restoredLine = restored.getLine(line.getId());
         assertNotNull(restoredLine);
-        assertEquals("profile/custom_sag", restoredLine.getSagDefaultsId());
-        assertTrue(project.toJson().contains("\"sagDefaultsId\""));
+        assertEquals("pack/rustic_wood", restoredLine.getStylePresetId());
+        assertTrue(project.toJson().contains("\"stylePresetId\""));
+        assertTrue(!project.toJson().contains("\"stylePackId\""));
     }
 
     @Test
-    void legacyEngineeringProfileIdJsonStillLoads() {
+    void legacyStylePackIdJsonStillLoads() {
         String legacyJson = """
             {
               "lines": [{
-                "id": "line-legacy-profile",
+                "id": "line-legacy-style",
                 "pathPoints": [{"x": 0, "y": 0}, {"x": 40, "y": 0}],
-                "engineeringProfileId": "profile/generic_planning"
+                "stylePackId": "pack/japanese_street"
               }]
             }
             """;
         PowerLineProject restored = PowerLineProject.fromJson(legacyJson);
-        PowerLineFootprint line = restored.getLine("line-legacy-profile");
+        PowerLineFootprint line = restored.getLine("line-legacy-style");
         assertNotNull(line);
-        assertEquals("profile/generic_planning", line.getSagDefaultsId());
+        assertEquals("pack/japanese_street", line.getStylePresetId());
     }
 }
