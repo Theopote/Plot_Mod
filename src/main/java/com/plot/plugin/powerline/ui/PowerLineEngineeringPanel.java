@@ -74,10 +74,12 @@ public final class PowerLineEngineeringPanel {
 
     private void renderReportSummary(LineEngineeringReport report) {
         ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.powerline.engineering.summary"));
-        ImGui.text(PlotI18n.tr(
-            "plugin.powerline.engineering.profile_result",
-            report.getProfileName() != null ? report.getProfileName() : report.getProfileId()));
+        ImGui.text(PlotI18n.tr("plugin.powerline.validation.summary"));
+        if (report.getProfileName() != null && !report.getProfileName().isBlank()) {
+            ImGui.text(PlotI18n.tr(
+                "plugin.powerline.engineering.profile_result",
+                report.getProfileName()));
+        }
         ImGui.text(PlotI18n.tr("plugin.powerline.engineering.errors", report.errorCount()));
         ImGui.text(PlotI18n.tr("plugin.powerline.engineering.warnings", report.warningCount()));
         ImGui.textColored(

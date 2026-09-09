@@ -256,12 +256,9 @@ public final class PowerLineActions {
         if (result == null) {
             return null;
         }
-        com.plot.plugin.powerline.engineering.EngineeringRuleProfile profile =
-            new com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver()
-                .find(line.effectiveEngineeringProfileId());
         TerrainSampler terrain = MinecraftTerrainSampler.of(world, host.coordinates());
-        return com.plot.plugin.powerline.engineering.analysis.PowerLineEngineeringAnalyzer
-            .analyze(result.toGeometryModel(), terrain, profile);
+        return com.plot.plugin.powerline.engineering.validation.PowerLineValidator
+            .validate(result.toGeometryModel(), terrain, line);
     }
 
     private void storeTerrainReport(LineEngineeringReport report) {

@@ -143,13 +143,28 @@ class PowerLineEngineeringTest {
     }
 
     @Test
-    void spanAboveMaximumFails() {
-        PowerLineFootprint line = horizontalLine(80);
-        line.setMaxPoleSpacing(100);
-        PowerLineGenerationResult result = generate(line, flatTerrain(64));
-        LineEngineeringReport report = analyze(result, flatTerrain(64));
+    void spanAboveConfiguredMaximumFails() {
+        ConductorSpanGeometry span = sampleSpan(0, 250, 70);
+        span.setSpanLength(250);
+        PowerLineGeometryModel geometry = new PowerLineGeometryModel();
+        geometry.addConductorSpan(span);
+        PowerLineFootprint line = horizontalLine(250);
+        line.setMaxPoleSpacing(200);
+        LineEngineeringReport report = com.plot.plugin.powerline.engineering.validation.PowerLineValidator
+            .validate(geometry, flatTerrain(64), line);
         assertTrue(report.getIssues().stream()
             .anyMatch(i -> EngineeringRuleIds.SPAN_MAXIMUM.equals(i.ruleId())));
+    }
+
+    @Test
+    void classicLatticeLongSpanRespectsStyleSpacing() {
+        PowerLineFootprint line = horizontalLine(180);
+        com.plot.plugin.powerline.style.PowerLineStylePresetCatalog.classicLattice().apply(line);
+        line.setEngineeringAnalysisEnabled(true);
+        PowerLineGenerationResult result = generate(line, flatTerrain(64));
+        LineEngineeringReport report = analyze(result, flatTerrain(64), line);
+        assertTrue(report.getIssues().stream()
+            .noneMatch(i -> EngineeringRuleIds.SPAN_MAXIMUM.equals(i.ruleId())));
     }
 
     @Test
@@ -230,13 +245,13 @@ class PowerLineEngineeringTest {
     }
 
     @Test
-    void threePhaseSpacingViolationReported() {
+    void overlappingDifferentPhasesReported() {
         PowerPoleSite site = new PowerPoleSite("pole-1", new Vec2d(0, 0));
         site.setRole(TowerRole.SUSPENSION);
         PoleFrame frame = PoleFrame.fromPole(site.getPlanPosition(), new Vec2d(1, 0), 64);
-        ResolvedAttachment phaseA = attachment("a", AttachmentRole.PHASE_A, frame, -0.5);
+        ResolvedAttachment phaseA = attachment("a", AttachmentRole.PHASE_A, frame, -0.1);
         ResolvedAttachment phaseB = attachment("b", AttachmentRole.PHASE_B, frame, 0.0);
-        ResolvedAttachment phaseC = attachment("c", AttachmentRole.PHASE_C, frame, 0.5);
+        ResolvedAttachment phaseC = attachment("c", AttachmentRole.PHASE_C, frame, 0.1);
         PolePlacement placement = new PolePlacement(
             site.getPlanPosition(),
             frame,
@@ -252,11 +267,38 @@ class PowerLineEngineeringTest {
         geometry.setSites(List.of(site));
         geometry.setPlacements(List.of(placement));
 
-        EngineeringRuleProfile profile = EngineeringRuleProfileCatalog.genericPlanning();
-        profile.getClearance().setMinimumConductorSeparation(2.0);
-        LineEngineeringReport report = PowerLineEngineeringAnalyzer.analyze(geometry, flatTerrain(64), profile);
+        PowerLineFootprint line = horizontalLine(10);
+        LineEngineeringReport report = com.plot.plugin.powerline.engineering.validation.PowerLineValidator
+            .validate(geometry, flatTerrain(64), line);
         assertTrue(report.getIssues().stream()
             .anyMatch(i -> EngineeringRuleIds.CONDUCTOR_SEPARATION_PHASE.equals(i.ruleId())));
+    }
+
+    @Test
+    void bundledSubconductorsDoNotTriggerOverlapWarning() {
+        PowerPoleSite site = new PowerPoleSite("pole-1", new Vec2d(0, 0));
+        site.setRole(TowerRole.SUSPENSION);
+        PoleFrame frame = PoleFrame.fromPole(site.getPlanPosition(), new Vec2d(1, 0), 64);
+        ResolvedAttachment left = attachment("phase_a_1", AttachmentRole.PHASE_A, frame, -0.3);
+        ResolvedAttachment right = attachment("phase_a_2", AttachmentRole.PHASE_A, frame, 0.3);
+        PolePlacement placement = new PolePlacement(
+            site.getPlanPosition(),
+            frame,
+            null,
+            List.of(left, right),
+            80,
+            true,
+            TowerRole.SUSPENSION,
+            "preset/test",
+            0.0);
+        PowerLineGeometryModel geometry = new PowerLineGeometryModel();
+        geometry.setSites(List.of(site));
+        geometry.setPlacements(List.of(placement));
+        PowerLineFootprint line = horizontalLine(10);
+        LineEngineeringReport report = com.plot.plugin.powerline.engineering.validation.PowerLineValidator
+            .validate(geometry, flatTerrain(64), line);
+        assertTrue(report.getIssues().stream()
+            .noneMatch(i -> EngineeringRuleIds.CONDUCTOR_SEPARATION_PHASE.equals(i.ruleId())));
     }
 
     private static ResolvedAttachment attachment(
@@ -296,11 +338,16 @@ class PowerLineEngineeringTest {
         return span;
     }
 
+    private static LineEngineeringReport analyze(
+            PowerLineGenerationResult result,
+            TerrainSampler terrain,
+            PowerLineFootprint line) {
+        return com.plot.plugin.powerline.engineering.validation.PowerLineValidator
+            .validate(result.toGeometryModel(), terrain, line);
+    }
+
     private static LineEngineeringReport analyze(PowerLineGenerationResult result, TerrainSampler terrain) {
-        return PowerLineEngineeringAnalyzer.analyze(
-            result.toGeometryModel(),
-            terrain,
-            EngineeringRuleProfileCatalog.genericPlanning());
+        return analyze(result, terrain, horizontalLine(40));
     }
 
     private static PowerLineFootprint horizontalLine(double length) {

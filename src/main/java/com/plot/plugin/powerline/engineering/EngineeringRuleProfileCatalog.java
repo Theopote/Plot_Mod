@@ -7,7 +7,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** 内置工程规则配置目录。 */
+/**
+ * 内置工程规则配置目录（内部默认：垂度 / 离地净空）。
+ * <p>
+ * 玩家可见检查由 {@link com.plot.plugin.powerline.engineering.validation.PowerLineValidator}
+ * 驱动，跨距阈值跟随线路 {@code min/maxPoleSpacing}，不再暴露 profile 选择。
+ */
 public final class EngineeringRuleProfileCatalog {
     private EngineeringRuleProfileCatalog() {
     }

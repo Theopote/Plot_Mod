@@ -92,41 +92,14 @@ public final class PowerLineUiWidgets {
             boolean nestedInSection) {
         if (!nestedInSection) {
             ImGui.separator();
-            ImGui.text(PlotI18n.tr("plugin.powerline.engineering.profile_section"));
+            ImGui.text(PlotI18n.tr("plugin.powerline.validation.section"));
         }
-
-        EngineeringRuleProfileResolver resolver = new EngineeringRuleProfileResolver();
-        var profiles = resolver.listAll();
-        String[] labels = new String[profiles.size()];
-        String[] ids = new String[profiles.size()];
-        for (int i = 0; i < profiles.size(); i++) {
-            labels[i] = profiles.get(i).getName();
-            ids[i] = profiles.get(i).getId();
-        }
-        String currentId = line.effectiveEngineeringProfileId();
-        int current = 0;
-        for (int i = 0; i < ids.length; i++) {
-            if (ids[i].equals(currentId)) {
-                current = i;
-                break;
-            }
-        }
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.beginCombo(PlotI18n.tr("plugin.powerline.engineering.profile"), labels[current])) {
-            for (int i = 0; i < labels.length; i++) {
-                if (ImGui.selectable(labels[i], current == i)) {
-                    ctx.pushEditSnapshot();
-                    line.setEngineeringProfileId(ids[i]);
-                    EngineeringRuleProfile profile = resolver.find(ids[i]);
-                    line.setMaxSagDepth(profile.getSag().getMaxSagDepth());
-                    ctx.invalidatePreview();
-                }
-            }
-            ImGui.endCombo();
-        }
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.powerline.validation.hint"));
 
         boolean analysisEnabled = line.isEngineeringAnalysisEnabled();
-        if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.engineering.enabled"), analysisEnabled)) {
+        if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.validation.enabled"), analysisEnabled)) {
             ctx.pushEditSnapshot();
             line.setEngineeringAnalysisEnabled(!analysisEnabled);
         }
@@ -142,11 +115,12 @@ public final class PowerLineUiWidgets {
                 ctx.state().getEngineeringState().setOverlayEnabled(!overlay);
             }
         }
-        EngineeringRuleProfile activeProfile = resolver.find(currentId);
+        EngineeringRuleProfile activeProfile = new EngineeringRuleProfileResolver()
+            .find(line.effectiveEngineeringProfileId());
         renderSagDepthControls(ctx, line, activeProfile);
         ImGui.textColored(
             PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.powerline.engineering.disclaimer"));
+            PlotI18n.tr("plugin.powerline.validation.disclaimer"));
     }
 
     private static void renderSagDepthControls(

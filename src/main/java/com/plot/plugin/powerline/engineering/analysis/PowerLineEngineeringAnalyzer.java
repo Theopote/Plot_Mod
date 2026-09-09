@@ -10,6 +10,7 @@ import com.plot.plugin.powerline.engineering.EngineeringRuleIds;
 import com.plot.plugin.powerline.engineering.EngineeringRuleProfile;
 import com.plot.plugin.powerline.engineering.EngineeringSeverity;
 import com.plot.plugin.powerline.engineering.SimpleEngineeringIssue;
+import com.plot.plugin.powerline.engineering.validation.ValidationLimits;
 import com.plot.plugin.powerline.engineering.clearance.ClearanceAnalysis;
 import com.plot.plugin.powerline.engineering.clearance.ClearanceChecker;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
@@ -18,7 +19,7 @@ import com.plot.plugin.powerline.model.PowerPoleSite;
 import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.plugin.road.terrain.TerrainSampler;
 
-/** 只读工程分析器（不修改模型）。 */
+/** 只读线路检查器（不修改模型）。 */
 public final class PowerLineEngineeringAnalyzer {
     private PowerLineEngineeringAnalyzer() {
     }
@@ -27,15 +28,29 @@ public final class PowerLineEngineeringAnalyzer {
             PowerLineGeometryModel geometry,
             TerrainSampler terrain,
             EngineeringRuleProfile profile) {
+        ValidationLimits limits = profile != null
+            ? ValidationLimits.fromFootprint(null, profile)
+            : null;
+        return analyze(geometry, terrain, profile, limits);
+    }
+
+    public static LineEngineeringReport analyze(
+            PowerLineGeometryModel geometry,
+            TerrainSampler terrain,
+            EngineeringRuleProfile profile,
+            ValidationLimits limits) {
         LineEngineeringReport report = new LineEngineeringReport();
         if (geometry == null || profile == null) {
             return report;
         }
+        ValidationLimits effectiveLimits = limits != null
+            ? limits
+            : ValidationLimits.fromFootprint(null, profile);
         report.setProfileId(profile.getId());
         report.setProfileName(profile.getName());
 
-        analyzeSpans(geometry, terrain, profile, report);
-        analyzePoles(geometry, terrain, profile, report);
+        analyzeSpans(geometry, terrain, profile, effectiveLimits, report);
+        analyzePoles(geometry, terrain, profile, effectiveLimits, report);
         return report;
     }
 
@@ -43,6 +58,7 @@ public final class PowerLineEngineeringAnalyzer {
             PowerLineGeometryModel geometry,
             TerrainSampler terrain,
             EngineeringRuleProfile profile,
+            ValidationLimits limits,
             LineEngineeringReport report) {
         for (ConductorSpanGeometry span : geometry.getConductorSpans()) {
             SpanAnalysis spanAnalysis = new SpanAnalysis();
@@ -59,22 +75,22 @@ public final class PowerLineEngineeringAnalyzer {
                     Math.abs(start.legacyWireHangY() - end.legacyWireHangY()));
             }
 
-            if (span.getSpanLength() > profile.getSpan().getMaximumSpan()) {
+            if (span.getSpanLength() > limits.maximumSpan()) {
                 spanAnalysis.addIssue(new SimpleEngineeringIssue(
                     EngineeringRuleIds.SPAN_MAXIMUM,
                     EngineeringSeverity.ERROR,
                     EngineeringRuleIds.SPAN_MAXIMUM,
                     EngineeringIssueLocation.at(midpoint(span), 0.0),
                     span.getSpanLength(),
-                    profile.getSpan().getMaximumSpan()));
-            } else if (span.getSpanLength() < profile.getSpan().getMinimumSpan()) {
+                    limits.maximumSpan()));
+            } else if (span.getSpanLength() < limits.minimumSpan()) {
                 spanAnalysis.addIssue(new SimpleEngineeringIssue(
                     EngineeringRuleIds.SPAN_MINIMUM,
                     EngineeringSeverity.WARNING,
                     EngineeringRuleIds.SPAN_MINIMUM,
                     EngineeringIssueLocation.at(midpoint(span), 0.0),
                     span.getSpanLength(),
-                    profile.getSpan().getMinimumSpan()));
+                    limits.minimumSpan()));
             }
 
             if (terrain != null && !span.getSamples().isEmpty()) {
@@ -82,7 +98,7 @@ public final class PowerLineEngineeringAnalyzer {
                 spanAnalysis.setMinimumGroundClearance(clearance.getMinimumClearance());
                 EngineeringIssue clearanceIssue = ClearanceChecker.toIssue(
                     clearance,
-                    profile.getClearance().getMinimumGroundClearance(),
+                    limits.minimumGroundClearance(),
                     EngineeringSeverity.ERROR);
                 if (clearanceIssue != null) {
                     spanAnalysis.addIssue(clearanceIssue);
@@ -97,6 +113,7 @@ public final class PowerLineEngineeringAnalyzer {
             PowerLineGeometryModel geometry,
             TerrainSampler terrain,
             EngineeringRuleProfile profile,
+            ValidationLimits limits,
             LineEngineeringReport report) {
         for (int i = 0; i < geometry.getSites().size(); i++) {
             PowerPoleSite site = geometry.getSites().get(i);
@@ -111,7 +128,7 @@ public final class PowerLineEngineeringAnalyzer {
             }
 
             if (site.getRole() == TowerRole.SUSPENSION
-                    && site.getDeflectionAngle() > profile.getAngle().getSuspensionMaxAngle()
+                    && site.getDeflectionAngle() > limits.suspensionAngleWarning()
                     && i > 0
                     && i < geometry.getSites().size() - 1) {
                 poleAnalysis.addIssue(new SimpleEngineeringIssue(
@@ -120,32 +137,25 @@ public final class PowerLineEngineeringAnalyzer {
                     EngineeringRuleIds.TOWER_ROLE_ANGLE,
                     EngineeringIssueLocation.at(site.getPlanPosition(), site.getStationing()),
                     site.getDeflectionAngle(),
-                    profile.getAngle().getSuspensionMaxAngle()));
+                    limits.suspensionAngleWarning()));
             }
 
             if (i < geometry.getPlacements().size()) {
-                checkAttachmentSeparation(
+                checkWireOverlap(
                     geometry.getPlacements().get(i),
                     site,
-                    profile,
+                    limits,
                     poleAnalysis);
-            }
-
-            if (terrain != null && i < geometry.getPlacements().size()) {
-                PolePlacement placement = geometry.getPlacements().get(i);
-                if (placement.design() != null) {
-                    checkUnevenBase(site, placement, terrain, profile, poleAnalysis);
-                }
             }
 
             report.addPole(poleAnalysis);
         }
     }
 
-    private static void checkAttachmentSeparation(
+    private static void checkWireOverlap(
             PolePlacement placement,
             PowerPoleSite site,
-            EngineeringRuleProfile profile,
+            ValidationLimits limits,
             PoleSiteAnalysis poleAnalysis) {
         if (placement.attachments() == null || placement.attachments().size() < 2) {
             return;
@@ -160,9 +170,11 @@ public final class PowerLineEngineeringAnalyzer {
                 if (!isPhaseOrGround(right.role())) {
                     continue;
                 }
+                if (sameConductorGroup(left, right)) {
+                    continue;
+                }
                 double distance = distance3d(left, right);
-                double required = separationRequired(left.role(), right.role(), profile);
-                if (distance < required) {
+                if (distance < limits.wireOverlapThreshold()) {
                     String ruleId = left.role() == AttachmentRole.GROUND_WIRE
                             || right.role() == AttachmentRole.GROUND_WIRE
                         ? EngineeringRuleIds.CONDUCTOR_SEPARATION_GROUND
@@ -173,7 +185,7 @@ public final class PowerLineEngineeringAnalyzer {
                         ruleId,
                         EngineeringIssueLocation.at(site.getPlanPosition(), site.getStationing()),
                         distance,
-                        required,
+                        limits.wireOverlapThreshold(),
                         left.id(),
                         right.id()));
                 }
@@ -181,44 +193,14 @@ public final class PowerLineEngineeringAnalyzer {
         }
     }
 
-    private static void checkUnevenBase(
-            PowerPoleSite site,
-            PolePlacement placement,
-            TerrainSampler terrain,
-            EngineeringRuleProfile profile,
-            PoleSiteAnalysis poleAnalysis) {
-        int groundY = terrain.sampleSurfaceY(site.getPlanPosition());
-        int hangY = placement.usesAttachmentConductors()
-            ? (int) Math.round(maxConductorY(placement))
-            : placement.legacyWireHangY();
-        double unevenness = Math.abs(hangY - groundY - placement.design().totalHeight());
-        if (unevenness > profile.getTower().getMaximumBaseUnevenness()) {
-            poleAnalysis.addIssue(new SimpleEngineeringIssue(
-                EngineeringRuleIds.TOWER_BASE_UNEVEN,
-                EngineeringSeverity.WARNING,
-                EngineeringRuleIds.TOWER_BASE_UNEVEN,
-                EngineeringIssueLocation.at(site.getPlanPosition(), site.getStationing()),
-                unevenness,
-                profile.getTower().getMaximumBaseUnevenness()));
+    private static boolean sameConductorGroup(ResolvedAttachment left, ResolvedAttachment right) {
+        if (left.role() != right.role()) {
+            return false;
         }
-    }
-
-    private static double maxConductorY(PolePlacement placement) {
-        double max = 0.0;
-        for (ResolvedAttachment attachment : placement.attachments()) {
-            max = Math.max(max, attachment.conductorWorldY());
-        }
-        return max;
-    }
-
-    private static double separationRequired(
-            AttachmentRole left,
-            AttachmentRole right,
-            EngineeringRuleProfile profile) {
-        if (left == AttachmentRole.GROUND_WIRE || right == AttachmentRole.GROUND_WIRE) {
-            return profile.getClearance().getMinimumGroundWireSeparation();
-        }
-        return profile.getClearance().getMinimumConductorSeparation();
+        return left.role() == AttachmentRole.PHASE_A
+            || left.role() == AttachmentRole.PHASE_B
+            || left.role() == AttachmentRole.PHASE_C
+            || left.role() == AttachmentRole.GROUND_WIRE;
     }
 
     private static boolean isPhaseOrGround(AttachmentRole role) {
