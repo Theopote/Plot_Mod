@@ -5,6 +5,9 @@ import com.plot.plugin.powerline.design.ConductorAttachment;
 import com.plot.plugin.powerline.design.ConductorAttachmentPresets;
 import com.plot.plugin.powerline.design.TowerArmAttachmentBinding;
 import com.plot.plugin.powerline.design.structure.TowerArm;
+import com.plot.plugin.powerline.design.structure.TowerDecoration;
+import com.plot.plugin.powerline.design.structure.TowerDecorationCatalog;
+import com.plot.plugin.powerline.design.structure.TowerDecorationKind;
 import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
@@ -277,6 +280,96 @@ public final class PoleDesignerPanel {
                 draft.addAttachment(attachment);
             }
         }
+
+        renderDecorationSection(structure);
+    }
+
+    private void renderDecorationSection(TowerStructureDesign structure) {
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr("plugin.powerline.design.structure_decorations"));
+        for (int i = 0; i < structure.getDecorations().size(); i++) {
+            TowerDecoration decoration = structure.getDecorations().get(i);
+            ImGui.pushID("deco_" + i);
+            renderDecorationRow(decoration);
+            ImGui.popID();
+        }
+        if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.decoration_add_beacon"))) {
+            pushDraftSnapshot();
+            structure.addDecoration(TowerDecorationCatalog.beaconAtTop(structure.maxHeight()));
+        }
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.decoration_add_antenna"))) {
+            pushDraftSnapshot();
+            structure.addDecoration(TowerDecorationCatalog.antennaAtTop(structure.maxHeight()));
+        }
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.decoration_add_platform"))) {
+            pushDraftSnapshot();
+            structure.addDecoration(TowerDecorationCatalog.platformAtTop(structure.maxHeight()));
+        }
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.decoration_add_warning_light"))) {
+            pushDraftSnapshot();
+            structure.addDecoration(TowerDecorationCatalog.warningLightAtTop(structure.maxHeight()));
+        }
+    }
+
+    private void renderDecorationRow(TowerDecoration decoration) {
+        TowerDecorationKind[] kinds = TowerDecorationKind.values();
+        String[] kindLabels = new String[kinds.length];
+        int selectedKind = 0;
+        for (int i = 0; i < kinds.length; i++) {
+            kindLabels[i] = PlotI18n.tr(kinds[i].labelKey());
+            if (decoration.getKind() == kinds[i]) {
+                selectedKind = i;
+            }
+        }
+        ImInt kindIndex = new ImInt(selectedKind);
+        ImGui.setNextItemWidth(110);
+        if (ImGui.combo("##deco_kind", kindIndex, kindLabels)) {
+            pushDraftSnapshot();
+            decoration.setKind(kinds[kindIndex.get()]);
+        }
+        ImGui.sameLine();
+        ImFloat baseHeight = new ImFloat((float) decoration.getBaseHeight());
+        ImGui.setNextItemWidth(55);
+        if (ImGui.inputFloat(PlotI18n.tr("plugin.powerline.design.structure_arm_height"), baseHeight)) {
+            decoration.setBaseHeight(baseHeight.get());
+        }
+        if (ImGui.isItemActivated()) {
+            pushDraftSnapshot();
+        }
+        ImGui.sameLine();
+        ImFloat size = new ImFloat((float) decoration.getSize());
+        ImGui.setNextItemWidth(55);
+        String sizeLabel = decoration.getKind() == TowerDecorationKind.PLATFORM
+            ? PlotI18n.tr("plugin.powerline.design.decoration_platform_radius")
+            : PlotI18n.tr("plugin.powerline.design.decoration_antenna_height");
+        if (ImGui.inputFloat(sizeLabel, size)) {
+            decoration.setSize(size.get());
+        }
+        if (ImGui.isItemActivated()) {
+            pushDraftSnapshot();
+        }
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.decoration_snap_top"))) {
+            pushDraftSnapshot();
+            decoration.setBaseHeight(structureTopSnapHeight(decoration));
+        }
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.delete_layer"))) {
+            pushDraftSnapshot();
+            draft.getTowerStructure().removeDecoration(decoration.getId());
+        }
+    }
+
+    private double structureTopSnapHeight(TowerDecoration decoration) {
+        TowerStructureDesign structure = draft.getTowerStructure();
+        double top = structure.maxHeight();
+        return decoration.getKind() == TowerDecorationKind.ANTENNA
+            || decoration.getKind() == TowerDecorationKind.PLATFORM
+            ? top
+            : top + 1;
     }
 
     private void renderArmControls(TowerStructureDesign structure, TowerArm arm) {

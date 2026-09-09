@@ -25,6 +25,7 @@ public class TowerStructureDesign {
     private List<TowerStation> stations = new ArrayList<>();
     private List<TowerBay> bays = new ArrayList<>();
     private List<TowerArm> arms = new ArrayList<>();
+    private List<TowerDecoration> decorations = new ArrayList<>();
     private MaterialMix primaryMaterial = MaterialMix.single(DEFAULT_LEG_MATERIAL);
     private MaterialMix braceMaterial = MaterialMix.single(DEFAULT_BRACE_MATERIAL);
     private TowerMemberProfile legProfile = new TowerMemberProfile(1);
@@ -152,6 +153,35 @@ public class TowerStructureDesign {
         arms.removeIf(arm -> armId.equals(arm.getId()));
     }
 
+    public List<TowerDecoration> getDecorations() {
+        return decorations;
+    }
+
+    public void setDecorations(List<TowerDecoration> decorations) {
+        this.decorations = new ArrayList<>();
+        if (decorations == null) {
+            return;
+        }
+        for (TowerDecoration decoration : decorations) {
+            if (decoration != null) {
+                this.decorations.add(decoration.copy());
+            }
+        }
+    }
+
+    public void addDecoration(TowerDecoration decoration) {
+        if (decoration != null) {
+            decorations.add(decoration.copy());
+        }
+    }
+
+    public void removeDecoration(String decorationId) {
+        if (decorationId == null) {
+            return;
+        }
+        decorations.removeIf(decoration -> decorationId.equals(decoration.getId()));
+    }
+
     public MaterialMix getPrimaryMaterial() {
         return primaryMaterial;
     }
@@ -218,6 +248,7 @@ public class TowerStructureDesign {
         copy.setStations(stations);
         copy.setBays(bays);
         copy.setArms(arms);
+        copy.setDecorations(decorations);
         copy.setPrimaryMaterial(primaryMaterial);
         copy.setBraceMaterial(braceMaterial);
         copy.setLegProfile(legProfile);
@@ -264,10 +295,22 @@ public class TowerStructureDesign {
         MaterialMix material;
     }
 
+    static class DecorationData {
+        String id;
+        String kind;
+        double baseHeight;
+        double lateralOffset;
+        double longitudinalOffset;
+        double size;
+        MaterialMix material;
+        boolean enabled = true;
+    }
+
     static class StructureData {
         List<StationData> stations = new ArrayList<>();
         List<BayData> bays = new ArrayList<>();
         List<ArmData> arms = new ArrayList<>();
+        List<DecorationData> decorations = new ArrayList<>();
         MaterialMix primaryMaterial;
         MaterialMix braceMaterial;
         int legThickness = 1;
@@ -303,6 +346,18 @@ public class TowerStructureDesign {
                 armData.bracing = arm.getBracing().name();
                 armData.material = arm.getMaterial();
                 data.arms.add(armData);
+            }
+            for (TowerDecoration decoration : design.decorations) {
+                DecorationData decorationData = new DecorationData();
+                decorationData.id = decoration.getId();
+                decorationData.kind = decoration.getKind().name();
+                decorationData.baseHeight = decoration.getBaseHeight();
+                decorationData.lateralOffset = decoration.getLateralOffset();
+                decorationData.longitudinalOffset = decoration.getLongitudinalOffset();
+                decorationData.size = decoration.getSize();
+                decorationData.material = decoration.getMaterial();
+                decorationData.enabled = decoration.isEnabled();
+                data.decorations.add(decorationData);
             }
             data.primaryMaterial = design.primaryMaterial;
             data.braceMaterial = design.braceMaterial;
@@ -359,6 +414,25 @@ public class TowerStructureDesign {
                         arm.setMaterial(armData.material);
                     }
                     design.addArm(arm);
+                }
+            }
+            if (decorations != null) {
+                for (DecorationData decorationData : decorations) {
+                    if (decorationData == null || decorationData.kind == null) {
+                        continue;
+                    }
+                    TowerDecoration decoration = new TowerDecoration(
+                        decorationData.id,
+                        TowerDecorationKind.valueOf(decorationData.kind),
+                        decorationData.baseHeight);
+                    decoration.setLateralOffset(decorationData.lateralOffset);
+                    decoration.setLongitudinalOffset(decorationData.longitudinalOffset);
+                    decoration.setSize(decorationData.size > 0 ? decorationData.size : 4.0);
+                    if (decorationData.material != null) {
+                        decoration.setMaterial(decorationData.material);
+                    }
+                    decoration.setEnabled(decorationData.enabled);
+                    design.addDecoration(decoration);
                 }
             }
             if (primaryMaterial != null) {

@@ -5,6 +5,8 @@ import com.plot.plugin.powerline.design.ConductorAttachment;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleLayer;
 import com.plot.plugin.powerline.design.structure.TowerArm;
+import com.plot.plugin.powerline.design.structure.TowerDecoration;
+import com.plot.plugin.powerline.design.structure.TowerDecorationKind;
 import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.design.structure.TowerStructureGeometry;
@@ -279,6 +281,39 @@ public final class PoleDesignPreviewRenderer {
             float y = baseY - (float) arm.getBaseHeight() * scale;
             float reach = (float) arm.getLateralReach() * scale * 6f;
             drawList.addLine(centerX - reach, y, centerX + reach, y, COLOR_ARM, 2f);
+        }
+
+        for (TowerDecoration decoration : structure.getDecorations()) {
+            if (!decoration.isEnabled()) {
+                continue;
+            }
+            renderDecorationMarker(decoration, drawList, centerX, baseY, scale);
+        }
+    }
+
+    private static void renderDecorationMarker(
+            TowerDecoration decoration,
+            ImDrawList drawList,
+            float centerX,
+            float baseY,
+            float scale) {
+        float x = centerX + (float) decoration.getLateralOffset() * scale * 6f;
+        float y = baseY - (float) decoration.getBaseHeight() * scale;
+        int color = 0xFFFFD54F;
+        switch (decoration.getKind()) {
+            case BEACON -> drawList.addRectFilled(x - 3f, y - 6f, x + 3f, y, color);
+            case WARNING_LIGHT -> drawList.addCircleFilled(x, y - 3f, 3f, 0xFFFF5252);
+            case ANTENNA -> {
+                float top = y - (float) decoration.getSize() * scale;
+                drawList.addLine(x, y, x, top, color, 1.5f);
+                drawList.addCircleFilled(x, top, 2f, color);
+            }
+            case PLATFORM -> {
+                float reach = (float) decoration.getSize() * scale * 6f;
+                drawList.addLine(x - reach, y, x + reach, y, color, 2f);
+                drawList.addLine(x, y, x, y - reach * 0.35f, color, 1.5f);
+            }
+            default -> drawList.addCircleFilled(x, y - 2f, 2f, color);
         }
     }
 

@@ -9,6 +9,8 @@ import com.plot.plugin.powerline.design.structure.BracingPattern;
 import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerArmSide;
 import com.plot.plugin.powerline.design.structure.TowerBay;
+import com.plot.plugin.powerline.design.structure.TowerDecoration;
+import com.plot.plugin.powerline.design.structure.TowerDecorationKind;
 import com.plot.plugin.powerline.design.structure.TowerMemberProfile;
 import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
@@ -103,6 +105,10 @@ public final class TowerStructureGenerator {
 
         for (TowerArm arm : structure.getArms()) {
             generateArm(arm, structure, transform, footprint, result, projection, counters);
+        }
+
+        for (TowerDecoration decoration : structure.getDecorations()) {
+            generateDecoration(decoration, structure, transform, footprint, result, projection, counters);
         }
 
         result.structureBlockCount += counters.total();
@@ -330,6 +336,183 @@ public final class TowerStructureGenerator {
         }
     }
 
+    private static void generateDecoration(
+            TowerDecoration decoration,
+            TowerStructureDesign structure,
+            TowerStructureTransform transform,
+            PowerLineFootprint footprint,
+            PowerLineGenerationResult result,
+            IBlockProjectionService projection,
+            GenerationCounters counters) {
+        if (decoration == null || !decoration.isEnabled()) {
+            return;
+        }
+        switch (decoration.getKind()) {
+            case BEACON -> placeDecorationBlock(
+                decoration,
+                "minecraft:beacon",
+                transform,
+                footprint,
+                result,
+                projection,
+                counters);
+            case WARNING_LIGHT -> placeDecorationBlock(
+                decoration,
+                defaultMaterialId(decoration, "minecraft:sea_lantern"),
+                transform,
+                footprint,
+                result,
+                projection,
+                counters);
+            case ANTENNA -> generateAntenna(decoration, transform, footprint, result, projection, counters);
+            case PLATFORM -> generatePlatform(decoration, transform, footprint, result, projection, counters);
+            default -> { }
+        }
+    }
+
+    private static void generateAntenna(
+            TowerDecoration decoration,
+            TowerStructureTransform transform,
+            PowerLineFootprint footprint,
+            PowerLineGenerationResult result,
+            IBlockProjectionService projection,
+            GenerationCounters counters) {
+        MaterialMix mastMaterial = decoration.getMaterial() != null
+            ? decoration.getMaterial()
+            : MaterialMix.single("minecraft:iron_bars");
+        int mastHeight = Math.max(2, (int) Math.round(decoration.getSize()));
+        double base = decoration.getBaseHeight();
+        TowerLocalPoint bottom = TowerLocalPoint.of(
+            decoration.getLateralOffset(),
+            base,
+            decoration.getLongitudinalOffset());
+        TowerLocalPoint top = TowerLocalPoint.of(
+            decoration.getLateralOffset(),
+            base + mastHeight,
+            decoration.getLongitudinalOffset());
+        placeMember(bottom, top, mastMaterial, 1, transform, footprint, result, projection, counters, MemberKind.DECORATION);
+        placeDecorationBlockAt(
+            decoration.getLateralOffset(),
+            base + mastHeight + 1,
+            decoration.getLongitudinalOffset(),
+            "minecraft:lightning_rod",
+            transform,
+            footprint,
+            result,
+            projection,
+            counters);
+    }
+
+    private static void generatePlatform(
+            TowerDecoration decoration,
+            TowerStructureTransform transform,
+            PowerLineFootprint footprint,
+            PowerLineGenerationResult result,
+            IBlockProjectionService projection,
+            GenerationCounters counters) {
+        MaterialMix material = decoration.getMaterial() != null
+            ? decoration.getMaterial()
+            : MaterialMix.single("minecraft:iron_block");
+        int radius = Math.max(1, (int) Math.round(decoration.getSize()));
+        double height = decoration.getBaseHeight();
+        double lateralCenter = decoration.getLateralOffset();
+        double longitudinalCenter = decoration.getLongitudinalOffset();
+        placeDecorationBlockAt(
+            lateralCenter,
+            height,
+            longitudinalCenter,
+            null,
+            transform,
+            footprint,
+            result,
+            projection,
+            counters,
+            material);
+        for (int step = 1; step <= radius; step++) {
+            placeDecorationBlockAt(
+                lateralCenter + step, height, longitudinalCenter, null,
+                transform, footprint, result, projection, counters, material);
+            placeDecorationBlockAt(
+                lateralCenter - step, height, longitudinalCenter, null,
+                transform, footprint, result, projection, counters, material);
+            placeDecorationBlockAt(
+                lateralCenter, height, longitudinalCenter + step, null,
+                transform, footprint, result, projection, counters, material);
+            placeDecorationBlockAt(
+                lateralCenter, height, longitudinalCenter - step, null,
+                transform, footprint, result, projection, counters, material);
+        }
+    }
+
+    private static void placeDecorationBlock(
+            TowerDecoration decoration,
+            String blockId,
+            TowerStructureTransform transform,
+            PowerLineFootprint footprint,
+            PowerLineGenerationResult result,
+            IBlockProjectionService projection,
+            GenerationCounters counters) {
+        placeDecorationBlockAt(
+            decoration.getLateralOffset(),
+            decoration.getBaseHeight(),
+            decoration.getLongitudinalOffset(),
+            blockId,
+            transform,
+            footprint,
+            result,
+            projection,
+            counters);
+    }
+
+    private static void placeDecorationBlockAt(
+            double lateral,
+            double height,
+            double longitudinal,
+            String blockId,
+            TowerStructureTransform transform,
+            PowerLineFootprint footprint,
+            PowerLineGenerationResult result,
+            IBlockProjectionService projection,
+            GenerationCounters counters) {
+        placeDecorationBlockAt(
+            lateral,
+            height,
+            longitudinal,
+            blockId,
+            transform,
+            footprint,
+            result,
+            projection,
+            counters,
+            MaterialMix.single(blockId));
+    }
+
+    private static void placeDecorationBlockAt(
+            double lateral,
+            double height,
+            double longitudinal,
+            String blockId,
+            TowerStructureTransform transform,
+            PowerLineFootprint footprint,
+            PowerLineGenerationResult result,
+            IBlockProjectionService projection,
+            GenerationCounters counters,
+            MaterialMix material) {
+        BlockPos pos = transform.toBlock(TowerLocalPoint.of(lateral, height, longitudinal));
+        String resolved = blockId != null
+            ? blockId
+            : MaterialMixResolver.resolve(material, pos, footprint.getId());
+        recordBlock(result, pos, resolved, projection);
+        counters.addDecoration(1);
+    }
+
+    private static String defaultMaterialId(TowerDecoration decoration, String fallback) {
+        if (decoration.getMaterial() != null) {
+            return decoration.getMaterial().getPrimaryMaterial();
+        }
+        return fallback;
+    }
+
     private static void placeArmBrace(
             TowerLocalPoint start,
             TowerLocalPoint end,
@@ -393,6 +576,7 @@ public final class TowerStructureGenerator {
             case LEG -> counters.addLeg(blocks.size());
             case BRACE -> counters.addBrace(blocks.size());
             case ARM -> counters.addArm(blocks.size());
+            case DECORATION -> counters.addDecoration(blocks.size());
             default -> { }
         }
     }
@@ -449,6 +633,7 @@ public final class TowerStructureGenerator {
         int legBlocks;
         int braceBlocks;
         int armBlocks;
+        int decorationBlocks;
 
         void addLeg(int count) {
             legBlocks += count;
@@ -462,14 +647,19 @@ public final class TowerStructureGenerator {
             armBlocks += count;
         }
 
+        void addDecoration(int count) {
+            decorationBlocks += count;
+        }
+
         int total() {
-            return legBlocks + braceBlocks + armBlocks;
+            return legBlocks + braceBlocks + armBlocks + decorationBlocks;
         }
     }
 
     private enum MemberKind {
         LEG,
         BRACE,
-        ARM
+        ARM,
+        DECORATION
     }
 }
