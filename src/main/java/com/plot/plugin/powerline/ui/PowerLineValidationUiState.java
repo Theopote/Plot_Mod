@@ -3,8 +3,8 @@ package com.plot.plugin.powerline.ui;
 import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
 import com.plot.plugin.powerline.engineering.optimization.OptimizationResult;
 
-/** 工程分析与会话状态扩展。 */
-public final class PowerLineEngineeringUiState {
+/** 线路检查与会话状态（画布叠加、智能修正确认）。 */
+public final class PowerLineValidationUiState {
     private LineEngineeringReport lastEngineeringReport;
     private LineEngineeringReport lastTerrainReport;
     private PowerLineAnalysisKey engineeringReportKey;

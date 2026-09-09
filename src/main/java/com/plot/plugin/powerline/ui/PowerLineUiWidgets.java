@@ -65,11 +65,20 @@ public final class PowerLineUiWidgets {
      *
      * @param includeOverlayToggle 是否在 Engineering 标签页显示画布叠加层开关
      */
+    public static void renderLineCheckControls(
+            PowerLineUiContext ctx,
+            PowerLineFootprint line,
+            boolean includeOverlayToggle) {
+        renderLineCheckControls(ctx, line, includeOverlayToggle, false);
+    }
+
+    /** @deprecated use {@link #renderLineCheckControls} */
+    @Deprecated
     public static void renderEngineeringProfileControls(
             PowerLineUiContext ctx,
             PowerLineFootprint line,
             boolean includeOverlayToggle) {
-        renderEngineeringProfileControls(ctx, line, includeOverlayToggle, false);
+        renderLineCheckControls(ctx, line, includeOverlayToggle);
     }
 
     public static void renderAdvancedEngineeringSection(PowerLineUiContext ctx, PowerLineFootprint line) {
@@ -81,11 +90,11 @@ public final class PowerLineUiWidgets {
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.engineering.advanced_hint"));
-            renderEngineeringProfileControls(ctx, line, false, true);
+            renderLineCheckControls(ctx, line, false, true);
         }
     }
 
-    private static void renderEngineeringProfileControls(
+    private static void renderLineCheckControls(
             PowerLineUiContext ctx,
             PowerLineFootprint line,
             boolean includeOverlayToggle,
@@ -98,11 +107,26 @@ public final class PowerLineUiWidgets {
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.validation.hint"));
 
-        boolean analysisEnabled = line.isEngineeringAnalysisEnabled();
-        if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.validation.enabled"), analysisEnabled)) {
+        boolean visualChecks = line.isVisualChecksEnabled();
+        if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.validation.visual_checks"), visualChecks)) {
             ctx.pushEditSnapshot();
-            line.setEngineeringAnalysisEnabled(!analysisEnabled);
+            line.setVisualChecksEnabled(!visualChecks);
+            ctx.invalidatePreview();
         }
+        ImGui.indent();
+        boolean lineChecks = line.isLineChecksEnabled();
+        if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.validation.line_checks"), lineChecks)) {
+            ctx.pushEditSnapshot();
+            line.setLineChecksEnabled(!lineChecks);
+            ctx.invalidatePreview();
+        }
+        boolean terrainChecks = line.isTerrainAvoidanceEnabled();
+        if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.validation.terrain_checks"), terrainChecks)) {
+            ctx.pushEditSnapshot();
+            line.setTerrainAvoidanceEnabled(!terrainChecks);
+            ctx.invalidatePreview();
+        }
+        ImGui.unindent();
         boolean autoSelect = line.isAutomaticTowerSelectionEnabled();
         if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.engineering.auto_select"), autoSelect)) {
             ctx.pushEditSnapshot();
@@ -110,13 +134,13 @@ public final class PowerLineUiWidgets {
             ctx.invalidatePreview();
         }
         if (includeOverlayToggle) {
-            boolean overlay = ctx.state().getEngineeringState().isOverlayEnabled();
+            boolean overlay = ctx.state().getValidationState().isOverlayEnabled();
             if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.engineering.overlay"), overlay)) {
-                ctx.state().getEngineeringState().setOverlayEnabled(!overlay);
+                ctx.state().getValidationState().setOverlayEnabled(!overlay);
             }
         }
         EngineeringRuleProfile activeProfile = new EngineeringRuleProfileResolver()
-            .find(line.effectiveEngineeringProfileId());
+            .find(line.effectiveSagDefaultsId());
         renderSagDepthControls(ctx, line, activeProfile);
         ImGui.textColored(
             PluginUiColors.HINT_GRAY,
@@ -136,13 +160,6 @@ public final class PowerLineUiWidgets {
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.engineering.effective_max_sag_unlimited"));
-        }
-        if (profile != null && profile.getSag().getMaxSagDepth() > 0.0) {
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr(
-                    "plugin.powerline.engineering.profile_max_sag",
-                    profile.getSag().getMaxSagDepth()));
         }
         boolean unlimited = line.isMaxSagDepthUnlimited();
         if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.max_sag_depth_unlimited"), unlimited)) {

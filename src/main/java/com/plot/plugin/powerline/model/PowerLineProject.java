@@ -154,6 +154,10 @@ public class PowerLineProject {
         }
     }
 
+    private static boolean resolveLineChecksEnabled(LineData lineData) {
+        return lineData.lineChecksEnabled || lineData.engineeringAnalysisEnabled;
+    }
+
     private static MaterialMix resolveTopWireMaterial(LineData lineData) {
         if (lineData.topWireMaterial != null) {
             return lineData.topWireMaterial;
@@ -183,7 +187,11 @@ public class PowerLineProject {
         MaterialMix groundWireMaterial;
         List<PoleOverrideData> poleOverrides = new ArrayList<>();
         List<LayoutConstraintData> layoutConstraints = new ArrayList<>();
+        String sagDefaultsId;
+        /** Legacy JSON key; prefer {@link #sagDefaultsId}. */
         String engineeringProfileId;
+        boolean lineChecksEnabled;
+        /** Legacy JSON key; prefer {@link #lineChecksEnabled}. */
         boolean engineeringAnalysisEnabled;
         boolean terrainAvoidanceEnabled;
         boolean automaticTowerSelectionEnabled;
@@ -221,8 +229,8 @@ public class PowerLineProject {
                 for (PoleLayoutConstraint constraint : line.getLayoutConstraints()) {
                     lineData.layoutConstraints.add(LayoutConstraintData.from(constraint));
                 }
-                lineData.engineeringProfileId = line.getEngineeringProfileId();
-                lineData.engineeringAnalysisEnabled = line.isEngineeringAnalysisEnabled();
+                lineData.sagDefaultsId = line.getSagDefaultsId();
+                lineData.lineChecksEnabled = line.isLineChecksEnabled();
                 lineData.terrainAvoidanceEnabled = line.isTerrainAvoidanceEnabled();
                 lineData.automaticTowerSelectionEnabled = line.isAutomaticTowerSelectionEnabled();
                 lineData.spacingCustomized = line.isSpacingCustomized();
@@ -296,8 +304,8 @@ public class PowerLineProject {
                     }
                     footprint.setLayoutConstraints(constraints);
                 }
-                footprint.setEngineeringProfileId(lineData.engineeringProfileId);
-                footprint.setEngineeringAnalysisEnabled(lineData.engineeringAnalysisEnabled);
+                footprint.setSagDefaultsId(resolveSagDefaultsId(lineData));
+                footprint.setLineChecksEnabled(resolveLineChecksEnabled(lineData));
                 footprint.setTerrainAvoidanceEnabled(lineData.terrainAvoidanceEnabled);
                 footprint.setAutomaticTowerSelectionEnabled(lineData.automaticTowerSelectionEnabled);
                 footprint.setSpacingCustomized(lineData.spacingCustomized);
@@ -305,6 +313,13 @@ public class PowerLineProject {
                 project.addLine(footprint);
             }
             return project;
+        }
+
+        private static String resolveSagDefaultsId(LineData lineData) {
+            if (lineData.sagDefaultsId != null && !lineData.sagDefaultsId.isBlank()) {
+                return lineData.sagDefaultsId;
+            }
+            return lineData.engineeringProfileId;
         }
     }
 }

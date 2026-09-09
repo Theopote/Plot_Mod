@@ -33,7 +33,7 @@ public final class PowerLineValidator {
             TerrainSampler terrain,
             PowerLineFootprint footprint) {
         EngineeringRuleProfile profile = footprint != null
-            ? new EngineeringRuleProfileResolver().find(footprint.effectiveEngineeringProfileId())
+            ? new EngineeringRuleProfileResolver().find(footprint.effectiveSagDefaultsId())
             : defaultProfile();
         ValidationLimits limits = ValidationLimits.fromFootprint(footprint, profile);
         return validate(geometry, terrain, footprint, profile, limits);

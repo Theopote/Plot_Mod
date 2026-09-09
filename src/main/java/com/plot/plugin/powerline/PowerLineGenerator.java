@@ -202,7 +202,7 @@ public class PowerLineGenerator {
         if (footprint.hasTowerFamily()) {
             context.setFamily(new TowerFamilyResolver().find(footprint.getTowerFamilyId()));
         }
-        context.setProfile(new EngineeringRuleProfileResolver().find(footprint.effectiveEngineeringProfileId()));
+        context.setProfile(new EngineeringRuleProfileResolver().find(footprint.effectiveSagDefaultsId()));
         context.setRequiredGroundClearance(context.getProfile().getClearance().getMinimumGroundClearance());
         return context;
     }

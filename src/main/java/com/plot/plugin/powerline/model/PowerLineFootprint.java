@@ -43,8 +43,9 @@ public class PowerLineFootprint {
     private MaterialMix topWireMaterial = MaterialMix.single("minecraft:chain");
     private final List<PoleOverride> poleOverrides = new ArrayList<>();
     private final List<PoleLayoutConstraint> layoutConstraints = new ArrayList<>();
-    private String engineeringProfileId;
-    private boolean engineeringAnalysisEnabled = false;
+    /** 生成侧弧垂/净空默认值 id（内部，非玩家选项）。 */
+    private String sagDefaultsId;
+    private boolean lineChecksEnabled = false;
     private boolean terrainAvoidanceEnabled = false;
     private boolean automaticTowerSelectionEnabled;
     /** 玩家曾在 Route 高级区手工调整间距；切换风格时不自动覆盖。 */
@@ -300,28 +301,68 @@ public class PowerLineFootprint {
         }
     }
 
-    public String getEngineeringProfileId() {
-        return engineeringProfileId;
+    public String getSagDefaultsId() {
+        return sagDefaultsId;
     }
 
-    public void setEngineeringProfileId(String engineeringProfileId) {
-        this.engineeringProfileId = engineeringProfileId != null && engineeringProfileId.isBlank()
+    public void setSagDefaultsId(String sagDefaultsId) {
+        this.sagDefaultsId = sagDefaultsId != null && sagDefaultsId.isBlank()
             ? null
-            : engineeringProfileId;
+            : sagDefaultsId;
     }
 
+    public String effectiveSagDefaultsId() {
+        return sagDefaultsId != null && !sagDefaultsId.isBlank()
+            ? sagDefaultsId
+            : com.plot.plugin.powerline.engineering.EngineeringRuleProfile.INTERNAL_SAG_DEFAULTS_ID;
+    }
+
+    /** @deprecated use {@link #getSagDefaultsId()} */
+    @Deprecated
+    public String getEngineeringProfileId() {
+        return getSagDefaultsId();
+    }
+
+    /** @deprecated use {@link #setSagDefaultsId(String)} */
+    @Deprecated
+    public void setEngineeringProfileId(String engineeringProfileId) {
+        setSagDefaultsId(engineeringProfileId);
+    }
+
+    /** @deprecated use {@link #effectiveSagDefaultsId()} */
+    @Deprecated
     public String effectiveEngineeringProfileId() {
-        return engineeringProfileId != null && !engineeringProfileId.isBlank()
-            ? engineeringProfileId
-            : com.plot.plugin.powerline.engineering.EngineeringRuleProfile.GENERIC_PLANNING_ID;
+        return effectiveSagDefaultsId();
     }
 
+    public boolean isLineChecksEnabled() {
+        return lineChecksEnabled;
+    }
+
+    public void setLineChecksEnabled(boolean lineChecksEnabled) {
+        this.lineChecksEnabled = lineChecksEnabled;
+    }
+
+    /** 是否启用任意视觉/常识性检查（线路检查或地形净空）。 */
+    public boolean isVisualChecksEnabled() {
+        return lineChecksEnabled || terrainAvoidanceEnabled;
+    }
+
+    public void setVisualChecksEnabled(boolean enabled) {
+        lineChecksEnabled = enabled;
+        terrainAvoidanceEnabled = enabled;
+    }
+
+    /** @deprecated use {@link #isLineChecksEnabled()} */
+    @Deprecated
     public boolean isEngineeringAnalysisEnabled() {
-        return engineeringAnalysisEnabled;
+        return isLineChecksEnabled();
     }
 
+    /** @deprecated use {@link #setLineChecksEnabled(boolean)} */
+    @Deprecated
     public void setEngineeringAnalysisEnabled(boolean engineeringAnalysisEnabled) {
-        this.engineeringAnalysisEnabled = engineeringAnalysisEnabled;
+        setLineChecksEnabled(engineeringAnalysisEnabled);
     }
 
     public boolean isTerrainAvoidanceEnabled() {
@@ -393,8 +434,8 @@ public class PowerLineFootprint {
         hash = 31 * hash + materialFingerprint(topWireMaterial);
         hash = 31 * hash + poleOverrides.hashCode();
         hash = 31 * hash + layoutConstraints.hashCode();
-        hash = 31 * hash + Objects.hashCode(engineeringProfileId);
-        hash = 31 * hash + Boolean.hashCode(engineeringAnalysisEnabled);
+        hash = 31 * hash + Objects.hashCode(sagDefaultsId);
+        hash = 31 * hash + Boolean.hashCode(lineChecksEnabled);
         hash = 31 * hash + Boolean.hashCode(terrainAvoidanceEnabled);
         hash = 31 * hash + Boolean.hashCode(automaticTowerSelectionEnabled);
         hash = 31 * hash + Boolean.hashCode(spacingCustomized);

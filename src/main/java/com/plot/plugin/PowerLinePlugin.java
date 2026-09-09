@@ -6,7 +6,7 @@ import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
 import com.plot.plugin.powerline.PowerLineGenerator;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
-import com.plot.plugin.powerline.ui.PowerLineEngineeringCanvasRenderer;
+import com.plot.plugin.powerline.ui.PowerLineValidationCanvasRenderer;
 import com.plot.plugin.powerline.ui.PowerLinePluginState;
 import com.plot.plugin.powerline.ui.PowerLineUiContext;
 import com.plot.plugin.powerline.ui.PowerLineUIManager;
@@ -39,7 +39,7 @@ public class PowerLinePlugin extends Plugin {
         synchronized (projectLock) {
             var line = uiContext.selection().primary(uiContext.project());
             if (line != null) {
-                PowerLineEngineeringCanvasRenderer.render(
+                PowerLineValidationCanvasRenderer.render(
                     drawList,
                     camera,
                     uiContext.state(),

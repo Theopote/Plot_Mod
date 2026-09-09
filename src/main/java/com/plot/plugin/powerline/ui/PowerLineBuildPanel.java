@@ -17,12 +17,12 @@ import imgui.flag.ImGuiTreeNodeFlags;
 public final class PowerLineBuildPanel {
     private final PowerLineUiContext ctx;
     private final PowerLineBuildActions buildActions;
-    private final PowerLineEngineeringPanel engineeringPanel;
+    private final PowerLineValidationPanel validationPanel;
 
-    public PowerLineBuildPanel(PowerLineUiContext ctx, PowerLineEngineeringPanel engineeringPanel) {
+    public PowerLineBuildPanel(PowerLineUiContext ctx, PowerLineValidationPanel validationPanel) {
         this.ctx = ctx;
         this.buildActions = new PowerLineBuildActions(ctx);
-        this.engineeringPanel = engineeringPanel;
+        this.validationPanel = validationPanel;
     }
 
     public void render() {
@@ -37,7 +37,7 @@ public final class PowerLineBuildPanel {
         PowerLineUiWidgets.renderLineSelector(ctx);
         renderPreviewSummary(line);
         renderFriendlyStatus(line);
-        engineeringPanel.renderSmartFixSection(line);
+        validationPanel.renderSmartFixSection(line);
         ImGui.separator();
         buildActions.render(line);
         renderAdvancedChecks(line);
@@ -87,9 +87,7 @@ public final class PowerLineBuildPanel {
         renderSpacingStatus(line);
         renderCornerStatus(line);
 
-        boolean terrainChecks = line.isTerrainAvoidanceEnabled();
-        boolean lineChecks = line.isEngineeringAnalysisEnabled();
-        if (!terrainChecks && !lineChecks) {
+        if (!line.isVisualChecksEnabled()) {
             ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.powerline.build.status.decorative"));
             return;
         }
@@ -99,11 +97,11 @@ public final class PowerLineBuildPanel {
             return;
         }
 
-        if (terrainChecks) {
+        if (line.isTerrainAvoidanceEnabled()) {
             renderTerrainStatus(line);
         }
-        if (lineChecks) {
-            renderLineCheckStatus(line, terrainChecks);
+        if (line.isLineChecksEnabled()) {
+            renderLineCheckStatus(line, line.isTerrainAvoidanceEnabled());
         }
     }
 
@@ -210,7 +208,7 @@ public final class PowerLineBuildPanel {
         ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.powerline.build.advanced_checks"), ImGuiTreeNodeFlags.None)) {
             renderAdvancedPreviewDetails(line);
-            engineeringPanel.renderAdvancedChecksSection(line);
+            validationPanel.renderAdvancedChecksSection(line);
         }
     }
 
@@ -239,6 +237,6 @@ public final class PowerLineBuildPanel {
     }
 
     public void renderOptimizationConfirmPopup() {
-        engineeringPanel.renderOptimizationConfirmPopup();
+        validationPanel.renderOptimizationConfirmPopup();
     }
 }

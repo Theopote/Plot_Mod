@@ -322,7 +322,7 @@ public final class ConductorSpanGenerator {
         }
         return PowerLineSagPolicy.resolveMaxSagDepth(
             footprint,
-            new EngineeringRuleProfileResolver().find(footprint.effectiveEngineeringProfileId()));
+            new EngineeringRuleProfileResolver().find(footprint.effectiveSagDefaultsId()));
     }
 
     private static void checkClearance(

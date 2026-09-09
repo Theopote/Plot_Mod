@@ -35,6 +35,39 @@ class PowerLineProjectSchemaDTest {
     }
 
     @Test
+    void lineChecksEnabledJsonRoundTrip() {
+        PowerLineProject project = new PowerLineProject();
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
+        line.setLineChecksEnabled(true);
+        line.setTerrainAvoidanceEnabled(true);
+        project.addLine(line);
+
+        PowerLineProject restored = PowerLineProject.fromJson(project.toJson());
+        PowerLineFootprint restoredLine = restored.getLine(line.getId());
+        assertNotNull(restoredLine);
+        assertTrue(restoredLine.isLineChecksEnabled());
+        assertTrue(restoredLine.isTerrainAvoidanceEnabled());
+        assertTrue(project.toJson().contains("\"lineChecksEnabled\""));
+    }
+
+    @Test
+    void legacyEngineeringAnalysisEnabledJsonStillLoads() {
+        String legacyJson = """
+            {
+              "lines": [{
+                "id": "line-legacy-checks",
+                "pathPoints": [{"x": 0, "y": 0}, {"x": 40, "y": 0}],
+                "engineeringAnalysisEnabled": true
+              }]
+            }
+            """;
+        PowerLineProject restored = PowerLineProject.fromJson(legacyJson);
+        PowerLineFootprint line = restored.getLine("line-legacy-checks");
+        assertNotNull(line);
+        assertTrue(line.isLineChecksEnabled());
+    }
+
+    @Test
     void legacyGroundWireMaterialJsonStillLoads() {
         String legacyJson = """
             {
@@ -49,5 +82,36 @@ class PowerLineProjectSchemaDTest {
         PowerLineFootprint line = restored.getLine("line-legacy");
         assertNotNull(line);
         assertEquals("minecraft:chain", line.getTopWireMaterial().getPrimaryMaterial());
+    }
+
+    @Test
+    void sagDefaultsIdJsonRoundTrip() {
+        PowerLineProject project = new PowerLineProject();
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
+        line.setSagDefaultsId("profile/custom_sag");
+        project.addLine(line);
+
+        PowerLineProject restored = PowerLineProject.fromJson(project.toJson());
+        PowerLineFootprint restoredLine = restored.getLine(line.getId());
+        assertNotNull(restoredLine);
+        assertEquals("profile/custom_sag", restoredLine.getSagDefaultsId());
+        assertTrue(project.toJson().contains("\"sagDefaultsId\""));
+    }
+
+    @Test
+    void legacyEngineeringProfileIdJsonStillLoads() {
+        String legacyJson = """
+            {
+              "lines": [{
+                "id": "line-legacy-profile",
+                "pathPoints": [{"x": 0, "y": 0}, {"x": 40, "y": 0}],
+                "engineeringProfileId": "profile/generic_planning"
+              }]
+            }
+            """;
+        PowerLineProject restored = PowerLineProject.fromJson(legacyJson);
+        PowerLineFootprint line = restored.getLine("line-legacy-profile");
+        assertNotNull(line);
+        assertEquals("profile/generic_planning", line.getSagDefaultsId());
     }
 }

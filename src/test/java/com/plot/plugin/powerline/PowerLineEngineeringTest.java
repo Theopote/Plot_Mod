@@ -160,7 +160,7 @@ class PowerLineEngineeringTest {
     void classicLatticeLongSpanRespectsStyleSpacing() {
         PowerLineFootprint line = horizontalLine(180);
         com.plot.plugin.powerline.style.PowerLineStylePresetCatalog.classicLattice().apply(line);
-        line.setEngineeringAnalysisEnabled(true);
+        line.setLineChecksEnabled(true);
         PowerLineGenerationResult result = generate(line, flatTerrain(64));
         LineEngineeringReport report = analyze(result, flatTerrain(64), line);
         assertTrue(report.getIssues().stream()
@@ -323,7 +323,7 @@ class PowerLineEngineeringTest {
     @Test
     void legacyLineGeneratesWithoutEngineeringProfile() {
         PowerLineFootprint line = horizontalLine(20);
-        line.setEngineeringAnalysisEnabled(false);
+        line.setLineChecksEnabled(false);
         PowerLineGenerationResult result = generate(line, flatTerrain(64));
         assertTrue(result.blockCount() > 0);
         assertFalse(result.conductorSpans.isEmpty());

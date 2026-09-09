@@ -22,15 +22,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** 工程分析结果的画布叠加层（绿/黄/红 + 净空关键点）。 */
-public final class PowerLineEngineeringCanvasRenderer {
+/** 线路检查结果的画布叠加层（绿/黄/红 + 净空关键点）。 */
+public final class PowerLineValidationCanvasRenderer {
     private static final float SPAN_THICKNESS = 3.5f;
     private static final float POLE_RADIUS = 6.0f;
     private static final int PASS_COLOR = PluginUiColors.STATUS_OK;
     private static final int WARNING_COLOR = PluginUiColors.WARNING;
     private static final int ERROR_COLOR = PluginUiColors.ERROR;
 
-    private PowerLineEngineeringCanvasRenderer() {
+    private PowerLineValidationCanvasRenderer() {
     }
 
     public static void render(
@@ -41,13 +41,13 @@ public final class PowerLineEngineeringCanvasRenderer {
         if (drawList == null || camera == null || state == null || line == null) {
             return;
         }
-        PowerLineEngineeringUiState engineering = state.getEngineeringState();
-        if (!line.isEngineeringAnalysisEnabled() || !engineering.isOverlayEnabled()) {
+        PowerLineValidationUiState validation = state.getValidationState();
+        if (!line.isLineChecksEnabled() || !validation.isOverlayEnabled()) {
             return;
         }
-        LineEngineeringReport report = engineering.getLastEngineeringReport();
+        LineEngineeringReport report = validation.getLastEngineeringReport();
         PowerLinePreviewKey previewKey = state.getPreviewKey();
-        PowerLineAnalysisKey reportKey = engineering.getEngineeringReportKey();
+        PowerLineAnalysisKey reportKey = validation.getEngineeringReportKey();
         if (report == null
                 || reportKey == null
                 || previewKey == null

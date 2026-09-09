@@ -107,7 +107,7 @@ class PowerLineTowerFamilyIntegrationTest {
         PowerLineFootprint line = straightLine(40);
         line.setTowerFamilyId(TowerFamily.STANDARD_LATTICE_3_PHASE_ID);
         line.setWireMaterial(MaterialMix.single("minecraft:iron_bars"));
-        line.setGroundWireMaterial(MaterialMix.single("minecraft:chain"));
+        line.setTopWireMaterial(MaterialMix.single("minecraft:chain"));
         line.setMaxPoleSpacing(50.0);
         line.setSagRatio(0.0);
 
@@ -124,7 +124,7 @@ class PowerLineTowerFamilyIntegrationTest {
     void groundWireConnectsByAttachmentId() {
         PowerLineFootprint line = straightLine(30);
         line.setTowerFamilyId(TowerFamily.STANDARD_LATTICE_3_PHASE_ID);
-        line.setGroundWireMaterial(MaterialMix.single("minecraft:chain"));
+        line.setTopWireMaterial(MaterialMix.single("minecraft:chain"));
         line.setMaxPoleSpacing(50.0);
         line.setSagRatio(0.0);
 

@@ -89,7 +89,7 @@ public final class JumperWireGenerator {
         double maxSagDepth = com.plot.plugin.powerline.PowerLineSagPolicy.resolveMaxSagDepth(
             footprint,
             new com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver()
-                .find(footprint.effectiveEngineeringProfileId()));
+                .find(footprint.effectiveSagDefaultsId()));
         double sagDepth = maxSagDepth > 0.0
             ? Math.min(rawSagDepth, maxSagDepth)
             : rawSagDepth;

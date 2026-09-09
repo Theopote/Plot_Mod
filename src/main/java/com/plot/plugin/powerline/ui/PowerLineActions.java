@@ -208,15 +208,15 @@ public final class PowerLineActions {
     public LineEngineeringReport cachedTerrainReport(PowerLineFootprint line) {
         return validatedReport(
             line,
-            state.getEngineeringState().getLastTerrainReport(),
-            state.getEngineeringState().getTerrainReportKey());
+            state.getValidationState().getLastTerrainReport(),
+            state.getValidationState().getTerrainReportKey());
     }
 
     public LineEngineeringReport cachedEngineeringReport(PowerLineFootprint line) {
         return validatedReport(
             line,
-            state.getEngineeringState().getLastEngineeringReport(),
-            state.getEngineeringState().getEngineeringReportKey());
+            state.getValidationState().getLastEngineeringReport(),
+            state.getValidationState().getEngineeringReportKey());
     }
 
     private void syncPreviewAnalysis(PowerLineFootprint line) {
@@ -234,7 +234,7 @@ public final class PowerLineActions {
         } else {
             clearTerrainReport();
         }
-        if (line.isEngineeringAnalysisEnabled()) {
+        if (line.isLineChecksEnabled()) {
             storeEngineeringReport(computeEngineeringReport(line, world));
         } else {
             clearEngineeringReport();
@@ -262,13 +262,13 @@ public final class PowerLineActions {
     }
 
     private void storeTerrainReport(LineEngineeringReport report) {
-        state.getEngineeringState().setLastTerrainReport(report);
-        state.getEngineeringState().setTerrainReportKey(PowerLineAnalysisKey.capture(state.getPreviewKey()));
+        state.getValidationState().setLastTerrainReport(report);
+        state.getValidationState().setTerrainReportKey(PowerLineAnalysisKey.capture(state.getPreviewKey()));
     }
 
     private void storeEngineeringReport(LineEngineeringReport report) {
-        state.getEngineeringState().setLastEngineeringReport(report);
-        state.getEngineeringState().setEngineeringReportKey(PowerLineAnalysisKey.capture(state.getPreviewKey()));
+        state.getValidationState().setLastEngineeringReport(report);
+        state.getValidationState().setEngineeringReportKey(PowerLineAnalysisKey.capture(state.getPreviewKey()));
     }
 
     private LineEngineeringReport validatedReport(
@@ -287,17 +287,17 @@ public final class PowerLineActions {
     }
 
     private void clearAnalysisReports() {
-        state.getEngineeringState().clearAnalysisReports();
+        state.getValidationState().clearAnalysisReports();
     }
 
     private void clearTerrainReport() {
-        state.getEngineeringState().setLastTerrainReport(null);
-        state.getEngineeringState().setTerrainReportKey(null);
+        state.getValidationState().setLastTerrainReport(null);
+        state.getValidationState().setTerrainReportKey(null);
     }
 
     private void clearEngineeringReport() {
-        state.getEngineeringState().setLastEngineeringReport(null);
-        state.getEngineeringState().setEngineeringReportKey(null);
+        state.getValidationState().setLastEngineeringReport(null);
+        state.getValidationState().setEngineeringReportKey(null);
     }
 
     private void runTerrainAvoidance(PowerLineFootprint line) {
@@ -727,7 +727,7 @@ public final class PowerLineActions {
         if (line == null) {
             return null;
         }
-        if (!line.isEngineeringAnalysisEnabled()) {
+        if (!line.isLineChecksEnabled()) {
             clearEngineeringReport();
             return null;
         }
@@ -757,7 +757,7 @@ public final class PowerLineActions {
         }
         OptimizationResult optimization = com.plot.plugin.powerline.engineering.optimization.AutoTowerOptimizationProposer
             .propose(result, line, designResolver());
-        state.getEngineeringState().setPendingOptimization(optimization);
+        state.getValidationState().setPendingOptimization(optimization);
         return optimization;
     }
 
@@ -785,10 +785,10 @@ public final class PowerLineActions {
         }
         com.plot.plugin.powerline.engineering.EngineeringRuleProfile profile =
             new com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver()
-                .find(line.effectiveEngineeringProfileId());
+                .find(line.effectiveSagDefaultsId());
         OptimizationResult optimization = com.plot.plugin.powerline.engineering.optimization.LineOptimizationEngine
             .propose(report, sites, line, profile, designResolver());
-        state.getEngineeringState().setPendingOptimization(optimization);
+        state.getValidationState().setPendingOptimization(optimization);
         return optimization;
     }
 
@@ -797,7 +797,7 @@ public final class PowerLineActions {
     }
 
     public void applyPendingOptimization(PowerLineFootprint line) {
-        OptimizationResult optimization = state.getEngineeringState().getPendingOptimization();
+        OptimizationResult optimization = state.getValidationState().getPendingOptimization();
         if (optimization == null || line == null) {
             return;
         }
@@ -815,7 +815,7 @@ public final class PowerLineActions {
                 default -> { }
             }
         }
-        state.getEngineeringState().clearOptimization();
+        state.getValidationState().clearOptimization();
         invalidatePreview();
         state.setProjectStatus(PlotI18n.tr("plugin.powerline.engineering.applied"));
     }

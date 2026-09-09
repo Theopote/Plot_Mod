@@ -12,23 +12,23 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
-/** 电力线路工程分析（Build Tab：高级检查 / 智能修正）。 */
-public final class PowerLineEngineeringPanel {
+/** 线路视觉/常识检查（Build Tab：高级检查 / 智能修正）。 */
+public final class PowerLineValidationPanel {
     private final PowerLineUiContext ctx;
 
-    public PowerLineEngineeringPanel(PowerLineUiContext ctx) {
+    public PowerLineValidationPanel(PowerLineUiContext ctx) {
         this.ctx = ctx;
     }
 
     public void renderSmartFixSection(PowerLineFootprint line) {
-        if (!line.isEngineeringAnalysisEnabled()) {
+        if (!line.isLineChecksEnabled()) {
             return;
         }
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.powerline.build.smart_fix"));
         if (ImGui.button(PlotI18n.tr("plugin.powerline.build.engineering_fix"), 0, 0)) {
             ctx.actions().proposeClearanceFix(line);
-            ctx.state().getEngineeringState().setOptimizationConfirmPending(true);
+            ctx.state().getValidationState().setOptimizationConfirmPending(true);
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.build.smart_towers"), 0, 0)) {
@@ -36,7 +36,7 @@ public final class PowerLineEngineeringPanel {
             line.setAutomaticTowerSelectionEnabled(true);
             ctx.invalidatePreview();
             ctx.actions().proposeAutoTowerSelection(line);
-            ctx.state().getEngineeringState().setOptimizationConfirmPending(true);
+            ctx.state().getValidationState().setOptimizationConfirmPending(true);
         }
     }
 
@@ -46,7 +46,7 @@ public final class PowerLineEngineeringPanel {
             PowerLineUiWidgets.renderTowerRoleStats(result);
             ImGui.separator();
         }
-        PowerLineUiWidgets.renderEngineeringProfileControls(ctx, line, true);
+        PowerLineUiWidgets.renderLineCheckControls(ctx, line, true);
         renderAnalysisControls(line);
         LineEngineeringReport report = ctx.actions().cachedEngineeringReport(line);
         if (report != null) {
@@ -63,23 +63,18 @@ public final class PowerLineEngineeringPanel {
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.engineering.auto_select_towers"), 0, 0)) {
             ctx.actions().proposeAutoTowerSelection(line);
-            ctx.state().getEngineeringState().setOptimizationConfirmPending(true);
+            ctx.state().getValidationState().setOptimizationConfirmPending(true);
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.engineering.fix_clearance"), 0, 0)) {
             ctx.actions().proposeClearanceFix(line);
-            ctx.state().getEngineeringState().setOptimizationConfirmPending(true);
+            ctx.state().getValidationState().setOptimizationConfirmPending(true);
         }
     }
 
     private void renderReportSummary(LineEngineeringReport report) {
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.powerline.validation.summary"));
-        if (report.getProfileName() != null && !report.getProfileName().isBlank()) {
-            ImGui.text(PlotI18n.tr(
-                "plugin.powerline.engineering.profile_result",
-                report.getProfileName()));
-        }
         ImGui.text(PlotI18n.tr("plugin.powerline.engineering.errors", report.errorCount()));
         ImGui.text(PlotI18n.tr("plugin.powerline.engineering.warnings", report.warningCount()));
         ImGui.textColored(
@@ -91,7 +86,7 @@ public final class PowerLineEngineeringPanel {
     }
 
     private void renderIssueList(LineEngineeringReport report) {
-        ImGui.beginChild("powerline_engineering_issues", 0, 180, true);
+        ImGui.beginChild("powerline_validation_issues", 0, 180, true);
         for (var issue : report.getIssues()) {
             var color = issue.severity() == EngineeringSeverity.ERROR
                 ? PluginUiColors.ERROR_SOFT
@@ -115,10 +110,10 @@ public final class PowerLineEngineeringPanel {
 
     public void renderOptimizationConfirmPopup() {
         if (PowerLineUiWidgets.beginDeferredPopupModal(
-                "##powerline_engineering_opt_confirm",
-                ctx.state().getEngineeringState().isOptimizationConfirmPending(),
-                () -> ctx.state().getEngineeringState().setOptimizationConfirmPending(false))) {
-            var optimization = ctx.state().getEngineeringState().getPendingOptimization();
+                "##powerline_validation_opt_confirm",
+                ctx.state().getValidationState().isOptimizationConfirmPending(),
+                () -> ctx.state().getValidationState().setOptimizationConfirmPending(false))) {
+            var optimization = ctx.state().getValidationState().getPendingOptimization();
             ImGui.text(PlotI18n.tr("plugin.powerline.engineering.proposed_changes"));
             if (optimization != null && !optimization.getActions().isEmpty()) {
                 PoleDesignResolver resolver = ctx.designResolver();
@@ -135,7 +130,7 @@ public final class PowerLineEngineeringPanel {
             }
             ImGui.sameLine();
             if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
-                ctx.state().getEngineeringState().clearOptimization();
+                ctx.state().getValidationState().clearOptimization();
                 ImGui.closeCurrentPopup();
             }
             ImGui.endPopup();

@@ -5,6 +5,8 @@ import java.util.Objects;
 /** 可配置的工程规则配置（规划默认值，非规范认证）。 */
 public class EngineeringRuleProfile {
     public static final String GENERIC_PLANNING_ID = "profile/generic_planning";
+    /** 生成侧弧垂/净空默认配置 id（内部，不向玩家暴露）。 */
+    public static final String INTERNAL_SAG_DEFAULTS_ID = GENERIC_PLANNING_ID;
 
     private final String id;
     private String name;

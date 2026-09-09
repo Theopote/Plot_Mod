@@ -38,7 +38,7 @@ public final class PowerLinePluginState {
 
     private boolean poleDesignerOpen = false;
     private String poleDesignerEditingId = "";
-    private final PowerLineEngineeringUiState engineeringState = new PowerLineEngineeringUiState();
+    private final PowerLineValidationUiState validationState = new PowerLineValidationUiState();
 
     public PowerLineDesignProject getDesignProject() {
         return designProject;
@@ -164,7 +164,7 @@ public final class PowerLinePluginState {
         return contentFingerprint;
     }
 
-    public PowerLineEngineeringUiState getEngineeringState() {
-        return engineeringState;
+    public PowerLineValidationUiState getValidationState() {
+        return validationState;
     }
 }

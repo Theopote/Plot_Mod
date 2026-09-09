@@ -35,7 +35,7 @@ public final class AutoTowerOptimizationProposer {
             return result;
         }
 
-        var profile = new EngineeringRuleProfileResolver().find(footprint.effectiveEngineeringProfileId());
+        var profile = new EngineeringRuleProfileResolver().find(footprint.effectiveSagDefaultsId());
         AutomaticTowerSelector selector = new AutomaticTowerSelector(designResolver);
         var sites = generation.poleSites;
         var placements = generation.polePlacements;
