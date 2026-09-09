@@ -57,8 +57,8 @@ public record TowerConductorArrangement(
                 ConductorAttachmentPresets.twinTopWires(attachmentHeight + topWireLift, topWireHalfSeparation));
             case SINGLE -> {
                 ConductorAttachment topWire = new ConductorAttachment(
-                    TowerFamilyDesignPresets.GROUND_WIRE_ID, "GW");
-                topWire.setRole(AttachmentRole.GROUND_WIRE);
+                    TowerFamilyDesignPresets.TOP_WIRE_ID, "GW");
+                topWire.setRole(AttachmentRole.TOP_WIRE);
                 topWire.setVerticalOffset(attachmentHeight + topWireLift);
                 topWire.setInsulatorLength(1);
                 attachments.add(topWire);

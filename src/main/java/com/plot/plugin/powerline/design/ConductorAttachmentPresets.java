@@ -147,7 +147,7 @@ public final class ConductorAttachmentPresets {
 
     private static ConductorAttachment topWire(String id, String name, double lateral, double vertical) {
         ConductorAttachment attachment = new ConductorAttachment(id, name);
-        attachment.setRole(AttachmentRole.GROUND_WIRE);
+        attachment.setRole(AttachmentRole.TOP_WIRE);
         attachment.setLateralOffset(lateral);
         attachment.setVerticalOffset(vertical);
         attachment.setInsulatorLength(1);

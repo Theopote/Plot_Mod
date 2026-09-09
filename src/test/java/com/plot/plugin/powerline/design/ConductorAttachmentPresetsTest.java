@@ -12,10 +12,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ConductorAttachmentPresetsTest {
 
     @Test
-    void twinTopWiresCreatesTwoGroundWireRoles() {
+    void twinTopWiresCreatesTwoTopWireRoles() {
         var wires = ConductorAttachmentPresets.twinTopWires(20, 2);
         assertEquals(2, wires.size());
-        assertEquals(AttachmentRole.GROUND_WIRE, wires.get(0).getRole());
+        assertEquals(AttachmentRole.TOP_WIRE, wires.get(0).getRole());
         assertEquals(ConductorAttachmentPresets.TOP_WIRE_L_ID, wires.get(0).getId());
         assertEquals(ConductorAttachmentPresets.TOP_WIRE_R_ID, wires.get(1).getId());
     }
@@ -33,7 +33,7 @@ class ConductorAttachmentPresetsTest {
         var design = TowerFamilyDesignPresets.hvTransmissionSuspension();
         assertEquals(8, design.getAttachments().size());
         long topWires = design.getAttachments().stream()
-            .filter(a -> a.getRole() == AttachmentRole.GROUND_WIRE)
+            .filter(a -> a.getRole() == AttachmentRole.TOP_WIRE)
             .count();
         assertEquals(2, topWires);
     }
@@ -50,7 +50,7 @@ class ConductorAttachmentPresetsTest {
         var design = TowerFamilyDesignPresets.latticeSuspension();
         assertEquals(8, design.getAttachments().size());
         long topWires = design.getAttachments().stream()
-            .filter(a -> a.getRole() == AttachmentRole.GROUND_WIRE)
+            .filter(a -> a.getRole() == AttachmentRole.TOP_WIRE)
             .count();
         assertEquals(2, topWires);
     }

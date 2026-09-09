@@ -82,7 +82,7 @@ public final class InsulatorAssemblyCatalog {
             return;
         }
         for (ConductorAttachment attachment : design.getAttachments()) {
-            if (attachment.getRole() == AttachmentRole.GROUND_WIRE) {
+            if (attachment.getRole() == AttachmentRole.TOP_WIRE) {
                 applyAssembly(attachment, topWireShort());
             }
         }
@@ -94,7 +94,7 @@ public final class InsulatorAssemblyCatalog {
             return;
         }
         for (ConductorAttachment attachment : design.getAttachments()) {
-            if (attachment.getRole() == AttachmentRole.GROUND_WIRE) {
+            if (attachment.getRole() == AttachmentRole.TOP_WIRE) {
                 applyAssembly(attachment, topWireShort());
                 continue;
             }
@@ -112,7 +112,7 @@ public final class InsulatorAssemblyCatalog {
             return;
         }
         for (ConductorAttachment attachment : design.getAttachments()) {
-            if (attachment.getRole() == AttachmentRole.GROUND_WIRE) {
+            if (attachment.getRole() == AttachmentRole.TOP_WIRE) {
                 applyAssembly(attachment, topWireShort());
                 continue;
             }

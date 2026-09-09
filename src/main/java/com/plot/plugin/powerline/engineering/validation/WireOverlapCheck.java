@@ -50,8 +50,8 @@ public final class WireOverlapCheck implements LineValidationCheck {
                 }
                 double distance = distance3d(left, right);
                 if (distance < overlapThreshold) {
-                    String ruleId = left.role() == AttachmentRole.GROUND_WIRE
-                            || right.role() == AttachmentRole.GROUND_WIRE
+                    String ruleId = left.role() == AttachmentRole.TOP_WIRE
+                            || right.role() == AttachmentRole.TOP_WIRE
                         ? EngineeringRuleIds.CONDUCTOR_SEPARATION_GROUND
                         : EngineeringRuleIds.CONDUCTOR_SEPARATION_PHASE;
                     poleAnalysis.addIssue(new SimplePowerLineIssue(
@@ -97,7 +97,7 @@ public final class WireOverlapCheck implements LineValidationCheck {
         return left.role() == AttachmentRole.PHASE_A
             || left.role() == AttachmentRole.PHASE_B
             || left.role() == AttachmentRole.PHASE_C
-            || left.role() == AttachmentRole.GROUND_WIRE;
+            || left.role() == AttachmentRole.TOP_WIRE;
     }
 
     private static boolean isPhaseOrGround(AttachmentRole role) {
@@ -105,7 +105,7 @@ public final class WireOverlapCheck implements LineValidationCheck {
             || role == AttachmentRole.PHASE_B
             || role == AttachmentRole.PHASE_C
             || role == AttachmentRole.NEUTRAL
-            || role == AttachmentRole.GROUND_WIRE;
+            || role == AttachmentRole.TOP_WIRE;
     }
 
     private static double distance3d(ResolvedAttachment a, ResolvedAttachment b) {

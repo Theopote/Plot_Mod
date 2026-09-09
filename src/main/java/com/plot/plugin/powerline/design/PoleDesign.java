@@ -309,7 +309,7 @@ public class PoleDesign {
                     attachment.setVerticalOffset(attachmentData.verticalOffset);
                     attachment.setLongitudinalOffset(attachmentData.longitudinalOffset);
                     if (attachmentData.role != null) {
-                        attachment.setRole(AttachmentRole.valueOf(attachmentData.role));
+                        attachment.setRole(AttachmentRole.parseRole(attachmentData.role));
                     }
                     if (attachmentData.insulatorMaterial != null) {
                         attachment.setInsulatorMaterial(attachmentData.insulatorMaterial);

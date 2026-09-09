@@ -59,18 +59,6 @@ public class StyleOverrides {
         this.topWireMaterial = topWireMaterial != null ? topWireMaterial.copy() : null;
     }
 
-    /** @deprecated use {@link #getTopWireMaterial()} */
-    @Deprecated
-    public MaterialMix getGroundWireMaterial() {
-        return getTopWireMaterial();
-    }
-
-    /** @deprecated use {@link #setTopWireMaterial(MaterialMix)} */
-    @Deprecated
-    public void setGroundWireMaterial(MaterialMix groundWireMaterial) {
-        setTopWireMaterial(groundWireMaterial);
-    }
-
     public Double getPreferredSpacing() {
         return preferredSpacing;
     }

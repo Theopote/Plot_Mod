@@ -52,7 +52,7 @@ public final class JumperWireGenerator {
             return;
         }
         for (ResolvedAttachment attachment : attachments) {
-            if (attachment.role() == AttachmentRole.GROUND_WIRE
+            if (attachment.role() == AttachmentRole.TOP_WIRE
                     || attachment.role() == AttachmentRole.AUXILIARY) {
                 continue;
             }

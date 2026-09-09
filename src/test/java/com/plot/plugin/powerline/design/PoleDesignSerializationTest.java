@@ -43,4 +43,29 @@ class PoleDesignSerializationTest {
         assertEquals(1, restored.getAttachments().size());
         assertFalse(restored.getLayers().isEmpty());
     }
+
+    @Test
+    void legacyGroundWireRoleMigratesOnPoleDesignLoad() {
+        String json = """
+            {
+              "id": "legacy-top",
+              "name": "Legacy Top",
+              "layers": [{"shape": "COLUMN", "height": 8, "crossarmLength": 0, "material": "minecraft:oak_fence"}],
+              "attachments": [{
+                "id": "tw",
+                "name": "TW",
+                "lateralOffset": 0,
+                "verticalOffset": 10,
+                "longitudinalOffset": 0,
+                "role": "GROUND_WIRE",
+                "insulatorLength": 1,
+                "enabled": true
+              }]
+            }
+            """;
+        PoleDesign restored = PoleDesign.fromJson(json);
+        assertEquals(AttachmentRole.TOP_WIRE, restored.getAttachments().getFirst().getRole());
+        assertTrue(restored.toJson().contains("\"TOP_WIRE\""));
+        assertTrue(!restored.toJson().contains("\"GROUND_WIRE\""));
+    }
 }
