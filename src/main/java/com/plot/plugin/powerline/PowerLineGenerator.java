@@ -8,9 +8,10 @@ import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
-import com.plot.plugin.powerline.design.PoleLayer;
 import com.plot.plugin.powerline.design.family.PoleDesignAssignmentResolver;
 import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
+import com.plot.plugin.powerline.placement.GenerationVoxelSink;
+import com.plot.plugin.powerline.placement.PoleLayerVoxelPlacer;
 import com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver;
 import com.plot.plugin.powerline.engineering.selection.TowerSelectionContext;
 import com.plot.plugin.powerline.design.structure.TowerStructureValidator;
@@ -228,70 +229,22 @@ public class PowerLineGenerator {
             Vec2d tangent,
             PowerLineFootprint footprint,
             PowerLineGenerationResult result) {
-        int currentY = groundY + 1;
         int wireHangY = design.wireHangHeightFromGround(groundY);
         Vec2d direction = tangent.lengthSquared() > 1e-12 ? tangent.normalize() : new Vec2d(1, 0);
         Vec2d normal = RoadGeometryUtils.leftNormal(direction);
-
-        for (PoleLayer layer : design.getLayers()) {
-            switch (layer.getShape()) {
-                case COLUMN -> placeColumnLayer(planPoint, currentY, layer, footprint, result);
-                case CROSSARM -> placeCrossarmLayer(planPoint, currentY, layer, normal, footprint, result);
-                case CAP -> placeCapLayer(planPoint, currentY, layer, footprint, result);
-                default -> { }
-            }
-            currentY += layer.getHeight();
-        }
+        PoleLayerVoxelPlacer.placeDesign(
+            design,
+            planPoint,
+            groundY + 1,
+            normal,
+            new GenerationVoxelSink(result, projectionHandler),
+            footprint.getId(),
+            PoleLayerVoxelPlacer.worldMapper(coordinateTransformer));
         return wireHangY;
     }
 
     static int computeWireHangHeight(int groundY, PoleDesign design) {
         return design.wireHangHeightFromGround(groundY);
-    }
-
-    private void placeColumnLayer(
-            Vec2d planPoint,
-            int baseY,
-            PoleLayer layer,
-            PowerLineFootprint footprint,
-            PowerLineGenerationResult result) {
-        BlockPos column = RoadGeometryUtils.canvasToBlockXZ(planPoint, coordinateTransformer);
-        for (int y = baseY; y < baseY + layer.getHeight(); y++) {
-            BlockPos pos = new BlockPos(column.getX(), y, column.getZ());
-            String blockId = MaterialMixResolver.resolve(layer.getMaterial(), pos, footprint.getId());
-            recordBlock(result, pos, blockId);
-        }
-    }
-
-    private void placeCapLayer(
-            Vec2d planPoint,
-            int baseY,
-            PoleLayer layer,
-            PowerLineFootprint footprint,
-            PowerLineGenerationResult result) {
-        BlockPos column = RoadGeometryUtils.canvasToBlockXZ(planPoint, coordinateTransformer);
-        BlockPos pos = new BlockPos(column.getX(), baseY, column.getZ());
-        String blockId = MaterialMixResolver.resolve(layer.getMaterial(), pos, footprint.getId());
-        recordBlock(result, pos, blockId);
-    }
-
-    private void placeCrossarmLayer(
-            Vec2d planPoint,
-            int baseY,
-            PoleLayer layer,
-            Vec2d normal,
-            PowerLineFootprint footprint,
-            PowerLineGenerationResult result) {
-        int half = layer.getCrossarmLength() / 2;
-        for (int y = baseY; y < baseY + layer.getHeight(); y++) {
-            for (int offset = -half; offset <= half; offset++) {
-                Vec2d armPoint = planPoint.add(normal.multiply(offset));
-                BlockPos column = RoadGeometryUtils.canvasToBlockXZ(armPoint, coordinateTransformer);
-                BlockPos pos = new BlockPos(column.getX(), y, column.getZ());
-                String blockId = MaterialMixResolver.resolve(layer.getMaterial(), pos, footprint.getId());
-                recordBlock(result, pos, blockId);
-            }
-        }
     }
 
     static Vec2d computePoleTangent(List<Vec2d> poles, int index) {

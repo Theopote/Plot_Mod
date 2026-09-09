@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.preview;
 
 import com.plot.plugin.powerline.design.PoleDesign;
+import com.plot.plugin.powerline.placement.PoleLayerVoxelPlacer;
 
 import java.util.List;
 
@@ -18,7 +19,10 @@ public final class PoleVoxelizer {
             return new PoleVoxelPreviewModel(List.of());
         }
         PreviewVoxelSink sink = new PreviewVoxelSink();
-        PoleLayerVoxelPlacer.placeDesign(design, sink, seedKey != null ? seedKey : design.getId());
+        PoleLayerVoxelPlacer.placeDesignPreview(
+            design,
+            sink,
+            seedKey != null ? seedKey : design.getId());
         return PoleVoxelPreviewModel.fromSink(sink);
     }
 }
