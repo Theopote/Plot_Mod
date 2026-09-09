@@ -29,7 +29,8 @@ class PowerLineProjectSchemaDTest {
         assertNotNull(restoredLine);
         assertEquals(TowerFamily.STANDARD_LATTICE_3_PHASE_ID, restoredLine.getTowerFamilyId());
         assertEquals("minecraft:chain", restoredLine.getTopWireMaterial().getPrimaryMaterial());
-        assertTrue(project.toJson().contains("\"topWireMaterial\""), "new saves should use topWireMaterial JSON key");
+        assertTrue(project.toJson().contains("\"topWireMaterial\""));
+        assertTrue(!project.toJson().contains("\"groundWireMaterial\""));
         assertEquals(1, restoredLine.getPoleOverrides().size());
         assertEquals(TowerRole.DEAD_END, restoredLine.getPoleOverrides().getFirst().getRoleOverride());
     }

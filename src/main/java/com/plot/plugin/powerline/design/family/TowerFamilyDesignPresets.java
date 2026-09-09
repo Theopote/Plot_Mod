@@ -46,9 +46,6 @@ public final class TowerFamilyDesignPresets {
     public static final String MONSTER_PYLON_TERMINAL_ID = "preset/monster_pylon_terminal";
     /** 塔顶装饰线挂点 id（视觉顶线，非电气接地）。 */
     public static final String TOP_WIRE_ID = "ground_wire";
-    /** @deprecated use {@link #TOP_WIRE_ID} */
-    @Deprecated
-    public static final String GROUND_WIRE_ID = TOP_WIRE_ID;
 
     private TowerFamilyDesignPresets() {
     }

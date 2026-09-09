@@ -232,18 +232,6 @@ public class PowerLineFootprint {
             : MaterialMix.single("minecraft:chain");
     }
 
-    /** @deprecated use {@link #getTopWireMaterial()} */
-    @Deprecated
-    public MaterialMix getGroundWireMaterial() {
-        return getTopWireMaterial();
-    }
-
-    /** @deprecated use {@link #setTopWireMaterial(MaterialMix)} */
-    @Deprecated
-    public void setGroundWireMaterial(MaterialMix groundWireMaterial) {
-        setTopWireMaterial(groundWireMaterial);
-    }
-
     public List<PoleOverride> getPoleOverrides() {
         return Collections.unmodifiableList(new ArrayList<>(poleOverrides));
     }

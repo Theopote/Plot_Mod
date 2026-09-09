@@ -103,7 +103,7 @@ class PowerLineTowerFamilyIntegrationTest {
     }
 
     @Test
-    void sceneE_groundWireUsesOwnMaterial() {
+    void sceneE_topWireUsesOwnMaterial() {
         PowerLineFootprint line = straightLine(40);
         line.setTowerFamilyId(TowerFamily.STANDARD_LATTICE_3_PHASE_ID);
         line.setWireMaterial(MaterialMix.single("minecraft:iron_bars"));
@@ -121,7 +121,7 @@ class PowerLineTowerFamilyIntegrationTest {
     }
 
     @Test
-    void groundWireConnectsByAttachmentId() {
+    void topWireConnectsByAttachmentId() {
         PowerLineFootprint line = straightLine(30);
         line.setTowerFamilyId(TowerFamily.STANDARD_LATTICE_3_PHASE_ID);
         line.setTopWireMaterial(MaterialMix.single("minecraft:chain"));

@@ -93,12 +93,6 @@ public final class PowerLineStylePreset {
         return definition.getTopWireMaterial();
     }
 
-    /** @deprecated use {@link #getTopWireMaterial()} */
-    @Deprecated
-    public MaterialMix getGroundWireMaterial() {
-        return getTopWireMaterial();
-    }
-
     public PowerLineUiPresets.WireSag getSagPreset() {
         return definition.getSagPreset();
     }
