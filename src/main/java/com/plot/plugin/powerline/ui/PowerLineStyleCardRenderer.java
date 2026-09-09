@@ -69,6 +69,11 @@ public final class PowerLineStyleCardRenderer {
         float labelY = previewY1 + LABEL_PADDING;
         int labelColor = selected ? COLOR_LABEL : COLOR_LABEL_DIM;
         drawCenteredLabel(drawList, label, x0, labelY, CARD_WIDTH, COLOR_LABEL_DIM, labelColor);
+        String wireLabel = PlotI18n.tr(
+            "plugin.powerline.style.card_wires",
+            pack.attachmentChannelCount());
+        float wireY = labelY + ImGui.getFontSize() + 2f;
+        drawCenteredLabel(drawList, wireLabel, x0, wireY, CARD_WIDTH, COLOR_LABEL_DIM, COLOR_LABEL_DIM);
 
         ImGui.invisibleButton(buttonId, CARD_WIDTH, CARD_HEIGHT);
         if (ImGui.isItemHovered()) {
@@ -125,7 +130,7 @@ public final class PowerLineStyleCardRenderer {
                 previewDesign.totalHeight()));
             ImGui.text(PlotI18n.tr(
                 "plugin.powerline.style.preview_wires",
-                pack.conductorCount()));
+                pack.attachmentChannelCount()));
             if (lineContext != null) {
                 ImGui.text(PlotI18n.tr(
                     "plugin.powerline.style.preview_spacing",

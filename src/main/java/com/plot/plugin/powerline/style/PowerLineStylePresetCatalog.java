@@ -17,36 +17,41 @@ public final class PowerLineStylePresetCatalog {
     private PowerLineStylePresetCatalog() {
     }
 
-    public static List<PowerLineStylePreset> decorativePresets() {
+    public static List<StyleCategory> galleryCategories() {
+        return List.of(
+            StyleCategory.UTILITY,
+            StyleCategory.TRANSMISSION,
+            StyleCategory.INDUSTRIAL,
+            StyleCategory.FANTASY);
+    }
+
+    public static List<PowerLineStylePreset> utilityPresets() {
         List<PowerLineStylePreset> presets = new ArrayList<>();
         presets.add(classicWood());
         presets.add(doubleWood());
         presets.add(urbanConcrete());
         presets.add(simpleSteel());
         presets.add(modernUtility());
-        presets.add(classicLattice());
-        presets.add(heavyLattice());
-        presets.add(compactLattice());
         presets.add(oldEuropean());
         presets.add(japaneseStreet());
-        presets.add(fantasyCopper());
-        presets.add(steampunkBrass());
-        presets.add(wastelandWind());
-        presets.add(abandoned());
         presets.add(suburbanLamp());
+        presets.add(abandoned());
         presets.add(rustic());
         return presets;
     }
 
-    public static List<PowerLineStylePreset> engineeringPresets() {
+    public static List<PowerLineStylePreset> transmissionPresets() {
         List<PowerLineStylePreset> presets = new ArrayList<>();
+        presets.add(compactLattice());
+        presets.add(classicLattice());
+        presets.add(heavyLattice());
         presets.add(smartTowers());
         presets.add(taperedTower());
         presets.add(modernHvGlass());
         return presets;
     }
 
-    public static List<PowerLineStylePreset> industrialMegaPresets() {
+    public static List<PowerLineStylePreset> industrialPresets() {
         List<PowerLineStylePreset> presets = new ArrayList<>();
         presets.add(megaLattice());
         presets.add(heavyDoubleCircuit());
@@ -55,10 +60,56 @@ public final class PowerLineStylePresetCatalog {
         return presets;
     }
 
+    public static List<PowerLineStylePreset> fantasyPresets() {
+        List<PowerLineStylePreset> presets = new ArrayList<>();
+        presets.add(fantasyCopper());
+        presets.add(steampunkBrass());
+        presets.add(wastelandWind());
+        return presets;
+    }
+
+    public static List<PowerLineStylePreset> presetsByCategory(StyleCategory category) {
+        if (category == null) {
+            return List.of();
+        }
+        return switch (category) {
+            case UTILITY -> utilityPresets();
+            case TRANSMISSION -> transmissionPresets();
+            case INDUSTRIAL -> industrialPresets();
+            case FANTASY -> fantasyPresets();
+        };
+    }
+
+    /** @deprecated use {@link #utilityPresets()} etc. */
+    @Deprecated
+    public static List<PowerLineStylePreset> decorativePresets() {
+        List<PowerLineStylePreset> presets = new ArrayList<>(utilityPresets());
+        presets.addAll(transmissionPresets());
+        presets.addAll(fantasyPresets());
+        return presets;
+    }
+
+    /** @deprecated use {@link #transmissionPresets()} */
+    @Deprecated
+    public static List<PowerLineStylePreset> engineeringPresets() {
+        return transmissionPresets().stream()
+            .filter(p -> PowerLineStylePreset.SMART_TOWERS_ID.equals(p.getId())
+                || PowerLineStylePreset.TAPERED_TOWER_ID.equals(p.getId())
+                || PowerLineStylePreset.MODERN_HV_GLASS_ID.equals(p.getId()))
+            .toList();
+    }
+
+    /** @deprecated use {@link #industrialPresets()} */
+    @Deprecated
+    public static List<PowerLineStylePreset> industrialMegaPresets() {
+        return industrialPresets();
+    }
+
     public static List<PowerLineStylePreset> defaultPresets() {
-        List<PowerLineStylePreset> presets = new ArrayList<>(decorativePresets());
-        presets.addAll(industrialMegaPresets());
-        presets.addAll(engineeringPresets());
+        List<PowerLineStylePreset> presets = new ArrayList<>();
+        for (StyleCategory category : galleryCategories()) {
+            presets.addAll(presetsByCategory(category));
+        }
         return presets;
     }
 
@@ -93,7 +144,7 @@ public final class PowerLineStylePresetCatalog {
         return null;
     }
 
-    /** 当前 base preset（按 {@code stylePackId}，微调后仍保留）。 */
+    /** 当前 base preset（按 {@code stylePresetId}，微调后仍保留）。 */
     public static PowerLineStylePreset activePreset(PowerLineFootprint line) {
         return PowerLineStyleEditor.basePreset(line);
     }
@@ -106,6 +157,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset classicWood() {
         return preset(
+            StyleCategory.UTILITY,
             PowerLineStylePreset.RUSTIC_WOOD_ID,
             "plugin.powerline.style.pack.classic_wood",
             PowerLineStylePreset.StylePreviewKind.WOOD,
@@ -121,6 +173,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset doubleWood() {
         return preset(
+            StyleCategory.UTILITY,
             PowerLineStylePreset.DOUBLE_WOOD_ID,
             "plugin.powerline.style.pack.double_wood",
             PowerLineStylePreset.StylePreviewKind.DOUBLE_WOOD,
@@ -136,6 +189,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset urbanConcrete() {
         return preset(
+            StyleCategory.UTILITY,
             PowerLineStylePreset.URBAN_CONCRETE_ID,
             "plugin.powerline.style.pack.urban_concrete",
             PowerLineStylePreset.StylePreviewKind.URBAN,
@@ -151,6 +205,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset simpleSteel() {
         return preset(
+            StyleCategory.UTILITY,
             PowerLineStylePreset.INDUSTRIAL_STEEL_ID,
             "plugin.powerline.style.pack.simple_steel",
             PowerLineStylePreset.StylePreviewKind.STEEL_POLE,
@@ -166,6 +221,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset modernUtility() {
         return preset(
+            StyleCategory.UTILITY,
             PowerLineStylePreset.MODERN_UTILITY_ID,
             "plugin.powerline.style.pack.modern_utility",
             PowerLineStylePreset.StylePreviewKind.MODERN_UTILITY,
@@ -181,6 +237,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset compactLattice() {
         return preset(
+            StyleCategory.TRANSMISSION,
             PowerLineStylePreset.COMPACT_LATTICE_ID,
             "plugin.powerline.style.pack.compact_lattice",
             PowerLineStylePreset.StylePreviewKind.LATTICE_POLE,
@@ -196,6 +253,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset classicLattice() {
         return preset(
+            StyleCategory.TRANSMISSION,
             PowerLineStylePreset.CLASSIC_LATTICE_ID,
             "plugin.powerline.style.pack.classic_lattice",
             PowerLineStylePreset.StylePreviewKind.LATTICE,
@@ -211,6 +269,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset megaLattice() {
         return preset(
+            StyleCategory.INDUSTRIAL,
             PowerLineStylePreset.MEGA_LATTICE_ID,
             "plugin.powerline.style.pack.mega_lattice",
             PowerLineStylePreset.StylePreviewKind.MEGA_LATTICE,
@@ -226,6 +285,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset heavyDoubleCircuit() {
         return preset(
+            StyleCategory.INDUSTRIAL,
             PowerLineStylePreset.HEAVY_DOUBLE_CIRCUIT_ID,
             "plugin.powerline.style.pack.heavy_double_circuit",
             PowerLineStylePreset.StylePreviewKind.HEAVY_DOUBLE_CIRCUIT,
@@ -241,6 +301,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset industrialPortal() {
         return preset(
+            StyleCategory.INDUSTRIAL,
             PowerLineStylePreset.INDUSTRIAL_PORTAL_ID,
             "plugin.powerline.style.pack.industrial_portal",
             PowerLineStylePreset.StylePreviewKind.INDUSTRIAL_PORTAL,
@@ -256,6 +317,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset monsterPylon() {
         return preset(
+            StyleCategory.INDUSTRIAL,
             PowerLineStylePreset.MONSTER_PYLON_ID,
             "plugin.powerline.style.pack.monster_pylon",
             PowerLineStylePreset.StylePreviewKind.MONSTER_PYLON,
@@ -271,6 +333,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset heavyLattice() {
         return preset(
+            StyleCategory.TRANSMISSION,
             PowerLineStylePreset.HEAVY_LATTICE_ID,
             "plugin.powerline.style.pack.heavy_lattice",
             PowerLineStylePreset.StylePreviewKind.HEAVY_LATTICE,
@@ -286,6 +349,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset smartTowers() {
         return preset(
+            StyleCategory.TRANSMISSION,
             PowerLineStylePreset.SMART_TOWERS_ID,
             "plugin.powerline.style.pack.smart_towers",
             PowerLineStylePreset.StylePreviewKind.ADAPTIVE,
@@ -301,6 +365,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset taperedTower() {
         return preset(
+            StyleCategory.TRANSMISSION,
             PowerLineStylePreset.TAPERED_TOWER_ID,
             "plugin.powerline.style.pack.tapered_tower",
             PowerLineStylePreset.StylePreviewKind.TAPERED,
@@ -316,6 +381,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset fantasyCopper() {
         return preset(
+            StyleCategory.FANTASY,
             PowerLineStylePreset.FANTASY_COPPER_ID,
             "plugin.powerline.style.pack.fantasy_copper",
             PowerLineStylePreset.StylePreviewKind.COPPER,
@@ -331,6 +397,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset japaneseStreet() {
         return preset(
+            StyleCategory.UTILITY,
             PowerLineStylePreset.JAPANESE_STREET_ID,
             "plugin.powerline.style.pack.japanese_street",
             PowerLineStylePreset.StylePreviewKind.JAPANESE,
@@ -346,6 +413,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset wastelandWind() {
         return preset(
+            StyleCategory.FANTASY,
             PowerLineStylePreset.WASTELAND_WIND_ID,
             "plugin.powerline.style.pack.wasteland_wind",
             PowerLineStylePreset.StylePreviewKind.WASTELAND_WIND,
@@ -361,6 +429,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset oldEuropean() {
         return preset(
+            StyleCategory.UTILITY,
             PowerLineStylePreset.OLD_EUROPEAN_ID,
             "plugin.powerline.style.pack.old_european",
             PowerLineStylePreset.StylePreviewKind.OLD_EUROPEAN,
@@ -376,6 +445,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset steampunkBrass() {
         return preset(
+            StyleCategory.FANTASY,
             PowerLineStylePreset.STEAMPUNK_BRASS_ID,
             "plugin.powerline.style.pack.steampunk_brass",
             PowerLineStylePreset.StylePreviewKind.STEAMPUNK,
@@ -391,6 +461,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset modernHvGlass() {
         return preset(
+            StyleCategory.TRANSMISSION,
             PowerLineStylePreset.MODERN_HV_GLASS_ID,
             "plugin.powerline.style.pack.modern_hv_glass",
             PowerLineStylePreset.StylePreviewKind.MODERN_HV_GLASS,
@@ -406,6 +477,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset suburbanLamp() {
         return preset(
+            StyleCategory.UTILITY,
             PowerLineStylePreset.SUBURBAN_LAMP_ID,
             "plugin.powerline.style.pack.suburban_lamp",
             PowerLineStylePreset.StylePreviewKind.SUBURBAN_LAMP,
@@ -421,6 +493,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset abandoned() {
         return preset(
+            StyleCategory.UTILITY,
             PowerLineStylePreset.ABANDONED_ID,
             "plugin.powerline.style.pack.abandoned",
             PowerLineStylePreset.StylePreviewKind.ABANDONED,
@@ -436,6 +509,7 @@ public final class PowerLineStylePresetCatalog {
 
     public static PowerLineStylePreset rustic() {
         return preset(
+            StyleCategory.UTILITY,
             PowerLineStylePreset.RUSTIC_ID,
             "plugin.powerline.style.pack.rustic",
             PowerLineStylePreset.StylePreviewKind.RUSTIC,
@@ -450,6 +524,7 @@ public final class PowerLineStylePresetCatalog {
     }
 
     private static PowerLineStylePreset preset(
+            StyleCategory category,
             String id,
             String labelKey,
             PowerLineStylePreset.StylePreviewKind previewKind,
@@ -462,6 +537,7 @@ public final class PowerLineStylePresetCatalog {
             PowerLineStylePreset.ConductorLayout conductorLayout,
             PoleSpacingProfile spacingProfile) {
         return preset(
+            category,
             id,
             labelKey,
             previewKind,
@@ -476,6 +552,7 @@ public final class PowerLineStylePresetCatalog {
     }
 
     private static PowerLineStylePreset preset(
+            StyleCategory category,
             String id,
             String labelKey,
             PowerLineStylePreset.StylePreviewKind previewKind,
@@ -497,6 +574,6 @@ public final class PowerLineStylePresetCatalog {
             sagPreset,
             conductorArrangement,
             spacingProfile);
-        return new PowerLineStylePreset(id, labelKey, definition);
+        return new PowerLineStylePreset(id, labelKey, category, definition);
     }
 }

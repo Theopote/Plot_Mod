@@ -4,6 +4,7 @@ import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.style.PowerLineStyleEditor;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
+import com.plot.plugin.powerline.style.StyleCategory;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -38,19 +39,7 @@ public final class PowerLineStylePanel {
         PowerLineUiWidgets.renderLineSelector(ctx);
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.powerline.style.section.choose"));
-        renderStylePresetGrid(line, PowerLineStylePresetCatalog.decorativePresets());
-        ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
-        if (ImGui.collapsingHeader(
-                PlotI18n.tr("plugin.powerline.style.section.industrial_mega"),
-                ImGuiTreeNodeFlags.None)) {
-            renderStylePresetGrid(line, PowerLineStylePresetCatalog.industrialMegaPresets());
-        }
-        ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
-        if (ImGui.collapsingHeader(
-                PlotI18n.tr("plugin.powerline.style.section.tower_engineering"),
-                ImGuiTreeNodeFlags.None)) {
-            renderStylePresetGrid(line, PowerLineStylePresetCatalog.engineeringPresets());
-        }
+        renderStyleGallery(line);
 
         PowerLineStylePreset base = PowerLineStyleEditor.basePreset(line);
         if (base != null) {
@@ -62,6 +51,18 @@ public final class PowerLineStylePanel {
         }
 
         renderAdvancedStyle(line);
+    }
+
+    private void renderStyleGallery(PowerLineFootprint line) {
+        for (StyleCategory category : PowerLineStylePresetCatalog.galleryCategories()) {
+            boolean openByDefault = category == StyleCategory.UTILITY;
+            ImGui.setNextItemOpen(openByDefault, ImGuiCond.FirstUseEver);
+            if (ImGui.collapsingHeader(
+                    PlotI18n.tr(category.sectionKey()),
+                    ImGuiTreeNodeFlags.None)) {
+                renderStylePresetGrid(line, PowerLineStylePresetCatalog.presetsByCategory(category));
+            }
+        }
     }
 
     private int computePresetColumns() {

@@ -5,6 +5,7 @@ import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
+import com.plot.plugin.powerline.style.StyleCategory;
 import com.plot.api.geometry.Vec2d;
 import org.junit.jupiter.api.Test;
 
@@ -19,9 +20,23 @@ class PowerLineStyleCardRendererTest {
     @Test
     void catalogContainsTwentyThreeStylePresets() {
         assertEquals(23, PowerLineStylePresetCatalog.defaultPresets().size());
-        assertEquals(16, PowerLineStylePresetCatalog.decorativePresets().size());
-        assertEquals(4, PowerLineStylePresetCatalog.industrialMegaPresets().size());
-        assertEquals(3, PowerLineStylePresetCatalog.engineeringPresets().size());
+        assertEquals(4, PowerLineStylePresetCatalog.galleryCategories().size());
+        assertEquals(10, PowerLineStylePresetCatalog.utilityPresets().size());
+        assertEquals(6, PowerLineStylePresetCatalog.transmissionPresets().size());
+        assertEquals(4, PowerLineStylePresetCatalog.industrialPresets().size());
+        assertEquals(3, PowerLineStylePresetCatalog.fantasyPresets().size());
+        assertEquals(
+            10,
+            PowerLineStylePresetCatalog.presetsByCategory(StyleCategory.UTILITY).size());
+        assertEquals(
+            6,
+            PowerLineStylePresetCatalog.presetsByCategory(StyleCategory.TRANSMISSION).size());
+        assertEquals(
+            4,
+            PowerLineStylePresetCatalog.presetsByCategory(StyleCategory.INDUSTRIAL).size());
+        assertEquals(
+            3,
+            PowerLineStylePresetCatalog.presetsByCategory(StyleCategory.FANTASY).size());
     }
 
     @Test

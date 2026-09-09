@@ -45,11 +45,17 @@ public final class PowerLineStylePreset {
 
     private final String id;
     private final String labelKey;
+    private final StyleCategory category;
     private final PowerLineStyleDefinition definition;
 
-    public PowerLineStylePreset(String id, String labelKey, PowerLineStyleDefinition definition) {
+    public PowerLineStylePreset(
+            String id,
+            String labelKey,
+            StyleCategory category,
+            PowerLineStyleDefinition definition) {
         this.id = id;
         this.labelKey = labelKey;
+        this.category = category != null ? category : StyleCategory.UTILITY;
         this.definition = definition;
     }
 
@@ -63,6 +69,10 @@ public final class PowerLineStylePreset {
 
     public String getDescriptionKey() {
         return labelKey + ".desc";
+    }
+
+    public StyleCategory getCategory() {
+        return category;
     }
 
     public PowerLineStyleDefinition getDefinition() {
@@ -109,6 +119,11 @@ public final class PowerLineStylePreset {
 
     public int conductorCount() {
         return getConductorArrangement().phaseConductorCount();
+    }
+
+    /** 挂点通道总数（含顶线），用于风格卡片展示。 */
+    public int attachmentChannelCount() {
+        return getConductorArrangement().getChannels().size();
     }
 
     public PoleSpacingProfile getSpacingProfile() {
