@@ -2,6 +2,7 @@ package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.PowerLineGenerationI18n;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
+import com.plot.plugin.powerline.style.PowerLineQuickTunePolicy;
 import com.plot.plugin.powerline.style.PowerLineStyleEditor;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
@@ -74,35 +75,10 @@ public final class PowerLineBuildPanel {
                 PlotI18n.tr("plugin.powerline.build.style_custom"));
         }
         ImGui.text(PlotI18n.tr("plugin.powerline.pole_count_result", result.poleCount));
+        ImGui.text(PlotI18n.tr("plugin.powerline.block_count_result", result.blockCount()));
         ImGui.text(PlotI18n.tr(
-            "plugin.powerline.wire_length_result",
-            String.format("%.1f", result.wireLength)));
-        PowerLineUiPresets.WireSag sag = PowerLineUiPresets.detectSag(line);
-        if (sag != null) {
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.powerline.build.sag_preset",
-                    PlotI18n.tr("plugin.powerline.style.sag." + sag.name().toLowerCase())));
-        } else {
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr(
-                    "plugin.powerline.build.sag_custom",
-                    (int) Math.round(line.getSagRatio() * 100.0)));
-        }
-        double effectiveMaxSag = com.plot.plugin.powerline.PowerLineSagPolicy.resolveMaxSagDepth(
-            line,
-            new com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver()
-                .find(line.effectiveEngineeringProfileId()));
-        if (effectiveMaxSag > 0.0) {
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.powerline.build.max_sag_depth", effectiveMaxSag));
-        } else {
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.powerline.build.max_sag_depth_unlimited"));
-        }
+            "plugin.powerline.build.conductor_count",
+            PowerLineQuickTunePolicy.conductorCount(line, basePreset)));
         ImGui.endGroup();
     }
 
@@ -226,7 +202,6 @@ public final class PowerLineBuildPanel {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.no_preview"));
             return;
         }
-        ImGui.text(PlotI18n.tr("plugin.powerline.block_count_result", result.blockCount()));
         if (result.warnings.isEmpty()) {
             return;
         }

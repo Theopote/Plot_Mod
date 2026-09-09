@@ -82,6 +82,21 @@ public final class PowerLineSpacingPolicy {
             || !spacingClose(line.getMaxPoleSpacing(), profile.preferred(), DENSITY_MATCH_TOLERANCE);
     }
 
+    /** Route 布局密度偏好；未识别时默认为均衡（Balanced）。 */
+    public static PowerLineUiPresets.SpacingDensity effectiveDensity(PowerLineFootprint line) {
+        PowerLineUiPresets.SpacingDensity detected = detectDensity(line);
+        return detected != null ? detected : PowerLineUiPresets.SpacingDensity.NORMAL;
+    }
+
+    /** 给定密度 + 当前风格 profile 的推荐最大档距（格）。 */
+    public static double spacingForDensity(PowerLineFootprint line, PowerLineUiPresets.SpacingDensity density) {
+        PoleSpacingProfile profile = profileFor(line);
+        PowerLineUiPresets.SpacingDensity resolved = density != null
+            ? density
+            : PowerLineUiPresets.SpacingDensity.NORMAL;
+        return profile.maxSpacingFor(resolved);
+    }
+
     private static boolean spacingClose(double actual, double expected, double tolerance) {
         return Math.abs(actual - expected) <= tolerance;
     }

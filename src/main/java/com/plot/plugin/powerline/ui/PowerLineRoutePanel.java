@@ -2,6 +2,9 @@ package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.style.PowerLineSpacingPolicy;
+import com.plot.plugin.powerline.style.PowerLineStyleEditor;
+import com.plot.plugin.powerline.style.PowerLineStylePreset;
+import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
 import com.plot.plugin.powerline.style.PoleSpacingProfile;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -9,7 +12,7 @@ import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiTreeNodeFlags;
 
-/** 线路 Tab：认领路径、杆塔间距、地形适应。 */
+/** 线路 Tab：认领路径、布局密度偏好、地形适应。 */
 public final class PowerLineRoutePanel {
     private final PowerLineUiContext ctx;
     private final PowerLineAdoptPanel adoptPanel;
@@ -37,16 +40,8 @@ public final class PowerLineRoutePanel {
         renderLineName(line);
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.powerline.route.section.placement"));
-        renderSpacingPresets(line);
-        PoleSpacingProfile spacingProfile = PowerLineSpacingPolicy.profileFor(line);
-        ImGui.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr(
-                "plugin.powerline.route.spacing_style_range",
-                spacingProfile.recommendedMin(),
-                spacingProfile.preferred(),
-                spacingProfile.recommendedMax()));
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.spacing_hint"));
+        renderPlacementDensity(line);
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.density_hint"));
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.corner_hint"));
         renderTerrainAvoidance(line);
         renderAdvancedSpacing(line);
@@ -65,9 +60,9 @@ public final class PowerLineRoutePanel {
         }
     }
 
-    private void renderSpacingPresets(PowerLineFootprint line) {
-        ImGui.text(PlotI18n.tr("plugin.powerline.route.spacing"));
-        PowerLineUiPresets.SpacingDensity current = PowerLineUiPresets.detectSpacing(line);
+    private void renderPlacementDensity(PowerLineFootprint line) {
+        ImGui.text(PlotI18n.tr("plugin.powerline.route.placement_density"));
+        PowerLineUiPresets.SpacingDensity current = PowerLineSpacingPolicy.effectiveDensity(line);
 
         float spacing = ImGui.getStyle().getItemSpacingX();
         float totalWidth = PowerLineSpacingCardRenderer.CARD_WIDTH
@@ -110,6 +105,21 @@ public final class PowerLineRoutePanel {
                 ImGuiTreeNodeFlags.None)) {
             return;
         }
+        PoleSpacingProfile profile = PowerLineSpacingPolicy.profileFor(line);
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr(
+                "plugin.powerline.route.spacing_style_range",
+                profile.recommendedMin(),
+                profile.preferred(),
+                profile.recommendedMax()));
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr(
+                "plugin.powerline.route.current_spacing",
+                line.getMinPoleSpacing(),
+                line.getMaxPoleSpacing()));
+
         float sliderMin = (float) PowerLineFootprint.MIN_CONFIGURABLE_SPACING;
         float sliderMax = (float) PowerLineSpacingPolicy.sliderMax(line);
         float[] minSpacing = {(float) line.getMinPoleSpacing()};
@@ -120,14 +130,11 @@ public final class PowerLineRoutePanel {
                 sliderMax,
                 "%.1f")) {
             line.setMinPoleSpacing(minSpacing[0]);
-            com.plot.plugin.powerline.style.PowerLineStyleEditor.afterSpacingEdit(line);
+            PowerLineStyleEditor.afterSpacingEdit(line);
             ctx.invalidatePreview();
         }
         if (ImGui.isItemActivated()) {
             ctx.pushEditSnapshot();
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.powerline.recommended_min_spacing"));
         }
 
         float[] maxSpacing = {(float) line.getMaxPoleSpacing()};
@@ -138,14 +145,11 @@ public final class PowerLineRoutePanel {
                 sliderMax,
                 "%.1f")) {
             line.setMaxPoleSpacing(maxSpacing[0]);
-            com.plot.plugin.powerline.style.PowerLineStyleEditor.afterSpacingEdit(line);
+            PowerLineStyleEditor.afterSpacingEdit(line);
             ctx.invalidatePreview();
         }
         if (ImGui.isItemActivated()) {
             ctx.pushEditSnapshot();
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.powerline.recommended_max_spacing"));
         }
 
         renderSpacingRecommendation(line);
@@ -171,7 +175,7 @@ public final class PowerLineRoutePanel {
     }
 
     private void renderSpacingRecommendation(PowerLineFootprint line) {
-        var preset = com.plot.plugin.powerline.style.PowerLineStylePresetCatalog.activePreset(line);
+        PowerLineStylePreset preset = PowerLineStylePresetCatalog.activePreset(line);
         if (preset == null || !line.isSpacingCustomized()) {
             return;
         }
@@ -188,7 +192,7 @@ public final class PowerLineRoutePanel {
         if (ImGui.button(PlotI18n.tr("plugin.powerline.route.apply_recommended_spacing"), 0, 0)) {
             ctx.pushEditSnapshot();
             PowerLineSpacingPolicy.applyStyleDefaultSpacing(line, profile);
-            com.plot.plugin.powerline.style.PowerLineStyleEditor.afterSpacingAdopted(line);
+            PowerLineStyleEditor.afterSpacingAdopted(line);
             ctx.invalidatePreview();
         }
     }

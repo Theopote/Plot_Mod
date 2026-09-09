@@ -11,17 +11,15 @@ import com.plot.plugin.powerline.style.PowerLineQuickTunePolicy;
 import com.plot.plugin.powerline.style.PowerLineSpacingPolicy;
 import com.plot.plugin.powerline.style.PowerLineStyleEditor;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
-import com.plot.plugin.powerline.style.PoleSpacingProfile;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
-import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiTreeNodeFlags;
 
-/** Base preset 下的 Quick Tune 行式微调 UI。 */
+/** Base preset 下的 Quick Customize（Tower / Wires 分区）。 */
 public final class PowerLineStyleQuickTunePanel {
     private static final float ROW_LABEL_WIDTH = 76f;
     private static final float SEGMENT_HEIGHT = 24f;
@@ -39,56 +37,82 @@ public final class PowerLineStyleQuickTunePanel {
             return;
         }
         ImGui.separator();
-        renderHeader(line, base);
+        renderSelectedHeader(line, base);
+        PowerLineStyleCardRenderer.renderLargeSelectedPreview(base);
+        renderPlacementContext(line, base);
         ImGui.spacing();
-        renderTowerRow(line);
-        if (PowerLineQuickTunePolicy.supportsPoleHeightTune(line)) {
-            renderPoleHeightRow(line, base);
-        }
-        if (PowerLineQuickTunePolicy.supportsCrossarmTune(line, ctx.designResolver())) {
-            renderCrossarmRow(line, base);
-        }
-        renderMaterialRow(line, base);
-        renderWiresRow(line, base);
-        renderSagRow(line);
-        renderSpacingRow(line, base);
-        renderMoreTuneSection(line);
+        renderTowerSection(line, base);
+        ImGui.spacing();
+        renderWiresSection(line, base);
         renderFooter(line, base);
     }
 
-    /** 无 base preset 时的精简微调（材质 + 垂度）。 */
     public void renderCustomFallback(PowerLineFootprint line) {
         if (line == null) {
             return;
         }
         ImGui.separator();
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.style.custom"));
-        renderMaterialRow(line, null);
-        renderSagRow(line);
-        renderSpacingRow(line, null);
+        renderWiresSection(line, null);
     }
 
-    private void renderHeader(PowerLineFootprint line, PowerLineStylePreset base) {
-        PowerLineStyleCardRenderer.renderCompactStylePreview(base);
+    private void renderSelectedHeader(PowerLineFootprint line, PowerLineStylePreset base) {
+        ImGui.text(PlotI18n.tr("plugin.powerline.style.section.selected"));
         ImGui.sameLine();
-        ImGui.beginGroup();
         ImGui.text(PlotI18n.tr(base.getLabelKey()));
         if (PowerLineStyleEditor.isModified(line)) {
+            ImGui.sameLine();
             ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.powerline.style.modified_badge"));
-        } else {
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.powerline.style.quick_tune_hint"));
         }
-        ImGui.endGroup();
     }
 
-    private void renderTowerRow(PowerLineFootprint line) {
-        String towerName = resolveTowerLabel(line);
+    private void renderPlacementContext(PowerLineFootprint line, PowerLineStylePreset base) {
+        PowerLineUiPresets.SpacingDensity density = PowerLineSpacingPolicy.effectiveDensity(line);
+        String densityLabel = PlotI18n.tr("plugin.powerline.route.spacing." + density.name().toLowerCase());
+        double spacing = line.isSpacingCustomized()
+            ? line.getMaxPoleSpacing()
+            : PowerLineSpacingPolicy.spacingForDensity(line, density);
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr(
+                "plugin.powerline.style.placement_context",
+                densityLabel,
+                spacing));
+        if (line.isSpacingCustomized()) {
+            ImGui.sameLine();
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                "(" + PlotI18n.tr("plugin.powerline.style.spacing_customized_hint") + ")");
+        }
+    }
+
+    private void renderTowerSection(PowerLineFootprint line, PowerLineStylePreset base) {
+        ImGui.text(PlotI18n.tr("plugin.powerline.style.section.tower_tune"));
+        ImGui.separator();
+        renderTowerStyleRow(line);
+        if (PowerLineQuickTunePolicy.supportsPoleHeightTune(line)) {
+            renderPoleHeightRow(line, base);
+        }
+        if (PowerLineQuickTunePolicy.supportsCrossarmTune(line, ctx.designResolver())) {
+            renderCrossarmRow(line, base);
+        }
+        renderPoleMaterialRow(line, base);
+    }
+
+    private void renderWiresSection(PowerLineFootprint line, PowerLineStylePreset base) {
+        ImGui.text(PlotI18n.tr("plugin.powerline.style.section.wires_tune"));
+        ImGui.separator();
+        renderWireLayoutRow(line, base);
+        renderWireMaterialRow(line, base);
+        renderSagRow(line);
+        renderGroundWireInAdvanced(line);
+    }
+
+    private void renderTowerStyleRow(PowerLineFootprint line) {
         renderValueRow(
-            PlotI18n.tr("plugin.powerline.style.quick_tune.tower"),
-            towerName,
-            PlotI18n.tr("plugin.powerline.style.quick_tune.customize"),
+            PlotI18n.tr("plugin.powerline.style.quick_tune.tower_style"),
+            resolveTowerLabel(line),
+            PlotI18n.tr("plugin.powerline.style.quick_tune.edit_tower"),
             () -> poleDesignerPanel.open(line.getPoleDesignId()));
     }
 
@@ -124,27 +148,33 @@ public final class PowerLineStyleQuickTunePanel {
             index -> applyCrossarmBand(line, base, PowerLineQuickTunePolicy.CrossarmWidthBand.values()[index]));
     }
 
-    private void renderMaterialRow(PowerLineFootprint line, PowerLineStylePreset base) {
+    private void renderPoleMaterialRow(PowerLineFootprint line, PowerLineStylePreset base) {
         MaterialMix mix = line.getPoleMaterial();
-        String value = UIUtils.getBlockDisplayName(
-            mix != null ? mix.getPrimaryMaterial() : PowerLineFootprint.DEFAULT_POLE_MATERIAL);
-        if (mix != null && mix.getAccentMaterial() != null && !mix.getAccentMaterial().isBlank()) {
-            value += " + " + UIUtils.getBlockDisplayName(mix.getAccentMaterial());
-        }
+        String value = formatMaterialLabel(mix, PowerLineFootprint.DEFAULT_POLE_MATERIAL);
         renderValueRow(
-            PlotI18n.tr("plugin.powerline.style.quick_tune.material"),
+            PlotI18n.tr("plugin.powerline.style.quick_tune.pole_material"),
             value,
             PlotI18n.tr("plugin.powerline.style.quick_tune.change"),
             () -> openPoleMaterialPicker(line, base));
     }
 
-    private void renderWiresRow(PowerLineFootprint line, PowerLineStylePreset base) {
+    private void renderWireLayoutRow(PowerLineFootprint line, PowerLineStylePreset base) {
         int count = PowerLineQuickTunePolicy.conductorCount(line, base);
         renderValueRow(
-            PlotI18n.tr("plugin.powerline.style.quick_tune.wires"),
+            PlotI18n.tr("plugin.powerline.style.quick_tune.wire_layout"),
             PlotI18n.tr("plugin.powerline.style.quick_tune.wire_count", count),
             null,
             null);
+    }
+
+    private void renderWireMaterialRow(PowerLineFootprint line, PowerLineStylePreset base) {
+        MaterialMix mix = line.getWireMaterial();
+        String value = formatMaterialLabel(mix, PowerLineFootprint.DEFAULT_WIRE_MATERIAL);
+        renderValueRow(
+            PlotI18n.tr("plugin.powerline.wire_material"),
+            value,
+            PlotI18n.tr("plugin.powerline.style.quick_tune.change"),
+            () -> openWireMaterialPicker(line, base));
     }
 
     private void renderSagRow(PowerLineFootprint line) {
@@ -160,57 +190,12 @@ public final class PowerLineStyleQuickTunePanel {
         renderInlineSagSegments(line, labels, selected);
     }
 
-    private void renderSpacingRow(PowerLineFootprint line, PowerLineStylePreset base) {
-        PoleSpacingProfile profile = base != null
-            ? base.getSpacingProfile()
-            : PowerLineSpacingPolicy.profileFor(line);
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.style.quick_tune.spacing"));
-        ImGui.sameLine(ROW_LABEL_WIDTH);
-        ImGui.beginGroup();
-        ImGui.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.powerline.style.quick_tune.spacing_recommended", profile.preferred()));
-        float[] spacing = {(float) line.getMaxPoleSpacing()};
-        float sliderMax = (float) PowerLineSpacingPolicy.sliderMax(line);
-        ImGui.setNextItemWidth(Math.min(160f, ImGui.getContentRegionAvailX() - 8f));
-        if (ImGui.sliderFloat("##quick_tune_spacing", spacing, (float) PowerLineFootprint.MIN_CONFIGURABLE_SPACING, sliderMax, "%.0f")) {
-            line.setMaxPoleSpacing(spacing[0]);
-            PowerLineStyleEditor.afterSpacingEdit(line);
-            ctx.invalidatePreview();
-        }
-        if (ImGui.isItemActivated()) {
-            ctx.pushEditSnapshot();
-        }
-        if (line.isSpacingCustomized()
-                && PowerLineSpacingPolicy.differsFromStyleRecommendation(line, base != null ? base : PowerLineStyleEditor.basePreset(line))) {
-            if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.style.apply_recommended_spacing"))) {
-                ctx.pushEditSnapshot();
-                PowerLineSpacingPolicy.applyStyleDefaultSpacing(line, profile);
-                PowerLineStyleEditor.afterSpacingAdopted(line);
-                ctx.invalidatePreview();
-            }
-        }
-        ImGui.endGroup();
-    }
-
-    private void renderMoreTuneSection(PowerLineFootprint line) {
-        ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
-        if (!ImGui.collapsingHeader(
-                PlotI18n.tr("plugin.powerline.style.quick_tune.more"),
-                ImGuiTreeNodeFlags.None)) {
+    private void renderGroundWireInAdvanced(PowerLineFootprint line) {
+        if (!ImGui.treeNodeEx(
+                PlotI18n.tr("plugin.powerline.style.quick_tune.ground_wire"),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
             return;
         }
-        PowerLineUiWidgets.renderMaterialMixPicker(
-            ctx,
-            "quick_wire_material",
-            PlotI18n.tr("plugin.powerline.wire_material"),
-            line.getWireMaterial(),
-            MaterialMix.single(PowerLineFootprint.DEFAULT_WIRE_MATERIAL),
-            mix -> {
-                line.setWireMaterial(mix);
-                PowerLineStyleEditor.afterStyleEdit(line);
-                ctx.invalidatePreview();
-            });
         PowerLineUiWidgets.renderMaterialMixPicker(
             ctx,
             "quick_ground_wire_material",
@@ -222,6 +207,7 @@ public final class PowerLineStyleQuickTunePanel {
                 PowerLineStyleEditor.afterStyleEdit(line);
                 ctx.invalidatePreview();
             });
+        ImGui.treePop();
     }
 
     private void renderFooter(PowerLineFootprint line, PowerLineStylePreset base) {
@@ -243,6 +229,15 @@ public final class PowerLineStyleQuickTunePanel {
             PowerLineStyleEditor.resetToBasePreset(line);
             ctx.invalidatePreview();
         }
+    }
+
+    private static String formatMaterialLabel(MaterialMix mix, String fallbackId) {
+        String primary = mix != null ? mix.getPrimaryMaterial() : fallbackId;
+        String value = UIUtils.getBlockDisplayName(primary);
+        if (mix != null && mix.getAccentMaterial() != null && !mix.getAccentMaterial().isBlank()) {
+            value += " + " + UIUtils.getBlockDisplayName(mix.getAccentMaterial());
+        }
+        return value;
     }
 
     private void renderValueRow(String label, String value, String actionLabel, Runnable action) {
@@ -287,6 +282,7 @@ public final class PowerLineStyleQuickTunePanel {
             ImGui.pushID(id + i);
             if (ImGui.button(options[i], 0, SEGMENT_HEIGHT)) {
                 if (!active) {
+                    ctx.pushEditSnapshot();
                     onSelect.accept(i);
                 }
             }
@@ -378,7 +374,29 @@ public final class PowerLineStyleQuickTunePanel {
 
     private void openPoleMaterialPicker(PowerLineFootprint line, PowerLineStylePreset base) {
         MaterialMix mix = line.getPoleMaterial();
-        MaterialMix defaults = base != null ? base.getPoleMaterial() : MaterialMix.single(PowerLineFootprint.DEFAULT_POLE_MATERIAL);
+        MaterialMix defaults = base != null
+            ? base.getPoleMaterial()
+            : MaterialMix.single(PowerLineFootprint.DEFAULT_POLE_MATERIAL);
+        openMaterialPicker(mix, defaults, selected -> {
+            line.setPoleMaterial(selected);
+            PowerLineStyleEditor.afterStyleEdit(line);
+            ctx.invalidatePreview();
+        });
+    }
+
+    private void openWireMaterialPicker(PowerLineFootprint line, PowerLineStylePreset base) {
+        MaterialMix mix = line.getWireMaterial();
+        MaterialMix defaults = base != null
+            ? base.getWireMaterial()
+            : MaterialMix.single(PowerLineFootprint.DEFAULT_WIRE_MATERIAL);
+        openMaterialPicker(mix, defaults, selected -> {
+            line.setWireMaterial(selected);
+            PowerLineStyleEditor.afterStyleEdit(line);
+            ctx.invalidatePreview();
+        });
+    }
+
+    private void openMaterialPicker(MaterialMix mix, MaterialMix defaults, java.util.function.Consumer<MaterialMix> onSelected) {
         java.util.List<String> initial = new java.util.ArrayList<>();
         if (mix.getPrimaryMaterial() != null && !mix.getPrimaryMaterial().isBlank()) {
             initial.add(mix.getPrimaryMaterial());
@@ -388,9 +406,7 @@ public final class PowerLineStyleQuickTunePanel {
         }
         UIUtils.openPalettePicker(initial, blockIds -> {
             ctx.pushEditSnapshot();
-            line.setPoleMaterial(UIUtils.fromPaletteSelection(blockIds, mix.getAccentRatio(), defaults));
-            PowerLineStyleEditor.afterStyleEdit(line);
-            ctx.invalidatePreview();
+            onSelected.accept(UIUtils.fromPaletteSelection(blockIds, mix.getAccentRatio(), defaults));
         });
     }
 
@@ -398,7 +414,6 @@ public final class PowerLineStyleQuickTunePanel {
             PowerLineFootprint line,
             PowerLineStylePreset base,
             PowerLineQuickTunePolicy.PoleHeightBand band) {
-        ctx.pushEditSnapshot();
         if (!line.hasPoleDesign()) {
             PowerLineQuickTunePolicy.applyLegacyPoleHeight(line, band);
         } else {
@@ -418,7 +433,6 @@ public final class PowerLineStyleQuickTunePanel {
             PowerLineFootprint line,
             PowerLineStylePreset base,
             PowerLineQuickTunePolicy.CrossarmWidthBand band) {
-        ctx.pushEditSnapshot();
         boolean wasBuiltin = PoleDesignCatalog.isBuiltinId(line.getPoleDesignId());
         PoleDesign editable = ensureEditableDesign(line);
         PowerLineQuickTunePolicy.applyCrossarmWidthBand(editable, base, band);

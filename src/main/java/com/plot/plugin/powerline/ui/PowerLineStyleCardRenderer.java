@@ -171,6 +171,61 @@ public final class PowerLineStyleCardRenderer {
     public static final float COMPACT_WIDTH = 72f;
     public static final float COMPACT_HEIGHT = 80f;
     private static final float COMPACT_PREVIEW_HEIGHT = 56f;
+    private static final float LARGE_PREVIEW_PANEL_HEIGHT = 148f;
+
+    /** 选中风格的立面预览（正/侧双视图，Style Quick Customize 区）。 */
+    public static void renderLargeSelectedPreview(PowerLineStylePreset preset) {
+        if (preset == null) {
+            return;
+        }
+        PoleDesign previewDesign = previewDesignFor(preset);
+        float availW = ImGui.getContentRegionAvail().x;
+        float panelW = Math.max(160f, availW);
+        float gap = 8f;
+        float previewW = (panelW - gap) * 0.5f;
+        float previewH = LARGE_PREVIEW_PANEL_HEIGHT - 8f;
+
+        ImVec2 origin = ImGui.getCursorScreenPos();
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        drawList.addRectFilled(
+            origin.x,
+            origin.y,
+            origin.x + panelW,
+            origin.y + LARGE_PREVIEW_PANEL_HEIGHT,
+            COLOR_BG,
+            6f);
+        drawList.addRect(
+            origin.x,
+            origin.y,
+            origin.x + panelW,
+            origin.y + LARGE_PREVIEW_PANEL_HEIGHT,
+            COLOR_BORDER,
+            6f,
+            0,
+            1f);
+
+        float innerX = origin.x + 4f;
+        float innerY = origin.y + 4f;
+        if (previewDesign != null) {
+            PoleVoxelElevationRenderer.drawFront(
+                drawList,
+                previewDesign,
+                innerX,
+                innerY,
+                innerX + previewW - 4f,
+                innerY + previewH);
+            PoleVoxelElevationRenderer.drawSide(
+                drawList,
+                previewDesign,
+                innerX + previewW + gap,
+                innerY,
+                innerX + previewW + gap + previewW - 4f,
+                innerY + previewH);
+        } else {
+            drawPackPreview(drawList, preset, innerX, innerY, innerX + panelW - 8f, innerY + previewH);
+        }
+        ImGui.dummy(panelW, LARGE_PREVIEW_PANEL_HEIGHT);
+    }
 
     /** 只读紧凑风格预览（Build 摘要等，已选预设）。 */
     public static void renderCompactStylePreview(PowerLineStylePreset pack) {

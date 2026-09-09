@@ -10,7 +10,7 @@ import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiTreeNodeFlags;
 
-/** 样式 Tab：塔型主题、Quick Tune、高级设计。 */
+/** 样式 Tab：风格画廊 + Quick Customize + 高级设计器。 */
 public final class PowerLineStylePanel {
     private final PowerLineUiContext ctx;
     private final PowerLineStyleControls styleControls;
@@ -37,7 +37,7 @@ public final class PowerLineStylePanel {
 
         PowerLineUiWidgets.renderLineSelector(ctx);
         ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.powerline.style.section.tower"));
+        ImGui.text(PlotI18n.tr("plugin.powerline.style.section.choose"));
         renderStylePresetGrid(line, PowerLineStylePresetCatalog.decorativePresets());
         ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
         if (ImGui.collapsingHeader(
@@ -48,6 +48,8 @@ public final class PowerLineStylePanel {
 
         PowerLineStylePreset base = PowerLineStyleEditor.basePreset(line);
         if (base != null) {
+            ImGui.spacing();
+            ImGui.text(PlotI18n.tr("plugin.powerline.style.section.quick_customize"));
             quickTunePanel.render(line, base);
         } else {
             quickTunePanel.renderCustomFallback(line);
