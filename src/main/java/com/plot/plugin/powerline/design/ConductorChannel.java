@@ -11,7 +11,8 @@ public record ConductorChannel(
         /** 相对 {@link ConductorArrangement#toAttachments} 基准高度的垂直偏移（格）。 */
         double verticalOffset,
         InsulatorType insulatorType,
-        int insulatorLength) {
+        int insulatorLength,
+        BundleVisual bundleVisual) {
 
     public ConductorChannel {
         if (id == null || id.isBlank()) {
@@ -26,10 +27,24 @@ public record ConductorChannel(
         if (insulatorLength < 0) {
             insulatorLength = 0;
         }
+        if (bundleVisual == null) {
+            bundleVisual = BundleVisual.SINGLE;
+        }
     }
 
     public ConductorChannel(String id, String label, AttachmentRole role, double lateralOffset, double verticalOffset) {
-        this(id, label, role, lateralOffset, verticalOffset, InsulatorType.SUSPENSION, 2);
+        this(id, label, role, lateralOffset, verticalOffset, InsulatorType.SUSPENSION, 2, BundleVisual.SINGLE);
+    }
+
+    public ConductorChannel(
+            String id,
+            String label,
+            AttachmentRole role,
+            double lateralOffset,
+            double verticalOffset,
+            InsulatorType insulatorType,
+            int insulatorLength) {
+        this(id, label, role, lateralOffset, verticalOffset, insulatorType, insulatorLength, BundleVisual.SINGLE);
     }
 
     public ConductorAttachment toAttachment(double baseHeight) {
@@ -39,6 +54,7 @@ public record ConductorChannel(
         attachment.setVerticalOffset(baseHeight + verticalOffset);
         attachment.setInsulatorType(insulatorType);
         attachment.setInsulatorLength(insulatorLength);
+        attachment.setBundleVisual(bundleVisual);
         return attachment;
     }
 }

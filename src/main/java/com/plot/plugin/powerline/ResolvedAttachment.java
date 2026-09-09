@@ -3,6 +3,7 @@ package com.plot.plugin.powerline;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.AttachmentRole;
+import com.plot.plugin.powerline.design.BundleVisual;
 import com.plot.plugin.powerline.equipment.InsulatorMountStyle;
 import com.plot.plugin.powerline.equipment.InsulatorType;
 
@@ -21,7 +22,8 @@ public record ResolvedAttachment(
         MaterialMix insulatorMaterial,
         int insulatorLength,
         InsulatorType insulatorType,
-        InsulatorMountStyle mountStyle) {
+        InsulatorMountStyle mountStyle,
+        BundleVisual bundleVisual) {
 
     public ResolvedAttachment(
             String id,
@@ -46,7 +48,8 @@ public record ResolvedAttachment(
             insulatorMaterial,
             insulatorLength,
             InsulatorType.SUSPENSION,
-            InsulatorMountStyle.COLUMN);
+            InsulatorMountStyle.COLUMN,
+            BundleVisual.SINGLE);
     }
 
     public ResolvedAttachment(
@@ -73,7 +76,37 @@ public record ResolvedAttachment(
             insulatorMaterial,
             insulatorLength,
             insulatorType,
-            mountStyleFor(insulatorType));
+            mountStyleFor(insulatorType),
+            BundleVisual.SINGLE);
+    }
+
+    public ResolvedAttachment(
+            String id,
+            String name,
+            AttachmentRole role,
+            Vec2d planPoint,
+            double worldX,
+            double worldY,
+            double worldZ,
+            double structuralWorldY,
+            MaterialMix insulatorMaterial,
+            int insulatorLength,
+            InsulatorType insulatorType,
+            InsulatorMountStyle mountStyle) {
+        this(
+            id,
+            name,
+            role,
+            planPoint,
+            worldX,
+            worldY,
+            worldZ,
+            structuralWorldY,
+            insulatorMaterial,
+            insulatorLength,
+            insulatorType,
+            mountStyle,
+            BundleVisual.SINGLE);
     }
 
     public static InsulatorMountStyle mountStyleFor(InsulatorType type) {

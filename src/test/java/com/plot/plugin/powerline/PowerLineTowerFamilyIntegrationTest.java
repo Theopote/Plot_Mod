@@ -171,6 +171,7 @@ class PowerLineTowerFamilyIntegrationTest {
             .count();
         assertTrue(chainBlocks > 0, "twin top wires should place chain material");
         assertTrue(barBlocks > chainBlocks, "bundled phase conductors should dominate block count");
+        assertTrue(barBlocks >= 180, "twin bundle visual should thicken conductor spans");
     }
 
     @Test

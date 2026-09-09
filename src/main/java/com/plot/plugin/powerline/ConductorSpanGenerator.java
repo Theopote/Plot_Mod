@@ -7,6 +7,7 @@ import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.powerline.design.AttachmentRole;
+import com.plot.plugin.powerline.design.BundleVisual;
 import com.plot.plugin.powerline.engineering.clearance.WireClearance;
 import com.plot.plugin.powerline.geometry.ConductorSample;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
@@ -176,11 +177,16 @@ public final class ConductorSpanGenerator {
         }
 
         MaterialMix wireMaterial = ConductorMaterialPolicy.materialFor(start.role(), footprint);
+        BundleVisual bundleVisual = resolveBundleVisual(start, end);
         LinkedHashSet<BlockPos> wireBlocks = new LinkedHashSet<>();
         for (int i = 0; i < segmentCount; i++) {
-            wireBlocks.addAll(PowerLineWireRasterizer.rasterizeLine3D(
+            double tangentX = worldX[i + 1] - worldX[i];
+            double tangentY = worldY[i + 1] - worldY[i];
+            double tangentZ = worldZ[i + 1] - worldZ[i];
+            List<BlockPos> segmentBlocks = PowerLineWireRasterizer.rasterizeLine3D(
                 worldX[i], worldY[i], worldZ[i],
-                worldX[i + 1], worldY[i + 1], worldZ[i + 1]));
+                worldX[i + 1], worldY[i + 1], worldZ[i + 1]);
+            wireBlocks.addAll(bundleVisual.expandAll(segmentBlocks, tangentX, tangentY, tangentZ));
         }
 
         for (int i = 0; i < sampleCount; i++) {
@@ -193,6 +199,12 @@ public final class ConductorSpanGenerator {
         }
 
         result.conductorSpans.add(geometry);
+    }
+
+    private static BundleVisual resolveBundleVisual(ResolvedAttachment start, ResolvedAttachment end) {
+        BundleVisual startVisual = start.bundleVisual() != null ? start.bundleVisual() : BundleVisual.SINGLE;
+        BundleVisual endVisual = end.bundleVisual() != null ? end.bundleVisual() : BundleVisual.SINGLE;
+        return startVisual == endVisual ? startVisual : BundleVisual.SINGLE;
     }
 
     private static double lerp(double a, double b, double t) {

@@ -81,7 +81,8 @@ public final class PowerLineAttachmentResolver {
             insulatorMaterial,
             insulatorLength,
             insulatorType,
-            mountStyle);
+            mountStyle,
+            attachment.getBundleVisual());
     }
 
     private double[] planToWorldXz(Vec2d planPoint) {

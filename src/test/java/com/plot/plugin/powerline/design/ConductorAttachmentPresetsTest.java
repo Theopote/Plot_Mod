@@ -26,6 +26,9 @@ class ConductorAttachmentPresetsTest {
         assertEquals(6, attachments.size());
         assertTrue(attachments.stream().anyMatch(a -> "phase_a_1".equals(a.getId())));
         assertTrue(attachments.stream().anyMatch(a -> "phase_c_2".equals(a.getId())));
+        assertTrue(attachments.stream()
+            .filter(a -> a.getRole() != AttachmentRole.TOP_WIRE)
+            .allMatch(a -> a.getBundleVisual() == BundleVisual.TWIN));
     }
 
     @Test

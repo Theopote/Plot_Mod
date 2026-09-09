@@ -132,15 +132,20 @@ public final class ConductorAttachmentPresets {
             double bundleSpacing) {
         int count = Math.max(1, bundleCount);
         List<ConductorAttachment> bundle = new ArrayList<>(count);
+        BundleVisual strandVisual = BundleVisual.forSubconductorCount(count);
         if (count == 1) {
-            bundle.add(createPhase(baseId, name, role, centerLateral, verticalOffset));
+            ConductorAttachment attachment = createPhase(baseId, name, role, centerLateral, verticalOffset);
+            attachment.setBundleVisual(strandVisual);
+            bundle.add(attachment);
             return bundle;
         }
         double totalSpan = (count - 1) * bundleSpacing;
         double start = centerLateral - totalSpan / 2.0;
         for (int i = 0; i < count; i++) {
             String id = baseId + "_" + (i + 1);
-            bundle.add(createPhase(id, name + (i + 1), role, start + i * bundleSpacing, verticalOffset));
+            ConductorAttachment attachment = createPhase(id, name + (i + 1), role, start + i * bundleSpacing, verticalOffset);
+            attachment.setBundleVisual(strandVisual);
+            bundle.add(attachment);
         }
         return bundle;
     }

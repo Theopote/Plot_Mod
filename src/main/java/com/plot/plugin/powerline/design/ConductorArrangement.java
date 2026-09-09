@@ -140,7 +140,8 @@ public final class ConductorArrangement {
                     attachment.getLateralOffset(),
                     attachment.getVerticalOffset(),
                     attachment.getInsulatorType(),
-                    attachment.getInsulatorLength()));
+                    attachment.getInsulatorLength(),
+                    attachment.getBundleVisual()));
             }
         }
         return new ConductorArrangement(catalogId, channels);

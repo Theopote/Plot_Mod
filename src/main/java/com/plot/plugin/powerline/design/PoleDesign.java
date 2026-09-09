@@ -228,6 +228,7 @@ public class PoleDesign {
         String role;
         MaterialMix insulatorMaterial;
         int insulatorLength;
+        String bundleVisual;
         boolean enabled = true;
     }
 
@@ -267,6 +268,9 @@ public class PoleDesign {
                 attachmentData.role = attachment.getRole().name();
                 attachmentData.insulatorMaterial = attachment.getInsulatorMaterial();
                 attachmentData.insulatorLength = attachment.getInsulatorLength();
+                if (attachment.getBundleVisual() != BundleVisual.SINGLE) {
+                    attachmentData.bundleVisual = attachment.getBundleVisual().name();
+                }
                 attachmentData.enabled = attachment.isEnabled();
                 data.attachments.add(attachmentData);
             }
@@ -315,6 +319,7 @@ public class PoleDesign {
                         attachment.setInsulatorMaterial(attachmentData.insulatorMaterial);
                     }
                     attachment.setInsulatorLength(attachmentData.insulatorLength);
+                    attachment.setBundleVisual(BundleVisual.parse(attachmentData.bundleVisual));
                     attachment.setEnabled(attachmentData.enabled);
                     restoredAttachments.add(attachment);
                 }

@@ -22,6 +22,7 @@ public class ConductorAttachment {
     private int insulatorLength;
     private InsulatorType insulatorType = InsulatorType.SUSPENSION;
     private String insulatorAssemblyId;
+    private BundleVisual bundleVisual = BundleVisual.SINGLE;
     private boolean enabled = true;
 
     public ConductorAttachment() {
@@ -120,6 +121,14 @@ public class ConductorAttachment {
             : insulatorAssemblyId;
     }
 
+    public BundleVisual getBundleVisual() {
+        return bundleVisual != null ? bundleVisual : BundleVisual.SINGLE;
+    }
+
+    public void setBundleVisual(BundleVisual bundleVisual) {
+        this.bundleVisual = bundleVisual != null ? bundleVisual : BundleVisual.SINGLE;
+    }
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -140,6 +149,7 @@ public class ConductorAttachment {
         copy.insulatorLength = insulatorLength;
         copy.insulatorType = insulatorType;
         copy.insulatorAssemblyId = insulatorAssemblyId;
+        copy.bundleVisual = bundleVisual;
         copy.enabled = enabled;
         return copy;
     }
