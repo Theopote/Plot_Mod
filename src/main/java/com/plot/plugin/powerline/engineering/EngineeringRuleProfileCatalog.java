@@ -26,6 +26,7 @@ public final class EngineeringRuleProfileCatalog {
         profile.getClearance().setMinimumGroundClearance(6.0);
         profile.getClearance().setMinimumConductorSeparation(2.0);
         profile.getClearance().setMinimumGroundWireSeparation(2.0);
+        // Span 字段仅供无 footprint 时的回退；玩家可见检查使用 Route/Style 间距。
         profile.getSpan().setPreferredSpan(20.0);
         profile.getSpan().setMaximumSpan(40.0);
         profile.getSpan().setMinimumSpan(6.0);

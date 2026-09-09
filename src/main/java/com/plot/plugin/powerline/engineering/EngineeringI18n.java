@@ -45,6 +45,10 @@ public final class EngineeringI18n {
                 issue.required(),
                 detailA != null ? detailA : "?",
                 detailB != null ? detailB : "?");
+            case EngineeringRuleIds.SAG_MAXIMUM -> PlotI18n.tr(
+                "plugin.powerline.engineering.issue.sag_max",
+                issue.actual(),
+                issue.required());
             case EngineeringRuleIds.TOWER_BASE_UNEVEN -> PlotI18n.tr(
                 "plugin.powerline.engineering.issue.tower_base_uneven",
                 issue.actual(),

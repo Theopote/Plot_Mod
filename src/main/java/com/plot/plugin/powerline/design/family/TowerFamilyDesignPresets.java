@@ -42,7 +42,7 @@ public final class TowerFamilyDesignPresets {
             18,
             InsulatorType.SUSPENSION,
             2,
-            metadata(TowerRole.SUSPENSION, 18, 40, 5, 1));
+            metadata(TowerRole.SUSPENSION, 18, 40, 5));
     }
 
     public static PoleDesign latticeSuspensionSmall() {
@@ -55,7 +55,7 @@ public final class TowerFamilyDesignPresets {
             16,
             InsulatorType.SUSPENSION,
             2,
-            metadata(TowerRole.SUSPENSION, 16, 30, 5, 1));
+            metadata(TowerRole.SUSPENSION, 16, 30, 5));
     }
 
     public static PoleDesign latticeSuspensionMedium() {
@@ -68,7 +68,7 @@ public final class TowerFamilyDesignPresets {
             20,
             InsulatorType.SUSPENSION,
             2,
-            metadata(TowerRole.SUSPENSION, 20, 40, 5, 2));
+            metadata(TowerRole.SUSPENSION, 20, 40, 5));
     }
 
     public static PoleDesign latticeSuspensionTall() {
@@ -81,7 +81,7 @@ public final class TowerFamilyDesignPresets {
             26,
             InsulatorType.SUSPENSION,
             3,
-            metadata(TowerRole.SUSPENSION, 26, 50, 5, 3));
+            metadata(TowerRole.SUSPENSION, 26, 50, 5));
     }
 
     public static PoleDesign latticeAngle() {
@@ -94,7 +94,7 @@ public final class TowerFamilyDesignPresets {
             18,
             InsulatorType.STRAIN,
             3,
-            metadata(TowerRole.ANGLE, 20, 45, 60, 2));
+            metadata(TowerRole.ANGLE, 20, 45, 60));
     }
 
     public static PoleDesign latticeDeadEnd() {
@@ -107,7 +107,7 @@ public final class TowerFamilyDesignPresets {
             18,
             InsulatorType.STRAIN,
             4,
-            metadata(TowerRole.DEAD_END, 22, 45, 90, 3));
+            metadata(TowerRole.DEAD_END, 22, 45, 90));
     }
 
     public static PoleDesign latticeTerminal() {
@@ -120,7 +120,7 @@ public final class TowerFamilyDesignPresets {
             18,
             InsulatorType.STRAIN,
             3,
-            metadata(TowerRole.TERMINAL, 20, 40, 90, 3));
+            metadata(TowerRole.TERMINAL, 20, 40, 90));
     }
 
     public static PoleDesign hvTransmissionSuspension() {
@@ -133,7 +133,7 @@ public final class TowerFamilyDesignPresets {
             24,
             InsulatorType.SUSPENSION,
             3,
-            metadata(TowerRole.SUSPENSION, 24, 60, 5, 4));
+            metadata(TowerRole.SUSPENSION, 24, 60, 5));
     }
 
     public static PoleDesign hvTransmissionAngle() {
@@ -146,7 +146,7 @@ public final class TowerFamilyDesignPresets {
             24,
             InsulatorType.STRAIN,
             3,
-            metadata(TowerRole.ANGLE, 26, 55, 60, 4));
+            metadata(TowerRole.ANGLE, 26, 55, 60));
     }
 
     public static PoleDesign hvTransmissionDeadEnd() {
@@ -159,7 +159,7 @@ public final class TowerFamilyDesignPresets {
             24,
             InsulatorType.STRAIN,
             4,
-            metadata(TowerRole.DEAD_END, 28, 55, 90, 5));
+            metadata(TowerRole.DEAD_END, 28, 55, 90));
     }
 
     public static PoleDesign hvTransmissionTerminal() {
@@ -172,22 +172,20 @@ public final class TowerFamilyDesignPresets {
             24,
             InsulatorType.STRAIN,
             3,
-            metadata(TowerRole.TERMINAL, 24, 50, 90, 4));
+            metadata(TowerRole.TERMINAL, 24, 50, 90));
     }
 
     private static TowerEngineeringMetadata metadata(
             TowerRole role,
             double height,
             double maxSpan,
-            double maxAngle,
-            int strengthClass) {
+            double maxAngle) {
         TowerEngineeringMetadata metadata = new TowerEngineeringMetadata();
         metadata.setNominalHeight(height);
         metadata.setPreferredSpan(Math.min(maxSpan, 20));
         metadata.setMaxRecommendedSpan(maxSpan);
         metadata.setMaxRecommendedDeflectionAngle(maxAngle);
         metadata.setSupportedRoles(EnumSet.of(role));
-        metadata.setStrengthClass(strengthClass);
         return metadata;
     }
 

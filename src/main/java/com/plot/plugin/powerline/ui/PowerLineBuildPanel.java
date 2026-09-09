@@ -87,12 +87,9 @@ public final class PowerLineBuildPanel {
         renderSpacingStatus(line);
         renderCornerStatus(line);
 
-        if (line.isTerrainAvoidanceEnabled()) {
-            renderTerrainStatus(line);
-            return;
-        }
-
-        if (!line.isEngineeringAnalysisEnabled()) {
+        boolean terrainChecks = line.isTerrainAvoidanceEnabled();
+        boolean lineChecks = line.isEngineeringAnalysisEnabled();
+        if (!terrainChecks && !lineChecks) {
             ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.powerline.build.status.decorative"));
             return;
         }
@@ -102,14 +99,12 @@ public final class PowerLineBuildPanel {
             return;
         }
 
-        LineEngineeringReport report = ctx.actions().cachedEngineeringReport(line);
-
-        if (report == null || report.getIssues().isEmpty()) {
-            ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.powerline.build.status.all_good"));
-            return;
+        if (terrainChecks) {
+            renderTerrainStatus(line);
         }
-
-        renderIssueList(report);
+        if (lineChecks) {
+            renderLineCheckStatus(line, terrainChecks);
+        }
     }
 
     private void renderSpacingStatus(PowerLineFootprint line) {
@@ -172,13 +167,36 @@ public final class PowerLineBuildPanel {
         }
     }
 
+    private void renderLineCheckStatus(PowerLineFootprint line, boolean terrainChecksActive) {
+        LineEngineeringReport report = ctx.actions().cachedEngineeringReport(line);
+        if (report == null) {
+            return;
+        }
+        var issues = terrainChecksActive
+            ? report.issuesExcluding(com.plot.plugin.powerline.engineering.EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM)
+            : report.getIssues();
+        if (issues.isEmpty()) {
+            if (!terrainChecksActive || !PowerLineFriendlyStatus.hasTerrainIssues(
+                    ctx.actions().cachedTerrainReport(line))) {
+                ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.powerline.build.status.all_good"));
+            }
+            return;
+        }
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.status.line_checks"));
+        renderIssueList(issues);
+    }
+
     private void renderIssueList(LineEngineeringReport report) {
+        renderIssueList(report.getIssues());
+    }
+
+    private void renderIssueList(java.util.List<com.plot.plugin.powerline.engineering.EngineeringIssue> issues) {
         int shown = 0;
-        for (var issue : report.getIssues()) {
+        for (var issue : issues) {
             if (shown >= 4) {
                 ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
                     "plugin.powerline.build.more_issues",
-                    report.getIssues().size() - shown));
+                    issues.size() - shown));
                 break;
             }
             ImGui.textColored(PluginUiColors.WARNING, "⚠ " + PowerLineFriendlyStatus.friendlyIssue(issue));

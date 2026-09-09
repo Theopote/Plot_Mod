@@ -63,6 +63,8 @@ public final class PowerLineFriendlyStatus {
                 "plugin.powerline.friendly.span_too_short");
             case EngineeringRuleIds.TOWER_ROLE_ANGLE -> PlotI18n.tr(
                 "plugin.powerline.friendly.corner_tower");
+            case EngineeringRuleIds.SAG_MAXIMUM -> PlotI18n.tr(
+                "plugin.powerline.friendly.sag_too_deep");
             case EngineeringRuleIds.CONDUCTOR_SEPARATION_PHASE,
                  EngineeringRuleIds.CONDUCTOR_SEPARATION_GROUND -> PlotI18n.tr(
                 "plugin.powerline.friendly.wires_too_close");

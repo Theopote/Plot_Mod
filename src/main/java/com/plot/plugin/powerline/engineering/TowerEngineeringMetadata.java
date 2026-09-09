@@ -13,6 +13,8 @@ public class TowerEngineeringMetadata {
     private double maxRecommendedSpan = 40.0;
     private double maxRecommendedDeflectionAngle = 5.0;
     private Set<TowerRole> supportedRoles = EnumSet.of(TowerRole.SUSPENSION);
+    /** @deprecated 未参与生成或检查，保留序列化兼容。 */
+    @Deprecated
     private int strengthClass = 1;
 
     public double getNominalHeight() {
@@ -61,12 +63,16 @@ public class TowerEngineeringMetadata {
         return supportedRoles != null && supportedRoles.contains(role);
     }
 
+    /** @deprecated 未使用；始终为 1。 */
+    @Deprecated
     public int getStrengthClass() {
-        return strengthClass;
+        return 1;
     }
 
+    /** @deprecated 无效果。 */
+    @Deprecated
     public void setStrengthClass(int strengthClass) {
-        this.strengthClass = Math.max(1, strengthClass);
+        this.strengthClass = 1;
     }
 
     public TowerEngineeringMetadata copy() {
@@ -84,14 +90,8 @@ public class TowerEngineeringMetadata {
         TowerEngineeringMetadata metadata = new TowerEngineeringMetadata();
         metadata.setSupportedRoles(EnumSet.of(role != null ? role : TowerRole.SUSPENSION));
         switch (role != null ? role : TowerRole.SUSPENSION) {
-            case ANGLE -> {
-                metadata.setMaxRecommendedDeflectionAngle(60.0);
-                metadata.setStrengthClass(2);
-            }
-            case DEAD_END, TERMINAL -> {
-                metadata.setMaxRecommendedDeflectionAngle(90.0);
-                metadata.setStrengthClass(3);
-            }
+            case ANGLE -> metadata.setMaxRecommendedDeflectionAngle(60.0);
+            case DEAD_END, TERMINAL -> metadata.setMaxRecommendedDeflectionAngle(90.0);
             default -> metadata.setMaxRecommendedDeflectionAngle(5.0);
         }
         return metadata;

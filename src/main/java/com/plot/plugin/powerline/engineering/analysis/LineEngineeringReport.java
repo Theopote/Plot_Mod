@@ -6,10 +6,11 @@ import com.plot.plugin.powerline.engineering.EngineeringSeverity;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
-/** 整条线路的工程分析报告。 */
+/** 整条线路的检查报告（聚合 span / pole 条目中的问题）。 */
 public class LineEngineeringReport {
-    private final List<EngineeringIssue> issues = new ArrayList<>();
+    private final List<EngineeringIssue> directIssues = new ArrayList<>();
     private final List<SpanAnalysis> spans = new ArrayList<>();
     private final List<PoleSiteAnalysis> poles = new ArrayList<>();
     private String profileId;
@@ -32,12 +33,19 @@ public class LineEngineeringReport {
     }
 
     public List<EngineeringIssue> getIssues() {
-        return Collections.unmodifiableList(issues);
+        List<EngineeringIssue> aggregated = new ArrayList<>(directIssues);
+        for (SpanAnalysis span : spans) {
+            aggregated.addAll(span.getIssues());
+        }
+        for (PoleSiteAnalysis pole : poles) {
+            aggregated.addAll(pole.getIssues());
+        }
+        return Collections.unmodifiableList(aggregated);
     }
 
     public void addIssue(EngineeringIssue issue) {
         if (issue != null) {
-            issues.add(issue);
+            directIssues.add(issue);
         }
     }
 
@@ -48,7 +56,6 @@ public class LineEngineeringReport {
     public void addSpan(SpanAnalysis span) {
         if (span != null) {
             spans.add(span);
-            issues.addAll(span.getIssues());
         }
     }
 
@@ -59,7 +66,6 @@ public class LineEngineeringReport {
     public void addPole(PoleSiteAnalysis pole) {
         if (pole != null) {
             poles.add(pole);
-            issues.addAll(pole.getIssues());
         }
     }
 
@@ -77,11 +83,30 @@ public class LineEngineeringReport {
 
     private int countBySeverity(EngineeringSeverity severity) {
         int count = 0;
-        for (EngineeringIssue issue : issues) {
+        for (EngineeringIssue issue : getIssues()) {
             if (issue.severity() == severity) {
                 count++;
             }
         }
         return count;
+    }
+
+    /** 过滤指定规则（用于避免地形区与线路检查重复展示同一净空问题）。 */
+    public List<EngineeringIssue> issuesExcluding(String... excludedRuleIds) {
+        if (excludedRuleIds == null || excludedRuleIds.length == 0) {
+            return getIssues();
+        }
+        Set<String> excluded = Set.of(excludedRuleIds);
+        List<EngineeringIssue> filtered = new ArrayList<>();
+        for (EngineeringIssue issue : getIssues()) {
+            if (!excluded.contains(issue.ruleId())) {
+                filtered.add(issue);
+            }
+        }
+        return Collections.unmodifiableList(filtered);
+    }
+
+    public boolean hasIssuesExcluding(String... excludedRuleIds) {
+        return !issuesExcluding(excludedRuleIds).isEmpty();
     }
 }

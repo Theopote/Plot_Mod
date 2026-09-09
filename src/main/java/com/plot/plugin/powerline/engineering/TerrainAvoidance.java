@@ -45,34 +45,8 @@ public final class TerrainAvoidance {
     public static LineEngineeringReport analyzeCollisions(
             PowerLineGeometryModel geometry,
             TerrainSampler terrain) {
-        LineEngineeringReport report = new LineEngineeringReport();
-        report.setProfileId(PROFILE_ID);
-        report.setProfileName("Terrain Avoidance");
-        if (geometry == null || terrain == null) {
-            return report;
-        }
-        for (ConductorSpanGeometry span : geometry.getConductorSpans()) {
-            if (span.getSamples().isEmpty()) {
-                continue;
-            }
-            com.plot.plugin.powerline.engineering.analysis.SpanAnalysis spanAnalysis =
-                new com.plot.plugin.powerline.engineering.analysis.SpanAnalysis();
-            spanAnalysis.setId(span.getSpanId());
-            spanAnalysis.setStartPoleSiteId(span.getStartPoleSiteId());
-            spanAnalysis.setEndPoleSiteId(span.getEndPoleSiteId());
-            spanAnalysis.setHorizontalLength(span.getSpanLength());
-            ClearanceAnalysis clearance = ClearanceChecker.analyzeSpan(span, terrain);
-            spanAnalysis.setMinimumGroundClearance(clearance.getMinimumClearance());
-            EngineeringIssue issue = ClearanceChecker.toIssue(
-                clearance,
-                SAFETY_MARGIN_BLOCKS,
-                EngineeringSeverity.ERROR);
-            if (issue != null) {
-                spanAnalysis.addIssue(issue);
-            }
-            report.addSpan(spanAnalysis);
-        }
-        return report;
+        return com.plot.plugin.powerline.engineering.validation.TerrainCollisionCheck
+            .analyzeTerrainOnly(geometry, terrain);
     }
 
     /**
