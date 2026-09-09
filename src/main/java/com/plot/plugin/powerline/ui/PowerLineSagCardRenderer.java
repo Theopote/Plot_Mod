@@ -40,7 +40,14 @@ public final class PowerLineSagCardRenderer {
 
         drawCardShell(drawList, x0, y0, x1, y1, selected);
         float previewBottom = y0 + PREVIEW_HEIGHT;
-        drawSagPreview(drawList, sag.ratio(), x0 + 4f, y0 + 4f, x1 - 4f, previewBottom - 2f);
+        drawSagPreview(
+            drawList,
+            sag.ratio(),
+            PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH,
+            x0 + 4f,
+            y0 + 4f,
+            x1 - 4f,
+            previewBottom - 2f);
 
         float labelY = previewBottom + LABEL_PADDING;
         int labelColor = selected ? COLOR_LABEL : COLOR_LABEL_DIM;
@@ -56,6 +63,7 @@ public final class PowerLineSagCardRenderer {
     static void drawSagPreview(
             ImDrawList drawList,
             double sagRatio,
+            double maxSagDepthBlocks,
             float x0,
             float y0,
             float x1,
@@ -69,9 +77,18 @@ public final class PowerLineSagCardRenderer {
         drawList.addLine(leftX, poleTopY, leftX, poleBottomY, COLOR_POLE, 2f);
         drawList.addLine(rightX, poleTopY, rightX, poleBottomY, COLOR_POLE, 2f);
 
-        List<Double> profile = PowerLineSagUtils.computeSagProfile(spanLength, 0.0, 0.0, sagRatio, 12);
+        List<Double> profile = PowerLineSagUtils.computeSagProfile(
+            spanLength,
+            0.0,
+            0.0,
+            sagRatio,
+            12,
+            maxSagDepthBlocks);
         float wireTopY = poleTopY + 2f;
-        float maxSagDepth = (float) (spanLength * sagRatio);
+        float maxSagDepth = (float) profile.stream().mapToDouble(v -> -v).max().orElse(0.0);
+        if (maxSagDepth < 0.001f) {
+            maxSagDepth = (float) (spanLength * sagRatio);
+        }
         float sagScale = maxSagDepth > 0.001
             ? Math.min(10f, (poleBottomY - wireTopY - 4f) / maxSagDepth)
             : 1f;

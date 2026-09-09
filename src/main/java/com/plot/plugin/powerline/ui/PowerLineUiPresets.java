@@ -1,5 +1,6 @@
 package com.plot.plugin.powerline.ui;
 
+import com.plot.plugin.powerline.PowerLineSagUtils;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 
 /** 玩家友好的线路参数预设（内部仍映射到 footprint 数值）。 */
@@ -8,6 +9,8 @@ public final class PowerLineUiPresets {
     public static final double PRESET_SAG_MAX_RATIO = 0.22;
     /** Advanced 滑块上限。 */
     public static final double ADVANCED_SAG_MAX_RATIO = 0.35;
+    /** 最大下垂深度滑块上限（格）。 */
+    public static final float ADVANCED_MAX_SAG_DEPTH_MAX = 64f;
     private static final double SAG_MATCH_TOLERANCE = 0.01;
 
     public enum SpacingDensity {
@@ -101,5 +104,23 @@ public final class PowerLineUiPresets {
         }
         double clamped = Math.max(0.0, Math.min(ratio, ADVANCED_SAG_MAX_RATIO));
         line.setSagRatio(clamped);
+    }
+
+    public static void applyMaxSagDepth(PowerLineFootprint line, float depthBlocks, boolean unlimited) {
+        if (line == null) {
+            return;
+        }
+        if (unlimited) {
+            line.setMaxSagDepth(0.0);
+            return;
+        }
+        line.setMaxSagDepth(Math.max(1.0, Math.min(ADVANCED_MAX_SAG_DEPTH_MAX, depthBlocks)));
+    }
+
+    public static float displayMaxSagDepth(PowerLineFootprint line) {
+        if (line == null || line.isMaxSagDepthUnlimited()) {
+            return (float) PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH;
+        }
+        return (float) line.getMaxSagDepth();
     }
 }

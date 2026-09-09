@@ -85,7 +85,14 @@ public final class JumperWireGenerator {
 
         int sampleCount = PowerLineWireRasterizer.computeWireSampleCount(spanLength, WIRE_SAMPLES_PER_BLOCK);
         int segmentCount = sampleCount - 1;
-        double sagDepth = spanLength * sagRatio;
+        double rawSagDepth = spanLength * sagRatio;
+        double maxSagDepth = com.plot.plugin.powerline.PowerLineSagPolicy.resolveMaxSagDepth(
+            footprint,
+            new com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver()
+                .find(footprint.effectiveEngineeringProfileId()));
+        double sagDepth = maxSagDepth > 0.0
+            ? Math.min(rawSagDepth, maxSagDepth)
+            : rawSagDepth;
 
         MaterialMix wireMaterial = ConductorMaterialPolicy.materialFor(attachment.role(), footprint);
         Set<BlockPos> wireBlocks = new LinkedHashSet<>();

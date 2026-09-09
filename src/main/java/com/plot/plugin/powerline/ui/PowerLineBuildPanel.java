@@ -88,6 +88,19 @@ public final class PowerLineBuildPanel {
                     "plugin.powerline.build.sag_custom",
                     (int) Math.round(line.getSagRatio() * 100.0)));
         }
+        double effectiveMaxSag = com.plot.plugin.powerline.PowerLineSagPolicy.resolveMaxSagDepth(
+            line,
+            new com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver()
+                .find(line.effectiveEngineeringProfileId()));
+        if (effectiveMaxSag > 0.0) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.build.max_sag_depth", effectiveMaxSag));
+        } else {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.build.max_sag_depth_unlimited"));
+        }
         ImGui.endGroup();
     }
 

@@ -11,6 +11,7 @@ public class EngineeringRuleProfile {
     private String description;
     private ClearanceRules clearance = new ClearanceRules();
     private SpanRules span = new SpanRules();
+    private SagRules sag = new SagRules();
     private AngleRules angle = new AngleRules();
     private TowerRules tower = new TowerRules();
 
@@ -56,6 +57,14 @@ public class EngineeringRuleProfile {
         this.span = span != null ? span.copy() : new SpanRules();
     }
 
+    public SagRules getSag() {
+        return sag;
+    }
+
+    public void setSag(SagRules sag) {
+        this.sag = sag != null ? sag.copy() : new SagRules();
+    }
+
     public AngleRules getAngle() {
         return angle;
     }
@@ -77,6 +86,7 @@ public class EngineeringRuleProfile {
         copy.description = description;
         copy.clearance = clearance.copy();
         copy.span = span.copy();
+        copy.sag = sag.copy();
         copy.angle = angle.copy();
         copy.tower = tower.copy();
         return copy;

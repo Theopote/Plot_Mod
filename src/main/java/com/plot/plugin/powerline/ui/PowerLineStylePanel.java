@@ -128,6 +128,40 @@ public final class PowerLineStylePanel {
             if (ImGui.isItemActivated()) {
                 ctx.pushEditSnapshot();
             }
+            renderMaxSagDepthControls(line);
+        }
+    }
+
+    private void renderMaxSagDepthControls(PowerLineFootprint line) {
+        boolean unlimited = line.isMaxSagDepthUnlimited();
+        if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.max_sag_depth_unlimited"), unlimited)) {
+            ctx.pushEditSnapshot();
+            PowerLineUiPresets.applyMaxSagDepth(
+                line,
+                PowerLineUiPresets.displayMaxSagDepth(line),
+                !unlimited);
+            PowerLineStylePresetCatalog.clearStylePresetIfDrifted(line);
+            ctx.invalidatePreview();
+        }
+        if (!line.isMaxSagDepthUnlimited()) {
+            float[] maxDepth = {PowerLineUiPresets.displayMaxSagDepth(line)};
+            if (ImGui.sliderFloat(
+                    PlotI18n.tr("plugin.powerline.max_sag_depth", maxDepth[0]),
+                    maxDepth,
+                    1f,
+                    PowerLineUiPresets.ADVANCED_MAX_SAG_DEPTH_MAX,
+                    "%.0f")) {
+                PowerLineUiPresets.applyMaxSagDepth(line, maxDepth[0], false);
+                PowerLineStylePresetCatalog.clearStylePresetIfDrifted(line);
+                ctx.invalidatePreview();
+            }
+            if (ImGui.isItemActivated()) {
+                ctx.pushEditSnapshot();
+            }
+        } else {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.max_sag_depth_profile_hint"));
         }
     }
 

@@ -1,5 +1,7 @@
 package com.plot.plugin.powerline.engineering;
 
+import com.plot.plugin.powerline.PowerLineSagUtils;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,6 +24,7 @@ public final class EngineeringRuleProfileCatalog {
         profile.getSpan().setPreferredSpan(20.0);
         profile.getSpan().setMaximumSpan(40.0);
         profile.getSpan().setMinimumSpan(6.0);
+        profile.getSag().setMaxSagDepth(PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH);
         profile.getAngle().setSuspensionMaxAngle(5.0);
         profile.getAngle().setAngleTowerMaxAngle(60.0);
         profile.getTower().setPreferredHeightMargin(2.0);

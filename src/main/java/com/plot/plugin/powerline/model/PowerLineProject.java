@@ -164,6 +164,7 @@ public class PowerLineProject {
         double cornerAngleThreshold = 5.0;
         double poleHeight = 10.0;
         double sagRatio = 0.15;
+        double maxSagDepth = com.plot.plugin.powerline.PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH;
         MaterialMix wireMaterial;
         MaterialMix poleMaterial;
         String poleDesignId;
@@ -197,6 +198,7 @@ public class PowerLineProject {
                 lineData.cornerAngleThreshold = line.getCornerAngleThreshold();
                 lineData.poleHeight = line.getPoleHeight();
                 lineData.sagRatio = line.getSagRatio();
+                lineData.maxSagDepth = line.getMaxSagDepth();
                 lineData.wireMaterial = line.getWireMaterial();
                 lineData.poleMaterial = line.getPoleMaterial();
                 lineData.poleDesignId = line.getPoleDesignId();
@@ -251,6 +253,7 @@ public class PowerLineProject {
                 footprint.setCornerAngleThreshold(lineData.cornerAngleThreshold);
                 footprint.setPoleHeight(lineData.poleHeight);
                 footprint.setSagRatio(lineData.sagRatio);
+                footprint.setMaxSagDepth(lineData.maxSagDepth);
                 if (lineData.wireMaterial != null) {
                     footprint.setWireMaterial(lineData.wireMaterial);
                 }

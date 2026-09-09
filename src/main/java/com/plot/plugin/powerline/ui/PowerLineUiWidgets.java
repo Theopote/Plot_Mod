@@ -2,7 +2,9 @@ package com.plot.plugin.powerline.ui;
 
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
+import com.plot.plugin.powerline.engineering.EngineeringRuleProfile;
 import com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver;
+import com.plot.plugin.powerline.PowerLineSagPolicy;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.plugin.ui.PluginUiColors;
@@ -115,6 +117,9 @@ public final class PowerLineUiWidgets {
                 if (ImGui.selectable(labels[i], current == i)) {
                     ctx.pushEditSnapshot();
                     line.setEngineeringProfileId(ids[i]);
+                    EngineeringRuleProfile profile = resolver.find(ids[i]);
+                    line.setMaxSagDepth(profile.getSag().getMaxSagDepth());
+                    ctx.invalidatePreview();
                 }
             }
             ImGui.endCombo();
@@ -137,9 +142,58 @@ public final class PowerLineUiWidgets {
                 ctx.state().getEngineeringState().setOverlayEnabled(!overlay);
             }
         }
+        EngineeringRuleProfile activeProfile = resolver.find(currentId);
+        renderSagDepthControls(ctx, line, activeProfile);
         ImGui.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.engineering.disclaimer"));
+    }
+
+    private static void renderSagDepthControls(
+            PowerLineUiContext ctx,
+            PowerLineFootprint line,
+            EngineeringRuleProfile profile) {
+        double effective = PowerLineSagPolicy.resolveMaxSagDepth(line, profile);
+        if (effective > 0.0) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.engineering.effective_max_sag", effective));
+        } else {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.engineering.effective_max_sag_unlimited"));
+        }
+        if (profile != null && profile.getSag().getMaxSagDepth() > 0.0) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr(
+                    "plugin.powerline.engineering.profile_max_sag",
+                    profile.getSag().getMaxSagDepth()));
+        }
+        boolean unlimited = line.isMaxSagDepthUnlimited();
+        if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.max_sag_depth_unlimited"), unlimited)) {
+            ctx.pushEditSnapshot();
+            PowerLineUiPresets.applyMaxSagDepth(
+                line,
+                PowerLineUiPresets.displayMaxSagDepth(line),
+                !unlimited);
+            ctx.invalidatePreview();
+        }
+        if (!line.isMaxSagDepthUnlimited()) {
+            float[] maxDepth = {PowerLineUiPresets.displayMaxSagDepth(line)};
+            if (ImGui.sliderFloat(
+                    PlotI18n.tr("plugin.powerline.max_sag_depth", maxDepth[0]),
+                    maxDepth,
+                    1f,
+                    PowerLineUiPresets.ADVANCED_MAX_SAG_DEPTH_MAX,
+                    "%.0f")) {
+                PowerLineUiPresets.applyMaxSagDepth(line, maxDepth[0], false);
+                ctx.invalidatePreview();
+            }
+            if (ImGui.isItemActivated()) {
+                ctx.pushEditSnapshot();
+            }
+        }
     }
 
     /** 杆塔角色统计（仅 Advanced 区展示）。 */

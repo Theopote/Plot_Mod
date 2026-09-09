@@ -2,6 +2,7 @@ package com.plot.plugin.powerline.model;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.PowerLineSagUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,6 +26,8 @@ public class PowerLineFootprint {
     private double cornerAngleThreshold = 5.0;
     private double poleHeight = 10.0;
     private double sagRatio = 0.15;
+    /** 单跨最大下垂深度（格），{@code <= 0} 表示沿用工程 profile 或不限制。 */
+    private double maxSagDepth = PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH;
     private MaterialMix wireMaterial = MaterialMix.single(DEFAULT_WIRE_MATERIAL);
     private MaterialMix poleMaterial = MaterialMix.single(DEFAULT_POLE_MATERIAL);
     private String poleDesignId;
@@ -126,6 +129,21 @@ public class PowerLineFootprint {
 
     public void setSagRatio(double sagRatio) {
         this.sagRatio = Math.max(0.0, Math.min(1.0, sagRatio));
+    }
+
+    public double getMaxSagDepth() {
+        return maxSagDepth;
+    }
+
+    /**
+     * @param maxSagDepth 单跨最大下垂深度（格），{@code <= 0} 表示不单独限制（沿用工程 profile）
+     */
+    public void setMaxSagDepth(double maxSagDepth) {
+        this.maxSagDepth = maxSagDepth <= 0.0 ? 0.0 : Math.max(1.0, Math.min(64.0, maxSagDepth));
+    }
+
+    public boolean isMaxSagDepthUnlimited() {
+        return maxSagDepth <= 0.0;
     }
 
     public MaterialMix getWireMaterial() {
@@ -326,6 +344,7 @@ public class PowerLineFootprint {
             hash = 31 * hash + Double.hashCode(poleHeight);
         }
         hash = 31 * hash + Double.hashCode(sagRatio);
+        hash = 31 * hash + Double.hashCode(maxSagDepth);
         hash = 31 * hash + materialFingerprint(wireMaterial);
         hash = 31 * hash + materialFingerprint(poleMaterial);
         hash = 31 * hash + Objects.hashCode(poleDesignId);

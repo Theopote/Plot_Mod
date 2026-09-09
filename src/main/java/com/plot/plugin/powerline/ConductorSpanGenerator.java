@@ -7,6 +7,7 @@ import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.powerline.design.AttachmentRole;
+import com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver;
 import com.plot.plugin.powerline.engineering.clearance.WireClearance;
 import com.plot.plugin.powerline.geometry.ConductorSample;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
@@ -164,7 +165,8 @@ public final class ConductorSpanGenerator {
             start.conductorWorldY(),
             end.conductorWorldY(),
             footprint.getSagRatio(),
-            sampleCount);
+            sampleCount,
+            maxSagDepthFor(footprint));
 
         ConductorSpanGeometry geometry = new ConductorSpanGeometry();
         geometry.setSpanId(startSiteId + "->" + endSiteId + ":" + start.id());
@@ -235,7 +237,8 @@ public final class ConductorSpanGenerator {
             start.legacyWireHangY(),
             end.legacyWireHangY(),
             footprint.getSagRatio(),
-            sampleCount);
+            sampleCount,
+            maxSagDepthFor(footprint));
 
         double[] worldX = new double[sampleCount];
         double[] worldY = new double[sampleCount];
@@ -311,6 +314,15 @@ public final class ConductorSpanGenerator {
             }
         }
         return new double[] {planPoint.x, planPoint.y};
+    }
+
+    private static double maxSagDepthFor(PowerLineFootprint footprint) {
+        if (footprint == null) {
+            return PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH;
+        }
+        return PowerLineSagPolicy.resolveMaxSagDepth(
+            footprint,
+            new EngineeringRuleProfileResolver().find(footprint.effectiveEngineeringProfileId()));
     }
 
     private static void checkClearance(
