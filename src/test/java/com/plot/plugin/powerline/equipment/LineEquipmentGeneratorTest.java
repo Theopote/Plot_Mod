@@ -49,6 +49,55 @@ class LineEquipmentGeneratorTest {
     }
 
     @Test
+    void twinColumnPlacesParallelInsulators() {
+        PowerLineFootprint footprint = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
+        PowerLineGenerationResult result = new PowerLineGenerationResult(footprint);
+        ResolvedAttachment attachment = new ResolvedAttachment(
+            "a",
+            "A",
+            AttachmentRole.PHASE_A,
+            new Vec2d(0, 0),
+            0,
+            68,
+            0,
+            64,
+            MaterialMix.single("minecraft:iron_bars"),
+            4,
+            InsulatorType.VERTICAL,
+            InsulatorMountStyle.TWIN_COLUMN);
+
+        LineEquipmentGenerator.place(attachment, frame(), footprint, result, projection());
+
+        assertTrue(result.placementRecords.containsKey(new BlockPos(0, 64, 0)));
+        assertTrue(result.placementRecords.containsKey(new BlockPos(1, 64, 0)));
+    }
+
+    @Test
+    void vPairPlacesDiagonalLegs() {
+        PowerLineFootprint footprint = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
+        PowerLineGenerationResult result = new PowerLineGenerationResult(footprint);
+        ResolvedAttachment attachment = new ResolvedAttachment(
+            "a",
+            "A",
+            AttachmentRole.PHASE_A,
+            new Vec2d(0, 0),
+            0,
+            70,
+            0,
+            64,
+            MaterialMix.single("minecraft:iron_bars"),
+            5,
+            InsulatorType.SUSPENSION,
+            InsulatorMountStyle.V_PAIR);
+
+        LineEquipmentGenerator.place(attachment, frame(), footprint, result, projection());
+
+        assertTrue(result.placementRecords.containsKey(new BlockPos(-1, 64, 0)));
+        assertTrue(result.placementRecords.containsKey(new BlockPos(1, 64, 0)));
+        assertTrue(result.placementRecords.containsKey(new BlockPos(0, 70, 0)));
+    }
+
+    @Test
     void legacyInsulatorStillWorks() {
         PowerLineFootprint footprint = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
         PowerLineGenerationResult result = new PowerLineGenerationResult(footprint);

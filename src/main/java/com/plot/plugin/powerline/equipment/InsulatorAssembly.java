@@ -10,6 +10,7 @@ import java.util.UUID;
 public class InsulatorAssembly {
     private String id;
     private InsulatorType type = InsulatorType.SUSPENSION;
+    private InsulatorMountStyle mountStyle = InsulatorMountStyle.COLUMN;
     private int length;
     private MaterialMix material = MaterialMix.single(ConductorAttachment.DEFAULT_INSULATOR_MATERIAL);
 
@@ -41,6 +42,14 @@ public class InsulatorAssembly {
         this.type = type != null ? type : InsulatorType.SUSPENSION;
     }
 
+    public InsulatorMountStyle getMountStyle() {
+        return mountStyle != null ? mountStyle : InsulatorMountStyle.COLUMN;
+    }
+
+    public void setMountStyle(InsulatorMountStyle mountStyle) {
+        this.mountStyle = mountStyle != null ? mountStyle : InsulatorMountStyle.COLUMN;
+    }
+
     public int getLength() {
         return length;
     }
@@ -61,6 +70,7 @@ public class InsulatorAssembly {
 
     public InsulatorAssembly copy() {
         InsulatorAssembly copy = new InsulatorAssembly(id, type, length);
+        copy.mountStyle = mountStyle;
         copy.material = material != null ? material.copy() : material;
         return copy;
     }

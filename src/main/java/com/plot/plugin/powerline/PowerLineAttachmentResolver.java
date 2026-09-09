@@ -2,8 +2,13 @@ package com.plot.plugin.powerline;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
+import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.ConductorAttachment;
 import com.plot.plugin.powerline.design.PoleDesign;
+import com.plot.plugin.powerline.equipment.InsulatorAssembly;
+import com.plot.plugin.powerline.equipment.InsulatorAssemblyCatalog;
+import com.plot.plugin.powerline.equipment.InsulatorMountStyle;
+import com.plot.plugin.powerline.equipment.InsulatorType;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -47,7 +52,19 @@ public final class PowerLineAttachmentResolver {
             attachment.getLongitudinalOffset());
         double[] worldXz = planToWorldXz(planPoint);
         double conductorY = frame.groundY() + attachment.getVerticalOffset();
-        int insulatorLength = attachment.getInsulatorLength();
+        InsulatorAssembly assembly = InsulatorAssemblyCatalog.find(attachment.getInsulatorAssemblyId());
+        InsulatorType insulatorType = assembly != null
+            ? assembly.getType()
+            : attachment.getInsulatorType();
+        int insulatorLength = assembly != null
+            ? assembly.getLength()
+            : attachment.getInsulatorLength();
+        MaterialMix insulatorMaterial = assembly != null
+            ? assembly.getMaterial()
+            : attachment.getInsulatorMaterial();
+        InsulatorMountStyle mountStyle = assembly != null
+            ? assembly.getMountStyle()
+            : ResolvedAttachment.mountStyleFor(insulatorType);
         double structuralY = insulatorLength > 0
             ? conductorY - insulatorLength
             : conductorY;
@@ -61,9 +78,10 @@ public final class PowerLineAttachmentResolver {
             conductorY,
             worldXz[1],
             structuralY,
-            attachment.getInsulatorMaterial(),
+            insulatorMaterial,
             insulatorLength,
-            attachment.getInsulatorType());
+            insulatorType,
+            mountStyle);
     }
 
     private double[] planToWorldXz(Vec2d planPoint) {

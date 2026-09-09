@@ -7,6 +7,7 @@ import com.plot.plugin.powerline.design.structure.TowerArmSide;
 import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
+import com.plot.plugin.powerline.equipment.InsulatorAssemblyCatalog;
 import com.plot.plugin.powerline.equipment.InsulatorType;
 import com.plot.plugin.powerline.engineering.TowerEngineeringMetadata;
 import com.plot.plugin.powerline.model.TowerRole;
@@ -424,6 +425,7 @@ public final class TowerFamilyDesignPresets {
 
         design.setAttachments(TowerConductorArrangement.classicLattice().createAttachments(
             attachmentHeight, insulatorType, insulatorLength));
+        InsulatorAssemblyCatalog.applyStandardDefaults(design);
         design.setEngineeringMetadata(metadata);
         return design;
     }
@@ -458,6 +460,7 @@ public final class TowerFamilyDesignPresets {
 
         design.setAttachments(TowerConductorArrangement.heavyTransmission().createAttachments(
             attachmentHeight, insulatorType, insulatorLength));
+        InsulatorAssemblyCatalog.applyMegaDefaults(design, insulatorType);
         design.setEngineeringMetadata(metadata);
         return design;
     }
@@ -474,6 +477,7 @@ public final class TowerFamilyDesignPresets {
         PoleDesign design = new PoleDesign(id, name);
         design.setTowerStructure(structure.copy());
         design.setAttachments(arrangement.createAttachments(attachmentHeight, insulatorType, insulatorLength));
+        InsulatorAssemblyCatalog.applyMegaDefaults(design, insulatorType);
         design.setEngineeringMetadata(metadata);
         return design;
     }
@@ -490,6 +494,11 @@ public final class TowerFamilyDesignPresets {
         PoleDesign design = new PoleDesign(id, name);
         design.setTowerStructure(structure.copy());
         design.setAttachments(arrangement.toAttachments(attachmentHeight, insulatorType, insulatorLength));
+        if (id.contains("monster_pylon")) {
+            InsulatorAssemblyCatalog.applyMonsterDefaults(design, insulatorType);
+        } else {
+            InsulatorAssemblyCatalog.applyMegaDefaults(design, insulatorType);
+        }
         design.setEngineeringMetadata(metadata);
         return design;
     }
