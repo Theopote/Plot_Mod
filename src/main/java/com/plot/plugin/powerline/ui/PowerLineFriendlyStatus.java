@@ -2,9 +2,9 @@ package com.plot.plugin.powerline.ui;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.powerline.PowerPoleLayoutUtils;
-import com.plot.plugin.powerline.engineering.EngineeringIssue;
+import com.plot.plugin.powerline.engineering.PowerLineIssue;
 import com.plot.plugin.powerline.engineering.EngineeringRuleIds;
-import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
+import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 import com.plot.utils.PlotI18n;
@@ -50,7 +50,7 @@ public final class PowerLineFriendlyStatus {
         }
     }
 
-    public static String friendlyIssue(EngineeringIssue issue) {
+    public static String friendlyIssue(PowerLineIssue issue) {
         if (issue == null) {
             return "";
         }
@@ -74,7 +74,7 @@ public final class PowerLineFriendlyStatus {
         };
     }
 
-    public static String friendlySuggestion(EngineeringIssue issue) {
+    public static String friendlySuggestion(PowerLineIssue issue) {
         if (issue == null) {
             return "";
         }
@@ -89,7 +89,7 @@ public final class PowerLineFriendlyStatus {
         };
     }
 
-    public static boolean hasTerrainIssues(LineEngineeringReport report) {
+    public static boolean hasTerrainIssues(PowerLineValidationReport report) {
         if (report == null) {
             return false;
         }
@@ -97,19 +97,12 @@ public final class PowerLineFriendlyStatus {
             .anyMatch(i -> EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM.equals(i.ruleId()));
     }
 
-    public static int friendlyIssueCount(LineEngineeringReport report) {
+    public static int friendlyIssueCount(PowerLineValidationReport report) {
         return report != null ? report.getIssues().size() : 0;
     }
 
     public static boolean spacingSettingsValid(PowerLineFootprint line) {
         return line != null && line.getMaxPoleSpacing() >= line.getMinPoleSpacing();
-    }
-
-    /** @deprecated 使用 {@link #evaluateSpacing(PowerLineFootprint)} */
-    @Deprecated
-    public static boolean spacingLooksGood(PowerLineFootprint line) {
-        return evaluateSpacing(line).kind() == SpacingKind.OK
-            || evaluateSpacing(line).kind() == SpacingKind.SETTINGS_ONLY;
     }
 
     public static SpacingEvaluation evaluateSpacing(PowerLineFootprint line) {

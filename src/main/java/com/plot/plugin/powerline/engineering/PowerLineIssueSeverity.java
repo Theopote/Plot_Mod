@@ -1,7 +1,7 @@
 package com.plot.plugin.powerline.engineering;
 
-/** 工程问题严重级别。 */
-public enum EngineeringSeverity {
+/** 线路检查问题严重级别。 */
+public enum PowerLineIssueSeverity {
     INFO,
     WARNING,
     ERROR

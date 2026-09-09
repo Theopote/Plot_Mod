@@ -2,7 +2,7 @@ package com.plot.plugin.powerline.engineering.validation;
 
 import com.plot.plugin.powerline.engineering.EngineeringRuleProfile;
 import com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver;
-import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
+import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.geometry.PowerLineGeometryModel;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.road.terrain.TerrainSampler;
@@ -12,7 +12,7 @@ import java.util.List;
 /**
  * 视觉 / 常识性线路检查入口。
  * <p>
- * 保留 {@link LineEngineeringReport} 数据结构；检查项见 {@link LineValidationCheck} 实现类。
+ * 保留 {@link PowerLineValidationReport} 数据结构；检查项见 {@link LineValidationCheck} 实现类。
  */
 public final class PowerLineValidator {
     private static final String VALIDATION_PROFILE_ID = "validation/common_sense";
@@ -28,7 +28,7 @@ public final class PowerLineValidator {
     private PowerLineValidator() {
     }
 
-    public static LineEngineeringReport validate(
+    public static PowerLineValidationReport validate(
             PowerLineGeometryModel geometry,
             TerrainSampler terrain,
             PowerLineFootprint footprint) {
@@ -39,13 +39,13 @@ public final class PowerLineValidator {
         return validate(geometry, terrain, footprint, profile, limits);
     }
 
-    public static LineEngineeringReport validate(
+    public static PowerLineValidationReport validate(
             PowerLineGeometryModel geometry,
             TerrainSampler terrain,
             PowerLineFootprint footprint,
             EngineeringRuleProfile profile,
             ValidationLimits limits) {
-        LineEngineeringReport report = new LineEngineeringReport();
+        PowerLineValidationReport report = new PowerLineValidationReport();
         if (geometry == null || profile == null || limits == null) {
             return report;
         }

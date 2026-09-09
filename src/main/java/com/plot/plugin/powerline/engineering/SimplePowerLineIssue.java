@@ -1,39 +1,39 @@
 package com.plot.plugin.powerline.engineering;
 
-/** 通用工程问题实现。 */
-public final class SimpleEngineeringIssue implements EngineeringIssue {
+/** 通用线路检查问题实现。 */
+public final class SimplePowerLineIssue implements PowerLineIssue {
     private final String ruleId;
-    private final EngineeringSeverity severity;
+    private final PowerLineIssueSeverity severity;
     private final String message;
-    private final EngineeringIssueLocation location;
+    private final PowerLineIssueLocation location;
     private final double actual;
     private final double required;
     private final String detailA;
     private final String detailB;
 
-    public SimpleEngineeringIssue(
+    public SimplePowerLineIssue(
             String ruleId,
-            EngineeringSeverity severity,
+            PowerLineIssueSeverity severity,
             String message,
-            EngineeringIssueLocation location,
+            PowerLineIssueLocation location,
             double actual,
             double required) {
         this(ruleId, severity, message, location, actual, required, null, null);
     }
 
-    public SimpleEngineeringIssue(
+    public SimplePowerLineIssue(
             String ruleId,
-            EngineeringSeverity severity,
+            PowerLineIssueSeverity severity,
             String message,
-            EngineeringIssueLocation location,
+            PowerLineIssueLocation location,
             double actual,
             double required,
             String detailA,
             String detailB) {
         this.ruleId = ruleId;
-        this.severity = severity != null ? severity : EngineeringSeverity.WARNING;
+        this.severity = severity != null ? severity : PowerLineIssueSeverity.WARNING;
         this.message = message != null ? message : ruleId;
-        this.location = location != null ? location : EngineeringIssueLocation.at(new com.plot.api.geometry.Vec2d(0, 0));
+        this.location = location != null ? location : PowerLineIssueLocation.at(new com.plot.api.geometry.Vec2d(0, 0));
         this.actual = actual;
         this.required = required;
         this.detailA = detailA;
@@ -46,7 +46,7 @@ public final class SimpleEngineeringIssue implements EngineeringIssue {
     }
 
     @Override
-    public EngineeringSeverity severity() {
+    public PowerLineIssueSeverity severity() {
         return severity;
     }
 
@@ -56,7 +56,7 @@ public final class SimpleEngineeringIssue implements EngineeringIssue {
     }
 
     @Override
-    public EngineeringIssueLocation location() {
+    public PowerLineIssueLocation location() {
         return location;
     }
 

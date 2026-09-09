@@ -7,7 +7,7 @@ import com.plot.plugin.powerline.PowerPoleLayoutUtils;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
-import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
+import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.engineering.analysis.SpanAnalysis;
 import com.plot.plugin.powerline.engineering.clearance.ClearanceAnalysis;
 import com.plot.plugin.powerline.engineering.clearance.ClearanceChecker;
@@ -42,7 +42,7 @@ public final class TerrainAvoidance {
     }
 
     /** 只检测导线与地形表面的碰撞（不含完整工程规则）。 */
-    public static LineEngineeringReport analyzeCollisions(
+    public static PowerLineValidationReport analyzeCollisions(
             PowerLineGeometryModel geometry,
             TerrainSampler terrain) {
         return com.plot.plugin.powerline.engineering.validation.TerrainCollisionCheck
@@ -56,7 +56,7 @@ public final class TerrainAvoidance {
      */
     public static boolean applyOneFix(
             PowerLineFootprint line,
-            LineEngineeringReport report,
+            PowerLineValidationReport report,
             PowerLineGenerationResult result,
             PoleDesignResolver designResolver) {
         if (line == null || report == null || !hasTerrainIssues(report)) {
@@ -71,7 +71,7 @@ public final class TerrainAvoidance {
         return tryInsertPole(line, report, result);
     }
 
-    public static boolean hasTerrainIssues(LineEngineeringReport report) {
+    public static boolean hasTerrainIssues(PowerLineValidationReport report) {
         if (report == null) {
             return false;
         }
@@ -81,7 +81,7 @@ public final class TerrainAvoidance {
 
     private static boolean tryTallerTower(
             PowerLineFootprint line,
-            LineEngineeringReport report,
+            PowerLineValidationReport report,
             PowerLineGenerationResult result,
             PoleDesignResolver designResolver) {
         if (!line.hasTowerFamily() || designResolver == null || result == null) {
@@ -130,7 +130,7 @@ public final class TerrainAvoidance {
 
     private static boolean tryInsertPole(
             PowerLineFootprint line,
-            LineEngineeringReport report,
+            PowerLineValidationReport report,
             PowerLineGenerationResult result) {
         SpanAnalysis targetSpan = firstTerrainSpan(report);
         if (targetSpan == null) {
@@ -146,9 +146,9 @@ public final class TerrainAvoidance {
         return true;
     }
 
-    private static SpanAnalysis firstTerrainSpan(LineEngineeringReport report) {
+    private static SpanAnalysis firstTerrainSpan(PowerLineValidationReport report) {
         for (SpanAnalysis span : report.getSpans()) {
-            for (EngineeringIssue issue : span.getIssues()) {
+            for (PowerLineIssue issue : span.getIssues()) {
                 if (EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM.equals(issue.ruleId())) {
                     return span;
                 }

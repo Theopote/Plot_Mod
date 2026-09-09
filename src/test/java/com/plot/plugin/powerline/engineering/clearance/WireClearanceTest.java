@@ -4,7 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.powerline.geometry.ConductorSample;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
 import com.plot.plugin.powerline.engineering.TerrainAvoidance;
-import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
+import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.geometry.PowerLineGeometryModel;
 import com.plot.plugin.powerline.TerrainTestFixtures;
 import org.junit.jupiter.api.Test;
@@ -47,7 +47,7 @@ class WireClearanceTest {
         PowerLineGeometryModel geometry = new PowerLineGeometryModel();
         geometry.addConductorSpan(span);
 
-        LineEngineeringReport report = TerrainAvoidance.analyzeCollisions(
+        PowerLineValidationReport report = TerrainAvoidance.analyzeCollisions(
             geometry,
             TerrainTestFixtures.groundWithOverheadObstruction(64, 70));
         assertTrue(TerrainAvoidance.hasTerrainIssues(report));

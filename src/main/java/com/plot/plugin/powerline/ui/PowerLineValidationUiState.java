@@ -1,31 +1,31 @@
 package com.plot.plugin.powerline.ui;
 
-import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
+import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.engineering.optimization.OptimizationResult;
 
 /** 线路检查与会话状态（画布叠加、智能修正确认）。 */
 public final class PowerLineValidationUiState {
-    private LineEngineeringReport lastEngineeringReport;
-    private LineEngineeringReport lastTerrainReport;
+    private PowerLineValidationReport lastEngineeringReport;
+    private PowerLineValidationReport lastTerrainReport;
     private PowerLineAnalysisKey engineeringReportKey;
     private PowerLineAnalysisKey terrainReportKey;
     private OptimizationResult pendingOptimization;
     private boolean optimizationConfirmPending;
     private boolean overlayEnabled = false;
 
-    public LineEngineeringReport getLastEngineeringReport() {
+    public PowerLineValidationReport getLastEngineeringReport() {
         return lastEngineeringReport;
     }
 
-    public void setLastEngineeringReport(LineEngineeringReport lastEngineeringReport) {
+    public void setLastEngineeringReport(PowerLineValidationReport lastEngineeringReport) {
         this.lastEngineeringReport = lastEngineeringReport;
     }
 
-    public LineEngineeringReport getLastTerrainReport() {
+    public PowerLineValidationReport getLastTerrainReport() {
         return lastTerrainReport;
     }
 
-    public void setLastTerrainReport(LineEngineeringReport lastTerrainReport) {
+    public void setLastTerrainReport(PowerLineValidationReport lastTerrainReport) {
         this.lastTerrainReport = lastTerrainReport;
     }
 

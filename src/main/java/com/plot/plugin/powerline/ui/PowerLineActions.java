@@ -9,12 +9,11 @@ import com.plot.core.model.Shape;
 import com.plot.core.persistence.ProjectPathResolver;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
-import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
+import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.engineering.optimization.OptimizationResult;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.PowerLinePathSelectionAnalysis;
 import com.plot.plugin.powerline.PowerLineGenerator;
-import com.plot.plugin.powerline.engineering.analysis.PowerLineEngineeringAnalyzer;
 import com.plot.plugin.powerline.PowerLinePathUtils;
 import com.plot.plugin.powerline.PowerPoleLayoutUtils;
 import com.plot.plugin.powerline.design.PoleDesign;
@@ -188,7 +187,7 @@ public final class PowerLineActions {
         return true;
     }
 
-    public LineEngineeringReport analyzeTerrainCollisions(PowerLineFootprint line) {
+    public PowerLineValidationReport analyzeTerrainCollisions(PowerLineFootprint line) {
         if (line == null || !line.isTerrainAvoidanceEnabled()) {
             clearTerrainReport();
             return null;
@@ -200,19 +199,19 @@ public final class PowerLineActions {
         if (!hasValidPreview(line) && !calculatePreviewCore(line)) {
             return null;
         }
-        LineEngineeringReport report = computeTerrainReport(line, world);
+        PowerLineValidationReport report = computeTerrainReport(line, world);
         storeTerrainReport(report);
         return report;
     }
 
-    public LineEngineeringReport cachedTerrainReport(PowerLineFootprint line) {
+    public PowerLineValidationReport cachedTerrainReport(PowerLineFootprint line) {
         return validatedReport(
             line,
             state.getValidationState().getLastTerrainReport(),
             state.getValidationState().getTerrainReportKey());
     }
 
-    public LineEngineeringReport cachedEngineeringReport(PowerLineFootprint line) {
+    public PowerLineValidationReport cachedEngineeringReport(PowerLineFootprint line) {
         return validatedReport(
             line,
             state.getValidationState().getLastEngineeringReport(),
@@ -241,7 +240,7 @@ public final class PowerLineActions {
         }
     }
 
-    private LineEngineeringReport computeTerrainReport(PowerLineFootprint line, World world) {
+    private PowerLineValidationReport computeTerrainReport(PowerLineFootprint line, World world) {
         PowerLineGenerationResult result = state.getLastGenerationResult();
         if (result == null) {
             return null;
@@ -251,7 +250,7 @@ public final class PowerLineActions {
             .analyzeCollisions(result.toGeometryModel(), terrain);
     }
 
-    private LineEngineeringReport computeEngineeringReport(PowerLineFootprint line, World world) {
+    private PowerLineValidationReport computeEngineeringReport(PowerLineFootprint line, World world) {
         PowerLineGenerationResult result = state.getLastGenerationResult();
         if (result == null) {
             return null;
@@ -261,19 +260,19 @@ public final class PowerLineActions {
             .validate(result.toGeometryModel(), terrain, line);
     }
 
-    private void storeTerrainReport(LineEngineeringReport report) {
+    private void storeTerrainReport(PowerLineValidationReport report) {
         state.getValidationState().setLastTerrainReport(report);
         state.getValidationState().setTerrainReportKey(PowerLineAnalysisKey.capture(state.getPreviewKey()));
     }
 
-    private void storeEngineeringReport(LineEngineeringReport report) {
+    private void storeEngineeringReport(PowerLineValidationReport report) {
         state.getValidationState().setLastEngineeringReport(report);
         state.getValidationState().setEngineeringReportKey(PowerLineAnalysisKey.capture(state.getPreviewKey()));
     }
 
-    private LineEngineeringReport validatedReport(
+    private PowerLineValidationReport validatedReport(
             PowerLineFootprint line,
-            LineEngineeringReport report,
+            PowerLineValidationReport report,
             PowerLineAnalysisKey analysisKey) {
         if (report == null || analysisKey == null || !hasValidPreview(line)) {
             return null;
@@ -315,7 +314,7 @@ public final class PowerLineActions {
             if (result == null) {
                 break;
             }
-            LineEngineeringReport report = com.plot.plugin.powerline.engineering.TerrainAvoidance
+            PowerLineValidationReport report = com.plot.plugin.powerline.engineering.TerrainAvoidance
                 .analyzeCollisions(result.toGeometryModel(), terrain);
             storeTerrainReport(report);
             if (!com.plot.plugin.powerline.engineering.TerrainAvoidance.hasTerrainIssues(report)) {
@@ -723,7 +722,7 @@ public final class PowerLineActions {
         state.setProjectStatus(PlotI18n.tr("plugin.powerline.pick_started"));
     }
 
-    public LineEngineeringReport analyzeEngineering(PowerLineFootprint line) {
+    public PowerLineValidationReport analyzeEngineering(PowerLineFootprint line) {
         if (line == null) {
             return null;
         }
@@ -739,7 +738,7 @@ public final class PowerLineActions {
         if (!hasValidPreview(line) && !calculatePreviewCore(line)) {
             return null;
         }
-        LineEngineeringReport report = computeEngineeringReport(line, world);
+        PowerLineValidationReport report = computeEngineeringReport(line, world);
         storeEngineeringReport(report);
         return report;
     }
@@ -762,7 +761,7 @@ public final class PowerLineActions {
     }
 
     public OptimizationResult proposeClearanceFix(PowerLineFootprint line) {
-        LineEngineeringReport report = cachedEngineeringReport(line);
+        PowerLineValidationReport report = cachedEngineeringReport(line);
         if (report == null) {
             report = analyzeEngineering(line);
         }

@@ -7,7 +7,7 @@ import com.plot.api.world.PlacementReadiness;
 import com.plot.api.world.WorldViewBounds;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.engineering.TerrainAvoidance;
-import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
+import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
@@ -166,12 +166,12 @@ public final class TerrainTestFixtures {
             new PoleDesignResolver(new PowerLineDesignProject()));
     }
 
-    public static LineEngineeringReport analyze(PowerLineGenerationResult result, TerrainSampler terrain) {
+    public static PowerLineValidationReport analyze(PowerLineGenerationResult result, TerrainSampler terrain) {
         return TerrainAvoidance.analyzeCollisions(result.toGeometryModel(), terrain);
     }
 
     public static double minimumClearance(PowerLineGenerationResult result, TerrainSampler terrain) {
-        LineEngineeringReport report = analyze(result, terrain);
+        PowerLineValidationReport report = analyze(result, terrain);
         return report.getSpans().stream()
             .mapToDouble(span -> span.getMinimumGroundClearance())
             .filter(value -> !Double.isInfinite(value) && !Double.isNaN(value))
@@ -189,7 +189,7 @@ public final class TerrainTestFixtures {
         PowerLineGenerator generator = PowerLineGeneratorWireTest.createGenerator();
         for (int attempt = 0; attempt < maxAttempts; attempt++) {
             PowerLineGenerationResult result = generator.generate(line, terrain, resolver);
-            LineEngineeringReport report = TerrainAvoidance.analyzeCollisions(result.toGeometryModel(), terrain);
+            PowerLineValidationReport report = TerrainAvoidance.analyzeCollisions(result.toGeometryModel(), terrain);
             if (!TerrainAvoidance.hasTerrainIssues(report)) {
                 return true;
             }

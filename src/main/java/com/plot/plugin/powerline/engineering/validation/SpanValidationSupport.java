@@ -1,7 +1,7 @@
 package com.plot.plugin.powerline.engineering.validation;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
+import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.engineering.analysis.SpanAnalysis;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
 import com.plot.plugin.powerline.geometry.PowerLineGeometryModel;
@@ -14,7 +14,7 @@ final class SpanValidationSupport {
     static SpanAnalysis beginSpanAnalysis(
             PowerLineGeometryModel geometry,
             ConductorSpanGeometry span,
-            LineEngineeringReport report) {
+            PowerLineValidationReport report) {
         SpanAnalysis spanAnalysis = new SpanAnalysis();
         spanAnalysis.setId(span.getSpanId());
         spanAnalysis.setStartPoleSiteId(span.getStartPoleSiteId());

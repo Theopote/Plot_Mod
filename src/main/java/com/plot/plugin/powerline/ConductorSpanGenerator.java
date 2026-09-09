@@ -285,19 +285,6 @@ public final class ConductorSpanGenerator {
         }
         result.conductorSpans.add(geometry);
     }
-    @Deprecated
-    public static void placeInsulator(
-            ResolvedAttachment attachment,
-            PowerLineFootprint footprint,
-            PowerLineGenerationResult result,
-            IBlockProjectionService projectionHandler) {
-        com.plot.plugin.powerline.equipment.LineEquipmentGenerator.place(
-            attachment,
-            null,
-            footprint,
-            result,
-            projectionHandler);
-    }
 
     private static double lerp(double a, double b, double t) {
         return a + (b - a) * t;

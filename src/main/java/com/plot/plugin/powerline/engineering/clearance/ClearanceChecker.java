@@ -1,10 +1,10 @@
 package com.plot.plugin.powerline.engineering.clearance;
 
-import com.plot.plugin.powerline.engineering.EngineeringIssue;
-import com.plot.plugin.powerline.engineering.EngineeringIssueLocation;
+import com.plot.plugin.powerline.engineering.PowerLineIssue;
+import com.plot.plugin.powerline.engineering.PowerLineIssueLocation;
 import com.plot.plugin.powerline.engineering.EngineeringRuleIds;
-import com.plot.plugin.powerline.engineering.EngineeringSeverity;
-import com.plot.plugin.powerline.engineering.SimpleEngineeringIssue;
+import com.plot.plugin.powerline.engineering.PowerLineIssueSeverity;
+import com.plot.plugin.powerline.engineering.SimplePowerLineIssue;
 import com.plot.plugin.powerline.geometry.ConductorSample;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
 import com.plot.plugin.road.terrain.TerrainSampler;
@@ -47,18 +47,18 @@ public final class ClearanceChecker {
         return analysis;
     }
 
-    public static EngineeringIssue toIssue(
+    public static PowerLineIssue toIssue(
             ClearanceAnalysis analysis,
             double requiredClearance,
-            EngineeringSeverity severity) {
+            PowerLineIssueSeverity severity) {
         if (analysis == null || analysis.getMinimumClearance() >= requiredClearance) {
             return null;
         }
-        return new SimpleEngineeringIssue(
+        return new SimplePowerLineIssue(
             EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM,
             severity,
             EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM,
-            EngineeringIssueLocation.at(
+            PowerLineIssueLocation.at(
                 analysis.getCriticalLocation(),
                 0.0),
             analysis.getMinimumClearance(),

@@ -13,9 +13,6 @@ public class TowerEngineeringMetadata {
     private double maxRecommendedSpan = 40.0;
     private double maxRecommendedDeflectionAngle = 5.0;
     private Set<TowerRole> supportedRoles = EnumSet.of(TowerRole.SUSPENSION);
-    /** @deprecated 未参与生成或检查，保留序列化兼容。 */
-    @Deprecated
-    private int strengthClass = 1;
 
     public double getNominalHeight() {
         return nominalHeight;
@@ -63,18 +60,6 @@ public class TowerEngineeringMetadata {
         return supportedRoles != null && supportedRoles.contains(role);
     }
 
-    /** @deprecated 未使用；始终为 1。 */
-    @Deprecated
-    public int getStrengthClass() {
-        return 1;
-    }
-
-    /** @deprecated 无效果。 */
-    @Deprecated
-    public void setStrengthClass(int strengthClass) {
-        this.strengthClass = 1;
-    }
-
     public TowerEngineeringMetadata copy() {
         TowerEngineeringMetadata copy = new TowerEngineeringMetadata();
         copy.nominalHeight = nominalHeight;
@@ -82,7 +67,6 @@ public class TowerEngineeringMetadata {
         copy.maxRecommendedSpan = maxRecommendedSpan;
         copy.maxRecommendedDeflectionAngle = maxRecommendedDeflectionAngle;
         copy.supportedRoles = getSupportedRoles();
-        copy.strengthClass = strengthClass;
         return copy;
     }
 
@@ -105,12 +89,11 @@ public class TowerEngineeringMetadata {
         return Double.compare(nominalHeight, other.nominalHeight) == 0
             && Double.compare(maxRecommendedSpan, other.maxRecommendedSpan) == 0
             && Double.compare(maxRecommendedDeflectionAngle, other.maxRecommendedDeflectionAngle) == 0
-            && strengthClass == other.strengthClass
             && Objects.equals(supportedRoles, other.supportedRoles);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(nominalHeight, maxRecommendedSpan, maxRecommendedDeflectionAngle, supportedRoles, strengthClass);
+        return Objects.hash(nominalHeight, maxRecommendedSpan, maxRecommendedDeflectionAngle, supportedRoles);
     }
 }

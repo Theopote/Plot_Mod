@@ -5,7 +5,7 @@ import com.plot.plugin.powerline.PolePlacement;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
-import com.plot.plugin.powerline.engineering.EngineeringI18n;
+import com.plot.plugin.powerline.engineering.PowerLineValidationI18n;
 import com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver;
 import com.plot.plugin.powerline.engineering.selection.AutomaticTowerSelector;
 import com.plot.plugin.powerline.engineering.selection.TowerSelectionContext;
@@ -110,7 +110,7 @@ public final class AutoTowerOptimizationProposer {
             return new Object[] {site.getDeflectionAngle()};
         }
         if (!selection.getReasons().isEmpty()) {
-            return new Object[] {EngineeringI18n.selectionReasonToken(selection.getReasons().getFirst())};
+            return new Object[] {PowerLineValidationI18n.selectionReasonToken(selection.getReasons().getFirst())};
         }
         return new Object[0];
     }

@@ -1,11 +1,11 @@
 package com.plot.plugin.powerline.engineering.validation;
 
 import com.plot.plugin.powerline.PowerLineSagPolicy;
-import com.plot.plugin.powerline.engineering.EngineeringIssueLocation;
+import com.plot.plugin.powerline.engineering.PowerLineIssueLocation;
 import com.plot.plugin.powerline.engineering.EngineeringRuleIds;
-import com.plot.plugin.powerline.engineering.EngineeringSeverity;
-import com.plot.plugin.powerline.engineering.SimpleEngineeringIssue;
-import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
+import com.plot.plugin.powerline.engineering.PowerLineIssueSeverity;
+import com.plot.plugin.powerline.engineering.SimplePowerLineIssue;
+import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.engineering.analysis.SpanAnalysis;
 import com.plot.plugin.powerline.geometry.ConductorSample;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
@@ -17,7 +17,7 @@ public final class SagCheck implements LineValidationCheck {
     private static final double SAG_TOLERANCE = 0.5;
 
     @Override
-    public void apply(LineValidationContext context, LineEngineeringReport report) {
+    public void apply(LineValidationContext context, PowerLineValidationReport report) {
         if (context.geometry() == null || context.footprint() == null) {
             return;
         }
@@ -31,11 +31,11 @@ public final class SagCheck implements LineValidationCheck {
                 continue;
             }
             SpanAnalysis spanAnalysis = findOrCreateSpanAnalysis(context.geometry(), span, report);
-            spanAnalysis.addIssue(new SimpleEngineeringIssue(
+            spanAnalysis.addIssue(new SimplePowerLineIssue(
                 EngineeringRuleIds.SAG_MAXIMUM,
-                EngineeringSeverity.WARNING,
+                PowerLineIssueSeverity.WARNING,
                 EngineeringRuleIds.SAG_MAXIMUM,
-                EngineeringIssueLocation.at(SpanValidationSupport.midpoint(span), 0.0),
+                PowerLineIssueLocation.at(SpanValidationSupport.midpoint(span), 0.0),
                 observed,
                 maxSagDepth));
         }
@@ -61,7 +61,7 @@ public final class SagCheck implements LineValidationCheck {
     private static SpanAnalysis findOrCreateSpanAnalysis(
             com.plot.plugin.powerline.geometry.PowerLineGeometryModel geometry,
             ConductorSpanGeometry span,
-            LineEngineeringReport report) {
+            PowerLineValidationReport report) {
         for (SpanAnalysis existing : report.getSpans()) {
             if (span.getSpanId() != null && span.getSpanId().equals(existing.getId())) {
                 return existing;

@@ -5,17 +5,17 @@ import com.plot.plugin.powerline.engineering.optimization.OptimizationAction;
 import com.plot.plugin.powerline.engineering.optimization.OptimizationActionType;
 import com.plot.utils.PlotI18n;
 
-/** 工程分析与优化建议的国际化文案。 */
-public final class EngineeringI18n {
-    private EngineeringI18n() {
+/** 线路检查与优化建议的国际化文案。 */
+public final class PowerLineValidationI18n {
+    private PowerLineValidationI18n() {
     }
 
-    public static String issueMessage(EngineeringIssue issue) {
+    public static String issueMessage(PowerLineIssue issue) {
         if (issue == null) {
             return "";
         }
-        String detailA = issue instanceof SimpleEngineeringIssue simple ? simple.detailA() : null;
-        String detailB = issue instanceof SimpleEngineeringIssue simple ? simple.detailB() : null;
+        String detailA = issue instanceof SimplePowerLineIssue simple ? simple.detailA() : null;
+        String detailB = issue instanceof SimplePowerLineIssue simple ? simple.detailB() : null;
         return switch (issue.ruleId()) {
             case EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM -> PlotI18n.tr(
                 "plugin.powerline.engineering.issue.clearance_ground",
@@ -57,7 +57,7 @@ public final class EngineeringI18n {
         };
     }
 
-    public static String severityLabel(EngineeringSeverity severity) {
+    public static String severityLabel(PowerLineIssueSeverity severity) {
         if (severity == null) {
             return "";
         }

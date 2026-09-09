@@ -1,12 +1,12 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.design.PoleDesignResolver;
-import com.plot.plugin.powerline.engineering.EngineeringI18n;
+import com.plot.plugin.powerline.engineering.PowerLineValidationI18n;
 import com.plot.plugin.powerline.engineering.optimization.AutoTowerOptimizationProposer;
 import com.plot.plugin.powerline.engineering.optimization.OptimizationAction;
 import com.plot.plugin.powerline.engineering.optimization.OptimizationActionType;
-import com.plot.plugin.powerline.engineering.EngineeringSeverity;
-import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
+import com.plot.plugin.powerline.engineering.PowerLineIssueSeverity;
+import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -48,7 +48,7 @@ public final class PowerLineValidationPanel {
         }
         PowerLineUiWidgets.renderLineCheckControls(ctx, line, true);
         renderAnalysisControls(line);
-        LineEngineeringReport report = ctx.actions().cachedEngineeringReport(line);
+        PowerLineValidationReport report = ctx.actions().cachedEngineeringReport(line);
         if (report != null) {
             renderReportSummary(report);
             renderIssueList(report);
@@ -72,7 +72,7 @@ public final class PowerLineValidationPanel {
         }
     }
 
-    private void renderReportSummary(LineEngineeringReport report) {
+    private void renderReportSummary(PowerLineValidationReport report) {
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.powerline.validation.summary"));
         ImGui.text(PlotI18n.tr("plugin.powerline.engineering.errors", report.errorCount()));
@@ -85,17 +85,17 @@ public final class PowerLineValidationPanel {
                     : "plugin.powerline.engineering.fails"));
     }
 
-    private void renderIssueList(LineEngineeringReport report) {
+    private void renderIssueList(PowerLineValidationReport report) {
         ImGui.beginChild("powerline_validation_issues", 0, 180, true);
         for (var issue : report.getIssues()) {
-            var color = issue.severity() == EngineeringSeverity.ERROR
+            var color = issue.severity() == PowerLineIssueSeverity.ERROR
                 ? PluginUiColors.ERROR_SOFT
-                : issue.severity() == EngineeringSeverity.WARNING
+                : issue.severity() == PowerLineIssueSeverity.WARNING
                     ? PluginUiColors.WARNING
                     : PluginUiColors.HINT_GRAY;
             ImGui.textColored(color, "[%s] %s".formatted(
-                EngineeringI18n.severityLabel(issue.severity()),
-                EngineeringI18n.issueMessage(issue)));
+                PowerLineValidationI18n.severityLabel(issue.severity()),
+                PowerLineValidationI18n.issueMessage(issue)));
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr(
@@ -142,7 +142,7 @@ public final class PowerLineValidationPanel {
             ImGui.textWrapped(PlotI18n.tr(
                 "plugin.powerline.engineering.proposal_insert_pole",
                 action.getStationing(),
-                EngineeringI18n.optimizationReason(action)));
+                PowerLineValidationI18n.optimizationReason(action)));
             return;
         }
         if (action.getType() == OptimizationActionType.SELECT_TALLER_TOWER) {
@@ -153,9 +153,9 @@ public final class PowerLineValidationPanel {
                 action.getPoleIndex() > 0 ? action.getPoleIndex() : "?",
                 from,
                 to,
-                EngineeringI18n.optimizationReason(action)));
+                PowerLineValidationI18n.optimizationReason(action)));
             return;
         }
-        ImGui.textWrapped(EngineeringI18n.optimizationReason(action));
+        ImGui.textWrapped(PowerLineValidationI18n.optimizationReason(action));
     }
 }

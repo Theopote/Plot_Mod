@@ -3,18 +3,18 @@ package com.plot.plugin.powerline.engineering.validation;
 import com.plot.plugin.powerline.PolePlacement;
 import com.plot.plugin.powerline.ResolvedAttachment;
 import com.plot.plugin.powerline.design.AttachmentRole;
-import com.plot.plugin.powerline.engineering.EngineeringIssueLocation;
+import com.plot.plugin.powerline.engineering.PowerLineIssueLocation;
 import com.plot.plugin.powerline.engineering.EngineeringRuleIds;
-import com.plot.plugin.powerline.engineering.EngineeringSeverity;
-import com.plot.plugin.powerline.engineering.SimpleEngineeringIssue;
-import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
+import com.plot.plugin.powerline.engineering.PowerLineIssueSeverity;
+import com.plot.plugin.powerline.engineering.SimplePowerLineIssue;
+import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.engineering.analysis.PoleSiteAnalysis;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 
 /** 不同相导线明显重叠。 */
 public final class WireOverlapCheck implements LineValidationCheck {
     @Override
-    public void apply(LineValidationContext context, LineEngineeringReport report) {
+    public void apply(LineValidationContext context, PowerLineValidationReport report) {
         if (context.geometry() == null || context.limits() == null) {
             return;
         }
@@ -54,11 +54,11 @@ public final class WireOverlapCheck implements LineValidationCheck {
                             || right.role() == AttachmentRole.GROUND_WIRE
                         ? EngineeringRuleIds.CONDUCTOR_SEPARATION_GROUND
                         : EngineeringRuleIds.CONDUCTOR_SEPARATION_PHASE;
-                    poleAnalysis.addIssue(new SimpleEngineeringIssue(
+                    poleAnalysis.addIssue(new SimplePowerLineIssue(
                         ruleId,
-                        EngineeringSeverity.WARNING,
+                        PowerLineIssueSeverity.WARNING,
                         ruleId,
-                        EngineeringIssueLocation.at(site.getPlanPosition(), site.getStationing()),
+                        PowerLineIssueLocation.at(site.getPlanPosition(), site.getStationing()),
                         distance,
                         overlapThreshold,
                         left.id(),
@@ -72,7 +72,7 @@ public final class WireOverlapCheck implements LineValidationCheck {
             com.plot.plugin.powerline.geometry.PowerLineGeometryModel geometry,
             int index,
             PowerPoleSite site,
-            LineEngineeringReport report) {
+            PowerLineValidationReport report) {
         for (PoleSiteAnalysis existing : report.getPoles()) {
             if (site.getId() != null && site.getId().equals(existing.getPoleSiteId())) {
                 return existing;

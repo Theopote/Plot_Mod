@@ -1,6 +1,6 @@
 package com.plot.plugin.powerline.engineering.analysis;
 
-import com.plot.plugin.powerline.engineering.EngineeringIssue;
+import com.plot.plugin.powerline.engineering.PowerLineIssue;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -14,7 +14,7 @@ public class SpanAnalysis {
     private double horizontalLength;
     private double elevationDifference;
     private double minimumGroundClearance = Double.MAX_VALUE;
-    private final List<EngineeringIssue> issues = new ArrayList<>();
+    private final List<PowerLineIssue> issues = new ArrayList<>();
 
     public String getId() {
         return id;
@@ -64,11 +64,11 @@ public class SpanAnalysis {
         this.minimumGroundClearance = minimumGroundClearance;
     }
 
-    public List<EngineeringIssue> getIssues() {
+    public List<PowerLineIssue> getIssues() {
         return Collections.unmodifiableList(issues);
     }
 
-    public void addIssue(EngineeringIssue issue) {
+    public void addIssue(PowerLineIssue issue) {
         if (issue != null) {
             issues.add(issue);
         }

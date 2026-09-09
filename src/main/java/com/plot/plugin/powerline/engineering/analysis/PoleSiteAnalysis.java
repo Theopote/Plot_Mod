@@ -1,6 +1,6 @@
 package com.plot.plugin.powerline.engineering.analysis;
 
-import com.plot.plugin.powerline.engineering.EngineeringIssue;
+import com.plot.plugin.powerline.engineering.PowerLineIssue;
 import com.plot.plugin.powerline.model.TowerRole;
 
 import java.util.ArrayList;
@@ -14,7 +14,7 @@ public class PoleSiteAnalysis {
     private double stationing;
     private double deflectionAngle;
     private String resolvedDesignId;
-    private final List<EngineeringIssue> issues = new ArrayList<>();
+    private final List<PowerLineIssue> issues = new ArrayList<>();
 
     public String getPoleSiteId() {
         return poleSiteId;
@@ -56,11 +56,11 @@ public class PoleSiteAnalysis {
         this.resolvedDesignId = resolvedDesignId;
     }
 
-    public List<EngineeringIssue> getIssues() {
+    public List<PowerLineIssue> getIssues() {
         return Collections.unmodifiableList(issues);
     }
 
-    public void addIssue(EngineeringIssue issue) {
+    public void addIssue(PowerLineIssue issue) {
         if (issue != null) {
             issues.add(issue);
         }

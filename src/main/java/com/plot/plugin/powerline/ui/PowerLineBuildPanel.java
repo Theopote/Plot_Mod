@@ -5,7 +5,7 @@ import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.style.PowerLineQuickTunePolicy;
 import com.plot.plugin.powerline.style.PowerLineStyleEditor;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
-import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
+import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -152,7 +152,7 @@ public final class PowerLineBuildPanel {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.no_preview"));
             return;
         }
-        LineEngineeringReport report = ctx.actions().cachedTerrainReport(line);
+        PowerLineValidationReport report = ctx.actions().cachedTerrainReport(line);
         if (report == null || !PowerLineFriendlyStatus.hasTerrainIssues(report)) {
             ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.powerline.build.status.terrain_ok"));
             return;
@@ -166,7 +166,7 @@ public final class PowerLineBuildPanel {
     }
 
     private void renderLineCheckStatus(PowerLineFootprint line, boolean terrainChecksActive) {
-        LineEngineeringReport report = ctx.actions().cachedEngineeringReport(line);
+        PowerLineValidationReport report = ctx.actions().cachedEngineeringReport(line);
         if (report == null) {
             return;
         }
@@ -184,11 +184,11 @@ public final class PowerLineBuildPanel {
         renderIssueList(issues);
     }
 
-    private void renderIssueList(LineEngineeringReport report) {
+    private void renderIssueList(PowerLineValidationReport report) {
         renderIssueList(report.getIssues());
     }
 
-    private void renderIssueList(java.util.List<com.plot.plugin.powerline.engineering.EngineeringIssue> issues) {
+    private void renderIssueList(java.util.List<com.plot.plugin.powerline.engineering.PowerLineIssue> issues) {
         int shown = 0;
         for (var issue : issues) {
             if (shown >= 4) {

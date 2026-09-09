@@ -1,17 +1,17 @@
 package com.plot.plugin.powerline.engineering.validation;
 
-import com.plot.plugin.powerline.engineering.EngineeringIssueLocation;
+import com.plot.plugin.powerline.engineering.PowerLineIssueLocation;
 import com.plot.plugin.powerline.engineering.EngineeringRuleIds;
-import com.plot.plugin.powerline.engineering.EngineeringSeverity;
-import com.plot.plugin.powerline.engineering.SimpleEngineeringIssue;
-import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
+import com.plot.plugin.powerline.engineering.PowerLineIssueSeverity;
+import com.plot.plugin.powerline.engineering.SimplePowerLineIssue;
+import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.engineering.analysis.SpanAnalysis;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
 
 /** 跨距过长 / 过密。 */
 public final class SpacingCheck implements LineValidationCheck {
     @Override
-    public void apply(LineValidationContext context, LineEngineeringReport report) {
+    public void apply(LineValidationContext context, PowerLineValidationReport report) {
         if (context.geometry() == null || context.limits() == null) {
             return;
         }
@@ -19,19 +19,19 @@ public final class SpacingCheck implements LineValidationCheck {
             SpanAnalysis spanAnalysis = SpanValidationSupport.beginSpanAnalysis(
                 context.geometry(), span, report);
             if (span.getSpanLength() > context.limits().maximumSpan()) {
-                spanAnalysis.addIssue(new SimpleEngineeringIssue(
+                spanAnalysis.addIssue(new SimplePowerLineIssue(
                     EngineeringRuleIds.SPAN_MAXIMUM,
-                    EngineeringSeverity.ERROR,
+                    PowerLineIssueSeverity.ERROR,
                     EngineeringRuleIds.SPAN_MAXIMUM,
-                    EngineeringIssueLocation.at(SpanValidationSupport.midpoint(span), 0.0),
+                    PowerLineIssueLocation.at(SpanValidationSupport.midpoint(span), 0.0),
                     span.getSpanLength(),
                     context.limits().maximumSpan()));
             } else if (span.getSpanLength() < context.limits().minimumSpan()) {
-                spanAnalysis.addIssue(new SimpleEngineeringIssue(
+                spanAnalysis.addIssue(new SimplePowerLineIssue(
                     EngineeringRuleIds.SPAN_MINIMUM,
-                    EngineeringSeverity.WARNING,
+                    PowerLineIssueSeverity.WARNING,
                     EngineeringRuleIds.SPAN_MINIMUM,
-                    EngineeringIssueLocation.at(SpanValidationSupport.midpoint(span), 0.0),
+                    PowerLineIssueLocation.at(SpanValidationSupport.midpoint(span), 0.0),
                     span.getSpanLength(),
                     context.limits().minimumSpan()));
             }

@@ -119,12 +119,6 @@ public final class PowerLineStylePresetCatalog {
             PoleSpacingProfile.streetWood());
     }
 
-    /** @deprecated 使用 {@link #classicWood()} */
-    @Deprecated
-    public static PowerLineStylePreset rusticWood() {
-        return classicWood();
-    }
-
     public static PowerLineStylePreset doubleWood() {
         return preset(
             PowerLineStylePreset.DOUBLE_WOOD_ID,
@@ -168,12 +162,6 @@ public final class PowerLineStylePresetCatalog {
             PowerLineUiPresets.WireSag.LIGHT,
             PowerLineStylePreset.ConductorLayout.SINGLE,
             new PoleSpacingProfile(30, 60, 90));
-    }
-
-    /** @deprecated 使用 {@link #simpleSteel()} */
-    @Deprecated
-    public static PowerLineStylePreset industrialSteel() {
-        return simpleSteel();
     }
 
     public static PowerLineStylePreset modernUtility() {

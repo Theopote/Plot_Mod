@@ -1,7 +1,9 @@
-package com.plot.plugin.powerline.engineering.analysis;
+package com.plot.plugin.powerline.engineering.validation;
 
-import com.plot.plugin.powerline.engineering.EngineeringIssue;
-import com.plot.plugin.powerline.engineering.EngineeringSeverity;
+import com.plot.plugin.powerline.engineering.PowerLineIssue;
+import com.plot.plugin.powerline.engineering.PowerLineIssueSeverity;
+import com.plot.plugin.powerline.engineering.analysis.PoleSiteAnalysis;
+import com.plot.plugin.powerline.engineering.analysis.SpanAnalysis;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -9,8 +11,8 @@ import java.util.List;
 import java.util.Set;
 
 /** 整条线路的检查报告（聚合 span / pole 条目中的问题）。 */
-public class LineEngineeringReport {
-    private final List<EngineeringIssue> directIssues = new ArrayList<>();
+public class PowerLineValidationReport {
+    private final List<PowerLineIssue> directIssues = new ArrayList<>();
     private final List<SpanAnalysis> spans = new ArrayList<>();
     private final List<PoleSiteAnalysis> poles = new ArrayList<>();
     private String profileId;
@@ -32,8 +34,8 @@ public class LineEngineeringReport {
         this.profileName = profileName;
     }
 
-    public List<EngineeringIssue> getIssues() {
-        List<EngineeringIssue> aggregated = new ArrayList<>(directIssues);
+    public List<PowerLineIssue> getIssues() {
+        List<PowerLineIssue> aggregated = new ArrayList<>(directIssues);
         for (SpanAnalysis span : spans) {
             aggregated.addAll(span.getIssues());
         }
@@ -43,7 +45,7 @@ public class LineEngineeringReport {
         return Collections.unmodifiableList(aggregated);
     }
 
-    public void addIssue(EngineeringIssue issue) {
+    public void addIssue(PowerLineIssue issue) {
         if (issue != null) {
             directIssues.add(issue);
         }
@@ -74,16 +76,16 @@ public class LineEngineeringReport {
     }
 
     public int errorCount() {
-        return countBySeverity(EngineeringSeverity.ERROR);
+        return countBySeverity(PowerLineIssueSeverity.ERROR);
     }
 
     public int warningCount() {
-        return countBySeverity(EngineeringSeverity.WARNING);
+        return countBySeverity(PowerLineIssueSeverity.WARNING);
     }
 
-    private int countBySeverity(EngineeringSeverity severity) {
+    private int countBySeverity(PowerLineIssueSeverity severity) {
         int count = 0;
-        for (EngineeringIssue issue : getIssues()) {
+        for (PowerLineIssue issue : getIssues()) {
             if (issue.severity() == severity) {
                 count++;
             }
@@ -92,13 +94,13 @@ public class LineEngineeringReport {
     }
 
     /** 过滤指定规则（用于避免地形区与线路检查重复展示同一净空问题）。 */
-    public List<EngineeringIssue> issuesExcluding(String... excludedRuleIds) {
+    public List<PowerLineIssue> issuesExcluding(String... excludedRuleIds) {
         if (excludedRuleIds == null || excludedRuleIds.length == 0) {
             return getIssues();
         }
         Set<String> excluded = Set.of(excludedRuleIds);
-        List<EngineeringIssue> filtered = new ArrayList<>();
-        for (EngineeringIssue issue : getIssues()) {
+        List<PowerLineIssue> filtered = new ArrayList<>();
+        for (PowerLineIssue issue : getIssues()) {
             if (!excluded.contains(issue.ruleId())) {
                 filtered.add(issue);
             }

@@ -6,7 +6,7 @@ import com.plot.plugin.powerline.PowerPoleLayoutUtils;
 import com.plot.plugin.powerline.TerrainTestFixtures;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.engineering.TerrainAvoidance;
-import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
+import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.geometry.ConductorSample;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
 import com.plot.plugin.powerline.geometry.PowerLineGeometryModel;
@@ -25,7 +25,7 @@ class TerrainAvoidanceTest {
     @Test
     void detectsWireBelowTerrainSurface() {
         ConductorSpanGeometry span = spanSample(new Vec2d(10, 0), 66.0);
-        LineEngineeringReport report = TerrainAvoidance.analyzeCollisions(
+        PowerLineValidationReport report = TerrainAvoidance.analyzeCollisions(
             geometry(span),
             TerrainTestFixtures.flatTerrain(68));
         assertTrue(TerrainAvoidance.hasTerrainIssues(report));
@@ -34,7 +34,7 @@ class TerrainAvoidanceTest {
     @Test
     void clearanceBelowSafetyMarginFails() {
         ConductorSpanGeometry span = spanSample(new Vec2d(10, 0), 65.0);
-        LineEngineeringReport report = TerrainAvoidance.analyzeCollisions(
+        PowerLineValidationReport report = TerrainAvoidance.analyzeCollisions(
             geometry(span),
             TerrainTestFixtures.flatTerrain(64));
         assertTrue(TerrainAvoidance.hasTerrainIssues(report));
@@ -44,7 +44,7 @@ class TerrainAvoidanceTest {
     void clearanceAtSafetyMarginPasses() {
         double groundTop = 64 + 1;
         ConductorSpanGeometry span = spanSample(new Vec2d(10, 0), groundTop + TerrainAvoidance.SAFETY_MARGIN_BLOCKS);
-        LineEngineeringReport report = TerrainAvoidance.analyzeCollisions(
+        PowerLineValidationReport report = TerrainAvoidance.analyzeCollisions(
             geometry(span),
             TerrainTestFixtures.flatTerrain(64));
         assertFalse(TerrainAvoidance.hasTerrainIssues(report));
@@ -53,7 +53,7 @@ class TerrainAvoidanceTest {
     @Test
     void detectsWireThroughOverheadObstructionMissedBySurfaceY() {
         ConductorSpanGeometry span = spanSample(new Vec2d(10, 0), 70.0);
-        LineEngineeringReport report = TerrainAvoidance.analyzeCollisions(
+        PowerLineValidationReport report = TerrainAvoidance.analyzeCollisions(
             geometry(span),
             TerrainTestFixtures.groundWithOverheadObstruction(64, 70));
         assertTrue(TerrainAvoidance.hasTerrainIssues(report));
@@ -69,7 +69,7 @@ class TerrainAvoidanceTest {
         span.setSpanLength(60.0);
 
         TerrainSampler terrain = TerrainTestFixtures.rollingHill(64, 74, 30.0, 8.0);
-        LineEngineeringReport report = TerrainAvoidance.analyzeCollisions(geometry(span), terrain);
+        PowerLineValidationReport report = TerrainAvoidance.analyzeCollisions(geometry(span), terrain);
 
         assertTrue(TerrainAvoidance.hasTerrainIssues(report));
     }
@@ -79,7 +79,7 @@ class TerrainAvoidanceTest {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
         line.setPoleHeight(10.0);
 
-        LineEngineeringReport report = TerrainAvoidance.analyzeCollisions(
+        PowerLineValidationReport report = TerrainAvoidance.analyzeCollisions(
             geometry(spanSample(new Vec2d(10, 0), 66.0)),
             TerrainTestFixtures.flatTerrain(68));
 
@@ -103,7 +103,7 @@ class TerrainAvoidanceTest {
         span.setSpanLength(40.0);
         result.conductorSpans.add(span);
 
-        LineEngineeringReport report = TerrainAvoidance.analyzeCollisions(
+        PowerLineValidationReport report = TerrainAvoidance.analyzeCollisions(
             result.toGeometryModel(),
             TerrainTestFixtures.flatTerrain(68));
 
@@ -127,7 +127,7 @@ class TerrainAvoidanceTest {
         span.addSample(new ConductorSample(10.0, 66.0, 0.0, new Vec2d(10, 0)));
         span.setSpanLength(40.0);
 
-        LineEngineeringReport report = TerrainAvoidance.analyzeCollisions(
+        PowerLineValidationReport report = TerrainAvoidance.analyzeCollisions(
             geometry(span),
             TerrainTestFixtures.flatTerrain(68));
 
@@ -137,7 +137,7 @@ class TerrainAvoidanceTest {
 
     @Test
     void passesWhenWireIsAboveTerrain() {
-        LineEngineeringReport report = TerrainAvoidance.analyzeCollisions(
+        PowerLineValidationReport report = TerrainAvoidance.analyzeCollisions(
             geometry(spanSample(new Vec2d(10, 0), 72.0)),
             TerrainTestFixtures.flatTerrain(64));
         assertFalse(TerrainAvoidance.hasTerrainIssues(report));

@@ -2,10 +2,10 @@ package com.plot.plugin.powerline.ui;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
-import com.plot.plugin.powerline.engineering.EngineeringIssue;
+import com.plot.plugin.powerline.engineering.PowerLineIssue;
 import com.plot.plugin.powerline.engineering.EngineeringRuleIds;
-import com.plot.plugin.powerline.engineering.EngineeringSeverity;
-import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
+import com.plot.plugin.powerline.engineering.PowerLineIssueSeverity;
+import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.engineering.analysis.PoleSiteAnalysis;
 import com.plot.plugin.powerline.engineering.analysis.SpanAnalysis;
 import com.plot.plugin.powerline.geometry.ConductorSample;
@@ -45,7 +45,7 @@ public final class PowerLineValidationCanvasRenderer {
         if (!line.isLineChecksEnabled() || !validation.isOverlayEnabled()) {
             return;
         }
-        LineEngineeringReport report = validation.getLastEngineeringReport();
+        PowerLineValidationReport report = validation.getLastEngineeringReport();
         PowerLinePreviewKey previewKey = state.getPreviewKey();
         PowerLineAnalysisKey reportKey = validation.getEngineeringReportKey();
         if (report == null
@@ -61,62 +61,62 @@ public final class PowerLineValidationCanvasRenderer {
         }
 
         PowerLineGeometryModel geometry = generation.toGeometryModel();
-        Map<String, EngineeringSeverity> poleSeverity = poleSeverityBySiteId(report);
-        Map<String, EngineeringSeverity> spanSeverity = spanSeverityByPolePair(report, geometry);
+        Map<String, PowerLineIssueSeverity> poleSeverity = poleSeverityBySiteId(report);
+        Map<String, PowerLineIssueSeverity> spanSeverity = spanSeverityByPolePair(report, geometry);
 
         renderSpans(drawList, camera, geometry, spanSeverity);
         renderPoles(drawList, camera, geometry.getSites(), poleSeverity);
         renderCriticalPoints(drawList, camera, report);
     }
 
-    private static Map<String, EngineeringSeverity> poleSeverityBySiteId(LineEngineeringReport report) {
-        Map<String, EngineeringSeverity> severity = new HashMap<>();
+    private static Map<String, PowerLineIssueSeverity> poleSeverityBySiteId(PowerLineValidationReport report) {
+        Map<String, PowerLineIssueSeverity> severity = new HashMap<>();
         for (PoleSiteAnalysis pole : report.getPoles()) {
             severity.put(pole.getPoleSiteId(), worstSeverity(pole.getIssues()));
         }
         return severity;
     }
 
-    private static Map<String, EngineeringSeverity> spanSeverityByPolePair(
-            LineEngineeringReport report,
+    private static Map<String, PowerLineIssueSeverity> spanSeverityByPolePair(
+            PowerLineValidationReport report,
             PowerLineGeometryModel geometry) {
-        Map<String, EngineeringSeverity> bySpanId = spanSeverityById(report);
-        Map<String, EngineeringSeverity> byPolePair = new HashMap<>();
+        Map<String, PowerLineIssueSeverity> bySpanId = spanSeverityById(report);
+        Map<String, PowerLineIssueSeverity> byPolePair = new HashMap<>();
         for (ConductorSpanGeometry span : geometry.getConductorSpans()) {
             String pairKey = span.getStartPoleIndex() + ":" + span.getEndPoleIndex();
-            EngineeringSeverity severity = bySpanId.getOrDefault(span.getSpanId(), EngineeringSeverity.INFO);
-            EngineeringSeverity existing = byPolePair.get(pairKey);
+            PowerLineIssueSeverity severity = bySpanId.getOrDefault(span.getSpanId(), PowerLineIssueSeverity.INFO);
+            PowerLineIssueSeverity existing = byPolePair.get(pairKey);
             byPolePair.put(pairKey, worstOf(existing, severity));
         }
         return byPolePair;
     }
 
-    private static EngineeringSeverity worstOf(EngineeringSeverity left, EngineeringSeverity right) {
-        if (left == EngineeringSeverity.ERROR || right == EngineeringSeverity.ERROR) {
-            return EngineeringSeverity.ERROR;
+    private static PowerLineIssueSeverity worstOf(PowerLineIssueSeverity left, PowerLineIssueSeverity right) {
+        if (left == PowerLineIssueSeverity.ERROR || right == PowerLineIssueSeverity.ERROR) {
+            return PowerLineIssueSeverity.ERROR;
         }
-        if (left == EngineeringSeverity.WARNING || right == EngineeringSeverity.WARNING) {
-            return EngineeringSeverity.WARNING;
+        if (left == PowerLineIssueSeverity.WARNING || right == PowerLineIssueSeverity.WARNING) {
+            return PowerLineIssueSeverity.WARNING;
         }
-        return EngineeringSeverity.INFO;
+        return PowerLineIssueSeverity.INFO;
     }
 
-    private static Map<String, EngineeringSeverity> spanSeverityById(LineEngineeringReport report) {
-        Map<String, EngineeringSeverity> severity = new HashMap<>();
+    private static Map<String, PowerLineIssueSeverity> spanSeverityById(PowerLineValidationReport report) {
+        Map<String, PowerLineIssueSeverity> severity = new HashMap<>();
         for (SpanAnalysis span : report.getSpans()) {
             severity.put(span.getId(), worstSeverity(span.getIssues()));
         }
         return severity;
     }
 
-    private static EngineeringSeverity worstSeverity(List<EngineeringIssue> issues) {
-        EngineeringSeverity worst = EngineeringSeverity.INFO;
-        for (EngineeringIssue issue : issues) {
-            if (issue.severity() == EngineeringSeverity.ERROR) {
-                return EngineeringSeverity.ERROR;
+    private static PowerLineIssueSeverity worstSeverity(List<PowerLineIssue> issues) {
+        PowerLineIssueSeverity worst = PowerLineIssueSeverity.INFO;
+        for (PowerLineIssue issue : issues) {
+            if (issue.severity() == PowerLineIssueSeverity.ERROR) {
+                return PowerLineIssueSeverity.ERROR;
             }
-            if (issue.severity() == EngineeringSeverity.WARNING) {
-                worst = EngineeringSeverity.WARNING;
+            if (issue.severity() == PowerLineIssueSeverity.WARNING) {
+                worst = PowerLineIssueSeverity.WARNING;
             }
         }
         return worst;
@@ -126,7 +126,7 @@ public final class PowerLineValidationCanvasRenderer {
             ImDrawList drawList,
             CanvasCamera camera,
             PowerLineGeometryModel geometry,
-            Map<String, EngineeringSeverity> spanSeverity) {
+            Map<String, PowerLineIssueSeverity> spanSeverity) {
         Map<String, ConductorSpanGeometry> uniqueSpans = new LinkedHashMap<>();
         for (ConductorSpanGeometry span : geometry.getConductorSpans()) {
             String key = span.getStartPoleIndex() + ":" + span.getEndPoleIndex();
@@ -134,7 +134,7 @@ public final class PowerLineValidationCanvasRenderer {
         }
         for (ConductorSpanGeometry span : uniqueSpans.values()) {
             String pairKey = span.getStartPoleIndex() + ":" + span.getEndPoleIndex();
-            EngineeringSeverity severity = spanSeverity.getOrDefault(pairKey, EngineeringSeverity.INFO);
+            PowerLineIssueSeverity severity = spanSeverity.getOrDefault(pairKey, PowerLineIssueSeverity.INFO);
             int color = colorFor(severity);
             drawSpanPath(drawList, camera, span, color);
         }
@@ -168,10 +168,10 @@ public final class PowerLineValidationCanvasRenderer {
             ImDrawList drawList,
             CanvasCamera camera,
             List<PowerPoleSite> sites,
-            Map<String, EngineeringSeverity> poleSeverity) {
+            Map<String, PowerLineIssueSeverity> poleSeverity) {
         for (int i = 0; i < sites.size(); i++) {
             PowerPoleSite site = sites.get(i);
-            EngineeringSeverity severity = poleSeverity.getOrDefault(site.getId(), EngineeringSeverity.INFO);
+            PowerLineIssueSeverity severity = poleSeverity.getOrDefault(site.getId(), PowerLineIssueSeverity.INFO);
             int color = colorFor(severity);
             Vec2d screen = camera.worldToScreen(site.getPlanPosition());
             float x = (float) screen.x;
@@ -181,8 +181,8 @@ public final class PowerLineValidationCanvasRenderer {
         }
     }
 
-    private static void renderCriticalPoints(ImDrawList drawList, CanvasCamera camera, LineEngineeringReport report) {
-        for (EngineeringIssue issue : report.getIssues()) {
+    private static void renderCriticalPoints(ImDrawList drawList, CanvasCamera camera, PowerLineValidationReport report) {
+        for (PowerLineIssue issue : report.getIssues()) {
             if (!EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM.equals(issue.ruleId())) {
                 continue;
             }
@@ -196,7 +196,7 @@ public final class PowerLineValidationCanvasRenderer {
         }
     }
 
-    private static int colorFor(EngineeringSeverity severity) {
+    private static int colorFor(PowerLineIssueSeverity severity) {
         return switch (severity) {
             case ERROR -> ERROR_COLOR;
             case WARNING -> WARNING_COLOR;

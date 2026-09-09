@@ -13,9 +13,9 @@ import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
 import com.plot.plugin.powerline.engineering.EngineeringRuleIds;
 import com.plot.plugin.powerline.engineering.EngineeringRuleProfile;
 import com.plot.plugin.powerline.engineering.EngineeringRuleProfileCatalog;
-import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
-import com.plot.plugin.powerline.engineering.analysis.PowerLineEngineeringAnalyzer;
+import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.engineering.clearance.ClearanceChecker;
+import com.plot.plugin.powerline.engineering.validation.ValidationLimits;
 import com.plot.plugin.powerline.PoleFrame;
 import com.plot.plugin.powerline.PolePlacement;
 import com.plot.plugin.powerline.ResolvedAttachment;
@@ -47,7 +47,7 @@ class PowerLineEngineeringTest {
         PowerLineFootprint line = horizontalLine(40);
         line.setTowerFamilyId(TowerFamily.STANDARD_LATTICE_3_PHASE_ID);
         PowerLineGenerationResult result = generate(line, flatTerrain(64));
-        LineEngineeringReport report = analyze(result, flatTerrain(64));
+        PowerLineValidationReport report = analyze(result, flatTerrain(64));
         assertTrue(report.getIssues().stream()
             .noneMatch(i -> EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM.equals(i.ruleId())));
     }
@@ -62,8 +62,13 @@ class PowerLineEngineeringTest {
         PowerLineGenerationResult result = generate(line, terrain);
         EngineeringRuleProfile profile = EngineeringRuleProfileCatalog.genericPlanning();
         profile.getClearance().setMinimumGroundClearance(20);
-        LineEngineeringReport report = PowerLineEngineeringAnalyzer.analyze(
-            result.toGeometryModel(), terrain, profile);
+        PowerLineValidationReport report = com.plot.plugin.powerline.engineering.validation.PowerLineValidator
+            .validate(
+                result.toGeometryModel(),
+                terrain,
+                line,
+                profile,
+                ValidationLimits.fromFootprint(line, profile));
         assertTrue(report.getIssues().stream()
             .anyMatch(i -> EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM.equals(i.ruleId())));
     }
@@ -137,7 +142,7 @@ class PowerLineEngineeringTest {
         PowerLineFootprint line = horizontalLine(30);
         line.setMaxPoleSpacing(80);
         PowerLineGenerationResult result = generate(line, flatTerrain(64));
-        LineEngineeringReport report = analyze(result, flatTerrain(64));
+        PowerLineValidationReport report = analyze(result, flatTerrain(64));
         assertTrue(report.getIssues().stream()
             .noneMatch(i -> EngineeringRuleIds.SPAN_MAXIMUM.equals(i.ruleId())));
     }
@@ -150,7 +155,7 @@ class PowerLineEngineeringTest {
         geometry.addConductorSpan(span);
         PowerLineFootprint line = horizontalLine(250);
         line.setMaxPoleSpacing(200);
-        LineEngineeringReport report = com.plot.plugin.powerline.engineering.validation.PowerLineValidator
+        PowerLineValidationReport report = com.plot.plugin.powerline.engineering.validation.PowerLineValidator
             .validate(geometry, flatTerrain(64), line);
         assertTrue(report.getIssues().stream()
             .anyMatch(i -> EngineeringRuleIds.SPAN_MAXIMUM.equals(i.ruleId())));
@@ -162,7 +167,7 @@ class PowerLineEngineeringTest {
         com.plot.plugin.powerline.style.PowerLineStylePresetCatalog.classicLattice().apply(line);
         line.setLineChecksEnabled(true);
         PowerLineGenerationResult result = generate(line, flatTerrain(64));
-        LineEngineeringReport report = analyze(result, flatTerrain(64), line);
+        PowerLineValidationReport report = analyze(result, flatTerrain(64), line);
         assertTrue(report.getIssues().stream()
             .noneMatch(i -> EngineeringRuleIds.SPAN_MAXIMUM.equals(i.ruleId())));
     }
@@ -174,8 +179,13 @@ class PowerLineEngineeringTest {
         PowerLineFootprint line = horizontalLine(10);
         line.setMaxPoleSpacing(100);
         PowerLineGenerationResult result = generate(line, flatTerrain(64));
-        LineEngineeringReport report = PowerLineEngineeringAnalyzer.analyze(
-            result.toGeometryModel(), flatTerrain(64), profile);
+        PowerLineValidationReport report = com.plot.plugin.powerline.engineering.validation.PowerLineValidator
+            .validate(
+                result.toGeometryModel(),
+                flatTerrain(64),
+                line,
+                profile,
+                ValidationLimits.fromFootprint(line, profile));
         assertTrue(report.getIssues().stream()
             .anyMatch(i -> EngineeringRuleIds.SPAN_MINIMUM.equals(i.ruleId())));
     }
@@ -268,7 +278,7 @@ class PowerLineEngineeringTest {
         geometry.setPlacements(List.of(placement));
 
         PowerLineFootprint line = horizontalLine(10);
-        LineEngineeringReport report = com.plot.plugin.powerline.engineering.validation.PowerLineValidator
+        PowerLineValidationReport report = com.plot.plugin.powerline.engineering.validation.PowerLineValidator
             .validate(geometry, flatTerrain(64), line);
         assertTrue(report.getIssues().stream()
             .anyMatch(i -> EngineeringRuleIds.CONDUCTOR_SEPARATION_PHASE.equals(i.ruleId())));
@@ -295,7 +305,7 @@ class PowerLineEngineeringTest {
         geometry.setSites(List.of(site));
         geometry.setPlacements(List.of(placement));
         PowerLineFootprint line = horizontalLine(10);
-        LineEngineeringReport report = com.plot.plugin.powerline.engineering.validation.PowerLineValidator
+        PowerLineValidationReport report = com.plot.plugin.powerline.engineering.validation.PowerLineValidator
             .validate(geometry, flatTerrain(64), line);
         assertTrue(report.getIssues().stream()
             .noneMatch(i -> EngineeringRuleIds.CONDUCTOR_SEPARATION_PHASE.equals(i.ruleId())));
@@ -338,7 +348,7 @@ class PowerLineEngineeringTest {
         return span;
     }
 
-    private static LineEngineeringReport analyze(
+    private static PowerLineValidationReport analyze(
             PowerLineGenerationResult result,
             TerrainSampler terrain,
             PowerLineFootprint line) {
@@ -346,7 +356,7 @@ class PowerLineEngineeringTest {
             .validate(result.toGeometryModel(), terrain, line);
     }
 
-    private static LineEngineeringReport analyze(PowerLineGenerationResult result, TerrainSampler terrain) {
+    private static PowerLineValidationReport analyze(PowerLineGenerationResult result, TerrainSampler terrain) {
         return analyze(result, terrain, horizontalLine(40));
     }
 

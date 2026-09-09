@@ -72,15 +72,6 @@ public final class PowerLineUiWidgets {
         renderLineCheckControls(ctx, line, includeOverlayToggle, false);
     }
 
-    /** @deprecated use {@link #renderLineCheckControls} */
-    @Deprecated
-    public static void renderEngineeringProfileControls(
-            PowerLineUiContext ctx,
-            PowerLineFootprint line,
-            boolean includeOverlayToggle) {
-        renderLineCheckControls(ctx, line, includeOverlayToggle);
-    }
-
     public static void renderAdvancedEngineeringSection(PowerLineUiContext ctx, PowerLineFootprint line) {
         ImGui.separator();
         ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);

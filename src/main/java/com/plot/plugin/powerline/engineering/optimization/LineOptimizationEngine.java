@@ -5,7 +5,7 @@ import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
 import com.plot.plugin.powerline.engineering.EngineeringRuleIds;
 import com.plot.plugin.powerline.engineering.EngineeringRuleProfile;
-import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
+import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.engineering.analysis.SpanAnalysis;
 import com.plot.plugin.powerline.engineering.selection.AutomaticTowerSelector;
 import com.plot.plugin.powerline.engineering.selection.TowerSelectionContext;
@@ -19,7 +19,7 @@ public final class LineOptimizationEngine {
     }
 
     public static OptimizationResult propose(
-            LineEngineeringReport report,
+            PowerLineValidationReport report,
             PowerLineGeometrySites sites,
             PowerLineFootprint footprint,
             EngineeringRuleProfile profile,
