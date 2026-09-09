@@ -28,7 +28,7 @@ public final class PowerLineStylePreviewBinding {
             return BindingKind.POLE_DESIGN;
         }
         return switch (preset.getPreviewKind()) {
-            case LATTICE, ADAPTIVE -> BindingKind.TOWER_FAMILY_REPRESENTATIVE;
+            case LATTICE, HEAVY_LATTICE, ADAPTIVE -> BindingKind.TOWER_FAMILY_REPRESENTATIVE;
             case WOOD, MODERN_UTILITY, JAPANESE, WASTELAND_WIND, OLD_EUROPEAN, STEAMPUNK,
                  MODERN_HV_GLASS, SUBURBAN_LAMP, ABANDONED, RUSTIC -> BindingKind.POLE_WITH_DECORATIVE_OVERLAY;
             default -> BindingKind.POLE_DESIGN;
@@ -48,7 +48,7 @@ public final class PowerLineStylePreviewBinding {
             case MODERN_UTILITY -> PoleDesignCatalog.MODERN_UTILITY_POLE_ID;
             case LATTICE_POLE -> PoleDesignCatalog.LATTICE_STEEL_TOWER_ID;
             case LATTICE -> TowerFamilyDesignPresets.LATTICE_SUSPENSION_ID;
-            case HEAVY_LATTICE -> PoleDesignCatalog.HEAVY_LATTICE_TOWER_ID;
+            case HEAVY_LATTICE -> TowerFamilyDesignPresets.HV_TRANSMISSION_SUSPENSION_ID;
             case ADAPTIVE -> TowerFamilyDesignPresets.LATTICE_SUSPENSION_SMALL_ID;
             case TAPERED -> PoleDesignCatalog.TAPERED_LATTICE_TOWER_ID;
             case COPPER -> PoleDesignCatalog.FANTASY_COPPER_POLE_ID;
@@ -74,7 +74,8 @@ public final class PowerLineStylePreviewBinding {
             }
             String previewId = primaryPreviewDesignId(preset);
             return family.getDesignId(com.plot.plugin.powerline.model.TowerRole.SUSPENSION).equals(previewId)
-                || TowerFamilyDesignPresets.LATTICE_SUSPENSION_SMALL_ID.equals(previewId);
+                || TowerFamilyDesignPresets.LATTICE_SUSPENSION_SMALL_ID.equals(previewId)
+                || TowerFamilyDesignPresets.HV_TRANSMISSION_SUSPENSION_ID.equals(previewId);
         }
         String applyId = preset.getPoleDesignId();
         String previewId = primaryPreviewDesignId(preset);

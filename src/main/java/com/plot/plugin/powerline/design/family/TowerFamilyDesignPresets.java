@@ -1,8 +1,5 @@
 package com.plot.plugin.powerline.design.family;
 
-import com.plot.plugin.powerline.design.AttachmentRole;
-import com.plot.plugin.powerline.design.ConductorAttachment;
-import com.plot.plugin.powerline.design.ConductorAttachmentPresets;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerArmSide;
@@ -13,7 +10,6 @@ import com.plot.plugin.powerline.equipment.InsulatorType;
 import com.plot.plugin.powerline.engineering.TowerEngineeringMetadata;
 import com.plot.plugin.powerline.model.TowerRole;
 
-import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 
@@ -26,6 +22,10 @@ public final class TowerFamilyDesignPresets {
     public static final String LATTICE_SUSPENSION_SMALL_ID = "preset/lattice_suspension_s";
     public static final String LATTICE_SUSPENSION_MEDIUM_ID = "preset/lattice_suspension_m";
     public static final String LATTICE_SUSPENSION_TALL_ID = "preset/lattice_suspension_l";
+    public static final String HV_TRANSMISSION_SUSPENSION_ID = "preset/hv_transmission_suspension";
+    public static final String HV_TRANSMISSION_ANGLE_ID = "preset/hv_transmission_angle";
+    public static final String HV_TRANSMISSION_DEAD_END_ID = "preset/hv_transmission_dead_end";
+    public static final String HV_TRANSMISSION_TERMINAL_ID = "preset/hv_transmission_terminal";
     /** 塔顶装饰线挂点 id（视觉顶线，非电气接地）。 */
     public static final String GROUND_WIRE_ID = "ground_wire";
 
@@ -123,6 +123,58 @@ public final class TowerFamilyDesignPresets {
             metadata(TowerRole.TERMINAL, 20, 40, 90, 3));
     }
 
+    public static PoleDesign hvTransmissionSuspension() {
+        return buildHeavyTransmissionRoleDesign(
+            HV_TRANSMISSION_SUSPENSION_ID,
+            "HV Transmission Suspension",
+            8,
+            10,
+            3,
+            24,
+            InsulatorType.SUSPENSION,
+            3,
+            metadata(TowerRole.SUSPENSION, 24, 60, 5, 4));
+    }
+
+    public static PoleDesign hvTransmissionAngle() {
+        return buildHeavyTransmissionRoleDesign(
+            HV_TRANSMISSION_ANGLE_ID,
+            "HV Transmission Angle",
+            8,
+            10,
+            3,
+            24,
+            InsulatorType.STRAIN,
+            3,
+            metadata(TowerRole.ANGLE, 26, 55, 60, 4));
+    }
+
+    public static PoleDesign hvTransmissionDeadEnd() {
+        return buildHeavyTransmissionRoleDesign(
+            HV_TRANSMISSION_DEAD_END_ID,
+            "HV Transmission Dead-End",
+            8,
+            10,
+            3,
+            24,
+            InsulatorType.STRAIN,
+            4,
+            metadata(TowerRole.DEAD_END, 28, 55, 90, 5));
+    }
+
+    public static PoleDesign hvTransmissionTerminal() {
+        return buildHeavyTransmissionRoleDesign(
+            HV_TRANSMISSION_TERMINAL_ID,
+            "HV Transmission Terminal",
+            8,
+            10,
+            3,
+            24,
+            InsulatorType.STRAIN,
+            3,
+            metadata(TowerRole.TERMINAL, 24, 50, 90, 4));
+    }
+
     private static TowerEngineeringMetadata metadata(
             TowerRole role,
             double height,
@@ -163,20 +215,42 @@ public final class TowerFamilyDesignPresets {
         structure.addArm(arm);
         design.setTowerStructure(structure);
 
-        List<ConductorAttachment> attachments = new ArrayList<>(
-            ConductorAttachmentPresets.threePhaseHorizontal(attachmentHeight, -6, 0, 6));
-        ConductorAttachment ground = new ConductorAttachment(GROUND_WIRE_ID, "GW");
-        ground.setRole(AttachmentRole.GROUND_WIRE);
-        ground.setVerticalOffset(attachmentHeight + 4);
-        ground.setInsulatorLength(1);
-        ground.setInsulatorType(insulatorType);
-        attachments.add(ground);
+        design.setAttachments(TowerConductorArrangement.classicLattice().createAttachments(
+            attachmentHeight, insulatorType, insulatorLength));
+        design.setEngineeringMetadata(metadata);
+        return design;
+    }
 
-        for (ConductorAttachment attachment : attachments) {
-            attachment.setInsulatorLength(insulatorLength);
-            attachment.setInsulatorType(insulatorType);
+    private static PoleDesign buildHeavyTransmissionRoleDesign(
+            String id,
+            String name,
+            double baseWidth,
+            double armReach,
+            int insulatorLength,
+            double attachmentHeight,
+            InsulatorType insulatorType,
+            int verticalDrop,
+            TowerEngineeringMetadata metadata) {
+        PoleDesign design = new PoleDesign(id, name);
+        TowerStructureDesign structure = TowerStructurePresets.taperedLatticeTower();
+        List<TowerStation> stations = structure.sortedStations();
+        for (TowerStation station : stations) {
+            station.setHalfWidth(baseWidth * station.getHalfWidth() / 5.0);
+            station.setHalfDepth(baseWidth * station.getHalfDepth() / 5.0);
         }
-        design.setAttachments(attachments);
+        structure.getArms().clear();
+        TowerArm lowerArm = new TowerArm("arm_lower", attachmentHeight - 7, armReach);
+        lowerArm.setSide(TowerArmSide.BOTH);
+        lowerArm.setVerticalDrop(verticalDrop);
+        structure.addArm(lowerArm);
+        TowerArm upperArm = new TowerArm("arm_upper", attachmentHeight - 1, armReach * 0.85);
+        upperArm.setSide(TowerArmSide.BOTH);
+        upperArm.setVerticalDrop(verticalDrop);
+        structure.addArm(upperArm);
+        design.setTowerStructure(structure);
+
+        design.setAttachments(TowerConductorArrangement.heavyTransmission().createAttachments(
+            attachmentHeight, insulatorType, insulatorLength));
         design.setEngineeringMetadata(metadata);
         return design;
     }

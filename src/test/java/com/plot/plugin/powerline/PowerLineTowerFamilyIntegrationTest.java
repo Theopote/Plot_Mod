@@ -154,6 +154,46 @@ class PowerLineTowerFamilyIntegrationTest {
     }
 
     @Test
+    void classicLatticeGeneratesBundledConductorsAndTwinTopWires() {
+        PowerLineFootprint line = straightLine(40);
+        line.setTowerFamilyId(TowerFamily.STANDARD_LATTICE_3_PHASE_ID);
+        line.setWireMaterial(MaterialMix.single("minecraft:iron_bars"));
+        line.setTopWireMaterial(MaterialMix.single("minecraft:chain"));
+        line.setMaxPoleSpacing(50.0);
+        line.setSagRatio(0.0);
+
+        PowerLineGenerationResult result = generate(line);
+        long chainBlocks = result.placementRecords.values().stream()
+            .filter(record -> "minecraft:chain".equals(record.newBlockId))
+            .count();
+        long barBlocks = result.placementRecords.values().stream()
+            .filter(record -> "minecraft:iron_bars".equals(record.newBlockId))
+            .count();
+        assertTrue(chainBlocks > 0, "twin top wires should place chain material");
+        assertTrue(barBlocks > chainBlocks, "bundled phase conductors should dominate block count");
+    }
+
+    @Test
+    void heavyTransmissionGeneratesTwinTopWires() {
+        PowerLineFootprint line = straightLine(40);
+        line.setTowerFamilyId(TowerFamily.HEAVY_TRANSMISSION_ID);
+        line.setWireMaterial(MaterialMix.single("minecraft:iron_bars"));
+        line.setTopWireMaterial(MaterialMix.single("minecraft:chain"));
+        line.setMaxPoleSpacing(50.0);
+        line.setSagRatio(0.0);
+
+        PowerLineGenerationResult result = generate(line);
+        long chainBlocks = result.placementRecords.values().stream()
+            .filter(record -> "minecraft:chain".equals(record.newBlockId))
+            .count();
+        long barBlocks = result.placementRecords.values().stream()
+            .filter(record -> "minecraft:iron_bars".equals(record.newBlockId))
+            .count();
+        assertTrue(chainBlocks > 0, "twin top wires should place chain material");
+        assertTrue(barBlocks > chainBlocks, "bundled phase conductors should dominate block count");
+    }
+
+    @Test
     void familyDesignsAreRegistered() {
         PoleDesignResolver resolver = new PoleDesignResolver(new PowerLineDesignProject());
         for (var design : TowerFamilyCatalog.familyDesigns()) {

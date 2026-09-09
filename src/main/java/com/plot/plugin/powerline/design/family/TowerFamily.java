@@ -10,6 +10,7 @@ import java.util.Objects;
 public class TowerFamily {
     public static final String STANDARD_LATTICE_3_PHASE_ID = "family/standard_lattice_3phase";
     public static final String GRADED_LATTICE_3_PHASE_ID = "family/graded_lattice_3phase";
+    public static final String HEAVY_TRANSMISSION_ID = "family/heavy_transmission";
 
     private final String id;
     private String name;

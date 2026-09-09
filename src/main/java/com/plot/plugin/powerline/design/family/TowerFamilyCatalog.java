@@ -16,6 +16,7 @@ public final class TowerFamilyCatalog {
         List<TowerFamily> families = new ArrayList<>();
         families.add(standardLattice3Phase());
         families.add(gradedLattice3Phase());
+        families.add(heavyTransmission());
         return families;
     }
 
@@ -50,6 +51,18 @@ public final class TowerFamilyCatalog {
         return id != null && id.startsWith("family/");
     }
 
+    public static TowerFamily heavyTransmission() {
+        TowerFamily family = new TowerFamily(
+            TowerFamily.HEAVY_TRANSMISSION_ID,
+            "Heavy Transmission");
+        family.setDesignId(TowerRole.SUSPENSION, TowerFamilyDesignPresets.HV_TRANSMISSION_SUSPENSION_ID);
+        family.setDesignId(TowerRole.ANGLE, TowerFamilyDesignPresets.HV_TRANSMISSION_ANGLE_ID);
+        family.setDesignId(TowerRole.DEAD_END, TowerFamilyDesignPresets.HV_TRANSMISSION_DEAD_END_ID);
+        family.setDesignId(TowerRole.TERMINAL, TowerFamilyDesignPresets.HV_TRANSMISSION_TERMINAL_ID);
+        family.setDesignId(TowerRole.SPECIAL, TowerFamilyDesignPresets.HV_TRANSMISSION_SUSPENSION_ID);
+        return family;
+    }
+
     public static TowerFamily gradedLattice3Phase() {
         TowerFamily family = new TowerFamily(
             TowerFamily.GRADED_LATTICE_3_PHASE_ID,
@@ -71,6 +84,10 @@ public final class TowerFamilyCatalog {
         designs.add(TowerFamilyDesignPresets.latticeAngle());
         designs.add(TowerFamilyDesignPresets.latticeDeadEnd());
         designs.add(TowerFamilyDesignPresets.latticeTerminal());
+        designs.add(TowerFamilyDesignPresets.hvTransmissionSuspension());
+        designs.add(TowerFamilyDesignPresets.hvTransmissionAngle());
+        designs.add(TowerFamilyDesignPresets.hvTransmissionDeadEnd());
+        designs.add(TowerFamilyDesignPresets.hvTransmissionTerminal());
         return designs;
     }
 }

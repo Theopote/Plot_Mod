@@ -5,6 +5,9 @@ import com.plot.plugin.powerline.design.AttachmentRole;
 import com.plot.plugin.powerline.design.ConductorAttachment;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
+import com.plot.plugin.powerline.design.family.TowerFamily;
+import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
+import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.ui.PowerLineUiPresets;
 
@@ -189,18 +192,73 @@ public final class PowerLineStylePreset {
         if (!sagMatches(sagPreset, line.getSagRatio())) {
             return false;
         }
-        return conductorLayout.conductorCount() == resolveConductorCount(line);
+        return expectedConductorCount() == resolveConductorCount(line);
+    }
+
+    /** 预设代表设计的相线挂点数量（塔族取悬垂代表塔）。 */
+    public int expectedConductorCount() {
+        int fromDesign = countConductors(representativeDesignForPreset());
+        return fromDesign > 0 ? fromDesign : conductorLayout.conductorCount();
     }
 
     static int resolveConductorCount(PowerLineFootprint line) {
+        return countConductors(resolveRepresentativeDesign(line));
+    }
+
+    private PoleDesign representativeDesignForPreset() {
+        if (towerFamilyId != null && !towerFamilyId.isBlank()) {
+            TowerFamily family = TowerFamilyCatalog.findBuiltin(towerFamilyId);
+            if (family != null) {
+                String designId = family.getDesignId(TowerRole.SUSPENSION);
+                if (designId == null) {
+                    designId = family.getDesignId(TowerRole.SPECIAL);
+                }
+                PoleDesign design = findDesignById(designId);
+                if (design != null) {
+                    return design;
+                }
+            }
+        }
+        if (poleDesignId != null && !poleDesignId.isBlank()) {
+            return PoleDesignCatalog.findBuiltin(poleDesignId);
+        }
+        return null;
+    }
+
+    static PoleDesign resolveRepresentativeDesign(PowerLineFootprint line) {
         if (line == null) {
-            return 0;
+            return null;
         }
         if (line.hasTowerFamily()) {
-            return ConductorLayout.THREE_PHASE_HORIZONTAL.conductorCount();
+            TowerFamily family = TowerFamilyCatalog.findBuiltin(line.getTowerFamilyId());
+            if (family != null) {
+                String designId = family.getDesignId(TowerRole.SUSPENSION);
+                if (designId == null) {
+                    designId = family.getDesignId(TowerRole.SPECIAL);
+                }
+                PoleDesign design = findDesignById(designId);
+                if (design != null) {
+                    return design;
+                }
+            }
         }
-        PoleDesign design = PoleDesignCatalog.findBuiltin(line.getPoleDesignId());
-        return countConductors(design);
+        return PoleDesignCatalog.findBuiltin(line.getPoleDesignId());
+    }
+
+    private static PoleDesign findDesignById(String designId) {
+        if (designId == null || designId.isBlank()) {
+            return null;
+        }
+        PoleDesign catalogDesign = PoleDesignCatalog.findBuiltin(designId);
+        if (catalogDesign != null) {
+            return catalogDesign;
+        }
+        for (PoleDesign familyDesign : TowerFamilyCatalog.familyDesigns()) {
+            if (designId.equals(familyDesign.getId())) {
+                return familyDesign;
+            }
+        }
+        return null;
     }
 
     static int countConductors(PoleDesign design) {

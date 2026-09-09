@@ -156,6 +156,7 @@ public final class PowerLineStyleCardRenderer {
         return switch (pack.getPreviewKind()) {
             case ADAPTIVE -> TowerFamilyDesignPresets.latticeSuspensionSmall();
             case LATTICE -> TowerFamilyDesignPresets.latticeSuspension();
+            case HEAVY_LATTICE -> TowerFamilyDesignPresets.hvTransmissionSuspension();
             default -> null;
         };
     }
@@ -288,7 +289,8 @@ public final class PowerLineStyleCardRenderer {
             case LATTICE_POLE -> drawDesignPreview(drawList, PoleDesignCatalog.latticeSteelTower(), x0, y0, x1, y1);
             case LATTICE -> drawDesignPreview(
                 drawList, TowerFamilyDesignPresets.latticeSuspension(), x0, y0, x1, y1);
-            case HEAVY_LATTICE -> drawDesignPreview(drawList, PoleDesignCatalog.heavyLatticeTower(), x0, y0, x1, y1);
+            case HEAVY_LATTICE -> drawDesignPreview(
+                drawList, TowerFamilyDesignPresets.hvTransmissionSuspension(), x0, y0, x1, y1);
             case ADAPTIVE -> drawAdaptivePreview(drawList, x0, y0, x1, y1);
             case TAPERED -> drawDesignPreview(drawList, PoleDesignCatalog.taperedLatticeTower(), x0, y0, x1, y1);
             case COPPER -> drawDesignPreview(drawList, PoleDesignCatalog.fantasyCopperPole(), x0, y0, x1, y1);

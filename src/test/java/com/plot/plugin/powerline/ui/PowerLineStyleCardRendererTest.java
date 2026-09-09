@@ -41,10 +41,11 @@ class PowerLineStyleCardRendererTest {
     }
 
     @Test
-    void applyHeavyLatticeSetsDesign() {
+    void applyHeavyLatticeSetsTowerFamily() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
         PowerLineStylePresetCatalog.heavyLattice().apply(line);
-        assertEquals(PoleDesignCatalog.HEAVY_LATTICE_TOWER_ID, line.getPoleDesignId());
+        assertEquals(TowerFamily.HEAVY_TRANSMISSION_ID, line.getTowerFamilyId());
+        assertNull(line.getPoleDesignId());
     }
 
     @Test
