@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.style;
 
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.design.ConductorArrangement;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -45,8 +46,18 @@ public final class PowerLineStylePresetCatalog {
         return presets;
     }
 
+    public static List<PowerLineStylePreset> industrialMegaPresets() {
+        List<PowerLineStylePreset> presets = new ArrayList<>();
+        presets.add(megaLattice());
+        presets.add(heavyDoubleCircuit());
+        presets.add(industrialPortal());
+        presets.add(monsterPylon());
+        return presets;
+    }
+
     public static List<PowerLineStylePreset> defaultPresets() {
         List<PowerLineStylePreset> presets = new ArrayList<>(decorativePresets());
+        presets.addAll(industrialMegaPresets());
         presets.addAll(engineeringPresets());
         return presets;
     }
@@ -89,8 +100,8 @@ public final class PowerLineStylePresetCatalog {
 
     /** footprint 配置是否仍与 base preset 默认 bundle 完全一致。 */
     public static boolean matchesBaseBundle(PowerLineFootprint line) {
-        PowerLineStylePreset preset = activePreset(line);
-        return preset != null && preset.matchesBundle(line);
+        PowerLineStyleInstance instance = PowerLineStyleInstance.of(line);
+        return instance != null && instance.matchesBaseDefinition();
     }
 
     public static PowerLineStylePreset classicWood() {
@@ -104,7 +115,7 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:oak_fence"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.NATURAL,
-            PowerLineStylePreset.ConductorLayout.SINGLE,
+            ConductorArrangement.single(),
             PoleSpacingProfile.streetWood());
     }
 
@@ -208,6 +219,66 @@ public final class PowerLineStylePresetCatalog {
             PowerLineUiPresets.WireSag.NATURAL,
             PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL,
             new PoleSpacingProfile(100, 200, 300));
+    }
+
+    public static PowerLineStylePreset megaLattice() {
+        return preset(
+            PowerLineStylePreset.MEGA_LATTICE_ID,
+            "plugin.powerline.style.pack.mega_lattice",
+            PowerLineStylePreset.StylePreviewKind.MEGA_LATTICE,
+            TowerFamily.MEGA_LATTICE_ID,
+            null,
+            MaterialMix.single("minecraft:iron_bars"),
+            MaterialMix.single("minecraft:iron_block"),
+            MaterialMix.single("minecraft:chain"),
+            PowerLineUiPresets.WireSag.NATURAL,
+            ConductorArrangement.megaIndustrialBundled(),
+            new PoleSpacingProfile(80, 150, 220));
+    }
+
+    public static PowerLineStylePreset heavyDoubleCircuit() {
+        return preset(
+            PowerLineStylePreset.HEAVY_DOUBLE_CIRCUIT_ID,
+            "plugin.powerline.style.pack.heavy_double_circuit",
+            PowerLineStylePreset.StylePreviewKind.HEAVY_DOUBLE_CIRCUIT,
+            TowerFamily.HEAVY_DOUBLE_CIRCUIT_ID,
+            null,
+            MaterialMix.single("minecraft:iron_bars"),
+            MaterialMix.single("minecraft:iron_block"),
+            MaterialMix.single("minecraft:chain"),
+            PowerLineUiPresets.WireSag.LIGHT,
+            ConductorArrangement.heavyDoubleCircuit(),
+            new PoleSpacingProfile(90, 160, 240));
+    }
+
+    public static PowerLineStylePreset industrialPortal() {
+        return preset(
+            PowerLineStylePreset.INDUSTRIAL_PORTAL_ID,
+            "plugin.powerline.style.pack.industrial_portal",
+            PowerLineStylePreset.StylePreviewKind.INDUSTRIAL_PORTAL,
+            TowerFamily.INDUSTRIAL_PORTAL_ID,
+            null,
+            MaterialMix.single("minecraft:iron_bars"),
+            MaterialMix.single("minecraft:iron_block"),
+            MaterialMix.single("minecraft:chain"),
+            PowerLineUiPresets.WireSag.STRAIGHT,
+            ConductorArrangement.heavyDoubleCircuit(),
+            new PoleSpacingProfile(100, 180, 260));
+    }
+
+    public static PowerLineStylePreset monsterPylon() {
+        return preset(
+            PowerLineStylePreset.MONSTER_PYLON_ID,
+            "plugin.powerline.style.pack.monster_pylon",
+            PowerLineStylePreset.StylePreviewKind.MONSTER_PYLON,
+            TowerFamily.MONSTER_PYLON_ID,
+            null,
+            MaterialMix.single("minecraft:iron_bars"),
+            MaterialMix.single("minecraft:iron_block"),
+            MaterialMix.single("minecraft:chain"),
+            PowerLineUiPresets.WireSag.NATURAL,
+            ConductorArrangement.monsterQuadCircuit(),
+            new PoleSpacingProfile(110, 200, 300));
     }
 
     public static PowerLineStylePreset heavyLattice() {
@@ -402,7 +473,7 @@ public final class PowerLineStylePresetCatalog {
             PowerLineUiPresets.WireSag sagPreset,
             PowerLineStylePreset.ConductorLayout conductorLayout,
             PoleSpacingProfile spacingProfile) {
-        return new PowerLineStylePreset(
+        return preset(
             id,
             labelKey,
             previewKind,
@@ -412,7 +483,32 @@ public final class PowerLineStylePresetCatalog {
             poleMaterial,
             topWireMaterial,
             sagPreset,
-            conductorLayout,
+            ConductorArrangement.fromLegacyLayout(conductorLayout),
             spacingProfile);
+    }
+
+    private static PowerLineStylePreset preset(
+            String id,
+            String labelKey,
+            PowerLineStylePreset.StylePreviewKind previewKind,
+            String towerFamilyId,
+            String poleDesignId,
+            MaterialMix wireMaterial,
+            MaterialMix poleMaterial,
+            MaterialMix topWireMaterial,
+            PowerLineUiPresets.WireSag sagPreset,
+            ConductorArrangement conductorArrangement,
+            PoleSpacingProfile spacingProfile) {
+        PowerLineStyleDefinition definition = new PowerLineStyleDefinition(
+            previewKind,
+            towerFamilyId,
+            poleDesignId,
+            wireMaterial,
+            poleMaterial,
+            topWireMaterial,
+            sagPreset,
+            conductorArrangement,
+            spacingProfile);
+        return new PowerLineStylePreset(id, labelKey, definition);
     }
 }

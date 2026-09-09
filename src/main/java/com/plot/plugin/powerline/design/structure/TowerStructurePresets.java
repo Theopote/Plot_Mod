@@ -59,6 +59,64 @@ public final class TowerStructurePresets {
         return design;
     }
 
+    /** 超大型工业格构塔：H≈56，宽塔身，三层横担。 */
+    public static TowerStructureDesign megaLatticeTower() {
+        TowerStructureDesign structure = new TowerStructureDesign();
+        structure.setPrimaryMaterial(MaterialMix.single("minecraft:iron_block"));
+        structure.setBraceMaterial(MaterialMix.single("minecraft:iron_bars"));
+        addTaperedStations(structure, new double[] {0, 12, 24, 36, 48, 56}, new double[] {10, 9, 7, 5, 3, 2});
+        addArms(structure, new double[] {38, 46, 52}, 14, 4);
+        return structure;
+    }
+
+    /** 工业门架塔：宽柱 + 多层横梁，适合厂区/变电站。 */
+    public static TowerStructureDesign industrialPortalTower() {
+        TowerStructureDesign structure = new TowerStructureDesign();
+        structure.setPrimaryMaterial(MaterialMix.single("minecraft:iron_block"));
+        structure.setBraceMaterial(MaterialMix.single("minecraft:iron_bars"));
+        structure.addStation(new TowerStation("s0", 0, 12, 12));
+        structure.addStation(new TowerStation("s1", 16, 12, 12));
+        structure.addStation(new TowerStation("s2", 32, 10, 10));
+        structure.addStation(new TowerStation("s3", 44, 8, 8));
+        structure.addStation(new TowerStation("s4", 54, 4, 4));
+        structure.addBay(bayWithBracing("s0", "s1"));
+        structure.addBay(bayWithBracing("s1", "s2"));
+        structure.addBay(bayWithBracing("s2", "s3"));
+        structure.addBay(bayWithBracing("s3", "s4"));
+        addArms(structure, new double[] {18, 28, 38}, 16, 5);
+        return structure;
+    }
+
+    /** 怪物级输电塔：H≈88，极宽塔身，四层横担。 */
+    public static TowerStructureDesign monsterPylonTower() {
+        TowerStructureDesign structure = new TowerStructureDesign();
+        structure.setPrimaryMaterial(MaterialMix.single("minecraft:iron_block"));
+        structure.setBraceMaterial(MaterialMix.single("minecraft:iron_bars"));
+        addTaperedStations(structure, new double[] {0, 15, 30, 45, 60, 75, 88}, new double[] {14, 13, 11, 9, 7, 5, 3});
+        addArms(structure, new double[] {58, 68, 78, 84}, 18, 6);
+        return structure;
+    }
+
+    private static void addTaperedStations(TowerStructureDesign structure, double[] heights, double[] halfWidths) {
+        for (int i = 0; i < heights.length; i++) {
+            double hw = halfWidths[i];
+            structure.addStation(new TowerStation("s" + i, heights[i], hw, hw));
+            if (i > 0) {
+                structure.addBay(bayWithBracing("s" + (i - 1), "s" + i));
+            }
+        }
+    }
+
+    private static void addArms(TowerStructureDesign structure, double[] heights, double reach, int verticalDrop) {
+        for (int i = 0; i < heights.length; i++) {
+            TowerArm arm = new TowerArm("arm_" + i, heights[i], reach);
+            arm.setSide(TowerArmSide.BOTH);
+            arm.setVerticalDrop(verticalDrop);
+            arm.setMaterial(MaterialMix.single("minecraft:iron_bars"));
+            structure.addArm(arm);
+        }
+    }
+
     /** 为已有 station 列表自动创建默认 bay。 */
     public static List<TowerBay> defaultBaysForStations(List<TowerStation> stations) {
         List<TowerStation> sorted = new ArrayList<>(stations);

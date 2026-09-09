@@ -17,6 +17,10 @@ public final class TowerFamilyCatalog {
         families.add(standardLattice3Phase());
         families.add(gradedLattice3Phase());
         families.add(heavyTransmission());
+        families.add(megaLattice());
+        families.add(heavyDoubleCircuit());
+        families.add(industrialPortal());
+        families.add(monsterPylon());
         return families;
     }
 
@@ -63,6 +67,46 @@ public final class TowerFamilyCatalog {
         return family;
     }
 
+    public static TowerFamily megaLattice() {
+        TowerFamily family = new TowerFamily(TowerFamily.MEGA_LATTICE_ID, "Mega Lattice");
+        family.setDesignId(TowerRole.SUSPENSION, TowerFamilyDesignPresets.MEGA_LATTICE_SUSPENSION_ID);
+        family.setDesignId(TowerRole.ANGLE, TowerFamilyDesignPresets.MEGA_LATTICE_ANGLE_ID);
+        family.setDesignId(TowerRole.DEAD_END, TowerFamilyDesignPresets.MEGA_LATTICE_DEAD_END_ID);
+        family.setDesignId(TowerRole.TERMINAL, TowerFamilyDesignPresets.MEGA_LATTICE_TERMINAL_ID);
+        family.setDesignId(TowerRole.SPECIAL, TowerFamilyDesignPresets.MEGA_LATTICE_SUSPENSION_ID);
+        return family;
+    }
+
+    public static TowerFamily heavyDoubleCircuit() {
+        TowerFamily family = new TowerFamily(TowerFamily.HEAVY_DOUBLE_CIRCUIT_ID, "Heavy Double Circuit");
+        family.setDesignId(TowerRole.SUSPENSION, TowerFamilyDesignPresets.HEAVY_DOUBLE_CIRCUIT_SUSPENSION_ID);
+        family.setDesignId(TowerRole.ANGLE, TowerFamilyDesignPresets.HEAVY_DOUBLE_CIRCUIT_ANGLE_ID);
+        family.setDesignId(TowerRole.DEAD_END, TowerFamilyDesignPresets.HEAVY_DOUBLE_CIRCUIT_DEAD_END_ID);
+        family.setDesignId(TowerRole.TERMINAL, TowerFamilyDesignPresets.HEAVY_DOUBLE_CIRCUIT_TERMINAL_ID);
+        family.setDesignId(TowerRole.SPECIAL, TowerFamilyDesignPresets.HEAVY_DOUBLE_CIRCUIT_SUSPENSION_ID);
+        return family;
+    }
+
+    public static TowerFamily industrialPortal() {
+        TowerFamily family = new TowerFamily(TowerFamily.INDUSTRIAL_PORTAL_ID, "Industrial Portal");
+        family.setDesignId(TowerRole.SUSPENSION, TowerFamilyDesignPresets.INDUSTRIAL_PORTAL_SUSPENSION_ID);
+        family.setDesignId(TowerRole.ANGLE, TowerFamilyDesignPresets.INDUSTRIAL_PORTAL_ANGLE_ID);
+        family.setDesignId(TowerRole.DEAD_END, TowerFamilyDesignPresets.INDUSTRIAL_PORTAL_DEAD_END_ID);
+        family.setDesignId(TowerRole.TERMINAL, TowerFamilyDesignPresets.INDUSTRIAL_PORTAL_TERMINAL_ID);
+        family.setDesignId(TowerRole.SPECIAL, TowerFamilyDesignPresets.INDUSTRIAL_PORTAL_SUSPENSION_ID);
+        return family;
+    }
+
+    public static TowerFamily monsterPylon() {
+        TowerFamily family = new TowerFamily(TowerFamily.MONSTER_PYLON_ID, "Monster Pylon");
+        family.setDesignId(TowerRole.SUSPENSION, TowerFamilyDesignPresets.MONSTER_PYLON_SUSPENSION_ID);
+        family.setDesignId(TowerRole.ANGLE, TowerFamilyDesignPresets.MONSTER_PYLON_ANGLE_ID);
+        family.setDesignId(TowerRole.DEAD_END, TowerFamilyDesignPresets.MONSTER_PYLON_DEAD_END_ID);
+        family.setDesignId(TowerRole.TERMINAL, TowerFamilyDesignPresets.MONSTER_PYLON_TERMINAL_ID);
+        family.setDesignId(TowerRole.SPECIAL, TowerFamilyDesignPresets.MONSTER_PYLON_SUSPENSION_ID);
+        return family;
+    }
+
     public static TowerFamily gradedLattice3Phase() {
         TowerFamily family = new TowerFamily(
             TowerFamily.GRADED_LATTICE_3_PHASE_ID,
@@ -88,6 +132,22 @@ public final class TowerFamilyCatalog {
         designs.add(TowerFamilyDesignPresets.hvTransmissionAngle());
         designs.add(TowerFamilyDesignPresets.hvTransmissionDeadEnd());
         designs.add(TowerFamilyDesignPresets.hvTransmissionTerminal());
+        designs.add(TowerFamilyDesignPresets.megaLatticeSuspension());
+        designs.add(TowerFamilyDesignPresets.megaLatticeAngle());
+        designs.add(TowerFamilyDesignPresets.megaLatticeDeadEnd());
+        designs.add(TowerFamilyDesignPresets.megaLatticeTerminal());
+        designs.add(TowerFamilyDesignPresets.heavyDoubleCircuitSuspension());
+        designs.add(TowerFamilyDesignPresets.heavyDoubleCircuitAngle());
+        designs.add(TowerFamilyDesignPresets.heavyDoubleCircuitDeadEnd());
+        designs.add(TowerFamilyDesignPresets.heavyDoubleCircuitTerminal());
+        designs.add(TowerFamilyDesignPresets.industrialPortalSuspension());
+        designs.add(TowerFamilyDesignPresets.industrialPortalAngle());
+        designs.add(TowerFamilyDesignPresets.industrialPortalDeadEnd());
+        designs.add(TowerFamilyDesignPresets.industrialPortalTerminal());
+        designs.add(TowerFamilyDesignPresets.monsterPylonSuspension());
+        designs.add(TowerFamilyDesignPresets.monsterPylonAngle());
+        designs.add(TowerFamilyDesignPresets.monsterPylonDeadEnd());
+        designs.add(TowerFamilyDesignPresets.monsterPylonTerminal());
         return designs;
     }
 }

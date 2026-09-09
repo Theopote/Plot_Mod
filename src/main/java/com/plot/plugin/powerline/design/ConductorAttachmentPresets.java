@@ -70,6 +70,58 @@ public final class ConductorAttachmentPresets {
         return attachments;
     }
 
+    /**
+     * 左右双回路：左三相 + 右三相 + 双顶线（8 挂点）。
+     * ID 前缀 {@code left_} / {@code right_} 保证跨塔匹配稳定。
+     */
+    public static List<ConductorAttachment> doubleCircuitHorizontal(
+            double verticalOffset,
+            double leftA,
+            double leftB,
+            double leftC,
+            double rightA,
+            double rightB,
+            double rightC) {
+        List<ConductorAttachment> attachments = new ArrayList<>(8);
+        attachments.add(createPhase("left_phase_a", "LA", AttachmentRole.PHASE_A, leftA, verticalOffset));
+        attachments.add(createPhase("left_phase_b", "LB", AttachmentRole.PHASE_B, leftB, verticalOffset));
+        attachments.add(createPhase("left_phase_c", "LC", AttachmentRole.PHASE_C, leftC, verticalOffset));
+        attachments.add(createPhase("right_phase_a", "RA", AttachmentRole.PHASE_A, rightA, verticalOffset));
+        attachments.add(createPhase("right_phase_b", "RB", AttachmentRole.PHASE_B, rightB, verticalOffset));
+        attachments.add(createPhase("right_phase_c", "RC", AttachmentRole.PHASE_C, rightC, verticalOffset));
+        attachments.addAll(twinTopWires(verticalOffset + 6, 2.5));
+        return attachments;
+    }
+
+    /**
+     * 四层四回路：上下左右各三相 + 双顶线（14 挂点）。
+     */
+    public static List<ConductorAttachment> quadCircuitWithTwinTop(
+            double lowerDeckOffset,
+            double upperDeckOffset,
+            double leftA,
+            double leftB,
+            double leftC,
+            double rightA,
+            double rightB,
+            double rightC) {
+        List<ConductorAttachment> attachments = new ArrayList<>(14);
+        attachments.add(createPhase("ll_phase_a", "LLA", AttachmentRole.PHASE_A, leftA, lowerDeckOffset));
+        attachments.add(createPhase("ll_phase_b", "LLB", AttachmentRole.PHASE_B, leftB, lowerDeckOffset));
+        attachments.add(createPhase("ll_phase_c", "LLC", AttachmentRole.PHASE_C, leftC, lowerDeckOffset));
+        attachments.add(createPhase("lr_phase_a", "LRA", AttachmentRole.PHASE_A, rightA, lowerDeckOffset));
+        attachments.add(createPhase("lr_phase_b", "LRB", AttachmentRole.PHASE_B, rightB, lowerDeckOffset));
+        attachments.add(createPhase("lr_phase_c", "LRC", AttachmentRole.PHASE_C, rightC, lowerDeckOffset));
+        attachments.add(createPhase("ul_phase_a", "ULA", AttachmentRole.PHASE_A, leftA, upperDeckOffset));
+        attachments.add(createPhase("ul_phase_b", "ULB", AttachmentRole.PHASE_B, leftB, upperDeckOffset));
+        attachments.add(createPhase("ul_phase_c", "ULC", AttachmentRole.PHASE_C, leftC, upperDeckOffset));
+        attachments.add(createPhase("ur_phase_a", "URA", AttachmentRole.PHASE_A, rightA, upperDeckOffset));
+        attachments.add(createPhase("ur_phase_b", "URB", AttachmentRole.PHASE_B, rightB, upperDeckOffset));
+        attachments.add(createPhase("ur_phase_c", "URC", AttachmentRole.PHASE_C, rightC, upperDeckOffset));
+        attachments.addAll(twinTopWires(upperDeckOffset + 8, 3.0));
+        return attachments;
+    }
+
     private static List<ConductorAttachment> bundlePhase(
             String baseId,
             String name,

@@ -14,7 +14,7 @@ import com.plot.plugin.powerline.ui.PowerLineUiPresets;
 import java.util.Objects;
 
 /**
- * 线路风格预设：杆塔/塔族、材质、垂度、导线布局等一整套装饰默认值。
+ * 内置线路风格目录项：id + i18n + {@link PowerLineStyleDefinition}。
  * <p>
  * 选「Classic Wood」应意味着完整风格包，而不是仅清空 {@code towerFamilyId}。
  */
@@ -38,46 +38,19 @@ public final class PowerLineStylePreset {
     public static final String SUBURBAN_LAMP_ID = "pack/suburban_lamp";
     public static final String ABANDONED_ID = "pack/abandoned";
     public static final String RUSTIC_ID = "pack/rustic";
-
-    private static final double SAG_MATCH_TOLERANCE = 0.01;
+    public static final String MEGA_LATTICE_ID = "pack/mega_lattice";
+    public static final String HEAVY_DOUBLE_CIRCUIT_ID = "pack/heavy_double_circuit";
+    public static final String INDUSTRIAL_PORTAL_ID = "pack/industrial_portal";
+    public static final String MONSTER_PYLON_ID = "pack/monster_pylon";
 
     private final String id;
     private final String labelKey;
-    private final StylePreviewKind previewKind;
-    private final String towerFamilyId;
-    private final String poleDesignId;
-    private final MaterialMix wireMaterial;
-    private final MaterialMix poleMaterial;
-    private final MaterialMix topWireMaterial;
-    private final PowerLineUiPresets.WireSag sagPreset;
-    private final ConductorLayout conductorLayout;
-    private final PoleSpacingProfile spacingProfile;
+    private final PowerLineStyleDefinition definition;
 
-    public PowerLineStylePreset(
-            String id,
-            String labelKey,
-            StylePreviewKind previewKind,
-            String towerFamilyId,
-            String poleDesignId,
-            MaterialMix wireMaterial,
-            MaterialMix poleMaterial,
-            MaterialMix topWireMaterial,
-            PowerLineUiPresets.WireSag sagPreset,
-            ConductorLayout conductorLayout,
-            PoleSpacingProfile spacingProfile) {
+    public PowerLineStylePreset(String id, String labelKey, PowerLineStyleDefinition definition) {
         this.id = id;
         this.labelKey = labelKey;
-        this.previewKind = previewKind;
-        this.towerFamilyId = towerFamilyId;
-        this.poleDesignId = poleDesignId;
-        this.wireMaterial = wireMaterial;
-        this.poleMaterial = poleMaterial;
-        this.topWireMaterial = topWireMaterial;
-        this.sagPreset = sagPreset;
-        this.conductorLayout = conductorLayout != null ? conductorLayout : ConductorLayout.SINGLE;
-        this.spacingProfile = spacingProfile != null
-            ? spacingProfile
-            : PoleSpacingProfile.streetWood();
+        this.definition = definition;
     }
 
     public String getId() {
@@ -92,28 +65,32 @@ public final class PowerLineStylePreset {
         return labelKey + ".desc";
     }
 
+    public PowerLineStyleDefinition getDefinition() {
+        return definition;
+    }
+
     public StylePreviewKind getPreviewKind() {
-        return previewKind;
+        return definition.getPreviewKind();
     }
 
     public String getTowerFamilyId() {
-        return towerFamilyId;
+        return definition.getTowerFamilyId();
     }
 
     public String getPoleDesignId() {
-        return poleDesignId;
+        return definition.getPoleDesignId();
     }
 
     public MaterialMix getWireMaterial() {
-        return wireMaterial;
+        return definition.getWireMaterial();
     }
 
     public MaterialMix getPoleMaterial() {
-        return poleMaterial;
+        return definition.getPoleMaterial();
     }
 
     public MaterialMix getTopWireMaterial() {
-        return topWireMaterial;
+        return definition.getTopWireMaterial();
     }
 
     /** @deprecated use {@link #getTopWireMaterial()} */
@@ -123,40 +100,29 @@ public final class PowerLineStylePreset {
     }
 
     public PowerLineUiPresets.WireSag getSagPreset() {
-        return sagPreset;
+        return definition.getSagPreset();
     }
 
+    public com.plot.plugin.powerline.design.ConductorArrangement getConductorArrangement() {
+        return definition.getConductorArrangement();
+    }
+
+    /** @deprecated use {@link #getConductorArrangement()} */
+    @Deprecated
     public ConductorLayout getConductorLayout() {
-        return conductorLayout;
+        return definition.getConductorLayout();
     }
 
     public int conductorCount() {
-        return conductorLayout.conductorCount();
+        return getConductorArrangement().phaseConductorCount();
     }
 
     public PoleSpacingProfile getSpacingProfile() {
-        return spacingProfile;
+        return definition.getSpacingProfile();
     }
 
     public void apply(PowerLineFootprint line) {
-        if (line == null) {
-            return;
-        }
-        line.setStylePresetId(id);
-        if (towerFamilyId != null && !towerFamilyId.isBlank()) {
-            line.setTowerFamilyId(towerFamilyId);
-            line.setPoleDesignId(null);
-        } else {
-            line.setTowerFamilyId(null);
-            line.setPoleDesignId(poleDesignId);
-        }
-        line.setWireMaterial(wireMaterial);
-        line.setPoleMaterial(poleMaterial);
-        line.setTopWireMaterial(topWireMaterial);
-        PowerLineUiPresets.applySag(line, sagPreset);
-        if (!line.isSpacingCustomized()) {
-            PowerLineSpacingPolicy.applyStyleDefaultSpacing(line, spacingProfile);
-        }
+        definition.applyTo(line, id);
     }
 
     public boolean matches(PowerLineFootprint line) {
@@ -171,58 +137,16 @@ public final class PowerLineStylePreset {
     }
 
     public boolean matchesBundle(PowerLineFootprint line) {
-        if (line == null) {
-            return false;
-        }
-        if (!Objects.equals(normalize(towerFamilyId), normalize(line.getTowerFamilyId()))) {
-            return false;
-        }
-        if (!Objects.equals(normalize(poleDesignId), normalize(line.getPoleDesignId()))) {
-            return false;
-        }
-        if (!materialMatches(wireMaterial, line.getWireMaterial())) {
-            return false;
-        }
-        if (!materialMatches(poleMaterial, line.getPoleMaterial())) {
-            return false;
-        }
-        if (!materialMatches(topWireMaterial, line.getTopWireMaterial())) {
-            return false;
-        }
-        if (!sagMatches(sagPreset, line.getSagRatio())) {
-            return false;
-        }
-        return expectedConductorCount() == resolveConductorCount(line);
+        return definition.matches(line);
     }
 
     /** 预设代表设计的相线挂点数量（塔族取悬垂代表塔）。 */
     public int expectedConductorCount() {
-        int fromDesign = countConductors(representativeDesignForPreset());
-        return fromDesign > 0 ? fromDesign : conductorLayout.conductorCount();
+        return definition.expectedConductorCount();
     }
 
     static int resolveConductorCount(PowerLineFootprint line) {
         return countConductors(resolveRepresentativeDesign(line));
-    }
-
-    private PoleDesign representativeDesignForPreset() {
-        if (towerFamilyId != null && !towerFamilyId.isBlank()) {
-            TowerFamily family = TowerFamilyCatalog.findBuiltin(towerFamilyId);
-            if (family != null) {
-                String designId = family.getDesignId(TowerRole.SUSPENSION);
-                if (designId == null) {
-                    designId = family.getDesignId(TowerRole.SPECIAL);
-                }
-                PoleDesign design = findDesignById(designId);
-                if (design != null) {
-                    return design;
-                }
-            }
-        }
-        if (poleDesignId != null && !poleDesignId.isBlank()) {
-            return PoleDesignCatalog.findBuiltin(poleDesignId);
-        }
-        return null;
     }
 
     static PoleDesign resolveRepresentativeDesign(PowerLineFootprint line) {
@@ -280,21 +204,6 @@ public final class PowerLineStylePreset {
         return phases > 0 ? phases : 1;
     }
 
-    private static boolean sagMatches(PowerLineUiPresets.WireSag preset, double ratio) {
-        return Math.abs(preset.ratio() - ratio) <= SAG_MATCH_TOLERANCE;
-    }
-
-    private static boolean materialMatches(MaterialMix expected, MaterialMix actual) {
-        if (expected == null || actual == null) {
-            return false;
-        }
-        return Objects.equals(expected.getPrimaryMaterial(), actual.getPrimaryMaterial());
-    }
-
-    private static String normalize(String value) {
-        return value == null || value.isBlank() ? null : value;
-    }
-
     /** 导线布局（对应挂点数量与排列）。 */
     public enum ConductorLayout {
         SINGLE(1),
@@ -331,6 +240,10 @@ public final class PowerLineStylePreset {
         MODERN_HV_GLASS,
         SUBURBAN_LAMP,
         ABANDONED,
-        RUSTIC
+        RUSTIC,
+        MEGA_LATTICE,
+        HEAVY_DOUBLE_CIRCUIT,
+        INDUSTRIAL_PORTAL,
+        MONSTER_PYLON
     }
 }

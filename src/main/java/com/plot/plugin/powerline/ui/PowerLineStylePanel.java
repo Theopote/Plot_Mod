@@ -41,6 +41,12 @@ public final class PowerLineStylePanel {
         renderStylePresetGrid(line, PowerLineStylePresetCatalog.decorativePresets());
         ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
         if (ImGui.collapsingHeader(
+                PlotI18n.tr("plugin.powerline.style.section.industrial_mega"),
+                ImGuiTreeNodeFlags.None)) {
+            renderStylePresetGrid(line, PowerLineStylePresetCatalog.industrialMegaPresets());
+        }
+        ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
+        if (ImGui.collapsingHeader(
                 PlotI18n.tr("plugin.powerline.style.section.tower_engineering"),
                 ImGuiTreeNodeFlags.None)) {
             renderStylePresetGrid(line, PowerLineStylePresetCatalog.engineeringPresets());

@@ -6,7 +6,11 @@ import com.plot.plugin.powerline.model.PowerLineFootprint;
 
 import java.util.Objects;
 
-/** Base Preset + Overrides 状态机（footprint 存生效值，overrides 记录偏离项）。 */
+/**
+ * Base Preset + Overrides 状态机（footprint 存生效值，overrides 记录偏离项）。
+ * <p>
+ * 概念模型见 {@link PowerLineStyleDefinition}（定义）与 {@link PowerLineStyleInstance}（实例）。
+ */
 public final class PowerLineStyleEditor {
     private static final double SAG_TOLERANCE = 0.01;
     private static final double SPACING_TOLERANCE = 4.0;
@@ -15,11 +19,13 @@ public final class PowerLineStyleEditor {
     private PowerLineStyleEditor() {
     }
 
+    public static PowerLineStyleInstance instance(PowerLineFootprint line) {
+        return PowerLineStyleInstance.of(line);
+    }
+
     public static PowerLineStylePreset basePreset(PowerLineFootprint line) {
-        if (line == null || line.getStylePackId() == null || line.getStylePackId().isBlank()) {
-            return null;
-        }
-        return PowerLineStylePresetCatalog.find(line.getStylePackId());
+        PowerLineStyleInstance style = instance(line);
+        return style != null ? style.basePreset() : null;
     }
 
     /** 风格卡片：切换到新的 base preset（保留 spacingCustomized）。 */
@@ -65,24 +71,13 @@ public final class PowerLineStyleEditor {
     }
 
     public static boolean isModified(PowerLineFootprint line) {
-        if (line == null) {
-            return false;
-        }
-        if (line.isSpacingCustomized()) {
-            return true;
-        }
-        return !line.getStyleOverrides().isEmpty();
+        PowerLineStyleInstance style = instance(line);
+        return style != null && style.isModified();
     }
 
     public static int modifiedSettingCount(PowerLineFootprint line) {
-        if (line == null) {
-            return 0;
-        }
-        int count = line.getStyleOverrides().overrideCount();
-        if (line.isSpacingCustomized()) {
-            count++;
-        }
-        return count;
+        PowerLineStyleInstance style = instance(line);
+        return style != null ? style.modifiedSettingCount() : 0;
     }
 
     public static void syncOverridesFromFootprint(PowerLineFootprint line) {
@@ -95,13 +90,14 @@ public final class PowerLineStyleEditor {
             overrides.clear();
             return;
         }
-        overrides.setSagRatio(overrideSag(line.getSagRatio(), preset));
+        PowerLineStyleDefinition definition = preset.getDefinition();
+        overrides.setSagRatio(overrideSag(line.getSagRatio(), definition));
         overrides.setMaxSagDepth(overrideMaxSagDepth(line));
-        overrides.setWireMaterial(overrideMaterial(line.getWireMaterial(), preset.getWireMaterial()));
-        overrides.setPoleMaterial(overrideMaterial(line.getPoleMaterial(), preset.getPoleMaterial()));
-        overrides.setTopWireMaterial(overrideMaterial(line.getTopWireMaterial(), preset.getTopWireMaterial()));
-        overrides.setPoleDesignId(overrideId(line.getPoleDesignId(), preset.getPoleDesignId()));
-        overrides.setTowerFamilyId(overrideId(line.getTowerFamilyId(), preset.getTowerFamilyId()));
+        overrides.setWireMaterial(overrideMaterial(line.getWireMaterial(), definition.getWireMaterial()));
+        overrides.setPoleMaterial(overrideMaterial(line.getPoleMaterial(), definition.getPoleMaterial()));
+        overrides.setTopWireMaterial(overrideMaterial(line.getTopWireMaterial(), definition.getTopWireMaterial()));
+        overrides.setPoleDesignId(overrideId(line.getPoleDesignId(), definition.getPoleDesignId()));
+        overrides.setTowerFamilyId(overrideId(line.getTowerFamilyId(), definition.getTowerFamilyId()));
         syncSpacingOverrides(line);
         if (overrides.isEmpty() && !line.isSpacingCustomized()) {
             overrides.clear();
@@ -121,8 +117,8 @@ public final class PowerLineStyleEditor {
         overrides.setRecommendedMinSpacing(overrideSpacing(line.getMinPoleSpacing(), profile.recommendedMin()));
     }
 
-    private static Double overrideSag(double actual, PowerLineStylePreset preset) {
-        double expected = preset.getSagPreset().ratio();
+    private static Double overrideSag(double actual, PowerLineStyleDefinition definition) {
+        double expected = definition.getSagPreset().ratio();
         return Math.abs(actual - expected) <= SAG_TOLERANCE ? null : actual;
     }
 

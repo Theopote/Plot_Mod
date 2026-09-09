@@ -2,7 +2,12 @@ package com.plot.plugin.powerline.style;
 
 import com.plot.core.material.MaterialMix;
 
-/** 相对 Base Preset 的用户覆盖；{@code null} 字段表示沿用预设默认值。 */
+/**
+ * 相对 base {@link PowerLineStyleDefinition} 的用户覆盖；
+ * {@code null} 字段表示沿用预设默认值。
+ * <p>
+ * 与 {@link PowerLineStyleInstance#basePresetId()} 组成线路上的风格实例。
+ */
 public class StyleOverrides {
     private Double sagRatio;
     private Double maxSagDepth;

@@ -56,6 +56,24 @@ class ConductorAttachmentPresetsTest {
     }
 
     @Test
+    void doubleCircuitHorizontalCreatesEightAttachments() {
+        var attachments = ConductorAttachmentPresets.doubleCircuitHorizontal(40, -14, -11, -8, 8, 11, 14);
+        assertEquals(8, attachments.size());
+    }
+
+    @Test
+    void megaLatticePresetExpectsSixPhaseConductors() {
+        PowerLineStylePreset preset = PowerLineStylePresetCatalog.megaLattice();
+        assertEquals(6, preset.expectedConductorCount());
+    }
+
+    @Test
+    void monsterPylonPresetExpectsTwelvePhaseConductors() {
+        PowerLineStylePreset preset = PowerLineStylePresetCatalog.monsterPylon();
+        assertEquals(12, preset.expectedConductorCount());
+    }
+
+    @Test
     void classicLatticePresetExpectsSixPhaseConductors() {
         PowerLineStylePreset preset = PowerLineStylePresetCatalog.classicLattice();
         assertEquals(TowerFamily.STANDARD_LATTICE_3_PHASE_ID, preset.getTowerFamilyId());

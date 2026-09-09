@@ -157,6 +157,10 @@ public final class PowerLineStyleCardRenderer {
             case ADAPTIVE -> TowerFamilyDesignPresets.latticeSuspensionSmall();
             case LATTICE -> TowerFamilyDesignPresets.latticeSuspension();
             case HEAVY_LATTICE -> TowerFamilyDesignPresets.hvTransmissionSuspension();
+            case MEGA_LATTICE -> TowerFamilyDesignPresets.megaLatticeSuspension();
+            case HEAVY_DOUBLE_CIRCUIT -> TowerFamilyDesignPresets.heavyDoubleCircuitSuspension();
+            case INDUSTRIAL_PORTAL -> TowerFamilyDesignPresets.industrialPortalSuspension();
+            case MONSTER_PYLON -> TowerFamilyDesignPresets.monsterPylonSuspension();
             default -> null;
         };
     }
@@ -291,6 +295,14 @@ public final class PowerLineStyleCardRenderer {
                 drawList, TowerFamilyDesignPresets.latticeSuspension(), x0, y0, x1, y1);
             case HEAVY_LATTICE -> drawDesignPreview(
                 drawList, TowerFamilyDesignPresets.hvTransmissionSuspension(), x0, y0, x1, y1);
+            case MEGA_LATTICE -> drawDesignPreview(
+                drawList, TowerFamilyDesignPresets.megaLatticeSuspension(), x0, y0, x1, y1);
+            case HEAVY_DOUBLE_CIRCUIT -> drawDesignPreview(
+                drawList, TowerFamilyDesignPresets.heavyDoubleCircuitSuspension(), x0, y0, x1, y1);
+            case INDUSTRIAL_PORTAL -> drawDesignPreview(
+                drawList, TowerFamilyDesignPresets.industrialPortalSuspension(), x0, y0, x1, y1);
+            case MONSTER_PYLON -> drawDesignPreview(
+                drawList, TowerFamilyDesignPresets.monsterPylonSuspension(), x0, y0, x1, y1);
             case ADAPTIVE -> drawAdaptivePreview(drawList, x0, y0, x1, y1);
             case TAPERED -> drawDesignPreview(drawList, PoleDesignCatalog.taperedLatticeTower(), x0, y0, x1, y1);
             case COPPER -> drawDesignPreview(drawList, PoleDesignCatalog.fantasyCopperPole(), x0, y0, x1, y1);

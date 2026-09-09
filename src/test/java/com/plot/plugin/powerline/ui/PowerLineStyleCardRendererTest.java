@@ -17,9 +17,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class PowerLineStyleCardRendererTest {
 
     @Test
-    void catalogContainsNineteenStylePresets() {
-        assertEquals(19, PowerLineStylePresetCatalog.defaultPresets().size());
+    void catalogContainsTwentyThreeStylePresets() {
+        assertEquals(23, PowerLineStylePresetCatalog.defaultPresets().size());
         assertEquals(16, PowerLineStylePresetCatalog.decorativePresets().size());
+        assertEquals(4, PowerLineStylePresetCatalog.industrialMegaPresets().size());
         assertEquals(3, PowerLineStylePresetCatalog.engineeringPresets().size());
     }
 

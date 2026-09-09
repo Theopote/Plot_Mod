@@ -194,6 +194,18 @@ class PowerLineTowerFamilyIntegrationTest {
     }
 
     @Test
+    void monsterPylonGeneratesManyConductorsAndTallStructure() {
+        PowerLineFootprint line = straightLine(60);
+        line.setTowerFamilyId(TowerFamily.MONSTER_PYLON_ID);
+        line.setMaxPoleSpacing(80.0);
+        line.setSagRatio(0.0);
+
+        PowerLineGenerationResult result = generate(line);
+        assertTrue(result.blockCount() > 200, "monster pylon should place a large voxel structure");
+        assertTrue(result.conductorSpans.size() >= 12, "quad-circuit should generate many spans");
+    }
+
+    @Test
     void familyDesignsAreRegistered() {
         PoleDesignResolver resolver = new PoleDesignResolver(new PowerLineDesignProject());
         for (var design : TowerFamilyCatalog.familyDesigns()) {

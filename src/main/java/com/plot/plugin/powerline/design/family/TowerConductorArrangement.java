@@ -35,6 +35,11 @@ public record TowerConductorArrangement(
         return new TowerConductorArrangement(2, 0.8, -9, 0, 9, TopWireMode.TWIN, 5, 2.0);
     }
 
+    /** 超大型工业格构塔：更宽塔身 + 分裂导线 + 双顶线。 */
+    public static TowerConductorArrangement megaIndustrial() {
+        return new TowerConductorArrangement(2, 0.9, -12, 0, 12, TopWireMode.TWIN, 6, 2.5);
+    }
+
     public List<ConductorAttachment> createAttachments(
             double attachmentHeight,
             InsulatorType insulatorType,
