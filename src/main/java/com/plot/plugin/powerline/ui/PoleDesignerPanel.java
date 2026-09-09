@@ -3,6 +3,7 @@ package com.plot.plugin.powerline.ui;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.ConductorAttachment;
 import com.plot.plugin.powerline.design.ConductorAttachmentPresets;
+import com.plot.plugin.powerline.design.TowerArmAttachmentBinding;
 import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
@@ -15,6 +16,7 @@ import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
@@ -23,6 +25,7 @@ import imgui.type.ImString;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /** 杆塔分层设计器独立窗口。 */
 public final class PoleDesignerPanel {
@@ -52,6 +55,7 @@ public final class PoleDesignerPanel {
         }
         designNameBuffer.set(draft.getName());
         ctx.state().getDesignDraftHistory().clear();
+        TowerArmAttachmentBinding.inferArmBindings(draft);
         designerWindowOpen.set(true);
         ctx.state().setPoleDesignerOpen(true);
     }
@@ -180,6 +184,19 @@ public final class PoleDesignerPanel {
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.structure_preset_lattice"), 0, 0)) {
             pushDraftSnapshot();
             draft.setTowerStructure(TowerStructurePresets.taperedLatticeTower());
+            syncLatticePresetAttachments(draft.getTowerStructure());
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.structure_preset_mega"), 0, 0)) {
+            pushDraftSnapshot();
+            draft.setTowerStructure(TowerStructurePresets.megaLatticeTower());
+            TowerArmAttachmentBinding.inferArmBindings(draft);
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.structure_preset_monster"), 0, 0)) {
+            pushDraftSnapshot();
+            draft.setTowerStructure(TowerStructurePresets.monsterPylonTower());
+            TowerArmAttachmentBinding.inferArmBindings(draft);
         }
 
         ImGui.text(PlotI18n.tr("plugin.powerline.design.structure_stations"));
@@ -227,50 +244,136 @@ public final class PoleDesignerPanel {
         }
 
         ImGui.text(PlotI18n.tr("plugin.powerline.design.structure_arms"));
-        for (int i = 0; i < structure.getArms().size(); i++) {
-            TowerArm arm = structure.getArms().get(i);
+        List<TowerArm> sortedArms = TowerArmAttachmentBinding.sortedArms(structure);
+        for (int i = 0; i < sortedArms.size(); i++) {
+            TowerArm arm = sortedArms.get(i);
             ImGui.pushID("arm_" + i);
-            ImFloat baseHeight = new ImFloat((float) arm.getBaseHeight());
-            ImFloat reach = new ImFloat((float) arm.getLateralReach());
-            ImFloat verticalDrop = new ImFloat((float) arm.getVerticalDrop());
-            ImGui.setNextItemWidth(60);
-            if (ImGui.inputFloat(PlotI18n.tr("plugin.powerline.design.structure_arm_height"), baseHeight)) {
-                arm.setBaseHeight(baseHeight.get());
-            }
-            if (ImGui.isItemActivated()) {
-                pushDraftSnapshot();
-            }
-            ImGui.sameLine();
-            ImGui.setNextItemWidth(60);
-            if (ImGui.inputFloat(PlotI18n.tr("plugin.powerline.design.structure_arm_reach"), reach)) {
-                arm.setLateralReach(reach.get());
-            }
-            if (ImGui.isItemActivated()) {
-                pushDraftSnapshot();
-            }
-            ImGui.sameLine();
-            ImGui.setNextItemWidth(60);
-            if (ImGui.inputFloat(PlotI18n.tr("plugin.powerline.design.structure_arm_drop"), verticalDrop)) {
-                arm.setVerticalDrop(verticalDrop.get());
-            }
-            if (ImGui.isItemActivated()) {
-                pushDraftSnapshot();
-            }
-            ImGui.sameLine();
-            if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.delete_layer"))) {
-                pushDraftSnapshot();
-                structure.removeArm(arm.getId());
+            int boundCount = countAttachmentsForArm(arm.getId());
+            String armHeader = PlotI18n.tr(
+                "plugin.powerline.design.arm_deck_header",
+                i + 1,
+                (int) Math.round(arm.getBaseHeight()),
+                boundCount);
+            ImGui.setNextItemOpen(i == 0, imgui.flag.ImGuiCond.FirstUseEver);
+            if (ImGui.collapsingHeader(armHeader, ImGuiTreeNodeFlags.DefaultOpen)) {
+                renderArmControls(structure, arm);
+                renderArmDeckActions(arm);
             }
             ImGui.popID();
         }
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.structure_add_arm"), 0, 0)) {
             pushDraftSnapshot();
-            structure.addArm(new TowerArm(null, structure.maxHeight() - 2, 4));
+            TowerArm arm = new TowerArm("arm_" + structure.getArms().size(), structure.maxHeight() - 2, 6);
+            arm.setVerticalDrop(4);
+            structure.addArm(arm);
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.structure_add_arm_with_deck"), 0, 0)) {
+            pushDraftSnapshot();
+            TowerArm arm = new TowerArm("arm_" + structure.getArms().size(), structure.maxHeight() - 2, 6);
+            arm.setVerticalDrop(4);
+            structure.addArm(arm);
+            for (ConductorAttachment attachment : TowerArmAttachmentBinding.createThreePhaseDeck(arm)) {
+                draft.addAttachment(attachment);
+            }
+        }
+    }
+
+    private void renderArmControls(TowerStructureDesign structure, TowerArm arm) {
+        ImFloat baseHeight = new ImFloat((float) arm.getBaseHeight());
+        ImFloat reach = new ImFloat((float) arm.getLateralReach());
+        ImFloat verticalDrop = new ImFloat((float) arm.getVerticalDrop());
+        ImGui.setNextItemWidth(60);
+        if (ImGui.inputFloat(PlotI18n.tr("plugin.powerline.design.structure_arm_height"), baseHeight)) {
+            arm.setBaseHeight(baseHeight.get());
+            TowerArmAttachmentBinding.syncBoundVerticalOffsets(arm, draft.getAttachments());
+        }
+        if (ImGui.isItemActivated()) {
+            pushDraftSnapshot();
+        }
+        ImGui.sameLine();
+        ImGui.setNextItemWidth(60);
+        if (ImGui.inputFloat(PlotI18n.tr("plugin.powerline.design.structure_arm_reach"), reach)) {
+            arm.setLateralReach(reach.get());
+        }
+        if (ImGui.isItemActivated()) {
+            pushDraftSnapshot();
+        }
+        ImGui.sameLine();
+        ImGui.setNextItemWidth(60);
+        if (ImGui.inputFloat(PlotI18n.tr("plugin.powerline.design.structure_arm_drop"), verticalDrop)) {
+            arm.setVerticalDrop(verticalDrop.get());
+        }
+        if (ImGui.isItemActivated()) {
+            pushDraftSnapshot();
+        }
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.arm_sync_height"))) {
+            pushDraftSnapshot();
+            TowerArmAttachmentBinding.syncBoundVerticalOffsets(arm, draft.getAttachments());
+        }
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.arm_sync_spread"))) {
+            pushDraftSnapshot();
+            TowerArmAttachmentBinding.syncBoundLateralSpread(arm, draft.getAttachments());
+        }
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.delete_layer"))) {
+            pushDraftSnapshot();
+            TowerArmAttachmentBinding.clearArmBindings(draft.getAttachments(), arm.getId());
+            structure.removeArm(arm.getId());
+        }
+    }
+
+    private void renderArmDeckActions(TowerArm arm) {
+        if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.arm_add_3phase"))) {
+            pushDraftSnapshot();
+            for (ConductorAttachment attachment : TowerArmAttachmentBinding.createThreePhaseDeck(arm)) {
+                draft.addAttachment(attachment);
+            }
+        }
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.arm_add_bundled_3phase"))) {
+            pushDraftSnapshot();
+            for (ConductorAttachment attachment : TowerArmAttachmentBinding.createBundledThreePhaseDeck(arm, 2)) {
+                draft.addAttachment(attachment);
+            }
+        }
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.arm_clear_deck"))) {
+            pushDraftSnapshot();
+            TowerArmAttachmentBinding.removeArmAttachments(draft, arm.getId());
+        }
+    }
+
+    private int countAttachmentsForArm(String armId) {
+        int count = 0;
+        for (ConductorAttachment attachment : draft.getAttachments()) {
+            if (armId.equals(attachment.getArmId())) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private void syncLatticePresetAttachments(TowerStructureDesign structure) {
+        draft.getAttachments().clear();
+        TowerArm mainArm = structure.getArms().isEmpty() ? null : structure.getArms().getFirst();
+        if (mainArm != null) {
+            for (ConductorAttachment attachment : TowerArmAttachmentBinding.createThreePhaseDeck(mainArm)) {
+                draft.addAttachment(attachment);
+            }
+        } else {
+            draft.setAttachments(ConductorAttachmentPresets.threePhaseHorizontal(18.0, -6, 0, 6));
         }
     }
 
     private void renderAttachmentList() {
         ImGui.text(PlotI18n.tr("plugin.powerline.design.attachments"));
+        if (draft.hasTowerStructure()) {
+            renderTowerAttachmentDecks();
+            return;
+        }
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.attachment_preset_single"), 0, 0)) {
             pushDraftSnapshot();
             draft.setAttachments(ConductorAttachmentPresets.singleConductor(12.0));
@@ -298,12 +401,66 @@ public final class PoleDesignerPanel {
         }
     }
 
+    private void renderTowerAttachmentDecks() {
+        Map<String, List<ConductorAttachment>> grouped = TowerArmAttachmentBinding.groupByArm(draft);
+        TowerStructureDesign structure = draft.getTowerStructure();
+        List<TowerArm> arms = TowerArmAttachmentBinding.sortedArms(structure);
+        for (TowerArm arm : arms) {
+            List<ConductorAttachment> deck = grouped.getOrDefault(arm.getId(), List.of());
+            ImGui.pushID("deck_" + arm.getId());
+            if (ImGui.treeNode(PlotI18n.tr(
+                "plugin.powerline.design.arm_attachment_deck",
+                arm.getId(),
+                deck.size()))) {
+                for (int i = 0; i < deck.size(); i++) {
+                    ImGui.pushID("att_" + i);
+                    renderAttachmentRow(deck.get(i), arm);
+                    ImGui.popID();
+                }
+                ImGui.treePop();
+            }
+            ImGui.popID();
+        }
+        List<ConductorAttachment> unassigned = grouped.get(null);
+        if (unassigned != null && !unassigned.isEmpty()) {
+            if (ImGui.treeNode(PlotI18n.tr(
+                "plugin.powerline.design.arm_unassigned_attachments",
+                unassigned.size()))) {
+                for (int i = 0; i < unassigned.size(); i++) {
+                    ImGui.pushID("free_" + i);
+                    renderAttachmentRow(unassigned.get(i), null);
+                    ImGui.popID();
+                }
+                ImGui.treePop();
+            }
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.arm_add_top_wires"), 0, 0)) {
+            pushDraftSnapshot();
+            double lift = structure.maxHeight() - 4;
+            for (ConductorAttachment wire : ConductorAttachmentPresets.twinTopWires(lift, 2.5)) {
+                draft.addAttachment(wire);
+            }
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.add_attachment"), 0, 0)) {
+            pushDraftSnapshot();
+            draft.addAttachment(new ConductorAttachment());
+        }
+    }
+
     private void renderAttachmentRow(ConductorAttachment attachment) {
+        renderAttachmentRow(attachment, null);
+    }
+
+    private void renderAttachmentRow(ConductorAttachment attachment, TowerArm boundArm) {
         ImGui.text(PlotI18n.tr("plugin.powerline.design.attachment_row", attachment.getName()));
         ImGui.sameLine();
         if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.delete_layer"))) {
             pushDraftSnapshot();
             draft.removeAttachment(attachment.getId());
+        }
+        if (draft.hasTowerStructure()) {
+            renderAttachmentArmBinding(attachment, boundArm);
         }
 
         float[] lateral = {(float) attachment.getLateralOffset()};
@@ -349,6 +506,46 @@ public final class PoleDesignerPanel {
         }
         if (ImGui.isItemActivated()) {
             pushDraftSnapshot();
+        }
+    }
+
+    private void renderAttachmentArmBinding(ConductorAttachment attachment, TowerArm boundArm) {
+        if (boundArm != null) {
+            ImGui.textColored(0xFF90CAF9, PlotI18n.tr(
+                "plugin.powerline.design.attachment_bound_arm",
+                boundArm.getId()));
+            return;
+        }
+        List<TowerArm> arms = TowerArmAttachmentBinding.sortedArms(draft.getTowerStructure());
+        if (arms.isEmpty()) {
+            return;
+        }
+        int selected = 0;
+        String currentArmId = attachment.getArmId();
+        for (int i = 0; i < arms.size(); i++) {
+            if (arms.get(i).getId().equals(currentArmId)) {
+                selected = i + 1;
+                break;
+            }
+        }
+        String[] labels = new String[arms.size() + 1];
+        labels[0] = PlotI18n.tr("plugin.powerline.design.attachment_arm_none");
+        for (int i = 0; i < arms.size(); i++) {
+            labels[i + 1] = PlotI18n.tr(
+                "plugin.powerline.design.attachment_arm_option",
+                i + 1,
+                (int) Math.round(arms.get(i).getBaseHeight()));
+        }
+        ImInt armIndex = new ImInt(selected);
+        ImGui.setNextItemWidth(140);
+        if (ImGui.combo(PlotI18n.tr("plugin.powerline.design.attachment_arm_bind"), armIndex, labels)) {
+            pushDraftSnapshot();
+            if (armIndex.get() == 0) {
+                attachment.setArmId(null);
+            } else {
+                TowerArm arm = arms.get(armIndex.get() - 1);
+                TowerArmAttachmentBinding.bindToArm(arm, attachment);
+            }
         }
     }
 

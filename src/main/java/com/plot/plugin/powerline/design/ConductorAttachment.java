@@ -23,6 +23,8 @@ public class ConductorAttachment {
     private InsulatorType insulatorType = InsulatorType.SUSPENSION;
     private String insulatorAssemblyId;
     private BundleVisual bundleVisual = BundleVisual.SINGLE;
+    /** 绑定的 {@link com.plot.plugin.powerline.design.structure.TowerArm} id（塔型设计器多层横担）。 */
+    private String armId;
     private boolean enabled = true;
 
     public ConductorAttachment() {
@@ -129,6 +131,14 @@ public class ConductorAttachment {
         this.bundleVisual = bundleVisual != null ? bundleVisual : BundleVisual.SINGLE;
     }
 
+    public String getArmId() {
+        return armId;
+    }
+
+    public void setArmId(String armId) {
+        this.armId = armId != null && armId.isBlank() ? null : armId;
+    }
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -150,6 +160,7 @@ public class ConductorAttachment {
         copy.insulatorType = insulatorType;
         copy.insulatorAssemblyId = insulatorAssemblyId;
         copy.bundleVisual = bundleVisual;
+        copy.armId = armId;
         copy.enabled = enabled;
         return copy;
     }
