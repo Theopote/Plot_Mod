@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.style;
 
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.PowerLineSagUtils;
 import com.plot.plugin.powerline.design.ConductorArrangement;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.family.TowerFamily;
@@ -572,8 +573,27 @@ public final class PowerLineStylePresetCatalog {
             poleMaterial,
             topWireMaterial,
             sagPreset,
+            defaultMaxSagDepth(previewKind),
             conductorArrangement,
             spacingProfile);
         return new PowerLineStylePreset(id, labelKey, category, definition);
+    }
+
+    /**
+     * 风格默认最大下垂深度（视觉控制，非工程规范）。
+     * Wood 12 / Japanese 10 / Transmission 16 / Mega 24 / Monster 32。
+     */
+    static double defaultMaxSagDepth(PowerLineStylePreset.StylePreviewKind previewKind) {
+        if (previewKind == null) {
+            return PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH;
+        }
+        return switch (previewKind) {
+            case JAPANESE, SUBURBAN_LAMP -> 10.0;
+            case MONSTER_PYLON -> 32.0;
+            case MEGA_LATTICE, HEAVY_DOUBLE_CIRCUIT, INDUSTRIAL_PORTAL -> 24.0;
+            case LATTICE, HEAVY_LATTICE, LATTICE_POLE, TAPERED, ADAPTIVE, MODERN_HV_GLASS, STEAMPUNK
+                -> 16.0;
+            default -> PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH;
+        };
     }
 }

@@ -55,7 +55,7 @@ public final class PowerLineBuildPanel {
 
         PowerLineStylePreset basePreset = PowerLineStyleEditor.basePreset(line);
         if (basePreset != null) {
-            PowerLineStyleCardRenderer.renderCompactStylePreview(basePreset);
+            PowerLineStyleCardRenderer.renderCompactStylePreview(line, basePreset, ctx.designResolver());
         } else {
             PowerLineStyleCardRenderer.renderCompactCustomStylePreview();
         }

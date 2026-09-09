@@ -39,7 +39,7 @@ public final class PowerLineStyleQuickTunePanel {
         }
         ImGui.separator();
         renderSelectedHeader(line, base);
-        PowerLineStyleCardRenderer.renderLargeSelectedPreview(base);
+        PowerLineStyleCardRenderer.renderLargeSelectedPreview(line, base, ctx.designResolver());
         renderPlacementContext(line, base);
         ImGui.spacing();
         renderTowerSection(line, base);

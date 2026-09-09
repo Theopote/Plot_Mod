@@ -2,9 +2,12 @@ package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
+import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.preview.PoleVoxelElevationRenderer;
+import com.plot.plugin.powerline.style.EffectiveStylePreview;
+import com.plot.plugin.powerline.style.EffectiveStylePreviewResolver;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.plugin.powerline.style.PowerLineStylePreviewBinding;
 import com.plot.utils.PlotI18n;
@@ -183,12 +186,13 @@ public final class PowerLineStyleCardRenderer {
     private static final float COMPACT_PREVIEW_HEIGHT = 56f;
     private static final float LARGE_PREVIEW_PANEL_HEIGHT = 148f;
 
-    /** 选中风格的立面预览（正/侧双视图，Style Quick Customize 区）。 */
-    public static void renderLargeSelectedPreview(PowerLineStylePreset preset) {
-        if (preset == null) {
-            return;
-        }
-        PoleDesign previewDesign = previewDesignFor(preset);
+    /** 选中风格的立面预览：显示线路当前生效设计（含 Quick Tune），非 base preset 默认。 */
+    public static void renderLargeSelectedPreview(
+            PowerLineFootprint line,
+            PowerLineStylePreset base,
+            PoleDesignResolver resolver) {
+        EffectiveStylePreview effective = EffectiveStylePreviewResolver.resolve(line, base, resolver);
+        PoleDesign previewDesign = effective != null ? effective.previewDesign() : null;
         float availW = ImGui.getContentRegionAvail().x;
         float panelW = Math.max(160f, availW);
         float gap = 8f;
@@ -216,28 +220,87 @@ public final class PowerLineStyleCardRenderer {
 
         float innerX = origin.x + 4f;
         float innerY = origin.y + 4f;
+        boolean drew = false;
         if (previewDesign != null) {
-            PoleVoxelElevationRenderer.drawFront(
+            boolean front = PoleVoxelElevationRenderer.drawFront(
                 drawList,
                 previewDesign,
                 innerX,
                 innerY,
                 innerX + previewW - 4f,
                 innerY + previewH);
-            PoleVoxelElevationRenderer.drawSide(
+            boolean side = PoleVoxelElevationRenderer.drawSide(
                 drawList,
                 previewDesign,
                 innerX + previewW + gap,
                 innerY,
                 innerX + previewW + gap + previewW - 4f,
                 innerY + previewH);
-        } else {
-            drawPackPreview(drawList, preset, innerX, innerY, innerX + panelW - 8f, innerY + previewH);
+            drew = front || side;
+            if (!drew) {
+                PoleDesignPreviewRenderer.drawThumbnail(
+                    previewDesign,
+                    drawList,
+                    innerX,
+                    innerY,
+                    innerX + panelW - 8f,
+                    innerY + previewH,
+                    false);
+                drew = true;
+            }
+        }
+        if (!drew && base != null) {
+            drawPackPreview(drawList, base, innerX, innerY, innerX + panelW - 8f, innerY + previewH);
         }
         ImGui.dummy(panelW, LARGE_PREVIEW_PANEL_HEIGHT);
     }
 
-    /** 只读紧凑风格预览（Build 摘要等，已选预设）。 */
+    /** @deprecated 使用 {@link #renderLargeSelectedPreview(PowerLineFootprint, PowerLineStylePreset, PoleDesignResolver)} */
+    @Deprecated
+    public static void renderLargeSelectedPreview(PowerLineStylePreset preset) {
+        renderLargeSelectedPreview(null, preset, null);
+    }
+
+    /** Build 摘要：当前生效设计的紧凑预览。 */
+    public static void renderCompactStylePreview(
+            PowerLineFootprint line,
+            PowerLineStylePreset base,
+            PoleDesignResolver resolver) {
+        ImVec2 origin = ImGui.getCursorScreenPos();
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        float x0 = origin.x;
+        float y0 = origin.y;
+        float x1 = x0 + COMPACT_WIDTH;
+        float y1 = y0 + COMPACT_HEIGHT;
+        drawList.addRectFilled(x0, y0, x1, y1, COLOR_BG);
+        drawList.addRect(x0, y0, x1, y1, COLOR_BORDER, 3f, 0, 1f);
+        EffectiveStylePreview effective = EffectiveStylePreviewResolver.resolve(line, base, resolver);
+        PoleDesign previewDesign = effective != null ? effective.previewDesign() : null;
+        if (previewDesign == null
+                || !PoleVoxelElevationRenderer.drawFront(
+                    drawList,
+                    previewDesign,
+                    x0 + 2f,
+                    y0 + 2f,
+                    x1 - 2f,
+                    y0 + COMPACT_PREVIEW_HEIGHT)) {
+            if (previewDesign != null) {
+                PoleDesignPreviewRenderer.drawThumbnail(
+                    previewDesign,
+                    drawList,
+                    x0 + 2f,
+                    y0 + 2f,
+                    x1 - 2f,
+                    y0 + COMPACT_PREVIEW_HEIGHT,
+                    false);
+            } else if (base != null) {
+                drawPackPreview(drawList, base, x0 + 2f, y0 + 2f, x1 - 2f, y0 + COMPACT_PREVIEW_HEIGHT);
+            }
+        }
+        ImGui.dummy(COMPACT_WIDTH, COMPACT_HEIGHT);
+    }
+
+    /** 只读紧凑风格预览（Gallery 卡片等，base preset 默认）。 */
     public static void renderCompactStylePreview(PowerLineStylePreset pack) {
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();

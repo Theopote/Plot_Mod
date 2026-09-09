@@ -1,9 +1,8 @@
 package com.plot.plugin.powerline.style;
 
 import com.plot.core.material.MaterialMix;
-import com.plot.plugin.powerline.design.AttachmentRole;
+import com.plot.plugin.powerline.PowerLineSagUtils;
 import com.plot.plugin.powerline.design.ConductorArrangement;
-import com.plot.plugin.powerline.design.ConductorAttachment;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.family.TowerFamily;
@@ -22,6 +21,7 @@ import java.util.Objects;
  */
 public final class PowerLineStyleDefinition {
     private static final double SAG_MATCH_TOLERANCE = 0.01;
+    private static final double MAX_SAG_MATCH_TOLERANCE = 0.5;
 
     private final String towerFamilyId;
     private final String poleDesignId;
@@ -29,6 +29,7 @@ public final class PowerLineStyleDefinition {
     private final MaterialMix poleMaterial;
     private final MaterialMix topWireMaterial;
     private final PowerLineUiPresets.WireSag sagPreset;
+    private final double maxSagDepth;
     private final ConductorArrangement conductorArrangement;
     private final PoleSpacingProfile spacingProfile;
     private final PowerLineStylePreset.StylePreviewKind previewKind;
@@ -43,6 +44,30 @@ public final class PowerLineStyleDefinition {
             PowerLineUiPresets.WireSag sagPreset,
             ConductorArrangement conductorArrangement,
             PoleSpacingProfile spacingProfile) {
+        this(
+            previewKind,
+            towerFamilyId,
+            poleDesignId,
+            wireMaterial,
+            poleMaterial,
+            topWireMaterial,
+            sagPreset,
+            PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH,
+            conductorArrangement,
+            spacingProfile);
+    }
+
+    public PowerLineStyleDefinition(
+            PowerLineStylePreset.StylePreviewKind previewKind,
+            String towerFamilyId,
+            String poleDesignId,
+            MaterialMix wireMaterial,
+            MaterialMix poleMaterial,
+            MaterialMix topWireMaterial,
+            PowerLineUiPresets.WireSag sagPreset,
+            double maxSagDepth,
+            ConductorArrangement conductorArrangement,
+            PoleSpacingProfile spacingProfile) {
         this.previewKind = previewKind;
         this.towerFamilyId = blankToNull(towerFamilyId);
         this.poleDesignId = blankToNull(poleDesignId);
@@ -50,6 +75,7 @@ public final class PowerLineStyleDefinition {
         this.poleMaterial = poleMaterial;
         this.topWireMaterial = topWireMaterial;
         this.sagPreset = sagPreset;
+        this.maxSagDepth = sanitizeMaxSagDepth(maxSagDepth);
         this.conductorArrangement = conductorArrangement != null
             ? conductorArrangement
             : ConductorArrangement.single();
@@ -84,6 +110,11 @@ public final class PowerLineStyleDefinition {
 
     public PowerLineUiPresets.WireSag getSagPreset() {
         return sagPreset;
+    }
+
+    /** 风格默认最大下垂深度（格），视觉控制用。 */
+    public double getMaxSagDepth() {
+        return maxSagDepth;
     }
 
     public ConductorArrangement getConductorArrangement() {
@@ -127,6 +158,7 @@ public final class PowerLineStyleDefinition {
         line.setPoleMaterial(poleMaterial);
         line.setTopWireMaterial(topWireMaterial);
         PowerLineUiPresets.applySag(line, sagPreset);
+        line.setMaxSagDepth(maxSagDepth);
         if (!line.isSpacingCustomized()) {
             PowerLineSpacingPolicy.applyStyleDefaultSpacing(line, spacingProfile);
         }
@@ -153,6 +185,9 @@ public final class PowerLineStyleDefinition {
             return false;
         }
         if (!sagMatches(sagPreset, line.getSagRatio())) {
+            return false;
+        }
+        if (!maxSagMatches(maxSagDepth, line)) {
             return false;
         }
         return expectedConductorCount() == PowerLineStylePreset.resolveConductorCount(line);
@@ -204,11 +239,25 @@ public final class PowerLineStyleDefinition {
         return Math.abs(preset.ratio() - ratio) <= SAG_MATCH_TOLERANCE;
     }
 
+    private static boolean maxSagMatches(double expected, PowerLineFootprint line) {
+        if (line.isMaxSagDepthUnlimited()) {
+            return false;
+        }
+        return Math.abs(line.getMaxSagDepth() - expected) <= MAX_SAG_MATCH_TOLERANCE;
+    }
+
     private static boolean materialMatches(MaterialMix expected, MaterialMix actual) {
         if (expected == null || actual == null) {
             return false;
         }
         return Objects.equals(expected.getPrimaryMaterial(), actual.getPrimaryMaterial());
+    }
+
+    private static double sanitizeMaxSagDepth(double maxSagDepth) {
+        if (maxSagDepth <= 0.0) {
+            return PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH;
+        }
+        return Math.max(1.0, Math.min(64.0, maxSagDepth));
     }
 
     private static String blankToNull(String value) {

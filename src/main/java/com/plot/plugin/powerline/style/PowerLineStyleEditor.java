@@ -1,7 +1,6 @@
 package com.plot.plugin.powerline.style;
 
 import com.plot.core.material.MaterialMix;
-import com.plot.plugin.powerline.PowerLineSagUtils;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 
 import java.util.Objects;
@@ -92,7 +91,7 @@ public final class PowerLineStyleEditor {
         }
         PowerLineStyleDefinition definition = preset.getDefinition();
         overrides.setSagRatio(overrideSag(line.getSagRatio(), definition));
-        overrides.setMaxSagDepth(overrideMaxSagDepth(line));
+        overrides.setMaxSagDepth(overrideMaxSagDepth(line, definition));
         overrides.setWireMaterial(overrideMaterial(line.getWireMaterial(), definition.getWireMaterial()));
         overrides.setPoleMaterial(overrideMaterial(line.getPoleMaterial(), definition.getPoleMaterial()));
         overrides.setTopWireMaterial(overrideMaterial(line.getTopWireMaterial(), definition.getTopWireMaterial()));
@@ -122,11 +121,11 @@ public final class PowerLineStyleEditor {
         return Math.abs(actual - expected) <= SAG_TOLERANCE ? null : actual;
     }
 
-    private static Double overrideMaxSagDepth(PowerLineFootprint line) {
+    private static Double overrideMaxSagDepth(PowerLineFootprint line, PowerLineStyleDefinition definition) {
         if (line.isMaxSagDepthUnlimited()) {
             return -1.0;
         }
-        double expected = PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH;
+        double expected = definition.getMaxSagDepth();
         return Math.abs(line.getMaxSagDepth() - expected) <= MAX_SAG_TOLERANCE ? null : line.getMaxSagDepth();
     }
 

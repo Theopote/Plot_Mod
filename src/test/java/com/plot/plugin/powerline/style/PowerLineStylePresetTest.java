@@ -118,6 +118,7 @@ class PowerLineStylePresetTest {
         PowerLineStylePresetCatalog.japaneseStreet().apply(line);
         line.setWireMaterial(MaterialMix.single("minecraft:chain"));
         PowerLineUiPresets.applySag(line, PowerLineUiPresets.WireSag.LOOSE);
+        line.setMaxSagDepth(40.0);
         line.setSpacingCustomized(true);
         line.setMaxPoleSpacing(72);
         PowerLineStyleEditor.afterStyleEdit(line);
@@ -130,5 +131,33 @@ class PowerLineStylePresetTest {
         assertFalse(PowerLineStyleEditor.isModified(line));
         assertTrue(PowerLineStylePresetCatalog.japaneseStreet().matchesBundle(line));
         assertEquals(30.0, line.getMaxPoleSpacing(), 0.1);
+        assertEquals(10.0, line.getMaxSagDepth(), 0.1);
+    }
+
+    @Test
+    void resetToBasePresetClearsMaxSagDepthOverride() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
+        PowerLineStylePreset mega = PowerLineStylePresetCatalog.megaLattice();
+        mega.apply(line);
+        line.setMaxSagDepth(40.0);
+        PowerLineStyleEditor.afterStyleEdit(line);
+
+        assertTrue(PowerLineStyleEditor.isModified(line));
+        assertEquals(40.0, line.getMaxSagDepth(), 0.1);
+
+        PowerLineStyleEditor.resetToBasePreset(line);
+
+        assertEquals(24.0, line.getMaxSagDepth(), 0.1);
+        assertFalse(PowerLineStyleEditor.isModified(line));
+        assertEquals(24.0, mega.getMaxSagDepth(), 0.1);
+    }
+
+    @Test
+    void styleDefinitionsCarryVisualMaxSagDepthDefaults() {
+        assertEquals(12.0, PowerLineStylePresetCatalog.classicWood().getMaxSagDepth(), 0.1);
+        assertEquals(10.0, PowerLineStylePresetCatalog.japaneseStreet().getMaxSagDepth(), 0.1);
+        assertEquals(16.0, PowerLineStylePresetCatalog.classicLattice().getMaxSagDepth(), 0.1);
+        assertEquals(24.0, PowerLineStylePresetCatalog.megaLattice().getMaxSagDepth(), 0.1);
+        assertEquals(32.0, PowerLineStylePresetCatalog.monsterPylon().getMaxSagDepth(), 0.1);
     }
 }

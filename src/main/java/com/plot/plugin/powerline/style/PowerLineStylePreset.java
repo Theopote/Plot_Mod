@@ -107,6 +107,10 @@ public final class PowerLineStylePreset {
         return definition.getSagPreset();
     }
 
+    public double getMaxSagDepth() {
+        return definition.getMaxSagDepth();
+    }
+
     public com.plot.plugin.powerline.design.ConductorArrangement getConductorArrangement() {
         return definition.getConductorArrangement();
     }
