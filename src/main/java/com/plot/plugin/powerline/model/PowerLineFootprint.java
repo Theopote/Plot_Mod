@@ -3,6 +3,7 @@ package com.plot.plugin.powerline.model;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.PowerLineSagUtils;
+import com.plot.plugin.powerline.style.StyleOverrides;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -47,6 +48,8 @@ public class PowerLineFootprint {
     private boolean automaticTowerSelectionEnabled;
     /** 玩家曾在 Route 高级区手工调整间距；切换风格时不自动覆盖。 */
     private boolean spacingCustomized;
+    /** 相对 {@link #stylePackId} 的偏离项；{@code null} 字段表示沿用预设默认。 */
+    private final StyleOverrides styleOverrides = new StyleOverrides();
 
     public PowerLineFootprint(List<Vec2d> pathPoints) {
         this.id = UUID.randomUUID().toString();
@@ -330,6 +333,14 @@ public class PowerLineFootprint {
 
     public void setSpacingCustomized(boolean spacingCustomized) {
         this.spacingCustomized = spacingCustomized;
+    }
+
+    public StyleOverrides getStyleOverrides() {
+        return styleOverrides;
+    }
+
+    public void clearStyleOverrides() {
+        styleOverrides.clear();
     }
 
     public double computePathLength() {

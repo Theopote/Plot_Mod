@@ -291,6 +291,7 @@ public class PowerLineProject {
                 footprint.setTerrainAvoidanceEnabled(lineData.terrainAvoidanceEnabled);
                 footprint.setAutomaticTowerSelectionEnabled(lineData.automaticTowerSelectionEnabled);
                 footprint.setSpacingCustomized(lineData.spacingCustomized);
+                com.plot.plugin.powerline.style.PowerLineStyleEditor.syncOverridesFromFootprint(footprint);
                 project.addLine(footprint);
             }
             return project;

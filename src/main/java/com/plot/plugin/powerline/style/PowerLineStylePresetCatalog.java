@@ -82,27 +82,15 @@ public final class PowerLineStylePresetCatalog {
         return null;
     }
 
-    /** 当前仍与 footprint 配置一致的已选预设（需有 {@code stylePackId}，持久化字段待 rename）。 */
+    /** 当前 base preset（按 {@code stylePackId}，微调后仍保留）。 */
     public static PowerLineStylePreset activePreset(PowerLineFootprint line) {
-        if (line == null || line.getStylePackId() == null) {
-            return null;
-        }
-        PowerLineStylePreset preset = find(line.getStylePackId());
-        if (preset != null && preset.matchesBundle(line)) {
-            return preset;
-        }
-        return null;
+        return PowerLineStyleEditor.basePreset(line);
     }
 
-    /** 手动改动后若与预设不一致，清除 {@code stylePackId} 以进入「自定义」状态。 */
-    public static void clearStylePresetIfDrifted(PowerLineFootprint line) {
-        if (line == null || line.getStylePackId() == null) {
-            return;
-        }
-        PowerLineStylePreset preset = find(line.getStylePackId());
-        if (preset == null || !preset.matchesBundle(line)) {
-            line.setStylePackId(null);
-        }
+    /** footprint 配置是否仍与 base preset 默认 bundle 完全一致。 */
+    public static boolean matchesBaseBundle(PowerLineFootprint line) {
+        PowerLineStylePreset preset = activePreset(line);
+        return preset != null && preset.matchesBundle(line);
     }
 
     public static PowerLineStylePreset classicWood() {

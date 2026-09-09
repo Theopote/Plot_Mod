@@ -3,7 +3,10 @@ package com.plot.plugin.powerline.ui;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
+import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.preview.PoleVoxelElevationRenderer;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
+import com.plot.plugin.powerline.style.PowerLineStylePreviewBinding;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -11,9 +14,9 @@ import imgui.ImVec2;
 
 /** 样式 Tab 的杆塔风格卡片（缩略图 + 标签 + 选中高亮）。 */
 public final class PowerLineStyleCardRenderer {
-    public static final float CARD_WIDTH = 96f;
-    public static final float CARD_HEIGHT = 108f;
-    private static final float PREVIEW_HEIGHT = 72f;
+    public static final float CARD_WIDTH = 120f;
+    public static final float CARD_HEIGHT = 144f;
+    private static final float PREVIEW_HEIGHT = 96f;
     private static final float LABEL_PADDING = 4f;
 
     private static final int COLOR_BG = 0xFF1E1E1E;
@@ -35,6 +38,14 @@ public final class PowerLineStyleCardRenderer {
      * 绘制可点击的风格卡片；返回是否被点击。
      */
     public static boolean renderStyleCard(PowerLineStylePreset pack, String label, boolean selected) {
+        return renderStyleCard(pack, label, selected, null);
+    }
+
+    public static boolean renderStyleCard(
+            PowerLineStylePreset pack,
+            String label,
+            boolean selected,
+            PowerLineFootprint lineContext) {
         if (pack == null) {
             return false;
         }
@@ -61,19 +72,92 @@ public final class PowerLineStyleCardRenderer {
 
         ImGui.invisibleButton(buttonId, CARD_WIDTH, CARD_HEIGHT);
         if (ImGui.isItemHovered()) {
-            renderPackTooltip(pack, label);
+            renderPackTooltip(pack, label, lineContext);
         }
         return ImGui.isItemClicked(0);
     }
 
-    private static void renderPackTooltip(PowerLineStylePreset pack, String label) {
+    private static void renderPackTooltip(PowerLineStylePreset pack, String label, PowerLineFootprint lineContext) {
         ImGui.beginTooltip();
         ImGui.text(label);
         ImGui.separator();
+        PoleDesign previewDesign = previewDesignFor(pack);
+        if (previewDesign != null) {
+            float previewW = ImGui.getFontSize() * 7f;
+            float previewH = ImGui.getFontSize() * 9f;
+            ImGui.text(PlotI18n.tr("plugin.powerline.style.preview_front"));
+            ImDrawList drawList = ImGui.getWindowDrawList();
+            ImVec2 frontOrigin = ImGui.getCursorScreenPos();
+            drawList.addRectFilled(
+                frontOrigin.x,
+                frontOrigin.y,
+                frontOrigin.x + previewW,
+                frontOrigin.y + previewH,
+                0xFF141414);
+            PoleVoxelElevationRenderer.drawFront(
+                drawList,
+                previewDesign,
+                frontOrigin.x,
+                frontOrigin.y,
+                frontOrigin.x + previewW,
+                frontOrigin.y + previewH);
+            ImGui.dummy(previewW, previewH);
+            ImGui.sameLine();
+            ImGui.beginGroup();
+            ImGui.text(PlotI18n.tr("plugin.powerline.style.preview_side"));
+            ImVec2 sideOrigin = ImGui.getCursorScreenPos();
+            drawList.addRectFilled(
+                sideOrigin.x,
+                sideOrigin.y,
+                sideOrigin.x + previewW,
+                sideOrigin.y + previewH,
+                0xFF141414);
+            PoleVoxelElevationRenderer.drawSide(
+                drawList,
+                previewDesign,
+                sideOrigin.x,
+                sideOrigin.y,
+                sideOrigin.x + previewW,
+                sideOrigin.y + previewH);
+            ImGui.dummy(previewW, previewH);
+            ImGui.text(PlotI18n.tr(
+                "plugin.powerline.style.preview_height",
+                previewDesign.totalHeight()));
+            ImGui.text(PlotI18n.tr(
+                "plugin.powerline.style.preview_wires",
+                pack.conductorCount()));
+            if (lineContext != null) {
+                ImGui.text(PlotI18n.tr(
+                    "plugin.powerline.style.preview_spacing",
+                    lineContext.getMaxPoleSpacing()));
+            } else {
+                ImGui.text(PlotI18n.tr(
+                    "plugin.powerline.style.preview_spacing",
+                    pack.getSpacingProfile().preferred()));
+            }
+            ImGui.endGroup();
+            ImGui.separator();
+        }
         ImGui.pushTextWrapPos(ImGui.getFontSize() * 24f);
         ImGui.textWrapped(PlotI18n.tr(pack.getDescriptionKey()));
         ImGui.popTextWrapPos();
         ImGui.endTooltip();
+    }
+
+    private static PoleDesign previewDesignFor(PowerLineStylePreset pack) {
+        String designId = PowerLineStylePreviewBinding.primaryPreviewDesignId(pack);
+        if (designId == null) {
+            return null;
+        }
+        PoleDesign design = PoleDesignCatalog.findBuiltin(designId);
+        if (design != null) {
+            return design;
+        }
+        return switch (pack.getPreviewKind()) {
+            case ADAPTIVE -> TowerFamilyDesignPresets.latticeSuspensionSmall();
+            case LATTICE -> TowerFamilyDesignPresets.latticeSuspension();
+            default -> null;
+        };
     }
 
     public static float cardWidth() {
@@ -99,7 +183,17 @@ public final class PowerLineStyleCardRenderer {
         drawList.addRectFilled(x0, y0, x1, y1, COLOR_BG);
         drawList.addRect(x0, y0, x1, y1, COLOR_BORDER, 3f, 0, 1f);
         if (pack != null) {
-            drawPackPreview(drawList, pack, x0 + 2f, y0 + 2f, x1 - 2f, y0 + COMPACT_PREVIEW_HEIGHT);
+            PoleDesign previewDesign = previewDesignFor(pack);
+            if (previewDesign == null
+                    || !PoleVoxelElevationRenderer.drawFront(
+                        drawList,
+                        previewDesign,
+                        x0 + 2f,
+                        y0 + 2f,
+                        x1 - 2f,
+                        y0 + COMPACT_PREVIEW_HEIGHT)) {
+                drawPackPreview(drawList, pack, x0 + 2f, y0 + 2f, x1 - 2f, y0 + COMPACT_PREVIEW_HEIGHT);
+            }
         }
         ImGui.dummy(COMPACT_WIDTH, COMPACT_HEIGHT);
     }
@@ -125,6 +219,11 @@ public final class PowerLineStyleCardRenderer {
             float y0,
             float x1,
             float y1) {
+        PoleDesign previewDesign = previewDesignFor(pack);
+        if (previewDesign != null
+                && PoleVoxelElevationRenderer.drawFront(drawList, previewDesign, x0, y0, x1, y1)) {
+            return;
+        }
         switch (pack.getPreviewKind()) {
             case WOOD -> drawWoodPreview(drawList, x0, y0, x1, y1);
             case DOUBLE_WOOD -> drawDesignPreview(drawList, PoleDesignCatalog.doubleWoodPole(), x0, y0, x1, y1);

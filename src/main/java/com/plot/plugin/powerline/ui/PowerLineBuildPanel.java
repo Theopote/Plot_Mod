@@ -2,8 +2,8 @@ package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.PowerLineGenerationI18n;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
+import com.plot.plugin.powerline.style.PowerLineStyleEditor;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
-import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
 import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.ui.PluginUiColors;
@@ -52,20 +52,22 @@ public final class PowerLineBuildPanel {
             return;
         }
 
-        PowerLineStylePreset activePreset = PowerLineStylePresetCatalog.activePreset(line);
-        if (activePreset != null) {
-            PowerLineStyleCardRenderer.renderCompactStylePreview(activePreset);
+        PowerLineStylePreset basePreset = PowerLineStyleEditor.basePreset(line);
+        if (basePreset != null) {
+            PowerLineStyleCardRenderer.renderCompactStylePreview(basePreset);
         } else {
             PowerLineStyleCardRenderer.renderCompactCustomStylePreview();
         }
         ImGui.sameLine();
         ImGui.beginGroup();
-        if (activePreset != null) {
+        if (basePreset != null) {
+            String styleLabel = PlotI18n.tr(basePreset.getLabelKey());
+            if (PowerLineStyleEditor.isModified(line)) {
+                styleLabel += " · " + PlotI18n.tr("plugin.powerline.style.modified_badge");
+            }
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
-                PlotI18n.tr(
-                    "plugin.powerline.build.style_preset",
-                    PlotI18n.tr(activePreset.getLabelKey())));
+                PlotI18n.tr("plugin.powerline.build.style_preset", styleLabel));
         } else {
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,

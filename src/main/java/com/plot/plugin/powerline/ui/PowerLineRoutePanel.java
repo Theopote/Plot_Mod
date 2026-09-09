@@ -120,7 +120,7 @@ public final class PowerLineRoutePanel {
                 sliderMax,
                 "%.1f")) {
             line.setMinPoleSpacing(minSpacing[0]);
-            line.setSpacingCustomized(true);
+            com.plot.plugin.powerline.style.PowerLineStyleEditor.afterSpacingEdit(line);
             ctx.invalidatePreview();
         }
         if (ImGui.isItemActivated()) {
@@ -138,7 +138,7 @@ public final class PowerLineRoutePanel {
                 sliderMax,
                 "%.1f")) {
             line.setMaxPoleSpacing(maxSpacing[0]);
-            line.setSpacingCustomized(true);
+            com.plot.plugin.powerline.style.PowerLineStyleEditor.afterSpacingEdit(line);
             ctx.invalidatePreview();
         }
         if (ImGui.isItemActivated()) {
@@ -188,6 +188,7 @@ public final class PowerLineRoutePanel {
         if (ImGui.button(PlotI18n.tr("plugin.powerline.route.apply_recommended_spacing"), 0, 0)) {
             ctx.pushEditSnapshot();
             PowerLineSpacingPolicy.applyStyleDefaultSpacing(line, profile);
+            com.plot.plugin.powerline.style.PowerLineStyleEditor.afterSpacingAdopted(line);
             ctx.invalidatePreview();
         }
     }

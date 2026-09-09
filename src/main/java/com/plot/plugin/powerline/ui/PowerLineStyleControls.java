@@ -9,7 +9,7 @@ import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
 import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
-import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
+import com.plot.plugin.powerline.style.PowerLineStyleEditor;
 import com.plot.plugin.powerline.model.PoleOverride;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
@@ -67,7 +67,7 @@ public final class PowerLineStyleControls {
     }
 
     private void onStyleEdited(PowerLineFootprint line) {
-        PowerLineStylePresetCatalog.clearStylePresetIfDrifted(line);
+        PowerLineStyleEditor.afterStyleEdit(line);
         ctx.invalidatePreview();
     }
 

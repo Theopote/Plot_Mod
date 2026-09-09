@@ -1,23 +1,21 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.model.PowerLineFootprint;
-import com.plot.plugin.powerline.style.PowerLineSpacingPolicy;
+import com.plot.plugin.powerline.style.PowerLineStyleEditor;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
-import com.plot.plugin.powerline.style.PoleSpacingProfile;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiTreeNodeFlags;
 
-/** 样式 Tab：塔型主题、下垂、材质。 */
+/** 样式 Tab：塔型主题、Quick Tune、高级设计。 */
 public final class PowerLineStylePanel {
-    private static final int STYLE_PRESET_COLUMNS = 4;
-
     private final PowerLineUiContext ctx;
     private final PowerLineStyleControls styleControls;
     private final PoleDesignerPanel poleDesignerPanel;
+    private final PowerLineStyleQuickTunePanel quickTunePanel;
 
     public PowerLineStylePanel(
             PowerLineUiContext ctx,
@@ -25,6 +23,7 @@ public final class PowerLineStylePanel {
         this.ctx = ctx;
         this.styleControls = new PowerLineStyleControls(ctx);
         this.poleDesignerPanel = poleDesignerPanel;
+        this.quickTunePanel = new PowerLineStyleQuickTunePanel(ctx, poleDesignerPanel);
     }
 
     public void render() {
@@ -46,115 +45,81 @@ public final class PowerLineStylePanel {
                 ImGuiTreeNodeFlags.None)) {
             renderStylePresetGrid(line, PowerLineStylePresetCatalog.engineeringPresets());
         }
-        renderStylePresetStatus(line);
-        renderSpacingRecommendation(line);
-        ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.powerline.style.section.wire"));
-        renderSagPresets(line);
-        styleControls.renderMaterialControls(line);
+
+        PowerLineStylePreset base = PowerLineStyleEditor.basePreset(line);
+        if (base != null) {
+            quickTunePanel.render(line, base);
+        } else {
+            quickTunePanel.renderCustomFallback(line);
+        }
+
         renderAdvancedStyle(line);
     }
 
+    private int computePresetColumns() {
+        float cardW = PowerLineStyleCardRenderer.cardWidth();
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float avail = ImGui.getContentRegionAvail().x;
+        return Math.max(2, (int) ((avail + spacing) / (cardW + spacing)));
+    }
+
     private void renderStylePresetGrid(PowerLineFootprint line, java.util.List<PowerLineStylePreset> presets) {
-        PowerLineStylePreset active = PowerLineStylePresetCatalog.activePreset(line);
+        PowerLineStylePreset base = PowerLineStyleEditor.basePreset(line);
+        int columns = computePresetColumns();
         float spacing = ImGui.getStyle().getItemSpacingX();
 
         for (int i = 0; i < presets.size(); i++) {
-            if (i > 0 && i % STYLE_PRESET_COLUMNS != 0) {
+            if (i > 0 && i % columns != 0) {
                 ImGui.sameLine(0f, spacing);
             }
             PowerLineStylePreset preset = presets.get(i);
-            boolean selected = active != null && active.getId().equals(preset.getId());
+            boolean selected = base != null && base.getId().equals(preset.getId());
             String label = PlotI18n.tr(preset.getLabelKey());
-            if (PowerLineStyleCardRenderer.renderStyleCard(preset, label, selected)) {
+            if (PowerLineStyleCardRenderer.renderStyleCard(preset, label, selected, line)) {
                 ctx.pushEditSnapshot();
-                preset.apply(line);
+                PowerLineStyleEditor.selectPreset(line, preset);
                 ctx.invalidatePreview();
             }
         }
         ImGui.newLine();
     }
 
-    private void renderStylePresetStatus(PowerLineFootprint line) {
-        PowerLineStylePreset active = PowerLineStylePresetCatalog.activePreset(line);
-        if (active != null) {
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr(
-                    "plugin.powerline.style.selected_pack",
-                    PlotI18n.tr(active.getLabelKey())));
-        } else {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.style.custom"));
+    private void renderAdvancedStyle(PowerLineFootprint line) {
+        ImGui.separator();
+        ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
+        if (!ImGui.collapsingHeader(
+                PlotI18n.tr("plugin.powerline.style.edit_design"),
+                ImGuiTreeNodeFlags.None)) {
+            return;
         }
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.powerline.style.advanced_hint"));
+        styleControls.renderPoleDesignControls(line, poleDesignerPanel, true);
+        styleControls.renderTowerFamilyControls(line);
+        styleControls.renderPoleHeightControls(line);
+        styleControls.renderPoleRoleInspector(line);
+        renderAdvancedSag(line);
     }
 
-    private void renderSpacingRecommendation(PowerLineFootprint line) {
-        PowerLineStylePreset active = PowerLineStylePresetCatalog.activePreset(line);
-        if (active == null || !line.isSpacingCustomized()) {
-            return;
-        }
-        if (!PowerLineSpacingPolicy.differsFromStyleRecommendation(line, active)) {
-            return;
-        }
-        PoleSpacingProfile profile = active.getSpacingProfile();
-        ImGui.textColored(
-            PluginUiColors.WARNING,
-            PlotI18n.tr(
-                "plugin.powerline.style.spacing_recommendation",
-                profile.preferred(),
-                line.getMaxPoleSpacing()));
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.style.apply_recommended_spacing"), 0, 0)) {
-            ctx.pushEditSnapshot();
-            PowerLineSpacingPolicy.applyStyleDefaultSpacing(line, profile);
+    private void renderAdvancedSag(PowerLineFootprint line) {
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr("plugin.powerline.style.sag_advanced"));
+        float[] sagRatio = {(float) (line.getSagRatio() * 100f)};
+        if (ImGui.sliderFloat(
+                PlotI18n.tr("plugin.powerline.sag_ratio", sagRatio[0]),
+                sagRatio,
+                0f,
+                (float) (PowerLineUiPresets.ADVANCED_SAG_MAX_RATIO * 100f),
+                "%.0f%%")) {
+            PowerLineUiPresets.applyAdvancedSag(line, sagRatio[0] / 100f);
+            PowerLineStyleEditor.afterStyleEdit(line);
             ctx.invalidatePreview();
         }
-    }
-
-    private void renderSagPresets(PowerLineFootprint line) {
-        ImGui.text(PlotI18n.tr("plugin.powerline.style.sag"));
-        PowerLineUiPresets.WireSag current = PowerLineUiPresets.detectSag(line);
-
-        float spacing = ImGui.getStyle().getItemSpacingX();
-        float totalWidth = PowerLineSagCardRenderer.CARD_WIDTH * PowerLineUiPresets.WireSag.values().length
-            + spacing * (PowerLineUiPresets.WireSag.values().length - 1);
-        float startX = ImGui.getCursorPosX();
-        if (totalWidth < ImGui.getContentRegionAvail().x) {
-            ImGui.setCursorPosX(startX + (ImGui.getContentRegionAvail().x - totalWidth) * 0.5f);
+        if (ImGui.isItemActivated()) {
+            ctx.pushEditSnapshot();
         }
-
-        for (PowerLineUiPresets.WireSag sag : PowerLineUiPresets.WireSag.values()) {
-            if (sag != PowerLineUiPresets.WireSag.values()[0]) {
-                ImGui.sameLine(0f, spacing);
-            }
-            boolean selected = sag == current;
-            String label = PlotI18n.tr("plugin.powerline.style.sag." + sag.name().toLowerCase());
-            if (PowerLineSagCardRenderer.renderSagCard(sag, label, selected)) {
-                ctx.pushEditSnapshot();
-                PowerLineUiPresets.applySag(line, sag);
-                PowerLineStylePresetCatalog.clearStylePresetIfDrifted(line);
-                ctx.invalidatePreview();
-            }
-        }
-        ImGui.newLine();
-
-        ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.powerline.style.sag_advanced"), ImGuiTreeNodeFlags.None)) {
-            float[] sagRatio = {(float) (line.getSagRatio() * 100f)};
-            if (ImGui.sliderFloat(
-                    PlotI18n.tr("plugin.powerline.sag_ratio", sagRatio[0]),
-                    sagRatio,
-                    0f,
-                    (float) (PowerLineUiPresets.ADVANCED_SAG_MAX_RATIO * 100f),
-                    "%.0f%%")) {
-                PowerLineUiPresets.applyAdvancedSag(line, sagRatio[0] / 100f);
-                PowerLineStylePresetCatalog.clearStylePresetIfDrifted(line);
-                ctx.invalidatePreview();
-            }
-            if (ImGui.isItemActivated()) {
-                ctx.pushEditSnapshot();
-            }
-            renderMaxSagDepthControls(line);
-        }
+        renderMaxSagDepthControls(line);
     }
 
     private void renderMaxSagDepthControls(PowerLineFootprint line) {
@@ -165,7 +130,7 @@ public final class PowerLineStylePanel {
                 line,
                 PowerLineUiPresets.displayMaxSagDepth(line),
                 !unlimited);
-            PowerLineStylePresetCatalog.clearStylePresetIfDrifted(line);
+            PowerLineStyleEditor.afterStyleEdit(line);
             ctx.invalidatePreview();
         }
         if (!line.isMaxSagDepthUnlimited()) {
@@ -177,7 +142,7 @@ public final class PowerLineStylePanel {
                     PowerLineUiPresets.ADVANCED_MAX_SAG_DEPTH_MAX,
                     "%.0f")) {
                 PowerLineUiPresets.applyMaxSagDepth(line, maxDepth[0], false);
-                PowerLineStylePresetCatalog.clearStylePresetIfDrifted(line);
+                PowerLineStyleEditor.afterStyleEdit(line);
                 ctx.invalidatePreview();
             }
             if (ImGui.isItemActivated()) {
@@ -188,19 +153,5 @@ public final class PowerLineStylePanel {
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.max_sag_depth_profile_hint"));
         }
-    }
-
-    private void renderAdvancedStyle(PowerLineFootprint line) {
-        ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
-        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.powerline.style.advanced"), ImGuiTreeNodeFlags.None)) {
-            return;
-        }
-        ImGui.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.powerline.style.advanced_hint"));
-        styleControls.renderPoleDesignControls(line, poleDesignerPanel, true);
-        styleControls.renderTowerFamilyControls(line);
-        styleControls.renderPoleHeightControls(line);
-        styleControls.renderPoleRoleInspector(line);
     }
 }
