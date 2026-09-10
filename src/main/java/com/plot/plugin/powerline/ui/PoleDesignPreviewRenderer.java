@@ -12,12 +12,16 @@ import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
+import imgui.flag.ImGuiWindowFlags;
 
 /** 杆塔设计器预览：体素立面 + 设计辅助 overlay。 */
 public final class PoleDesignPreviewRenderer {
     private static final float PREVIEW_HEIGHT = 200f;
     private static final float PANE_GAP = 8f;
     private static final float PANE_PADDING = 2f;
+    private static final float PANE_LABEL_GAP = 4f;
+    private static final int PREVIEW_CHILD_FLAGS =
+        ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
     private static final int COLOR_BG = 0xFF2A2A2A;
     private static final int COLOR_BORDER = 0xFF606060;
     private static final int COLOR_ATTACHMENT = 0xE6FFD54F;
@@ -36,15 +40,16 @@ public final class PoleDesignPreviewRenderer {
             return;
         }
 
-        ImGui.beginChild("##pole_design_preview_canvas", 0, PREVIEW_HEIGHT + 4f, true);
-        float childWidth = ImGui.getContentRegionAvail().x;
-        float paneWidth = Math.max(40f, (childWidth - PANE_GAP) * 0.5f);
+        ImGui.beginChild("##pole_design_preview_canvas", 0, PREVIEW_HEIGHT, true, PREVIEW_CHILD_FLAGS);
+        float contentWidth = ImGui.getContentRegionAvail().x;
+        float contentHeight = ImGui.getContentRegionAvail().y;
+        float paneWidth = Math.max(40f, (contentWidth - PANE_GAP) * 0.5f);
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
         PoleVoxelPreviewModel model = PoleVoxelizer.voxelize(design);
 
         float y0 = origin.y;
-        float y1 = y0 + PREVIEW_HEIGHT;
+        float y1 = y0 + contentHeight;
         float frontX0 = origin.x;
         float frontX1 = frontX0 + paneWidth;
         float sideX0 = frontX1 + PANE_GAP;
@@ -71,7 +76,7 @@ public final class PoleDesignPreviewRenderer {
             sideX1 - PANE_PADDING,
             y1 - PANE_PADDING);
 
-        ImGui.dummy(childWidth, PREVIEW_HEIGHT);
+        ImGui.dummy(contentWidth, contentHeight);
         ImGui.endChild();
     }
 
@@ -89,7 +94,7 @@ public final class PoleDesignPreviewRenderer {
         drawList.addRect(x0, y0, x1, y1, COLOR_BORDER);
         drawList.addText(x0 + 4f, y0 + 3f, COLOR_LABEL, label);
 
-        float innerY0 = y0 + ImGui.getFontSize() + 4f;
+        float innerY0 = y0 + ImGui.getFontSize() + PANE_LABEL_GAP;
         if (model != null && !model.isEmpty()) {
             PoleVoxelElevationRenderer.draw(drawList, model, view, x0, innerY0, x1, y1);
             PoleVoxelElevationRenderer.ElevationLayout layout = PoleVoxelElevationRenderer.computeLayout(
