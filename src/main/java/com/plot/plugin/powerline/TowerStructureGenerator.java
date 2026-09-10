@@ -7,6 +7,7 @@ import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.powerline.design.structure.BracingPattern;
 import com.plot.plugin.powerline.design.structure.TowerArm;
+import com.plot.plugin.powerline.design.structure.TowerArmPlacement;
 import com.plot.plugin.powerline.design.structure.TowerArmSide;
 import com.plot.plugin.powerline.design.structure.TowerBay;
 import com.plot.plugin.powerline.design.structure.TowerDecoration;
@@ -210,65 +211,21 @@ public final class TowerStructureGenerator {
             PowerLineGenerationResult result,
             IBlockProjectionService projection,
             GenerationCounters counters) {
-        MaterialMix material = arm.getMaterial() != null
+        MaterialMix chordMaterial = arm.getMaterial() != null
             ? arm.getMaterial()
             : structure.getPrimaryMaterial();
-        double topHeight = arm.getBaseHeight();
-        double bottomHeight = Math.max(0.0, topHeight - arm.getVerticalDrop());
-        double reach = arm.getLateralReach();
-        double longHalf = arm.getLongitudinalHalfWidth();
-        BracingPattern bracing = arm.getBracing();
-        switch (arm.getSide()) {
-            case BOTH -> generateArmTruss(
-                -reach, reach, topHeight, bottomHeight, longHalf, bracing,
-                material, material, transform, footprint, result, projection, counters);
-            case LEFT -> generateArmTruss(
-                -reach, 0, topHeight, bottomHeight, longHalf, bracing,
-                material, material, transform, footprint, result, projection, counters);
-            case RIGHT -> generateArmTruss(
-                0, reach, topHeight, bottomHeight, longHalf, bracing,
-                material, material, transform, footprint, result, projection, counters);
-            default -> { }
-        }
-    }
-
-    private static void generateArmTruss(
-            double lateralStart,
-            double lateralEnd,
-            double topHeight,
-            double bottomHeight,
-            double longHalf,
-            BracingPattern bracing,
-            MaterialMix chordMaterial,
-            MaterialMix braceMaterial,
-            TowerStructureTransform transform,
-            PowerLineFootprint footprint,
-            PowerLineGenerationResult result,
-            IBlockProjectionService projection,
-            GenerationCounters counters) {
-        if (Math.abs(lateralEnd - lateralStart) < 1e-6) {
-            return;
-        }
-
-        placeArmChord(lateralStart, lateralEnd, topHeight, longHalf, chordMaterial,
-            transform, footprint, result, projection, counters);
-        if (bottomHeight + 1e-6 < topHeight) {
-            placeArmChord(lateralStart, lateralEnd, bottomHeight, longHalf, chordMaterial,
-                transform, footprint, result, projection, counters);
-            generateArmBracing(
-                lateralStart,
-                lateralEnd,
-                topHeight,
-                bottomHeight,
-                longHalf,
-                bracing,
-                braceMaterial,
-                transform,
-                footprint,
-                result,
-                projection,
-                counters);
-        }
+        MaterialMix braceMaterial = arm.getMaterial() != null
+            ? arm.getMaterial()
+            : structure.getBraceMaterial();
+        TowerArmPlacement.placeArm(
+            arm,
+            chordMaterial,
+            braceMaterial,
+            (lateralStart, lateralEnd, height, longHalf, material) ->
+                placeArmChord(lateralStart, lateralEnd, height, longHalf, material,
+                    transform, footprint, result, projection, counters),
+            (start, end, material) ->
+                placeArmBrace(start, end, material, transform, footprint, result, projection, counters));
     }
 
     private static void placeArmChord(
@@ -297,43 +254,6 @@ public final class TowerStructureGenerator {
             TowerLocalPoint.of(lateralStart, height, longHalf),
             TowerLocalPoint.of(lateralEnd, height, longHalf),
             material, 1, transform, footprint, result, projection, counters, MemberKind.ARM);
-    }
-
-    private static void generateArmBracing(
-            double lateralStart,
-            double lateralEnd,
-            double topHeight,
-            double bottomHeight,
-            double longHalf,
-            BracingPattern pattern,
-            MaterialMix braceMaterial,
-            TowerStructureTransform transform,
-            PowerLineFootprint footprint,
-            PowerLineGenerationResult result,
-            IBlockProjectionService projection,
-            GenerationCounters counters) {
-        if (pattern == BracingPattern.NONE) {
-            return;
-        }
-
-        double[] longitudes = longHalf <= 0 ? new double[] {0.0} : new double[] {-longHalf, longHalf};
-        for (double longitudinal : longitudes) {
-            TowerLocalPoint topLeft = TowerLocalPoint.of(lateralStart, topHeight, longitudinal);
-            TowerLocalPoint topRight = TowerLocalPoint.of(lateralEnd, topHeight, longitudinal);
-            TowerLocalPoint bottomLeft = TowerLocalPoint.of(lateralStart, bottomHeight, longitudinal);
-            TowerLocalPoint bottomRight = TowerLocalPoint.of(lateralEnd, bottomHeight, longitudinal);
-
-            if (pattern == BracingPattern.X) {
-                placeArmBrace(bottomLeft, topRight, braceMaterial, transform, footprint, result, projection, counters);
-                placeArmBrace(bottomRight, topLeft, braceMaterial, transform, footprint, result, projection, counters);
-            } else if (pattern == BracingPattern.K) {
-                TowerLocalPoint centerTop = midpoint(topLeft, topRight);
-                placeArmBrace(bottomLeft, centerTop, braceMaterial, transform, footprint, result, projection, counters);
-                placeArmBrace(bottomRight, centerTop, braceMaterial, transform, footprint, result, projection, counters);
-            } else if (pattern == BracingPattern.SINGLE_DIAGONAL) {
-                placeArmBrace(bottomLeft, topRight, braceMaterial, transform, footprint, result, projection, counters);
-            }
-        }
     }
 
     private static void generateDecoration(

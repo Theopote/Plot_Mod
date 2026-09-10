@@ -6,6 +6,7 @@ import com.plot.plugin.powerline.TowerLocalPoint;
 import com.plot.plugin.powerline.VoxelLineRasterizer;
 import com.plot.plugin.powerline.design.structure.BracingPattern;
 import com.plot.plugin.powerline.design.structure.TowerArm;
+import com.plot.plugin.powerline.design.structure.TowerArmPlacement;
 import com.plot.plugin.powerline.design.structure.TowerArmSide;
 import com.plot.plugin.powerline.design.structure.TowerBay;
 import com.plot.plugin.powerline.design.structure.TowerStation;
@@ -147,51 +148,16 @@ public final class TowerStructurePreviewVoxelPlacer {
             TowerStructureDesign structure,
             VoxelSink sink,
             String seed) {
-        MaterialMix material = arm.getMaterial() != null ? arm.getMaterial() : structure.getPrimaryMaterial();
-        double topHeight = arm.getBaseHeight();
-        double bottomHeight = Math.max(0.0, topHeight - arm.getVerticalDrop());
-        double reach = arm.getLateralReach();
-        double longHalf = arm.getLongitudinalHalfWidth();
-        BracingPattern bracing = arm.getBracing();
-        switch (arm.getSide()) {
-            case BOTH -> generateArmTruss(
-                -reach, reach, topHeight, bottomHeight, longHalf, bracing, material, sink, seed);
-            case LEFT -> generateArmTruss(
-                -reach, 0, topHeight, bottomHeight, longHalf, bracing, material, sink, seed);
-            case RIGHT -> generateArmTruss(
-                0, reach, topHeight, bottomHeight, longHalf, bracing, material, sink, seed);
-            default -> { }
-        }
-    }
-
-    private static void generateArmTruss(
-            double lateralStart,
-            double lateralEnd,
-            double topHeight,
-            double bottomHeight,
-            double longHalf,
-            BracingPattern bracing,
-            MaterialMix material,
-            VoxelSink sink,
-            String seed) {
-        if (Math.abs(lateralEnd - lateralStart) < 1e-6) {
-            return;
-        }
-
-        placeArmChord(lateralStart, lateralEnd, topHeight, longHalf, material, sink, seed);
-        if (bottomHeight + 1e-6 < topHeight) {
-            placeArmChord(lateralStart, lateralEnd, bottomHeight, longHalf, material, sink, seed);
-            generateArmBracing(
-                lateralStart,
-                lateralEnd,
-                topHeight,
-                bottomHeight,
-                longHalf,
-                bracing,
-                material,
-                sink,
-                seed);
-        }
+        MaterialMix chordMaterial = arm.getMaterial() != null ? arm.getMaterial() : structure.getPrimaryMaterial();
+        MaterialMix braceMaterial = arm.getMaterial() != null ? arm.getMaterial() : structure.getBraceMaterial();
+        TowerArmPlacement.placeArm(
+            arm,
+            chordMaterial,
+            braceMaterial,
+            (lateralStart, lateralEnd, height, longHalf, material) ->
+                placeArmChord(lateralStart, lateralEnd, height, longHalf, material, sink, seed),
+            (start, end, material) ->
+                placeMember(start, end, material, 1, sink, seed));
     }
 
     private static void placeArmChord(
@@ -226,40 +192,6 @@ public final class TowerStructurePreviewVoxelPlacer {
             1,
             sink,
             seed);
-    }
-
-    private static void generateArmBracing(
-            double lateralStart,
-            double lateralEnd,
-            double topHeight,
-            double bottomHeight,
-            double longHalf,
-            BracingPattern pattern,
-            MaterialMix braceMaterial,
-            VoxelSink sink,
-            String seed) {
-        if (pattern == BracingPattern.NONE) {
-            return;
-        }
-
-        double[] longitudes = longHalf <= 0 ? new double[] {0.0} : new double[] {-longHalf, longHalf};
-        for (double longitudinal : longitudes) {
-            TowerLocalPoint topLeft = TowerLocalPoint.of(lateralStart, topHeight, longitudinal);
-            TowerLocalPoint topRight = TowerLocalPoint.of(lateralEnd, topHeight, longitudinal);
-            TowerLocalPoint bottomLeft = TowerLocalPoint.of(lateralStart, bottomHeight, longitudinal);
-            TowerLocalPoint bottomRight = TowerLocalPoint.of(lateralEnd, bottomHeight, longitudinal);
-
-            if (pattern == BracingPattern.X) {
-                placeMember(bottomLeft, topRight, braceMaterial, 1, sink, seed);
-                placeMember(bottomRight, topLeft, braceMaterial, 1, sink, seed);
-            } else if (pattern == BracingPattern.K) {
-                TowerLocalPoint centerTop = midpoint(topLeft, topRight);
-                placeMember(bottomLeft, centerTop, braceMaterial, 1, sink, seed);
-                placeMember(bottomRight, centerTop, braceMaterial, 1, sink, seed);
-            } else if (pattern == BracingPattern.SINGLE_DIAGONAL) {
-                placeMember(bottomLeft, topRight, braceMaterial, 1, sink, seed);
-            }
-        }
     }
 
     private static void placeBrace(

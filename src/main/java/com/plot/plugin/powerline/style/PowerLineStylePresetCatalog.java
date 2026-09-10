@@ -296,7 +296,7 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:iron_block"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.LIGHT,
-            ConductorArrangement.heavyDoubleCircuit(),
+            ConductorArrangement.doubleCircuitDrum(),
             new PoleSpacingProfile(90, 160, 240));
     }
 

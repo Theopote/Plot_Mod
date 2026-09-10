@@ -14,6 +14,7 @@ public class TowerArm {
     private double longitudinalHalfWidth = 0.5;
     private double verticalDrop;
     private BracingPattern bracing = BracingPattern.NONE;
+    private TowerArmShape shape = TowerArmShape.FLAT;
     private MaterialMix material;
 
     public TowerArm() {
@@ -96,6 +97,14 @@ public class TowerArm {
         this.bracing = bracing;
     }
 
+    public TowerArmShape getShape() {
+        return shape != null ? shape : TowerArmShape.FLAT;
+    }
+
+    public void setShape(TowerArmShape shape) {
+        this.shape = shape;
+    }
+
     public MaterialMix getMaterial() {
         return material;
     }
@@ -110,6 +119,7 @@ public class TowerArm {
         copy.longitudinalHalfWidth = longitudinalHalfWidth;
         copy.verticalDrop = verticalDrop;
         copy.bracing = bracing;
+        copy.shape = shape;
         copy.material = material != null ? material.copy() : null;
         return copy;
     }
@@ -128,7 +138,8 @@ public class TowerArm {
             && Double.compare(lateralReach, other.lateralReach) == 0
             && Double.compare(longitudinalHalfWidth, other.longitudinalHalfWidth) == 0
             && Double.compare(verticalDrop, other.verticalDrop) == 0
-            && getBracing() == other.getBracing();
+            && getBracing() == other.getBracing()
+            && getShape() == other.getShape();
     }
 
     @Override
@@ -140,6 +151,7 @@ public class TowerArm {
             lateralReach,
             longitudinalHalfWidth,
             verticalDrop,
-            getBracing());
+            getBracing(),
+            getShape());
     }
 }

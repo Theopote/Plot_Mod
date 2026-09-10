@@ -30,6 +30,7 @@ public class TowerStructureDesign {
     private MaterialMix braceMaterial = MaterialMix.single(DEFAULT_BRACE_MATERIAL);
     private TowerMemberProfile legProfile = new TowerMemberProfile(1);
     private TowerMemberProfile braceProfile = new TowerMemberProfile(1);
+    private TowerSilhouette silhouette;
 
     public List<TowerStation> getStations() {
         return stations;
@@ -218,6 +219,14 @@ public class TowerStructureDesign {
         this.braceProfile = braceProfile != null ? braceProfile.copy() : new TowerMemberProfile(1);
     }
 
+    public TowerSilhouette getSilhouette() {
+        return silhouette;
+    }
+
+    public void setSilhouette(TowerSilhouette silhouette) {
+        this.silhouette = silhouette;
+    }
+
     public boolean hasStations() {
         return !stations.isEmpty();
     }
@@ -253,6 +262,7 @@ public class TowerStructureDesign {
         copy.setBraceMaterial(braceMaterial);
         copy.setLegProfile(legProfile);
         copy.setBraceProfile(braceProfile);
+        copy.setSilhouette(silhouette);
         return copy;
     }
 
@@ -292,6 +302,7 @@ public class TowerStructureDesign {
         double longitudinalHalfWidth;
         double verticalDrop;
         String bracing;
+        String shape;
         MaterialMix material;
     }
 
@@ -315,6 +326,7 @@ public class TowerStructureDesign {
         MaterialMix braceMaterial;
         int legThickness = 1;
         int braceThickness = 1;
+        String silhouette;
 
         static StructureData from(TowerStructureDesign design) {
             StructureData data = new StructureData();
@@ -344,6 +356,7 @@ public class TowerStructureDesign {
                 armData.longitudinalHalfWidth = arm.getLongitudinalHalfWidth();
                 armData.verticalDrop = arm.getVerticalDrop();
                 armData.bracing = arm.getBracing().name();
+                armData.shape = arm.getShape().name();
                 armData.material = arm.getMaterial();
                 data.arms.add(armData);
             }
@@ -363,6 +376,9 @@ public class TowerStructureDesign {
             data.braceMaterial = design.braceMaterial;
             data.legThickness = design.legProfile.getThickness();
             data.braceThickness = design.braceProfile.getThickness();
+            if (design.silhouette != null) {
+                data.silhouette = design.silhouette.name();
+            }
             return data;
         }
 
@@ -412,6 +428,7 @@ public class TowerStructureDesign {
                     if (armData.bracing != null) {
                         arm.setBracing(TowerStructureEnums.bracingOrDefault(armData.bracing, BracingPattern.NONE));
                     }
+                    arm.setShape(TowerStructureEnums.armShapeOrDefault(armData.shape, TowerArmShape.FLAT));
                     if (armData.material != null) {
                         arm.setMaterial(armData.material);
                     }
@@ -449,6 +466,13 @@ public class TowerStructureDesign {
             }
             design.setLegProfile(new TowerMemberProfile(legThickness));
             design.setBraceProfile(new TowerMemberProfile(braceThickness));
+            if (silhouette != null && !silhouette.isBlank()) {
+                try {
+                    design.setSilhouette(TowerSilhouette.valueOf(silhouette.trim()));
+                } catch (IllegalArgumentException ignored) {
+                    // legacy designs without silhouette
+                }
+            }
             return design;
         }
     }

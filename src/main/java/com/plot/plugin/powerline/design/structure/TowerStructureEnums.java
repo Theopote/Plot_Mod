@@ -27,6 +27,17 @@ public final class TowerStructureEnums {
         }
     }
 
+    public static TowerArmShape armShapeOrDefault(String raw, TowerArmShape fallback) {
+        if (raw == null || raw.isBlank()) {
+            return fallback;
+        }
+        try {
+            return TowerArmShape.valueOf(raw.trim());
+        } catch (IllegalArgumentException ignored) {
+            return fallback;
+        }
+    }
+
     public static TowerDecorationKind decorationKindOrNull(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;

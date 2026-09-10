@@ -221,7 +221,7 @@ class PowerLineEngineeringTest {
         context.setIncomingSpan(25);
         context.setOutgoingSpan(25);
         var result = selector.select(context);
-        assertEquals(TowerFamilyDesignPresets.LATTICE_SUSPENSION_TALL_ID, result.getSelectedDesignId());
+        assertEquals(TowerFamilyDesignPresets.LATTICE_SUSPENSION_MEDIUM_ID, result.getSelectedDesignId());
     }
 
     @Test

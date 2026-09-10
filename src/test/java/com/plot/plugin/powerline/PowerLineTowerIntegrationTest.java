@@ -116,7 +116,8 @@ class PowerLineTowerIntegrationTest {
 
     @Test
     void unevenTerrainProducesBaseWarning() {
-        PowerLineFootprint line = WireTestSupport.horizontalLine(20.0);
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(10, 0), new Vec2d(30, 0)));
+        line.setMaxPoleSpacing(100.0);
         line.setPoleDesignId("tapered-lattice");
 
         PowerLineDesignProject designs = new PowerLineDesignProject();
@@ -146,7 +147,7 @@ class PowerLineTowerIntegrationTest {
         return new TerrainSampler() {
             @Override
             public int sampleSurfaceY(Vec2d planPoint) {
-                return planPoint.x < 5 ? 60 : 66;
+                return planPoint.x < 8 ? 60 : 66;
             }
 
             @Override

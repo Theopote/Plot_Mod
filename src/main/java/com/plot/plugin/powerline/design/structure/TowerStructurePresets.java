@@ -6,115 +6,235 @@ import com.plot.plugin.powerline.design.ConductorAttachmentPresets;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 内置塔体结构预设。 */
+/** 内置塔体结构预设（Visual Language v2：剪影优先、独立宽深、分层横担）。 */
 public final class TowerStructurePresets {
     public static final String STATION_S0 = "s0";
     public static final String STATION_S1 = "s1";
     public static final String STATION_S2 = "s2";
     public static final String STATION_S3 = "s3";
 
+    private static final MaterialMix LATTICE_LEG = MaterialMix.single("minecraft:iron_block");
+    private static final MaterialMix LATTICE_BRACE = MaterialMix.single("minecraft:iron_bars");
+    private static final MaterialMix SMALL_LATTICE_LEG = MaterialMix.single("minecraft:iron_bars");
+    private static final MaterialMix ARM_MATERIAL = MaterialMix.single("minecraft:iron_bars");
+
+    /** 参考底宽（用于族预设缩放）。 */
+    public static final double CLASSIC_BASE_HALF_WIDTH = 6.5;
+    public static final double SMALL_BASE_HALF_WIDTH = 4.5;
+
     private TowerStructurePresets() {
     }
 
-    /** 四腿收缩格构塔：H=0/8/16/24，X 撑，一层横担。 */
+    // -------------------------------------------------------------------------
+    // Legacy / compact presets
+    // -------------------------------------------------------------------------
+
+    /** 四腿收缩格构塔（紧凑，H=24）：保留兼容 taperedTower 风格。 */
     public static TowerStructureDesign taperedLatticeTower() {
-        TowerStructureDesign structure = new TowerStructureDesign();
-        structure.setPrimaryMaterial(MaterialMix.single("minecraft:iron_bars"));
-        structure.setBraceMaterial(MaterialMix.single("minecraft:iron_bars"));
+        return smallLatticeTower();
+    }
 
-        TowerStation s0 = new TowerStation(STATION_S0, 0, 5, 5);
-        TowerStation s1 = new TowerStation(STATION_S1, 8, 4, 4);
-        TowerStation s2 = new TowerStation(STATION_S2, 16, 2, 2);
-        TowerStation s3 = new TowerStation(STATION_S3, 24, 1, 1);
-        structure.addStation(s0);
-        structure.addStation(s1);
-        structure.addStation(s2);
-        structure.addStation(s3);
-
-        structure.addBay(bayWithBracing(s0.getId(), s1.getId()));
-        structure.addBay(bayWithBracing(s1.getId(), s2.getId()));
-        structure.addBay(bayWithBracing(s2.getId(), s3.getId()));
-
-        TowerArm arm = new TowerArm("arm_main", 18, 6);
-        arm.setSide(TowerArmSide.BOTH);
-        arm.setMaterial(MaterialMix.single("minecraft:iron_bars"));
-        structure.addArm(arm);
+    /** 小型格构塔：66–132 kV 视觉，H≈24。 */
+    public static TowerStructureDesign smallLatticeTower() {
+        TowerStructureDesign structure = latticeShell(
+            TowerSilhouette.TAPERED_LATTICE,
+            SMALL_LATTICE_LEG,
+            SMALL_LATTICE_LEG);
+        // 底宽:深 ≈ 1 : 0.67
+        addStations(structure,
+            new double[] {0, 8, 16, 24},
+            new double[] {4.5, 3.8, 2.5, 1.5},
+            new double[] {3.0, 2.5, 1.7, 1.0});
+        addVariedBays(structure, BracingPattern.X, BracingPattern.X,
+            BracingPattern.K, BracingPattern.SINGLE_DIAGONAL);
+        addTrussArm(structure, "arm_main", 20, 7.5, TowerArmShape.TRUSS, 3, 1.2);
         return structure;
     }
 
-    private static TowerBay bayWithBracing(String lowerId, String upperId) {
-        TowerBay bay = new TowerBay(lowerId, upperId);
-        bay.setFrontBackBracing(BracingPattern.X);
-        bay.setSideBracing(BracingPattern.X);
-        bay.setHorizontalRing(true);
-        return bay;
+    /** 经典双层横担输电塔：插件标志性塔型，H≈36。 */
+    public static TowerStructureDesign classicDoubleArmTower() {
+        TowerStructureDesign structure = latticeShell(
+            TowerSilhouette.DOUBLE_ARM,
+            LATTICE_LEG,
+            LATTICE_BRACE);
+        // Base / legs (~50%), waist, head — width:depth ≈ 1:0.65
+        addStations(structure,
+            new double[] {0, 10, 18, 26, 32, 36},
+            new double[] {6.5, 6.0, 5.0, 4.0, 2.8, 1.8},
+            new double[] {4.2, 3.9, 3.3, 2.7, 1.9, 1.2});
+        addVariedBays(structure,
+            BracingPattern.X, BracingPattern.X,
+            BracingPattern.X, BracingPattern.K,
+            BracingPattern.SINGLE_DIAGONAL);
+        // 下层横担更宽，上层略短 — 视觉层级
+        addTrussArm(structure, "arm_lower", 26, 12.5, TowerArmShape.TAPERED, 4, 1.8);
+        addTrussArm(structure, "arm_upper", 32, 9.5, TowerArmShape.TRUSS, 3, 1.5);
+        addPeak(structure, 36);
+        return structure;
     }
 
-    /** 带塔体 + 三相挂点的完整杆塔设计。 */
+    /** 三层双回路塔：H≈50。 */
+    public static TowerStructureDesign tripleArmTower() {
+        TowerStructureDesign structure = latticeShell(
+            TowerSilhouette.TRIPLE_ARM,
+            LATTICE_LEG,
+            LATTICE_BRACE);
+        addStations(structure,
+            new double[] {0, 12, 22, 32, 42, 50},
+            new double[] {8.0, 7.2, 6.0, 4.5, 3.0, 2.0},
+            new double[] {5.2, 4.7, 4.0, 3.0, 2.0, 1.3});
+        addVariedBays(structure,
+            BracingPattern.X, BracingPattern.X,
+            BracingPattern.X, BracingPattern.K,
+            BracingPattern.SINGLE_DIAGONAL);
+        addTrussArm(structure, "arm_lower", 36, 11.0, TowerArmShape.TAPERED, 4, 2.0);
+        addTrussArm(structure, "arm_middle", 42, 14.5, TowerArmShape.TRUSS, 4, 2.2);
+        addTrussArm(structure, "arm_upper", 48, 10.5, TowerArmShape.TRUSS, 3, 1.8);
+        addPeak(structure, 50);
+        return structure;
+    }
+
+    /** 重型双回路输电塔：H≈32，双层横担（非缩放小塔）。 */
+    public static TowerStructureDesign heavyTransmissionTower() {
+        TowerStructureDesign structure = latticeShell(
+            TowerSilhouette.DOUBLE_ARM,
+            LATTICE_LEG,
+            LATTICE_BRACE);
+        addStations(structure,
+            new double[] {0, 9, 17, 24, 30, 32},
+            new double[] {5.5, 5.0, 4.0, 3.0, 2.2, 1.6},
+            new double[] {3.6, 3.3, 2.7, 2.0, 1.5, 1.1});
+        addVariedBays(structure,
+            BracingPattern.X, BracingPattern.X,
+            BracingPattern.K, BracingPattern.SINGLE_DIAGONAL,
+            BracingPattern.SINGLE_DIAGONAL);
+        addTrussArm(structure, "arm_lower", 24, 12.0, TowerArmShape.TAPERED, 4, 1.8);
+        addTrussArm(structure, "arm_upper", 30, 10.0, TowerArmShape.TRUSS, 3, 1.6);
+        addPeak(structure, 32);
+        return structure;
+    }
+
+    /** 酒杯型宽顶塔：H≈38。 */
+    public static TowerStructureDesign cupTower() {
+        TowerStructureDesign structure = latticeShell(
+            TowerSilhouette.CUP,
+            LATTICE_LEG,
+            LATTICE_BRACE);
+        addStations(structure,
+            new double[] {0, 10, 18, 26, 32, 38},
+            new double[] {5.0, 4.5, 3.5, 2.5, 7.0, 2.5},
+            new double[] {3.3, 3.0, 2.4, 1.7, 4.5, 1.7});
+        addVariedBays(structure,
+            BracingPattern.X, BracingPattern.X,
+            BracingPattern.K, BracingPattern.SINGLE_DIAGONAL,
+            BracingPattern.NONE);
+        addTrussArm(structure, "arm_cup", 32, 15.0, TowerArmShape.UPSWEEP, 3, 2.5);
+        addPeak(structure, 38);
+        return structure;
+    }
+
+    /** 工业门架塔：宽柱 + 多层横梁。 */
+    public static TowerStructureDesign industrialPortalTower() {
+        return portalTower();
+    }
+
+    /** 工业门架塔（别名）。 */
+    public static TowerStructureDesign portalTower() {
+        TowerStructureDesign structure = latticeShell(
+            TowerSilhouette.PORTAL,
+            LATTICE_LEG,
+            LATTICE_BRACE);
+        // 门型：底部宽、中部保持、顶部收窄
+        addStations(structure,
+            new double[] {0, 12, 24, 34, 40},
+            new double[] {10.0, 10.0, 9.0, 6.0, 3.5},
+            new double[] {4.0, 4.0, 3.5, 2.5, 1.5});
+        addVariedBays(structure,
+            BracingPattern.X, BracingPattern.SINGLE_DIAGONAL,
+            BracingPattern.K, BracingPattern.SINGLE_DIAGONAL);
+        addTrussArm(structure, "arm_lower", 16, 14.0, TowerArmShape.FLAT, 2, 2.0);
+        addTrussArm(structure, "arm_middle", 26, 15.0, TowerArmShape.TRUSS, 3, 2.2);
+        addTrussArm(structure, "arm_upper", 34, 13.0, TowerArmShape.TRUSS, 3, 1.8);
+        return structure;
+    }
+
+    /** 超大型工业格构塔：H≈60，三层横担，明显腰收。 */
+    public static TowerStructureDesign megaLatticeTower() {
+        TowerStructureDesign structure = latticeShell(
+            TowerSilhouette.GIANT,
+            LATTICE_LEG,
+            LATTICE_BRACE);
+        addStations(structure,
+            new double[] {0, 14, 26, 38, 50, 60},
+            new double[] {9.0, 8.5, 7.0, 4.0, 2.5, 1.8},
+            new double[] {6.0, 5.7, 4.7, 2.8, 1.8, 1.2});
+        addVariedBays(structure,
+            BracingPattern.X, BracingPattern.X,
+            BracingPattern.X, BracingPattern.K,
+            BracingPattern.SINGLE_DIAGONAL);
+        addTrussArm(structure, "arm_lower", 38, 11.5, TowerArmShape.TAPERED, 4, 2.0);
+        addTrussArm(structure, "arm_middle", 47, 15.5, TowerArmShape.TRUSS, 4, 2.5);
+        addTrussArm(structure, "arm_upper", 56, 12.0, TowerArmShape.TRUSS, 3, 2.0);
+        addPeak(structure, 60);
+        return structure;
+    }
+
+    /** 重型双回路鼓形塔：独立剪影，H≈58。 */
+    public static TowerStructureDesign doubleCircuitDrumTower() {
+        TowerStructureDesign structure = latticeShell(
+            TowerSilhouette.TRIPLE_ARM,
+            LATTICE_LEG,
+            LATTICE_BRACE);
+        // 鼓形：宽底 → 紧腰 → 分层横担头
+        addStations(structure,
+            new double[] {0, 12, 22, 32, 42, 52, 58},
+            new double[] {8.5, 8.0, 6.5, 3.5, 5.0, 3.5, 2.0},
+            new double[] {5.5, 5.2, 4.3, 2.5, 3.3, 2.3, 1.3});
+        addVariedBays(structure,
+            BracingPattern.X, BracingPattern.X,
+            BracingPattern.K, BracingPattern.K,
+            BracingPattern.SINGLE_DIAGONAL, BracingPattern.SINGLE_DIAGONAL);
+        addTrussArm(structure, "arm_lower", 36, 11.0, TowerArmShape.TAPERED, 4, 2.0);
+        addTrussArm(structure, "arm_middle", 44, 14.0, TowerArmShape.TRUSS, 4, 2.2);
+        addTrussArm(structure, "arm_upper", 52, 12.0, TowerArmShape.TRUSS, 3, 2.0);
+        addPeak(structure, 58);
+        return structure;
+    }
+
+    /** 怪物级 / UHV 巨型输电塔：H≈80，水平表现力优先。 */
+    public static TowerStructureDesign monsterPylonTower() {
+        return uhvGiantTower();
+    }
+
+    /** UHV 巨型输电塔：地标级，四层差异化横担。 */
+    public static TowerStructureDesign uhvGiantTower() {
+        TowerStructureDesign structure = latticeShell(
+            TowerSilhouette.GIANT,
+            LATTICE_LEG,
+            LATTICE_BRACE);
+        addStations(structure,
+            new double[] {0, 14, 28, 42, 56, 70, 80},
+            new double[] {14.0, 13.0, 11.0, 8.5, 6.0, 3.5, 2.2},
+            new double[] {9.0, 8.5, 7.2, 5.6, 4.0, 2.4, 1.5});
+        addVariedBays(structure,
+            BracingPattern.X, BracingPattern.X,
+            BracingPattern.X, BracingPattern.K,
+            BracingPattern.K, BracingPattern.SINGLE_DIAGONAL);
+        addTrussArm(structure, "arm_1", 52, 17.5, TowerArmShape.TAPERED, 5, 2.5);
+        addTrussArm(structure, "arm_2", 62, 22.0, TowerArmShape.TRUSS, 5, 3.0);
+        addTrussArm(structure, "arm_3", 72, 26.0, TowerArmShape.TRUSS, 5, 3.2);
+        addTrussArm(structure, "arm_4", 78, 19.0, TowerArmShape.UPSWEEP, 4, 2.5);
+        addPeak(structure, 80);
+        return structure;
+    }
+
+    /** 带塔体 + 三相挂点的完整杆塔设计（兼容旧 API）。 */
     public static com.plot.plugin.powerline.design.PoleDesign taperedLatticePoleDesign(String id, String name) {
         com.plot.plugin.powerline.design.PoleDesign design =
             new com.plot.plugin.powerline.design.PoleDesign(id, name);
-        design.setTowerStructure(taperedLatticeTower());
+        design.setTowerStructure(smallLatticeTower());
         design.setAttachments(ConductorAttachmentPresets.threePhaseHorizontal(18.0, -6, 0, 6));
         return design;
-    }
-
-    /** 超大型工业格构塔：H≈56，宽塔身，三层横担。 */
-    public static TowerStructureDesign megaLatticeTower() {
-        TowerStructureDesign structure = new TowerStructureDesign();
-        structure.setPrimaryMaterial(MaterialMix.single("minecraft:iron_block"));
-        structure.setBraceMaterial(MaterialMix.single("minecraft:iron_bars"));
-        addTaperedStations(structure, new double[] {0, 12, 24, 36, 48, 56}, new double[] {10, 9, 7, 5, 3, 2});
-        addArms(structure, new double[] {38, 46, 52}, 14, 4);
-        return structure;
-    }
-
-    /** 工业门架塔：宽柱 + 多层横梁，适合厂区/变电站。 */
-    public static TowerStructureDesign industrialPortalTower() {
-        TowerStructureDesign structure = new TowerStructureDesign();
-        structure.setPrimaryMaterial(MaterialMix.single("minecraft:iron_block"));
-        structure.setBraceMaterial(MaterialMix.single("minecraft:iron_bars"));
-        structure.addStation(new TowerStation("s0", 0, 12, 12));
-        structure.addStation(new TowerStation("s1", 16, 12, 12));
-        structure.addStation(new TowerStation("s2", 32, 10, 10));
-        structure.addStation(new TowerStation("s3", 44, 8, 8));
-        structure.addStation(new TowerStation("s4", 54, 4, 4));
-        structure.addBay(bayWithBracing("s0", "s1"));
-        structure.addBay(bayWithBracing("s1", "s2"));
-        structure.addBay(bayWithBracing("s2", "s3"));
-        structure.addBay(bayWithBracing("s3", "s4"));
-        addArms(structure, new double[] {18, 28, 38}, 16, 5);
-        return structure;
-    }
-
-    /** 怪物级输电塔：H≈88，极宽塔身，四层横担。 */
-    public static TowerStructureDesign monsterPylonTower() {
-        TowerStructureDesign structure = new TowerStructureDesign();
-        structure.setPrimaryMaterial(MaterialMix.single("minecraft:iron_block"));
-        structure.setBraceMaterial(MaterialMix.single("minecraft:iron_bars"));
-        addTaperedStations(structure, new double[] {0, 15, 30, 45, 60, 75, 88}, new double[] {14, 13, 11, 9, 7, 5, 3});
-        addArms(structure, new double[] {58, 68, 78, 84}, 18, 6);
-        return structure;
-    }
-
-    private static void addTaperedStations(TowerStructureDesign structure, double[] heights, double[] halfWidths) {
-        for (int i = 0; i < heights.length; i++) {
-            double hw = halfWidths[i];
-            structure.addStation(new TowerStation("s" + i, heights[i], hw, hw));
-            if (i > 0) {
-                structure.addBay(bayWithBracing("s" + (i - 1), "s" + i));
-            }
-        }
-    }
-
-    private static void addArms(TowerStructureDesign structure, double[] heights, double reach, int verticalDrop) {
-        for (int i = 0; i < heights.length; i++) {
-            TowerArm arm = new TowerArm("arm_" + i, heights[i], reach);
-            arm.setSide(TowerArmSide.BOTH);
-            arm.setVerticalDrop(verticalDrop);
-            arm.setMaterial(MaterialMix.single("minecraft:iron_bars"));
-            structure.addArm(arm);
-        }
     }
 
     /** 为已有 station 列表自动创建默认 bay。 */
@@ -126,5 +246,90 @@ public final class TowerStructurePresets {
             bays.add(bayWithBracing(sorted.get(i - 1).getId(), sorted.get(i).getId()));
         }
         return bays;
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+
+    private static TowerStructureDesign latticeShell(
+            TowerSilhouette silhouette,
+            MaterialMix legMaterial,
+            MaterialMix braceMaterial) {
+        TowerStructureDesign structure = new TowerStructureDesign();
+        structure.setSilhouette(silhouette);
+        structure.setPrimaryMaterial(legMaterial);
+        structure.setBraceMaterial(braceMaterial);
+        return structure;
+    }
+
+    private static void addStations(
+            TowerStructureDesign structure,
+            double[] heights,
+            double[] halfWidths,
+            double[] halfDepths) {
+        if (heights.length != halfWidths.length || heights.length != halfDepths.length) {
+            throw new IllegalArgumentException("station arrays must have equal length");
+        }
+        for (int i = 0; i < heights.length; i++) {
+            structure.addStation(new TowerStation("s" + i, heights[i], halfWidths[i], halfDepths[i]));
+            if (i > 0) {
+                structure.addBay(bayWithBracing("s" + (i - 1), "s" + i));
+            }
+        }
+    }
+
+    private static void addVariedBays(
+            TowerStructureDesign structure,
+            BracingPattern... legBracing) {
+        List<TowerStation> stations = structure.sortedStations();
+        structure.getBays().clear();
+        for (int i = 1; i < stations.size(); i++) {
+            BracingPattern pattern = i - 1 < legBracing.length
+                ? legBracing[i - 1]
+                : BracingPattern.X;
+            TowerBay bay = new TowerBay(stations.get(i - 1).getId(), stations.get(i).getId());
+            bay.setFrontBackBracing(pattern);
+            bay.setSideBracing(pattern == BracingPattern.K
+                ? BracingPattern.SINGLE_DIAGONAL
+                : pattern);
+            bay.setHorizontalRing(i < stations.size() - 1);
+            structure.addBay(bay);
+        }
+    }
+
+    private static void addTrussArm(
+            TowerStructureDesign structure,
+            String id,
+            double height,
+            double reach,
+            TowerArmShape shape,
+            int verticalDrop,
+            double longitudinalHalfWidth) {
+        TowerArm arm = new TowerArm(id, height, reach);
+        arm.setSide(TowerArmSide.BOTH);
+        arm.setShape(shape);
+        arm.setVerticalDrop(verticalDrop);
+        arm.setLongitudinalHalfWidth(longitudinalHalfWidth);
+        if (shape == TowerArmShape.TRUSS || shape == TowerArmShape.TAPERED) {
+            arm.setBracing(BracingPattern.X);
+        }
+        arm.setMaterial(ARM_MATERIAL);
+        structure.addArm(arm);
+    }
+
+    private static void addPeak(TowerStructureDesign structure, double height) {
+        TowerDecoration peak = new TowerDecoration("peak", TowerDecorationKind.ANTENNA, height);
+        peak.setSize(2);
+        peak.setMaterial(MaterialMix.single("minecraft:iron_bars"));
+        structure.addDecoration(peak);
+    }
+
+    private static TowerBay bayWithBracing(String lowerId, String upperId) {
+        TowerBay bay = new TowerBay(lowerId, upperId);
+        bay.setFrontBackBracing(BracingPattern.X);
+        bay.setSideBracing(BracingPattern.X);
+        bay.setHorizontalRing(true);
+        return bay;
     }
 }
