@@ -1,6 +1,9 @@
 package com.plot.plugin.powerline;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.ICoordinateService;
+import com.plot.api.world.WorldViewBounds;
+import com.plot.core.geometry.WorldProjectionMath;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 import com.plot.plugin.powerline.model.PoleLayoutConstraint;
 import com.plot.plugin.powerline.model.PoleOverride;
@@ -12,19 +15,40 @@ import java.util.List;
 
 /**
  * 电线杆位布局（纯函数）。
+ * <p>
+ * 杆距、里程（stationing）、override 容差均以 Minecraft blocks 计；
+ * 必须通过 {@link ICoordinateService#projectedDistance} 解析画布路径。
  */
 public final class PowerPoleLayoutUtils {
+    /** Override 里程匹配容差（blocks）。 */
+    private static final double OVERRIDE_STATION_TOLERANCE_BLOCKS = 2.0;
+    /** 画布点与杆位重合判定容差（blocks）。 */
+    private static final double SITE_POSITION_TOLERANCE_BLOCKS = 0.5;
+
+    private static final ICoordinateService CANVAS_EQUALS_WORLD = new ICoordinateService() {
+        @Override
+        public Vec2d canvasToMinecraftWorld(Vec2d canvasPos) {
+            return canvasPos != null ? canvasPos.copy() : new Vec2d(0, 0);
+        }
+
+        @Override
+        public WorldViewBounds getMinecraftWorldViewBounds() {
+            return new WorldViewBounds(-1.0e9, 1.0e9, -1.0e9, 1.0e9);
+        }
+    };
 
     private PowerPoleLayoutUtils() {
     }
 
     /**
-     * 沿路径计算立杆位置：起点、终点、转折顶点强制立杆；相邻强制点间距超过最大值时等距补插。
+     * 沿路径计算立杆位置：起点、终点、转折顶点强制立杆；相邻强制点世界间距超过最大值时等距补插。
      */
     public static List<Vec2d> computePolePositions(
             List<Vec2d> pathPoints,
             double cornerAngleThreshold,
-            double maxPoleSpacing) {
+            double maxPoleSpacingBlocks,
+            ICoordinateService coordinates) {
+        ICoordinateService coords = requireCoordinates(coordinates);
         if (pathPoints == null || pathPoints.isEmpty()) {
             return List.of();
         }
@@ -32,7 +56,7 @@ public final class PowerPoleLayoutUtils {
             return List.of(pathPoints.getFirst().copy());
         }
 
-        double maxSpacing = Math.max(0.1, maxPoleSpacing);
+        double maxSpacing = Math.max(0.1, maxPoleSpacingBlocks);
         List<Vec2d> mandatory = mandatoryPolePoints(pathPoints, cornerAngleThreshold);
         if (mandatory.isEmpty()) {
             return List.of();
@@ -41,23 +65,30 @@ public final class PowerPoleLayoutUtils {
         List<Vec2d> result = new ArrayList<>();
         result.add(mandatory.getFirst().copy());
         for (int i = 0; i < mandatory.size() - 1; i++) {
-            Vec2d from = mandatory.get(i);
-            Vec2d to = mandatory.get(i + 1);
-            appendInterpolatedPoles(result, from, to, maxSpacing);
+            appendInterpolatedPoles(result, mandatory.get(i), mandatory.get(i + 1), maxSpacing, coords);
         }
         return result;
     }
 
-    /** 计算杆塔站点（位置 + 里程 + 自动角色分类）。 */
-    public static List<PowerPoleSite> computePoleSites(
+    public static List<Vec2d> computePolePositions(
             List<Vec2d> pathPoints,
             double cornerAngleThreshold,
             double maxPoleSpacing) {
-        List<Vec2d> positions = computePolePositions(pathPoints, cornerAngleThreshold, maxPoleSpacing);
+        return computePolePositions(pathPoints, cornerAngleThreshold, maxPoleSpacing, CANVAS_EQUALS_WORLD);
+    }
+
+    /** 计算杆塔站点（位置 + 世界里程 blocks + 自动角色分类）。 */
+    public static List<PowerPoleSite> computePoleSites(
+            List<Vec2d> pathPoints,
+            double cornerAngleThreshold,
+            double maxPoleSpacingBlocks,
+            ICoordinateService coordinates) {
+        ICoordinateService coords = requireCoordinates(coordinates);
+        List<Vec2d> positions = computePolePositions(pathPoints, cornerAngleThreshold, maxPoleSpacingBlocks, coords);
         List<PowerPoleSite> sites = new ArrayList<>(positions.size());
         for (int i = 0; i < positions.size(); i++) {
             PowerPoleSite site = new PowerPoleSite(positions.get(i));
-            site.setStationing(computeStationing(pathPoints, positions.get(i)));
+            site.setStationing(computeStationing(pathPoints, positions.get(i), coords));
             site.setPathIndex(i);
             sites.add(site);
         }
@@ -65,51 +96,62 @@ public final class PowerPoleLayoutUtils {
         return sites;
     }
 
-    public static List<PowerPoleSite> computePoleSites(PowerLineFootprint footprint) {
+    public static List<PowerPoleSite> computePoleSites(
+            List<Vec2d> pathPoints,
+            double cornerAngleThreshold,
+            double maxPoleSpacing) {
+        return computePoleSites(pathPoints, cornerAngleThreshold, maxPoleSpacing, CANVAS_EQUALS_WORLD);
+    }
+
+    public static List<PowerPoleSite> computePoleSites(
+            PowerLineFootprint footprint,
+            ICoordinateService coordinates) {
         if (footprint == null) {
             return List.of();
         }
+        ICoordinateService coords = requireCoordinates(coordinates);
         List<PowerPoleSite> sites = computePoleSites(
             footprint.getPathPoints(),
             footprint.getCornerAngleThreshold(),
-            footprint.getMaxPoleSpacing());
+            footprint.getMaxPoleSpacing(),
+            coords);
         insertLayoutConstraints(
             sites,
             footprint.getPathPoints(),
             footprint.getLayoutConstraints(),
-            footprint.getCornerAngleThreshold());
+            footprint.getCornerAngleThreshold(),
+            coords);
         applyOverrides(sites, footprint.getPoleOverrides());
         return sites;
     }
 
+    /** @deprecated 使用 {@link #computePoleSites(PowerLineFootprint, ICoordinateService)} */
+    @Deprecated
+    public static List<PowerPoleSite> computePoleSites(PowerLineFootprint footprint) {
+        return computePoleSites(footprint, CANVAS_EQUALS_WORLD);
+    }
+
+    /** 按世界里程（blocks，自路径起点）取画布点。 */
+    public static Vec2d pointAtStationing(
+            List<Vec2d> pathPoints,
+            double worldStationBlocks,
+            ICoordinateService coordinates) {
+        return WorldProjectionMath.canvasPointAtWorldStation(
+            requireCoordinates(coordinates),
+            pathPoints,
+            worldStationBlocks);
+    }
+
     public static Vec2d pointAtStationing(List<Vec2d> pathPoints, double stationing) {
-        if (pathPoints == null || pathPoints.size() < 2) {
-            return pathPoints != null && !pathPoints.isEmpty()
-                ? pathPoints.getFirst().copy()
-                : new Vec2d(0, 0);
-        }
-        double total = 0.0;
-        for (int i = 0; i < pathPoints.size() - 1; i++) {
-            Vec2d a = pathPoints.get(i);
-            Vec2d b = pathPoints.get(i + 1);
-            double segLen = a.distance(b);
-            if (segLen < 1e-12) {
-                continue;
-            }
-            if (stationing <= total + segLen + 1e-6) {
-                double t = (stationing - total) / segLen;
-                return a.lerp(b, Math.max(0.0, Math.min(1.0, t)));
-            }
-            total += segLen;
-        }
-        return pathPoints.getLast().copy();
+        return pointAtStationing(pathPoints, stationing, CANVAS_EQUALS_WORLD);
     }
 
     private static void insertLayoutConstraints(
             List<PowerPoleSite> sites,
             List<Vec2d> pathPoints,
             List<PoleLayoutConstraint> constraints,
-            double cornerAngleThreshold) {
+            double cornerAngleThreshold,
+            ICoordinateService coordinates) {
         if (sites == null || constraints == null || constraints.isEmpty()) {
             return;
         }
@@ -119,7 +161,8 @@ public final class PowerPoleLayoutUtils {
             }
             boolean exists = false;
             for (PowerPoleSite site : sites) {
-                if (Math.abs(site.getStationing() - constraint.getRequiredStationing()) <= 2.0) {
+                if (Math.abs(site.getStationing() - constraint.getRequiredStationing())
+                        <= OVERRIDE_STATION_TOLERANCE_BLOCKS) {
                     exists = true;
                     break;
                 }
@@ -127,7 +170,10 @@ public final class PowerPoleLayoutUtils {
             if (exists) {
                 continue;
             }
-            Vec2d position = pointAtStationing(pathPoints, constraint.getRequiredStationing());
+            Vec2d position = pointAtStationing(
+                pathPoints,
+                constraint.getRequiredStationing(),
+                coordinates);
             PowerPoleSite inserted = new PowerPoleSite(position);
             inserted.setStationing(constraint.getRequiredStationing());
             sites.add(inserted);
@@ -158,12 +204,12 @@ public final class PowerPoleLayoutUtils {
         }
     }
 
-    private static PoleOverride findNearestOverride(double stationing, List<PoleOverride> overrides) {
+    private static PoleOverride findNearestOverride(double stationingBlocks, List<PoleOverride> overrides) {
         PoleOverride best = null;
         double bestDistance = Double.MAX_VALUE;
         for (PoleOverride override : overrides) {
-            double distance = Math.abs(override.getPathDistance() - stationing);
-            if (distance <= 2.0 && distance < bestDistance) {
+            double distance = Math.abs(override.getPathDistance() - stationingBlocks);
+            if (distance <= OVERRIDE_STATION_TOLERANCE_BLOCKS && distance < bestDistance) {
                 best = override;
                 bestDistance = distance;
             }
@@ -171,32 +217,41 @@ public final class PowerPoleLayoutUtils {
         return best;
     }
 
-    public static double computeStationing(List<Vec2d> pathPoints, Vec2d polePosition) {
+    /** 世界里程（blocks）：杆位在路径上的投影距起点长度。 */
+    public static double computeStationing(
+            List<Vec2d> pathPoints,
+            Vec2d polePosition,
+            ICoordinateService coordinates) {
+        ICoordinateService coords = requireCoordinates(coordinates);
         if (pathPoints == null || pathPoints.size() < 2 || polePosition == null) {
             return 0.0;
         }
-        double total = 0.0;
+        double totalWorld = 0.0;
         double bestStationing = 0.0;
         double bestDistance = Double.MAX_VALUE;
         for (int i = 0; i < pathPoints.size() - 1; i++) {
             Vec2d a = pathPoints.get(i);
             Vec2d b = pathPoints.get(i + 1);
-            double segLen = a.distance(b);
-            if (segLen < 1e-12) {
+            double segWorldLen = coords.projectedDistance(a, b);
+            if (segWorldLen < 1e-12) {
                 continue;
             }
             Vec2d ab = b.subtract(a);
             double t = polePosition.subtract(a).dot(ab) / ab.lengthSquared();
             t = Math.max(0.0, Math.min(1.0, t));
             Vec2d projected = a.lerp(b, t);
-            double dist = projected.distance(polePosition);
-            if (dist < bestDistance) {
-                bestDistance = dist;
-                bestStationing = total + segLen * t;
+            double worldDistToProjection = coords.projectedDistance(projected, polePosition);
+            if (worldDistToProjection < bestDistance) {
+                bestDistance = worldDistToProjection;
+                bestStationing = totalWorld + segWorldLen * t;
             }
-            total += segLen;
+            totalWorld += segWorldLen;
         }
         return bestStationing;
+    }
+
+    public static double computeStationing(List<Vec2d> pathPoints, Vec2d polePosition) {
+        return computeStationing(pathPoints, polePosition, CANVAS_EQUALS_WORLD);
     }
 
     public static double deflectionAtSite(List<PowerPoleSite> sites, int index) {
@@ -229,20 +284,25 @@ public final class PowerPoleLayoutUtils {
         return mandatory;
     }
 
-    public static boolean hasSiteNear(List<PowerPoleSite> sites, Vec2d point, double tolerance) {
+    public static boolean hasSiteNear(
+            List<PowerPoleSite> sites,
+            Vec2d point,
+            double toleranceBlocks,
+            ICoordinateService coordinates) {
         if (sites == null || point == null) {
             return false;
         }
+        ICoordinateService coords = requireCoordinates(coordinates);
         for (PowerPoleSite site : sites) {
-            if (site.getPlanPosition().distance(point) <= tolerance) {
+            if (coords.projectedDistance(site.getPlanPosition(), point) <= toleranceBlocks) {
                 return true;
             }
         }
         return false;
     }
 
-    private static List<Vec2d> collectMandatoryPoints(List<Vec2d> pathPoints, double cornerAngleThreshold) {
-        return mandatoryPolePoints(pathPoints, cornerAngleThreshold);
+    public static boolean hasSiteNear(List<PowerPoleSite> sites, Vec2d point, double tolerance) {
+        return hasSiteNear(sites, point, tolerance, CANVAS_EQUALS_WORLD);
     }
 
     public static boolean isCorner(List<Vec2d> pathPoints, int index, double cornerAngleThreshold) {
@@ -263,16 +323,22 @@ public final class PowerPoleLayoutUtils {
             List<Vec2d> result,
             Vec2d from,
             Vec2d to,
-            double maxSpacing) {
-        double distance = from.distance(to);
-        if (distance <= maxSpacing) {
+            double maxSpacingBlocks,
+            ICoordinateService coordinates) {
+        double worldDistance = coordinates.projectedDistance(from, to);
+        if (worldDistance <= maxSpacingBlocks) {
             result.add(to.copy());
             return;
         }
-        int segments = (int) Math.ceil(distance / maxSpacing);
+        int segments = (int) Math.ceil(worldDistance / maxSpacingBlocks);
         for (int i = 1; i <= segments; i++) {
-            double t = (double) i / segments;
-            result.add(from.lerp(to, t));
+            double worldOffset = worldDistance * i / segments;
+            result.add(WorldProjectionMath.canvasPointAtWorldOffsetOnSegment(
+                coordinates, from, to, worldOffset));
         }
+    }
+
+    private static ICoordinateService requireCoordinates(ICoordinateService coordinates) {
+        return coordinates != null ? coordinates : CANVAS_EQUALS_WORLD;
     }
 }

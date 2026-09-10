@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.engineering;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.PowerLineOverrideUtils;
 import com.plot.plugin.powerline.PowerPoleLayoutUtils;
@@ -50,6 +51,15 @@ public final class TerrainAvoidance {
             PowerLineValidationReport report,
             PowerLineGenerationResult result,
             PoleDesignResolver designResolver) {
+        return applyOneFix(line, report, result, designResolver, null);
+    }
+
+    public static boolean applyOneFix(
+            PowerLineFootprint line,
+            PowerLineValidationReport report,
+            PowerLineGenerationResult result,
+            PoleDesignResolver designResolver,
+            ICoordinateService coordinates) {
         if (line == null || report == null || !hasTerrainIssues(report)) {
             return false;
         }
@@ -59,7 +69,7 @@ public final class TerrainAvoidance {
         if (tryRaisePoleHeight(line)) {
             return true;
         }
-        return tryInsertPole(line, report, result);
+        return tryInsertPole(line, report, result, coordinates);
     }
 
     public static boolean hasTerrainIssues(PowerLineValidationReport report) {
@@ -153,12 +163,13 @@ public final class TerrainAvoidance {
     private static boolean tryInsertPole(
             PowerLineFootprint line,
             PowerLineValidationReport report,
-            PowerLineGenerationResult result) {
+            PowerLineGenerationResult result,
+            ICoordinateService coordinates) {
         SpanAnalysis targetSpan = firstTerrainSpan(report);
         if (targetSpan == null) {
             return false;
         }
-        double stationing = stationingForSpan(line, targetSpan, result);
+        double stationing = stationingForSpan(line, targetSpan, result, coordinates);
         if (stationing < 0 || hasNearbyConstraint(line, stationing)) {
             return false;
         }
@@ -182,7 +193,8 @@ public final class TerrainAvoidance {
     private static double stationingForSpan(
             PowerLineFootprint line,
             SpanAnalysis span,
-            PowerLineGenerationResult result) {
+            PowerLineGenerationResult result,
+            ICoordinateService coordinates) {
         if (result != null
                 && span.getStartPoleSiteId() != null
                 && span.getEndPoleSiteId() != null) {
@@ -200,21 +212,19 @@ public final class TerrainAvoidance {
                 return (start.getStationing() + end.getStationing()) * 0.5;
             }
         }
-        Vec2d midpoint = midpointAlongPath(line.getPathPoints());
-        return PowerPoleLayoutUtils.computeStationing(line.getPathPoints(), midpoint);
+        Vec2d midpoint = midpointAlongPath(line.getPathPoints(), coordinates);
+        return PowerPoleLayoutUtils.computeStationing(line.getPathPoints(), midpoint, coordinates);
     }
 
-    private static Vec2d midpointAlongPath(List<Vec2d> pathPoints) {
-        double total = 0.0;
-        for (int i = 1; i < pathPoints.size(); i++) {
-            total += pathPoints.get(i - 1).distance(pathPoints.get(i));
-        }
+    private static Vec2d midpointAlongPath(List<Vec2d> pathPoints, ICoordinateService coordinates) {
+        ICoordinateService coords = coordinates != null ? coordinates : canvasEqualsWorld();
+        double total = coords.pathWorldLength(pathPoints);
         double half = total * 0.5;
         double walked = 0.0;
         for (int i = 1; i < pathPoints.size(); i++) {
             Vec2d a = pathPoints.get(i - 1);
             Vec2d b = pathPoints.get(i);
-            double segment = a.distance(b);
+            double segment = coords.projectedDistance(a, b);
             if (walked + segment >= half) {
                 double t = segment > 0 ? (half - walked) / segment : 0.0;
                 return new Vec2d(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
@@ -222,6 +232,20 @@ public final class TerrainAvoidance {
             walked += segment;
         }
         return pathPoints.get(pathPoints.size() - 1).copy();
+    }
+
+    private static ICoordinateService canvasEqualsWorld() {
+        return new ICoordinateService() {
+            @Override
+            public Vec2d canvasToMinecraftWorld(Vec2d canvasPos) {
+                return canvasPos != null ? canvasPos.copy() : new Vec2d(0, 0);
+            }
+
+            @Override
+            public com.plot.api.world.WorldViewBounds getMinecraftWorldViewBounds() {
+                return new com.plot.api.world.WorldViewBounds(-1.0e9, 1.0e9, -1.0e9, 1.0e9);
+            }
+        };
     }
 
     private static boolean hasNearbyConstraint(PowerLineFootprint line, double stationing) {

@@ -357,6 +357,7 @@ public class PowerLineFootprint {
         return PowerLineStyleInstance.of(this);
     }
 
+    /** 画布折线长度（canvas units），不含 Minecraft 投影。 */
     public double computePathLength() {
         double length = 0.0;
         for (int i = 1; i < pathPoints.size(); i++) {
@@ -365,8 +366,20 @@ public class PowerLineFootprint {
         return length;
     }
 
+    /** 投影到 Minecraft XZ 后的路径总长度（blocks）。 */
+    public double computeWorldPathLength(com.plot.api.world.ICoordinateService coordinates) {
+        if (coordinates == null) {
+            return computePathLength();
+        }
+        return coordinates.pathWorldLength(pathPoints);
+    }
+
     public int estimatePoleCount() {
-        return com.plot.plugin.powerline.PowerPoleLayoutUtils.computePoleSites(this).size();
+        return estimatePoleCount(null);
+    }
+
+    public int estimatePoleCount(com.plot.api.world.ICoordinateService coordinates) {
+        return com.plot.plugin.powerline.PowerPoleLayoutUtils.computePoleSites(this, coordinates).size();
     }
 
     /**

@@ -60,6 +60,12 @@ public class PowerLineProject {
         return lines.values().stream().mapToDouble(PowerLineFootprint::computePathLength).sum();
     }
 
+    public double getTotalWorldPathLength(com.plot.api.world.ICoordinateService coordinates) {
+        return lines.values().stream()
+            .mapToDouble(line -> line.computeWorldPathLength(coordinates))
+            .sum();
+    }
+
     public String toJson() {
         return GSON.toJson(ProjectData.from(this));
     }

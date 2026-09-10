@@ -58,7 +58,7 @@ public class PowerLineGenerator {
             return result;
         }
 
-        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(footprint);
+        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(footprint, coordinateTransformer);
         result.poleCount = sites.size();
         result.poleSites.addAll(sites.stream().map(PowerPoleSite::copy).toList());
         if (sites.isEmpty()) {

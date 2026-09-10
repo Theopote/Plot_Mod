@@ -35,12 +35,44 @@ public final class PowerLineBuildPanel {
         }
 
         PowerLineUiWidgets.renderLineSelector(ctx);
+        renderRouteProjection(line);
         renderPreviewSummary(line);
         renderFriendlyStatus(line);
         validationPanel.renderSmartFixSection(line);
         ImGui.separator();
         buildActions.render(line);
         renderAdvancedChecks(line);
+    }
+
+    private void renderRouteProjection(PowerLineFootprint line) {
+        double worldLength = line.computeWorldPathLength(ctx.coordinates());
+        boolean hasPreview = ctx.hasValidPreview(line);
+        PowerLineGenerationResult result = hasPreview ? ctx.lastGenerationResult() : null;
+        int poleCount = result != null
+            ? result.poleCount
+            : line.estimatePoleCount(ctx.coordinates());
+        double typicalSpan = typicalSpanBlocks(worldLength, poleCount, line.getMaxPoleSpacing());
+
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.powerline.build.route_length", formatBlocks(worldLength)));
+        String poleKey = hasPreview
+            ? "plugin.powerline.build.route_poles_preview"
+            : "plugin.powerline.build.route_poles_estimate";
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr(poleKey, poleCount, formatBlocks(typicalSpan)));
+    }
+
+    private static double typicalSpanBlocks(double worldLength, int poleCount, double maxPoleSpacing) {
+        if (poleCount > 1 && worldLength > 0.0) {
+            return worldLength / (poleCount - 1);
+        }
+        return maxPoleSpacing;
+    }
+
+    private static String formatBlocks(double blocks) {
+        return String.format("%.0f", blocks);
     }
 
     private void renderPreviewSummary(PowerLineFootprint line) {
@@ -76,6 +108,7 @@ public final class PowerLineBuildPanel {
                 PlotI18n.tr("plugin.powerline.build.style_custom"));
         }
         ImGui.text(PlotI18n.tr("plugin.powerline.pole_count_result", result.poleCount));
+        ImGui.text(PlotI18n.tr("plugin.powerline.wire_length_result", String.format("%.1f", result.wireLength)));
         ImGui.text(PlotI18n.tr("plugin.powerline.block_count_result", result.blockCount()));
         ImGui.text(PlotI18n.tr(
             "plugin.powerline.build.conductor_count",
@@ -107,7 +140,8 @@ public final class PowerLineBuildPanel {
     }
 
     private void renderSpacingStatus(PowerLineFootprint line) {
-        PowerLineFriendlyStatus.SpacingEvaluation spacing = PowerLineFriendlyStatus.evaluateSpacing(line);
+        PowerLineFriendlyStatus.SpacingEvaluation spacing =
+            PowerLineFriendlyStatus.evaluateSpacing(line, ctx.coordinates());
         switch (spacing.kind()) {
             case OK -> PowerLineStatusIcon.renderOkLine(
                 PlotI18n.tr("plugin.powerline.build.status.spacing_ok"));
@@ -130,7 +164,8 @@ public final class PowerLineBuildPanel {
     }
 
     private void renderCornerStatus(PowerLineFootprint line) {
-        PowerLineFriendlyStatus.CornerEvaluation corners = PowerLineFriendlyStatus.evaluateCornerPoles(line);
+        PowerLineFriendlyStatus.CornerEvaluation corners =
+            PowerLineFriendlyStatus.evaluateCornerPoles(line, ctx.coordinates());
         switch (corners.kind()) {
             case OK -> PowerLineStatusIcon.renderOkLine(
                 PlotI18n.tr("plugin.powerline.build.status.corners_ok"));

@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.powerline.PowerPoleLayoutUtils;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
@@ -48,7 +49,8 @@ public final class PowerLineOverviewRenderer {
     public static void renderProjectMap(
             PowerLineProject project,
             Collection<String> selectedLineIds,
-            Consumer<String> onLineSelected) {
+            Consumer<String> onLineSelected,
+            ICoordinateService coordinates) {
         ImGui.text(PlotI18n.tr("plugin.powerline.overview_map"));
         float mapWidth = ImGui.getContentRegionAvail().x;
         float mapHeight = mapHeightForWidth(mapWidth);
@@ -82,7 +84,7 @@ public final class PowerLineOverviewRenderer {
             boolean selected = selectedLineIds != null && selectedLineIds.contains(line.getId());
             int color = selected ? COLOR_SELECTED_RING : lineColor(i);
             drawLinePath(drawList, line, viewport, color, selected);
-            drawPoles(drawList, line, viewport, selected);
+            drawPoles(drawList, line, viewport, selected, coordinates);
         }
 
         ImGui.invisibleButton("##powerline_map_hit", width, height);
@@ -103,7 +105,10 @@ public final class PowerLineOverviewRenderer {
     /**
      * 绘制单条线路缩略图；点击返回 true。
      */
-    public static boolean renderLineThumbnail(PowerLineFootprint line, boolean selected) {
+    public static boolean renderLineThumbnail(
+            PowerLineFootprint line,
+            boolean selected,
+            ICoordinateService coordinates) {
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
         float x = origin.x;
@@ -117,7 +122,7 @@ public final class PowerLineOverviewRenderer {
         MapViewport viewport = buildViewport(bounds, x, y, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
         int color = selected ? COLOR_SELECTED_RING : 0xFF9EC9FF;
         drawLinePath(drawList, line, viewport, color, selected);
-        drawPoles(drawList, line, viewport, selected);
+        drawPoles(drawList, line, viewport, selected, coordinates);
 
         ImGui.invisibleButton("##thumb", THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
         if (ImGui.isItemHovered()) {
@@ -162,9 +167,10 @@ public final class PowerLineOverviewRenderer {
             ImDrawList drawList,
             PowerLineFootprint line,
             MapViewport viewport,
-            boolean selected) {
+            boolean selected,
+            ICoordinateService coordinates) {
         int color = selected ? COLOR_SELECTED_RING : 0xFFE0E0E0;
-        for (PowerPoleSite site : PowerPoleLayoutUtils.computePoleSites(line)) {
+        for (PowerPoleSite site : PowerPoleLayoutUtils.computePoleSites(line, coordinates)) {
             Vec2d pole = site.getPlanPosition();
             float sx = toScreenX(pole.x, viewport);
             float sy = toScreenY(pole.y, viewport);

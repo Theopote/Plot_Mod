@@ -436,6 +436,22 @@ public class CoordinateTransformer implements com.plot.api.world.ICoordinateServ
      * 当前正交相机在 Minecraft 世界 XZ 平面上的可见范围（以玩家位置为原点叠加相机偏移）
      */
     @Override
+    public com.plot.api.world.WorldProjectionSnapshot captureProjection() {
+        CameraViewBounds relative = getCameraViewBounds();
+        CanvasRegion canvasRegion = getCanvasRegion();
+        com.plot.api.world.WorldViewBounds bounds = getMinecraftWorldViewBounds();
+        if (relative == null || canvasRegion == null || bounds == null) {
+            return com.plot.api.world.WorldProjectionSnapshot.UNKNOWN;
+        }
+        return new com.plot.api.world.WorldProjectionSnapshot(
+            bounds,
+            relative.viewDistance,
+            relative.scale,
+            canvasRegion.width,
+            canvasRegion.height);
+    }
+
+    @Override
     public com.plot.api.world.WorldViewBounds getMinecraftWorldViewBounds() {
         CameraViewBounds relative = getCameraViewBounds();
         if (relative == null) {

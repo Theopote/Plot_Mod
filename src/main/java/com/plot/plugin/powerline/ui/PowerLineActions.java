@@ -208,7 +208,7 @@ public final class PowerLineActions {
         }
 
         state.setLastGenerationResult(result);
-        state.setPreviewKey(PowerLinePreviewKey.capture(line, state.getDesignProject()));
+        state.setPreviewKey(PowerLinePreviewKey.capture(line, state.getDesignProject(), host.coordinates()));
         projectGhosts(result);
         state.setProjectStatus(PlotI18n.tr(
             "plugin.powerline.preview_ready",
@@ -354,7 +354,7 @@ public final class PowerLineActions {
                 return;
             }
             if (!com.plot.plugin.powerline.engineering.TerrainAvoidance.applyOneFix(
-                    line, report, result, designResolver())) {
+                    line, report, result, designResolver(), host.coordinates())) {
                 applyTerrainFixStatus(
                     fixesApplied,
                     com.plot.plugin.powerline.engineering.TerrainAvoidance.countTerrainIssues(report));
@@ -431,7 +431,7 @@ public final class PowerLineActions {
         if (result.footprint == null || !line.getId().equals(result.footprint.getId())) {
             return false;
         }
-        return key.matches(line, state.getDesignProject());
+        return key.matches(line, state.getDesignProject(), host.coordinates());
     }
 
     public boolean hasValidPreview(PowerLineFootprint line) {
@@ -583,7 +583,7 @@ public final class PowerLineActions {
         List<Vec2d> mandatory = collectMandatoryPoles(line);
         double closest = Double.MAX_VALUE;
         for (int i = 1; i < mandatory.size(); i++) {
-            double span = mandatory.get(i - 1).distance(mandatory.get(i));
+            double span = host.coordinates().projectedDistance(mandatory.get(i - 1), mandatory.get(i));
             if (span < line.getMinPoleSpacing()) {
                 closest = Math.min(closest, span);
             }
@@ -850,7 +850,7 @@ public final class PowerLineActions {
                 resolvedIds);
         } else {
             sites = new com.plot.plugin.powerline.engineering.optimization.LineOptimizationEngine.PowerLineGeometrySites(
-                com.plot.plugin.powerline.PowerPoleLayoutUtils.computePoleSites(line));
+                com.plot.plugin.powerline.PowerPoleLayoutUtils.computePoleSites(line, host.coordinates()));
         }
         OptimizationResult optimization = com.plot.plugin.powerline.engineering.optimization.LineOptimizationEngine
             .propose(

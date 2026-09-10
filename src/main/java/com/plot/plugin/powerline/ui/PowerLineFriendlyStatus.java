@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.powerline.PowerPoleLayoutUtils;
 import com.plot.plugin.powerline.engineering.PowerLineIssue;
 import com.plot.plugin.powerline.engineering.EngineeringRuleIds;
@@ -106,11 +107,15 @@ public final class PowerLineFriendlyStatus {
     }
 
     public static SpacingEvaluation evaluateSpacing(PowerLineFootprint line) {
+        return evaluateSpacing(line, null);
+    }
+
+    public static SpacingEvaluation evaluateSpacing(PowerLineFootprint line, ICoordinateService coordinates) {
         if (!spacingSettingsValid(line)) {
             return SpacingEvaluation.of(SpacingKind.INVALID_SETTINGS);
         }
 
-        List<PowerPoleSite> sites = new ArrayList<>(PowerPoleLayoutUtils.computePoleSites(line));
+        List<PowerPoleSite> sites = new ArrayList<>(PowerPoleLayoutUtils.computePoleSites(line, coordinates));
         if (sites.size() < 2) {
             return SpacingEvaluation.of(SpacingKind.SETTINGS_ONLY);
         }
@@ -125,7 +130,7 @@ public final class PowerLineFriendlyStatus {
         boolean tooFar = false;
 
         for (int i = 0; i < sites.size() - 1; i++) {
-            double span = sites.get(i).getPlanPosition().distance(sites.get(i + 1).getPlanPosition());
+            double span = sites.get(i + 1).getStationing() - sites.get(i).getStationing();
             if (span < minAllowed - SPACING_TOLERANCE) {
                 tooClose = true;
                 worstShort = Math.min(worstShort, span);
@@ -146,6 +151,10 @@ public final class PowerLineFriendlyStatus {
     }
 
     public static CornerEvaluation evaluateCornerPoles(PowerLineFootprint line) {
+        return evaluateCornerPoles(line, null);
+    }
+
+    public static CornerEvaluation evaluateCornerPoles(PowerLineFootprint line, ICoordinateService coordinates) {
         if (line == null || line.getPathPoints().size() < 2) {
             return new CornerEvaluation(CornerKind.NO_PATH, 0);
         }
@@ -153,11 +162,11 @@ public final class PowerLineFriendlyStatus {
         List<Vec2d> mandatory = PowerPoleLayoutUtils.mandatoryPolePoints(
             line.getPathPoints(),
             line.getCornerAngleThreshold());
-        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(line);
+        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(line, coordinates);
 
         int missing = 0;
         for (Vec2d required : mandatory) {
-            if (!PowerPoleLayoutUtils.hasSiteNear(sites, required, POLE_POSITION_TOLERANCE)) {
+            if (!PowerPoleLayoutUtils.hasSiteNear(sites, required, POLE_POSITION_TOLERANCE, coordinates)) {
                 missing++;
             }
         }

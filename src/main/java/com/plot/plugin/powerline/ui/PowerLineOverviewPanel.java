@@ -17,7 +17,7 @@ public final class PowerLineOverviewPanel {
         ImGui.text(PlotI18n.tr(
             "plugin.powerline.project_stats",
             ctx.project().getLineCount(),
-            String.format("%.1f", ctx.project().getTotalPathLength())));
+            String.format("%.1f", ctx.project().getTotalWorldPathLength(ctx.coordinates()))));
 
         if (ctx.project().getLineCount() == 0) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.no_lines"));
@@ -44,7 +44,8 @@ public final class PowerLineOverviewPanel {
         PowerLineOverviewRenderer.renderProjectMap(
             ctx.project(),
             ctx.selection().ids(),
-            lineId -> ctx.selectLine(lineId, ImGui.getIO().getKeyCtrl()));
+            lineId -> ctx.selectLine(lineId, ImGui.getIO().getKeyCtrl()),
+            ctx.coordinates());
 
         ImGui.spacing();
         ImGui.beginChild("powerline_overview_list", 0, 0, true);
@@ -58,7 +59,7 @@ public final class PowerLineOverviewPanel {
         ImGui.pushID(line.getId());
         boolean selected = ctx.selection().contains(line.getId());
 
-        if (PowerLineOverviewRenderer.renderLineThumbnail(line, selected)) {
+        if (PowerLineOverviewRenderer.renderLineThumbnail(line, selected, ctx.coordinates())) {
             ctx.selectLine(line.getId(), ImGui.getIO().getKeyCtrl());
         }
         ImGui.sameLine();
@@ -73,8 +74,8 @@ public final class PowerLineOverviewPanel {
         }
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
             "plugin.powerline.overview_item",
-            line.estimatePoleCount(),
-            String.format("%.1f", line.computePathLength())));
+            line.estimatePoleCount(ctx.coordinates()),
+            String.format("%.1f", line.computeWorldPathLength(ctx.coordinates()))));
         if (ImGui.button(PlotI18n.tr("plugin.powerline.locate") + "##locate", 0, 0)) {
             ctx.locateLine(line);
         }

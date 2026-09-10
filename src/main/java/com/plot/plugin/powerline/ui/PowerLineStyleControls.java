@@ -224,7 +224,7 @@ public final class PowerLineStyleControls {
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.powerline.pole_roles_section"));
 
-        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(line);
+        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(line, ctx.coordinates());
         if (sites.isEmpty()) {
             return;
         }

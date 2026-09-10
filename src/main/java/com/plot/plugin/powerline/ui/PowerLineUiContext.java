@@ -1,5 +1,6 @@
 package com.plot.plugin.powerline.ui;
 
+import com.plot.api.world.ICoordinateService;
 import com.plot.core.context.PluginContext;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.PowerLinePathSelectionAnalysis;
@@ -36,6 +37,10 @@ public final class PowerLineUiContext {
 
     public PluginContext host() {
         return host;
+    }
+
+    public ICoordinateService coordinates() {
+        return host.coordinates();
     }
 
     public PowerLinePluginState state() {

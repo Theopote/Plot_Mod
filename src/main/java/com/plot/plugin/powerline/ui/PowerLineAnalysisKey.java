@@ -9,7 +9,8 @@ import com.plot.plugin.powerline.model.PowerLineFootprint;
 public record PowerLineAnalysisKey(
         String footprintId,
         int footprintFingerprint,
-        int designProjectFingerprint) {
+        int designProjectFingerprint,
+        int projectionFingerprint) {
 
     public static PowerLineAnalysisKey capture(PowerLinePreviewKey previewKey) {
         if (previewKey == null) {
@@ -18,7 +19,8 @@ public record PowerLineAnalysisKey(
         return new PowerLineAnalysisKey(
             previewKey.footprintId(),
             previewKey.footprintFingerprint(),
-            previewKey.designProjectFingerprint());
+            previewKey.designProjectFingerprint(),
+            previewKey.projectionFingerprint());
     }
 
     public boolean matches(
@@ -33,6 +35,7 @@ public record PowerLineAnalysisKey(
         }
         return footprintFingerprint == currentPreviewKey.footprintFingerprint()
             && designProjectFingerprint == currentPreviewKey.designProjectFingerprint()
+            && projectionFingerprint == currentPreviewKey.projectionFingerprint()
             && currentPreviewKey.matches(footprint, designProject);
     }
 }
