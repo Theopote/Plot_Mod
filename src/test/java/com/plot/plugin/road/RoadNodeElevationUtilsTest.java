@@ -33,7 +33,7 @@ class RoadNodeElevationUtilsTest {
     void fallsBackToJunctionSolverWithoutPreview() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         RoadGenerator generator = new RoadGenerator(
-            config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+            config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         RoadNetwork network = new RoadNetwork();
         RoadNode start = network.createNode(new Vec2d(0, 0));
         RoadNode end = network.createNode(new Vec2d(10, 0));

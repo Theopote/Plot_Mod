@@ -30,7 +30,7 @@ class VariableCrossSectionGenerationTest {
         config.setPathSampleDistance(5.0);
 
         RoadGenerator generator = new RoadGenerator(
-            config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+            config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         FlatTerrainSampler terrain = new FlatTerrainSampler(64);
 
         RoadGenerationResult narrow = generateEdge(generator, buildRoadWithStationAt(200.0, 6), terrain, 0, 100);

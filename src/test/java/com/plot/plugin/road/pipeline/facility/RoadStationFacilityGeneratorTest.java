@@ -71,7 +71,7 @@ class RoadStationFacilityGeneratorTest {
         config.setPathSampleDistance(5.0);
 
         RoadGenerator generator = new RoadGenerator(
-            config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+            config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         FlatTerrainSampler terrain = new FlatTerrainSampler(64);
 
         RoadNetwork partialNetwork = buildRoadWithDrainageRange(30.0, 60.0);
@@ -93,7 +93,7 @@ class RoadStationFacilityGeneratorTest {
         config.setPathSampleDistance(5.0);
 
         RoadGenerator generator = new RoadGenerator(
-            config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+            config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
 
         RoadNetwork network = new RoadNetwork();
         RoadNode start = network.createNode(new Vec2d(0, 0));

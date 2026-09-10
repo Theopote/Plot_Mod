@@ -24,7 +24,7 @@ class RoadBenchmarkHarnessTest {
         RoadSystemConfig config = RoadBenchmarkHarness.benchmarkConfig();
         config.setPathSampleDistance(4.0);
 
-        RoadGenerator generator = new RoadGenerator(config, null, BlockProjectionHandler.getInstance());
+        RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("r1");
         RoadNode n1 = network.createNode(new Vec2d(0, 0));

@@ -125,7 +125,7 @@ class JunctionRasterizationBenchmarkTest {
     private static JunctionMetrics run(JunctionCase junctionCase) {
         RoadGenerator generator = new RoadGenerator(
             RoadBenchmarkHarness.benchmarkConfig(),
-            null,
+            com.plot.test.world.IdentityCoordinateService.INSTANCE,
             BlockProjectionHandler.getInstance());
         RoadJunctionGenerator junctionGenerator = new RoadJunctionGenerator(generator);
         var terrain = new FlatTerrainSampler(64);

@@ -146,7 +146,7 @@ class RoadRoadbedGradingUtilsTest {
         config.setIncludeDrainage(false);
 
         TerrainSampler terrain = columnTerrain(60, 64, 100);
-        RoadGenerator generator = new RoadGenerator(config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         RoadGenerationResult result = generator.generateFromPathPoints(
             List.of(new Vec2d(0, 0), new Vec2d(6, 0)),
             terrain,

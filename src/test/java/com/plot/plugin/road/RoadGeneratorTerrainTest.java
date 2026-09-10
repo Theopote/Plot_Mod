@@ -22,7 +22,7 @@ class RoadGeneratorTerrainTest {
     @Test
     void targetHeightAtNodeUsesFlatTerrainElevation() {
         RoadSystemConfig config = new RoadSystemConfig("test");
-        RoadGenerator generator = new RoadGenerator(config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         TerrainSampler terrain = new FlatTerrainSampler(72);
 
         RoadNetwork network = new RoadNetwork();
@@ -37,7 +37,7 @@ class RoadGeneratorTerrainTest {
     @Test
     void manualElevationOverridesTerrainSampling() {
         RoadSystemConfig config = new RoadSystemConfig("test");
-        RoadGenerator generator = new RoadGenerator(config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         TerrainSampler terrain = new FlatTerrainSampler(64);
 
         RoadNetwork network = new RoadNetwork();
@@ -52,7 +52,7 @@ class RoadGeneratorTerrainTest {
     @Test
     void junctionTargetHeightAveragesConnectedEdgesOnFlatTerrain() {
         RoadSystemConfig config = new RoadSystemConfig("test");
-        RoadGenerator generator = new RoadGenerator(config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         TerrainSampler terrain = new FlatTerrainSampler(70);
 
         RoadNetwork network = new RoadNetwork();
@@ -72,7 +72,7 @@ class RoadGeneratorTerrainTest {
     void networkNodeElevationsForceConnectedEdgesToMeetAtJunction() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setMaxSlope(100.0f); // 允许端点完全对齐到决议标高
-        RoadGenerator generator = new RoadGenerator(config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         // 南北向高、东西向低，自然高程在路口会不一致
         TerrainSampler terrain = new TerrainSampler() {
             @Override
@@ -120,7 +120,7 @@ class RoadGeneratorTerrainTest {
     void generateFromPathPointsPlacesRoadAtFlatTerrainElevation() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setIncludeSidewalk(false);
-        RoadGenerator generator = new RoadGenerator(config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
 
         RoadGenerationResult result = generator.generateFromPathPoints(
             List.of(new Vec2d(0, 0), new Vec2d(8, 0)),
@@ -139,7 +139,7 @@ class RoadGeneratorTerrainTest {
         config.setIncludeShoulder(true);
         config.setBridgeThreshold(2);
         config.setMinimumConsiderationHeight(0.0);
-        RoadGenerator generator = new RoadGenerator(config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         TerrainSampler valley = new TerrainSampler() {
             @Override
             public int sampleSurfaceY(Vec2d planPoint) {
@@ -182,7 +182,7 @@ class RoadGeneratorTerrainTest {
         config.setBridgeBaseCost(0.0);
         config.setBridgeCostPerLength(0.0);
         RoadGenerator generator = new RoadGenerator(
-            config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+            config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
 
         RoadGenerationResult result = generator.generateFromPathPoints(
             List.of(new Vec2d(0, 0), new Vec2d(12, 0)),
@@ -211,7 +211,7 @@ class RoadGeneratorTerrainTest {
             @Override public boolean isSolidBlock(int x, int y, int z) { return y <= 50; }
         };
         RoadGenerator generator = new RoadGenerator(
-            config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+            config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
 
         RoadGenerationResult supported = generator.generateFromPathPoints(
             List.of(new Vec2d(0, 0), new Vec2d(12, 0)), water, 64);
@@ -231,7 +231,7 @@ class RoadGeneratorTerrainTest {
     void targetHeightDoesNotFollowSteepTerrainFully() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setMaxSlope(10.0f);
-        RoadGenerator generator = new RoadGenerator(config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         TerrainSampler risingTerrain = new TerrainSampler() {
             @Override
             public int sampleSurfaceY(Vec2d planPoint) {
@@ -258,7 +258,7 @@ class RoadGeneratorTerrainTest {
     @Test
     void junctionGeneratorUsesTerrainSamplerWithoutWorld() {
         RoadSystemConfig config = new RoadSystemConfig("test");
-        RoadGenerator generator = new RoadGenerator(config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         RoadJunctionGenerator junctionGenerator = new RoadJunctionGenerator(generator);
         TerrainSampler terrain = new FlatTerrainSampler(65);
 
@@ -282,7 +282,7 @@ class RoadGeneratorTerrainTest {
     void gradeSeparationElevatesCrossingRoadByClearance() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setDefaultCrossingClearance(3.0);
-        RoadGenerator generator = new RoadGenerator(config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         TerrainSampler terrain = new FlatTerrainSampler(70);
 
         RoadNetwork network = new RoadNetwork();
@@ -319,7 +319,7 @@ class RoadGeneratorTerrainTest {
     void gradeSeparationKeepsHeightsConsistentOnBothSubEdges() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setDefaultCrossingClearance(4.0);
-        RoadGenerator generator = new RoadGenerator(config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         TerrainSampler terrain = new FlatTerrainSampler(68);
 
         RoadNetwork network = new RoadNetwork();
@@ -356,7 +356,7 @@ class RoadGeneratorTerrainTest {
     void manualElevationIsLowerDeckBaseWithGradeSeparation() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setDefaultCrossingClearance(3.0);
-        RoadGenerator generator = new RoadGenerator(config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         TerrainSampler terrain = new FlatTerrainSampler(70);
 
         RoadNetwork network = new RoadNetwork();
@@ -387,7 +387,7 @@ class RoadGeneratorTerrainTest {
     @Test
     void resolveElevatedRoadIdAutoSelectsHigherNaturalRoad() {
         RoadSystemConfig config = new RoadSystemConfig("test");
-        RoadGenerator generator = new RoadGenerator(config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         TerrainSampler terrain = directionalTerrain(64, 80);
 
         SimpleCrossFixture fixture = SimpleCrossFixture.create();
@@ -400,7 +400,7 @@ class RoadGeneratorTerrainTest {
     @Test
     void resolveElevatedRoadIdAutoFollowsTerrainSwap() {
         RoadSystemConfig config = new RoadSystemConfig("test");
-        RoadGenerator generator = new RoadGenerator(config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         TerrainSampler terrain = directionalTerrain(80, 64);
 
         SimpleCrossFixture fixture = SimpleCrossFixture.create();
@@ -430,7 +430,7 @@ class RoadGeneratorTerrainTest {
     @Test
     void staleElevatedRoadIdIgnoredWhenGradeSeparationDisabled() {
         RoadSystemConfig config = new RoadSystemConfig("test");
-        RoadGenerator generator = new RoadGenerator(config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         TerrainSampler terrain = new FlatTerrainSampler(70);
 
         SimpleCrossFixture fixture = SimpleCrossFixture.create();

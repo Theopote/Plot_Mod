@@ -25,7 +25,7 @@ public final class RoadGoldenHarness {
         RoadSystemConfig config = scenario.config();
         RoadGenerator generator = new RoadGenerator(
             config,
-            null,
+            com.plot.test.world.IdentityCoordinateService.INSTANCE,
             BlockProjectionHandler.getInstance());
         RoadBenchmarkHarness.PreviewRun preview = RoadBenchmarkHarness.generatePreview(
             scenario.network(),

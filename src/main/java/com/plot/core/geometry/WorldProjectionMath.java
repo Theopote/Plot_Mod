@@ -2,8 +2,10 @@ package com.plot.core.geometry;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
+import com.plot.api.world.WorldProjectionUnavailableException;
 
 import java.util.List;
+import java.util.Objects;
 
 /** 画布几何在 Minecraft 世界空间中的距离与插值。 */
 public final class WorldProjectionMath {
@@ -84,9 +86,8 @@ public final class WorldProjectionMath {
             ICoordinateService coordinates,
             Vec2d origin,
             Vec2d direction) {
-        if (coordinates == null || origin == null) {
-            return 1.0;
-        }
+        Objects.requireNonNull(coordinates, "coordinates");
+        Objects.requireNonNull(origin, "origin");
         Vec2d dir = direction != null && direction.lengthSquared() > 1e-12
             ? direction.normalize()
             : new Vec2d(0, 1);
@@ -96,10 +97,15 @@ public final class WorldProjectionMath {
             probe = 100.0;
             worldDist = coordinates.projectedDistance(origin, origin.add(dir.multiply(probe)));
         }
-        if (worldDist < 1e-6) {
-            return 1.0;
+        if (worldDist < 1e-6 || !Double.isFinite(worldDist)) {
+            throw new WorldProjectionUnavailableException(
+                "Cannot derive canvas scale from world projection");
         }
         double units = probe / worldDist;
-        return Math.max(0.05, Math.min(units, 500.0));
+        if (!Double.isFinite(units) || units <= 0.0) {
+            throw new WorldProjectionUnavailableException(
+                "Invalid canvas units per world block: " + units);
+        }
+        return units;
     }
 }

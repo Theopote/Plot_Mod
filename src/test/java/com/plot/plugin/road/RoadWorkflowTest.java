@@ -114,7 +114,7 @@ class RoadWorkflowTest {
 
         RoadGenerator generator = new RoadGenerator(
             config,
-            null,
+            com.plot.test.world.IdentityCoordinateService.INSTANCE,
             com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         TerrainSampler terrain = new FlatTerrainSampler(70);
 

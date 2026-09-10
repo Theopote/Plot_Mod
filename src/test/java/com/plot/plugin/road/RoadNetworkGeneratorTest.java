@@ -104,7 +104,7 @@ class RoadNetworkGeneratorTest {
         config.setIncludeDrainage(false);
         config.setPathSampleDistance(4.0);
 
-        RoadGenerator generator = new RoadGenerator(config, null, BlockProjectionHandler.getInstance());
+        RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
         RoadNetworkGenerator networkGenerator = new RoadNetworkGenerator(generator);
         FlatTerrainSampler terrain = new FlatTerrainSampler(64);
 

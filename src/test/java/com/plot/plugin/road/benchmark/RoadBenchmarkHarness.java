@@ -45,7 +45,7 @@ public final class RoadBenchmarkHarness {
         long snapshotMillis = nanosToMillis(System.nanoTime() - snapshotStart);
 
         TerrainSampler terrain = new FlatTerrainSampler(64);
-        RoadGenerator generator = new RoadGenerator(CONFIG, null, BlockProjectionHandler.getInstance());
+        RoadGenerator generator = new RoadGenerator(CONFIG, com.plot.test.world.IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
 
         PreviewRun preview = generatePreview(network, generator, terrain);
         long validationStart = System.nanoTime();

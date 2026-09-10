@@ -69,7 +69,7 @@ class RoadPhase2WorkflowTest {
         config.setPathSampleDistance(10.0);
         generator = new RoadGenerator(
             config,
-            null,
+            com.plot.test.world.IdentityCoordinateService.INSTANCE,
             com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         terrain = new FlatTerrainSampler(64);
         networkBuilder = new RoadNetworkBuilder();

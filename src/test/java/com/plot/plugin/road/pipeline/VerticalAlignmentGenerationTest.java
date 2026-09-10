@@ -30,7 +30,7 @@ class VerticalAlignmentGenerationTest {
         config.setPathSampleDistance(10.0);
 
         RoadGenerator generator = new RoadGenerator(
-            config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+            config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         FlatTerrainSampler terrain = new FlatTerrainSampler(64);
 
         RoadNetwork withAlignment = buildRoadWithVerticalAlignment(80.0, 100.0);

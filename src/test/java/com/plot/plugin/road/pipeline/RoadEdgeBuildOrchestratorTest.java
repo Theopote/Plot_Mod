@@ -32,7 +32,7 @@ class RoadEdgeBuildOrchestratorTest {
     @Test
     void nullEdgeIsSkippedNotFailed() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
-        RoadGenerator generator = new RoadGenerator(config, null, BlockProjectionHandler.getInstance());
+        RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
         RoadNetwork network = new RoadNetwork();
         RoadNode start = network.createNode(new Vec2d(0, 0));
         RoadNode end = network.createNode(new Vec2d(10, 0));
@@ -46,7 +46,7 @@ class RoadEdgeBuildOrchestratorTest {
     @Test
     void generationExceptionIsFailedNotSilentSuccess() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
-        RoadGenerator generator = new RoadGenerator(config, null, BlockProjectionHandler.getInstance());
+        RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
         RoadNetwork network = new RoadNetwork();
         RoadNode start = network.createNode(new Vec2d(0, 0));
         RoadNode end = network.createNode(new Vec2d(10, 0));
