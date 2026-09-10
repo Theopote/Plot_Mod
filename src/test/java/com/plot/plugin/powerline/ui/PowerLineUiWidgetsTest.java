@@ -1,0 +1,15 @@
+package com.plot.plugin.powerline.ui;
+
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class PowerLineUiWidgetsTest {
+
+    @Test
+    void stableLabelKeepsHiddenIdSuffix() {
+        String label = PowerLineUiWidgets.stableLabel("plugin.powerline.min_pole_spacing", "min_pole_spacing");
+        assertTrue(label.endsWith("##min_pole_spacing"));
+        assertTrue(label.contains("##"));
+    }
+}

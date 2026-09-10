@@ -21,6 +21,14 @@ public final class PowerLineUiWidgets {
     private PowerLineUiWidgets() {
     }
 
+    /**
+     * 稳定 ImGui 控件 ID：可见标签可含 i18n 文本，{@code ##id} 后缀在拖动时保持不变。
+     * 当前值应通过 slider 的 {@code format} 显示，不要写进标签字符串。
+     */
+    public static String stableLabel(String i18nKey, String idSuffix) {
+        return PlotI18n.tr(i18nKey) + "##" + idSuffix;
+    }
+
     public static void renderLineSelector(PowerLineUiContext ctx) {
         if (ctx.project().getLineCount() == 0) {
             return;
@@ -159,7 +167,7 @@ public final class PowerLineUiWidgets {
         if (!line.isMaxSagDepthUnlimited()) {
             float[] maxDepth = {PowerLineUiPresets.displayMaxSagDepth(line)};
             if (ImGui.sliderFloat(
-                    PlotI18n.tr("plugin.powerline.max_sag_depth", maxDepth[0]),
+                    stableLabel("plugin.powerline.max_sag_depth", "max_sag_depth"),
                     maxDepth,
                     1f,
                     PowerLineUiPresets.ADVANCED_MAX_SAG_DEPTH_MAX,

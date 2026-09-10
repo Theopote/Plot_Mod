@@ -194,7 +194,7 @@ public final class PowerLineStyleControls {
         } else {
             float[] poleHeight = {(float) line.getPoleHeight()};
             if (ImGui.sliderFloat(
-                    PlotI18n.tr("plugin.powerline.pole_height", poleHeight[0]),
+                    PowerLineUiWidgets.stableLabel("plugin.powerline.pole_height", "pole_height"),
                     poleHeight,
                     1f,
                     64f,

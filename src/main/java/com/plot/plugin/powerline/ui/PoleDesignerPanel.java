@@ -600,7 +600,7 @@ public final class PoleDesignerPanel {
 
         float[] lateral = {(float) attachment.getLateralOffset()};
         if (ImGui.sliderFloat(
-                PlotI18n.tr("plugin.powerline.design.attachment_lateral", lateral[0]),
+                PowerLineUiWidgets.stableLabel("plugin.powerline.design.attachment_lateral", "attachment_lateral"),
                 lateral,
                 -8f,
                 8f,
@@ -612,7 +612,7 @@ public final class PoleDesignerPanel {
         }
         float[] vertical = {(float) attachment.getVerticalOffset()};
         if (ImGui.sliderFloat(
-                PlotI18n.tr("plugin.powerline.design.attachment_vertical", vertical[0]),
+                PowerLineUiWidgets.stableLabel("plugin.powerline.design.attachment_vertical", "attachment_vertical"),
                 vertical,
                 1f,
                 64f,
@@ -624,7 +624,9 @@ public final class PoleDesignerPanel {
         }
         float[] longitudinal = {(float) attachment.getLongitudinalOffset()};
         if (ImGui.sliderFloat(
-                PlotI18n.tr("plugin.powerline.design.attachment_longitudinal", longitudinal[0]),
+                PowerLineUiWidgets.stableLabel(
+                    "plugin.powerline.design.attachment_longitudinal",
+                    "attachment_longitudinal"),
                 longitudinal,
                 -4f,
                 4f,

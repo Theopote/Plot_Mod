@@ -124,7 +124,7 @@ public final class PowerLineRoutePanel {
         float sliderMax = (float) PowerLineSpacingPolicy.sliderMax(line);
         float[] minSpacing = {(float) line.getMinPoleSpacing()};
         if (ImGui.sliderFloat(
-                PlotI18n.tr("plugin.powerline.min_pole_spacing", minSpacing[0]),
+                PowerLineUiWidgets.stableLabel("plugin.powerline.min_pole_spacing", "min_pole_spacing"),
                 minSpacing,
                 sliderMin,
                 sliderMax,
@@ -139,7 +139,7 @@ public final class PowerLineRoutePanel {
 
         float[] maxSpacing = {(float) line.getMaxPoleSpacing()};
         if (ImGui.sliderFloat(
-                PlotI18n.tr("plugin.powerline.max_pole_spacing", maxSpacing[0]),
+                PowerLineUiWidgets.stableLabel("plugin.powerline.max_pole_spacing", "max_pole_spacing"),
                 maxSpacing,
                 sliderMin,
                 sliderMax,
@@ -156,7 +156,7 @@ public final class PowerLineRoutePanel {
 
         float[] cornerAngle = {(float) line.getCornerAngleThreshold()};
         if (ImGui.sliderFloat(
-                PlotI18n.tr("plugin.powerline.corner_angle", cornerAngle[0]),
+                PowerLineUiWidgets.stableLabel("plugin.powerline.corner_angle", "corner_angle"),
                 cornerAngle,
                 0f,
                 90f,

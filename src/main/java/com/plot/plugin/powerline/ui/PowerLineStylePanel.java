@@ -116,7 +116,7 @@ public final class PowerLineStylePanel {
         ImGui.text(PlotI18n.tr("plugin.powerline.style.sag_advanced"));
         float[] sagRatio = {(float) (line.getSagRatio() * 100f)};
         if (ImGui.sliderFloat(
-                PlotI18n.tr("plugin.powerline.sag_ratio", sagRatio[0]),
+                PowerLineUiWidgets.stableLabel("plugin.powerline.sag_ratio", "sag_ratio"),
                 sagRatio,
                 0f,
                 (float) (PowerLineUiPresets.ADVANCED_SAG_MAX_RATIO * 100f),
@@ -145,7 +145,7 @@ public final class PowerLineStylePanel {
         if (!line.isMaxSagDepthUnlimited()) {
             float[] maxDepth = {PowerLineUiPresets.displayMaxSagDepth(line)};
             if (ImGui.sliderFloat(
-                    PlotI18n.tr("plugin.powerline.max_sag_depth", maxDepth[0]),
+                    PowerLineUiWidgets.stableLabel("plugin.powerline.max_sag_depth", "max_sag_depth"),
                     maxDepth,
                     1f,
                     PowerLineUiPresets.ADVANCED_MAX_SAG_DEPTH_MAX,
