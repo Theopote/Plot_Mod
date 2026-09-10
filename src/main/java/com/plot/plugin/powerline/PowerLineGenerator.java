@@ -12,6 +12,8 @@ import com.plot.plugin.powerline.design.family.PoleDesignAssignmentResolver;
 import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
 import com.plot.plugin.powerline.placement.GenerationVoxelSink;
 import com.plot.plugin.powerline.placement.PoleLayerVoxelPlacer;
+import com.plot.plugin.powerline.placement.PolePlacementBase;
+import com.plot.plugin.powerline.placement.PoleWaterFoundation;
 import com.plot.plugin.powerline.design.ConductorAttachmentPresets;
 import com.plot.plugin.powerline.engineering.selection.TowerSelectionContext;
 import com.plot.plugin.powerline.engineering.validation.ValidationLimits;
@@ -124,9 +126,11 @@ public class PowerLineGenerator {
             TerrainSampler terrain,
             PowerLineGenerationResult result) {
         Vec2d planPoint = site.getPlanPosition();
-        int groundY = terrain.sampleSurfaceY(planPoint);
+        PolePlacementBase placementBase = PolePlacementBase.resolve(planPoint, terrain);
+        int buildBaseY = placementBase.buildBaseY();
         Vec2d tangent = computePoleTangentFromSites(sites, index);
-        PoleFrame frame = PoleFrame.fromPole(planPoint, tangent, groundY);
+        PoleFrame frame = PoleFrame.fromPole(planPoint, tangent, buildBaseY);
+        fillWaterFoundationIfNeeded(planPoint, placementBase, footprint, result);
 
         TowerSelectionContext selectionContext = buildSelectionContext(
             site,
@@ -158,7 +162,7 @@ public class PowerLineGenerator {
                     projectionHandler,
                     terrain);
             } else {
-                legacyWireHangY = applyPoleDesign(design, planPoint, groundY, tangent, footprint, result);
+                legacyWireHangY = applyPoleDesign(design, planPoint, placementBase, tangent, footprint, result);
             }
             attachments = attachmentResolver.resolve(design, frame);
             usesAttachmentConductors = design.hasEnabledAttachments();
@@ -171,8 +175,8 @@ public class PowerLineGenerator {
                 LineEquipmentGenerator.place(attachment, frame, footprint, result, projectionHandler);
             }
         } else {
-            legacyWireHangY = groundY + (int) Math.round(footprint.getPoleHeight());
-            generateDefaultPole(planPoint, groundY, legacyWireHangY, footprint, result);
+            legacyWireHangY = buildBaseY + (int) Math.round(footprint.getPoleHeight());
+            generateDefaultPole(planPoint, placementBase, legacyWireHangY, footprint, result);
             PoleDesign synthetic = new PoleDesign("_default_pole", "Default");
             synthetic.setAttachments(ConductorAttachmentPresets.singleConductor(footprint.getPoleHeight()));
             attachments = attachmentResolver.resolve(synthetic, frame);
@@ -215,15 +219,30 @@ public class PowerLineGenerator {
         return context;
     }
 
+    private void fillWaterFoundationIfNeeded(
+            Vec2d planPoint,
+            PolePlacementBase placementBase,
+            PowerLineFootprint footprint,
+            PowerLineGenerationResult result) {
+        PoleWaterFoundation.fillBelowBuildBase(
+            planPoint,
+            placementBase,
+            footprint.getPoleMaterial(),
+            footprint.getId(),
+            result,
+            projectionHandler,
+            coordinateTransformer);
+    }
+
     private void generateDefaultPole(
             Vec2d planPoint,
-            int groundY,
+            PolePlacementBase placementBase,
             int poleTopY,
             PowerLineFootprint footprint,
             PowerLineGenerationResult result) {
         BlockPos column = WorldCoordinateUtils.canvasToBlockXZ(planPoint, coordinateTransformer);
         MaterialMix poleMaterial = footprint.getPoleMaterial();
-        for (int y = groundY + 1; y <= poleTopY; y++) {
+        for (int y = placementBase.poleLayerStartY(); y <= poleTopY; y++) {
             BlockPos pos = new BlockPos(column.getX(), y, column.getZ());
             String blockId = MaterialMixResolver.resolve(poleMaterial, pos, footprint.getId());
             recordBlock(result, pos, blockId);
@@ -233,17 +252,18 @@ public class PowerLineGenerator {
     int applyPoleDesign(
             PoleDesign design,
             Vec2d planPoint,
-            int groundY,
+            PolePlacementBase placementBase,
             Vec2d tangent,
             PowerLineFootprint footprint,
             PowerLineGenerationResult result) {
-        int wireHangY = design.wireHangHeightFromGround(groundY);
+        int buildBaseY = placementBase.buildBaseY();
+        int wireHangY = design.wireHangHeightFromGround(buildBaseY);
         Vec2d direction = tangent.lengthSquared() > 1e-12 ? tangent.normalize() : new Vec2d(1, 0);
         Vec2d normal = WorldCoordinateUtils.leftNormal(direction);
         PoleLayerVoxelPlacer.placeDesign(
             design,
             planPoint,
-            groundY + 1,
+            placementBase.poleLayerStartY(),
             normal,
             new GenerationVoxelSink(result, projectionHandler),
             footprint.getId(),

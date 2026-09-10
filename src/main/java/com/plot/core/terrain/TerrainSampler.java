@@ -5,6 +5,7 @@ import com.plot.api.geometry.Vec2d;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.OptionalInt;
 
 /**
  * 地形标高与方块采样（与 Minecraft World 解耦，供道路 / 电力线路等插件共用）。
@@ -19,6 +20,13 @@ public interface TerrainSampler {
      * 平面坐标处的地表高度（工程坐标系）。
      */
     int sampleSurfaceY(Vec2d planPoint);
+
+    /**
+     * 地表暴露水体顶面 Y；无水上覆盖时为空（不含洞穴/地下水）。
+     */
+    default OptionalInt findExposedWaterSurface(Vec2d planPoint) {
+        return OptionalInt.empty();
+    }
 
     /**
      * 世界方块坐标处是否为实心方块（非空气）。

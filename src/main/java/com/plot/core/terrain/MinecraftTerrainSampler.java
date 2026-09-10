@@ -6,6 +6,8 @@ import com.plot.core.geometry.WorldCoordinateUtils;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+import java.util.OptionalInt;
+
 /**
  * 基于 Minecraft {@link World} 的地形采样；委托 {@link EngineeringTerrainSampler}。
  */
@@ -32,6 +34,15 @@ public final class MinecraftTerrainSampler implements TerrainSampler {
         }
         BlockPos column = WorldCoordinateUtils.canvasToBlockXZ(planPoint, transformer);
         return EngineeringTerrainSampler.sampleGroundSurface(world, column.getX(), column.getZ());
+    }
+
+    @Override
+    public OptionalInt findExposedWaterSurface(Vec2d planPoint) {
+        if (planPoint == null) {
+            return OptionalInt.empty();
+        }
+        BlockPos column = WorldCoordinateUtils.canvasToBlockXZ(planPoint, transformer);
+        return terrainService.findExposedWaterSurface(column.getX(), column.getZ());
     }
 
     @Override
