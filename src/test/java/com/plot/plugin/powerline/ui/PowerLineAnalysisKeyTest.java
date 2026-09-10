@@ -1,6 +1,9 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.ICoordinateService;
+import com.plot.api.world.WorldProjectionSnapshot;
+import com.plot.api.world.WorldViewBounds;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import org.junit.jupiter.api.Test;
@@ -17,6 +20,17 @@ class PowerLineAnalysisKeyTest {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
         PowerLineDesignProject designs = new PowerLineDesignProject();
         PowerLinePreviewKey previewKey = PowerLinePreviewKey.capture(line, designs);
+        PowerLineAnalysisKey analysisKey = PowerLineAnalysisKey.capture(previewKey);
+
+        assertTrue(analysisKey.matches(line, designs, previewKey));
+    }
+
+    @Test
+    void matchesPreviewWithProjectionFingerprint() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
+        PowerLineDesignProject designs = new PowerLineDesignProject();
+        ICoordinateService nearView = projectionService(100f, 1f);
+        PowerLinePreviewKey previewKey = PowerLinePreviewKey.capture(line, designs, nearView);
         PowerLineAnalysisKey analysisKey = PowerLineAnalysisKey.capture(previewKey);
 
         assertTrue(analysisKey.matches(line, designs, previewKey));
@@ -46,5 +60,29 @@ class PowerLineAnalysisKeyTest {
         PowerLinePreviewKey otherPreviewKey = PowerLinePreviewKey.capture(other, designs);
 
         assertFalse(analysisKey.matches(other, designs, otherPreviewKey));
+    }
+
+    private static ICoordinateService projectionService(float viewDistance, float viewScale) {
+        return new ICoordinateService() {
+            @Override
+            public Vec2d canvasToMinecraftWorld(Vec2d canvasPos) {
+                return canvasPos != null ? canvasPos.copy() : new Vec2d(0, 0);
+            }
+
+            @Override
+            public WorldViewBounds getMinecraftWorldViewBounds() {
+                return new WorldViewBounds(0, viewDistance, 0, viewDistance);
+            }
+
+            @Override
+            public WorldProjectionSnapshot captureProjection() {
+                return new WorldProjectionSnapshot(
+                    getMinecraftWorldViewBounds(),
+                    viewDistance,
+                    viewScale,
+                    800f,
+                    600f);
+            }
+        };
     }
 }

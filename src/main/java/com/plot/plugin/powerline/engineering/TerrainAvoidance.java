@@ -50,19 +50,12 @@ public final class TerrainAvoidance {
             PowerLineFootprint line,
             PowerLineValidationReport report,
             PowerLineGenerationResult result,
-            PoleDesignResolver designResolver) {
-        return applyOneFix(line, report, result, designResolver, null);
-    }
-
-    public static boolean applyOneFix(
-            PowerLineFootprint line,
-            PowerLineValidationReport report,
-            PowerLineGenerationResult result,
             PoleDesignResolver designResolver,
             ICoordinateService coordinates) {
         if (line == null || report == null || !hasTerrainIssues(report)) {
             return false;
         }
+        java.util.Objects.requireNonNull(coordinates, "coordinates");
         if (tryTallerTower(line, report, result, designResolver)) {
             return true;
         }
@@ -217,14 +210,13 @@ public final class TerrainAvoidance {
     }
 
     private static Vec2d midpointAlongPath(List<Vec2d> pathPoints, ICoordinateService coordinates) {
-        ICoordinateService coords = coordinates != null ? coordinates : canvasEqualsWorld();
-        double total = coords.pathWorldLength(pathPoints);
+        double total = coordinates.pathWorldLength(pathPoints);
         double half = total * 0.5;
         double walked = 0.0;
         for (int i = 1; i < pathPoints.size(); i++) {
             Vec2d a = pathPoints.get(i - 1);
             Vec2d b = pathPoints.get(i);
-            double segment = coords.projectedDistance(a, b);
+            double segment = coordinates.projectedDistance(a, b);
             if (walked + segment >= half) {
                 double t = segment > 0 ? (half - walked) / segment : 0.0;
                 return new Vec2d(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
@@ -232,20 +224,6 @@ public final class TerrainAvoidance {
             walked += segment;
         }
         return pathPoints.get(pathPoints.size() - 1).copy();
-    }
-
-    private static ICoordinateService canvasEqualsWorld() {
-        return new ICoordinateService() {
-            @Override
-            public Vec2d canvasToMinecraftWorld(Vec2d canvasPos) {
-                return canvasPos != null ? canvasPos.copy() : new Vec2d(0, 0);
-            }
-
-            @Override
-            public com.plot.api.world.WorldViewBounds getMinecraftWorldViewBounds() {
-                return new com.plot.api.world.WorldViewBounds(-1.0e9, 1.0e9, -1.0e9, 1.0e9);
-            }
-        };
     }
 
     private static boolean hasNearbyConstraint(PowerLineFootprint line, double stationing) {

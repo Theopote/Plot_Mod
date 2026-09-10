@@ -11,6 +11,8 @@ import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
 import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.engineering.optimization.OptimizationResult;
+import com.plot.api.world.PluginProjectionContext;
+import com.plot.api.world.WorldProjectionUnavailableException;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.PowerLinePathSelectionAnalysis;
 import com.plot.plugin.powerline.PowerLineGenerator;
@@ -185,6 +187,14 @@ public final class PowerLineActions {
             return false;
         }
 
+        if (PluginProjectionContext.tryCapture(host.coordinates()).isEmpty()) {
+            state.setLastGenerationResult(null);
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.projection_unavailable"),
+                ProjectStatusSeverity.ERROR);
+            return false;
+        }
+
         com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearAllGhostBlocks();
@@ -194,6 +204,12 @@ public final class PowerLineActions {
         PowerLineGenerationResult result;
         try {
             result = generator.generate(line, terrain, designResolver());
+        } catch (WorldProjectionUnavailableException e) {
+            state.setLastGenerationResult(null);
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.projection_unavailable"),
+                ProjectStatusSeverity.ERROR);
+            return false;
         } catch (Exception e) {
             LOGGER.error("电力线路预览生成失败: {}", e.getMessage(), e);
             state.setLastGenerationResult(null);

@@ -8,7 +8,8 @@ import java.util.List;
  * 画布坐标 ↔ Minecraft 世界坐标转换（无 MinecraftClient 类型暴露）。
  * <p>
  * 凡 UI 标注为 blocks / 格 的几何量，算法应使用 {@link #projectedDistance} 等世界空间 API，
- * 而非画布 {@link Vec2d#distance}。
+ * 而非画布 {@link Vec2d#distance}。投影失败时必须抛出 {@link WorldProjectionUnavailableException}，
+ * 不得静默回退为 canvas distance。
  */
 public interface ICoordinateService {
     Vec2d canvasToMinecraftWorld(Vec2d canvasPos);
@@ -23,7 +24,8 @@ public interface ICoordinateService {
         Vec2d worldA = canvasToMinecraftWorld(canvasA);
         Vec2d worldB = canvasToMinecraftWorld(canvasB);
         if (worldA == null || worldB == null) {
-            return canvasA.distance(canvasB);
+            throw new WorldProjectionUnavailableException(
+                "Cannot project canvas points to Minecraft world");
         }
         return worldA.distance(worldB);
     }
@@ -46,6 +48,6 @@ public interface ICoordinateService {
         if (bounds == null) {
             return WorldProjectionSnapshot.UNKNOWN;
         }
-        return WorldProjectionSnapshot.fromBounds(bounds);
+        return new WorldProjectionSnapshot(bounds, 100f, 1f, 800f, 600f);
     }
 }

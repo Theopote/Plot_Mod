@@ -7,6 +7,7 @@ import com.plot.api.world.PlacementReadiness;
 import com.plot.api.world.WorldViewBounds;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.engineering.TerrainAvoidance;
+import com.plot.test.world.IdentityCoordinateService;
 import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -193,7 +194,8 @@ public final class TerrainTestFixtures {
             if (!TerrainAvoidance.hasTerrainIssues(report)) {
                 return true;
             }
-            if (!TerrainAvoidance.applyOneFix(line, report, result, resolver)) {
+            if (!TerrainAvoidance.applyOneFix(
+                    line, report, result, resolver, IdentityCoordinateService.INSTANCE)) {
                 return false;
             }
         }
@@ -226,17 +228,7 @@ public final class TerrainTestFixtures {
     }
 
     public static ICoordinateService identityCoordinates() {
-        return new ICoordinateService() {
-            @Override
-            public Vec2d canvasToMinecraftWorld(Vec2d canvasPos) {
-                return canvasPos;
-            }
-
-            @Override
-            public WorldViewBounds getMinecraftWorldViewBounds() {
-                return new WorldViewBounds(0, 200, 0, 200);
-            }
-        };
+        return IdentityCoordinateService.INSTANCE;
     }
 
     public static IBlockProjectionService projection() {

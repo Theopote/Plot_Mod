@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.test.world.IdentityCoordinateService;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 import com.plot.plugin.powerline.model.TowerRole;
 import org.junit.jupiter.api.Test;
@@ -85,7 +86,8 @@ class TowerRoleClassifierTest {
     private static List<PowerPoleSite> sitesAlongLine(
             double x0, double y0, double x1, double y1, int count) {
         List<Vec2d> path = List.of(new Vec2d(x0, y0), new Vec2d(x1, y1));
-        List<Vec2d> positions = PowerPoleLayoutUtils.computePolePositions(path, 5.0, 50.0);
+        List<Vec2d> positions = PowerPoleLayoutUtils.computePolePositions(
+            path, 5.0, 50.0, IdentityCoordinateService.INSTANCE);
         List<PowerPoleSite> sites = new ArrayList<>();
         for (Vec2d position : positions) {
             sites.add(new PowerPoleSite(position));

@@ -2,6 +2,7 @@ package com.plot.plugin.powerline;
 
 import com.plot.plugin.powerline.engineering.TerrainAvoidance;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.test.world.IdentityCoordinateService;
 import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
 import com.plot.core.terrain.TerrainSampler;
 import org.junit.jupiter.api.Test;
@@ -54,11 +55,11 @@ class TerrainAvoidanceIntegrationTest {
     void fixLoopInsertsPoleForDesignedLineOnRollingHill() {
         PowerLineFootprint line = TerrainTestFixtures.rollingHillLine();
         TerrainSampler terrain = TerrainTestFixtures.rollingHill(64, 74, 30.0, 8.0);
-        int polesBefore = PowerPoleLayoutUtils.computePoleSites(line).size();
+        int polesBefore = PowerPoleLayoutUtils.computePoleSites(line, IdentityCoordinateService.INSTANCE).size();
 
         assertTrue(TerrainTestFixtures.applyTerrainFix(line, terrain, 1));
         assertFalse(line.getLayoutConstraints().isEmpty());
-        assertTrue(PowerPoleLayoutUtils.computePoleSites(line).size() > polesBefore);
+        assertTrue(PowerPoleLayoutUtils.computePoleSites(line, IdentityCoordinateService.INSTANCE).size() > polesBefore);
     }
 
     @Test

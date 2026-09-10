@@ -3,6 +3,8 @@ package com.plot.plugin.powerline;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
+import com.plot.api.world.PluginProjectionContext;
+import com.plot.api.world.WorldProjectionUnavailableException;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
@@ -58,7 +60,15 @@ public class PowerLineGenerator {
             return result;
         }
 
-        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(footprint, coordinateTransformer);
+        PluginProjectionContext projection;
+        try {
+            projection = PluginProjectionContext.capture(coordinateTransformer);
+        } catch (WorldProjectionUnavailableException e) {
+            return result;
+        }
+
+        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(
+            footprint, projection.coordinates());
         result.poleCount = sites.size();
         result.poleSites.addAll(sites.stream().map(PowerPoleSite::copy).toList());
         if (sites.isEmpty()) {

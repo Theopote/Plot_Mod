@@ -2,7 +2,6 @@ package com.plot.plugin.powerline;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
-import com.plot.api.world.WorldViewBounds;
 import com.plot.core.geometry.WorldProjectionMath;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 import com.plot.plugin.powerline.model.PoleLayoutConstraint;
@@ -12,6 +11,7 @@ import com.plot.plugin.powerline.model.TowerRole;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 电线杆位布局（纯函数）。
@@ -22,20 +22,6 @@ import java.util.List;
 public final class PowerPoleLayoutUtils {
     /** Override 里程匹配容差（blocks）。 */
     private static final double OVERRIDE_STATION_TOLERANCE_BLOCKS = 2.0;
-    /** 画布点与杆位重合判定容差（blocks）。 */
-    private static final double SITE_POSITION_TOLERANCE_BLOCKS = 0.5;
-
-    private static final ICoordinateService CANVAS_EQUALS_WORLD = new ICoordinateService() {
-        @Override
-        public Vec2d canvasToMinecraftWorld(Vec2d canvasPos) {
-            return canvasPos != null ? canvasPos.copy() : new Vec2d(0, 0);
-        }
-
-        @Override
-        public WorldViewBounds getMinecraftWorldViewBounds() {
-            return new WorldViewBounds(-1.0e9, 1.0e9, -1.0e9, 1.0e9);
-        }
-    };
 
     private PowerPoleLayoutUtils() {
     }
@@ -70,13 +56,6 @@ public final class PowerPoleLayoutUtils {
         return result;
     }
 
-    public static List<Vec2d> computePolePositions(
-            List<Vec2d> pathPoints,
-            double cornerAngleThreshold,
-            double maxPoleSpacing) {
-        return computePolePositions(pathPoints, cornerAngleThreshold, maxPoleSpacing, CANVAS_EQUALS_WORLD);
-    }
-
     /** 计算杆塔站点（位置 + 世界里程 blocks + 自动角色分类）。 */
     public static List<PowerPoleSite> computePoleSites(
             List<Vec2d> pathPoints,
@@ -94,13 +73,6 @@ public final class PowerPoleLayoutUtils {
         }
         TowerRoleClassifier.classifySites(sites, cornerAngleThreshold);
         return sites;
-    }
-
-    public static List<PowerPoleSite> computePoleSites(
-            List<Vec2d> pathPoints,
-            double cornerAngleThreshold,
-            double maxPoleSpacing) {
-        return computePoleSites(pathPoints, cornerAngleThreshold, maxPoleSpacing, CANVAS_EQUALS_WORLD);
     }
 
     public static List<PowerPoleSite> computePoleSites(
@@ -125,12 +97,6 @@ public final class PowerPoleLayoutUtils {
         return sites;
     }
 
-    /** @deprecated 使用 {@link #computePoleSites(PowerLineFootprint, ICoordinateService)} */
-    @Deprecated
-    public static List<PowerPoleSite> computePoleSites(PowerLineFootprint footprint) {
-        return computePoleSites(footprint, CANVAS_EQUALS_WORLD);
-    }
-
     /** 按世界里程（blocks，自路径起点）取画布点。 */
     public static Vec2d pointAtStationing(
             List<Vec2d> pathPoints,
@@ -140,10 +106,6 @@ public final class PowerPoleLayoutUtils {
             requireCoordinates(coordinates),
             pathPoints,
             worldStationBlocks);
-    }
-
-    public static Vec2d pointAtStationing(List<Vec2d> pathPoints, double stationing) {
-        return pointAtStationing(pathPoints, stationing, CANVAS_EQUALS_WORLD);
     }
 
     private static void insertLayoutConstraints(
@@ -250,10 +212,6 @@ public final class PowerPoleLayoutUtils {
         return bestStationing;
     }
 
-    public static double computeStationing(List<Vec2d> pathPoints, Vec2d polePosition) {
-        return computeStationing(pathPoints, polePosition, CANVAS_EQUALS_WORLD);
-    }
-
     public static double deflectionAtSite(List<PowerPoleSite> sites, int index) {
         if (sites == null || index <= 0 || index >= sites.size() - 1) {
             return 0.0;
@@ -301,10 +259,6 @@ public final class PowerPoleLayoutUtils {
         return false;
     }
 
-    public static boolean hasSiteNear(List<PowerPoleSite> sites, Vec2d point, double tolerance) {
-        return hasSiteNear(sites, point, tolerance, CANVAS_EQUALS_WORLD);
-    }
-
     public static boolean isCorner(List<Vec2d> pathPoints, int index, double cornerAngleThreshold) {
         Vec2d prev = pathPoints.get(index - 1);
         Vec2d current = pathPoints.get(index);
@@ -339,6 +293,6 @@ public final class PowerPoleLayoutUtils {
     }
 
     private static ICoordinateService requireCoordinates(ICoordinateService coordinates) {
-        return coordinates != null ? coordinates : CANVAS_EQUALS_WORLD;
+        return Objects.requireNonNull(coordinates, "coordinates");
     }
 }

@@ -3,6 +3,7 @@ package com.plot.plugin.powerline.engineering;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.PowerPoleLayoutUtils;
+import com.plot.test.world.IdentityCoordinateService;
 import com.plot.plugin.powerline.TerrainTestFixtures;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.engineering.TerrainAvoidance;
@@ -83,7 +84,8 @@ class TerrainAvoidanceTest {
             geometry(spanSample(new Vec2d(10, 0), 66.0)),
             TerrainTestFixtures.flatTerrain(68));
 
-        assertTrue(TerrainAvoidance.applyOneFix(line, report, null, null));
+        assertTrue(TerrainAvoidance.applyOneFix(
+            line, report, null, null, IdentityCoordinateService.INSTANCE));
         assertTrue(line.getPoleHeight() > 10.0);
         assertTrue(line.getLayoutConstraints().isEmpty());
     }
@@ -107,10 +109,11 @@ class TerrainAvoidanceTest {
             result.toGeometryModel(),
             TerrainTestFixtures.flatTerrain(68));
 
-        assertTrue(TerrainAvoidance.applyOneFix(line, report, result, null));
+        assertTrue(TerrainAvoidance.applyOneFix(
+            line, report, result, null, IdentityCoordinateService.INSTANCE));
         assertEquals(10.0, line.getPoleHeight(), 0.001);
         assertFalse(line.getLayoutConstraints().isEmpty());
-        assertTrue(PowerPoleLayoutUtils.computePoleSites(line).size() > 2);
+        assertTrue(PowerPoleLayoutUtils.computePoleSites(line, IdentityCoordinateService.INSTANCE).size() > 2);
     }
 
     @Test
@@ -131,7 +134,8 @@ class TerrainAvoidanceTest {
             geometry(span),
             TerrainTestFixtures.flatTerrain(68));
 
-        assertFalse(TerrainAvoidance.applyOneFix(line, report, result, null));
+        assertFalse(TerrainAvoidance.applyOneFix(
+            line, report, result, null, IdentityCoordinateService.INSTANCE));
         assertEquals(1, line.getLayoutConstraints().size());
     }
 

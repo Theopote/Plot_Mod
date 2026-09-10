@@ -2,7 +2,9 @@ package com.plot.plugin.powerline;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
+import com.plot.api.world.WorldProjectionSnapshot;
 import com.plot.api.world.WorldViewBounds;
+import com.plot.test.world.IdentityCoordinateService;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 import org.junit.jupiter.api.Test;
@@ -23,17 +25,28 @@ class PowerPoleLayoutUtilsWorldScaleTest {
         public WorldViewBounds getMinecraftWorldViewBounds() {
             return new WorldViewBounds(-1.0e9, 1.0e9, -1.0e9, 1.0e9);
         }
+
+        @Override
+        public WorldProjectionSnapshot captureProjection() {
+            return new WorldProjectionSnapshot(
+                getMinecraftWorldViewBounds(),
+                400f,
+                1f,
+                800f,
+                600f);
+        }
     };
 
     @Test
     void poleSpacingUsesProjectedWorldDistance() {
         List<Vec2d> path = List.of(new Vec2d(0, 0), new Vec2d(100, 0));
 
-        List<PowerPoleSite> canvasUnits = PowerPoleLayoutUtils.computePoleSites(path, 5.0, 50.0);
+        List<PowerPoleSite> canvasUnits = PowerPoleLayoutUtils.computePoleSites(
+            path, 5.0, 50.0, IdentityCoordinateService.INSTANCE);
         List<PowerPoleSite> worldBlocks = PowerPoleLayoutUtils.computePoleSites(
             path, 5.0, 50.0, FOUR_BLOCKS_PER_CANVAS_UNIT);
 
-        assertEquals(3, canvasUnits.size(), "100 canvas units / 50 block spacing without projection");
+        assertEquals(3, canvasUnits.size(), "100 canvas units / 50 block spacing at 1:1 projection");
         assertEquals(9, worldBlocks.size(), "400 world blocks / 50 block spacing with 4x projection");
     }
 
@@ -42,8 +55,31 @@ class PowerPoleLayoutUtilsWorldScaleTest {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(100, 0)));
         line.setMaxPoleSpacing(50.0);
 
-        assertEquals(3, line.estimatePoleCount());
+        assertEquals(3, line.estimatePoleCount(IdentityCoordinateService.INSTANCE));
         assertEquals(9, line.estimatePoleCount(FOUR_BLOCKS_PER_CANVAS_UNIT));
         assertEquals(400.0, line.computeWorldPathLength(FOUR_BLOCKS_PER_CANVAS_UNIT), 1e-6);
+    }
+
+    @Test
+    void poleSpacingIsScaleInvariantInWorldBlocks() {
+        List<Vec2d> path = List.of(new Vec2d(0, 0), new Vec2d(100, 0));
+        double spacingBlocks = 20.0;
+
+        List<PowerPoleSite> nearView = PowerPoleLayoutUtils.computePoleSites(
+            path, 5.0, spacingBlocks, IdentityCoordinateService.INSTANCE);
+        List<PowerPoleSite> farView = PowerPoleLayoutUtils.computePoleSites(
+            path, 5.0, spacingBlocks, FOUR_BLOCKS_PER_CANVAS_UNIT);
+
+        assertEquals(6, nearView.size());
+        assertEquals(21, farView.size());
+        assertTypicalSpan(nearView, spacingBlocks);
+        assertTypicalSpan(farView, spacingBlocks);
+    }
+
+    private static void assertTypicalSpan(List<PowerPoleSite> sites, double expectedBlocks) {
+        for (int i = 0; i < sites.size() - 1; i++) {
+            double span = sites.get(i + 1).getStationing() - sites.get(i).getStationing();
+            assertEquals(expectedBlocks, span, 1.0);
+        }
     }
 }

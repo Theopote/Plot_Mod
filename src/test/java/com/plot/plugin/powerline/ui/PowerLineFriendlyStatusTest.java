@@ -2,14 +2,12 @@ package com.plot.plugin.powerline.ui;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.test.world.IdentityCoordinateService;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PowerLineFriendlyStatusTest {
 
@@ -19,7 +17,7 @@ class PowerLineFriendlyStatusTest {
         PowerLineUiPresets.applySpacing(line, PowerLineUiPresets.SpacingDensity.NORMAL);
 
         PowerLineFriendlyStatus.SpacingEvaluation evaluation =
-            PowerLineFriendlyStatus.evaluateSpacing(line);
+            PowerLineFriendlyStatus.evaluateSpacing(line, IdentityCoordinateService.INSTANCE);
 
         assertEquals(PowerLineFriendlyStatus.SpacingKind.OK, evaluation.kind());
     }
@@ -28,7 +26,7 @@ class PowerLineFriendlyStatusTest {
     void nullLineReportsInvalidSettings() {
         assertEquals(
             PowerLineFriendlyStatus.SpacingKind.INVALID_SETTINGS,
-            PowerLineFriendlyStatus.evaluateSpacing(null).kind());
+            PowerLineFriendlyStatus.evaluateSpacing(null, IdentityCoordinateService.INSTANCE).kind());
     }
 
     @Test
@@ -42,7 +40,7 @@ class PowerLineFriendlyStatusTest {
 
         assertEquals(
             PowerLineFriendlyStatus.SpacingKind.TOO_CLOSE,
-            PowerLineFriendlyStatus.evaluateSpacing(line).kind());
+            PowerLineFriendlyStatus.evaluateSpacing(line, IdentityCoordinateService.INSTANCE).kind());
     }
 
     @Test
@@ -54,7 +52,7 @@ class PowerLineFriendlyStatusTest {
 
         assertEquals(
             PowerLineFriendlyStatus.CornerKind.OK,
-            PowerLineFriendlyStatus.evaluateCornerPoles(line).kind());
+            PowerLineFriendlyStatus.evaluateCornerPoles(line, IdentityCoordinateService.INSTANCE).kind());
     }
 
     @Test
@@ -63,6 +61,6 @@ class PowerLineFriendlyStatusTest {
 
         assertEquals(
             PowerLineFriendlyStatus.CornerKind.OK,
-            PowerLineFriendlyStatus.evaluateCornerPoles(line).kind());
+            PowerLineFriendlyStatus.evaluateCornerPoles(line, IdentityCoordinateService.INSTANCE).kind());
     }
 }

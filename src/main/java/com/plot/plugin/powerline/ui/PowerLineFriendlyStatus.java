@@ -106,11 +106,9 @@ public final class PowerLineFriendlyStatus {
         return line != null && line.getMaxPoleSpacing() >= line.getMinPoleSpacing();
     }
 
-    public static SpacingEvaluation evaluateSpacing(PowerLineFootprint line) {
-        return evaluateSpacing(line, null);
-    }
-
-    public static SpacingEvaluation evaluateSpacing(PowerLineFootprint line, ICoordinateService coordinates) {
+    public static SpacingEvaluation evaluateSpacing(
+            PowerLineFootprint line,
+            ICoordinateService coordinates) {
         if (!spacingSettingsValid(line)) {
             return SpacingEvaluation.of(SpacingKind.INVALID_SETTINGS);
         }
@@ -150,11 +148,9 @@ public final class PowerLineFriendlyStatus {
         return SpacingEvaluation.of(SpacingKind.OK);
     }
 
-    public static CornerEvaluation evaluateCornerPoles(PowerLineFootprint line) {
-        return evaluateCornerPoles(line, null);
-    }
-
-    public static CornerEvaluation evaluateCornerPoles(PowerLineFootprint line, ICoordinateService coordinates) {
+    public static CornerEvaluation evaluateCornerPoles(
+            PowerLineFootprint line,
+            ICoordinateService coordinates) {
         if (line == null || line.getPathPoints().size() < 2) {
             return new CornerEvaluation(CornerKind.NO_PATH, 0);
         }

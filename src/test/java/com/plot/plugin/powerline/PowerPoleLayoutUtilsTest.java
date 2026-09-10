@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.test.world.IdentityCoordinateService;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -13,7 +14,8 @@ class PowerPoleLayoutUtilsTest {
     @Test
     void straightPathInsertsEvenSpacingNotExceedingMax() {
         List<Vec2d> path = List.of(new Vec2d(0, 0), new Vec2d(100, 0));
-        List<Vec2d> poles = PowerPoleLayoutUtils.computePolePositions(path, 5.0, 20.0);
+        List<Vec2d> poles = PowerPoleLayoutUtils.computePolePositions(
+            path, 5.0, 20.0, IdentityCoordinateService.INSTANCE);
 
         assertEquals(6, poles.size());
         assertEquals(0.0, poles.getFirst().x, 1e-6);
@@ -31,7 +33,8 @@ class PowerPoleLayoutUtilsTest {
             new Vec2d(0, 0),
             new Vec2d(10, 0),
             new Vec2d(10, 10));
-        List<Vec2d> poles = PowerPoleLayoutUtils.computePolePositions(path, 5.0, 50.0);
+        List<Vec2d> poles = PowerPoleLayoutUtils.computePolePositions(
+            path, 5.0, 50.0, IdentityCoordinateService.INSTANCE);
 
         assertEquals(3, poles.size());
         assertEquals(10.0, poles.get(1).x, 1e-6);
@@ -45,7 +48,8 @@ class PowerPoleLayoutUtilsTest {
             new Vec2d(5, 0),
             new Vec2d(5, 5),
             new Vec2d(0, 5));
-        List<Vec2d> poles = PowerPoleLayoutUtils.computePolePositions(path, 5.0, 50.0);
+        List<Vec2d> poles = PowerPoleLayoutUtils.computePolePositions(
+            path, 5.0, 50.0, IdentityCoordinateService.INSTANCE);
 
         assertEquals(4, poles.size());
         assertEquals(5.0, poles.get(1).distance(poles.get(2)), 1e-6);
@@ -72,10 +76,11 @@ class PowerPoleLayoutUtilsTest {
             new Vec2d(10, 10));
         List<Vec2d> mandatory = PowerPoleLayoutUtils.mandatoryPolePoints(path, 5.0);
         List<com.plot.plugin.powerline.model.PowerPoleSite> sites =
-            PowerPoleLayoutUtils.computePoleSites(path, 5.0, 50.0);
+            PowerPoleLayoutUtils.computePoleSites(path, 5.0, 50.0, IdentityCoordinateService.INSTANCE);
 
         for (Vec2d point : mandatory) {
-            assertTrue(PowerPoleLayoutUtils.hasSiteNear(sites, point, 0.15));
+            assertTrue(PowerPoleLayoutUtils.hasSiteNear(
+                sites, point, 0.15, IdentityCoordinateService.INSTANCE));
         }
     }
 }

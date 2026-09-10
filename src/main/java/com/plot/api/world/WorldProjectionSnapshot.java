@@ -15,6 +15,14 @@ public record WorldProjectionSnapshot(
     public static final WorldProjectionSnapshot UNKNOWN =
         new WorldProjectionSnapshot(null, 0f, 0f, 0f, 0f);
 
+    /** 投影可用于插件生成/预览。 */
+    public boolean isValid() {
+        return worldBounds != null
+            && canvasWidth > 0f
+            && canvasHeight > 0f
+            && viewDistance > 0f;
+    }
+
     public int fingerprint() {
         int hash = 1;
         if (worldBounds != null) {

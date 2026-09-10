@@ -25,6 +25,7 @@ import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
 import com.plot.plugin.powerline.geometry.PowerLineGeometryModel;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.test.world.IdentityCoordinateService;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.core.terrain.TerrainSampler;
@@ -190,7 +191,8 @@ class PowerLineEngineeringTest {
         List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(
             List.of(new Vec2d(0, 0), new Vec2d(80, 0)),
             5,
-            40);
+            40,
+            IdentityCoordinateService.INSTANCE);
         PowerPoleSite interior = sites.get(1);
         assertEquals(TowerRole.SUSPENSION, interior.getRole());
         assertTrue(interior.getDeflectionAngle() < 5.0);
@@ -201,7 +203,8 @@ class PowerLineEngineeringTest {
         List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(
             List.of(new Vec2d(0, 0), new Vec2d(40, 0), new Vec2d(40, 40)),
             5,
-            100);
+            100,
+            IdentityCoordinateService.INSTANCE);
         assertEquals(TowerRole.ANGLE, sites.get(1).getRole());
     }
 
@@ -230,7 +233,7 @@ class PowerLineEngineeringTest {
         com.plot.plugin.powerline.model.PoleOverride override = new com.plot.plugin.powerline.model.PoleOverride(40);
         override.setPoleDesignOverrideId(TowerFamilyDesignPresets.LATTICE_SUSPENSION_SMALL_ID);
         line.addPoleOverride(override);
-        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(line);
+        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(line, IdentityCoordinateService.INSTANCE);
         PowerPoleSite middle = sites.get(1);
         assertEquals(TowerFamilyDesignPresets.LATTICE_SUSPENSION_SMALL_ID, middle.getPoleDesignOverrideId());
 

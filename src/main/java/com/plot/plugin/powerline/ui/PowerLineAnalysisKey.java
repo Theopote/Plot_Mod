@@ -35,7 +35,6 @@ public record PowerLineAnalysisKey(
         }
         return footprintFingerprint == currentPreviewKey.footprintFingerprint()
             && designProjectFingerprint == currentPreviewKey.designProjectFingerprint()
-            && projectionFingerprint == currentPreviewKey.projectionFingerprint()
-            && currentPreviewKey.matches(footprint, designProject);
+            && projectionFingerprint == currentPreviewKey.projectionFingerprint();
     }
 }

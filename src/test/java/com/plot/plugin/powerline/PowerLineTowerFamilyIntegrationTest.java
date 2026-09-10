@@ -13,6 +13,7 @@ import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.test.world.IdentityCoordinateService;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 import com.plot.plugin.powerline.model.PoleOverride;
 import com.plot.plugin.powerline.model.TowerRole;
@@ -37,7 +38,7 @@ class PowerLineTowerFamilyIntegrationTest {
         line.setTowerFamilyId(TowerFamily.STANDARD_LATTICE_3_PHASE_ID);
         line.setMaxPoleSpacing(25.0);
 
-        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(line);
+        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(line, IdentityCoordinateService.INSTANCE);
         assertEquals(TowerRole.TERMINAL, sites.getFirst().getRole());
         assertEquals(TowerRole.TERMINAL, sites.getLast().getRole());
         for (int i = 1; i < sites.size() - 1; i++) {
@@ -55,7 +56,7 @@ class PowerLineTowerFamilyIntegrationTest {
         line.setMaxPoleSpacing(50.0);
         line.setSagRatio(0.0);
 
-        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(line);
+        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(line, IdentityCoordinateService.INSTANCE);
         assertEquals(3, sites.size());
         assertEquals(TowerRole.ANGLE, sites.get(1).getRole());
 
@@ -74,7 +75,7 @@ class PowerLineTowerFamilyIntegrationTest {
         line.setTowerFamilyId(TowerFamily.STANDARD_LATTICE_3_PHASE_ID);
         line.setMaxPoleSpacing(50.0);
 
-        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(line);
+        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(line, IdentityCoordinateService.INSTANCE);
         assertEquals(TowerRole.TERMINAL, sites.getFirst().getRole());
         assertTrue(sites.stream().anyMatch(site -> site.getRole() == TowerRole.ANGLE));
     }
@@ -85,13 +86,13 @@ class PowerLineTowerFamilyIntegrationTest {
         line.setTowerFamilyId(TowerFamily.STANDARD_LATTICE_3_PHASE_ID);
         line.setMaxPoleSpacing(40.0);
 
-        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(line);
+        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(line, IdentityCoordinateService.INSTANCE);
         double midStationing = sites.get(sites.size() / 2).getStationing();
         PoleOverride override = new PoleOverride(midStationing);
         override.setRoleOverride(TowerRole.DEAD_END);
         line.addPoleOverride(override);
 
-        sites = PowerPoleLayoutUtils.computePoleSites(line);
+        sites = PowerPoleLayoutUtils.computePoleSites(line, IdentityCoordinateService.INSTANCE);
         PowerPoleSite deadEnd = sites.stream()
             .filter(site -> Math.abs(site.getStationing() - midStationing) < 2.0)
             .findFirst()

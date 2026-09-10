@@ -5,6 +5,7 @@ import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.PlacementReadiness;
 import com.plot.api.world.WorldViewBounds;
+import com.plot.test.world.IdentityCoordinateService;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
@@ -115,17 +116,7 @@ class PowerLineGeneratorDesignTest {
     }
 
     private static PowerLineGenerator createGenerator() {
-        ICoordinateService coordinates = new ICoordinateService() {
-            @Override
-            public Vec2d canvasToMinecraftWorld(Vec2d canvasPos) {
-                return canvasPos;
-            }
-
-            @Override
-            public WorldViewBounds getMinecraftWorldViewBounds() {
-                return new WorldViewBounds(0, 100, 0, 100);
-            }
-        };
+        ICoordinateService coordinates = IdentityCoordinateService.INSTANCE;
         IBlockProjectionService projection = new IBlockProjectionService() {
             @Override
             public String getBlockIdAt(BlockPos pos) {

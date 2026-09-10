@@ -368,14 +368,8 @@ public class PowerLineFootprint {
 
     /** 投影到 Minecraft XZ 后的路径总长度（blocks）。 */
     public double computeWorldPathLength(com.plot.api.world.ICoordinateService coordinates) {
-        if (coordinates == null) {
-            return computePathLength();
-        }
-        return coordinates.pathWorldLength(pathPoints);
-    }
-
-    public int estimatePoleCount() {
-        return estimatePoleCount(null);
+        return java.util.Objects.requireNonNull(coordinates, "coordinates")
+            .pathWorldLength(pathPoints);
     }
 
     public int estimatePoleCount(com.plot.api.world.ICoordinateService coordinates) {

@@ -3231,6 +3231,7 @@
   "plugin.powerline.build_return_adjust": "Back to adjust",
   "plugin.powerline.preview_ready": "Preview ready: %d poles | %s blocks wire | %d clearance warnings",
   "plugin.powerline.generate_world_unavailable": "World unavailable; enter a world first",
+  "plugin.powerline.projection_unavailable": "World projection unavailable — open an orthographic world view first",
   "plugin.powerline.generate_empty_result": "Generation produced no blocks",
   "plugin.powerline.build_no_blocks": "No blocks to place",
   "plugin.powerline.build_in_progress": "Placing %d blocks…",

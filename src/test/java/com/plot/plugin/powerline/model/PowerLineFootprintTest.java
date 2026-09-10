@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.model;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.test.world.IdentityCoordinateService;
 import com.plot.plugin.powerline.PowerPoleLayoutUtils;
 import org.junit.jupiter.api.Test;
 
@@ -50,12 +51,14 @@ class PowerLineFootprintTest {
         PowerLineFootprint footprint = new PowerLineFootprint(
             List.of(new Vec2d(0, 0), new Vec2d(80, 0)));
         footprint.setMaxPoleSpacing(80.0);
-        int withoutConstraint = footprint.estimatePoleCount();
+        int withoutConstraint = footprint.estimatePoleCount(IdentityCoordinateService.INSTANCE);
 
         footprint.addLayoutConstraint(new PoleLayoutConstraint(40.0, "mid"));
-        int withConstraint = footprint.estimatePoleCount();
+        int withConstraint = footprint.estimatePoleCount(IdentityCoordinateService.INSTANCE);
 
-        assertEquals(PowerPoleLayoutUtils.computePoleSites(footprint).size(), withConstraint);
+        assertEquals(
+            PowerPoleLayoutUtils.computePoleSites(footprint, IdentityCoordinateService.INSTANCE).size(),
+            withConstraint);
         assertTrue(withConstraint > withoutConstraint);
     }
 
