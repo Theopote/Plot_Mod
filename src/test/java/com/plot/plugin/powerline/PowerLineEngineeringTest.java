@@ -375,17 +375,7 @@ class PowerLineEngineeringTest {
     }
 
     private static ICoordinateService identityCoordinates() {
-        return new ICoordinateService() {
-            @Override
-            public Vec2d canvasToMinecraftWorld(Vec2d canvasPos) {
-                return canvasPos;
-            }
-
-            @Override
-            public WorldViewBounds getMinecraftWorldViewBounds() {
-                return new WorldViewBounds(0, 200, 0, 200);
-            }
-        };
+        return com.plot.test.world.IdentityCoordinateService.INSTANCE;
     }
 
     private static IBlockProjectionService projection() {

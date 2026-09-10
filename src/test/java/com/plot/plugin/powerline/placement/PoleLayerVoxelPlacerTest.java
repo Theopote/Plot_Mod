@@ -67,16 +67,6 @@ class PoleLayerVoxelPlacerTest {
     }
 
     private static ICoordinateService identityCoordinates() {
-        return new ICoordinateService() {
-            @Override
-            public Vec2d canvasToMinecraftWorld(Vec2d canvasPos) {
-                return canvasPos;
-            }
-
-            @Override
-            public com.plot.api.world.WorldViewBounds getMinecraftWorldViewBounds() {
-                return new com.plot.api.world.WorldViewBounds(0, 100, 0, 100);
-            }
-        };
+        return com.plot.test.world.IdentityCoordinateService.INSTANCE;
     }
 }

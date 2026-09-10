@@ -82,10 +82,12 @@ public final class AutoTowerOptimizationProposer {
         context.setFamily(family);
         context.setDeflectionAngle(site.getDeflectionAngle());
         if (index > 0) {
-            context.setIncomingSpan(site.getPlanPosition().distance(sites.get(index - 1).getPlanPosition()));
+            context.setIncomingSpan(com.plot.plugin.powerline.PowerPoleLayoutUtils.worldSpanBlocks(
+                sites.get(index - 1), site));
         }
         if (index < sites.size() - 1) {
-            context.setOutgoingSpan(site.getPlanPosition().distance(sites.get(index + 1).getPlanPosition()));
+            context.setOutgoingSpan(com.plot.plugin.powerline.PowerPoleLayoutUtils.worldSpanBlocks(
+                site, sites.get(index + 1)));
         }
         context.setRequiredGroundClearance(groundClearance);
         context.setRequiredAttachmentHeight(groundClearance + heightMargin + 12.0);

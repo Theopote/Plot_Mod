@@ -212,6 +212,14 @@ public final class PowerPoleLayoutUtils {
         return bestStationing;
     }
 
+    /** 相邻杆塔世界档距（blocks），来自 world stationing。 */
+    public static double worldSpanBlocks(PowerPoleSite from, PowerPoleSite to) {
+        if (from == null || to == null) {
+            return 0.0;
+        }
+        return Math.abs(to.getStationing() - from.getStationing());
+    }
+
     public static double deflectionAtSite(List<PowerPoleSite> sites, int index) {
         if (sites == null || index <= 0 || index >= sites.size() - 1) {
             return 0.0;

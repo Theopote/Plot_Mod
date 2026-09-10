@@ -217,10 +217,10 @@ public class PowerLineGenerator {
         context.setSite(site);
         context.setDeflectionAngle(site.getDeflectionAngle());
         if (index > 0) {
-            context.setIncomingSpan(site.getPlanPosition().distance(sites.get(index - 1).getPlanPosition()));
+            context.setIncomingSpan(PowerPoleLayoutUtils.worldSpanBlocks(sites.get(index - 1), site));
         }
         if (index < sites.size() - 1) {
-            context.setOutgoingSpan(site.getPlanPosition().distance(sites.get(index + 1).getPlanPosition()));
+            context.setOutgoingSpan(PowerPoleLayoutUtils.worldSpanBlocks(site, sites.get(index + 1)));
         }
         if (footprint.hasTowerFamily()) {
             context.setFamily(new TowerFamilyResolver().find(footprint.getTowerFamilyId()));

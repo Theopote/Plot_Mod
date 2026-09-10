@@ -13,14 +13,12 @@ import java.util.Optional;
  * 投影无效时立即失败，不得继续几何计算。
  */
 public final class PluginProjectionContext {
-    private final ICoordinateService coordinates;
     private final WorldProjectionSnapshot snapshot;
+    private final SnapshotCoordinateService coordinates;
 
-    private PluginProjectionContext(
-            ICoordinateService coordinates,
-            WorldProjectionSnapshot snapshot) {
-        this.coordinates = Objects.requireNonNull(coordinates, "coordinates");
+    private PluginProjectionContext(WorldProjectionSnapshot snapshot) {
         this.snapshot = Objects.requireNonNull(snapshot, "snapshot");
+        this.coordinates = new SnapshotCoordinateService(snapshot);
     }
 
     public static PluginProjectionContext capture(ICoordinateService coordinates) {
@@ -29,7 +27,7 @@ public final class PluginProjectionContext {
         if (!snapshot.isValid()) {
             throw new WorldProjectionUnavailableException("World projection is unavailable");
         }
-        return new PluginProjectionContext(coordinates, snapshot);
+        return new PluginProjectionContext(snapshot);
     }
 
     public static Optional<PluginProjectionContext> tryCapture(ICoordinateService coordinates) {
@@ -40,9 +38,10 @@ public final class PluginProjectionContext {
         if (!snapshot.isValid()) {
             return Optional.empty();
         }
-        return Optional.of(new PluginProjectionContext(coordinates, snapshot));
+        return Optional.of(new PluginProjectionContext(snapshot));
     }
 
+    /** 冻结后的坐标服务，生成全程应只使用此实例。 */
     public ICoordinateService coordinates() {
         return coordinates;
     }
@@ -52,14 +51,14 @@ public final class PluginProjectionContext {
     }
 
     public Vec2d toWorld(Vec2d canvas) {
-        return coordinates.canvasToMinecraftWorld(canvas);
+        return snapshot.toWorld(canvas);
     }
 
     public double distance(Vec2d canvasA, Vec2d canvasB) {
-        return coordinates.projectedDistance(canvasA, canvasB);
+        return snapshot.projectedDistance(canvasA, canvasB);
     }
 
     public double pathLength(List<Vec2d> pathPoints) {
-        return coordinates.pathWorldLength(pathPoints);
+        return snapshot.pathWorldLength(pathPoints);
     }
 }

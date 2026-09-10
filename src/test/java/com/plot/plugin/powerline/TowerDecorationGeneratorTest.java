@@ -104,17 +104,7 @@ class TowerDecorationGeneratorTest {
     }
 
     private static ICoordinateService identityCoordinates() {
-        return new ICoordinateService() {
-            @Override
-            public Vec2d canvasToMinecraftWorld(Vec2d canvasPos) {
-                return canvasPos;
-            }
-
-            @Override
-            public WorldViewBounds getMinecraftWorldViewBounds() {
-                return new WorldViewBounds(0, 100, 0, 100);
-            }
-        };
+        return com.plot.test.world.IdentityCoordinateService.INSTANCE;
     }
 
     private static IBlockProjectionService projection() {
