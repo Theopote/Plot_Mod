@@ -55,17 +55,17 @@ public final class PowerLineStyleQuickTunePanel {
             return;
         }
         ImGui.separator();
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.style.custom"));
+        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.style.custom"));
         renderWiresSection(line, null);
     }
 
     private void renderSelectedHeader(PowerLineFootprint line, PowerLineStylePreset base) {
-        ImGui.text(PlotI18n.tr("plugin.powerline.style.section.selected"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.section.selected"));
         ImGui.sameLine();
-        ImGui.text(PlotI18n.tr(base.getLabelKey()));
+        PowerLineUiWidgets.text(PlotI18n.tr(base.getLabelKey()));
         if (PowerLineStyleEditor.isModified(line)) {
             ImGui.sameLine();
-            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.powerline.style.modified_badge"));
+            PowerLineUiWidgets.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.powerline.style.modified_badge"));
         }
     }
 
@@ -75,7 +75,7 @@ public final class PowerLineStyleQuickTunePanel {
         double spacing = line.isSpacingCustomized()
             ? line.getMaxPoleSpacing()
             : PowerLineSpacingPolicy.spacingForDensity(line, density);
-        ImGui.textColored(
+        PowerLineUiWidgets.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr(
                 "plugin.powerline.style.placement_context",
@@ -83,14 +83,14 @@ public final class PowerLineStyleQuickTunePanel {
                 spacing));
         if (line.isSpacingCustomized()) {
             ImGui.sameLine();
-            ImGui.textColored(
+            PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
                 "(" + PlotI18n.tr("plugin.powerline.style.spacing_customized_hint") + ")");
         }
     }
 
     private void renderTowerSection(PowerLineFootprint line, PowerLineStylePreset base) {
-        ImGui.text(PlotI18n.tr("plugin.powerline.style.section.tower_tune"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.section.tower_tune"));
         ImGui.separator();
         if (!beginTuneTable("tower")) {
             return;
@@ -107,7 +107,7 @@ public final class PowerLineStyleQuickTunePanel {
     }
 
     private void renderWiresSection(PowerLineFootprint line, PowerLineStylePreset base) {
-        ImGui.text(PlotI18n.tr("plugin.powerline.style.section.wires_tune"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.section.wires_tune"));
         ImGui.separator();
         if (!beginTuneTable("wires")) {
             return;
@@ -231,7 +231,7 @@ public final class PowerLineStyleQuickTunePanel {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.style.sag"));
+        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.style.sag"));
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
         PowerLineUiPresets.WireSag current = PowerLineUiPresets.detectSag(line);
@@ -270,7 +270,7 @@ public final class PowerLineStyleQuickTunePanel {
             return;
         }
         ImGui.separator();
-        ImGui.textColored(
+        PowerLineUiWidgets.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr(
                 "plugin.powerline.style.modified_count",
@@ -304,10 +304,10 @@ public final class PowerLineStyleQuickTunePanel {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.textColored(PluginUiColors.HINT_GRAY, label);
+        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, label);
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text(value != null ? value : "-");
+        PowerLineUiWidgets.text(value != null ? value : "-");
         ImGui.tableNextColumn();
         if (actionLabel != null && action != null) {
             if (ImGui.smallButton(actionLabel + "##" + rowId)) {
@@ -325,7 +325,7 @@ public final class PowerLineStyleQuickTunePanel {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.textColored(PluginUiColors.HINT_GRAY, label);
+        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, label);
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
         renderSegmentButtons(rowId, options, selected, onSelect);
@@ -387,7 +387,7 @@ public final class PowerLineStyleQuickTunePanel {
                 ImGui.beginTooltip();
                 float previewW = ImGui.getFontSize() * 6f;
                 float previewH = ImGui.getFontSize() * 3f;
-                ImGui.text(labels[i]);
+                PowerLineUiWidgets.text(labels[i]);
                 var origin = ImGui.getCursorScreenPos();
                 drawList.addRectFilled(
                     origin.x,
@@ -409,7 +409,7 @@ public final class PowerLineStyleQuickTunePanel {
         }
         if (selected < 0) {
             ImGui.sameLine(0f, spacing);
-            ImGui.textColored(
+            PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr(
                     "plugin.powerline.build.sag_custom",

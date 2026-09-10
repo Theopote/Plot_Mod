@@ -44,7 +44,7 @@ public final class PowerLineToolbarPanel {
         }
 
         if (!ctx.projectStatus().isEmpty()) {
-            ImGui.textColored(ctx.projectStatusSeverity().color(), ctx.projectStatus());
+            PowerLineUiWidgets.textColored(ctx.projectStatusSeverity().color(), ctx.projectStatus());
         }
         ImGui.separator();
     }

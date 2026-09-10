@@ -45,12 +45,12 @@ public final class PoleDesignPreviewRenderer {
             return;
         }
 
-        ImGui.text(PlotI18n.tr("plugin.powerline.design.preview"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.preview"));
         float titleHeight = ImGui.getTextLineHeightWithSpacing();
         float footerHeight = ImGui.getTextLineHeightWithSpacing();
         float viewportHeight = Math.max(0f, columnHeight - titleHeight - footerHeight);
         if (viewportHeight < 1f) {
-            ImGui.text(PlotI18n.tr("plugin.powerline.design.total_height", design.totalHeight()));
+            PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.total_height", design.totalHeight()));
             return;
         }
 
@@ -91,7 +91,7 @@ public final class PoleDesignPreviewRenderer {
         ImGui.dummy(contentWidth, contentHeight);
         ImGui.endChild();
 
-        ImGui.text(PlotI18n.tr("plugin.powerline.design.total_height", design.totalHeight()));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.total_height", design.totalHeight()));
     }
 
     /** 按塔高估算理想单视图高度（供测试与其他 UI 参考，设计器内始终均分框高）。 */

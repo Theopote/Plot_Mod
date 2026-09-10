@@ -25,7 +25,7 @@ public final class PowerLineValidationPanel {
             return;
         }
         ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.powerline.build.smart_fix"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.build.smart_fix"));
         if (ImGui.button(PlotI18n.tr("plugin.powerline.build.engineering_fix"), 0, 0)) {
             ctx.state().getValidationState().setPendingEnableAutomaticTowers(false);
             ctx.actions().proposeClearanceFix(line);
@@ -75,10 +75,10 @@ public final class PowerLineValidationPanel {
 
     private void renderReportSummary(PowerLineValidationReport report) {
         ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.powerline.validation.summary"));
-        ImGui.text(PlotI18n.tr("plugin.powerline.engineering.errors", report.errorCount()));
-        ImGui.text(PlotI18n.tr("plugin.powerline.engineering.warnings", report.warningCount()));
-        ImGui.textColored(
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.validation.summary"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.engineering.errors", report.errorCount()));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.engineering.warnings", report.warningCount()));
+        PowerLineUiWidgets.textColored(
             report.passes() ? PluginUiColors.HINT_GRAY : PluginUiColors.WARNING,
             PlotI18n.tr(
                 report.passes()
@@ -94,10 +94,10 @@ public final class PowerLineValidationPanel {
                 : issue.severity() == PowerLineIssueSeverity.WARNING
                     ? PluginUiColors.WARNING
                     : PluginUiColors.HINT_GRAY;
-            ImGui.textColored(color, "[%s] %s".formatted(
+            PowerLineUiWidgets.textColored(color, "[%s] %s".formatted(
                 PowerLineValidationI18n.severityLabel(issue.severity()),
                 PowerLineValidationI18n.issueMessage(issue)));
-            ImGui.textColored(
+            PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr(
                     "plugin.powerline.engineering.issue_detail",
@@ -115,7 +115,7 @@ public final class PowerLineValidationPanel {
                 ctx.state().getValidationState().isOptimizationConfirmPending(),
                 () -> ctx.state().getValidationState().setOptimizationConfirmPending(false))) {
             var optimization = ctx.state().getValidationState().getPendingOptimization();
-            ImGui.text(PlotI18n.tr("plugin.powerline.engineering.proposed_changes"));
+            PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.engineering.proposed_changes"));
             boolean hasChanges = optimization != null && !optimization.getActions().isEmpty();
             if (hasChanges) {
                 PoleDesignResolver resolver = ctx.designResolver();
@@ -123,7 +123,7 @@ public final class PowerLineValidationPanel {
                     renderProposedAction(action, resolver);
                 }
             } else {
-                ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.engineering.no_changes"));
+                PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.engineering.no_changes"));
             }
             if (hasChanges) {
                 if (ImGui.button(PlotI18n.tr("button.plot.confirm"), 120, 0)) {
@@ -146,7 +146,7 @@ public final class PowerLineValidationPanel {
 
     private void renderProposedAction(OptimizationAction action, PoleDesignResolver resolver) {
         if (action.getType() == OptimizationActionType.INSERT_POLE) {
-            ImGui.textWrapped(PlotI18n.tr(
+            PowerLineUiWidgets.text(PlotI18n.tr(
                 "plugin.powerline.engineering.proposal_insert_pole",
                 action.getStationing(),
                 PowerLineValidationI18n.optimizationReason(action)));
@@ -155,7 +155,7 @@ public final class PowerLineValidationPanel {
         if (action.getType() == OptimizationActionType.SELECT_TALLER_TOWER) {
             String from = AutoTowerOptimizationProposer.designLabel(resolver, action.getCurrentDesignId());
             String to = AutoTowerOptimizationProposer.designLabel(resolver, action.getProposedDesignId());
-            ImGui.textWrapped(PlotI18n.tr(
+            PowerLineUiWidgets.text(PlotI18n.tr(
                 "plugin.powerline.engineering.proposal_tower_change",
                 action.getPoleIndex() > 0 ? action.getPoleIndex() : "?",
                 from,
@@ -163,6 +163,6 @@ public final class PowerLineValidationPanel {
                 PowerLineValidationI18n.optimizationReason(action)));
             return;
         }
-        ImGui.textWrapped(PowerLineValidationI18n.optimizationReason(action));
+        PowerLineUiWidgets.text(PowerLineValidationI18n.optimizationReason(action));
     }
 }

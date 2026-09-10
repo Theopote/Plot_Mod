@@ -13,34 +13,34 @@ public final class PowerLineAdoptPanel {
     }
 
     public void render() {
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.adopt_hint"));
+        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.adopt_hint"));
         ImGui.spacing();
         ctx.updateSelectedPaths();
         var selection = ctx.pathSelection();
 
         if (selection.canAdopt()) {
-            ImGui.text(PlotI18n.tr(
+            PowerLineUiWidgets.text(PlotI18n.tr(
                 "plugin.powerline.paths_selected",
                 selection.adoptable().size()));
         }
         if (!selection.rejectedCurves().isEmpty()) {
-            ImGui.textColored(
+            PowerLineUiWidgets.textColored(
                 PluginUiColors.WARNING,
                 PlotI18n.tr("plugin.powerline.adopt_reject_curve"));
         }
         if (!selection.unsupported().isEmpty() && !selection.canAdopt()) {
-            ImGui.textColored(
+            PowerLineUiWidgets.textColored(
                 PluginUiColors.WARNING,
                 PlotI18n.tr("plugin.powerline.adopt_unsupported_hint"));
         } else if (!selection.hasCanvasSelection()) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.draw_path_hint"));
+            PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.draw_path_hint"));
         }
 
         ImGui.spacing();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.pick_path"), 0, 0)) {
             ctx.activatePathPickTool();
         }
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.pick_mode_hint"));
+        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.pick_mode_hint"));
 
         ImGui.spacing();
         boolean adoptDisabled = !selection.canAdopt();

@@ -87,7 +87,7 @@ public final class PowerLineStyleControls {
         String sectionLabel = line.hasTowerFamily()
             ? PlotI18n.tr("plugin.powerline.pole_design_fallback")
             : PlotI18n.tr("plugin.powerline.pole_design_section");
-        ImGui.text(sectionLabel);
+        PowerLineUiWidgets.text(sectionLabel);
 
         PoleDesignResolver resolver = ctx.designResolver();
         List<PoleDesign> designs = resolver.listAll();
@@ -147,7 +147,7 @@ public final class PowerLineStyleControls {
 
     public void renderTowerFamilyControls(PowerLineFootprint line) {
         ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.powerline.tower_family_section"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.tower_family_section"));
 
         TowerFamilyResolver familyResolver = new TowerFamilyResolver();
         List<TowerFamily> families = familyResolver.listAll();
@@ -200,10 +200,10 @@ public final class PowerLineStyleControls {
                 ? ctx.designResolver().find(line.getPoleDesignId())
                 : null;
             int designHeight = design != null ? design.totalHeight() : (int) line.getPoleHeight();
-            ImGui.textColored(
+            PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.pole_design_height_hint", designHeight));
-            ImGui.textColored(
+            PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.pole_height_from_design"));
         } else {
@@ -222,7 +222,7 @@ public final class PowerLineStyleControls {
 
     public void renderPoleRoleInspector(PowerLineFootprint line) {
         ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.powerline.pole_roles_section"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.pole_roles_section"));
 
         List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(line, ctx.coordinates());
         if (sites.isEmpty()) {
@@ -233,7 +233,7 @@ public final class PowerLineStyleControls {
         for (PowerPoleSite site : sites) {
             schematic.add(PowerLineOverrideUtils.roleShortCode(site.getRole()));
         }
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
             "plugin.powerline.pole_role_schematic",
             schematic.toString()));
 
@@ -248,7 +248,7 @@ public final class PowerLineStyleControls {
                 ImGui.tableNextRow();
                 ImGui.tableNextColumn();
                 ImGui.alignTextToFramePadding();
-                ImGui.text(PlotI18n.tr(
+                PowerLineUiWidgets.text(PlotI18n.tr(
                     "plugin.powerline.pole_role_row",
                     i + 1,
                     site.getStationing(),

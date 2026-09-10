@@ -14,13 +14,13 @@ public final class PowerLineOverviewPanel {
     }
 
     public void render() {
-        ImGui.text(PlotI18n.tr(
+        PowerLineUiWidgets.text(PlotI18n.tr(
             "plugin.powerline.project_stats",
             ctx.project().getLineCount(),
             String.format("%.1f", ctx.project().getTotalWorldPathLength(ctx.coordinates()))));
 
         if (ctx.project().getLineCount() == 0) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.no_lines"));
+            PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.no_lines"));
             return;
         }
 
@@ -72,7 +72,7 @@ public final class PowerLineOverviewPanel {
                 selected)) {
             ctx.selectLine(line.getId(), ImGui.getIO().getKeyCtrl());
         }
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
             "plugin.powerline.overview_item",
             line.estimatePoleCount(ctx.coordinates()),
             String.format("%.1f", line.computeWorldPathLength(ctx.coordinates()))));
@@ -96,7 +96,7 @@ public final class PowerLineOverviewPanel {
                 "##powerline_delete_confirm",
                 ctx.deleteConfirmPending(),
                 () -> ctx.setDeleteConfirmPending(false))) {
-            ImGui.text(PlotI18n.tr(
+            PowerLineUiWidgets.text(PlotI18n.tr(
                 "plugin.powerline.delete_confirm",
                 ctx.pendingDeleteLineIds().size()));
             if (ImGui.button(PlotI18n.tr("button.plot.confirm"), 120, 0)) {

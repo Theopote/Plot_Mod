@@ -22,6 +22,29 @@ public final class PowerLineUiWidgets {
     private PowerLineUiWidgets() {
     }
 
+    /** 当前内容区右边界，供自动换行使用。 */
+    public static float wrapPos() {
+        return ImGui.getCursorPosX() + ImGui.getContentRegionAvailX();
+    }
+
+    public static void text(String text) {
+        if (text == null || text.isBlank()) {
+            return;
+        }
+        ImGui.pushTextWrapPos(wrapPos());
+        ImGui.textWrapped(text);
+        ImGui.popTextWrapPos();
+    }
+
+    public static void textColored(int color, String text) {
+        if (text == null || text.isBlank()) {
+            return;
+        }
+        ImGui.pushTextWrapPos(wrapPos());
+        ImGui.textColored(color, text);
+        ImGui.popTextWrapPos();
+    }
+
     /**
      * 稳定 ImGui 控件 ID：可见标签可含 i18n 文本，{@code ##id} 后缀在拖动时保持不变。
      * 当前值应通过 slider 的 {@code format} 显示，不要写进标签字符串。
@@ -142,7 +165,7 @@ public final class PowerLineUiWidgets {
         if (ImGui.collapsingHeader(
                 PlotI18n.tr("plugin.powerline.engineering.advanced_section"),
                 ImGuiTreeNodeFlags.None)) {
-            ImGui.textColored(
+            textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.engineering.advanced_hint"));
             renderLineCheckControls(ctx, line, false, true);
@@ -156,9 +179,9 @@ public final class PowerLineUiWidgets {
             boolean nestedInSection) {
         if (!nestedInSection) {
             ImGui.separator();
-            ImGui.text(PlotI18n.tr("plugin.powerline.validation.section"));
+            text(PlotI18n.tr("plugin.powerline.validation.section"));
         }
-        ImGui.textColored(
+        textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.validation.hint"));
 
@@ -195,7 +218,7 @@ public final class PowerLineUiWidgets {
             }
         }
         renderSagDepthControls(ctx, line);
-        ImGui.textColored(
+        textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.validation.disclaimer"));
     }
@@ -205,11 +228,11 @@ public final class PowerLineUiWidgets {
             PowerLineFootprint line) {
         double effective = PowerLineSagPolicy.resolveMaxSagDepth(line);
         if (effective > 0.0) {
-            ImGui.textColored(
+            textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.engineering.effective_max_sag", effective));
         } else {
-            ImGui.textColored(
+            textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.engineering.effective_max_sag_unlimited"));
         }
@@ -241,29 +264,29 @@ public final class PowerLineUiWidgets {
         if (result == null || result.poleCount <= 0) {
             return;
         }
-        ImGui.text(PlotI18n.tr("plugin.powerline.build.role_stats_section"));
+        text(PlotI18n.tr("plugin.powerline.build.role_stats_section"));
         if (result.roleCount(TowerRole.SUSPENSION) > 0) {
-            ImGui.text(PlotI18n.tr(
+            text(PlotI18n.tr(
                 "plugin.powerline.role_stats_suspension",
                 result.roleCount(TowerRole.SUSPENSION)));
         }
         if (result.roleCount(TowerRole.ANGLE) > 0) {
-            ImGui.text(PlotI18n.tr(
+            text(PlotI18n.tr(
                 "plugin.powerline.role_stats_angle",
                 result.roleCount(TowerRole.ANGLE)));
         }
         if (result.roleCount(TowerRole.DEAD_END) > 0) {
-            ImGui.text(PlotI18n.tr(
+            text(PlotI18n.tr(
                 "plugin.powerline.role_stats_dead_end",
                 result.roleCount(TowerRole.DEAD_END)));
         }
         if (result.roleCount(TowerRole.TERMINAL) > 0) {
-            ImGui.text(PlotI18n.tr(
+            text(PlotI18n.tr(
                 "plugin.powerline.role_stats_terminal",
                 result.roleCount(TowerRole.TERMINAL)));
         }
         if (result.roleCount(TowerRole.SPECIAL) > 0) {
-            ImGui.text(PlotI18n.tr(
+            text(PlotI18n.tr(
                 "plugin.powerline.role_stats_special",
                 result.roleCount(TowerRole.SPECIAL)));
         }

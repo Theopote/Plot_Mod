@@ -51,7 +51,7 @@ public final class PowerLineOverviewRenderer {
             Collection<String> selectedLineIds,
             Consumer<String> onLineSelected,
             ICoordinateService coordinates) {
-        ImGui.text(PlotI18n.tr("plugin.powerline.overview_map"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.overview_map"));
         float mapWidth = ImGui.getContentRegionAvail().x;
         float mapHeight = mapHeightForWidth(mapWidth);
         ImGui.beginChild("powerline_overview_map", 0, mapHeight, true);

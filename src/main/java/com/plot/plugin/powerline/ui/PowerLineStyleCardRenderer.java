@@ -85,13 +85,13 @@ public final class PowerLineStyleCardRenderer {
 
     private static void renderPackTooltip(PowerLineStylePreset pack, String label, PowerLineFootprint lineContext) {
         ImGui.beginTooltip();
-        ImGui.text(label);
+        PowerLineUiWidgets.text(label);
         ImGui.separator();
         PoleDesign previewDesign = PowerLineStylePreviewBinding.previewDesign(pack);
         if (previewDesign != null) {
             float previewW = ImGui.getFontSize() * 7f;
             float previewH = ImGui.getFontSize() * 9f;
-            ImGui.text(PlotI18n.tr("plugin.powerline.style.preview_front"));
+            PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.preview_front"));
             ImDrawList drawList = ImGui.getWindowDrawList();
             ImVec2 frontOrigin = ImGui.getCursorScreenPos();
             drawList.addRectFilled(
@@ -110,7 +110,7 @@ public final class PowerLineStyleCardRenderer {
             ImGui.dummy(previewW, previewH);
             ImGui.sameLine();
             ImGui.beginGroup();
-            ImGui.text(PlotI18n.tr("plugin.powerline.style.preview_side"));
+            PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.preview_side"));
             ImVec2 sideOrigin = ImGui.getCursorScreenPos();
             drawList.addRectFilled(
                 sideOrigin.x,
@@ -126,27 +126,25 @@ public final class PowerLineStyleCardRenderer {
                 sideOrigin.x + previewW,
                 sideOrigin.y + previewH);
             ImGui.dummy(previewW, previewH);
-            ImGui.text(PlotI18n.tr(
+            PowerLineUiWidgets.text(PlotI18n.tr(
                 "plugin.powerline.style.preview_height",
                 previewDesign.totalHeight()));
-            ImGui.text(PlotI18n.tr(
+            PowerLineUiWidgets.text(PlotI18n.tr(
                 "plugin.powerline.style.preview_wires",
                 pack.attachmentChannelCount()));
             if (lineContext != null) {
-                ImGui.text(PlotI18n.tr(
+                PowerLineUiWidgets.text(PlotI18n.tr(
                     "plugin.powerline.style.preview_spacing",
                     lineContext.getMaxPoleSpacing()));
             } else {
-                ImGui.text(PlotI18n.tr(
+                PowerLineUiWidgets.text(PlotI18n.tr(
                     "plugin.powerline.style.preview_spacing",
                     pack.getSpacingProfile().preferred()));
             }
             ImGui.endGroup();
             ImGui.separator();
         }
-        ImGui.pushTextWrapPos(ImGui.getFontSize() * 24f);
-        ImGui.textWrapped(PlotI18n.tr(pack.getDescriptionKey()));
-        ImGui.popTextWrapPos();
+        PowerLineUiWidgets.text(PlotI18n.tr(pack.getDescriptionKey()));
         ImGui.endTooltip();
     }
 

@@ -19,4 +19,12 @@ class PowerLineUiWidgetsTest {
         assertTrue(label.endsWith("##line-42"));
         assertTrue(label.startsWith("Tower A"));
     }
+
+    @Test
+    void textHelpersIgnoreBlankInput() {
+        PowerLineUiWidgets.text(null);
+        PowerLineUiWidgets.text("   ");
+        PowerLineUiWidgets.textColored(0xFFFFFFFF, null);
+        PowerLineUiWidgets.textColored(0xFFFFFFFF, "");
+    }
 }

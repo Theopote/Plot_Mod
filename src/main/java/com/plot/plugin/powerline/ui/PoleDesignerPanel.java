@@ -208,7 +208,7 @@ public final class PoleDesignerPanel {
             return;
         }
         try {
-            ImGui.textWrapped(PlotI18n.tr("plugin.powerline.design.close_confirm"));
+            PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.close_confirm"));
             if (ImGui.button(PlotI18n.tr("plugin.powerline.design.save"), 120, 0)) {
                 saveDraft(false);
                 finalizeClose();
@@ -407,7 +407,7 @@ public final class PoleDesignerPanel {
     }
 
     private void renderStructureSection() {
-        ImGui.text(PlotI18n.tr("plugin.powerline.design.structure"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.structure"));
         boolean useTower = draft.hasTowerStructure();
         if (ImGui.radioButton(PlotI18n.tr("plugin.powerline.design.structure_legacy"), !useTower)) {
             pushDraftSnapshot();
@@ -444,7 +444,7 @@ public final class PoleDesignerPanel {
             TowerArmAttachmentBinding.inferArmBindings(draft);
         }
 
-        ImGui.text(PlotI18n.tr("plugin.powerline.design.structure_stations"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.structure_stations"));
         for (int i = 0; i < structure.getStations().size(); i++) {
             TowerStation station = structure.getStations().get(i);
             ImGui.pushID("station_" + i);
@@ -458,7 +458,7 @@ public final class PoleDesignerPanel {
             structure.setBays(TowerStructurePresets.defaultBaysForStations(structure.getStations()));
         }
 
-        ImGui.text(PlotI18n.tr("plugin.powerline.design.structure_arms"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.structure_arms"));
         List<TowerArm> sortedArms = TowerArmAttachmentBinding.sortedArms(structure);
         for (int i = 0; i < sortedArms.size(); i++) {
             TowerArm arm = sortedArms.get(i);
@@ -498,7 +498,7 @@ public final class PoleDesignerPanel {
 
     private void renderDecorationSection(TowerStructureDesign structure) {
         ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.powerline.design.structure_decorations"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.structure_decorations"));
         for (int i = 0; i < structure.getDecorations().size(); i++) {
             TowerDecoration decoration = structure.getDecorations().get(i);
             ImGui.pushID("deco_" + i);
@@ -744,7 +744,7 @@ public final class PoleDesignerPanel {
     }
 
     private void renderAttachmentList() {
-        ImGui.text(PlotI18n.tr("plugin.powerline.design.attachments"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.attachments"));
         if (draft.hasTowerStructure()) {
             renderTowerAttachmentDecks();
             return;
@@ -828,7 +828,7 @@ public final class PoleDesignerPanel {
     }
 
     private void renderAttachmentRow(ConductorAttachment attachment, TowerArm boundArm) {
-        ImGui.text(PlotI18n.tr("plugin.powerline.design.attachment_row", attachment.getName()));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.attachment_row", attachment.getName()));
         if (!DialogLayoutHelper.beginForm("##attachment_form")) {
             return;
         }
@@ -903,7 +903,7 @@ public final class PoleDesignerPanel {
     private void renderAttachmentArmBindingRow(ConductorAttachment attachment, TowerArm boundArm) {
         if (boundArm != null) {
             DialogLayoutHelper.formRowLabel(PlotI18n.tr("plugin.powerline.design.attachment_arm_bind"));
-            ImGui.textColored(0xFF90CAF9, PlotI18n.tr(
+            PowerLineUiWidgets.textColored(0xFF90CAF9, PlotI18n.tr(
                 "plugin.powerline.design.attachment_bound_arm",
                 boundArm.getId()));
             return;
@@ -943,7 +943,7 @@ public final class PoleDesignerPanel {
 
     private void renderLayerList() {
         pendingLayerActions.clear();
-        ImGui.text(PlotI18n.tr("plugin.powerline.design.layers"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.layers"));
         for (int i = 0; i < draft.getLayers().size(); i++) {
             PoleLayer layer = draft.getLayers().get(i);
             ImGui.pushID("layer_" + i);
@@ -964,7 +964,7 @@ public final class PoleDesignerPanel {
         if (index > 0) {
             ImGui.separator();
         }
-        ImGui.text(PlotI18n.tr("plugin.powerline.design.layer_index", index + 1));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.layer_index", index + 1));
         if (!DialogLayoutHelper.beginForm("##layer_form")) {
             return;
         }
@@ -1129,7 +1129,7 @@ public final class PoleDesignerPanel {
                 "##pole_preset_confirm",
                 presetConfirmPending,
                 () -> presetConfirmPending = false)) {
-            ImGui.text(PlotI18n.tr("plugin.powerline.design.preset_confirm"));
+            PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.preset_confirm"));
             if (ImGui.button(PlotI18n.tr("button.plot.confirm"), 120, 0)) {
                 PoleDesign preset = PoleDesignCatalog.findBuiltin(pendingPresetId);
                 if (preset != null) {
@@ -1156,9 +1156,9 @@ public final class PoleDesignerPanel {
             return;
         }
         TowerFamily family = new TowerFamilyResolver().find(pendingFamilyId);
-        ImGui.text(PlotI18n.tr("plugin.powerline.design.family_pick_title"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.family_pick_title"));
         if (family != null) {
-            ImGui.textColored(
+            PowerLineUiWidgets.textColored(
                 com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
                 family.getName());
             ImGui.spacing();

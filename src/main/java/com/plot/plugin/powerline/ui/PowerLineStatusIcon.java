@@ -53,7 +53,9 @@ public final class PowerLineStatusIcon {
             iconSize,
             color);
         ImGui.setCursorPosX(ImGui.getCursorPosX() + iconSlot + ICON_TEXT_GAP);
+        ImGui.pushTextWrapPos(PowerLineUiWidgets.wrapPos());
         ImGui.textColored(color, text);
+        ImGui.popTextWrapPos();
     }
 
     public static void renderIndentedHint(String text) {
@@ -62,7 +64,7 @@ public final class PowerLineStatusIcon {
         }
         float indent = ImGui.getTextLineHeight() * ICON_SLOT_RATIO + ICON_TEXT_GAP + ImGui.getStyle().getIndentSpacing();
         ImGui.setCursorPosX(ImGui.getCursorPosX() + indent);
-        ImGui.textColored(PluginUiColors.HINT_GRAY, text);
+        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, text);
     }
 
     static void draw(ImDrawList drawList, Kind kind, float centerX, float centerY, float size, int color) {

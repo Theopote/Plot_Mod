@@ -23,14 +23,14 @@ public final class PowerLineRoutePanel {
     }
 
     public void render() {
-        ImGui.text(PlotI18n.tr("plugin.powerline.route.section.path"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.path"));
         adoptPanel.render();
 
         ctx.selection().retainExisting(ctx.project());
         PowerLineFootprint line = ctx.selection().primary(ctx.project());
         if (line == null) {
             ImGui.separator();
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.no_line"));
+            PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.no_line"));
             PowerLineUiWidgets.renderLineSelector(ctx);
             return;
         }
@@ -39,10 +39,10 @@ public final class PowerLineRoutePanel {
         PowerLineUiWidgets.renderLineSelector(ctx);
         renderLineName(line);
         ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.powerline.route.section.placement"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.placement"));
         renderPlacementDensity(line);
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.density_hint"));
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.corner_hint"));
+        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.density_hint"));
+        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.corner_hint"));
         renderTerrainAvoidance(line);
         renderAdvancedSpacing(line);
     }
@@ -61,7 +61,7 @@ public final class PowerLineRoutePanel {
     }
 
     private void renderPlacementDensity(PowerLineFootprint line) {
-        ImGui.text(PlotI18n.tr("plugin.powerline.route.placement_density"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.placement_density"));
         PowerLineUiPresets.SpacingDensity current = PowerLineSpacingPolicy.effectiveDensity(line);
 
         float spacing = ImGui.getStyle().getItemSpacingX();
@@ -95,7 +95,7 @@ public final class PowerLineRoutePanel {
             line.setTerrainAvoidanceEnabled(!enabled);
             ctx.invalidatePreview();
         }
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.avoid_terrain_hint"));
+        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.avoid_terrain_hint"));
     }
 
     private void renderAdvancedSpacing(PowerLineFootprint line) {
@@ -106,14 +106,14 @@ public final class PowerLineRoutePanel {
             return;
         }
         PoleSpacingProfile profile = PowerLineSpacingPolicy.profileFor(line);
-        ImGui.textColored(
+        PowerLineUiWidgets.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr(
                 "plugin.powerline.route.spacing_style_range",
                 profile.recommendedMin(),
                 profile.preferred(),
                 profile.recommendedMax()));
-        ImGui.textColored(
+        PowerLineUiWidgets.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr(
                 "plugin.powerline.route.current_spacing",
@@ -163,7 +163,7 @@ public final class PowerLineRoutePanel {
             "%.1f",
             line::setCornerAngleThreshold);
 
-        ctx.actions().closestMandatorySpacingViolation(line).ifPresent(distance -> ImGui.textColored(
+        ctx.actions().closestMandatorySpacingViolation(line).ifPresent(distance -> PowerLineUiWidgets.textColored(
             PluginUiColors.WARNING,
             PlotI18n.tr("plugin.powerline.min_spacing_warning", distance)));
         renderAutoAddedPoles(line);
@@ -178,7 +178,7 @@ public final class PowerLineRoutePanel {
             return;
         }
         PoleSpacingProfile profile = preset.getSpacingProfile();
-        ImGui.textColored(
+        PowerLineUiWidgets.textColored(
             PluginUiColors.WARNING,
             PlotI18n.tr(
                 "plugin.powerline.route.spacing_recommendation",
@@ -198,7 +198,7 @@ public final class PowerLineRoutePanel {
             return;
         }
         ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.powerline.route.auto_poles.section"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.auto_poles.section"));
         ImGui.spacing();
         for (int i = 0; i < constraints.size(); i++) {
             var constraint = constraints.get(i);

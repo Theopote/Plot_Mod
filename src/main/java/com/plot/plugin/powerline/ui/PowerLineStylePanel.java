@@ -31,20 +31,20 @@ public final class PowerLineStylePanel {
         ctx.selection().retainExisting(ctx.project());
         PowerLineFootprint line = ctx.selection().primary(ctx.project());
         if (line == null) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.select_line_hint"));
+            PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.select_line_hint"));
             PowerLineUiWidgets.renderLineSelector(ctx);
             return;
         }
 
         PowerLineUiWidgets.renderLineSelector(ctx);
         ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.powerline.style.section.choose"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.section.choose"));
         renderStyleGallery(line);
 
         PowerLineStylePreset base = PowerLineStyleEditor.basePreset(line);
         if (base != null) {
             ImGui.spacing();
-            ImGui.text(PlotI18n.tr("plugin.powerline.style.section.quick_customize"));
+            PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.section.quick_customize"));
             quickTunePanel.render(line, base);
         } else {
             quickTunePanel.renderCustomFallback(line);
@@ -101,7 +101,7 @@ public final class PowerLineStylePanel {
                 ImGuiTreeNodeFlags.None)) {
             return;
         }
-        ImGui.textColored(
+        PowerLineUiWidgets.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.style.advanced_hint"));
         styleControls.renderPoleDesignControls(line, poleDesignerPanel, true);
@@ -113,7 +113,7 @@ public final class PowerLineStylePanel {
 
     private void renderAdvancedSag(PowerLineFootprint line) {
         ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.powerline.style.sag_advanced"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.sag_advanced"));
         float[] sagRatio = {(float) (line.getSagRatio() * 100f)};
         PowerLineUiWidgets.sliderFloatStableLineEdit(
             ctx,
@@ -156,7 +156,7 @@ public final class PowerLineStylePanel {
                     PowerLineStyleEditor.afterStyleEdit(line);
                 });
         } else {
-            ImGui.textColored(
+            PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.max_sag_depth_profile_hint"));
         }

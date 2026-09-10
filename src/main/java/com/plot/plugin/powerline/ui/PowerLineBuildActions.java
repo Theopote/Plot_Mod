@@ -38,7 +38,7 @@ final class PowerLineBuildActions {
         }
 
         if (!readiness.ready()) {
-            ImGui.textColored(PluginUiColors.ERROR_SOFT, readiness.message());
+            PowerLineUiWidgets.textColored(PluginUiColors.ERROR_SOFT, readiness.message());
         }
 
         if (ctx.lastGenerationResult() != null && !hasPreview) {
@@ -69,7 +69,7 @@ final class PowerLineBuildActions {
             PowerLineFootprint line = ctx.selection().primary(ctx.project());
             PowerLineGenerationResult result = ctx.hasValidPreview(line) ? ctx.lastGenerationResult() : null;
             int blocks = result != null ? result.blockCount() : 0;
-            ImGui.text(PlotI18n.tr("plugin.powerline.build_confirm", blocks));
+            PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.build_confirm", blocks));
             PowerLineValidationReport report = line != null ? ctx.actions().cachedEngineeringReport(line) : null;
             PowerLineValidationReport terrain = line != null ? ctx.state().getValidationState().getLastTerrainReport() : null;
             int issueCount = report != null ? report.errorCount() + report.warningCount() : 0;

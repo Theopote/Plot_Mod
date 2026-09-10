@@ -29,7 +29,7 @@ public final class PowerLineBuildPanel {
         ctx.selection().retainExisting(ctx.project());
         PowerLineFootprint line = ctx.selection().primary(ctx.project());
         if (line == null) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.select_line_hint"));
+            PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.select_line_hint"));
             PowerLineUiWidgets.renderLineSelector(ctx);
             return;
         }
@@ -53,13 +53,13 @@ public final class PowerLineBuildPanel {
             : line.estimatePoleCount(ctx.coordinates());
         double typicalSpan = typicalSpanBlocks(worldLength, poleCount, line.getMaxPoleSpacing());
 
-        ImGui.textColored(
+        PowerLineUiWidgets.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.build.route_length", formatBlocks(worldLength)));
         String poleKey = hasPreview
             ? "plugin.powerline.build.route_poles_preview"
             : "plugin.powerline.build.route_poles_estimate";
-        ImGui.textColored(
+        PowerLineUiWidgets.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr(poleKey, poleCount, formatBlocks(typicalSpan)));
     }
@@ -79,9 +79,9 @@ public final class PowerLineBuildPanel {
         ctx.syncPreviewValidity(line);
         PowerLineGenerationResult result = ctx.hasValidPreview(line) ? ctx.lastGenerationResult() : null;
         ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.powerline.build.summary"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.build.summary"));
         if (result == null) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.no_preview"));
+            PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.no_preview"));
             return;
         }
 
@@ -99,25 +99,25 @@ public final class PowerLineBuildPanel {
                 styleLabel += PowerLineUiTextGlyphSafety.INLINE_SEPARATOR
                     + PlotI18n.tr("plugin.powerline.style.modified_badge");
             }
-            ImGui.textColored(
+            PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.build.style_preset", styleLabel));
         } else {
-            ImGui.textColored(
+            PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.build.style_custom"));
         }
-        ImGui.text(PlotI18n.tr("plugin.powerline.pole_count_result", result.poleCount));
-        ImGui.text(PlotI18n.tr("plugin.powerline.wire_length_result", String.format("%.1f", result.wireLength)));
-        ImGui.text(PlotI18n.tr("plugin.powerline.block_count_result", result.blockCount()));
-        ImGui.text(PlotI18n.tr(
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.pole_count_result", result.poleCount));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.wire_length_result", String.format("%.1f", result.wireLength)));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.block_count_result", result.blockCount()));
+        PowerLineUiWidgets.text(PlotI18n.tr(
             "plugin.powerline.build.conductor_count",
             PowerLineQuickTunePolicy.conductorCount(line, basePreset)));
         ImGui.endGroup();
     }
 
     private void renderFriendlyStatus(PowerLineFootprint line) {
-        ImGui.text(PlotI18n.tr("plugin.powerline.build.status_section"));
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.build.status_section"));
         renderSpacingStatus(line);
         renderCornerStatus(line);
 
@@ -127,7 +127,7 @@ public final class PowerLineBuildPanel {
         }
 
         if (!ctx.hasValidPreview(line)) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.no_preview"));
+            PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.no_preview"));
             return;
         }
 
@@ -178,7 +178,7 @@ public final class PowerLineBuildPanel {
 
     private void renderTerrainStatus(PowerLineFootprint line) {
         if (!ctx.hasValidPreview(line)) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.no_preview"));
+            PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.no_preview"));
             return;
         }
         PowerLineValidationReport report = ctx.actions().cachedTerrainReport(line);
@@ -188,7 +188,7 @@ public final class PowerLineBuildPanel {
         }
         PowerLineStatusIcon.renderWarningLine(PlotI18n.tr("plugin.powerline.build.status.terrain_warning"));
         renderIssueList(report);
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.terrain_apply_fix_hint"));
+        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.terrain_apply_fix_hint"));
         if (ImGui.button(PlotI18n.tr("plugin.powerline.build.terrain_apply_fix"), 0, 0)) {
             ctx.autoAdjustTerrain(line);
         }
@@ -209,7 +209,7 @@ public final class PowerLineBuildPanel {
             }
             return;
         }
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.status.line_checks"));
+        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.status.line_checks"));
         renderIssueList(issues);
     }
 
@@ -221,7 +221,7 @@ public final class PowerLineBuildPanel {
         int shown = 0;
         for (var issue : issues) {
             if (shown >= 4) {
-                ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
                     "plugin.powerline.build.more_issues",
                     issues.size() - shown));
                 break;
@@ -244,7 +244,7 @@ public final class PowerLineBuildPanel {
     private void renderAdvancedPreviewDetails(PowerLineFootprint line) {
         PowerLineGenerationResult result = ctx.hasValidPreview(line) ? ctx.lastGenerationResult() : null;
         if (result == null) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.no_preview"));
+            PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.no_preview"));
             return;
         }
         if (result.warnings.isEmpty()) {
@@ -255,7 +255,7 @@ public final class PowerLineBuildPanel {
             result.warnings.size()));
         ImGui.beginChild("powerline_build_advanced_warnings", 0, 80, true);
         for (String warning : result.warnings) {
-            ImGui.textWrapped(PowerLineGenerationI18n.localize(warning));
+            PowerLineUiWidgets.text(PowerLineGenerationI18n.localize(warning));
         }
         ImGui.endChild();
         ImGui.separator();
