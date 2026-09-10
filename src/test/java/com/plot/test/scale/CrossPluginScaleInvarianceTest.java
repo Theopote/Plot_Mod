@@ -121,13 +121,11 @@ class CrossPluginScaleInvarianceTest {
 
         @Test
         void wallThicknessIsInvariantInPlacedVoxels() {
-            BuildingFootprint footprint = new BuildingFootprint(BUILDING_SQUARE, true);
-            footprint.setWallThickness(2);
-            footprint.setFloors(1);
-            footprint.setFloorHeight(3);
+            BuildingGenerationResult nearResult = generateWallVoxels(NEAR);
+            BuildingGenerationResult farResult = generateWallVoxels(FAR);
 
-            double nearThickness = southWallThickness(generateWallVoxels(NEAR));
-            double farThickness = southWallThickness(generateWallVoxels(FAR));
+            double nearThickness = southWallThickness(nearResult);
+            double farThickness = southWallThickness(farResult);
 
             assertEquals(2.0, nearThickness, 0.51);
             assertEquals(2.0, farThickness, 0.51);

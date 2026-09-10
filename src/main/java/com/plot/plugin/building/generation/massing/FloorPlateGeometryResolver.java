@@ -48,8 +48,9 @@ public final class FloorPlateGeometryResolver {
         Polygon innerPolygon = innerPoints.size() >= 3
             ? BuildingGeometryUtils.toPolygon(innerPoints)
             : null;
+        double wallCellSize = Math.min(1.0, scale.uniformBlocksToCanvas(1.0, outerPoints));
         List<BuildingGenerationContext.GridCell> outerCells = BuildingGenerationContext.collectFootprintCells(
-            outerPoints, outerPolygon);
+            outerPoints, outerPolygon, wallCellSize);
         return new ResolvedFloorPlate(
             plate,
             Collections.unmodifiableList(outerPoints),

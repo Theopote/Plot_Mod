@@ -26,8 +26,8 @@ public final class GoldenBuildingExpectations {
         List.of());
 
     public static final GoldenBuildingMetrics B03 = new GoldenBuildingMetrics(
-        140, 76, 24, 36, 0, 4, 0, 0, 0,
-        5, 13, 64, 68, 5, 14,
+        154, 90, 24, 36, 0, 4, 0, 0, 0,
+        5, 14, 64, 68, 5, 14,
         "HIP",
         List.of());
 

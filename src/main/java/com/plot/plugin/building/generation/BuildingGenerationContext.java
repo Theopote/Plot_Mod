@@ -3,6 +3,7 @@ package com.plot.plugin.building.generation;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
+import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.core.terrain.EngineeringTerrainService;
 import com.plot.plugin.building.generation.resolve.BuildingGenerationContextFactory;
@@ -18,6 +19,7 @@ import com.plot.plugin.building.site.BuildingSiteColumnSample;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -213,7 +215,17 @@ public final class BuildingGenerationContext {
     }
 
     public static List<GridCell> collectFootprintCells(List<Vec2d> points, Polygon polygon) {
-        return MassingGeometryResolver.collectFootprintCells(points, polygon);
+        return collectFootprintCells(points, polygon, 1.0);
+    }
+
+    public static List<GridCell> collectFootprintCells(List<Vec2d> points, Polygon polygon, double cellSize) {
+        List<GridCell> cells = new ArrayList<>();
+        for (Vec2d center : BuildingGeometryUtils.collectFootprintCellCenters(points, cellSize)) {
+            if (polygon.contains(center)) {
+                cells.add(new GridCell(center));
+            }
+        }
+        return cells;
     }
 
     public static int sampleTopHeight(World world, BlockPos pos) {
@@ -335,9 +347,9 @@ public final class BuildingGenerationContext {
     }
 
     private static long packCanvasCell(double x, double y) {
-        int ix = (int) Math.floor(x);
-        int iy = (int) Math.floor(y);
-        return (((long) ix) << 32) ^ (iy & 0xffffffffL);
+        long qx = Math.round(x * 1024.0);
+        long qy = Math.round(y * 1024.0);
+        return (qx << 32) ^ (qy & 0xffffffffL);
     }
 
     public record GridCell(Vec2d center) {

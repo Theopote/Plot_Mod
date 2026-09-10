@@ -158,12 +158,45 @@ public final class PolygonRegionUtils {
     }
 
     /**
-     * 收集带孔洞区域轮廓内的整数格点中心。
+     * 收集带孔洞区域轮廓内的格点中心；{@code cellSize} 为画布单位步长（默认 1 = 整格）。
      */
     public static List<Vec2d> collectFootprintCellCenters(List<Vec2d> outerRing, List<List<Vec2d>> holes) {
+        return collectFootprintCellCenters(outerRing, holes, 1.0);
+    }
+
+    public static List<Vec2d> collectFootprintCellCenters(
+            List<Vec2d> outerRing,
+            List<List<Vec2d>> holes,
+            double cellSize) {
         if (outerRing == null || outerRing.size() < 3) {
             return List.of();
         }
+        if (Math.abs(cellSize - 1.0) < 1e-9) {
+            return collectUnitFootprintCellCenters(outerRing, holes);
+        }
+        double step = Math.max(1e-6, cellSize);
+        RectBounds bounds = computeBounds(outerRing, holes);
+        List<Vec2d> centers = new ArrayList<>();
+        double minX = bounds.minX();
+        double maxX = bounds.maxX();
+        double minZ = bounds.minZ();
+        double maxZ = bounds.maxZ();
+        double startX = Math.floor(minX / step) * step + step * 0.5;
+        double startZ = Math.floor(minZ / step) * step + step * 0.5;
+        for (double x = startX; x <= maxX + 1e-9; x += step) {
+            for (double z = startZ; z <= maxZ + 1e-9; z += step) {
+                Vec2d center = new Vec2d(x, z);
+                if (containsPoint(outerRing, holes, center)) {
+                    centers.add(center);
+                }
+            }
+        }
+        return centers;
+    }
+
+    private static List<Vec2d> collectUnitFootprintCellCenters(
+            List<Vec2d> outerRing,
+            List<List<Vec2d>> holes) {
         RectBounds bounds = computeBounds(outerRing, holes);
         List<Vec2d> centers = new ArrayList<>();
         int minX = (int) Math.floor(bounds.minX());
