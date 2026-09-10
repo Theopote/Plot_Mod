@@ -289,7 +289,7 @@ public final class BuildingGenerationContextFactory {
             definition, footprint, world, coordinateService, result);
         if (result.skippedDueToSiteAnalysis) {
             return BuildingGenerationContext.fromResolved(
-                footprint, resolved.definition(), world, coordinateService, projectionService, result, null);
+                footprint, definition, world, coordinateService, projectionService, result, null);
         }
         return BuildingGenerationContext.fromResolved(
             footprint, resolved.definition(), world, coordinateService, projectionService, result, resolved);

@@ -3,10 +3,15 @@ package com.plot.test.scale;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.geometry.WorldProjectionMath;
-import com.plot.infrastructure.event.block.BlockProjectionHandler;
+import com.plot.api.world.IBlockProjectionService;
+import com.plot.api.world.PlacementReadiness;
 import com.plot.plugin.building.generation.BuildingCanvasScale;
+import com.plot.plugin.building.generation.BuildingGenerationContext;
+import com.plot.plugin.building.generation.BuildingGenerationPipeline;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
+import com.plot.plugin.building.generation.resolve.BuildingGenerationContextFactory;
 import com.plot.plugin.building.generation.resolve.MassingGeometryResolver;
+import com.plot.plugin.building.generation.stage.WallGenerationStage;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
 import com.plot.plugin.building.model.spec.BuildingDefinitionMapper;
@@ -21,11 +26,13 @@ import com.plot.plugin.earthwork.model.ZoneEdgeSettings;
 import com.plot.plugin.powerline.PowerPoleLayoutUtils;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineHost;
+import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Set;
 
 import static com.plot.test.scale.ScaleInvarianceProjections.FAR;
 import static com.plot.test.scale.ScaleInvarianceProjections.FAR_BLOCKS_PER_CANVAS_UNIT;
@@ -111,6 +118,21 @@ class CrossPluginScaleInvarianceTest {
                 minWorldX(farMassing.innerPoints(), FAR),
                 0.5);
         }
+
+        @Test
+        void wallThicknessIsInvariantInPlacedVoxels() {
+            BuildingFootprint footprint = new BuildingFootprint(BUILDING_SQUARE, true);
+            footprint.setWallThickness(2);
+            footprint.setFloors(1);
+            footprint.setFloorHeight(3);
+
+            double nearThickness = southWallThickness(generateWallVoxels(NEAR));
+            double farThickness = southWallThickness(generateWallVoxels(FAR));
+
+            assertEquals(2.0, nearThickness, 0.51);
+            assertEquals(2.0, farThickness, 0.51);
+            assertEquals(nearThickness, farThickness, 0.51);
+        }
     }
 
     @Nested
@@ -191,7 +213,26 @@ class CrossPluginScaleInvarianceTest {
         return new RoadGenerationPipelineHost(
             new RoadSystemConfig("scale-invariance"),
             coordinates,
-            BlockProjectionHandler.getInstance());
+            noopProjection());
+    }
+
+    private static IBlockProjectionService noopProjection() {
+        return new IBlockProjectionService() {
+            @Override
+            public PlacementReadiness checkWorldModificationReadiness() {
+                return PlacementReadiness.ok();
+            }
+
+            @Override
+            public String getBlockIdAt(BlockPos pos) {
+                return "minecraft:air";
+            }
+
+            @Override
+            public boolean setBlockAt(BlockPos pos, String blockId) {
+                return false;
+            }
+        };
     }
 
     private static void assertTypicalSpan(List<PowerPoleSite> sites, double expectedBlocks) {
@@ -206,6 +247,42 @@ class CrossPluginScaleInvarianceTest {
             .mapToDouble(p -> coordinates.canvasToMinecraftWorld(p).x)
             .min()
             .orElse(0.0);
+    }
+
+    private static BuildingGenerationResult generateWallVoxels(ICoordinateService coordinates) {
+        BuildingFootprint footprint = new BuildingFootprint(BUILDING_SQUARE, true);
+        footprint.setWallThickness(2);
+        footprint.setFloors(1);
+        footprint.setFloorHeight(3);
+        BuildingGenerationResult result = new BuildingGenerationResult();
+        BuildingGenerationContext context = BuildingGenerationContextFactory.forTesting(
+            footprint, coordinates, noopProjection(), result);
+        new BuildingGenerationPipeline(List.of(new WallGenerationStage())).generate(context);
+        return result;
+    }
+
+    /** 南缘（min Z）沿 +Z 向内连续墙列数 = 世界方块墙厚。 */
+    private static double southWallThickness(BuildingGenerationResult result) {
+        Set<BlockPos> walls = result.placementRecords.keySet();
+        if (walls.isEmpty()) {
+            return 0.0;
+        }
+        int baseY = walls.stream().mapToInt(BlockPos::getY).min().orElse(0);
+        int southZ = walls.stream().mapToInt(BlockPos::getZ).min().orElse(0);
+        List<Integer> southXs = walls.stream()
+            .filter(pos -> pos.getY() == baseY && pos.getZ() == southZ)
+            .map(BlockPos::getX)
+            .sorted()
+            .toList();
+        if (southXs.isEmpty()) {
+            return 0.0;
+        }
+        int midX = southXs.get(southXs.size() / 2);
+        int thickness = 0;
+        for (int z = southZ; walls.contains(new BlockPos(midX, baseY, z)); z++) {
+            thickness++;
+        }
+        return thickness;
     }
 
     private static double worldMarginAlongX(

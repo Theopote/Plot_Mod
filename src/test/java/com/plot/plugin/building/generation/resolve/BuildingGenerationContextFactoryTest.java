@@ -28,6 +28,28 @@ class BuildingGenerationContextFactoryTest {
     );
 
     @Test
+    void skippedSiteAnalysisUsesOriginalDefinitionWithoutNpe() {
+        BuildingFootprint footprint = new BuildingFootprint(RECT, true);
+        footprint.setFloors(2);
+        BuildingDefinition definition = BuildingDefinitionMapper.fromFootprint(footprint);
+        BuildingGenerationResult result = new BuildingGenerationResult();
+        result.skippedDueToSiteAnalysis = true;
+
+        BuildingGenerationContext context = BuildingGenerationContext.fromResolved(
+            footprint,
+            definition,
+            null,
+            IdentityCoordinateService.INSTANCE,
+            stubProjection(),
+            result,
+            null);
+
+        assertNotNull(context);
+        assertFalse(context.isValid());
+        assertEquals(2, context.getDefinition().massing().floors());
+    }
+
+    @Test
     void resolveForTestingProducesValidResolvedDefinition() {
         BuildingFootprint footprint = new BuildingFootprint(RECT, true);
         footprint.setFloors(2);
