@@ -16,7 +16,12 @@ import imgui.flag.ImGuiWindowFlags;
 
 /** 杆塔设计器预览：体素立面 + 设计辅助 overlay。 */
 public final class PoleDesignPreviewRenderer {
-    private static final float PREVIEW_HEIGHT = 200f;
+    private static final float MIN_PANE_HEIGHT = 96f;
+    private static final float MAX_PANE_HEIGHT = 220f;
+    private static final float HEIGHT_PER_BLOCK = 2.6f;
+    private static final float PANE_CHROME_HEIGHT = 24f;
+    private static final float COLUMN_TITLE_HEIGHT = 20f;
+    private static final float COLUMN_FOOTER_HEIGHT = 18f;
     private static final float PANE_GAP = 8f;
     private static final float PANE_PADDING = 2f;
     private static final float PANE_LABEL_GAP = 4f;
@@ -33,27 +38,30 @@ public final class PoleDesignPreviewRenderer {
     private PoleDesignPreviewRenderer() {
     }
 
-    public static void render(PoleDesign design) {
-        ImGui.text(PlotI18n.tr("plugin.powerline.design.preview"));
-        float width = ImGui.getContentRegionAvail().x;
-        if (width < 40f || design == null) {
+    /**
+     * 设计器左栏：上正视、下侧视，高度随塔高在合理范围内伸缩。
+     */
+    public static void renderVerticalStack(PoleDesign design, float width, float maxColumnHeight) {
+        if (width < 40f || design == null || maxColumnHeight < MIN_PANE_HEIGHT) {
             return;
         }
 
-        ImGui.beginChild("##pole_design_preview_canvas", 0, PREVIEW_HEIGHT, true, PREVIEW_CHILD_FLAGS);
+        ImGui.text(PlotI18n.tr("plugin.powerline.design.preview"));
+        PoleVoxelPreviewModel model = PoleVoxelizer.voxelize(design);
+        float paneHeight = resolvePaneHeight(design, model, maxColumnHeight);
+        float canvasHeight = paneHeight * 2f + PANE_GAP;
+
+        ImGui.beginChild("##pole_design_preview_canvas", width, canvasHeight, true, PREVIEW_CHILD_FLAGS);
         float contentWidth = ImGui.getContentRegionAvail().x;
         float contentHeight = ImGui.getContentRegionAvail().y;
-        float paneWidth = Math.max(40f, (contentWidth - PANE_GAP) * 0.5f);
+        float eachPaneHeight = Math.max(40f, (contentHeight - PANE_GAP) * 0.5f);
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
-        PoleVoxelPreviewModel model = PoleVoxelizer.voxelize(design);
 
-        float y0 = origin.y;
-        float y1 = y0 + contentHeight;
-        float frontX0 = origin.x;
-        float frontX1 = frontX0 + paneWidth;
-        float sideX0 = frontX1 + PANE_GAP;
-        float sideX1 = sideX0 + paneWidth;
+        float frontY0 = origin.y;
+        float frontY1 = frontY0 + eachPaneHeight;
+        float sideY0 = frontY1 + PANE_GAP;
+        float sideY1 = sideY0 + eachPaneHeight;
 
         renderPane(
             drawList,
@@ -61,23 +69,43 @@ public final class PoleDesignPreviewRenderer {
             model,
             PoleVoxelElevationRenderer.ElevationView.FRONT,
             PlotI18n.tr("plugin.powerline.design.preview_front"),
-            frontX0 + PANE_PADDING,
-            y0 + PANE_PADDING,
-            frontX1 - PANE_PADDING,
-            y1 - PANE_PADDING);
+            origin.x + PANE_PADDING,
+            frontY0 + PANE_PADDING,
+            origin.x + contentWidth - PANE_PADDING,
+            frontY1 - PANE_PADDING);
         renderPane(
             drawList,
             design,
             model,
             PoleVoxelElevationRenderer.ElevationView.SIDE,
             PlotI18n.tr("plugin.powerline.design.preview_side"),
-            sideX0 + PANE_PADDING,
-            y0 + PANE_PADDING,
-            sideX1 - PANE_PADDING,
-            y1 - PANE_PADDING);
+            origin.x + PANE_PADDING,
+            sideY0 + PANE_PADDING,
+            origin.x + contentWidth - PANE_PADDING,
+            sideY1 - PANE_PADDING);
 
         ImGui.dummy(contentWidth, contentHeight);
         ImGui.endChild();
+
+        ImGui.text(PlotI18n.tr("plugin.powerline.design.total_height", design.totalHeight()));
+    }
+
+    /** 根据塔高估算单视图画布高度（带上限，避免左栏过高）。 */
+    public static float resolvePaneHeight(
+            PoleDesign design,
+            PoleVoxelPreviewModel model,
+            float maxColumnHeight) {
+        float maxPaneByColumn = Math.max(
+            MIN_PANE_HEIGHT,
+            (maxColumnHeight - COLUMN_TITLE_HEIGHT - COLUMN_FOOTER_HEIGHT - PANE_GAP) * 0.5f);
+        float maxPane = Math.min(MAX_PANE_HEIGHT, maxPaneByColumn);
+        if (design == null) {
+            return Math.min(maxPane, MIN_PANE_HEIGHT);
+        }
+        float byBlocks = model != null && !model.isEmpty()
+            ? model.heightY() * HEIGHT_PER_BLOCK + PANE_CHROME_HEIGHT
+            : design.totalHeight() * HEIGHT_PER_BLOCK + 32f;
+        return Math.min(maxPane, Math.max(MIN_PANE_HEIGHT, byBlocks));
     }
 
     private static void renderPane(

@@ -1,5 +1,6 @@
 package com.plot.plugin.powerline.ui;
 
+import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import com.plot.plugin.powerline.preview.PoleVoxelElevationRenderer;
@@ -36,6 +37,24 @@ class PoleDesignPreviewRendererTest {
         float markerY = PoleVoxelElevationRenderer.mapVerticalToScreen(layout, model, 2);
         assertTrue(markerX >= x0 && markerX <= x1);
         assertTrue(markerY >= y0 && markerY <= y1);
+    }
+
+    @Test
+    void paneHeightScalesWithTowerButStaysBounded() {
+        PoleVoxelPreviewModel shortModel = PoleVoxelizer.voxelize(PoleDesignCatalog.simpleWoodPole());
+        PoleDesign tallDesign = TowerStructurePresets.taperedLatticePoleDesign("tall", "Tall");
+        PoleVoxelPreviewModel tallModel = PoleVoxelizer.voxelize(tallDesign);
+        float shortPane = PoleDesignPreviewRenderer.resolvePaneHeight(
+            PoleDesignCatalog.simpleWoodPole(),
+            shortModel,
+            520f);
+        float tallPane = PoleDesignPreviewRenderer.resolvePaneHeight(
+            tallDesign,
+            tallModel,
+            520f);
+        assertTrue(shortPane >= 96f);
+        assertTrue(tallPane >= shortPane);
+        assertTrue(tallPane <= 220f);
     }
 
     @Test

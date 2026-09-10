@@ -37,12 +37,14 @@ import java.util.Map;
 
 /** 杆塔分层设计器独立窗口（居中弹出、可拖动、不参与 DockSpace 停靠）。 */
 public final class PoleDesignerPanel {
-    private static final float DESIGNER_WIDTH = 620f;
-    private static final float DESIGNER_HEIGHT = 680f;
+    private static final float DESIGNER_WIDTH = 920f;
+    private static final float DESIGNER_HEIGHT = 620f;
+    private static final float PREVIEW_COLUMN_WIDTH = 272f;
+    private static final float COLUMN_GAP = 12f;
     private static final int DESIGNER_WINDOW_FLAGS =
-        ImGuiWindowFlags.NoDocking
-            | ImGuiWindowFlags.NoSavedSettings
-            | ImGuiWindowFlags.AlwaysVerticalScrollbar;
+        ImGuiWindowFlags.NoDocking | ImGuiWindowFlags.NoSavedSettings;
+    private static final int PREVIEW_COLUMN_FLAGS =
+        ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
 
     private static final TowerRole[] FAMILY_EDIT_ROLES = {
         TowerRole.SUSPENSION,
@@ -138,21 +140,8 @@ public final class PoleDesignerPanel {
             }
 
             try {
-                renderDraftHistoryControls();
-                ImGui.separator();
-                renderPresetSelector();
-                ImGui.separator();
-                PoleDesignPreviewRenderer.render(draft);
-                ImGui.text(PlotI18n.tr("plugin.powerline.design.total_height", draft.totalHeight()));
-                ImGui.separator();
-                renderStructureSection();
-                ImGui.separator();
-                renderLayerList();
-                ImGui.separator();
-                renderAttachmentList();
-                ImGui.separator();
-                renderSaveActions();
-
+                renderToolbar();
+                renderSplitBody();
                 renderPresetConfirmPopup();
             } finally {
                 ImGui.end();
@@ -228,6 +217,40 @@ public final class PoleDesignerPanel {
         } finally {
             ImGui.endPopup();
         }
+    }
+
+    private void renderToolbar() {
+        renderDraftHistoryControls();
+        ImGui.separator();
+        renderPresetSelector();
+        ImGui.separator();
+    }
+
+    private void renderSplitBody() {
+        float bodyHeight = ImGui.getContentRegionAvail().y;
+        if (bodyHeight < 120f) {
+            return;
+        }
+
+        if (ImGui.beginChild("##designer_preview_column", PREVIEW_COLUMN_WIDTH, bodyHeight, false, PREVIEW_COLUMN_FLAGS)) {
+            PoleDesignPreviewRenderer.renderVerticalStack(
+                draft,
+                ImGui.getContentRegionAvail().x,
+                bodyHeight);
+        }
+        ImGui.endChild();
+
+        ImGui.sameLine(0, COLUMN_GAP);
+        if (ImGui.beginChild("##designer_params_column", 0, bodyHeight, false)) {
+            renderStructureSection();
+            ImGui.separator();
+            renderLayerList();
+            ImGui.separator();
+            renderAttachmentList();
+            ImGui.separator();
+            renderSaveActions();
+        }
+        ImGui.endChild();
     }
 
     private void renderDraftHistoryControls() {
