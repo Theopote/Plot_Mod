@@ -5,7 +5,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
-import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;

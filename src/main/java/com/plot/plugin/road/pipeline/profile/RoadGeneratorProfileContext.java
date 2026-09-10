@@ -11,7 +11,7 @@ import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.RoadGeometrySampler;
 import com.plot.plugin.road.station.RoadStationing;
-import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 
 import java.util.List;
 

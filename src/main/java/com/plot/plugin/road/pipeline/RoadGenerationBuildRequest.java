@@ -5,7 +5,7 @@ import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnaps;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
-import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 
 import java.util.List;
 

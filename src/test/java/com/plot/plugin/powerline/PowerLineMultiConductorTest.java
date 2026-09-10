@@ -13,7 +13,7 @@ import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.PoleLayer;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
-import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 

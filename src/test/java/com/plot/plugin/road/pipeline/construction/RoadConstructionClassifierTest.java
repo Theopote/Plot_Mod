@@ -5,8 +5,8 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
-import com.plot.plugin.road.terrain.FlatTerrainSampler;
-import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.core.terrain.FlatTerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 

@@ -20,7 +20,7 @@ import com.plot.plugin.road.model.RoadTopologyRoadSplitter;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.RoadCrossSection;
-import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

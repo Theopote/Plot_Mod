@@ -9,8 +9,8 @@ import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadNetworkValidationReport;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.solid.RoadGenerationResult;
-import com.plot.plugin.road.terrain.FlatTerrainSampler;
-import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.core.terrain.FlatTerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 
 import java.util.Map;
 

@@ -1,7 +1,7 @@
 package com.plot.plugin.powerline.engineering.clearance;
 
 import com.plot.plugin.powerline.geometry.ConductorSample;
-import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 
 /** 导线采样点净空（供生成阶段 warning 等复用）。 */
 public final class WireClearance {

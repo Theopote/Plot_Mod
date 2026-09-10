@@ -2,7 +2,7 @@ package com.plot.plugin.road.golden;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.RoadNetwork;
-import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 
 /**
  * 单个道路 Golden 场景：网络 + 地形 + 配置。

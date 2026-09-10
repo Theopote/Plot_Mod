@@ -3,7 +3,7 @@ package com.plot.plugin.powerline;
 import com.plot.plugin.powerline.engineering.TerrainAvoidance;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
-import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;

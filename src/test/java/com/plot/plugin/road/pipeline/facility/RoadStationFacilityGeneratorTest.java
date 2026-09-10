@@ -20,7 +20,7 @@ import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
-import com.plot.plugin.road.terrain.FlatTerrainSampler;
+import com.plot.core.terrain.FlatTerrainSampler;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

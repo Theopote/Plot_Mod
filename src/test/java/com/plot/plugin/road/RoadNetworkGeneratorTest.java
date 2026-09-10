@@ -15,7 +15,7 @@ import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.pipeline.EdgeGenerationOutcome;
 import com.plot.plugin.road.pipeline.EdgeGenerationResult;
 import com.plot.plugin.road.pipeline.RoadGenerationResultAssembler;
-import com.plot.plugin.road.terrain.FlatTerrainSampler;
+import com.plot.core.terrain.FlatTerrainSampler;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

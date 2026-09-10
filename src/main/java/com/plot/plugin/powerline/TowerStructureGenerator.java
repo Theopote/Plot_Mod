@@ -18,7 +18,7 @@ import com.plot.plugin.powerline.design.structure.TowerStructureGeometry;
 import com.plot.plugin.powerline.design.structure.TowerStructureValidator;
 import com.plot.plugin.powerline.design.structure.TowerValidationIssue;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
-import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.LinkedHashSet;

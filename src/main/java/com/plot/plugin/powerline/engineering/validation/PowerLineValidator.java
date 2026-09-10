@@ -2,7 +2,7 @@ package com.plot.plugin.powerline.engineering.validation;
 
 import com.plot.plugin.powerline.geometry.PowerLineGeometryModel;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
-import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 
 import java.util.List;
 

@@ -8,7 +8,7 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.solid.RoadGenerationResult;
-import com.plot.plugin.road.terrain.FlatTerrainSampler;
+import com.plot.core.terrain.FlatTerrainSampler;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import org.junit.jupiter.api.Test;

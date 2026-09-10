@@ -9,7 +9,7 @@ import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.ProfileSolveResult;
 import com.plot.plugin.road.pipeline.profile.ProfileSolveSupport;
 import com.plot.plugin.road.pipeline.profile.RoadProfileSolver;
-import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalMode;

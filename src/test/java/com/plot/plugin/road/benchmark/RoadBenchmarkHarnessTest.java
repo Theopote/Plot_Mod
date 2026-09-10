@@ -9,7 +9,7 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
-import com.plot.plugin.road.terrain.FlatTerrainSampler;
+import com.plot.core.terrain.FlatTerrainSampler;
 import com.plot.api.geometry.Vec2d;
 import org.junit.jupiter.api.Test;
 

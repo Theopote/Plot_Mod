@@ -1,10 +1,8 @@
-package com.plot.plugin.road.terrain;
+package com.plot.core.terrain;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
-import com.plot.core.terrain.EngineeringTerrainSampler;
-import com.plot.core.terrain.EngineeringTerrainService;
-import com.plot.plugin.road.RoadGeometryUtils;
+import com.plot.core.geometry.WorldCoordinateUtils;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
@@ -32,7 +30,7 @@ public final class MinecraftTerrainSampler implements TerrainSampler {
         if (planPoint == null) {
             return DEFAULT_SEA_LEVEL;
         }
-        BlockPos column = RoadGeometryUtils.canvasToBlockXZ(planPoint, transformer);
+        BlockPos column = WorldCoordinateUtils.canvasToBlockXZ(planPoint, transformer);
         return EngineeringTerrainSampler.sampleGroundSurface(world, column.getX(), column.getZ());
     }
 
@@ -51,7 +49,7 @@ public final class MinecraftTerrainSampler implements TerrainSampler {
         if (planPoint == null) {
             return DEFAULT_SEA_LEVEL;
         }
-        BlockPos column = RoadGeometryUtils.canvasToBlockXZ(planPoint, transformer);
+        BlockPos column = WorldCoordinateUtils.canvasToBlockXZ(planPoint, transformer);
         return EngineeringTerrainSampler.sampleRawSurface(world, column.getX(), column.getZ());
     }
 

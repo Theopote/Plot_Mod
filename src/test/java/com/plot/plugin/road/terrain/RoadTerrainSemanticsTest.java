@@ -3,6 +3,8 @@ package com.plot.plugin.road.terrain;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.terrain.EngineeringTerrainBlockRole;
 import com.plot.core.terrain.EngineeringTerrainService;
+import com.plot.core.terrain.FlatTerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.road.RoadRoadbedGradingUtils;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import net.minecraft.util.math.BlockPos;

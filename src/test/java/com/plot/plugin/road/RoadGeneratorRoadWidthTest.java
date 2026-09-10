@@ -3,7 +3,7 @@ package com.plot.plugin.road;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.solid.RoadGenerationResult;
-import com.plot.plugin.road.terrain.FlatTerrainSampler;
+import com.plot.core.terrain.FlatTerrainSampler;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 

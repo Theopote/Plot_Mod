@@ -22,8 +22,8 @@ import com.plot.plugin.powerline.equipment.LineEquipmentGenerator;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 import com.plot.plugin.powerline.model.TowerRole;
-import com.plot.plugin.road.RoadGeometryUtils;
-import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.core.geometry.WorldCoordinateUtils;
+import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -221,7 +221,7 @@ public class PowerLineGenerator {
             int poleTopY,
             PowerLineFootprint footprint,
             PowerLineGenerationResult result) {
-        BlockPos column = RoadGeometryUtils.canvasToBlockXZ(planPoint, coordinateTransformer);
+        BlockPos column = WorldCoordinateUtils.canvasToBlockXZ(planPoint, coordinateTransformer);
         MaterialMix poleMaterial = footprint.getPoleMaterial();
         for (int y = groundY + 1; y <= poleTopY; y++) {
             BlockPos pos = new BlockPos(column.getX(), y, column.getZ());
@@ -239,7 +239,7 @@ public class PowerLineGenerator {
             PowerLineGenerationResult result) {
         int wireHangY = design.wireHangHeightFromGround(groundY);
         Vec2d direction = tangent.lengthSquared() > 1e-12 ? tangent.normalize() : new Vec2d(1, 0);
-        Vec2d normal = RoadGeometryUtils.leftNormal(direction);
+        Vec2d normal = WorldCoordinateUtils.leftNormal(direction);
         PoleLayerVoxelPlacer.placeDesign(
             design,
             planPoint,

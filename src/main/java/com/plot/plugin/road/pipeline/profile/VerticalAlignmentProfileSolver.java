@@ -2,7 +2,7 @@ package com.plot.plugin.road.pipeline.profile;
 
 import com.plot.plugin.road.RoadSlopeUtils;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
-import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;

@@ -1,4 +1,4 @@
-package com.plot.plugin.road.terrain;
+package com.plot.core.terrain;
 
 import com.plot.api.geometry.Vec2d;
 import org.junit.jupiter.api.Test;

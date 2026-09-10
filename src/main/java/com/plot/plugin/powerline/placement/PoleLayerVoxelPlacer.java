@@ -1,11 +1,11 @@
 package com.plot.plugin.powerline.placement;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.geometry.WorldCoordinateUtils;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleLayer;
-import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.api.world.ICoordinateService;
 import net.minecraft.util.math.BlockPos;
 
@@ -29,7 +29,7 @@ public final class PoleLayerVoxelPlacer {
     /** 世界坐标系：plan → canvas 方块 XZ，Y 为绝对高度。 */
     public static PlanToBlockMapper worldMapper(ICoordinateService coordinateTransformer) {
         return (planPoint, worldY) -> {
-            BlockPos column = RoadGeometryUtils.canvasToBlockXZ(planPoint, coordinateTransformer);
+            BlockPos column = WorldCoordinateUtils.canvasToBlockXZ(planPoint, coordinateTransformer);
             return new BlockPos(column.getX(), worldY, column.getZ());
         };
     }

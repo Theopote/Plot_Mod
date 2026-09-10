@@ -1,7 +1,5 @@
-package com.plot.plugin.road.terrain;
+package com.plot.core.terrain;
 
-import com.plot.core.terrain.EngineeringTerrainService;
-import com.plot.core.terrain.TerrainBlockReader;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 

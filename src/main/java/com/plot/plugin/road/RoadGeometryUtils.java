@@ -523,11 +523,7 @@ public final class RoadGeometryUtils {
      * 路径切向量的左法向（单位向量，用于横断面采样）
      */
     public static Vec2d leftNormal(Vec2d direction) {
-        if (direction == null || direction.lengthSquared() < 1e-12) {
-            return new Vec2d(0, 1);
-        }
-        Vec2d unit = direction.normalize();
-        return new Vec2d(-unit.y, unit.x);
+        return com.plot.core.geometry.WorldCoordinateUtils.leftNormal(direction);
     }
 
     /**
@@ -893,22 +889,7 @@ public final class RoadGeometryUtils {
      * 画布坐标转 Minecraft 方块 XZ（Y 由调用方指定）
      */
     public static BlockPos canvasToBlockXZ(Vec2d canvasPos, ICoordinateService transformer) {
-        if (canvasPos == null) {
-            return BlockPos.ORIGIN;
-        }
-        if (transformer != null) {
-            Vec2d worldPos = transformer.canvasToMinecraftWorld(canvasPos);
-            if (worldPos != null) {
-                return new BlockPos(
-                    (int) Math.round(worldPos.x),
-                    0,
-                    (int) Math.round(worldPos.y));
-            }
-        }
-        return new BlockPos(
-            (int) Math.round(canvasPos.x),
-            0,
-            (int) Math.round(canvasPos.y));
+        return com.plot.core.geometry.WorldCoordinateUtils.canvasToBlockXZ(canvasPos, transformer);
     }
 
     /**

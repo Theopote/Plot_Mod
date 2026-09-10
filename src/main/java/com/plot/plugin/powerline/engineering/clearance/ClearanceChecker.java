@@ -7,7 +7,7 @@ import com.plot.plugin.powerline.engineering.PowerLineIssueSeverity;
 import com.plot.plugin.powerline.engineering.SimplePowerLineIssue;
 import com.plot.plugin.powerline.geometry.ConductorSample;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
-import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 
 /** 基于 conductor sample 的净空检查（只读）。 */
 public final class ClearanceChecker {

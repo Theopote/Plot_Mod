@@ -2,7 +2,7 @@ package com.plot.plugin.road.pipeline.profile;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
-import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 
 import java.util.ArrayList;
 import java.util.List;

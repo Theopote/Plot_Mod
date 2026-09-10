@@ -18,7 +18,7 @@ import com.plot.plugin.road.pipeline.profile.RoadProfileSolveCoordinator;
 import com.plot.plugin.road.pipeline.profile.RoadProfileSolver;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.solid.RoadGenerationResult;
-import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

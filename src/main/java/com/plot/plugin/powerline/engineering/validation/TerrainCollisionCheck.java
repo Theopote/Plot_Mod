@@ -8,7 +8,7 @@ import com.plot.plugin.powerline.engineering.clearance.ClearanceAnalysis;
 import com.plot.plugin.powerline.engineering.clearance.ClearanceChecker;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
 import com.plot.plugin.powerline.geometry.PowerLineGeometryModel;
-import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 
 /** 导线与地形碰撞 / 净空不足。 */
 public final class TerrainCollisionCheck implements LineValidationCheck {

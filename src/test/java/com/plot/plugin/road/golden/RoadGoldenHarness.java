@@ -5,7 +5,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.benchmark.RoadBenchmarkHarness;
 import com.plot.plugin.road.model.RoadNetwork;
-import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 
 /**
  * 运行道路生成管线并收集 Golden / Acceptance 输入。

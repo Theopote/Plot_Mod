@@ -6,7 +6,7 @@ import com.plot.plugin.road.RoadConstructionEvaluator;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
-import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
