@@ -268,14 +268,43 @@ public class UIUtils {
             MaterialMixSetter setter,
             Runnable pushHistoryOnChange) {
         MaterialMix mix = currentValue != null ? currentValue : defaultMix;
+        ImGui.pushID(buttonId);
+        ImGui.textColored(PluginUiColors.HINT_GRAY, label);
+        renderMaterialMixPickerButton(mix, defaultMix, setter, pushHistoryOnChange);
+        boolean hasAccentMaterial = mix.getAccentMaterial() != null && !mix.getAccentMaterial().isBlank();
+        if (hasAccentMaterial) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.material.accent_ratio"));
+            ImGui.setNextItemWidth(Math.max(120f, ImGui.getContentRegionAvailX() - 4f));
+            renderAccentRatioSliderControl(mix, setter, "accent", pushHistoryOnChange);
+        }
+        ImGui.popID();
+    }
+
+    /**
+     * 材质选择按钮（无独立标签行，供 DialogLayoutHelper 表单控件列使用）。
+     */
+    public static void renderMaterialMixPickerControl(
+            String buttonId,
+            MaterialMix currentValue,
+            MaterialMix defaultMix,
+            MaterialMixSetter setter,
+            Runnable pushHistoryOnChange) {
+        MaterialMix mix = currentValue != null ? currentValue : defaultMix;
+        ImGui.pushID(buttonId);
+        renderMaterialMixPickerButton(mix, defaultMix, setter, pushHistoryOnChange);
+        ImGui.popID();
+    }
+
+    private static void renderMaterialMixPickerButton(
+            MaterialMix mix,
+            MaterialMix defaultMix,
+            MaterialMixSetter setter,
+            Runnable pushHistoryOnChange) {
         String displayName = getBlockDisplayName(mix.getPrimaryMaterial());
         if (mix.getAccentMaterial() != null && !mix.getAccentMaterial().isBlank()) {
             displayName += " + " + getBlockDisplayName(mix.getAccentMaterial());
         }
-
-        ImGui.pushID(buttonId);
-        ImGui.textColored(PluginUiColors.HINT_GRAY, label);
-        if (ImGui.button(displayName + "##pick", ImGui.getContentRegionAvailX(), 0)) {
+        if (ImGui.button(displayName + "##pick", -1, 0)) {
             List<String> initial = new ArrayList<>();
             if (mix.getPrimaryMaterial() != null && !mix.getPrimaryMaterial().isBlank()) {
                 initial.add(mix.getPrimaryMaterial());
@@ -293,18 +322,12 @@ public class UIUtils {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("plugin.road.select_block_hint"));
         }
-
-        boolean hasAccentMaterial = mix.getAccentMaterial() != null && !mix.getAccentMaterial().isBlank();
-        if (hasAccentMaterial) {
-            renderAccentRatioSlider(mix, setter, buttonId, pushHistoryOnChange);
-        }
-        ImGui.popID();
     }
 
     /**
-     * 点缀比例滑条（0–50%）。
+     * 点缀比例滑条（无独立标签行，供表单控件列使用）。
      */
-    public static void renderAccentRatioSlider(
+    public static boolean renderAccentRatioSliderControl(
             MaterialMix mix,
             MaterialMixSetter setter,
             String id,
@@ -319,13 +342,7 @@ public class UIUtils {
 
         float[] ratioPercent = {current.getAccentRatio() * 100f};
         ImGui.pushID(id);
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        boolean ratioChanged = ImGui.sliderFloat(
-            PlotI18n.tr("plugin.material.accent_ratio") + "##accent_ratio_slider",
-            ratioPercent,
-            0f,
-            50f,
-            "%.0f%%");
+        boolean ratioChanged = ImGui.sliderFloat("##accent_ratio", ratioPercent, 0f, 50f, "%.0f%%");
         if (ImGui.isItemActivated() && onActivated != null) {
             onActivated.run();
         }
@@ -334,6 +351,22 @@ public class UIUtils {
             updated.setAccentRatio(ratioPercent[0] / 100f);
             setter.set(updated);
         }
+        ImGui.popID();
+        return ratioChanged;
+    }
+
+    /**
+     * 点缀比例滑条（0–50%）。
+     */
+    public static void renderAccentRatioSlider(
+            MaterialMix mix,
+            MaterialMixSetter setter,
+            String id,
+            Runnable onActivated) {
+        ImGui.pushID(id);
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.material.accent_ratio"));
+        ImGui.setNextItemWidth(Math.max(120f, ImGui.getContentRegionAvailX() - 4f));
+        renderAccentRatioSliderControl(mix, setter, "slider", onActivated);
         ImGui.popID();
     }
 

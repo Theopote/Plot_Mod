@@ -20,13 +20,13 @@ import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.ui.component.UIUtils;
+import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
-import imgui.type.ImFloat;
 import imgui.type.ImInt;
 import imgui.type.ImString;
 
@@ -37,10 +37,12 @@ import java.util.Map;
 
 /** 杆塔分层设计器独立窗口（居中弹出、可拖动、不参与 DockSpace 停靠）。 */
 public final class PoleDesignerPanel {
-    private static final float DESIGNER_WIDTH = 480f;
-    private static final float DESIGNER_HEIGHT = 560f;
+    private static final float DESIGNER_WIDTH = 620f;
+    private static final float DESIGNER_HEIGHT = 680f;
     private static final int DESIGNER_WINDOW_FLAGS =
-        ImGuiWindowFlags.NoDocking | ImGuiWindowFlags.NoSavedSettings;
+        ImGuiWindowFlags.NoDocking
+            | ImGuiWindowFlags.NoSavedSettings
+            | ImGuiWindowFlags.AlwaysVerticalScrollbar;
 
     private static final TowerRole[] FAMILY_EDIT_ROLES = {
         TowerRole.SUSPENSION,
@@ -329,37 +331,7 @@ public final class PoleDesignerPanel {
         for (int i = 0; i < structure.getStations().size(); i++) {
             TowerStation station = structure.getStations().get(i);
             ImGui.pushID("station_" + i);
-            ImFloat height = new ImFloat((float) station.getHeight());
-            ImFloat width = new ImFloat((float) station.getHalfWidth());
-            ImFloat depth = new ImFloat((float) station.getHalfDepth());
-            ImGui.setNextItemWidth(50);
-            if (ImGui.inputFloat("H", height)) {
-                station.setHeight(height.get());
-            }
-            if (ImGui.isItemActivated()) {
-                pushDraftSnapshot();
-            }
-            ImGui.sameLine();
-            ImGui.setNextItemWidth(50);
-            if (ImGui.inputFloat("W", width)) {
-                station.setHalfWidth(width.get());
-            }
-            if (ImGui.isItemActivated()) {
-                pushDraftSnapshot();
-            }
-            ImGui.sameLine();
-            ImGui.setNextItemWidth(50);
-            if (ImGui.inputFloat("D", depth)) {
-                station.setHalfDepth(depth.get());
-            }
-            if (ImGui.isItemActivated()) {
-                pushDraftSnapshot();
-            }
-            ImGui.sameLine();
-            if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.delete_layer"))) {
-                pushDraftSnapshot();
-                structure.removeStation(station.getId());
-            }
+            renderStationRow(station, structure);
             ImGui.popID();
         }
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.structure_add_station"), 0, 0)) {
@@ -438,6 +410,9 @@ public final class PoleDesignerPanel {
     }
 
     private void renderDecorationRow(TowerDecoration decoration) {
+        if (!DialogLayoutHelper.beginForm("##deco_form")) {
+            return;
+        }
         TowerDecorationKind[] kinds = TowerDecorationKind.values();
         String[] kindLabels = new String[kinds.length];
         int selectedKind = 0;
@@ -447,46 +422,53 @@ public final class PoleDesignerPanel {
                 selectedKind = i;
             }
         }
+        DialogLayoutHelper.formRowLabel(PlotI18n.tr("plugin.powerline.design.decoration_kind"));
         ImInt kindIndex = new ImInt(selectedKind);
-        ImGui.setNextItemWidth(110);
         if (ImGui.combo("##deco_kind", kindIndex, kindLabels)) {
             pushDraftSnapshot();
             decoration.setKind(kinds[kindIndex.get()]);
         }
-        ImGui.sameLine();
-        ImFloat baseHeight = new ImFloat((float) decoration.getBaseHeight());
-        ImGui.setNextItemWidth(55);
-        if (ImGui.inputFloat(PlotI18n.tr("plugin.powerline.design.structure_arm_height"), baseHeight)) {
-            decoration.setBaseHeight(baseHeight.get());
+
+        float[] baseHeight = {(float) decoration.getBaseHeight()};
+        if (formRowSliderFloat(
+                "plugin.powerline.design.structure_arm_height",
+                "##deco_height",
+                baseHeight,
+                0f,
+                256f,
+                "%.1f")) {
+            decoration.setBaseHeight(baseHeight[0]);
         }
         if (ImGui.isItemActivated()) {
             pushDraftSnapshot();
         }
+
         if (decoration.getKind() == TowerDecorationKind.ANTENNA
                 || decoration.getKind() == TowerDecorationKind.PLATFORM) {
-            ImGui.sameLine();
-            ImFloat size = new ImFloat((float) decoration.getSize());
-            ImGui.setNextItemWidth(55);
-            String sizeLabel = decoration.getKind() == TowerDecorationKind.PLATFORM
-                ? PlotI18n.tr("plugin.powerline.design.decoration_platform_radius")
-                : PlotI18n.tr("plugin.powerline.design.decoration_antenna_height");
-            if (ImGui.inputFloat(sizeLabel, size)) {
-                decoration.setSize(size.get());
+            float[] size = {(float) decoration.getSize()};
+            String sizeKey = decoration.getKind() == TowerDecorationKind.PLATFORM
+                ? "plugin.powerline.design.decoration_platform_radius"
+                : "plugin.powerline.design.decoration_antenna_height";
+            if (formRowSliderFloat(sizeKey, "##deco_size", size, 0.5f, 32f, "%.1f")) {
+                decoration.setSize(size[0]);
             }
             if (ImGui.isItemActivated()) {
                 pushDraftSnapshot();
             }
         }
-        ImGui.sameLine();
-        if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.decoration_snap_top"))) {
+
+        DialogLayoutHelper.formRowLabel(" ");
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.decoration_snap_top") + "##snap", 0, 0)) {
             pushDraftSnapshot();
             decoration.setBaseHeight(structureTopSnapHeight(decoration));
         }
         ImGui.sameLine();
-        if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.delete_layer"))) {
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.delete_layer") + "##delete", 0, 0)) {
             pushDraftSnapshot();
             draft.getTowerStructure().removeDecoration(decoration.getId());
         }
+        DialogLayoutHelper.endForm();
+        DialogLayoutHelper.subsectionGap();
     }
 
     private double structureTopSnapHeight(TowerDecoration decoration) {
@@ -499,49 +481,106 @@ public final class PoleDesignerPanel {
     }
 
     private void renderArmControls(TowerStructureDesign structure, TowerArm arm) {
-        ImFloat baseHeight = new ImFloat((float) arm.getBaseHeight());
-        ImFloat reach = new ImFloat((float) arm.getLateralReach());
-        ImFloat verticalDrop = new ImFloat((float) arm.getVerticalDrop());
-        ImGui.setNextItemWidth(60);
-        if (ImGui.inputFloat(PlotI18n.tr("plugin.powerline.design.structure_arm_height"), baseHeight)) {
-            arm.setBaseHeight(baseHeight.get());
+        if (!DialogLayoutHelper.beginForm("##arm_form")) {
+            return;
+        }
+        float[] baseHeight = {(float) arm.getBaseHeight()};
+        if (formRowSliderFloat(
+                "plugin.powerline.design.structure_arm_height",
+                "##arm_height",
+                baseHeight,
+                0f,
+                256f,
+                "%.1f")) {
+            arm.setBaseHeight(baseHeight[0]);
             TowerArmAttachmentBinding.syncBoundVerticalOffsets(arm, draft.getAttachments());
         }
         if (ImGui.isItemActivated()) {
             pushDraftSnapshot();
         }
-        ImGui.sameLine();
-        ImGui.setNextItemWidth(60);
-        if (ImGui.inputFloat(PlotI18n.tr("plugin.powerline.design.structure_arm_reach"), reach)) {
-            arm.setLateralReach(reach.get());
+
+        float[] reach = {(float) arm.getLateralReach()};
+        if (formRowSliderFloat(
+                "plugin.powerline.design.structure_arm_reach",
+                "##arm_reach",
+                reach,
+                1f,
+                32f,
+                "%.1f")) {
+            arm.setLateralReach(reach[0]);
         }
         if (ImGui.isItemActivated()) {
             pushDraftSnapshot();
         }
-        ImGui.sameLine();
-        ImGui.setNextItemWidth(60);
-        if (ImGui.inputFloat(PlotI18n.tr("plugin.powerline.design.structure_arm_drop"), verticalDrop)) {
-            arm.setVerticalDrop(verticalDrop.get());
+
+        float[] verticalDrop = {(float) arm.getVerticalDrop()};
+        if (formRowSliderFloat(
+                "plugin.powerline.design.structure_arm_drop",
+                "##arm_drop",
+                verticalDrop,
+                0f,
+                32f,
+                "%.1f")) {
+            arm.setVerticalDrop(verticalDrop[0]);
         }
         if (ImGui.isItemActivated()) {
             pushDraftSnapshot();
         }
-        ImGui.sameLine();
-        if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.arm_sync_height"))) {
+
+        DialogLayoutHelper.formRowLabel(" ");
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.arm_sync_height") + "##sync_h", 0, 0)) {
             pushDraftSnapshot();
             TowerArmAttachmentBinding.syncBoundVerticalOffsets(arm, draft.getAttachments());
         }
         ImGui.sameLine();
-        if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.arm_sync_spread"))) {
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.arm_sync_spread") + "##sync_s", 0, 0)) {
             pushDraftSnapshot();
             TowerArmAttachmentBinding.syncBoundLateralSpread(arm, draft.getAttachments());
         }
         ImGui.sameLine();
-        if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.delete_layer"))) {
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.delete_layer") + "##delete", 0, 0)) {
             pushDraftSnapshot();
             TowerArmAttachmentBinding.clearArmBindings(draft.getAttachments(), arm.getId());
             structure.removeArm(arm.getId());
         }
+        DialogLayoutHelper.endForm();
+    }
+
+    private void renderStationRow(TowerStation station, TowerStructureDesign structure) {
+        if (!DialogLayoutHelper.beginForm("##station_form")) {
+            return;
+        }
+        float[] height = {(float) station.getHeight()};
+        if (formRowSliderFloat("plugin.powerline.design.station_height", "##h", height, 1f, 256f, "%.1f")) {
+            station.setHeight(height[0]);
+        }
+        if (ImGui.isItemActivated()) {
+            pushDraftSnapshot();
+        }
+
+        float[] width = {(float) station.getHalfWidth()};
+        if (formRowSliderFloat("plugin.powerline.design.station_width", "##w", width, 0.5f, 16f, "%.1f")) {
+            station.setHalfWidth(width[0]);
+        }
+        if (ImGui.isItemActivated()) {
+            pushDraftSnapshot();
+        }
+
+        float[] depth = {(float) station.getHalfDepth()};
+        if (formRowSliderFloat("plugin.powerline.design.station_depth", "##d", depth, 0.5f, 16f, "%.1f")) {
+            station.setHalfDepth(depth[0]);
+        }
+        if (ImGui.isItemActivated()) {
+            pushDraftSnapshot();
+        }
+
+        DialogLayoutHelper.formRowLabel(" ");
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.delete_layer") + "##delete", 0, 0)) {
+            pushDraftSnapshot();
+            structure.removeStation(station.getId());
+        }
+        DialogLayoutHelper.endForm();
+        DialogLayoutHelper.subsectionGap();
     }
 
     private void renderArmDeckActions(TowerArm arm) {
@@ -673,60 +712,80 @@ public final class PoleDesignerPanel {
 
     private void renderAttachmentRow(ConductorAttachment attachment, TowerArm boundArm) {
         ImGui.text(PlotI18n.tr("plugin.powerline.design.attachment_row", attachment.getName()));
-        ImGui.sameLine();
-        if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.delete_layer"))) {
-            pushDraftSnapshot();
-            draft.removeAttachment(attachment.getId());
+        if (!DialogLayoutHelper.beginForm("##attachment_form")) {
+            return;
         }
         if (draft.hasTowerStructure()) {
-            renderAttachmentArmBinding(attachment, boundArm);
+            renderAttachmentArmBindingRow(attachment, boundArm);
         }
 
         float[] lateral = {(float) attachment.getLateralOffset()};
-        PowerLineUiWidgets.sliderFloatStable(
-            "attachment_lateral",
-            "plugin.powerline.design.attachment_lateral",
-            lateral,
-            -8f,
-            8f,
-            "%.1f",
-            this::pushDraftSnapshot,
-                attachment::setLateralOffset,
-            null);
-        float[] vertical = {(float) attachment.getVerticalOffset()};
-        PowerLineUiWidgets.sliderFloatStable(
-            "attachment_vertical",
-            "plugin.powerline.design.attachment_vertical",
-            vertical,
-            1f,
-            64f,
-            "%.1f",
-            this::pushDraftSnapshot,
-                attachment::setVerticalOffset,
-            null);
-        float[] longitudinal = {(float) attachment.getLongitudinalOffset()};
-        PowerLineUiWidgets.sliderFloatStable(
-            "attachment_longitudinal",
-            "plugin.powerline.design.attachment_longitudinal",
-            longitudinal,
-            -4f,
-            4f,
-            "%.1f",
-            this::pushDraftSnapshot,
-                attachment::setLongitudinalOffset,
-            null);
-        ImInt insulatorLength = new ImInt(attachment.getInsulatorLength());
-        ImGui.setNextItemWidth(80);
-        if (ImGui.inputInt(PlotI18n.tr("plugin.powerline.design.attachment_insulator"), insulatorLength)) {
-            attachment.setInsulatorLength(insulatorLength.get());
+        if (formRowSliderFloat(
+                "plugin.powerline.design.attachment_lateral",
+                "lateral",
+                lateral,
+                -8f,
+                8f,
+                "%.1f")) {
+            attachment.setLateralOffset(lateral[0]);
         }
         if (ImGui.isItemActivated()) {
             pushDraftSnapshot();
         }
+
+        float[] vertical = {(float) attachment.getVerticalOffset()};
+        if (formRowSliderFloat(
+                "plugin.powerline.design.attachment_vertical",
+                "vertical",
+                vertical,
+                1f,
+                64f,
+                "%.1f")) {
+            attachment.setVerticalOffset(vertical[0]);
+        }
+        if (ImGui.isItemActivated()) {
+            pushDraftSnapshot();
+        }
+
+        float[] longitudinal = {(float) attachment.getLongitudinalOffset()};
+        if (formRowSliderFloat(
+                "plugin.powerline.design.attachment_longitudinal",
+                "longitudinal",
+                longitudinal,
+                -4f,
+                4f,
+                "%.1f")) {
+            attachment.setLongitudinalOffset(longitudinal[0]);
+        }
+        if (ImGui.isItemActivated()) {
+            pushDraftSnapshot();
+        }
+
+        int[] insulatorLength = {attachment.getInsulatorLength()};
+        if (formRowSliderInt(
+                "plugin.powerline.design.attachment_insulator",
+                "##insulator",
+                insulatorLength,
+                0,
+                16)) {
+            attachment.setInsulatorLength(insulatorLength[0]);
+        }
+        if (ImGui.isItemActivated()) {
+            pushDraftSnapshot();
+        }
+
+        DialogLayoutHelper.formRowLabel(" ");
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.delete_layer") + "##delete", 0, 0)) {
+            pushDraftSnapshot();
+            draft.removeAttachment(attachment.getId());
+        }
+        DialogLayoutHelper.endForm();
+        DialogLayoutHelper.subsectionGap();
     }
 
-    private void renderAttachmentArmBinding(ConductorAttachment attachment, TowerArm boundArm) {
+    private void renderAttachmentArmBindingRow(ConductorAttachment attachment, TowerArm boundArm) {
         if (boundArm != null) {
+            DialogLayoutHelper.formRowLabel(PlotI18n.tr("plugin.powerline.design.attachment_arm_bind"));
             ImGui.textColored(0xFF90CAF9, PlotI18n.tr(
                 "plugin.powerline.design.attachment_bound_arm",
                 boundArm.getId()));
@@ -752,9 +811,9 @@ public final class PoleDesignerPanel {
                 i + 1,
                 (int) Math.round(arms.get(i).getBaseHeight()));
         }
+        DialogLayoutHelper.formRowLabel(PlotI18n.tr("plugin.powerline.design.attachment_arm_bind"));
         ImInt armIndex = new ImInt(selected);
-        ImGui.setNextItemWidth(140);
-        if (ImGui.combo(PlotI18n.tr("plugin.powerline.design.attachment_arm_bind"), armIndex, labels)) {
+        if (ImGui.combo("##arm_bind", armIndex, labels)) {
             pushDraftSnapshot();
             if (armIndex.get() == 0) {
                 attachment.setArmId(null);
@@ -785,62 +844,123 @@ public final class PoleDesignerPanel {
     }
 
     private void renderLayerRow(PoleLayer layer, int index) {
+        if (index > 0) {
+            ImGui.separator();
+        }
+        ImGui.text(PlotI18n.tr("plugin.powerline.design.layer_index", index + 1));
+        if (!DialogLayoutHelper.beginForm("##layer_form")) {
+            return;
+        }
+
         String[] shapeLabels = {
             PlotI18n.tr("plugin.powerline.design.shape.column"),
             PlotI18n.tr("plugin.powerline.design.shape.crossarm"),
             PlotI18n.tr("plugin.powerline.design.shape.cap")
         };
+        DialogLayoutHelper.formRowLabel(PlotI18n.tr("plugin.powerline.design.layer_shape"));
         ImInt shapeIndex = new ImInt(layer.getShape().ordinal());
-        ImGui.setNextItemWidth(90);
         if (ImGui.combo("##shape", shapeIndex, shapeLabels)) {
             pushDraftSnapshot();
             layer.setShape(PoleLayer.Shape.values()[shapeIndex.get()]);
         }
-        ImGui.sameLine();
 
-        ImInt height = new ImInt(layer.getHeight());
-        ImGui.setNextItemWidth(60);
-        if (ImGui.inputInt("##height", height)) {
-            layer.setHeight(height.get());
+        int[] height = {layer.getHeight()};
+        if (formRowSliderInt("plugin.powerline.design.layer_height", "##height", height, 1, 64)) {
+            layer.setHeight(height[0]);
         }
         if (ImGui.isItemActivated()) {
             pushDraftSnapshot();
         }
-        ImGui.sameLine();
 
         if (layer.getShape() == PoleLayer.Shape.CROSSARM) {
-            ImInt armLength = new ImInt(layer.getCrossarmLength());
-            ImGui.setNextItemWidth(60);
-            if (ImGui.inputInt("##arm", armLength)) {
-                layer.setCrossarmLength(armLength.get());
+            int[] span = {layer.getCrossarmLength()};
+            if (formRowSliderInt(
+                    "plugin.powerline.design.layer_crossarm_span",
+                    "##span",
+                    span,
+                    1,
+                    32)) {
+                layer.setCrossarmLength(span[0]);
             }
             if (ImGui.isItemActivated()) {
                 pushDraftSnapshot();
             }
-            ImGui.sameLine();
         }
 
-        UIUtils.renderMaterialMixPicker(
-            "layer_mat_" + index,
-            "",
+        DialogLayoutHelper.formRowLabel(PlotI18n.tr("plugin.powerline.design.layer_material"));
+        UIUtils.renderMaterialMixPickerControl(
+            "pick",
             layer.getMaterial(),
             MaterialMix.single(PowerLineFootprint.DEFAULT_POLE_MATERIAL),
             layer::setMaterial,
             this::pushDraftSnapshot);
-        ImGui.sameLine();
 
-        if (index > 0 && ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.move_up"))) {
-            pendingLayerActions.add(new LayerAction(LayerAction.Type.MOVE_UP, index));
+        MaterialMix mix = layer.getMaterial();
+        if (mix != null
+                && mix.getAccentMaterial() != null
+                && !mix.getAccentMaterial().isBlank()) {
+            DialogLayoutHelper.formRowLabel(PlotI18n.tr("plugin.material.accent_ratio"));
+            UIUtils.renderAccentRatioSliderControl(mix, layer::setMaterial, "accent", this::pushDraftSnapshot);
         }
-        ImGui.sameLine();
-        if (index < draft.getLayers().size() - 1
-                && ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.move_down"))) {
-            pendingLayerActions.add(new LayerAction(LayerAction.Type.MOVE_DOWN, index));
+
+        DialogLayoutHelper.endForm();
+        renderLayerActionButtons(index);
+        DialogLayoutHelper.subsectionGap();
+    }
+
+    private void renderLayerActionButtons(int index) {
+        float contentWidth = DialogStyleManager.getContentWidth();
+        float buttonWidth = DialogStyleManager.getStandardButtonWidth(
+            contentWidth,
+            3,
+            PlotI18n.tr("plugin.powerline.design.move_up"),
+            PlotI18n.tr("plugin.powerline.design.move_down"),
+            PlotI18n.tr("plugin.powerline.design.delete_layer"));
+        if (index > 0) {
+            if (ImGui.button(
+                    PlotI18n.tr("plugin.powerline.design.move_up") + "##up",
+                    buttonWidth,
+                    0)) {
+                pendingLayerActions.add(new LayerAction(LayerAction.Type.MOVE_UP, index));
+            }
+            ImGui.sameLine();
         }
-        ImGui.sameLine();
-        if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.delete_layer"))) {
+        if (index < draft.getLayers().size() - 1) {
+            if (ImGui.button(
+                    PlotI18n.tr("plugin.powerline.design.move_down") + "##down",
+                    buttonWidth,
+                    0)) {
+                pendingLayerActions.add(new LayerAction(LayerAction.Type.MOVE_DOWN, index));
+            }
+            ImGui.sameLine();
+        }
+        if (ImGui.button(
+                PlotI18n.tr("plugin.powerline.design.delete_layer") + "##delete",
+                buttonWidth,
+                0)) {
             pendingLayerActions.add(new LayerAction(LayerAction.Type.DELETE, index));
         }
+    }
+
+    private boolean formRowSliderInt(
+            String labelKey,
+            String fieldId,
+            int[] value,
+            int min,
+            int max) {
+        DialogLayoutHelper.formRowLabel(PlotI18n.tr(labelKey));
+        return ImGui.sliderInt(fieldId, value, min, max);
+    }
+
+    private boolean formRowSliderFloat(
+            String labelKey,
+            String fieldId,
+            float[] value,
+            float min,
+            float max,
+            String format) {
+        DialogLayoutHelper.formRowLabel(PlotI18n.tr(labelKey));
+        return ImGui.sliderFloat(fieldId, value, min, max, format);
     }
 
     private void applyPendingLayerActions() {
