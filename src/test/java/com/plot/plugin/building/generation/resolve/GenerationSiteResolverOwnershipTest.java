@@ -5,6 +5,7 @@ import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
 import com.plot.plugin.building.model.spec.BuildingDefinitionMapper;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
+import com.plot.test.world.IdentityCoordinateService;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -23,7 +24,8 @@ class GenerationSiteResolverOwnershipTest {
         fp.setManualBaseElevation(72);
         BuildingDefinition definition = BuildingDefinitionMapper.fromFootprint(fp);
         GenerationSiteResolver.ResolvedSiteElevation site =
-            BuildingGenerationContextFactory.resolveForTesting(definition, new BuildingGenerationResult()).site();
+            BuildingGenerationContextFactory.resolveForTesting(
+                definition, new BuildingGenerationResult(), IdentityCoordinateService.INSTANCE).site();
 
         assertEquals(72, site.requestedBaseElevation());
         assertNull(site.resolvedPadElevation());
@@ -40,7 +42,8 @@ class GenerationSiteResolverOwnershipTest {
         ), true);
         BuildingDefinition definition = BuildingDefinitionMapper.fromFootprint(fp);
         GenerationSiteResolver.ResolvedSiteElevation site =
-            BuildingGenerationContextFactory.resolveForTesting(definition, new BuildingGenerationResult()).site();
+            BuildingGenerationContextFactory.resolveForTesting(
+                definition, new BuildingGenerationResult(), IdentityCoordinateService.INSTANCE).site();
 
         assertNull(site.requestedBaseElevation());
         assertNull(site.resolvedPadElevation());

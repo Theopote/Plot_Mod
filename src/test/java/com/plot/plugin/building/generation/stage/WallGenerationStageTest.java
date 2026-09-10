@@ -4,8 +4,8 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.PlacementReadiness;
-import com.plot.api.world.WorldViewBounds;
 import com.plot.plugin.building.generation.BuildingGenerationContext;
+import com.plot.test.world.IdentityCoordinateService;
 import com.plot.plugin.building.generation.BuildingGenerationPipeline;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.generation.stage.FloorGenerationStage;
@@ -56,17 +56,7 @@ class WallGenerationStageTest {
     }
 
     private static ICoordinateService stubCoordinates() {
-        return new ICoordinateService() {
-            @Override
-            public Vec2d canvasToMinecraftWorld(Vec2d canvasPos) {
-                return canvasPos;
-            }
-
-            @Override
-            public WorldViewBounds getMinecraftWorldViewBounds() {
-                return new WorldViewBounds(-512, 512, -512, 512);
-            }
-        };
+        return IdentityCoordinateService.INSTANCE;
     }
 
     private static IBlockProjectionService stubProjection() {

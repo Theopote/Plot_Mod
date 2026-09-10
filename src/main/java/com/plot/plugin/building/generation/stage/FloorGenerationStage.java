@@ -73,7 +73,7 @@ public final class FloorGenerationStage implements BuildingGenerationStage {
         MassingSpec massing = definition.massing();
         EnvelopeSpec envelope = definition.envelope();
         ResolvedFloorPlate topPlate = FloorPlateGeometryResolver.resolve(
-            massing.topOccupiedPlate(), envelope.wallThickness());
+            massing.topOccupiedPlate(), envelope.wallThickness(), context.getCanvasScale());
         Polygon innerPolygon = topPlate.innerPolygon();
         if (!InnerOffsetDegradation.hasInteriorSpace(innerPolygon)) {
             return;

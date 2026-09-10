@@ -1,6 +1,7 @@
 package com.plot.plugin.building.generation.resolve;
 
 import com.plot.core.terrain.EngineeringTerrainService;
+import com.plot.plugin.building.generation.BuildingCanvasScale;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
 import com.plot.plugin.building.site.BuildingSiteAnalysis;
 import com.plot.plugin.building.site.BuildingSiteColumnSample;
@@ -19,6 +20,7 @@ public final class ResolvedBuildingDefinition {
     private final GenerationSiteResolver.ResolvedSiteElevation site;
     private final MaterialResolver.ResolvedMaterials materials;
     private final Map<Long, BuildingSiteColumnSample> siteColumnSamples;
+    private final BuildingCanvasScale canvasScale;
 
     public ResolvedBuildingDefinition(
             BuildingDefinition definition,
@@ -31,7 +33,8 @@ public final class ResolvedBuildingDefinition {
             BuildingSiteAnalysis.emptyFallback(EngineeringTerrainService.DEFAULT_GROUND_ELEVATION),
             site,
             materials,
-            Map.of());
+            Map.of(),
+            BuildingCanvasScale.identity());
     }
 
     public ResolvedBuildingDefinition(
@@ -41,6 +44,24 @@ public final class ResolvedBuildingDefinition {
             GenerationSiteResolver.ResolvedSiteElevation site,
             MaterialResolver.ResolvedMaterials materials,
             Map<Long, BuildingSiteColumnSample> siteColumnSamples) {
+        this(
+            definition,
+            massing,
+            siteAnalysis,
+            site,
+            materials,
+            siteColumnSamples,
+            BuildingCanvasScale.identity());
+    }
+
+    public ResolvedBuildingDefinition(
+            BuildingDefinition definition,
+            MassingGeometryResolver.ResolvedMassingGeometry massing,
+            BuildingSiteAnalysis siteAnalysis,
+            GenerationSiteResolver.ResolvedSiteElevation site,
+            MaterialResolver.ResolvedMaterials materials,
+            Map<Long, BuildingSiteColumnSample> siteColumnSamples,
+            BuildingCanvasScale canvasScale) {
         this.definition = definition;
         this.massing = massing;
         this.siteAnalysis = siteAnalysis != null
@@ -51,6 +72,7 @@ public final class ResolvedBuildingDefinition {
         this.siteColumnSamples = siteColumnSamples == null || siteColumnSamples.isEmpty()
             ? Map.of()
             : Map.copyOf(siteColumnSamples);
+        this.canvasScale = canvasScale != null ? canvasScale : BuildingCanvasScale.identity();
     }
 
     public BuildingDefinition definition() {
@@ -75,6 +97,10 @@ public final class ResolvedBuildingDefinition {
 
     public Map<Long, BuildingSiteColumnSample> siteColumnSamples() {
         return siteColumnSamples;
+    }
+
+    public BuildingCanvasScale canvasScale() {
+        return canvasScale;
     }
 
     public boolean isValid() {

@@ -110,7 +110,7 @@ class BuildingInteractionMatrixTest {
         BuildingGenerationResult warnings = new BuildingGenerationResult();
         ResolvedBuildingDefinition resolved =
             com.plot.plugin.building.generation.resolve.BuildingGenerationContextFactory
-                .resolveForTesting(definition, warnings);
+                .resolveForTesting(definition, warnings, com.plot.test.world.IdentityCoordinateService.INSTANCE);
 
         GenerationSiteResolver.ResolvedSiteElevation site = resolved.site();
         assertEquals(80, site.requestedBaseElevation());

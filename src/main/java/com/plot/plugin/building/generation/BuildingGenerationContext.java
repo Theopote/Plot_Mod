@@ -48,6 +48,7 @@ public final class BuildingGenerationContext {
     private final boolean valid;
     private final BuildingSiteAnalysis siteAnalysis;
     private final Map<Long, BuildingSiteColumnSample> siteColumnSamples;
+    private final BuildingCanvasScale canvasScale;
 
     /** 画布格 → 世界柱列缓存（同一栋内避免重复坐标变换） */
     private final Map<Long, BlockPos> columnCache = new HashMap<>();
@@ -72,7 +73,8 @@ public final class BuildingGenerationContext {
             String roofBlockId,
             boolean valid,
             BuildingSiteAnalysis siteAnalysis,
-            Map<Long, BuildingSiteColumnSample> siteColumnSamples) {
+            Map<Long, BuildingSiteColumnSample> siteColumnSamples,
+            BuildingCanvasScale canvasScale) {
         this.footprint = footprint;
         this.definition = definition;
         this.world = world;
@@ -94,6 +96,7 @@ public final class BuildingGenerationContext {
         this.siteColumnSamples = siteColumnSamples == null || siteColumnSamples.isEmpty()
             ? Map.of()
             : Map.copyOf(siteColumnSamples);
+        this.canvasScale = canvasScale != null ? canvasScale : BuildingCanvasScale.identity();
     }
 
     /**
@@ -129,7 +132,8 @@ public final class BuildingGenerationContext {
                 materials.roofBlockId(),
                 false,
                 BuildingSiteAnalysis.emptyFallback(EngineeringTerrainService.DEFAULT_GROUND_ELEVATION),
-                Map.of()
+                Map.of(),
+                BuildingCanvasScale.identity()
             );
         }
 
@@ -153,7 +157,8 @@ public final class BuildingGenerationContext {
             materials.roofBlockId(),
             true,
             resolved.siteAnalysis(),
-            resolved.siteColumnSamples()
+            resolved.siteColumnSamples(),
+            resolved.canvasScale()
         );
     }
 
@@ -284,6 +289,10 @@ public final class BuildingGenerationContext {
         return roofBlockId;
     }
 
+    public BuildingCanvasScale getCanvasScale() {
+        return canvasScale;
+    }
+
     public int getTopFloorY() {
         if (definition == null) {
             return baseElevation;
@@ -304,7 +313,7 @@ public final class BuildingGenerationContext {
             return cached;
         }
         BlockPos column = com.plot.plugin.building.BuildingGeometryUtils.canvasToBlockXZ(
-            canvasPos, coordinateService);
+            canvasPos, canvasScale.resolveCoordinates(coordinateService));
         columnCache.put(key, column);
         return column;
     }
@@ -317,7 +326,8 @@ public final class BuildingGenerationContext {
         return floorPlateCache.computeIfAbsent(floorIndex, floor ->
             com.plot.plugin.building.generation.massing.FloorPlateGeometryResolver.resolve(
                 definition.massing().plateForFloor(floor),
-                definition.envelope().wallThickness()));
+                definition.envelope().wallThickness(),
+                canvasScale));
     }
 
     private static long packCanvasCell(double x, double y) {

@@ -35,7 +35,7 @@ public final class BalconyGenerator {
 
         EnvelopeSpec envelope = definition.envelope();
         ResolvedFloorPlate plate = FloorPlateGeometryResolver.resolve(
-            massing.plateForFloor(spec.floor()), envelope.wallThickness());
+            massing.plateForFloor(spec.floor()), envelope.wallThickness(), context.getCanvasScale());
         List<Vec2d> outerPoints = plate.outerPoints();
         int segmentIndex = FacadeEdgeResolver.resolveSegmentIndex(
             definition.facade().edgeScope(),

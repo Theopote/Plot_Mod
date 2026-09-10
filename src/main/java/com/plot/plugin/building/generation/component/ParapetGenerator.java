@@ -37,7 +37,7 @@ public final class ParapetGenerator {
 
         int topFloorIndex = Math.max(0, massing.floors() - 1);
         ResolvedFloorPlate plate = FloorPlateGeometryResolver.resolve(
-            massing.plateForFloor(topFloorIndex), envelope.wallThickness());
+            massing.plateForFloor(topFloorIndex), envelope.wallThickness(), context.getCanvasScale());
         Polygon outerPolygon = plate.outerPolygon();
         Polygon innerPolygon = plate.innerPolygon();
 

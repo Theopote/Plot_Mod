@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.building.generation.BuildingBlockWriter;
+import com.plot.plugin.building.generation.BuildingCanvasScale;
 import com.plot.plugin.building.generation.BuildingGenerationContext;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.generation.facade.FacadeEdgeResolver;
@@ -52,6 +53,7 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
         IBlockProjectionService projectionHandler = context.getProjectionService();
         List<Vec2d> basePoints = massing.baseOuterPoints();
         FacadeEdgeScope scope = facade.edgeScope();
+        BuildingCanvasScale canvasScale = context.getCanvasScale();
 
         for (int floor = 0; floor < massing.floors(); floor++) {
             List<Vec2d> outerPoints = massing.plateForFloor(floor).outerPoints();
@@ -71,11 +73,18 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
                 int sill = windows.sillHeight();
                 int maxWindowHeight = Math.max(1, massing.floorHeight() - sill - 1);
                 int windowHeight = Math.min(windows.height(), maxWindowHeight);
+                Vec2d segmentStart = outerPoints.get(segmentIndex);
+                Vec2d segmentEnd = outerPoints.get((segmentIndex + 1) % segmentCount);
+                Vec2d segmentMid = segmentStart.lerp(segmentEnd, 0.5);
+                Vec2d segmentDirection = segmentEnd.subtract(segmentStart);
+                double canvasSpacing = canvasScale.blocksToCanvas(
+                    windows.spacing(), segmentMid, segmentDirection);
                 List<BuildingGeometryUtils.WallSample> samples = BuildingGeometryUtils.sampleAlongWallSegment(
-                    outerPoints, segmentIndex, windows.spacing());
+                    outerPoints, segmentIndex, canvasSpacing);
                 for (BuildingGeometryUtils.WallSample sample : samples) {
                     carveOpening(
                         context,
+                        canvasScale,
                         result,
                         sample.point(),
                         sample.tangent(),
@@ -101,6 +110,7 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
         IBlockProjectionService projectionHandler = context.getProjectionService();
         List<Vec2d> basePoints = massing.baseOuterPoints();
         FacadeEdgeScope scope = facade.edgeScope();
+        BuildingCanvasScale canvasScale = context.getCanvasScale();
 
         for (OpeningSpec opening : facade.openings()) {
             if (opening.floor() < 0 || opening.floor() >= massing.floors()) {
@@ -116,6 +126,7 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
             }
             carveOpening(
                 context,
+                canvasScale,
                 result,
                 resolved.centerPoint(),
                 resolved.tangent(),
@@ -131,6 +142,7 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
 
     private void carveOpening(
             BuildingGenerationContext context,
+            BuildingCanvasScale canvasScale,
             BuildingGenerationResult result,
             Vec2d centerPoint,
             Vec2d tangent,
@@ -142,11 +154,13 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
             IBlockProjectionService projectionHandler) {
         Set<BlockPos> carved = new LinkedHashSet<>();
         for (int w = 0; w < width; w++) {
-            double lateral = w - (width - 1) / 2.0;
+            double lateralBlocks = w - (width - 1) / 2.0;
+            double lateralCanvas = canvasScale.blocksToCanvas(lateralBlocks, centerPoint, tangent);
             for (int depth = 0; depth < wallThickness; depth++) {
+                double depthCanvas = canvasScale.blocksToCanvas(depth + 0.5, centerPoint, inwardNormal);
                 Vec2d sample = centerPoint
-                    .add(tangent.multiply(lateral))
-                    .add(inwardNormal.multiply(depth + 0.5));
+                    .add(tangent.multiply(lateralCanvas))
+                    .add(inwardNormal.multiply(depthCanvas));
                 BlockPos column = context.canvasToColumn(sample);
                 for (int h = 0; h < height; h++) {
                     BlockPos pos = new BlockPos(column.getX(), startY + h, column.getZ());

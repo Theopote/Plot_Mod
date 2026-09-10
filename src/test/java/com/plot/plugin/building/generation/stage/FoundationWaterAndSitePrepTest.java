@@ -44,7 +44,8 @@ class FoundationWaterAndSitePrepTest {
         BuildingDefinition definition = BuildingDefinitionMapper.fromFootprint(footprint);
         BuildingGenerationResult result = new BuildingGenerationResult();
         MassingGeometryResolver.ResolvedMassingGeometry massing =
-            MassingGeometryResolver.resolve(definition, result);
+            MassingGeometryResolver.resolve(
+                definition, result, com.plot.plugin.building.generation.BuildingCanvasScale.identity());
 
         Map<Long, BuildingSiteColumnSample> columns = new HashMap<>();
         for (BuildingGenerationContext.GridCell cell : massing.footprintCells()) {

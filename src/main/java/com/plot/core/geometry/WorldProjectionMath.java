@@ -74,4 +74,32 @@ public final class WorldProjectionMath {
         }
         return pathPoints.getLast().copy();
     }
+
+    /**
+     * 估计沿给定方向「1 个 Minecraft 方块」对应多少画布坐标单位。
+     * <p>
+     * 块数参数在几何计算前应乘以本系数，再用于画布空间的偏移/采样。
+     */
+    public static double canvasUnitsPerWorldBlock(
+            ICoordinateService coordinates,
+            Vec2d origin,
+            Vec2d direction) {
+        if (coordinates == null || origin == null) {
+            return 1.0;
+        }
+        Vec2d dir = direction != null && direction.lengthSquared() > 1e-12
+            ? direction.normalize()
+            : new Vec2d(0, 1);
+        double probe = 1.0;
+        double worldDist = coordinates.projectedDistance(origin, origin.add(dir.multiply(probe)));
+        if (worldDist < 1e-4) {
+            probe = 100.0;
+            worldDist = coordinates.projectedDistance(origin, origin.add(dir.multiply(probe)));
+        }
+        if (worldDist < 1e-6) {
+            return 1.0;
+        }
+        double units = probe / worldDist;
+        return Math.max(0.05, Math.min(units, 500.0));
+    }
 }

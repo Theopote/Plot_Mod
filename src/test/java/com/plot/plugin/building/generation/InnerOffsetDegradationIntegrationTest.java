@@ -74,9 +74,11 @@ class InnerOffsetDegradationIntegrationTest {
             AccessorySpec.none());
 
         assertTrue(FloorPlateGeometryResolver.resolve(
-            definition.massing().plateForFloor(0), 3).hasInteriorSpace());
+            definition.massing().plateForFloor(0), 3,
+            com.plot.plugin.building.generation.BuildingCanvasScale.identity()).hasInteriorSpace());
         assertFalse(FloorPlateGeometryResolver.resolve(
-            definition.massing().plateForFloor(2), 3).hasInteriorSpace());
+            definition.massing().plateForFloor(2), 3,
+            com.plot.plugin.building.generation.BuildingCanvasScale.identity()).hasInteriorSpace());
 
         BuildingGenerationResult result = new BuildingGenerationResult();
         BuildingGenerationContext context = BuildingGenerationContext.forTesting(

@@ -3,6 +3,7 @@ package com.plot.plugin.building.generation.massing;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.plugin.building.BuildingGeometryUtils;
+import com.plot.plugin.building.generation.BuildingCanvasScale;
 import com.plot.plugin.building.generation.BuildingGenerationContext;
 import com.plot.plugin.building.model.spec.FloorPlateSpec;
 
@@ -34,10 +35,15 @@ public final class FloorPlateGeometryResolver {
         }
     }
 
-    public static ResolvedFloorPlate resolve(FloorPlateSpec plate, int wallThickness) {
+    public static ResolvedFloorPlate resolve(
+            FloorPlateSpec plate,
+            int wallThicknessBlocks,
+            BuildingCanvasScale canvasScale) {
+        BuildingCanvasScale scale = canvasScale != null ? canvasScale : BuildingCanvasScale.identity();
         List<Vec2d> outerPoints = BuildingGeometryUtils.copyPoints(plate.outerPoints());
         Polygon outerPolygon = BuildingGeometryUtils.toPolygon(outerPoints);
-        List<Vec2d> innerPoints = BuildingGeometryUtils.offsetInward(outerPoints, wallThickness);
+        double canvasWallThickness = scale.uniformBlocksToCanvas(wallThicknessBlocks, outerPoints);
+        List<Vec2d> innerPoints = BuildingGeometryUtils.offsetInward(outerPoints, canvasWallThickness);
         Polygon innerPolygon = innerPoints.size() >= 3
             ? BuildingGeometryUtils.toPolygon(innerPoints)
             : null;

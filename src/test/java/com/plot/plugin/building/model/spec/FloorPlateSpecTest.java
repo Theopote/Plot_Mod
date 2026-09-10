@@ -56,8 +56,12 @@ class FloorPlateSpecTest {
     @Test
     void insetFromCreatesSmallerPlate() {
         FloorPlateSpec inset = FloorPlateSpec.insetFrom(2, 3, BASE, 1);
-        assertTrue(FloorPlateGeometryResolver.resolve(inset, 1).outerPolygon().contains(new Vec2d(4, 4)));
-        assertFalse(FloorPlateGeometryResolver.resolve(inset, 1).outerPolygon().contains(new Vec2d(0.5, 0.5)));
+        assertTrue(FloorPlateGeometryResolver.resolve(
+            inset, 1, com.plot.plugin.building.generation.BuildingCanvasScale.identity()).outerPolygon()
+            .contains(new Vec2d(4, 4)));
+        assertFalse(FloorPlateGeometryResolver.resolve(
+            inset, 1, com.plot.plugin.building.generation.BuildingCanvasScale.identity()).outerPolygon()
+            .contains(new Vec2d(0.5, 0.5)));
     }
 
     @Test

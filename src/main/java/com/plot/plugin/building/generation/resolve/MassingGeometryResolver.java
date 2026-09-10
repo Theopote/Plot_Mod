@@ -3,6 +3,7 @@ package com.plot.plugin.building.generation.resolve;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.plugin.building.BuildingGeometryUtils;
+import com.plot.plugin.building.generation.BuildingCanvasScale;
 import com.plot.plugin.building.generation.BuildingGenerationContext.GridCell;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.generation.massing.InnerOffsetDegradation;
@@ -35,19 +36,24 @@ public final class MassingGeometryResolver {
     /**
      * @param result 可为 null；非 null 时写入 inner-offset / coverage-gap 警告
      */
-    public static ResolvedMassingGeometry resolve(BuildingDefinition definition, BuildingGenerationResult result) {
+    public static ResolvedMassingGeometry resolve(
+            BuildingDefinition definition,
+            BuildingGenerationResult result,
+            BuildingCanvasScale canvasScale) {
         if (definition == null) {
             return invalid();
         }
+        BuildingCanvasScale scale = canvasScale != null ? canvasScale : BuildingCanvasScale.identity();
         List<Vec2d> outerPoints = BuildingGeometryUtils.copyPoints(definition.footprint().outerPoints());
         if (outerPoints.size() < 3) {
             LOGGER.warn("建筑轮廓点数不足");
             return invalid();
         }
 
-        int wallThickness = definition.envelope().wallThickness();
+        int wallThicknessBlocks = definition.envelope().wallThickness();
+        double canvasWallThickness = scale.uniformBlocksToCanvas(wallThicknessBlocks, outerPoints);
         Polygon outerPolygon = BuildingGeometryUtils.toPolygon(outerPoints);
-        List<Vec2d> innerPoints = BuildingGeometryUtils.offsetInward(outerPoints, wallThickness);
+        List<Vec2d> innerPoints = BuildingGeometryUtils.offsetInward(outerPoints, canvasWallThickness);
         Polygon innerPolygon = innerPoints.size() >= 3
             ? BuildingGeometryUtils.toPolygon(innerPoints)
             : null;

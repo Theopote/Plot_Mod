@@ -8,6 +8,7 @@ import com.plot.plugin.building.model.spec.BuildingDefinition;
 import com.plot.plugin.building.model.spec.BuildingDefinitionMapper;
 import com.plot.plugin.building.model.spec.FloorPlateSpec;
 import com.plot.plugin.building.model.spec.MassingSpec;
+import com.plot.test.world.IdentityCoordinateService;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -36,7 +37,8 @@ class BuildingGenerationContextFactoryTest {
         BuildingGenerationResult result = new BuildingGenerationResult();
 
         ResolvedBuildingDefinition resolved =
-            BuildingGenerationContextFactory.resolveForTesting(definition, result);
+            BuildingGenerationContextFactory.resolveForTesting(
+                definition, result, IdentityCoordinateService.INSTANCE);
 
         assertTrue(resolved.isValid());
         assertEquals(4, resolved.massing().outerPoints().size());
@@ -78,7 +80,8 @@ class BuildingGenerationContextFactoryTest {
             com.plot.plugin.building.model.spec.AccessorySpec.none()
         );
         BuildingGenerationResult result = new BuildingGenerationResult();
-        BuildingGenerationContextFactory.resolveForTesting(definition, result);
+        BuildingGenerationContextFactory.resolveForTesting(
+            definition, result, IdentityCoordinateService.INSTANCE);
         assertTrue(result.warnings.contains("plugin.building.warn.floor_plate_coverage_gap"));
     }
 
