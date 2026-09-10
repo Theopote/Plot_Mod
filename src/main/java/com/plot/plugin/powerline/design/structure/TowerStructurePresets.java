@@ -40,14 +40,16 @@ public final class TowerStructurePresets {
             TowerSilhouette.TAPERED_LATTICE,
             SMALL_LATTICE_LEG,
             SMALL_LATTICE_LEG);
-        // 底宽:深 ≈ 1 : 0.67
+        // 底宽:深 ≈ 1 : 0.67，紧凑子输电剪影
         addStations(structure,
             new double[] {0, 8, 16, 24},
             new double[] {4.5, 3.8, 2.5, 1.5},
             new double[] {3.0, 2.5, 1.7, 1.0});
-        addVariedBays(structure, BracingPattern.X, BracingPattern.X,
+        addVariedBays(structure, 2,
+            BracingPattern.X, BracingPattern.X,
             BracingPattern.K, BracingPattern.V);
-        addTrussArm(structure, "arm_main", 20, 7.5, TowerArmShape.TRUSS, 3, 1.2);
+        addTrussArm(structure, "arm_main", 20, 8.0, TowerArmShape.TRUSS, 3, 1.3);
+        addPeak(structure, 24);
         return structure;
     }
 
@@ -114,22 +116,22 @@ public final class TowerStructurePresets {
         return structure;
     }
 
-    /** 酒杯型宽顶塔：H≈38。 */
+    /** 酒杯型宽顶塔：H≈40，鼓形来自横担与塔头 station，不靠塔身假鼓包。 */
     public static TowerStructureDesign cupTower() {
         TowerStructureDesign structure = latticeShell(
             TowerSilhouette.CUP,
             LATTICE_LEG,
             LATTICE_BRACE);
         addStations(structure,
-            new double[] {0, 10, 18, 26, 32, 38},
-            new double[] {5.0, 4.5, 3.5, 2.5, 7.0, 2.5},
-            new double[] {3.3, 3.0, 2.4, 1.7, 4.5, 1.7});
-        addVariedBays(structure,
+            new double[] {0, 10, 18, 26, 32, 40},
+            new double[] {5.0, 4.5, 3.2, 2.2, 7.5, 2.2},
+            new double[] {3.3, 3.0, 2.2, 1.5, 5.0, 1.6});
+        addVariedBays(structure, 2,
             BracingPattern.X, BracingPattern.X,
             BracingPattern.K, BracingPattern.V,
             BracingPattern.NONE);
-        addTrussArm(structure, "arm_cup", 32, 15.0, TowerArmShape.UPSWEEP, 3, 2.5);
-        addPeak(structure, 38);
+        addTrussArm(structure, "arm_cup", 32, 16.0, TowerArmShape.UPSWEEP, 3, 2.8);
+        addPeak(structure, 40);
         return structure;
     }
 
@@ -138,23 +140,23 @@ public final class TowerStructurePresets {
         return portalTower();
     }
 
-    /** 工业门架塔（别名）。 */
+    /** 工业门架塔（别名）：宽柱 + 多层横梁，中部横担最宽。 */
     public static TowerStructureDesign portalTower() {
         TowerStructureDesign structure = latticeShell(
             TowerSilhouette.PORTAL,
             LATTICE_LEG,
             LATTICE_BRACE);
-        // 门型：底部宽、中部保持、顶部收窄
+        // 门型：底部双柱保持宽度，顶部收窄
         addStations(structure,
-            new double[] {0, 12, 24, 34, 40},
-            new double[] {10.0, 10.0, 9.0, 6.0, 3.5},
-            new double[] {4.0, 4.0, 3.5, 2.5, 1.5});
-        addVariedBays(structure,
+            new double[] {0, 12, 24, 34, 42},
+            new double[] {10.5, 10.5, 9.5, 6.5, 3.5},
+            new double[] {4.5, 4.5, 4.0, 2.8, 1.6});
+        addVariedBays(structure, 2,
             BracingPattern.X, BracingPattern.X,
             BracingPattern.K, BracingPattern.V);
-        addTrussArm(structure, "arm_lower", 16, 14.0, TowerArmShape.FLAT, 2, 2.0);
-        addTrussArm(structure, "arm_middle", 26, 15.0, TowerArmShape.TRUSS, 3, 2.2);
-        addTrussArm(structure, "arm_upper", 34, 13.0, TowerArmShape.TRUSS, 3, 1.8);
+        addTrussArm(structure, "arm_lower", 16, 13.0, TowerArmShape.FLAT, 2, 2.0);
+        addTrussArm(structure, "arm_middle", 26, 16.0, TowerArmShape.TRUSS, 3, 2.4);
+        addTrussArm(structure, "arm_upper", 36, 13.0, TowerArmShape.TRUSS, 3, 2.0);
         return structure;
     }
 

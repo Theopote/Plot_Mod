@@ -17,6 +17,8 @@ public final class TowerFamilyCatalog {
         families.add(standardLattice3Phase());
         families.add(gradedLattice3Phase());
         families.add(heavyTransmission());
+        families.add(tripleArm3Phase());
+        families.add(cupTower());
         families.add(megaLattice());
         families.add(heavyDoubleCircuit());
         families.add(industrialPortal());
@@ -64,6 +66,28 @@ public final class TowerFamilyCatalog {
         family.setDesignId(TowerRole.DEAD_END, TowerFamilyDesignPresets.HV_TRANSMISSION_DEAD_END_ID);
         family.setDesignId(TowerRole.TERMINAL, TowerFamilyDesignPresets.HV_TRANSMISSION_TERMINAL_ID);
         family.setDesignId(TowerRole.SPECIAL, TowerFamilyDesignPresets.HV_TRANSMISSION_SUSPENSION_ID);
+        return family;
+    }
+
+    public static TowerFamily tripleArm3Phase() {
+        TowerFamily family = new TowerFamily(
+            TowerFamily.TRIPLE_ARM_3_PHASE_ID,
+            "Triple Arm 3-Phase");
+        family.setDesignId(TowerRole.SUSPENSION, TowerFamilyDesignPresets.TRIPLE_ARM_SUSPENSION_ID);
+        family.setDesignId(TowerRole.ANGLE, TowerFamilyDesignPresets.TRIPLE_ARM_ANGLE_ID);
+        family.setDesignId(TowerRole.DEAD_END, TowerFamilyDesignPresets.TRIPLE_ARM_DEAD_END_ID);
+        family.setDesignId(TowerRole.TERMINAL, TowerFamilyDesignPresets.TRIPLE_ARM_TERMINAL_ID);
+        family.setDesignId(TowerRole.SPECIAL, TowerFamilyDesignPresets.TRIPLE_ARM_SUSPENSION_ID);
+        return family;
+    }
+
+    public static TowerFamily cupTower() {
+        TowerFamily family = new TowerFamily(TowerFamily.CUP_TOWER_ID, "Cup Tower");
+        family.setDesignId(TowerRole.SUSPENSION, TowerFamilyDesignPresets.CUP_TOWER_SUSPENSION_ID);
+        family.setDesignId(TowerRole.ANGLE, TowerFamilyDesignPresets.CUP_TOWER_ANGLE_ID);
+        family.setDesignId(TowerRole.DEAD_END, TowerFamilyDesignPresets.CUP_TOWER_DEAD_END_ID);
+        family.setDesignId(TowerRole.TERMINAL, TowerFamilyDesignPresets.CUP_TOWER_TERMINAL_ID);
+        family.setDesignId(TowerRole.SPECIAL, TowerFamilyDesignPresets.CUP_TOWER_SUSPENSION_ID);
         return family;
     }
 
@@ -132,6 +156,14 @@ public final class TowerFamilyCatalog {
         designs.add(TowerFamilyDesignPresets.hvTransmissionAngle());
         designs.add(TowerFamilyDesignPresets.hvTransmissionDeadEnd());
         designs.add(TowerFamilyDesignPresets.hvTransmissionTerminal());
+        designs.add(TowerFamilyDesignPresets.tripleArmSuspension());
+        designs.add(TowerFamilyDesignPresets.tripleArmAngle());
+        designs.add(TowerFamilyDesignPresets.tripleArmDeadEnd());
+        designs.add(TowerFamilyDesignPresets.tripleArmTerminal());
+        designs.add(TowerFamilyDesignPresets.cupTowerSuspension());
+        designs.add(TowerFamilyDesignPresets.cupTowerAngle());
+        designs.add(TowerFamilyDesignPresets.cupTowerDeadEnd());
+        designs.add(TowerFamilyDesignPresets.cupTowerTerminal());
         designs.add(TowerFamilyDesignPresets.megaLatticeSuspension());
         designs.add(TowerFamilyDesignPresets.megaLatticeAngle());
         designs.add(TowerFamilyDesignPresets.megaLatticeDeadEnd());

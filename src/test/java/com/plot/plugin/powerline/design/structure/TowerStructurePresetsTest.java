@@ -119,10 +119,57 @@ class TowerStructurePresetsTest {
 
     @Test
     void silhouettesAreAssigned() {
+        assertEquals(TowerSilhouette.TAPERED_LATTICE, TowerStructurePresets.smallLatticeTower().getSilhouette());
         assertEquals(TowerSilhouette.DOUBLE_ARM, TowerStructurePresets.classicDoubleArmTower().getSilhouette());
         assertEquals(TowerSilhouette.TRIPLE_ARM, TowerStructurePresets.doubleCircuitDrumTower().getSilhouette());
+        assertEquals(TowerSilhouette.CUP, TowerStructurePresets.cupTower().getSilhouette());
         assertEquals(TowerSilhouette.GIANT, TowerStructurePresets.uhvGiantTower().getSilhouette());
         assertEquals(TowerSilhouette.PORTAL, TowerStructurePresets.portalTower().getSilhouette());
+    }
+
+    @Test
+    void smallLatticeLimitsPlanDiagonalBracing() {
+        long planBays = TowerStructurePresets.smallLatticeTower().getBays().stream()
+            .filter(TowerBay::isPlanDiagonalBracing)
+            .count();
+        assertEquals(2, planBays);
+        assertEquals(8.0, TowerStructurePresets.smallLatticeTower().getArms().getFirst().getLateralReach(), 0.5);
+    }
+
+    @Test
+    void cupTowerHasWideHeadAndNarrowWaist() {
+        List<TowerStation> stations = TowerStructurePresets.cupTower().sortedStations();
+        double waist = stations.get(3).getHalfWidth();
+        double cupHead = stations.get(4).getHalfWidth();
+        assertTrue(cupHead > waist * 2.5, "cup silhouette should flare at the crossarm station");
+        assertEquals(16.0, TowerStructurePresets.cupTower().getArms().getFirst().getLateralReach(), 0.5);
+    }
+
+    @Test
+    void portalTowerMiddleArmIsDominant() {
+        List<TowerArm> arms = TowerStructurePresets.portalTower().getArms().stream()
+            .sorted(Comparator.comparingDouble(TowerArm::getBaseHeight))
+            .toList();
+        assertEquals(3, arms.size());
+        assertEquals(13.0, arms.get(0).getLateralReach(), 0.5);
+        assertEquals(16.0, arms.get(1).getLateralReach(), 0.5);
+        assertEquals(13.0, arms.get(2).getLateralReach(), 0.5);
+        long planBays = TowerStructurePresets.portalTower().getBays().stream()
+            .filter(TowerBay::isPlanDiagonalBracing)
+            .count();
+        assertEquals(2, planBays);
+    }
+
+    @Test
+    void cupAndTripleArmFamiliesUseDedicatedStructures() {
+        PoleDesign triple = TowerFamilyDesignPresets.tripleArmSuspension();
+        PoleDesign cup = TowerFamilyDesignPresets.cupTowerSuspension();
+        assertEquals(TowerSilhouette.TRIPLE_ARM, triple.getTowerStructure().getSilhouette());
+        assertEquals(TowerSilhouette.CUP, cup.getTowerStructure().getSilhouette());
+        assertEquals(3, triple.getTowerStructure().getArms().size());
+        assertEquals(1, cup.getTowerStructure().getArms().size());
+        assertEquals(42.0, triple.getAttachments().getFirst().getVerticalOffset(), 0.5);
+        assertEquals(32.0, cup.getAttachments().getFirst().getVerticalOffset(), 0.5);
     }
 
     @Test

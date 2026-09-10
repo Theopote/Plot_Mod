@@ -18,18 +18,18 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class PowerLineStyleCardRendererTest {
 
     @Test
-    void catalogContainsTwentyThreeStylePresets() {
-        assertEquals(23, PowerLineStylePresetCatalog.defaultPresets().size());
+    void catalogContainsTwentyFiveStylePresets() {
+        assertEquals(25, PowerLineStylePresetCatalog.defaultPresets().size());
         assertEquals(4, PowerLineStylePresetCatalog.galleryCategories().size());
         assertEquals(10, PowerLineStylePresetCatalog.utilityPresets().size());
-        assertEquals(6, PowerLineStylePresetCatalog.transmissionPresets().size());
+        assertEquals(8, PowerLineStylePresetCatalog.transmissionPresets().size());
         assertEquals(4, PowerLineStylePresetCatalog.industrialPresets().size());
         assertEquals(3, PowerLineStylePresetCatalog.fantasyPresets().size());
         assertEquals(
             10,
             PowerLineStylePresetCatalog.presetsByCategory(StyleCategory.UTILITY).size());
         assertEquals(
-            6,
+            8,
             PowerLineStylePresetCatalog.presetsByCategory(StyleCategory.TRANSMISSION).size());
         assertEquals(
             4,
@@ -37,6 +37,29 @@ class PowerLineStyleCardRendererTest {
         assertEquals(
             3,
             PowerLineStylePresetCatalog.presetsByCategory(StyleCategory.FANTASY).size());
+    }
+
+    @Test
+    void transmissionPresetsFollowVisualProgressionOrder() {
+        var ids = PowerLineStylePresetCatalog.transmissionPresets().stream()
+            .map(PowerLineStylePreset::getId)
+            .toList();
+        assertEquals(PowerLineStylePreset.COMPACT_LATTICE_ID, ids.get(0));
+        assertEquals(PowerLineStylePreset.CLASSIC_LATTICE_ID, ids.get(1));
+        assertEquals(PowerLineStylePreset.TRIPLE_ARM_TOWER_ID, ids.get(2));
+        assertEquals(PowerLineStylePreset.CUP_TOWER_STYLE_ID, ids.get(3));
+        assertEquals(PowerLineStylePreset.HEAVY_LATTICE_ID, ids.get(4));
+    }
+
+    @Test
+    void industrialPresetsFollowVisualProgressionOrder() {
+        var ids = PowerLineStylePresetCatalog.industrialPresets().stream()
+            .map(PowerLineStylePreset::getId)
+            .toList();
+        assertEquals(PowerLineStylePreset.INDUSTRIAL_PORTAL_ID, ids.get(0));
+        assertEquals(PowerLineStylePreset.HEAVY_DOUBLE_CIRCUIT_ID, ids.get(1));
+        assertEquals(PowerLineStylePreset.MEGA_LATTICE_ID, ids.get(2));
+        assertEquals(PowerLineStylePreset.MONSTER_PYLON_ID, ids.get(3));
     }
 
     @Test

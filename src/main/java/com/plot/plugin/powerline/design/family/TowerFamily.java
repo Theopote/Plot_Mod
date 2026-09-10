@@ -11,6 +11,8 @@ public class TowerFamily {
     public static final String STANDARD_LATTICE_3_PHASE_ID = "family/standard_lattice_3phase";
     public static final String GRADED_LATTICE_3_PHASE_ID = "family/graded_lattice_3phase";
     public static final String HEAVY_TRANSMISSION_ID = "family/heavy_transmission";
+    public static final String TRIPLE_ARM_3_PHASE_ID = "family/triple_arm_3phase";
+    public static final String CUP_TOWER_ID = "family/cup_tower";
     public static final String MEGA_LATTICE_ID = "family/mega_lattice";
     public static final String HEAVY_DOUBLE_CIRCUIT_ID = "family/heavy_double_circuit";
     public static final String INDUSTRIAL_PORTAL_ID = "family/industrial_portal";

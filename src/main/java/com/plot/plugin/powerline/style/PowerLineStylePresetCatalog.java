@@ -45,18 +45,20 @@ public final class PowerLineStylePresetCatalog {
         List<PowerLineStylePreset> presets = new ArrayList<>();
         presets.add(compactLattice());
         presets.add(classicLattice());
+        presets.add(tripleArmTower());
+        presets.add(cupTower());
         presets.add(heavyLattice());
-        presets.add(smartTowers());
         presets.add(taperedTower());
+        presets.add(smartTowers());
         presets.add(modernHvGlass());
         return presets;
     }
 
     public static List<PowerLineStylePreset> industrialPresets() {
         List<PowerLineStylePreset> presets = new ArrayList<>();
-        presets.add(megaLattice());
-        presets.add(heavyDoubleCircuit());
         presets.add(industrialPortal());
+        presets.add(heavyDoubleCircuit());
+        presets.add(megaLattice());
         presets.add(monsterPylon());
         return presets;
     }
@@ -348,6 +350,38 @@ public final class PowerLineStylePresetCatalog {
             new PoleSpacingProfile(70, 130, 200));
     }
 
+    public static PowerLineStylePreset tripleArmTower() {
+        return preset(
+            StyleCategory.TRANSMISSION,
+            PowerLineStylePreset.TRIPLE_ARM_TOWER_ID,
+            "plugin.powerline.style.pack.triple_arm_tower",
+            PowerLineStylePreset.StylePreviewKind.TRIPLE_ARM,
+            TowerFamily.TRIPLE_ARM_3_PHASE_ID,
+            null,
+            MaterialMix.single("minecraft:iron_bars"),
+            MaterialMix.single("minecraft:iron_block"),
+            MaterialMix.single("minecraft:chain"),
+            PowerLineUiPresets.WireSag.NATURAL,
+            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL,
+            new PoleSpacingProfile(90, 160, 240));
+    }
+
+    public static PowerLineStylePreset cupTower() {
+        return preset(
+            StyleCategory.TRANSMISSION,
+            PowerLineStylePreset.CUP_TOWER_STYLE_ID,
+            "plugin.powerline.style.pack.cup_tower",
+            PowerLineStylePreset.StylePreviewKind.CUP_TOWER,
+            TowerFamily.CUP_TOWER_ID,
+            null,
+            MaterialMix.single("minecraft:iron_bars"),
+            MaterialMix.single("minecraft:iron_block"),
+            MaterialMix.single("minecraft:chain"),
+            PowerLineUiPresets.WireSag.NATURAL,
+            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL,
+            new PoleSpacingProfile(80, 140, 210));
+    }
+
     public static PowerLineStylePreset smartTowers() {
         return preset(
             StyleCategory.TRANSMISSION,
@@ -591,7 +625,7 @@ public final class PowerLineStylePresetCatalog {
             case JAPANESE, SUBURBAN_LAMP -> 10.0;
             case MONSTER_PYLON -> 32.0;
             case MEGA_LATTICE, HEAVY_DOUBLE_CIRCUIT, INDUSTRIAL_PORTAL -> 24.0;
-            case LATTICE, HEAVY_LATTICE, LATTICE_POLE, TAPERED, ADAPTIVE, MODERN_HV_GLASS, STEAMPUNK
+            case LATTICE, HEAVY_LATTICE, TRIPLE_ARM, CUP_TOWER, LATTICE_POLE, TAPERED, ADAPTIVE, MODERN_HV_GLASS, STEAMPUNK
                 -> 16.0;
             default -> PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH;
         };

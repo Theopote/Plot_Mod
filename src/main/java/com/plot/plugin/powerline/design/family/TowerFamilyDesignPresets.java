@@ -43,6 +43,14 @@ public final class TowerFamilyDesignPresets {
     public static final String MONSTER_PYLON_ANGLE_ID = "preset/monster_pylon_angle";
     public static final String MONSTER_PYLON_DEAD_END_ID = "preset/monster_pylon_dead_end";
     public static final String MONSTER_PYLON_TERMINAL_ID = "preset/monster_pylon_terminal";
+    public static final String TRIPLE_ARM_SUSPENSION_ID = "preset/triple_arm_suspension";
+    public static final String TRIPLE_ARM_ANGLE_ID = "preset/triple_arm_angle";
+    public static final String TRIPLE_ARM_DEAD_END_ID = "preset/triple_arm_dead_end";
+    public static final String TRIPLE_ARM_TERMINAL_ID = "preset/triple_arm_terminal";
+    public static final String CUP_TOWER_SUSPENSION_ID = "preset/cup_tower_suspension";
+    public static final String CUP_TOWER_ANGLE_ID = "preset/cup_tower_angle";
+    public static final String CUP_TOWER_DEAD_END_ID = "preset/cup_tower_dead_end";
+    public static final String CUP_TOWER_TERMINAL_ID = "preset/cup_tower_terminal";
     /** 塔顶装饰线挂点 id（视觉顶线，非电气接地）。 */
     public static final String TOP_WIRE_ID = "ground_wire";
 
@@ -358,6 +366,90 @@ public final class TowerFamilyDesignPresets {
             metadata(TowerRole.TERMINAL, 82, 120, 90));
     }
 
+    public static PoleDesign tripleArmSuspension() {
+        return buildTripleArmRoleDesign(
+            TRIPLE_ARM_SUSPENSION_ID,
+            "Triple Arm Suspension",
+            6,
+            42,
+            InsulatorType.SUSPENSION,
+            3,
+            metadata(TowerRole.SUSPENSION, 48, 95, 5));
+    }
+
+    public static PoleDesign tripleArmAngle() {
+        return buildTripleArmRoleDesign(
+            TRIPLE_ARM_ANGLE_ID,
+            "Triple Arm Angle",
+            6,
+            42,
+            InsulatorType.STRAIN,
+            4,
+            metadata(TowerRole.ANGLE, 50, 90, 60));
+    }
+
+    public static PoleDesign tripleArmDeadEnd() {
+        return buildTripleArmRoleDesign(
+            TRIPLE_ARM_DEAD_END_ID,
+            "Triple Arm Dead-End",
+            6,
+            42,
+            InsulatorType.STRAIN,
+            4,
+            metadata(TowerRole.DEAD_END, 50, 90, 90));
+    }
+
+    public static PoleDesign tripleArmTerminal() {
+        return buildTripleArmRoleDesign(
+            TRIPLE_ARM_TERMINAL_ID,
+            "Triple Arm Terminal",
+            6,
+            42,
+            InsulatorType.STRAIN,
+            3,
+            metadata(TowerRole.TERMINAL, 48, 85, 90));
+    }
+
+    public static PoleDesign cupTowerSuspension() {
+        return buildCupTowerRoleDesign(
+            CUP_TOWER_SUSPENSION_ID,
+            "Cup Tower Suspension",
+            32,
+            InsulatorType.SUSPENSION,
+            3,
+            metadata(TowerRole.SUSPENSION, 38, 75, 5));
+    }
+
+    public static PoleDesign cupTowerAngle() {
+        return buildCupTowerRoleDesign(
+            CUP_TOWER_ANGLE_ID,
+            "Cup Tower Angle",
+            32,
+            InsulatorType.STRAIN,
+            4,
+            metadata(TowerRole.ANGLE, 40, 70, 60));
+    }
+
+    public static PoleDesign cupTowerDeadEnd() {
+        return buildCupTowerRoleDesign(
+            CUP_TOWER_DEAD_END_ID,
+            "Cup Tower Dead-End",
+            32,
+            InsulatorType.STRAIN,
+            4,
+            metadata(TowerRole.DEAD_END, 40, 70, 90));
+    }
+
+    public static PoleDesign cupTowerTerminal() {
+        return buildCupTowerRoleDesign(
+            CUP_TOWER_TERMINAL_ID,
+            "Cup Tower Terminal",
+            32,
+            InsulatorType.STRAIN,
+            3,
+            metadata(TowerRole.TERMINAL, 38, 65, 90));
+    }
+
     private static TowerEngineeringMetadata metadata(
             TowerRole role,
             double height,
@@ -440,6 +532,22 @@ public final class TowerFamilyDesignPresets {
         design.setAttachments(TowerConductorArrangement.heavyTransmission().createAttachments(
             attachmentHeight, insulatorType, insulatorLength));
         InsulatorAssemblyCatalog.applyMegaDefaults(design, insulatorType);
+        design.setEngineeringMetadata(metadata);
+        return design;
+    }
+
+    private static PoleDesign buildCupTowerRoleDesign(
+            String id,
+            String name,
+            double attachmentHeight,
+            InsulatorType insulatorType,
+            int insulatorLength,
+            TowerEngineeringMetadata metadata) {
+        PoleDesign design = new PoleDesign(id, name);
+        design.setTowerStructure(TowerStructurePresets.cupTower().copy());
+        design.setAttachments(TowerConductorArrangement.heavyTransmission().createAttachments(
+            attachmentHeight, insulatorType, insulatorLength));
+        InsulatorAssemblyCatalog.applyStandardDefaults(design);
         design.setEngineeringMetadata(metadata);
         return design;
     }

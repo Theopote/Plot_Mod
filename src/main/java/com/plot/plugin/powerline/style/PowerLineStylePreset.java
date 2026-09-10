@@ -27,6 +27,8 @@ public final class PowerLineStylePreset {
     public static final String COMPACT_LATTICE_ID = "pack/compact_lattice";
     public static final String CLASSIC_LATTICE_ID = "pack/classic_lattice";
     public static final String HEAVY_LATTICE_ID = "pack/heavy_lattice";
+    public static final String TRIPLE_ARM_TOWER_ID = "pack/triple_arm_tower";
+    public static final String CUP_TOWER_STYLE_ID = "pack/cup_tower";
     public static final String SMART_TOWERS_ID = "pack/smart_towers";
     public static final String TAPERED_TOWER_ID = "pack/tapered_tower";
     public static final String FANTASY_COPPER_ID = "pack/fantasy_copper";
@@ -243,6 +245,8 @@ public final class PowerLineStylePreset {
         LATTICE_POLE,
         LATTICE,
         HEAVY_LATTICE,
+        TRIPLE_ARM,
+        CUP_TOWER,
         ADAPTIVE,
         TAPERED,
         COPPER,

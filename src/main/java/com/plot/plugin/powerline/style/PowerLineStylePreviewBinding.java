@@ -29,7 +29,7 @@ public final class PowerLineStylePreviewBinding {
             return BindingKind.POLE_DESIGN;
         }
         return switch (preset.getPreviewKind()) {
-            case LATTICE, HEAVY_LATTICE, MEGA_LATTICE, HEAVY_DOUBLE_CIRCUIT, INDUSTRIAL_PORTAL, MONSTER_PYLON,
+            case LATTICE, HEAVY_LATTICE, TRIPLE_ARM, CUP_TOWER, MEGA_LATTICE, HEAVY_DOUBLE_CIRCUIT, INDUSTRIAL_PORTAL, MONSTER_PYLON,
                  ADAPTIVE -> BindingKind.TOWER_FAMILY_REPRESENTATIVE;
             case WOOD, MODERN_UTILITY, JAPANESE, WASTELAND_WIND, OLD_EUROPEAN, STEAMPUNK,
                  MODERN_HV_GLASS, SUBURBAN_LAMP, ABANDONED, RUSTIC -> BindingKind.POLE_WITH_DECORATIVE_OVERLAY;
@@ -72,6 +72,8 @@ public final class PowerLineStylePreviewBinding {
             case LATTICE_POLE -> PoleDesignCatalog.LATTICE_STEEL_TOWER_ID;
             case LATTICE -> TowerFamilyDesignPresets.LATTICE_SUSPENSION_ID;
             case HEAVY_LATTICE -> TowerFamilyDesignPresets.HV_TRANSMISSION_SUSPENSION_ID;
+            case TRIPLE_ARM -> TowerFamilyDesignPresets.TRIPLE_ARM_SUSPENSION_ID;
+            case CUP_TOWER -> TowerFamilyDesignPresets.CUP_TOWER_SUSPENSION_ID;
             case MEGA_LATTICE -> TowerFamilyDesignPresets.MEGA_LATTICE_SUSPENSION_ID;
             case HEAVY_DOUBLE_CIRCUIT -> TowerFamilyDesignPresets.HEAVY_DOUBLE_CIRCUIT_SUSPENSION_ID;
             case INDUSTRIAL_PORTAL -> TowerFamilyDesignPresets.INDUSTRIAL_PORTAL_SUSPENSION_ID;
@@ -103,6 +105,8 @@ public final class PowerLineStylePreviewBinding {
             return family.getDesignId(com.plot.plugin.powerline.model.TowerRole.SUSPENSION).equals(previewId)
                 || TowerFamilyDesignPresets.LATTICE_SUSPENSION_SMALL_ID.equals(previewId)
                 || TowerFamilyDesignPresets.HV_TRANSMISSION_SUSPENSION_ID.equals(previewId)
+                || TowerFamilyDesignPresets.TRIPLE_ARM_SUSPENSION_ID.equals(previewId)
+                || TowerFamilyDesignPresets.CUP_TOWER_SUSPENSION_ID.equals(previewId)
                 || TowerFamilyDesignPresets.MEGA_LATTICE_SUSPENSION_ID.equals(previewId)
                 || TowerFamilyDesignPresets.HEAVY_DOUBLE_CIRCUIT_SUSPENSION_ID.equals(previewId)
                 || TowerFamilyDesignPresets.INDUSTRIAL_PORTAL_SUSPENSION_ID.equals(previewId)
