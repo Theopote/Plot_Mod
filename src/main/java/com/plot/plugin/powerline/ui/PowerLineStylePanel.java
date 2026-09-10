@@ -55,8 +55,7 @@ public final class PowerLineStylePanel {
 
     private void renderStyleGallery(PowerLineFootprint line) {
         for (StyleCategory category : PowerLineStylePresetCatalog.galleryCategories()) {
-            boolean openByDefault = category == StyleCategory.UTILITY;
-            ImGui.setNextItemOpen(openByDefault, ImGuiCond.FirstUseEver);
+            ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
             if (ImGui.collapsingHeader(
                     PlotI18n.tr(category.sectionKey()),
                     ImGuiTreeNodeFlags.None)) {
