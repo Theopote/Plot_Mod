@@ -16,16 +16,15 @@ import imgui.flag.ImGuiWindowFlags;
 
 /** 杆塔设计器预览：体素立面 + 设计辅助 overlay。 */
 public final class PoleDesignPreviewRenderer {
-    private static final float MIN_PANE_HEIGHT = 192f;
-    private static final float MAX_PANE_HEIGHT = 660f;
+    static final float MIN_PANE_HEIGHT = 192f;
+    static final float MAX_PANE_HEIGHT = 660f;
     private static final float HEIGHT_PER_BLOCK = 5.2f;
     private static final float PANE_CHROME_HEIGHT = 24f;
-    private static final float COLUMN_TITLE_HEIGHT = 20f;
-    private static final float COLUMN_FOOTER_HEIGHT = 18f;
     private static final float PANE_GAP = 8f;
     private static final float PANE_PADDING = 2f;
     private static final float PANE_LABEL_GAP = 4f;
-    private static final int PREVIEW_CHILD_FLAGS =
+    private static final float MIN_COLUMN_HEIGHT = 32f;
+    private static final int PREVIEW_CANVAS_FLAGS =
         ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
     private static final int COLOR_BG = 0xFF2A2A2A;
     private static final int COLOR_BORDER = 0xFF606060;
@@ -39,24 +38,29 @@ public final class PoleDesignPreviewRenderer {
     }
 
     /**
-     * 设计器左栏：上正视、下侧视，高度随塔高在合理范围内伸缩。
+     * 设计器左栏：预览框占满剩余高度，正视/侧视均分框内空间，不出现内部滚动条。
      */
-    public static void renderVerticalStack(PoleDesign design, float width, float maxColumnHeight) {
-        if (width < 40f || design == null || maxColumnHeight < MIN_PANE_HEIGHT) {
+    public static void renderVerticalStack(PoleDesign design, float width, float columnHeight) {
+        if (width < 40f || design == null || columnHeight < MIN_COLUMN_HEIGHT) {
             return;
         }
 
         ImGui.text(PlotI18n.tr("plugin.powerline.design.preview"));
-        PoleVoxelPreviewModel model = PoleVoxelizer.voxelize(design);
-        float paneHeight = resolvePaneHeight(design, model, maxColumnHeight);
-        float canvasHeight = paneHeight * 2f + PANE_GAP;
+        float titleHeight = ImGui.getTextLineHeightWithSpacing();
+        float footerHeight = ImGui.getTextLineHeightWithSpacing();
+        float viewportHeight = Math.max(0f, columnHeight - titleHeight - footerHeight);
+        if (viewportHeight < 1f) {
+            ImGui.text(PlotI18n.tr("plugin.powerline.design.total_height", design.totalHeight()));
+            return;
+        }
 
-        ImGui.beginChild("##pole_design_preview_canvas", width, canvasHeight, true, PREVIEW_CHILD_FLAGS);
+        ImGui.beginChild("##pole_design_preview_canvas", width, viewportHeight, true, PREVIEW_CANVAS_FLAGS);
         float contentWidth = ImGui.getContentRegionAvail().x;
         float contentHeight = ImGui.getContentRegionAvail().y;
-        float eachPaneHeight = Math.max(40f, (contentHeight - PANE_GAP) * 0.5f);
+        float eachPaneHeight = Math.max(28f, (contentHeight - PANE_GAP) * 0.5f);
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
+        PoleVoxelPreviewModel model = PoleVoxelizer.voxelize(design);
 
         float frontY0 = origin.y;
         float frontY1 = frontY0 + eachPaneHeight;
@@ -90,22 +94,15 @@ public final class PoleDesignPreviewRenderer {
         ImGui.text(PlotI18n.tr("plugin.powerline.design.total_height", design.totalHeight()));
     }
 
-    /** 根据塔高估算单视图画布高度（带上限，避免左栏过高）。 */
-    public static float resolvePaneHeight(
-            PoleDesign design,
-            PoleVoxelPreviewModel model,
-            float maxColumnHeight) {
-        float maxPaneByColumn = Math.max(
-            MIN_PANE_HEIGHT,
-            (maxColumnHeight - COLUMN_TITLE_HEIGHT - COLUMN_FOOTER_HEIGHT - PANE_GAP) * 0.5f);
-        float maxPane = Math.min(MAX_PANE_HEIGHT, maxPaneByColumn);
+    /** 按塔高估算理想单视图高度（供测试与其他 UI 参考，设计器内始终均分框高）。 */
+    public static float resolveDesiredPaneHeight(PoleDesign design, PoleVoxelPreviewModel model) {
         if (design == null) {
-            return Math.min(maxPane, MIN_PANE_HEIGHT);
+            return MIN_PANE_HEIGHT;
         }
         float byBlocks = model != null && !model.isEmpty()
             ? model.heightY() * HEIGHT_PER_BLOCK + PANE_CHROME_HEIGHT
             : design.totalHeight() * HEIGHT_PER_BLOCK + 32f;
-        return Math.min(maxPane, Math.max(MIN_PANE_HEIGHT, byBlocks));
+        return Math.min(MAX_PANE_HEIGHT, Math.max(MIN_PANE_HEIGHT, byBlocks));
     }
 
     private static void renderPane(

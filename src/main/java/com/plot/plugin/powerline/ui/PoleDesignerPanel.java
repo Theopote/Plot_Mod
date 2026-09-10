@@ -148,10 +148,8 @@ public final class PoleDesignerPanel {
             try {
                 renderToolbar();
                 float footerHeight = footerReservedHeight();
-                float bodyHeight = ImGui.getContentRegionAvail().y - footerHeight;
-                if (bodyHeight > 120f) {
-                    renderSplitBody(bodyHeight);
-                }
+                float bodyHeight = Math.max(0f, ImGui.getContentRegionAvail().y - footerHeight);
+                renderSplitBody(bodyHeight);
                 renderFooter();
                 renderPresetConfirmPopup();
             } finally {
@@ -248,7 +246,7 @@ public final class PoleDesignerPanel {
             PoleDesignPreviewRenderer.renderVerticalStack(
                 draft,
                 ImGui.getContentRegionAvail().x,
-                bodyHeight);
+                ImGui.getContentRegionAvail().y);
         }
         ImGui.endChild();
 

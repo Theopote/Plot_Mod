@@ -44,17 +44,15 @@ class PoleDesignPreviewRendererTest {
         PoleVoxelPreviewModel shortModel = PoleVoxelizer.voxelize(PoleDesignCatalog.simpleWoodPole());
         PoleDesign tallDesign = TowerStructurePresets.taperedLatticePoleDesign("tall", "Tall");
         PoleVoxelPreviewModel tallModel = PoleVoxelizer.voxelize(tallDesign);
-        float shortPane = PoleDesignPreviewRenderer.resolvePaneHeight(
+        float shortPane = PoleDesignPreviewRenderer.resolveDesiredPaneHeight(
             PoleDesignCatalog.simpleWoodPole(),
-            shortModel,
-            520f);
-        float tallPane = PoleDesignPreviewRenderer.resolvePaneHeight(
+            shortModel);
+        float tallPane = PoleDesignPreviewRenderer.resolveDesiredPaneHeight(
             tallDesign,
-            tallModel,
-            520f);
-        assertTrue(shortPane >= 192f);
+            tallModel);
+        assertTrue(shortPane >= PoleDesignPreviewRenderer.MIN_PANE_HEIGHT);
         assertTrue(tallPane >= shortPane);
-        assertTrue(tallPane <= 440f);
+        assertTrue(tallPane <= PoleDesignPreviewRenderer.MAX_PANE_HEIGHT);
     }
 
     @Test
