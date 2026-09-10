@@ -1,7 +1,12 @@
 package com.plot.plugin.powerline.design;
 
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
+import com.plot.plugin.powerline.engineering.TowerEngineeringMetadata;
+import com.plot.plugin.powerline.model.TowerRole;
 import org.junit.jupiter.api.Test;
+
+import java.util.EnumSet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -26,6 +31,68 @@ class PoleDesignSerializationTest {
         assertEquals("phase_b", restored.getAttachments().get(1).getId());
         assertEquals(12.0, restored.getAttachments().get(1).getVerticalOffset(), 1e-6);
         assertEquals(2, restored.getAttachments().getFirst().getInsulatorLength());
+    }
+
+    @Test
+    void engineeringMetadataRoundTrip() {
+        PoleDesign design = new PoleDesign("mega-custom", "Mega Custom");
+        design.setLayers(PoleDesignCatalog.simpleWoodPole().getLayers());
+        TowerEngineeringMetadata metadata = new TowerEngineeringMetadata();
+        metadata.setNominalHeight(80.0);
+        metadata.setMaxRecommendedSpan(240.0);
+        metadata.setMaxRecommendedDeflectionAngle(35.0);
+        metadata.setSupportedRoles(EnumSet.of(TowerRole.SUSPENSION, TowerRole.ANGLE));
+        design.setEngineeringMetadata(metadata);
+
+        PoleDesign restored = PoleDesign.fromJson(design.toJson());
+        assertNotNull(restored);
+        assertNotNull(restored.getEngineeringMetadata());
+        assertEquals(metadata, restored.getEngineeringMetadata());
+        assertTrue(design.toJson().contains("\"engineeringMetadata\""));
+        assertTrue(design.toJson().contains("\"maxRecommendedSpan\""));
+    }
+
+    @Test
+    void saveAsStyleCopyPreservesEngineeringMetadata() {
+        PoleDesign draft = TowerStructurePresets.taperedLatticePoleDesign("src", "Source");
+        TowerEngineeringMetadata metadata = new TowerEngineeringMetadata();
+        metadata.setNominalHeight(42.0);
+        metadata.setMaxRecommendedSpan(120.0);
+        metadata.setMaxRecommendedDeflectionAngle(15.0);
+        metadata.setSupportedRoles(EnumSet.of(TowerRole.SUSPENSION, TowerRole.DEAD_END));
+        draft.setEngineeringMetadata(metadata);
+
+        // Mirrors PoleDesignerPanel.saveDraft(forceNewId=true) construction.
+        PoleDesign saved = new PoleDesign(draft.getName());
+        saved.setLayers(draft.getLayers());
+        saved.setAttachments(draft.getAttachments());
+        saved.setTowerStructure(draft.getTowerStructure());
+        saved.setEngineeringMetadata(draft.getEngineeringMetadata());
+
+        assertEquals(metadata, saved.getEngineeringMetadata());
+        PoleDesign restored = PoleDesign.fromJson(saved.toJson());
+        assertEquals(metadata, restored.getEngineeringMetadata());
+    }
+
+    @Test
+    void unknownLayerShapeIsSkippedWithoutFailingLoad() {
+        String json = """
+            {
+              "id": "legacy-shape",
+              "name": "Legacy Shape",
+              "layers": [
+                {"shape": "COLUMN_OLD", "height": 4, "crossarmLength": 0, "material": "minecraft:oak_fence"},
+                {"shape": "COLUMN", "height": 6, "crossarmLength": 0, "material": "minecraft:oak_fence"},
+                {"shape": "CROSSARM", "height": 1, "crossarmLength": 5, "material": "minecraft:oak_log"}
+              ],
+              "attachments": []
+            }
+            """;
+        PoleDesign restored = PoleDesign.fromJson(json);
+        assertNotNull(restored);
+        assertEquals(2, restored.getLayers().size());
+        assertEquals(PoleLayer.Shape.COLUMN, restored.getLayers().getFirst().getShape());
+        assertEquals(PoleLayer.Shape.CROSSARM, restored.getLayers().get(1).getShape());
     }
 
     @Test

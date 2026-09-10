@@ -819,6 +819,7 @@ public final class PoleDesignerPanel {
             saved.setLayers(draft.getLayers());
             saved.setAttachments(draft.getAttachments());
             saved.setTowerStructure(draft.getTowerStructure());
+            saved.setEngineeringMetadata(draft.getEngineeringMetadata());
             ctx.actions().savePoleDesign(saved);
             ctx.state().setPoleDesignerEditingId(saved.getId());
             draft = saved.copy();

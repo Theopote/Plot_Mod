@@ -5,9 +5,12 @@ import com.google.gson.GsonBuilder;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
+import com.plot.plugin.powerline.engineering.TowerEngineeringMetadata;
 import com.plot.plugin.powerline.equipment.InsulatorType;
+import com.plot.plugin.powerline.model.TowerRole;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,7 +27,7 @@ public class PoleDesign {
     private List<PoleLayer> layers = new ArrayList<>();
     private List<ConductorAttachment> attachments = new ArrayList<>();
     private TowerStructureDesign towerStructure;
-    private com.plot.plugin.powerline.engineering.TowerEngineeringMetadata engineeringMetadata;
+    private TowerEngineeringMetadata engineeringMetadata;
 
     public PoleDesign(String name) {
         this.id = UUID.randomUUID().toString();
@@ -138,23 +141,21 @@ public class PoleDesign {
         return towerStructure != null && towerStructure.hasStations();
     }
 
-    public com.plot.plugin.powerline.engineering.TowerEngineeringMetadata getEngineeringMetadata() {
+    public TowerEngineeringMetadata getEngineeringMetadata() {
         return engineeringMetadata;
     }
 
-    public void setEngineeringMetadata(
-            com.plot.plugin.powerline.engineering.TowerEngineeringMetadata engineeringMetadata) {
+    public void setEngineeringMetadata(TowerEngineeringMetadata engineeringMetadata) {
         this.engineeringMetadata = engineeringMetadata != null
             ? engineeringMetadata.copy()
             : null;
     }
 
-    public com.plot.plugin.powerline.engineering.TowerEngineeringMetadata effectiveEngineeringMetadata(
-            com.plot.plugin.powerline.model.TowerRole role) {
+    public TowerEngineeringMetadata effectiveEngineeringMetadata(TowerRole role) {
         if (engineeringMetadata != null) {
             return engineeringMetadata;
         }
-        return com.plot.plugin.powerline.engineering.TowerEngineeringMetadata.defaultsForRole(role);
+        return TowerEngineeringMetadata.defaultsForRole(role);
     }
 
     public void clearTowerStructure() {
@@ -243,12 +244,67 @@ public class PoleDesign {
         MaterialMix material;
     }
 
+    static class EngineeringMetadataData {
+        double nominalHeight;
+        double maxRecommendedSpan;
+        double maxRecommendedDeflectionAngle;
+        List<String> supportedRoles = new ArrayList<>();
+
+        static EngineeringMetadataData from(TowerEngineeringMetadata metadata) {
+            if (metadata == null) {
+                return null;
+            }
+            EngineeringMetadataData data = new EngineeringMetadataData();
+            data.nominalHeight = metadata.getNominalHeight();
+            data.maxRecommendedSpan = metadata.getMaxRecommendedSpan();
+            data.maxRecommendedDeflectionAngle = metadata.getMaxRecommendedDeflectionAngle();
+            for (TowerRole role : metadata.getSupportedRoles()) {
+                if (role != null) {
+                    data.supportedRoles.add(role.name());
+                }
+            }
+            return data;
+        }
+
+        TowerEngineeringMetadata toMetadata() {
+            TowerEngineeringMetadata metadata = new TowerEngineeringMetadata();
+            metadata.setNominalHeight(nominalHeight);
+            metadata.setMaxRecommendedSpan(maxRecommendedSpan);
+            metadata.setMaxRecommendedDeflectionAngle(maxRecommendedDeflectionAngle);
+            EnumSet<TowerRole> roles = EnumSet.noneOf(TowerRole.class);
+            if (supportedRoles != null) {
+                for (String raw : supportedRoles) {
+                    TowerRole role = parseTowerRole(raw);
+                    if (role != null) {
+                        roles.add(role);
+                    }
+                }
+            }
+            if (!roles.isEmpty()) {
+                metadata.setSupportedRoles(roles);
+            }
+            return metadata;
+        }
+
+        private static TowerRole parseTowerRole(String raw) {
+            if (raw == null || raw.isBlank()) {
+                return null;
+            }
+            try {
+                return TowerRole.valueOf(raw.trim());
+            } catch (IllegalArgumentException ignored) {
+                return null;
+            }
+        }
+    }
+
     static class DesignData {
         String id;
         String name;
         List<LayerData> layers = new ArrayList<>();
         List<AttachmentData> attachments = new ArrayList<>();
         String towerStructureJson;
+        EngineeringMetadataData engineeringMetadata;
 
         static DesignData from(PoleDesign design) {
             DesignData data = new DesignData();
@@ -284,6 +340,7 @@ public class PoleDesign {
             if (design.towerStructure != null) {
                 data.towerStructureJson = design.towerStructure.toJson();
             }
+            data.engineeringMetadata = EngineeringMetadataData.from(design.engineeringMetadata);
             return data;
         }
 
@@ -295,8 +352,12 @@ public class PoleDesign {
                     if (layerData == null || layerData.shape == null) {
                         continue;
                     }
+                    PoleLayer.Shape shape = PoleLayer.Shape.parseOrNull(layerData.shape);
+                    if (shape == null) {
+                        continue;
+                    }
                     PoleLayer layer = new PoleLayer();
-                    layer.setShape(PoleLayer.Shape.valueOf(layerData.shape));
+                    layer.setShape(shape);
                     layer.setHeight(layerData.height);
                     layer.setCrossarmLength(layerData.crossarmLength);
                     if (layerData.material != null) {
@@ -337,6 +398,9 @@ public class PoleDesign {
             design.setAttachments(restoredAttachments);
             if (towerStructureJson != null && !towerStructureJson.isBlank()) {
                 design.setTowerStructure(TowerStructureDesign.fromJson(towerStructureJson));
+            }
+            if (engineeringMetadata != null) {
+                design.setEngineeringMetadata(engineeringMetadata.toMetadata());
             }
             return design;
         }

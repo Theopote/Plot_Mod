@@ -11,7 +11,19 @@ public class PoleLayer {
         COLUMN,
         /** 横担层；多层时最上方（层栈中最后一个）横担为导线悬挂层。 */
         CROSSARM,
-        CAP
+        CAP;
+
+        /** 未知 / 空白 → null，由调用方跳过该层。 */
+        public static Shape parseOrNull(String raw) {
+            if (raw == null || raw.isBlank()) {
+                return null;
+            }
+            try {
+                return Shape.valueOf(raw.trim());
+            } catch (IllegalArgumentException ignored) {
+                return null;
+            }
+        }
     }
 
     private Shape shape = Shape.COLUMN;

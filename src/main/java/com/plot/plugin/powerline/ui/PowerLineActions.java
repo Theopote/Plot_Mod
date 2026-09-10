@@ -66,13 +66,17 @@ public final class PowerLineActions {
         state.setPathSelection(selection);
 
         if (!selection.hasCanvasSelection()) {
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.adopt_no_selection"));
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.adopt_no_selection"),
+                ProjectStatusSeverity.WARNING);
             return;
         }
         if (!selection.canAdopt()) {
-            state.setProjectStatus(selection.rejectedCurves().isEmpty()
-                ? PlotI18n.tr("plugin.powerline.adopt_no_selection")
-                : PlotI18n.tr("plugin.powerline.adopt_reject_curve"));
+            state.setProjectStatus(
+                selection.rejectedCurves().isEmpty()
+                    ? PlotI18n.tr("plugin.powerline.adopt_no_selection")
+                    : PlotI18n.tr("plugin.powerline.adopt_reject_curve"),
+                ProjectStatusSeverity.WARNING);
             return;
         }
 
@@ -104,15 +108,23 @@ public final class PowerLineActions {
             invalidatePreview();
         }
         if (adopted == 0) {
-            state.setProjectStatus(curveRejected
-                ? PlotI18n.tr("plugin.powerline.adopt_reject_curve")
-                : PlotI18n.tr("plugin.powerline.adopt_no_selection"));
+            state.setProjectStatus(
+                curveRejected
+                    ? PlotI18n.tr("plugin.powerline.adopt_reject_curve")
+                    : PlotI18n.tr("plugin.powerline.adopt_no_selection"),
+                ProjectStatusSeverity.WARNING);
         } else if (skipped > 0) {
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.adopt_success_partial", adopted, skipped));
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.adopt_success_partial", adopted, skipped),
+                ProjectStatusSeverity.WARNING);
         } else if (adopted > 1) {
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.adopt_success_batch", adopted));
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.adopt_success_batch", adopted),
+                ProjectStatusSeverity.SUCCESS);
         } else {
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.adopt_success"), ProjectStatusSeverity.SUCCESS);
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.adopt_success"),
+                ProjectStatusSeverity.SUCCESS);
         }
     }
 
@@ -169,7 +181,7 @@ public final class PowerLineActions {
             return false;
         }
         if (line == null) {
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.select_line_hint"));
+            state.setProjectStatus(PlotI18n.tr("plugin.powerline.select_line_hint"), ProjectStatusSeverity.WARNING);
             return false;
         }
 
@@ -404,7 +416,9 @@ public final class PowerLineActions {
     public void invalidatePreview() {
         if (state.getLastGenerationResult() != null || state.getPreviewKey() != null) {
             clearPreview();
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.preview_invalidated"));
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.preview_invalidated"),
+                ProjectStatusSeverity.INFO);
         }
     }
 
@@ -477,17 +491,21 @@ public final class PowerLineActions {
 
         com.plot.api.world.PlacementReadiness readiness = host.projection().checkWorldModificationReadiness();
         if (!readiness.ready()) {
-            state.setProjectStatus(readiness.message());
+            state.setProjectStatus(readiness.message(), ProjectStatusSeverity.ERROR);
             return;
         }
         if (host.placement().isBusy()) {
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.build_in_progress_wait"));
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.build_in_progress_wait"),
+                ProjectStatusSeverity.WARNING);
             return;
         }
 
         List<BlockRecord> records = new ArrayList<>(resultSnapshot.placementRecords.values());
         PowerLineGenerateCommand command = new PowerLineGenerateCommand(records, host.projection(), host.placement());
-        state.setProjectStatus(PlotI18n.tr("plugin.powerline.build_in_progress", records.size()));
+        state.setProjectStatus(
+            PlotI18n.tr("plugin.powerline.build_in_progress", records.size()),
+            ProjectStatusSeverity.INFO);
         command.executeScheduled(() -> {
             PowerLineGenerateCommand.ExecutionResult result = command.getLastExecutionResult();
             if (command.hasAppliedRecords()) {
@@ -499,12 +517,12 @@ public final class PowerLineActions {
                 state.setProjectStatus(PlotI18n.tr(
                     "plugin.powerline.build_partial",
                     result.success(),
-                    result.total()));
+                    result.total()), ProjectStatusSeverity.WARNING);
             } else if (result != null && result.cancelled()) {
                 state.setProjectStatus(PlotI18n.tr(
                     "plugin.powerline.build_cancelled",
                     result.success(),
-                    result.total()));
+                    result.total()), ProjectStatusSeverity.WARNING);
             }
             clearPreview();
         });
@@ -513,7 +531,7 @@ public final class PowerLineActions {
     private boolean ensurePreviewReadyForBuild(PowerLineFootprint line) {
         syncPreviewValidity(line);
         if (line == null) {
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.select_line_hint"));
+            state.setProjectStatus(PlotI18n.tr("plugin.powerline.select_line_hint"), ProjectStatusSeverity.WARNING);
             return false;
         }
         if (!hasValidPreview(line)) {
@@ -598,7 +616,9 @@ public final class PowerLineActions {
             state.getSelection().retainExisting(state.getProject());
         }
         invalidatePreview();
-        state.setProjectStatus(PlotI18n.tr("plugin.powerline.deleted", ids.size()));
+        state.setProjectStatus(
+            PlotI18n.tr("plugin.powerline.deleted", ids.size()),
+            ProjectStatusSeverity.SUCCESS);
     }
 
     public PoleDesignResolver designResolver() {
@@ -670,7 +690,9 @@ public final class PowerLineActions {
         }
         if (loadProjectFile(projectsDir.resolve(defaultProjectFile))) {
             state.setCurrentProjectFile(defaultProjectFile);
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.project.default_loaded"));
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.project.default_loaded"),
+                ProjectStatusSeverity.SUCCESS);
         }
         loadDesignProjectFile(designProjectsDir.resolve(defaultProjectFile));
     }
@@ -765,7 +787,9 @@ public final class PowerLineActions {
         state.setPathSelection(PowerLinePathSelectionAnalysis.EMPTY);
         toolManager.setActiveTool(selectTool);
         host.appState().setCurrentTool(baseTool);
-        state.setProjectStatus(PlotI18n.tr("plugin.powerline.pick_started"));
+        state.setProjectStatus(
+            PlotI18n.tr("plugin.powerline.pick_started"),
+            ProjectStatusSeverity.INFO);
     }
 
     public PowerLineValidationReport analyzeEngineering(PowerLineFootprint line) {
