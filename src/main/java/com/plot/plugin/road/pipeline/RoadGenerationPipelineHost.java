@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.core.geometry.WorldProjectionMath;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
@@ -105,6 +106,6 @@ public final class RoadGenerationPipelineHost implements RoadGenerationPipelineC
         }
         Vec2d unit = tangent.normalize();
         Vec2d normal = new Vec2d(-unit.y, unit.x);
-        return RoadGeometryUtils.canvasUnitsPerWorldBlock(coordinateTransformer, origin, normal);
+        return WorldProjectionMath.canvasUnitsPerWorldBlock(coordinateTransformer, origin, normal);
     }
 }

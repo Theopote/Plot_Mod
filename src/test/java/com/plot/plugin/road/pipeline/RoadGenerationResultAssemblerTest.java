@@ -95,6 +95,21 @@ class RoadGenerationResultAssemblerTest {
     }
 
     @Test
+    void estimateCanvasUnitsPerBlockUsesCoreProjectionMath() {
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        RoadGenerationPipelineHost host = new RoadGenerationPipelineHost(
+            config,
+            com.plot.api.world.SnapshotCoordinateService.uniformScale(4.0),
+            com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+
+        double units = host.estimateCanvasUnitsPerBlock(
+            List.of(new com.plot.api.geometry.Vec2d(0, 0), new com.plot.api.geometry.Vec2d(100, 0)),
+            List.of());
+
+        assertEquals(0.25, units, 1e-6);
+    }
+
+    @Test
     void aggregateNetworkMergesEdgesAndJunctions() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         RoadGenerationPipelineHost host = new RoadGenerationPipelineHost(
