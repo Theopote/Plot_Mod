@@ -53,6 +53,8 @@ public final class PoleDesignerPanel {
     private boolean presetConfirmPending = false;
     private boolean familyRolePickerPending = false;
     private String pendingFamilyId = "";
+    private boolean closeConfirmPending = false;
+    private String openedBaselineJson = "";
     private final List<LayerAction> pendingLayerActions = new ArrayList<>();
     private final ImBoolean designerWindowOpen = new ImBoolean(false);
 
@@ -72,6 +74,7 @@ public final class PoleDesignerPanel {
         }
         designNameBuffer.set(draft.getName());
         ctx.state().getDesignDraftHistory().clear();
+        captureOpenedBaseline();
         TowerArmAttachmentBinding.inferArmBindings(draft);
         designerWindowOpen.set(true);
         ctx.state().setPoleDesignerOpen(true);
@@ -95,6 +98,7 @@ public final class PoleDesignerPanel {
 
     public void render() {
         renderFamilyRolePickerPopup();
+        renderCloseConfirmPopup();
         if (!ctx.state().isPoleDesignerOpen() || draft == null) {
             return;
         }
@@ -109,7 +113,7 @@ public final class PoleDesignerPanel {
                     ImGuiWindowFlags.None)) {
                 ImGui.end();
                 if (!designerWindowOpen.get()) {
-                    closeDesigner();
+                    handleCloseRequest();
                 }
                 return;
             }
@@ -134,7 +138,7 @@ public final class PoleDesignerPanel {
             } finally {
                 ImGui.end();
                 if (!designerWindowOpen.get()) {
-                    closeDesigner();
+                    handleCloseRequest();
                 }
             }
         } finally {
@@ -142,8 +146,55 @@ public final class PoleDesignerPanel {
         }
     }
 
-    private void closeDesigner() {
+    private void handleCloseRequest() {
+        if (draft == null || !isDraftDirty()) {
+            finalizeClose();
+            return;
+        }
+        designerWindowOpen.set(true);
+        closeConfirmPending = true;
+    }
+
+    private void finalizeClose() {
         ctx.state().setPoleDesignerOpen(false);
+        ctx.state().setPoleDesignerEditingId("");
+        draft = null;
+        openedBaselineJson = "";
+        closeConfirmPending = false;
+        designerWindowOpen.set(false);
+    }
+
+    private void captureOpenedBaseline() {
+        openedBaselineJson = PoleDesignerDraftBaseline.capture(draft);
+    }
+
+    private boolean isDraftDirty() {
+        return PoleDesignerDraftBaseline.isDirty(draft, openedBaselineJson);
+    }
+
+    private void renderCloseConfirmPopup() {
+        if (!PowerLineUiWidgets.beginDeferredPopupModal(
+                "##pole_design_close_confirm",
+                closeConfirmPending,
+                () -> closeConfirmPending = false)) {
+            return;
+        }
+        ImGui.textWrapped(PlotI18n.tr("plugin.powerline.design.close_confirm"));
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.save"), 120, 0)) {
+            saveDraft(false);
+            closeConfirmPending = false;
+            finalizeClose();
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.discard"), 120, 0)) {
+            closeConfirmPending = false;
+            finalizeClose();
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
+            closeConfirmPending = false;
+        }
+        ImGui.endPopup();
     }
 
     private void renderDraftHistoryControls() {
@@ -804,7 +855,7 @@ public final class PoleDesignerPanel {
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 0, 0)) {
-            closeDesigner();
+            handleCloseRequest();
         }
 
         if (ImGui.beginPopup("##pole_design_save_as")) {
@@ -838,6 +889,7 @@ public final class PoleDesignerPanel {
         }
         designNameBuffer.set(draft.getName());
         ctx.state().getDesignDraftHistory().clear();
+        captureOpenedBaseline();
     }
 
     private void renderPresetConfirmPopup() {
