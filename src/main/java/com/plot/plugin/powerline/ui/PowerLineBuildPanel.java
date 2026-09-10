@@ -88,7 +88,7 @@ public final class PowerLineBuildPanel {
         renderCornerStatus(line);
 
         if (!line.isVisualChecksEnabled()) {
-            ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.powerline.build.status.decorative"));
+            PowerLineStatusIcon.renderOkLine(PlotI18n.tr("plugin.powerline.build.status.decorative"));
             return;
         }
 
@@ -108,23 +108,18 @@ public final class PowerLineBuildPanel {
     private void renderSpacingStatus(PowerLineFootprint line) {
         PowerLineFriendlyStatus.SpacingEvaluation spacing = PowerLineFriendlyStatus.evaluateSpacing(line);
         switch (spacing.kind()) {
-            case OK -> ImGui.textColored(
-                PluginUiColors.STATUS_OK,
+            case OK -> PowerLineStatusIcon.renderOkLine(
                 PlotI18n.tr("plugin.powerline.build.status.spacing_ok"));
-            case SETTINGS_ONLY -> ImGui.textColored(
-                PluginUiColors.STATUS_OK,
+            case SETTINGS_ONLY -> PowerLineStatusIcon.renderOkLine(
                 PlotI18n.tr("plugin.powerline.build.status.spacing_settings_ok"));
-            case INVALID_SETTINGS -> ImGui.textColored(
-                PluginUiColors.WARNING,
+            case INVALID_SETTINGS -> PowerLineStatusIcon.renderWarningLine(
                 PlotI18n.tr("plugin.powerline.build.status.spacing_invalid"));
-            case TOO_CLOSE -> ImGui.textColored(
-                PluginUiColors.WARNING,
+            case TOO_CLOSE -> PowerLineStatusIcon.renderWarningLine(
                 PlotI18n.tr(
                     "plugin.powerline.build.status.spacing_too_close",
                     String.format("%.1f", spacing.worstSpan()),
                     String.format("%.1f", spacing.limit())));
-            case TOO_FAR -> ImGui.textColored(
-                PluginUiColors.WARNING,
+            case TOO_FAR -> PowerLineStatusIcon.renderWarningLine(
                 PlotI18n.tr(
                     "plugin.powerline.build.status.spacing_too_far",
                     String.format("%.1f", spacing.worstSpan()),
@@ -136,11 +131,9 @@ public final class PowerLineBuildPanel {
     private void renderCornerStatus(PowerLineFootprint line) {
         PowerLineFriendlyStatus.CornerEvaluation corners = PowerLineFriendlyStatus.evaluateCornerPoles(line);
         switch (corners.kind()) {
-            case OK -> ImGui.textColored(
-                PluginUiColors.STATUS_OK,
+            case OK -> PowerLineStatusIcon.renderOkLine(
                 PlotI18n.tr("plugin.powerline.build.status.corners_ok"));
-            case MISSING -> ImGui.textColored(
-                PluginUiColors.WARNING,
+            case MISSING -> PowerLineStatusIcon.renderWarningLine(
                 PlotI18n.tr("plugin.powerline.build.status.corners_missing", corners.missingCount()));
             case NO_PATH -> { }
             default -> { }
@@ -154,10 +147,10 @@ public final class PowerLineBuildPanel {
         }
         PowerLineValidationReport report = ctx.actions().cachedTerrainReport(line);
         if (report == null || !PowerLineFriendlyStatus.hasTerrainIssues(report)) {
-            ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.powerline.build.status.terrain_ok"));
+            PowerLineStatusIcon.renderOkLine(PlotI18n.tr("plugin.powerline.build.status.terrain_ok"));
             return;
         }
-        ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.powerline.build.status.terrain_warning"));
+        PowerLineStatusIcon.renderWarningLine(PlotI18n.tr("plugin.powerline.build.status.terrain_warning"));
         renderIssueList(report);
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.terrain_apply_fix_hint"));
         if (ImGui.button(PlotI18n.tr("plugin.powerline.build.terrain_apply_fix"), 0, 0)) {
@@ -176,7 +169,7 @@ public final class PowerLineBuildPanel {
         if (issues.isEmpty()) {
             if (!terrainChecksActive || !PowerLineFriendlyStatus.hasTerrainIssues(
                     ctx.actions().cachedTerrainReport(line))) {
-                ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.powerline.build.status.all_good"));
+                PowerLineStatusIcon.renderOkLine(PlotI18n.tr("plugin.powerline.build.status.all_good"));
             }
             return;
         }
@@ -197,8 +190,8 @@ public final class PowerLineBuildPanel {
                     issues.size() - shown));
                 break;
             }
-            ImGui.textColored(PluginUiColors.WARNING, "⚠ " + PowerLineFriendlyStatus.friendlyIssue(issue));
-            ImGui.textColored(PluginUiColors.HINT_GRAY, "  " + PowerLineFriendlyStatus.friendlySuggestion(issue));
+            PowerLineStatusIcon.renderWarningLine(PowerLineFriendlyStatus.friendlyIssue(issue));
+            PowerLineStatusIcon.renderIndentedHint(PowerLineFriendlyStatus.friendlySuggestion(issue));
             shown++;
         }
     }
@@ -221,7 +214,7 @@ public final class PowerLineBuildPanel {
         if (result.warnings.isEmpty()) {
             return;
         }
-        ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
+        PowerLineStatusIcon.renderWarningLine(PlotI18n.tr(
             "plugin.powerline.clearance_warnings",
             result.warnings.size()));
         ImGui.beginChild("powerline_build_advanced_warnings", 0, 80, true);

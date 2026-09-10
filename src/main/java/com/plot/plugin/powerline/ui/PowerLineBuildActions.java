@@ -42,7 +42,7 @@ final class PowerLineBuildActions {
         }
 
         if (ctx.lastGenerationResult() != null && !hasPreview) {
-            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.powerline.preview_stale"));
+            PowerLineStatusIcon.renderWarningLine(PlotI18n.tr("plugin.powerline.preview_stale"));
         }
 
         boolean buildDisabled = !readiness.ready()
@@ -78,8 +78,7 @@ final class PowerLineBuildActions {
                 issueCount = terrainHits;
             }
             if (issueCount > 0) {
-                ImGui.textColored(
-                    PluginUiColors.WARNING,
+                PowerLineStatusIcon.renderWarningLine(
                     PlotI18n.tr("plugin.powerline.build_confirm_issues", issueCount, terrainHits));
             }
             boolean canBuild = result != null && ctx.requestBuildConfirm(line);

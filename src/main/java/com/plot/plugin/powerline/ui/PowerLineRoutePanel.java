@@ -208,7 +208,7 @@ public final class PowerLineRoutePanel {
         for (int i = 0; i < constraints.size(); i++) {
             var constraint = constraints.get(i);
             ImGui.pushID("powerline_auto_pole_" + i);
-            ImGui.text(PlotI18n.tr(
+            PowerLineStatusIcon.renderBulletLine(PlotI18n.tr(
                 "plugin.powerline.route.auto_poles.entry",
                 String.format("%.1f", constraint.getRequiredStationing()),
                 PowerLineAutoPoleLabels.friendlyReason(constraint)));
