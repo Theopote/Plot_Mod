@@ -18,12 +18,14 @@ import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
+import imgui.flag.ImGuiTableColumnFlags;
+import imgui.flag.ImGuiTableFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
 
 /** Base preset 下的 Quick Customize（Tower / Wires 分区）。 */
 public final class PowerLineStyleQuickTunePanel {
-    private static final float ROW_LABEL_WIDTH = 76f;
     private static final float SEGMENT_HEIGHT = 24f;
+    private static final int TUNE_TABLE_COLUMNS = 3;
 
     private final PowerLineUiContext ctx;
     private final PoleDesignerPanel poleDesignerPanel;
@@ -90,6 +92,9 @@ public final class PowerLineStyleQuickTunePanel {
     private void renderTowerSection(PowerLineFootprint line, PowerLineStylePreset base) {
         ImGui.text(PlotI18n.tr("plugin.powerline.style.section.tower_tune"));
         ImGui.separator();
+        if (!beginTuneTable("tower")) {
+            return;
+        }
         renderTowerStyleRow(line);
         if (PowerLineQuickTunePolicy.supportsPoleHeightTune(line, ctx.designResolver())) {
             renderPoleHeightRow(line, base);
@@ -98,20 +103,52 @@ public final class PowerLineStyleQuickTunePanel {
             renderCrossarmRow(line, base);
         }
         renderPoleMaterialRow(line, base);
+        endTuneTable();
     }
 
     private void renderWiresSection(PowerLineFootprint line, PowerLineStylePreset base) {
         ImGui.text(PlotI18n.tr("plugin.powerline.style.section.wires_tune"));
         ImGui.separator();
+        if (!beginTuneTable("wires")) {
+            return;
+        }
         renderWireLayoutRow(line, base);
         renderWireMaterialRow(line, base);
         renderSagRow(line);
+        endTuneTable();
         renderTopWireInAdvanced(line);
+    }
+
+    private boolean beginTuneTable(String sectionId) {
+        int flags = ImGuiTableFlags.SizingStretchProp
+            | ImGuiTableFlags.RowBg
+            | ImGuiTableFlags.PadOuterX;
+        if (!ImGui.beginTable("quick_tune_" + sectionId, TUNE_TABLE_COLUMNS, flags)) {
+            return false;
+        }
+        float actionWidth = actionColumnWidth();
+        ImGui.tableSetupColumn("##label", ImGuiTableColumnFlags.WidthStretch, 0.34f);
+        ImGui.tableSetupColumn("##value", ImGuiTableColumnFlags.WidthStretch, 0.50f);
+        ImGui.tableSetupColumn("##action", ImGuiTableColumnFlags.WidthFixed, actionWidth);
+        return true;
+    }
+
+    private void endTuneTable() {
+        ImGui.endTable();
+    }
+
+    private float actionColumnWidth() {
+        float padding = ImGui.getStyle().getFramePaddingX() * 2f + 8f;
+        float change = ImGui.calcTextSize(PlotI18n.tr("plugin.powerline.style.quick_tune.change")).x + padding;
+        float edit = ImGui.calcTextSize(PlotI18n.tr("plugin.powerline.style.quick_tune.edit_tower")).x + padding;
+        float customize = ImGui.calcTextSize(PlotI18n.tr("plugin.powerline.style.quick_tune.customize_family")).x + padding;
+        return Math.max(change, Math.max(edit, customize));
     }
 
     private void renderTowerStyleRow(PowerLineFootprint line) {
         if (line.hasTowerFamily()) {
             renderValueRow(
+                "tower_style",
                 PlotI18n.tr("plugin.powerline.style.quick_tune.tower_style"),
                 resolveTowerLabel(line),
                 PlotI18n.tr("plugin.powerline.style.quick_tune.customize_family"),
@@ -119,6 +156,7 @@ public final class PowerLineStyleQuickTunePanel {
             return;
         }
         renderValueRow(
+            "tower_style",
             PlotI18n.tr("plugin.powerline.style.quick_tune.tower_style"),
             resolveTowerLabel(line),
             PlotI18n.tr("plugin.powerline.style.quick_tune.edit_tower"),
@@ -161,6 +199,7 @@ public final class PowerLineStyleQuickTunePanel {
         MaterialMix mix = line.getPoleMaterial();
         String value = formatMaterialLabel(mix, PowerLineFootprint.DEFAULT_POLE_MATERIAL);
         renderValueRow(
+            "pole_material",
             PlotI18n.tr("plugin.powerline.style.quick_tune.pole_material"),
             value,
             PlotI18n.tr("plugin.powerline.style.quick_tune.change"),
@@ -170,6 +209,7 @@ public final class PowerLineStyleQuickTunePanel {
     private void renderWireLayoutRow(PowerLineFootprint line, PowerLineStylePreset base) {
         int count = PowerLineQuickTunePolicy.conductorCount(line, base);
         renderValueRow(
+            "wire_layout",
             PlotI18n.tr("plugin.powerline.style.quick_tune.wire_layout"),
             PlotI18n.tr("plugin.powerline.style.quick_tune.wire_count", count),
             null,
@@ -180,6 +220,7 @@ public final class PowerLineStyleQuickTunePanel {
         MaterialMix mix = line.getWireMaterial();
         String value = formatMaterialLabel(mix, PowerLineFootprint.DEFAULT_WIRE_MATERIAL);
         renderValueRow(
+            "wire_material",
             PlotI18n.tr("plugin.powerline.wire_material"),
             value,
             PlotI18n.tr("plugin.powerline.style.quick_tune.change"),
@@ -187,8 +228,12 @@ public final class PowerLineStyleQuickTunePanel {
     }
 
     private void renderSagRow(PowerLineFootprint line) {
+        ImGui.tableNextRow();
+        ImGui.tableNextColumn();
+        ImGui.alignTextToFramePadding();
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.style.sag"));
-        ImGui.sameLine(ROW_LABEL_WIDTH);
+        ImGui.tableNextColumn();
+        ImGui.alignTextToFramePadding();
         PowerLineUiPresets.WireSag current = PowerLineUiPresets.detectSag(line);
         int selected = current != null ? current.ordinal() : -1;
         String[] labels = new String[PowerLineUiPresets.WireSag.values().length];
@@ -197,6 +242,7 @@ public final class PowerLineStyleQuickTunePanel {
             labels[i] = PlotI18n.tr("plugin.powerline.style.sag." + sag.name().toLowerCase());
         }
         renderInlineSagSegments(line, labels, selected);
+        ImGui.tableNextColumn();
     }
 
     private void renderTopWireInAdvanced(PowerLineFootprint line) {
@@ -249,29 +295,41 @@ public final class PowerLineStyleQuickTunePanel {
         return value;
     }
 
-    private void renderValueRow(String label, String value, String actionLabel, Runnable action) {
+    private void renderValueRow(
+            String rowId,
+            String label,
+            String value,
+            String actionLabel,
+            Runnable action) {
+        ImGui.tableNextRow();
+        ImGui.tableNextColumn();
+        ImGui.alignTextToFramePadding();
         ImGui.textColored(PluginUiColors.HINT_GRAY, label);
-        ImGui.sameLine(ROW_LABEL_WIDTH);
+        ImGui.tableNextColumn();
+        ImGui.alignTextToFramePadding();
         ImGui.text(value != null ? value : "-");
+        ImGui.tableNextColumn();
         if (actionLabel != null && action != null) {
-            ImGui.sameLine();
-            float actionWidth = ImGui.calcTextSize(actionLabel).x + ImGui.getStyle().getFramePaddingX() * 2f;
-            ImGui.setCursorPosX(ImGui.getCursorStartPos().x + ImGui.getContentRegionAvail().x - actionWidth);
-            if (ImGui.smallButton(actionLabel + "##" + label)) {
+            if (ImGui.smallButton(actionLabel + "##" + rowId)) {
                 action.run();
             }
         }
     }
 
     private void renderBandRow(
-            String id,
+            String rowId,
             String label,
             String[] options,
             int selected,
             java.util.function.IntConsumer onSelect) {
+        ImGui.tableNextRow();
+        ImGui.tableNextColumn();
+        ImGui.alignTextToFramePadding();
         ImGui.textColored(PluginUiColors.HINT_GRAY, label);
-        ImGui.sameLine(ROW_LABEL_WIDTH);
-        renderSegmentButtons(id, options, selected, onSelect);
+        ImGui.tableNextColumn();
+        ImGui.alignTextToFramePadding();
+        renderSegmentButtons(rowId, options, selected, onSelect);
+        ImGui.tableNextColumn();
     }
 
     private void renderSegmentButtons(
@@ -288,7 +346,7 @@ public final class PowerLineStyleQuickTunePanel {
                 ImGui.pushStyleColor(ImGuiCol.Button, 0xFF37474F);
                 ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0xFF455A64);
             }
-            ImGui.pushID(id + i);
+            ImGui.pushID(id + "_" + i);
             if (ImGui.button(options[i], 0, SEGMENT_HEIGHT)) {
                 if (!active) {
                     ctx.pushEditSnapshot();
@@ -350,6 +408,7 @@ public final class PowerLineStyleQuickTunePanel {
             }
         }
         if (selected < 0) {
+            ImGui.sameLine(0f, spacing);
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr(

@@ -321,7 +321,7 @@ public class UIUtils {
         ImGui.pushID(id);
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
         boolean ratioChanged = ImGui.sliderFloat(
-            PlotI18n.tr("plugin.material.accent_ratio", Math.round(ratioPercent[0])) + "##slider",
+            PlotI18n.tr("plugin.material.accent_ratio") + "##accent_ratio_slider",
             ratioPercent,
             0f,
             50f,

@@ -69,7 +69,7 @@ public final class PowerLineStylePanel {
         float cardW = PowerLineStyleCardRenderer.cardWidth();
         float spacing = ImGui.getStyle().getItemSpacingX();
         float avail = ImGui.getContentRegionAvail().x;
-        return Math.max(2, (int) ((avail + spacing) / (cardW + spacing)));
+        return Math.max(1, (int) ((avail + spacing) / (cardW + spacing)));
     }
 
     private void renderStylePresetGrid(PowerLineFootprint line, java.util.List<PowerLineStylePreset> presets) {
@@ -115,19 +115,18 @@ public final class PowerLineStylePanel {
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.powerline.style.sag_advanced"));
         float[] sagRatio = {(float) (line.getSagRatio() * 100f)};
-        if (ImGui.sliderFloat(
-                PowerLineUiWidgets.stableLabel("plugin.powerline.sag_ratio", "sag_ratio"),
-                sagRatio,
-                0f,
-                (float) (PowerLineUiPresets.ADVANCED_SAG_MAX_RATIO * 100f),
-                "%.0f%%")) {
-            PowerLineUiPresets.applyAdvancedSag(line, sagRatio[0] / 100f);
-            PowerLineStyleEditor.afterStyleEdit(line);
-            ctx.invalidatePreview();
-        }
-        if (ImGui.isItemActivated()) {
-            ctx.pushEditSnapshot();
-        }
+        PowerLineUiWidgets.sliderFloatStableLineEdit(
+            ctx,
+            "sag_ratio",
+            "plugin.powerline.sag_ratio",
+            sagRatio,
+            0f,
+            (float) (PowerLineUiPresets.ADVANCED_SAG_MAX_RATIO * 100f),
+            "%.0f%%",
+            value -> {
+                PowerLineUiPresets.applyAdvancedSag(line, value / 100f);
+                PowerLineStyleEditor.afterStyleEdit(line);
+            });
         renderMaxSagDepthControls(line);
     }
 
@@ -144,19 +143,18 @@ public final class PowerLineStylePanel {
         }
         if (!line.isMaxSagDepthUnlimited()) {
             float[] maxDepth = {PowerLineUiPresets.displayMaxSagDepth(line)};
-            if (ImGui.sliderFloat(
-                    PowerLineUiWidgets.stableLabel("plugin.powerline.max_sag_depth", "max_sag_depth"),
-                    maxDepth,
-                    1f,
-                    PowerLineUiPresets.ADVANCED_MAX_SAG_DEPTH_MAX,
-                    "%.0f")) {
-                PowerLineUiPresets.applyMaxSagDepth(line, maxDepth[0], false);
-                PowerLineStyleEditor.afterStyleEdit(line);
-                ctx.invalidatePreview();
-            }
-            if (ImGui.isItemActivated()) {
-                ctx.pushEditSnapshot();
-            }
+            PowerLineUiWidgets.sliderFloatStableLineEdit(
+                ctx,
+                "max_sag_depth",
+                "plugin.powerline.max_sag_depth",
+                maxDepth,
+                1f,
+                PowerLineUiPresets.ADVANCED_MAX_SAG_DEPTH_MAX,
+                "%.0f",
+                value -> {
+                    PowerLineUiPresets.applyMaxSagDepth(line, value, false);
+                    PowerLineStyleEditor.afterStyleEdit(line);
+                });
         } else {
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,

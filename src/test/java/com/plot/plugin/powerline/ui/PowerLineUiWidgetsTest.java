@@ -12,4 +12,11 @@ class PowerLineUiWidgetsTest {
         assertTrue(label.endsWith("##min_pole_spacing"));
         assertTrue(label.contains("##"));
     }
+
+    @Test
+    void stableSelectableLabelUsesObjectId() {
+        String label = PowerLineUiWidgets.stableSelectableLabel("Tower A", "line-42");
+        assertTrue(label.endsWith("##line-42"));
+        assertTrue(label.startsWith("Tower A"));
+    }
 }

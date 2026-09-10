@@ -66,7 +66,9 @@ public final class PowerLineOverviewPanel {
         float columnWidth = Math.max(120f, ImGui.getContentRegionAvailX() - 8f);
         ImGui.beginGroup();
         ImGui.setNextItemWidth(columnWidth);
-        if (ImGui.selectable(line.getName() + "##row", selected)) {
+        if (ImGui.selectable(
+                PowerLineUiWidgets.stableSelectableLabel(line.getName(), line.getId()),
+                selected)) {
             ctx.selectLine(line.getId(), ImGui.getIO().getKeyCtrl());
         }
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(

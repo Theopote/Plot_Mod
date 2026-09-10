@@ -15,6 +15,7 @@ import imgui.flag.ImGuiWindowFlags;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /** 电力线路插件共享 ImGui 控件。 */
 public final class PowerLineUiWidgets {
@@ -27,6 +28,63 @@ public final class PowerLineUiWidgets {
      */
     public static String stableLabel(String i18nKey, String idSuffix) {
         return PlotI18n.tr(i18nKey) + "##" + idSuffix;
+    }
+
+    public static String stableSelectableLabel(String visibleLabel, String idSuffix) {
+        return visibleLabel + "##" + idSuffix;
+    }
+
+    /**
+     * 稳定 ID 的 slider：拖动时实时改值，松手后仅触发一次 {@code onCommit}（通常 invalidate preview）。
+     */
+    public static boolean sliderFloatStable(
+            String idSuffix,
+            String labelI18nKey,
+            float[] value,
+            float min,
+            float max,
+            String format,
+            Runnable onActivated,
+            Consumer<Float> onLiveChange,
+            Runnable onCommit) {
+        boolean changed = ImGui.sliderFloat(
+            stableLabel(labelI18nKey, idSuffix),
+            value,
+            min,
+            max,
+            format);
+        if (ImGui.isItemActivated() && onActivated != null) {
+            onActivated.run();
+        }
+        if (changed && onLiveChange != null) {
+            onLiveChange.accept(value[0]);
+        }
+        if (ImGui.isItemDeactivatedAfterEdit() && onCommit != null) {
+            onCommit.run();
+        }
+        return changed;
+    }
+
+    /** 线路编辑 slider：snapshot on activate，live 改 footprint，松手 invalidate preview 一次。 */
+    public static boolean sliderFloatStableLineEdit(
+            PowerLineUiContext ctx,
+            String idSuffix,
+            String labelI18nKey,
+            float[] value,
+            float min,
+            float max,
+            String format,
+            Consumer<Float> onLiveChange) {
+        return sliderFloatStable(
+            idSuffix,
+            labelI18nKey,
+            value,
+            min,
+            max,
+            format,
+            ctx::pushEditSnapshot,
+            onLiveChange,
+            ctx::invalidatePreview);
     }
 
     public static void renderLineSelector(PowerLineUiContext ctx) {
@@ -45,7 +103,7 @@ public final class PowerLineUiWidgets {
             }
         }
         imgui.type.ImInt index = new imgui.type.ImInt(current);
-        if (ImGui.combo(PlotI18n.tr("plugin.powerline.select_line"), index, labels)) {
+        if (ImGui.combo(stableLabel("plugin.powerline.select_line", "select_line"), index, labels)) {
             ctx.selectLine(ids[index.get()], false);
         }
     }
@@ -166,18 +224,15 @@ public final class PowerLineUiWidgets {
         }
         if (!line.isMaxSagDepthUnlimited()) {
             float[] maxDepth = {PowerLineUiPresets.displayMaxSagDepth(line)};
-            if (ImGui.sliderFloat(
-                    stableLabel("plugin.powerline.max_sag_depth", "max_sag_depth"),
-                    maxDepth,
-                    1f,
-                    PowerLineUiPresets.ADVANCED_MAX_SAG_DEPTH_MAX,
-                    "%.0f")) {
-                PowerLineUiPresets.applyMaxSagDepth(line, maxDepth[0], false);
-                ctx.invalidatePreview();
-            }
-            if (ImGui.isItemActivated()) {
-                ctx.pushEditSnapshot();
-            }
+            sliderFloatStableLineEdit(
+                ctx,
+                "max_sag_depth",
+                "plugin.powerline.max_sag_depth",
+                maxDepth,
+                1f,
+                PowerLineUiPresets.ADVANCED_MAX_SAG_DEPTH_MAX,
+                "%.0f",
+                depth -> PowerLineUiPresets.applyMaxSagDepth(line, depth, false));
         }
     }
 

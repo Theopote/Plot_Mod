@@ -113,9 +113,13 @@ public final class PowerLineStyleControls {
         }
 
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - 110);
-        if (ImGui.beginCombo(PlotI18n.tr("plugin.powerline.pole_design"), labels[current])) {
+        if (ImGui.beginCombo(
+                PowerLineUiWidgets.stableLabel("plugin.powerline.pole_design", "pole_design"),
+                labels[current])) {
             for (int i = 0; i < labels.length; i++) {
-                if (ImGui.selectable(labels[i], current == i)) {
+                if (ImGui.selectable(
+                        PowerLineUiWidgets.stableSelectableLabel(labels[i], ids[i]),
+                        current == i)) {
                     ctx.pushEditSnapshot();
                     line.setPoleDesignId(ids[i].isBlank() ? null : ids[i]);
                     onStyleEdited(line);
@@ -164,9 +168,13 @@ public final class PowerLineStyleControls {
         }
 
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.beginCombo(PlotI18n.tr("plugin.powerline.tower_family"), labels[current])) {
+        if (ImGui.beginCombo(
+                PowerLineUiWidgets.stableLabel("plugin.powerline.tower_family", "tower_family"),
+                labels[current])) {
             for (int i = 0; i < labels.length; i++) {
-                if (ImGui.selectable(labels[i], current == i)) {
+                if (ImGui.selectable(
+                        PowerLineUiWidgets.stableSelectableLabel(labels[i], ids[i]),
+                        current == i)) {
                     ctx.pushEditSnapshot();
                     line.setTowerFamilyId(ids[i].isBlank() ? null : ids[i]);
                     if (!ids[i].isBlank()) {
@@ -193,18 +201,15 @@ public final class PowerLineStyleControls {
                 PlotI18n.tr("plugin.powerline.pole_height_from_design"));
         } else {
             float[] poleHeight = {(float) line.getPoleHeight()};
-            if (ImGui.sliderFloat(
-                    PowerLineUiWidgets.stableLabel("plugin.powerline.pole_height", "pole_height"),
-                    poleHeight,
-                    1f,
-                    64f,
-                    "%.1f")) {
-                line.setPoleHeight(poleHeight[0]);
-                ctx.invalidatePreview();
-            }
-            if (ImGui.isItemActivated()) {
-                ctx.pushEditSnapshot();
-            }
+            PowerLineUiWidgets.sliderFloatStableLineEdit(
+                ctx,
+                "pole_height",
+                "plugin.powerline.pole_height",
+                poleHeight,
+                1f,
+                64f,
+                "%.1f",
+                line::setPoleHeight);
         }
     }
 
@@ -228,7 +233,7 @@ public final class PowerLineStyleControls {
         ImGui.beginChild("powerline_pole_roles", 0, 160, true);
         for (int i = 0; i < sites.size(); i++) {
             PowerPoleSite site = sites.get(i);
-            ImGui.pushID(i);
+            ImGui.pushID("site_" + site.getStationing());
             ImGui.text(PlotI18n.tr(
                 "plugin.powerline.pole_role_row",
                 i + 1,
@@ -240,7 +245,11 @@ public final class PowerLineStyleControls {
             ImGui.setNextItemWidth(140);
             if (ImGui.beginCombo("##role", roleComboLabel(roleIndex))) {
                 for (int option = 0; option < ROLE_COMBO_OPTION_COUNT; option++) {
-                    if (ImGui.selectable(roleComboLabel(option), roleIndex == option)) {
+                    if (ImGui.selectable(
+                            PowerLineUiWidgets.stableSelectableLabel(
+                                roleComboLabel(option),
+                                "role_" + option),
+                            roleIndex == option)) {
                         ctx.pushEditSnapshot();
                         applyRoleSelection(line, site, option);
                         ctx.invalidatePreview();

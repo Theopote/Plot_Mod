@@ -123,50 +123,45 @@ public final class PowerLineRoutePanel {
         float sliderMin = (float) PowerLineFootprint.MIN_CONFIGURABLE_SPACING;
         float sliderMax = (float) PowerLineSpacingPolicy.sliderMax(line);
         float[] minSpacing = {(float) line.getMinPoleSpacing()};
-        if (ImGui.sliderFloat(
-                PowerLineUiWidgets.stableLabel("plugin.powerline.min_pole_spacing", "min_pole_spacing"),
-                minSpacing,
-                sliderMin,
-                sliderMax,
-                "%.1f")) {
-            line.setMinPoleSpacing(minSpacing[0]);
-            PowerLineStyleEditor.afterSpacingEdit(line);
-            ctx.invalidatePreview();
-        }
-        if (ImGui.isItemActivated()) {
-            ctx.pushEditSnapshot();
-        }
+        PowerLineUiWidgets.sliderFloatStableLineEdit(
+            ctx,
+            "min_pole_spacing",
+            "plugin.powerline.min_pole_spacing",
+            minSpacing,
+            sliderMin,
+            sliderMax,
+            "%.1f",
+            value -> {
+                line.setMinPoleSpacing(value);
+                PowerLineStyleEditor.afterSpacingEdit(line);
+            });
 
         float[] maxSpacing = {(float) line.getMaxPoleSpacing()};
-        if (ImGui.sliderFloat(
-                PowerLineUiWidgets.stableLabel("plugin.powerline.max_pole_spacing", "max_pole_spacing"),
-                maxSpacing,
-                sliderMin,
-                sliderMax,
-                "%.1f")) {
-            line.setMaxPoleSpacing(maxSpacing[0]);
-            PowerLineStyleEditor.afterSpacingEdit(line);
-            ctx.invalidatePreview();
-        }
-        if (ImGui.isItemActivated()) {
-            ctx.pushEditSnapshot();
-        }
+        PowerLineUiWidgets.sliderFloatStableLineEdit(
+            ctx,
+            "max_pole_spacing",
+            "plugin.powerline.max_pole_spacing",
+            maxSpacing,
+            sliderMin,
+            sliderMax,
+            "%.1f",
+            value -> {
+                line.setMaxPoleSpacing(value);
+                PowerLineStyleEditor.afterSpacingEdit(line);
+            });
 
         renderSpacingRecommendation(line);
 
         float[] cornerAngle = {(float) line.getCornerAngleThreshold()};
-        if (ImGui.sliderFloat(
-                PowerLineUiWidgets.stableLabel("plugin.powerline.corner_angle", "corner_angle"),
-                cornerAngle,
-                0f,
-                90f,
-                "%.1f")) {
-            line.setCornerAngleThreshold(cornerAngle[0]);
-            ctx.invalidatePreview();
-        }
-        if (ImGui.isItemActivated()) {
-            ctx.pushEditSnapshot();
-        }
+        PowerLineUiWidgets.sliderFloatStableLineEdit(
+            ctx,
+            "corner_angle",
+            "plugin.powerline.corner_angle",
+            cornerAngle,
+            0f,
+            90f,
+            "%.1f",
+            line::setCornerAngleThreshold);
 
         ctx.actions().closestMandatorySpacingViolation(line).ifPresent(distance -> ImGui.textColored(
             PluginUiColors.WARNING,

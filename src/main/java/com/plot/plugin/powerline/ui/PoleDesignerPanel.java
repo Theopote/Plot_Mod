@@ -190,10 +190,12 @@ public final class PoleDesignerPanel {
         selectedPresetIndex = Math.min(Math.max(0, selectedPresetIndex), labels.length - 1);
 
         if (ImGui.beginCombo(
-                PlotI18n.tr("plugin.powerline.design.load_preset"),
+                PowerLineUiWidgets.stableLabel("plugin.powerline.design.load_preset", "load_preset"),
                 labels[selectedPresetIndex])) {
             for (int i = 0; i < labels.length; i++) {
-                if (ImGui.selectable(labels[i], selectedPresetIndex == i)) {
+                if (ImGui.selectable(
+                        PowerLineUiWidgets.stableSelectableLabel(labels[i], ids[i]),
+                        selectedPresetIndex == i)) {
                     selectedPresetIndex = i;
                     pendingPresetId = ids[i];
                     presetConfirmPending = true;
@@ -526,7 +528,7 @@ public final class PoleDesignerPanel {
 
         for (int i = 0; i < draft.getAttachments().size(); i++) {
             ConductorAttachment attachment = draft.getAttachments().get(i);
-            ImGui.pushID("att_" + i);
+            ImGui.pushID("att_" + attachment.getId());
             renderAttachmentRow(attachment);
             ImGui.popID();
         }
@@ -548,8 +550,9 @@ public final class PoleDesignerPanel {
                 arm.getId(),
                 deck.size()))) {
                 for (int i = 0; i < deck.size(); i++) {
-                    ImGui.pushID("att_" + i);
-                    renderAttachmentRow(deck.get(i), arm);
+                    ConductorAttachment deckAttachment = deck.get(i);
+                    ImGui.pushID("att_" + deckAttachment.getId());
+                    renderAttachmentRow(deckAttachment, arm);
                     ImGui.popID();
                 }
                 ImGui.treePop();
@@ -562,8 +565,9 @@ public final class PoleDesignerPanel {
                 "plugin.powerline.design.arm_unassigned_attachments",
                 unassigned.size()))) {
                 for (int i = 0; i < unassigned.size(); i++) {
-                    ImGui.pushID("free_" + i);
-                    renderAttachmentRow(unassigned.get(i), null);
+                    ConductorAttachment freeAttachment = unassigned.get(i);
+                    ImGui.pushID("free_" + freeAttachment.getId());
+                    renderAttachmentRow(freeAttachment, null);
                     ImGui.popID();
                 }
                 ImGui.treePop();
@@ -599,43 +603,38 @@ public final class PoleDesignerPanel {
         }
 
         float[] lateral = {(float) attachment.getLateralOffset()};
-        if (ImGui.sliderFloat(
-                PowerLineUiWidgets.stableLabel("plugin.powerline.design.attachment_lateral", "attachment_lateral"),
-                lateral,
-                -8f,
-                8f,
-                "%.1f")) {
-            attachment.setLateralOffset(lateral[0]);
-        }
-        if (ImGui.isItemActivated()) {
-            pushDraftSnapshot();
-        }
+        PowerLineUiWidgets.sliderFloatStable(
+            "attachment_lateral",
+            "plugin.powerline.design.attachment_lateral",
+            lateral,
+            -8f,
+            8f,
+            "%.1f",
+            this::pushDraftSnapshot,
+            value -> attachment.setLateralOffset(value),
+            null);
         float[] vertical = {(float) attachment.getVerticalOffset()};
-        if (ImGui.sliderFloat(
-                PowerLineUiWidgets.stableLabel("plugin.powerline.design.attachment_vertical", "attachment_vertical"),
-                vertical,
-                1f,
-                64f,
-                "%.1f")) {
-            attachment.setVerticalOffset(vertical[0]);
-        }
-        if (ImGui.isItemActivated()) {
-            pushDraftSnapshot();
-        }
+        PowerLineUiWidgets.sliderFloatStable(
+            "attachment_vertical",
+            "plugin.powerline.design.attachment_vertical",
+            vertical,
+            1f,
+            64f,
+            "%.1f",
+            this::pushDraftSnapshot,
+            value -> attachment.setVerticalOffset(value),
+            null);
         float[] longitudinal = {(float) attachment.getLongitudinalOffset()};
-        if (ImGui.sliderFloat(
-                PowerLineUiWidgets.stableLabel(
-                    "plugin.powerline.design.attachment_longitudinal",
-                    "attachment_longitudinal"),
-                longitudinal,
-                -4f,
-                4f,
-                "%.1f")) {
-            attachment.setLongitudinalOffset(longitudinal[0]);
-        }
-        if (ImGui.isItemActivated()) {
-            pushDraftSnapshot();
-        }
+        PowerLineUiWidgets.sliderFloatStable(
+            "attachment_longitudinal",
+            "plugin.powerline.design.attachment_longitudinal",
+            longitudinal,
+            -4f,
+            4f,
+            "%.1f",
+            this::pushDraftSnapshot,
+            value -> attachment.setLongitudinalOffset(value),
+            null);
         ImInt insulatorLength = new ImInt(attachment.getInsulatorLength());
         ImGui.setNextItemWidth(80);
         if (ImGui.inputInt(PlotI18n.tr("plugin.powerline.design.attachment_insulator"), insulatorLength)) {
@@ -691,7 +690,7 @@ public final class PoleDesignerPanel {
         ImGui.text(PlotI18n.tr("plugin.powerline.design.layers"));
         for (int i = 0; i < draft.getLayers().size(); i++) {
             PoleLayer layer = draft.getLayers().get(i);
-            ImGui.pushID(i);
+            ImGui.pushID("layer_" + i);
             renderLayerRow(layer, i);
             ImGui.popID();
         }
