@@ -98,7 +98,11 @@ public final class PoleDesignerPanel {
 
     public void render() {
         renderFamilyRolePickerPopup();
-        renderCloseConfirmPopup();
+        if (draft != null) {
+            renderCloseConfirmPopup();
+        } else {
+            closeConfirmPending = false;
+        }
         if (!ctx.state().isPoleDesignerOpen() || draft == null) {
             return;
         }
@@ -156,12 +160,19 @@ public final class PoleDesignerPanel {
     }
 
     private void finalizeClose() {
+        dismissCloseConfirmPopup();
         ctx.state().setPoleDesignerOpen(false);
         ctx.state().setPoleDesignerEditingId("");
         draft = null;
         openedBaselineJson = "";
-        closeConfirmPending = false;
         designerWindowOpen.set(false);
+    }
+
+    private void dismissCloseConfirmPopup() {
+        closeConfirmPending = false;
+        if (ImGui.isPopupOpen("##pole_design_close_confirm")) {
+            ImGui.closeCurrentPopup();
+        }
     }
 
     private void captureOpenedBaseline() {
@@ -173,28 +184,35 @@ public final class PoleDesignerPanel {
     }
 
     private void renderCloseConfirmPopup() {
+        if (draft == null) {
+            dismissCloseConfirmPopup();
+            return;
+        }
         if (!PowerLineUiWidgets.beginDeferredPopupModal(
                 "##pole_design_close_confirm",
                 closeConfirmPending,
                 () -> closeConfirmPending = false)) {
             return;
         }
-        ImGui.textWrapped(PlotI18n.tr("plugin.powerline.design.close_confirm"));
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.save"), 120, 0)) {
-            saveDraft(false);
-            closeConfirmPending = false;
-            finalizeClose();
+        try {
+            ImGui.textWrapped(PlotI18n.tr("plugin.powerline.design.close_confirm"));
+            if (ImGui.button(PlotI18n.tr("plugin.powerline.design.save"), 120, 0)) {
+                saveDraft(false);
+                finalizeClose();
+                return;
+            }
+            ImGui.sameLine();
+            if (ImGui.button(PlotI18n.tr("plugin.powerline.design.discard"), 120, 0)) {
+                finalizeClose();
+                return;
+            }
+            ImGui.sameLine();
+            if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
+                dismissCloseConfirmPopup();
+            }
+        } finally {
+            ImGui.endPopup();
         }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.discard"), 120, 0)) {
-            closeConfirmPending = false;
-            finalizeClose();
-        }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
-            closeConfirmPending = false;
-        }
-        ImGui.endPopup();
     }
 
     private void renderDraftHistoryControls() {
@@ -875,6 +893,9 @@ public final class PoleDesignerPanel {
     }
 
     private void saveDraft(boolean forceNewId) {
+        if (draft == null) {
+            return;
+        }
         if (forceNewId || PoleDesignCatalog.isBuiltinId(draft.getId())) {
             PoleDesign saved = new PoleDesign(draft.getName());
             saved.setLayers(draft.getLayers());
