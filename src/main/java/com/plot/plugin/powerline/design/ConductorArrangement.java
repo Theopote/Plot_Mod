@@ -108,28 +108,21 @@ public final class ConductorArrangement {
             ConductorAttachmentPresets.doubleCircuitHorizontal(0, -14, -11, -8, 8, 11, 14));
     }
 
-    /** 三层鼓形双回路塔：下/中/上三层各 6 相 + 双顶线。 */
+    /** 三层鼓形双回路塔：左/右各一相，共 6 根相线 + 双顶线（非 18 根）。 */
     public static ConductorArrangement doubleCircuitDrum() {
         List<ConductorChannel> channels = new ArrayList<>();
-        for (double deck : new double[] {-8, 0, 8}) {
-            String prefix = deck < 0 ? "lower_" : deck > 0 ? "upper_" : "middle_";
-            channels.add(new ConductorChannel(
-                prefix + "la", "LA", AttachmentRole.PHASE_A, -14, deck));
-            channels.add(new ConductorChannel(
-                prefix + "lb", "LB", AttachmentRole.PHASE_B, -11, deck));
-            channels.add(new ConductorChannel(
-                prefix + "lc", "LC", AttachmentRole.PHASE_C, -8, deck));
-            channels.add(new ConductorChannel(
-                prefix + "ra", "RA", AttachmentRole.PHASE_A, 8, deck));
-            channels.add(new ConductorChannel(
-                prefix + "rb", "RB", AttachmentRole.PHASE_B, 11, deck));
-            channels.add(new ConductorChannel(
-                prefix + "rc", "RC", AttachmentRole.PHASE_C, 14, deck));
-        }
-        channels.add(new ConductorChannel(
-            "top_wire_l", "TWL", AttachmentRole.TOP_WIRE, -2.5, 14));
-        channels.add(new ConductorChannel(
-            "top_wire_r", "TWR", AttachmentRole.TOP_WIRE, 2.5, 14));
+        // lower deck — phase C
+        channels.add(new ConductorChannel("left_c", "LC", AttachmentRole.PHASE_C, -11, -8));
+        channels.add(new ConductorChannel("right_c", "RC", AttachmentRole.PHASE_C, 11, -8));
+        // middle deck — phase B (widest)
+        channels.add(new ConductorChannel("left_b", "LB", AttachmentRole.PHASE_B, -14, 0));
+        channels.add(new ConductorChannel("right_b", "RB", AttachmentRole.PHASE_B, 14, 0));
+        // upper deck — phase A
+        channels.add(new ConductorChannel("left_a", "LA", AttachmentRole.PHASE_A, -11, 8));
+        channels.add(new ConductorChannel("right_a", "RA", AttachmentRole.PHASE_A, 11, 8));
+        // shield wires above upper crossarm
+        channels.add(new ConductorChannel("top_wire_l", "TWL", AttachmentRole.TOP_WIRE, -2.5, 12));
+        channels.add(new ConductorChannel("top_wire_r", "TWR", AttachmentRole.TOP_WIRE, 2.5, 12));
         return new ConductorArrangement(CATALOG_DOUBLE_CIRCUIT_DRUM, channels);
     }
 

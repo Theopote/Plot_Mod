@@ -62,13 +62,13 @@ public final class TowerStructurePresets {
             new double[] {0, 10, 18, 26, 32, 36},
             new double[] {6.5, 6.0, 5.0, 4.0, 2.8, 1.8},
             new double[] {4.2, 3.9, 3.3, 2.7, 1.9, 1.2});
-        addVariedBays(structure,
+        addVariedBays(structure, 3,
             BracingPattern.X, BracingPattern.X,
             BracingPattern.X, BracingPattern.K,
             BracingPattern.V);
-        // 下层横担更宽，上层略短 — 视觉层级
-        addTrussArm(structure, "arm_lower", 26, 12.5, TowerArmShape.TAPERED, 4, 1.8);
-        addTrussArm(structure, "arm_upper", 32, 9.5, TowerArmShape.TRUSS, 3, 1.5);
+        // 下层横担更宽，上层略短 — 标准输电塔剪影
+        addTrussArm(structure, "arm_lower", 26, 12.0, TowerArmShape.TAPERED, 4, 1.8);
+        addTrussArm(structure, "arm_upper", 32, 10.0, TowerArmShape.TRUSS, 3, 1.5);
         addPeak(structure, 36);
         return structure;
     }
@@ -185,18 +185,18 @@ public final class TowerStructurePresets {
             TowerSilhouette.TRIPLE_ARM,
             LATTICE_LEG,
             LATTICE_BRACE);
-        // 鼓形：宽底 → 紧腰 → 分层横担头
+        // 塔身轻收腰，鼓形剪影主要靠三层横担
         addStations(structure,
             new double[] {0, 12, 22, 32, 42, 52, 58},
-            new double[] {8.5, 8.0, 6.5, 3.5, 5.0, 3.5, 2.0},
-            new double[] {5.5, 5.2, 4.3, 2.5, 3.3, 2.3, 1.3});
-        addVariedBays(structure,
+            new double[] {8.5, 7.5, 5.5, 3.5, 3.2, 2.8, 2.0},
+            new double[] {5.5, 4.9, 3.6, 2.3, 2.1, 1.8, 1.3});
+        addVariedBays(structure, 3,
             BracingPattern.X, BracingPattern.X,
             BracingPattern.K, BracingPattern.K,
             BracingPattern.V, BracingPattern.V);
         addTrussArm(structure, "arm_lower", 36, 11.0, TowerArmShape.TAPERED, 4, 2.0);
         addTrussArm(structure, "arm_middle", 44, 14.0, TowerArmShape.TRUSS, 4, 2.2);
-        addTrussArm(structure, "arm_upper", 52, 12.0, TowerArmShape.TRUSS, 3, 2.0);
+        addTrussArm(structure, "arm_upper", 52, 11.0, TowerArmShape.TRUSS, 3, 2.0);
         addPeak(structure, 58);
         return structure;
     }
@@ -283,6 +283,13 @@ public final class TowerStructurePresets {
     private static void addVariedBays(
             TowerStructureDesign structure,
             BracingPattern... legBracing) {
+        addVariedBays(structure, Integer.MAX_VALUE, legBracing);
+    }
+
+    private static void addVariedBays(
+            TowerStructureDesign structure,
+            int maxPlanDiagonalBays,
+            BracingPattern... legBracing) {
         List<TowerStation> stations = structure.sortedStations();
         structure.getBays().clear();
         for (int i = 1; i < stations.size(); i++) {
@@ -295,8 +302,11 @@ public final class TowerStructurePresets {
             bay.setSideBracing(pattern);
             boolean hasUpperRing = i < stations.size() - 1;
             bay.setHorizontalRing(hasUpperRing);
-            // 水平面对角斜撑：连接四腿，强化三维格构感
-            bay.setPlanDiagonalBracing(hasUpperRing && pattern != BracingPattern.NONE);
+            // 水平面对角斜撑：仅在下部关键 bay 使用，避免结构噪声
+            bay.setPlanDiagonalBracing(
+                hasUpperRing
+                    && pattern != BracingPattern.NONE
+                    && i <= maxPlanDiagonalBays);
             structure.addBay(bay);
         }
     }

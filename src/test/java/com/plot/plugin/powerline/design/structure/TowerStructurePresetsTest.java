@@ -1,5 +1,6 @@
 package com.plot.plugin.powerline.design.structure;
 
+import com.plot.plugin.powerline.design.ConductorAttachment;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
 import org.junit.jupiter.api.Test;
@@ -120,12 +121,32 @@ class TowerStructurePresetsTest {
         List<TowerArm> arms = design.getTowerStructure().getArms().stream()
             .sorted(Comparator.comparingDouble(TowerArm::getBaseHeight))
             .toList();
-        double lowerDeck = 44 - 8;
-        double middleDeck = 44;
-        double upperDeck = 44 + 8;
-        assertEquals(lowerDeck, arms.get(0).getBaseHeight(), 0.5);
-        assertEquals(middleDeck, arms.get(1).getBaseHeight(), 0.5);
-        assertEquals(upperDeck, arms.get(2).getBaseHeight(), 0.5);
+        assertEquals(36.0, arms.get(0).getBaseHeight(), 0.5);
+        assertEquals(44.0, arms.get(1).getBaseHeight(), 0.5);
+        assertEquals(52.0, arms.get(2).getBaseHeight(), 0.5);
+        assertEquals(11.0, arms.get(0).getLateralReach(), 0.5);
+        assertEquals(14.0, arms.get(1).getLateralReach(), 0.5);
+        assertEquals(11.0, arms.get(2).getLateralReach(), 0.5);
+
+        List<ConductorAttachment> phases = design.getAttachments().stream()
+            .filter(a -> a.getRole() != com.plot.plugin.powerline.design.AttachmentRole.TOP_WIRE)
+            .sorted(Comparator.comparingDouble(ConductorAttachment::getVerticalOffset))
+            .toList();
+        assertEquals(6, phases.size());
+        assertEquals(36.0, phases.get(0).getVerticalOffset(), 0.5);
+        assertEquals(36.0, phases.get(1).getVerticalOffset(), 0.5);
+        assertEquals(44.0, phases.get(2).getVerticalOffset(), 0.5);
+        assertEquals(44.0, phases.get(3).getVerticalOffset(), 0.5);
+        assertEquals(52.0, phases.get(4).getVerticalOffset(), 0.5);
+        assertEquals(52.0, phases.get(5).getVerticalOffset(), 0.5);
+    }
+
+    @Test
+    void drumTowerBodyDoesNotReinflateBeforeArms() {
+        List<TowerStation> stations = TowerStructurePresets.doubleCircuitDrumTower().sortedStations();
+        double waist = stations.get(3).getHalfWidth();
+        double beforeHead = stations.get(4).getHalfWidth();
+        assertTrue(beforeHead <= waist, "drum silhouette should come from arms, not tower body bulge");
     }
 
     @Test
