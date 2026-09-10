@@ -1,51 +1,36 @@
 package com.plot.plugin.powerline.ui;
 
-import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.ConductorAttachment;
 import com.plot.plugin.powerline.design.PoleDesign;
-import com.plot.plugin.powerline.design.PoleLayer;
 import com.plot.plugin.powerline.design.structure.TowerArm;
-import com.plot.plugin.powerline.design.structure.TowerDecoration;
-import com.plot.plugin.powerline.design.structure.TowerDecorationKind;
 import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
-import com.plot.plugin.powerline.design.structure.TowerStructureGeometry;
+import com.plot.plugin.powerline.preview.PoleVoxelElevationRenderer;
+import com.plot.plugin.powerline.preview.PoleVoxelPreviewModel;
+import com.plot.plugin.powerline.preview.PoleVoxelizer;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
-import imgui.type.ImInt;
 
-/**
- * 杆塔预览（侧视 / 正视切换）。
- */
+/** 杆塔设计器预览：体素立面 + 设计辅助 overlay。 */
 public final class PoleDesignPreviewRenderer {
     private static final float PREVIEW_HEIGHT = 200f;
-    private static final float THUMBNAIL_PADDING = 5f;
-    private static final float DESIGNER_PADDING = 14f;
+    private static final float PANE_GAP = 8f;
+    private static final float PANE_PADDING = 2f;
     private static final int COLOR_BG = 0xFF2A2A2A;
     private static final int COLOR_BORDER = 0xFF606060;
-    private static final int COLOR_WIRE = 0xFF9E9E9E;
-    private static final int COLOR_BRACE = 0xFF78909C;
-    private static final int COLOR_ARM = 0xFF546E7A;
-
-    private static int previewView = 0;
+    private static final int COLOR_ATTACHMENT = 0xE6FFD54F;
+    private static final int COLOR_ATTACHMENT_RING = 0xFFFFD54F;
+    private static final int COLOR_STATION_GUIDE = 0x9978909C;
+    private static final int COLOR_ARM_GUIDE = 0x99546E7A;
+    private static final int COLOR_LABEL = 0xFFE0E0E0;
 
     private PoleDesignPreviewRenderer() {
     }
 
     public static void render(PoleDesign design) {
         ImGui.text(PlotI18n.tr("plugin.powerline.design.preview"));
-        String[] views = {
-            PlotI18n.tr("plugin.powerline.design.preview_side"),
-            PlotI18n.tr("plugin.powerline.design.preview_front")
-        };
-        ImInt viewIndex = new ImInt(previewView);
-        ImGui.setNextItemWidth(120);
-        if (ImGui.combo("##preview_view", viewIndex, views)) {
-            previewView = viewIndex.get();
-        }
-
         float width = ImGui.getContentRegionAvail().x;
         if (width < 40f || design == null) {
             return;
@@ -53,310 +38,140 @@ public final class PoleDesignPreviewRenderer {
 
         ImGui.beginChild("##pole_design_preview_canvas", 0, PREVIEW_HEIGHT + 4f, true);
         float childWidth = ImGui.getContentRegionAvail().x;
+        float paneWidth = Math.max(40f, (childWidth - PANE_GAP) * 0.5f);
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
-        float x0 = origin.x;
-        float y0 = origin.y;
-        float x1 = x0 + childWidth;
-        float y1 = y0 + PREVIEW_HEIGHT;
+        PoleVoxelPreviewModel model = PoleVoxelizer.voxelize(design);
 
-        drawList.addRectFilled(x0, y0, x1, y1, COLOR_BG);
-        drawList.addRect(x0, y0, x1, y1, COLOR_BORDER);
-        drawThumbnail(design, drawList, x0, y0, x1, y1, previewView == 1, true, true);
+        float y0 = origin.y;
+        float y1 = y0 + PREVIEW_HEIGHT;
+        float frontX0 = origin.x;
+        float frontX1 = frontX0 + paneWidth;
+        float sideX0 = frontX1 + PANE_GAP;
+        float sideX1 = sideX0 + paneWidth;
+
+        renderPane(
+            drawList,
+            design,
+            model,
+            PoleVoxelElevationRenderer.ElevationView.FRONT,
+            PlotI18n.tr("plugin.powerline.design.preview_front"),
+            frontX0 + PANE_PADDING,
+            y0 + PANE_PADDING,
+            frontX1 - PANE_PADDING,
+            y1 - PANE_PADDING);
+        renderPane(
+            drawList,
+            design,
+            model,
+            PoleVoxelElevationRenderer.ElevationView.SIDE,
+            PlotI18n.tr("plugin.powerline.design.preview_side"),
+            sideX0 + PANE_PADDING,
+            y0 + PANE_PADDING,
+            sideX1 - PANE_PADDING,
+            y1 - PANE_PADDING);
+
         ImGui.dummy(childWidth, PREVIEW_HEIGHT);
         ImGui.endChild();
     }
 
-    /**
-     * 在矩形区域内绘制杆塔侧视/正视缩略图（用于样式卡片等）。
-     */
-    public static void drawThumbnail(
-            PoleDesign design,
+    private static void renderPane(
             ImDrawList drawList,
+            PoleDesign design,
+            PoleVoxelPreviewModel model,
+            PoleVoxelElevationRenderer.ElevationView view,
+            String label,
             float x0,
             float y0,
             float x1,
-            float y1,
-            boolean frontView) {
-        drawThumbnail(design, drawList, x0, y0, x1, y1, frontView, false);
+            float y1) {
+        drawList.addRectFilled(x0, y0, x1, y1, COLOR_BG);
+        drawList.addRect(x0, y0, x1, y1, COLOR_BORDER);
+        drawList.addText(x0 + 4f, y0 + 3f, COLOR_LABEL, label);
+
+        float innerY0 = y0 + ImGui.getFontSize() + 4f;
+        if (model != null && !model.isEmpty()) {
+            PoleVoxelElevationRenderer.draw(drawList, model, view, x0, innerY0, x1, y1);
+            PoleVoxelElevationRenderer.ElevationLayout layout = PoleVoxelElevationRenderer.computeLayout(
+                model, view, x0, innerY0, x1, y1);
+            if (layout != null) {
+                renderDesignerOverlay(drawList, design, model, view, layout, x0, x1);
+            }
+        }
     }
 
-    private static void drawThumbnail(
-            PoleDesign design,
+    private static void renderDesignerOverlay(
             ImDrawList drawList,
-            float x0,
-            float y0,
-            float x1,
-            float y1,
-            boolean frontView,
-            boolean includeAttachmentLabels) {
-        drawThumbnail(design, drawList, x0, y0, x1, y1, frontView, includeAttachmentLabels, false);
-    }
-
-    private static void drawThumbnail(
             PoleDesign design,
-            ImDrawList drawList,
+            PoleVoxelPreviewModel model,
+            PoleVoxelElevationRenderer.ElevationView view,
+            PoleVoxelElevationRenderer.ElevationLayout layout,
             float x0,
-            float y0,
-            float x1,
-            float y1,
-            boolean frontView,
-            boolean includeAttachmentLabels,
-            boolean designerPreview) {
-        if (design == null || drawList == null) {
-            return;
-        }
-        float padding = designerPreview ? DESIGNER_PADDING : THUMBNAIL_PADDING;
-        float width = x1 - x0;
-        float height = y1 - y0;
-        if (width < 8f || height < 8f) {
-            return;
-        }
-
-        PreviewLayout layout = computeLayout(design, width, height, padding, frontView, designerPreview);
-        float centerX = x0 + width * 0.5f;
-        float baseY = y0 + layout.baseYOffset + layout.contentHeight;
-
+            float x1) {
         if (design.hasTowerStructure()) {
-            renderTowerStructure(design.getTowerStructure(), drawList, centerX, baseY, layout.scale, frontView);
-        } else {
-            renderLegacyLayers(design, drawList, centerX, baseY, layout.scale);
+            renderStationGuides(drawList, design.getTowerStructure(), model, view, layout, x0, x1);
+            renderArmGuides(drawList, design.getTowerStructure(), model, view, layout);
         }
-
-        if (includeAttachmentLabels) {
-            renderAttachments(design, drawList, centerX, baseY, layout.scale, frontView);
-        } else {
-            renderAttachmentDots(design, drawList, centerX, baseY, layout.scale, frontView);
-        }
+        renderAttachmentMarkers(drawList, design, model, view, layout);
     }
 
-    static PreviewLayout computeLayout(
-            PoleDesign design,
-            float width,
-            float height,
-            float padding,
-            boolean frontView,
-            boolean centerVertically) {
-        int totalHeight = Math.max(1, design.totalHeight());
-        float innerWidth = Math.max(1f, width - padding * 2f);
-        float innerHeight = Math.max(1f, height - padding * 2f);
-        float scale = innerHeight / totalHeight;
-
-        for (int i = 0; i < 8; i++) {
-            float halfWidth = estimateHalfWidthPx(design, scale, frontView);
-            if (halfWidth * 2f <= innerWidth) {
-                break;
-            }
-            scale *= innerWidth / Math.max(1f, halfWidth * 2f);
-        }
-
-        float contentHeight = totalHeight * scale;
-        float baseYOffset = innerHeight - contentHeight;
-        if (centerVertically) {
-            baseYOffset = (innerHeight - contentHeight) * 0.5f;
-        }
-        return new PreviewLayout(scale, contentHeight, baseYOffset + padding);
-    }
-
-    static float estimateHalfWidthPx(PoleDesign design, float scale, boolean frontView) {
-        float maxHalf = 8f;
-        if (!design.hasTowerStructure()) {
-            for (PoleLayer layer : design.getLayers()) {
-                if (layer.getShape() == PoleLayer.Shape.CROSSARM) {
-                    maxHalf = Math.max(maxHalf, layer.getCrossarmLength() * scale * 3f);
-                } else if (layer.getShape() == PoleLayer.Shape.COLUMN) {
-                    maxHalf = Math.max(maxHalf, 6f);
-                }
-            }
-        } else {
-            TowerStructureDesign structure = design.getTowerStructure();
-            for (TowerStation station : structure.sortedStations()) {
-                maxHalf = Math.max(maxHalf, horizontalExtent(station, frontView) * scale * 6f);
-            }
-            for (TowerArm arm : structure.getArms()) {
-                maxHalf = Math.max(maxHalf, (float) arm.getLateralReach() * scale * 6f);
-            }
-        }
-        for (ConductorAttachment attachment : design.getAttachments()) {
-            if (!attachment.isEnabled()) {
-                continue;
-            }
-            float offset = frontView
-                ? (float) attachment.getLongitudinalOffset()
-                : (float) attachment.getLateralOffset();
-            maxHalf = Math.max(maxHalf, Math.abs(offset) * scale * 6f + 8f);
-        }
-        return maxHalf;
-    }
-
-    record PreviewLayout(float scale, float contentHeight, float baseYOffset) {
-    }
-
-    private static void renderAttachmentDots(
-            PoleDesign design,
+    private static void renderStationGuides(
             ImDrawList drawList,
-            float centerX,
-            float baseY,
-            float scale,
-            boolean frontView) {
-        for (ConductorAttachment attachment : design.getAttachments()) {
-            if (!attachment.isEnabled()) {
-                continue;
-            }
-            float markerY = baseY - (float) attachment.getVerticalOffset() * scale;
-            float offset = frontView
-                ? (float) attachment.getLongitudinalOffset()
-                : (float) attachment.getLateralOffset();
-            float markerX = centerX + offset * scale * 6f;
-            drawList.addCircleFilled(markerX, markerY, 2.5f, COLOR_WIRE);
-        }
-    }
-
-    private static void renderLegacyLayers(
-            PoleDesign design,
-            ImDrawList drawList,
-            float centerX,
-            float baseY,
-            float scale) {
-        float currentTop = baseY;
-        for (PoleLayer layer : design.getLayers()) {
-            float layerHeightPx = layer.getHeight() * scale;
-            float top = currentTop - layerHeightPx;
-            int color = colorForMaterial(layer.getMaterial());
-            switch (layer.getShape()) {
-                case COLUMN -> {
-                    float columnWidth = Math.max(8f, 12f);
-                    drawList.addRectFilled(
-                        centerX - columnWidth * 0.5f,
-                        top,
-                        centerX + columnWidth * 0.5f,
-                        currentTop,
-                        color);
-                }
-                case CROSSARM -> {
-                    float armWidth = layer.getCrossarmLength() * scale * 6f;
-                    drawList.addRectFilled(
-                        centerX - armWidth * 0.5f,
-                        top,
-                        centerX + armWidth * 0.5f,
-                        currentTop,
-                        color);
-                    drawList.addLine(centerX - armWidth * 0.5f, top, centerX + armWidth * 0.5f, top, COLOR_WIRE, 1.5f);
-                }
-                case CAP -> drawList.addRectFilled(centerX - 6f, top, centerX + 6f, currentTop, color);
-                default -> { }
-            }
-            currentTop = top;
-        }
-    }
-
-    private static void renderTowerStructure(
             TowerStructureDesign structure,
+            PoleVoxelPreviewModel model,
+            PoleVoxelElevationRenderer.ElevationView view,
+            PoleVoxelElevationRenderer.ElevationLayout layout,
+            float x0,
+            float x1) {
+        for (TowerStation station : structure.sortedStations()) {
+            float y = PoleVoxelElevationRenderer.mapVerticalToScreen(layout, model, station.getHeight());
+            drawList.addLine(x0 + 2f, y, x1 - 2f, y, COLOR_STATION_GUIDE, 1f);
+        }
+    }
+
+    private static void renderArmGuides(
             ImDrawList drawList,
-            float centerX,
-            float baseY,
-            float scale,
-            boolean frontView) {
-        java.util.List<TowerStation> stations = structure.sortedStations();
-        for (int i = 1; i < stations.size(); i++) {
-            TowerStation lower = stations.get(i - 1);
-            TowerStation upper = stations.get(i);
-            for (int corner = 0; corner < TowerStructureGeometry.CORNER_COUNT; corner++) {
-                float xLower = axisCoord(lower, corner, scale, centerX, frontView);
-                float yLower = baseY - (float) lower.getHeight() * scale;
-                float xUpper = axisCoord(upper, corner, scale, centerX, frontView);
-                float yUpper = baseY - (float) upper.getHeight() * scale;
-                drawList.addLine(xLower, yLower, xUpper, yUpper, COLOR_BRACE, 1.5f);
-            }
-        }
-
-        for (TowerStation station : stations) {
-            float y = baseY - (float) station.getHeight() * scale;
-            float left = centerX - horizontalExtent(station, frontView) * scale * 6f;
-            float right = centerX + horizontalExtent(station, frontView) * scale * 6f;
-            drawList.addLine(left, y, right, y, COLOR_BRACE, 1f);
-        }
-
+            TowerStructureDesign structure,
+            PoleVoxelPreviewModel model,
+            PoleVoxelElevationRenderer.ElevationView view,
+            PoleVoxelElevationRenderer.ElevationLayout layout) {
         for (TowerArm arm : structure.getArms()) {
-            float y = baseY - (float) arm.getBaseHeight() * scale;
-            float reach = (float) arm.getLateralReach() * scale * 6f;
-            drawList.addLine(centerX - reach, y, centerX + reach, y, COLOR_ARM, 2f);
-        }
-
-        for (TowerDecoration decoration : structure.getDecorations()) {
-            if (!decoration.isEnabled()) {
-                continue;
-            }
-            renderDecorationMarker(decoration, drawList, centerX, baseY, scale);
+            float y = PoleVoxelElevationRenderer.mapVerticalToScreen(layout, model, arm.getBaseHeight());
+            double horizontalStart = view == PoleVoxelElevationRenderer.ElevationView.FRONT
+                ? -arm.getLateralReach()
+                : -arm.getLongitudinalHalfWidth();
+            double horizontalEnd = view == PoleVoxelElevationRenderer.ElevationView.FRONT
+                ? arm.getLateralReach()
+                : arm.getLongitudinalHalfWidth();
+            float xStart = PoleVoxelElevationRenderer.mapHorizontalToScreen(layout, view, model, horizontalStart);
+            float xEnd = PoleVoxelElevationRenderer.mapHorizontalToScreen(layout, view, model, horizontalEnd);
+            drawList.addLine(xStart, y, xEnd, y, COLOR_ARM_GUIDE, 1.5f);
+            String label = arm.getId() != null ? arm.getId() : "arm";
+            drawList.addText(xEnd + 3f, y - ImGui.getFontSize() * 0.5f, COLOR_LABEL, label);
         }
     }
 
-    private static void renderDecorationMarker(
-            TowerDecoration decoration,
+    private static void renderAttachmentMarkers(
             ImDrawList drawList,
-            float centerX,
-            float baseY,
-            float scale) {
-        float x = centerX + (float) decoration.getLateralOffset() * scale * 6f;
-        float y = baseY - (float) decoration.getBaseHeight() * scale;
-        int color = 0xFFFFD54F;
-        switch (decoration.getKind()) {
-            case BEACON -> drawList.addRectFilled(x - 3f, y - 6f, x + 3f, y, color);
-            case WARNING_LIGHT -> drawList.addCircleFilled(x, y - 3f, 3f, 0xFFFF5252);
-            case ANTENNA -> {
-                float top = y - (float) decoration.getSize() * scale;
-                drawList.addLine(x, y, x, top, color, 1.5f);
-                drawList.addCircleFilled(x, top, 2f, color);
-            }
-            case PLATFORM -> {
-                float reach = (float) decoration.getSize() * scale * 6f;
-                drawList.addLine(x - reach, y, x + reach, y, color, 2f);
-                drawList.addLine(x, y, x, y - reach * 0.35f, color, 1.5f);
-            }
-            default -> drawList.addCircleFilled(x, y - 2f, 2f, color);
-        }
-    }
-
-    private static float axisCoord(TowerStation station, int corner, float scale, float centerX, boolean frontView) {
-        double extent = frontView
-            ? TowerStructureGeometry.cornerLongitudinal(corner, station.getHalfDepth())
-            : TowerStructureGeometry.cornerLateral(corner, station.getHalfWidth());
-        return centerX + (float) extent * scale * 6f;
-    }
-
-    private static float horizontalExtent(TowerStation station, boolean frontView) {
-        return (float) (frontView ? station.getHalfDepth() : station.getHalfWidth());
-    }
-
-    private static void renderAttachments(
             PoleDesign design,
-            ImDrawList drawList,
-            float centerX,
-            float baseY,
-            float scale,
-            boolean frontView) {
+            PoleVoxelPreviewModel model,
+            PoleVoxelElevationRenderer.ElevationView view,
+            PoleVoxelElevationRenderer.ElevationLayout layout) {
         for (ConductorAttachment attachment : design.getAttachments()) {
             if (!attachment.isEnabled()) {
                 continue;
             }
-            float markerY = baseY - (float) attachment.getVerticalOffset() * scale;
-            float offset = frontView
-                ? (float) attachment.getLongitudinalOffset()
-                : (float) attachment.getLateralOffset();
-            float markerX = centerX + offset * scale * 6f;
-            drawList.addCircleFilled(markerX, markerY, 4f, 0xFFFFD54F);
-            drawList.addText(markerX + 6f, markerY - 6f, 0xFFFFFFFF, attachment.getName());
+            double horizontal = view == PoleVoxelElevationRenderer.ElevationView.FRONT
+                ? attachment.getLateralOffset()
+                : attachment.getLongitudinalOffset();
+            float x = PoleVoxelElevationRenderer.mapHorizontalToScreen(layout, view, model, horizontal);
+            float y = PoleVoxelElevationRenderer.mapVerticalToScreen(layout, model, attachment.getVerticalOffset());
+            drawList.addCircleFilled(x, y, 4f, COLOR_ATTACHMENT);
+            drawList.addCircle(x, y, 4.5f, COLOR_ATTACHMENT_RING, 12, 1.2f);
+            String name = attachment.getName();
+            if (name != null && !name.isBlank()) {
+                drawList.addText(x + 6f, y - ImGui.getFontSize() * 0.5f, COLOR_LABEL, name);
+            }
         }
-    }
-
-    private static int colorForMaterial(MaterialMix mix) {
-        String key = mix != null && mix.getPrimaryMaterial() != null
-            ? mix.getPrimaryMaterial()
-            : "default";
-        int hash = key.hashCode();
-        int r = 90 + (hash & 0x4F);
-        int g = 90 + ((hash >> 8) & 0x4F);
-        int b = 90 + ((hash >> 16) & 0x4F);
-        return 0xFF000000 | (b << 16) | (g << 8) | r;
     }
 }

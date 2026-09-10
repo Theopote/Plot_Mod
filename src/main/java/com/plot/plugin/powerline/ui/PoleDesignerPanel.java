@@ -20,6 +20,7 @@ import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.ui.component.UIUtils;
+import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
@@ -98,38 +99,46 @@ public final class PoleDesignerPanel {
             return;
         }
 
-        ImGui.setNextWindowSize(480, 560, imgui.flag.ImGuiCond.FirstUseEver);
-        designerWindowOpen.set(true);
-        if (!ImGui.begin(
-                PlotI18n.tr("plugin.powerline.design.window", draft.getName()),
-                designerWindowOpen,
-                ImGuiWindowFlags.None)) {
-            ImGui.end();
-            if (!designerWindowOpen.get()) {
-                closeDesigner();
+        DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
+        try {
+            ImGui.setNextWindowSize(480, 560, imgui.flag.ImGuiCond.FirstUseEver);
+            designerWindowOpen.set(true);
+            if (!ImGui.begin(
+                    PlotI18n.tr("plugin.powerline.design.window", draft.getName()),
+                    designerWindowOpen,
+                    ImGuiWindowFlags.None)) {
+                ImGui.end();
+                if (!designerWindowOpen.get()) {
+                    closeDesigner();
+                }
+                return;
             }
-            return;
-        }
 
-        renderDraftHistoryControls();
-        ImGui.separator();
-        renderPresetSelector();
-        ImGui.separator();
-        PoleDesignPreviewRenderer.render(draft);
-        ImGui.text(PlotI18n.tr("plugin.powerline.design.total_height", draft.totalHeight()));
-        ImGui.separator();
-        renderStructureSection();
-        ImGui.separator();
-        renderLayerList();
-        ImGui.separator();
-        renderAttachmentList();
-        ImGui.separator();
-        renderSaveActions();
+            try {
+                renderDraftHistoryControls();
+                ImGui.separator();
+                renderPresetSelector();
+                ImGui.separator();
+                PoleDesignPreviewRenderer.render(draft);
+                ImGui.text(PlotI18n.tr("plugin.powerline.design.total_height", draft.totalHeight()));
+                ImGui.separator();
+                renderStructureSection();
+                ImGui.separator();
+                renderLayerList();
+                ImGui.separator();
+                renderAttachmentList();
+                ImGui.separator();
+                renderSaveActions();
 
-        renderPresetConfirmPopup();
-        ImGui.end();
-        if (!designerWindowOpen.get()) {
-            closeDesigner();
+                renderPresetConfirmPopup();
+            } finally {
+                ImGui.end();
+                if (!designerWindowOpen.get()) {
+                    closeDesigner();
+                }
+            }
+        } finally {
+            DialogStyleManager.popDialogStyle(styleScope);
         }
     }
 

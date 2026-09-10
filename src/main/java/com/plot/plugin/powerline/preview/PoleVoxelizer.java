@@ -19,10 +19,12 @@ public final class PoleVoxelizer {
             return new PoleVoxelPreviewModel(List.of());
         }
         PreviewVoxelSink sink = new PreviewVoxelSink();
-        PoleLayerVoxelPlacer.placeDesignPreview(
-            design,
-            sink,
-            seedKey != null ? seedKey : design.getId());
+        String seed = seedKey != null ? seedKey : design.getId();
+        if (design.hasTowerStructure()) {
+            TowerStructurePreviewVoxelPlacer.placePreview(design.getTowerStructure(), sink, seed);
+        } else {
+            PoleLayerVoxelPlacer.placeDesignPreview(design, sink, seed);
+        }
         return PoleVoxelPreviewModel.fromSink(sink);
     }
 }

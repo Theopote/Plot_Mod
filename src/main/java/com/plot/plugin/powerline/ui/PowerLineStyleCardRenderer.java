@@ -220,37 +220,25 @@ public final class PowerLineStyleCardRenderer {
 
         float innerX = origin.x + 4f;
         float innerY = origin.y + 4f;
-        boolean drew = false;
         if (previewDesign != null) {
-            boolean front = PoleVoxelElevationRenderer.drawFront(
+            PoleVoxelElevationRenderer.drawFront(
                 drawList,
                 previewDesign,
                 innerX,
                 innerY,
                 innerX + previewW - 4f,
                 innerY + previewH);
-            boolean side = PoleVoxelElevationRenderer.drawSide(
+            PoleVoxelElevationRenderer.drawSide(
                 drawList,
                 previewDesign,
                 innerX + previewW + gap,
                 innerY,
                 innerX + previewW + gap + previewW - 4f,
                 innerY + previewH);
-            drew = front || side;
-            if (!drew) {
-                PoleDesignPreviewRenderer.drawThumbnail(
-                    previewDesign,
-                    drawList,
-                    innerX,
-                    innerY,
-                    innerX + panelW - 8f,
-                    innerY + previewH,
-                    false);
-                drew = true;
-            }
-        }
-        if (!drew && base != null) {
+        } else if (base != null) {
             drawPackPreview(drawList, base, innerX, innerY, innerX + panelW - 8f, innerY + previewH);
+        } else {
+            drawMissingPreviewPlaceholder(drawList, innerX, innerY, innerX + panelW - 8f, innerY + previewH);
         }
         ImGui.dummy(panelW, LARGE_PREVIEW_PANEL_HEIGHT);
     }
@@ -276,26 +264,23 @@ public final class PowerLineStyleCardRenderer {
         drawList.addRect(x0, y0, x1, y1, COLOR_BORDER, 3f, 0, 1f);
         EffectiveStylePreview effective = EffectiveStylePreviewResolver.resolve(line, base, resolver);
         PoleDesign previewDesign = effective != null ? effective.previewDesign() : null;
-        if (previewDesign == null
-                || !PoleVoxelElevationRenderer.drawFront(
-                    drawList,
-                    previewDesign,
-                    x0 + 2f,
-                    y0 + 2f,
-                    x1 - 2f,
-                    y0 + COMPACT_PREVIEW_HEIGHT)) {
-            if (previewDesign != null) {
-                PoleDesignPreviewRenderer.drawThumbnail(
-                    previewDesign,
-                    drawList,
-                    x0 + 2f,
-                    y0 + 2f,
-                    x1 - 2f,
-                    y0 + COMPACT_PREVIEW_HEIGHT,
-                    false);
-            } else if (base != null) {
-                drawPackPreview(drawList, base, x0 + 2f, y0 + 2f, x1 - 2f, y0 + COMPACT_PREVIEW_HEIGHT);
-            }
+        if (previewDesign != null) {
+            drawDesignVoxelPreview(
+                drawList,
+                previewDesign,
+                x0 + 2f,
+                y0 + 2f,
+                x1 - 2f,
+                y0 + COMPACT_PREVIEW_HEIGHT);
+        } else if (base != null) {
+            drawPackPreview(drawList, base, x0 + 2f, y0 + 2f, x1 - 2f, y0 + COMPACT_PREVIEW_HEIGHT);
+        } else {
+            drawMissingPreviewPlaceholder(
+                drawList,
+                x0 + 2f,
+                y0 + 2f,
+                x1 - 2f,
+                y0 + COMPACT_PREVIEW_HEIGHT);
         }
         ImGui.dummy(COMPACT_WIDTH, COMPACT_HEIGHT);
     }
@@ -311,17 +296,14 @@ public final class PowerLineStyleCardRenderer {
         drawList.addRectFilled(x0, y0, x1, y1, COLOR_BG);
         drawList.addRect(x0, y0, x1, y1, COLOR_BORDER, 3f, 0, 1f);
         if (pack != null) {
-            PoleDesign previewDesign = previewDesignFor(pack);
-            if (previewDesign == null
-                    || !PoleVoxelElevationRenderer.drawFront(
-                        drawList,
-                        previewDesign,
-                        x0 + 2f,
-                        y0 + 2f,
-                        x1 - 2f,
-                        y0 + COMPACT_PREVIEW_HEIGHT)) {
-                drawPackPreview(drawList, pack, x0 + 2f, y0 + 2f, x1 - 2f, y0 + COMPACT_PREVIEW_HEIGHT);
-            }
+            drawPackPreview(drawList, pack, x0 + 2f, y0 + 2f, x1 - 2f, y0 + COMPACT_PREVIEW_HEIGHT);
+        } else {
+            drawMissingPreviewPlaceholder(
+                drawList,
+                x0 + 2f,
+                y0 + 2f,
+                x1 - 2f,
+                y0 + COMPACT_PREVIEW_HEIGHT);
         }
         ImGui.dummy(COMPACT_WIDTH, COMPACT_HEIGHT);
     }
@@ -347,113 +329,36 @@ public final class PowerLineStyleCardRenderer {
             float y0,
             float x1,
             float y1) {
-        PoleDesign previewDesign = previewDesignFor(pack);
-        if (previewDesign != null
-                && PoleVoxelElevationRenderer.drawFront(drawList, previewDesign, x0, y0, x1, y1)) {
+        drawDesignVoxelPreview(drawList, previewDesignFor(pack), x0, y0, x1, y1);
+    }
+
+    private static void drawDesignVoxelPreview(
+            ImDrawList drawList,
+            PoleDesign design,
+            float x0,
+            float y0,
+            float x1,
+            float y1) {
+        if (design != null && PoleVoxelElevationRenderer.drawFront(drawList, design, x0, y0, x1, y1)) {
             return;
         }
-        switch (pack.getPreviewKind()) {
-            case WOOD -> drawWoodPreview(drawList, x0, y0, x1, y1);
-            case DOUBLE_WOOD -> drawDesignPreview(drawList, PoleDesignCatalog.doubleWoodPole(), x0, y0, x1, y1);
-            case URBAN -> drawDesignPreview(drawList, PoleDesignCatalog.urbanConcretePole(), x0, y0, x1, y1);
-            case STEEL_POLE -> drawDesignPreview(drawList, PoleDesignCatalog.modernSteelPole(), x0, y0, x1, y1);
-            case MODERN_UTILITY -> drawModernUtilityPreview(drawList, x0, y0, x1, y1);
-            case LATTICE_POLE -> drawDesignPreview(drawList, PoleDesignCatalog.latticeSteelTower(), x0, y0, x1, y1);
-            case LATTICE -> drawDesignPreview(
-                drawList, TowerFamilyDesignPresets.latticeSuspension(), x0, y0, x1, y1);
-            case HEAVY_LATTICE -> drawDesignPreview(
-                drawList, TowerFamilyDesignPresets.hvTransmissionSuspension(), x0, y0, x1, y1);
-            case MEGA_LATTICE -> drawDesignPreview(
-                drawList, TowerFamilyDesignPresets.megaLatticeSuspension(), x0, y0, x1, y1);
-            case HEAVY_DOUBLE_CIRCUIT -> drawDesignPreview(
-                drawList, TowerFamilyDesignPresets.heavyDoubleCircuitSuspension(), x0, y0, x1, y1);
-            case INDUSTRIAL_PORTAL -> drawDesignPreview(
-                drawList, TowerFamilyDesignPresets.industrialPortalSuspension(), x0, y0, x1, y1);
-            case MONSTER_PYLON -> drawDesignPreview(
-                drawList, TowerFamilyDesignPresets.monsterPylonSuspension(), x0, y0, x1, y1);
-            case ADAPTIVE -> drawAdaptivePreview(drawList, x0, y0, x1, y1);
-            case TAPERED -> drawDesignPreview(drawList, PoleDesignCatalog.taperedLatticeTower(), x0, y0, x1, y1);
-            case COPPER -> drawDesignPreview(drawList, PoleDesignCatalog.fantasyCopperPole(), x0, y0, x1, y1);
-            case JAPANESE -> drawJapanesePreview(drawList, x0, y0, x1, y1);
-            case WASTELAND_WIND -> drawWastelandWindPreview(drawList, x0, y0, x1, y1);
-            case OLD_EUROPEAN -> drawDesignPreview(drawList, PoleDesignCatalog.oldEuropeanPole(), x0, y0, x1, y1);
-            case STEAMPUNK -> drawSteampunkPreview(drawList, x0, y0, x1, y1);
-            case MODERN_HV_GLASS -> drawModernHvGlassPreview(drawList, x0, y0, x1, y1);
-            case SUBURBAN_LAMP -> drawSuburbanLampPreview(drawList, x0, y0, x1, y1);
-            case ABANDONED -> drawAbandonedPreview(drawList, x0, y0, x1, y1);
-            case RUSTIC -> drawRusticPreview(drawList, x0, y0, x1, y1);
-            default -> drawWoodPreview(drawList, x0, y0, x1, y1);
-        }
+        drawMissingPreviewPlaceholder(drawList, x0, y0, x1, y1);
     }
 
-    private static void drawModernUtilityPreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {
-        drawDesignPreview(drawList, PoleDesignCatalog.modernUtilityPole(), x0, y0, x1, y1);
-        float boxX = x0 + (x1 - x0) * 0.5f;
-        float boxY = y0 + (y1 - y0) * 0.55f;
-        drawList.addRectFilled(boxX - 5f, boxY - 4f, boxX + 5f, boxY + 4f, 0xFF616161);
-        float wireY = y0 + (y1 - y0) * 0.3f;
-        drawList.addLine(x0 + 8f, wireY, x1 - 8f, wireY, 0xFF9E9E9E, 1.2f);
-    }
-
-    private static void drawAbandonedPreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {
-        drawDesignPreview(drawList, PoleDesignCatalog.abandonedPole(), x0, y0, x1, y1);
-        float wireY = y0 + (y1 - y0) * 0.42f;
-        drawList.addLine(x0 + 10f, wireY + 2f, x1 - 14f, wireY - 1f, 0xFF757575, 1f);
-    }
-
-    private static void drawRusticPreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {
-        drawDesignPreview(drawList, PoleDesignCatalog.rusticWoodPole(), x0, y0, x1, y1);
-        float wireY = y0 + (y1 - y0) * 0.36f;
-        drawList.addLine(x0 + 8f, wireY, x1 - 8f, wireY, 0xFF8D6E63, 1.2f);
-    }
-
-    private static void drawSteampunkPreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {
-        drawDesignPreview(drawList, PoleDesignCatalog.steampunkBrassTower(), x0, y0, x1, y1);
-        float cx = x0 + (x1 - x0) * 0.5f;
-        float cy = y0 + (y1 - y0) * 0.18f;
-        drawList.addCircle(cx, cy, 4f, 0xFFFFD54F, 8, 1.5f);
-        float wireY = y0 + (y1 - y0) * 0.32f;
-        drawList.addLine(x0 + 6f, wireY, x1 - 6f, wireY, 0xFFB87333, 1.5f);
-    }
-
-    private static void drawModernHvGlassPreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {
-        drawDesignPreview(drawList, PoleDesignCatalog.modernHvGlassTower(), x0, y0, x1, y1);
-        float wireY = y0 + (y1 - y0) * 0.26f;
-        float left = x0 + (x1 - x0) * 0.22f;
-        float mid = x0 + (x1 - x0) * 0.5f;
-        float right = x1 - (x1 - x0) * 0.22f;
-        drawList.addLine(left, wireY, right, wireY, 0xFF9E9E9E, 1.2f);
-        drawList.addCircleFilled(left, wireY, 3f, 0xFF80D8FF);
-        drawList.addCircleFilled(mid, wireY, 3f, 0xFF80D8FF);
-        drawList.addCircleFilled(right, wireY, 3f, 0xFF80D8FF);
-    }
-
-    private static void drawSuburbanLampPreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {
-        drawDesignPreview(drawList, PoleDesignCatalog.suburbanLampPole(), x0, y0, x1, y1);
-        float glowX = x0 + (x1 - x0) * 0.5f;
-        float glowY = y0 + (y1 - y0) * 0.16f;
-        drawList.addCircleFilled(glowX, glowY, 4f, 0xFF4FC3F7);
-    }
-
-    private static void drawJapanesePreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {
-        drawDesignPreview(drawList, PoleDesignCatalog.japaneseStreetPole(), x0, y0, x1, y1);
-        float wireY = y0 + (y1 - y0) * 0.28f;
-        drawList.addLine(x0 + 6f, wireY, x1 - 6f, wireY, 0xFFB0BEC5, 1.2f);
-    }
-
-    private static void drawWastelandWindPreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {
-        drawDesignPreview(drawList, PoleDesignCatalog.wastelandWindTurbine(), x0, y0, x1, y1);
-        float hubX = x0 + (x1 - x0) * 0.5f;
-        float hubY = y0 + (y1 - y0) * 0.22f;
-        drawList.addLine(hubX, hubY, x1 - 4f, hubY - 10f, 0xFFE07040, 2f);
-        drawList.addCircleFilled(hubX, hubY, 3f, 0xFF8D6E63);
-    }
-
-    private static void drawWoodPreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {
-        PoleDesign design = PoleDesignCatalog.simpleWoodPole();
-        PoleDesignPreviewRenderer.drawThumbnail(design, drawList, x0, y0, x1, y1, false);
-        float wireY = y0 + (y1 - y0) * 0.38f;
-        drawList.addLine(x0 + 8f, wireY, x1 - 8f, wireY, 0xFF9E9E9E, 1.2f);
+    private static void drawMissingPreviewPlaceholder(
+            ImDrawList drawList,
+            float x0,
+            float y0,
+            float x1,
+            float y1) {
+        drawList.addRectFilled(x0, y0, x1, y1, 0xFF141414);
+        drawDashedRect(drawList, x0 + 2f, y0 + 2f, x1 - 2f, y1 - 2f, COLOR_BORDER, 2f, 1f, 3f, 3f);
+        float cx = (x0 + x1) * 0.5f;
+        float cy = (y0 + y1) * 0.5f;
+        float poleHalfH = (y1 - y0) * 0.22f;
+        float armHalfW = Math.min(10f, (x1 - x0) * 0.28f);
+        drawList.addLine(cx, cy + poleHalfH, cx, cy - poleHalfH, COLOR_LABEL_DIM, 1.5f);
+        drawList.addLine(cx - armHalfW, cy - poleHalfH * 0.2f, cx + armHalfW, cy - poleHalfH * 0.2f, COLOR_LABEL_DIM, 1.2f);
     }
 
     /** 自定义样式：材质色块 + 调节滑条 + 虚线导线。 */
@@ -548,36 +453,6 @@ public final class PowerLineStyleCardRenderer {
             pos = next;
             drawing = !drawing;
         }
-    }
-
-    private static void drawDesignPreview(
-            ImDrawList drawList,
-            PoleDesign design,
-            float x0,
-            float y0,
-            float x1,
-            float y1) {
-        PoleDesignPreviewRenderer.drawThumbnail(design, drawList, x0, y0, x1, y1, false);
-    }
-
-    private static void drawAdaptivePreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {
-        float mid = (x0 + x1) * 0.5f;
-        drawDesignPreview(
-            drawList,
-            TowerFamilyDesignPresets.latticeSuspensionSmall(),
-            x0 + 2f,
-            y0,
-            mid - 1f,
-            y1);
-        drawDesignPreview(
-            drawList,
-            TowerFamilyDesignPresets.latticeSuspensionTall(),
-            mid + 1f,
-            y0,
-            x1 - 2f,
-            y1);
-        float wireY = y0 + (y1 - y0) * 0.32f;
-        drawList.addLine(x0 + 6f, wireY, x1 - 6f, wireY, 0xFF9E9E9E, 1f);
     }
 
     private static void drawCenteredLabel(
