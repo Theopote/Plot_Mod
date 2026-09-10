@@ -64,7 +64,8 @@ public final class PowerLineBuildPanel {
         if (basePreset != null) {
             String styleLabel = PlotI18n.tr(basePreset.getLabelKey());
             if (PowerLineStyleEditor.isModified(line)) {
-                styleLabel += " · " + PlotI18n.tr("plugin.powerline.style.modified_badge");
+                styleLabel += PowerLineUiTextGlyphSafety.INLINE_SEPARATOR
+                    + PlotI18n.tr("plugin.powerline.style.modified_badge");
             }
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,

@@ -1,5 +1,6 @@
 package com.plot.plugin.powerline.style;
 
+import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
@@ -34,6 +35,27 @@ public final class PowerLineStylePreviewBinding {
                  MODERN_HV_GLASS, SUBURBAN_LAMP, ABANDONED, RUSTIC -> BindingKind.POLE_WITH_DECORATIVE_OVERLAY;
             default -> BindingKind.POLE_DESIGN;
         };
+    }
+
+    /** 风格卡片 / tooltip 用的预览 {@link PoleDesign}。 */
+    public static PoleDesign previewDesign(PowerLineStylePreset preset) {
+        return resolvePreviewDesign(primaryPreviewDesignId(preset));
+    }
+
+    public static PoleDesign resolvePreviewDesign(String designId) {
+        if (designId == null || designId.isBlank()) {
+            return null;
+        }
+        PoleDesign catalogDesign = PoleDesignCatalog.findBuiltin(designId);
+        if (catalogDesign != null) {
+            return catalogDesign;
+        }
+        for (PoleDesign familyDesign : TowerFamilyCatalog.familyDesigns()) {
+            if (designId.equals(familyDesign.getId())) {
+                return familyDesign;
+            }
+        }
+        return null;
     }
 
     /** 缩略图主轮廓对应的杆塔设计 ID；塔型族预设返回族内悬垂代表设计。 */

@@ -1,9 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.design.PoleDesign;
-import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
-import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.preview.PoleVoxelElevationRenderer;
 import com.plot.plugin.powerline.style.EffectiveStylePreview;
@@ -89,7 +87,7 @@ public final class PowerLineStyleCardRenderer {
         ImGui.beginTooltip();
         ImGui.text(label);
         ImGui.separator();
-        PoleDesign previewDesign = previewDesignFor(pack);
+        PoleDesign previewDesign = PowerLineStylePreviewBinding.previewDesign(pack);
         if (previewDesign != null) {
             float previewW = ImGui.getFontSize() * 7f;
             float previewH = ImGui.getFontSize() * 9f;
@@ -150,27 +148,6 @@ public final class PowerLineStyleCardRenderer {
         ImGui.textWrapped(PlotI18n.tr(pack.getDescriptionKey()));
         ImGui.popTextWrapPos();
         ImGui.endTooltip();
-    }
-
-    private static PoleDesign previewDesignFor(PowerLineStylePreset pack) {
-        String designId = PowerLineStylePreviewBinding.primaryPreviewDesignId(pack);
-        if (designId == null) {
-            return null;
-        }
-        PoleDesign design = PoleDesignCatalog.findBuiltin(designId);
-        if (design != null) {
-            return design;
-        }
-        return switch (pack.getPreviewKind()) {
-            case ADAPTIVE -> TowerFamilyDesignPresets.latticeSuspensionSmall();
-            case LATTICE -> TowerFamilyDesignPresets.latticeSuspension();
-            case HEAVY_LATTICE -> TowerFamilyDesignPresets.hvTransmissionSuspension();
-            case MEGA_LATTICE -> TowerFamilyDesignPresets.megaLatticeSuspension();
-            case HEAVY_DOUBLE_CIRCUIT -> TowerFamilyDesignPresets.heavyDoubleCircuitSuspension();
-            case INDUSTRIAL_PORTAL -> TowerFamilyDesignPresets.industrialPortalSuspension();
-            case MONSTER_PYLON -> TowerFamilyDesignPresets.monsterPylonSuspension();
-            default -> null;
-        };
     }
 
     public static float cardWidth() {
@@ -329,7 +306,7 @@ public final class PowerLineStyleCardRenderer {
             float y0,
             float x1,
             float y1) {
-        drawDesignVoxelPreview(drawList, previewDesignFor(pack), x0, y0, x1, y1);
+        drawDesignVoxelPreview(drawList, PowerLineStylePreviewBinding.previewDesign(pack), x0, y0, x1, y1);
     }
 
     private static void drawDesignVoxelPreview(
@@ -353,12 +330,6 @@ public final class PowerLineStyleCardRenderer {
             float y1) {
         drawList.addRectFilled(x0, y0, x1, y1, 0xFF141414);
         drawDashedRect(drawList, x0 + 2f, y0 + 2f, x1 - 2f, y1 - 2f, COLOR_BORDER, 2f, 1f, 3f, 3f);
-        float cx = (x0 + x1) * 0.5f;
-        float cy = (y0 + y1) * 0.5f;
-        float poleHalfH = (y1 - y0) * 0.22f;
-        float armHalfW = Math.min(10f, (x1 - x0) * 0.28f);
-        drawList.addLine(cx, cy + poleHalfH, cx, cy - poleHalfH, COLOR_LABEL_DIM, 1.5f);
-        drawList.addLine(cx - armHalfW, cy - poleHalfH * 0.2f, cx + armHalfW, cy - poleHalfH * 0.2f, COLOR_LABEL_DIM, 1.2f);
     }
 
     /** 自定义样式：材质色块 + 调节滑条 + 虚线导线。 */
