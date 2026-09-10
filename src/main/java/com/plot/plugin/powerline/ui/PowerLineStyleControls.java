@@ -135,7 +135,12 @@ public final class PowerLineStyleControls {
             ImGui.endCombo();
         }
         ImGui.tableNextColumn();
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.open_designer") + "##open_designer", 0, 0)) {
+        String openDesignerLabel = PlotI18n.tr("plugin.powerline.open_designer");
+        float padding = ImGui.getStyle().getFramePaddingX() * 2f;
+        float buttonWidth = ImGui.calcTextSize(openDesignerLabel).x + padding;
+        float avail = ImGui.getContentRegionAvail().x;
+        ImGui.setCursorPosX(ImGui.getCursorPosX() + Math.max(0f, avail - buttonWidth));
+        if (ImGui.button(openDesignerLabel + "##open_designer", 0, 0)) {
             if (line.hasTowerFamily() && !line.hasPoleDesign()) {
                 poleDesignerPanel.requestCustomizeFamily(line.getTowerFamilyId());
             } else {

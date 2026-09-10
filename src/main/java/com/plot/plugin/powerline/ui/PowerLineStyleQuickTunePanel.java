@@ -25,7 +25,9 @@ import imgui.flag.ImGuiTreeNodeFlags;
 /** Base preset 下的 Quick Customize（Tower / Wires 分区）。 */
 public final class PowerLineStyleQuickTunePanel {
     private static final float SEGMENT_HEIGHT = 24f;
-    private static final int TUNE_TABLE_COLUMNS = 3;
+    private static final float LABEL_COLUMN_WIDTH = 76f;
+    private static final float ACTION_BUTTON_GAP = 8f;
+    private static final int TUNE_TABLE_COLUMNS = 2;
 
     private final PowerLineUiContext ctx;
     private final PoleDesignerPanel poleDesignerPanel;
@@ -126,23 +128,13 @@ public final class PowerLineStyleQuickTunePanel {
         if (!ImGui.beginTable("quick_tune_" + sectionId, TUNE_TABLE_COLUMNS, flags)) {
             return false;
         }
-        float actionWidth = actionColumnWidth();
-        ImGui.tableSetupColumn("##label", ImGuiTableColumnFlags.WidthStretch, 0.34f);
-        ImGui.tableSetupColumn("##value", ImGuiTableColumnFlags.WidthStretch, 0.50f);
-        ImGui.tableSetupColumn("##action", ImGuiTableColumnFlags.WidthFixed, actionWidth);
+        ImGui.tableSetupColumn("##label", ImGuiTableColumnFlags.WidthFixed, LABEL_COLUMN_WIDTH);
+        ImGui.tableSetupColumn("##content", ImGuiTableColumnFlags.WidthStretch, 1f);
         return true;
     }
 
     private void endTuneTable() {
         ImGui.endTable();
-    }
-
-    private float actionColumnWidth() {
-        float padding = ImGui.getStyle().getFramePaddingX() * 2f + 8f;
-        float change = ImGui.calcTextSize(PlotI18n.tr("plugin.powerline.style.quick_tune.change")).x + padding;
-        float edit = ImGui.calcTextSize(PlotI18n.tr("plugin.powerline.style.quick_tune.edit_tower")).x + padding;
-        float customize = ImGui.calcTextSize(PlotI18n.tr("plugin.powerline.style.quick_tune.customize_family")).x + padding;
-        return Math.max(change, Math.max(edit, customize));
     }
 
     private void renderTowerStyleRow(PowerLineFootprint line) {
@@ -242,7 +234,6 @@ public final class PowerLineStyleQuickTunePanel {
             labels[i] = PlotI18n.tr("plugin.powerline.style.sag." + sag.name().toLowerCase());
         }
         renderInlineSagSegments(line, labels, selected);
-        ImGui.tableNextColumn();
     }
 
     private void renderTopWireInAdvanced(PowerLineFootprint line) {
@@ -307,13 +298,26 @@ public final class PowerLineStyleQuickTunePanel {
         PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, label);
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        PowerLineUiWidgets.text(value != null ? value : "-");
-        ImGui.tableNextColumn();
         if (actionLabel != null && action != null) {
+            float contentStartX = ImGui.getCursorPosX();
+            float contentStartY = ImGui.getCursorPosY();
+            float contentWidth = ImGui.getContentRegionAvail().x;
+            float buttonWidth = actionButtonWidth(actionLabel);
+            float textWidth = Math.max(0f, contentWidth - buttonWidth - ACTION_BUTTON_GAP);
+            ImGui.pushTextWrapPos(contentStartX + textWidth);
+            PowerLineUiWidgets.text(value != null ? value : "-");
+            ImGui.popTextWrapPos();
+            ImGui.setCursorPos(contentStartX + contentWidth - buttonWidth, contentStartY);
             if (ImGui.smallButton(actionLabel + "##" + rowId)) {
                 action.run();
             }
+        } else {
+            PowerLineUiWidgets.text(value != null ? value : "-");
         }
+    }
+
+    private static float actionButtonWidth(String actionLabel) {
+        return ImGui.calcTextSize(actionLabel).x + ImGui.getStyle().getFramePaddingX() * 2f;
     }
 
     private void renderBandRow(
@@ -329,7 +333,6 @@ public final class PowerLineStyleQuickTunePanel {
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
         renderSegmentButtons(rowId, options, selected, onSelect);
-        ImGui.tableNextColumn();
     }
 
     private void renderSegmentButtons(
@@ -337,9 +340,16 @@ public final class PowerLineStyleQuickTunePanel {
             String[] options,
             int selected,
             java.util.function.IntConsumer onSelect) {
+        if (options == null || options.length == 0) {
+            return;
+        }
+        float spacing = 4f;
+        float avail = ImGui.getContentRegionAvail().x;
+        float totalSpacing = spacing * (options.length - 1);
+        float buttonWidth = Math.max(32f, (avail - totalSpacing) / options.length);
         for (int i = 0; i < options.length; i++) {
             if (i > 0) {
-                ImGui.sameLine(0f, 4f);
+                ImGui.sameLine(0f, spacing);
             }
             boolean active = i == selected;
             if (active) {
@@ -347,7 +357,7 @@ public final class PowerLineStyleQuickTunePanel {
                 ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0xFF455A64);
             }
             ImGui.pushID(id + "_" + i);
-            if (ImGui.button(options[i], 0, SEGMENT_HEIGHT)) {
+            if (ImGui.button(options[i], buttonWidth, SEGMENT_HEIGHT)) {
                 if (!active) {
                     ctx.pushEditSnapshot();
                     onSelect.accept(i);
@@ -362,7 +372,13 @@ public final class PowerLineStyleQuickTunePanel {
 
     private void renderInlineSagSegments(PowerLineFootprint line, String[] labels, int selected) {
         ImDrawList drawList = ImGui.getWindowDrawList();
+        if (labels == null || labels.length == 0) {
+            return;
+        }
         float spacing = 4f;
+        float avail = ImGui.getContentRegionAvail().x;
+        float totalSpacing = spacing * (labels.length - 1);
+        float buttonWidth = Math.max(32f, (avail - totalSpacing) / labels.length);
         for (int i = 0; i < labels.length; i++) {
             if (i > 0) {
                 ImGui.sameLine(0f, spacing);
@@ -373,7 +389,7 @@ public final class PowerLineStyleQuickTunePanel {
                 ImGui.pushStyleColor(ImGuiCol.Button, 0xFF37474F);
             }
             ImGui.pushID("quick_sag_" + sag.name());
-            if (ImGui.button(labels[i], 0, SEGMENT_HEIGHT)) {
+            if (ImGui.button(labels[i], buttonWidth, SEGMENT_HEIGHT)) {
                 ctx.pushEditSnapshot();
                 PowerLineUiPresets.applySag(line, sag);
                 PowerLineStyleEditor.afterStyleEdit(line);
