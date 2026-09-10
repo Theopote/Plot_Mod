@@ -618,8 +618,7 @@ public final class PoleDesignerPanel {
                 "plugin.powerline.design.arm_attachment_deck",
                 arm.getId(),
                 deck.size()))) {
-                for (int i = 0; i < deck.size(); i++) {
-                    ConductorAttachment deckAttachment = deck.get(i);
+                for (ConductorAttachment deckAttachment : deck) {
                     ImGui.pushID("att_" + deckAttachment.getId());
                     renderAttachmentRow(deckAttachment, arm);
                     ImGui.popID();
@@ -633,8 +632,7 @@ public final class PoleDesignerPanel {
             if (ImGui.treeNode(PlotI18n.tr(
                 "plugin.powerline.design.arm_unassigned_attachments",
                 unassigned.size()))) {
-                for (int i = 0; i < unassigned.size(); i++) {
-                    ConductorAttachment freeAttachment = unassigned.get(i);
+                for (ConductorAttachment freeAttachment : unassigned) {
                     ImGui.pushID("free_" + freeAttachment.getId());
                     renderAttachmentRow(freeAttachment, null);
                     ImGui.popID();
@@ -680,7 +678,7 @@ public final class PoleDesignerPanel {
             8f,
             "%.1f",
             this::pushDraftSnapshot,
-            value -> attachment.setLateralOffset(value),
+                attachment::setLateralOffset,
             null);
         float[] vertical = {(float) attachment.getVerticalOffset()};
         PowerLineUiWidgets.sliderFloatStable(
@@ -691,7 +689,7 @@ public final class PoleDesignerPanel {
             64f,
             "%.1f",
             this::pushDraftSnapshot,
-            value -> attachment.setVerticalOffset(value),
+                attachment::setVerticalOffset,
             null);
         float[] longitudinal = {(float) attachment.getLongitudinalOffset()};
         PowerLineUiWidgets.sliderFloatStable(
@@ -702,7 +700,7 @@ public final class PoleDesignerPanel {
             4f,
             "%.1f",
             this::pushDraftSnapshot,
-            value -> attachment.setLongitudinalOffset(value),
+                attachment::setLongitudinalOffset,
             null);
         ImInt insulatorLength = new ImInt(attachment.getInsulatorLength());
         ImGui.setNextItemWidth(80);
