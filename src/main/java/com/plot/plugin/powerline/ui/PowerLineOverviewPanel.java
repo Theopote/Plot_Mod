@@ -75,11 +75,11 @@ public final class PowerLineOverviewPanel {
             "plugin.powerline.overview_item",
             line.estimatePoleCount(),
             String.format("%.1f", line.computePathLength())));
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.locate"), 60, 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.locate") + "##locate", 0, 0)) {
             ctx.locateLine(line);
         }
         ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.delete"), 60, 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.delete") + "##delete", 0, 0)) {
             ctx.pendingDeleteLineIds().clear();
             ctx.pendingDeleteLineIds().add(line.getId());
             ctx.setDeleteConfirmPending(true);

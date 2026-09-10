@@ -17,6 +17,8 @@ import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiTableColumnFlags;
+import imgui.flag.ImGuiTableFlags;
 
 import java.util.List;
 import java.util.StringJoiner;
@@ -112,7 +114,12 @@ public final class PowerLineStyleControls {
             }
         }
 
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - 110);
+        if (!beginValueActionTable("pole_design")) {
+            return;
+        }
+        ImGui.tableNextRow();
+        ImGui.tableNextColumn();
+        ImGui.setNextItemWidth(-1);
         if (ImGui.beginCombo(
                 PowerLineUiWidgets.stableLabel("plugin.powerline.pole_design", "pole_design"),
                 labels[current])) {
@@ -127,15 +134,15 @@ public final class PowerLineStyleControls {
             }
             ImGui.endCombo();
         }
-
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.open_designer"), 0, 0)) {
+        ImGui.tableNextColumn();
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.open_designer") + "##open_designer", 0, 0)) {
             if (line.hasTowerFamily() && !line.hasPoleDesign()) {
                 poleDesignerPanel.requestCustomizeFamily(line.getTowerFamilyId());
             } else {
                 poleDesignerPanel.open(line.getPoleDesignId());
             }
         }
+        ImGui.endTable();
     }
 
     public void renderTowerFamilyControls(PowerLineFootprint line) {
@@ -231,35 +238,58 @@ public final class PowerLineStyleControls {
             schematic.toString()));
 
         ImGui.beginChild("powerline_pole_roles", 0, 160, true);
-        for (int i = 0; i < sites.size(); i++) {
-            PowerPoleSite site = sites.get(i);
-            ImGui.pushID("site_" + site.getStationing());
-            ImGui.text(PlotI18n.tr(
-                "plugin.powerline.pole_role_row",
-                i + 1,
-                site.getStationing(),
-                roleLabel(site)));
+        int tableFlags = ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.RowBg | ImGuiTableFlags.PadOuterX;
+        if (ImGui.beginTable("powerline_pole_roles_table", 2, tableFlags)) {
+            ImGui.tableSetupColumn("##pole", ImGuiTableColumnFlags.WidthStretch, 0.58f);
+            ImGui.tableSetupColumn("##role", ImGuiTableColumnFlags.WidthStretch, 0.42f);
+            for (int i = 0; i < sites.size(); i++) {
+                PowerPoleSite site = sites.get(i);
+                ImGui.pushID("site_" + site.getStationing());
+                ImGui.tableNextRow();
+                ImGui.tableNextColumn();
+                ImGui.alignTextToFramePadding();
+                ImGui.text(PlotI18n.tr(
+                    "plugin.powerline.pole_role_row",
+                    i + 1,
+                    site.getStationing(),
+                    roleLabel(site)));
 
-            PoleOverride override = PowerLineOverrideUtils.findOverride(line, site.getStationing());
-            int roleIndex = roleComboIndex(override, site);
-            ImGui.setNextItemWidth(140);
-            if (ImGui.beginCombo("##role", roleComboLabel(roleIndex))) {
-                for (int option = 0; option < ROLE_COMBO_OPTION_COUNT; option++) {
-                    if (ImGui.selectable(
-                            PowerLineUiWidgets.stableSelectableLabel(
-                                roleComboLabel(option),
-                                "role_" + option),
-                            roleIndex == option)) {
-                        ctx.pushEditSnapshot();
-                        applyRoleSelection(line, site, option);
-                        ctx.invalidatePreview();
+                ImGui.tableNextColumn();
+                PoleOverride override = PowerLineOverrideUtils.findOverride(line, site.getStationing());
+                int roleIndex = roleComboIndex(override, site);
+                ImGui.setNextItemWidth(-1);
+                if (ImGui.beginCombo("##role", roleComboLabel(roleIndex))) {
+                    for (int option = 0; option < ROLE_COMBO_OPTION_COUNT; option++) {
+                        if (ImGui.selectable(
+                                PowerLineUiWidgets.stableSelectableLabel(
+                                    roleComboLabel(option),
+                                    "role_" + option),
+                                roleIndex == option)) {
+                            ctx.pushEditSnapshot();
+                            applyRoleSelection(line, site, option);
+                            ctx.invalidatePreview();
+                        }
                     }
+                    ImGui.endCombo();
                 }
-                ImGui.endCombo();
+                ImGui.popID();
             }
-            ImGui.popID();
+            ImGui.endTable();
         }
         ImGui.endChild();
+    }
+
+    private boolean beginValueActionTable(String tableId) {
+        int flags = ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.PadOuterX;
+        if (!ImGui.beginTable(tableId, 2, flags)) {
+            return false;
+        }
+        String actionLabel = PlotI18n.tr("plugin.powerline.open_designer");
+        float padding = ImGui.getStyle().getFramePaddingX() * 2f + 8f;
+        float actionWidth = ImGui.calcTextSize(actionLabel).x + padding;
+        ImGui.tableSetupColumn("##value", ImGuiTableColumnFlags.WidthStretch);
+        ImGui.tableSetupColumn("##action", ImGuiTableColumnFlags.WidthFixed, actionWidth);
+        return true;
     }
 
     private static String roleLabel(PowerPoleSite site) {
