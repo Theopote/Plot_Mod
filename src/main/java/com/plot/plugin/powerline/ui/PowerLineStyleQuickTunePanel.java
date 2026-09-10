@@ -6,6 +6,8 @@ import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
+import com.plot.plugin.powerline.PowerLineSagPolicy;
+import com.plot.plugin.powerline.PowerLineSagUtils;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.style.PowerLineQuickTunePolicy;
 import com.plot.plugin.powerline.style.PowerLineSpacingPolicy;
@@ -16,6 +18,7 @@ import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
+import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiTableColumnFlags;
@@ -25,6 +28,7 @@ import imgui.flag.ImGuiTreeNodeFlags;
 /** Base preset 下的 Quick Customize（Tower / Wires 分区）。 */
 public final class PowerLineStyleQuickTunePanel {
     private static final float SEGMENT_HEIGHT = 24f;
+    private static final float SAG_PREVIEW_HEIGHT = 56f;
     private static final float LABEL_COLUMN_WIDTH = 76f;
     private static final float ACTION_BUTTON_GAP = 8f;
     private static final int TUNE_TABLE_COLUMNS = 2;
@@ -225,7 +229,6 @@ public final class PowerLineStyleQuickTunePanel {
         ImGui.alignTextToFramePadding();
         PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.style.sag"));
         ImGui.tableNextColumn();
-        ImGui.alignTextToFramePadding();
         PowerLineUiPresets.WireSag current = PowerLineUiPresets.detectSag(line);
         int selected = current != null ? current.ordinal() : -1;
         String[] labels = new String[PowerLineUiPresets.WireSag.values().length];
@@ -234,6 +237,115 @@ public final class PowerLineStyleQuickTunePanel {
             labels[i] = PlotI18n.tr("plugin.powerline.style.sag." + sag.name().toLowerCase());
         }
         renderInlineSagSegments(line, labels, selected);
+        ImGui.spacing();
+        renderSagLivePreview(line);
+        ImGui.spacing();
+        renderSagRatioSlider(line);
+        renderMaxSagDepthControls(line);
+        renderSagSummary(line, current);
+    }
+
+    private void renderSagLivePreview(PowerLineFootprint line) {
+        float previewWidth = ImGui.getContentRegionAvail().x;
+        if (previewWidth < 40f) {
+            return;
+        }
+        ImVec2 origin = ImGui.getCursorScreenPos();
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        drawList.addRectFilled(
+            origin.x,
+            origin.y,
+            origin.x + previewWidth,
+            origin.y + SAG_PREVIEW_HEIGHT,
+            0xFF141414);
+        drawList.addRect(
+            origin.x,
+            origin.y,
+            origin.x + previewWidth,
+            origin.y + SAG_PREVIEW_HEIGHT,
+            0xFF484848);
+        double maxDepth = line.isMaxSagDepthUnlimited()
+            ? PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH
+            : line.getMaxSagDepth();
+        PowerLineSagCardRenderer.drawSagPreview(
+            drawList,
+            line.getSagRatio(),
+            maxDepth,
+            origin.x + 6f,
+            origin.y + 4f,
+            origin.x + previewWidth - 6f,
+            origin.y + SAG_PREVIEW_HEIGHT - 4f);
+        ImGui.dummy(previewWidth, SAG_PREVIEW_HEIGHT);
+    }
+
+    private void renderSagRatioSlider(PowerLineFootprint line) {
+        float[] sagRatio = {(float) (line.getSagRatio() * 100f)};
+        PowerLineUiWidgets.sliderFloatStableLineEdit(
+            ctx,
+            "quick_sag_ratio",
+            "plugin.powerline.sag_ratio",
+            sagRatio,
+            0f,
+            (float) (PowerLineUiPresets.ADVANCED_SAG_MAX_RATIO * 100f),
+            "%.0f%%",
+            value -> {
+                PowerLineUiPresets.applyAdvancedSag(line, value / 100f);
+                PowerLineStyleEditor.afterStyleEdit(line);
+            });
+    }
+
+    private void renderMaxSagDepthControls(PowerLineFootprint line) {
+        boolean unlimited = line.isMaxSagDepthUnlimited();
+        if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.max_sag_depth_unlimited"), unlimited)) {
+            ctx.pushEditSnapshot();
+            PowerLineUiPresets.applyMaxSagDepth(
+                line,
+                PowerLineUiPresets.displayMaxSagDepth(line),
+                !unlimited);
+            PowerLineStyleEditor.afterStyleEdit(line);
+            ctx.invalidatePreview();
+        }
+        if (!line.isMaxSagDepthUnlimited()) {
+            float[] maxDepth = {PowerLineUiPresets.displayMaxSagDepth(line)};
+            PowerLineUiWidgets.sliderFloatStableLineEdit(
+                ctx,
+                "quick_max_sag_depth",
+                "plugin.powerline.max_sag_depth",
+                maxDepth,
+                1f,
+                PowerLineUiPresets.ADVANCED_MAX_SAG_DEPTH_MAX,
+                "%.0f",
+                value -> {
+                    PowerLineUiPresets.applyMaxSagDepth(line, value, false);
+                    PowerLineStyleEditor.afterStyleEdit(line);
+                });
+        } else {
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.max_sag_depth_profile_hint"));
+        }
+    }
+
+    private void renderSagSummary(PowerLineFootprint line, PowerLineUiPresets.WireSag preset) {
+        double effectiveDepth = PowerLineSagPolicy.resolveMaxSagDepth(line);
+        PowerLineUiWidgets.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr(
+                "plugin.powerline.style.sag.summary",
+                (int) Math.round(line.getSagRatio() * 100.0),
+                effectiveDepth));
+        if (preset == null) {
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr(
+                    "plugin.powerline.build.sag_custom",
+                    (int) Math.round(line.getSagRatio() * 100.0)));
+        } else {
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.style.sag.preset_active", PlotI18n.tr(
+                    "plugin.powerline.style.sag." + preset.name().toLowerCase())));
+        }
     }
 
     private void renderTopWireInAdvanced(PowerLineFootprint line) {
@@ -371,7 +483,6 @@ public final class PowerLineStyleQuickTunePanel {
     }
 
     private void renderInlineSagSegments(PowerLineFootprint line, String[] labels, int selected) {
-        ImDrawList drawList = ImGui.getWindowDrawList();
         if (labels == null || labels.length == 0) {
             return;
         }
@@ -400,36 +511,8 @@ public final class PowerLineStyleQuickTunePanel {
                 ImGui.popStyleColor();
             }
             if (ImGui.isItemHovered()) {
-                ImGui.beginTooltip();
-                float previewW = ImGui.getFontSize() * 6f;
-                float previewH = ImGui.getFontSize() * 3f;
-                PowerLineUiWidgets.text(labels[i]);
-                var origin = ImGui.getCursorScreenPos();
-                drawList.addRectFilled(
-                    origin.x,
-                    origin.y,
-                    origin.x + previewW,
-                    origin.y + previewH,
-                    0xFF141414);
-                PowerLineSagCardRenderer.drawSagPreview(
-                    drawList,
-                    sag.ratio(),
-                    com.plot.plugin.powerline.PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH,
-                    origin.x + 2f,
-                    origin.y + 2f,
-                    origin.x + previewW - 2f,
-                    origin.y + previewH - 2f);
-                ImGui.dummy(previewW, previewH);
-                ImGui.endTooltip();
+                ImGui.setTooltip(labels[i]);
             }
-        }
-        if (selected < 0) {
-            ImGui.sameLine(0f, spacing);
-            PowerLineUiWidgets.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr(
-                    "plugin.powerline.build.sag_custom",
-                    (int) Math.round(line.getSagRatio() * 100.0)));
         }
     }
 

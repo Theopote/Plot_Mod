@@ -107,57 +107,5 @@ public final class PowerLineStylePanel {
         styleControls.renderTowerFamilyControls(line);
         styleControls.renderPoleHeightControls(line);
         styleControls.renderPoleRoleInspector(line);
-        renderAdvancedSag(line);
-    }
-
-    private void renderAdvancedSag(PowerLineFootprint line) {
-        ImGui.separator();
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.sag_advanced"));
-        float[] sagRatio = {(float) (line.getSagRatio() * 100f)};
-        PowerLineUiWidgets.sliderFloatStableLineEdit(
-            ctx,
-            "sag_ratio",
-            "plugin.powerline.sag_ratio",
-            sagRatio,
-            0f,
-            (float) (PowerLineUiPresets.ADVANCED_SAG_MAX_RATIO * 100f),
-            "%.0f%%",
-            value -> {
-                PowerLineUiPresets.applyAdvancedSag(line, value / 100f);
-                PowerLineStyleEditor.afterStyleEdit(line);
-            });
-        renderMaxSagDepthControls(line);
-    }
-
-    private void renderMaxSagDepthControls(PowerLineFootprint line) {
-        boolean unlimited = line.isMaxSagDepthUnlimited();
-        if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.max_sag_depth_unlimited"), unlimited)) {
-            ctx.pushEditSnapshot();
-            PowerLineUiPresets.applyMaxSagDepth(
-                line,
-                PowerLineUiPresets.displayMaxSagDepth(line),
-                !unlimited);
-            PowerLineStyleEditor.afterStyleEdit(line);
-            ctx.invalidatePreview();
-        }
-        if (!line.isMaxSagDepthUnlimited()) {
-            float[] maxDepth = {PowerLineUiPresets.displayMaxSagDepth(line)};
-            PowerLineUiWidgets.sliderFloatStableLineEdit(
-                ctx,
-                "max_sag_depth",
-                "plugin.powerline.max_sag_depth",
-                maxDepth,
-                1f,
-                PowerLineUiPresets.ADVANCED_MAX_SAG_DEPTH_MAX,
-                "%.0f",
-                value -> {
-                    PowerLineUiPresets.applyMaxSagDepth(line, value, false);
-                    PowerLineStyleEditor.afterStyleEdit(line);
-                });
-        } else {
-            PowerLineUiWidgets.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.powerline.max_sag_depth_profile_hint"));
-        }
     }
 }

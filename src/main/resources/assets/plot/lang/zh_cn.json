@@ -3504,6 +3504,8 @@
   "plugin.powerline.style.sag.light": "轻微下垂",
   "plugin.powerline.style.sag.natural": "自然",
   "plugin.powerline.style.sag.loose": "松弛",
+  "plugin.powerline.style.sag.summary": "垂度 %d%% · 生效最大下垂 %.0f 格",
+  "plugin.powerline.style.sag.preset_active": "当前预设：%s",
   "plugin.powerline.style.sag_advanced": "高级垂度",
   "plugin.powerline.style.advanced": "高级样式",
   "plugin.powerline.style.advanced_hint": "微调杆塔造型、塔型族、逐杆角色与杆高。",

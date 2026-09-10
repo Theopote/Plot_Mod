@@ -3504,6 +3504,8 @@
   "plugin.powerline.style.sag.light": "Light",
   "plugin.powerline.style.sag.natural": "Natural",
   "plugin.powerline.style.sag.loose": "Loose",
+  "plugin.powerline.style.sag.summary": "Sag %d%% · effective max drop %.0f blocks",
+  "plugin.powerline.style.sag.preset_active": "Preset: %s",
   "plugin.powerline.style.sag_advanced": "Advanced sag",
   "plugin.powerline.style.advanced": "Advanced style",
   "plugin.powerline.style.advanced_hint": "Fine-tune pole shape, tower family, per-pole roles, and pole height.",
