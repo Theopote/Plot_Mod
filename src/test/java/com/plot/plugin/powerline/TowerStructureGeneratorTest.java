@@ -155,6 +155,42 @@ class TowerStructureGeneratorTest {
     }
 
     @Test
+    void planDiagonalBracingAddsCrossMembers() {
+        TowerStructureDesign withPlan = twoStationTower();
+        withPlan.findOrCreateBay("s0", "s1").setPlanDiagonalBracing(true);
+        withPlan.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.NONE);
+        withPlan.findOrCreateBay("s0", "s1").setSideBracing(BracingPattern.NONE);
+        withPlan.findOrCreateBay("s0", "s1").setHorizontalRing(false);
+
+        TowerStructureDesign withoutPlan = twoStationTower();
+        withoutPlan.findOrCreateBay("s0", "s1").setPlanDiagonalBracing(false);
+        withoutPlan.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.NONE);
+        withoutPlan.findOrCreateBay("s0", "s1").setSideBracing(BracingPattern.NONE);
+        withoutPlan.findOrCreateBay("s0", "s1").setHorizontalRing(false);
+
+        int withCount = generateStructure(withPlan).structureBlockCount;
+        int withoutCount = generateStructure(withoutPlan).structureBlockCount;
+        assertTrue(withCount > withoutCount);
+    }
+
+    @Test
+    void vFaceBracingIsSymmetricOnFace() {
+        TowerStructureDesign structure = asymmetricTwoStationTower();
+        structure.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.V);
+        structure.findOrCreateBay("s0", "s1").setSideBracing(BracingPattern.NONE);
+        structure.findOrCreateBay("s0", "s1").setHorizontalRing(false);
+        structure.findOrCreateBay("s0", "s1").setPlanDiagonalBracing(false);
+
+        TowerStructureDesign none = asymmetricTwoStationTower();
+        none.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.NONE);
+        none.findOrCreateBay("s0", "s1").setSideBracing(BracingPattern.NONE);
+
+        int vCount = blocksWithMaterial(generateStructure(structure), "minecraft:iron_bars").size();
+        int legCount = blocksWithMaterial(generateStructure(none), "minecraft:iron_bars").size();
+        assertTrue(vCount > legCount);
+    }
+
+    @Test
     void xBracingProducesDiagonalEndpoints() {
         TowerStructureDesign structure = twoStationTower();
         structure.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.X);

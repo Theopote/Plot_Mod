@@ -68,6 +68,9 @@ public final class TowerStructurePreviewVoxelPlacer {
             if (bay.isHorizontalRing()) {
                 generateHorizontalRing(upper, structure, sink, seed);
             }
+            if (bay.isPlanDiagonalBracing()) {
+                generatePlanDiagonalBracing(upper, structure, sink, seed);
+            }
         }
 
         for (TowerArm arm : structure.getArms()) {
@@ -121,6 +124,10 @@ public final class TowerStructurePreviewVoxelPlacer {
             placeBrace(bLower, centerUpper, structure, sink, seed);
         } else if (pattern == BracingPattern.SINGLE_DIAGONAL) {
             placeBrace(aLower, bUpper, structure, sink, seed);
+        } else if (pattern == BracingPattern.V) {
+            TowerLocalPoint centerLower = midpoint(aLower, bLower);
+            placeBrace(aUpper, centerLower, structure, sink, seed);
+            placeBrace(bUpper, centerLower, structure, sink, seed);
         }
     }
 
@@ -141,6 +148,29 @@ public final class TowerStructurePreviewVoxelPlacer {
                 sink,
                 seed);
         }
+    }
+
+    private static void generatePlanDiagonalBracing(
+            TowerStation station,
+            TowerStructureDesign structure,
+            VoxelSink sink,
+            String seed) {
+        MaterialMix material = structure.getBraceMaterial();
+        int thickness = structure.getBraceProfile().getThickness();
+        placeMember(
+            TowerStructureGeometry.cornerPoint(station, 0),
+            TowerStructureGeometry.cornerPoint(station, 2),
+            material,
+            thickness,
+            sink,
+            seed);
+        placeMember(
+            TowerStructureGeometry.cornerPoint(station, 1),
+            TowerStructureGeometry.cornerPoint(station, 3),
+            material,
+            thickness,
+            sink,
+            seed);
     }
 
     private static void generateArm(

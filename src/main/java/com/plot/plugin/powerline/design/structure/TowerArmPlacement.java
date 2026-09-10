@@ -218,6 +218,13 @@ public final class TowerArmPlacement {
                 bracePlacer.place(bottomRight, centerTop, braceMaterial);
             } else if (pattern == BracingPattern.SINGLE_DIAGONAL) {
                 bracePlacer.place(bottomLeft, topRight, braceMaterial);
+            } else if (pattern == BracingPattern.V) {
+                TowerLocalPoint centerLower = TowerLocalPoint.of(
+                    (bottomLeft.lateral() + bottomRight.lateral()) / 2.0,
+                    bottomHeight,
+                    longitudinal);
+                bracePlacer.place(topLeft, centerLower, braceMaterial);
+                bracePlacer.place(topRight, centerLower, braceMaterial);
             }
         }
     }

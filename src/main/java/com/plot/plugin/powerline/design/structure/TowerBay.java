@@ -9,6 +9,8 @@ public class TowerBay {
     private BracingPattern frontBackBracing = BracingPattern.X;
     private BracingPattern sideBracing = BracingPattern.X;
     private boolean horizontalRing = true;
+    /** 上节 station 水平面内的对角斜撑（增强前后/左右对称的三维格构感）。 */
+    private boolean planDiagonalBracing = false;
 
     public TowerBay() {
     }
@@ -58,11 +60,20 @@ public class TowerBay {
         this.horizontalRing = horizontalRing;
     }
 
+    public boolean isPlanDiagonalBracing() {
+        return planDiagonalBracing;
+    }
+
+    public void setPlanDiagonalBracing(boolean planDiagonalBracing) {
+        this.planDiagonalBracing = planDiagonalBracing;
+    }
+
     public TowerBay copy() {
         TowerBay copy = new TowerBay(lowerStationId, upperStationId);
         copy.frontBackBracing = frontBackBracing;
         copy.sideBracing = sideBracing;
         copy.horizontalRing = horizontalRing;
+        copy.planDiagonalBracing = planDiagonalBracing;
         return copy;
     }
 
@@ -78,11 +89,18 @@ public class TowerBay {
             && Objects.equals(upperStationId, other.upperStationId)
             && getFrontBackBracing() == other.getFrontBackBracing()
             && getSideBracing() == other.getSideBracing()
-            && horizontalRing == other.horizontalRing;
+            && horizontalRing == other.horizontalRing
+            && planDiagonalBracing == other.planDiagonalBracing;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(lowerStationId, upperStationId, getFrontBackBracing(), getSideBracing(), horizontalRing);
+        return Objects.hash(
+            lowerStationId,
+            upperStationId,
+            getFrontBackBracing(),
+            getSideBracing(),
+            horizontalRing,
+            planDiagonalBracing);
     }
 }

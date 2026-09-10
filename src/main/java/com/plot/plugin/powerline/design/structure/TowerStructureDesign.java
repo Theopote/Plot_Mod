@@ -292,6 +292,7 @@ public class TowerStructureDesign {
         String frontBackBracing;
         String sideBracing;
         boolean horizontalRing = true;
+        boolean planDiagonalBracing;
     }
 
     static class ArmData {
@@ -345,6 +346,7 @@ public class TowerStructureDesign {
                 bayData.frontBackBracing = bay.getFrontBackBracing().name();
                 bayData.sideBracing = bay.getSideBracing().name();
                 bayData.horizontalRing = bay.isHorizontalRing();
+                bayData.planDiagonalBracing = bay.isPlanDiagonalBracing();
                 data.bays.add(bayData);
             }
             for (TowerArm arm : design.arms) {
@@ -411,6 +413,7 @@ public class TowerStructureDesign {
                             TowerStructureEnums.bracingOrDefault(bayData.sideBracing, BracingPattern.NONE));
                     }
                     bay.setHorizontalRing(bayData.horizontalRing);
+                    bay.setPlanDiagonalBracing(bayData.planDiagonalBracing);
                     design.addBay(bay);
                 }
             }

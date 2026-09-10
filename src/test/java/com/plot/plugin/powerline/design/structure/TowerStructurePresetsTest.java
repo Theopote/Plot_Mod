@@ -129,6 +129,29 @@ class TowerStructurePresetsTest {
     }
 
     @Test
+    void presetBaysUseSymmetricFaceBracing() {
+        for (TowerStructureDesign structure : List.of(
+            TowerStructurePresets.classicDoubleArmTower(),
+            TowerStructurePresets.megaLatticeTower(),
+            TowerStructurePresets.portalTower())) {
+            for (TowerBay bay : structure.getBays()) {
+                assertEquals(
+                    bay.getFrontBackBracing(),
+                    bay.getSideBracing(),
+                    structure.getSilhouette() + " bay should use matching face bracing");
+            }
+        }
+    }
+
+    @Test
+    void latticePresetsEnablePlanDiagonalBracing() {
+        long planBays = TowerStructurePresets.classicDoubleArmTower().getBays().stream()
+            .filter(TowerBay::isPlanDiagonalBracing)
+            .count();
+        assertTrue(planBays >= 3, "major lattice towers should cross-brace the plan");
+    }
+
+    @Test
     void geometryValuesAreFiniteAndPositive() {
         for (TowerStructureDesign structure : List.of(
             TowerStructurePresets.classicDoubleArmTower(),
