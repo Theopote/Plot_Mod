@@ -1,4 +1,5 @@
 package com.plot.plugin.earthwork.design;
+import com.plot.plugin.earthwork.geometry.EarthworkCanvasScale;
 import com.plot.plugin.earthwork.geometry.RetainingEdgeBreaklineAdapter;
 import com.plot.plugin.earthwork.geometry.ZoneBoundaryRetainingEdgeAdapter;
 import com.plot.plugin.earthwork.geometry.ZoneBoundarySlopeApplicator;
@@ -90,19 +91,23 @@ public final class DesignTerrainComposer {
             return new ComposeResult(new DesignTerrainGrid(), Map.of(), Map.of());
         }
         EarthworkWorkMode safeWorkMode = workMode != null ? workMode : EarthworkWorkMode.QUICK;
+        EarthworkCanvasScale canvasScale = transformer != null
+            ? EarthworkCanvasScale.capture(transformer, site.getSiteBoundary())
+            : EarthworkCanvasScale.identity();
 
         DesignTerrainGrid grid = new DesignTerrainGrid();
         initializeCells(grid, terrain);
 
         applyExclusionZones(grid, site.getExclusionZones());
         Map<String, ResolvedDesignSurface> resolvedSurfaces =
-            DesignSurfaceResolver.resolveZoneSurfaces(site, terrain, buildingLookup, roadLookup, transformer);
+            DesignSurfaceResolver.resolveZoneSurfaces(
+                site, terrain, buildingLookup, roadLookup, transformer, canvasScale);
         requireResolvableRoadCorridors(resolvedSurfaces);
         Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators =
             ResolvedDesignSurface.toEvaluatorMap(resolvedSurfaces);
         List<Breakline> effectiveBreaklines = mergeEffectiveBreaklines(site);
         Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageByCellKey =
-            applyZoneCoverage(grid, site, zoneEvaluators, effectiveBreaklines);
+            applyZoneCoverage(grid, site, zoneEvaluators, effectiveBreaklines, canvasScale);
         Map<Long, CellSnapshot> baseDesign = snapshotCells(grid);
 
         applyBoundaryConditions(
@@ -110,7 +115,8 @@ public final class DesignTerrainComposer {
             site,
             zoneEvaluators,
             coverageByCellKey,
-            effectiveBreaklines);
+            effectiveBreaklines,
+            canvasScale);
 
         Map<String, Integer> cumulativeZoneOffsets = new LinkedHashMap<>();
         int cumulativeUniformOffset = iterateSiteBalance(
@@ -122,7 +128,8 @@ public final class DesignTerrainComposer {
             coverageByCellKey,
             effectiveBreaklines,
             cumulativeZoneOffsets,
-            safeWorkMode);
+            safeWorkMode,
+            canvasScale);
         recordBalanceOffsets(site, cumulativeZoneOffsets, cumulativeUniformOffset);
 
         Map<String, ResolvedDesignSurface> finalResolved =
@@ -205,7 +212,8 @@ public final class DesignTerrainComposer {
             DesignTerrainGrid grid,
             EarthworkSite site,
             Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators,
-            List<Breakline> breaklines) {
+            List<Breakline> breaklines,
+            EarthworkCanvasScale canvasScale) {
         Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageByCellKey = new HashMap<>();
         List<ZoneCandidate> candidates = buildZoneCandidates(site);
         CompositionPolicy policy = site.getCompositionPolicy();
@@ -222,7 +230,8 @@ public final class DesignTerrainComposer {
                 continue;
             }
             if (applyBreaklinePrecedence) {
-                covering = filterByBreaklineSide(cell.center(), covering, breaklines, breaklineInfluence);
+                covering = filterByBreaklineSide(
+                    cell.center(), covering, breaklines, breaklineInfluence, canvasScale);
                 if (covering.isEmpty()) {
                     continue;
                 }
@@ -253,7 +262,8 @@ public final class DesignTerrainComposer {
             Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageByCellKey,
             List<Breakline> effectiveBreaklines,
             Map<String, Integer> cumulativeZoneOffsets,
-            EarthworkWorkMode workMode) {
+            EarthworkWorkMode workMode,
+            EarthworkCanvasScale canvasScale) {
         if (!shouldRunSiteBalance(site)) {
             return 0;
         }
@@ -269,7 +279,8 @@ public final class DesignTerrainComposer {
                 coverageByCellKey,
                 effectiveBreaklines,
                 Map.of(),
-                workMode);
+                workMode,
+                canvasScale);
         }
 
         // CONSTRAINED_ZONE_OPTIMIZATION：先启发分区 ΔY，再对残余统一偏移做边坡耦合离散搜索。
@@ -290,7 +301,8 @@ public final class DesignTerrainComposer {
                     site,
                     evaluatorsWithOffsets(site, zoneEvaluators, cumulativeZoneOffsets, cumulativeUniformOffset),
                     coverageWithOffsets(site, coverageByCellKey, cumulativeZoneOffsets, cumulativeUniformOffset),
-                    effectiveBreaklines);
+                    effectiveBreaklines,
+                    canvasScale);
             }
         }
 
@@ -304,7 +316,8 @@ public final class DesignTerrainComposer {
                 coverageByCellKey,
                 effectiveBreaklines,
                 Map.copyOf(cumulativeZoneOffsets),
-                workMode);
+                workMode,
+                canvasScale);
         }
         return cumulativeUniformOffset;
     }
@@ -322,7 +335,8 @@ public final class DesignTerrainComposer {
             Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageByCellKey,
             List<Breakline> effectiveBreaklines,
             Map<String, Integer> zoneOffsets,
-            EarthworkWorkMode workMode) {
+            EarthworkWorkMode workMode,
+            EarthworkCanvasScale canvasScale) {
         Map<String, Integer> safeZone = zoneOffsets != null ? zoneOffsets : Map.of();
         int halfRange = resolveUniformSearchHalfRange(site, resolvedSurfaces, workMode);
         SlopeCoupledVerticalSearch.SearchResult search = SlopeCoupledVerticalSearch.searchUniform(halfRange, dy -> {
@@ -333,7 +347,8 @@ public final class DesignTerrainComposer {
                 site,
                 evaluatorsWithOffsets(site, zoneEvaluators, safeZone, dy),
                 coverageWithOffsets(site, coverageByCellKey, safeZone, dy),
-                effectiveBreaklines);
+                effectiveBreaklines,
+                canvasScale);
             return SlopeCoupledVerticalSearch.materialImbalanceObjective(grid, site);
         });
 
@@ -345,7 +360,8 @@ public final class DesignTerrainComposer {
             site,
             evaluatorsWithOffsets(site, zoneEvaluators, safeZone, best),
             coverageWithOffsets(site, coverageByCellKey, safeZone, best),
-            effectiveBreaklines);
+            effectiveBreaklines,
+            canvasScale);
         return best;
     }
 
@@ -432,12 +448,14 @@ public final class DesignTerrainComposer {
             EarthworkSite site,
             Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators,
             Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageByCellKey,
-            List<Breakline> effectiveBreaklines) {
-        TerrainBoundaryBlender.apply(grid, site, coverageByCellKey, effectiveBreaklines);
+            List<Breakline> effectiveBreaklines,
+            EarthworkCanvasScale canvasScale) {
+        TerrainBoundaryBlender.apply(grid, site, coverageByCellKey, effectiveBreaklines, canvasScale);
         ZoneBoundarySlopeApplicator.apply(
             grid,
             new ArrayList<>(site.getGradingZones().values()),
-            zoneEvaluators);
+            zoneEvaluators,
+            canvasScale);
     }
 
     private static void recordBalanceOffsets(
@@ -650,8 +668,10 @@ public final class DesignTerrainComposer {
             Vec2d point,
             List<ZoneCandidate> covering,
             List<Breakline> breaklines,
-            double influenceDistance) {
-        String mandatedZoneId = BreaklineClassifier.resolveMandatedZoneId(point, breaklines, influenceDistance);
+            double influenceDistance,
+            EarthworkCanvasScale canvasScale) {
+        String mandatedZoneId = BreaklineClassifier.resolveMandatedZoneId(
+            point, breaklines, influenceDistance, canvasScale);
         if (mandatedZoneId == null || mandatedZoneId.isBlank()) {
             return covering;
         }

@@ -8,6 +8,7 @@ import com.plot.plugin.earthwork.volume.EarthworkProjectReport;
 import com.plot.plugin.earthwork.grading.GradingPlane;
 import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
+import com.plot.plugin.earthwork.geometry.EarthworkCanvasScale;
 import com.plot.plugin.earthwork.geometry.ZoneBoundarySlopeApplicator;
 import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.model.EarthworkSite;
@@ -41,7 +42,7 @@ public final class EarthworkVolumeCalculator {
             ZoneEdgeSettings edgeSettings) {
         computeFromPlane(
             region, world, terrain, plane, result, previewGridSize, edgeSettings,
-            region.getMaterialProperties());
+            region.getMaterialProperties(), EarthworkCanvasScale.identity());
     }
 
     public void computeFromPlane(
@@ -53,9 +54,25 @@ public final class EarthworkVolumeCalculator {
             int previewGridSize,
             ZoneEdgeSettings edgeSettings,
             MaterialConversionModel balanceMaterials) {
+        computeFromPlane(
+            region, world, terrain, plane, result, previewGridSize, edgeSettings, balanceMaterials,
+            EarthworkCanvasScale.identity());
+    }
+
+    public void computeFromPlane(
+            GradingRegion region,
+            World world,
+            TerrainSnapshot terrain,
+            GradingPlane plane,
+            EarthworkGenerationResult result,
+            int previewGridSize,
+            ZoneEdgeSettings edgeSettings,
+            MaterialConversionModel balanceMaterials,
+            EarthworkCanvasScale canvasScale) {
         MaterialConversionModel materials = balanceMaterials != null
             ? balanceMaterials
             : region.getMaterialProperties();
+        EarthworkCanvasScale scale = canvasScale != null ? canvasScale : EarthworkCanvasScale.identity();
         SiteEarthworkReport.VolumeMetrics totals = new SiteEarthworkReport.VolumeMetrics();
         List<Vec2d> regionOutline = region.getOuterPoints();
         for (TerrainSnapshot.Column column : terrain.columns()) {
@@ -65,7 +82,8 @@ public final class EarthworkVolumeCalculator {
                 column.groundY(),
                 designTarget,
                 regionOutline,
-                edgeSettings);
+                edgeSettings,
+                scale);
             voxelizer.applyColumn(
                 region,
                 world,

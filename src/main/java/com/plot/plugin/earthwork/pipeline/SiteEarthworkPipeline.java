@@ -1,6 +1,8 @@
 package com.plot.plugin.earthwork.pipeline;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.ICoordinateService;
+import com.plot.plugin.earthwork.geometry.EarthworkCanvasScale;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.volume.EarthworkProjectReport;
 import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
@@ -42,7 +44,11 @@ public final class SiteEarthworkPipeline {
             return result;
         }
 
-        List<Vec2d> siteBoundary = EarthworkSiteBoundaryUtils.resolveCaptureBoundary(site);
+        ICoordinateService coordinates = operations.coordinateService();
+        EarthworkCanvasScale canvasScale = coordinates != null
+            ? EarthworkCanvasScale.capture(coordinates, site.getSiteBoundary())
+            : EarthworkCanvasScale.identity();
+        List<Vec2d> siteBoundary = EarthworkSiteBoundaryUtils.resolveCaptureBoundary(site, canvasScale);
         if (siteBoundary.size() < 3) {
             LOGGER.warn("场地红线点数不足");
             return result;

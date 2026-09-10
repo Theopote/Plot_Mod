@@ -8,6 +8,7 @@ import com.plot.plugin.earthwork.grading.GradingPlane;
 import com.plot.plugin.earthwork.design.GradingSurfaceResolver;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.design.RegionSurfaceEvaluator;
+import com.plot.plugin.earthwork.geometry.EarthworkCanvasScale;
 import com.plot.plugin.earthwork.model.EarthworkSiteBoundaryUtils;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.ZoneEdgeSettings;
@@ -63,8 +64,11 @@ public final class LegacyRegionPipeline {
 
         MaterialConversionModel balanceMaterials = region.resolveMaterialModel(siteMaterialModel);
 
+        EarthworkCanvasScale canvasScale = coordinateService != null
+            ? EarthworkCanvasScale.capture(coordinateService, region.getOuterPoints())
+            : EarthworkCanvasScale.identity();
         List<Vec2d> outerPoints = EarthworkSiteBoundaryUtils.resolveCaptureBoundary(
-            region.getOuterPoints(), edgeSettings);
+            region.getOuterPoints(), edgeSettings, canvasScale);
         if (outerPoints.size() < 3) {
             LOGGER.warn("整平区域轮廓点数不足");
             return result;
@@ -90,7 +94,8 @@ public final class LegacyRegionPipeline {
         result.slopedSurface = !plane.isFlat();
 
         volumeCalculator.computeFromPlane(
-            region, world, terrain, plane, result, region.getPreviewGridSize(), edgeSettings, balanceMaterials);
+            region, world, terrain, plane, result, region.getPreviewGridSize(), edgeSettings, balanceMaterials,
+            canvasScale);
         result.syncChangedBlocksFromPlacements();
         boolean allowLegacyShiftCurve = edgeSettings == null || !edgeSettings.hasActiveTreatment();
         result.attachPlayerInsights(allowLegacyShiftCurve);

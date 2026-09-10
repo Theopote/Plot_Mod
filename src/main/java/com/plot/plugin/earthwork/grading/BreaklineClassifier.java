@@ -1,6 +1,7 @@
 package com.plot.plugin.earthwork.grading;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.GeometryUtils;
+import com.plot.plugin.earthwork.geometry.EarthworkCanvasScale;
 import com.plot.plugin.earthwork.model.Breakline;
 
 import java.util.List;
@@ -36,9 +37,19 @@ public final class BreaklineClassifier {
             Vec2d point,
             List<Breakline> breaklines,
             double influenceDistanceBlocks) {
+        return resolveMandatedZoneId(
+            point, breaklines, influenceDistanceBlocks, EarthworkCanvasScale.identity());
+    }
+
+    public static String resolveMandatedZoneId(
+            Vec2d point,
+            List<Breakline> breaklines,
+            double influenceDistanceBlocks,
+            EarthworkCanvasScale canvasScale) {
         if (point == null || breaklines == null || breaklines.isEmpty()) {
             return null;
         }
+        EarthworkCanvasScale scale = canvasScale != null ? canvasScale : EarthworkCanvasScale.identity();
         double influence = Math.max(0.0, influenceDistanceBlocks);
         String mandatedZoneId = null;
         double nearestDistance = Double.MAX_VALUE;
@@ -52,7 +63,9 @@ public final class BreaklineClassifier {
                 continue;
             }
             NearestSegment nearest = findNearestSegment(point, points);
-            if (nearest.distance > influence) {
+            Vec2d segment = nearest.end.subtract(nearest.start);
+            double blockDistance = scale.canvasToBlocks(nearest.distance, point, segment);
+            if (blockDistance > influence) {
                 continue;
             }
             Side side = classifySide(point, nearest.start, nearest.end);
@@ -64,8 +77,8 @@ public final class BreaklineClassifier {
             if (zoneId == null || zoneId.isBlank()) {
                 continue;
             }
-            if (nearest.distance < nearestDistance) {
-                nearestDistance = nearest.distance;
+            if (blockDistance < nearestDistance) {
+                nearestDistance = blockDistance;
                 mandatedZoneId = zoneId;
             }
         }

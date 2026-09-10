@@ -1,4 +1,5 @@
 package com.plot.plugin.earthwork.terrain;
+import com.plot.plugin.earthwork.geometry.EarthworkCanvasScale;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
 import com.plot.plugin.earthwork.grading.BreaklineClassifier;
 import com.plot.plugin.earthwork.grading.DesignTerrainCell;
@@ -11,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 分区交界高程混合（{@link CompositionPolicy#getBlendWidthBlocks()}）。
+ * 分区交界高程混合（{@link com.plot.plugin.earthwork.model.CompositionPolicy#getBlendWidthBlocks()}）。
  */
 public final class TerrainBoundaryBlender {
 
@@ -23,20 +24,29 @@ public final class TerrainBoundaryBlender {
             EarthworkSite site,
             Map<Long, ZoneCoverage> coverageByCellKey,
             List<com.plot.plugin.earthwork.model.Breakline> breaklines) {
+        apply(grid, site, coverageByCellKey, breaklines, EarthworkCanvasScale.identity());
+    }
+
+    public static void apply(
+            DesignTerrainGrid grid,
+            EarthworkSite site,
+            Map<Long, ZoneCoverage> coverageByCellKey,
+            List<com.plot.plugin.earthwork.model.Breakline> breaklines,
+            EarthworkCanvasScale canvasScale) {
         if (grid == null || site == null || coverageByCellKey == null || coverageByCellKey.isEmpty()) {
             return;
         }
-        int blendWidth = site.getCompositionPolicy().getBlendWidthBlocks();
-        if (blendWidth <= 0) {
+        EarthworkCanvasScale scale = canvasScale != null ? canvasScale : EarthworkCanvasScale.identity();
+        int blendWidthBlocks = site.getCompositionPolicy().getBlendWidthBlocks();
+        if (blendWidthBlocks <= 0) {
             return;
         }
-        double noBlendInfluence = Math.max(1.0, blendWidth);
 
         for (DesignTerrainCell cell : grid.cells().values()) {
             if (cell == null || cell.excluded() || !cell.participatesInEarthwork()) {
                 continue;
             }
-            if (isNearNoBlendBreakline(cell.center(), breaklines, noBlendInfluence)) {
+            if (isNearNoBlendBreakline(cell.center(), breaklines, blendWidthBlocks, scale)) {
                 continue;
             }
             ZoneCoverage coverage = coverageByCellKey.get(
@@ -48,13 +58,14 @@ public final class TerrainBoundaryBlender {
             if (winnerZone == null) {
                 continue;
             }
-            double distanceToEdge = EarthworkGeometryUtils.distanceToPolygonBoundary(
-                winnerZone.getOuterPoints(),
-                cell.center());
-            if (distanceToEdge >= blendWidth) {
+            List<com.plot.api.geometry.Vec2d> outerPoints = winnerZone.getOuterPoints();
+            double distCanvas = EarthworkGeometryUtils.distanceToPolygonBoundary(outerPoints, cell.center());
+            com.plot.api.geometry.Vec2d inward = inwardDirection(outerPoints, cell.center());
+            double distBlocks = scale.canvasToBlocks(distCanvas, cell.center(), inward);
+            if (distBlocks >= blendWidthBlocks) {
                 continue;
             }
-            double factor = Math.min(1.0, distanceToEdge / blendWidth);
+            double factor = Math.min(1.0, distBlocks / blendWidthBlocks);
             int winnerTarget = cell.targetY();
             int neighborTarget = coverage.runnerUpTargetY();
             int blended = (int) Math.round(neighborTarget * (1.0 - factor) + winnerTarget * factor);
@@ -71,19 +82,73 @@ public final class TerrainBoundaryBlender {
     private static boolean isNearNoBlendBreakline(
             com.plot.api.geometry.Vec2d point,
             List<Breakline> breaklines,
-            double influenceDistance) {
-        if (point == null || breaklines == null || breaklines.isEmpty()) {
+            int influenceBlocks,
+            EarthworkCanvasScale scale) {
+        if (point == null || breaklines == null || breaklines.isEmpty() || influenceBlocks <= 0) {
             return false;
         }
         for (Breakline breakline : breaklines) {
             if (breakline == null || !Breakline.ROLE_NO_BLENDING.equals(breakline.getRole())) {
                 continue;
             }
-            double distance = BreaklineClassifier.distanceToPolyline(point, breakline.getPoints());
-            if (distance <= influenceDistance) {
+            double canvasDistance = BreaklineClassifier.distanceToPolyline(point, breakline.getPoints());
+            double blockDistance = scale.canvasToBlocks(
+                canvasDistance, point, polylineDirectionAt(point, breakline.getPoints()));
+            if (blockDistance <= influenceBlocks) {
                 return true;
             }
         }
         return false;
+    }
+
+    private static com.plot.api.geometry.Vec2d inwardDirection(
+            List<com.plot.api.geometry.Vec2d> polygon,
+            com.plot.api.geometry.Vec2d point) {
+        double minDistance = Double.MAX_VALUE;
+        com.plot.api.geometry.Vec2d closest = point;
+        int count = polygon.size();
+        for (int i = 0; i < count; i++) {
+            com.plot.api.geometry.Vec2d start = polygon.get(i);
+            com.plot.api.geometry.Vec2d end = polygon.get((i + 1) % count);
+            com.plot.api.geometry.Vec2d projected =
+                com.plot.core.geometry.GeometryUtils.projectPointOnLine(point, start, end);
+            com.plot.api.geometry.Vec2d segment = end.subtract(start);
+            double t = point.subtract(start).dot(segment) / Math.max(segment.dot(segment), 1e-12);
+            t = Math.max(0.0, Math.min(1.0, t));
+            projected = start.add(segment.multiply(t));
+            double distance = point.distance(projected);
+            if (distance < minDistance) {
+                minDistance = distance;
+                closest = projected;
+            }
+        }
+        com.plot.api.geometry.Vec2d delta = point.subtract(closest);
+        return delta.lengthSquared() < 1e-12 ? new com.plot.api.geometry.Vec2d(1, 0) : delta;
+    }
+
+    private static com.plot.api.geometry.Vec2d polylineDirectionAt(
+            com.plot.api.geometry.Vec2d point,
+            List<com.plot.api.geometry.Vec2d> points) {
+        if (points == null || points.size() < 2) {
+            return new com.plot.api.geometry.Vec2d(1, 0);
+        }
+        double minDistance = Double.MAX_VALUE;
+        com.plot.api.geometry.Vec2d direction = new com.plot.api.geometry.Vec2d(1, 0);
+        for (int i = 0; i < points.size() - 1; i++) {
+            com.plot.api.geometry.Vec2d start = points.get(i);
+            com.plot.api.geometry.Vec2d end = points.get(i + 1);
+            com.plot.api.geometry.Vec2d projected =
+                com.plot.core.geometry.GeometryUtils.projectPointOnLine(point, start, end);
+            com.plot.api.geometry.Vec2d segment = end.subtract(start);
+            double t = point.subtract(start).dot(segment) / Math.max(segment.dot(segment), 1e-12);
+            t = Math.max(0.0, Math.min(1.0, t));
+            projected = start.add(segment.multiply(t));
+            double distance = point.distance(projected);
+            if (distance < minDistance) {
+                minDistance = distance;
+                direction = segment;
+            }
+        }
+        return direction;
     }
 }

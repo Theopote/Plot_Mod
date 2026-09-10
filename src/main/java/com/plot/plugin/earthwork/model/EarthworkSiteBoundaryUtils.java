@@ -1,6 +1,7 @@
 package com.plot.plugin.earthwork.model;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.earthwork.geometry.EarthworkCanvasScale;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -132,9 +133,17 @@ public final class EarthworkSiteBoundaryUtils {
      * 将轴对齐包围盒向外扩展指定格距，用于边坡放坡带采样。
      */
     public static List<Vec2d> expandAxisAlignedBoundary(List<Vec2d> boundary, int marginBlocks) {
+        return expandAxisAlignedBoundary(boundary, marginBlocks, EarthworkCanvasScale.identity());
+    }
+
+    public static List<Vec2d> expandAxisAlignedBoundary(
+            List<Vec2d> boundary,
+            int marginBlocks,
+            EarthworkCanvasScale canvasScale) {
         if (boundary == null || boundary.size() < 3 || marginBlocks <= 0) {
             return boundary != null ? new ArrayList<>(boundary) : List.of();
         }
+        EarthworkCanvasScale scale = canvasScale != null ? canvasScale : EarthworkCanvasScale.identity();
         double minX = Double.POSITIVE_INFINITY;
         double minY = Double.POSITIVE_INFINITY;
         double maxX = Double.NEGATIVE_INFINITY;
@@ -148,7 +157,7 @@ public final class EarthworkSiteBoundaryUtils {
             maxX = Math.max(maxX, point.x);
             maxY = Math.max(maxY, point.y);
         }
-        double margin = marginBlocks;
+        double margin = scale.uniformBlocksToCanvas(marginBlocks, boundary);
         return List.of(
             new Vec2d(minX - margin, minY - margin),
             new Vec2d(maxX + margin, minY - margin),
@@ -183,31 +192,50 @@ public final class EarthworkSiteBoundaryUtils {
      * Preview capture、Pipeline capture、Cache fingerprint 均应使用此边界。
      */
     public static List<Vec2d> resolveCaptureBoundary(EarthworkSite site) {
+        return resolveCaptureBoundary(site, EarthworkCanvasScale.identity());
+    }
+
+    public static List<Vec2d> resolveCaptureBoundary(EarthworkSite site, EarthworkCanvasScale canvasScale) {
         if (site == null) {
             return List.of();
         }
-        return resolveCaptureBoundary(site.getSiteBoundary(), site.getGradingZones().values());
+        return resolveCaptureBoundary(
+            site.getSiteBoundary(), site.getGradingZones().values(), canvasScale);
     }
 
     public static List<Vec2d> resolveCaptureBoundary(
             List<Vec2d> siteBoundary,
             Collection<GradingZone> zones) {
+        return resolveCaptureBoundary(siteBoundary, zones, EarthworkCanvasScale.identity());
+    }
+
+    public static List<Vec2d> resolveCaptureBoundary(
+            List<Vec2d> siteBoundary,
+            Collection<GradingZone> zones,
+            EarthworkCanvasScale canvasScale) {
         if (siteBoundary == null || siteBoundary.size() < 3) {
             return List.of();
         }
         int margin = resolveEdgeSlopeMarginBlocks(zones);
-        return expandAxisAlignedBoundary(siteBoundary, margin);
+        return expandAxisAlignedBoundary(siteBoundary, margin, canvasScale);
     }
 
     public static List<Vec2d> resolveCaptureBoundary(
             List<Vec2d> outerPoints,
             ZoneEdgeSettings edgeSettings) {
+        return resolveCaptureBoundary(outerPoints, edgeSettings, EarthworkCanvasScale.identity());
+    }
+
+    public static List<Vec2d> resolveCaptureBoundary(
+            List<Vec2d> outerPoints,
+            ZoneEdgeSettings edgeSettings,
+            EarthworkCanvasScale canvasScale) {
         if (outerPoints == null || outerPoints.size() < 3) {
             return List.of();
         }
         int margin = edgeSettings != null && edgeSettings.hasActiveTreatment()
             ? edgeSettings.getMaximumReachBlocks()
             : 0;
-        return expandAxisAlignedBoundary(outerPoints, margin);
+        return expandAxisAlignedBoundary(outerPoints, margin, canvasScale);
     }
 }

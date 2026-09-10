@@ -28,9 +28,18 @@ public final class ZoneBoundarySlopeApplicator {
       DesignTerrainGrid grid,
       List<GradingZone> zones,
       Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators) {
+    apply(grid, zones, zoneEvaluators, EarthworkCanvasScale.identity());
+  }
+
+  public static void apply(
+      DesignTerrainGrid grid,
+      List<GradingZone> zones,
+      Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators,
+      EarthworkCanvasScale canvasScale) {
     if (grid == null || zones == null || zones.isEmpty()) {
       return;
     }
+    EarthworkCanvasScale scale = canvasScale != null ? canvasScale : EarthworkCanvasScale.identity();
     List<ZoneContext> contexts = buildContexts(zones, zoneEvaluators);
     if (contexts.isEmpty()) {
       return;
@@ -43,8 +52,8 @@ public final class ZoneBoundarySlopeApplicator {
       if (!cell.participatesInEarthwork()) {
         continue;
       }
-      applyInteriorMatchExisting(cell, contexts, zonePolygons);
-      applyExteriorSlopes(grid, cell, contexts, zonePolygons);
+      applyInteriorMatchExisting(cell, contexts, zonePolygons, scale);
+      applyExteriorSlopes(grid, cell, contexts, zonePolygons, scale);
     }
     grid.finalizeStats();
   }
@@ -52,13 +61,15 @@ public final class ZoneBoundarySlopeApplicator {
   private static void applyInteriorMatchExisting(
       DesignTerrainCell cell,
       List<ZoneContext> contexts,
-      List<ZonePolygon> zonePolygons) {
+      List<ZonePolygon> zonePolygons,
+      EarthworkCanvasScale scale) {
     for (ZoneContext context : contexts) {
       if (!context.polygon().contains(cell.center())) {
         continue;
       }
       BoundaryProximity proximity = nearestBoundary(context.outerPoints(), cell.center());
-      if (proximity.distance() > context.settings().getMaximumReachBlocks()) {
+      if (worldDistanceBlocks(proximity, cell.center(), scale)
+          > context.settings().getMaximumReachBlocks()) {
         continue;
       }
       EdgeTreatment treatment = context.settings().resolveTreatment(proximity.edgeIndex());
@@ -75,7 +86,8 @@ public final class ZoneBoundarySlopeApplicator {
       DesignTerrainGrid grid,
       DesignTerrainCell cell,
       List<ZoneContext> contexts,
-      List<ZonePolygon> zonePolygons) {
+      List<ZonePolygon> zonePolygons,
+      EarthworkCanvasScale scale) {
     Integer bestTarget = null;
     String bestZoneId = null;
     int bestPriority = Integer.MIN_VALUE;
@@ -88,7 +100,8 @@ public final class ZoneBoundarySlopeApplicator {
         continue;
       }
       BoundaryProximity proximity = nearestBoundary(context.outerPoints(), cell.center());
-      if (proximity.distance() > context.settings().getMaximumReachBlocks()) {
+      if (worldDistanceBlocks(proximity, cell.center(), scale)
+          > context.settings().getMaximumReachBlocks()) {
         continue;
       }
       EdgeTreatment treatment = context.settings().resolveTreatment(proximity.edgeIndex());
@@ -105,7 +118,8 @@ public final class ZoneBoundarySlopeApplicator {
           cell,
           toeY,
           proximity,
-          context.settings());
+          context.settings(),
+          scale);
       if (slopeTarget == cell.targetY()) {
         continue;
       }
@@ -127,8 +141,11 @@ public final class ZoneBoundarySlopeApplicator {
       DesignTerrainCell cell,
       int toeY,
       BoundaryProximity proximity,
-      ZoneEdgeSettings settings) {
-    if (proximity.distance() <= 0.0) {
+      ZoneEdgeSettings settings,
+      EarthworkCanvasScale canvasScale) {
+    EarthworkCanvasScale scale = canvasScale != null ? canvasScale : EarthworkCanvasScale.identity();
+    double worldDistance = worldDistanceBlocks(proximity, cell.center(), scale);
+    if (worldDistance <= 0.0) {
       return toeY;
     }
     SlopeDaylightSolver.SlopeMode mode = SlopeDaylightSolver.modeFor(
@@ -139,11 +156,11 @@ public final class ZoneBoundarySlopeApplicator {
     return SlopeDaylightSolver.resolveExteriorTargetY(
         toeY,
         cell.existingGroundY(),
-        proximity.distance(),
+        worldDistance,
         mode,
         pitchRatio,
         settings.getBenchWidthBlocks(),
-        buildGroundProfile(grid, cell, proximity.closestPoint()),
+        buildGroundProfile(grid, cell, proximity.closestPoint(), scale),
         settings.getMaximumReachBlocks());
   }
 
@@ -153,6 +170,16 @@ public final class ZoneBoundarySlopeApplicator {
       int toeY,
       double distanceToBoundary,
       ZoneEdgeSettings settings) {
+    return computeExteriorSlopeTarget(
+        existingGroundY, toeY, distanceToBoundary, settings, EarthworkCanvasScale.identity());
+  }
+
+  static int computeExteriorSlopeTarget(
+      int existingGroundY,
+      int toeY,
+      double distanceToBoundary,
+      ZoneEdgeSettings settings,
+      EarthworkCanvasScale canvasScale) {
     if (distanceToBoundary <= 0.0) {
       return toeY;
     }
@@ -174,7 +201,8 @@ public final class ZoneBoundarySlopeApplicator {
   private static java.util.function.IntUnaryOperator buildGroundProfile(
       DesignTerrainGrid grid,
       DesignTerrainCell cell,
-      Vec2d closestBoundaryPoint) {
+      Vec2d closestBoundaryPoint,
+      EarthworkCanvasScale scale) {
     if (grid == null || cell == null || closestBoundaryPoint == null) {
       return offset -> cell != null ? cell.existingGroundY() : 64;
     }
@@ -185,20 +213,36 @@ public final class ZoneBoundarySlopeApplicator {
     }
     Vec2d unit = delta.multiply(1.0 / length);
     int fallback = cell.existingGroundY();
-    return offset -> sampleGroundAt(grid, closestBoundaryPoint, unit, offset, fallback);
+    return offset -> sampleGroundAt(grid, closestBoundaryPoint, unit, offset, fallback, scale);
   }
 
   private static int sampleGroundAt(
       DesignTerrainGrid grid,
       Vec2d origin,
       Vec2d unitDir,
-      int offset,
-      int fallback) {
-    Vec2d point = origin.add(unitDir.multiply(offset));
+      int offsetBlocks,
+      int fallback,
+      EarthworkCanvasScale scale) {
+    double canvasOffset = scale.blocksToCanvas(offsetBlocks, origin, unitDir);
+    Vec2d point = origin.add(unitDir.multiply(canvasOffset));
     int worldX = (int) Math.floor(point.x);
     int worldZ = (int) Math.floor(point.y);
     DesignTerrainCell sample = grid.get(worldX, worldZ);
     return sample != null ? sample.existingGroundY() : fallback;
+  }
+
+  private static double worldDistanceBlocks(
+      BoundaryProximity proximity,
+      Vec2d point,
+      EarthworkCanvasScale scale) {
+    if (proximity == null || proximity.distance() <= 0.0 || point == null) {
+      return 0.0;
+    }
+    Vec2d direction = point.subtract(proximity.closestPoint());
+    if (direction.lengthSquared() < 1e-12) {
+      return 0.0;
+    }
+    return scale.canvasToBlocks(proximity.distance(), point, direction);
   }
 
   private static boolean isInsideAnotherZone(Vec2d point, String ownerZoneId, List<ZonePolygon> zones) {
@@ -292,28 +336,42 @@ public final class ZoneBoundarySlopeApplicator {
       int designTargetY,
       List<Vec2d> outerPoints,
       ZoneEdgeSettings settings) {
+    return resolveLegacyTargetY(
+        canvasCenter, existingGroundY, designTargetY, outerPoints, settings, EarthworkCanvasScale.identity());
+  }
+
+  public static int resolveLegacyTargetY(
+      Vec2d canvasCenter,
+      int existingGroundY,
+      int designTargetY,
+      List<Vec2d> outerPoints,
+      ZoneEdgeSettings settings,
+      EarthworkCanvasScale canvasScale) {
+    EarthworkCanvasScale scale = canvasScale != null ? canvasScale : EarthworkCanvasScale.identity();
     if (settings == null || !settings.hasActiveTreatment() || outerPoints == null || outerPoints.size() < 3) {
       return designTargetY;
     }
     boolean inside = EarthworkGeometryUtils.containsCanvasPoint(outerPoints, canvasCenter);
     BoundaryProximity proximity = nearestBoundary(outerPoints, canvasCenter);
+    double worldDistance = worldDistanceBlocks(proximity, canvasCenter, scale);
     EdgeTreatment treatment = settings.resolveTreatment(proximity.edgeIndex());
     if (inside) {
       if (treatment == EdgeTreatment.MATCH_EXISTING
-          && proximity.distance() <= settings.getMaximumReachBlocks()) {
+          && worldDistance <= settings.getMaximumReachBlocks()) {
         return existingGroundY;
       }
       return designTargetY;
     }
     if (treatment != EdgeTreatment.CUT_FILL_SLOPE
-        || proximity.distance() > settings.getMaximumReachBlocks()) {
+        || worldDistance > settings.getMaximumReachBlocks()) {
       return existingGroundY;
     }
     return computeExteriorSlopeTarget(
         existingGroundY,
         designTargetY,
-        proximity.distance(),
-        settings);
+        worldDistance,
+        settings,
+        scale);
   }
 
   record BoundaryProximity(double distance, int edgeIndex, Vec2d closestPoint) {

@@ -1,5 +1,6 @@
 package com.plot.plugin.earthwork.design;
 
+import com.plot.plugin.earthwork.geometry.EarthworkCanvasScale;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
 import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.grading.GradingPlane;
@@ -48,7 +49,8 @@ public final class DesignSurfaceResolver {
             RoadSurfaceLookup roadLookup,
             ICoordinateService transformer) {
         return ResolvedDesignSurface.toEvaluatorMap(
-            resolveZoneSurfaces(site, terrain, buildingLookup, roadLookup, transformer));
+            resolveZoneSurfaces(site, terrain, buildingLookup, roadLookup, transformer,
+                EarthworkCanvasScale.identity()));
     }
 
     public static Map<String, ResolvedDesignSurface> resolveZoneSurfaces(
@@ -65,10 +67,22 @@ public final class DesignSurfaceResolver {
             BuildingFootprintLookup buildingLookup,
             RoadSurfaceLookup roadLookup,
             ICoordinateService transformer) {
+        return resolveZoneSurfaces(
+            site, terrain, buildingLookup, roadLookup, transformer, EarthworkCanvasScale.identity());
+    }
+
+    public static Map<String, ResolvedDesignSurface> resolveZoneSurfaces(
+            EarthworkSite site,
+            TerrainSnapshot terrain,
+            BuildingFootprintLookup buildingLookup,
+            RoadSurfaceLookup roadLookup,
+            ICoordinateService transformer,
+            EarthworkCanvasScale canvasScale) {
         Map<String, ResolvedDesignSurface> resolved = new LinkedHashMap<>();
         if (site == null || terrain == null) {
             return resolved;
         }
+        EarthworkCanvasScale scale = canvasScale != null ? canvasScale : EarthworkCanvasScale.identity();
         int siteDefaultElevation = resolveSiteDefaultElevation(terrain);
         boolean deferBalanceToSite = site.getCompositionPolicy().getBalanceScopeEnum().defersPerZoneBalance()
             && site.getZoneCount() >= 2;
@@ -83,7 +97,8 @@ public final class DesignSurfaceResolver {
                 roadLookup,
                 transformer,
                 siteDefaultElevation,
-                deferBalanceToSite);
+                deferBalanceToSite,
+                scale);
             if (surface != null) {
                 resolved.put(zone.getId(), surface);
             }
@@ -98,7 +113,8 @@ public final class DesignSurfaceResolver {
             RoadSurfaceLookup roadLookup,
             ICoordinateService transformer,
             int siteDefaultElevation,
-            boolean deferBalanceToSite) {
+            boolean deferBalanceToSite,
+            EarthworkCanvasScale canvasScale) {
         DesignSurface surface = zone.getDesignSurface();
         VerticalAdjustmentPolicy policy = zone.getVerticalAdjustmentPolicy();
         DesignSurfaceKind kind = BuildingFootprintResolver.effectiveKind(zone);
@@ -161,7 +177,7 @@ public final class DesignSurfaceResolver {
                     cell -> plane.evaluateAt(cell.worldX(), cell.worldZ()));
             }
             case EXCAVATION_PIT -> resolveExcavationPit(
-                zone, surface, terrain, buildingLookup, siteDefaultElevation, policy);
+                zone, surface, terrain, buildingLookup, siteDefaultElevation, policy, canvasScale);
             case ROAD_CORRIDOR -> resolveRoadCorridor(zone, surface, roadLookup, policy);
             case LEVEL_PAD, SINGLE_SLOPE_PLANE, THREE_POINT_PLANE, BEST_FIT_PLANE ->
                 resolvePlaneBased(zone, kind, terrain, transformer, deferBalanceToSite, policy);
@@ -220,7 +236,8 @@ public final class DesignSurfaceResolver {
             TerrainSnapshot terrain,
             BuildingFootprintLookup buildingLookup,
             int siteDefaultElevation,
-            VerticalAdjustmentPolicy policy) {
+            VerticalAdjustmentPolicy policy,
+            EarthworkCanvasScale canvasScale) {
         ResolutionResult<Integer> bottomResult = BuildingFootprintResolver.resolvePitBottomElevation(
             zone, surface, terrain, buildingLookup, siteDefaultElevation);
         boolean buildingLinked =
@@ -236,7 +253,8 @@ public final class DesignSurfaceResolver {
             polygon,
             bottom,
             workingMargin,
-            slopePitch);
+            slopePitch,
+            canvasScale);
         return new ResolvedDesignSurface(
             zone.getId(),
             buildingLinked ? ResolvedDesignSource.DERIVED_BUILDING_PIT : ResolvedDesignSource.MANUAL_PIT_BOTTOM,
