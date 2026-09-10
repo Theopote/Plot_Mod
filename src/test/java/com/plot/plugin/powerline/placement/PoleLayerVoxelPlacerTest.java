@@ -33,7 +33,7 @@ class PoleLayerVoxelPlacerTest {
             design,
             planPoint,
             layerBaseY,
-            new Vec2d(0, 1),
+            new Vec2d(1, 0),
             worldSink,
             "seed",
             PoleLayerVoxelPlacer.worldMapper(identityCoordinates()));

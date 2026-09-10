@@ -21,7 +21,7 @@ class PoleVoxelizerTest {
     void japaneseStreetPoleHasCrossarmWidth() {
         PoleVoxelPreviewModel model = PoleVoxelizer.voxelize(PoleDesignCatalog.japaneseStreetPole());
         assertFalse(model.isEmpty());
-        assertTrue(model.widthZ() >= 3);
+        assertTrue(model.widthX() >= 3);
     }
 
     @Test

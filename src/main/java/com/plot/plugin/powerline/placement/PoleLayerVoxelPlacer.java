@@ -16,7 +16,8 @@ import net.minecraft.util.math.BlockPos;
  */
 public final class PoleLayerVoxelPlacer {
     private static final Vec2d PREVIEW_ORIGIN = new Vec2d(0, 0);
-    private static final Vec2d PREVIEW_CROSSARM_NORMAL = new Vec2d(0, 1);
+    /** 预览局部系：横担沿 plan X（体素 X / 侧向），与挂点 lateral 一致。 */
+    private static final Vec2d PREVIEW_CROSSARM_NORMAL = new Vec2d(1, 0);
 
     private PoleLayerVoxelPlacer() {
     }
