@@ -58,6 +58,7 @@ public final class CanopyGenerator {
             spec.width(),
             spec.depth(),
             blockId,
+            context.getCanvasScale(),
             context.getCoordinateService(),
             context.getProjectionService());
 

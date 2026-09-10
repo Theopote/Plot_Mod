@@ -7,6 +7,7 @@ import com.plot.plugin.building.generation.BuildingGenerationPipeline;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.generation.stage.RoofGenerationStage;
 import com.plot.plugin.building.model.BuildingFootprint;
+import com.plot.test.world.IdentityCoordinateService;
 import com.plot.plugin.building.model.spec.AccessorySpec;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
 import com.plot.plugin.building.model.spec.EnvelopeSpec;
@@ -157,17 +158,7 @@ class BuildingRoofGeneratorSkeletonTest {
     }
 
     private static com.plot.api.world.ICoordinateService stubCoordinates() {
-        return new com.plot.api.world.ICoordinateService() {
-            @Override
-            public Vec2d canvasToMinecraftWorld(Vec2d canvasPos) {
-                return canvasPos;
-            }
-
-            @Override
-            public com.plot.api.world.WorldViewBounds getMinecraftWorldViewBounds() {
-                return new com.plot.api.world.WorldViewBounds(-512, 512, -512, 512);
-            }
-        };
+        return IdentityCoordinateService.INSTANCE;
     }
 
     private static com.plot.api.world.IBlockProjectionService stubProjection() {

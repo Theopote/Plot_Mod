@@ -8,6 +8,7 @@ import com.plot.plugin.building.benchmark.SampledTerrainFixtures;
 import com.plot.plugin.building.generation.BuildingCanvasScale;
 import com.plot.plugin.building.generation.BuildingGenerationContext;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
+import com.plot.plugin.building.generation.massing.FloorPlateScaleResolver;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
 import com.plot.plugin.building.site.BuildingSiteAnalysis;
@@ -115,7 +116,7 @@ public final class BuildingGenerationContextFactory {
         BuildingDefinition definition = BuildingDefinitionResolver.fromFootprint(footprint);
         ResolvedBuildingDefinition resolved = resolveForTesting(definition, result, coordinateService);
         return BuildingGenerationContext.fromResolved(
-            footprint, definition, null, coordinateService, projectionService, result, resolved);
+            footprint, resolved.definition(), null, coordinateService, projectionService, result, resolved);
     }
 
     /**
@@ -140,11 +141,12 @@ public final class BuildingGenerationContextFactory {
         BuildingDefinition definition = BuildingDefinitionResolver.fromFootprint(footprint);
         BuildingCanvasScale canvasScale = BuildingCanvasScale.capture(
             coordinateService, definition.footprint().outerPoints());
+        BuildingDefinition scaledDefinition = FloorPlateScaleResolver.applyScale(definition, canvasScale);
         MassingGeometryResolver.ResolvedMassingGeometry massing =
-            MassingGeometryResolver.resolve(definition, result, canvasScale);
+            MassingGeometryResolver.resolve(scaledDefinition, result, canvasScale);
         if (!massing.valid()) {
             return BuildingGenerationContext.fromResolved(
-                footprint, definition, null, coordinateService, projectionService, result, null);
+                footprint, scaledDefinition, null, coordinateService, projectionService, result, null);
         }
 
         Map<Long, BuildingSiteColumnSample> columnSamples = new HashMap<>();
@@ -161,15 +163,15 @@ public final class BuildingGenerationContextFactory {
             samples, TerrainElevationStrategy.BALANCED);
         List<Integer> groundElevations = samples.stream().map(BuildingSiteColumnSample::groundY).toList();
         GenerationSiteResolver.ResolvedSiteElevation site = GenerationSiteResolver.resolveWithAnalysis(
-            definition,
+            scaledDefinition,
             footprint,
             massing,
             analysis,
             groundElevations,
             result);
-        MaterialResolver.ResolvedMaterials materials = MaterialResolver.resolve(definition);
+        MaterialResolver.ResolvedMaterials materials = MaterialResolver.resolve(scaledDefinition);
         ResolvedBuildingDefinition resolved = new ResolvedBuildingDefinition(
-            definition,
+            scaledDefinition,
             massing,
             analysis,
             site,
@@ -179,7 +181,7 @@ public final class BuildingGenerationContextFactory {
         attachSitePreview(result, new GenerationSiteResolver.SiteResolveBundle(
             site, analysis, columnSamples, groundElevations));
         return BuildingGenerationContext.fromResolved(
-            footprint, definition, null, coordinateService, projectionService, result, resolved);
+            footprint, scaledDefinition, null, coordinateService, projectionService, result, resolved);
     }
 
     /**
@@ -193,30 +195,31 @@ public final class BuildingGenerationContextFactory {
             BuildingGenerationResult result) {
         BuildingCanvasScale canvasScale = BuildingCanvasScale.capture(
             coordinateService, definition.footprint().outerPoints());
+        BuildingDefinition scaledDefinition = FloorPlateScaleResolver.applyScale(definition, canvasScale);
         MassingGeometryResolver.ResolvedMassingGeometry massing =
-            MassingGeometryResolver.resolve(definition, result, canvasScale);
+            MassingGeometryResolver.resolve(scaledDefinition, result, canvasScale);
         if (!massing.valid()) {
             return new ResolvedBuildingDefinition(
-                definition,
+                scaledDefinition,
                 massing,
                 BuildingSiteAnalysis.emptyFallback(
                     com.plot.core.terrain.EngineeringTerrainService.DEFAULT_GROUND_ELEVATION),
-                GenerationSiteResolver.resolveForTesting(definition),
-                MaterialResolver.resolve(definition),
+                GenerationSiteResolver.resolveForTesting(scaledDefinition),
+                MaterialResolver.resolve(scaledDefinition),
                 Map.of(),
                 canvasScale
             );
         }
         GenerationSiteResolver.SiteResolveBundle siteBundle = GenerationSiteResolver.resolve(
-            definition, footprint, massing, world, coordinateService, result);
+            scaledDefinition, footprint, massing, world, coordinateService, result);
         if (siteBundle.generationSkipped()) {
             result.skippedDueToSiteAnalysis = true;
             return null;
         }
-        MaterialResolver.ResolvedMaterials materials = MaterialResolver.resolve(definition);
+        MaterialResolver.ResolvedMaterials materials = MaterialResolver.resolve(scaledDefinition);
         attachSitePreview(result, siteBundle);
         return new ResolvedBuildingDefinition(
-            definition,
+            scaledDefinition,
             massing,
             siteBundle.analysis(),
             siteBundle.site(),
@@ -260,15 +263,16 @@ public final class BuildingGenerationContextFactory {
             ICoordinateService coordinateService) {
         BuildingCanvasScale canvasScale = BuildingCanvasScale.capture(
             coordinateService, definition.footprint().outerPoints());
+        BuildingDefinition scaledDefinition = FloorPlateScaleResolver.applyScale(definition, canvasScale);
         MassingGeometryResolver.ResolvedMassingGeometry massing =
-            MassingGeometryResolver.resolve(definition, result, canvasScale);
+            MassingGeometryResolver.resolve(scaledDefinition, result, canvasScale);
         return new ResolvedBuildingDefinition(
-            definition,
+            scaledDefinition,
             massing,
             BuildingSiteAnalysis.emptyFallback(
                 com.plot.core.terrain.EngineeringTerrainService.DEFAULT_GROUND_ELEVATION),
-            GenerationSiteResolver.resolveForTesting(definition),
-            MaterialResolver.resolve(definition),
+            GenerationSiteResolver.resolveForTesting(scaledDefinition),
+            MaterialResolver.resolve(scaledDefinition),
             Map.of(),
             canvasScale
         );
@@ -285,9 +289,9 @@ public final class BuildingGenerationContextFactory {
             definition, footprint, world, coordinateService, result);
         if (result.skippedDueToSiteAnalysis) {
             return BuildingGenerationContext.fromResolved(
-                footprint, definition, world, coordinateService, projectionService, result, null);
+                footprint, resolved.definition(), world, coordinateService, projectionService, result, null);
         }
         return BuildingGenerationContext.fromResolved(
-            footprint, definition, world, coordinateService, projectionService, result, resolved);
+            footprint, resolved.definition(), world, coordinateService, projectionService, result, resolved);
     }
 }

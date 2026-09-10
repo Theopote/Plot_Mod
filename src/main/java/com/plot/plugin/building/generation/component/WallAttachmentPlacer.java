@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.building.generation.BuildingBlockWriter;
+import com.plot.plugin.building.generation.BuildingCanvasScale;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.api.world.IBlockProjectionService;
 import net.minecraft.util.math.BlockPos;
@@ -28,12 +29,16 @@ public final class WallAttachmentPlacer {
             int width,
             int depth,
             String blockId,
+            BuildingCanvasScale canvasScale,
             ICoordinateService coordinateService,
             IBlockProjectionService projectionService) {
         Set<BlockPos> placed = new LinkedHashSet<>();
         if (result == null || outerPoints == null || outerPoints.size() < 3 || depth <= 0 || width <= 0) {
             return placed;
         }
+        BuildingCanvasScale scale = canvasScale != null ? canvasScale : BuildingCanvasScale.identity();
+        ICoordinateService coords = scale.resolveCoordinates(coordinateService);
+
         Vec2d anchor = BuildingGeometryUtils.pointOnWallSegment(outerPoints, wallSegmentIndex, positionRatio);
         if (anchor == null) {
             return placed;
@@ -43,11 +48,13 @@ public final class WallAttachmentPlacer {
 
         int halfWidth = width / 2;
         for (int w = -halfWidth; w < width - halfWidth; w++) {
+            double lateralCanvas = scale.blocksToCanvas(w, anchor, tangent);
             for (int d = 1; d <= depth; d++) {
+                double depthCanvas = scale.blocksToCanvas(d, anchor, outward);
                 Vec2d center = anchor
-                    .add(tangent.multiply(w))
-                    .add(outward.multiply(d));
-                BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(center, coordinateService);
+                    .add(tangent.multiply(lateralCanvas))
+                    .add(outward.multiply(depthCanvas));
+                BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(center, coords);
                 BlockPos pos = new BlockPos(column.getX(), floorY, column.getZ());
                 BuildingBlockWriter.recordBlock(result, pos, blockId, projectionService);
                 placed.add(pos);

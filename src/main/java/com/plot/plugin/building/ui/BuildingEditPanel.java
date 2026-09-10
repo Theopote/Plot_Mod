@@ -1,5 +1,6 @@
 package com.plot.plugin.building.ui;
 
+import com.plot.plugin.building.generation.BuildingCanvasScale;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.spec.OpeningSpec;
 import com.plot.plugin.building.site.BuildingSiteElevationResolver;
@@ -79,12 +80,13 @@ public final class BuildingEditPanel {
         }
         if (floorsChanged) {
             building.setFloors(floors[0]);
-            BuildingFloorPlateUi.SimpleTowerState tower = BuildingFloorPlateUi.readState(building);
+            BuildingFloorPlateUi.SimpleTowerState tower = BuildingFloorPlateUi.readState(building, canvasScale(building));
             if (tower.enabled() && !tower.custom()) {
                 BuildingFloorPlateUi.applySimpleTower(
                     building,
                     Math.min(tower.towerStartFloor(), Math.max(1, building.getFloors() - 1)),
-                    tower.insetDistance());
+                    tower.insetDistance(),
+                    canvasScale(building));
             }
             clampWindowSettings(building);
             ctx.invalidatePreview();
@@ -195,7 +197,7 @@ public final class BuildingEditPanel {
             return;
         }
 
-        BuildingFloorPlateUi.SimpleTowerState state = BuildingFloorPlateUi.readState(building);
+        BuildingFloorPlateUi.SimpleTowerState state = BuildingFloorPlateUi.readState(building, canvasScale(building));
         ImBoolean setbackEnabled = new ImBoolean(state.enabled() && !state.custom());
         if (state.custom()) {
             ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.building.floor_plate_custom_hint"));
@@ -213,7 +215,8 @@ public final class BuildingEditPanel {
                 BuildingFloorPlateUi.applySimpleTower(
                     building,
                     state.towerStartFloor(),
-                    state.insetDistance());
+                    state.insetDistance(),
+                    canvasScale(building));
             } else {
                 BuildingFloorPlateUi.clearFloorPlates(building);
             }
@@ -249,7 +252,7 @@ public final class BuildingEditPanel {
         }
 
         if (towerStartChanged || insetChanged) {
-            BuildingFloorPlateUi.applySimpleTower(building, towerStart[0], inset[0]);
+            BuildingFloorPlateUi.applySimpleTower(building, towerStart[0], inset[0], canvasScale(building));
             ctx.invalidatePreview();
         }
     }
@@ -541,5 +544,9 @@ public final class BuildingEditPanel {
                 draft.wallSegment, draft.positionRatio, draft.floor, 1, 2));
             ctx.invalidatePreview();
         }
+    }
+
+    private BuildingCanvasScale canvasScale(BuildingFootprint building) {
+        return BuildingCanvasScale.capture(ctx.host().coordinates(), building.getOuterPoints());
     }
 }

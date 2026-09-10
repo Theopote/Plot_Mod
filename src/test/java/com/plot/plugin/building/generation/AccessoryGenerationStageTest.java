@@ -12,6 +12,7 @@ import com.plot.plugin.building.model.spec.AccessoryKind;
 import com.plot.plugin.building.model.spec.AccessorySpec;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
 import com.plot.plugin.building.model.spec.BuildingDefinitionMapper;
+import com.plot.test.world.IdentityCoordinateService;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
@@ -146,17 +147,7 @@ class AccessoryGenerationStageTest {
     }
 
     private static ICoordinateService stubCoordinates() {
-        return new ICoordinateService() {
-            @Override
-            public Vec2d canvasToMinecraftWorld(Vec2d canvasPos) {
-                return canvasPos;
-            }
-
-            @Override
-            public WorldViewBounds getMinecraftWorldViewBounds() {
-                return new WorldViewBounds(-512, 512, -512, 512);
-            }
-        };
+        return IdentityCoordinateService.INSTANCE;
     }
 
     private static IBlockProjectionService stubProjection() {

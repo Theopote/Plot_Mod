@@ -42,6 +42,7 @@ public final class RoofGenerationStage implements BuildingGenerationStage {
                 context.getRoofBlockId(),
                 roofType,
                 roof.pitchRatio(),
+                context.getCanvasScale(),
                 context.getCoordinateService(),
                 context.getProjectionService());
         }

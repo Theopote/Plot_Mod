@@ -57,6 +57,7 @@ public final class BalconyGenerator {
             spec.width(),
             spec.depth(),
             slabId,
+            context.getCanvasScale(),
             context.getCoordinateService(),
             context.getProjectionService());
 
