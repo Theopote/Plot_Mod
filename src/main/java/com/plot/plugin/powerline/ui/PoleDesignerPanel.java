@@ -35,8 +35,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** 杆塔分层设计器独立窗口。 */
+/** 杆塔分层设计器独立窗口（居中弹出、可拖动、不参与 DockSpace 停靠）。 */
 public final class PoleDesignerPanel {
+    private static final float DESIGNER_WIDTH = 480f;
+    private static final float DESIGNER_HEIGHT = 560f;
+    private static final int DESIGNER_WINDOW_FLAGS =
+        ImGuiWindowFlags.NoDocking | ImGuiWindowFlags.NoSavedSettings;
+
     private static final TowerRole[] FAMILY_EDIT_ROLES = {
         TowerRole.SUSPENSION,
         TowerRole.ANGLE,
@@ -57,6 +62,7 @@ public final class PoleDesignerPanel {
     private String openedBaselineJson = "";
     private final List<LayerAction> pendingLayerActions = new ArrayList<>();
     private final ImBoolean designerWindowOpen = new ImBoolean(false);
+    private boolean focusOnNextRender;
 
     public PoleDesignerPanel(PowerLineUiContext ctx) {
         this.ctx = ctx;
@@ -77,6 +83,7 @@ public final class PoleDesignerPanel {
         captureOpenedBaseline();
         TowerArmAttachmentBinding.inferArmBindings(draft);
         designerWindowOpen.set(true);
+        focusOnNextRender = true;
         ctx.state().setPoleDesignerOpen(true);
     }
 
@@ -109,12 +116,18 @@ public final class PoleDesignerPanel {
 
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
         try {
-            ImGui.setNextWindowSize(480, 560, imgui.flag.ImGuiCond.FirstUseEver);
+            var center = ImGui.getMainViewport().getCenter();
+            ImGui.setNextWindowPos(center.x, center.y, imgui.flag.ImGuiCond.Appearing, 0.5f, 0.5f);
+            ImGui.setNextWindowSize(DESIGNER_WIDTH, DESIGNER_HEIGHT, imgui.flag.ImGuiCond.Appearing);
+            if (focusOnNextRender) {
+                ImGui.setNextWindowFocus();
+                focusOnNextRender = false;
+            }
             designerWindowOpen.set(true);
             if (!ImGui.begin(
                     PlotI18n.tr("plugin.powerline.design.window", draft.getName()),
                     designerWindowOpen,
-                    ImGuiWindowFlags.None)) {
+                    DESIGNER_WINDOW_FLAGS)) {
                 ImGui.end();
                 if (!designerWindowOpen.get()) {
                     handleCloseRequest();
