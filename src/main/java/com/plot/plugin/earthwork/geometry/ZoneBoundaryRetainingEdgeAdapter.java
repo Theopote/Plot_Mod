@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 从分区边界 {@link EdgeTreatment#RETAINING_WALL} 派生挡土界与合成折线。
@@ -55,19 +56,12 @@ public final class ZoneBoundaryRetainingEdgeAdapter {
     public static List<RetainingEdge> deriveVirtualEdges(
             EarthworkSite site,
             DesignTerrainGrid grid,
-            Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> evaluators) {
-        return deriveVirtualEdges(site, grid, evaluators, EarthworkCanvasScale.identity());
-    }
-
-    public static List<RetainingEdge> deriveVirtualEdges(
-            EarthworkSite site,
-            DesignTerrainGrid grid,
             Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> evaluators,
             EarthworkCanvasScale canvasScale) {
         if (site == null) {
             return List.of();
         }
-        EarthworkCanvasScale scale = canvasScale != null ? canvasScale : EarthworkCanvasScale.identity();
+        EarthworkCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         List<RetainingEdge> edges = new ArrayList<>();
         for (GradingZone zone : site.getGradingZones().values()) {
             ZoneEdgeSettings settings = zone.getEdgeSettings();

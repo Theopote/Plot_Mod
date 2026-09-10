@@ -3,7 +3,9 @@ package com.plot.plugin.building;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.polygon.StraightSkeleton;
 import com.plot.core.geometry.shapes.Polygon;
+import com.plot.plugin.building.generation.BuildingCanvasScale;
 import com.plot.plugin.building.model.BuildingFootprint;
+import com.plot.test.building.BuildingCanvasScales;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
@@ -17,6 +19,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BuildingGeometryUtilsTest {
+
+    private static final BuildingCanvasScale IDENTITY = BuildingCanvasScales.capture(
+        List.of(new Vec2d(0, 0), new Vec2d(1, 0), new Vec2d(0, 1)));
 
     @Test
     void polygonContainsCenterOfLargeRectangle() {
@@ -106,8 +111,8 @@ class BuildingGeometryUtilsTest {
     @Test
     void gableRidgeIsHighestAndEavesAreZero() {
         BuildingGeometryUtils.RectBounds bounds = new BuildingGeometryUtils.RectBounds(0, 20, 0, 10);
-        int ridge = BuildingRoofGenerator.computeGableRise(10, 5, bounds, true, 2);
-        int eave = BuildingRoofGenerator.computeGableRise(10, 0, bounds, true, 2);
+        int ridge = BuildingRoofGenerator.computeGableRise(10, 5, bounds, true, 2, IDENTITY);
+        int eave = BuildingRoofGenerator.computeGableRise(10, 0, bounds, true, 2, IDENTITY);
         assertEquals(0, eave, "Eave should have zero rise");
         assertEquals(2, ridge, "Ridge center rise = floor((depth/2) / pitch) = floor(5/2) = 2");
     }
@@ -115,16 +120,16 @@ class BuildingGeometryUtilsTest {
     @Test
     void gableRiseIsSymmetricAcrossRidge() {
         BuildingGeometryUtils.RectBounds bounds = new BuildingGeometryUtils.RectBounds(0, 20, 0, 10);
-        int north = BuildingRoofGenerator.computeGableRise(10, 2, bounds, true, 2);
-        int south = BuildingRoofGenerator.computeGableRise(10, 8, bounds, true, 2);
+        int north = BuildingRoofGenerator.computeGableRise(10, 2, bounds, true, 2, IDENTITY);
+        int south = BuildingRoofGenerator.computeGableRise(10, 8, bounds, true, 2, IDENTITY);
         assertEquals(north, south);
     }
 
     @Test
     void hipCenterHigherThanCorners() {
         BuildingGeometryUtils.RectBounds bounds = new BuildingGeometryUtils.RectBounds(0, 20, 0, 10);
-        int center = BuildingRoofGenerator.computeHipRise(10, 5, bounds, 2);
-        int corner = BuildingRoofGenerator.computeHipRise(0, 0, bounds, 2);
+        int center = BuildingRoofGenerator.computeHipRise(10, 5, bounds, 2, IDENTITY);
+        int corner = BuildingRoofGenerator.computeHipRise(0, 0, bounds, 2, IDENTITY);
         assertEquals(0, corner);
         assertTrue(center > corner, "Hip roof center should rise above corners");
         assertEquals(2, center);
@@ -141,8 +146,8 @@ class BuildingGeometryUtilsTest {
             new Vec2d(0, 10)
         );
         StraightSkeleton.Result skeleton = StraightSkeleton.compute(lShape);
-        int corner = BuildingRoofGenerator.computeHipRise(new Vec2d(0.5, 0.5), skeleton, null, 2);
-        int interior = BuildingRoofGenerator.computeHipRise(new Vec2d(2.5, 2.5), skeleton, null, 2);
+        int corner = BuildingRoofGenerator.computeHipRise(new Vec2d(0.5, 0.5), skeleton, null, 2, IDENTITY);
+        int interior = BuildingRoofGenerator.computeHipRise(new Vec2d(2.5, 2.5), skeleton, null, 2, IDENTITY);
         assertEquals(0, corner);
         assertTrue(interior > corner);
     }

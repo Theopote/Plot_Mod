@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 单分区 legacy 管线：Capture → Resolve → Volume/Voxel。
@@ -64,9 +65,9 @@ public final class LegacyRegionPipeline {
 
         MaterialConversionModel balanceMaterials = region.resolveMaterialModel(siteMaterialModel);
 
-        EarthworkCanvasScale canvasScale = coordinateService != null
-            ? EarthworkCanvasScale.capture(coordinateService, region.getOuterPoints())
-            : EarthworkCanvasScale.identity();
+        Objects.requireNonNull(coordinateService, "coordinateService");
+        EarthworkCanvasScale canvasScale = EarthworkCanvasScale.capture(
+            coordinateService, region.getOuterPoints());
         List<Vec2d> outerPoints = EarthworkSiteBoundaryUtils.resolveCaptureBoundary(
             region.getOuterPoints(), edgeSettings, canvasScale);
         if (outerPoints.size() < 3) {

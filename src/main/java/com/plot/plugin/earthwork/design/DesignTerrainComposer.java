@@ -25,6 +25,7 @@ import com.plot.plugin.earthwork.model.GradingZoneType;
 import com.plot.plugin.earthwork.model.VerticalAdjustmentPolicy;
 
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -91,9 +92,8 @@ public final class DesignTerrainComposer {
             return new ComposeResult(new DesignTerrainGrid(), Map.of(), Map.of());
         }
         EarthworkWorkMode safeWorkMode = workMode != null ? workMode : EarthworkWorkMode.QUICK;
-        EarthworkCanvasScale canvasScale = transformer != null
-            ? EarthworkCanvasScale.capture(transformer, site.getSiteBoundary())
-            : EarthworkCanvasScale.identity();
+        Objects.requireNonNull(transformer, "transformer");
+        EarthworkCanvasScale canvasScale = EarthworkCanvasScale.capture(transformer, site.getSiteBoundary());
 
         DesignTerrainGrid grid = new DesignTerrainGrid();
         initializeCells(grid, terrain);

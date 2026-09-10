@@ -6,6 +6,7 @@ import com.plot.plugin.earthwork.geometry.EarthworkCanvasScale;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 从分区轮廓计算场地红线（施工边界）及地形捕获范围。
@@ -132,10 +133,6 @@ public final class EarthworkSiteBoundaryUtils {
     /**
      * 将轴对齐包围盒向外扩展指定格距，用于边坡放坡带采样。
      */
-    public static List<Vec2d> expandAxisAlignedBoundary(List<Vec2d> boundary, int marginBlocks) {
-        return expandAxisAlignedBoundary(boundary, marginBlocks, EarthworkCanvasScale.identity());
-    }
-
     public static List<Vec2d> expandAxisAlignedBoundary(
             List<Vec2d> boundary,
             int marginBlocks,
@@ -143,7 +140,7 @@ public final class EarthworkSiteBoundaryUtils {
         if (boundary == null || boundary.size() < 3 || marginBlocks <= 0) {
             return boundary != null ? new ArrayList<>(boundary) : List.of();
         }
-        EarthworkCanvasScale scale = canvasScale != null ? canvasScale : EarthworkCanvasScale.identity();
+        EarthworkCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         double minX = Double.POSITIVE_INFINITY;
         double minY = Double.POSITIVE_INFINITY;
         double maxX = Double.NEGATIVE_INFINITY;
@@ -191,22 +188,12 @@ public final class EarthworkSiteBoundaryUtils {
      * 统一的地形捕获边界：场地红线 + 活跃边坡最大 reach。
      * Preview capture、Pipeline capture、Cache fingerprint 均应使用此边界。
      */
-    public static List<Vec2d> resolveCaptureBoundary(EarthworkSite site) {
-        return resolveCaptureBoundary(site, EarthworkCanvasScale.identity());
-    }
-
     public static List<Vec2d> resolveCaptureBoundary(EarthworkSite site, EarthworkCanvasScale canvasScale) {
         if (site == null) {
             return List.of();
         }
         return resolveCaptureBoundary(
             site.getSiteBoundary(), site.getGradingZones().values(), canvasScale);
-    }
-
-    public static List<Vec2d> resolveCaptureBoundary(
-            List<Vec2d> siteBoundary,
-            Collection<GradingZone> zones) {
-        return resolveCaptureBoundary(siteBoundary, zones, EarthworkCanvasScale.identity());
     }
 
     public static List<Vec2d> resolveCaptureBoundary(
@@ -218,12 +205,6 @@ public final class EarthworkSiteBoundaryUtils {
         }
         int margin = resolveEdgeSlopeMarginBlocks(zones);
         return expandAxisAlignedBoundary(siteBoundary, margin, canvasScale);
-    }
-
-    public static List<Vec2d> resolveCaptureBoundary(
-            List<Vec2d> outerPoints,
-            ZoneEdgeSettings edgeSettings) {
-        return resolveCaptureBoundary(outerPoints, edgeSettings, EarthworkCanvasScale.identity());
     }
 
     public static List<Vec2d> resolveCaptureBoundary(

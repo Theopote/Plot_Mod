@@ -18,7 +18,7 @@ public final class FloorPlateScaleResolver {
 
     public static BuildingDefinition applyScale(BuildingDefinition definition, BuildingCanvasScale canvasScale) {
         Objects.requireNonNull(definition, "definition");
-        BuildingCanvasScale scale = canvasScale != null ? canvasScale : BuildingCanvasScale.identity();
+        BuildingCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         MassingSpec scaled = applyScale(definition.massing(), scale);
         if (scaled == definition.massing()) {
             return definition;
@@ -35,7 +35,7 @@ public final class FloorPlateScaleResolver {
 
     public static MassingSpec applyScale(MassingSpec massing, BuildingCanvasScale canvasScale) {
         Objects.requireNonNull(massing, "massing");
-        BuildingCanvasScale scale = canvasScale != null ? canvasScale : BuildingCanvasScale.identity();
+        BuildingCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         List<FloorPlateSpec> plates = massing.floorPlates();
         if (plates.size() != 2) {
             return massing;
@@ -52,7 +52,7 @@ public final class FloorPlateScaleResolver {
             pattern.upper().outerPoints(),
             pattern.upper().floorStart(),
             pattern.upper().floorEnd(),
-            BuildingCanvasScale.identity());
+            scale);
         if (insetBlocks < 0) {
             return massing;
         }

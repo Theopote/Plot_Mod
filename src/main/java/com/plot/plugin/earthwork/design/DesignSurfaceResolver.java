@@ -19,6 +19,7 @@ import com.plot.core.geometry.RegionGeometry;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 将分区 {@link DesignSurface} 解析为 {@link ResolvedDesignSurface}
@@ -48,9 +49,11 @@ public final class DesignSurfaceResolver {
             BuildingFootprintLookup buildingLookup,
             RoadSurfaceLookup roadLookup,
             ICoordinateService transformer) {
+        Objects.requireNonNull(transformer, "transformer");
+        Objects.requireNonNull(site, "site");
         return ResolvedDesignSurface.toEvaluatorMap(
             resolveZoneSurfaces(site, terrain, buildingLookup, roadLookup, transformer,
-                EarthworkCanvasScale.identity()));
+                EarthworkCanvasScale.capture(transformer, site.getSiteBoundary())));
     }
 
     public static Map<String, ResolvedDesignSurface> resolveZoneSurfaces(
@@ -67,8 +70,11 @@ public final class DesignSurfaceResolver {
             BuildingFootprintLookup buildingLookup,
             RoadSurfaceLookup roadLookup,
             ICoordinateService transformer) {
+        Objects.requireNonNull(transformer, "transformer");
+        Objects.requireNonNull(site, "site");
         return resolveZoneSurfaces(
-            site, terrain, buildingLookup, roadLookup, transformer, EarthworkCanvasScale.identity());
+            site, terrain, buildingLookup, roadLookup, transformer,
+            EarthworkCanvasScale.capture(transformer, site.getSiteBoundary()));
     }
 
     public static Map<String, ResolvedDesignSurface> resolveZoneSurfaces(
@@ -82,7 +88,7 @@ public final class DesignSurfaceResolver {
         if (site == null || terrain == null) {
             return resolved;
         }
-        EarthworkCanvasScale scale = canvasScale != null ? canvasScale : EarthworkCanvasScale.identity();
+        EarthworkCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         int siteDefaultElevation = resolveSiteDefaultElevation(terrain);
         boolean deferBalanceToSite = site.getCompositionPolicy().getBalanceScopeEnum().defersPerZoneBalance()
             && site.getZoneCount() >= 2;

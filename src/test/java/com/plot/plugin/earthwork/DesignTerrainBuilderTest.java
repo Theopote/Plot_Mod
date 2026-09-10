@@ -18,8 +18,8 @@ class DesignTerrainBuilderTest {
         EarthworkSite site = twoZoneSiteForCompose();
         TerrainSnapshot terrain = rectangleTerrain(0, 9, 0, 9, 64);
 
-        DesignTerrainBuilder.BuildResult fromBuilder = DesignTerrainBuilder.build(site, terrain, null);
-        DesignTerrainComposer.ComposeResult fromComposer = DesignTerrainComposer.compose(site, terrain, null);
+        DesignTerrainBuilder.BuildResult fromBuilder = DesignTerrainBuilder.build(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE);
+        DesignTerrainComposer.ComposeResult fromComposer = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE);
 
         assertNotNull(fromBuilder.grid());
         assertEquals(fromComposer.grid().minTargetY(), fromBuilder.grid().minTargetY());

@@ -12,37 +12,27 @@ import java.util.Objects;
  * 土方生成用的画布尺度：将「方块数」参数转换为画布距离。
  * <p>
  * 生成入口应通过 {@link #capture(ICoordinateService, List)} 冻结投影，
- * 全程复用同一实例。
+ * 全程复用同一实例。投影无效时抛出 {@link com.plot.api.world.WorldProjectionUnavailableException}。
  */
 public final class EarthworkCanvasScale {
     private final ICoordinateService coordinates;
 
     private EarthworkCanvasScale(ICoordinateService coordinates) {
-        this.coordinates = coordinates;
+        this.coordinates = Objects.requireNonNull(coordinates, "coordinates");
     }
 
     public static EarthworkCanvasScale capture(ICoordinateService coordinateService, List<Vec2d> referencePoints) {
         Objects.requireNonNull(coordinateService, "coordinateService");
-        return PluginProjectionContext.tryCapture(coordinateService)
-            .map(ctx -> new EarthworkCanvasScale(ctx.coordinates()))
-            .orElse(new EarthworkCanvasScale(coordinateService));
-    }
-
-    /** 1 block = 1 canvas unit（测试或投影不可用时）。 */
-    public static EarthworkCanvasScale identity() {
-        return new EarthworkCanvasScale(null);
+        return new EarthworkCanvasScale(PluginProjectionContext.capture(coordinateService).coordinates());
     }
 
     public ICoordinateService resolveCoordinates(ICoordinateService liveCoordinates) {
-        return coordinates != null ? coordinates : liveCoordinates;
+        return coordinates;
     }
 
     public double blocksToCanvas(double blocks, Vec2d origin, Vec2d direction) {
         if (blocks == 0.0) {
             return 0.0;
-        }
-        if (coordinates == null) {
-            return blocks;
         }
         return blocks * WorldProjectionMath.canvasUnitsPerWorldBlock(coordinates, origin, direction);
     }
@@ -50,9 +40,6 @@ public final class EarthworkCanvasScale {
     public double canvasToBlocks(double canvasDistance, Vec2d origin, Vec2d direction) {
         if (canvasDistance == 0.0) {
             return 0.0;
-        }
-        if (coordinates == null) {
-            return canvasDistance;
         }
         double unitsPerBlock = WorldProjectionMath.canvasUnitsPerWorldBlock(coordinates, origin, direction);
         if (unitsPerBlock < 1e-9) {
@@ -80,7 +67,7 @@ public final class EarthworkCanvasScale {
         if (blocks == 0.0) {
             return 0.0;
         }
-        if (coordinates == null || polygon == null || polygon.size() < 3) {
+        if (polygon == null || polygon.size() < 3) {
             return blocks;
         }
         Vec2d probe = centroid(polygon);

@@ -27,8 +27,7 @@ class SitePipelineUnifiedPathTest {
         assertTrue(site.delegatesToLegacyGenerator(), "legacy-compatible shape");
 
         TerrainSnapshot terrain = rectangleTerrain(0, 3, 0, 3, 64);
-        EarthworkPipelines.Bundle pipelines = EarthworkPipelines.create(
-            null, solidColumnSampler(terrain, STONE));
+        EarthworkPipelines.Bundle pipelines = EarthworkPipelines.create(com.plot.test.world.IdentityCoordinateService.INSTANCE, solidColumnSampler(terrain, STONE));
         EarthworkGenerationResult result = pipelines.site().execute(
             EarthworkPipelineContext.of(site, null, terrain, region));
 

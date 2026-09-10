@@ -37,7 +37,7 @@ class PhaseFEdgeTreatmentTest {
             new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 70),
             new TerrainSnapshot.Column(new Vec2d(3.5, 5), 3, 5, 70)));
 
-        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
         assertEquals(64, grid.get(5, 5).targetY());
         assertTrue(grid.get(3, 5).targetY() > 64);
         assertTrue(grid.get(3, 5).targetY() < 70);
@@ -61,7 +61,7 @@ class PhaseFEdgeTreatmentTest {
             new TerrainSnapshot.Column(new Vec2d(0.5, 0.5), 0, 0, 72),
             new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 60)));
 
-        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
         assertEquals(72, grid.get(0, 0).targetY());
         assertEquals(68, grid.get(5, 5).targetY());
     }
@@ -80,7 +80,8 @@ class PhaseFEdgeTreatmentTest {
             70,
             64,
             outline,
-            settings);
+            settings,
+            com.plot.test.earthwork.EarthworkCanvasScales.capture(outline));
         assertTrue(target > 64);
         assertTrue(target < 70);
     }

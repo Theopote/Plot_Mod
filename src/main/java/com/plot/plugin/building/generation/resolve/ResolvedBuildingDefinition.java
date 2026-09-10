@@ -7,6 +7,7 @@ import com.plot.plugin.building.site.BuildingSiteAnalysis;
 import com.plot.plugin.building.site.BuildingSiteColumnSample;
 
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 原始 {@link BuildingDefinition} 经 Massing / Site / Material 解析后的生成输入。
@@ -21,38 +22,6 @@ public final class ResolvedBuildingDefinition {
     private final MaterialResolver.ResolvedMaterials materials;
     private final Map<Long, BuildingSiteColumnSample> siteColumnSamples;
     private final BuildingCanvasScale canvasScale;
-
-    public ResolvedBuildingDefinition(
-            BuildingDefinition definition,
-            MassingGeometryResolver.ResolvedMassingGeometry massing,
-            GenerationSiteResolver.ResolvedSiteElevation site,
-            MaterialResolver.ResolvedMaterials materials) {
-        this(
-            definition,
-            massing,
-            BuildingSiteAnalysis.emptyFallback(EngineeringTerrainService.DEFAULT_GROUND_ELEVATION),
-            site,
-            materials,
-            Map.of(),
-            BuildingCanvasScale.identity());
-    }
-
-    public ResolvedBuildingDefinition(
-            BuildingDefinition definition,
-            MassingGeometryResolver.ResolvedMassingGeometry massing,
-            BuildingSiteAnalysis siteAnalysis,
-            GenerationSiteResolver.ResolvedSiteElevation site,
-            MaterialResolver.ResolvedMaterials materials,
-            Map<Long, BuildingSiteColumnSample> siteColumnSamples) {
-        this(
-            definition,
-            massing,
-            siteAnalysis,
-            site,
-            materials,
-            siteColumnSamples,
-            BuildingCanvasScale.identity());
-    }
 
     public ResolvedBuildingDefinition(
             BuildingDefinition definition,
@@ -72,7 +41,7 @@ public final class ResolvedBuildingDefinition {
         this.siteColumnSamples = siteColumnSamples == null || siteColumnSamples.isEmpty()
             ? Map.of()
             : Map.copyOf(siteColumnSamples);
-        this.canvasScale = canvasScale != null ? canvasScale : BuildingCanvasScale.identity();
+        this.canvasScale = Objects.requireNonNull(canvasScale, "canvasScale");
     }
 
     public BuildingDefinition definition() {

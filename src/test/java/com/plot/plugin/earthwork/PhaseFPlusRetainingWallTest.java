@@ -50,9 +50,12 @@ class PhaseFPlusRetainingWallTest {
             new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 70),
             new TerrainSnapshot.Column(new Vec2d(5, 1.5), 5, 1, 70)));
 
-        var composed = DesignTerrainComposer.compose(site, terrain, null);
+        var composed = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE);
+        List<Vec2d> padOutline = List.of(
+            new Vec2d(2, 2), new Vec2d(8, 2), new Vec2d(8, 8), new Vec2d(2, 8));
         List<RetainingEdge> virtualEdges = ZoneBoundaryRetainingEdgeAdapter.deriveVirtualEdges(
-            site, composed.grid(), composed.zoneEvaluators());
+            site, composed.grid(), composed.zoneEvaluators(),
+            com.plot.test.earthwork.EarthworkCanvasScales.capture(padOutline));
 
         assertFalse(virtualEdges.isEmpty());
         assertTrue(virtualEdges.getFirst().getTopElevation() > virtualEdges.getFirst().getBottomElevation());

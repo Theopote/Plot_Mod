@@ -49,7 +49,7 @@ class RoadCorridorUnresolvedBlocksPreviewTest {
 
         assertThrows(
             RoadCorridorSurfaceResolver.UnresolvedRoadDesignSurfaceException.class,
-            () -> EarthworkPipelines.create(null).site().execute(
+            () -> EarthworkPipelines.create(com.plot.test.world.IdentityCoordinateService.INSTANCE).site().execute(
                 EarthworkPipelineContext.of(
                     site,
                     null,

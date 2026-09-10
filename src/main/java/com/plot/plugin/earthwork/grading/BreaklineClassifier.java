@@ -5,6 +5,7 @@ import com.plot.plugin.earthwork.geometry.EarthworkCanvasScale;
 import com.plot.plugin.earthwork.model.Breakline;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Breakline 折线侧归属：按最近线段法向判定左/右半平面。
@@ -36,20 +37,12 @@ public final class BreaklineClassifier {
     public static String resolveMandatedZoneId(
             Vec2d point,
             List<Breakline> breaklines,
-            double influenceDistanceBlocks) {
-        return resolveMandatedZoneId(
-            point, breaklines, influenceDistanceBlocks, EarthworkCanvasScale.identity());
-    }
-
-    public static String resolveMandatedZoneId(
-            Vec2d point,
-            List<Breakline> breaklines,
             double influenceDistanceBlocks,
             EarthworkCanvasScale canvasScale) {
         if (point == null || breaklines == null || breaklines.isEmpty()) {
             return null;
         }
-        EarthworkCanvasScale scale = canvasScale != null ? canvasScale : EarthworkCanvasScale.identity();
+        EarthworkCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         double influence = Math.max(0.0, influenceDistanceBlocks);
         String mandatedZoneId = null;
         double nearestDistance = Double.MAX_VALUE;

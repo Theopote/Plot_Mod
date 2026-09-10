@@ -91,12 +91,12 @@ class WeightedBalanceSolverTest {
         terrain = TerrainSnapshot.forColumns(bumped);
 
         GradingRegion region = levelPadRegion(0, 5, 0, 5, 64, true);
-        var full = RegionSurfaceEvaluator.resolve(region, terrain, null);
+        var full = RegionSurfaceEvaluator.resolve(region, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE);
         var previewOnly = com.plot.plugin.earthwork.design.GradingSurfaceResolver.resolve(
             region,
             terrain.previewColumns(5).stream().map(TerrainSnapshot.Column::center).toList(),
             terrain.previewColumns(5).stream().map(TerrainSnapshot.Column::groundY).toList(),
-            null);
+            com.plot.test.world.IdentityCoordinateService.INSTANCE);
 
         assertTrue(full.plane().isFlat());
         assertTrue(previewOnly.plane().isFlat());

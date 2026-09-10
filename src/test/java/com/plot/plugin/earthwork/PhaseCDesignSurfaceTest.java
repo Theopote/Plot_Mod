@@ -34,7 +34,7 @@ class PhaseCDesignSurfaceTest {
         TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
             new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 65)));
 
-        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
         assertEquals(72, grid.get(5, 5).targetY());
     }
 
@@ -56,8 +56,7 @@ class PhaseCDesignSurfaceTest {
             new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10), new Vec2d(0, 10)), false);
         footprint.setManualBaseElevation(71);
 
-        DesignTerrainGrid grid = DesignTerrainComposer.compose(
-            site, terrain, null, id -> footprint).grid();
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE, id -> footprint).grid();
         assertEquals(71, grid.get(5, 5).targetY());
     }
 
@@ -82,8 +81,7 @@ class PhaseCDesignSurfaceTest {
             new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10), new Vec2d(0, 10)), false);
         footprint.setManualBaseElevation(70);
 
-        DesignTerrainGrid grid = DesignTerrainComposer.compose(
-            site, terrain, null, id -> footprint).grid();
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE, id -> footprint).grid();
         assertEquals(65, grid.get(5, 5).targetY());
     }
 
@@ -115,7 +113,7 @@ class PhaseCDesignSurfaceTest {
             new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 70),
             new TerrainSnapshot.Column(new Vec2d(0.5, 0.5), 0, 0, 70)));
 
-        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
         assertEquals(50, grid.get(5, 5).targetY());
         assertTrue(grid.get(0, 0).targetY() > 50);
     }
@@ -124,10 +122,11 @@ class PhaseCDesignSurfaceTest {
     void pitEvaluatorDistanceToEdge() {
         List<Vec2d> square = List.of(
             new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10), new Vec2d(0, 10));
+        var scale = com.plot.test.earthwork.EarthworkCanvasScales.capture(square);
         int center = ExcavationPitSurfaceEvaluator.evaluateTargetY(
-            new Vec2d(5, 5), square, 50, 2, 1);
+            new Vec2d(5, 5), square, 50, 2, 1, scale);
         int corner = ExcavationPitSurfaceEvaluator.evaluateTargetY(
-            new Vec2d(0.5, 0.5), square, 50, 2, 1);
+            new Vec2d(0.5, 0.5), square, 50, 2, 1, scale);
         assertEquals(50, center);
         assertTrue(corner > center);
     }

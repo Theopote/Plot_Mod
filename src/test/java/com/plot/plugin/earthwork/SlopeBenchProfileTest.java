@@ -60,7 +60,7 @@ class SlopeBenchProfileTest {
             new TerrainSnapshot.Column(new Vec2d(5, 1.5), 5, 1, 70),
             new TerrainSnapshot.Column(new Vec2d(5, 0.5), 5, 0, 70)));
 
-        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
         int lowerBenchCell = grid.get(5, 1).targetY();
         int upperBenchCell = grid.get(5, 0).targetY();
         int expectedRise = SlopeBenchProfile.computeRiseAtDistance(2.5, 1.0, 2);

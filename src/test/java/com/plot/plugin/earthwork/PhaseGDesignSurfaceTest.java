@@ -37,7 +37,8 @@ class PhaseGDesignSurfaceTest {
         ));
 
         Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> evaluators =
-            DesignSurfaceResolver.resolveZoneEvaluators(site, terrain, null, null);
+            DesignSurfaceResolver.resolveZoneEvaluators(
+                site, terrain, null, com.plot.test.world.IdentityCoordinateService.INSTANCE);
         DesignSurfaceResolver.ZoneTargetEvaluator evaluator = evaluators.get(zone.getId());
         assertEquals(68, evaluator.evaluateAt(cell(6, 6, 65)));
         assertEquals(73, evaluator.evaluateAt(cell(2, 2, 70)));
@@ -72,7 +73,8 @@ class PhaseGDesignSurfaceTest {
         ));
 
         Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> evaluators =
-            DesignSurfaceResolver.resolveZoneEvaluators(site, terrain, null, null);
+            DesignSurfaceResolver.resolveZoneEvaluators(
+                site, terrain, null, com.plot.test.world.IdentityCoordinateService.INSTANCE);
         DesignSurfaceResolver.ZoneTargetEvaluator evaluator = evaluators.get(zone.getId());
 
         assertEquals(80, evaluator.evaluateAt(cell(5, 5, 65)));

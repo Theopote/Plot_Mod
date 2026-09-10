@@ -150,8 +150,7 @@ class EarthworkAnalyticalBenchmarkTest {
     site.addZone(tinyCompanionZone("companion"));
 
     TerrainSnapshot terrain = rectangleTerrain(0, 9, 0, 9, 64);
-    EarthworkGenerationResult result = EarthworkPipelines.create(
-        null, solidColumnSampler(terrain, STONE))
+    EarthworkGenerationResult result = EarthworkPipelines.create(com.plot.test.world.IdentityCoordinateService.INSTANCE, solidColumnSampler(terrain, STONE))
         .site().execute(EarthworkPipelineContext.of(site, null, terrain, null));
 
     assertFalse(result.placementRecords.isEmpty());
@@ -196,7 +195,7 @@ class EarthworkAnalyticalBenchmarkTest {
     assertFalse(overlaps.isEmpty());
 
     TerrainSnapshot terrain = rectangleTerrain(0, 9, 0, 9, 64);
-    DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+    DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
     assertEquals(70, grid.get(5, 5).targetY());
     assertEquals("high", grid.get(5, 5).zoneId());
     assertEquals(60, grid.get(1, 1).targetY());

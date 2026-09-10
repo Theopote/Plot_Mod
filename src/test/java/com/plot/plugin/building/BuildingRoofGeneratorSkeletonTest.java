@@ -2,7 +2,9 @@ package com.plot.plugin.building;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.polygon.StraightSkeleton;
+import com.plot.plugin.building.generation.BuildingCanvasScale;
 import com.plot.plugin.building.generation.BuildingGenerationContext;
+import com.plot.test.building.BuildingCanvasScales;
 import com.plot.plugin.building.generation.BuildingGenerationPipeline;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.generation.stage.RoofGenerationStage;
@@ -36,6 +38,8 @@ class BuildingRoofGeneratorSkeletonTest {
         new Vec2d(0, 10)
     );
 
+    private static final BuildingCanvasScale IDENTITY = BuildingCanvasScales.capture(L_SHAPE);
+
     @Test
     void hipRoofOnLShapeDoesNotDowngrade() {
         BuildingFootprint footprint = new BuildingFootprint(L_SHAPE, false);
@@ -67,7 +71,7 @@ class BuildingRoofGeneratorSkeletonTest {
             if (!BuildingGeometryUtils.toPolygon(L_SHAPE).contains(center)) {
                 continue;
             }
-            int rise = BuildingRoofGenerator.computeHipRise(center, skeleton, null, pitch);
+            int rise = BuildingRoofGenerator.computeHipRise(center, skeleton, null, pitch, IDENTITY);
             if (rise > 0) {
                 expectedColumns++;
             }
@@ -79,7 +83,7 @@ class BuildingRoofGeneratorSkeletonTest {
             if (!BuildingGeometryUtils.toPolygon(L_SHAPE).contains(center)) {
                 continue;
             }
-            expectedBlocks += BuildingRoofGenerator.computeHipRise(center, skeleton, null, pitch);
+            expectedBlocks += BuildingRoofGenerator.computeHipRise(center, skeleton, null, pitch, IDENTITY);
         }
         assertEquals(expectedBlocks, result.placementRecords.size());
     }
@@ -106,8 +110,8 @@ class BuildingRoofGeneratorSkeletonTest {
         StraightSkeleton.Result skeleton = StraightSkeleton.compute(rect);
         BuildingGeometryUtils.RectBounds bounds = BuildingGeometryUtils.normalizedRectBounds(rect);
         Vec2d center = new Vec2d(10.5, 5.5);
-        int legacy = BuildingRoofGenerator.computeHipRise(center.x, center.y, bounds, 2);
-        int skeletonRise = BuildingRoofGenerator.computeHipRise(center, skeleton, bounds, 2);
+        int legacy = BuildingRoofGenerator.computeHipRise(center.x, center.y, bounds, 2, IDENTITY);
+        int skeletonRise = BuildingRoofGenerator.computeHipRise(center, skeleton, bounds, 2, IDENTITY);
         assertEquals(legacy, skeletonRise);
     }
 

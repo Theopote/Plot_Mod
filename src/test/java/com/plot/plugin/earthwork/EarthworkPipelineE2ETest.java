@@ -40,7 +40,7 @@ class EarthworkPipelineE2ETest {
     GradingRegion region = levelPadRegion(0, 3, 0, 3, 65, false);
     InMemoryBlockWorld world = InMemoryBlockWorld.fromTerrain(terrain, STONE);
 
-    EarthworkGenerationResult result = EarthworkPipelines.create(null, world.sampler())
+    EarthworkGenerationResult result = EarthworkPipelines.create(com.plot.test.world.IdentityCoordinateService.INSTANCE, world.sampler())
         .legacy().execute(region, null, terrain, null);
 
     assertEquals(16L, result.volumeReport.geometricFillVolume());
@@ -58,7 +58,7 @@ class EarthworkPipelineE2ETest {
     TerrainSnapshot terrain = rectangleTerrain(0, 9, 0, 9, 64);
     InMemoryBlockWorld world = InMemoryBlockWorld.fromTerrain(terrain, STONE);
 
-    EarthworkGenerationResult result = EarthworkPipelines.create(null, world.sampler())
+    EarthworkGenerationResult result = EarthworkPipelines.create(com.plot.test.world.IdentityCoordinateService.INSTANCE, world.sampler())
         .site().execute(EarthworkPipelineContext.of(site, null, terrain, null));
 
     assertTrue(result.siteGeneration);
@@ -74,7 +74,7 @@ class EarthworkPipelineE2ETest {
     GradingRegion region = levelPadRegion(0, 3, 0, 3, 64, false);
     InMemoryBlockWorld world = InMemoryBlockWorld.fromTerrain(terrain, STONE);
 
-    EarthworkGenerationResult result = EarthworkPipelines.create(null, world.sampler())
+    EarthworkGenerationResult result = EarthworkPipelines.create(com.plot.test.world.IdentityCoordinateService.INSTANCE, world.sampler())
         .legacy().execute(region, null, terrain, null);
 
     assertEquals(8L, result.volumeReport.geometricCutVolume());

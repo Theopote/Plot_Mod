@@ -72,7 +72,7 @@ class DesignTerrainComposerTest {
             new TerrainSnapshot.Column(new Vec2d(1, 1), 1, 1, 65)
         ));
 
-        DesignTerrainComposer.ComposeResult result = DesignTerrainComposer.compose(site, terrain, null);
+        DesignTerrainComposer.ComposeResult result = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE);
         DesignTerrainCell inner = result.grid().get(5, 5);
         DesignTerrainCell outerOnly = result.grid().get(1, 1);
 
@@ -117,7 +117,7 @@ class DesignTerrainComposerTest {
             new TerrainSnapshot.Column(new Vec2d(1, 1), 1, 1, 62)
         ));
 
-        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
         DesignTerrainCell excluded = grid.get(5, 5);
         DesignTerrainCell graded = grid.get(1, 1);
 
@@ -164,7 +164,7 @@ class DesignTerrainComposerTest {
             new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 65)
         ));
 
-        DesignTerrainCell cell = DesignTerrainComposer.compose(site, terrain, null).grid().get(5, 5);
+        DesignTerrainCell cell = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid().get(5, 5);
         assertEquals(72, cell.targetY());
         assertEquals("zone-small", cell.zoneId());
     }
@@ -184,7 +184,7 @@ class DesignTerrainComposerTest {
             new TerrainSnapshot.Column(new Vec2d(15, 5), 15, 5, 60)
         ));
 
-        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
 
         Map<String, Integer> offsets = site.getLastZoneVerticalOffsets();
         assertEquals(10, offsets.get("zone-cut"));
@@ -215,7 +215,7 @@ class DesignTerrainComposerTest {
             new TerrainSnapshot.Column(new Vec2d(15, 5), 15, 5, 60)
         ));
 
-        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
 
         assertEquals(60, grid.get(2, 5).targetY());
         assertEquals(60, grid.get(5, 5).targetY());
@@ -242,7 +242,7 @@ class DesignTerrainComposerTest {
             new TerrainSnapshot.Column(new Vec2d(12, 5), 12, 5, 58)
         ));
 
-        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
 
         assertTrue(site.getLastZoneVerticalOffsets().isEmpty());
         int uniformOffset = site.getLastSiteWideVerticalOffset();
@@ -269,7 +269,7 @@ class DesignTerrainComposerTest {
             new TerrainSnapshot.Column(new Vec2d(12, 5), 12, 5, 60)
         ));
 
-        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
 
         assertTrue(site.getLastZoneVerticalOffsets().isEmpty());
         assertEquals(0, site.getLastSiteWideVerticalOffset());
@@ -283,8 +283,8 @@ class DesignTerrainComposerTest {
         EarthworkSite auto = slopedSinglePad(true, 80);
         TerrainSnapshot terrain = slopedSinglePadTerrain();
 
-        DesignTerrainGrid naiveGrid = DesignTerrainComposer.compose(naive, terrain, null).grid();
-        DesignTerrainGrid autoGrid = DesignTerrainComposer.compose(auto, terrain, null).grid();
+        DesignTerrainGrid naiveGrid = DesignTerrainComposer.compose(naive, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
+        DesignTerrainGrid autoGrid = DesignTerrainComposer.compose(auto, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
 
         long naiveImbalance = SlopeCoupledVerticalSearch.geometricCutFillImbalance(naiveGrid, naive);
         long autoImbalance = SlopeCoupledVerticalSearch.geometricCutFillImbalance(autoGrid, auto);
@@ -327,10 +327,7 @@ class DesignTerrainComposerTest {
             new TerrainSnapshot.Column(new Vec2d(24, 5), 24, 5, 60)
         ));
 
-        DesignTerrainGrid grid = DesignTerrainComposer.compose(
-            site,
-            terrain,
-            null,
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE,
             BuildingFootprintLookup.NONE,
             (RoadSurfaceLookup) (edgeId, point) -> 70).grid();
         assertEquals(70, grid.get(5, 5).targetY());
@@ -372,7 +369,7 @@ class DesignTerrainComposerTest {
             new TerrainSnapshot.Column(exteriorCenter, -3, 5, 70)
         ));
 
-        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
         int padY = grid.get(2, 5).targetY();
         assertTrue(padY < 64, () -> "expected pad to drop for fill surplus, padY=" + padY
             + " fillY=" + grid.get(26, 5).targetY()
@@ -398,14 +395,14 @@ class DesignTerrainComposerTest {
 
         EarthworkSite perZone = slopedFillSite();
         perZone.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
-        DesignTerrainGrid perZoneGrid = DesignTerrainComposer.compose(perZone, terrain, null).grid();
+        DesignTerrainGrid perZoneGrid = DesignTerrainComposer.compose(perZone, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
         SiteEarthworkReport perZoneVolumes = EarthworkOptimizationSolver.collectZoneVolumes(perZoneGrid, perZone);
 
         EarthworkSite siteWide = slopedFillSite();
         enableFlexibleBalance(siteWide);
         siteWide.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
         siteWide.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
-        DesignTerrainGrid siteWideGrid = DesignTerrainComposer.compose(siteWide, terrain, null).grid();
+        DesignTerrainGrid siteWideGrid = DesignTerrainComposer.compose(siteWide, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
         SiteEarthworkReport siteWideVolumes = EarthworkOptimizationSolver.collectZoneVolumes(siteWideGrid, siteWide);
 
         double perZoneResidual = Math.abs(
@@ -451,7 +448,7 @@ class DesignTerrainComposerTest {
             new TerrainSnapshot.Column(new Vec2d(24, 5), 24, 5, 60)
         ));
 
-        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
         assertEquals(70, grid.get(5, 5).targetY());
         assertEquals(55, grid.get(12, 5).targetY());
         assertTrue(grid.get(20, 5).targetY() < 80);
@@ -473,7 +470,7 @@ class DesignTerrainComposerTest {
             new TerrainSnapshot.Column(new Vec2d(15, 5), 15, 5, 60)
         ));
 
-        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
         assertEquals(60, grid.get(2, 5).targetY());
         assertTrue(grid.get(12, 5).targetY() < 80);
     }
@@ -507,7 +504,7 @@ class DesignTerrainComposerTest {
             new TerrainSnapshot.Column(new Vec2d(24, 5), 24, 5, 60)
         ));
 
-        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
         int corridorY = grid.get(5, 5).targetY();
         assertTrue(corridorY >= 69 && corridorY <= 71,
             () -> "corridor should stay within ±1 of design 70, got " + corridorY);
@@ -547,7 +544,7 @@ class DesignTerrainComposerTest {
             new TerrainSnapshot.Column(new Vec2d(10, 10), 10, 10, 65)
         ));
 
-        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
 
         assertEquals(55, grid.get(1, 1).targetY());
         assertEquals(65, grid.get(6, 6).targetY());
@@ -597,7 +594,7 @@ class DesignTerrainComposerTest {
             new TerrainSnapshot.Column(new Vec2d(9, 9), 9, 9, 68)
         ));
 
-        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
 
         assertTrue(grid.get(3, 3).excluded());
         assertEquals(68, grid.get(3, 3).targetY());

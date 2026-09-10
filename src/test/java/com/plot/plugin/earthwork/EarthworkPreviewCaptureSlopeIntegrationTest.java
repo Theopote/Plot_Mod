@@ -44,8 +44,9 @@ class EarthworkPreviewCaptureSlopeIntegrationTest {
         GradingRegion region = site.getGradingZones().get("pad").getRegion();
 
         List<com.plot.api.geometry.Vec2d> padBoundary = site.getSiteBoundary();
+        var canvasScale = com.plot.test.earthwork.EarthworkCanvasScales.capture(padBoundary);
         List<com.plot.api.geometry.Vec2d> captureBoundary =
-            EarthworkSiteBoundaryUtils.resolveCaptureBoundary(site);
+            EarthworkSiteBoundaryUtils.resolveCaptureBoundary(site, canvasScale);
         EarthworkSiteBoundaryUtils.CaptureBounds padBounds =
             EarthworkSiteBoundaryUtils.CaptureBounds.fromBoundary(padBoundary);
         EarthworkSiteBoundaryUtils.CaptureBounds captureBounds =
@@ -59,8 +60,7 @@ class EarthworkPreviewCaptureSlopeIntegrationTest {
         assertTrue(captureBounds.maxY() > padBounds.maxY());
 
         TerrainSnapshot expandedTerrain = rectangleTerrain(-6, 15, -6, 15, GROUND_Y);
-        EarthworkPipelines.Bundle pipelines = EarthworkPipelines.create(
-            null, solidColumnSampler(expandedTerrain, STONE));
+        EarthworkPipelines.Bundle pipelines = EarthworkPipelines.create(com.plot.test.world.IdentityCoordinateService.INSTANCE, solidColumnSampler(expandedTerrain, STONE));
         EarthworkGenerationResult result = pipelines.site().execute(
             EarthworkPipelineContext.of(site, null, expandedTerrain, region));
 

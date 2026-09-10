@@ -12,6 +12,7 @@ import com.plot.plugin.building.model.BuildingFootprint;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 坡屋顶生成器：矩形走精确公式，一般简单多边形走 Straight Skeleton 高度场。
@@ -37,7 +38,7 @@ public final class BuildingRoofGenerator {
             return;
         }
 
-        BuildingCanvasScale scale = canvasScale != null ? canvasScale : BuildingCanvasScale.identity();
+        BuildingCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         ICoordinateService coords = scale.resolveCoordinates(coordinateService);
 
         Polygon roofPolygon = BuildingGeometryUtils.toPolygon(outerPoints);
@@ -92,7 +93,7 @@ public final class BuildingRoofGenerator {
         if (bounds != null) {
             return computeGableRise(point.x, point.y, bounds, ridgeAlongX, pitch, canvasScale);
         }
-        BuildingCanvasScale scale = canvasScale != null ? canvasScale : BuildingCanvasScale.identity();
+        BuildingCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         Vec2d ridgeDirection = skeleton.primaryRidgeDirection();
         double canvasDistance = skeleton.gableEaveDistance(point, ridgeDirection);
         double worldDistance = scale.canvasToBlocks(canvasDistance, point, ridgeDirection);
@@ -116,7 +117,7 @@ public final class BuildingRoofGenerator {
         if (bounds != null) {
             return computeHipRise(point.x, point.y, bounds, pitch, canvasScale);
         }
-        BuildingCanvasScale scale = canvasScale != null ? canvasScale : BuildingCanvasScale.identity();
+        BuildingCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         double canvasDistance = skeleton.skeletalTime(point);
         Vec2d direction = inwardFromNearestEdge(point, skeleton);
         double worldDistance = scale.canvasToBlocks(canvasDistance, point, direction);
@@ -142,7 +143,7 @@ public final class BuildingRoofGenerator {
             boolean ridgeAlongX,
             int pitch,
             BuildingCanvasScale canvasScale) {
-        BuildingCanvasScale scale = canvasScale != null ? canvasScale : BuildingCanvasScale.identity();
+        BuildingCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         Vec2d point = new Vec2d(x, z);
         double canvasDistance = ridgeAlongX
             ? Math.min(z - bounds.minZ(), bounds.maxZ() - z)
@@ -169,7 +170,7 @@ public final class BuildingRoofGenerator {
             BuildingGeometryUtils.RectBounds bounds,
             int pitch,
             BuildingCanvasScale canvasScale) {
-        BuildingCanvasScale scale = canvasScale != null ? canvasScale : BuildingCanvasScale.identity();
+        BuildingCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         Vec2d point = new Vec2d(x, z);
         double dx = Math.min(x - bounds.minX(), bounds.maxX() - x);
         double dz = Math.min(z - bounds.minZ(), bounds.maxZ() - z);

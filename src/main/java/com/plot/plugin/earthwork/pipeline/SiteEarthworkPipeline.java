@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 场地级土方管线：Capture → Compose → Volume/Voxel → Retaining Wall。
@@ -44,10 +45,9 @@ public final class SiteEarthworkPipeline {
             return result;
         }
 
-        ICoordinateService coordinates = operations.coordinateService();
-        EarthworkCanvasScale canvasScale = coordinates != null
-            ? EarthworkCanvasScale.capture(coordinates, site.getSiteBoundary())
-            : EarthworkCanvasScale.identity();
+        ICoordinateService coordinates = Objects.requireNonNull(
+            operations.coordinateService(), "coordinateService");
+        EarthworkCanvasScale canvasScale = EarthworkCanvasScale.capture(coordinates, site.getSiteBoundary());
         List<Vec2d> siteBoundary = EarthworkSiteBoundaryUtils.resolveCaptureBoundary(site, canvasScale);
         if (siteBoundary.size() < 3) {
             LOGGER.warn("场地红线点数不足");

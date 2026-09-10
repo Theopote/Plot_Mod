@@ -11,6 +11,7 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -36,7 +37,7 @@ public final class WallAttachmentPlacer {
         if (result == null || outerPoints == null || outerPoints.size() < 3 || depth <= 0 || width <= 0) {
             return placed;
         }
-        BuildingCanvasScale scale = canvasScale != null ? canvasScale : BuildingCanvasScale.identity();
+        BuildingCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         ICoordinateService coords = scale.resolveCoordinates(coordinateService);
 
         Vec2d anchor = BuildingGeometryUtils.pointOnWallSegment(outerPoints, wallSegmentIndex, positionRatio);

@@ -21,6 +21,7 @@ import net.minecraft.world.World;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 遍历设计地形或平面目标，委托 {@link EarthworkVoxelizer} 累计几何方量与落地方块。
@@ -39,40 +40,13 @@ public final class EarthworkVolumeCalculator {
             GradingPlane plane,
             EarthworkGenerationResult result,
             int previewGridSize,
-            ZoneEdgeSettings edgeSettings) {
-        computeFromPlane(
-            region, world, terrain, plane, result, previewGridSize, edgeSettings,
-            region.getMaterialProperties(), EarthworkCanvasScale.identity());
-    }
-
-    public void computeFromPlane(
-            GradingRegion region,
-            World world,
-            TerrainSnapshot terrain,
-            GradingPlane plane,
-            EarthworkGenerationResult result,
-            int previewGridSize,
-            ZoneEdgeSettings edgeSettings,
-            MaterialConversionModel balanceMaterials) {
-        computeFromPlane(
-            region, world, terrain, plane, result, previewGridSize, edgeSettings, balanceMaterials,
-            EarthworkCanvasScale.identity());
-    }
-
-    public void computeFromPlane(
-            GradingRegion region,
-            World world,
-            TerrainSnapshot terrain,
-            GradingPlane plane,
-            EarthworkGenerationResult result,
-            int previewGridSize,
             ZoneEdgeSettings edgeSettings,
             MaterialConversionModel balanceMaterials,
             EarthworkCanvasScale canvasScale) {
         MaterialConversionModel materials = balanceMaterials != null
             ? balanceMaterials
             : region.getMaterialProperties();
-        EarthworkCanvasScale scale = canvasScale != null ? canvasScale : EarthworkCanvasScale.identity();
+        EarthworkCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         SiteEarthworkReport.VolumeMetrics totals = new SiteEarthworkReport.VolumeMetrics();
         List<Vec2d> regionOutline = region.getOuterPoints();
         for (TerrainSnapshot.Column column : terrain.columns()) {

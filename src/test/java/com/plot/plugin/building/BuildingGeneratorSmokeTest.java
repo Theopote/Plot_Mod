@@ -4,7 +4,9 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.generation.stage.RoofGenerationStage;
 import com.plot.plugin.building.model.BuildingFootprint;
+import com.plot.plugin.building.generation.BuildingCanvasScale;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
+import com.plot.test.building.BuildingCanvasScales;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -18,11 +20,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class BuildingGeneratorSmokeTest {
 
+    private static final BuildingCanvasScale IDENTITY = BuildingCanvasScales.capture(
+        List.of(new Vec2d(0, 0), new Vec2d(1, 0), new Vec2d(0, 1)));
+
     @Test
     void gableRoofRidgeRiseGreaterThanEaveRise() {
         BuildingGeometryUtils.RectBounds bounds = new BuildingGeometryUtils.RectBounds(0, 16, 0, 10);
-        int ridgeRise = BuildingRoofGenerator.computeGableRise(8, 5, bounds, true, 2);
-        int eaveRise = BuildingRoofGenerator.computeGableRise(8, 0.5, bounds, true, 2);
+        int ridgeRise = BuildingRoofGenerator.computeGableRise(8, 5, bounds, true, 2, IDENTITY);
+        int eaveRise = BuildingRoofGenerator.computeGableRise(8, 0.5, bounds, true, 2, IDENTITY);
         assertEquals(0, eaveRise);
         assertTrue(ridgeRise > eaveRise);
         assertEquals(2, ridgeRise);
@@ -31,8 +36,8 @@ class BuildingGeneratorSmokeTest {
     @Test
     void hipRoofCenterRiseGreaterThanCornerRise() {
         BuildingGeometryUtils.RectBounds bounds = new BuildingGeometryUtils.RectBounds(0, 20, 0, 10);
-        int centerRise = BuildingRoofGenerator.computeHipRise(10, 5, bounds, 2);
-        int cornerRise = BuildingRoofGenerator.computeHipRise(0, 0, bounds, 2);
+        int centerRise = BuildingRoofGenerator.computeHipRise(10, 5, bounds, 2, IDENTITY);
+        int cornerRise = BuildingRoofGenerator.computeHipRise(0, 0, bounds, 2, IDENTITY);
         assertEquals(0, cornerRise);
         assertTrue(centerRise > cornerRise);
     }

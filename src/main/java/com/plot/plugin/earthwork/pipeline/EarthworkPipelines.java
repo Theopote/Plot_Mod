@@ -24,7 +24,6 @@ public final class EarthworkPipelines {
     public static Bundle create(
             ICoordinateService coordinateService,
             EarthworkVoxelizer.BlockSampler blockSampler) {
-        // coordinateService 在单元测试中可为 null（预置 TerrainSnapshot）
         EarthworkVoxelizer voxelizer = new EarthworkVoxelizer(blockSampler);
         EarthworkVolumeCalculator volumeCalculator = new EarthworkVolumeCalculator(voxelizer);
         LegacyRegionPipeline legacy = new LegacyRegionPipeline(coordinateService, volumeCalculator);

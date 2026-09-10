@@ -98,7 +98,7 @@ public final class EarthworkTestFixtures {
             GradingRegion region,
             TerrainSnapshot terrain,
             EarthworkVoxelizer.BlockSampler sampler) {
-        return EarthworkPipelines.create(null, sampler).legacy().execute(region, null, terrain, null);
+        return EarthworkPipelines.create(com.plot.test.world.IdentityCoordinateService.INSTANCE, sampler).legacy().execute(region, null, terrain, null);
     }
 
     public static EarthworkSite twoZoneSiteForCompose() {

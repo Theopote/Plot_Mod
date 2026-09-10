@@ -80,7 +80,7 @@ class EarthworkManagerTest {
 
     private static EarthworkPreviewManager newPreviewManager(List<String> status) {
         return new EarthworkPreviewManager(
-            testHost(), EarthworkPipelines.create(null), new TerrainSnapshotCache(), status::add);
+            testHost(), EarthworkPipelines.create(com.plot.test.world.IdentityCoordinateService.INSTANCE), new TerrainSnapshotCache(), status::add);
     }
 
     private static PluginContext testHost() {

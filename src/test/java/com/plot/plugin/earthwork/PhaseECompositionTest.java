@@ -89,8 +89,7 @@ class PhaseECompositionTest {
         ));
 
         RoadSurfaceLookup liveLookup = (edgeId, planPoint) -> 40;
-        DesignTerrainCell cell = DesignTerrainComposer.compose(
-            site, terrain, null, BuildingFootprintLookup.NONE, liveLookup).grid().get(5, 5);
+        DesignTerrainCell cell = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE, BuildingFootprintLookup.NONE, liveLookup).grid().get(5, 5);
         assertEquals(82, cell.targetY(), () -> "targetY=" + cell.targetY());
     }
 

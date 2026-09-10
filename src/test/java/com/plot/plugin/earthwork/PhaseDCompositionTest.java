@@ -40,7 +40,7 @@ class PhaseDCompositionTest {
             new TerrainSnapshot.Column(new Vec2d(6, 5), 6, 5, 65)
         ));
 
-        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
         assertEquals(60, grid.get(4, 5).targetY());
         assertEquals(75, grid.get(6, 5).targetY());
     }
@@ -85,7 +85,7 @@ class PhaseDCompositionTest {
             new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 65)
         ));
 
-        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
         assertEquals(60, grid.get(2, 5).targetY());
         assertEquals(75, grid.get(5, 5).targetY());
     }
@@ -97,8 +97,12 @@ class PhaseDCompositionTest {
         breakline.setLeftZoneId("left");
         breakline.setRightZoneId("right");
 
-        assertNull(BreaklineClassifier.resolveMandatedZoneId(new Vec2d(8, 5), List.of(breakline), 1.0));
-        assertEquals("right", BreaklineClassifier.resolveMandatedZoneId(new Vec2d(6, 5), List.of(breakline), 2.0));
+        var scale = com.plot.test.earthwork.EarthworkCanvasScales.capture(
+            List.of(new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10), new Vec2d(0, 10)));
+        assertNull(BreaklineClassifier.resolveMandatedZoneId(
+            new Vec2d(8, 5), List.of(breakline), 1.0, scale));
+        assertEquals("right", BreaklineClassifier.resolveMandatedZoneId(
+            new Vec2d(6, 5), List.of(breakline), 2.0, scale));
     }
 
     private static EarthworkSite overlappingFlatZones(int yardElev, int yardPriority, int padElev, int padPriority) {

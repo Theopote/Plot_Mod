@@ -11,6 +11,7 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.world.World;
 
 import java.util.HashMap;
+import java.util.Objects;
 import java.util.List;
 import java.util.Map;
 
@@ -44,9 +45,8 @@ public final class TerrainSnapshotCache {
         TerrainSnapshot snapshot = captureForSite(site, world, transformer);
         if (site != null && !snapshot.isEmpty()) {
             String siteId = site.getId();
-            EarthworkCanvasScale canvasScale = transformer != null
-                ? EarthworkCanvasScale.capture(transformer, site.getSiteBoundary())
-                : EarthworkCanvasScale.identity();
+            Objects.requireNonNull(transformer, "transformer");
+            EarthworkCanvasScale canvasScale = EarthworkCanvasScale.capture(transformer, site.getSiteBoundary());
             List<Vec2d> captureBoundary = EarthworkSiteBoundaryUtils.resolveCaptureBoundary(site, canvasScale);
             bySiteId.put(siteId, new Entry(
                 TerrainSnapshotCache.outlineFingerprint(captureBoundary),
@@ -63,9 +63,8 @@ public final class TerrainSnapshotCache {
         if (site == null) {
             return TerrainSnapshot.empty();
         }
-        EarthworkCanvasScale canvasScale = transformer != null
-            ? EarthworkCanvasScale.capture(transformer, site.getSiteBoundary())
-            : EarthworkCanvasScale.identity();
+        Objects.requireNonNull(transformer, "transformer");
+        EarthworkCanvasScale canvasScale = EarthworkCanvasScale.capture(transformer, site.getSiteBoundary());
         List<Vec2d> captureBoundary = EarthworkSiteBoundaryUtils.resolveCaptureBoundary(site, canvasScale);
         if (captureBoundary.size() < 3) {
             return TerrainSnapshot.empty();
@@ -132,9 +131,8 @@ public final class TerrainSnapshotCache {
         if (site == null) {
             return TerrainSnapshot.empty();
         }
-        EarthworkCanvasScale canvasScale = transformer != null
-            ? EarthworkCanvasScale.capture(transformer, site.getSiteBoundary())
-            : EarthworkCanvasScale.identity();
+        Objects.requireNonNull(transformer, "transformer");
+        EarthworkCanvasScale canvasScale = EarthworkCanvasScale.capture(transformer, site.getSiteBoundary());
         List<Vec2d> captureBoundary = EarthworkSiteBoundaryUtils.resolveCaptureBoundary(site, canvasScale);
         if (captureBoundary.size() < 3) {
             return TerrainSnapshot.empty();

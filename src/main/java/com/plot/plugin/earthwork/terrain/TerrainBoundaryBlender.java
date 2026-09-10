@@ -10,6 +10,7 @@ import com.plot.plugin.earthwork.model.GradingZone;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 分区交界高程混合（{@link com.plot.plugin.earthwork.model.CompositionPolicy#getBlendWidthBlocks()}）。
@@ -23,20 +24,12 @@ public final class TerrainBoundaryBlender {
             DesignTerrainGrid grid,
             EarthworkSite site,
             Map<Long, ZoneCoverage> coverageByCellKey,
-            List<com.plot.plugin.earthwork.model.Breakline> breaklines) {
-        apply(grid, site, coverageByCellKey, breaklines, EarthworkCanvasScale.identity());
-    }
-
-    public static void apply(
-            DesignTerrainGrid grid,
-            EarthworkSite site,
-            Map<Long, ZoneCoverage> coverageByCellKey,
             List<com.plot.plugin.earthwork.model.Breakline> breaklines,
             EarthworkCanvasScale canvasScale) {
         if (grid == null || site == null || coverageByCellKey == null || coverageByCellKey.isEmpty()) {
             return;
         }
-        EarthworkCanvasScale scale = canvasScale != null ? canvasScale : EarthworkCanvasScale.identity();
+        EarthworkCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         int blendWidthBlocks = site.getCompositionPolicy().getBlendWidthBlocks();
         if (blendWidthBlocks <= 0) {
             return;

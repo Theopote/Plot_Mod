@@ -40,7 +40,7 @@ class ResolvedDesignSurfaceTest {
             new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 70)));
 
         Map<String, ResolvedDesignSurface> resolved = DesignSurfaceResolver.resolveZoneSurfaces(
-            site, terrain, id -> footprint, null);
+            site, terrain, id -> footprint, com.plot.test.world.IdentityCoordinateService.INSTANCE);
 
         ResolvedDesignSurface surface = resolved.get("pad");
         assertEquals(ResolvedDesignSource.BUILDING_BASE_ELEVATION, surface.source());
@@ -68,7 +68,7 @@ class ResolvedDesignSurfaceTest {
             new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 70)));
 
         Map<String, ResolvedDesignSurface> resolved = DesignSurfaceResolver.resolveZoneSurfaces(
-            site, terrain, id -> footprint, null);
+            site, terrain, id -> footprint, com.plot.test.world.IdentityCoordinateService.INSTANCE);
 
         ResolvedDesignSurface surface = resolved.get("pit");
         assertEquals(ResolvedDesignSource.DERIVED_BUILDING_PIT, surface.source());
@@ -90,7 +90,7 @@ class ResolvedDesignSurfaceTest {
             new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 70)));
 
         Map<String, ResolvedDesignSurface> resolved = DesignSurfaceResolver.resolveZoneSurfaces(
-            site, terrain, id -> null, null);
+            site, terrain, id -> null, com.plot.test.world.IdentityCoordinateService.INSTANCE);
 
         ResolvedDesignSurface surface = resolved.get("lawn");
         assertEquals(ResolvedDesignSource.BEST_FIT, surface.source());
@@ -113,7 +113,7 @@ class ResolvedDesignSurfaceTest {
         TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
             new TerrainSnapshot.Column(new Vec2d(4, 4), 4, 4, 70)));
 
-        DesignTerrainComposer.ComposeResult result = DesignTerrainComposer.compose(site, terrain, null);
+        DesignTerrainComposer.ComposeResult result = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE);
         assertTrue(result.resolvedSurfaces().containsKey("pad"));
         assertEquals(
             ResolvedDesignSource.MANUAL_CONSTANT,

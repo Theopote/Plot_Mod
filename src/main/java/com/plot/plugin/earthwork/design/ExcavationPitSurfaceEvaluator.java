@@ -4,23 +4,13 @@ import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
 import com.plot.api.geometry.Vec2d;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 基坑分区设计面：坑底平台 + 内侧放坡带。
  */
 public final class ExcavationPitSurfaceEvaluator {
     private ExcavationPitSurfaceEvaluator() {
-    }
-
-    public static int evaluateTargetY(
-            Vec2d canvasCenter,
-            List<Vec2d> pitPolygon,
-            int bottomElevation,
-            int workingMarginBlocks,
-            int slopePitchRatio) {
-        return evaluateTargetY(
-            canvasCenter, pitPolygon, bottomElevation, workingMarginBlocks, slopePitchRatio,
-            EarthworkCanvasScale.identity());
     }
 
     public static int evaluateTargetY(
@@ -36,7 +26,7 @@ public final class ExcavationPitSurfaceEvaluator {
         if (!EarthworkGeometryUtils.containsCanvasPoint(pitPolygon, canvasCenter)) {
             return bottomElevation;
         }
-        EarthworkCanvasScale scale = canvasScale != null ? canvasScale : EarthworkCanvasScale.identity();
+        EarthworkCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         double distCanvas = EarthworkGeometryUtils.distanceToPolygonBoundary(pitPolygon, canvasCenter);
         Vec2d inward = inwardDirection(pitPolygon, canvasCenter);
         double distBlocks = scale.canvasToBlocks(distCanvas, canvasCenter, inward);

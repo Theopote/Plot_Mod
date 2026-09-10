@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Objects;
 import java.util.List;
 
 /**
@@ -43,7 +44,7 @@ public final class MassingGeometryResolver {
         if (definition == null) {
             return invalid();
         }
-        BuildingCanvasScale scale = canvasScale != null ? canvasScale : BuildingCanvasScale.identity();
+        BuildingCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         List<Vec2d> outerPoints = BuildingGeometryUtils.copyPoints(definition.footprint().outerPoints());
         if (outerPoints.size() < 3) {
             LOGGER.warn("建筑轮廓点数不足");

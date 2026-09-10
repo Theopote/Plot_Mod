@@ -96,7 +96,7 @@ public final class BuildingGenerationContext {
         this.siteColumnSamples = siteColumnSamples == null || siteColumnSamples.isEmpty()
             ? Map.of()
             : Map.copyOf(siteColumnSamples);
-        this.canvasScale = canvasScale != null ? canvasScale : BuildingCanvasScale.identity();
+        this.canvasScale = Objects.requireNonNull(canvasScale, "canvasScale");
     }
 
     /**
@@ -114,7 +114,11 @@ public final class BuildingGenerationContext {
         Objects.requireNonNull(projectionService, "projectionService");
         BuildingGenerationResult safeResult = result != null ? result : new BuildingGenerationResult();
         if (resolved == null || !resolved.isValid()) {
+            Objects.requireNonNull(coordinateService, "coordinateService");
             MaterialResolver.ResolvedMaterials materials = MaterialResolver.resolve(definition);
+            List<Vec2d> reference = footprint != null && footprint.getOuterPoints().size() >= 3
+                ? footprint.getOuterPoints()
+                : List.of(new Vec2d(0, 0), new Vec2d(1, 0), new Vec2d(0, 1));
             return new BuildingGenerationContext(
                 footprint,
                 definition,
@@ -133,7 +137,7 @@ public final class BuildingGenerationContext {
                 false,
                 BuildingSiteAnalysis.emptyFallback(EngineeringTerrainService.DEFAULT_GROUND_ELEVATION),
                 Map.of(),
-                BuildingCanvasScale.identity()
+                BuildingCanvasScale.capture(coordinateService, reference)
             );
         }
 

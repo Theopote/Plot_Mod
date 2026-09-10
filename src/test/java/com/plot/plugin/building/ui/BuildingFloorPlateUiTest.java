@@ -3,6 +3,7 @@ package com.plot.plugin.building.ui;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.spec.FloorPlateSpec;
+import com.plot.test.building.BuildingCanvasScales;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -23,7 +24,8 @@ class BuildingFloorPlateUiTest {
     @Test
     void emptyFootprintIsDisabledSimpleTower() {
         BuildingFootprint building = footprint(4);
-        BuildingFloorPlateUi.SimpleTowerState state = BuildingFloorPlateUi.readState(building);
+        BuildingFloorPlateUi.SimpleTowerState state =
+            BuildingFloorPlateUi.readState(building, BuildingCanvasScales.capture(RECT));
         assertFalse(state.enabled());
         assertFalse(state.custom());
     }
@@ -31,9 +33,10 @@ class BuildingFloorPlateUiTest {
     @Test
     void applySimpleTowerCreatesTwoPlates() {
         BuildingFootprint building = footprint(4);
-        BuildingFloorPlateUi.applySimpleTower(building, 2, 1.0);
+        BuildingFloorPlateUi.applySimpleTower(building, 2, 1.0, BuildingCanvasScales.capture(RECT));
 
-        BuildingFloorPlateUi.SimpleTowerState state = BuildingFloorPlateUi.readState(building);
+        BuildingFloorPlateUi.SimpleTowerState state =
+            BuildingFloorPlateUi.readState(building, BuildingCanvasScales.capture(RECT));
         assertTrue(state.enabled());
         assertFalse(state.custom());
         assertEquals(2, state.towerStartFloor());
@@ -48,14 +51,15 @@ class BuildingFloorPlateUiTest {
             FloorPlateSpec.of(0, 3, RECT)
         ));
 
-        BuildingFloorPlateUi.SimpleTowerState state = BuildingFloorPlateUi.readState(building);
+        BuildingFloorPlateUi.SimpleTowerState state =
+            BuildingFloorPlateUi.readState(building, BuildingCanvasScales.capture(RECT));
         assertTrue(state.custom());
     }
 
     @Test
     void clearFloorPlatesRemovesDefinitions() {
         BuildingFootprint building = footprint(4);
-        BuildingFloorPlateUi.applySimpleTower(building, 2, 1.0);
+        BuildingFloorPlateUi.applySimpleTower(building, 2, 1.0, BuildingCanvasScales.capture(RECT));
         BuildingFloorPlateUi.clearFloorPlates(building);
         assertTrue(building.getFloorPlates().isEmpty());
     }

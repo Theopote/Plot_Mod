@@ -52,8 +52,7 @@ class PhaseDPlusCompositionTest {
             return null;
         };
 
-        DesignTerrainCell cell = DesignTerrainComposer.compose(
-            site, terrain, null, BuildingFootprintLookup.NONE, lookup).grid().get(5, 5);
+        DesignTerrainCell cell = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE, BuildingFootprintLookup.NONE, lookup).grid().get(5, 5);
         assertEquals(68, cell.targetY());
     }
 
@@ -83,8 +82,7 @@ class PhaseDPlusCompositionTest {
 
         assertThrows(
             RoadCorridorSurfaceResolver.UnresolvedRoadDesignSurfaceException.class,
-            () -> DesignTerrainComposer.compose(
-                site, terrain, null, BuildingFootprintLookup.NONE, RoadSurfaceLookup.NONE));
+            () -> DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE, BuildingFootprintLookup.NONE, RoadSurfaceLookup.NONE));
     }
 
     @Test
@@ -130,7 +128,7 @@ class PhaseDPlusCompositionTest {
             new TerrainSnapshot.Column(new Vec2d(2, 5), 2, 5, 65)
         ));
 
-        DesignTerrainCell cell = DesignTerrainComposer.compose(site, terrain, null).grid().get(2, 5);
+        DesignTerrainCell cell = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid().get(2, 5);
         assertEquals(75, cell.targetY());
     }
 }

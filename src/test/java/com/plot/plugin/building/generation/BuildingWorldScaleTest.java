@@ -76,17 +76,11 @@ class BuildingWorldScaleTest {
         BuildingCanvasScale identity = BuildingCanvasScale.capture(IdentityCoordinateService.INSTANCE, SQUARE);
         BuildingCanvasScale scaled = BuildingCanvasScale.capture(FOUR_BLOCKS_PER_CANVAS_UNIT, SQUARE);
 
-        MassingSpec baseMassing = MassingSpec.create(4, 3, SQUARE, List.of(
-            FloorPlateSpec.of(0, 1, SQUARE),
-            identity.insetFloorPlate(2, 3, SQUARE, 2.0)));
+        FloorPlateSpec identityUpper = identity.insetFloorPlate(2, 3, SQUARE, 2.0);
+        FloorPlateSpec scaledUpper = scaled.insetFloorPlate(2, 3, SQUARE, 2.0);
 
-        MassingSpec identityMassing = FloorPlateScaleResolver.applyScale(baseMassing, identity);
-        MassingSpec scaledMassing = FloorPlateScaleResolver.applyScale(baseMassing, scaled);
-
-        double identityWorldInset = minWorldX(
-            identityMassing.plateForFloor(2).outerPoints(), IdentityCoordinateService.INSTANCE);
-        double scaledWorldInset = minWorldX(
-            scaledMassing.plateForFloor(2).outerPoints(), FOUR_BLOCKS_PER_CANVAS_UNIT);
+        double identityWorldInset = minWorldX(identityUpper.outerPoints(), IdentityCoordinateService.INSTANCE);
+        double scaledWorldInset = minWorldX(scaledUpper.outerPoints(), FOUR_BLOCKS_PER_CANVAS_UNIT);
 
         assertEquals(2.0, identityWorldInset, 0.5);
         assertEquals(2.0, scaledWorldInset, 0.5);
@@ -135,7 +129,7 @@ class BuildingWorldScaleTest {
     @Test
     void gableRoofRisePreservesPitchRatioAcrossProjection() {
         BuildingGeometryUtils.RectBounds bounds = new BuildingGeometryUtils.RectBounds(0, 20, 0, 10);
-        BuildingCanvasScale identity = BuildingCanvasScale.identity();
+        BuildingCanvasScale identity = com.plot.test.building.BuildingCanvasScales.capture(SQUARE);
         BuildingCanvasScale scaled = BuildingCanvasScale.capture(FOUR_BLOCKS_PER_CANVAS_UNIT, SQUARE);
         Vec2d ridgePoint = new Vec2d(10, 5);
         Vec2d eaveDirection = new Vec2d(0, 1);
@@ -160,10 +154,10 @@ class BuildingWorldScaleTest {
     void simpleTowerUiRoundTripUsesBlocksNotCanvasUnits() {
         BuildingFootprint building = new BuildingFootprint(SQUARE, true);
         building.setFloors(4);
-        BuildingFloorPlateUi.applySimpleTower(building, 2, 2.0, BuildingCanvasScale.identity());
+        BuildingFloorPlateUi.applySimpleTower(building, 2, 2.0, com.plot.test.building.BuildingCanvasScales.capture(SQUARE));
 
         BuildingFloorPlateUi.SimpleTowerState state =
-            BuildingFloorPlateUi.readState(building, BuildingCanvasScale.identity());
+            BuildingFloorPlateUi.readState(building, com.plot.test.building.BuildingCanvasScales.capture(SQUARE));
         assertTrue(state.enabled());
         assertEquals(2.0, state.insetDistance(), 1e-6);
     }

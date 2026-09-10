@@ -125,7 +125,7 @@ class SlopeDaylightSolverTest {
             new TerrainSnapshot.Column(new Vec2d(5, 0.5), 5, 0, 68),
             new TerrainSnapshot.Column(new Vec2d(5, -0.5), 5, -1, 65)));
 
-        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, com.plot.test.world.IdentityCoordinateService.INSTANCE).grid();
         assertEquals(64, grid.get(5, 5).targetY());
         assertTrue(grid.get(5, 1).targetY() > 64);
         assertEquals(65, grid.get(5, -1).targetY());

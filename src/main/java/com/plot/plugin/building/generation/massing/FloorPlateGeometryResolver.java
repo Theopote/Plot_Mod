@@ -9,6 +9,7 @@ import com.plot.plugin.building.model.spec.FloorPlateSpec;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 将 {@link FloorPlateSpec} 解析为外/内轮廓与格网单元。
@@ -39,7 +40,7 @@ public final class FloorPlateGeometryResolver {
             FloorPlateSpec plate,
             int wallThicknessBlocks,
             BuildingCanvasScale canvasScale) {
-        BuildingCanvasScale scale = canvasScale != null ? canvasScale : BuildingCanvasScale.identity();
+        BuildingCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         List<Vec2d> outerPoints = BuildingGeometryUtils.copyPoints(plate.outerPoints());
         Polygon outerPolygon = BuildingGeometryUtils.toPolygon(outerPoints);
         double canvasWallThickness = scale.uniformBlocksToCanvas(wallThicknessBlocks, outerPoints);

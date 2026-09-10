@@ -6,6 +6,7 @@ import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.spec.FloorPlateSpec;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * FloorPlate 轻量 UI 逻辑：裙房 + 上部退台（塔楼）两板模式。
@@ -30,10 +31,6 @@ public final class BuildingFloorPlateUi {
     private BuildingFloorPlateUi() {
     }
 
-    public static SimpleTowerState readState(BuildingFootprint building) {
-        return readState(building, BuildingCanvasScale.identity());
-    }
-
     public static SimpleTowerState readState(BuildingFootprint building, BuildingCanvasScale canvasScale) {
         if (building == null || building.getFloors() < 2) {
             return new SimpleTowerState(false, false, 1, 1.0);
@@ -51,20 +48,17 @@ public final class BuildingFloorPlateUi {
             return new SimpleTowerState(true, true, defaultTowerStart(building.getFloors()), 1.0);
         }
 
+        BuildingCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         double inset = guessInsetBlocks(
             building.getOuterPoints(),
             pattern.upper().outerPoints(),
             pattern.upper().floorStart(),
             pattern.upper().floorEnd(),
-            canvasScale);
+            scale);
         if (inset < 0) {
             return new SimpleTowerState(true, true, pattern.towerStartFloor(), 1.0);
         }
         return new SimpleTowerState(true, false, pattern.towerStartFloor(), inset);
-    }
-
-    public static void applySimpleTower(BuildingFootprint building, int towerStartFloor, double insetBlocks) {
-        applySimpleTower(building, towerStartFloor, insetBlocks, BuildingCanvasScale.identity());
     }
 
     public static void applySimpleTower(
@@ -75,7 +69,7 @@ public final class BuildingFloorPlateUi {
         if (building == null || building.getFloors() < 2) {
             return;
         }
-        BuildingCanvasScale scale = canvasScale != null ? canvasScale : BuildingCanvasScale.identity();
+        BuildingCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         int floors = building.getFloors();
         int start = Math.clamp(towerStartFloor, 1, floors - 1);
         double inset = Math.clamp(insetBlocks, MIN_INSET, MAX_INSET);
@@ -110,7 +104,7 @@ public final class BuildingFloorPlateUi {
             int towerStart,
             int floorEnd,
             BuildingCanvasScale canvasScale) {
-        BuildingCanvasScale scale = canvasScale != null ? canvasScale : BuildingCanvasScale.identity();
+        BuildingCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         for (double inset = MIN_INSET; inset <= MAX_INSET + 1e-6; inset += INSET_STEP) {
             try {
                 FloorPlateSpec spec = scale.insetFloorPlate(towerStart, floorEnd, base, inset);
@@ -121,7 +115,7 @@ public final class BuildingFloorPlateUi {
                 // try next inset
             }
         }
-        return -1;
+        return -1.0;
     }
 
     public static void clearFloorPlates(BuildingFootprint building) {

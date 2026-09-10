@@ -109,8 +109,7 @@ class EarthworkPreviewBuildConsistencyTest {
             EarthworkSite site,
             GradingRegion region,
             TerrainSnapshot terrain) {
-        EarthworkPipelines.Bundle pipelines = EarthworkPipelines.create(
-            null, solidColumnSampler(terrain, STONE));
+        EarthworkPipelines.Bundle pipelines = EarthworkPipelines.create(com.plot.test.world.IdentityCoordinateService.INSTANCE, solidColumnSampler(terrain, STONE));
         return pipelines.site().execute(EarthworkPipelineContext.of(
             site,
             null,
@@ -128,7 +127,7 @@ class EarthworkPreviewBuildConsistencyTest {
         PluginContext host = capturingHost(enqueued);
         EarthworkPreviewManager previewManager = EarthworkPreviewManager.withGenerationResult(
             host,
-            EarthworkPipelines.create(null).site(),
+            EarthworkPipelines.create(com.plot.test.world.IdentityCoordinateService.INSTANCE).site(),
             new TerrainSnapshotCache(),
             msg -> {},
             preview);

@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 在 {@link DesignTerrainComposer} 合成后，按分区边界策略修正目标高程。
@@ -27,19 +28,12 @@ public final class ZoneBoundarySlopeApplicator {
   public static void apply(
       DesignTerrainGrid grid,
       List<GradingZone> zones,
-      Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators) {
-    apply(grid, zones, zoneEvaluators, EarthworkCanvasScale.identity());
-  }
-
-  public static void apply(
-      DesignTerrainGrid grid,
-      List<GradingZone> zones,
       Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators,
       EarthworkCanvasScale canvasScale) {
     if (grid == null || zones == null || zones.isEmpty()) {
       return;
     }
-    EarthworkCanvasScale scale = canvasScale != null ? canvasScale : EarthworkCanvasScale.identity();
+    EarthworkCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
     List<ZoneContext> contexts = buildContexts(zones, zoneEvaluators);
     if (contexts.isEmpty()) {
       return;
@@ -143,7 +137,7 @@ public final class ZoneBoundarySlopeApplicator {
       BoundaryProximity proximity,
       ZoneEdgeSettings settings,
       EarthworkCanvasScale canvasScale) {
-    EarthworkCanvasScale scale = canvasScale != null ? canvasScale : EarthworkCanvasScale.identity();
+    EarthworkCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
     double worldDistance = worldDistanceBlocks(proximity, cell.center(), scale);
     if (worldDistance <= 0.0) {
       return toeY;
@@ -162,16 +156,6 @@ public final class ZoneBoundarySlopeApplicator {
         settings.getBenchWidthBlocks(),
         buildGroundProfile(grid, cell, proximity.closestPoint(), scale),
         settings.getMaximumReachBlocks());
-  }
-
-  /** 无格网上下文时的退化入口（沿射线假设现状高程不变）。 */
-  static int computeExteriorSlopeTarget(
-      int existingGroundY,
-      int toeY,
-      double distanceToBoundary,
-      ZoneEdgeSettings settings) {
-    return computeExteriorSlopeTarget(
-        existingGroundY, toeY, distanceToBoundary, settings, EarthworkCanvasScale.identity());
   }
 
   static int computeExteriorSlopeTarget(
@@ -335,19 +319,9 @@ public final class ZoneBoundarySlopeApplicator {
       int existingGroundY,
       int designTargetY,
       List<Vec2d> outerPoints,
-      ZoneEdgeSettings settings) {
-    return resolveLegacyTargetY(
-        canvasCenter, existingGroundY, designTargetY, outerPoints, settings, EarthworkCanvasScale.identity());
-  }
-
-  public static int resolveLegacyTargetY(
-      Vec2d canvasCenter,
-      int existingGroundY,
-      int designTargetY,
-      List<Vec2d> outerPoints,
       ZoneEdgeSettings settings,
       EarthworkCanvasScale canvasScale) {
-    EarthworkCanvasScale scale = canvasScale != null ? canvasScale : EarthworkCanvasScale.identity();
+    EarthworkCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
     if (settings == null || !settings.hasActiveTreatment() || outerPoints == null || outerPoints.size() < 3) {
       return designTargetY;
     }

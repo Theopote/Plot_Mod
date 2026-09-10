@@ -29,8 +29,7 @@ class SiteEarthworkPipelineTest {
         site.addZone(tinyCompanionZone("companion"));
 
         TerrainSnapshot terrain = rectangleTerrain(0, 9, 0, 9, 64);
-        EarthworkPipelines.Bundle pipelines = EarthworkPipelines.create(
-            null, solidColumnSampler(terrain, STONE));
+        EarthworkPipelines.Bundle pipelines = EarthworkPipelines.create(com.plot.test.world.IdentityCoordinateService.INSTANCE, solidColumnSampler(terrain, STONE));
         EarthworkPipelineContext context = EarthworkPipelineContext.of(site, null, terrain);
 
         EarthworkGenerationResult first = pipelines.site().execute(context);
@@ -53,8 +52,7 @@ class SiteEarthworkPipelineTest {
         site.addZone(tinyCompanionZone("companion"));
 
         TerrainSnapshot terrain = rectangleTerrain(0, 9, 0, 9, 64);
-        EarthworkPipelines.Bundle pipelines = EarthworkPipelines.create(
-            null, solidColumnSampler(terrain, STONE));
+        EarthworkPipelines.Bundle pipelines = EarthworkPipelines.create(com.plot.test.world.IdentityCoordinateService.INSTANCE, solidColumnSampler(terrain, STONE));
         EarthworkGenerationResult result = pipelines.site().execute(
             EarthworkPipelineContext.of(site, null, terrain));
 

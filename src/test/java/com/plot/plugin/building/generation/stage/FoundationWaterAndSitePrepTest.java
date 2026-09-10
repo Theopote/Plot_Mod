@@ -38,14 +38,14 @@ class FoundationWaterAndSitePrepTest {
 
     @Test
     void foundationFillsFromLakeBottomToBaseThroughWaterColumn() {
-        BuildingFootprint footprint = new BuildingFootprint(List.of(
-            new Vec2d(0, 0), new Vec2d(2, 0), new Vec2d(2, 2), new Vec2d(0, 2)
-        ), true);
+        List<Vec2d> outline = List.of(
+            new Vec2d(0, 0), new Vec2d(2, 0), new Vec2d(2, 2), new Vec2d(0, 2));
+        BuildingFootprint footprint = new BuildingFootprint(outline, true);
         BuildingDefinition definition = BuildingDefinitionMapper.fromFootprint(footprint);
+        var canvasScale = com.plot.test.building.BuildingCanvasScales.capture(outline);
         BuildingGenerationResult result = new BuildingGenerationResult();
         MassingGeometryResolver.ResolvedMassingGeometry massing =
-            MassingGeometryResolver.resolve(
-                definition, result, com.plot.plugin.building.generation.BuildingCanvasScale.identity());
+            MassingGeometryResolver.resolve(definition, result, canvasScale);
 
         Map<Long, BuildingSiteColumnSample> columns = new HashMap<>();
         for (BuildingGenerationContext.GridCell cell : massing.footprintCells()) {
@@ -67,7 +67,8 @@ class FoundationWaterAndSitePrepTest {
             analysis,
             site,
             MaterialResolver.resolve(definition),
-            columns);
+            columns,
+            canvasScale);
 
         BuildingGenerationContext context = BuildingGenerationContext.fromResolved(
             footprint,
