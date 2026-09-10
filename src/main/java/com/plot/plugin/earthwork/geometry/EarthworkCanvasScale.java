@@ -61,6 +61,21 @@ public final class EarthworkCanvasScale {
         return canvasDistance / unitsPerBlock;
     }
 
+    /** 沿线段采样步数：按世界方块长度取 ceil，至少 1 步。 */
+    public int stepsAlongSegment(Vec2d start, Vec2d end) {
+        if (start == null || end == null) {
+            return 1;
+        }
+        Vec2d segment = end.subtract(start);
+        double canvasLength = start.distance(end);
+        if (canvasLength <= 1e-9) {
+            return 1;
+        }
+        Vec2d midpoint = start.lerp(end, 0.5);
+        double worldLength = canvasToBlocks(canvasLength, midpoint, segment);
+        return Math.max(1, (int) Math.ceil(worldLength));
+    }
+
     public double uniformBlocksToCanvas(double blocks, List<Vec2d> polygon) {
         if (blocks == 0.0) {
             return 0.0;

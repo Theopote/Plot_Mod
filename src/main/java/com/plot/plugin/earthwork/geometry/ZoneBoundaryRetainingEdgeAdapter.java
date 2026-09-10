@@ -56,9 +56,18 @@ public final class ZoneBoundaryRetainingEdgeAdapter {
             EarthworkSite site,
             DesignTerrainGrid grid,
             Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> evaluators) {
+        return deriveVirtualEdges(site, grid, evaluators, EarthworkCanvasScale.identity());
+    }
+
+    public static List<RetainingEdge> deriveVirtualEdges(
+            EarthworkSite site,
+            DesignTerrainGrid grid,
+            Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> evaluators,
+            EarthworkCanvasScale canvasScale) {
         if (site == null) {
             return List.of();
         }
+        EarthworkCanvasScale scale = canvasScale != null ? canvasScale : EarthworkCanvasScale.identity();
         List<RetainingEdge> edges = new ArrayList<>();
         for (GradingZone zone : site.getGradingZones().values()) {
             ZoneEdgeSettings settings = zone.getEdgeSettings();
@@ -69,7 +78,12 @@ public final class ZoneBoundaryRetainingEdgeAdapter {
                 edge.setLinkedZoneId(segment.zoneId());
                 edge.setUseLinkedZoneFillMaterial(settings.isUseLinkedZoneFillMaterial());
                 edge.setWallMaterial(settings.getWallMaterial());
-                sampleSegmentElevations(edge, segment, grid, evaluators != null ? evaluators.get(segment.zoneId()) : null);
+                sampleSegmentElevations(
+                    edge,
+                    segment,
+                    grid,
+                    evaluators != null ? evaluators.get(segment.zoneId()) : null,
+                    scale);
                 edges.add(edge);
             }
         }
@@ -149,10 +163,11 @@ public final class ZoneBoundaryRetainingEdgeAdapter {
             RetainingEdge edge,
             BoundarySegment segment,
             DesignTerrainGrid grid,
-            DesignSurfaceResolver.ZoneTargetEvaluator evaluator) {
+            DesignSurfaceResolver.ZoneTargetEvaluator evaluator,
+            EarthworkCanvasScale canvasScale) {
         int minBottom = Integer.MAX_VALUE;
         int maxTop = Integer.MIN_VALUE;
-        int steps = Math.max(1, (int) Math.ceil(segment.start().distance(segment.end())));
+        int steps = canvasScale.stepsAlongSegment(segment.start(), segment.end());
         for (int step = 0; step <= steps; step++) {
             double ratio = step / (double) steps;
             Vec2d canvasPoint = segment.start().lerp(segment.end(), ratio);

@@ -99,6 +99,27 @@ class EarthworkWorldScaleTest {
     }
 
     @Test
+    void retainingWallSegmentStepsUseWorldBlocks() {
+        Vec2d start = new Vec2d(0, 0);
+        Vec2d end = new Vec2d(6, 0);
+        EarthworkCanvasScale identity = EarthworkCanvasScale.capture(IdentityCoordinateService.INSTANCE, List.of(start, end));
+        EarthworkCanvasScale scaled = EarthworkCanvasScale.capture(FOUR_BLOCKS_PER_CANVAS_UNIT, List.of(start, end));
+
+        assertEquals(6, identity.stepsAlongSegment(start, end));
+        assertEquals(24, scaled.stepsAlongSegment(start, end));
+    }
+
+    @Test
+    void retainingWallStepsAreInvariantForSameWorldSegmentLength() {
+        EarthworkCanvasScale identity = EarthworkCanvasScale.capture(IdentityCoordinateService.INSTANCE, PAD);
+        EarthworkCanvasScale scaled = EarthworkCanvasScale.capture(FOUR_BLOCKS_PER_CANVAS_UNIT, PAD);
+
+        assertEquals(
+            identity.stepsAlongSegment(new Vec2d(0, 0), new Vec2d(24, 0)),
+            scaled.stepsAlongSegment(new Vec2d(0, 0), new Vec2d(6, 0)));
+    }
+
+    @Test
     void exteriorSlopeComposeIsScaleInvariantAtSameWorldDistance() {
         EarthworkSite site = createExteriorSlopeSite();
         TerrainSnapshot identityTerrain = TerrainSnapshot.forColumns(List.of(

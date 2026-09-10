@@ -1,5 +1,6 @@
 package com.plot.plugin.earthwork.voxel;
 import com.plot.plugin.earthwork.design.DesignSurfaceResolver;
+import com.plot.plugin.earthwork.geometry.EarthworkCanvasScale;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
 import com.plot.plugin.earthwork.geometry.ZoneBoundaryRetainingEdgeAdapter;
 import com.plot.plugin.earthwork.grading.DesignTerrainCell;
@@ -49,14 +50,15 @@ public final class RetainingWallGenerator {
         if (site == null || world == null || result == null || transformer == null) {
             return;
         }
+        EarthworkCanvasScale canvasScale = EarthworkCanvasScale.capture(transformer, site.getSiteBoundary());
         List<RetainingEdge> edges = new ArrayList<>(site.getRetainingEdges());
-        edges.addAll(ZoneBoundaryRetainingEdgeAdapter.deriveVirtualEdges(site, grid, evaluators));
+        edges.addAll(ZoneBoundaryRetainingEdgeAdapter.deriveVirtualEdges(site, grid, evaluators, canvasScale));
         Set<Long> placedColumns = new HashSet<>();
         for (RetainingEdge edge : edges) {
             if (edge == null) {
                 continue;
             }
-            generateWall(edge, site, world, transformer, result, placedColumns, grid);
+            generateWall(edge, site, world, transformer, result, placedColumns, grid, canvasScale);
         }
     }
 
@@ -67,7 +69,8 @@ public final class RetainingWallGenerator {
             ICoordinateService transformer,
             EarthworkGenerationResult result,
             Set<Long> placedColumns,
-            DesignTerrainGrid grid) {
+            DesignTerrainGrid grid,
+            EarthworkCanvasScale canvasScale) {
         List<Vec2d> polyline = edge.getPolyline();
         if (polyline.size() < 2) {
             return;
@@ -82,8 +85,7 @@ public final class RetainingWallGenerator {
             if (start == null || end == null) {
                 continue;
             }
-            double segmentLength = start.distance(end);
-            int steps = Math.max(1, (int) Math.ceil(segmentLength));
+            int steps = canvasScale.stepsAlongSegment(start, end);
             for (int step = 0; step <= steps; step++) {
                 double ratio = step / (double) steps;
                 Vec2d canvasPoint = start.lerp(end, ratio);
