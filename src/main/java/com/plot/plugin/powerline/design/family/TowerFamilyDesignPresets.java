@@ -316,10 +316,10 @@ public final class TowerFamilyDesignPresets {
             "Monster Pylon Suspension",
             TowerStructurePresets.uhvGiantTower(),
             ConductorArrangement.monsterQuadCircuit(),
-            52,
+            56,
             InsulatorType.SUSPENSION,
             5,
-            metadata(TowerRole.SUSPENSION, 82, 140, 5));
+            metadata(TowerRole.SUSPENSION, 80, 140, 5));
     }
 
     public static PoleDesign monsterPylonAngle() {
@@ -328,7 +328,7 @@ public final class TowerFamilyDesignPresets {
             "Monster Pylon Angle",
             TowerStructurePresets.uhvGiantTower(),
             ConductorArrangement.monsterQuadCircuit(),
-            52,
+            56,
             InsulatorType.STRAIN,
             6,
             metadata(TowerRole.ANGLE, 86, 130, 60));
@@ -340,10 +340,10 @@ public final class TowerFamilyDesignPresets {
             "Monster Pylon Dead-End",
             TowerStructurePresets.uhvGiantTower(),
             ConductorArrangement.monsterQuadCircuit(),
-            52,
+            56,
             InsulatorType.STRAIN,
             6,
-            metadata(TowerRole.DEAD_END, 88, 130, 90));
+            metadata(TowerRole.DEAD_END, 84, 130, 90));
     }
 
     public static PoleDesign monsterPylonTerminal() {
@@ -352,7 +352,7 @@ public final class TowerFamilyDesignPresets {
             "Monster Pylon Terminal",
             TowerStructurePresets.uhvGiantTower(),
             ConductorArrangement.monsterQuadCircuit(),
-            52,
+            56,
             InsulatorType.STRAIN,
             5,
             metadata(TowerRole.TERMINAL, 82, 120, 90));

@@ -166,15 +166,15 @@ public final class TowerStructurePresets {
             LATTICE_BRACE);
         addStations(structure,
             new double[] {0, 14, 26, 38, 50, 60},
-            new double[] {9.0, 8.5, 7.0, 4.0, 2.5, 1.8},
-            new double[] {6.0, 5.7, 4.7, 2.8, 1.8, 1.2});
-        addVariedBays(structure,
+            new double[] {9.0, 8.5, 7.0, 4.0, 2.8, 1.8},
+            new double[] {6.0, 5.7, 4.7, 2.8, 1.9, 1.2});
+        addVariedBays(structure, 3,
             BracingPattern.X, BracingPattern.X,
             BracingPattern.X, BracingPattern.K,
             BracingPattern.V);
-        addTrussArm(structure, "arm_lower", 38, 11.5, TowerArmShape.TAPERED, 4, 2.0);
-        addTrussArm(structure, "arm_middle", 47, 15.5, TowerArmShape.TRUSS, 4, 2.5);
-        addTrussArm(structure, "arm_upper", 56, 12.0, TowerArmShape.TRUSS, 3, 2.0);
+        addTrussArm(structure, "arm_lower", 38, 11.0, TowerArmShape.TAPERED, 4, 2.0);
+        addTrussArm(structure, "arm_middle", 47, 15.0, TowerArmShape.TRUSS, 4, 2.5);
+        addTrussArm(structure, "arm_upper", 56, 11.0, TowerArmShape.TRUSS, 3, 2.0);
         addPeak(structure, 60);
         return structure;
     }
@@ -206,7 +206,7 @@ public final class TowerStructurePresets {
         return uhvGiantTower();
     }
 
-    /** UHV 巨型输电塔：地标级，四层差异化横担。 */
+    /** UHV 巨型输电塔：地标级，三组超宽主横担（非四层脚手架）。 */
     public static TowerStructureDesign uhvGiantTower() {
         TowerStructureDesign structure = latticeShell(
             TowerSilhouette.GIANT,
@@ -214,17 +214,15 @@ public final class TowerStructurePresets {
             LATTICE_BRACE);
         addStations(structure,
             new double[] {0, 14, 28, 42, 56, 70, 80},
-            new double[] {14.0, 13.0, 11.0, 8.5, 6.0, 3.5, 2.2},
-            new double[] {9.0, 8.5, 7.2, 5.6, 4.0, 2.4, 1.5});
-        addVariedBays(structure,
+            new double[] {14.0, 13.0, 11.0, 8.5, 5.5, 3.2, 2.0},
+            new double[] {9.0, 8.5, 7.2, 5.6, 3.6, 2.1, 1.3});
+        addVariedBays(structure, 3,
             BracingPattern.X, BracingPattern.X,
             BracingPattern.X, BracingPattern.K,
-            BracingPattern.K, BracingPattern.K,
-            BracingPattern.V);
-        addTrussArm(structure, "arm_1", 52, 17.5, TowerArmShape.TAPERED, 5, 2.5);
-        addTrussArm(structure, "arm_2", 62, 22.0, TowerArmShape.TRUSS, 5, 3.0);
-        addTrussArm(structure, "arm_3", 72, 26.0, TowerArmShape.TRUSS, 5, 3.2);
-        addTrussArm(structure, "arm_4", 78, 19.0, TowerArmShape.UPSWEEP, 4, 2.5);
+            BracingPattern.V, BracingPattern.V);
+        addTrussArm(structure, "arm_lower", 56, 20.0, TowerArmShape.TAPERED, 5, 2.8);
+        addTrussArm(structure, "arm_main", 66, 26.0, TowerArmShape.TRUSS, 5, 3.2);
+        addTrussArm(structure, "arm_upper", 74, 22.0, TowerArmShape.TRUSS, 4, 2.8);
         addPeak(structure, 80);
         return structure;
     }

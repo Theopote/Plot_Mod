@@ -126,11 +126,33 @@ public final class ConductorArrangement {
         return new ConductorArrangement(CATALOG_DOUBLE_CIRCUIT_DRUM, channels);
     }
 
-    /** 四层四回路（12 主线）+ 双顶线。 */
+    /** 双 deck 四回路（12 主线）+ 双顶线；deck 偏移相对挂点基准高度。 */
     public static ConductorArrangement monsterQuadCircuit() {
-        return fromAttachments(
-            CATALOG_MONSTER_QUAD,
-            ConductorAttachmentPresets.quadCircuitWithTwinTop(0, 20, -11, -8, -5, 5, 8, 11));
+        List<ConductorChannel> channels = new ArrayList<>();
+        addQuadDeck(channels, "ll", "lr", 0, -11, -8, -5, 5, 8, 11);
+        addQuadDeck(channels, "ul", "ur", 18, -11, -8, -5, 5, 8, 11);
+        channels.add(new ConductorChannel("top_wire_l", "TWL", AttachmentRole.TOP_WIRE, -3.0, 24));
+        channels.add(new ConductorChannel("top_wire_r", "TWR", AttachmentRole.TOP_WIRE, 3.0, 24));
+        return new ConductorArrangement(CATALOG_MONSTER_QUAD, channels);
+    }
+
+    private static void addQuadDeck(
+            List<ConductorChannel> channels,
+            String leftPrefix,
+            String rightPrefix,
+            double deckOffset,
+            double leftA,
+            double leftB,
+            double leftC,
+            double rightA,
+            double rightB,
+            double rightC) {
+        channels.add(new ConductorChannel(leftPrefix + "_phase_a", leftPrefix.toUpperCase() + "A", AttachmentRole.PHASE_A, leftA, deckOffset));
+        channels.add(new ConductorChannel(leftPrefix + "_phase_b", leftPrefix.toUpperCase() + "B", AttachmentRole.PHASE_B, leftB, deckOffset));
+        channels.add(new ConductorChannel(leftPrefix + "_phase_c", leftPrefix.toUpperCase() + "C", AttachmentRole.PHASE_C, leftC, deckOffset));
+        channels.add(new ConductorChannel(rightPrefix + "_phase_a", rightPrefix.toUpperCase() + "A", AttachmentRole.PHASE_A, rightA, deckOffset));
+        channels.add(new ConductorChannel(rightPrefix + "_phase_b", rightPrefix.toUpperCase() + "B", AttachmentRole.PHASE_B, rightB, deckOffset));
+        channels.add(new ConductorChannel(rightPrefix + "_phase_c", rightPrefix.toUpperCase() + "C", AttachmentRole.PHASE_C, rightC, deckOffset));
     }
 
     public static ConductorArrangement fromLegacyLayout(

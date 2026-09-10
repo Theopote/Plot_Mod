@@ -74,6 +74,24 @@ class ConductorArrangementTest {
     }
 
     @Test
+    void monsterQuadCircuitAlignsWithUhvArms() {
+        List<ConductorAttachment> attachments = ConductorArrangement.monsterQuadCircuit()
+            .toAttachments(56, InsulatorType.SUSPENSION, 5);
+        Set<Double> phaseHeights = attachments.stream()
+            .filter(a -> a.getRole() != AttachmentRole.TOP_WIRE)
+            .map(ConductorAttachment::getVerticalOffset)
+            .collect(java.util.stream.Collectors.toSet());
+        assertEquals(Set.of(56.0, 74.0), phaseHeights);
+        long topWires = attachments.stream()
+            .filter(a -> a.getRole() == AttachmentRole.TOP_WIRE)
+            .count();
+        assertEquals(2, topWires);
+        assertTrue(attachments.stream()
+            .filter(a -> a.getRole() == AttachmentRole.TOP_WIRE)
+            .allMatch(a -> a.getVerticalOffset() >= 78.0 && a.getVerticalOffset() <= 82.0));
+    }
+
+    @Test
     void monsterPylonDesignHasQuadCircuitAttachments() {
         var design = TowerFamilyDesignPresets.monsterPylonSuspension();
         assertEquals(14, design.getAttachments().size());

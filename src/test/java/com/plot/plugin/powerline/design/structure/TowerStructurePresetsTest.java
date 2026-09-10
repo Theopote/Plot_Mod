@@ -59,13 +59,34 @@ class TowerStructurePresetsTest {
     }
 
     @Test
-    void armReachesAreNotAllIdentical() {
+    void megaLatticeArmHierarchy() {
         List<Double> reaches = TowerStructurePresets.megaLatticeTower().getArms().stream()
+            .sorted(Comparator.comparingDouble(TowerArm::getBaseHeight))
             .map(TowerArm::getLateralReach)
             .toList();
-        long distinct = reaches.stream().distinct().count();
-        assertEquals(3, distinct, "mega lattice arm reaches should all differ");
-        assertEquals(15.5, reaches.stream().mapToDouble(Double::doubleValue).max().orElse(0), 0.01);
+        assertEquals(List.of(11.0, 15.0, 11.0), reaches);
+    }
+
+    @Test
+    void uhvGiantUsesThreeLandmarkArms() {
+        TowerStructureDesign giant = TowerStructurePresets.uhvGiantTower();
+        assertEquals(3, giant.getArms().size());
+        List<TowerArm> arms = giant.getArms().stream()
+            .sorted(Comparator.comparingDouble(TowerArm::getBaseHeight))
+            .toList();
+        assertEquals(20.0, arms.get(0).getLateralReach(), 0.5);
+        assertEquals(26.0, arms.get(1).getLateralReach(), 0.5);
+        assertEquals(22.0, arms.get(2).getLateralReach(), 0.5);
+        long planBays = giant.getBays().stream().filter(TowerBay::isPlanDiagonalBracing).count();
+        assertEquals(3, planBays, "UHV plan diagonals limited to leg section");
+    }
+
+    @Test
+    void megaLatticeLimitsPlanDiagonalBracing() {
+        long planBays = TowerStructurePresets.megaLatticeTower().getBays().stream()
+            .filter(TowerBay::isPlanDiagonalBracing)
+            .count();
+        assertEquals(3, planBays);
     }
 
     @Test
