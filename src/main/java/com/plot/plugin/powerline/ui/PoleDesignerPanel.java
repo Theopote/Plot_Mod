@@ -23,7 +23,10 @@ import com.plot.ui.component.UIUtils;
 import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.utils.PlotI18n;
+import imgui.ImDrawList;
 import imgui.ImGui;
+import imgui.ImVec2;
+import imgui.flag.ImGuiMouseCursor;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
@@ -37,10 +40,12 @@ import java.util.Map;
 
 /** 杆塔分层设计器独立窗口（居中弹出、可拖动、不参与 DockSpace 停靠）。 */
 public final class PoleDesignerPanel {
-    private static final float DESIGNER_WIDTH = 920f;
-    private static final float DESIGNER_HEIGHT = 620f;
-    private static final float PREVIEW_COLUMN_WIDTH = 272f;
-    private static final float COLUMN_GAP = 12f;
+    private static final float DESIGNER_WIDTH = 660f;
+    private static final float DESIGNER_HEIGHT = 760f;
+    private static final float DEFAULT_PREVIEW_COLUMN_WIDTH = 272f;
+    private static final float MIN_PREVIEW_COLUMN_WIDTH = 200f;
+    private static final float MIN_PARAMS_COLUMN_WIDTH = 280f;
+    private static final float SPLITTER_WIDTH = 6f;
     private static final int DESIGNER_WINDOW_FLAGS =
         ImGuiWindowFlags.NoDocking | ImGuiWindowFlags.NoSavedSettings;
     private static final int PREVIEW_COLUMN_FLAGS =
@@ -67,6 +72,7 @@ public final class PoleDesignerPanel {
     private final List<LayerAction> pendingLayerActions = new ArrayList<>();
     private final ImBoolean designerWindowOpen = new ImBoolean(false);
     private boolean focusOnNextRender;
+    private float previewColumnWidth = DEFAULT_PREVIEW_COLUMN_WIDTH;
 
     public PoleDesignerPanel(PowerLineUiContext ctx) {
         this.ctx = ctx;
@@ -141,7 +147,12 @@ public final class PoleDesignerPanel {
 
             try {
                 renderToolbar();
-                renderSplitBody();
+                float footerHeight = footerReservedHeight();
+                float bodyHeight = ImGui.getContentRegionAvail().y - footerHeight;
+                if (bodyHeight > 120f) {
+                    renderSplitBody(bodyHeight);
+                }
+                renderFooter();
                 renderPresetConfirmPopup();
             } finally {
                 ImGui.end();
@@ -226,13 +237,14 @@ public final class PoleDesignerPanel {
         ImGui.separator();
     }
 
-    private void renderSplitBody() {
-        float bodyHeight = ImGui.getContentRegionAvail().y;
-        if (bodyHeight < 120f) {
-            return;
-        }
+    private void renderSplitBody(float bodyHeight) {
+        float totalWidth = ImGui.getContentRegionAvail().x;
+        float maxPreviewWidth = Math.max(
+            MIN_PREVIEW_COLUMN_WIDTH,
+            totalWidth - MIN_PARAMS_COLUMN_WIDTH - SPLITTER_WIDTH);
+        previewColumnWidth = Math.min(maxPreviewWidth, Math.max(MIN_PREVIEW_COLUMN_WIDTH, previewColumnWidth));
 
-        if (ImGui.beginChild("##designer_preview_column", PREVIEW_COLUMN_WIDTH, bodyHeight, false, PREVIEW_COLUMN_FLAGS)) {
+        if (ImGui.beginChild("##designer_preview_column", previewColumnWidth, bodyHeight, false, PREVIEW_COLUMN_FLAGS)) {
             PoleDesignPreviewRenderer.renderVerticalStack(
                 draft,
                 ImGui.getContentRegionAvail().x,
@@ -240,17 +252,101 @@ public final class PoleDesignerPanel {
         }
         ImGui.endChild();
 
-        ImGui.sameLine(0, COLUMN_GAP);
-        if (ImGui.beginChild("##designer_params_column", 0, bodyHeight, false)) {
+        ImGui.sameLine(0, 0);
+        renderColumnSplitter(bodyHeight, totalWidth);
+
+        ImGui.sameLine(0, 0);
+        float paramsWidth = Math.max(0f, totalWidth - previewColumnWidth - SPLITTER_WIDTH);
+        if (ImGui.beginChild("##designer_params_column", paramsWidth, bodyHeight, false)) {
             renderStructureSection();
             ImGui.separator();
             renderLayerList();
             ImGui.separator();
             renderAttachmentList();
-            ImGui.separator();
-            renderSaveActions();
         }
         ImGui.endChild();
+    }
+
+    private void renderColumnSplitter(float height, float totalWidth) {
+        ImGui.pushID("designer_column_splitter");
+        ImGui.invisibleButton("##grab", SPLITTER_WIDTH, height);
+        if (ImGui.isItemActive()) {
+            previewColumnWidth += ImGui.getIO().getMouseDeltaX();
+            float maxPreviewWidth = Math.max(
+                MIN_PREVIEW_COLUMN_WIDTH,
+                totalWidth - MIN_PARAMS_COLUMN_WIDTH - SPLITTER_WIDTH);
+            previewColumnWidth = Math.min(maxPreviewWidth, Math.max(MIN_PREVIEW_COLUMN_WIDTH, previewColumnWidth));
+        }
+        if (ImGui.isItemHovered() || ImGui.isItemActive()) {
+            ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
+        }
+
+        ImVec2 min = ImGui.getItemRectMin();
+        ImVec2 max = ImGui.getItemRectMax();
+        float centerX = (min.x + max.x) * 0.5f;
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        boolean active = ImGui.isItemActive() || ImGui.isItemHovered();
+        int lineColor = active ? 0xFF90CAF9 : 0xFF606060;
+        drawList.addLine(centerX, min.y, centerX, max.y, lineColor, active ? 2f : 1f);
+        ImGui.popID();
+    }
+
+    private float footerReservedHeight() {
+        return ImGui.getFrameHeight() * 2f
+            + DialogStyleManager.SECTION_GAP
+            + DialogStyleManager.ITEM_SPACING * 3f;
+    }
+
+    private void renderFooter() {
+        ImGui.separator();
+        DialogLayoutHelper.beginFooter();
+        float width = DialogStyleManager.getContentWidth();
+
+        if (DialogLayoutHelper.beginForm("##designer_footer_form")) {
+            DialogLayoutHelper.formRowLabel(PlotI18n.tr("plugin.powerline.design.name"));
+            if (ImGui.inputText("##design_name", designNameBuffer)) {
+                draft.setName(designNameBuffer.get());
+            }
+            if (ImGui.isItemActivated()) {
+                pushDraftSnapshot();
+            }
+            DialogLayoutHelper.endForm();
+        }
+
+        String saveLabel = PlotI18n.tr("plugin.powerline.design.save");
+        String saveAsLabel = PlotI18n.tr("plugin.powerline.design.save_as");
+        String cancelLabel = PlotI18n.tr("button.plot.cancel");
+        float buttonWidth = DialogStyleManager.getStandardButtonWidth(width, 3, saveLabel, saveAsLabel, cancelLabel);
+        float buttonsTotal = buttonWidth * 3f + DialogStyleManager.FOOTER_BUTTON_GAP * 2f;
+        ImGui.setCursorPosX(DialogStyleManager.getContentStartX() + Math.max(0f, width - buttonsTotal));
+
+        if (ImGui.button(saveLabel, buttonWidth, 0)) {
+            saveDraft(false);
+        }
+        ImGui.sameLine(0, DialogStyleManager.FOOTER_BUTTON_GAP);
+        if (ImGui.button(saveAsLabel, buttonWidth, 0)) {
+            saveAsNameBuffer.set(draft.getName() + " Copy");
+            ImGui.openPopup("##pole_design_save_as");
+        }
+        ImGui.sameLine(0, DialogStyleManager.FOOTER_BUTTON_GAP);
+        if (ImGui.button(cancelLabel, buttonWidth, 0)) {
+            handleCloseRequest();
+        }
+
+        if (ImGui.beginPopup("##pole_design_save_as")) {
+            ImGui.inputText(PlotI18n.tr("plugin.powerline.design.save_as_name"), saveAsNameBuffer);
+            if (ImGui.button(PlotI18n.tr("button.plot.confirm"), 120, 0)) {
+                draft.setName(saveAsNameBuffer.get());
+                designNameBuffer.set(draft.getName());
+                saveDraft(true);
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.sameLine();
+            if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.endPopup();
+        }
     }
 
     private void renderDraftHistoryControls() {
@@ -1007,43 +1103,6 @@ public final class PoleDesignerPanel {
         }
         PoleLayer current = draft.getLayers().remove(index);
         draft.getLayers().add(target, current);
-    }
-
-    private void renderSaveActions() {
-        if (ImGui.inputText(PlotI18n.tr("plugin.powerline.design.name"), designNameBuffer)) {
-            draft.setName(designNameBuffer.get());
-        }
-        if (ImGui.isItemActivated()) {
-            pushDraftSnapshot();
-        }
-
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.save"), 0, 0)) {
-            saveDraft(false);
-        }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.save_as"), 0, 0)) {
-            saveAsNameBuffer.set(draft.getName() + " Copy");
-            ImGui.openPopup("##pole_design_save_as");
-        }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 0, 0)) {
-            handleCloseRequest();
-        }
-
-        if (ImGui.beginPopup("##pole_design_save_as")) {
-            ImGui.inputText(PlotI18n.tr("plugin.powerline.design.save_as_name"), saveAsNameBuffer);
-            if (ImGui.button(PlotI18n.tr("button.plot.confirm"), 120, 0)) {
-                draft.setName(saveAsNameBuffer.get());
-                designNameBuffer.set(draft.getName());
-                saveDraft(true);
-                ImGui.closeCurrentPopup();
-            }
-            ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
-                ImGui.closeCurrentPopup();
-            }
-            ImGui.endPopup();
-        }
     }
 
     private void saveDraft(boolean forceNewId) {

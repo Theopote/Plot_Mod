@@ -16,9 +16,9 @@ import imgui.flag.ImGuiWindowFlags;
 
 /** 杆塔设计器预览：体素立面 + 设计辅助 overlay。 */
 public final class PoleDesignPreviewRenderer {
-    private static final float MIN_PANE_HEIGHT = 96f;
-    private static final float MAX_PANE_HEIGHT = 220f;
-    private static final float HEIGHT_PER_BLOCK = 2.6f;
+    private static final float MIN_PANE_HEIGHT = 192f;
+    private static final float MAX_PANE_HEIGHT = 660f;
+    private static final float HEIGHT_PER_BLOCK = 5.2f;
     private static final float PANE_CHROME_HEIGHT = 24f;
     private static final float COLUMN_TITLE_HEIGHT = 20f;
     private static final float COLUMN_FOOTER_HEIGHT = 18f;

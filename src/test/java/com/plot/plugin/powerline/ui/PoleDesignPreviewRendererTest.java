@@ -52,9 +52,9 @@ class PoleDesignPreviewRendererTest {
             tallDesign,
             tallModel,
             520f);
-        assertTrue(shortPane >= 96f);
+        assertTrue(shortPane >= 192f);
         assertTrue(tallPane >= shortPane);
-        assertTrue(tallPane <= 220f);
+        assertTrue(tallPane <= 440f);
     }
 
     @Test
