@@ -14,7 +14,10 @@ import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiWindowFlags;
 
-/** 杆塔设计器预览：体素立面 + 设计辅助 overlay。 */
+/**
+ * 杆塔设计器预览：体素正交立面（正视/侧视第一命中）+ 设计辅助 overlay。
+ * 立面走 {@link PoleVoxelElevationRenderer}，与风格卡片 tooltip / Quick Tune 侧视同一套取面。
+ */
 public final class PoleDesignPreviewRenderer {
     static final float MIN_PANE_HEIGHT = 192f;
     static final float MAX_PANE_HEIGHT = 660f;

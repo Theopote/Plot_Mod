@@ -3,14 +3,14 @@ package com.plot.plugin.powerline.preview;
 import com.plot.plugin.powerline.design.AttachmentRole;
 import com.plot.plugin.powerline.design.ConductorAttachment;
 import com.plot.plugin.powerline.design.PoleDesign;
+import com.plot.plugin.powerline.design.PoleLayer;
 import com.plot.plugin.powerline.style.PreviewOverlay;
 import com.plot.plugin.powerline.style.PreviewRepresentation;
 import imgui.ImDrawList;
 
 /**
- * 风格卡片缩略图装饰叠加层：挂点、绝缘子、短导线暗示、特殊标记。
- * <p>
- * Gallery 卡片专用；tooltip / 大预览仍走体素，不调用此类。
+ * 风格预览装饰叠加层：挂点、绝缘子、短导线暗示、风电桨叶、分级塔标记。
+ * 画廊卡片、tooltip、Quick Tune 大图与建造摘要共用。
  */
 public final class PowerLinePreviewOverlayRenderer {
     private static final float INSULATOR_MIN_PX = 2.5f;
@@ -44,7 +44,7 @@ public final class PowerLinePreviewOverlayRenderer {
             switch (overlay) {
                 case ATTACHMENTS -> drawAttachments(drawList, design, representation, x0, y0, x1, y1);
                 case DECORATIVE_CONDUCTORS -> drawDecorativeConductors(drawList, design, x0, y0, x1, y1);
-                case WIND_ROTOR -> drawWindRotorOverlay(drawList, x0, y0, x1, y1);
+                case WIND_ROTOR -> drawWindRotorOverlay(drawList, design, x0, y0, x1, y1);
                 case ADAPTIVE_MARKER -> drawAdaptiveHeightMarker(drawList, x0, y0, x1, y1);
                 default -> { }
             }
@@ -145,16 +145,51 @@ public final class PowerLinePreviewOverlayRenderer {
         }
     }
 
-    /** 废土风电：三叶桨叶暗示（不修改世界几何）。 */
-    public static void drawWindRotorOverlay(ImDrawList drawList, float x0, float y0, float x1, float y1) {
+    /** 废土风电：三叶桨叶暗示，轮毂锚在横担高度（不修改世界几何）。 */
+    public static void drawWindRotorOverlay(
+            ImDrawList drawList,
+            PoleDesign design,
+            float x0,
+            float y0,
+            float x1,
+            float y1) {
         float cx = (x0 + x1) * 0.5f;
         float cy = y0 + (y1 - y0) * 0.28f;
+        float bladeLen = Math.min(14f, (x1 - x0) * 0.22f);
+        PoleVoxelPreviewModel model = design != null ? PoleVoxelizer.voxelize(design) : null;
+        PoleVoxelElevationRenderer.ElevationLayout layout = model != null && !model.isEmpty()
+            ? PoleVoxelElevationRenderer.computeLayout(
+                model, PoleVoxelElevationRenderer.ElevationView.FRONT, x0, y0, x1, y1)
+            : null;
+        if (layout != null) {
+            double hubY = windHubVoxelY(design, model);
+            cx = PoleVoxelElevationRenderer.mapHorizontalToScreen(
+                layout, PoleVoxelElevationRenderer.ElevationView.FRONT, model, 0.0);
+            cy = PoleVoxelElevationRenderer.mapVerticalToScreen(layout, model, hubY);
+            bladeLen = Math.max(8f, Math.min(bladeLen, layout.blockSize() * 5.5f));
+        }
         float hubR = 2.5f;
         drawList.addCircleFilled(cx, cy, hubR, COLOR_ROTOR);
-        float bladeLen = Math.min(14f, (x1 - x0) * 0.22f);
         drawBlade(drawList, cx, cy, -0.35f, bladeLen);
         drawBlade(drawList, cx, cy, 2.75f, bladeLen);
         drawBlade(drawList, cx, cy, 0.95f, bladeLen * 0.85f);
+    }
+
+    /** 轮毂体素高度：第一根横担的格子中心，否则杆顶。 */
+    public static double windHubVoxelY(PoleDesign design, PoleVoxelPreviewModel model) {
+        if (design != null) {
+            int currentY = 0;
+            for (PoleLayer layer : design.getLayers()) {
+                if (layer.getShape() == PoleLayer.Shape.CROSSARM) {
+                    return currentY + (layer.getHeight() - 1) * 0.5;
+                }
+                currentY += layer.getHeight();
+            }
+            if (currentY > 0) {
+                return currentY - 1;
+            }
+        }
+        return model != null ? model.maxY() : 0;
     }
 
     private static void drawBlade(ImDrawList drawList, float cx, float cy, float angle, float length) {

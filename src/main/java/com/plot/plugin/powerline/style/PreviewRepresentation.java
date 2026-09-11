@@ -1,6 +1,6 @@
 package com.plot.plugin.powerline.style;
 
-/** 风格卡片缩略图的主体绘制方式（Gallery 专用；tooltip / 大预览仍用体素）。 */
+/** 风格预览的主体绘制方式（画廊卡片、tooltip、Quick Tune 大图、建造摘要共用）。 */
 public enum PreviewRepresentation {
     /** 真实 Minecraft 体素立面（小型电杆）。 */
     VOXEL_FRONT,

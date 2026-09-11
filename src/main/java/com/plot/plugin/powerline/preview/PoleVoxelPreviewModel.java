@@ -87,24 +87,35 @@ public final class PoleVoxelPreviewModel {
         return isEmpty() ? 0 : maxY - minY + 1;
     }
 
+    /**
+     * 正交立面的第一命中：该像素列上沿视线最近的一块。
+     * <p>
+     * 正视沿 {@code z} 取最小 z，侧视沿 {@code x} 取最小 x。
+     * 不能改成固定 {@code minZ}/{@code minX} 平面：横担沿 X 伸出后，侧视的
+     * {@code minX} 是端头，塔身会被切掉；格构塔正视的 {@code minZ} 是前腿，横担和腹杆会消失。
+     */
     public String blockAtFront(int x, int y) {
-        String chosen = null;
-        int bestZ = Integer.MIN_VALUE;
-        for (PreviewVoxel voxel : voxels) {
-            if (voxel.x() == x && voxel.y() == y && voxel.z() >= bestZ) {
-                bestZ = voxel.z();
-                chosen = voxel.blockId();
-            }
-        }
-        return chosen;
+        return nearestAlongView(x, y, true);
     }
 
     public String blockAtSide(int z, int y) {
+        return nearestAlongView(z, y, false);
+    }
+
+    private String nearestAlongView(int across, int y, boolean frontView) {
         String chosen = null;
-        int bestX = Integer.MIN_VALUE;
+        int bestAlong = Integer.MAX_VALUE;
         for (PreviewVoxel voxel : voxels) {
-            if (voxel.z() == z && voxel.y() == y && voxel.x() >= bestX) {
-                bestX = voxel.x();
+            if (voxel.y() != y) {
+                continue;
+            }
+            int voxelAcross = frontView ? voxel.x() : voxel.z();
+            if (voxelAcross != across) {
+                continue;
+            }
+            int along = frontView ? voxel.z() : voxel.x();
+            if (along < bestAlong) {
+                bestAlong = along;
                 chosen = voxel.blockId();
             }
         }

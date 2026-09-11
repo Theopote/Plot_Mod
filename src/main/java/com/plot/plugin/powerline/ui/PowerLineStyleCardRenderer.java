@@ -104,9 +104,9 @@ public final class PowerLineStyleCardRenderer {
                 frontOrigin.x + previewW,
                 frontOrigin.y + previewH,
                 0xFF141414);
-            PoleVoxelElevationRenderer.drawFront(
+            drawPackPreview(
                 drawList,
-                previewDesign,
+                pack,
                 frontOrigin.x,
                 frontOrigin.y,
                 frontOrigin.x + previewW,
@@ -200,9 +200,11 @@ public final class PowerLineStyleCardRenderer {
         float innerX = origin.x + 4f;
         float innerY = origin.y + 4f;
         if (previewDesign != null) {
-            PoleVoxelElevationRenderer.drawFront(
+            StyleCardPreviewBinding binding = PowerLineStylePreviewBinding.bindingForDesign(previewDesign, base);
+            drawCardPreview(
                 drawList,
-                previewDesign,
+                binding,
+                PowerLineStylePreviewBinding.usesAdaptiveHeightMarker(base),
                 innerX,
                 innerY,
                 innerX + previewW - 4f,
@@ -244,9 +246,10 @@ public final class PowerLineStyleCardRenderer {
         EffectiveStylePreview effective = EffectiveStylePreviewResolver.resolve(line, base, resolver);
         PoleDesign previewDesign = effective != null ? effective.previewDesign() : null;
         if (previewDesign != null) {
-            drawDesignVoxelPreview(
+            drawCardPreview(
                 drawList,
-                previewDesign,
+                PowerLineStylePreviewBinding.bindingForDesign(previewDesign, base),
+                PowerLineStylePreviewBinding.usesAdaptiveHeightMarker(base),
                 x0 + 2f,
                 y0 + 2f,
                 x1 - 2f,
@@ -360,19 +363,6 @@ public final class PowerLineStyleCardRenderer {
                 x1,
                 y1);
         }
-    }
-
-    private static void drawDesignVoxelPreview(
-            ImDrawList drawList,
-            PoleDesign design,
-            float x0,
-            float y0,
-            float x1,
-            float y1) {
-        if (design != null && PoleVoxelElevationRenderer.drawFront(drawList, design, x0, y0, x1, y1)) {
-            return;
-        }
-        drawMissingPreviewPlaceholder(drawList, x0, y0, x1, y1);
     }
 
     private static void drawMissingPreviewPlaceholder(

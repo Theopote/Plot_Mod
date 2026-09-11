@@ -230,14 +230,14 @@ public final class PoleVoxelElevationRenderer {
         return layout.originX() + (float) (horizontalCoord - min) * layout.blockSize() + layout.blockSize() * 0.5f;
     }
 
-    /** 将体素高度映射到屏幕 Y。 */
+    /** 将体素高度映射到屏幕 Y（保留小数，挂点 / 轮毂不必贴格）。 */
     public static float mapVerticalToScreen(
             ElevationLayout layout,
             PoleVoxelPreviewModel model,
             double verticalCoord) {
-        int rows = model.heightY();
-        int row = (int) Math.round(verticalCoord) - model.minY();
-        row = Math.max(0, Math.min(rows - 1, row));
-        return layout.originY() + (rows - 1 - row) * layout.blockSize() + layout.blockSize() * 0.5f;
+        double min = model.minY();
+        double max = model.maxY();
+        double y = Math.max(min, Math.min(max, verticalCoord));
+        return layout.originY() + (float) ((max - y) * layout.blockSize() + layout.blockSize() * 0.5f);
     }
 }

@@ -189,6 +189,39 @@ class PowerLineStylePreviewModeTest {
         assertEquals(PreviewOverlay.WIND_ROTOR, PowerLineStylePreviewBinding.previewOverlay(wind));
     }
 
+    @Test
+    void bindingForLatticeDesignStaysStructural() {
+        PoleDesign design = PowerLineStylePreviewBinding.previewDesign(PowerLineStylePresetCatalog.classicLattice());
+        StyleCardPreviewBinding binding = PowerLineStylePreviewBinding.bindingForDesign(
+            design, PowerLineStylePresetCatalog.classicLattice());
+        assertEquals(PreviewRepresentation.STRUCTURAL_FRONT, binding.representation());
+        assertEquals(PreviewOverlay.ATTACHMENTS, binding.overlay());
+    }
+
+    @Test
+    void bindingForWindDesignKeepsRotorOverlay() {
+        PoleDesign design = PowerLineStylePreviewBinding.previewDesign(PowerLineStylePresetCatalog.wastelandWind());
+        StyleCardPreviewBinding binding = PowerLineStylePreviewBinding.bindingForDesign(
+            design, PowerLineStylePresetCatalog.wastelandWind());
+        assertEquals(PreviewRepresentation.VOXEL_FRONT, binding.representation());
+        assertEquals(PreviewOverlay.WIND_ROTOR, binding.overlay());
+    }
+
+    @Test
+    void selectedPreviewBindingMatchesGalleryForLatticeAndWood() {
+        assertSelectedMatchesGallery(PowerLineStylePresetCatalog.classicLattice());
+        assertSelectedMatchesGallery(PowerLineStylePresetCatalog.classicWood());
+        assertSelectedMatchesGallery(PowerLineStylePresetCatalog.wastelandWind());
+        assertSelectedMatchesGallery(PowerLineStylePresetCatalog.megaLattice());
+    }
+
+    private static void assertSelectedMatchesGallery(PowerLineStylePreset pack) {
+        StyleCardPreviewBinding gallery = PowerLineStylePreviewBinding.cardPreviewBinding(pack);
+        StyleCardPreviewBinding selected = PowerLineStylePreviewBinding.bindingForDesign(gallery.design(), pack);
+        assertEquals(gallery.representation(), selected.representation(), pack.getId());
+        assertEquals(gallery.overlay(), selected.overlay(), pack.getId());
+    }
+
     private static int armCount(PoleDesign design) {
         return design.getTowerStructure().getArms().size();
     }

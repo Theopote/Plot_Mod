@@ -2,14 +2,16 @@ package com.plot.plugin.powerline.style;
 
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
+import com.plot.plugin.powerline.design.PoleLayer;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
 import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
 
 /**
- * 风格卡片缩略图与预设配置的绑定关系（供一致性测试与验收对照）。
+ * 风格预览与预设配置的绑定关系（画廊卡片、tooltip、Quick Tune 大图、建造摘要共用）。
  * <p>
- * 逻辑与 {@link com.plot.plugin.powerline.ui.PowerLineStyleCardRenderer#drawPackPreview} 保持同步。
+ * 逻辑与 {@link com.plot.plugin.powerline.ui.PowerLineStyleCardRenderer} 的 {@code drawPackPreview}
+ * / {@code drawCardPreview} 保持同步。
  */
 public final class PowerLineStylePreviewBinding {
     private PowerLineStylePreviewBinding() {
@@ -43,6 +45,65 @@ public final class PowerLineStylePreviewBinding {
             previewDesign(preset),
             previewRepresentation(preset),
             previewOverlay(preset));
+    }
+
+    /**
+     * 当前生效设计的预览绑定（Quick Tune / 建造摘要 / tooltip）。
+     * 有塔体结构时走结构线框，避免选中后大图退回体素实心块。
+     */
+    public static StyleCardPreviewBinding bindingForDesign(PoleDesign design, PowerLineStylePreset base) {
+        PreviewRepresentation representation = previewRepresentationForDesign(design, base);
+        PreviewOverlay overlay = previewOverlayForDesign(design, base);
+        return new StyleCardPreviewBinding(design, representation, overlay);
+    }
+
+    static PreviewRepresentation previewRepresentationForDesign(PoleDesign design, PowerLineStylePreset base) {
+        if (design != null && design.hasTowerStructure()) {
+            return PreviewRepresentation.STRUCTURAL_FRONT;
+        }
+        if (base != null) {
+            PreviewRepresentation fromBase = previewRepresentation(base);
+            if (fromBase == PreviewRepresentation.STRUCTURAL_FRONT) {
+                return PreviewRepresentation.VOXEL_FRONT;
+            }
+            return fromBase;
+        }
+        return PreviewRepresentation.VOXEL_FRONT;
+    }
+
+    static PreviewOverlay previewOverlayForDesign(PoleDesign design, PowerLineStylePreset base) {
+        if (design != null && design.hasTowerStructure()) {
+            return PreviewOverlay.ATTACHMENTS;
+        }
+        PreviewOverlay fromBase = base != null ? previewOverlay(base) : PreviewOverlay.NONE;
+        if (fromBase == PreviewOverlay.WIND_ROTOR) {
+            if (design == null || isWindPreviewDesign(design)) {
+                return PreviewOverlay.WIND_ROTOR;
+            }
+            return PreviewOverlay.DECORATIVE_CONDUCTORS;
+        }
+        if (fromBase != PreviewOverlay.NONE) {
+            return fromBase;
+        }
+        if (design != null && design.hasEnabledAttachments()) {
+            return PreviewOverlay.DECORATIVE_CONDUCTORS;
+        }
+        return PreviewOverlay.NONE;
+    }
+
+    static boolean isWindPreviewDesign(PoleDesign design) {
+        if (design == null) {
+            return false;
+        }
+        if (PoleDesignCatalog.WASTELAND_WIND_TURBINE_ID.equals(design.getId())) {
+            return true;
+        }
+        for (PoleLayer layer : design.getLayers()) {
+            if (layer.getShape() == PoleLayer.Shape.CROSSARM && layer.getCrossarmLength() >= 7) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static PreviewRepresentation previewRepresentation(PowerLineStylePreset preset) {
