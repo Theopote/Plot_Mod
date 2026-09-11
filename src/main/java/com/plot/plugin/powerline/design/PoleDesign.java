@@ -4,6 +4,10 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
+import com.plot.plugin.powerline.design.parametric.StructureDensity;
+import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
+import com.plot.plugin.powerline.design.parametric.TowerGeneratorMode;
+import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.engineering.TowerEngineeringMetadata;
 import com.plot.plugin.powerline.equipment.InsulatorType;
@@ -28,6 +32,7 @@ public class PoleDesign {
     private List<ConductorAttachment> attachments = new ArrayList<>();
     private TowerStructureDesign towerStructure;
     private TowerEngineeringMetadata engineeringMetadata;
+    private TowerGeneratorConfig generatorConfig;
 
     public PoleDesign(String name) {
         this.id = UUID.randomUUID().toString();
@@ -155,6 +160,18 @@ public class PoleDesign {
         this.towerStructure = null;
     }
 
+    public TowerGeneratorConfig getGeneratorConfig() {
+        return generatorConfig != null ? generatorConfig.copy() : null;
+    }
+
+    public void setGeneratorConfig(TowerGeneratorConfig generatorConfig) {
+        this.generatorConfig = generatorConfig != null ? generatorConfig.copy() : null;
+    }
+
+    public boolean isParametricMode() {
+        return generatorConfig != null && generatorConfig.isParametric();
+    }
+
     public int totalHeight() {
         if (hasTowerStructure()) {
             return (int) Math.round(towerStructure.maxHeight());
@@ -197,6 +214,7 @@ public class PoleDesign {
         copy.setAttachments(attachments);
         copy.setTowerStructure(towerStructure);
         copy.setEngineeringMetadata(engineeringMetadata);
+        copy.setGeneratorConfig(generatorConfig);
         return copy;
     }
 
@@ -298,6 +316,7 @@ public class PoleDesign {
         List<AttachmentData> attachments = new ArrayList<>();
         String towerStructureJson;
         EngineeringMetadataData engineeringMetadata;
+        GeneratorConfigData generatorConfig;
 
         static DesignData from(PoleDesign design) {
             DesignData data = new DesignData();
@@ -334,6 +353,7 @@ public class PoleDesign {
                 data.towerStructureJson = design.towerStructure.toJson();
             }
             data.engineeringMetadata = EngineeringMetadataData.from(design.engineeringMetadata);
+            data.generatorConfig = GeneratorConfigData.from(design.generatorConfig);
             return data;
         }
 
@@ -395,7 +415,61 @@ public class PoleDesign {
             if (engineeringMetadata != null) {
                 design.setEngineeringMetadata(engineeringMetadata.toMetadata());
             }
+            if (generatorConfig != null) {
+                design.setGeneratorConfig(generatorConfig.toConfig());
+            }
             return design;
+        }
+    }
+
+    static class GeneratorConfigData {
+        String profileId;
+        String mode;
+        double height;
+        double baseWidth;
+        double armSpan;
+        double depthScale;
+        String density;
+
+        static GeneratorConfigData from(TowerGeneratorConfig config) {
+            if (config == null) {
+                return null;
+            }
+            GeneratorConfigData data = new GeneratorConfigData();
+            data.profileId = config.profileId();
+            data.mode = config.mode().name();
+            data.height = config.parameters().height();
+            data.baseWidth = config.parameters().baseWidth();
+            data.armSpan = config.parameters().armSpan();
+            data.depthScale = config.parameters().depthScale();
+            data.density = config.parameters().density().name();
+            return data;
+        }
+
+        TowerGeneratorConfig toConfig() {
+            if (profileId == null || profileId.isBlank()) {
+                return null;
+            }
+            TowerGeneratorMode parsedMode = TowerGeneratorMode.PARAMETRIC;
+            if (mode != null && !mode.isBlank()) {
+                try {
+                    parsedMode = TowerGeneratorMode.valueOf(mode.trim());
+                } catch (IllegalArgumentException ignored) {
+                    parsedMode = TowerGeneratorMode.PARAMETRIC;
+                }
+            }
+            StructureDensity parsedDensity = StructureDensity.MEDIUM;
+            if (density != null && !density.isBlank()) {
+                try {
+                    parsedDensity = StructureDensity.valueOf(density.trim());
+                } catch (IllegalArgumentException ignored) {
+                    parsedDensity = StructureDensity.MEDIUM;
+                }
+            }
+            return new TowerGeneratorConfig(
+                profileId,
+                parsedMode,
+                new TowerParameterSet(height, baseWidth, armSpan, depthScale, parsedDensity));
         }
     }
 }
