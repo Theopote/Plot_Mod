@@ -95,6 +95,7 @@ public final class PowerLineStyleCardRenderer {
         if (previewDesign != null) {
             float previewW = ImGui.getFontSize() * 7f;
             float previewH = ImGui.getFontSize() * 9f;
+            ImVec2 headerOrigin = ImGui.getCursorScreenPos();
             PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.preview_front"));
             ImDrawList drawList = ImGui.getWindowDrawList();
             ImVec2 frontOrigin = ImGui.getCursorScreenPos();
@@ -114,8 +115,12 @@ public final class PowerLineStyleCardRenderer {
             ImGui.dummy(previewW, previewH);
             ImGui.sameLine();
             ImGui.beginGroup();
-            PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.preview_side"));
             ImVec2 sideOrigin = ImGui.getCursorScreenPos();
+            drawList.addText(
+                sideOrigin.x,
+                headerOrigin.y,
+                COLOR_LABEL_DIM,
+                PlotI18n.tr("plugin.powerline.style.preview_side"));
             drawList.addRectFilled(
                 sideOrigin.x,
                 sideOrigin.y,
