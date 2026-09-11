@@ -52,6 +52,14 @@ public final class PowerLineGenerationI18n {
         return token("plugin.powerline.warn.tower_base_uneven", deltaBlocks);
     }
 
+    public static String parametricHeightClampedForLine(int maxHeight, int limitingSiteIndex) {
+        return token("plugin.powerline.warn.parametric_height_clamped_for_line", maxHeight, limitingSiteIndex);
+    }
+
+    public static String parametricWorldHeightExceededOnLine() {
+        return token("plugin.powerline.warn.parametric_world_height_exceeded_on_line");
+    }
+
     public static String localize(String warning) {
         if (warning == null || warning.isBlank()) {
             return "";

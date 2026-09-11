@@ -13,8 +13,11 @@ import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.design.parametric.ConstraintIssue;
 import com.plot.plugin.powerline.design.parametric.StructureDensity;
+import com.plot.core.terrain.MinecraftTerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelope;
 import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelopeResolver;
+import com.plot.plugin.powerline.design.parametric.TowerLineBuildEnvelope;
 import com.plot.plugin.powerline.design.parametric.TowerConstraintResult;
 import com.plot.plugin.powerline.design.parametric.TowerConstraintSolver;
 import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
@@ -44,8 +47,10 @@ import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 import imgui.type.ImString;
+import net.minecraft.client.MinecraftClient;
 
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -532,10 +537,14 @@ public final class PoleDesignerPanel {
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.parametric_section"));
         PowerLineUiWidgets.textColored(0xFF9E9E9E, profileLabel(profile.id()));
         TowerParameterSet parameters = draft.getGeneratorConfig().parameters();
+        Optional<TowerLineBuildEnvelope> lineEnvelope = tryResolveLineEnvelope();
+        TowerBuildEnvelope constraintEnvelope = lineEnvelope
+            .map(TowerLineBuildEnvelope::constraintEnvelope)
+            .orElse(TowerBuildEnvelopeResolver.tryFromClientPlayer().orElse(null));
         TowerParametricHeightLimits.EffectiveHeightRange heightRange = TowerParametricHeightLimits.heightRange(
             profile,
             parameters,
-            TowerBuildEnvelopeResolver.tryFromClientPlayer().orElse(null));
+            constraintEnvelope);
 
         float[] height = {(float) parameters.height()};
         if (formRowSliderFloat(
@@ -551,9 +560,17 @@ public final class PoleDesignerPanel {
             pushDraftSnapshot();
         }
         if (heightRange.worldLimitedMax() != null) {
-            PowerLineUiWidgets.textColored(0xFF9E9E9E, PlotI18n.tr(
-                "plugin.powerline.design.parametric_height_world_limit",
-                (int) Math.floor(heightRange.worldLimitedMax())));
+            if (lineEnvelope.isPresent()) {
+                TowerLineBuildEnvelope envelope = lineEnvelope.get();
+                PowerLineUiWidgets.textColored(0xFF9E9E9E, PlotI18n.tr(
+                    "plugin.powerline.design.parametric_height_line_limit",
+                    envelope.limitingSiteIndex() + 1,
+                    (int) Math.floor(heightRange.worldLimitedMax())));
+            } else {
+                PowerLineUiWidgets.textColored(0xFF9E9E9E, PlotI18n.tr(
+                    "plugin.powerline.design.parametric_height_world_limit",
+                    (int) Math.floor(heightRange.worldLimitedMax())));
+            }
         }
 
         float[] baseWidth = {(float) parameters.baseWidth()};
@@ -701,7 +718,10 @@ public final class PoleDesignerPanel {
     }
 
     private void renderParametricConstraintHints() {
-        TowerBuildEnvelope envelope = TowerBuildEnvelopeResolver.tryFromClientPlayer().orElse(null);
+        Optional<TowerLineBuildEnvelope> lineEnvelope = tryResolveLineEnvelope();
+        TowerBuildEnvelope envelope = lineEnvelope
+            .map(TowerLineBuildEnvelope::constraintEnvelope)
+            .orElse(TowerBuildEnvelopeResolver.tryFromClientPlayer().orElse(null));
         TowerConstraintResult advisory = TowerParametricEditor.preview(
             draft,
             draft.getGeneratorConfig().parameters(),
@@ -711,7 +731,11 @@ public final class PoleDesignerPanel {
         }
         for (ConstraintIssue issue : advisory.issues()) {
             if (TowerConstraintSolver.CODE_WORLD_HEIGHT_EXCEEDED.equals(issue.code())) {
-                PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.parametric_world_height_warning"));
+                if (lineEnvelope.isPresent()) {
+                    PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.parametric_world_height_line_warning"));
+                } else {
+                    PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.parametric_world_height_warning"));
+                }
             }
         }
         for (var adjustment : advisory.adjustments()) {
@@ -741,7 +765,26 @@ public final class PoleDesignerPanel {
 
     private void applyParametricParameters(TowerParameterSet parameters) {
         draft.setGeneratorConfig(draft.getGeneratorConfig().withParameters(parameters));
-        TowerParametricEditor.recompile(draft, null);
+        TowerParametricEditor.recompile(draft, resolveParametricConstraintEnvelope());
+    }
+
+    private Optional<TowerLineBuildEnvelope> tryResolveLineEnvelope() {
+        PowerLineFootprint line = ctx.selection().primary(ctx.project());
+        if (line == null) {
+            return Optional.empty();
+        }
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.world == null) {
+            return Optional.empty();
+        }
+        TerrainSampler terrain = MinecraftTerrainSampler.of(client.world, ctx.coordinates());
+        return TowerBuildEnvelopeResolver.tryFromFootprint(line, terrain, ctx.coordinates());
+    }
+
+    private TowerBuildEnvelope resolveParametricConstraintEnvelope() {
+        return tryResolveLineEnvelope()
+            .map(TowerLineBuildEnvelope::constraintEnvelope)
+            .orElse(TowerBuildEnvelopeResolver.tryFromClientPlayer().orElse(null));
     }
 
     private static TowerParameterSet withHeight(TowerParameterSet source, float height) {

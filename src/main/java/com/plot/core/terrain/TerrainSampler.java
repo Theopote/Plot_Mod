@@ -15,6 +15,18 @@ import java.util.OptionalInt;
 public interface TerrainSampler {
 
     int DEFAULT_SEA_LEVEL = EngineeringTerrainService.DEFAULT_GROUND_ELEVATION;
+    int DEFAULT_WORLD_BOTTOM_Y = -64;
+    int DEFAULT_WORLD_TOP_EXCLUSIVE_Y = 320;
+
+    /** Minecraft 维度下界（inclusive）。 */
+    default int worldBottomY() {
+        return DEFAULT_WORLD_BOTTOM_Y;
+    }
+
+    /** Minecraft 维度上界（exclusive）。 */
+    default int worldTopExclusiveY() {
+        return DEFAULT_WORLD_TOP_EXCLUSIVE_Y;
+    }
 
     /**
      * 平面坐标处的地表高度（工程坐标系）。

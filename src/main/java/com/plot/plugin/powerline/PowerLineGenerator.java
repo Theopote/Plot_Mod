@@ -20,6 +20,9 @@ import com.plot.plugin.powerline.placement.PoleWaterFoundation;
 import com.plot.plugin.powerline.design.ConductorAttachmentPresets;
 import com.plot.plugin.powerline.engineering.selection.TowerSelectionContext;
 import com.plot.plugin.powerline.engineering.validation.ValidationLimits;
+import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelopeResolver;
+import com.plot.plugin.powerline.design.parametric.TowerLineBuildEnvelope;
+import com.plot.plugin.powerline.design.parametric.TowerParametricLinePlacement;
 import com.plot.plugin.powerline.design.structure.TowerStructureValidator;
 import com.plot.plugin.powerline.design.structure.TowerValidationIssue;
 import com.plot.plugin.powerline.equipment.JumperWireGenerator;
@@ -32,7 +35,9 @@ import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 电力线路生成器：立杆 + 多挂点导线。
@@ -80,6 +85,9 @@ public class PowerLineGenerator {
             designResolver,
             new TowerFamilyResolver());
 
+        TowerLineBuildEnvelope lineEnvelope = TowerBuildEnvelopeResolver.fromPoleSites(sites, terrain);
+
+        Set<String> emittedParametricLineWarnings = new LinkedHashSet<>();
         List<PolePlacement> placements = new ArrayList<>(sites.size());
         for (int i = 0; i < sites.size(); i++) {
             placements.add(buildPolePlacement(
@@ -90,6 +98,8 @@ public class PowerLineGenerator {
                 assignmentResolver,
                 designResolver,
                 terrain,
+                lineEnvelope,
+                emittedParametricLineWarnings,
                 result));
         }
         result.polePlacements.addAll(placements);
@@ -135,6 +145,8 @@ public class PowerLineGenerator {
             PoleDesignAssignmentResolver assignmentResolver,
             PoleDesignResolver designResolver,
             TerrainSampler terrain,
+            TowerLineBuildEnvelope lineEnvelope,
+            Set<String> emittedParametricLineWarnings,
             PowerLineGenerationResult result) {
         Vec2d planPoint = site.getPlanPosition();
         PolePlacementBase placementBase = PolePlacementBase.resolve(planPoint, terrain);
@@ -152,6 +164,24 @@ public class PowerLineGenerator {
             assignmentResolver.resolve(site, footprint, selectionContext);
         result.warnings.addAll(assignment.warnings());
         PoleDesign design = assignment.design();
+        if (design != null) {
+            TowerParametricLinePlacement.PreparationResult prepared =
+                TowerParametricLinePlacement.prepare(design, lineEnvelope);
+            design = prepared.design();
+            for (String warning : prepared.warnings()) {
+                if (!emittedParametricLineWarnings.add(warning)) {
+                    continue;
+                }
+                if (warning.startsWith("parametric.height_clamped_for_line:")) {
+                    int maxHeight = Integer.parseInt(warning.substring(warning.indexOf(':') + 1));
+                    result.warnings.add(PowerLineGenerationI18n.parametricHeightClampedForLine(
+                        maxHeight,
+                        lineEnvelope.limitingSiteIndex() + 1));
+                } else if ("parametric.world_height_exceeded_on_line".equals(warning)) {
+                    result.warnings.add(PowerLineGenerationI18n.parametricWorldHeightExceededOnLine());
+                }
+            }
+        }
         if (design != null && !design.hasEnabledAttachments()) {
             design = design.copy();
             design.ensureDefaultConductorAttachments();

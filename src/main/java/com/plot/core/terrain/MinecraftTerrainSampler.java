@@ -28,6 +28,16 @@ public final class MinecraftTerrainSampler implements TerrainSampler {
     }
 
     @Override
+    public int worldBottomY() {
+        return world.getBottomY();
+    }
+
+    @Override
+    public int worldTopExclusiveY() {
+        return world.getBottomY() + world.getDimension().height();
+    }
+
+    @Override
     public int sampleSurfaceY(Vec2d planPoint) {
         if (planPoint == null) {
             return DEFAULT_SEA_LEVEL;
