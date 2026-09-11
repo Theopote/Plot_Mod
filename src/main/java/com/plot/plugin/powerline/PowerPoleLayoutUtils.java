@@ -22,6 +22,8 @@ import java.util.Objects;
 public final class PowerPoleLayoutUtils {
     /** Override 里程匹配容差（blocks）。 */
     private static final double OVERRIDE_STATION_TOLERANCE_BLOCKS = 2.0;
+    /** 重复顶点/杆位合并容差（blocks），与 UI 杆位命中判定一致。 */
+    private static final double POSITION_DEDUP_TOLERANCE_BLOCKS = 0.15;
 
     private PowerPoleLayoutUtils() {
     }
@@ -43,13 +45,15 @@ public final class PowerPoleLayoutUtils {
         }
 
         double maxSpacing = Math.max(0.1, maxPoleSpacingBlocks);
-        List<Vec2d> mandatory = mandatoryPolePoints(pathPoints, cornerAngleThreshold);
+        List<Vec2d> mandatory = dedupeMandatoryPolePoints(
+            mandatoryPolePoints(pathPoints, cornerAngleThreshold),
+            coords);
         if (mandatory.isEmpty()) {
             return List.of();
         }
 
         List<Vec2d> result = new ArrayList<>();
-        result.add(mandatory.getFirst().copy());
+        addPoleIfDistinct(result, mandatory.getFirst(), coords);
         for (int i = 0; i < mandatory.size() - 1; i++) {
             appendInterpolatedPoles(result, mandatory.get(i), mandatory.get(i + 1), maxSpacing, coords);
         }
@@ -288,16 +292,53 @@ public final class PowerPoleLayoutUtils {
             double maxSpacingBlocks,
             ICoordinateService coordinates) {
         double worldDistance = coordinates.projectedDistance(from, to);
+        if (worldDistance <= POSITION_DEDUP_TOLERANCE_BLOCKS) {
+            addPoleIfDistinct(result, to, coordinates);
+            return;
+        }
         if (worldDistance <= maxSpacingBlocks) {
-            result.add(to.copy());
+            addPoleIfDistinct(result, to, coordinates);
             return;
         }
         int segments = (int) Math.ceil(worldDistance / maxSpacingBlocks);
         for (int i = 1; i <= segments; i++) {
             double worldOffset = worldDistance * i / segments;
-            result.add(WorldProjectionMath.canvasPointAtWorldOffsetOnSegment(
-                coordinates, from, to, worldOffset));
+            addPoleIfDistinct(
+                result,
+                WorldProjectionMath.canvasPointAtWorldOffsetOnSegment(
+                    coordinates, from, to, worldOffset),
+                coordinates);
         }
+    }
+
+    private static List<Vec2d> dedupeMandatoryPolePoints(
+            List<Vec2d> mandatory,
+            ICoordinateService coordinates) {
+        if (mandatory == null || mandatory.isEmpty()) {
+            return List.of();
+        }
+        List<Vec2d> deduped = new ArrayList<>(mandatory.size());
+        for (Vec2d point : mandatory) {
+            addPoleIfDistinct(deduped, point, coordinates);
+        }
+        return deduped;
+    }
+
+    private static void addPoleIfDistinct(
+            List<Vec2d> result,
+            Vec2d point,
+            ICoordinateService coordinates) {
+        if (point == null) {
+            return;
+        }
+        if (!result.isEmpty() && samePosition(result.getLast(), point, coordinates)) {
+            return;
+        }
+        result.add(point.copy());
+    }
+
+    private static boolean samePosition(Vec2d a, Vec2d b, ICoordinateService coordinates) {
+        return coordinates.projectedDistance(a, b) <= POSITION_DEDUP_TOLERANCE_BLOCKS;
     }
 
     private static ICoordinateService requireCoordinates(ICoordinateService coordinates) {

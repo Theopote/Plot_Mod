@@ -69,6 +69,39 @@ class PowerPoleLayoutUtilsTest {
     }
 
     @Test
+    void duplicatePathVerticesDoNotCreateStackedPoles() {
+        List<Vec2d> path = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(0, 0),
+            new Vec2d(100, 0));
+        List<Vec2d> poles = PowerPoleLayoutUtils.computePolePositions(
+            path, 5.0, 50.0, IdentityCoordinateService.INSTANCE);
+
+        assertEquals(3, poles.size());
+        for (int i = 1; i < poles.size(); i++) {
+            assertTrue(
+                poles.get(i - 1).distance(poles.get(i)) > 0.15,
+                "consecutive poles should not stack");
+        }
+        assertEquals(100.0, poles.getLast().x, 1e-6);
+    }
+
+    @Test
+    void zeroLengthSegmentDoesNotDuplicateMandatoryPole() {
+        List<Vec2d> path = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(0, 0),
+            new Vec2d(0, 0),
+            new Vec2d(40, 0));
+        List<Vec2d> poles = PowerPoleLayoutUtils.computePolePositions(
+            path, 5.0, 50.0, IdentityCoordinateService.INSTANCE);
+
+        assertEquals(2, poles.size());
+        assertEquals(0.0, poles.getFirst().x, 1e-6);
+        assertEquals(40.0, poles.getLast().x, 1e-6);
+    }
+
+    @Test
     void computedSitesCoverMandatoryPoints() {
         List<Vec2d> path = List.of(
             new Vec2d(0, 0),
