@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
+import com.plot.plugin.powerline.style.StyleOverrides;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -163,6 +164,51 @@ public class PowerLineProject {
         }
     }
 
+    static class StyleOverridesData {
+        Double sagRatio;
+        Double maxSagDepth;
+        MaterialMix wireMaterial;
+        MaterialMix poleMaterial;
+        MaterialMix topWireMaterial;
+        Double preferredSpacing;
+        Double recommendedMinSpacing;
+        String poleDesignId;
+        String towerFamilyId;
+
+        static StyleOverridesData from(StyleOverrides overrides) {
+            if (overrides == null || overrides.isEmpty()) {
+                return null;
+            }
+            StyleOverridesData data = new StyleOverridesData();
+            data.sagRatio = overrides.getSagRatio();
+            data.maxSagDepth = overrides.getMaxSagDepth();
+            data.wireMaterial = overrides.getWireMaterial();
+            data.poleMaterial = overrides.getPoleMaterial();
+            data.topWireMaterial = overrides.getTopWireMaterial();
+            data.preferredSpacing = overrides.getPreferredSpacing();
+            data.recommendedMinSpacing = overrides.getRecommendedMinSpacing();
+            data.poleDesignId = overrides.getPoleDesignId();
+            data.towerFamilyId = overrides.getTowerFamilyId();
+            return data;
+        }
+
+        void applyTo(StyleOverrides overrides) {
+            if (overrides == null) {
+                return;
+            }
+            overrides.clear();
+            overrides.setSagRatio(sagRatio);
+            overrides.setMaxSagDepth(maxSagDepth);
+            overrides.setWireMaterial(wireMaterial);
+            overrides.setPoleMaterial(poleMaterial);
+            overrides.setTopWireMaterial(topWireMaterial);
+            overrides.setPreferredSpacing(preferredSpacing);
+            overrides.setRecommendedMinSpacing(recommendedMinSpacing);
+            overrides.setPoleDesignId(poleDesignId);
+            overrides.setTowerFamilyId(towerFamilyId);
+        }
+    }
+
     private static boolean resolveLineChecksEnabled(LineData lineData) {
         return lineData.lineChecksEnabled || lineData.engineeringAnalysisEnabled;
     }
@@ -203,6 +249,7 @@ public class PowerLineProject {
         boolean terrainAvoidanceEnabled = true;
         boolean automaticTowerSelectionEnabled;
         boolean spacingCustomized;
+        StyleOverridesData styleOverrides;
     }
 
     static class ProjectData {
@@ -242,6 +289,8 @@ public class PowerLineProject {
                 lineData.terrainAvoidanceEnabled = line.isTerrainAvoidanceEnabled();
                 lineData.automaticTowerSelectionEnabled = line.isAutomaticTowerSelectionEnabled();
                 lineData.spacingCustomized = line.isSpacingCustomized();
+                com.plot.plugin.powerline.style.PowerLineStyleEditor.syncOverridesFromFootprint(line);
+                lineData.styleOverrides = StyleOverridesData.from(line.getStyleOverrides());
                 data.lines.add(lineData);
             }
             return data;
@@ -316,7 +365,11 @@ public class PowerLineProject {
                 footprint.setTerrainAvoidanceEnabled(lineData.terrainAvoidanceEnabled);
                 footprint.setAutomaticTowerSelectionEnabled(lineData.automaticTowerSelectionEnabled);
                 footprint.setSpacingCustomized(lineData.spacingCustomized);
-                com.plot.plugin.powerline.style.PowerLineStyleEditor.syncOverridesFromFootprint(footprint);
+                if (lineData.styleOverrides != null) {
+                    lineData.styleOverrides.applyTo(footprint.getStyleOverrides());
+                } else {
+                    com.plot.plugin.powerline.style.PowerLineStyleEditor.syncOverridesFromFootprint(footprint);
+                }
                 project.addLine(footprint);
             }
             return project;

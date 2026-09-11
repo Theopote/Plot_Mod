@@ -12,7 +12,6 @@ import com.plot.plugin.powerline.engineering.TowerEngineeringMetadata;
 import com.plot.plugin.powerline.model.TowerRole;
 
 import java.util.EnumSet;
-import java.util.List;
 
 /** 塔型族内各角色的 PoleDesign 预设。 */
 public final class TowerFamilyDesignPresets {
