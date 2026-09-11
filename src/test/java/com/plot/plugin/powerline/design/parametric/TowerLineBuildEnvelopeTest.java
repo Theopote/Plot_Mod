@@ -56,7 +56,7 @@ class TowerLineBuildEnvelopeTest {
         PoleDesign design = new PoleDesign("line", "Line");
         TowerParametricEditor.enableParametricClassic(
             design,
-            new TowerParameterSet(52.0, 13.0, 24.0, 1.0, 1.0, StructureDensity.MEDIUM));
+            new TowerParameterSet(52.0, 13.0, 24.0, 1.0, 1.0, null, StructureDensity.MEDIUM));
 
         TowerParametricLinePlacement.PreparationResult prepared =
             TowerParametricLinePlacement.prepare(design, line);

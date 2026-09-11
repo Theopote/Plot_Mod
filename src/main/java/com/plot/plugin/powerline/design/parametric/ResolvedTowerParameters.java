@@ -10,6 +10,7 @@ public record ResolvedTowerParameters(
         double armSpan,
         double depthScale,
         double waistRatio,
+        List<Double> armLevelScales,
         StructureDensity density,
         List<ResolvedTowerStation> stations,
         List<ResolvedTowerArm> arms,

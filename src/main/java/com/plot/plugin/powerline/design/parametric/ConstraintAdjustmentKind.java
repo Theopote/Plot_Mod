@@ -5,5 +5,6 @@ public enum ConstraintAdjustmentKind {
     BASE_WIDTH_CLAMPED,
     ARM_SPAN_CLAMPED,
     DEPTH_SCALE_CLAMPED,
-    WAIST_RATIO_CLAMPED
+    WAIST_RATIO_CLAMPED,
+    ARM_LEVEL_CLAMPED
 }

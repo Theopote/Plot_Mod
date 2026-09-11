@@ -4,6 +4,7 @@ package com.plot.plugin.powerline.design.parametric;
 public record ParameterRange(double min, double defaultValue, double max) {
 
     public static final ParameterRange WAIST_RATIO = new ParameterRange(0.75, 1.0, 1.25);
+    public static final ParameterRange ARM_LEVEL = new ParameterRange(0.85, 1.0, 1.15);
 
     public ParameterRange {
         if (!Double.isFinite(min) || !Double.isFinite(defaultValue) || !Double.isFinite(max)) {

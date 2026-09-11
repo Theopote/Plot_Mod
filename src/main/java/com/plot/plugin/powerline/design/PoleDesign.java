@@ -453,6 +453,7 @@ public class PoleDesign {
         double armSpan;
         double depthScale;
         double waistRatio;
+        double[] armLevelScales;
         String density;
 
         static GeneratorConfigData from(TowerGeneratorConfig config) {
@@ -467,6 +468,11 @@ public class PoleDesign {
             data.armSpan = config.parameters().armSpan();
             data.depthScale = config.parameters().depthScale();
             data.waistRatio = config.parameters().waistRatio();
+            if (config.parameters().armLevelScales() != null && !config.parameters().armLevelScales().isEmpty()) {
+                data.armLevelScales = config.parameters().armLevelScales().stream()
+                    .mapToDouble(Double::doubleValue)
+                    .toArray();
+            }
             data.density = config.parameters().density().name();
             return data;
         }
@@ -492,10 +498,24 @@ public class PoleDesign {
                 }
             }
             double parsedWaistRatio = waistRatio > 0.0 ? waistRatio : TowerParameterSet.DEFAULT_WAIST_RATIO;
+            java.util.List<Double> parsedArmLevelScales = null;
+            if (armLevelScales != null && armLevelScales.length > 0) {
+                parsedArmLevelScales = new java.util.ArrayList<>(armLevelScales.length);
+                for (double scale : armLevelScales) {
+                    parsedArmLevelScales.add(scale);
+                }
+            }
             return new TowerGeneratorConfig(
                 profileId,
                 parsedMode,
-                new TowerParameterSet(height, baseWidth, armSpan, depthScale, parsedWaistRatio, parsedDensity));
+                new TowerParameterSet(
+                    height,
+                    baseWidth,
+                    armSpan,
+                    depthScale,
+                    parsedWaistRatio,
+                    parsedArmLevelScales,
+                    parsedDensity));
         }
     }
 }

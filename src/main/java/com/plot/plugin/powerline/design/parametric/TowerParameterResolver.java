@@ -56,12 +56,21 @@ public final class TowerParameterResolver {
                 baseHalfDepth * depthRatio));
         }
 
+        List<Double> resolvedArmLevelScales = new ArrayList<>(profile.armTemplates().size());
         List<ResolvedTowerArm> arms = new ArrayList<>(profile.armTemplates().size());
-        for (TowerArmTemplate template : profile.armTemplates()) {
+        for (int i = 0; i < profile.armTemplates().size(); i++) {
+            TowerArmTemplate template = profile.armTemplates().get(i);
+            double levelScale = clamp(
+                ParameterRange.ARM_LEVEL,
+                parameters.armLevelScaleAt(i),
+                "armLevel[" + template.id() + "]",
+                adjustments,
+                ConstraintAdjustmentKind.ARM_LEVEL_CLAMPED);
+            resolvedArmLevelScales.add(levelScale);
             arms.add(new ResolvedTowerArm(
                 template.id(),
                 template.role(),
-                height * template.heightRatio(),
+                height * template.heightRatio() * levelScale,
                 dominantReach * template.reachRatio(),
                 baseHalfDepth * template.longitudinalHalfWidthRatio(),
                 height * template.verticalDropRatio(),
@@ -77,6 +86,7 @@ public final class TowerParameterResolver {
             armSpan,
             depthScale,
             waistRatio,
+            resolvedArmLevelScales,
             density,
             stations,
             arms,

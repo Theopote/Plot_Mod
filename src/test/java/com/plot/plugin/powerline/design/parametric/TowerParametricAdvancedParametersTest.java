@@ -2,8 +2,11 @@ package com.plot.plugin.powerline.design.parametric;
 
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.structure.TowerStation;
+import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -22,6 +25,7 @@ class TowerParametricAdvancedParametersTest {
                 defaults.armSpan(),
                 1.25,
                 defaults.waistRatio(),
+                defaults.armLevelScales(),
                 defaults.density()));
 
         TowerStation base = baseline.getTowerStructure().sortedStations().get(0);
@@ -44,6 +48,7 @@ class TowerParametricAdvancedParametersTest {
                 defaults.armSpan(),
                 defaults.depthScale(),
                 1.2,
+                defaults.armLevelScales(),
                 defaults.density()));
 
         TowerStructureDesign baselineStructure = baseline.getTowerStructure();
@@ -71,15 +76,54 @@ class TowerParametricAdvancedParametersTest {
     }
 
     @Test
+    void armLevelScalesMoveArmsWithoutChangingReach() {
+        TowerParameterSet defaults = TowerParameterSet.classicDefaults();
+        PoleDesign baseline = TowerParametricDesignFactory.compileClassicDoubleArm(defaults);
+        PoleDesign adjusted = TowerParametricDesignFactory.compileClassicDoubleArm(
+            defaults.withArmLevelScales(List.of(1.05, 1.0)));
+
+        TowerArm baselineLower = findArm(baseline.getTowerStructure(), "arm_lower");
+        TowerArm adjustedLower = findArm(adjusted.getTowerStructure(), "arm_lower");
+        TowerArm baselineUpper = findArm(baseline.getTowerStructure(), "arm_upper");
+        TowerArm adjustedUpper = findArm(adjusted.getTowerStructure(), "arm_upper");
+
+        assertTrue(adjustedLower.getBaseHeight() > baselineLower.getBaseHeight());
+        assertEquals(baselineUpper.getBaseHeight(), adjustedUpper.getBaseHeight(), 0.01);
+        assertEquals(baselineLower.getLateralReach(), adjustedLower.getLateralReach(), 0.01);
+        assertEquals(baselineUpper.getLateralReach(), adjustedUpper.getLateralReach(), 0.01);
+    }
+
+    @Test
+    void armLevelScalesRoundTripThroughGeneratorConfigJson() {
+        PoleDesign design = new PoleDesign("arm-levels", "Arm Levels");
+        design.setGeneratorConfig(TowerGeneratorConfig.parametricClassic(
+            new TowerParameterSet(36.0, 13.0, 24.0, 1.0, 1.0, List.of(1.05, 0.95), StructureDensity.MEDIUM)));
+
+        PoleDesign restored = PoleDesign.fromJson(design.toJson());
+        List<Double> scales = restored.getGeneratorConfig().parameters().armLevelScales();
+        assertEquals(2, scales.size());
+        assertEquals(1.05, scales.get(0), 0.01);
+        assertEquals(0.95, scales.get(1), 0.01);
+    }
+
+    @Test
     void waistRatioRoundTripsThroughGeneratorConfigJson() {
         PoleDesign design = new PoleDesign("advanced", "Advanced");
         design.setGeneratorConfig(TowerGeneratorConfig.parametricClassic(
-            new TowerParameterSet(36.0, 13.0, 24.0, 1.1, 0.9, StructureDensity.MEDIUM)));
+            new TowerParameterSet(36.0, 13.0, 24.0, 1.1, 0.9, List.of(1.05, 0.95), StructureDensity.MEDIUM)));
 
         PoleDesign restored = PoleDesign.fromJson(design.toJson());
         TowerParameterSet parameters = restored.getGeneratorConfig().parameters();
         assertEquals(1.1, parameters.depthScale(), 0.01);
         assertEquals(0.9, parameters.waistRatio(), 0.01);
+        assertEquals(1.05, parameters.armLevelScales().get(0), 0.01);
+    }
+
+    private static TowerArm findArm(TowerStructureDesign structure, String id) {
+        return structure.getArms().stream()
+            .filter(arm -> id.equals(arm.getId()))
+            .findFirst()
+            .orElseThrow();
     }
 
     private static TowerStation findStation(TowerStructureDesign structure, String id) {

@@ -51,7 +51,7 @@ class TowerParametricClassicTest {
         TowerParameterSet defaults = TowerParameterSet.classicDefaults();
         PoleDesign baseline = TowerParametricDesignFactory.compileClassicDoubleArm(defaults);
         PoleDesign taller = TowerParametricDesignFactory.compileClassicDoubleArm(
-            new TowerParameterSet(48.0, defaults.baseWidth(), defaults.armSpan(), defaults.depthScale(), defaults.waistRatio(), defaults.density()));
+            new TowerParameterSet(48.0, defaults.baseWidth(), defaults.armSpan(), defaults.depthScale(), defaults.waistRatio(), defaults.armLevelScales(), defaults.density()));
 
         double ratio = 48.0 / 36.0;
         List<TowerStation> baseStations = baseline.getTowerStructure().sortedStations();
@@ -77,7 +77,7 @@ class TowerParametricClassicTest {
         TowerParameterSet defaults = TowerParameterSet.classicDefaults();
         PoleDesign baseline = TowerParametricDesignFactory.compileClassicDoubleArm(defaults);
         PoleDesign wider = TowerParametricDesignFactory.compileClassicDoubleArm(
-            new TowerParameterSet(defaults.height(), 15.0, defaults.armSpan(), defaults.depthScale(), defaults.waistRatio(), defaults.density()));
+            new TowerParameterSet(defaults.height(), 15.0, defaults.armSpan(), defaults.depthScale(), defaults.waistRatio(), defaults.armLevelScales(), defaults.density()));
 
         List<TowerStation> baseStations = baseline.getTowerStructure().sortedStations();
         List<TowerStation> wideStations = wider.getTowerStructure().sortedStations();
@@ -101,7 +101,7 @@ class TowerParametricClassicTest {
         TowerParameterSet defaults = TowerParameterSet.classicDefaults();
         PoleDesign baseline = TowerParametricDesignFactory.compileClassicDoubleArm(defaults);
         PoleDesign widerSpan = TowerParametricDesignFactory.compileClassicDoubleArm(
-            new TowerParameterSet(defaults.height(), defaults.baseWidth(), 28.0, defaults.depthScale(), defaults.waistRatio(), defaults.density()));
+            new TowerParameterSet(defaults.height(), defaults.baseWidth(), 28.0, defaults.depthScale(), defaults.waistRatio(), defaults.armLevelScales(), defaults.density()));
 
         TowerArm baseLower = findArm(baseline.getTowerStructure(), "arm_lower");
         TowerArm wideLower = findArm(widerSpan.getTowerStructure(), "arm_lower");
@@ -130,10 +130,10 @@ class TowerParametricClassicTest {
     void densityPreservesSilhouetteButChangesBracing() {
         TowerParameterSet defaults = TowerParameterSet.classicDefaults();
         PoleDesign low = TowerParametricDesignFactory.compileClassicDoubleArm(
-            new TowerParameterSet(defaults.height(), defaults.baseWidth(), defaults.armSpan(), defaults.depthScale(), defaults.waistRatio(), StructureDensity.LOW));
+            new TowerParameterSet(defaults.height(), defaults.baseWidth(), defaults.armSpan(), defaults.depthScale(), defaults.waistRatio(), defaults.armLevelScales(), StructureDensity.LOW));
         PoleDesign medium = TowerParametricDesignFactory.compileClassicDoubleArm(defaults);
         PoleDesign high = TowerParametricDesignFactory.compileClassicDoubleArm(
-            new TowerParameterSet(defaults.height(), defaults.baseWidth(), defaults.armSpan(), defaults.depthScale(), defaults.waistRatio(), StructureDensity.HIGH));
+            new TowerParameterSet(defaults.height(), defaults.baseWidth(), defaults.armSpan(), defaults.depthScale(), defaults.waistRatio(), defaults.armLevelScales(), StructureDensity.HIGH));
 
         assertStationsClose(low.getTowerStructure(), medium.getTowerStructure());
         assertStationsClose(high.getTowerStructure(), medium.getTowerStructure());
@@ -145,7 +145,8 @@ class TowerParametricClassicTest {
 
     @Test
     void profileClampRecordsAdjustmentsWithoutChangingUnrelatedParameters() {
-        TowerParameterSet requested = new TowerParameterSet(100.0, 30.0, 80.0, 2.0, 2.0, StructureDensity.MEDIUM);
+        TowerParameterSet requested = new TowerParameterSet(
+            100.0, 30.0, 80.0, 2.0, 2.0, List.of(2.0, 2.0), StructureDensity.MEDIUM);
         TowerConstraintResult result = TowerParametricDesignFactory.resolveClassic(requested);
 
         assertClose(52.0, result.resolved().height());
@@ -158,6 +159,7 @@ class TowerParametricClassicTest {
         assertTrue(result.adjustments().stream().anyMatch(a -> a.kind() == ConstraintAdjustmentKind.ARM_SPAN_CLAMPED));
         assertTrue(result.adjustments().stream().anyMatch(a -> a.kind() == ConstraintAdjustmentKind.DEPTH_SCALE_CLAMPED));
         assertTrue(result.adjustments().stream().anyMatch(a -> a.kind() == ConstraintAdjustmentKind.WAIST_RATIO_CLAMPED));
+        assertTrue(result.adjustments().stream().anyMatch(a -> a.kind() == ConstraintAdjustmentKind.ARM_LEVEL_CLAMPED));
     }
 
     @Test
@@ -192,7 +194,7 @@ class TowerParametricClassicTest {
         ResolvedTowerStation lower = new ResolvedTowerStation("a", TowerStationRole.BASE, 0.0, 10.0, 4.0);
         ResolvedTowerStation upper = new ResolvedTowerStation("b", TowerStationRole.TOP, 4.0, 1.0, 1.0);
         ResolvedTowerParameters resolved = new ResolvedTowerParameters(
-            4.0, 20.0, 10.0, 4.0, 24.0, 1.0, 1.0, StructureDensity.MEDIUM,
+            4.0, 20.0, 10.0, 4.0, 24.0, 1.0, 1.0, List.of(), StructureDensity.MEDIUM,
             List.of(lower, upper),
             List.of(),
             4.0,
