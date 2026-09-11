@@ -8,6 +8,7 @@ import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.preview.PoleVoxelElevationRenderer;
 import com.plot.plugin.powerline.preview.PoleVoxelPreviewModel;
 import com.plot.plugin.powerline.preview.PoleVoxelizer;
+import com.plot.plugin.powerline.preview.TowerStructuralElevationRenderer;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -15,8 +16,7 @@ import imgui.ImVec2;
 import imgui.flag.ImGuiWindowFlags;
 
 /**
- * 杆塔设计器预览：体素正交立面（正视/侧视第一命中）+ 设计辅助 overlay。
- * 立面走 {@link PoleVoxelElevationRenderer}，与风格卡片 tooltip / Quick Tune 侧视同一套取面。
+ * 杆塔设计器预览：分层杆使用体素立面，参数化塔使用结构立面 + 设计辅助 overlay。
  */
 public final class PoleDesignPreviewRenderer {
     static final float MIN_PANE_HEIGHT = 192f;
@@ -123,6 +123,20 @@ public final class PoleDesignPreviewRenderer {
         drawList.addText(x0 + 4f, y0 + 3f, COLOR_LABEL, label);
 
         float innerY0 = y0 + ImGui.getFontSize() + PANE_LABEL_GAP;
+        if (design.hasTowerStructure()) {
+            TowerStructuralElevationRenderer.StructuralView structuralView = view == PoleVoxelElevationRenderer.ElevationView.FRONT
+                ? TowerStructuralElevationRenderer.StructuralView.FRONT
+                : TowerStructuralElevationRenderer.StructuralView.SIDE;
+            boolean drawn = structuralView == TowerStructuralElevationRenderer.StructuralView.FRONT
+                ? TowerStructuralElevationRenderer.drawFront(drawList, design, x0, innerY0, x1, y1)
+                : TowerStructuralElevationRenderer.drawSide(drawList, design, x0, innerY0, x1, y1);
+            TowerStructuralElevationRenderer.StructuralLayout layout = TowerStructuralElevationRenderer.computeLayout(
+                design, structuralView, x0, innerY0, x1, y1);
+            if (drawn && layout != null) {
+                renderStructuralDesignerOverlay(drawList, design, view, layout, x0, x1);
+            }
+            return;
+        }
         if (model != null && !model.isEmpty()) {
             PoleVoxelElevationRenderer.draw(drawList, model, view, x0, innerY0, x1, y1);
             PoleVoxelElevationRenderer.ElevationLayout layout = PoleVoxelElevationRenderer.computeLayout(
@@ -130,6 +144,39 @@ public final class PoleDesignPreviewRenderer {
             if (layout != null) {
                 renderDesignerOverlay(drawList, design, model, view, layout, x0, x1);
             }
+        }
+    }
+
+    private static void renderStructuralDesignerOverlay(
+            ImDrawList drawList,
+            PoleDesign design,
+            PoleVoxelElevationRenderer.ElevationView view,
+            TowerStructuralElevationRenderer.StructuralLayout layout,
+            float x0,
+            float x1) {
+        TowerStructureDesign structure = design.getTowerStructure();
+        for (TowerStation station : structure.sortedStations()) {
+            float y = layout.mapY(station.getHeight());
+            drawList.addLine(x0 + 2f, y, x1 - 2f, y, COLOR_STATION_GUIDE, 1f);
+        }
+        for (TowerArm arm : structure.getArms()) {
+            float y = layout.mapY(arm.getBaseHeight());
+            double halfSpan = view == PoleVoxelElevationRenderer.ElevationView.FRONT
+                ? arm.getLateralReach()
+                : arm.getLongitudinalHalfWidth();
+            drawList.addLine(layout.mapX(-halfSpan), y, layout.mapX(halfSpan), y, COLOR_ARM_GUIDE, 1.5f);
+        }
+        for (ConductorAttachment attachment : design.getAttachments()) {
+            if (!attachment.isEnabled()) {
+                continue;
+            }
+            double horizontal = view == PoleVoxelElevationRenderer.ElevationView.FRONT
+                ? attachment.getLateralOffset()
+                : attachment.getLongitudinalOffset();
+            float x = layout.mapX(horizontal);
+            float y = layout.mapY(attachment.getVerticalOffset());
+            drawList.addCircleFilled(x, y, 4f, COLOR_ATTACHMENT);
+            drawList.addCircle(x, y, 4.5f, COLOR_ATTACHMENT_RING, 12, 1.2f);
         }
     }
 

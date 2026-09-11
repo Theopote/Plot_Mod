@@ -4,6 +4,7 @@ import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerArmSide;
 import com.plot.plugin.powerline.design.structure.TowerDecorationKind;
+import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import org.junit.jupiter.api.Test;
@@ -87,6 +88,20 @@ class TowerStructuralElevationRendererTest {
         TowerStructuralElevationRenderer.StructuralPalette palette =
             TowerStructuralElevationRenderer.StructuralPalette.from(structure);
         assertEquals(BlockPreviewColors.colorFor("minecraft:copper_block"), palette.armColor(arm));
+    }
+
+    @Test
+    void sideLayoutUsesTowerDepthInsteadOfFrontWidth() {
+        TowerStructureDesign structure = new TowerStructureDesign();
+        structure.addStation(new TowerStation("base", 0.0, 20.0, 4.0));
+        structure.addStation(new TowerStation("top", 40.0, 10.0, 2.0));
+
+        TowerStructuralElevationRenderer.StructuralLayout front = TowerStructuralElevationRenderer.computeLayout(
+            structure, TowerStructuralElevationRenderer.StructuralView.FRONT, 0f, 0f, 100f, 240f);
+        TowerStructuralElevationRenderer.StructuralLayout side = TowerStructuralElevationRenderer.computeLayout(
+            structure, TowerStructuralElevationRenderer.StructuralView.SIDE, 0f, 0f, 100f, 240f);
+
+        assertTrue(side.scale() > front.scale());
     }
 
     private static TowerArm armWithSide(TowerArmSide side, double reach) {

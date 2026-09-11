@@ -35,6 +35,11 @@ public final class TowerStructuralElevationRenderer {
     private static final double TAPERED_INNER_SCALE = 0.72;
     private static final double UPSWEEP_INNER_SCALE = 0.78;
 
+    public enum StructuralView {
+        FRONT,
+        SIDE
+    }
+
     private TowerStructuralElevationRenderer() {
     }
 
@@ -119,20 +124,35 @@ public final class TowerStructuralElevationRenderer {
     }
 
     public static boolean drawFront(ImDrawList drawList, PoleDesign design, float x0, float y0, float x1, float y1) {
+        return draw(drawList, design, StructuralView.FRONT, x0, y0, x1, y1);
+    }
+
+    public static boolean drawSide(ImDrawList drawList, PoleDesign design, float x0, float y0, float x1, float y1) {
+        return draw(drawList, design, StructuralView.SIDE, x0, y0, x1, y1);
+    }
+
+    private static boolean draw(
+            ImDrawList drawList,
+            PoleDesign design,
+            StructuralView view,
+            float x0,
+            float y0,
+            float x1,
+            float y1) {
         if (drawList == null || design == null || !design.hasTowerStructure()) {
             return false;
         }
         TowerStructureDesign structure = design.getTowerStructure();
-        StructuralLayout layout = computeLayout(structure, x0, y0, x1, y1);
+        StructuralLayout layout = computeLayout(structure, view, x0, y0, x1, y1);
         if (layout == null) {
             return false;
         }
         drawList.addRectFilled(x0, y0, x1, y1, 0xFF141414);
         StructuralPalette palette = StructuralPalette.from(structure);
-        drawLegs(drawList, structure, layout, palette);
-        drawBays(drawList, structure, layout, palette);
-        drawArms(drawList, structure, layout, palette);
-        drawDecorations(drawList, structure, layout, palette);
+        drawLegs(drawList, structure, layout, palette, view);
+        drawBays(drawList, structure, layout, palette, view);
+        drawArms(drawList, structure, layout, palette, view);
+        drawDecorations(drawList, structure, layout, palette, view);
         return true;
     }
 
@@ -152,6 +172,16 @@ public final class TowerStructuralElevationRenderer {
             float y0,
             float x1,
             float y1) {
+        return computeLayout(structure, StructuralView.FRONT, x0, y0, x1, y1);
+    }
+
+    public static StructuralLayout computeLayout(
+            TowerStructureDesign structure,
+            StructuralView view,
+            float x0,
+            float y0,
+            float x1,
+            float y1) {
         if (structure == null) {
             return null;
         }
@@ -165,10 +195,14 @@ public final class TowerStructuralElevationRenderer {
         }
         double maxHalfWidth = 1.0;
         for (TowerStation station : stations) {
-            maxHalfWidth = Math.max(maxHalfWidth, station.getHalfWidth());
+            maxHalfWidth = Math.max(
+                maxHalfWidth,
+                view == StructuralView.FRONT ? station.getHalfWidth() : station.getHalfDepth());
         }
         for (TowerArm arm : structure.getArms()) {
-            maxHalfWidth = Math.max(maxHalfWidth, arm.getLateralReach());
+            maxHalfWidth = Math.max(
+                maxHalfWidth,
+                view == StructuralView.FRONT ? arm.getLateralReach() : arm.getLongitudinalHalfWidth());
         }
         float availW = Math.max(1f, x1 - x0 - PADDING * 2f);
         float availH = Math.max(1f, y1 - y0 - PADDING * 2f);
@@ -183,17 +217,33 @@ public final class TowerStructuralElevationRenderer {
         return computeLayout(design.getTowerStructure(), x0, y0, x1, y1);
     }
 
+    public static StructuralLayout computeLayout(
+            PoleDesign design,
+            StructuralView view,
+            float x0,
+            float y0,
+            float x1,
+            float y1) {
+        if (design == null || !design.hasTowerStructure()) {
+            return null;
+        }
+        return computeLayout(design.getTowerStructure(), view, x0, y0, x1, y1);
+    }
+
     private static void drawLegs(
             ImDrawList drawList,
             TowerStructureDesign structure,
             StructuralLayout layout,
-            StructuralPalette palette) {
+            StructuralPalette palette,
+            StructuralView view) {
         List<TowerStation> stations = structure.sortedStations();
         for (int i = 1; i < stations.size(); i++) {
             TowerStation lower = stations.get(i - 1);
             TowerStation upper = stations.get(i);
-            segment(drawList, layout, -lower.getHalfWidth(), lower.getHeight(), -upper.getHalfWidth(), upper.getHeight(), palette.leg, LEG_THICKNESS);
-            segment(drawList, layout, lower.getHalfWidth(), lower.getHeight(), upper.getHalfWidth(), upper.getHeight(), palette.leg, LEG_THICKNESS);
+            double lowerHalfSpan = stationHalfSpan(lower, view);
+            double upperHalfSpan = stationHalfSpan(upper, view);
+            segment(drawList, layout, -lowerHalfSpan, lower.getHeight(), -upperHalfSpan, upper.getHeight(), palette.leg, LEG_THICKNESS);
+            segment(drawList, layout, lowerHalfSpan, lower.getHeight(), upperHalfSpan, upper.getHeight(), palette.leg, LEG_THICKNESS);
         }
     }
 
@@ -201,21 +251,24 @@ public final class TowerStructuralElevationRenderer {
             ImDrawList drawList,
             TowerStructureDesign structure,
             StructuralLayout layout,
-            StructuralPalette palette) {
+            StructuralPalette palette,
+            StructuralView view) {
         for (TowerBay bay : structure.getBays()) {
             TowerStation lower = structure.findStation(bay.getLowerStationId());
             TowerStation upper = structure.findStation(bay.getUpperStationId());
             if (lower == null || upper == null) {
                 continue;
             }
-            BracingPattern pattern = bay.getFrontBackBracing();
+            BracingPattern pattern = view == StructuralView.FRONT
+                ? bay.getFrontBackBracing()
+                : bay.getSideBracing();
             if (pattern == BracingPattern.NONE) {
                 continue;
             }
-            double xLL = -lower.getHalfWidth();
-            double xLR = lower.getHalfWidth();
-            double xUL = -upper.getHalfWidth();
-            double xUR = upper.getHalfWidth();
+            double xLL = -stationHalfSpan(lower, view);
+            double xLR = stationHalfSpan(lower, view);
+            double xUL = -stationHalfSpan(upper, view);
+            double xUR = stationHalfSpan(upper, view);
             double yL = lower.getHeight();
             double yU = upper.getHeight();
             switch (pattern) {
@@ -243,13 +296,34 @@ public final class TowerStructuralElevationRenderer {
             ImDrawList drawList,
             TowerStructureDesign structure,
             StructuralLayout layout,
-            StructuralPalette palette) {
+            StructuralPalette palette,
+            StructuralView view) {
         List<TowerArm> arms = structure.getArms().stream()
             .sorted(java.util.Comparator.comparingDouble(TowerArm::getBaseHeight))
             .toList();
         for (TowerArm arm : arms) {
-            drawArm(drawList, layout, palette, arm);
+            if (view == StructuralView.FRONT) {
+                drawArm(drawList, layout, palette, arm);
+            } else {
+                drawSideArm(drawList, layout, palette, arm);
+            }
         }
+    }
+
+    private static void drawSideArm(ImDrawList drawList, StructuralLayout layout, StructuralPalette palette, TowerArm arm) {
+        double halfWidth = arm.getLongitudinalHalfWidth();
+        if (halfWidth < 1e-6) {
+            return;
+        }
+        segment(
+            drawList,
+            layout,
+            -halfWidth,
+            arm.getBaseHeight(),
+            halfWidth,
+            arm.getBaseHeight(),
+            palette.armColor(arm),
+            ARM_THICKNESS);
     }
 
     private static void drawArm(ImDrawList drawList, StructuralLayout layout, StructuralPalette palette, TowerArm arm) {
@@ -354,7 +428,8 @@ public final class TowerStructuralElevationRenderer {
             ImDrawList drawList,
             TowerStructureDesign structure,
             StructuralLayout layout,
-            StructuralPalette palette) {
+            StructuralPalette palette,
+            StructuralView view) {
         for (TowerDecoration decoration : structure.getDecorations()) {
             if (decoration == null || !decoration.isEnabled()) {
                 continue;
@@ -364,10 +439,10 @@ public final class TowerStructuralElevationRenderer {
                 continue;
             }
             switch (kind) {
-                case ANTENNA -> drawAntennaDecoration(drawList, layout, palette, decoration);
-                case BEACON -> drawBeaconDecoration(drawList, layout, palette, decoration);
-                case WARNING_LIGHT -> drawWarningLightDecoration(drawList, layout, palette, decoration);
-                case PLATFORM -> drawPlatformDecoration(drawList, layout, palette, decoration);
+                case ANTENNA -> drawAntennaDecoration(drawList, layout, palette, decoration, view);
+                case BEACON -> drawBeaconDecoration(drawList, layout, palette, decoration, view);
+                case WARNING_LIGHT -> drawWarningLightDecoration(drawList, layout, palette, decoration, view);
+                case PLATFORM -> drawPlatformDecoration(drawList, layout, palette, decoration, view);
                 default -> { }
             }
         }
@@ -377,11 +452,12 @@ public final class TowerStructuralElevationRenderer {
             ImDrawList drawList,
             StructuralLayout layout,
             StructuralPalette palette,
-            TowerDecoration decoration) {
+            TowerDecoration decoration,
+            StructuralView view) {
         int color = palette.decorationColor(decoration, FALLBACK_ANTENNA);
         double baseHeight = decoration.getBaseHeight();
         double mastHeight = Math.max(2.0, decoration.getSize());
-        float x = layout.mapX(decoration.getLateralOffset());
+        float x = layout.mapX(decorationOffset(decoration, view));
         float yTop = layout.mapY(baseHeight + mastHeight);
         float yBase = layout.mapY(baseHeight);
         drawList.addLine(x, yBase, x, yTop, color, PEAK_THICKNESS);
@@ -393,9 +469,10 @@ public final class TowerStructuralElevationRenderer {
             ImDrawList drawList,
             StructuralLayout layout,
             StructuralPalette palette,
-            TowerDecoration decoration) {
+            TowerDecoration decoration,
+            StructuralView view) {
         int color = palette.decorationColor(decoration, COLOR_BEACON);
-        float x = layout.mapX(decoration.getLateralOffset());
+        float x = layout.mapX(decorationOffset(decoration, view));
         float y = layout.mapY(decoration.getBaseHeight() + 1.0);
         float half = 2.5f;
         drawList.addRectFilled(x - half, y - half, x + half, y + half, color);
@@ -405,9 +482,10 @@ public final class TowerStructuralElevationRenderer {
             ImDrawList drawList,
             StructuralLayout layout,
             StructuralPalette palette,
-            TowerDecoration decoration) {
+            TowerDecoration decoration,
+            StructuralView view) {
         int color = palette.decorationColor(decoration, COLOR_WARNING_LIGHT);
-        float x = layout.mapX(decoration.getLateralOffset());
+        float x = layout.mapX(decorationOffset(decoration, view));
         float y = layout.mapY(decoration.getBaseHeight() + 1.0);
         drawList.addCircleFilled(x, y, 2.2f, color);
     }
@@ -416,11 +494,12 @@ public final class TowerStructuralElevationRenderer {
             ImDrawList drawList,
             StructuralLayout layout,
             StructuralPalette palette,
-            TowerDecoration decoration) {
+            TowerDecoration decoration,
+            StructuralView view) {
         int color = palette.decorationColor(decoration, palette.defaultArm);
         double halfWidth = Math.max(1.0, decoration.getSize());
         double y = decoration.getBaseHeight();
-        double lateral = decoration.getLateralOffset();
+        double lateral = decorationOffset(decoration, view);
         segment(
             drawList,
             layout,
@@ -442,5 +521,13 @@ public final class TowerStructuralElevationRenderer {
             int color,
             float thickness) {
         drawList.addLine(layout.mapX(x0), layout.mapY(y0), layout.mapX(x1), layout.mapY(y1), color, thickness);
+    }
+
+    private static double stationHalfSpan(TowerStation station, StructuralView view) {
+        return view == StructuralView.FRONT ? station.getHalfWidth() : station.getHalfDepth();
+    }
+
+    private static double decorationOffset(TowerDecoration decoration, StructuralView view) {
+        return view == StructuralView.FRONT ? decoration.getLateralOffset() : decoration.getLongitudinalOffset();
     }
 }
