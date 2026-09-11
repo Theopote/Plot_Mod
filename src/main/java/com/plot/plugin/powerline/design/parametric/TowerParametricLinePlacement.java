@@ -39,6 +39,7 @@ public final class TowerParametricLinePlacement {
                 parameters.baseWidth(),
                 parameters.armSpan(),
                 parameters.depthScale(),
+                parameters.waistRatio(),
                 parameters.density());
             design.setGeneratorConfig(config.withParameters(parameters));
         }

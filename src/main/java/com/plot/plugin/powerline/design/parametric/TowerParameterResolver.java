@@ -28,6 +28,12 @@ public final class TowerParameterResolver {
             ConstraintAdjustmentKind.ARM_SPAN_CLAMPED);
         double depthScale = clamp(profile.depthScaleRange(), parameters.depthScale(), "depthScale", adjustments,
             ConstraintAdjustmentKind.DEPTH_SCALE_CLAMPED);
+        double waistRatio = clamp(
+            ParameterRange.WAIST_RATIO,
+            parameters.waistRatio(),
+            "waistRatio",
+            adjustments,
+            ConstraintAdjustmentKind.WAIST_RATIO_CLAMPED);
         StructureDensity density = parameters.density() != null ? parameters.density() : StructureDensity.MEDIUM;
 
         double baseHalfWidth = baseWidth / 2.0;
@@ -36,12 +42,18 @@ public final class TowerParameterResolver {
 
         List<ResolvedTowerStation> stations = new ArrayList<>(profile.stationTemplates().size());
         for (TowerStationTemplate template : profile.stationTemplates()) {
+            double widthRatio = template.widthRatio();
+            double depthRatio = template.depthRatio();
+            if (isWaistControlledRole(template.role())) {
+                widthRatio *= waistRatio;
+                depthRatio *= waistRatio;
+            }
             stations.add(new ResolvedTowerStation(
                 template.id(),
                 template.role(),
                 height * template.heightRatio(),
-                baseHalfWidth * template.widthRatio(),
-                baseHalfDepth * template.depthRatio()));
+                baseHalfWidth * widthRatio,
+                baseHalfDepth * depthRatio));
         }
 
         List<ResolvedTowerArm> arms = new ArrayList<>(profile.armTemplates().size());
@@ -64,6 +76,7 @@ public final class TowerParameterResolver {
             baseHalfDepth,
             armSpan,
             depthScale,
+            waistRatio,
             density,
             stations,
             arms,
@@ -71,6 +84,10 @@ public final class TowerParameterResolver {
             2.0,
             profile.topWireLift(),
             adjustments);
+    }
+
+    private static boolean isWaistControlledRole(TowerStationRole role) {
+        return role == TowerStationRole.WAIST || role == TowerStationRole.SHOULDER;
     }
 
     private static double clamp(

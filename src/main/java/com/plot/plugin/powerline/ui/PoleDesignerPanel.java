@@ -21,6 +21,7 @@ import com.plot.plugin.powerline.design.parametric.TowerLineBuildEnvelope;
 import com.plot.plugin.powerline.design.parametric.TowerConstraintResult;
 import com.plot.plugin.powerline.design.parametric.TowerConstraintSolver;
 import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
+import com.plot.plugin.powerline.design.parametric.ParameterRange;
 import com.plot.plugin.powerline.design.parametric.TowerParametricHeightLimits;
 import com.plot.plugin.powerline.design.parametric.TowerParameterProfile;
 import com.plot.plugin.powerline.design.parametric.TowerParameterProfiles;
@@ -602,6 +603,7 @@ public final class PoleDesignerPanel {
         }
 
         renderDensityButtons(parameters);
+        renderAdvancedParametricControls(profile, parameters);
         renderParametricConstraintHints();
 
         ImGui.checkbox(
@@ -613,6 +615,47 @@ public final class PoleDesignerPanel {
             showAdvancedStructure.set(true);
         }
         ImGui.separator();
+    }
+
+    private void renderAdvancedParametricControls(TowerParameterProfile profile, TowerParameterSet parameters) {
+        ImGui.setNextItemOpen(false, imgui.flag.ImGuiCond.FirstUseEver);
+        if (!ImGui.collapsingHeader(
+                PlotI18n.tr("plugin.powerline.design.parametric_advanced_parameters"),
+                imgui.flag.ImGuiTreeNodeFlags.None)) {
+            return;
+        }
+
+        float[] depthScale = {(float) parameters.depthScale()};
+        if (formRowSliderFloat(
+                "plugin.powerline.design.parametric_depth_scale",
+                "##param_depth_scale",
+                depthScale,
+                (float) profile.depthScaleRange().min(),
+                (float) profile.depthScaleRange().max(),
+                "%.2f")) {
+            applyParametricParameters(withDepthScale(parameters, depthScale[0]));
+        }
+        if (ImGui.isItemActivated()) {
+            pushDraftSnapshot();
+        }
+        PowerLineUiWidgets.textColored(0xFF9E9E9E, PlotI18n.tr("plugin.powerline.design.parametric_depth_scale_hint"));
+
+        if (profile.hasWaistControl()) {
+            float[] waistRatio = {(float) parameters.waistRatio()};
+            if (formRowSliderFloat(
+                    "plugin.powerline.design.parametric_waist_ratio",
+                    "##param_waist_ratio",
+                    waistRatio,
+                    (float) ParameterRange.WAIST_RATIO.min(),
+                    (float) ParameterRange.WAIST_RATIO.max(),
+                    "%.2f")) {
+                applyParametricParameters(withWaistRatio(parameters, waistRatio[0]));
+            }
+            if (ImGui.isItemActivated()) {
+                pushDraftSnapshot();
+            }
+            PowerLineUiWidgets.textColored(0xFF9E9E9E, PlotI18n.tr("plugin.powerline.design.parametric_waist_ratio_hint"));
+        }
     }
 
     private void renderDensityButtons(TowerParameterSet parameters) {
@@ -788,19 +831,33 @@ public final class PoleDesignerPanel {
     }
 
     private static TowerParameterSet withHeight(TowerParameterSet source, float height) {
-        return new TowerParameterSet(height, source.baseWidth(), source.armSpan(), source.depthScale(), source.density());
+        return new TowerParameterSet(
+            height, source.baseWidth(), source.armSpan(), source.depthScale(), source.waistRatio(), source.density());
     }
 
     private static TowerParameterSet withBaseWidth(TowerParameterSet source, float baseWidth) {
-        return new TowerParameterSet(source.height(), baseWidth, source.armSpan(), source.depthScale(), source.density());
+        return new TowerParameterSet(
+            source.height(), baseWidth, source.armSpan(), source.depthScale(), source.waistRatio(), source.density());
     }
 
     private static TowerParameterSet withArmSpan(TowerParameterSet source, float armSpan) {
-        return new TowerParameterSet(source.height(), source.baseWidth(), armSpan, source.depthScale(), source.density());
+        return new TowerParameterSet(
+            source.height(), source.baseWidth(), armSpan, source.depthScale(), source.waistRatio(), source.density());
+    }
+
+    private static TowerParameterSet withDepthScale(TowerParameterSet source, float depthScale) {
+        return new TowerParameterSet(
+            source.height(), source.baseWidth(), source.armSpan(), depthScale, source.waistRatio(), source.density());
+    }
+
+    private static TowerParameterSet withWaistRatio(TowerParameterSet source, float waistRatio) {
+        return new TowerParameterSet(
+            source.height(), source.baseWidth(), source.armSpan(), source.depthScale(), waistRatio, source.density());
     }
 
     private static TowerParameterSet withDensity(TowerParameterSet source, StructureDensity density) {
-        return new TowerParameterSet(source.height(), source.baseWidth(), source.armSpan(), source.depthScale(), density);
+        return new TowerParameterSet(
+            source.height(), source.baseWidth(), source.armSpan(), source.depthScale(), source.waistRatio(), density);
     }
 
     private void renderDecorationSection(TowerStructureDesign structure) {

@@ -452,6 +452,7 @@ public class PoleDesign {
         double baseWidth;
         double armSpan;
         double depthScale;
+        double waistRatio;
         String density;
 
         static GeneratorConfigData from(TowerGeneratorConfig config) {
@@ -465,6 +466,7 @@ public class PoleDesign {
             data.baseWidth = config.parameters().baseWidth();
             data.armSpan = config.parameters().armSpan();
             data.depthScale = config.parameters().depthScale();
+            data.waistRatio = config.parameters().waistRatio();
             data.density = config.parameters().density().name();
             return data;
         }
@@ -489,10 +491,11 @@ public class PoleDesign {
                     parsedDensity = StructureDensity.MEDIUM;
                 }
             }
+            double parsedWaistRatio = waistRatio > 0.0 ? waistRatio : TowerParameterSet.DEFAULT_WAIST_RATIO;
             return new TowerGeneratorConfig(
                 profileId,
                 parsedMode,
-                new TowerParameterSet(height, baseWidth, armSpan, depthScale, parsedDensity));
+                new TowerParameterSet(height, baseWidth, armSpan, depthScale, parsedWaistRatio, parsedDensity));
         }
     }
 }

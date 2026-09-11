@@ -9,6 +9,7 @@ public record ResolvedTowerParameters(
         double baseHalfDepth,
         double armSpan,
         double depthScale,
+        double waistRatio,
         StructureDensity density,
         List<ResolvedTowerStation> stations,
         List<ResolvedTowerArm> arms,

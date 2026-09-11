@@ -40,6 +40,7 @@ public final class TowerParametricHeightLimits {
                 template.baseWidth(),
                 template.armSpan(),
                 template.depthScale(),
+                template.waistRatio(),
                 template.density());
             TowerConstraintResult result = TowerParametricDesignFactory.resolveProfile(
                 profile,

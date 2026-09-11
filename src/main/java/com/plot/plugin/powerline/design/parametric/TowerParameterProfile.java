@@ -24,4 +24,13 @@ public record TowerParameterProfile(
         MaterialMix legMaterial,
         MaterialMix braceMaterial,
         MaterialMix armMaterial) {
+
+    public boolean hasWaistControl() {
+        for (TowerStationTemplate template : stationTemplates) {
+            if (template.role() == TowerStationRole.WAIST) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

@@ -123,6 +123,7 @@ public final class TowerParametricEditor {
             resolved.baseWidth(),
             resolved.armSpan(),
             resolved.depthScale(),
+            resolved.waistRatio(),
             resolved.density());
     }
 }

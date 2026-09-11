@@ -135,7 +135,7 @@ class ConductorAttachmentBindingV2Test {
         double normalized = design.getAttachments().getFirst().getNormalizedPosition();
 
         design.setGeneratorConfig(design.getGeneratorConfig().withParameters(
-            new TowerParameterSet(48.0, 13.0, 24.0, 1.0, design.getGeneratorConfig().parameters().density())));
+            new TowerParameterSet(48.0, 13.0, 24.0, 1.0, 1.0, design.getGeneratorConfig().parameters().density())));
         TowerParametricEditor.recompile(design, null);
 
         assertEquals(attachmentCount, design.getAttachments().size());

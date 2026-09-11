@@ -39,7 +39,7 @@ class TowerParametricSmallLatticeTest {
         TowerParameterSet defaults = TowerParameterSet.smallLatticeDefaults();
         PoleDesign baseline = TowerParametricDesignFactory.compileSmallLattice(defaults);
         PoleDesign taller = TowerParametricDesignFactory.compileSmallLattice(
-            new TowerParameterSet(30.0, defaults.baseWidth(), defaults.armSpan(), defaults.depthScale(), defaults.density()));
+            new TowerParameterSet(30.0, defaults.baseWidth(), defaults.armSpan(), defaults.depthScale(), defaults.waistRatio(), defaults.density()));
 
         double ratio = 30.0 / 24.0;
         List<TowerStation> baseStations = baseline.getTowerStructure().sortedStations();
@@ -61,7 +61,7 @@ class TowerParametricSmallLatticeTest {
         TowerParameterSet defaults = TowerParameterSet.smallLatticeDefaults();
         PoleDesign baseline = TowerParametricDesignFactory.compileSmallLattice(defaults);
         PoleDesign wider = TowerParametricDesignFactory.compileSmallLattice(
-            new TowerParameterSet(defaults.height(), 11.0, defaults.armSpan(), defaults.depthScale(), defaults.density()));
+            new TowerParameterSet(defaults.height(), 11.0, defaults.armSpan(), defaults.depthScale(), defaults.waistRatio(), defaults.density()));
 
         double widthRatio = 11.0 / 9.0;
         List<TowerStation> baseStations = baseline.getTowerStructure().sortedStations();
@@ -81,7 +81,7 @@ class TowerParametricSmallLatticeTest {
         TowerParameterSet defaults = TowerParameterSet.smallLatticeDefaults();
         PoleDesign baseline = TowerParametricDesignFactory.compileSmallLattice(defaults);
         PoleDesign widerSpan = TowerParametricDesignFactory.compileSmallLattice(
-            new TowerParameterSet(defaults.height(), defaults.baseWidth(), 18.0, defaults.depthScale(), defaults.density()));
+            new TowerParameterSet(defaults.height(), defaults.baseWidth(), 18.0, defaults.depthScale(), defaults.waistRatio(), defaults.density()));
 
         TowerArm baseArm = baseline.getTowerStructure().getArms().get(0);
         TowerArm wideArm = widerSpan.getTowerStructure().getArms().get(0);
@@ -98,10 +98,10 @@ class TowerParametricSmallLatticeTest {
     void densityPreservesSilhouetteButChangesBracing() {
         TowerParameterSet defaults = TowerParameterSet.smallLatticeDefaults();
         PoleDesign low = TowerParametricDesignFactory.compileSmallLattice(
-            new TowerParameterSet(defaults.height(), defaults.baseWidth(), defaults.armSpan(), defaults.depthScale(), StructureDensity.LOW));
+            new TowerParameterSet(defaults.height(), defaults.baseWidth(), defaults.armSpan(), defaults.depthScale(), defaults.waistRatio(), StructureDensity.LOW));
         PoleDesign medium = TowerParametricDesignFactory.compileSmallLattice(defaults);
         PoleDesign high = TowerParametricDesignFactory.compileSmallLattice(
-            new TowerParameterSet(defaults.height(), defaults.baseWidth(), defaults.armSpan(), defaults.depthScale(), StructureDensity.HIGH));
+            new TowerParameterSet(defaults.height(), defaults.baseWidth(), defaults.armSpan(), defaults.depthScale(), defaults.waistRatio(), StructureDensity.HIGH));
 
         assertStationsClose(low.getTowerStructure(), medium.getTowerStructure());
         assertStationsClose(high.getTowerStructure(), medium.getTowerStructure());
@@ -112,7 +112,7 @@ class TowerParametricSmallLatticeTest {
 
     @Test
     void profileClampRecordsAdjustments() {
-        TowerParameterSet requested = new TowerParameterSet(80.0, 20.0, 40.0, 2.0, StructureDensity.MEDIUM);
+        TowerParameterSet requested = new TowerParameterSet(80.0, 20.0, 40.0, 2.0, 2.0, StructureDensity.MEDIUM);
         TowerConstraintResult result = TowerParametricDesignFactory.resolveSmallLattice(requested);
         assertClose(36.0, result.resolved().height());
         assertClose(12.0, result.resolved().baseWidth());

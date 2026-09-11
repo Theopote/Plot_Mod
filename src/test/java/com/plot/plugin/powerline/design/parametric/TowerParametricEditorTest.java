@@ -32,7 +32,7 @@ class TowerParametricEditorTest {
         double originalTop = design.getTowerStructure().maxHeight();
 
         design.setGeneratorConfig(design.getGeneratorConfig().withParameters(
-            new TowerParameterSet(48.0, 13.0, 24.0, 1.0, StructureDensity.MEDIUM)));
+            new TowerParameterSet(48.0, 13.0, 24.0, 1.0, 1.0, StructureDensity.MEDIUM)));
         TowerParametricEditor.recompile(design, null);
 
         assertTrue(design.getTowerStructure().maxHeight() > originalTop);
@@ -44,7 +44,7 @@ class TowerParametricEditorTest {
         PoleDesign design = new PoleDesign("roundtrip", "Roundtrip");
         design.setTowerStructure(TowerStructurePresets.classicDoubleArmTower());
         design.setGeneratorConfig(TowerGeneratorConfig.parametricClassic(
-            new TowerParameterSet(40.0, 14.0, 26.0, 1.1, StructureDensity.HIGH)));
+            new TowerParameterSet(40.0, 14.0, 26.0, 1.1, 1.0, StructureDensity.HIGH)));
 
         PoleDesign restored = PoleDesign.fromJson(design.toJson());
         assertNotNull(restored.getGeneratorConfig());
