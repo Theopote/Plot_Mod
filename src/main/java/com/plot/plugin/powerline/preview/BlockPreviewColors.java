@@ -1,5 +1,7 @@
 package com.plot.plugin.powerline.preview;
 
+import com.plot.core.material.MaterialMix;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -43,7 +45,6 @@ public final class BlockPreviewColors {
         KNOWN.put("minecraft:quartz_block", 0xFFECEFF1);
         KNOWN.put("minecraft:iron_trapdoor", 0xFFB0B0B0);
         KNOWN.put("minecraft:amethyst_cluster", 0xFFCE93D8);
-        KNOWN.put("minecraft:spruce_fence", 0xFF6B5037);
     }
 
     private BlockPreviewColors() {
@@ -51,6 +52,18 @@ public final class BlockPreviewColors {
 
     public static boolean hasExplicitColor(String blockId) {
         return blockId != null && !blockId.isBlank() && KNOWN.containsKey(blockId);
+    }
+
+    /** 从 {@link MaterialMix} 首选方块取预览色；无材质时使用 fallback。 */
+    public static int previewColor(MaterialMix mix, int fallback) {
+        if (mix == null) {
+            return fallback;
+        }
+        String blockId = mix.getPrimaryMaterial();
+        if (blockId == null || blockId.isBlank()) {
+            return fallback;
+        }
+        return colorFor(blockId);
     }
 
     public static int colorFor(String blockId) {
