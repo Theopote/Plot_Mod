@@ -122,13 +122,8 @@ public final class PowerLineStyleCardRenderer {
                 sideOrigin.x + previewW,
                 sideOrigin.y + previewH,
                 0xFF141414);
-            PoleVoxelElevationRenderer.drawSide(
-                drawList,
-                previewDesign,
-                sideOrigin.x,
-                sideOrigin.y,
-                sideOrigin.x + previewW,
-                sideOrigin.y + previewH);
+            drawSidePreview(
+                drawList, previewDesign, sideOrigin.x, sideOrigin.y, sideOrigin.x + previewW, sideOrigin.y + previewH);
             ImGui.dummy(previewW, previewH);
             PowerLineUiWidgets.text(PlotI18n.tr(
                 "plugin.powerline.style.preview_height",
@@ -209,7 +204,7 @@ public final class PowerLineStyleCardRenderer {
                 innerY,
                 innerX + previewW - 4f,
                 innerY + previewH);
-            PoleVoxelElevationRenderer.drawSide(
+            drawSidePreview(
                 drawList,
                 previewDesign,
                 innerX + previewW + gap,
@@ -363,6 +358,20 @@ public final class PowerLineStyleCardRenderer {
                 x1,
                 y1);
         }
+    }
+
+    private static void drawSidePreview(
+            ImDrawList drawList,
+            PoleDesign design,
+            float x0,
+            float y0,
+            float x1,
+            float y1) {
+        if (design.hasTowerStructure()
+                && TowerStructuralElevationRenderer.drawSide(drawList, design, x0, y0, x1, y1)) {
+            return;
+        }
+        PoleVoxelElevationRenderer.drawSide(drawList, design, x0, y0, x1, y1);
     }
 
     private static void drawMissingPreviewPlaceholder(

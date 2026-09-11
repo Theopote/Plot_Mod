@@ -1,6 +1,8 @@
 package com.plot.plugin.powerline.preview;
 
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.design.ConductorAttachment;
+import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerArmSide;
 import com.plot.plugin.powerline.design.structure.TowerDecorationKind;
@@ -102,6 +104,25 @@ class TowerStructuralElevationRendererTest {
             structure, TowerStructuralElevationRenderer.StructuralView.SIDE, 0f, 0f, 100f, 240f);
 
         assertTrue(side.scale() > front.scale());
+    }
+
+    @Test
+    void designLayoutIncludesOutlyingAttachment() {
+        TowerStructureDesign structure = new TowerStructureDesign();
+        structure.addStation(new TowerStation("base", 0.0, 2.0, 2.0));
+        structure.addStation(new TowerStation("top", 20.0, 1.0, 1.0));
+        PoleDesign design = new PoleDesign("tower", "Tower");
+        design.setTowerStructure(structure);
+        ConductorAttachment attachment = new ConductorAttachment("edge", "Edge");
+        attachment.setLateralOffset(20.0);
+        attachment.setVerticalOffset(80.0);
+        design.addAttachment(attachment);
+
+        TowerStructuralElevationRenderer.StructuralLayout layout = TowerStructuralElevationRenderer.computeLayout(
+            design, TowerStructuralElevationRenderer.StructuralView.FRONT, 0f, 0f, 100f, 100f);
+
+        assertTrue(layout.mapX(20.75) <= 96f);
+        assertTrue(layout.mapY(80.75) >= 4f);
     }
 
     private static TowerArm armWithSide(TowerArmSide side, double reach) {

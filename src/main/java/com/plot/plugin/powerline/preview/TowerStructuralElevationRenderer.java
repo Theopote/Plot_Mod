@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.preview;
 
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.design.ConductorAttachment;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.structure.BracingPattern;
 import com.plot.plugin.powerline.design.structure.TowerArm;
@@ -19,7 +20,7 @@ import java.util.List;
  * 保持完整真实比例，不经过体素化。
  */
 public final class TowerStructuralElevationRenderer {
-    private static final float PADDING = 4f;
+    private static final float PADDING = 8f;
     private static final float LEG_THICKNESS = 2.2f;
     private static final float ARM_THICKNESS = 1.7f;
     private static final float BRACE_THICKNESS = 1.1f;
@@ -143,7 +144,7 @@ public final class TowerStructuralElevationRenderer {
             return false;
         }
         TowerStructureDesign structure = design.getTowerStructure();
-        StructuralLayout layout = computeLayout(structure, view, x0, y0, x1, y1);
+        StructuralLayout layout = computeLayout(design, view, x0, y0, x1, y1);
         if (layout == null) {
             return false;
         }
@@ -204,6 +205,19 @@ public final class TowerStructuralElevationRenderer {
                 maxHalfWidth,
                 view == StructuralView.FRONT ? arm.getLateralReach() : arm.getLongitudinalHalfWidth());
         }
+        for (TowerDecoration decoration : structure.getDecorations()) {
+            if (decoration == null || !decoration.isEnabled()) {
+                continue;
+            }
+            double offset = Math.abs(decorationOffset(decoration, view));
+            double halfSize = decoration.getKind() == TowerDecorationKind.PLATFORM ? decoration.getSize() : 0.0;
+            maxHalfWidth = Math.max(maxHalfWidth, offset + halfSize);
+            if (decoration.getKind() == TowerDecorationKind.ANTENNA) {
+                maxHeight = Math.max(maxHeight, decoration.getBaseHeight() + Math.max(2.0, decoration.getSize()));
+            } else {
+                maxHeight = Math.max(maxHeight, decoration.getBaseHeight() + 3.5);
+            }
+        }
         float availW = Math.max(1f, x1 - x0 - PADDING * 2f);
         float availH = Math.max(1f, y1 - y0 - PADDING * 2f);
         float scale = Math.min(availW / (float) (maxHalfWidth * 2.0), availH / (float) maxHeight);
@@ -227,7 +241,38 @@ public final class TowerStructuralElevationRenderer {
         if (design == null || !design.hasTowerStructure()) {
             return null;
         }
-        return computeLayout(design.getTowerStructure(), view, x0, y0, x1, y1);
+        TowerStructureDesign structure = design.getTowerStructure();
+        StructuralLayout structureLayout = computeLayout(structure, view, x0, y0, x1, y1);
+        if (structureLayout == null) {
+            return null;
+        }
+        double maxHalfSpan = 1.0;
+        double maxHeight = structure.maxHeight();
+        for (TowerStation station : structure.sortedStations()) {
+            maxHalfSpan = Math.max(maxHalfSpan, stationHalfSpan(station, view));
+        }
+        for (TowerArm arm : structure.getArms()) {
+            maxHalfSpan = Math.max(
+                maxHalfSpan,
+                view == StructuralView.FRONT ? arm.getLateralReach() : arm.getLongitudinalHalfWidth());
+        }
+        for (ConductorAttachment attachment : design.getAttachments()) {
+            if (!attachment.isEnabled()) {
+                continue;
+            }
+            double offset = view == StructuralView.FRONT
+                ? attachment.getLateralOffset()
+                : attachment.getLongitudinalOffset();
+            maxHalfSpan = Math.max(maxHalfSpan, Math.abs(offset) + 0.75);
+            maxHeight = Math.max(maxHeight, attachment.getVerticalOffset() + 0.75);
+        }
+        if (maxHalfSpan <= 1.0 && maxHeight <= 0.0) {
+            return structureLayout;
+        }
+        float availW = Math.max(1f, x1 - x0 - PADDING * 2f);
+        float availH = Math.max(1f, y1 - y0 - PADDING * 2f);
+        float scale = Math.min(availW / (float) (maxHalfSpan * 2.0), availH / (float) maxHeight);
+        return new StructuralLayout(scale, (x0 + x1) * 0.5f, y1 - PADDING);
     }
 
     private static void drawLegs(

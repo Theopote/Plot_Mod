@@ -123,6 +123,7 @@ public final class PoleDesignPreviewRenderer {
         drawList.addText(x0 + 4f, y0 + 3f, COLOR_LABEL, label);
 
         float innerY0 = y0 + ImGui.getFontSize() + PANE_LABEL_GAP;
+        drawList.pushClipRect(x0, innerY0, x1, y1);
         if (design.hasTowerStructure()) {
             TowerStructuralElevationRenderer.StructuralView structuralView = view == PoleVoxelElevationRenderer.ElevationView.FRONT
                 ? TowerStructuralElevationRenderer.StructuralView.FRONT
@@ -135,6 +136,7 @@ public final class PoleDesignPreviewRenderer {
             if (drawn && layout != null) {
                 renderStructuralDesignerOverlay(drawList, design, view, layout, x0, x1);
             }
+            drawList.popClipRect();
             return;
         }
         if (model != null && !model.isEmpty()) {
@@ -145,6 +147,7 @@ public final class PoleDesignPreviewRenderer {
                 renderDesignerOverlay(drawList, design, model, view, layout, x0, x1);
             }
         }
+        drawList.popClipRect();
     }
 
     private static void renderStructuralDesignerOverlay(
