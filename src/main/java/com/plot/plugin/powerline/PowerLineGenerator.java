@@ -15,6 +15,7 @@ import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
 import com.plot.plugin.powerline.placement.GenerationVoxelSink;
 import com.plot.plugin.powerline.placement.PoleLayerVoxelPlacer;
 import com.plot.plugin.powerline.placement.PolePlacementBase;
+import com.plot.plugin.powerline.placement.PoleSiteDecorationClearance;
 import com.plot.plugin.powerline.placement.PoleWaterFoundation;
 import com.plot.plugin.powerline.design.ConductorAttachmentPresets;
 import com.plot.plugin.powerline.engineering.selection.TowerSelectionContext;
@@ -140,7 +141,6 @@ public class PowerLineGenerator {
         int buildBaseY = placementBase.buildBaseY();
         Vec2d tangent = computePoleTangentFromSites(sites, index);
         PoleFrame frame = PoleFrame.fromPole(planPoint, tangent, buildBaseY);
-        fillWaterFoundationIfNeeded(planPoint, placementBase, footprint, result);
 
         TowerSelectionContext selectionContext = buildSelectionContext(
             site,
@@ -156,6 +156,18 @@ public class PowerLineGenerator {
             design = design.copy();
             design.ensureDefaultConductorAttachments();
         }
+
+        PoleSiteDecorationClearance.clearAroundPole(
+            planPoint,
+            placementBase,
+            design,
+            footprint.getPoleHeight(),
+            tangent,
+            terrain,
+            result,
+            projectionHandler,
+            coordinateTransformer);
+        fillWaterFoundationIfNeeded(planPoint, placementBase, footprint, result);
 
         int legacyWireHangY;
         List<ResolvedAttachment> attachments = List.of();
