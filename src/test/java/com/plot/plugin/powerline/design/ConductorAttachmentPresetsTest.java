@@ -66,7 +66,7 @@ class ConductorAttachmentPresetsTest {
     @Test
     void megaLatticePresetExpectsSixPhaseConductors() {
         PowerLineStylePreset preset = PowerLineStylePresetCatalog.megaLattice();
-        assertEquals(3, preset.expectedConductorCount());
+        assertEquals(6, preset.expectedConductorCount());
     }
 
     @Test

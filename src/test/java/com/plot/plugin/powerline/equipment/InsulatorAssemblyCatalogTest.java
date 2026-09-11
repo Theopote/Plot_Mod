@@ -17,7 +17,7 @@ class InsulatorAssemblyCatalogTest {
     void megaLatticeSuspensionUsesTwinStringAssembly() {
         var design = TowerFamilyDesignPresets.megaLatticeSuspension();
         var phase = design.getAttachments().stream()
-            .filter(a -> ConductorAttachmentPresets.PHASE_A_ID.equals(a.getId()))
+            .filter(a -> "left_a".equals(a.getId()))
             .findFirst()
             .orElseThrow();
         assertEquals(InsulatorAssemblyCatalog.TWIN_STRING_ID, phase.getInsulatorAssemblyId());
@@ -40,7 +40,7 @@ class InsulatorAssemblyCatalogTest {
         var resolver = new PowerLineAttachmentResolver(null);
         PoleFrame frame = PoleFrame.fromPole(new Vec2d(0, 0), new Vec2d(1, 0), 64);
         ResolvedAttachment resolved = resolver.resolve(design, frame).stream()
-            .filter(a -> ConductorAttachmentPresets.PHASE_B_ID.equals(a.id()))
+            .filter(a -> "left_b".equals(a.id()))
             .findFirst()
             .orElseThrow();
         assertEquals(InsulatorMountStyle.TWIN_COLUMN, resolved.mountStyle());

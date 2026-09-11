@@ -1,9 +1,11 @@
 package com.plot.plugin.powerline.design;
 
 import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
+import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import com.plot.plugin.powerline.equipment.InsulatorType;
 import org.junit.jupiter.api.Test;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -24,17 +26,17 @@ class ConductorArrangementTest {
     }
 
     @Test
-    void monsterQuadCircuitHasTwelvePhaseChannels() {
-        ConductorArrangement arrangement = ConductorArrangement.monsterQuadCircuit();
+    void uhvThreeDeckHasTwelvePhaseChannels() {
+        ConductorArrangement arrangement = ConductorArrangement.uhvThreeDeck();
         assertEquals(12, arrangement.phaseConductorCount());
         assertEquals(14, arrangement.getChannels().size());
     }
 
     @Test
-    void megaLatticeDesignMatchesArrangementChannelCount() {
+    void megaLatticeDesignMatchesThreeDeckArrangement() {
         var design = TowerFamilyDesignPresets.megaLatticeSuspension();
-        assertEquals(5, design.getAttachments().size());
-        assertEquals(3, ConductorArrangement.megaIndustrialBundled().phaseConductorCount());
+        assertEquals(8, design.getAttachments().size());
+        assertEquals(6, ConductorArrangement.megaThreeDeck().phaseConductorCount());
     }
 
     @Test
@@ -74,14 +76,50 @@ class ConductorArrangementTest {
     }
 
     @Test
-    void monsterQuadCircuitAlignsWithUhvArms() {
-        List<ConductorAttachment> attachments = ConductorArrangement.monsterQuadCircuit()
-            .toAttachments(56, InsulatorType.SUSPENSION, 5);
-        Set<Double> phaseHeights = attachments.stream()
+    void tripleArmDoubleCircuitAlignsWithArmHeights() {
+        List<ConductorAttachment> attachments = ConductorArrangement.doubleCircuitThreeDeck()
+            .toAttachments(36, InsulatorType.SUSPENSION, 3);
+        Set<Double> phaseHeights = phaseHeights(attachments);
+        assertEquals(Set.of(36.0, 42.0, 48.0), phaseHeights);
+        assertEquals(6, attachments.stream()
             .filter(a -> a.getRole() != AttachmentRole.TOP_WIRE)
-            .map(ConductorAttachment::getVerticalOffset)
-            .collect(java.util.stream.Collectors.toSet());
-        assertEquals(Set.of(56.0, 74.0), phaseHeights);
+            .count());
+    }
+
+    @Test
+    void tripleArmFamilyAttachmentsAlignWithArms() {
+        var design = TowerFamilyDesignPresets.tripleArmSuspension();
+        Set<Double> phaseHeights = phaseHeights(design.getAttachments());
+        assertEquals(Set.of(36.0, 42.0, 48.0), phaseHeights);
+        List<Double> armHeights = TowerStructurePresets.tripleArmTower().getArms().stream()
+            .sorted(Comparator.comparingDouble(com.plot.plugin.powerline.design.structure.TowerArm::getBaseHeight))
+            .map(com.plot.plugin.powerline.design.structure.TowerArm::getBaseHeight)
+            .toList();
+        assertEquals(List.of(36.0, 42.0, 48.0), armHeights);
+    }
+
+    @Test
+    void megaThreeDeckAlignsWithArmHeights() {
+        List<ConductorAttachment> attachments = ConductorArrangement.megaThreeDeck()
+            .toAttachments(38, InsulatorType.SUSPENSION, 4);
+        assertEquals(Set.of(38.0, 47.0, 56.0), phaseHeights(attachments));
+        assertTrue(attachments.stream()
+            .filter(a -> a.getRole() != AttachmentRole.TOP_WIRE)
+            .allMatch(a -> a.getBundleVisual() == BundleVisual.TWIN));
+    }
+
+    @Test
+    void megaLatticeFamilyAttachmentsAlignWithArms() {
+        var design = TowerFamilyDesignPresets.megaLatticeSuspension();
+        assertEquals(Set.of(38.0, 47.0, 56.0), phaseHeights(design.getAttachments()));
+    }
+
+    @Test
+    void uhvThreeDeckAlignsWithArmHeights() {
+        List<ConductorAttachment> attachments = ConductorArrangement.uhvThreeDeck()
+            .toAttachments(56, InsulatorType.SUSPENSION, 5);
+        Set<Double> phaseHeights = phaseHeights(attachments);
+        assertEquals(Set.of(56.0, 66.0, 74.0), phaseHeights);
         long topWires = attachments.stream()
             .filter(a -> a.getRole() == AttachmentRole.TOP_WIRE)
             .count();
@@ -95,6 +133,14 @@ class ConductorArrangementTest {
     void monsterPylonDesignHasQuadCircuitAttachments() {
         var design = TowerFamilyDesignPresets.monsterPylonSuspension();
         assertEquals(14, design.getAttachments().size());
+        assertEquals(Set.of(56.0, 66.0, 74.0), phaseHeights(design.getAttachments()));
+    }
+
+    private static Set<Double> phaseHeights(List<ConductorAttachment> attachments) {
+        return attachments.stream()
+            .filter(a -> a.getRole() != AttachmentRole.TOP_WIRE)
+            .map(ConductorAttachment::getVerticalOffset)
+            .collect(Collectors.toSet());
     }
 
     private static void assertAttachmentNear(

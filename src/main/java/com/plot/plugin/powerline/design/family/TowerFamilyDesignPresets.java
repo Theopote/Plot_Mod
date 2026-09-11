@@ -91,11 +91,12 @@ public final class TowerFamilyDesignPresets {
     }
 
     public static PoleDesign latticeSuspensionTall() {
-        return buildTripleArmRoleDesign(
+        return buildArrangementRoleDesign(
             LATTICE_SUSPENSION_TALL_ID,
             "Lattice Suspension L",
-            6,
-            46,
+            TowerStructurePresets.tripleArmTower(),
+            ConductorArrangement.doubleCircuitThreeDeck(),
+            36,
             InsulatorType.SUSPENSION,
             3,
             metadata(TowerRole.SUSPENSION, 48, 80, 5));
@@ -175,48 +176,48 @@ public final class TowerFamilyDesignPresets {
     }
 
     public static PoleDesign megaLatticeSuspension() {
-        return buildMegaIndustrialRoleDesign(
+        return buildArrangementRoleDesign(
             MEGA_LATTICE_SUSPENSION_ID,
             "Mega Lattice Suspension",
             TowerStructurePresets.megaLatticeTower(),
-            TowerConductorArrangement.megaIndustrial(),
-            47,
+            ConductorArrangement.megaThreeDeck(),
+            38,
             InsulatorType.SUSPENSION,
             4,
             metadata(TowerRole.SUSPENSION, 52, 90, 5));
     }
 
     public static PoleDesign megaLatticeAngle() {
-        return buildMegaIndustrialRoleDesign(
+        return buildArrangementRoleDesign(
             MEGA_LATTICE_ANGLE_ID,
             "Mega Lattice Angle",
             TowerStructurePresets.megaLatticeTower(),
-            TowerConductorArrangement.megaIndustrial(),
-            47,
+            ConductorArrangement.megaThreeDeck(),
+            38,
             InsulatorType.STRAIN,
             5,
             metadata(TowerRole.ANGLE, 54, 85, 60));
     }
 
     public static PoleDesign megaLatticeDeadEnd() {
-        return buildMegaIndustrialRoleDesign(
+        return buildArrangementRoleDesign(
             MEGA_LATTICE_DEAD_END_ID,
             "Mega Lattice Dead-End",
             TowerStructurePresets.megaLatticeTower(),
-            TowerConductorArrangement.megaIndustrial(),
-            47,
+            ConductorArrangement.megaThreeDeck(),
+            38,
             InsulatorType.STRAIN,
             5,
             metadata(TowerRole.DEAD_END, 56, 85, 90));
     }
 
     public static PoleDesign megaLatticeTerminal() {
-        return buildMegaIndustrialRoleDesign(
+        return buildArrangementRoleDesign(
             MEGA_LATTICE_TERMINAL_ID,
             "Mega Lattice Terminal",
             TowerStructurePresets.megaLatticeTower(),
-            TowerConductorArrangement.megaIndustrial(),
-            47,
+            ConductorArrangement.megaThreeDeck(),
+            38,
             InsulatorType.STRAIN,
             4,
             metadata(TowerRole.TERMINAL, 52, 80, 90));
@@ -323,7 +324,7 @@ public final class TowerFamilyDesignPresets {
             MONSTER_PYLON_SUSPENSION_ID,
             "Monster Pylon Suspension",
             TowerStructurePresets.uhvGiantTower(),
-            ConductorArrangement.monsterQuadCircuit(),
+            ConductorArrangement.uhvThreeDeck(),
             56,
             InsulatorType.SUSPENSION,
             5,
@@ -335,7 +336,7 @@ public final class TowerFamilyDesignPresets {
             MONSTER_PYLON_ANGLE_ID,
             "Monster Pylon Angle",
             TowerStructurePresets.uhvGiantTower(),
-            ConductorArrangement.monsterQuadCircuit(),
+            ConductorArrangement.uhvThreeDeck(),
             56,
             InsulatorType.STRAIN,
             6,
@@ -347,7 +348,7 @@ public final class TowerFamilyDesignPresets {
             MONSTER_PYLON_DEAD_END_ID,
             "Monster Pylon Dead-End",
             TowerStructurePresets.uhvGiantTower(),
-            ConductorArrangement.monsterQuadCircuit(),
+            ConductorArrangement.uhvThreeDeck(),
             56,
             InsulatorType.STRAIN,
             6,
@@ -359,7 +360,7 @@ public final class TowerFamilyDesignPresets {
             MONSTER_PYLON_TERMINAL_ID,
             "Monster Pylon Terminal",
             TowerStructurePresets.uhvGiantTower(),
-            ConductorArrangement.monsterQuadCircuit(),
+            ConductorArrangement.uhvThreeDeck(),
             56,
             InsulatorType.STRAIN,
             5,
@@ -367,44 +368,48 @@ public final class TowerFamilyDesignPresets {
     }
 
     public static PoleDesign tripleArmSuspension() {
-        return buildTripleArmRoleDesign(
+        return buildArrangementRoleDesign(
             TRIPLE_ARM_SUSPENSION_ID,
             "Triple Arm Suspension",
-            6,
-            42,
+            TowerStructurePresets.tripleArmTower(),
+            ConductorArrangement.doubleCircuitThreeDeck(),
+            36,
             InsulatorType.SUSPENSION,
             3,
             metadata(TowerRole.SUSPENSION, 48, 95, 5));
     }
 
     public static PoleDesign tripleArmAngle() {
-        return buildTripleArmRoleDesign(
+        return buildArrangementRoleDesign(
             TRIPLE_ARM_ANGLE_ID,
             "Triple Arm Angle",
-            6,
-            42,
+            TowerStructurePresets.tripleArmTower(),
+            ConductorArrangement.doubleCircuitThreeDeck(),
+            36,
             InsulatorType.STRAIN,
             4,
             metadata(TowerRole.ANGLE, 50, 90, 60));
     }
 
     public static PoleDesign tripleArmDeadEnd() {
-        return buildTripleArmRoleDesign(
+        return buildArrangementRoleDesign(
             TRIPLE_ARM_DEAD_END_ID,
             "Triple Arm Dead-End",
-            6,
-            42,
+            TowerStructurePresets.tripleArmTower(),
+            ConductorArrangement.doubleCircuitThreeDeck(),
+            36,
             InsulatorType.STRAIN,
             4,
             metadata(TowerRole.DEAD_END, 50, 90, 90));
     }
 
     public static PoleDesign tripleArmTerminal() {
-        return buildTripleArmRoleDesign(
+        return buildArrangementRoleDesign(
             TRIPLE_ARM_TERMINAL_ID,
             "Triple Arm Terminal",
-            6,
-            42,
+            TowerStructurePresets.tripleArmTower(),
+            ConductorArrangement.doubleCircuitThreeDeck(),
+            36,
             InsulatorType.STRAIN,
             3,
             metadata(TowerRole.TERMINAL, 48, 85, 90));

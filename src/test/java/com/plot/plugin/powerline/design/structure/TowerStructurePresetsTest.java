@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -168,7 +169,11 @@ class TowerStructurePresetsTest {
         assertEquals(TowerSilhouette.CUP, cup.getTowerStructure().getSilhouette());
         assertEquals(3, triple.getTowerStructure().getArms().size());
         assertEquals(1, cup.getTowerStructure().getArms().size());
-        assertEquals(42.0, triple.getAttachments().getFirst().getVerticalOffset(), 0.5);
+        Set<Double> tripleHeights = triple.getAttachments().stream()
+            .filter(a -> a.getRole() != com.plot.plugin.powerline.design.AttachmentRole.TOP_WIRE)
+            .map(ConductorAttachment::getVerticalOffset)
+            .collect(java.util.stream.Collectors.toSet());
+        assertEquals(Set.of(36.0, 42.0, 48.0), tripleHeights);
         assertEquals(32.0, cup.getAttachments().getFirst().getVerticalOffset(), 0.5);
     }
 

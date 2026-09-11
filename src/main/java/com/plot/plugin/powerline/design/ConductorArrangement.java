@@ -1,6 +1,5 @@
 package com.plot.plugin.powerline.design;
 
-import com.plot.plugin.powerline.design.family.TowerConductorArrangement;
 import com.plot.plugin.powerline.equipment.InsulatorType;
 
 import java.util.ArrayList;
@@ -18,6 +17,9 @@ public final class ConductorArrangement {
     public static final String CATALOG_THREE_VERTICAL = "arrangement/three_vertical";
     public static final String CATALOG_DOUBLE_CIRCUIT = "arrangement/double_circuit";
     public static final String CATALOG_DOUBLE_CIRCUIT_DRUM = "arrangement/double_circuit_drum";
+    public static final String CATALOG_DOUBLE_CIRCUIT_THREE_DECK = "arrangement/double_circuit_three_deck";
+    public static final String CATALOG_MEGA_THREE_DECK = "arrangement/mega_three_deck";
+    public static final String CATALOG_UHV_THREE_DECK = "arrangement/uhv_three_deck";
     public static final String CATALOG_MEGA_INDUSTRIAL = "arrangement/mega_industrial";
     public static final String CATALOG_MONSTER_QUAD = "arrangement/monster_quad";
 
@@ -94,11 +96,9 @@ public final class ConductorArrangement {
                 new ConductorChannel(ConductorAttachmentPresets.PHASE_C_ID, "C", AttachmentRole.PHASE_C, 0, 1)));
     }
 
-    /** 分裂三相 + 双顶线（3 逻辑相线 + TWIN/QUAD 截面 + 2 顶线）。 */
+    /** 分裂三相 + 双顶线（三层 deck 版，见 {@link #megaThreeDeck()}）。 */
     public static ConductorArrangement megaIndustrialBundled() {
-        return fromAttachments(
-            CATALOG_MEGA_INDUSTRIAL,
-            TowerConductorArrangement.megaIndustrial().createAttachments(0, InsulatorType.SUSPENSION, 2));
+        return megaThreeDeck();
     }
 
     /** 左右双回路（6 主线）+ 双顶线。 */
@@ -111,48 +111,69 @@ public final class ConductorArrangement {
     /** 三层鼓形双回路塔：左/右各一相，共 6 根相线 + 双顶线（非 18 根）。 */
     public static ConductorArrangement doubleCircuitDrum() {
         List<ConductorChannel> channels = new ArrayList<>();
-        // lower deck — phase C
         channels.add(new ConductorChannel("left_c", "LC", AttachmentRole.PHASE_C, -11, -8));
         channels.add(new ConductorChannel("right_c", "RC", AttachmentRole.PHASE_C, 11, -8));
-        // middle deck — phase B (widest)
         channels.add(new ConductorChannel("left_b", "LB", AttachmentRole.PHASE_B, -14, 0));
         channels.add(new ConductorChannel("right_b", "RB", AttachmentRole.PHASE_B, 14, 0));
-        // upper deck — phase A
         channels.add(new ConductorChannel("left_a", "LA", AttachmentRole.PHASE_A, -11, 8));
         channels.add(new ConductorChannel("right_a", "RA", AttachmentRole.PHASE_A, 11, 8));
-        // shield wires above upper crossarm
         channels.add(new ConductorChannel("top_wire_l", "TWL", AttachmentRole.TOP_WIRE, -2.5, 12));
         channels.add(new ConductorChannel("top_wire_r", "TWR", AttachmentRole.TOP_WIRE, 2.5, 12));
         return new ConductorArrangement(CATALOG_DOUBLE_CIRCUIT_DRUM, channels);
     }
 
-    /** 双 deck 四回路（12 主线）+ 双顶线；deck 偏移相对挂点基准高度。 */
-    public static ConductorArrangement monsterQuadCircuit() {
-        List<ConductorChannel> channels = new ArrayList<>();
-        addQuadDeck(channels, "ll", "lr", 0, -11, -8, -5, 5, 8, 11);
-        addQuadDeck(channels, "ul", "ur", 18, -11, -8, -5, 5, 8, 11);
-        channels.add(new ConductorChannel("top_wire_l", "TWL", AttachmentRole.TOP_WIRE, -3.0, 24));
-        channels.add(new ConductorChannel("top_wire_r", "TWR", AttachmentRole.TOP_WIRE, 3.0, 24));
-        return new ConductorArrangement(CATALOG_MONSTER_QUAD, channels);
+    /**
+     * 三层双回路：每层左右各一相（C / B / A），共 6 相 + 双顶线。
+     * <p>
+     * 默认偏移适配 {@link com.plot.plugin.powerline.design.structure.TowerStructurePresets#tripleArmTower()}：
+     * base 36 → 36 / 42 / 48。
+     */
+    public static ConductorArrangement doubleCircuitThreeDeck() {
+        return buildDoubleCircuitThreeDeck(
+            CATALOG_DOUBLE_CIRCUIT_THREE_DECK,
+            6.0,
+            12.0,
+            11.0,
+            14.5,
+            10.5,
+            18.0,
+            BundleVisual.SINGLE);
     }
 
-    private static void addQuadDeck(
-            List<ConductorChannel> channels,
-            String leftPrefix,
-            String rightPrefix,
-            double deckOffset,
-            double leftA,
-            double leftB,
-            double leftC,
-            double rightA,
-            double rightB,
-            double rightC) {
-        channels.add(new ConductorChannel(leftPrefix + "_phase_a", leftPrefix.toUpperCase() + "A", AttachmentRole.PHASE_A, leftA, deckOffset));
-        channels.add(new ConductorChannel(leftPrefix + "_phase_b", leftPrefix.toUpperCase() + "B", AttachmentRole.PHASE_B, leftB, deckOffset));
-        channels.add(new ConductorChannel(leftPrefix + "_phase_c", leftPrefix.toUpperCase() + "C", AttachmentRole.PHASE_C, leftC, deckOffset));
-        channels.add(new ConductorChannel(rightPrefix + "_phase_a", rightPrefix.toUpperCase() + "A", AttachmentRole.PHASE_A, rightA, deckOffset));
-        channels.add(new ConductorChannel(rightPrefix + "_phase_b", rightPrefix.toUpperCase() + "B", AttachmentRole.PHASE_B, rightB, deckOffset));
-        channels.add(new ConductorChannel(rightPrefix + "_phase_c", rightPrefix.toUpperCase() + "C", AttachmentRole.PHASE_C, rightC, deckOffset));
+    /**
+     * Mega 三层双回路 + 分裂导线视觉：base 38 → 38 / 47 / 56。
+     */
+    public static ConductorArrangement megaThreeDeck() {
+        return buildDoubleCircuitThreeDeck(
+            CATALOG_MEGA_THREE_DECK,
+            9.0,
+            18.0,
+            11.0,
+            15.0,
+            11.0,
+            24.0,
+            BundleVisual.TWIN);
+    }
+
+    /**
+     * UHV 三层四回路：每层四角各一相（C / B / A），共 12 相 + 双顶线。
+     * <p>
+     * base 56 → 56 / 66 / 74，中层最宽以配合主横担 reach 26。
+     */
+    public static ConductorArrangement uhvThreeDeck() {
+        List<ConductorChannel> channels = new ArrayList<>();
+        addUhvQuadDeck(channels, "c", 0, 11.0, 5.0);
+        addUhvQuadDeck(channels, "b", 10.0, 14.0, 8.0);
+        addUhvQuadDeck(channels, "a", 18.0, 11.0, 5.0);
+        channels.add(new ConductorChannel("top_wire_l", "TWL", AttachmentRole.TOP_WIRE, -3.0, 24.0));
+        channels.add(new ConductorChannel("top_wire_r", "TWR", AttachmentRole.TOP_WIRE, 3.0, 24.0));
+        return new ConductorArrangement(CATALOG_UHV_THREE_DECK, channels);
+    }
+
+    /** @deprecated 使用 {@link #uhvThreeDeck()} */
+    @Deprecated
+    public static ConductorArrangement monsterQuadCircuit() {
+        return uhvThreeDeck();
     }
 
     public static ConductorArrangement fromLegacyLayout(
@@ -186,5 +207,58 @@ public final class ConductorArrangement {
             }
         }
         return new ConductorArrangement(catalogId, channels);
+    }
+
+    private static ConductorArrangement buildDoubleCircuitThreeDeck(
+            String catalogId,
+            double middleDeckOffset,
+            double upperDeckOffset,
+            double lowerLateral,
+            double middleLateral,
+            double upperLateral,
+            double topWireOffset,
+            BundleVisual bundleVisual) {
+        List<ConductorChannel> channels = new ArrayList<>();
+        addDoubleCircuitDeck(channels, "c", AttachmentRole.PHASE_C, 0, lowerLateral, bundleVisual);
+        addDoubleCircuitDeck(channels, "b", AttachmentRole.PHASE_B, middleDeckOffset, middleLateral, bundleVisual);
+        addDoubleCircuitDeck(channels, "a", AttachmentRole.PHASE_A, upperDeckOffset, upperLateral, bundleVisual);
+        channels.add(new ConductorChannel(
+            "top_wire_l", "TWL", AttachmentRole.TOP_WIRE, -2.5, topWireOffset, InsulatorType.SUSPENSION, 1, bundleVisual));
+        channels.add(new ConductorChannel(
+            "top_wire_r", "TWR", AttachmentRole.TOP_WIRE, 2.5, topWireOffset, InsulatorType.SUSPENSION, 1, bundleVisual));
+        return new ConductorArrangement(catalogId, channels);
+    }
+
+    private static void addDoubleCircuitDeck(
+            List<ConductorChannel> channels,
+            String phaseSuffix,
+            AttachmentRole role,
+            double deckOffset,
+            double lateral,
+            BundleVisual bundleVisual) {
+        channels.add(new ConductorChannel(
+            "left_" + phaseSuffix, "L" + phaseSuffix.toUpperCase(), role, -lateral, deckOffset,
+            InsulatorType.SUSPENSION, 2, bundleVisual));
+        channels.add(new ConductorChannel(
+            "right_" + phaseSuffix, "R" + phaseSuffix.toUpperCase(), role, lateral, deckOffset,
+            InsulatorType.SUSPENSION, 2, bundleVisual));
+    }
+
+    private static void addUhvQuadDeck(
+            List<ConductorChannel> channels,
+            String phaseSuffix,
+            double deckOffset,
+            double outerLateral,
+            double innerLateral) {
+        AttachmentRole role = switch (phaseSuffix) {
+            case "a" -> AttachmentRole.PHASE_A;
+            case "b" -> AttachmentRole.PHASE_B;
+            default -> AttachmentRole.PHASE_C;
+        };
+        String upper = phaseSuffix.toUpperCase();
+        channels.add(new ConductorChannel("ll_phase_" + phaseSuffix, "LL" + upper, role, -outerLateral, deckOffset));
+        channels.add(new ConductorChannel("lr_phase_" + phaseSuffix, "LR" + upper, role, outerLateral, deckOffset));
+        channels.add(new ConductorChannel("ul_phase_" + phaseSuffix, "UL" + upper, role, -innerLateral, deckOffset));
+        channels.add(new ConductorChannel("ur_phase_" + phaseSuffix, "UR" + upper, role, innerLateral, deckOffset));
     }
 }

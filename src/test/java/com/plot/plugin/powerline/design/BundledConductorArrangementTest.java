@@ -65,8 +65,8 @@ class BundledConductorArrangementTest {
     @Test
     void megaLatticeDesignMatchesLogicalPhaseCount() {
         var design = TowerFamilyDesignPresets.megaLatticeSuspension();
-        assertEquals(5, design.getAttachments().size());
-        assertEquals(3, ConductorArrangement.megaIndustrialBundled().phaseConductorCount());
+        assertEquals(8, design.getAttachments().size());
+        assertEquals(6, ConductorArrangement.megaThreeDeck().phaseConductorCount());
     }
 
     @Test
@@ -116,13 +116,13 @@ class BundledConductorArrangementTest {
             TerrainTestFixtures.identityCoordinates(),
             TerrainTestFixtures.projection());
 
-        assertEquals(5, result.conductorSpans.size());
+        assertEquals(8, result.conductorSpans.size());
         long phaseSpans = result.conductorSpans.stream()
             .filter(span -> span.getRole() == AttachmentRole.PHASE_A
                 || span.getRole() == AttachmentRole.PHASE_B
                 || span.getRole() == AttachmentRole.PHASE_C)
             .count();
-        assertEquals(3, phaseSpans);
+        assertEquals(6, phaseSpans);
         assertTrue(result.conductorSpans.stream()
             .noneMatch(span -> span.getAttachmentId() != null && span.getAttachmentId().contains("_1")));
     }

@@ -282,7 +282,7 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:iron_block"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.NATURAL,
-            ConductorArrangement.megaIndustrialBundled(),
+            ConductorArrangement.megaThreeDeck(),
             new PoleSpacingProfile(80, 150, 220));
     }
 
@@ -330,7 +330,7 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:iron_block"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.NATURAL,
-            ConductorArrangement.monsterQuadCircuit(),
+            ConductorArrangement.uhvThreeDeck(),
             new PoleSpacingProfile(110, 200, 300));
     }
 
@@ -362,7 +362,7 @@ public final class PowerLineStylePresetCatalog {
             MaterialMix.single("minecraft:iron_block"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.NATURAL,
-            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL,
+            ConductorArrangement.doubleCircuitThreeDeck(),
             new PoleSpacingProfile(90, 160, 240));
     }
 
