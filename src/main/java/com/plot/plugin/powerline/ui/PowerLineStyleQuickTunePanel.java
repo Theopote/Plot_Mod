@@ -6,7 +6,6 @@ import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
-import com.plot.plugin.powerline.PowerLineSagPolicy;
 import com.plot.plugin.powerline.PowerLineSagUtils;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.style.PowerLineQuickTunePolicy;
@@ -242,7 +241,6 @@ public final class PowerLineStyleQuickTunePanel {
         ImGui.spacing();
         renderSagRatioSlider(line);
         renderMaxSagDepthControls(line);
-        renderSagSummary(line, current);
     }
 
     private void renderSagLivePreview(PowerLineFootprint line) {
@@ -319,32 +317,6 @@ public final class PowerLineStyleQuickTunePanel {
                     PowerLineUiPresets.applyMaxSagDepth(line, value, false);
                     PowerLineStyleEditor.afterStyleEdit(line);
                 });
-        } else {
-            PowerLineUiWidgets.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.powerline.max_sag_depth_profile_hint"));
-        }
-    }
-
-    private void renderSagSummary(PowerLineFootprint line, PowerLineUiPresets.WireSag preset) {
-        double effectiveDepth = PowerLineSagPolicy.resolveMaxSagDepth(line);
-        PowerLineUiWidgets.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr(
-                "plugin.powerline.style.sag.summary",
-                (int) Math.round(line.getSagRatio() * 100.0),
-                effectiveDepth));
-        if (preset == null) {
-            PowerLineUiWidgets.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr(
-                    "plugin.powerline.build.sag_custom",
-                    (int) Math.round(line.getSagRatio() * 100.0)));
-        } else {
-            PowerLineUiWidgets.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.powerline.style.sag.preset_active", PlotI18n.tr(
-                    "plugin.powerline.style.sag." + preset.name().toLowerCase())));
         }
     }
 
