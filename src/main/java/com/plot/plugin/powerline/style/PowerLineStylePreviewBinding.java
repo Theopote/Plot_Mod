@@ -37,6 +37,47 @@ public final class PowerLineStylePreviewBinding {
         };
     }
 
+    /** Gallery 卡片预览绑定：主体绘制方式 + 叠加层。 */
+    public static StyleCardPreviewBinding cardPreviewBinding(PowerLineStylePreset preset) {
+        return new StyleCardPreviewBinding(
+            previewDesign(preset),
+            previewRepresentation(preset),
+            previewOverlay(preset));
+    }
+
+    public static PreviewRepresentation previewRepresentation(PowerLineStylePreset preset) {
+        if (preset == null) {
+            return PreviewRepresentation.VOXEL_FRONT;
+        }
+        return switch (preset.getPreviewKind()) {
+            case LATTICE, HEAVY_LATTICE, TRIPLE_ARM, CUP_TOWER, LATTICE_POLE, TAPERED,
+                 MEGA_LATTICE, HEAVY_DOUBLE_CIRCUIT, INDUSTRIAL_PORTAL, MONSTER_PYLON,
+                 ADAPTIVE -> PreviewRepresentation.STRUCTURAL_FRONT;
+            default -> PreviewRepresentation.VOXEL_FRONT;
+        };
+    }
+
+    public static PreviewOverlay previewOverlay(PowerLineStylePreset preset) {
+        if (preset == null) {
+            return PreviewOverlay.NONE;
+        }
+        return switch (preset.getPreviewKind()) {
+            case LATTICE, HEAVY_LATTICE, TRIPLE_ARM, CUP_TOWER, MEGA_LATTICE, HEAVY_DOUBLE_CIRCUIT,
+                 INDUSTRIAL_PORTAL, MONSTER_PYLON, ADAPTIVE, LATTICE_POLE, TAPERED
+                -> PreviewOverlay.ATTACHMENTS;
+            case WOOD, DOUBLE_WOOD, MODERN_UTILITY, JAPANESE, OLD_EUROPEAN, SUBURBAN_LAMP, ABANDONED, RUSTIC,
+                 STEAMPUNK, MODERN_HV_GLASS, COPPER
+                -> PreviewOverlay.DECORATIVE_CONDUCTORS;
+            case WASTELAND_WIND -> PreviewOverlay.WIND_ROTOR;
+            default -> PreviewOverlay.NONE;
+        };
+    }
+
+    /** 智能铁塔使用中型代表塔，避免与 Compact Lattice 缩略图雷同。 */
+    public static boolean usesAdaptiveHeightMarker(PowerLineStylePreset preset) {
+        return preset != null && preset.getPreviewKind() == PowerLineStylePreset.StylePreviewKind.ADAPTIVE;
+    }
+
     /** 风格卡片 / tooltip 用的预览 {@link PoleDesign}。 */
     public static PoleDesign previewDesign(PowerLineStylePreset preset) {
         return resolvePreviewDesign(primaryPreviewDesignId(preset));
@@ -78,7 +119,7 @@ public final class PowerLineStylePreviewBinding {
             case HEAVY_DOUBLE_CIRCUIT -> TowerFamilyDesignPresets.HEAVY_DOUBLE_CIRCUIT_SUSPENSION_ID;
             case INDUSTRIAL_PORTAL -> TowerFamilyDesignPresets.INDUSTRIAL_PORTAL_SUSPENSION_ID;
             case MONSTER_PYLON -> TowerFamilyDesignPresets.MONSTER_PYLON_SUSPENSION_ID;
-            case ADAPTIVE -> TowerFamilyDesignPresets.LATTICE_SUSPENSION_SMALL_ID;
+            case ADAPTIVE -> TowerFamilyDesignPresets.LATTICE_SUSPENSION_MEDIUM_ID;
             case TAPERED -> PoleDesignCatalog.TAPERED_LATTICE_TOWER_ID;
             case COPPER -> PoleDesignCatalog.FANTASY_COPPER_POLE_ID;
             case JAPANESE -> PoleDesignCatalog.JAPANESE_STREET_POLE_ID;
@@ -104,6 +145,7 @@ public final class PowerLineStylePreviewBinding {
             String previewId = primaryPreviewDesignId(preset);
             return family.getDesignId(com.plot.plugin.powerline.model.TowerRole.SUSPENSION).equals(previewId)
                 || TowerFamilyDesignPresets.LATTICE_SUSPENSION_SMALL_ID.equals(previewId)
+                || TowerFamilyDesignPresets.LATTICE_SUSPENSION_MEDIUM_ID.equals(previewId)
                 || TowerFamilyDesignPresets.HV_TRANSMISSION_SUSPENSION_ID.equals(previewId)
                 || TowerFamilyDesignPresets.TRIPLE_ARM_SUSPENSION_ID.equals(previewId)
                 || TowerFamilyDesignPresets.CUP_TOWER_SUSPENSION_ID.equals(previewId)

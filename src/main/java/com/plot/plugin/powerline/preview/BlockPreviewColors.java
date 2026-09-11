@@ -27,9 +27,30 @@ public final class BlockPreviewColors {
         KNOWN.put("minecraft:blackstone", 0xFF2A2A2A);
         KNOWN.put("minecraft:deepslate_bricks", 0xFF4A4F55);
         KNOWN.put("minecraft:polished_blackstone", 0xFF3A3A3A);
+        KNOWN.put("minecraft:oak_slab", 0xFFA0826D);
+        KNOWN.put("minecraft:dark_oak_slab", 0xFF4A3728);
+        KNOWN.put("minecraft:birch_slab", 0xFFD8C89A);
+        KNOWN.put("minecraft:spruce_slab", 0xFF6B5037);
+        KNOWN.put("minecraft:mossy_cobblestone_slab", 0xFF6E7A5E);
+        KNOWN.put("minecraft:smooth_stone_slab", 0xFF9E9E9E);
+        KNOWN.put("minecraft:gold_block", 0xFFFFD54F);
+        KNOWN.put("minecraft:cut_copper", 0xFFE08A5A);
+        KNOWN.put("minecraft:oxidized_copper", 0xFF6FA08A);
+        KNOWN.put("minecraft:orange_terracotta", 0xFFA45729);
+        KNOWN.put("minecraft:sea_lantern", 0xFFB8E8F0);
+        KNOWN.put("minecraft:soul_lantern", 0xFF5EC8D8);
+        KNOWN.put("minecraft:cobweb", 0xFFE8E8E8);
+        KNOWN.put("minecraft:quartz_block", 0xFFECEFF1);
+        KNOWN.put("minecraft:iron_trapdoor", 0xFFB0B0B0);
+        KNOWN.put("minecraft:amethyst_cluster", 0xFFCE93D8);
+        KNOWN.put("minecraft:spruce_fence", 0xFF6B5037);
     }
 
     private BlockPreviewColors() {
+    }
+
+    public static boolean hasExplicitColor(String blockId) {
+        return blockId != null && !blockId.isBlank() && KNOWN.containsKey(blockId);
     }
 
     public static int colorFor(String blockId) {

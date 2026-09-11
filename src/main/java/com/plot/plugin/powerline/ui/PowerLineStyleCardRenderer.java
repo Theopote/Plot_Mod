@@ -4,10 +4,14 @@ import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.preview.PoleVoxelElevationRenderer;
+import com.plot.plugin.powerline.preview.PowerLinePreviewOverlayRenderer;
+import com.plot.plugin.powerline.preview.TowerStructuralElevationRenderer;
 import com.plot.plugin.powerline.style.EffectiveStylePreview;
 import com.plot.plugin.powerline.style.EffectiveStylePreviewResolver;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.plugin.powerline.style.PowerLineStylePreviewBinding;
+import com.plot.plugin.powerline.style.PreviewRepresentation;
+import com.plot.plugin.powerline.style.StyleCardPreviewBinding;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -304,7 +308,58 @@ public final class PowerLineStyleCardRenderer {
             float y0,
             float x1,
             float y1) {
-        drawDesignVoxelPreview(drawList, PowerLineStylePreviewBinding.previewDesign(pack), x0, y0, x1, y1);
+        if (pack == null) {
+            drawMissingPreviewPlaceholder(drawList, x0, y0, x1, y1);
+            return;
+        }
+        StyleCardPreviewBinding binding = PowerLineStylePreviewBinding.cardPreviewBinding(pack);
+        drawCardPreview(
+            drawList,
+            binding,
+            PowerLineStylePreviewBinding.usesAdaptiveHeightMarker(pack),
+            x0,
+            y0,
+            x1,
+            y1);
+    }
+
+    private static void drawCardPreview(
+            ImDrawList drawList,
+            StyleCardPreviewBinding binding,
+            boolean adaptiveHeightMarker,
+            float x0,
+            float y0,
+            float x1,
+            float y1) {
+        PoleDesign design = binding != null ? binding.design() : null;
+        PreviewRepresentation representation = binding != null
+            ? binding.representation()
+            : PreviewRepresentation.VOXEL_FRONT;
+        boolean drawn = false;
+        if (design != null) {
+            if (representation == PreviewRepresentation.STRUCTURAL_FRONT) {
+                drawn = TowerStructuralElevationRenderer.drawFront(drawList, design, x0, y0, x1, y1);
+            }
+            if (!drawn) {
+                drawn = PoleVoxelElevationRenderer.drawFront(drawList, design, x0, y0, x1, y1);
+            }
+        }
+        if (!drawn) {
+            drawMissingPreviewPlaceholder(drawList, x0, y0, x1, y1);
+            return;
+        }
+        if (binding != null) {
+            PowerLinePreviewOverlayRenderer.draw(
+                drawList,
+                design,
+                representation,
+                binding.overlay(),
+                adaptiveHeightMarker,
+                x0,
+                y0,
+                x1,
+                y1);
+        }
     }
 
     private static void drawDesignVoxelPreview(
