@@ -165,14 +165,6 @@ public class ConductorAttachment {
         return copy;
     }
 
-    public static ConductorAttachment phaseHorizontal(AttachmentRole role, String id, String name, double lateral) {
-        ConductorAttachment attachment = new ConductorAttachment(id, name);
-        attachment.setRole(role);
-        attachment.setLateralOffset(lateral);
-        attachment.setVerticalOffset(12.0);
-        return attachment;
-    }
-
     @Override
     public boolean equals(Object obj) {
         if (!(obj instanceof ConductorAttachment other)) {

@@ -151,13 +151,6 @@ public class PoleDesign {
             : null;
     }
 
-    public TowerEngineeringMetadata effectiveEngineeringMetadata(TowerRole role) {
-        if (engineeringMetadata != null) {
-            return engineeringMetadata;
-        }
-        return TowerEngineeringMetadata.defaultsForRole(role);
-    }
-
     public void clearTowerStructure() {
         this.towerStructure = null;
     }

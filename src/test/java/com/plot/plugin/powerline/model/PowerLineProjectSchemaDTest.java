@@ -30,7 +30,6 @@ class PowerLineProjectSchemaDTest {
         assertEquals(TowerFamily.STANDARD_LATTICE_3_PHASE_ID, restoredLine.getTowerFamilyId());
         assertEquals("minecraft:chain", restoredLine.getTopWireMaterial().getPrimaryMaterial());
         assertTrue(project.toJson().contains("\"topWireMaterial\""));
-        assertTrue(!project.toJson().contains("\"groundWireMaterial\""));
         assertEquals(1, restoredLine.getPoleOverrides().size());
         assertEquals(TowerRole.DEAD_END, restoredLine.getPoleOverrides().getFirst().getRoleOverride());
     }
@@ -60,37 +59,17 @@ class PowerLineProjectSchemaDTest {
     }
 
     @Test
-    void legacyEngineeringAnalysisEnabledJsonStillLoads() {
-        String legacyJson = """
-            {
-              "lines": [{
-                "id": "line-legacy-checks",
-                "pathPoints": [{"x": 0, "y": 0}, {"x": 40, "y": 0}],
-                "engineeringAnalysisEnabled": true
-              }]
-            }
-            """;
-        PowerLineProject restored = PowerLineProject.fromJson(legacyJson);
-        PowerLineFootprint line = restored.getLine("line-legacy-checks");
-        assertNotNull(line);
-        assertTrue(line.isLineChecksEnabled());
-    }
+    void jsonRoundTripAlwaysWritesStyleOverrides() {
+        PowerLineProject project = new PowerLineProject();
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
+        project.addLine(line);
 
-    @Test
-    void legacyGroundWireMaterialJsonStillLoads() {
-        String legacyJson = """
-            {
-              "lines": [{
-                "id": "line-legacy",
-                "pathPoints": [{"x": 0, "y": 0}, {"x": 40, "y": 0}],
-                "groundWireMaterial": "minecraft:chain"
-              }]
-            }
-            """;
-        PowerLineProject restored = PowerLineProject.fromJson(legacyJson);
-        PowerLineFootprint line = restored.getLine("line-legacy");
-        assertNotNull(line);
-        assertEquals("minecraft:chain", line.getTopWireMaterial().getPrimaryMaterial());
+        String json = project.toJson();
+        assertTrue(json.contains("\"styleOverrides\""));
+
+        PowerLineProject restored = PowerLineProject.fromJson(json);
+        assertNotNull(restored.getLine(line.getId()));
+        assertTrue(restored.getLine(line.getId()).getStyleOverrides().isEmpty());
     }
 
     @Test
@@ -105,7 +84,6 @@ class PowerLineProjectSchemaDTest {
         assertNotNull(restoredLine);
         assertEquals("pack/rustic_wood", restoredLine.getStylePresetId());
         assertTrue(project.toJson().contains("\"stylePresetId\""));
-        assertTrue(!project.toJson().contains("\"stylePackId\""));
     }
 
     @Test
@@ -138,43 +116,5 @@ class PowerLineProjectSchemaDTest {
         assertEquals(0.35, restoredLine.getStyleOverrides().getSagRatio(), 1e-6);
         assertNotNull(restoredLine.getStyleOverrides().getPreferredSpacing());
         assertTrue(com.plot.plugin.powerline.style.PowerLineStyleEditor.isModified(restoredLine));
-    }
-
-    @Test
-    void legacyJsonWithoutStyleOverridesStillLoads() {
-        String legacyJson = """
-            {
-              "lines": [{
-                "id": "line-legacy-overrides",
-                "pathPoints": [{"x": 0, "y": 0}, {"x": 40, "y": 0}],
-                "stylePresetId": "pack/rustic_wood",
-                "wireMaterial": "minecraft:chain",
-                "sagRatio": 0.35
-              }]
-            }
-            """;
-        PowerLineProject restored = PowerLineProject.fromJson(legacyJson);
-        PowerLineFootprint line = restored.getLine("line-legacy-overrides");
-        assertNotNull(line);
-        assertEquals("minecraft:chain", line.getWireMaterial().getPrimaryMaterial());
-        assertEquals(0.35, line.getSagRatio(), 1e-6);
-        assertNotNull(line.getStyleOverrides().getWireMaterial());
-    }
-
-    @Test
-    void legacyStylePackIdJsonStillLoads() {
-        String legacyJson = """
-            {
-              "lines": [{
-                "id": "line-legacy-style",
-                "pathPoints": [{"x": 0, "y": 0}, {"x": 40, "y": 0}],
-                "stylePackId": "pack/japanese_street"
-              }]
-            }
-            """;
-        PowerLineProject restored = PowerLineProject.fromJson(legacyJson);
-        PowerLineFootprint line = restored.getLine("line-legacy-style");
-        assertNotNull(line);
-        assertEquals("pack/japanese_street", line.getStylePresetId());
     }
 }

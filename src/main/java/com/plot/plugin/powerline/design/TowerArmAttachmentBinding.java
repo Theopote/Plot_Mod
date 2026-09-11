@@ -29,15 +29,6 @@ public final class TowerArmAttachmentBinding {
         attachment.setVerticalOffset(conductorHangHeight(arm));
     }
 
-    public static void bindToArm(TowerArm arm, List<ConductorAttachment> attachments) {
-        if (attachments == null) {
-            return;
-        }
-        for (ConductorAttachment attachment : attachments) {
-            bindToArm(arm, attachment);
-        }
-    }
-
     public static void syncBoundVerticalOffsets(TowerArm arm, Iterable<ConductorAttachment> attachments) {
         if (arm == null || attachments == null) {
             return;
@@ -113,8 +104,7 @@ public final class TowerArmAttachmentBinding {
             reach,
             bundleCount,
             0.7);
-        for (int i = 0; i < deck.size(); i++) {
-            ConductorAttachment attachment = deck.get(i);
+        for (ConductorAttachment attachment : deck) {
             attachment.setId(prefix + attachment.getId());
             attachment.setArmId(arm.getId());
         }

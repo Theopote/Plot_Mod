@@ -11,9 +11,7 @@ import com.plot.plugin.powerline.equipment.InsulatorMountStyle;
 import com.plot.plugin.powerline.equipment.InsulatorType;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /** 将 PoleDesign 中的局部挂点解析为世界坐标。 */
 public final class PowerLineAttachmentResolver {
@@ -36,14 +34,6 @@ public final class PowerLineAttachmentResolver {
             resolved.add(resolveOne(attachment, frame));
         }
         return resolved;
-    }
-
-    public Map<String, ResolvedAttachment> resolveById(PoleDesign design, PoleFrame frame) {
-        Map<String, ResolvedAttachment> indexed = new LinkedHashMap<>();
-        for (ResolvedAttachment attachment : resolve(design, frame)) {
-            indexed.put(attachment.id(), attachment);
-        }
-        return indexed;
     }
 
     private ResolvedAttachment resolveOne(ConductorAttachment attachment, PoleFrame frame) {

@@ -6,7 +6,6 @@ import com.plot.api.world.ICoordinateService;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
-import com.plot.plugin.powerline.design.AttachmentRole;
 import com.plot.plugin.powerline.design.BundleVisual;
 import com.plot.plugin.powerline.engineering.clearance.WireClearance;
 import com.plot.plugin.powerline.geometry.ConductorSample;
@@ -18,7 +17,6 @@ import net.minecraft.util.math.BlockPos;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /** 相邻杆塔挂点匹配与多导线 span 生成。 */
 public final class ConductorSpanGenerator {

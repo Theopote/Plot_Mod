@@ -20,8 +20,8 @@ import java.util.Map;
  * 电力线路项目（管理已认领的线路）。
  */
 public class PowerLineProject {
-    /** Current on-disk schema. Missing / 0 = legacy; migrations happen in {@link ProjectData}. */
-    public static final int SCHEMA_VERSION = 3;
+    /** Current on-disk schema. */
+    public static final int SCHEMA_VERSION = 4;
 
     private static final Gson GSON = new GsonBuilder()
         .setPrettyPrinting()
@@ -176,10 +176,10 @@ public class PowerLineProject {
         String towerFamilyId;
 
         static StyleOverridesData from(StyleOverrides overrides) {
-            if (overrides == null || overrides.isEmpty()) {
-                return null;
-            }
             StyleOverridesData data = new StyleOverridesData();
+            if (overrides == null || overrides.isEmpty()) {
+                return data;
+            }
             data.sagRatio = overrides.getSagRatio();
             data.maxSagDepth = overrides.getMaxSagDepth();
             data.wireMaterial = overrides.getWireMaterial();
@@ -209,17 +209,6 @@ public class PowerLineProject {
         }
     }
 
-    private static boolean resolveLineChecksEnabled(LineData lineData) {
-        return lineData.lineChecksEnabled || lineData.engineeringAnalysisEnabled;
-    }
-
-    private static MaterialMix resolveTopWireMaterial(LineData lineData) {
-        if (lineData.topWireMaterial != null) {
-            return lineData.topWireMaterial;
-        }
-        return lineData.groundWireMaterial;
-    }
-
     static class LineData {
         String id;
         String name;
@@ -236,16 +225,10 @@ public class PowerLineProject {
         String poleDesignId;
         String towerFamilyId;
         String stylePresetId;
-        /** Legacy JSON key; prefer {@link #stylePresetId}. */
-        String stylePackId;
         MaterialMix topWireMaterial;
-        /** Legacy JSON key; prefer {@link #topWireMaterial}. */
-        MaterialMix groundWireMaterial;
         List<PoleOverrideData> poleOverrides = new ArrayList<>();
         List<LayoutConstraintData> layoutConstraints = new ArrayList<>();
         boolean lineChecksEnabled = true;
-        /** Legacy JSON key; prefer {@link #lineChecksEnabled}. */
-        boolean engineeringAnalysisEnabled;
         boolean terrainAvoidanceEnabled = true;
         boolean automaticTowerSelectionEnabled;
         boolean spacingCustomized;
@@ -338,10 +321,9 @@ public class PowerLineProject {
                 }
                 footprint.setPoleDesignId(lineData.poleDesignId);
                 footprint.setTowerFamilyId(lineData.towerFamilyId);
-                footprint.setStylePresetId(resolveStylePresetId(lineData));
-                MaterialMix topWire = resolveTopWireMaterial(lineData);
-                if (topWire != null) {
-                    footprint.setTopWireMaterial(topWire);
+                footprint.setStylePresetId(lineData.stylePresetId);
+                if (lineData.topWireMaterial != null) {
+                    footprint.setTopWireMaterial(lineData.topWireMaterial);
                 }
                 if (lineData.poleOverrides != null) {
                     List<PoleOverride> overrides = new ArrayList<>();
@@ -361,25 +343,17 @@ public class PowerLineProject {
                     }
                     footprint.setLayoutConstraints(constraints);
                 }
-                footprint.setLineChecksEnabled(resolveLineChecksEnabled(lineData));
+                footprint.setLineChecksEnabled(lineData.lineChecksEnabled);
                 footprint.setTerrainAvoidanceEnabled(lineData.terrainAvoidanceEnabled);
                 footprint.setAutomaticTowerSelectionEnabled(lineData.automaticTowerSelectionEnabled);
                 footprint.setSpacingCustomized(lineData.spacingCustomized);
-                if (lineData.styleOverrides != null) {
-                    lineData.styleOverrides.applyTo(footprint.getStyleOverrides());
-                } else {
-                    com.plot.plugin.powerline.style.PowerLineStyleEditor.syncOverridesFromFootprint(footprint);
-                }
+                StyleOverridesData overridesData = lineData.styleOverrides != null
+                    ? lineData.styleOverrides
+                    : new StyleOverridesData();
+                overridesData.applyTo(footprint.getStyleOverrides());
                 project.addLine(footprint);
             }
             return project;
-        }
-
-        private static String resolveStylePresetId(LineData lineData) {
-            if (lineData.stylePresetId != null && !lineData.stylePresetId.isBlank()) {
-                return lineData.stylePresetId;
-            }
-            return lineData.stylePackId;
         }
     }
 }

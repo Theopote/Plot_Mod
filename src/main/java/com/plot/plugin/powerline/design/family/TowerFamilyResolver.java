@@ -1,6 +1,5 @@
 package com.plot.plugin.powerline.design.family;
 
-import com.plot.plugin.powerline.design.PoleDesignCatalog;
 
 import java.util.ArrayList;
 import java.util.Comparator;

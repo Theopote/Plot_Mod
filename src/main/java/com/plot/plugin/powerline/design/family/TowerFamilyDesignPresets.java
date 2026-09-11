@@ -505,25 +505,6 @@ public final class TowerFamilyDesignPresets {
         return design;
     }
 
-    private static PoleDesign buildTripleArmRoleDesign(
-            String id,
-            String name,
-            double baseWidth,
-            double attachmentHeight,
-            InsulatorType insulatorType,
-            int insulatorLength,
-            TowerEngineeringMetadata metadata) {
-        PoleDesign design = new PoleDesign(id, name);
-        TowerStructureDesign structure = TowerStructurePresets.tripleArmTower().copy();
-        scaleStationFootprint(structure, baseWidth, 8.0);
-        design.setTowerStructure(structure);
-        design.setAttachments(TowerConductorArrangement.heavyTransmission().createAttachments(
-            attachmentHeight, insulatorType, insulatorLength));
-        InsulatorAssemblyCatalog.applyMegaDefaults(design, insulatorType);
-        design.setEngineeringMetadata(metadata);
-        return design;
-    }
-
     private static PoleDesign buildHeavyTransmissionRoleDesign(
             String id,
             String name,
@@ -572,23 +553,6 @@ public final class TowerFamilyDesignPresets {
             arm.setLateralReach(arm.getLateralReach() * scale);
             arm.setLongitudinalHalfWidth(arm.getLongitudinalHalfWidth() * scale);
         }
-    }
-
-    private static PoleDesign buildMegaIndustrialRoleDesign(
-            String id,
-            String name,
-            TowerStructureDesign structure,
-            TowerConductorArrangement arrangement,
-            double attachmentHeight,
-            InsulatorType insulatorType,
-            int insulatorLength,
-            TowerEngineeringMetadata metadata) {
-        PoleDesign design = new PoleDesign(id, name);
-        design.setTowerStructure(structure.copy());
-        design.setAttachments(arrangement.createAttachments(attachmentHeight, insulatorType, insulatorLength));
-        InsulatorAssemblyCatalog.applyMegaDefaults(design, insulatorType);
-        design.setEngineeringMetadata(metadata);
-        return design;
     }
 
     private static PoleDesign buildArrangementRoleDesign(

@@ -1,9 +1,7 @@
 package com.plot.plugin.powerline.design;
 
 import com.plot.core.material.MaterialMix;
-import com.plot.plugin.powerline.design.ConductorAttachmentPresets;
 import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
-import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
 
 import java.util.ArrayList;
@@ -99,7 +97,6 @@ public final class PoleDesignCatalog {
         }
         double offset = Math.max(1.0, design.totalHeight() - 1.0);
         switch (layout) {
-            case SINGLE -> design.setAttachments(ConductorAttachmentPresets.singleConductor(offset));
             case THREE_PHASE_HORIZONTAL -> design.setAttachments(
                 ConductorAttachmentPresets.threePhaseHorizontal(offset, -2.0, 0.0, 2.0));
             case THREE_PHASE_VERTICAL -> design.setAttachments(
@@ -515,7 +512,4 @@ public final class PoleDesignCatalog {
         return id != null && id.startsWith("preset/");
     }
 
-    public static MaterialMix defaultPoleMaterial() {
-        return MaterialMix.single(PowerLineFootprint.DEFAULT_POLE_MATERIAL);
-    }
 }

@@ -61,16 +61,6 @@ public class TowerFamily {
         return Map.copyOf(designByRole);
     }
 
-    public void setDesignByRole(Map<TowerRole, String> mapping) {
-        designByRole.clear();
-        if (mapping == null) {
-            return;
-        }
-        for (Map.Entry<TowerRole, String> entry : mapping.entrySet()) {
-            setDesignId(entry.getKey(), entry.getValue());
-        }
-    }
-
     public TowerFamily copy() {
         TowerFamily copy = new TowerFamily(id, name);
         copy.designByRole.putAll(designByRole);
