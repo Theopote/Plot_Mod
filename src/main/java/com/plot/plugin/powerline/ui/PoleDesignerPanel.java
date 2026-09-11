@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.design.AttachmentBindingMode;
 import com.plot.plugin.powerline.design.ConductorAttachment;
 import com.plot.plugin.powerline.design.ConductorAttachmentPresets;
 import com.plot.plugin.powerline.design.TowerArmAttachmentBinding;
@@ -1099,32 +1100,71 @@ public final class PoleDesignerPanel {
             renderAttachmentArmBindingRow(attachment, boundArm);
         }
 
-        float[] lateral = {(float) attachment.getLateralOffset()};
-        if (formRowSliderFloat(
-                "plugin.powerline.design.attachment_lateral",
-                "lateral",
-                lateral,
-                -8f,
-                8f,
-                "%.1f")) {
-            attachment.setLateralOffset(lateral[0]);
-        }
-        if (ImGui.isItemActivated()) {
-            pushDraftSnapshot();
-        }
+        if (attachment.isBound()) {
+            float[] normalized = {(float) attachment.getNormalizedPosition()};
+            if (formRowSliderFloat(
+                    "plugin.powerline.design.attachment_normalized_position",
+                    "normalized",
+                    normalized,
+                    -1f,
+                    1f,
+                    "%.2f")) {
+                attachment.setNormalizedPosition(normalized[0]);
+                TowerArmAttachmentBinding.refreshBoundCache(attachment, draft.getTowerStructure());
+            }
+            if (ImGui.isItemActivated()) {
+                pushDraftSnapshot();
+            }
 
-        float[] vertical = {(float) attachment.getVerticalOffset()};
-        if (formRowSliderFloat(
-                "plugin.powerline.design.attachment_vertical",
-                "vertical",
-                vertical,
-                1f,
-                64f,
-                "%.1f")) {
-            attachment.setVerticalOffset(vertical[0]);
-        }
-        if (ImGui.isItemActivated()) {
-            pushDraftSnapshot();
+            float[] anchor = {(float) attachment.getVerticalAnchorOffset()};
+            if (formRowSliderFloat(
+                    "plugin.powerline.design.attachment_vertical_anchor",
+                    "anchor",
+                    anchor,
+                    -8f,
+                    8f,
+                    "%.1f")) {
+                attachment.setVerticalAnchorOffset(anchor[0]);
+                TowerArmAttachmentBinding.refreshBoundCache(attachment, draft.getTowerStructure());
+            }
+            if (ImGui.isItemActivated()) {
+                pushDraftSnapshot();
+            }
+
+            TowerArmAttachmentBinding.ResolvedLocalOffsets resolved =
+                TowerArmAttachmentBinding.resolveLocalOffsets(attachment, draft.getTowerStructure());
+            PowerLineUiWidgets.textColored(0xFF9E9E9E, PlotI18n.tr(
+                "plugin.powerline.design.attachment_resolved_offsets",
+                resolved.lateral(),
+                resolved.vertical()));
+        } else {
+            float[] lateral = {(float) attachment.getLateralOffset()};
+            if (formRowSliderFloat(
+                    "plugin.powerline.design.attachment_lateral",
+                    "lateral",
+                    lateral,
+                    -8f,
+                    8f,
+                    "%.1f")) {
+                attachment.setLateralOffset(lateral[0]);
+            }
+            if (ImGui.isItemActivated()) {
+                pushDraftSnapshot();
+            }
+
+            float[] vertical = {(float) attachment.getVerticalOffset()};
+            if (formRowSliderFloat(
+                    "plugin.powerline.design.attachment_vertical",
+                    "vertical",
+                    vertical,
+                    1f,
+                    64f,
+                    "%.1f")) {
+                attachment.setVerticalOffset(vertical[0]);
+            }
+            if (ImGui.isItemActivated()) {
+                pushDraftSnapshot();
+            }
         }
 
         float[] longitudinal = {(float) attachment.getLongitudinalOffset()};
@@ -1197,6 +1237,7 @@ public final class PoleDesignerPanel {
             pushDraftSnapshot();
             if (armIndex.get() == 0) {
                 attachment.setArmId(null);
+                attachment.setBindingMode(AttachmentBindingMode.FREE);
             } else {
                 TowerArm arm = arms.get(armIndex.get() - 1);
                 TowerArmAttachmentBinding.bindToArm(arm, attachment);

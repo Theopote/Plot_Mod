@@ -1,7 +1,11 @@
 package com.plot.plugin.powerline.design.parametric;
 
+import com.plot.plugin.powerline.design.ConductorAttachment;
 import com.plot.plugin.powerline.design.PoleDesign;
+import com.plot.plugin.powerline.design.TowerArmAttachmentBinding;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -79,9 +83,15 @@ public final class TowerParametricEditor {
             profile,
             config.parameters(),
             envelope);
+        List<ConductorAttachment> previousAttachments = new ArrayList<>(design.getAttachments());
         PoleDesign compiled = TowerStructureCompiler.compile(profile, result.resolved());
         design.setTowerStructure(compiled.getTowerStructure());
-        design.setAttachments(compiled.getAttachments());
+        if (previousAttachments.isEmpty()) {
+            design.setAttachments(compiled.getAttachments());
+        } else {
+            TowerArmAttachmentBinding.ensureV2Bindings(design);
+            design.setAttachments(previousAttachments);
+        }
         design.setGeneratorConfig(config.withParameters(toParameterSet(result.resolved())));
         return result;
     }

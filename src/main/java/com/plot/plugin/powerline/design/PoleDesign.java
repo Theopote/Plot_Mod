@@ -228,6 +228,7 @@ public class PoleDesign {
             return null;
         }
         PoleDesign design = data.toDesign();
+        TowerArmAttachmentBinding.ensureV2Bindings(design);
         design.ensureDefaultConductorAttachments();
         return design;
     }
@@ -243,6 +244,9 @@ public class PoleDesign {
         int insulatorLength;
         String bundleVisual;
         String armId;
+        String bindingMode;
+        Double normalizedPosition;
+        Double verticalAnchorOffset;
         String insulatorType;
         String insulatorAssemblyId;
         boolean enabled = true;
@@ -334,9 +338,11 @@ public class PoleDesign {
                 AttachmentData attachmentData = new AttachmentData();
                 attachmentData.id = attachment.getId();
                 attachmentData.name = attachment.getName();
-                attachmentData.lateralOffset = attachment.getLateralOffset();
-                attachmentData.verticalOffset = attachment.getVerticalOffset();
-                attachmentData.longitudinalOffset = attachment.getLongitudinalOffset();
+                TowerArmAttachmentBinding.ResolvedLocalOffsets resolved =
+                    TowerArmAttachmentBinding.resolveLocalOffsets(attachment, design.towerStructure);
+                attachmentData.lateralOffset = resolved.lateral();
+                attachmentData.verticalOffset = resolved.vertical();
+                attachmentData.longitudinalOffset = resolved.longitudinal();
                 attachmentData.role = attachment.getRole().name();
                 attachmentData.insulatorMaterial = attachment.getInsulatorMaterial();
                 attachmentData.insulatorLength = attachment.getInsulatorLength();
@@ -344,6 +350,13 @@ public class PoleDesign {
                     attachmentData.bundleVisual = attachment.getBundleVisual().name();
                 }
                 attachmentData.armId = attachment.getArmId();
+                if (attachment.isBound()) {
+                    attachmentData.bindingMode = AttachmentBindingMode.BOUND.name();
+                    attachmentData.normalizedPosition = attachment.getNormalizedPosition();
+                    attachmentData.verticalAnchorOffset = attachment.getVerticalAnchorOffset();
+                } else if (attachment.getBindingMode() == AttachmentBindingMode.FREE) {
+                    attachmentData.bindingMode = AttachmentBindingMode.FREE.name();
+                }
                 attachmentData.insulatorType = attachment.getInsulatorType().name();
                 attachmentData.insulatorAssemblyId = attachment.getInsulatorAssemblyId();
                 attachmentData.enabled = attachment.isEnabled();
@@ -402,6 +415,16 @@ public class PoleDesign {
                     attachment.setInsulatorLength(attachmentData.insulatorLength);
                     attachment.setBundleVisual(BundleVisual.parse(attachmentData.bundleVisual));
                     attachment.setArmId(attachmentData.armId);
+                    AttachmentBindingMode bindingMode = AttachmentBindingMode.parse(attachmentData.bindingMode);
+                    if (bindingMode != null) {
+                        attachment.setBindingMode(bindingMode);
+                    }
+                    if (attachmentData.normalizedPosition != null) {
+                        attachment.setNormalizedPosition(attachmentData.normalizedPosition);
+                    }
+                    if (attachmentData.verticalAnchorOffset != null) {
+                        attachment.setVerticalAnchorOffset(attachmentData.verticalAnchorOffset);
+                    }
                     attachment.setInsulatorType(InsulatorType.parse(attachmentData.insulatorType));
                     attachment.setInsulatorAssemblyId(attachmentData.insulatorAssemblyId);
                     attachment.setEnabled(attachmentData.enabled);

@@ -5,6 +5,8 @@ import com.plot.api.world.ICoordinateService;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.ConductorAttachment;
 import com.plot.plugin.powerline.design.PoleDesign;
+import com.plot.plugin.powerline.design.TowerArmAttachmentBinding;
+import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.equipment.InsulatorAssembly;
 import com.plot.plugin.powerline.equipment.InsulatorAssemblyCatalog;
 import com.plot.plugin.powerline.equipment.InsulatorMountStyle;
@@ -26,22 +28,28 @@ public final class PowerLineAttachmentResolver {
             return List.of();
         }
 
+        TowerStructureDesign structure = design.getTowerStructure();
         List<ResolvedAttachment> resolved = new ArrayList<>();
         for (ConductorAttachment attachment : design.getAttachments()) {
             if (!attachment.isEnabled()) {
                 continue;
             }
-            resolved.add(resolveOne(attachment, frame));
+            resolved.add(resolveOne(attachment, frame, structure));
         }
         return resolved;
     }
 
-    private ResolvedAttachment resolveOne(ConductorAttachment attachment, PoleFrame frame) {
+    private ResolvedAttachment resolveOne(
+            ConductorAttachment attachment,
+            PoleFrame frame,
+            TowerStructureDesign structure) {
+        TowerArmAttachmentBinding.ResolvedLocalOffsets local =
+            TowerArmAttachmentBinding.resolveLocalOffsets(attachment, structure);
         Vec2d planPoint = frame.toPlanPoint(
-            attachment.getLateralOffset(),
-            attachment.getLongitudinalOffset());
+            local.lateral(),
+            local.longitudinal());
         double[] worldXz = planToWorldXz(planPoint);
-        double conductorY = frame.groundY() + attachment.getVerticalOffset();
+        double conductorY = frame.groundY() + local.vertical();
         InsulatorAssembly assembly = InsulatorAssemblyCatalog.find(attachment.getInsulatorAssemblyId());
         InsulatorType insulatorType = assembly != null
             ? assembly.getType()

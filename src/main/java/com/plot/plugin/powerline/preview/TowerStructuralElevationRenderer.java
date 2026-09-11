@@ -2,6 +2,7 @@ package com.plot.plugin.powerline.preview;
 
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.ConductorAttachment;
+import com.plot.plugin.powerline.design.TowerArmAttachmentBinding;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.structure.BracingPattern;
 import com.plot.plugin.powerline.design.structure.TowerArm;
@@ -260,11 +261,13 @@ public final class TowerStructuralElevationRenderer {
             if (!attachment.isEnabled()) {
                 continue;
             }
+            TowerArmAttachmentBinding.ResolvedLocalOffsets local =
+                TowerArmAttachmentBinding.resolveLocalOffsets(attachment, structure);
             double offset = view == StructuralView.FRONT
-                ? attachment.getLateralOffset()
-                : attachment.getLongitudinalOffset();
+                ? local.lateral()
+                : local.longitudinal();
             maxHalfSpan = Math.max(maxHalfSpan, Math.abs(offset) + 0.75);
-            maxHeight = Math.max(maxHeight, attachment.getVerticalOffset() + 0.75);
+            maxHeight = Math.max(maxHeight, local.vertical() + 0.75);
         }
         if (maxHalfSpan <= 1.0 && maxHeight <= 0.0) {
             return structureLayout;

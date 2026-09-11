@@ -2,6 +2,8 @@ package com.plot.plugin.powerline.design.structure;
 
 import com.plot.plugin.powerline.design.ConductorAttachment;
 import com.plot.plugin.powerline.design.PoleDesign;
+import com.plot.plugin.powerline.design.TowerArmAttachmentBinding;
+import com.plot.plugin.powerline.design.TowerArmAttachmentBinding;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -57,24 +59,26 @@ public final class TowerStructureValidator {
             if (!attachment.isEnabled()) {
                 continue;
             }
-            if (attachment.getVerticalOffset() > maxHeight + 2) {
+            TowerArmAttachmentBinding.ResolvedLocalOffsets local =
+                TowerArmAttachmentBinding.resolveLocalOffsets(attachment, structure);
+            if (local.vertical() > maxHeight + 2) {
                 issues.add(TowerValidationIssue.of(
                     TowerValidationSeverity.WARNING,
                     "plugin.powerline.tower_validation.attachment_above_top",
                     attachment.getName(),
-                    attachment.getVerticalOffset(),
+                    local.vertical(),
                     maxHeight));
             }
             double maxReach = Math.max(structure.maxHalfWidth(), structure.maxHalfDepth());
             for (TowerArm arm : structure.getArms()) {
                 maxReach = Math.max(maxReach, arm.getLateralReach());
             }
-            if (Math.abs(attachment.getLateralOffset()) > maxReach + 1) {
+            if (Math.abs(local.lateral()) > maxReach + 1) {
                 issues.add(TowerValidationIssue.of(
                     TowerValidationSeverity.WARNING,
                     "plugin.powerline.tower_validation.attachment_lateral",
                     attachment.getName(),
-                    attachment.getLateralOffset()));
+                    local.lateral()));
             }
         }
 

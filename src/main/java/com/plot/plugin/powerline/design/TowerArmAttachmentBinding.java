@@ -17,16 +17,62 @@ public final class TowerArmAttachmentBinding {
     private TowerArmAttachmentBinding() {
     }
 
+    public record ResolvedLocalOffsets(double lateral, double vertical, double longitudinal) {
+    }
+
     public static double conductorHangHeight(TowerArm arm) {
         return arm != null ? arm.getBaseHeight() : 12.0;
+    }
+
+    public static ResolvedLocalOffsets resolveLocalOffsets(
+            ConductorAttachment attachment,
+            TowerStructureDesign structure) {
+        if (attachment == null) {
+            return new ResolvedLocalOffsets(0.0, 1.0, 0.0);
+        }
+        if (attachment.isBound() && structure != null) {
+            TowerArm arm = findArm(sortedArms(structure), attachment.getArmId());
+            if (arm != null) {
+                return resolveBoundOffsets(attachment, arm);
+            }
+        }
+        return new ResolvedLocalOffsets(
+            attachment.getLateralOffset(),
+            attachment.getVerticalOffset(),
+            attachment.getLongitudinalOffset());
+    }
+
+    public static void ensureV2Bindings(PoleDesign design) {
+        if (design == null || !design.hasTowerStructure()) {
+            return;
+        }
+        List<TowerArm> arms = sortedArms(design.getTowerStructure());
+        for (ConductorAttachment attachment : design.getAttachments()) {
+            if (attachment.getBindingMode() == AttachmentBindingMode.BOUND) {
+                continue;
+            }
+            if (attachment.getArmId() == null) {
+                attachment.setBindingMode(AttachmentBindingMode.FREE);
+                continue;
+            }
+            TowerArm arm = findArm(arms, attachment.getArmId());
+            if (arm != null) {
+                migrateLegacyToBound(attachment, arm);
+            } else {
+                attachment.setBindingMode(AttachmentBindingMode.FREE);
+            }
+        }
     }
 
     public static void bindToArm(TowerArm arm, ConductorAttachment attachment) {
         if (arm == null || attachment == null) {
             return;
         }
+        attachment.setBindingMode(AttachmentBindingMode.BOUND);
         attachment.setArmId(arm.getId());
-        attachment.setVerticalOffset(conductorHangHeight(arm));
+        attachment.setNormalizedPosition(0.0);
+        attachment.setVerticalAnchorOffset(0.0);
+        cacheResolvedOffsets(attachment, arm);
     }
 
     public static void syncBoundVerticalOffsets(TowerArm arm, Iterable<ConductorAttachment> attachments) {
@@ -35,9 +81,13 @@ public final class TowerArmAttachmentBinding {
         }
         double hang = conductorHangHeight(arm);
         for (ConductorAttachment attachment : attachments) {
-            if (arm.getId().equals(attachment.getArmId())) {
-                attachment.setVerticalOffset(hang);
+            if (!arm.getId().equals(attachment.getArmId())) {
+                continue;
             }
+            if (attachment.isBound()) {
+                continue;
+            }
+            attachment.setVerticalOffset(hang);
         }
     }
 
@@ -45,17 +95,20 @@ public final class TowerArmAttachmentBinding {
         if (arm == null || attachments == null) {
             return;
         }
-        double targetReach = arm.getLateralReach() * DEFAULT_LATERAL_SCALE;
-        if (targetReach < 1e-6) {
-            return;
-        }
         List<ConductorAttachment> bound = new ArrayList<>();
         for (ConductorAttachment attachment : attachments) {
             if (arm.getId().equals(attachment.getArmId())) {
+                if (attachment.isBound()) {
+                    return;
+                }
                 bound.add(attachment);
             }
         }
         if (bound.isEmpty()) {
+            return;
+        }
+        double targetReach = arm.getLateralReach() * DEFAULT_LATERAL_SCALE;
+        if (targetReach < 1e-6) {
             return;
         }
         double maxAbsLateral = 0.0;
@@ -80,13 +133,11 @@ public final class TowerArmAttachmentBinding {
         if (arm == null) {
             return List.of();
         }
-        double reach = arm.getLateralReach() * lateralScale;
-        double hang = conductorHangHeight(arm);
         String prefix = arm.getId() + "_";
         List<ConductorAttachment> deck = new ArrayList<>(3);
-        deck.add(phaseWithArm(prefix, "A", AttachmentRole.PHASE_A, -reach, hang, arm.getId()));
-        deck.add(phaseWithArm(prefix, "B", AttachmentRole.PHASE_B, 0, hang, arm.getId()));
-        deck.add(phaseWithArm(prefix, "C", AttachmentRole.PHASE_C, reach, hang, arm.getId()));
+        deck.add(boundPhase(prefix, "A", AttachmentRole.PHASE_A, -1.0, arm));
+        deck.add(boundPhase(prefix, "B", AttachmentRole.PHASE_B, 0.0, arm));
+        deck.add(boundPhase(prefix, "C", AttachmentRole.PHASE_C, 1.0, arm));
         return deck;
     }
 
@@ -106,7 +157,7 @@ public final class TowerArmAttachmentBinding {
             0.7);
         for (ConductorAttachment attachment : deck) {
             attachment.setId(prefix + attachment.getId());
-            attachment.setArmId(arm.getId());
+            migrateLegacyToBound(attachment, arm);
         }
         return deck;
     }
@@ -118,6 +169,7 @@ public final class TowerArmAttachmentBinding {
         for (ConductorAttachment attachment : attachments) {
             if (armId.equals(attachment.getArmId())) {
                 attachment.setArmId(null);
+                attachment.setBindingMode(AttachmentBindingMode.FREE);
             }
         }
     }
@@ -143,11 +195,13 @@ public final class TowerArmAttachmentBinding {
             if (attachment.getArmId() != null && findArm(arms, attachment.getArmId()) != null) {
                 continue;
             }
-            TowerArm nearest = nearestArm(arms, attachment.getVerticalOffset());
+            ResolvedLocalOffsets local = resolveLocalOffsets(attachment, structure);
+            TowerArm nearest = nearestArm(arms, local.vertical());
             if (nearest != null) {
                 attachment.setArmId(nearest.getId());
             }
         }
+        ensureV2Bindings(design);
     }
 
     public static Map<String, List<ConductorAttachment>> groupByArm(PoleDesign design) {
@@ -176,6 +230,16 @@ public final class TowerArmAttachmentBinding {
         return grouped;
     }
 
+    public static void refreshBoundCache(ConductorAttachment attachment, TowerStructureDesign structure) {
+        if (!attachment.isBound() || structure == null) {
+            return;
+        }
+        TowerArm arm = findArm(sortedArms(structure), attachment.getArmId());
+        if (arm != null) {
+            cacheResolvedOffsets(attachment, arm);
+        }
+    }
+
     public static List<TowerArm> sortedArms(TowerStructureDesign structure) {
         if (structure == null) {
             return List.of();
@@ -183,6 +247,31 @@ public final class TowerArmAttachmentBinding {
         List<TowerArm> arms = new ArrayList<>(structure.getArms());
         arms.sort(Comparator.comparingDouble(TowerArm::getBaseHeight));
         return arms;
+    }
+
+    private static ResolvedLocalOffsets resolveBoundOffsets(ConductorAttachment attachment, TowerArm arm) {
+        double lateral = arm.getLateralReach() * DEFAULT_LATERAL_SCALE * attachment.getNormalizedPosition();
+        double vertical = conductorHangHeight(arm) + attachment.getVerticalAnchorOffset();
+        return new ResolvedLocalOffsets(lateral, vertical, attachment.getLongitudinalOffset());
+    }
+
+    private static void migrateLegacyToBound(ConductorAttachment attachment, TowerArm arm) {
+        double reach = arm.getLateralReach() * DEFAULT_LATERAL_SCALE;
+        double normalized = reach > 1e-6
+            ? attachment.getLateralOffset() / reach
+            : 0.0;
+        attachment.setBindingMode(AttachmentBindingMode.BOUND);
+        attachment.setArmId(arm.getId());
+        attachment.setNormalizedPosition(normalized);
+        attachment.setVerticalAnchorOffset(attachment.getVerticalOffset() - conductorHangHeight(arm));
+        cacheResolvedOffsets(attachment, arm);
+    }
+
+    private static void cacheResolvedOffsets(ConductorAttachment attachment, TowerArm arm) {
+        ResolvedLocalOffsets local = resolveBoundOffsets(attachment, arm);
+        attachment.setLateralOffset(local.lateral());
+        attachment.setVerticalOffset(local.vertical());
+        attachment.setLongitudinalOffset(local.longitudinal());
     }
 
     private static TowerArm findArm(List<TowerArm> arms, String armId) {
@@ -216,18 +305,19 @@ public final class TowerArmAttachmentBinding {
         }
     }
 
-    private static ConductorAttachment phaseWithArm(
+    private static ConductorAttachment boundPhase(
             String idPrefix,
             String name,
             AttachmentRole role,
-            double lateral,
-            double vertical,
-            String armId) {
+            double normalizedPosition,
+            TowerArm arm) {
         ConductorAttachment attachment = new ConductorAttachment(idPrefix + "phase_" + name.toLowerCase(), name);
         attachment.setRole(role);
-        attachment.setLateralOffset(lateral);
-        attachment.setVerticalOffset(vertical);
-        attachment.setArmId(armId);
+        attachment.setBindingMode(AttachmentBindingMode.BOUND);
+        attachment.setArmId(arm.getId());
+        attachment.setNormalizedPosition(normalizedPosition);
+        attachment.setVerticalAnchorOffset(0.0);
+        cacheResolvedOffsets(attachment, arm);
         return attachment;
     }
 }

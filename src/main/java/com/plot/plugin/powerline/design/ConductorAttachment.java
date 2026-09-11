@@ -25,6 +25,13 @@ public class ConductorAttachment {
     private BundleVisual bundleVisual = BundleVisual.SINGLE;
     /** 绑定的 {@link com.plot.plugin.powerline.design.structure.TowerArm} id（塔型设计器多层横担）。 */
     private String armId;
+    private AttachmentBindingMode bindingMode = AttachmentBindingMode.FREE;
+    /**
+     * BOUND 模式横向归一化位置：{@code lateral = armReach * lateralScale * normalizedPosition}。
+     */
+    private double normalizedPosition;
+    /** BOUND 模式相对横担挂线高度的竖向偏移。 */
+    private double verticalAnchorOffset;
     private boolean enabled = true;
 
     public ConductorAttachment() {
@@ -139,6 +146,34 @@ public class ConductorAttachment {
         this.armId = armId != null && armId.isBlank() ? null : armId;
     }
 
+    public AttachmentBindingMode getBindingMode() {
+        return bindingMode != null ? bindingMode : AttachmentBindingMode.FREE;
+    }
+
+    public void setBindingMode(AttachmentBindingMode bindingMode) {
+        this.bindingMode = bindingMode != null ? bindingMode : AttachmentBindingMode.FREE;
+    }
+
+    public boolean isBound() {
+        return getBindingMode() == AttachmentBindingMode.BOUND && armId != null && !armId.isBlank();
+    }
+
+    public double getNormalizedPosition() {
+        return normalizedPosition;
+    }
+
+    public void setNormalizedPosition(double normalizedPosition) {
+        this.normalizedPosition = clamp(normalizedPosition, -1.0, 1.0);
+    }
+
+    public double getVerticalAnchorOffset() {
+        return verticalAnchorOffset;
+    }
+
+    public void setVerticalAnchorOffset(double verticalAnchorOffset) {
+        this.verticalAnchorOffset = clamp(verticalAnchorOffset, -32.0, 32.0);
+    }
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -161,6 +196,9 @@ public class ConductorAttachment {
         copy.insulatorAssemblyId = insulatorAssemblyId;
         copy.bundleVisual = bundleVisual;
         copy.armId = armId;
+        copy.bindingMode = bindingMode;
+        copy.normalizedPosition = normalizedPosition;
+        copy.verticalAnchorOffset = verticalAnchorOffset;
         copy.enabled = enabled;
         return copy;
     }
@@ -181,6 +219,9 @@ public class ConductorAttachment {
             && Objects.equals(insulatorAssemblyId, other.insulatorAssemblyId)
             && bundleVisual == other.bundleVisual
             && Objects.equals(armId, other.armId)
+            && bindingMode == other.bindingMode
+            && Double.compare(normalizedPosition, other.normalizedPosition) == 0
+            && Double.compare(verticalAnchorOffset, other.verticalAnchorOffset) == 0
             && enabled == other.enabled
             && materialEquals(insulatorMaterial, other.insulatorMaterial);
     }
@@ -199,6 +240,9 @@ public class ConductorAttachment {
             insulatorAssemblyId,
             bundleVisual,
             armId,
+            bindingMode,
+            normalizedPosition,
+            verticalAnchorOffset,
             enabled,
             insulatorMaterial != null ? insulatorMaterial.getPrimaryMaterial() : null,
             insulatorMaterial != null ? insulatorMaterial.getAccentMaterial() : null,

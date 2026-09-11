@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.design.ConductorAttachment;
+import com.plot.plugin.powerline.design.TowerArmAttachmentBinding;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerStation;
@@ -173,11 +174,13 @@ public final class PoleDesignPreviewRenderer {
             if (!attachment.isEnabled()) {
                 continue;
             }
+            TowerArmAttachmentBinding.ResolvedLocalOffsets local =
+                TowerArmAttachmentBinding.resolveLocalOffsets(attachment, design.getTowerStructure());
             double horizontal = view == PoleVoxelElevationRenderer.ElevationView.FRONT
-                ? attachment.getLateralOffset()
-                : attachment.getLongitudinalOffset();
+                ? local.lateral()
+                : local.longitudinal();
             float x = layout.mapX(horizontal);
-            float y = layout.mapY(attachment.getVerticalOffset());
+            float y = layout.mapY(local.vertical());
             drawList.addCircleFilled(x, y, 4f, COLOR_ATTACHMENT);
             drawList.addCircle(x, y, 4.5f, COLOR_ATTACHMENT_RING, 12, 1.2f);
         }
@@ -244,11 +247,13 @@ public final class PoleDesignPreviewRenderer {
             if (!attachment.isEnabled()) {
                 continue;
             }
+            TowerArmAttachmentBinding.ResolvedLocalOffsets local =
+                TowerArmAttachmentBinding.resolveLocalOffsets(attachment, design.getTowerStructure());
             double horizontal = view == PoleVoxelElevationRenderer.ElevationView.FRONT
-                ? attachment.getLateralOffset()
-                : attachment.getLongitudinalOffset();
+                ? local.lateral()
+                : local.longitudinal();
             float x = PoleVoxelElevationRenderer.mapHorizontalToScreen(layout, view, model, horizontal);
-            float y = PoleVoxelElevationRenderer.mapVerticalToScreen(layout, model, attachment.getVerticalOffset());
+            float y = PoleVoxelElevationRenderer.mapVerticalToScreen(layout, model, local.vertical());
             drawList.addCircleFilled(x, y, 4f, COLOR_ATTACHMENT);
             drawList.addCircle(x, y, 4.5f, COLOR_ATTACHMENT_RING, 12, 1.2f);
             String name = attachment.getName();

@@ -274,8 +274,8 @@ class TowerParametricClassicTest {
     private static double maxPhaseLateral(PoleDesign design, String armId) {
         return design.getAttachments().stream()
             .filter(attachment -> armId.equals(attachment.getArmId()))
-            .mapToDouble(ConductorAttachment::getLateralOffset)
-            .map(Math::abs)
+            .mapToDouble(attachment -> Math.abs(
+                TowerArmAttachmentBinding.resolveLocalOffsets(attachment, design.getTowerStructure()).lateral()))
             .max()
             .orElse(0.0);
     }

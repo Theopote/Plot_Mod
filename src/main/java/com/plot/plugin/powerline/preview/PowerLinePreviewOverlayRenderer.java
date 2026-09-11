@@ -3,6 +3,7 @@ package com.plot.plugin.powerline.preview;
 import com.plot.plugin.powerline.design.AttachmentRole;
 import com.plot.plugin.powerline.design.ConductorAttachment;
 import com.plot.plugin.powerline.design.PoleDesign;
+import com.plot.plugin.powerline.design.TowerArmAttachmentBinding;
 import com.plot.plugin.powerline.design.PoleLayer;
 import com.plot.plugin.powerline.style.PreviewOverlay;
 import com.plot.plugin.powerline.style.PreviewRepresentation;
@@ -69,7 +70,7 @@ public final class PowerLinePreviewOverlayRenderer {
                 return;
             }
             for (ConductorAttachment attachment : design.getAttachments()) {
-                drawStructuralAttachment(drawList, attachment, layout);
+                drawStructuralAttachment(drawList, design, attachment, layout);
             }
             return;
         }
@@ -78,13 +79,16 @@ public final class PowerLinePreviewOverlayRenderer {
 
     private static void drawStructuralAttachment(
             ImDrawList drawList,
+            PoleDesign design,
             ConductorAttachment attachment,
             TowerStructuralElevationRenderer.StructuralLayout layout) {
         if (attachment == null || !attachment.isEnabled()) {
             return;
         }
-        float x = layout.mapX(attachment.getLateralOffset());
-        float yHang = layout.mapY(attachment.getVerticalOffset());
+        TowerArmAttachmentBinding.ResolvedLocalOffsets local =
+            TowerArmAttachmentBinding.resolveLocalOffsets(attachment, design.getTowerStructure());
+        float x = layout.mapX(local.lateral());
+        float yHang = layout.mapY(local.vertical());
         AttachmentRole role = attachment.getRole();
         if (role == AttachmentRole.TOP_WIRE) {
             drawList.addCircleFilled(x, yHang, ATTACHMENT_DOT_RADIUS, COLOR_TOP_WIRE);
@@ -125,12 +129,14 @@ public final class PowerLinePreviewOverlayRenderer {
             if (attachment == null || !attachment.isEnabled()) {
                 continue;
             }
+            TowerArmAttachmentBinding.ResolvedLocalOffsets local =
+                TowerArmAttachmentBinding.resolveLocalOffsets(attachment, design.getTowerStructure());
             float x = PoleVoxelElevationRenderer.mapHorizontalToScreen(
                 layout,
                 PoleVoxelElevationRenderer.ElevationView.FRONT,
                 model,
-                attachment.getLateralOffset());
-            float yHang = PoleVoxelElevationRenderer.mapVerticalToScreen(layout, model, attachment.getVerticalOffset());
+                local.lateral());
+            float yHang = PoleVoxelElevationRenderer.mapVerticalToScreen(layout, model, local.vertical());
             AttachmentRole role = attachment.getRole();
             if (role == AttachmentRole.TOP_WIRE) {
                 drawList.addCircleFilled(x, yHang, ATTACHMENT_DOT_RADIUS, COLOR_TOP_WIRE);
