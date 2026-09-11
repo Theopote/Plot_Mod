@@ -18,6 +18,7 @@ import com.plot.plugin.powerline.design.parametric.TowerConstraintResult;
 import com.plot.plugin.powerline.design.parametric.TowerConstraintSolver;
 import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
 import com.plot.plugin.powerline.design.parametric.TowerParametricHeightLimits;
+import com.plot.plugin.powerline.design.parametric.TowerParameterProfile;
 import com.plot.plugin.powerline.design.parametric.TowerParameterProfiles;
 import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
@@ -516,26 +517,22 @@ public final class PoleDesignerPanel {
 
     private void renderParametricSection() {
         if (!draft.hasTowerStructure() && !draft.isParametricMode()) {
-            if (ImGui.button(PlotI18n.tr("plugin.powerline.design.parametric_enable_classic"), 0, 0)) {
-                pushDraftSnapshot();
-                TowerParametricEditor.enableParametricClassic(draft, TowerParameterSet.classicDefaults());
-            }
+            renderParametricEnableButtons(true);
             return;
         }
 
         if (!draft.isParametricMode()) {
-            ImGui.sameLine();
-            if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.parametric_enable_classic"))) {
-                pushDraftSnapshot();
-                TowerParametricEditor.enableParametricClassic(draft, TowerParameterSet.classicDefaults());
-            }
+            renderParametricEnableButtons(false);
             return;
         }
 
+        TowerParameterProfile profile = TowerParametricEditor.findProfile(draft.getGeneratorConfig().profileId())
+            .orElse(TowerParameterProfiles.classicDoubleArm());
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.parametric_section"));
+        PowerLineUiWidgets.textColored(0xFF9E9E9E, profileLabel(profile.id()));
         TowerParameterSet parameters = draft.getGeneratorConfig().parameters();
         TowerParametricHeightLimits.EffectiveHeightRange heightRange = TowerParametricHeightLimits.heightRange(
-            TowerParameterProfiles.classicDoubleArm(),
+            profile,
             parameters,
             TowerBuildEnvelopeResolver.tryFromClientPlayer().orElse(null));
 
@@ -563,8 +560,8 @@ public final class PoleDesignerPanel {
                 "plugin.powerline.design.parametric_base_width",
                 "##param_base_width",
                 baseWidth,
-                9f,
-                16f,
+                (float) profile.baseWidthRange().min(),
+                (float) profile.baseWidthRange().max(),
                 "%.0f")) {
             applyParametricParameters(withBaseWidth(parameters, baseWidth[0]));
         }
@@ -577,8 +574,8 @@ public final class PoleDesignerPanel {
                 "plugin.powerline.design.parametric_arm_span",
                 "##param_arm_span",
                 armSpan,
-                18f,
-                30f,
+                (float) profile.armSpanRange().min(),
+                (float) profile.armSpanRange().max(),
                 "%.0f")) {
             applyParametricParameters(withArmSpan(parameters, armSpan[0]));
         }
@@ -626,6 +623,62 @@ public final class PoleDesignerPanel {
             case MEDIUM -> PlotI18n.tr("plugin.powerline.design.parametric_density_medium");
             case HIGH -> PlotI18n.tr("plugin.powerline.design.parametric_density_high");
         };
+    }
+
+    private void renderParametricEnableButtons(boolean fullSize) {
+        record ParametricEnableAction(String labelKey, Runnable action) {}
+        List<ParametricEnableAction> actions = List.of(
+            new ParametricEnableAction(
+                "plugin.powerline.design.parametric_enable_classic",
+                () -> TowerParametricEditor.enableParametricClassic(draft, TowerParameterSet.classicDefaults())),
+            new ParametricEnableAction(
+                "plugin.powerline.design.parametric_enable_small_lattice",
+                () -> TowerParametricEditor.enableParametricSmallLattice(draft, TowerParameterSet.smallLatticeDefaults())),
+            new ParametricEnableAction(
+                "plugin.powerline.design.parametric_enable_triple_arm",
+                () -> TowerParametricEditor.enableParametricTripleArm(draft, TowerParameterSet.tripleArmDefaults())),
+            new ParametricEnableAction(
+                "plugin.powerline.design.parametric_enable_cup",
+                () -> TowerParametricEditor.enableParametricCup(draft, TowerParameterSet.cupDefaults())),
+            new ParametricEnableAction(
+                "plugin.powerline.design.parametric_enable_heavy",
+                () -> TowerParametricEditor.enableParametricHeavy(draft, TowerParameterSet.heavyDefaults())),
+            new ParametricEnableAction(
+                "plugin.powerline.design.parametric_enable_mega",
+                () -> TowerParametricEditor.enableParametricMega(draft, TowerParameterSet.megaDefaults())));
+
+        for (int i = 0; i < actions.size(); i++) {
+            ParametricEnableAction action = actions.get(i);
+            boolean clicked = fullSize
+                ? ImGui.button(PlotI18n.tr(action.labelKey), 0, 0)
+                : ImGui.smallButton(PlotI18n.tr(action.labelKey));
+            if (clicked) {
+                pushDraftSnapshot();
+                action.action().run();
+            }
+            if (i < actions.size() - 1 && (i + 1) % 3 != 0) {
+                ImGui.sameLine();
+            }
+        }
+    }
+
+    private static String profileLabel(String profileId) {
+        if (TowerParameterProfiles.SMALL_LATTICE_ID.equals(profileId)) {
+            return PlotI18n.tr("plugin.powerline.design.parametric_profile_small_lattice");
+        }
+        if (TowerParameterProfiles.TRIPLE_ARM_ID.equals(profileId)) {
+            return PlotI18n.tr("plugin.powerline.design.parametric_profile_triple_arm");
+        }
+        if (TowerParameterProfiles.CUP_ID.equals(profileId)) {
+            return PlotI18n.tr("plugin.powerline.design.parametric_profile_cup");
+        }
+        if (TowerParameterProfiles.HEAVY_ID.equals(profileId)) {
+            return PlotI18n.tr("plugin.powerline.design.parametric_profile_heavy");
+        }
+        if (TowerParameterProfiles.MEGA_ID.equals(profileId)) {
+            return PlotI18n.tr("plugin.powerline.design.parametric_profile_mega");
+        }
+        return PlotI18n.tr("plugin.powerline.design.parametric_profile_classic");
     }
 
     private void renderParametricConstraintHints() {

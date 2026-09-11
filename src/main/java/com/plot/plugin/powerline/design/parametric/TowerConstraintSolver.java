@@ -44,7 +44,7 @@ public final class TowerConstraintSolver {
             double gap = stations.get(i).height() - stations.get(i - 1).height();
             if (gap < MIN_BAY_HEIGHT) {
                 issues.add(new ConstraintIssue(
-                    ConstraintSeverity.ERROR,
+                    ConstraintSeverity.WARNING,
                     CODE_BAY_HEIGHT_TOO_SMALL,
                     "bay height " + gap + " < " + MIN_BAY_HEIGHT));
             }

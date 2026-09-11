@@ -29,6 +29,61 @@ public record TowerGeneratorConfig(
         return parametricClassic(TowerParameterSet.classicDefaults());
     }
 
+    public static TowerGeneratorConfig parametricSmallLattice(TowerParameterSet parameters) {
+        return new TowerGeneratorConfig(
+            TowerParameterProfiles.SMALL_LATTICE_ID,
+            TowerGeneratorMode.PARAMETRIC,
+            parameters);
+    }
+
+    public static TowerGeneratorConfig parametricSmallLatticeDefaults() {
+        return parametricSmallLattice(TowerParameterSet.smallLatticeDefaults());
+    }
+
+    public static TowerGeneratorConfig parametricTripleArm(TowerParameterSet parameters) {
+        return new TowerGeneratorConfig(
+            TowerParameterProfiles.TRIPLE_ARM_ID,
+            TowerGeneratorMode.PARAMETRIC,
+            parameters);
+    }
+
+    public static TowerGeneratorConfig parametricTripleArmDefaults() {
+        return parametricTripleArm(TowerParameterSet.tripleArmDefaults());
+    }
+
+    public static TowerGeneratorConfig parametricCup(TowerParameterSet parameters) {
+        return new TowerGeneratorConfig(
+            TowerParameterProfiles.CUP_ID,
+            TowerGeneratorMode.PARAMETRIC,
+            parameters);
+    }
+
+    public static TowerGeneratorConfig parametricCupDefaults() {
+        return parametricCup(TowerParameterSet.cupDefaults());
+    }
+
+    public static TowerGeneratorConfig parametricHeavy(TowerParameterSet parameters) {
+        return new TowerGeneratorConfig(
+            TowerParameterProfiles.HEAVY_ID,
+            TowerGeneratorMode.PARAMETRIC,
+            parameters);
+    }
+
+    public static TowerGeneratorConfig parametricHeavyDefaults() {
+        return parametricHeavy(TowerParameterSet.heavyDefaults());
+    }
+
+    public static TowerGeneratorConfig parametricMega(TowerParameterSet parameters) {
+        return new TowerGeneratorConfig(
+            TowerParameterProfiles.MEGA_ID,
+            TowerGeneratorMode.PARAMETRIC,
+            parameters);
+    }
+
+    public static TowerGeneratorConfig parametricMegaDefaults() {
+        return parametricMega(TowerParameterSet.megaDefaults());
+    }
+
     public boolean isParametric() {
         return mode == TowerGeneratorMode.PARAMETRIC;
     }

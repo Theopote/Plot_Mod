@@ -2,9 +2,7 @@ package com.plot.plugin.powerline.design.parametric;
 
 import com.plot.plugin.powerline.design.PoleDesign;
 
-/**
- * Classic Double Arm 参数化编译入口（与 {@code TowerStructurePresets} 并行存在，不替换旧预设）。
- */
+/** 参数化塔型编译入口（与 {@code TowerStructurePresets} 并行存在，不替换旧预设）。 */
 public final class TowerParametricDesignFactory {
     private TowerParametricDesignFactory() {
     }
@@ -17,6 +15,56 @@ public final class TowerParametricDesignFactory {
             TowerParameterSet parameters,
             TowerBuildEnvelope envelope) {
         return resolveProfile(TowerParameterProfiles.classicDoubleArm(), parameters, envelope);
+    }
+
+    public static TowerConstraintResult resolveSmallLattice(TowerParameterSet parameters) {
+        return resolveSmallLattice(parameters, null);
+    }
+
+    public static TowerConstraintResult resolveSmallLattice(
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        return resolveProfile(TowerParameterProfiles.smallLattice(), parameters, envelope);
+    }
+
+    public static TowerConstraintResult resolveTripleArm(TowerParameterSet parameters) {
+        return resolveTripleArm(parameters, null);
+    }
+
+    public static TowerConstraintResult resolveTripleArm(
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        return resolveProfile(TowerParameterProfiles.tripleArm(), parameters, envelope);
+    }
+
+    public static TowerConstraintResult resolveCup(TowerParameterSet parameters) {
+        return resolveCup(parameters, null);
+    }
+
+    public static TowerConstraintResult resolveCup(
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        return resolveProfile(TowerParameterProfiles.cup(), parameters, envelope);
+    }
+
+    public static TowerConstraintResult resolveHeavy(TowerParameterSet parameters) {
+        return resolveHeavy(parameters, null);
+    }
+
+    public static TowerConstraintResult resolveHeavy(
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        return resolveProfile(TowerParameterProfiles.heavy(), parameters, envelope);
+    }
+
+    public static TowerConstraintResult resolveMega(TowerParameterSet parameters) {
+        return resolveMega(parameters, null);
+    }
+
+    public static TowerConstraintResult resolveMega(
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        return resolveProfile(TowerParameterProfiles.mega(), parameters, envelope);
     }
 
     public static TowerConstraintResult resolveProfile(
@@ -34,7 +82,64 @@ public final class TowerParametricDesignFactory {
     public static PoleDesign compileClassicDoubleArm(
             TowerParameterSet parameters,
             TowerBuildEnvelope envelope) {
-        TowerConstraintResult result = resolveClassic(parameters, envelope);
+        return compileProfile(TowerParameterProfiles.classicDoubleArm(), parameters, envelope);
+    }
+
+    public static PoleDesign compileSmallLattice(TowerParameterSet parameters) {
+        return compileSmallLattice(parameters, null);
+    }
+
+    public static PoleDesign compileSmallLattice(
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        return compileProfile(TowerParameterProfiles.smallLattice(), parameters, envelope);
+    }
+
+    public static PoleDesign compileTripleArm(TowerParameterSet parameters) {
+        return compileTripleArm(parameters, null);
+    }
+
+    public static PoleDesign compileTripleArm(
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        return compileProfile(TowerParameterProfiles.tripleArm(), parameters, envelope);
+    }
+
+    public static PoleDesign compileCup(TowerParameterSet parameters) {
+        return compileCup(parameters, null);
+    }
+
+    public static PoleDesign compileCup(
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        return compileProfile(TowerParameterProfiles.cup(), parameters, envelope);
+    }
+
+    public static PoleDesign compileHeavy(TowerParameterSet parameters) {
+        return compileHeavy(parameters, null);
+    }
+
+    public static PoleDesign compileHeavy(
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        return compileProfile(TowerParameterProfiles.heavy(), parameters, envelope);
+    }
+
+    public static PoleDesign compileMega(TowerParameterSet parameters) {
+        return compileMega(parameters, null);
+    }
+
+    public static PoleDesign compileMega(
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        return compileProfile(TowerParameterProfiles.mega(), parameters, envelope);
+    }
+
+    public static PoleDesign compileProfile(
+            TowerParameterProfile profile,
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        TowerConstraintResult result = resolveProfile(profile, parameters, envelope);
         if (result.hasErrors()) {
             String codes = result.issues().stream()
                 .filter(issue -> issue.severity() == ConstraintSeverity.ERROR)
@@ -43,6 +148,6 @@ public final class TowerParametricDesignFactory {
                 .orElse("UNKNOWN");
             throw new IllegalStateException("Cannot compile parametric tower: " + codes);
         }
-        return TowerStructureCompiler.compile(TowerParameterProfiles.classicDoubleArm(), result.resolved());
+        return TowerStructureCompiler.compile(profile, result.resolved());
     }
 }

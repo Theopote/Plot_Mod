@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.design.parametric;
 
 import com.plot.plugin.powerline.design.PoleDesign;
+import com.plot.plugin.powerline.design.structure.TowerSilhouette;
 import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import org.junit.jupiter.api.Test;
 
@@ -60,6 +61,16 @@ class TowerParametricEditorTest {
         assertNull(design.getGeneratorConfig());
         assertFalse(design.isParametricMode());
         assertNotNull(design.getTowerStructure());
+    }
+
+    @Test
+    void enableParametricSmallLatticeCompilesStructure() {
+        PoleDesign design = new PoleDesign("small", "Small");
+        TowerParametricEditor.enableParametricSmallLattice(design, TowerParameterSet.smallLatticeDefaults());
+
+        assertTrue(design.isParametricMode());
+        assertEquals(TowerParameterProfiles.SMALL_LATTICE_ID, design.getGeneratorConfig().profileId());
+        assertEquals(TowerSilhouette.TAPERED_LATTICE, design.getTowerStructure().getSilhouette());
     }
 
     @Test

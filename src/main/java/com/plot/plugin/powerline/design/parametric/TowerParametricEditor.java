@@ -12,24 +12,47 @@ public final class TowerParametricEditor {
     }
 
     public static boolean supportsProfile(String profileId) {
-        return TowerParameterProfiles.CLASSIC_DOUBLE_ARM_ID.equals(profileId);
+        return TowerParameterProfiles.find(profileId).isPresent();
     }
 
     public static Optional<TowerParameterProfile> findProfile(String profileId) {
-        if (TowerParameterProfiles.CLASSIC_DOUBLE_ARM_ID.equals(profileId)) {
-            return Optional.of(TowerParameterProfiles.classicDoubleArm());
-        }
-        return Optional.empty();
+        return TowerParameterProfiles.find(profileId);
     }
 
     public static void enableParametricClassic(PoleDesign design, TowerParameterSet parameters) {
+        enableParametric(design, TowerParameterProfiles.CLASSIC_DOUBLE_ARM_ID, parameters, TowerParameterSet.classicDefaults());
+    }
+
+    public static void enableParametricSmallLattice(PoleDesign design, TowerParameterSet parameters) {
+        enableParametric(design, TowerParameterProfiles.SMALL_LATTICE_ID, parameters, TowerParameterSet.smallLatticeDefaults());
+    }
+
+    public static void enableParametricTripleArm(PoleDesign design, TowerParameterSet parameters) {
+        enableParametric(design, TowerParameterProfiles.TRIPLE_ARM_ID, parameters, TowerParameterSet.tripleArmDefaults());
+    }
+
+    public static void enableParametricCup(PoleDesign design, TowerParameterSet parameters) {
+        enableParametric(design, TowerParameterProfiles.CUP_ID, parameters, TowerParameterSet.cupDefaults());
+    }
+
+    public static void enableParametricHeavy(PoleDesign design, TowerParameterSet parameters) {
+        enableParametric(design, TowerParameterProfiles.HEAVY_ID, parameters, TowerParameterSet.heavyDefaults());
+    }
+
+    public static void enableParametricMega(PoleDesign design, TowerParameterSet parameters) {
+        enableParametric(design, TowerParameterProfiles.MEGA_ID, parameters, TowerParameterSet.megaDefaults());
+    }
+
+    private static void enableParametric(
+            PoleDesign design,
+            String profileId,
+            TowerParameterSet parameters,
+            TowerParameterSet fallback) {
         if (design == null) {
             return;
         }
-        TowerParameterSet resolvedParameters = parameters != null
-            ? parameters
-            : TowerParameterSet.classicDefaults();
-        design.setGeneratorConfig(TowerGeneratorConfig.parametricClassic(resolvedParameters));
+        TowerParameterSet resolved = parameters != null ? parameters : fallback;
+        design.setGeneratorConfig(new TowerGeneratorConfig(profileId, TowerGeneratorMode.PARAMETRIC, resolved));
         recompile(design, null);
     }
 
