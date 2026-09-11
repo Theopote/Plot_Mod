@@ -67,6 +67,36 @@ public final class TowerParametricDesignFactory {
         return resolveProfile(TowerParameterProfiles.mega(), parameters, envelope);
     }
 
+    public static TowerConstraintResult resolvePortal(TowerParameterSet parameters) {
+        return resolvePortal(parameters, null);
+    }
+
+    public static TowerConstraintResult resolvePortal(
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        return resolveProfile(TowerParameterProfiles.portal(), parameters, envelope);
+    }
+
+    public static TowerConstraintResult resolveDrum(TowerParameterSet parameters) {
+        return resolveDrum(parameters, null);
+    }
+
+    public static TowerConstraintResult resolveDrum(
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        return resolveProfile(TowerParameterProfiles.drum(), parameters, envelope);
+    }
+
+    public static TowerConstraintResult resolveUhv(TowerParameterSet parameters) {
+        return resolveUhv(parameters, null);
+    }
+
+    public static TowerConstraintResult resolveUhv(
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        return resolveProfile(TowerParameterProfiles.uhv(), parameters, envelope);
+    }
+
     public static TowerConstraintResult resolveProfile(
             TowerParameterProfile profile,
             TowerParameterSet parameters,
@@ -133,6 +163,36 @@ public final class TowerParametricDesignFactory {
             TowerParameterSet parameters,
             TowerBuildEnvelope envelope) {
         return compileProfile(TowerParameterProfiles.mega(), parameters, envelope);
+    }
+
+    public static PoleDesign compilePortal(TowerParameterSet parameters) {
+        return compilePortal(parameters, null);
+    }
+
+    public static PoleDesign compilePortal(
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        return compileProfile(TowerParameterProfiles.portal(), parameters, envelope);
+    }
+
+    public static PoleDesign compileDrum(TowerParameterSet parameters) {
+        return compileDrum(parameters, null);
+    }
+
+    public static PoleDesign compileDrum(
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        return compileProfile(TowerParameterProfiles.drum(), parameters, envelope);
+    }
+
+    public static PoleDesign compileUhv(TowerParameterSet parameters) {
+        return compileUhv(parameters, null);
+    }
+
+    public static PoleDesign compileUhv(
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        return compileProfile(TowerParameterProfiles.uhv(), parameters, envelope);
     }
 
     public static PoleDesign compileProfile(

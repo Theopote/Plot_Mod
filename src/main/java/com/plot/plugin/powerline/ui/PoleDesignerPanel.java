@@ -645,7 +645,16 @@ public final class PoleDesignerPanel {
                 () -> TowerParametricEditor.enableParametricHeavy(draft, TowerParameterSet.heavyDefaults())),
             new ParametricEnableAction(
                 "plugin.powerline.design.parametric_enable_mega",
-                () -> TowerParametricEditor.enableParametricMega(draft, TowerParameterSet.megaDefaults())));
+                () -> TowerParametricEditor.enableParametricMega(draft, TowerParameterSet.megaDefaults())),
+            new ParametricEnableAction(
+                "plugin.powerline.design.parametric_enable_portal",
+                () -> TowerParametricEditor.enableParametricPortal(draft, TowerParameterSet.portalDefaults())),
+            new ParametricEnableAction(
+                "plugin.powerline.design.parametric_enable_drum",
+                () -> TowerParametricEditor.enableParametricDrum(draft, TowerParameterSet.drumDefaults())),
+            new ParametricEnableAction(
+                "plugin.powerline.design.parametric_enable_uhv",
+                () -> TowerParametricEditor.enableParametricUhv(draft, TowerParameterSet.uhvDefaults())));
 
         for (int i = 0; i < actions.size(); i++) {
             ParametricEnableAction action = actions.get(i);
@@ -677,6 +686,15 @@ public final class PoleDesignerPanel {
         }
         if (TowerParameterProfiles.MEGA_ID.equals(profileId)) {
             return PlotI18n.tr("plugin.powerline.design.parametric_profile_mega");
+        }
+        if (TowerParameterProfiles.PORTAL_ID.equals(profileId)) {
+            return PlotI18n.tr("plugin.powerline.design.parametric_profile_portal");
+        }
+        if (TowerParameterProfiles.DRUM_ID.equals(profileId)) {
+            return PlotI18n.tr("plugin.powerline.design.parametric_profile_drum");
+        }
+        if (TowerParameterProfiles.UHV_ID.equals(profileId)) {
+            return PlotI18n.tr("plugin.powerline.design.parametric_profile_uhv");
         }
         return PlotI18n.tr("plugin.powerline.design.parametric_profile_classic");
     }

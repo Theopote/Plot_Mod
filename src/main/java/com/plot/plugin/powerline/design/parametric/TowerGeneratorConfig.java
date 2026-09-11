@@ -84,6 +84,39 @@ public record TowerGeneratorConfig(
         return parametricMega(TowerParameterSet.megaDefaults());
     }
 
+    public static TowerGeneratorConfig parametricPortal(TowerParameterSet parameters) {
+        return new TowerGeneratorConfig(
+            TowerParameterProfiles.PORTAL_ID,
+            TowerGeneratorMode.PARAMETRIC,
+            parameters);
+    }
+
+    public static TowerGeneratorConfig parametricPortalDefaults() {
+        return parametricPortal(TowerParameterSet.portalDefaults());
+    }
+
+    public static TowerGeneratorConfig parametricDrum(TowerParameterSet parameters) {
+        return new TowerGeneratorConfig(
+            TowerParameterProfiles.DRUM_ID,
+            TowerGeneratorMode.PARAMETRIC,
+            parameters);
+    }
+
+    public static TowerGeneratorConfig parametricDrumDefaults() {
+        return parametricDrum(TowerParameterSet.drumDefaults());
+    }
+
+    public static TowerGeneratorConfig parametricUhv(TowerParameterSet parameters) {
+        return new TowerGeneratorConfig(
+            TowerParameterProfiles.UHV_ID,
+            TowerGeneratorMode.PARAMETRIC,
+            parameters);
+    }
+
+    public static TowerGeneratorConfig parametricUhvDefaults() {
+        return parametricUhv(TowerParameterSet.uhvDefaults());
+    }
+
     public boolean isParametric() {
         return mode == TowerGeneratorMode.PARAMETRIC;
     }

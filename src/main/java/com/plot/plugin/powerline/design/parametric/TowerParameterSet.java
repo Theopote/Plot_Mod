@@ -37,6 +37,18 @@ public record TowerParameterSet(
         return new TowerParameterSet(60.0, 18.0, 30.0, 1.0, StructureDensity.MEDIUM);
     }
 
+    public static TowerParameterSet portalDefaults() {
+        return new TowerParameterSet(42.0, 21.0, 32.0, 1.0, StructureDensity.MEDIUM);
+    }
+
+    public static TowerParameterSet drumDefaults() {
+        return new TowerParameterSet(58.0, 17.0, 28.0, 1.0, StructureDensity.MEDIUM);
+    }
+
+    public static TowerParameterSet uhvDefaults() {
+        return new TowerParameterSet(80.0, 28.0, 52.0, 1.0, StructureDensity.MEDIUM);
+    }
+
     public TowerParameterSet {
         if (!Double.isFinite(height)
                 || !Double.isFinite(baseWidth)

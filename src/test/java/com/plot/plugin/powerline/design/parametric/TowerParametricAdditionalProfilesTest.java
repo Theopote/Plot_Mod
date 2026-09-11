@@ -72,12 +72,54 @@ class TowerParametricAdditionalProfilesTest {
     }
 
     @Test
+    void defaultPortalParametersCompileCloseToCurrentPreset() {
+        PoleDesign compiled = TowerParametricDesignFactory.compilePortal(TowerParameterSet.portalDefaults());
+        TowerStructureDesign preset = TowerStructurePresets.portalTower();
+
+        assertEquals(TowerSilhouette.PORTAL, compiled.getTowerStructure().getSilhouette());
+        assertStationsClose(preset, compiled.getTowerStructure());
+        assertArmsClose(preset, compiled.getTowerStructure());
+        assertEquals(preset.getBays().size(), compiled.getTowerStructure().getBays().size());
+        assertEquals(baySignature(preset), baySignature(compiled.getTowerStructure()));
+        assertEquals(3, compiled.getTowerStructure().getArms().size());
+    }
+
+    @Test
+    void defaultDrumParametersCompileCloseToCurrentPreset() {
+        PoleDesign compiled = TowerParametricDesignFactory.compileDrum(TowerParameterSet.drumDefaults());
+        TowerStructureDesign preset = TowerStructurePresets.doubleCircuitDrumTower();
+
+        assertEquals(TowerSilhouette.TRIPLE_ARM, compiled.getTowerStructure().getSilhouette());
+        assertStationsClose(preset, compiled.getTowerStructure());
+        assertArmsClose(preset, compiled.getTowerStructure());
+        assertEquals(preset.getBays().size(), compiled.getTowerStructure().getBays().size());
+        assertEquals(baySignature(preset), baySignature(compiled.getTowerStructure()));
+        assertEquals(3, compiled.getTowerStructure().getArms().size());
+    }
+
+    @Test
+    void defaultUhvParametersCompileCloseToCurrentPreset() {
+        PoleDesign compiled = TowerParametricDesignFactory.compileUhv(TowerParameterSet.uhvDefaults());
+        TowerStructureDesign preset = TowerStructurePresets.uhvGiantTower();
+
+        assertEquals(TowerSilhouette.GIANT, compiled.getTowerStructure().getSilhouette());
+        assertStationsClose(preset, compiled.getTowerStructure());
+        assertArmsClose(preset, compiled.getTowerStructure());
+        assertEquals(preset.getBays().size(), compiled.getTowerStructure().getBays().size());
+        assertEquals(baySignature(preset), baySignature(compiled.getTowerStructure()));
+        assertEquals(3, compiled.getTowerStructure().getArms().size());
+    }
+
+    @Test
     void profileFindReturnsAllMigratedProfiles() {
         assertTrue(TowerParameterProfiles.find(TowerParameterProfiles.TRIPLE_ARM_ID).isPresent());
         assertTrue(TowerParameterProfiles.find(TowerParameterProfiles.CUP_ID).isPresent());
         assertTrue(TowerParameterProfiles.find(TowerParameterProfiles.HEAVY_ID).isPresent());
         assertTrue(TowerParameterProfiles.find(TowerParameterProfiles.MEGA_ID).isPresent());
-        assertTrue(TowerParametricEditor.supportsProfile(TowerParameterProfiles.TRIPLE_ARM_ID));
+        assertTrue(TowerParameterProfiles.find(TowerParameterProfiles.PORTAL_ID).isPresent());
+        assertTrue(TowerParameterProfiles.find(TowerParameterProfiles.DRUM_ID).isPresent());
+        assertTrue(TowerParameterProfiles.find(TowerParameterProfiles.UHV_ID).isPresent());
+        assertTrue(TowerParametricEditor.supportsProfile(TowerParameterProfiles.UHV_ID));
     }
 
     @Test
@@ -98,6 +140,25 @@ class TowerParametricAdditionalProfilesTest {
         assertClose(70.0, result.resolved().height());
         assertClose(20.0, result.resolved().baseWidth());
         assertClose(38.0, result.resolved().armSpan());
+        assertTrue(result.adjustments().stream().anyMatch(a -> a.kind() == ConstraintAdjustmentKind.HEIGHT_CLAMPED_TO_PROFILE));
+    }
+
+    @Test
+    void portalMiddleArmIsDominantReach() {
+        PoleDesign compiled = TowerParametricDesignFactory.compilePortal(TowerParameterSet.portalDefaults());
+        List<TowerArm> arms = sortedArms(compiled.getTowerStructure());
+        assertClose(13.0, arms.get(0).getLateralReach());
+        assertClose(16.0, arms.get(1).getLateralReach());
+        assertClose(13.0, arms.get(2).getLateralReach());
+    }
+
+    @Test
+    void uhvProfileClampRecordsAdjustments() {
+        TowerParameterSet requested = new TowerParameterSet(120.0, 40.0, 80.0, 2.0, StructureDensity.MEDIUM);
+        TowerConstraintResult result = TowerParametricDesignFactory.resolveUhv(requested);
+        assertClose(100.0, result.resolved().height());
+        assertClose(34.0, result.resolved().baseWidth());
+        assertClose(64.0, result.resolved().armSpan());
         assertTrue(result.adjustments().stream().anyMatch(a -> a.kind() == ConstraintAdjustmentKind.HEIGHT_CLAMPED_TO_PROFILE));
     }
 

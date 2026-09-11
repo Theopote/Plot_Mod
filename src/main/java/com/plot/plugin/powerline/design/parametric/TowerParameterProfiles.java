@@ -17,6 +17,9 @@ public final class TowerParameterProfiles {
     public static final String CUP_ID = "profile/cup";
     public static final String HEAVY_ID = "profile/heavy";
     public static final String MEGA_ID = "profile/mega";
+    public static final String PORTAL_ID = "profile/portal";
+    public static final String DRUM_ID = "profile/drum";
+    public static final String UHV_ID = "profile/uhv";
 
     /** 参考几何：{@link com.plot.plugin.powerline.design.structure.TowerStructurePresets#classicDoubleArmTower()} */
     static final double CLASSIC_REF_HEIGHT = 36.0;
@@ -72,6 +75,33 @@ public final class TowerParameterProfiles {
     static final double MEGA_REF_DOMINANT_REACH = 15.0;
     static final double MEGA_DEPTH_RATIO = (MEGA_REF_BASE_HALF_DEPTH * 2.0) / MEGA_REF_BASE_WIDTH;
 
+    /** 参考几何：{@link com.plot.plugin.powerline.design.structure.TowerStructurePresets#portalTower()} */
+    static final double PORTAL_REF_HEIGHT = 42.0;
+    static final double PORTAL_REF_BASE_WIDTH = 21.0;
+    static final double PORTAL_REF_BASE_HALF_WIDTH = 10.5;
+    static final double PORTAL_REF_BASE_HALF_DEPTH = 4.5;
+    static final double PORTAL_REF_ARM_SPAN = 32.0;
+    static final double PORTAL_REF_DOMINANT_REACH = 16.0;
+    static final double PORTAL_DEPTH_RATIO = (PORTAL_REF_BASE_HALF_DEPTH * 2.0) / PORTAL_REF_BASE_WIDTH;
+
+    /** 参考几何：{@link com.plot.plugin.powerline.design.structure.TowerStructurePresets#doubleCircuitDrumTower()} */
+    static final double DRUM_REF_HEIGHT = 58.0;
+    static final double DRUM_REF_BASE_WIDTH = 17.0;
+    static final double DRUM_REF_BASE_HALF_WIDTH = 8.5;
+    static final double DRUM_REF_BASE_HALF_DEPTH = 5.5;
+    static final double DRUM_REF_ARM_SPAN = 28.0;
+    static final double DRUM_REF_DOMINANT_REACH = 14.0;
+    static final double DRUM_DEPTH_RATIO = (DRUM_REF_BASE_HALF_DEPTH * 2.0) / DRUM_REF_BASE_WIDTH;
+
+    /** 参考几何：{@link com.plot.plugin.powerline.design.structure.TowerStructurePresets#uhvGiantTower()} */
+    static final double UHV_REF_HEIGHT = 80.0;
+    static final double UHV_REF_BASE_WIDTH = 28.0;
+    static final double UHV_REF_BASE_HALF_WIDTH = 14.0;
+    static final double UHV_REF_BASE_HALF_DEPTH = 9.0;
+    static final double UHV_REF_ARM_SPAN = 52.0;
+    static final double UHV_REF_DOMINANT_REACH = 26.0;
+    static final double UHV_DEPTH_RATIO = (UHV_REF_BASE_HALF_DEPTH * 2.0) / UHV_REF_BASE_WIDTH;
+
     private static final MaterialMix LATTICE_LEG = MaterialMix.single("minecraft:iron_block");
     private static final MaterialMix LATTICE_BRACE = MaterialMix.single("minecraft:iron_bars");
     private static final MaterialMix SMALL_LATTICE_MEMBER = MaterialMix.single("minecraft:iron_bars");
@@ -98,6 +128,15 @@ public final class TowerParameterProfiles {
         }
         if (MEGA_ID.equals(profileId)) {
             return Optional.of(mega());
+        }
+        if (PORTAL_ID.equals(profileId)) {
+            return Optional.of(portal());
+        }
+        if (DRUM_ID.equals(profileId)) {
+            return Optional.of(drum());
+        }
+        if (UHV_ID.equals(profileId)) {
+            return Optional.of(uhv());
         }
         return Optional.empty();
     }
@@ -412,6 +451,190 @@ public final class TowerParameterProfiles {
             ARM_MATERIAL);
     }
 
+    public static TowerParameterProfile portal() {
+        List<TowerStationTemplate> stations = List.of(
+            new TowerStationTemplate("s0", TowerStationRole.BASE, 0.0 / PORTAL_REF_HEIGHT, 1.0, 1.0),
+            new TowerStationTemplate("s1", TowerStationRole.LOWER_BODY, 12.0 / PORTAL_REF_HEIGHT, 10.5 / PORTAL_REF_BASE_HALF_WIDTH, 4.5 / PORTAL_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s2", TowerStationRole.MID_BODY, 24.0 / PORTAL_REF_HEIGHT, 9.5 / PORTAL_REF_BASE_HALF_WIDTH, 4.0 / PORTAL_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s3", TowerStationRole.WAIST, 34.0 / PORTAL_REF_HEIGHT, 6.5 / PORTAL_REF_BASE_HALF_WIDTH, 2.8 / PORTAL_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s4", TowerStationRole.TOP, 1.0, 3.5 / PORTAL_REF_BASE_HALF_WIDTH, 1.6 / PORTAL_REF_BASE_HALF_DEPTH));
+
+        List<TowerArmTemplate> arms = List.of(
+            new TowerArmTemplate(
+                "arm_lower",
+                TowerArmRole.LOWER,
+                16.0 / PORTAL_REF_HEIGHT,
+                13.0 / PORTAL_REF_DOMINANT_REACH,
+                TowerArmShape.FLAT,
+                BracingPattern.X,
+                2.0 / PORTAL_REF_HEIGHT,
+                2.0 / PORTAL_REF_BASE_HALF_DEPTH),
+            new TowerArmTemplate(
+                "arm_middle",
+                TowerArmRole.MIDDLE,
+                26.0 / PORTAL_REF_HEIGHT,
+                1.0,
+                TowerArmShape.TRUSS,
+                BracingPattern.X,
+                3.0 / PORTAL_REF_HEIGHT,
+                2.4 / PORTAL_REF_BASE_HALF_DEPTH),
+            new TowerArmTemplate(
+                "arm_upper",
+                TowerArmRole.UPPER,
+                36.0 / PORTAL_REF_HEIGHT,
+                13.0 / PORTAL_REF_DOMINANT_REACH,
+                TowerArmShape.TRUSS,
+                BracingPattern.X,
+                3.0 / PORTAL_REF_HEIGHT,
+                2.0 / PORTAL_REF_BASE_HALF_DEPTH));
+
+        return new TowerParameterProfile(
+            PORTAL_ID,
+            TowerSilhouette.PORTAL,
+            new ParameterRange(34.0, 42.0, 56.0),
+            new ParameterRange(16.0, 21.0, 26.0),
+            new ParameterRange(24.0, 32.0, 40.0),
+            new ParameterRange(0.75, 1.0, 1.25),
+            PORTAL_DEPTH_RATIO,
+            PORTAL_REF_HEIGHT,
+            PORTAL_REF_BASE_WIDTH,
+            PORTAL_REF_ARM_SPAN,
+            4.0,
+            stations,
+            arms,
+            Map.of(
+                StructureDensity.LOW, portalLowBays(),
+                StructureDensity.MEDIUM, portalMediumBays(),
+                StructureDensity.HIGH, portalHighBays()),
+            LATTICE_LEG,
+            LATTICE_BRACE,
+            ARM_MATERIAL);
+    }
+
+    public static TowerParameterProfile drum() {
+        List<TowerStationTemplate> stations = List.of(
+            new TowerStationTemplate("s0", TowerStationRole.BASE, 0.0 / DRUM_REF_HEIGHT, 1.0, 1.0),
+            new TowerStationTemplate("s1", TowerStationRole.LOWER_BODY, 12.0 / DRUM_REF_HEIGHT, 7.5 / DRUM_REF_BASE_HALF_WIDTH, 4.9 / DRUM_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s2", TowerStationRole.MID_BODY, 22.0 / DRUM_REF_HEIGHT, 5.5 / DRUM_REF_BASE_HALF_WIDTH, 3.6 / DRUM_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s3", TowerStationRole.WAIST, 32.0 / DRUM_REF_HEIGHT, 3.5 / DRUM_REF_BASE_HALF_WIDTH, 2.3 / DRUM_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s4", TowerStationRole.SHOULDER, 42.0 / DRUM_REF_HEIGHT, 3.2 / DRUM_REF_BASE_HALF_WIDTH, 2.1 / DRUM_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s5", TowerStationRole.HEAD, 52.0 / DRUM_REF_HEIGHT, 2.8 / DRUM_REF_BASE_HALF_WIDTH, 1.8 / DRUM_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s6", TowerStationRole.TOP, 1.0, 2.0 / DRUM_REF_BASE_HALF_WIDTH, 1.3 / DRUM_REF_BASE_HALF_DEPTH));
+
+        List<TowerArmTemplate> arms = List.of(
+            new TowerArmTemplate(
+                "arm_lower",
+                TowerArmRole.LOWER,
+                36.0 / DRUM_REF_HEIGHT,
+                11.0 / DRUM_REF_DOMINANT_REACH,
+                TowerArmShape.TAPERED,
+                BracingPattern.X,
+                4.0 / DRUM_REF_HEIGHT,
+                2.0 / DRUM_REF_BASE_HALF_DEPTH),
+            new TowerArmTemplate(
+                "arm_middle",
+                TowerArmRole.MIDDLE,
+                44.0 / DRUM_REF_HEIGHT,
+                1.0,
+                TowerArmShape.TRUSS,
+                BracingPattern.X,
+                4.0 / DRUM_REF_HEIGHT,
+                2.2 / DRUM_REF_BASE_HALF_DEPTH),
+            new TowerArmTemplate(
+                "arm_upper",
+                TowerArmRole.UPPER,
+                52.0 / DRUM_REF_HEIGHT,
+                11.0 / DRUM_REF_DOMINANT_REACH,
+                TowerArmShape.TRUSS,
+                BracingPattern.X,
+                3.0 / DRUM_REF_HEIGHT,
+                2.0 / DRUM_REF_BASE_HALF_DEPTH));
+
+        return new TowerParameterProfile(
+            DRUM_ID,
+            TowerSilhouette.TRIPLE_ARM,
+            new ParameterRange(46.0, 58.0, 72.0),
+            new ParameterRange(13.0, 17.0, 21.0),
+            new ParameterRange(22.0, 28.0, 36.0),
+            new ParameterRange(0.75, 1.0, 1.25),
+            DRUM_DEPTH_RATIO,
+            DRUM_REF_HEIGHT,
+            DRUM_REF_BASE_WIDTH,
+            DRUM_REF_ARM_SPAN,
+            4.0,
+            stations,
+            arms,
+            Map.of(
+                StructureDensity.LOW, drumLowBays(),
+                StructureDensity.MEDIUM, drumMediumBays(),
+                StructureDensity.HIGH, drumHighBays()),
+            LATTICE_LEG,
+            LATTICE_BRACE,
+            ARM_MATERIAL);
+    }
+
+    public static TowerParameterProfile uhv() {
+        List<TowerStationTemplate> stations = List.of(
+            new TowerStationTemplate("s0", TowerStationRole.BASE, 0.0 / UHV_REF_HEIGHT, 1.0, 1.0),
+            new TowerStationTemplate("s1", TowerStationRole.LOWER_BODY, 14.0 / UHV_REF_HEIGHT, 13.0 / UHV_REF_BASE_HALF_WIDTH, 8.5 / UHV_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s2", TowerStationRole.MID_BODY, 28.0 / UHV_REF_HEIGHT, 11.0 / UHV_REF_BASE_HALF_WIDTH, 7.2 / UHV_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s3", TowerStationRole.WAIST, 42.0 / UHV_REF_HEIGHT, 8.5 / UHV_REF_BASE_HALF_WIDTH, 5.6 / UHV_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s4", TowerStationRole.SHOULDER, 56.0 / UHV_REF_HEIGHT, 5.5 / UHV_REF_BASE_HALF_WIDTH, 3.6 / UHV_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s5", TowerStationRole.HEAD, 70.0 / UHV_REF_HEIGHT, 3.2 / UHV_REF_BASE_HALF_WIDTH, 2.1 / UHV_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s6", TowerStationRole.TOP, 1.0, 2.0 / UHV_REF_BASE_HALF_WIDTH, 1.3 / UHV_REF_BASE_HALF_DEPTH));
+
+        List<TowerArmTemplate> arms = List.of(
+            new TowerArmTemplate(
+                "arm_lower",
+                TowerArmRole.LOWER,
+                56.0 / UHV_REF_HEIGHT,
+                20.0 / UHV_REF_DOMINANT_REACH,
+                TowerArmShape.TAPERED,
+                BracingPattern.X,
+                5.0 / UHV_REF_HEIGHT,
+                2.8 / UHV_REF_BASE_HALF_DEPTH),
+            new TowerArmTemplate(
+                "arm_main",
+                TowerArmRole.MAIN,
+                66.0 / UHV_REF_HEIGHT,
+                1.0,
+                TowerArmShape.TRUSS,
+                BracingPattern.X,
+                5.0 / UHV_REF_HEIGHT,
+                3.2 / UHV_REF_BASE_HALF_DEPTH),
+            new TowerArmTemplate(
+                "arm_upper",
+                TowerArmRole.UPPER,
+                74.0 / UHV_REF_HEIGHT,
+                22.0 / UHV_REF_DOMINANT_REACH,
+                TowerArmShape.TRUSS,
+                BracingPattern.X,
+                4.0 / UHV_REF_HEIGHT,
+                2.8 / UHV_REF_BASE_HALF_DEPTH));
+
+        return new TowerParameterProfile(
+            UHV_ID,
+            TowerSilhouette.GIANT,
+            new ParameterRange(64.0, 80.0, 100.0),
+            new ParameterRange(22.0, 28.0, 34.0),
+            new ParameterRange(42.0, 52.0, 64.0),
+            new ParameterRange(0.75, 1.0, 1.25),
+            UHV_DEPTH_RATIO,
+            UHV_REF_HEIGHT,
+            UHV_REF_BASE_WIDTH,
+            UHV_REF_ARM_SPAN,
+            4.0,
+            stations,
+            arms,
+            Map.of(
+                StructureDensity.LOW, uhvLowBays(),
+                StructureDensity.MEDIUM, uhvMediumBays(),
+                StructureDensity.HIGH, uhvHighBays()),
+            LATTICE_LEG,
+            LATTICE_BRACE,
+            ARM_MATERIAL);
+    }
+
     private static List<BayDensityConfig> classicLowBays() {
         return List.of(
             new BayDensityConfig(BracingPattern.X, true, false),
@@ -564,6 +787,90 @@ public final class TowerParameterProfiles {
             new BayDensityConfig(BracingPattern.K, true, true),
             new BayDensityConfig(BracingPattern.K, true, true),
             new BayDensityConfig(BracingPattern.X, true, true),
+            new BayDensityConfig(BracingPattern.V, true, false),
+            new BayDensityConfig(BracingPattern.V, false, false));
+    }
+
+    private static List<BayDensityConfig> portalLowBays() {
+        return List.of(
+            new BayDensityConfig(BracingPattern.X, true, true),
+            new BayDensityConfig(BracingPattern.X, true, true),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
+            new BayDensityConfig(BracingPattern.X, false, false));
+    }
+
+    private static List<BayDensityConfig> portalMediumBays() {
+        return List.of(
+            new BayDensityConfig(BracingPattern.X, true, true),
+            new BayDensityConfig(BracingPattern.X, true, true),
+            new BayDensityConfig(BracingPattern.K, true, false),
+            new BayDensityConfig(BracingPattern.V, false, false));
+    }
+
+    private static List<BayDensityConfig> portalHighBays() {
+        return List.of(
+            new BayDensityConfig(BracingPattern.K, true, true),
+            new BayDensityConfig(BracingPattern.K, true, true),
+            new BayDensityConfig(BracingPattern.V, true, false),
+            new BayDensityConfig(BracingPattern.V, false, false));
+    }
+
+    private static List<BayDensityConfig> drumLowBays() {
+        return List.of(
+            new BayDensityConfig(BracingPattern.X, true, true),
+            new BayDensityConfig(BracingPattern.X, true, true),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, true),
+            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.X, false, false));
+    }
+
+    private static List<BayDensityConfig> drumMediumBays() {
+        return List.of(
+            new BayDensityConfig(BracingPattern.X, true, true),
+            new BayDensityConfig(BracingPattern.X, true, true),
+            new BayDensityConfig(BracingPattern.K, true, true),
+            new BayDensityConfig(BracingPattern.K, true, false),
+            new BayDensityConfig(BracingPattern.V, true, false),
+            new BayDensityConfig(BracingPattern.V, false, false));
+    }
+
+    private static List<BayDensityConfig> drumHighBays() {
+        return List.of(
+            new BayDensityConfig(BracingPattern.K, true, true),
+            new BayDensityConfig(BracingPattern.K, true, true),
+            new BayDensityConfig(BracingPattern.V, true, true),
+            new BayDensityConfig(BracingPattern.V, true, false),
+            new BayDensityConfig(BracingPattern.V, true, false),
+            new BayDensityConfig(BracingPattern.V, false, false));
+    }
+
+    private static List<BayDensityConfig> uhvLowBays() {
+        return List.of(
+            new BayDensityConfig(BracingPattern.X, true, true),
+            new BayDensityConfig(BracingPattern.X, true, true),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, true),
+            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.X, false, false));
+    }
+
+    private static List<BayDensityConfig> uhvMediumBays() {
+        return List.of(
+            new BayDensityConfig(BracingPattern.X, true, true),
+            new BayDensityConfig(BracingPattern.X, true, true),
+            new BayDensityConfig(BracingPattern.X, true, true),
+            new BayDensityConfig(BracingPattern.K, true, false),
+            new BayDensityConfig(BracingPattern.V, true, false),
+            new BayDensityConfig(BracingPattern.V, false, false));
+    }
+
+    private static List<BayDensityConfig> uhvHighBays() {
+        return List.of(
+            new BayDensityConfig(BracingPattern.K, true, true),
+            new BayDensityConfig(BracingPattern.K, true, true),
+            new BayDensityConfig(BracingPattern.X, true, true),
+            new BayDensityConfig(BracingPattern.V, true, false),
             new BayDensityConfig(BracingPattern.V, true, false),
             new BayDensityConfig(BracingPattern.V, false, false));
     }

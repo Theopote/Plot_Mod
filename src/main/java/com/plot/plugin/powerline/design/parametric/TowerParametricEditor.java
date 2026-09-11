@@ -43,6 +43,18 @@ public final class TowerParametricEditor {
         enableParametric(design, TowerParameterProfiles.MEGA_ID, parameters, TowerParameterSet.megaDefaults());
     }
 
+    public static void enableParametricPortal(PoleDesign design, TowerParameterSet parameters) {
+        enableParametric(design, TowerParameterProfiles.PORTAL_ID, parameters, TowerParameterSet.portalDefaults());
+    }
+
+    public static void enableParametricDrum(PoleDesign design, TowerParameterSet parameters) {
+        enableParametric(design, TowerParameterProfiles.DRUM_ID, parameters, TowerParameterSet.drumDefaults());
+    }
+
+    public static void enableParametricUhv(PoleDesign design, TowerParameterSet parameters) {
+        enableParametric(design, TowerParameterProfiles.UHV_ID, parameters, TowerParameterSet.uhvDefaults());
+    }
+
     private static void enableParametric(
             PoleDesign design,
             String profileId,
