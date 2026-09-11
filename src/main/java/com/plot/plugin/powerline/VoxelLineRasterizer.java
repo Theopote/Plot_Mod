@@ -3,6 +3,7 @@ package com.plot.plugin.powerline;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /** 通用 3D 直线体素栅格化（6-连通）。 */
@@ -27,30 +28,74 @@ public final class VoxelLineRasterizer {
         if (from.equals(to)) {
             return List.of(from);
         }
+        boolean reverse = compareLex(from, to) > 0;
+        BlockPos start = reverse ? to : from;
+        BlockPos end = reverse ? from : to;
+        List<BlockPos> points = traceSixConnectedLine(start, end);
+        if (reverse) {
+            Collections.reverse(points);
+        }
+        return points;
+    }
 
-        List<BlockPos> points = new ArrayList<>();
-        points.add(from);
+    /**
+     * 三维 Bresenham（6-连通）：按各轴距离比例交替推进，每步只跨一个体素面。
+     */
+    private static List<BlockPos> traceSixConnectedLine(BlockPos from, BlockPos to) {
         int x = from.getX();
         int y = from.getY();
         int z = from.getZ();
-        int targetX = to.getX();
-        int targetY = to.getY();
-        int targetZ = to.getZ();
+        int dx = to.getX() - x;
+        int dy = to.getY() - y;
+        int dz = to.getZ() - z;
+        int ax = Math.abs(dx);
+        int ay = Math.abs(dy);
+        int az = Math.abs(dz);
+        int sx = Integer.signum(dx);
+        int sy = Integer.signum(dy);
+        int sz = Integer.signum(dz);
 
-        while (x != targetX || y != targetY || z != targetZ) {
-            if (x != targetX) {
-                x += Integer.compare(targetX, x);
-            } else if (y != targetY) {
-                y += Integer.compare(targetY, y);
+        int steps = ax + ay + az;
+        List<BlockPos> points = new ArrayList<>(steps + 1);
+        points.add(new BlockPos(x, y, z));
+
+        int errX = steps / 2;
+        int errY = steps / 2;
+        int errZ = steps / 2;
+        for (int i = 0; i < steps; i++) {
+            errX -= ax;
+            errY -= ay;
+            errZ -= az;
+            if (errX <= errY && errX <= errZ) {
+                x += sx;
+                errX += steps;
+            } else if (errY <= errZ) {
+                y += sy;
+                errY += steps;
             } else {
-                z += Integer.compare(targetZ, z);
+                z += sz;
+                errZ += steps;
             }
             points.add(new BlockPos(x, y, z));
         }
         return points;
     }
 
+    private static int compareLex(BlockPos a, BlockPos b) {
+        if (a.getX() != b.getX()) {
+            return Integer.compare(a.getX(), b.getX());
+        }
+        if (a.getY() != b.getY()) {
+            return Integer.compare(a.getY(), b.getY());
+        }
+        return Integer.compare(a.getZ(), b.getZ());
+    }
+
+    private static int floorCoord(double value) {
+        return (int) Math.floor(value);
+    }
+
     private static BlockPos blockCell(double x, double y, double z) {
-        return new BlockPos((int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z));
+        return new BlockPos(floorCoord(x), floorCoord(y), floorCoord(z));
     }
 }
