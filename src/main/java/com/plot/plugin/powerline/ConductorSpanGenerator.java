@@ -289,11 +289,10 @@ public final class ConductorSpanGenerator {
         if (wireBlocks == null || wireBlocks.isEmpty()) {
             return;
         }
-        BlockPos samplePos = wireBlocks.iterator().next();
-        String sampleBlockId = MaterialMixResolver.resolve(wireMaterial, samplePos, footprint.getId());
-        String placementId = DirectionalBlockSpecs.resolveMemberPlacement(
-            sampleBlockId, deltaX, deltaY, deltaZ).toSetBlockArgument();
         for (BlockPos pos : wireBlocks) {
+            String blockId = MaterialMixResolver.resolve(wireMaterial, pos, footprint.getId());
+            String placementId = DirectionalBlockSpecs.resolveMemberPlacement(
+                blockId, deltaX, deltaY, deltaZ).toSetBlockArgument();
             recordBlock(result, pos, placementId, projectionHandler);
         }
     }

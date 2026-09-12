@@ -534,11 +534,9 @@ public final class TowerStructureGenerator {
         if (blocks.isEmpty()) {
             return;
         }
-        BlockPos samplePos = blocks.iterator().next();
-        String sampleBlockId = MaterialMixResolver.resolve(material, samplePos, footprint.getId());
-        String placementId = memberPlacementId(sampleBlockId, start, end, transform);
         for (BlockPos pos : blocks) {
-            recordBlock(result, pos, placementId, projection);
+            String blockId = MaterialMixResolver.resolve(material, pos, footprint.getId());
+            recordBlock(result, pos, memberPlacementId(blockId, start, end, transform), projection);
         }
         switch (kind) {
             case LEG -> counters.addLeg(blocks.size());

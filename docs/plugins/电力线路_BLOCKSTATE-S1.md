@@ -1,8 +1,9 @@
 # 电力线路 — PL-BLOCKSTATE-S1 收尾说明
 
-> **状态**：✅ 已关闭（代码 + 自动化回归）  
+> **状态**：✅ S1 关闭（S1.1 P1 已修） · P2 `BlockSpecValidator` 待办  
 > **前置**：PL-TOWER-S1（25 预设可实现性）  
-> **目标**：从裸 `blockId` 升级到 `BlockSpec { id, properties }`，使 `/setblock` 输出带正确 BlockState。
+> **目标**：从裸 `blockId` 升级到 `BlockSpec { id, properties }`，使 `/setblock` 输出带正确 BlockState。  
+> **S1.1**：Directional Material Consistency Fix — 方向 segment 级、材质 BlockPos 级（见下文）。
 
 ---
 
@@ -58,6 +59,7 @@ Preset / PoleDesign / TowerStructure
 
 # 身份特征 + 端到端 BlockState
 ./gradlew test --tests "com.plot.plugin.powerline.PresetIdentityBlockStateTest"
+./gradlew test --tests "com.plot.plugin.powerline.ConductorSpanMaterialMixBlockStateTest"
 
 # 全 preset 可实现性 + Quick Tune 杆材 Generator 矩阵（含本项）
 ./gradlew test --tests "com.plot.plugin.powerline.PresetMinecraftRealizabilityTest"
@@ -87,7 +89,57 @@ Preset / PoleDesign / TowerStructure
 
 ---
 
-## 已知非阻塞后续（不在 S1）
+## 设计原则（P1 修复）
+
+**方向（BlockState）按 segment / member 计算；材质（MaterialMix）按每个 `BlockPos` 独立 resolve。**
+
+二者不可为省事合并为「取 segment 首格材质再整段复用」。导线、跳线、绝缘子 V 型腿、塔体成员等路径均须：
+
+```java
+for (BlockPos pos : blocks) {
+    String blockId = MaterialMixResolver.resolve(material, pos, seed);
+    String placementId = DirectionalBlockSpecs.resolveMemberPlacement(
+        blockId, deltaX, deltaY, deltaZ).toSetBlockArgument();
+    recordBlock(result, pos, placementId, ...);
+}
+```
+
+回归：`ConductorSpanMaterialMixBlockStateTest`（混合 chain/iron_bars 与 lightning_rod/iron_bars，同时断言 BlockState）。
+
+---
+
+## 验收清单（2026-09）
+
+| 项目 | 状态 |
+|------|------|
+| BlockSpec / 序列化 / BlockRecord 完整 state | ✅ |
+| `/setblock` 携带 state | ✅ |
+| lightning_rod / chain / lantern / slab / vine / trapdoor | ✅ |
+| Identity Feature / 导线 / Jumper / 绝缘子 / 塔体成员 | ✅ |
+| 25 preset Quick Tune Generator 矩阵 | ✅ |
+| MaterialMix 每 BlockPos 解析（S1.1） | ✅ |
+| BlockState property 合法性验证 | ⚠️ P2 `BlockSpecValidator` |
+| `BlockRecord.newBlockId` 字段命名 | 📝 长期改为 `newBlockArgument` 或 `BlockSpec` |
+
+**下一步（产品）**：25 preset 游戏内视觉巡检，不再扩 BlockState 类型。
+
+---
+
+## P2  backlog：`BlockSpecValidator`
+
+`BlockProjectionHandler.normalizeBlockId()` 仅校验 base id 是否注册，不校验 `axis`/`facing`/`hanging` 等 property 是否合法。内置 `DirectionalBlockSpecs` 为固定值，短期风险低。
+
+建议后续在 core 增加 `BlockSpecValidator`（registry + default state）：
+
+```
+BlockSpec → validate → setblock
+```
+
+而非到服务端命令解析阶段才失败。
+
+---
+
+## 已知非阻塞后续
 
 - 楼梯 / 墙类方块的 `facing`（当前 catalog 未使用）
 - 预览色卡按 BlockState 细分（当前按 base id）

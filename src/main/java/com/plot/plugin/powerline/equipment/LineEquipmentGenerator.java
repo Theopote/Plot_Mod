@@ -194,14 +194,13 @@ public final class LineEquipmentGenerator {
         if (blocks == null || blocks.isEmpty()) {
             return;
         }
-        BlockPos samplePos = blocks.iterator().next();
-        String sampleBlockId = MaterialMixResolver.resolve(material, samplePos, footprint.getId());
-        String placementId = DirectionalBlockSpecs.resolveMemberPlacement(
-            sampleBlockId,
-            endX - startX,
-            endY - startY,
-            endZ - startZ).toSetBlockArgument();
+        double deltaX = endX - startX;
+        double deltaY = endY - startY;
+        double deltaZ = endZ - startZ;
         for (BlockPos pos : blocks) {
+            String blockId = MaterialMixResolver.resolve(material, pos, footprint.getId());
+            String placementId = DirectionalBlockSpecs.resolveMemberPlacement(
+                blockId, deltaX, deltaY, deltaZ).toSetBlockArgument();
             recordBlock(result, pos, placementId, projectionHandler);
         }
     }
