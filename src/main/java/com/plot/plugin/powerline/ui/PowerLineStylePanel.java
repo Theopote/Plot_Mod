@@ -1,6 +1,10 @@
 package com.plot.plugin.powerline.ui;
 
+import com.plot.plugin.powerline.design.PoleDesign;
+import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.model.TowerRole;
+import com.plot.plugin.powerline.placement.SingleTowerDesignResolver;
 import com.plot.plugin.powerline.style.PowerLineStyleEditor;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
@@ -80,12 +84,39 @@ public final class PowerLineStylePanel {
             }
             return;
         }
+        renderSingleTowerRolePicker(line);
         PowerLineUiWidgets.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.single_tower.section_hint"));
         if (ImGui.button(PlotI18n.tr("plugin.powerline.single_tower.start"), 0, 0)) {
             ctx.singleTowerPlacement().beginPlacement(line);
         }
+    }
+
+    private void renderSingleTowerRolePicker(PowerLineFootprint line) {
+        java.util.List<TowerRole> roles = SingleTowerRoleOptions.selectableRoles(line);
+        TowerRole selected = SingleTowerRoleOptions.normalizeSelection(line, ctx.state().getSingleTowerRole());
+        if (selected != ctx.state().getSingleTowerRole()) {
+            ctx.state().setSingleTowerRole(selected);
+        }
+
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.single_tower.role_label"));
+        int currentIndex = SingleTowerRoleOptions.indexOf(roles, selected);
+        imgui.type.ImInt roleIndex = new imgui.type.ImInt(currentIndex);
+        if (ImGui.combo("##single_tower_role", roleIndex, roles.stream()
+                .map(SingleTowerRoleOptions::label)
+                .toArray(String[]::new))) {
+            ctx.state().setSingleTowerRole(SingleTowerRoleOptions.roleAt(roles, roleIndex.get()));
+        }
+
+        PoleDesign design = SingleTowerDesignResolver.resolve(
+            line,
+            ctx.state().getSingleTowerRole(),
+            new PoleDesignResolver(ctx.state().getDesignProject()));
+        String designLabel = design != null ? design.getName() : PlotI18n.tr("plugin.powerline.single_tower.no_design");
+        PowerLineUiWidgets.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.powerline.single_tower.resolved_design", designLabel));
     }
 
     private void renderStyleGallery(PowerLineFootprint line) {

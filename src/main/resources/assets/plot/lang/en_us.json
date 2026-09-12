@@ -3504,6 +3504,8 @@
   "plugin.powerline.route.tower_count_implied_spacing": "Implied spacing: %s blocks",
   "plugin.powerline.route.tower_count_hint": "Towers are spaced evenly along path mileage; corners are not forced unless you use Endpoints + corners.",
   "plugin.powerline.single_tower.section": "Single tower",
+  "plugin.powerline.single_tower.role_label": "Tower type",
+  "plugin.powerline.single_tower.resolved_design": "Design: %s",
   "plugin.powerline.single_tower.section_hint": "Place one tower on the canvas using the current line style.",
   "plugin.powerline.single_tower.start": "Place single tower",
   "plugin.powerline.single_tower.cancel": "Cancel placement",

@@ -8,6 +8,7 @@ import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PlacedSingleTower;
 import com.plot.plugin.powerline.model.PowerLineProject;
 import com.plot.plugin.powerline.model.PoleDesignDraftHistory;
+import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.plugin.powerline.model.PowerLineProjectHistory;
 import imgui.type.ImString;
 
@@ -45,6 +46,7 @@ public final class PowerLinePluginState {
     private String selectedPlacedSingleTowerId = "";
     private String pendingDeletePlacedSingleTowerId = "";
     private boolean placedSingleTowerDeleteConfirmPending;
+    private TowerRole singleTowerRole = TowerRole.SUSPENSION;
 
     public PowerLineDesignProject getDesignProject() {
         return designProject;
@@ -259,6 +261,14 @@ public final class PowerLinePluginState {
 
     public void setPlacedSingleTowerDeleteConfirmPending(boolean pending) {
         this.placedSingleTowerDeleteConfirmPending = pending;
+    }
+
+    public TowerRole getSingleTowerRole() {
+        return singleTowerRole != null ? singleTowerRole : TowerRole.SUSPENSION;
+    }
+
+    public void setSingleTowerRole(TowerRole singleTowerRole) {
+        this.singleTowerRole = singleTowerRole != null ? singleTowerRole : TowerRole.SUSPENSION;
     }
 
     private void syncPlacedSingleTowersFromProject() {

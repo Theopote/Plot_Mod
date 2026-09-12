@@ -3504,6 +3504,8 @@
   "plugin.powerline.route.tower_count_implied_spacing": "推算间距：%s 格",
   "plugin.powerline.route.tower_count_hint": "按路径里程均匀分布，不保证每个折点都放塔；如需转角放塔请使用「端点 + 必要转角」。",
   "plugin.powerline.single_tower.section": "单塔放置",
+  "plugin.powerline.single_tower.role_label": "塔型",
+  "plugin.powerline.single_tower.resolved_design": "当前设计：%s",
   "plugin.powerline.single_tower.section_hint": "使用当前线路样式，在画布上单独放置一座杆塔。",
   "plugin.powerline.single_tower.start": "单独放置一座杆塔",
   "plugin.powerline.single_tower.cancel": "取消放置",

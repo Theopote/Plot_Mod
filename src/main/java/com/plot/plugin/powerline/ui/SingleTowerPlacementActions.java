@@ -9,8 +9,7 @@ import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
-import com.plot.plugin.powerline.design.family.PoleDesignAssignmentResolver;
-import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
+import com.plot.plugin.powerline.placement.SingleTowerDesignResolver;
 import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelope;
 import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelopeResolver;
 import com.plot.plugin.powerline.design.parametric.TowerLineBuildEnvelope;
@@ -19,8 +18,6 @@ import com.plot.plugin.powerline.design.parametric.TowerParametricLinePlacement;
 import com.plot.plugin.powerline.manager.PowerLinePreviewManager;
 import com.plot.plugin.powerline.model.PlacedSingleTower;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
-import com.plot.plugin.powerline.model.PowerPoleSite;
-import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.plugin.powerline.placement.SingleTowerGhostPreview;
 import com.plot.plugin.powerline.placement.SingleTowerOrientation;
 import com.plot.plugin.powerline.placement.SingleTowerPlaceCommand;
@@ -73,7 +70,10 @@ public final class SingleTowerPlacementActions {
                 ProjectStatusSeverity.WARNING);
             return;
         }
-        PoleDesign design = resolveDesign(styleSource);
+        PoleDesign design = SingleTowerDesignResolver.resolve(
+            styleSource,
+            state.getSingleTowerRole(),
+            new PoleDesignResolver(state.getDesignProject()));
         if (design == null) {
             state.setProjectStatus(
                 PlotI18n.tr("plugin.powerline.single_tower.no_design"),
@@ -307,23 +307,6 @@ public final class SingleTowerPlacementActions {
         TowerLineBuildEnvelope lineEnvelope = TowerLineBuildEnvelope.fromSiteEnvelopes(List.of(envelope));
         resolved = TowerParametricLinePlacement.prepare(resolved, lineEnvelope).design();
         return TowerParametricEditor.hasBlockingErrors(resolved, envelope);
-    }
-
-    private PoleDesign resolveDesign(PowerLineFootprint line) {
-        PoleDesignResolver resolver = new PoleDesignResolver(state.getDesignProject());
-        PowerPoleSite site = new PowerPoleSite(new Vec2d(0, 0));
-        site.setRole(TowerRole.SUSPENSION);
-        PoleDesignAssignmentResolver assignment = new PoleDesignAssignmentResolver(
-            resolver,
-            new TowerFamilyResolver());
-        PoleDesign design = assignment.resolve(site, line).design();
-        if (design != null) {
-            return design;
-        }
-        if (line.hasPoleDesign()) {
-            return resolver.find(line.getPoleDesignId());
-        }
-        return null;
     }
 
     private World getClientWorld() {
