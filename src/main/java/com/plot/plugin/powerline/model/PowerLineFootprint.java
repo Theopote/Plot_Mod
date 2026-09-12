@@ -3,6 +3,8 @@ package com.plot.plugin.powerline.model;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.PowerLineSagUtils;
+import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
+import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 import com.plot.plugin.powerline.style.PowerLineStyleInstance;
 import com.plot.plugin.powerline.style.StyleOverrides;
 
@@ -40,6 +42,8 @@ public class PowerLineFootprint {
     private String towerFamilyId;
     /** 当前选中的风格预设 id。 */
     private String stylePresetId;
+    /** Style 级参数化塔配置（覆盖解析到的 legacy 杆塔几何）。 */
+    private TowerGeneratorConfig parametricTowerConfig;
     /** 塔顶架空装饰线材质（视觉层次），非电气接地系统。 */
     private MaterialMix topWireMaterial = MaterialMix.single("minecraft:chain");
     private final List<PoleOverride> poleOverrides = new ArrayList<>();
@@ -208,6 +212,18 @@ public class PowerLineFootprint {
 
     public void setStylePresetId(String stylePresetId) {
         this.stylePresetId = stylePresetId != null && stylePresetId.isBlank() ? null : stylePresetId;
+    }
+
+    public TowerGeneratorConfig getParametricTowerConfig() {
+        return parametricTowerConfig != null ? parametricTowerConfig.copy() : null;
+    }
+
+    public void setParametricTowerConfig(TowerGeneratorConfig parametricTowerConfig) {
+        this.parametricTowerConfig = parametricTowerConfig != null ? parametricTowerConfig.copy() : null;
+    }
+
+    public boolean hasParametricTowerConfig() {
+        return parametricTowerConfig != null && parametricTowerConfig.isParametric();
     }
 
     /** @deprecated use {@link #getStylePresetId()} */
@@ -398,6 +414,7 @@ public class PowerLineFootprint {
         hash = 31 * hash + Objects.hashCode(poleDesignId);
         hash = 31 * hash + Objects.hashCode(towerFamilyId);
         hash = 31 * hash + Objects.hashCode(stylePresetId);
+        hash = 31 * hash + parametricConfigFingerprint(parametricTowerConfig);
         hash = 31 * hash + materialFingerprint(topWireMaterial);
         hash = 31 * hash + poleOverrides.hashCode();
         hash = 31 * hash + layoutConstraints.hashCode();
@@ -405,6 +422,22 @@ public class PowerLineFootprint {
         hash = 31 * hash + Boolean.hashCode(terrainAvoidanceEnabled);
         hash = 31 * hash + Boolean.hashCode(automaticTowerSelectionEnabled);
         hash = 31 * hash + Boolean.hashCode(spacingCustomized);
+        return hash;
+    }
+
+    private static int parametricConfigFingerprint(TowerGeneratorConfig config) {
+        if (config == null || !config.isParametric()) {
+            return 0;
+        }
+        TowerParameterSet parameters = config.parameters();
+        int hash = Objects.hashCode(config.profileId());
+        hash = 31 * hash + Double.hashCode(parameters.height());
+        hash = 31 * hash + Double.hashCode(parameters.baseWidth());
+        hash = 31 * hash + Double.hashCode(parameters.armSpan());
+        hash = 31 * hash + Double.hashCode(parameters.depthScale());
+        hash = 31 * hash + Double.hashCode(parameters.waistRatio());
+        hash = 31 * hash + Objects.hashCode(parameters.density());
+        hash = 31 * hash + Objects.hashCode(parameters.armLevelScales());
         return hash;
     }
 

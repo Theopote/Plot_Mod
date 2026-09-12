@@ -7,6 +7,7 @@ import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
+import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.plugin.powerline.ui.PowerLineUiPresets;
@@ -33,6 +34,7 @@ public final class PowerLineStyleDefinition {
     private final ConductorArrangement conductorArrangement;
     private final PoleSpacingProfile spacingProfile;
     private final PowerLineStylePreset.StylePreviewKind previewKind;
+    private final TowerGeneratorConfig parametricConfig;
 
     public PowerLineStyleDefinition(
             PowerLineStylePreset.StylePreviewKind previewKind,
@@ -54,7 +56,8 @@ public final class PowerLineStyleDefinition {
             sagPreset,
             PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH,
             conductorArrangement,
-            spacingProfile);
+            spacingProfile,
+            null);
     }
 
     public PowerLineStyleDefinition(
@@ -68,6 +71,32 @@ public final class PowerLineStyleDefinition {
             double maxSagDepth,
             ConductorArrangement conductorArrangement,
             PoleSpacingProfile spacingProfile) {
+        this(
+            previewKind,
+            towerFamilyId,
+            poleDesignId,
+            wireMaterial,
+            poleMaterial,
+            topWireMaterial,
+            sagPreset,
+            maxSagDepth,
+            conductorArrangement,
+            spacingProfile,
+            null);
+    }
+
+    public PowerLineStyleDefinition(
+            PowerLineStylePreset.StylePreviewKind previewKind,
+            String towerFamilyId,
+            String poleDesignId,
+            MaterialMix wireMaterial,
+            MaterialMix poleMaterial,
+            MaterialMix topWireMaterial,
+            PowerLineUiPresets.WireSag sagPreset,
+            double maxSagDepth,
+            ConductorArrangement conductorArrangement,
+            PoleSpacingProfile spacingProfile,
+            TowerGeneratorConfig parametricConfig) {
         this.previewKind = previewKind;
         this.towerFamilyId = blankToNull(towerFamilyId);
         this.poleDesignId = blankToNull(poleDesignId);
@@ -82,6 +111,15 @@ public final class PowerLineStyleDefinition {
         this.spacingProfile = spacingProfile != null
             ? spacingProfile
             : PoleSpacingProfile.streetWood();
+        this.parametricConfig = parametricConfig != null ? parametricConfig.copy() : null;
+    }
+
+    public TowerGeneratorConfig getParametricConfig() {
+        return parametricConfig != null ? parametricConfig.copy() : null;
+    }
+
+    public boolean hasParametricConfig() {
+        return parametricConfig != null && parametricConfig.isParametric();
     }
 
     public PowerLineStylePreset.StylePreviewKind getPreviewKind() {
@@ -162,6 +200,7 @@ public final class PowerLineStyleDefinition {
         if (!line.isSpacingCustomized()) {
             PowerLineSpacingPolicy.applyStyleDefaultSpacing(line, spacingProfile);
         }
+        line.setParametricTowerConfig(getParametricConfig());
     }
 
     /** footprint 生效值是否仍与本定义默认 bundle 一致（不含 spacingCustomized）。 */
@@ -190,16 +229,28 @@ public final class PowerLineStyleDefinition {
         if (!maxSagMatches(maxSagDepth, line)) {
             return false;
         }
+        if (!PowerLineStyleParametricCatalog.parametersMatch(parametricConfig, line.getParametricTowerConfig())) {
+            return false;
+        }
         return expectedConductorCount() == PowerLineStylePreset.resolveConductorCount(line);
     }
 
     /** 定义代表设计的相线挂点数量（塔族取悬垂代表塔）。 */
     public int expectedConductorCount() {
+        if (hasParametricConfig()) {
+            return conductorArrangement.phaseConductorCount();
+        }
         int fromDesign = PowerLineStylePreset.countConductors(representativeDesign());
         return fromDesign > 0 ? fromDesign : conductorArrangement.phaseConductorCount();
     }
 
     PoleDesign representativeDesign() {
+        if (hasParametricConfig()) {
+            PoleDesign parametric = PowerLineStyleParametricCatalog.compileRepresentative(parametricConfig);
+            if (parametric != null) {
+                return parametric;
+            }
+        }
         if (towerFamilyId != null) {
             TowerFamily family = TowerFamilyCatalog.findBuiltin(towerFamilyId);
             if (family != null) {

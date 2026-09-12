@@ -23,6 +23,7 @@ import com.plot.plugin.powerline.engineering.validation.ValidationLimits;
 import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelopeResolver;
 import com.plot.plugin.powerline.design.parametric.TowerLineBuildEnvelope;
 import com.plot.plugin.powerline.design.parametric.TowerParametricLinePlacement;
+import com.plot.plugin.powerline.style.ParametricStyleTowerApplicator;
 import com.plot.plugin.powerline.design.structure.TowerStructureValidator;
 import com.plot.plugin.powerline.design.structure.TowerValidationIssue;
 import com.plot.plugin.powerline.equipment.JumperWireGenerator;
@@ -164,6 +165,12 @@ public class PowerLineGenerator {
             assignmentResolver.resolve(site, footprint, selectionContext);
         result.warnings.addAll(assignment.warnings());
         PoleDesign design = assignment.design();
+        if (design != null && footprint.hasParametricTowerConfig()) {
+            design = ParametricStyleTowerApplicator.apply(
+                design,
+                footprint.getParametricTowerConfig(),
+                lineEnvelope.constraintEnvelope());
+        }
         if (design != null) {
             TowerParametricLinePlacement.PreparationResult prepared =
                 TowerParametricLinePlacement.prepare(design, lineEnvelope);

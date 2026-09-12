@@ -161,12 +161,25 @@ public final class PowerLineStylePreset {
     }
 
     static int resolveConductorCount(PowerLineFootprint line) {
+        if (line != null && line.hasParametricTowerConfig()) {
+            PowerLineStylePreset preset = PowerLineStylePresetCatalog.activePreset(line);
+            if (preset != null) {
+                return preset.getConductorArrangement().phaseConductorCount();
+            }
+        }
         return countConductors(resolveRepresentativeDesign(line));
     }
 
     static PoleDesign resolveRepresentativeDesign(PowerLineFootprint line) {
         if (line == null) {
             return null;
+        }
+        if (line.hasParametricTowerConfig()) {
+            PoleDesign parametric = PowerLineStyleParametricCatalog.compileRepresentative(
+                line.getParametricTowerConfig());
+            if (parametric != null) {
+                return parametric;
+            }
         }
         if (line.hasTowerFamily()) {
             TowerFamily family = TowerFamilyCatalog.findBuiltin(line.getTowerFamilyId());

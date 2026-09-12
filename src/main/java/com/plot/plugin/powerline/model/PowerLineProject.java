@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
+import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfigData;
 import com.plot.plugin.powerline.style.StyleOverrides;
 
 import java.io.IOException;
@@ -21,7 +22,7 @@ import java.util.Map;
  */
 public class PowerLineProject {
     /** Current on-disk schema. */
-    public static final int SCHEMA_VERSION = 4;
+    public static final int SCHEMA_VERSION = 5;
 
     private static final Gson GSON = new GsonBuilder()
         .setPrettyPrinting()
@@ -233,6 +234,7 @@ public class PowerLineProject {
         boolean automaticTowerSelectionEnabled;
         boolean spacingCustomized;
         StyleOverridesData styleOverrides;
+        TowerGeneratorConfigData parametricTowerConfig;
     }
 
     static class ProjectData {
@@ -274,6 +276,7 @@ public class PowerLineProject {
                 lineData.spacingCustomized = line.isSpacingCustomized();
                 com.plot.plugin.powerline.style.PowerLineStyleEditor.syncOverridesFromFootprint(line);
                 lineData.styleOverrides = StyleOverridesData.from(line.getStyleOverrides());
+                lineData.parametricTowerConfig = TowerGeneratorConfigData.from(line.getParametricTowerConfig());
                 data.lines.add(lineData);
             }
             return data;
@@ -351,6 +354,9 @@ public class PowerLineProject {
                     ? lineData.styleOverrides
                     : new StyleOverridesData();
                 overridesData.applyTo(footprint.getStyleOverrides());
+                if (lineData.parametricTowerConfig != null) {
+                    footprint.setParametricTowerConfig(lineData.parametricTowerConfig.toConfig());
+                }
                 project.addLine(footprint);
             }
             return project;

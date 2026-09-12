@@ -5,6 +5,7 @@ import com.plot.plugin.powerline.PowerLineSagUtils;
 import com.plot.plugin.powerline.design.ConductorArrangement;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.family.TowerFamily;
+import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.ui.PowerLineUiPresets;
 
@@ -599,6 +600,9 @@ public final class PowerLineStylePresetCatalog {
             PowerLineUiPresets.WireSag sagPreset,
             ConductorArrangement conductorArrangement,
             PoleSpacingProfile spacingProfile) {
+        TowerGeneratorConfig parametricConfig = PowerLineStyleParametricCatalog.resolve(
+            towerFamilyId,
+            poleDesignId);
         PowerLineStyleDefinition definition = new PowerLineStyleDefinition(
             previewKind,
             towerFamilyId,
@@ -609,7 +613,8 @@ public final class PowerLineStylePresetCatalog {
             sagPreset,
             defaultMaxSagDepth(previewKind),
             conductorArrangement,
-            spacingProfile);
+            spacingProfile,
+            parametricConfig);
         return new PowerLineStylePreset(id, labelKey, category, definition);
     }
 
