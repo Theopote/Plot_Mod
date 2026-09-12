@@ -102,6 +102,29 @@ class PowerPoleLayoutUtilsTest {
     }
 
     @Test
+    void autoSpacingFollowsPolylineBetweenMandatoryPoints() {
+        List<Vec2d> path = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(50, 2),
+            new Vec2d(100, 0));
+        List<Vec2d> poles = PowerPoleLayoutUtils.computePolePositions(
+            path, 5.0, 25.0, IdentityCoordinateService.INSTANCE);
+
+        assertTrue(
+            poles.stream().anyMatch(p -> p.y > 0.5),
+            "interpolated poles should follow the polyline, not the A-B chord");
+        for (Vec2d pole : poles) {
+            double stationing = PowerPoleLayoutUtils.computeStationing(
+                path, pole, IdentityCoordinateService.INSTANCE);
+            Vec2d onPath = PowerPoleLayoutUtils.pointAtStationing(
+                path, stationing, IdentityCoordinateService.INSTANCE);
+            assertTrue(
+                pole.distance(onPath) < 0.2,
+                "pole should lie on path at its stationing");
+        }
+    }
+
+    @Test
     void computedSitesCoverMandatoryPoints() {
         List<Vec2d> path = List.of(
             new Vec2d(0, 0),

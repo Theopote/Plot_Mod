@@ -82,10 +82,24 @@ public final class PowerPoleLayoutUtils {
             return List.of();
         }
 
+        List<Double> mandatoryStations = new ArrayList<>(mandatory.size());
+        for (Vec2d point : mandatory) {
+            mandatoryStations.add(computeStationing(pathPoints, point, coords));
+        }
+
         List<Vec2d> result = new ArrayList<>();
-        addPoleIfDistinct(result, mandatory.getFirst(), coords);
-        for (int i = 0; i < mandatory.size() - 1; i++) {
-            appendInterpolatedPoles(result, mandatory.get(i), mandatory.get(i + 1), maxSpacing, coords);
+        addPoleIfDistinct(
+            result,
+            pointAtStationing(pathPoints, mandatoryStations.getFirst(), coords),
+            coords);
+        for (int i = 0; i < mandatoryStations.size() - 1; i++) {
+            appendInterpolatedPolesAlongPath(
+                result,
+                pathPoints,
+                mandatoryStations.get(i),
+                mandatoryStations.get(i + 1),
+                maxSpacing,
+                coords);
         }
         return result;
     }
@@ -370,28 +384,34 @@ public final class PowerPoleLayoutUtils {
         return result;
     }
 
-    private static void appendInterpolatedPoles(
+    private static void appendInterpolatedPolesAlongPath(
             List<Vec2d> result,
-            Vec2d from,
-            Vec2d to,
+            List<Vec2d> pathPoints,
+            double fromStationBlocks,
+            double toStationBlocks,
             double maxSpacingBlocks,
             ICoordinateService coordinates) {
-        double worldDistance = coordinates.projectedDistance(from, to);
+        double worldDistance = toStationBlocks - fromStationBlocks;
         if (worldDistance <= POSITION_DEDUP_TOLERANCE_BLOCKS) {
-            addPoleIfDistinct(result, to, coordinates);
+            addPoleIfDistinct(
+                result,
+                pointAtStationing(pathPoints, toStationBlocks, coordinates),
+                coordinates);
             return;
         }
         if (worldDistance <= maxSpacingBlocks) {
-            addPoleIfDistinct(result, to, coordinates);
+            addPoleIfDistinct(
+                result,
+                pointAtStationing(pathPoints, toStationBlocks, coordinates),
+                coordinates);
             return;
         }
         int segments = (int) Math.ceil(worldDistance / maxSpacingBlocks);
         for (int i = 1; i <= segments; i++) {
-            double worldOffset = worldDistance * i / segments;
+            double station = fromStationBlocks + worldDistance * i / segments;
             addPoleIfDistinct(
                 result,
-                WorldProjectionMath.canvasPointAtWorldOffsetOnSegment(
-                    coordinates, from, to, worldOffset),
+                pointAtStationing(pathPoints, station, coordinates),
                 coordinates);
         }
     }
