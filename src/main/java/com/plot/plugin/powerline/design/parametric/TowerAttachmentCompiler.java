@@ -32,14 +32,15 @@ public final class TowerAttachmentCompiler {
             attachments = topology.latticeArrangement().createAttachments(
                 baseHeight,
                 InsulatorType.SUSPENSION,
-                latticeInsulatorLength(topology));
+                topology.insulatorPolicy().latticeInsulatorLength());
         }
-        if (topology.deckArrangement() != null && usesMegaInsulatorDefaults(topology)) {
-            InsulatorAssemblyCatalog.applyMegaDefaults(toDesign(structure, attachments), InsulatorType.SUSPENSION);
-            return toDesign(structure, attachments).getAttachments();
+        PoleDesign scratch = toDesign(structure, attachments);
+        if (topology.insulatorPolicy().megaAssemblyDefaults()) {
+            InsulatorAssemblyCatalog.applyMegaDefaults(scratch, InsulatorType.SUSPENSION);
+        } else {
+            InsulatorAssemblyCatalog.applyStandardDefaults(scratch);
         }
-        InsulatorAssemblyCatalog.applyStandardDefaults(toDesign(structure, attachments));
-        return toDesign(structure, attachments).getAttachments();
+        return scratch.getAttachments();
     }
 
     private static PoleDesign toDesign(TowerStructureDesign structure, List<ConductorAttachment> attachments) {
@@ -62,20 +63,5 @@ public final class TowerAttachmentCompiler {
             ? arms.get(arms.size() - 1)
             : arms.getFirst();
         return TowerArmAttachmentBinding.conductorHangHeight(anchor);
-    }
-
-    private static int latticeInsulatorLength(TowerAttachmentTopology topology) {
-        var lattice = topology.latticeArrangement();
-        if (lattice == com.plot.plugin.powerline.design.family.TowerConductorArrangement.heavyTransmission()
-                || lattice == com.plot.plugin.powerline.design.family.TowerConductorArrangement.megaIndustrial()) {
-            return 3;
-        }
-        return 2;
-    }
-
-    private static boolean usesMegaInsulatorDefaults(TowerAttachmentTopology topology) {
-        var deck = topology.deckArrangement();
-        return deck == com.plot.plugin.powerline.design.ConductorArrangement.megaThreeDeck()
-            || deck == com.plot.plugin.powerline.design.ConductorArrangement.uhvThreeDeck();
     }
 }

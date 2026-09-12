@@ -371,7 +371,7 @@ public final class TowerParameterProfiles {
             LATTICE_LEG,
             LATTICE_BRACE,
             ARM_MATERIAL,
-            TowerAttachmentTopology.heavyTransmission());
+            TowerAttachmentTopology.heavyTransmissionCup());
     }
 
     public static TowerParameterProfile heavy() {
@@ -424,7 +424,7 @@ public final class TowerParameterProfiles {
             LATTICE_LEG,
             LATTICE_BRACE,
             ARM_MATERIAL,
-            TowerAttachmentTopology.heavyTransmission());
+            TowerAttachmentTopology.heavyTransmissionMega());
     }
 
     public static TowerParameterProfile mega() {

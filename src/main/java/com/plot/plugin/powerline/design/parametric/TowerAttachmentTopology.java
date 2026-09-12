@@ -12,13 +12,40 @@ import com.plot.plugin.powerline.design.family.TowerConductorArrangement;
 public record TowerAttachmentTopology(
         ConductorArrangement deckArrangement,
         TowerConductorArrangement latticeArrangement,
-        AttachmentAnchor anchor) {
+        AttachmentAnchor anchor,
+        AttachmentInsulatorPolicy insulatorPolicy) {
 
     public enum AttachmentAnchor {
         /** 最低横担高度 — 适配 deck 类 offset 布局。 */
         LOWER_ARM,
         /** 最高横担挂线高度 — 适配 classic / heavy 单组分裂三相。 */
         UPPER_ARM
+    }
+
+    /** 绝缘子/串默认值策略（按语义，不用 factory 返回值 identity 比较）。 */
+    public enum AttachmentInsulatorPolicy {
+        /** 分裂三相 insulator length 2，仅顶线 assembly。 */
+        STANDARD(2, false),
+        /** 分裂三相 insulator length 3，仅顶线 assembly（Cup 等）。 */
+        HEAVY_LATTICE(3, false),
+        /** Mega/UHV deck 或 Heavy  lattice：applyMegaDefaults。 */
+        MEGA(3, true);
+
+        private final int latticeInsulatorLength;
+        private final boolean megaAssemblyDefaults;
+
+        AttachmentInsulatorPolicy(int latticeInsulatorLength, boolean megaAssemblyDefaults) {
+            this.latticeInsulatorLength = latticeInsulatorLength;
+            this.megaAssemblyDefaults = megaAssemblyDefaults;
+        }
+
+        public int latticeInsulatorLength() {
+            return latticeInsulatorLength;
+        }
+
+        public boolean megaAssemblyDefaults() {
+            return megaAssemblyDefaults;
+        }
     }
 
     public TowerAttachmentTopology {
@@ -29,68 +56,78 @@ public record TowerAttachmentTopology(
             throw new IllegalArgumentException("only one arrangement source may be set");
         }
         anchor = anchor != null ? anchor : AttachmentAnchor.LOWER_ARM;
+        insulatorPolicy = insulatorPolicy != null ? insulatorPolicy : AttachmentInsulatorPolicy.STANDARD;
     }
 
     public static TowerAttachmentTopology classicLattice() {
         return new TowerAttachmentTopology(
             null,
             TowerConductorArrangement.classicLattice(),
-            AttachmentAnchor.UPPER_ARM);
+            AttachmentAnchor.UPPER_ARM,
+            AttachmentInsulatorPolicy.STANDARD);
     }
 
-    public static TowerAttachmentTopology heavyTransmission() {
+    public static TowerAttachmentTopology heavyTransmissionCup() {
         return new TowerAttachmentTopology(
             null,
             TowerConductorArrangement.heavyTransmission(),
-            AttachmentAnchor.UPPER_ARM);
+            AttachmentAnchor.UPPER_ARM,
+            AttachmentInsulatorPolicy.HEAVY_LATTICE);
     }
 
-    public static TowerAttachmentTopology megaIndustrial() {
+    public static TowerAttachmentTopology heavyTransmissionMega() {
         return new TowerAttachmentTopology(
             null,
-            TowerConductorArrangement.megaIndustrial(),
-            AttachmentAnchor.UPPER_ARM);
+            TowerConductorArrangement.heavyTransmission(),
+            AttachmentAnchor.UPPER_ARM,
+            AttachmentInsulatorPolicy.MEGA);
     }
 
     public static TowerAttachmentTopology doubleCircuitThreeDeck() {
         return new TowerAttachmentTopology(
             ConductorArrangement.doubleCircuitThreeDeck(),
             null,
-            AttachmentAnchor.LOWER_ARM);
+            AttachmentAnchor.LOWER_ARM,
+            AttachmentInsulatorPolicy.STANDARD);
     }
 
     public static TowerAttachmentTopology megaThreeDeck() {
         return new TowerAttachmentTopology(
             ConductorArrangement.megaThreeDeck(),
             null,
-            AttachmentAnchor.LOWER_ARM);
+            AttachmentAnchor.LOWER_ARM,
+            AttachmentInsulatorPolicy.MEGA);
     }
 
     public static TowerAttachmentTopology doubleCircuitDrum() {
         return new TowerAttachmentTopology(
             ConductorArrangement.doubleCircuitDrum(),
             null,
-            AttachmentAnchor.LOWER_ARM);
+            AttachmentAnchor.LOWER_ARM,
+            AttachmentInsulatorPolicy.STANDARD);
     }
 
     public static TowerAttachmentTopology heavyDoubleCircuit() {
         return new TowerAttachmentTopology(
             ConductorArrangement.heavyDoubleCircuit(),
             null,
-            AttachmentAnchor.LOWER_ARM);
+            AttachmentAnchor.LOWER_ARM,
+            AttachmentInsulatorPolicy.STANDARD);
     }
 
     public static TowerAttachmentTopology uhvThreeDeck() {
         return new TowerAttachmentTopology(
             ConductorArrangement.uhvThreeDeck(),
             null,
-            AttachmentAnchor.LOWER_ARM);
+            AttachmentAnchor.LOWER_ARM,
+            AttachmentInsulatorPolicy.MEGA);
     }
 
     public static TowerAttachmentTopology threeHorizontal() {
         return new TowerAttachmentTopology(
             ConductorArrangement.threeHorizontal(),
             null,
-            AttachmentAnchor.UPPER_ARM);
+            AttachmentAnchor.UPPER_ARM,
+            AttachmentInsulatorPolicy.STANDARD);
     }
 }
