@@ -3560,6 +3560,8 @@
   "plugin.powerline.single_tower.direction.west_east": "West–East",
   "plugin.powerline.single_tower.direction.south_north": "South–North",
   "plugin.powerline.style.section.choose": "Choose a style",
+  "plugin.powerline.style.gallery_hint": "Style cards set line-wide defaults for towers, materials, and wires. Quick tune and the designer customize on top.",
+  "plugin.powerline.style.quick_tune_hint": "Edit tower saves a custom design. Picking another style card resets to that style's defaults.",
   "plugin.powerline.style.category.utility": "Utility poles",
   "plugin.powerline.style.category.transmission": "Transmission towers",
   "plugin.powerline.style.category.industrial": "Industrial mega pylons",

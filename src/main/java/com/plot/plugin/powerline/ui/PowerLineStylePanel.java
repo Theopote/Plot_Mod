@@ -39,12 +39,18 @@ public final class PowerLineStylePanel {
         PowerLineUiWidgets.renderLineSelector(ctx);
         ImGui.separator();
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.section.choose"));
+        PowerLineUiWidgets.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.powerline.style.gallery_hint"));
         renderStyleGallery(line);
 
         PowerLineStylePreset base = PowerLineStyleEditor.basePreset(line);
         if (base != null) {
             ImGui.spacing();
             PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.section.quick_customize"));
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.style.quick_tune_hint"));
             quickTunePanel.render(line, base);
         } else {
             quickTunePanel.renderCustomFallback(line);

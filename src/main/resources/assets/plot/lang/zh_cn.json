@@ -3560,6 +3560,8 @@
   "plugin.powerline.single_tower.direction.west_east": "西东",
   "plugin.powerline.single_tower.direction.south_north": "北南",
   "plugin.powerline.style.section.choose": "选择风格",
+  "plugin.powerline.style.gallery_hint": "风格卡片决定整条线路的默认杆塔、材质与导线。下方微调与设计器在此基础上修改。",
+  "plugin.powerline.style.quick_tune_hint": "「编辑杆塔」会保存为定制设计；切换上方风格卡片会恢复该风格的默认值。",
   "plugin.powerline.style.category.utility": "配电杆塔",
   "plugin.powerline.style.category.transmission": "输电铁塔",
   "plugin.powerline.style.category.industrial": "超大型工业铁塔",
