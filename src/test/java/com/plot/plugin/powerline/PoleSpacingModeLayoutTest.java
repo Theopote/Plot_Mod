@@ -1,8 +1,10 @@
 package com.plot.plugin.powerline;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.powerline.model.PoleLayoutConstraint;
 import com.plot.plugin.powerline.model.PoleSpacingMode;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.model.PowerPoleSite;
 import com.plot.test.world.IdentityCoordinateService;
 import org.junit.jupiter.api.Test;
 
@@ -65,6 +67,24 @@ class PoleSpacingModeLayoutTest {
         assertEquals(0.0, poles.getFirst().x, 1e-6);
         assertEquals(100.0, poles.getLast().x, 1e-6);
         assertEquals(25.0, poles.get(1).x, 1e-6);
+    }
+
+    @Test
+    void endpointsOnlyIgnoresLayoutConstraints() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(
+            new Vec2d(0, 0),
+            new Vec2d(100, 0)));
+        line.setPoleSpacingMode(PoleSpacingMode.ENDPOINTS_ONLY);
+        line.addLayoutConstraint(new PoleLayoutConstraint(25.0, "terrain"));
+        line.addLayoutConstraint(new PoleLayoutConstraint(50.0, "terrain"));
+        line.addLayoutConstraint(new PoleLayoutConstraint(75.0, "terrain"));
+
+        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(
+            line, IdentityCoordinateService.INSTANCE);
+
+        assertEquals(2, sites.size());
+        assertEquals(0.0, sites.getFirst().getPlanPosition().x, 1e-6);
+        assertEquals(100.0, sites.getLast().getPlanPosition().x, 1e-6);
     }
 
     @Test

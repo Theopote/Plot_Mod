@@ -159,12 +159,14 @@ public final class PowerPoleLayoutUtils {
             footprint.getMaxPoleSpacing(),
             footprint.getTargetTowerCount(),
             coords);
-        insertLayoutConstraints(
-            sites,
-            footprint.getPathPoints(),
-            footprint.getLayoutConstraints(),
-            footprint.getCornerAngleThreshold(),
-            coords);
+        if (footprint.getPoleSpacingMode() != PoleSpacingMode.ENDPOINTS_ONLY) {
+            insertLayoutConstraints(
+                sites,
+                footprint.getPathPoints(),
+                footprint.getLayoutConstraints(),
+                footprint.getCornerAngleThreshold(),
+                coords);
+        }
         applyOverrides(sites, footprint.getPoleOverrides());
         return sites;
     }
