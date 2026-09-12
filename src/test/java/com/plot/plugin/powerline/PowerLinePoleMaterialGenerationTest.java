@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static com.plot.plugin.powerline.PresetMinecraftRealizabilitySupport.assertQuickTunePoleMaterialInGeneration;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PowerLinePoleMaterialGenerationTest {
@@ -20,10 +21,13 @@ class PowerLinePoleMaterialGenerationTest {
         line.setMaxPoleSpacing(50.0);
 
         PowerLineGenerationResult result = PowerLineGeneratorWireTest.generate(line);
+        assertQuickTunePoleMaterialInGeneration("classicWood", result, "minecraft:dark_oak_log");
+    }
 
+    @Test
+    void allBuiltinPresetsAreCoveredByQuickTuneGeneratorMatrix() {
         assertTrue(
-            result.placementRecords.values().stream()
-                .anyMatch(record -> "minecraft:dark_oak_log".equals(record.newBlockId)),
-            "Quick Tune pole material should appear in generated pole blocks");
+            PresetMinecraftRealizabilitySupport.allPresets().size() >= 25,
+            "Quick Tune generator matrix should track all builtin presets");
     }
 }

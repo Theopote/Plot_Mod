@@ -12,8 +12,10 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.stream.Stream;
 
+import static com.plot.plugin.powerline.PresetMinecraftRealizabilitySupport.QUICK_TUNE_POLE_MATERIAL;
 import static com.plot.plugin.powerline.PresetMinecraftRealizabilitySupport.assertDesignResolvable;
 import static com.plot.plugin.powerline.PresetMinecraftRealizabilitySupport.assertEffectiveMaterialApplied;
+import static com.plot.plugin.powerline.PresetMinecraftRealizabilitySupport.assertQuickTunePoleMaterialInGeneration;
 import static com.plot.plugin.powerline.PresetMinecraftRealizabilitySupport.assertGalleryMatchesEffective;
 import static com.plot.plugin.powerline.PresetMinecraftRealizabilitySupport.assertMinecraftRealizable;
 import static com.plot.plugin.powerline.PresetMinecraftRealizabilitySupport.compileProfileDefault;
@@ -52,7 +54,7 @@ class PresetMinecraftRealizabilityTest {
     @MethodSource("allPresets")
     void stylePresetHonorsQuickTunePoleMaterial(PowerLineStylePreset preset) {
         PowerLineFootprint line = lineForPreset(preset);
-        line.setPoleMaterial(MaterialMix.single("minecraft:copper_block"));
+        line.setPoleMaterial(MaterialMix.single(QUICK_TUNE_POLE_MATERIAL));
 
         EffectiveStylePreview preview = EffectiveStylePreviewResolver.resolve(
             line,
@@ -62,6 +64,16 @@ class PresetMinecraftRealizabilityTest {
 
         assertNotNull(preview);
         assertEffectiveMaterialApplied(line, preview.previewDesign());
+    }
+
+    @ParameterizedTest(name = "preset:{0}")
+    @MethodSource("allPresets")
+    void stylePresetQuickTunePoleMaterialAppearsInGenerator(PowerLineStylePreset preset) {
+        PowerLineFootprint line = lineForPreset(preset);
+        line.setPoleMaterial(MaterialMix.single(QUICK_TUNE_POLE_MATERIAL));
+
+        PowerLineGenerationResult result = generate(line);
+        assertQuickTunePoleMaterialInGeneration(preset.getId(), result, QUICK_TUNE_POLE_MATERIAL);
     }
 
     @ParameterizedTest(name = "{0}")

@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.PlacementReadiness;
+import com.plot.core.block.BlockSpec;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.ConductorAttachment;
@@ -20,10 +21,8 @@ import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.TowerRole;
-import com.plot.plugin.powerline.style.EffectivePoleDesignResolver;
 import com.plot.plugin.powerline.style.EffectiveStylePreview;
 import com.plot.plugin.powerline.style.EffectiveStylePreviewResolver;
-import com.plot.plugin.powerline.style.ParametricStyleTowerApplicator;
 import com.plot.plugin.powerline.style.PowerLineStyleParametricCatalog;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
@@ -298,6 +297,22 @@ final class PresetMinecraftRealizabilitySupport {
                 gallery.getGeneratorConfig().profileId(),
                 effectiveDesign.getGeneratorConfig().profileId());
         }
+    }
+
+    static final String QUICK_TUNE_POLE_MATERIAL = "minecraft:copper_block";
+
+    static void assertQuickTunePoleMaterialInGeneration(
+            String label,
+            PowerLineGenerationResult result,
+            String expectedMaterial) {
+        assertTrue(result.poleCount >= 1, label + " should place at least one pole");
+        long materialBlocks = result.placementRecords.values().stream()
+            .filter(record -> expectedMaterial.equals(BlockSpec.parse(record.newBlockId).blockId()))
+            .count();
+        assertTrue(
+            materialBlocks >= result.poleCount,
+            label + " Quick Tune pole material should appear in generator output"
+                + " (expected >= " + result.poleCount + " " + expectedMaterial + ", found " + materialBlocks + ")");
     }
 
     static void assertEffectiveMaterialApplied(PowerLineFootprint line, PoleDesign effective) {
