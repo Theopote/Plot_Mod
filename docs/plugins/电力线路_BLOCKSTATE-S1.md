@@ -81,11 +81,15 @@ Preset / PoleDesign / TowerStructure
 
 ## In-Game 抽检（可选，约 5 分钟）
 
-1. **日式街区** — 柱顶灯笼坐放（非悬挂），横担为下半砖 slab。
-2. **Fantasy Copper** — 十字避雷针朝向正确（非随机默认朝向）。
-3. **Suburban Lamp** — 横担末端 `chain[axis=y]` + `soul_lantern[hanging=true]`。
-4. **Wasteland Wind** — 柱顶水平铁活板门轮毂。
-5. **Classic Wood + Quick Tune 杆材** — 改杆材后生成柱身方块 ID 随之变化。
+完整 **25 preset** 清单见：[电力线路_25预设游戏内抽检.md](电力线路_25预设游戏内抽检.md)（含 BlockState F3 速查、⭐ 必检 8 项、Quick Tune 矩阵）。
+
+**BlockState 优先 5 项（速检）：**
+
+1. **日式街区** — 柱顶灯笼坐放（非悬挂），横担为下半砖 slab。  
+2. **Fantasy Copper** — 十字避雷针朝向正确（非随机默认朝向）。  
+3. **Suburban Lamp** — 横担末端 `chain[axis=y]` + `soul_lantern[hanging=true]`。  
+4. **Wasteland Wind** — 柱顶水平铁活板门轮毂 + 四向桨叶。  
+5. **Classic Wood + Quick Tune 杆材** — 改杆材后柱身方块 ID 随之变化。
 
 ---
 
@@ -121,7 +125,7 @@ for (BlockPos pos : blocks) {
 | BlockState property 合法性验证 | ⚠️ P2 `BlockSpecValidator` |
 | `BlockRecord.newBlockId` 字段命名 | 📝 长期改为 `newBlockArgument` 或 `BlockSpec` |
 
-**下一步（产品）**：25 preset 游戏内视觉巡检，不再扩 BlockState 类型。
+**下一步（产品）**：25 preset 游戏内视觉巡检 → [电力线路_25预设游戏内抽检.md](电力线路_25预设游戏内抽检.md)，不再扩 BlockState 类型。
 
 ---
 
