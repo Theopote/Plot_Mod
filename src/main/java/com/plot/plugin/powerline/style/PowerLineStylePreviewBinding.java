@@ -141,6 +141,17 @@ public final class PowerLineStylePreviewBinding {
 
     /** 风格卡片 / tooltip 用的预览 {@link PoleDesign}。 */
     public static PoleDesign previewDesign(PowerLineStylePreset preset) {
+        if (preset == null) {
+            return null;
+        }
+        PowerLineStyleDefinition definition = preset.getDefinition();
+        if (definition != null && definition.hasParametricConfig()) {
+            PoleDesign parametric = PowerLineStyleParametricCatalog.compileRepresentative(
+                definition.getParametricConfig());
+            if (parametric != null) {
+                return parametric;
+            }
+        }
         return resolvePreviewDesign(primaryPreviewDesignId(preset));
     }
 

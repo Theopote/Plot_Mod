@@ -91,7 +91,10 @@ class TowerParametricStabilizationTest {
 
         design.setGeneratorConfig(design.getGeneratorConfig().withParameters(
             new TowerParameterSet(40.0, 13.0, 24.0, 1.0, 1.0, null, StructureDensity.MEDIUM)));
-        TowerParametricEditor.recompile(design, null);
+        TowerParametricEditor.recompile(
+            design,
+            null,
+            TowerParameterProfiles.CLASSIC_DOUBLE_ARM_ID);
 
         assertEquals("USER_MARK", design.getAttachments().get(0).getName());
         assertEquals(40.0, design.getGeneratorConfig().parameters().height(), 0.01);

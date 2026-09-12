@@ -33,7 +33,7 @@ public final class EffectiveStylePreviewResolver {
         if (preview == null) {
             return null;
         }
-        applyPoleMaterialOverride(preview, line.getPoleMaterial());
+        EffectivePoleDesignResolver.applyPoleMaterialOverride(preview, line.getPoleMaterial());
         return new EffectiveStylePreview(
             preview,
             copyMix(line.getPoleMaterial()),
@@ -118,22 +118,6 @@ public final class EffectiveStylePreviewResolver {
         PoleDesign design = new PoleDesign("_effective_preview", "Preview");
         design.addLayer(new PoleLayer(PoleLayer.Shape.COLUMN, height, material));
         return design;
-    }
-
-    /** 立面预览：COLUMN（及塔体主材）跟随线路当前杆材 override。 */
-    static void applyPoleMaterialOverride(PoleDesign design, MaterialMix poleMaterial) {
-        if (design == null || poleMaterial == null) {
-            return;
-        }
-        MaterialMix mix = poleMaterial.copy();
-        for (PoleLayer layer : design.getLayers()) {
-            if (layer.getShape() == PoleLayer.Shape.COLUMN) {
-                layer.setMaterial(mix.copy());
-            }
-        }
-        if (design.hasTowerStructure()) {
-            design.getTowerStructure().setPrimaryMaterial(mix.copy());
-        }
     }
 
     private static MaterialMix copyMix(MaterialMix mix) {

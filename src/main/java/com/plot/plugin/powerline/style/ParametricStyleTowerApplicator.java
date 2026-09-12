@@ -21,9 +21,12 @@ public final class ParametricStyleTowerApplicator {
         if (source == null || styleConfig == null || !styleConfig.isParametric()) {
             return source;
         }
+        String previousProfileId = source.getGeneratorConfig() != null && source.isParametricMode()
+            ? source.getGeneratorConfig().profileId()
+            : null;
         PoleDesign design = source.copy();
         design.setGeneratorConfig(styleConfig.copy());
-        TowerParametricEditor.recompile(design, envelope);
+        TowerParametricEditor.recompile(design, envelope, previousProfileId);
         return design;
     }
 }

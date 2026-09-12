@@ -26,6 +26,7 @@ import com.plot.plugin.powerline.design.parametric.TowerLineBuildEnvelope;
 import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
 import com.plot.plugin.powerline.design.parametric.TowerParametricLinePlacement;
 import com.plot.plugin.powerline.design.parametric.TowerParametricSitePlacement;
+import com.plot.plugin.powerline.style.EffectivePoleDesignResolver;
 import com.plot.plugin.powerline.style.ParametricStyleTowerApplicator;
 import com.plot.plugin.powerline.design.structure.TowerStructureValidator;
 import com.plot.plugin.powerline.design.structure.TowerValidationIssue;
@@ -219,6 +220,9 @@ public class PowerLineGenerator {
                 buildBaseY,
                 site,
                 assignment.resolvedDesignId());
+        }
+        if (design != null) {
+            design = EffectivePoleDesignResolver.applyLineOverrides(design, footprint);
         }
 
         PoleSiteDecorationClearance.clearAroundPole(
