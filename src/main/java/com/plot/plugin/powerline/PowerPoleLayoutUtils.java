@@ -104,6 +104,62 @@ public final class PowerPoleLayoutUtils {
         };
     }
 
+    /**
+     * 闭合折线（矩形、多边形、星形等）布塔：每个角点强制立杆，长边按最大档距补插。
+     */
+    public static List<Vec2d> computeClosedPolylinePolePositions(
+            PolylineSourcePath sourcePath,
+            double cornerAngleThreshold,
+            double maxPoleSpacingBlocks,
+            ICoordinateService coordinates) {
+        ICoordinateService coords = requireCoordinates(coordinates);
+        if (sourcePath == null || !sourcePath.isClosed()) {
+            return List.of();
+        }
+        double perimeter = sourcePath.worldLength(coords);
+        if (perimeter <= POSITION_DEDUP_TOLERANCE_BLOCKS) {
+            return List.of(sourcePath.pointAtStation(0.0, coords).copy());
+        }
+        List<Double> mandatoryStations = dedupeMandatoryStations(
+            sourcePath.mandatoryStations(cornerAngleThreshold, coords),
+            sourcePath,
+            coords);
+        if (mandatoryStations.size() < 3) {
+            return List.of();
+        }
+        double maxSpacing = Math.max(0.1, maxPoleSpacingBlocks);
+        List<Vec2d> result = new ArrayList<>();
+        addPoleIfDistinct(
+            result,
+            sourcePath.pointAtStation(mandatoryStations.getFirst(), coords),
+            coords);
+        for (int i = 0; i < mandatoryStations.size(); i++) {
+            appendInterpolatedPolesAlongClosedPath(
+                result,
+                sourcePath,
+                mandatoryStations.get(i),
+                mandatoryStations.get((i + 1) % mandatoryStations.size()),
+                perimeter,
+                maxSpacing,
+                coords);
+        }
+        return result;
+    }
+
+    /** 闭合折线仅角点立杆（每个顶点一座塔）。 */
+    public static List<Vec2d> computeClosedPolylineVerticesOnly(
+            PolylineSourcePath sourcePath,
+            ICoordinateService coordinates) {
+        if (sourcePath == null || !sourcePath.isClosed()) {
+            return List.of();
+        }
+        List<Vec2d> vertices = new ArrayList<>(sourcePath.points().size());
+        for (Vec2d point : sourcePath.points()) {
+            addPoleIfDistinct(vertices, point, requireCoordinates(coordinates));
+        }
+        return vertices.size() >= 3 ? vertices : List.of();
+    }
+
     public static List<Vec2d> computePolePositions(
             PowerLineSourcePath sourcePath,
             double cornerAngleThreshold,
@@ -518,6 +574,54 @@ public final class PowerPoleLayoutUtils {
             addPoleIfDistinct(result, point, coordinates);
         }
         return result;
+    }
+
+    private static void appendInterpolatedPolesAlongClosedPath(
+            List<Vec2d> result,
+            PowerLineSourcePath sourcePath,
+            double fromStationBlocks,
+            double toStationBlocks,
+            double perimeterBlocks,
+            double maxSpacingBlocks,
+            ICoordinateService coordinates) {
+        double worldDistance = forwardStationDistance(
+            fromStationBlocks,
+            toStationBlocks,
+            perimeterBlocks);
+        if (worldDistance <= POSITION_DEDUP_TOLERANCE_BLOCKS) {
+            addPoleIfDistinct(
+                result,
+                sourcePath.pointAtStation(toStationBlocks, coordinates),
+                coordinates);
+            return;
+        }
+        if (worldDistance <= maxSpacingBlocks) {
+            addPoleIfDistinct(
+                result,
+                sourcePath.pointAtStation(toStationBlocks, coordinates),
+                coordinates);
+            return;
+        }
+        int segments = (int) Math.ceil(worldDistance / maxSpacingBlocks);
+        for (int i = 1; i <= segments; i++) {
+            double station = fromStationBlocks + worldDistance * i / segments;
+            station = ClosedPathGeometry.normalizeStation(sourcePath, station, perimeterBlocks);
+            addPoleIfDistinct(
+                result,
+                sourcePath.pointAtStation(station, coordinates),
+                coordinates);
+        }
+    }
+
+    private static double forwardStationDistance(
+            double fromStationBlocks,
+            double toStationBlocks,
+            double perimeterBlocks) {
+        double distance = toStationBlocks - fromStationBlocks;
+        if (distance < 0.0) {
+            distance += perimeterBlocks;
+        }
+        return distance;
     }
 
     private static void appendInterpolatedPolesAlongPath(

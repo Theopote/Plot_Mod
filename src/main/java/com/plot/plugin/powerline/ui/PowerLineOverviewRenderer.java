@@ -148,16 +148,33 @@ public final class PowerLineOverviewRenderer {
         }
         float thickness = selected ? SELECTED_PATH_THICKNESS : PATH_THICKNESS;
         for (int i = 0; i < points.size() - 1; i++) {
-            Vec2d a = points.get(i);
-            Vec2d b = points.get(i + 1);
-            drawList.addLine(
-                toScreenX(a.x, viewport),
-                toScreenY(a.y, viewport),
-                toScreenX(b.x, viewport),
-                toScreenY(b.y, viewport),
+            drawSegment(drawList, points.get(i), points.get(i + 1), viewport, color, thickness);
+        }
+        if (line.isClosedLoop() && points.size() >= 3) {
+            drawSegment(
+                drawList,
+                points.get(points.size() - 1),
+                points.getFirst(),
+                viewport,
                 color,
                 thickness);
         }
+    }
+
+    private static void drawSegment(
+            ImDrawList drawList,
+            Vec2d a,
+            Vec2d b,
+            MapViewport viewport,
+            int color,
+            float thickness) {
+        drawList.addLine(
+            toScreenX(a.x, viewport),
+            toScreenY(a.y, viewport),
+            toScreenX(b.x, viewport),
+            toScreenY(b.y, viewport),
+            color,
+            thickness);
     }
 
     private static void drawPoles(
@@ -283,6 +300,17 @@ public final class PowerLineOverviewRenderer {
             List<Vec2d> points = line.getPathPoints();
             for (int i = 0; i < points.size() - 1; i++) {
                 double dist = distancePointToSegment(wx, wy, points.get(i), points.get(i + 1));
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    closestId = line.getId();
+                }
+            }
+            if (line.isClosedLoop() && points.size() >= 3) {
+                double dist = distancePointToSegment(
+                    wx,
+                    wy,
+                    points.get(points.size() - 1),
+                    points.getFirst());
                 if (dist < closestDist) {
                     closestDist = dist;
                     closestId = line.getId();

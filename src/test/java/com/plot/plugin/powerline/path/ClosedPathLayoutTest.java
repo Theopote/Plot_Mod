@@ -3,6 +3,7 @@ package com.plot.plugin.powerline.path;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.CircleShape;
 import com.plot.core.geometry.shapes.PolylineShape;
+import com.plot.core.geometry.shapes.RectangleShape;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
@@ -35,6 +36,35 @@ class ClosedPathLayoutTest {
         assertTrue(footprint.isClosedLoop());
         assertTrue(footprint.getPathPoints().size() >= 3);
         assertTrue(ClosedPathGeometry.isValidTowerLoop(footprint.getPathPoints()));
+    }
+
+    @Test
+    void rectanglePlacesTowersAtCornersNotChord() {
+        RectangleShape rectangle = new RectangleShape(new Vec2d(0, 0), 100, 50, 0);
+        PowerLineFootprint footprint = PowerLinePathLayout.adopt(rectangle, IdentityCoordinateService.INSTANCE);
+        footprint.setMaxPoleSpacing(120.0);
+        PowerLinePathLayout.layoutAndSync(footprint, IdentityCoordinateService.INSTANCE);
+
+        assertTrue(footprint.isClosedLoop());
+        assertTrue(
+            footprint.getPathPoints().size() >= 4,
+            "rectangle should place towers at all corners, not a 3-point chord");
+        assertCornerNear(footprint, 0, 0);
+        assertCornerNear(footprint, 100, 0);
+        assertCornerNear(footprint, 100, 50);
+        assertCornerNear(footprint, 0, 50);
+    }
+
+    @Test
+    void rectangleInsertsInteriorTowersOnLongEdges() {
+        RectangleShape rectangle = new RectangleShape(new Vec2d(0, 0), 100, 50, 0);
+        PowerLineFootprint footprint = PowerLinePathLayout.adopt(rectangle, IdentityCoordinateService.INSTANCE);
+        footprint.setMaxPoleSpacing(30.0);
+        PowerLinePathLayout.layoutAndSync(footprint, IdentityCoordinateService.INSTANCE);
+
+        assertTrue(footprint.getPathPoints().size() > 4);
+        assertCornerNear(footprint, 0, 0);
+        assertCornerNear(footprint, 100, 0);
     }
 
     @Test
@@ -83,6 +113,17 @@ class ClosedPathLayoutTest {
         assertTrue(
             result.conductorSpans.size() >= 3,
             "closed loop should generate spans including the closing segment");
+    }
+
+    private static void assertCornerNear(PowerLineFootprint footprint, double x, double y) {
+        boolean found = false;
+        for (Vec2d point : footprint.getPathPoints()) {
+            if (Math.hypot(point.x - x, point.y - y) < 1.0) {
+                found = true;
+                break;
+            }
+        }
+        assertTrue(found, "expected corner near (" + x + ", " + y + ")");
     }
 
     private static PowerLineGenerator createGenerator() {
