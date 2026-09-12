@@ -24,7 +24,7 @@ public final class TowerAdvancedParametersPanel {
             renderManualLegacyHeader(context);
             return;
         }
-        if (!draft.isParametricMode()) {
+        if (!draft.hasTowerStructure() || !draft.isParametricMode()) {
             return;
         }
 

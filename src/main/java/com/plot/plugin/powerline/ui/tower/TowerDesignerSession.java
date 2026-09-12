@@ -13,7 +13,6 @@ import com.plot.plugin.powerline.design.parametric.TowerLineBuildEnvelope;
 import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
 import com.plot.plugin.powerline.design.parametric.TowerParameterProfiles;
 import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
-import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.style.ParametricFootprintSync;
 import com.plot.plugin.powerline.ui.PowerLineUiContext;
@@ -37,7 +36,7 @@ public final class TowerDesignerSession {
     }
 
     public void refreshConstraints(PoleDesign draft) {
-        if (draft == null || !draft.isParametricMode()) {
+        if (draft == null || !draft.isParametricMode() || !draft.hasTowerStructure()) {
             lastConstraintResult = null;
             return;
         }
@@ -45,34 +44,39 @@ public final class TowerDesignerSession {
     }
 
     /**
-     * Legacy 分层 / 参数化塔体单选切换时同步结构，避免预览仍显示过期几何。
+     * Legacy 分层 / 参数化塔体单选切换时同步结构与预览状态。
+     * <p>
+     * Legacy：仅保留分层体素与 FREE 挂点；参数化配置可保留以便切回，但不会在此处 recompile。
+     * 参数化塔体：启用或恢复参数化生成，并从当前参数编译结构。
      */
     public void syncStructureMode(PoleDesign draft, boolean towerStructureMode) {
         if (draft == null) {
             return;
         }
         if (!towerStructureMode) {
+            TowerArmAttachmentBinding.releaseBoundAttachmentsForLegacyLayers(draft);
             draft.clearTowerStructure();
-            if (!draft.isParametricMode()) {
-                lastConstraintResult = null;
-            }
+            lastConstraintResult = null;
             return;
         }
-        if (draft.isParametricMode() && !draft.isManualLegacyMode()) {
-            lastConstraintResult = TowerParametricEditor.recompile(draft, resolveConstraintEnvelope());
-            if (!draft.hasTowerStructure()) {
-                String profileId = draft.getGeneratorConfig() != null
-                    ? draft.getGeneratorConfig().profileId()
-                    : TowerParameterProfiles.CLASSIC_DOUBLE_ARM_ID;
-                switchProfile(draft, profileId);
-            }
-            syncParametricConfigToSelectedLine(draft);
+        if (draft.isManualLegacyMode()) {
+            restoreParametric(draft);
             return;
         }
+        if (!draft.isParametricMode()) {
+            enableProfile(draft, TowerParameterProfiles.CLASSIC_DOUBLE_ARM_ID);
+            return;
+        }
+        lastConstraintResult = TowerParametricEditor.recompile(draft, resolveConstraintEnvelope());
         if (!draft.hasTowerStructure()) {
-            draft.setTowerStructure(TowerStructurePresets.taperedLatticeTower());
-            TowerArmAttachmentBinding.inferArmBindings(draft);
+            String profileId = draft.getGeneratorConfig() != null
+                ? draft.getGeneratorConfig().profileId()
+                : TowerParameterProfiles.CLASSIC_DOUBLE_ARM_ID;
+            switchProfile(draft, profileId);
+        } else {
+            TowerArmAttachmentBinding.ensureV2Bindings(draft);
         }
+        syncParametricConfigToSelectedLine(draft);
     }
 
     public void applyParametricChange(PoleDesign draft, UnaryOperator<TowerParameterSet> change) {

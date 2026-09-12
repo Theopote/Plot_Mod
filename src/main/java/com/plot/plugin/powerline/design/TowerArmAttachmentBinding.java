@@ -181,6 +181,29 @@ public final class TowerArmAttachmentBinding {
         design.removeAttachmentsByArmId(armId);
     }
 
+    /**
+     * 切到 Legacy 分层前：把 BOUND 挂点烘焙为 FREE 局部偏移，避免结构清空后预览/编辑错位。
+     */
+    public static void releaseBoundAttachmentsForLegacyLayers(PoleDesign design) {
+        if (design == null || design.getTowerStructure() == null) {
+            return;
+        }
+        TowerStructureDesign structure = design.getTowerStructure();
+        for (ConductorAttachment attachment : design.getAttachments()) {
+            if (!attachment.isBound()) {
+                continue;
+            }
+            ResolvedLocalOffsets resolved = resolveLocalOffsets(attachment, structure);
+            attachment.setLateralOffset(resolved.lateral());
+            attachment.setVerticalOffset(resolved.vertical());
+            attachment.setLongitudinalOffset(resolved.longitudinal());
+            attachment.setArmId(null);
+            attachment.setBindingMode(AttachmentBindingMode.FREE);
+            attachment.setNormalizedPosition(0.0);
+            attachment.setVerticalAnchorOffset(0.0);
+        }
+    }
+
     /** 按横担高度推断未绑定的挂点（打开设计器时补全 legacy 设计）。 */
     public static void inferArmBindings(PoleDesign design) {
         if (design == null || !design.hasTowerStructure()) {

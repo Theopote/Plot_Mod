@@ -28,13 +28,12 @@ public final class TowerBasicParametersPanel {
             return;
         }
 
-        if (!draft.hasTowerStructure() && !draft.isParametricMode()) {
+        if (!draft.hasTowerStructure()) {
             renderProfileForm(context, true);
             return;
         }
 
         if (!draft.isParametricMode()) {
-            renderProfileForm(context, true);
             return;
         }
 

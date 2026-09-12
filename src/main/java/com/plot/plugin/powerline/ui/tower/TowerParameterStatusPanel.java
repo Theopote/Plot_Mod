@@ -23,10 +23,10 @@ public final class TowerParameterStatusPanel {
 
     public void render(TowerDesignerContext context) {
         PoleDesign draft = context.draft();
-        if (!draft.isParametricMode() && !draft.isManualLegacyMode()) {
+        if (!draft.hasTowerStructure()) {
             return;
         }
-        if (!draft.hasTowerStructure() && !draft.isParametricMode()) {
+        if (!draft.isParametricMode() && !draft.isManualLegacyMode()) {
             return;
         }
 

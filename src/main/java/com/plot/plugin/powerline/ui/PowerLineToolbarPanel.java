@@ -28,14 +28,11 @@ public final class PowerLineToolbarPanel {
     }
 
     private void renderProjectHistoryToolbar() {
-        float glyphWidth = ImGui.calcTextSize(PlotI18n.tr("plugin.powerline.undo")).x
-            + ImGui.getStyle().getFramePaddingX() * 2f;
-
         boolean undoDisabled = !ctx.projectHistory().canUndo();
         if (undoDisabled) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.undo") + "##powerline_project_undo", glyphWidth, 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.undo") + "##powerline_project_undo", 0, 0)) {
             ctx.setProject(ctx.projectHistory().undo(ctx.project()));
             ctx.selection().retainExisting(ctx.project());
             ctx.setLineNameEditingId("");
@@ -53,7 +50,7 @@ public final class PowerLineToolbarPanel {
         if (redoDisabled) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.redo") + "##powerline_project_redo", glyphWidth, 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.redo") + "##powerline_project_redo", 0, 0)) {
             ctx.setProject(ctx.projectHistory().redo(ctx.project()));
             ctx.selection().retainExisting(ctx.project());
             ctx.setLineNameEditingId("");

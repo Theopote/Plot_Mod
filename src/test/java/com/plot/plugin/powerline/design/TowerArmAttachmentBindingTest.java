@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -58,6 +59,25 @@ class TowerArmAttachmentBindingTest {
             .count();
         assertTrue(bound >= 10, "most monster pylon conductors should bind to an arm deck");
         assertNotNull(grouped);
+    }
+
+    @Test
+    void releaseBoundAttachmentsForLegacyLayersBakesOffsetsAndUnbinds() {
+        TowerStructureDesign structure = new TowerStructureDesign();
+        structure.addArm(new TowerArm("arm_main", 40, 10));
+        TowerArm arm = structure.getArms().getFirst();
+        ConductorAttachment attachment = TowerArmAttachmentBinding.createThreePhaseDeck(arm).get(0);
+
+        PoleDesign design = new PoleDesign("legacy", "Legacy");
+        design.setTowerStructure(structure);
+        design.setAttachments(List.of(attachment));
+        ConductorAttachment stored = design.getAttachments().getFirst();
+
+        TowerArmAttachmentBinding.releaseBoundAttachmentsForLegacyLayers(design);
+
+        assertFalse(stored.isBound());
+        assertEquals(40.0, stored.getVerticalOffset(), 0.01);
+        assertEquals(-8.5, stored.getLateralOffset(), 0.01);
     }
 
     @Test
