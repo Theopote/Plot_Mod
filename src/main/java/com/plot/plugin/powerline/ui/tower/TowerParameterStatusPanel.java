@@ -94,6 +94,8 @@ public final class TowerParameterStatusPanel {
         if (errors > 0) {
             PowerLineUiWidgets.textColored(0xFFE57373, PlotI18n.tr(
                 "plugin.powerline.design.tower_status_errors_format", errors));
+            PowerLineUiWidgets.textColored(0xFFFFB74D, PlotI18n.tr(
+                "plugin.powerline.design.tower_preview_last_valid"));
             for (ConstraintIssue issue : result.issues()) {
                 if (issue.severity() == com.plot.plugin.powerline.design.parametric.ConstraintSeverity.ERROR) {
                     PowerLineUiWidgets.textColored(0xFFE57373, friendlyIssueMessage(issue, context));

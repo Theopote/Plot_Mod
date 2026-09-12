@@ -21,6 +21,7 @@ import com.plot.plugin.powerline.PowerLinePathUtils;
 import com.plot.plugin.powerline.PowerPoleLayoutUtils;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
+import com.plot.plugin.powerline.design.parametric.TowerParametricBuildPolicy;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerLineProject;
@@ -504,6 +505,12 @@ public final class PowerLineActions {
                 ProjectStatusSeverity.ERROR);
             return;
         }
+        if (hasParametricBuildBlocking(line)) {
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.build_blocked_parametric"),
+                ProjectStatusSeverity.ERROR);
+            return;
+        }
 
         PowerLineGenerationResult resultSnapshot;
         synchronized (projectLock) {
@@ -649,6 +656,18 @@ public final class PowerLineActions {
 
     public PoleDesignResolver designResolver() {
         return new PoleDesignResolver(state.getDesignProject());
+    }
+
+    public boolean hasParametricBuildBlocking(PowerLineFootprint line) {
+        net.minecraft.world.World world = getClientWorld();
+        TerrainSampler terrain = world != null
+            ? MinecraftTerrainSampler.of(world, host.coordinates())
+            : null;
+        return TowerParametricBuildPolicy.hasBlockingIssues(
+            line,
+            designResolver(),
+            terrain,
+            host.coordinates());
     }
 
     public void onProjectLoaded(String filePath, Path projectsDir, Path designProjectsDir) {

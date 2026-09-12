@@ -7,6 +7,7 @@ import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiHoveredFlags;
 
 /** 建造 Tab 操作按钮（预览 / 落地）。 */
 final class PowerLineBuildActions {
@@ -49,14 +50,21 @@ final class PowerLineBuildActions {
         PowerLineValidationReport engineering = line != null ? ctx.actions().cachedEngineeringReport(line) : null;
         PowerLineValidationReport terrain = line != null ? ctx.actions().cachedTerrainReport(line) : null;
         boolean blockingValidation = PowerLineBuildPolicy.hasBlockingIssues(line, engineering, terrain);
+        boolean parametricBlocked = ctx.actions().hasParametricBuildBlocking(line);
         boolean buildDisabled = !readiness.ready()
             || ctx.host().placement().isBusy()
             || !hasPreview
-            || blockingValidation;
+            || blockingValidation
+            || parametricBlocked;
         if (blockingValidation) {
             PowerLineUiWidgets.textColored(
                 PluginUiColors.ERROR_SOFT,
                 PlotI18n.tr("plugin.powerline.build_blocked_validation"));
+        }
+        if (parametricBlocked) {
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.ERROR_SOFT,
+                PlotI18n.tr("plugin.powerline.build_blocked_parametric"));
         }
         if (buildDisabled) {
             ImGui.beginDisabled();
@@ -68,6 +76,9 @@ final class PowerLineBuildActions {
         }
         if (buildDisabled) {
             ImGui.endDisabled();
+            if (parametricBlocked && ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+                ImGui.setTooltip(PlotI18n.tr("plugin.powerline.build_blocked_parametric_tooltip"));
+            }
         }
     }
 
@@ -83,6 +94,7 @@ final class PowerLineBuildActions {
             PowerLineValidationReport report = line != null ? ctx.actions().cachedEngineeringReport(line) : null;
             PowerLineValidationReport terrain = line != null ? ctx.actions().cachedTerrainReport(line) : null;
             boolean blockingValidation = PowerLineBuildPolicy.hasBlockingIssues(line, report, terrain);
+            boolean parametricBlocked = ctx.actions().hasParametricBuildBlocking(line);
             int errorCount = PowerLineBuildPolicy.blockingErrorCount(line, report, terrain);
             int warningCount = 0;
             if (line != null && line.isLineChecksEnabled() && report != null) {
@@ -97,11 +109,18 @@ final class PowerLineBuildActions {
                     PlotI18n.tr("plugin.powerline.build_blocked_validation"));
                 PowerLineStatusIcon.renderWarningLine(
                     PlotI18n.tr("plugin.powerline.build_confirm_errors", errorCount));
+            } else if (parametricBlocked) {
+                PowerLineUiWidgets.textColored(
+                    PluginUiColors.ERROR_SOFT,
+                    PlotI18n.tr("plugin.powerline.build_blocked_parametric"));
             } else if (warningCount > 0) {
                 PowerLineStatusIcon.renderWarningLine(
                     PlotI18n.tr("plugin.powerline.build_confirm_warnings", warningCount));
             }
-            boolean canBuild = result != null && ctx.requestBuildConfirm(line) && !blockingValidation;
+            boolean canBuild = result != null
+                && ctx.requestBuildConfirm(line)
+                && !blockingValidation
+                && !parametricBlocked;
             if (!canBuild) {
                 ImGui.beginDisabled();
             }

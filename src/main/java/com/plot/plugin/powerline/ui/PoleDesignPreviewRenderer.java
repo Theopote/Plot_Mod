@@ -45,14 +45,28 @@ public final class PoleDesignPreviewRenderer {
      * 设计器左栏：预览框占满剩余高度，正视/侧视均分框内空间，不出现内部滚动条。
      */
     public static void renderVerticalStack(PoleDesign design, float width, float columnHeight) {
+        renderVerticalStack(design, width, columnHeight, false);
+    }
+
+    public static void renderVerticalStack(
+            PoleDesign design,
+            float width,
+            float columnHeight,
+            boolean previewShowsLastValidStructure) {
         if (width < 40f || design == null || columnHeight < MIN_COLUMN_HEIGHT) {
             return;
         }
 
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.preview"));
+        if (previewShowsLastValidStructure) {
+            PowerLineUiWidgets.textColored(
+                0xFFFFB74D,
+                PlotI18n.tr("plugin.powerline.design.tower_preview_last_valid"));
+        }
         float titleHeight = ImGui.getTextLineHeightWithSpacing();
+        float noticeHeight = previewShowsLastValidStructure ? ImGui.getTextLineHeightWithSpacing() : 0f;
         float footerHeight = ImGui.getTextLineHeightWithSpacing();
-        float viewportHeight = Math.max(0f, columnHeight - titleHeight - footerHeight);
+        float viewportHeight = Math.max(0f, columnHeight - titleHeight - noticeHeight - footerHeight);
         if (viewportHeight < 1f) {
             PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.total_height", design.totalHeight()));
             return;

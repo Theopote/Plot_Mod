@@ -18,6 +18,7 @@ import com.plot.plugin.powerline.ui.tower.TowerDesignerSession;
 import com.plot.plugin.powerline.ui.tower.TowerDesignerUiState;
 import com.plot.plugin.powerline.ui.tower.TowerManualStructurePanel;
 import com.plot.plugin.powerline.ui.tower.TowerParameterStatusPanel;
+import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
@@ -100,6 +101,7 @@ public final class PoleDesignerPanel {
         if (source != null) {
             draft = source.copy();
             ctx.state().setPoleDesignerEditingId(source.getId());
+            applyLineParametricOverride(source.getId());
         } else {
             draft = newBlankDesign();
             ctx.state().setPoleDesignerEditingId("");
@@ -264,7 +266,8 @@ public final class PoleDesignerPanel {
             PoleDesignPreviewRenderer.renderVerticalStack(
                 draft,
                 ImGui.getContentRegionAvail().x,
-                ImGui.getContentRegionAvail().y);
+                ImGui.getContentRegionAvail().y,
+                towerSession.previewShowsLastValidStructure());
         }
         ImGui.endChild();
 
@@ -465,6 +468,44 @@ public final class PoleDesignerPanel {
         }
 
         towerManualPanel.renderIfVisible(towerContext, ignored -> renderManualStructureBody());
+    }
+
+    private void applyLineParametricOverride(String designId) {
+        PowerLineFootprint line = ctx.selection().primary(ctx.project());
+        if (line == null || !line.hasParametricTowerConfig()) {
+            return;
+        }
+        TowerGeneratorConfig lineConfig = line.getParametricTowerConfig();
+        if (lineConfig == null || !targetsLineParametricOverride(line, designId, lineConfig)) {
+            return;
+        }
+        TowerGeneratorConfig draftConfig = draft.getGeneratorConfig();
+        if (draftConfig != null && draft.isParametricMode()
+                && draftConfig.profileId().equals(lineConfig.profileId())) {
+            draft.setGeneratorConfig(draftConfig.withParameters(lineConfig.parameters()));
+        } else if (lineConfig.isParametric()) {
+            draft.setGeneratorConfig(lineConfig.copy());
+        }
+        if (draft.isParametricMode()) {
+            towerSession.refreshConstraints(draft);
+        }
+    }
+
+    private boolean targetsLineParametricOverride(
+            PowerLineFootprint line,
+            String designId,
+            TowerGeneratorConfig lineConfig) {
+        if (line.hasPoleDesign() && designId != null && designId.equals(line.getPoleDesignId())) {
+            return true;
+        }
+        if (!line.hasTowerFamily()) {
+            return false;
+        }
+        TowerGeneratorConfig draftConfig = draft.getGeneratorConfig();
+        if (draftConfig != null && draft.isParametricMode()) {
+            return lineConfig.profileId().equals(draftConfig.profileId());
+        }
+        return lineConfig.isParametric();
     }
 
     private void renderManualStructureBody() {

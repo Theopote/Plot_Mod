@@ -93,9 +93,14 @@ public final class TowerDesignerSession {
 
     public void syncParametricConfigToSelectedLine(PoleDesign draft) {
         PowerLineFootprint line = ctx.selection().primary(ctx.project());
-        if (ParametricFootprintSync.syncFromDesign(line, draft)) {
+        String editingId = ctx.state().getPoleDesignerEditingId();
+        if (ParametricFootprintSync.syncFromDesign(line, draft, editingId)) {
             ctx.invalidatePreview();
         }
+    }
+
+    public boolean previewShowsLastValidStructure() {
+        return lastConstraintResult != null && lastConstraintResult.hasErrors();
     }
 
     public void onConvertToManual(PoleDesign draft) {
