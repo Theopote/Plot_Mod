@@ -122,6 +122,7 @@ public class PowerLineGenerator {
                     outgoing,
                     footprint,
                     result,
+                    coordinateTransformer,
                     projectionHandler);
             }
         }

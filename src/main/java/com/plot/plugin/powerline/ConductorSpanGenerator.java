@@ -52,6 +52,7 @@ public final class ConductorSpanGenerator {
             footprint,
             terrain,
             result,
+            coordinateTransformer,
             projectionHandler);
     }
 
@@ -65,6 +66,7 @@ public final class ConductorSpanGenerator {
             PowerLineFootprint footprint,
             TerrainSampler terrain,
             PowerLineGenerationResult result,
+            ICoordinateService coordinateTransformer,
             IBlockProjectionService projectionHandler) {
         Map<String, ResolvedAttachment> startById = indexById(start.attachments());
         Map<String, ResolvedAttachment> endById = indexById(end.attachments());
@@ -97,6 +99,7 @@ public final class ConductorSpanGenerator {
                 footprint,
                 terrain,
                 result,
+                coordinateTransformer,
                 projectionHandler);
         }
 
@@ -133,8 +136,9 @@ public final class ConductorSpanGenerator {
             PowerLineFootprint footprint,
             TerrainSampler terrain,
             PowerLineGenerationResult result,
+            ICoordinateService coordinateTransformer,
             IBlockProjectionService projectionHandler) {
-        double spanLength = start.planPoint().distance(end.planPoint());
+        double spanLength = spanLengthBlocks(start, end, coordinateTransformer);
         if (spanLength < 1e-6) {
             return;
         }
@@ -203,6 +207,18 @@ public final class ConductorSpanGenerator {
         BundleVisual startVisual = start.bundleVisual() != null ? start.bundleVisual() : BundleVisual.SINGLE;
         BundleVisual endVisual = end.bundleVisual() != null ? end.bundleVisual() : BundleVisual.SINGLE;
         return startVisual == endVisual ? startVisual : BundleVisual.SINGLE;
+    }
+
+    private static double spanLengthBlocks(
+            ResolvedAttachment start,
+            ResolvedAttachment end,
+            ICoordinateService coordinateTransformer) {
+        if (coordinateTransformer != null) {
+            return coordinateTransformer.projectedDistance(start.planPoint(), end.planPoint());
+        }
+        double dx = end.worldX() - start.worldX();
+        double dz = end.worldZ() - start.worldZ();
+        return Math.sqrt(dx * dx + dz * dz);
     }
 
     private static double lerp(double a, double b, double t) {

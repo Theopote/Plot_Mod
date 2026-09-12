@@ -29,6 +29,7 @@ class ConductorSpanGeneratorBundleVisualTest {
             footprint,
             null,
             singleResult,
+            null,
             null);
 
         PowerLineGenerationResult twinResult = new PowerLineGenerationResult(footprint);
@@ -42,6 +43,7 @@ class ConductorSpanGeneratorBundleVisualTest {
             footprint,
             null,
             twinResult,
+            null,
             null);
 
         long singleBlocks = singleResult.placementRecords.size();

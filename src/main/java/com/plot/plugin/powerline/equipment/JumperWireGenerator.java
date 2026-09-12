@@ -2,6 +2,7 @@ package com.plot.plugin.powerline.equipment;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
+import com.plot.api.world.ICoordinateService;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
@@ -33,6 +34,7 @@ public final class JumperWireGenerator {
             Vec2d outgoingDirection,
             PowerLineFootprint footprint,
             PowerLineGenerationResult result,
+            ICoordinateService coordinateTransformer,
             IBlockProjectionService projectionHandler) {
         if (placement == null
                 || footprint == null
@@ -62,6 +64,7 @@ public final class JumperWireGenerator {
                 outgoing,
                 footprint,
                 result,
+                coordinateTransformer,
                 projectionHandler);
         }
     }
@@ -72,13 +75,14 @@ public final class JumperWireGenerator {
             Vec2d outgoing,
             PowerLineFootprint footprint,
             PowerLineGenerationResult result,
+            ICoordinateService coordinateTransformer,
             IBlockProjectionService projectionHandler) {
         Vec2d planStart = attachment.planPoint().add(incoming.multiply(-JUMPER_ARM_LENGTH));
         Vec2d planEnd = attachment.planPoint().add(outgoing.multiply(JUMPER_ARM_LENGTH));
         double wireY = attachment.conductorWorldY();
         double sagRatio = footprint.getSagRatio() * 0.5;
 
-        double spanLength = planStart.distance(planEnd);
+        double spanLength = spanLengthBlocks(planStart, planEnd, coordinateTransformer);
         if (spanLength < 1e-6) {
             return;
         }
@@ -93,17 +97,21 @@ public final class JumperWireGenerator {
 
         MaterialMix wireMaterial = ConductorMaterialPolicy.materialFor(attachment.role(), footprint);
         Set<BlockPos> wireBlocks = new LinkedHashSet<>();
+        double[] worldStart = planToWorldXz(planStart, coordinateTransformer);
+        double[] worldEnd = planToWorldXz(planEnd, coordinateTransformer);
 
         for (int i = 0; i < segmentCount; i++) {
             double t0 = (double) i / segmentCount;
             double t1 = (double) (i + 1) / segmentCount;
-            Vec2d xz0 = planStart.lerp(planEnd, t0);
-            Vec2d xz1 = planStart.lerp(planEnd, t1);
+            double x0 = lerp(worldStart[0], worldEnd[0], t0);
+            double z0 = lerp(worldStart[1], worldEnd[1], t0);
+            double x1 = lerp(worldStart[0], worldEnd[0], t1);
+            double z1 = lerp(worldStart[1], worldEnd[1], t1);
             double y0 = wireY - sagDepthAt(t0, sagDepth);
             double y1 = wireY - sagDepthAt(t1, sagDepth);
             wireBlocks.addAll(PowerLineWireRasterizer.rasterizeLine3D(
-                xz0.x, y0, xz0.y,
-                xz1.x, y1, xz1.y));
+                x0, y0, z0,
+                x1, y1, z1));
         }
 
         for (BlockPos pos : wireBlocks) {
@@ -116,6 +124,33 @@ public final class JumperWireGenerator {
         return role == TowerRole.ANGLE
             || role == TowerRole.TERMINAL
             || role == TowerRole.DEAD_END;
+    }
+
+    private static double spanLengthBlocks(
+            Vec2d planStart,
+            Vec2d planEnd,
+            ICoordinateService coordinateTransformer) {
+        if (coordinateTransformer != null) {
+            return coordinateTransformer.projectedDistance(planStart, planEnd);
+        }
+        return planStart.distance(planEnd);
+    }
+
+    private static double[] planToWorldXz(Vec2d planPoint, ICoordinateService coordinateTransformer) {
+        if (planPoint == null) {
+            return new double[] {0.0, 0.0};
+        }
+        if (coordinateTransformer != null) {
+            Vec2d worldPos = coordinateTransformer.canvasToMinecraftWorld(planPoint);
+            if (worldPos != null) {
+                return new double[] {worldPos.x, worldPos.y};
+            }
+        }
+        return new double[] {planPoint.x, planPoint.y};
+    }
+
+    private static double lerp(double a, double b, double t) {
+        return a + (b - a) * t;
     }
 
     private static double sagDepthAt(double t, double sagDepth) {
