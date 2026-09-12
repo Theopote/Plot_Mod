@@ -17,38 +17,50 @@ final class PowerLineBuildActions {
         this.ctx = ctx;
     }
 
-    void render(PowerLineFootprint line) {
-        float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
+    void renderPreviewActions(PowerLineFootprint line) {
         ctx.syncPreviewValidity(line);
-
-        com.plot.api.world.PlacementReadiness readiness =
-            ctx.host().projection().checkWorldModificationReadiness();
         boolean hasPreview = ctx.hasValidPreview(line);
+        String previewLabel = hasPreview
+            ? PlotI18n.tr("plugin.powerline.build.refresh_preview")
+            : PlotI18n.tr("plugin.powerline.build.generate_preview");
 
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.calc_preview"), half, 0)) {
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float clearWidth = ImGui.calcTextSize(PlotI18n.tr("plugin.powerline.clear_preview")).x
+            + ImGui.getStyle().getFramePaddingX() * 2f
+            + 8f;
+        float refreshWidth = Math.max(120f, ImGui.getContentRegionAvailX() - clearWidth - spacing);
+
+        if (ImGui.button(previewLabel + "##build_preview", refreshWidth, 0)) {
             ctx.calculatePreview(line);
         }
-        ImGui.sameLine();
+        ImGui.sameLine(0f, spacing);
         if (!hasPreview) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.clear_preview"), half, 0)) {
+        if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.clear_preview") + "##build_clear_preview")) {
             ctx.clearPreview();
         }
         if (!hasPreview) {
             ImGui.endDisabled();
         }
 
+        if (ctx.lastGenerationResult() != null && !hasPreview) {
+            PowerLineStatusIcon.renderWarningLine(PlotI18n.tr("plugin.powerline.preview_stale"));
+        }
+    }
+
+    void renderBuildAction(PowerLineFootprint line) {
+        ctx.syncPreviewValidity(line);
+        com.plot.api.world.PlacementReadiness readiness =
+            ctx.host().projection().checkWorldModificationReadiness();
+        boolean hasPreview = ctx.hasValidPreview(line);
+
         if (!readiness.ready()) {
             PowerLineUiWidgets.textColored(PluginUiColors.ERROR_SOFT, readiness.message());
         }
 
-        if (ctx.lastGenerationResult() != null && !hasPreview) {
-            PowerLineStatusIcon.renderWarningLine(PlotI18n.tr("plugin.powerline.preview_stale"));
-        }
-
-        PowerLineValidationReport engineering = line != null ? ctx.actions().cachedEngineeringReport(line) : null;
-        PowerLineValidationReport terrain = line != null ? ctx.actions().cachedTerrainReport(line) : null;
+        PowerLineValidationReport engineering = ctx.actions().cachedEngineeringReport(line);
+        PowerLineValidationReport terrain = ctx.actions().cachedTerrainReport(line);
         boolean blockingValidation = PowerLineBuildPolicy.hasBlockingIssues(line, engineering, terrain);
         boolean parametricBlocked = ctx.actions().hasParametricBuildBlocking(line);
         boolean buildDisabled = !readiness.ready()

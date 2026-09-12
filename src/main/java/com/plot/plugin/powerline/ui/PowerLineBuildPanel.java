@@ -34,65 +34,59 @@ public final class PowerLineBuildPanel {
             return;
         }
 
-        PowerLineUiWidgets.renderLineSelector(ctx);
-        renderRouteProjection(line);
-        renderPreviewSummary(line);
+        renderCurrentLineHeader();
+        ImGui.spacing();
+        buildActions.renderPreviewActions(line);
+        renderCompactPreviewSummary(line);
         renderFriendlyStatus(line);
         validationPanel.renderSmartFixSection(line);
         ImGui.separator();
-        buildActions.render(line);
+        buildActions.renderBuildAction(line);
         renderAdvancedChecks(line);
     }
 
-    private void renderRouteProjection(PowerLineFootprint line) {
-        double worldLength = line.computeWorldPathLength(ctx.coordinates());
-        boolean hasPreview = ctx.hasValidPreview(line);
-        PowerLineGenerationResult result = hasPreview ? ctx.lastGenerationResult() : null;
-        int poleCount = result != null
-            ? result.poleCount
-            : line.estimatePoleCount(ctx.coordinates());
-        double typicalSpan = typicalSpanBlocks(worldLength, poleCount, line.getMaxPoleSpacing());
-
-        PowerLineUiWidgets.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.powerline.build.route_length", formatBlocks(worldLength)));
-        String poleKey = hasPreview
-            ? "plugin.powerline.build.route_poles_preview"
-            : "plugin.powerline.build.route_poles_estimate";
-        PowerLineUiWidgets.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr(poleKey, poleCount, formatBlocks(typicalSpan)));
-    }
-
-    private static double typicalSpanBlocks(double worldLength, int poleCount, double maxPoleSpacing) {
-        if (poleCount > 1 && worldLength > 0.0) {
-            return worldLength / (poleCount - 1);
+    private void renderCurrentLineHeader() {
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.current_line"));
+        ImGui.sameLine();
+        float width = ImGui.getContentRegionAvail().x;
+        if (width > 0f) {
+            ImGui.setNextItemWidth(width);
         }
-        return maxPoleSpacing;
+        PowerLineUiWidgets.renderLineSelector(ctx);
     }
 
-    private static String formatBlocks(double blocks) {
-        return String.format("%.0f", blocks);
-    }
-
-    private void renderPreviewSummary(PowerLineFootprint line) {
+    private void renderCompactPreviewSummary(PowerLineFootprint line) {
         ctx.syncPreviewValidity(line);
         PowerLineGenerationResult result = ctx.hasValidPreview(line) ? ctx.lastGenerationResult() : null;
-        ImGui.separator();
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.build.summary"));
+        ImGui.spacing();
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.build.preview_section"));
+
         if (result == null) {
-            PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.no_preview"));
+            double worldLength = line.computeWorldPathLength(ctx.coordinates());
+            int poleEstimate = line.estimatePoleCount(ctx.coordinates());
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr(
+                    "plugin.powerline.build.compact_summary_estimate",
+                    poleEstimate,
+                    formatBlocks(worldLength)));
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.build.no_preview"));
             return;
         }
 
+        double worldLength = line.computeWorldPathLength(ctx.coordinates());
+        PowerLineUiWidgets.text(PlotI18n.tr(
+            "plugin.powerline.build.compact_summary",
+            result.poleCount,
+            formatBlocks(worldLength),
+            formatBlockCount(result.blockCount())));
+        renderStyleLine(line);
+    }
+
+    private void renderStyleLine(PowerLineFootprint line) {
         PowerLineStylePreset basePreset = PowerLineStyleEditor.basePreset(line);
-        if (basePreset != null) {
-            PowerLineStyleCardRenderer.renderCompactStylePreview(line, basePreset, ctx.designResolver());
-        } else {
-            PowerLineStyleCardRenderer.renderCompactCustomStylePreview();
-        }
-        ImGui.sameLine();
-        ImGui.beginGroup();
         if (basePreset != null) {
             String styleLabel = PlotI18n.tr(basePreset.getLabelKey());
             if (PowerLineStyleEditor.isModified(line)) {
@@ -102,22 +96,16 @@ public final class PowerLineBuildPanel {
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.build.style_preset", styleLabel));
-        } else {
-            PowerLineUiWidgets.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.powerline.build.style_custom"));
+            return;
         }
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.pole_count_result", result.poleCount));
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.wire_length_result", String.format("%.1f", result.wireLength)));
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.block_count_result", result.blockCount()));
-        PowerLineUiWidgets.text(PlotI18n.tr(
-            "plugin.powerline.build.conductor_count",
-            PowerLineQuickTunePolicy.conductorCount(line, basePreset)));
-        ImGui.endGroup();
+        PowerLineUiWidgets.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.powerline.build.style_custom"));
     }
 
     private void renderFriendlyStatus(PowerLineFootprint line) {
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.build.status_section"));
+        ImGui.spacing();
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.build.status_section_title"));
         renderSpacingStatus(line);
         renderCornerStatus(line);
 
@@ -127,7 +115,6 @@ public final class PowerLineBuildPanel {
         }
 
         if (!ctx.hasValidPreview(line)) {
-            PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.no_preview"));
             return;
         }
 
@@ -177,10 +164,6 @@ public final class PowerLineBuildPanel {
     }
 
     private void renderTerrainStatus(PowerLineFootprint line) {
-        if (!ctx.hasValidPreview(line)) {
-            PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.no_preview"));
-            return;
-        }
         PowerLineValidationReport report = ctx.actions().cachedTerrainReport(line);
         if (report == null || !PowerLineFriendlyStatus.hasTerrainIssues(report)) {
             PowerLineStatusIcon.renderOkLine(PlotI18n.tr("plugin.powerline.build.status.terrain_ok"));
@@ -236,20 +219,38 @@ public final class PowerLineBuildPanel {
         ImGui.spacing();
         ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.powerline.build.advanced_checks"), ImGuiTreeNodeFlags.None)) {
+            renderAdvancedPreviewMetrics(line);
             renderAdvancedPreviewDetails(line);
             validationPanel.renderAdvancedChecksSection(line);
         }
     }
 
-    private void renderAdvancedPreviewDetails(PowerLineFootprint line) {
+    private void renderAdvancedPreviewMetrics(PowerLineFootprint line) {
         PowerLineGenerationResult result = ctx.hasValidPreview(line) ? ctx.lastGenerationResult() : null;
         if (result == null) {
             PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.no_preview"));
             return;
         }
-        if (result.warnings.isEmpty()) {
+        PowerLineStylePreset basePreset = PowerLineStyleEditor.basePreset(line);
+        double worldLength = line.computeWorldPathLength(ctx.coordinates());
+        double typicalSpan = typicalSpanBlocks(worldLength, result.poleCount, line.getMaxPoleSpacing());
+        PowerLineUiWidgets.text(PlotI18n.tr(
+            "plugin.powerline.wire_length_result",
+            String.format("%.1f", result.wireLength)));
+        PowerLineUiWidgets.text(PlotI18n.tr(
+            "plugin.powerline.build.conductor_count",
+            PowerLineQuickTunePolicy.conductorCount(line, basePreset)));
+        PowerLineUiWidgets.text(PlotI18n.tr(
+            "plugin.powerline.build.detail_typical_span",
+            formatBlocks(typicalSpan)));
+    }
+
+    private void renderAdvancedPreviewDetails(PowerLineFootprint line) {
+        PowerLineGenerationResult result = ctx.hasValidPreview(line) ? ctx.lastGenerationResult() : null;
+        if (result == null || result.warnings.isEmpty()) {
             return;
         }
+        ImGui.separator();
         PowerLineStatusIcon.renderWarningLine(PlotI18n.tr(
             "plugin.powerline.clearance_warnings",
             result.warnings.size()));
@@ -258,7 +259,21 @@ public final class PowerLineBuildPanel {
             PowerLineUiWidgets.text(PowerLineGenerationI18n.localize(warning));
         }
         ImGui.endChild();
-        ImGui.separator();
+    }
+
+    private static double typicalSpanBlocks(double worldLength, int poleCount, double maxPoleSpacing) {
+        if (poleCount > 1 && worldLength > 0.0) {
+            return worldLength / (poleCount - 1);
+        }
+        return maxPoleSpacing;
+    }
+
+    private static String formatBlocks(double blocks) {
+        return String.format("%.0f", blocks);
+    }
+
+    private static String formatBlockCount(int blocks) {
+        return String.format("%d", blocks);
     }
 
     public void renderBuildConfirmPopup() {
