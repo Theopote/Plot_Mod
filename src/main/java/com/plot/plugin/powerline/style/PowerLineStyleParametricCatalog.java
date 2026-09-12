@@ -57,6 +57,9 @@ public final class PowerLineStyleParametricCatalog {
                 || PoleDesignCatalog.TAPERED_LATTICE_TOWER_ID.equals(poleDesignId)) {
             return TowerGeneratorConfig.parametricSmallLattice(TowerParameterSet.smallLatticeDefaults());
         }
+        if (PoleDesignCatalog.HEAVY_LATTICE_TOWER_ID.equals(poleDesignId)) {
+            return TowerGeneratorConfig.parametricHeavy(TowerParameterSet.heavyDefaults());
+        }
         return null;
     }
 

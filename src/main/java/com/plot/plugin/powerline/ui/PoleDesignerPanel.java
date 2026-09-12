@@ -109,6 +109,7 @@ public final class PoleDesignerPanel {
             draft = newBlankDesign();
             ctx.state().setPoleDesignerEditingId("");
         }
+        showAdvancedStructure.set(draft.isManualLegacyMode());
         designNameBuffer.set(draft.getName());
         ctx.state().getDesignDraftHistory().clear();
         captureOpenedBaseline();
@@ -527,6 +528,18 @@ public final class PoleDesignerPanel {
     private void renderParametricSection() {
         if (!draft.hasTowerStructure() && !draft.isParametricMode()) {
             renderParametricEnableButtons(true);
+            return;
+        }
+
+        if (draft.isManualLegacyMode()) {
+            if (ImGui.button(PlotI18n.tr("plugin.powerline.design.parametric_restore"), 0, 0)) {
+                pushDraftSnapshot();
+                TowerBuildEnvelope envelope = TowerBuildEnvelopeResolver.tryFromClientPlayer().orElse(null);
+                if (TowerParametricEditor.restoreParametric(draft, envelope)) {
+                    showAdvancedStructure.set(false);
+                }
+            }
+            ImGui.separator();
             return;
         }
 
@@ -1594,6 +1607,7 @@ public final class PoleDesignerPanel {
             saved.setAttachments(draft.getAttachments());
             saved.setTowerStructure(draft.getTowerStructure());
             saved.setEngineeringMetadata(draft.getEngineeringMetadata());
+            saved.setGeneratorConfig(draft.getGeneratorConfig());
             ctx.actions().savePoleDesign(saved);
             ctx.state().setPoleDesignerEditingId(saved.getId());
             draft = saved.copy();

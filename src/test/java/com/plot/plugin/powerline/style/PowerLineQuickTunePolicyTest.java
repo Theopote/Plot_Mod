@@ -48,12 +48,25 @@ class PowerLineQuickTunePolicyTest {
     }
 
     @Test
-    void towerFamilySkipsShapeQuickTune() {
+    void parametricTowerFamilySupportsShapeQuickTune() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
-        PowerLineStylePresetCatalog.classicLattice().apply(line);
+        PowerLineStylePreset preset = PowerLineStylePresetCatalog.classicLattice();
+        preset.apply(line);
 
-        assertFalse(PowerLineQuickTunePolicy.supportsPoleHeightTune(line));
-        assertFalse(PowerLineQuickTunePolicy.supportsCrossarmTune(line, null));
+        assertTrue(PowerLineQuickTunePolicy.supportsPoleHeightTune(line));
+        assertTrue(PowerLineQuickTunePolicy.supportsCrossarmTune(line, null));
+        assertEquals(
+            PowerLineQuickTunePolicy.PoleHeightBand.MEDIUM,
+            PowerLineQuickTunePolicy.detectPoleHeightBand(line, preset, null));
+
+        PowerLineQuickTunePolicy.applyParametricPoleHeightBand(
+            line,
+            preset,
+            PowerLineQuickTunePolicy.PoleHeightBand.TALL);
+        assertTrue(line.getParametricTowerConfig().parameters().height()
+            > preset.getDefinition().getParametricConfig().parameters().height());
+        PowerLineStyleEditor.afterStyleEdit(line);
+        assertTrue(PowerLineStyleEditor.isModified(line));
     }
 
     @Test

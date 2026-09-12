@@ -2,6 +2,7 @@ package com.plot.plugin.powerline.design.parametric;
 
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.structure.TowerSilhouette;
+import com.plot.plugin.powerline.design.parametric.TowerGeneratorMode;
 import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import org.junit.jupiter.api.Test;
 
@@ -54,13 +55,24 @@ class TowerParametricEditorTest {
     }
 
     @Test
-    void convertToManualClearsGeneratorConfig() {
+    void convertToManualPreservesStructureAndMarksManualLegacy() {
         PoleDesign design = new PoleDesign("manual", "Manual");
         TowerParametricEditor.enableParametricClassic(design, TowerParameterSet.classicDefaults());
         TowerParametricEditor.convertToManual(design);
-        assertNull(design.getGeneratorConfig());
         assertFalse(design.isParametricMode());
+        assertTrue(design.isManualLegacyMode());
+        assertEquals(TowerGeneratorMode.MANUAL_LEGACY, design.getGeneratorConfig().mode());
         assertNotNull(design.getTowerStructure());
+    }
+
+    @Test
+    void restoreParametricReEnablesGeneratorMode() {
+        PoleDesign design = new PoleDesign("restore", "Restore");
+        TowerParametricEditor.enableParametricClassic(design, TowerParameterSet.classicDefaults());
+        TowerParametricEditor.convertToManual(design);
+        assertTrue(TowerParametricEditor.restoreParametric(design, null));
+        assertTrue(design.isParametricMode());
+        assertFalse(design.isManualLegacyMode());
     }
 
     @Test

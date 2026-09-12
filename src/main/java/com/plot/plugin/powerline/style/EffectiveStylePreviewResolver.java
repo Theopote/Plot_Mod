@@ -46,6 +46,13 @@ public final class EffectiveStylePreviewResolver {
             PowerLineFootprint line,
             PowerLineStylePreset base,
             PoleDesignResolver resolver) {
+        if (line.hasParametricTowerConfig()) {
+            PoleDesign parametric = PowerLineStyleParametricCatalog.compileRepresentative(
+                line.getParametricTowerConfig());
+            if (parametric != null) {
+                return parametric;
+            }
+        }
         if (line.hasPoleDesign()) {
             PoleDesign fromLine = findDesign(line.getPoleDesignId(), resolver);
             if (fromLine != null) {

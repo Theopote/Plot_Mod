@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.style;
 
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 
 /**
  * 相对 base {@link PowerLineStyleDefinition} 的用户覆盖；
@@ -18,6 +19,7 @@ public class StyleOverrides {
     private Double recommendedMinSpacing;
     private String poleDesignId;
     private String towerFamilyId;
+    private TowerGeneratorConfig parametricTowerConfig;
 
     public Double getSagRatio() {
         return sagRatio;
@@ -91,6 +93,14 @@ public class StyleOverrides {
         this.towerFamilyId = blankToNull(towerFamilyId);
     }
 
+    public TowerGeneratorConfig getParametricTowerConfig() {
+        return parametricTowerConfig != null ? parametricTowerConfig.copy() : null;
+    }
+
+    public void setParametricTowerConfig(TowerGeneratorConfig parametricTowerConfig) {
+        this.parametricTowerConfig = parametricTowerConfig != null ? parametricTowerConfig.copy() : null;
+    }
+
     public boolean isEmpty() {
         return sagRatio == null
             && maxSagDepth == null
@@ -100,7 +110,8 @@ public class StyleOverrides {
             && preferredSpacing == null
             && recommendedMinSpacing == null
             && poleDesignId == null
-            && towerFamilyId == null;
+            && towerFamilyId == null
+            && parametricTowerConfig == null;
     }
 
     public int overrideCount() {
@@ -113,6 +124,7 @@ public class StyleOverrides {
         if (preferredSpacing != null || recommendedMinSpacing != null) count++;
         if (poleDesignId != null) count++;
         if (towerFamilyId != null) count++;
+        if (parametricTowerConfig != null) count++;
         return count;
     }
 
@@ -126,6 +138,7 @@ public class StyleOverrides {
         recommendedMinSpacing = null;
         poleDesignId = null;
         towerFamilyId = null;
+        parametricTowerConfig = null;
     }
 
     public StyleOverrides copy() {
@@ -139,6 +152,7 @@ public class StyleOverrides {
         copy.recommendedMinSpacing = recommendedMinSpacing;
         copy.poleDesignId = poleDesignId;
         copy.towerFamilyId = towerFamilyId;
+        copy.parametricTowerConfig = parametricTowerConfig != null ? parametricTowerConfig.copy() : null;
         return copy;
     }
 

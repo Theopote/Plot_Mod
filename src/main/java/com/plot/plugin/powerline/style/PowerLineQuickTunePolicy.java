@@ -4,6 +4,10 @@ import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.PoleLayer;
+import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
+import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
+import com.plot.plugin.powerline.design.parametric.TowerParameterProfile;
+import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 
 /** Quick Tune 数值策略（相对 base preset 默认杆塔几何）。 */
@@ -52,7 +56,14 @@ public final class PowerLineQuickTunePolicy {
         return supportsPoleHeightTune(line, null);
     }
 
+    public static boolean supportsParametricTune(PowerLineFootprint line) {
+        return line != null && line.hasParametricTowerConfig();
+    }
+
     public static boolean supportsPoleHeightTune(PowerLineFootprint line, PoleDesignResolver resolver) {
+        if (supportsParametricTune(line)) {
+            return true;
+        }
         if (line == null || line.hasTowerFamily()) {
             return false;
         }
@@ -64,6 +75,9 @@ public final class PowerLineQuickTunePolicy {
     }
 
     public static boolean supportsCrossarmTune(PowerLineFootprint line, PoleDesignResolver resolver) {
+        if (supportsParametricTune(line)) {
+            return true;
+        }
         if (line == null || line.hasTowerFamily()) {
             return false;
         }
@@ -77,6 +91,9 @@ public final class PowerLineQuickTunePolicy {
             PoleDesignResolver resolver) {
         if (!supportsPoleHeightTune(line, resolver)) {
             return null;
+        }
+        if (supportsParametricTune(line)) {
+            return detectParametricHeightBand(line, base);
         }
         if (!line.hasPoleDesign()) {
             return detectLegacyPoleHeightBand(line.getPoleHeight());
@@ -99,6 +116,9 @@ public final class PowerLineQuickTunePolicy {
             PoleDesignResolver resolver) {
         if (!supportsCrossarmTune(line, resolver)) {
             return null;
+        }
+        if (supportsParametricTune(line)) {
+            return detectParametricCrossarmBand(line, base);
         }
         PoleDesign design = resolveDesign(line, resolver);
         if (design == null) {
@@ -155,6 +175,40 @@ public final class PowerLineQuickTunePolicy {
             case MEDIUM -> LEGACY_POLE_HEIGHT_MEDIUM;
             case TALL -> LEGACY_POLE_HEIGHT_TALL;
         });
+    }
+
+    public static void applyParametricPoleHeightBand(
+            PowerLineFootprint line,
+            PowerLineStylePreset base,
+            PoleHeightBand band) {
+        if (line == null || band == null || !supportsParametricTune(line)) {
+            return;
+        }
+        TowerGeneratorConfig config = line.getParametricTowerConfig();
+        TowerParameterSet baseline = baselineParametricParameters(base, config);
+        TowerParameterProfile profile = resolveProfile(config);
+        if (profile == null || baseline == null) {
+            return;
+        }
+        double target = profile.heightRange().clamp(baseline.height() * band.scale());
+        line.setParametricTowerConfig(config.withParameters(replaceHeight(config.parameters(), target)));
+    }
+
+    public static void applyParametricCrossarmBand(
+            PowerLineFootprint line,
+            PowerLineStylePreset base,
+            CrossarmWidthBand band) {
+        if (line == null || band == null || !supportsParametricTune(line)) {
+            return;
+        }
+        TowerGeneratorConfig config = line.getParametricTowerConfig();
+        TowerParameterSet baseline = baselineParametricParameters(base, config);
+        TowerParameterProfile profile = resolveProfile(config);
+        if (profile == null || baseline == null) {
+            return;
+        }
+        double target = profile.armSpanRange().clamp(baseline.armSpan() * band.scale());
+        line.setParametricTowerConfig(config.withParameters(replaceArmSpan(config.parameters(), target)));
     }
 
     public static int conductorCount(PowerLineFootprint line, PowerLineStylePreset base) {
@@ -311,5 +365,61 @@ public final class PowerLineQuickTunePolicy {
             normalized++;
         }
         return normalized;
+    }
+
+    private static PoleHeightBand detectParametricHeightBand(PowerLineFootprint line, PowerLineStylePreset base) {
+        TowerGeneratorConfig config = line.getParametricTowerConfig();
+        TowerParameterSet baseline = baselineParametricParameters(base, config);
+        if (baseline == null || baseline.height() <= 0.0) {
+            return PoleHeightBand.MEDIUM;
+        }
+        return closestHeightBand(config.parameters().height() / baseline.height());
+    }
+
+    private static CrossarmWidthBand detectParametricCrossarmBand(PowerLineFootprint line, PowerLineStylePreset base) {
+        TowerGeneratorConfig config = line.getParametricTowerConfig();
+        TowerParameterSet baseline = baselineParametricParameters(base, config);
+        if (baseline == null || baseline.armSpan() <= 0.0) {
+            return CrossarmWidthBand.NORMAL;
+        }
+        return closestCrossarmBand(config.parameters().armSpan() / baseline.armSpan());
+    }
+
+    private static TowerParameterSet baselineParametricParameters(
+            PowerLineStylePreset base,
+            TowerGeneratorConfig current) {
+        if (base != null && base.getDefinition().hasParametricConfig()) {
+            return base.getDefinition().getParametricConfig().parameters();
+        }
+        return current != null ? current.parameters() : null;
+    }
+
+    private static TowerParameterProfile resolveProfile(TowerGeneratorConfig config) {
+        if (config == null) {
+            return null;
+        }
+        return TowerParametricEditor.findProfile(config.profileId()).orElse(null);
+    }
+
+    private static TowerParameterSet replaceHeight(TowerParameterSet parameters, double height) {
+        return new TowerParameterSet(
+            height,
+            parameters.baseWidth(),
+            parameters.armSpan(),
+            parameters.depthScale(),
+            parameters.waistRatio(),
+            parameters.armLevelScales(),
+            parameters.density());
+    }
+
+    private static TowerParameterSet replaceArmSpan(TowerParameterSet parameters, double armSpan) {
+        return new TowerParameterSet(
+            parameters.height(),
+            parameters.baseWidth(),
+            armSpan,
+            parameters.depthScale(),
+            parameters.waistRatio(),
+            parameters.armLevelScales(),
+            parameters.density());
     }
 }

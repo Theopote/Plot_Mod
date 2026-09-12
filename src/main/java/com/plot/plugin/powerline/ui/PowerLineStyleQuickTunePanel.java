@@ -553,6 +553,13 @@ public final class PowerLineStyleQuickTunePanel {
             PowerLineFootprint line,
             PowerLineStylePreset base,
             PowerLineQuickTunePolicy.PoleHeightBand band) {
+        if (PowerLineQuickTunePolicy.supportsParametricTune(line)) {
+            ctx.pushEditSnapshot();
+            PowerLineQuickTunePolicy.applyParametricPoleHeightBand(line, base, band);
+            PowerLineStyleEditor.afterStyleEdit(line);
+            ctx.invalidatePreview();
+            return;
+        }
         if (!line.hasPoleDesign()) {
             PowerLineQuickTunePolicy.applyLegacyPoleHeight(line, band);
         } else {
@@ -572,6 +579,13 @@ public final class PowerLineStyleQuickTunePanel {
             PowerLineFootprint line,
             PowerLineStylePreset base,
             PowerLineQuickTunePolicy.CrossarmWidthBand band) {
+        if (PowerLineQuickTunePolicy.supportsParametricTune(line)) {
+            ctx.pushEditSnapshot();
+            PowerLineQuickTunePolicy.applyParametricCrossarmBand(line, base, band);
+            PowerLineStyleEditor.afterStyleEdit(line);
+            ctx.invalidatePreview();
+            return;
+        }
         boolean wasBuiltin = PoleDesignCatalog.isBuiltinId(line.getPoleDesignId());
         PoleDesign editable = ensureEditableDesign(line);
         PowerLineQuickTunePolicy.applyCrossarmWidthBand(editable, base, band);

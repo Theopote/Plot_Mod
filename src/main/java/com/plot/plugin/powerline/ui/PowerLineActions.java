@@ -9,6 +9,7 @@ import com.plot.core.model.Shape;
 import com.plot.core.persistence.ProjectPathResolver;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
+import com.plot.plugin.powerline.engineering.validation.PowerLineBuildPolicy;
 import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.engineering.optimization.OptimizationResult;
 import com.plot.api.world.PluginProjectionContext;
@@ -492,6 +493,15 @@ public final class PowerLineActions {
     public void buildInWorld() {
         PowerLineFootprint line = state.getSelection().primary(state.getProject());
         if (!ensurePreviewReadyForBuild(line)) {
+            return;
+        }
+        if (PowerLineBuildPolicy.hasBlockingIssues(
+                line,
+                cachedEngineeringReport(line),
+                cachedTerrainReport(line))) {
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.build_blocked_validation"),
+                ProjectStatusSeverity.ERROR);
             return;
         }
 

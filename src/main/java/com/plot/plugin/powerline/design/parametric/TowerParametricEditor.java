@@ -111,10 +111,30 @@ public final class TowerParametricEditor {
     }
 
     public static void convertToManual(PoleDesign design) {
-        if (design == null) {
+        if (design == null || design.getGeneratorConfig() == null) {
             return;
         }
-        design.setGeneratorConfig(null);
+        TowerGeneratorConfig current = design.getGeneratorConfig();
+        design.setGeneratorConfig(new TowerGeneratorConfig(
+            current.profileId(),
+            TowerGeneratorMode.MANUAL_LEGACY,
+            current.parameters()));
+    }
+
+    public static boolean restoreParametric(PoleDesign design, TowerBuildEnvelope envelope) {
+        if (design == null || design.getGeneratorConfig() == null) {
+            return false;
+        }
+        TowerGeneratorConfig current = design.getGeneratorConfig();
+        if (current.mode() != TowerGeneratorMode.MANUAL_LEGACY) {
+            return false;
+        }
+        design.setGeneratorConfig(new TowerGeneratorConfig(
+            current.profileId(),
+            TowerGeneratorMode.PARAMETRIC,
+            current.parameters()));
+        recompile(design, envelope);
+        return true;
     }
 
     private static TowerParameterSet toParameterSet(ResolvedTowerParameters resolved) {

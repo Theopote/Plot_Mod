@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.style;
 
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 
 import java.util.Objects;
@@ -97,6 +98,9 @@ public final class PowerLineStyleEditor {
         overrides.setTopWireMaterial(overrideMaterial(line.getTopWireMaterial(), definition.getTopWireMaterial()));
         overrides.setPoleDesignId(overrideId(line.getPoleDesignId(), definition.getPoleDesignId()));
         overrides.setTowerFamilyId(overrideId(line.getTowerFamilyId(), definition.getTowerFamilyId()));
+        overrides.setParametricTowerConfig(overrideParametric(
+            line.getParametricTowerConfig(),
+            definition.getParametricConfig()));
         syncSpacingOverrides(line);
         if (overrides.isEmpty() && !line.isSpacingCustomized()) {
             overrides.clear();
@@ -153,5 +157,14 @@ public final class PowerLineStyleEditor {
 
     private static Double overrideSpacing(double actual, double expected) {
         return Math.abs(actual - expected) <= SPACING_TOLERANCE ? null : actual;
+    }
+
+    private static TowerGeneratorConfig overrideParametric(
+            TowerGeneratorConfig actual,
+            TowerGeneratorConfig expected) {
+        if (PowerLineStyleParametricCatalog.parametersMatch(expected, actual)) {
+            return null;
+        }
+        return actual != null ? actual.copy() : null;
     }
 }

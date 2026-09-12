@@ -2,6 +2,7 @@ package com.plot.plugin.powerline.style;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.powerline.design.PoleDesign;
+import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.design.parametric.TowerParameterProfiles;
@@ -111,6 +112,14 @@ class PowerLineStyleParametricIntegrationTest {
             TowerFamily.MONSTER_PYLON_ID);
         assertNotNull(config);
         assertEquals(TowerParameterProfiles.UHV_ID, config.profileId());
+    }
+
+    @Test
+    void heavyLatticeCatalogPoleMapsToHeavyProfile() {
+        TowerGeneratorConfig config = PowerLineStyleParametricCatalog.forPoleDesignId(
+            PoleDesignCatalog.HEAVY_LATTICE_TOWER_ID);
+        assertNotNull(config);
+        assertEquals(TowerParameterProfiles.HEAVY_ID, config.profileId());
     }
 
     private static PowerLineFootprint line() {

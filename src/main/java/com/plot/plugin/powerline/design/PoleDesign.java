@@ -172,6 +172,10 @@ public class PoleDesign {
         return generatorConfig != null && generatorConfig.isParametric();
     }
 
+    public boolean isManualLegacyMode() {
+        return generatorConfig != null && generatorConfig.mode() == TowerGeneratorMode.MANUAL_LEGACY;
+    }
+
     public int totalHeight() {
         if (hasTowerStructure()) {
             return (int) Math.round(towerStructure.maxHeight());
