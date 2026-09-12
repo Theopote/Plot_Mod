@@ -107,6 +107,22 @@ class TowerParametricEditorTest {
     }
 
     @Test
+    void recompileRestoresStructureAfterClear() {
+        PoleDesign design = new PoleDesign("recompile", "Recompile");
+        TowerParametricEditor.enableParametricClassic(design, TowerParameterSet.classicDefaults());
+        assertTrue(design.hasTowerStructure());
+        double originalTop = design.getTowerStructure().maxHeight();
+
+        design.clearTowerStructure();
+        assertFalse(design.hasTowerStructure());
+
+        TowerParametricEditor.recompile(design, null);
+
+        assertTrue(design.hasTowerStructure());
+        assertEquals(originalTop, design.getTowerStructure().maxHeight(), 0.01);
+    }
+
+    @Test
     void heightLimitsRespectWorldEnvelope() {
         TowerBuildEnvelope envelope = new TowerBuildEnvelope(-64, 320, 280.0, 4);
         TowerParametricHeightLimits.EffectiveHeightRange range = TowerParametricHeightLimits.heightRange(

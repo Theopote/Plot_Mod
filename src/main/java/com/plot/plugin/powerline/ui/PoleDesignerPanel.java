@@ -10,7 +10,6 @@ import com.plot.plugin.powerline.ui.tower.TowerDesignerUiState;
 import com.plot.plugin.powerline.ui.tower.TowerManualStructurePanel;
 import com.plot.plugin.powerline.ui.tower.TowerParameterStatusPanel;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
-import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
@@ -308,14 +307,16 @@ public final class PoleDesignerPanel {
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.structure"));
         boolean useTower = draft.hasTowerStructure();
         if (ImGui.radioButton(PlotI18n.tr("plugin.powerline.design.structure_legacy"), !useTower)) {
-            pushDraftSnapshot();
-            draft.clearTowerStructure();
+            if (useTower) {
+                pushDraftSnapshot();
+                towerSession.syncStructureMode(draft, false);
+            }
         }
         ImGui.sameLine();
         if (ImGui.radioButton(PlotI18n.tr("plugin.powerline.design.structure_tower"), useTower)) {
-            if (!draft.hasTowerStructure()) {
+            if (!useTower) {
                 pushDraftSnapshot();
-                draft.setTowerStructure(TowerStructurePresets.taperedLatticeTower());
+                towerSession.syncStructureMode(draft, true);
             }
         }
 

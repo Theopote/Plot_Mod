@@ -3,6 +3,7 @@ package com.plot.plugin.powerline.ui.tower;
 import com.plot.core.terrain.MinecraftTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.powerline.design.PoleDesign;
+import com.plot.plugin.powerline.design.TowerArmAttachmentBinding;
 import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelope;
 import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelopeResolver;
 import com.plot.plugin.powerline.design.parametric.TowerConstraintResult;
@@ -10,7 +11,9 @@ import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorMode;
 import com.plot.plugin.powerline.design.parametric.TowerLineBuildEnvelope;
 import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
+import com.plot.plugin.powerline.design.parametric.TowerParameterProfiles;
 import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
+import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.style.ParametricFootprintSync;
 import com.plot.plugin.powerline.ui.PowerLineUiContext;
@@ -39,6 +42,37 @@ public final class TowerDesignerSession {
             return;
         }
         lastConstraintResult = TowerParametricEditor.recompile(draft, resolveConstraintEnvelope());
+    }
+
+    /**
+     * Legacy 分层 / 参数化塔体单选切换时同步结构，避免预览仍显示过期几何。
+     */
+    public void syncStructureMode(PoleDesign draft, boolean towerStructureMode) {
+        if (draft == null) {
+            return;
+        }
+        if (!towerStructureMode) {
+            draft.clearTowerStructure();
+            if (!draft.isParametricMode()) {
+                lastConstraintResult = null;
+            }
+            return;
+        }
+        if (draft.isParametricMode() && !draft.isManualLegacyMode()) {
+            lastConstraintResult = TowerParametricEditor.recompile(draft, resolveConstraintEnvelope());
+            if (!draft.hasTowerStructure()) {
+                String profileId = draft.getGeneratorConfig() != null
+                    ? draft.getGeneratorConfig().profileId()
+                    : TowerParameterProfiles.CLASSIC_DOUBLE_ARM_ID;
+                switchProfile(draft, profileId);
+            }
+            syncParametricConfigToSelectedLine(draft);
+            return;
+        }
+        if (!draft.hasTowerStructure()) {
+            draft.setTowerStructure(TowerStructurePresets.taperedLatticeTower());
+            TowerArmAttachmentBinding.inferArmBindings(draft);
+        }
     }
 
     public void applyParametricChange(PoleDesign draft, UnaryOperator<TowerParameterSet> change) {
