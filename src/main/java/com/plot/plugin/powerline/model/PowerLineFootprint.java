@@ -51,6 +51,8 @@ public class PowerLineFootprint {
     private boolean lineChecksEnabled = true;
     private boolean terrainAvoidanceEnabled = true;
     private boolean automaticTowerSelectionEnabled;
+    /** Smart Towers：各杆位按世界包络独立调整参数化塔高。 */
+    private boolean perSiteParametricHeightEnabled;
     /** 玩家曾在 Route 高级区手工调整间距；切换风格时不自动覆盖。 */
     private boolean spacingCustomized;
     /** 相对 base {@link com.plot.plugin.powerline.style.PowerLineStyleDefinition} 的偏离项；见 {@link #styleInstance()}。 */
@@ -352,6 +354,14 @@ public class PowerLineFootprint {
         this.automaticTowerSelectionEnabled = automaticTowerSelectionEnabled;
     }
 
+    public boolean isPerSiteParametricHeightEnabled() {
+        return perSiteParametricHeightEnabled;
+    }
+
+    public void setPerSiteParametricHeightEnabled(boolean perSiteParametricHeightEnabled) {
+        this.perSiteParametricHeightEnabled = perSiteParametricHeightEnabled;
+    }
+
     public boolean isSpacingCustomized() {
         return spacingCustomized;
     }
@@ -421,6 +431,7 @@ public class PowerLineFootprint {
         hash = 31 * hash + Boolean.hashCode(lineChecksEnabled);
         hash = 31 * hash + Boolean.hashCode(terrainAvoidanceEnabled);
         hash = 31 * hash + Boolean.hashCode(automaticTowerSelectionEnabled);
+        hash = 31 * hash + Boolean.hashCode(perSiteParametricHeightEnabled);
         hash = 31 * hash + Boolean.hashCode(spacingCustomized);
         return hash;
     }

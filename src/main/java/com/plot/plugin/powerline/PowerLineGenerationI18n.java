@@ -60,6 +60,14 @@ public final class PowerLineGenerationI18n {
         return token("plugin.powerline.warn.parametric_world_height_exceeded_on_line");
     }
 
+    public static String parametricHeightClampedForSite(int maxHeight, int siteIndex) {
+        return token("plugin.powerline.warn.parametric_height_clamped_for_site", maxHeight, siteIndex);
+    }
+
+    public static String parametricWorldHeightExceededOnSite(int siteIndex) {
+        return token("plugin.powerline.warn.parametric_world_height_exceeded_on_site", siteIndex);
+    }
+
     public static String localize(String warning) {
         if (warning == null || warning.isBlank()) {
             return "";

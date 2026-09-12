@@ -3632,6 +3632,8 @@
   "plugin.powerline.warn.family_role_design_not_found": "Family role design not found: %s",
   "plugin.powerline.warn.tower_base_uneven": "Tower base terrain uneven by %s blocks",
   "plugin.powerline.warn.parametric_height_clamped_for_line": "Parametric tower height clamped to %d blocks for the line (limited by pole #%d)",
+  "plugin.powerline.warn.parametric_height_clamped_for_site": "Parametric tower height clamped to %d blocks at pole #%d",
+  "plugin.powerline.warn.parametric_world_height_exceeded_on_site": "Parametric tower may exceed world height at pole #%d",
   "plugin.powerline.warn.parametric_world_height_exceeded_on_line": "Parametric tower exceeds world height along the line",
   "plugin.powerline.validation.section": "Line checks",
   "plugin.powerline.validation.hint": "Common-sense checks using your route spacing — not electrical engineering standards.",

@@ -22,7 +22,7 @@ import java.util.Map;
  */
 public class PowerLineProject {
     /** Current on-disk schema. */
-    public static final int SCHEMA_VERSION = 5;
+    public static final int SCHEMA_VERSION = 6;
 
     private static final Gson GSON = new GsonBuilder()
         .setPrettyPrinting()
@@ -232,6 +232,7 @@ public class PowerLineProject {
         boolean lineChecksEnabled = true;
         boolean terrainAvoidanceEnabled = true;
         boolean automaticTowerSelectionEnabled;
+        boolean perSiteParametricHeightEnabled;
         boolean spacingCustomized;
         StyleOverridesData styleOverrides;
         TowerGeneratorConfigData parametricTowerConfig;
@@ -273,6 +274,7 @@ public class PowerLineProject {
                 lineData.lineChecksEnabled = line.isLineChecksEnabled();
                 lineData.terrainAvoidanceEnabled = line.isTerrainAvoidanceEnabled();
                 lineData.automaticTowerSelectionEnabled = line.isAutomaticTowerSelectionEnabled();
+                lineData.perSiteParametricHeightEnabled = line.isPerSiteParametricHeightEnabled();
                 lineData.spacingCustomized = line.isSpacingCustomized();
                 com.plot.plugin.powerline.style.PowerLineStyleEditor.syncOverridesFromFootprint(line);
                 lineData.styleOverrides = StyleOverridesData.from(line.getStyleOverrides());
@@ -349,6 +351,7 @@ public class PowerLineProject {
                 footprint.setLineChecksEnabled(lineData.lineChecksEnabled);
                 footprint.setTerrainAvoidanceEnabled(lineData.terrainAvoidanceEnabled);
                 footprint.setAutomaticTowerSelectionEnabled(lineData.automaticTowerSelectionEnabled);
+                footprint.setPerSiteParametricHeightEnabled(lineData.perSiteParametricHeightEnabled);
                 footprint.setSpacingCustomized(lineData.spacingCustomized);
                 StyleOverridesData overridesData = lineData.styleOverrides != null
                     ? lineData.styleOverrides

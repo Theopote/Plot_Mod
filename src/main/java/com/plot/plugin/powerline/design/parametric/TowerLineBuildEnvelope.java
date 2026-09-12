@@ -30,6 +30,21 @@ public record TowerLineBuildEnvelope(
         return siteEnvelopes.get(limitingSiteIndex);
     }
 
+    public double maxAvailableHeight() {
+        double max = siteEnvelopes.getFirst().availableLocalHeight();
+        for (int i = 1; i < siteEnvelopes.size(); i++) {
+            max = Math.max(max, siteEnvelopes.get(i).availableLocalHeight());
+        }
+        return max;
+    }
+
+    public TowerBuildEnvelope siteEnvelope(int siteIndex) {
+        if (siteIndex < 0 || siteIndex >= siteEnvelopes.size()) {
+            throw new IndexOutOfBoundsException("siteIndex out of range: " + siteIndex);
+        }
+        return siteEnvelopes.get(siteIndex);
+    }
+
     /** 供参数化约束求解使用的合成包络（{@code availableLocalHeight == limitingAvailableHeight}）。 */
     public TowerBuildEnvelope constraintEnvelope() {
         TowerBuildEnvelope reference = siteEnvelopes.getFirst();
