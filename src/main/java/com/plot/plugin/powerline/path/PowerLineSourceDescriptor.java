@@ -1,7 +1,9 @@
 package com.plot.plugin.powerline.path;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.geometry.shapes.ArcShape;
 import com.plot.core.geometry.shapes.BezierCurveShape;
+import com.plot.core.geometry.shapes.EllipticalArcShape;
 import com.plot.core.model.Shape;
 
 import java.util.ArrayList;
@@ -15,7 +17,9 @@ public final class PowerLineSourceDescriptor {
     public enum Kind {
         POLYLINE,
         BEZIER,
-        ELLIPSE
+        ELLIPSE,
+        ARC,
+        ELLIPTICAL_ARC
     }
 
     private final Kind kind;
@@ -27,6 +31,8 @@ public final class PowerLineSourceDescriptor {
     private final double ellipseRadiusX;
     private final double ellipseRadiusY;
     private final double ellipseRotation;
+    private final double arcStartAngle;
+    private final double arcEndAngle;
 
     private PowerLineSourceDescriptor(
             Kind kind,
@@ -37,7 +43,9 @@ public final class PowerLineSourceDescriptor {
             Vec2d ellipseCenter,
             double ellipseRadiusX,
             double ellipseRadiusY,
-            double ellipseRotation) {
+            double ellipseRotation,
+            double arcStartAngle,
+            double arcEndAngle) {
         this.kind = Objects.requireNonNull(kind, "kind");
         this.shapeId = shapeId;
         this.closed = closed;
@@ -47,6 +55,8 @@ public final class PowerLineSourceDescriptor {
         this.ellipseRadiusX = ellipseRadiusX;
         this.ellipseRadiusY = ellipseRadiusY;
         this.ellipseRotation = ellipseRotation;
+        this.arcStartAngle = arcStartAngle;
+        this.arcEndAngle = arcEndAngle;
     }
 
     public static PowerLineSourceDescriptor capture(Shape shape) {
@@ -68,33 +78,37 @@ public final class PowerLineSourceDescriptor {
                 ellipse.radiusY(),
                 ellipse.rotation());
         }
+        if (path instanceof ArcSourcePath && shape instanceof ArcShape arc) {
+            return arc(
+                shape.getId(),
+                arc.getCenter(),
+                arc.getRadius(),
+                arc.getStartAngle(),
+                arc.getEndAngle());
+        }
+        if (path instanceof EllipticalArcSourcePath && shape instanceof EllipticalArcShape arc) {
+            return ellipticalArc(
+                shape.getId(),
+                arc.getCenter(),
+                arc.getRadiusX(),
+                arc.getRadiusY(),
+                arc.getRotation(),
+                arc.getStartAngle(),
+                arc.getEndAngle());
+        }
         throw new IllegalArgumentException("Unsupported source path type");
     }
 
     public static PowerLineSourceDescriptor polyline(String shapeId, List<Vec2d> points, boolean closed) {
         return new PowerLineSourceDescriptor(
-            Kind.POLYLINE,
-            shapeId,
-            closed,
-            points,
-            List.of(),
-            null,
-            0.0,
-            0.0,
-            0.0);
+            Kind.POLYLINE, shapeId, closed, points, List.of(),
+            null, 0.0, 0.0, 0.0, 0.0, 0.0);
     }
 
     public static PowerLineSourceDescriptor bezier(String shapeId, List<Vec2d> controlPoints, boolean closed) {
         return new PowerLineSourceDescriptor(
-            Kind.BEZIER,
-            shapeId,
-            closed,
-            List.of(),
-            controlPoints,
-            null,
-            0.0,
-            0.0,
-            0.0);
+            Kind.BEZIER, shapeId, closed, List.of(), controlPoints,
+            null, 0.0, 0.0, 0.0, 0.0, 0.0);
     }
 
     public static PowerLineSourceDescriptor ellipse(
@@ -104,15 +118,32 @@ public final class PowerLineSourceDescriptor {
             double radiusY,
             double rotation) {
         return new PowerLineSourceDescriptor(
-            Kind.ELLIPSE,
-            shapeId,
-            true,
-            List.of(),
-            List.of(),
-            center,
-            radiusX,
-            radiusY,
-            rotation);
+            Kind.ELLIPSE, shapeId, true, List.of(), List.of(),
+            center, radiusX, radiusY, rotation, 0.0, 0.0);
+    }
+
+    public static PowerLineSourceDescriptor arc(
+            String shapeId,
+            Vec2d center,
+            double radius,
+            double startAngle,
+            double endAngle) {
+        return new PowerLineSourceDescriptor(
+            Kind.ARC, shapeId, false, List.of(), List.of(),
+            center, radius, radius, 0.0, startAngle, endAngle);
+    }
+
+    public static PowerLineSourceDescriptor ellipticalArc(
+            String shapeId,
+            Vec2d center,
+            double radiusX,
+            double radiusY,
+            double rotation,
+            double startAngle,
+            double endAngle) {
+        return new PowerLineSourceDescriptor(
+            Kind.ELLIPTICAL_ARC, shapeId, false, List.of(), List.of(),
+            center, radiusX, radiusY, rotation, startAngle, endAngle);
     }
 
     public Kind kind() {
@@ -151,6 +182,14 @@ public final class PowerLineSourceDescriptor {
         return ellipseRotation;
     }
 
+    public double arcStartAngle() {
+        return arcStartAngle;
+    }
+
+    public double arcEndAngle() {
+        return arcEndAngle;
+    }
+
     public int fingerprint() {
         int hash = Objects.hash(kind, shapeId, closed);
         hash = 31 * hash + pointsFingerprint(polylinePoints);
@@ -162,6 +201,8 @@ public final class PowerLineSourceDescriptor {
         hash = 31 * hash + Double.hashCode(ellipseRadiusX);
         hash = 31 * hash + Double.hashCode(ellipseRadiusY);
         hash = 31 * hash + Double.hashCode(ellipseRotation);
+        hash = 31 * hash + Double.hashCode(arcStartAngle);
+        hash = 31 * hash + Double.hashCode(arcEndAngle);
         return hash;
     }
 
@@ -170,10 +211,16 @@ public final class PowerLineSourceDescriptor {
             case POLYLINE -> PolylineSourcePath.of(polylinePoints, closed);
             case BEZIER -> bezierFromFlatControls(bezierControlPoints, closed);
             case ELLIPSE -> new EllipseLoopSourcePath(
+                ellipseCenter, ellipseRadiusX, ellipseRadiusY, ellipseRotation);
+            case ARC -> new ArcSourcePath(
+                ellipseCenter, ellipseRadiusX, arcStartAngle, arcEndAngle);
+            case ELLIPTICAL_ARC -> new EllipticalArcSourcePath(
                 ellipseCenter,
                 ellipseRadiusX,
                 ellipseRadiusY,
-                ellipseRotation);
+                ellipseRotation,
+                arcStartAngle,
+                arcEndAngle);
         };
     }
 

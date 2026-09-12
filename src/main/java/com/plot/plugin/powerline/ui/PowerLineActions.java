@@ -22,6 +22,7 @@ import com.plot.plugin.powerline.PowerLinePathUtils;
 import com.plot.plugin.powerline.PowerPoleLayoutUtils;
 import com.plot.plugin.powerline.path.ClosedLoopLayoutException;
 import com.plot.plugin.powerline.path.PowerLinePathLayout;
+import com.plot.plugin.powerline.path.PowerLineSourceSync;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.parametric.TowerParametricBuildPolicy;
@@ -149,6 +150,38 @@ public final class PowerLineActions {
             state.setProjectStatus(
                 PlotI18n.tr("plugin.powerline.adopt_success"),
                 ProjectStatusSeverity.SUCCESS);
+        }
+    }
+
+    public boolean relayoutLineFromSource(PowerLineFootprint line) {
+        if (line == null || !PowerLineSourceSync.hasLinkedSource(line)) {
+            return false;
+        }
+        Shape liveShape = PowerLineSourceSync.findShape(
+            host.appState().getShapes(),
+            line.getSourceShapeId());
+        if (liveShape == null) {
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.source_missing"),
+                ProjectStatusSeverity.WARNING);
+            return false;
+        }
+        if (!PowerLineSourceSync.isSourceStale(line, liveShape)) {
+            return true;
+        }
+        state.getProjectHistory().push(state.getProject());
+        try {
+            PowerLineSourceSync.relayout(line, liveShape, host.coordinates());
+            invalidatePreview();
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.relayout_success"),
+                ProjectStatusSeverity.SUCCESS);
+            return true;
+        } catch (ClosedLoopLayoutException e) {
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.adopt_reject_closed_loop"),
+                ProjectStatusSeverity.WARNING);
+            return false;
         }
     }
 

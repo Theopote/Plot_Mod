@@ -1,15 +1,21 @@
 package com.plot.plugin.powerline.path;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.geometry.shapes.ArcShape;
 import com.plot.core.geometry.shapes.BezierCurveShape;
+import com.plot.core.geometry.shapes.CableShape;
 import com.plot.core.geometry.shapes.CircleShape;
 import com.plot.core.geometry.shapes.EllipseShape;
+import com.plot.core.geometry.shapes.EllipticalArcShape;
 import com.plot.core.geometry.shapes.FreeDrawPath;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.geometry.shapes.RectangleShape;
+import com.plot.core.geometry.shapes.SineCurveShape;
+import com.plot.core.geometry.shapes.SpiralShape;
 import com.plot.core.model.Shape;
+import com.plot.plugin.road.RoadGeometryUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -77,7 +83,42 @@ public final class PowerLinePathAdapters {
             }
             return PolylineSourcePath.of(copyClosedVertices(outline), true);
         }
+        if (shape instanceof ArcShape arc) {
+            if (arc.getRadius() <= 1e-9) {
+                return null;
+            }
+            return new ArcSourcePath(
+                arc.getCenter(),
+                arc.getRadius(),
+                arc.getStartAngle(),
+                arc.getEndAngle());
+        }
+        if (shape instanceof EllipticalArcShape arc) {
+            if (arc.getRadiusX() <= 1e-9 || arc.getRadiusY() <= 1e-9) {
+                return null;
+            }
+            return new EllipticalArcSourcePath(
+                arc.getCenter(),
+                arc.getRadiusX(),
+                arc.getRadiusY(),
+                arc.getRotation(),
+                arc.getStartAngle(),
+                arc.getEndAngle());
+        }
+        if (shape instanceof SpiralShape
+            || shape instanceof SineCurveShape
+            || shape instanceof CableShape) {
+            return sampledOpenPath(shape);
+        }
         return null;
+    }
+
+    private static PowerLineSourcePath sampledOpenPath(Shape shape) {
+        List<Vec2d> points = RoadGeometryUtils.copyAndSanitizePoints(shape.getPoints());
+        if (points.size() < 2) {
+            return null;
+        }
+        return PolylineSourcePath.open(points);
     }
 
     private static BezierSourcePath bezierPath(BezierCurveShape bezier) {

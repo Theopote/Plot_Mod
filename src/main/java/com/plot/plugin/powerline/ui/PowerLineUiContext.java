@@ -103,6 +103,10 @@ public final class PowerLineUiContext {
         actions.adoptSelectedPaths();
     }
 
+    public boolean relayoutLineFromSource(PowerLineFootprint line) {
+        return actions.relayoutLineFromSource(line);
+    }
+
     public boolean calculatePreview(PowerLineFootprint line) {
         return actions.calculatePreview(line);
     }

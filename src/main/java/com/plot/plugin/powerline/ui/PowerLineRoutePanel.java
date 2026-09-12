@@ -1,7 +1,9 @@
 package com.plot.plugin.powerline.ui;
 
+import com.plot.core.model.Shape;
 import com.plot.plugin.powerline.model.PoleSpacingMode;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.path.PowerLineSourceSync;
 import com.plot.plugin.powerline.style.PowerLineSpacingPolicy;
 import com.plot.plugin.powerline.style.PowerLineStyleEditor;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
@@ -46,6 +48,7 @@ public final class PowerLineRoutePanel {
         ImGui.separator();
         PowerLineUiWidgets.renderLineSelector(ctx);
         renderLineName(line);
+        renderSourceReference(line);
         ImGui.separator();
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.placement"));
         renderPolePlacement(line);
@@ -60,6 +63,31 @@ public final class PowerLineRoutePanel {
     private void renderProjectSection() {
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.all_lines"));
         overviewPanel.renderProjectSection(true);
+    }
+
+    private void renderSourceReference(PowerLineFootprint line) {
+        if (!PowerLineSourceSync.hasLinkedSource(line)) {
+            return;
+        }
+        java.util.List<Shape> canvasShapes = ctx.host().appState().getShapes();
+        if (PowerLineSourceSync.isSourceMissing(line, canvasShapes)) {
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr("plugin.powerline.source_missing"));
+            return;
+        }
+        Shape liveShape = PowerLineSourceSync.findShape(canvasShapes, line.getSourceShapeId());
+        if (!PowerLineSourceSync.isSourceStale(line, liveShape)) {
+            return;
+        }
+        PowerLineUiWidgets.textColored(
+            PluginUiColors.WARNING,
+            PlotI18n.tr("plugin.powerline.source_stale"));
+        ImGui.spacing();
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.relayout_from_source"), 0, 0)) {
+            ctx.pushEditSnapshot();
+            ctx.relayoutLineFromSource(line);
+        }
     }
 
     private void renderLineName(PowerLineFootprint line) {

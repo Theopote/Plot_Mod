@@ -137,6 +137,10 @@ public class PowerLineFootprint {
         return sourceDescriptor != null;
     }
 
+    public String getSourceShapeId() {
+        return sourceDescriptor != null ? sourceDescriptor.shapeId() : null;
+    }
+
     public boolean isClosedLoop() {
         return resolveSourcePath().isClosed();
     }

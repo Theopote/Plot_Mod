@@ -26,7 +26,7 @@ import net.minecraft.util.math.BlockPos;
  */
 public class PowerLineProject {
     /** Current on-disk schema. */
-    public static final int SCHEMA_VERSION = 10;
+    public static final int SCHEMA_VERSION = 11;
 
     private static final Gson GSON = new GsonBuilder()
         .setPrettyPrinting()
@@ -362,6 +362,8 @@ public class PowerLineProject {
         double sourceEllipseRadiusX;
         double sourceEllipseRadiusY;
         double sourceEllipseRotation;
+        double sourceArcStartAngle;
+        double sourceArcEndAngle;
     }
 
     static class ProjectData {
@@ -419,11 +421,15 @@ public class PowerLineProject {
                     for (Vec2d point : source.bezierControlPoints()) {
                         lineData.sourceBezierControlPoints.add(new Vec2dData(point));
                     }
-                    if (source.kind() == PowerLineSourceDescriptor.Kind.ELLIPSE && source.ellipseCenter() != null) {
+                    if (source.ellipseCenter() != null
+                            && source.kind() != PowerLineSourceDescriptor.Kind.POLYLINE
+                            && source.kind() != PowerLineSourceDescriptor.Kind.BEZIER) {
                         lineData.sourceEllipseCenter = new Vec2dData(source.ellipseCenter());
                         lineData.sourceEllipseRadiusX = source.ellipseRadiusX();
                         lineData.sourceEllipseRadiusY = source.ellipseRadiusY();
                         lineData.sourceEllipseRotation = source.ellipseRotation();
+                        lineData.sourceArcStartAngle = source.arcStartAngle();
+                        lineData.sourceArcEndAngle = source.arcEndAngle();
                     }
                 }
                 data.lines.add(lineData);
@@ -551,6 +557,24 @@ public class PowerLineProject {
                                 lineData.sourceEllipseRadiusX,
                                 lineData.sourceEllipseRadiusY,
                                 lineData.sourceEllipseRotation);
+                            case ARC -> PowerLineSourceDescriptor.arc(
+                                lineData.sourceShapeId,
+                                lineData.sourceEllipseCenter != null
+                                    ? lineData.sourceEllipseCenter.toVec2d()
+                                    : new Vec2d(0, 0),
+                                lineData.sourceEllipseRadiusX,
+                                lineData.sourceArcStartAngle,
+                                lineData.sourceArcEndAngle);
+                            case ELLIPTICAL_ARC -> PowerLineSourceDescriptor.ellipticalArc(
+                                lineData.sourceShapeId,
+                                lineData.sourceEllipseCenter != null
+                                    ? lineData.sourceEllipseCenter.toVec2d()
+                                    : new Vec2d(0, 0),
+                                lineData.sourceEllipseRadiusX,
+                                lineData.sourceEllipseRadiusY,
+                                lineData.sourceEllipseRotation,
+                                lineData.sourceArcStartAngle,
+                                lineData.sourceArcEndAngle);
                         });
                     } catch (IllegalArgumentException ignored) {
                         // keep legacy polyline-only footprint
