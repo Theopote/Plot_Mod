@@ -29,19 +29,45 @@ public final class TowerBasicParametersPanel {
         }
 
         if (!draft.hasTowerStructure() && !draft.isParametricMode()) {
-            renderProfileCombo(context, true);
+            renderProfileForm(context, true);
             return;
         }
 
         if (!draft.isParametricMode()) {
-            renderProfileCombo(context, true);
+            renderProfileForm(context, true);
             return;
         }
 
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.tower_basic_section"));
-        renderProfileCombo(context, false);
+        renderProfileForm(context, false);
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.tower_basic_dimensions"));
+        renderDimensionsForm(context);
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.tower_structure_section"));
+        renderDensityForm(context);
+    }
+
+    private void renderProfileForm(TowerDesignerContext context, boolean enableOnChange) {
+        if (!DialogLayoutHelper.beginForm("##tower_profile_form")) {
+            return;
+        }
+        renderProfileCombo(context, enableOnChange);
+        DialogLayoutHelper.endForm();
+    }
+
+    private void renderDimensionsForm(TowerDesignerContext context) {
+        if (!DialogLayoutHelper.beginForm("##tower_basic_dims_form")) {
+            return;
+        }
         renderBasicSliders(context);
+        DialogLayoutHelper.endForm();
+    }
+
+    private void renderDensityForm(TowerDesignerContext context) {
+        if (!DialogLayoutHelper.beginForm("##tower_density_form")) {
+            return;
+        }
         renderDensityButtons(context);
+        DialogLayoutHelper.endForm();
     }
 
     private void renderProfileCombo(TowerDesignerContext context, boolean enableOnChange) {
@@ -81,8 +107,6 @@ public final class TowerBasicParametersPanel {
             profile,
             parameters,
             constraintEnvelope);
-
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.tower_basic_dimensions"));
 
         float[] height = {(float) parameters.height()};
         TowerDesignerWidgets.formRowSliderTransaction(
@@ -130,12 +154,12 @@ public final class TowerBasicParametersPanel {
         }
         if (lineEnvelope.isPresent()) {
             TowerLineBuildEnvelope envelope = lineEnvelope.get();
-            PowerLineUiWidgets.textColored(0xFF9E9E9E, PlotI18n.tr(
+            DialogLayoutHelper.formRowHelp(PlotI18n.tr(
                 "plugin.powerline.design.parametric_height_line_limit",
                 envelope.limitingSiteIndex() + 1,
                 (int) Math.floor(heightRange.worldLimitedMax())));
         } else {
-            PowerLineUiWidgets.textColored(0xFF9E9E9E, PlotI18n.tr(
+            DialogLayoutHelper.formRowHelp(PlotI18n.tr(
                 "plugin.powerline.design.parametric_height_world_limit",
                 (int) Math.floor(heightRange.worldLimitedMax())));
         }
@@ -148,7 +172,7 @@ public final class TowerBasicParametersPanel {
         for (ConstraintAdjustment adjustment : context.session().lastConstraintResult().adjustments()) {
             if (adjustment.parameter().equals(parameterName)
                     && adjustment.requestedValue() != adjustment.resolvedValue()) {
-                PowerLineUiWidgets.textColored(0xFF9E9E9E, PlotI18n.tr(
+                DialogLayoutHelper.formRowHelp(PlotI18n.tr(
                     "plugin.powerline.design.parametric_clamped",
                     friendlyParameterLabel(parameterName),
                     adjustment.resolvedValue()));
@@ -159,7 +183,6 @@ public final class TowerBasicParametersPanel {
     private void renderDensityButtons(TowerDesignerContext context) {
         PoleDesign draft = context.draft();
         TowerParameterSet parameters = draft.getGeneratorConfig().parameters();
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.tower_structure_section"));
         DialogLayoutHelper.formRowLabel(PlotI18n.tr("plugin.powerline.design.parametric_density"));
         for (StructureDensity density : StructureDensity.values()) {
             boolean selected = parameters.density() == density;
