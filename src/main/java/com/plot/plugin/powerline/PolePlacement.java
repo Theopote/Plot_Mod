@@ -16,7 +16,8 @@ public record PolePlacement(
         boolean usesAttachmentConductors,
         TowerRole role,
         String resolvedDesignId,
-        double stationing) {
+        double stationing,
+        boolean valid) {
 
     public PolePlacement(
             Vec2d planPosition,
@@ -34,6 +35,34 @@ public record PolePlacement(
             usesAttachmentConductors,
             TowerRole.SUSPENSION,
             null,
-            0.0);
+            0.0,
+            true);
+    }
+
+    public PolePlacement(
+            Vec2d planPosition,
+            PoleFrame frame,
+            PoleDesign design,
+            List<ResolvedAttachment> attachments,
+            int legacyWireHangY,
+            boolean usesAttachmentConductors,
+            TowerRole role,
+            String resolvedDesignId,
+            double stationing) {
+        this(
+            planPosition,
+            frame,
+            design,
+            attachments,
+            legacyWireHangY,
+            usesAttachmentConductors,
+            role,
+            resolvedDesignId,
+            stationing,
+            true);
+    }
+
+    public boolean isValid() {
+        return valid;
     }
 }

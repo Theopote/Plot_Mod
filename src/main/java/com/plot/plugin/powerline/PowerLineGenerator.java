@@ -109,6 +109,9 @@ public class PowerLineGenerator {
         result.polePlacements.addAll(placements);
 
         for (int i = 0; i < placements.size(); i++) {
+            if (!placements.get(i).isValid()) {
+                continue;
+            }
             TowerRole role = placements.get(i).role();
             if ((role == TowerRole.ANGLE || role == TowerRole.TERMINAL || role == TowerRole.DEAD_END)
                     && i > 0 && i < placements.size() - 1) {
@@ -128,6 +131,9 @@ public class PowerLineGenerator {
         }
 
         for (int span = 0; span < placements.size() - 1; span++) {
+            if (!isSpanGenerable(placements, span)) {
+                continue;
+            }
             ConductorSpanGenerator.generateBetween(
                 placements.get(span),
                 placements.get(span + 1),
@@ -197,6 +203,17 @@ public class PowerLineGenerator {
             design = design.copy();
             design.ensureDefaultConductorAttachments();
         }
+        if (design != null && isParametricBlocked(design, parametricEnvelope)) {
+            result.warnings.add("parametric.constraint_error");
+            result.recordRole(site.getRole());
+            return invalidPolePlacement(
+                planPoint,
+                frame,
+                design,
+                buildBaseY,
+                site,
+                assignment.resolvedDesignId());
+        }
 
         PoleSiteDecorationClearance.clearAroundPole(
             planPoint,
@@ -215,11 +232,7 @@ public class PowerLineGenerator {
         boolean usesAttachmentConductors = false;
 
         if (design != null) {
-            boolean parametricBlocked = design.isParametricMode()
-                && TowerParametricEditor.hasBlockingErrors(design, parametricEnvelope);
-            if (parametricBlocked) {
-                result.warnings.add("parametric.constraint_error");
-            } else if (design.hasTowerStructure()) {
+            if (design.hasTowerStructure()) {
                 legacyWireHangY = TowerStructureGenerator.generate(
                     design.getTowerStructure(),
                     frame,
@@ -261,7 +274,39 @@ public class PowerLineGenerator {
             usesAttachmentConductors,
             site.getRole(),
             assignment.resolvedDesignId(),
-            site.getStationing());
+            site.getStationing(),
+            true);
+    }
+
+    static boolean isParametricBlocked(PoleDesign design, TowerBuildEnvelope envelope) {
+        return design != null
+            && design.isParametricMode()
+            && TowerParametricEditor.hasBlockingErrors(design, envelope);
+    }
+
+    static boolean isSpanGenerable(List<PolePlacement> placements, int spanIndex) {
+        return placements.get(spanIndex).isValid()
+            && placements.get(spanIndex + 1).isValid();
+    }
+
+    static PolePlacement invalidPolePlacement(
+            Vec2d planPoint,
+            PoleFrame frame,
+            PoleDesign design,
+            int buildBaseY,
+            PowerPoleSite site,
+            String resolvedDesignId) {
+        return new PolePlacement(
+            planPoint,
+            frame,
+            design,
+            List.of(),
+            buildBaseY,
+            false,
+            site.getRole(),
+            resolvedDesignId,
+            site.getStationing(),
+            false);
     }
 
     private static TowerSelectionContext buildSelectionContext(
