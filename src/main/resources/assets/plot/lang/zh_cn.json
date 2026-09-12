@@ -3363,7 +3363,7 @@
   "plugin.powerline.design.parametric_waist_ratio": "腰比",
   "plugin.powerline.design.parametric_waist_ratio_hint": "缩放腰部与肩部宽度，不改变横担跨度。",
   "plugin.powerline.design.parametric_arm_levels_section": "横担层级",
-  "plugin.powerline.design.parametric_arm_levels_hint": "相对 Profile 默认高度微调各层横担，不改变横担跨度。",
+  "plugin.powerline.design.parametric_arm_levels_hint": "横担离地高度（格）。不改变横担跨度。",
   "plugin.powerline.design.parametric_arm_level_lower": "下层横担高度",
   "plugin.powerline.design.parametric_arm_level_middle": "中层横担高度",
   "plugin.powerline.design.parametric_arm_level_upper": "上层横担高度",

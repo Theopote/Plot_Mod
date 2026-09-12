@@ -50,16 +50,11 @@ public final class TowerDesignerSession {
 
     public void switchProfile(PoleDesign draft, String profileId) {
         TowerProfileUiCatalog.find(profileId).ifPresent(option -> {
-            String previousProfileId = draft.getGeneratorConfig() != null
-                ? draft.getGeneratorConfig().profileId()
-                : null;
-            option.enabler().accept(draft);
-            if (draft.getGeneratorConfig() != null && draft.isParametricMode()) {
-                lastConstraintResult = TowerParametricEditor.recompile(
-                    draft,
-                    resolveConstraintEnvelope(),
-                    previousProfileId);
-            }
+            lastConstraintResult = TowerParametricEditor.switchProfile(
+                draft,
+                option.id(),
+                option.defaults().get(),
+                resolveConstraintEnvelope());
             syncParametricConfigToSelectedLine(draft);
         });
     }

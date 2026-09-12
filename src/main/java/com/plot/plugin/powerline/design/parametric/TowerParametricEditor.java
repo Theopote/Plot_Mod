@@ -70,6 +70,27 @@ public final class TowerParametricEditor {
         enableParametric(design, TowerParameterProfiles.MODERN_HV_GLASS_ID, parameters, TowerParameterSet.modernHvGlassDefaults());
     }
 
+    public static TowerConstraintResult switchProfile(
+            PoleDesign design,
+            String profileId,
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        if (design == null || profileId == null || profileId.isBlank()) {
+            return null;
+        }
+        String previousProfileId = design.getGeneratorConfig() != null
+            ? design.getGeneratorConfig().profileId()
+            : null;
+        TowerParameterSet resolved = parameters != null
+            ? parameters
+            : defaultParametersForProfile(profileId);
+        if (resolved == null) {
+            return null;
+        }
+        design.setGeneratorConfig(new TowerGeneratorConfig(profileId, TowerGeneratorMode.PARAMETRIC, resolved));
+        return recompile(design, envelope, previousProfileId);
+    }
+
     private static void enableParametric(
             PoleDesign design,
             String profileId,
@@ -78,12 +99,44 @@ public final class TowerParametricEditor {
         if (design == null) {
             return;
         }
-        String previousProfileId = design.getGeneratorConfig() != null
-            ? design.getGeneratorConfig().profileId()
-            : null;
-        TowerParameterSet resolved = parameters != null ? parameters : fallback;
-        design.setGeneratorConfig(new TowerGeneratorConfig(profileId, TowerGeneratorMode.PARAMETRIC, resolved));
-        recompile(design, null, previousProfileId);
+        switchProfile(design, profileId, parameters != null ? parameters : fallback, null);
+    }
+
+    private static TowerParameterSet defaultParametersForProfile(String profileId) {
+        if (TowerParameterProfiles.CLASSIC_DOUBLE_ARM_ID.equals(profileId)) {
+            return TowerParameterSet.classicDefaults();
+        }
+        if (TowerParameterProfiles.SMALL_LATTICE_ID.equals(profileId)) {
+            return TowerParameterSet.smallLatticeDefaults();
+        }
+        if (TowerParameterProfiles.TRIPLE_ARM_ID.equals(profileId)) {
+            return TowerParameterSet.tripleArmDefaults();
+        }
+        if (TowerParameterProfiles.CUP_ID.equals(profileId)) {
+            return TowerParameterSet.cupDefaults();
+        }
+        if (TowerParameterProfiles.HEAVY_ID.equals(profileId)) {
+            return TowerParameterSet.heavyDefaults();
+        }
+        if (TowerParameterProfiles.MEGA_ID.equals(profileId)) {
+            return TowerParameterSet.megaDefaults();
+        }
+        if (TowerParameterProfiles.PORTAL_ID.equals(profileId)) {
+            return TowerParameterSet.portalDefaults();
+        }
+        if (TowerParameterProfiles.DRUM_ID.equals(profileId)) {
+            return TowerParameterSet.drumDefaults();
+        }
+        if (TowerParameterProfiles.UHV_ID.equals(profileId)) {
+            return TowerParameterSet.uhvDefaults();
+        }
+        if (TowerParameterProfiles.STEAMPUNK_ID.equals(profileId)) {
+            return TowerParameterSet.steampunkDefaults();
+        }
+        if (TowerParameterProfiles.MODERN_HV_GLASS_ID.equals(profileId)) {
+            return TowerParameterSet.modernHvGlassDefaults();
+        }
+        return null;
     }
 
     public static TowerConstraintResult recompile(PoleDesign design, TowerBuildEnvelope envelope) {

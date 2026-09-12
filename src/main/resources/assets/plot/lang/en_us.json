@@ -3363,7 +3363,7 @@
   "plugin.powerline.design.parametric_waist_ratio": "Waist ratio",
   "plugin.powerline.design.parametric_waist_ratio_hint": "Scales waist and shoulder width. Does not change arm span.",
   "plugin.powerline.design.parametric_arm_levels_section": "Arm levels",
-  "plugin.powerline.design.parametric_arm_levels_hint": "Adjusts each crossarm height relative to the profile default. Does not change arm span.",
+  "plugin.powerline.design.parametric_arm_levels_hint": "Crossarm height in blocks above the base. Does not change arm span.",
   "plugin.powerline.design.parametric_arm_level_lower": "Lower arm level",
   "plugin.powerline.design.parametric_arm_level_middle": "Middle arm level",
   "plugin.powerline.design.parametric_arm_level_upper": "Upper arm level",

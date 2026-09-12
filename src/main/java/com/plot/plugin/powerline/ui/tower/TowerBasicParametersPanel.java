@@ -85,43 +85,40 @@ public final class TowerBasicParametersPanel {
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.tower_basic_dimensions"));
 
         float[] height = {(float) parameters.height()};
-        if (TowerDesignerWidgets.formRowSliderFloat(
-                "plugin.powerline.design.parametric_height",
-                "##param_height",
-                height,
-                (float) heightRange.min(),
-                (float) heightRange.max(),
-                "%.0f")) {
-            context.session().applyParametricChange(draft, source -> withHeight(source, height[0]));
-        }
-        TowerDesignerWidgets.pushUndoIfActivated(context.pushDraftSnapshot());
+        TowerDesignerWidgets.formRowSliderTransaction(
+            context.pushDraftSnapshot(),
+            "plugin.powerline.design.parametric_height",
+            "##param_height",
+            height,
+            (float) heightRange.min(),
+            (float) heightRange.max(),
+            "%.0f",
+            newHeight -> context.session().applyParametricChange(draft, source -> withHeight(source, newHeight)));
         renderHeightLimitHint(heightRange, lineEnvelope);
         renderClampHint(context, "height");
 
         float[] baseWidth = {(float) parameters.baseWidth()};
-        if (TowerDesignerWidgets.formRowSliderFloat(
-                "plugin.powerline.design.parametric_base_width",
-                "##param_base_width",
-                baseWidth,
-                (float) profile.baseWidthRange().min(),
-                (float) profile.baseWidthRange().max(),
-                "%.0f")) {
-            context.session().applyParametricChange(draft, source -> withBaseWidth(source, baseWidth[0]));
-        }
-        TowerDesignerWidgets.pushUndoIfActivated(context.pushDraftSnapshot());
+        TowerDesignerWidgets.formRowSliderTransaction(
+            context.pushDraftSnapshot(),
+            "plugin.powerline.design.parametric_base_width",
+            "##param_base_width",
+            baseWidth,
+            (float) profile.baseWidthRange().min(),
+            (float) profile.baseWidthRange().max(),
+            "%.0f",
+            newWidth -> context.session().applyParametricChange(draft, source -> withBaseWidth(source, newWidth)));
         renderClampHint(context, "baseWidth");
 
         float[] armSpan = {(float) parameters.armSpan()};
-        if (TowerDesignerWidgets.formRowSliderFloat(
-                "plugin.powerline.design.parametric_arm_span",
-                "##param_arm_span",
-                armSpan,
-                (float) profile.armSpanRange().min(),
-                (float) profile.armSpanRange().max(),
-                "%.0f")) {
-            context.session().applyParametricChange(draft, source -> withArmSpan(source, armSpan[0]));
-        }
-        TowerDesignerWidgets.pushUndoIfActivated(context.pushDraftSnapshot());
+        TowerDesignerWidgets.formRowSliderTransaction(
+            context.pushDraftSnapshot(),
+            "plugin.powerline.design.parametric_arm_span",
+            "##param_arm_span",
+            armSpan,
+            (float) profile.armSpanRange().min(),
+            (float) profile.armSpanRange().max(),
+            "%.0f",
+            newSpan -> context.session().applyParametricChange(draft, source -> withArmSpan(source, newSpan)));
         renderClampHint(context, "armSpan");
     }
 

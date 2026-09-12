@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -83,6 +84,26 @@ class TowerParametricEditorTest {
         assertTrue(design.isParametricMode());
         assertEquals(TowerParameterProfiles.SMALL_LATTICE_ID, design.getGeneratorConfig().profileId());
         assertEquals(TowerSilhouette.TAPERED_LATTICE, design.getTowerStructure().getSilhouette());
+    }
+
+    @Test
+    void switchProfileAppliesDefaultsAndCompilesOnce() {
+        PoleDesign design = new PoleDesign("switch", "Switch");
+        TowerParametricEditor.enableParametricClassic(design, TowerParameterSet.classicDefaults());
+        int classicAttachments = design.getAttachments().size();
+        double classicTop = design.getTowerStructure().maxHeight();
+
+        TowerConstraintResult result = TowerParametricEditor.switchProfile(
+            design,
+            TowerParameterProfiles.TRIPLE_ARM_ID,
+            TowerParameterSet.tripleArmDefaults(),
+            null);
+
+        assertNotNull(result);
+        assertFalse(result.hasErrors());
+        assertEquals(TowerParameterProfiles.TRIPLE_ARM_ID, design.getGeneratorConfig().profileId());
+        assertNotEquals(classicAttachments, design.getAttachments().size());
+        assertNotEquals(classicTop, design.getTowerStructure().maxHeight(), 0.01);
     }
 
     @Test

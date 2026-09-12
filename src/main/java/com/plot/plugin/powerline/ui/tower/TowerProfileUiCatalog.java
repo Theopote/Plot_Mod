@@ -1,76 +1,63 @@
 package com.plot.plugin.powerline.ui.tower;
 
-import com.plot.plugin.powerline.design.PoleDesign;
-import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
 import com.plot.plugin.powerline.design.parametric.TowerParameterProfiles;
 import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 import com.plot.utils.PlotI18n;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
+import java.util.function.Supplier;
 
-/** UI catalog mapping profile ids to display labels and enable actions. */
+/** UI catalog mapping profile ids to display labels and default parameters. */
 public final class TowerProfileUiCatalog {
-    public record ProfileOption(String id, String labelKey, Consumer<PoleDesign> enabler) {
+    public record ProfileOption(String id, String labelKey, Supplier<TowerParameterSet> defaults) {
     }
 
     private static final List<ProfileOption> OPTIONS = List.of(
         new ProfileOption(
             TowerParameterProfiles.SMALL_LATTICE_ID,
             "plugin.powerline.design.parametric_profile_small_lattice",
-            design -> TowerParametricEditor.enableParametricSmallLattice(
-                design, TowerParameterSet.smallLatticeDefaults())),
+            TowerParameterSet::smallLatticeDefaults),
         new ProfileOption(
             TowerParameterProfiles.CLASSIC_DOUBLE_ARM_ID,
             "plugin.powerline.design.parametric_profile_classic",
-            design -> TowerParametricEditor.enableParametricClassic(
-                design, TowerParameterSet.classicDefaults())),
+            TowerParameterSet::classicDefaults),
         new ProfileOption(
             TowerParameterProfiles.TRIPLE_ARM_ID,
             "plugin.powerline.design.parametric_profile_triple_arm",
-            design -> TowerParametricEditor.enableParametricTripleArm(
-                design, TowerParameterSet.tripleArmDefaults())),
+            TowerParameterSet::tripleArmDefaults),
         new ProfileOption(
             TowerParameterProfiles.CUP_ID,
             "plugin.powerline.design.parametric_profile_cup",
-            design -> TowerParametricEditor.enableParametricCup(
-                design, TowerParameterSet.cupDefaults())),
+            TowerParameterSet::cupDefaults),
         new ProfileOption(
             TowerParameterProfiles.HEAVY_ID,
             "plugin.powerline.design.parametric_profile_heavy",
-            design -> TowerParametricEditor.enableParametricHeavy(
-                design, TowerParameterSet.heavyDefaults())),
+            TowerParameterSet::heavyDefaults),
         new ProfileOption(
             TowerParameterProfiles.MEGA_ID,
             "plugin.powerline.design.parametric_profile_mega",
-            design -> TowerParametricEditor.enableParametricMega(
-                design, TowerParameterSet.megaDefaults())),
+            TowerParameterSet::megaDefaults),
         new ProfileOption(
             TowerParameterProfiles.PORTAL_ID,
             "plugin.powerline.design.parametric_profile_portal",
-            design -> TowerParametricEditor.enableParametricPortal(
-                design, TowerParameterSet.portalDefaults())),
+            TowerParameterSet::portalDefaults),
         new ProfileOption(
             TowerParameterProfiles.DRUM_ID,
             "plugin.powerline.design.parametric_profile_drum",
-            design -> TowerParametricEditor.enableParametricDrum(
-                design, TowerParameterSet.drumDefaults())),
+            TowerParameterSet::drumDefaults),
         new ProfileOption(
             TowerParameterProfiles.UHV_ID,
             "plugin.powerline.design.parametric_profile_uhv",
-            design -> TowerParametricEditor.enableParametricUhv(
-                design, TowerParameterSet.uhvDefaults())),
+            TowerParameterSet::uhvDefaults),
         new ProfileOption(
             TowerParameterProfiles.STEAMPUNK_ID,
             "plugin.powerline.design.parametric_profile_steampunk",
-            design -> TowerParametricEditor.enableParametricSteampunk(
-                design, TowerParameterSet.steampunkDefaults())),
+            TowerParameterSet::steampunkDefaults),
         new ProfileOption(
             TowerParameterProfiles.MODERN_HV_GLASS_ID,
             "plugin.powerline.design.parametric_profile_modern_hv_glass",
-            design -> TowerParametricEditor.enableParametricModernHvGlass(
-                design, TowerParameterSet.modernHvGlassDefaults())));
+            TowerParameterSet::modernHvGlassDefaults));
 
     private TowerProfileUiCatalog() {
     }

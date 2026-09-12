@@ -4,6 +4,8 @@ import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
+import java.util.function.Consumer;
+
 /** Shared ImGui form helpers for tower designer panels. */
 public final class TowerDesignerWidgets {
     private TowerDesignerWidgets() {
@@ -20,9 +22,26 @@ public final class TowerDesignerWidgets {
         return ImGui.sliderFloat(fieldId, value, min, max, format);
     }
 
-    public static void pushUndoIfActivated(Runnable pushDraftSnapshot) {
+    /**
+     * Slider edit with undo captured on activation, before the first value change is applied.
+     */
+    public static boolean formRowSliderTransaction(
+            Runnable pushDraftSnapshot,
+            String labelKey,
+            String fieldId,
+            float[] value,
+            float min,
+            float max,
+            String format,
+            Consumer<Float> onChanged) {
+        DialogLayoutHelper.formRowLabel(PlotI18n.tr(labelKey));
+        boolean changed = ImGui.sliderFloat(fieldId, value, min, max, format);
         if (ImGui.isItemActivated()) {
             pushDraftSnapshot.run();
         }
+        if (changed) {
+            onChanged.accept(value[0]);
+        }
+        return changed;
     }
 }

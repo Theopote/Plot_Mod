@@ -1,12 +1,9 @@
 package com.plot.plugin.powerline.ui.tower;
 
 import com.plot.plugin.powerline.design.PoleDesign;
-import com.plot.plugin.powerline.design.parametric.ConstraintIssue;
 import com.plot.plugin.powerline.design.parametric.ParameterRange;
 import com.plot.plugin.powerline.design.parametric.TowerArmRole;
 import com.plot.plugin.powerline.design.parametric.TowerArmTemplate;
-import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelope;
-import com.plot.plugin.powerline.design.parametric.TowerConstraintSolver;
 import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
 import com.plot.plugin.powerline.design.parametric.TowerParameterProfile;
 import com.plot.plugin.powerline.design.parametric.TowerParameterProfiles;
@@ -59,34 +56,32 @@ public final class TowerAdvancedParametersPanel {
         }
 
         float[] depthScale = {(float) parameters.depthScale()};
-        if (TowerDesignerWidgets.formRowSliderFloat(
-                "plugin.powerline.design.parametric_depth_scale",
-                "##param_depth_scale",
-                depthScale,
-                (float) profile.depthScaleRange().min(),
-                (float) profile.depthScaleRange().max(),
-                "%.2f")) {
-            context.session().applyParametricChange(
+        TowerDesignerWidgets.formRowSliderTransaction(
+            context.pushDraftSnapshot(),
+            "plugin.powerline.design.parametric_depth_scale",
+            "##param_depth_scale",
+            depthScale,
+            (float) profile.depthScaleRange().min(),
+            (float) profile.depthScaleRange().max(),
+            "%.2f",
+            newDepth -> context.session().applyParametricChange(
                 draft,
-                source -> withDepthScale(source, depthScale[0]));
-        }
-        TowerDesignerWidgets.pushUndoIfActivated(context.pushDraftSnapshot());
+                source -> withDepthScale(source, newDepth)));
         PowerLineUiWidgets.textColored(0xFF9E9E9E, PlotI18n.tr("plugin.powerline.design.parametric_depth_scale_hint"));
 
         if (profile.hasWaistControl()) {
             float[] waistRatio = {(float) parameters.waistRatio()};
-            if (TowerDesignerWidgets.formRowSliderFloat(
-                    "plugin.powerline.design.parametric_waist_ratio",
-                    "##param_waist_ratio",
-                    waistRatio,
-                    (float) ParameterRange.WAIST_RATIO.min(),
-                    (float) ParameterRange.WAIST_RATIO.max(),
-                    "%.2f")) {
-                context.session().applyParametricChange(
+            TowerDesignerWidgets.formRowSliderTransaction(
+                context.pushDraftSnapshot(),
+                "plugin.powerline.design.parametric_waist_ratio",
+                "##param_waist_ratio",
+                waistRatio,
+                (float) ParameterRange.WAIST_RATIO.min(),
+                (float) ParameterRange.WAIST_RATIO.max(),
+                "%.2f",
+                newWaist -> context.session().applyParametricChange(
                     draft,
-                    source -> withWaistRatio(source, waistRatio[0]));
-            }
-            TowerDesignerWidgets.pushUndoIfActivated(context.pushDraftSnapshot());
+                    source -> withWaistRatio(source, newWaist)));
             PowerLineUiWidgets.textColored(0xFF9E9E9E, PlotI18n.tr("plugin.powerline.design.parametric_waist_ratio_hint"));
         }
 
@@ -102,23 +97,25 @@ public final class TowerAdvancedParametersPanel {
             return;
         }
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.parametric_arm_levels_section"));
-        List<Double> scales = parameters.armLevelScalesForProfile(profile);
+        double towerHeight = parameters.height();
         for (int i = 0; i < armTemplates.size(); i++) {
             TowerArmTemplate armTemplate = armTemplates.get(i);
-            float[] level = {(float) scales.get(i).doubleValue()};
-            if (TowerDesignerWidgets.formRowSliderFloat(
-                    armLevelLabelKey(armTemplate.role()),
-                    "##param_arm_level_" + armTemplate.id(),
-                    level,
-                    (float) ParameterRange.ARM_LEVEL.min(),
-                    (float) ParameterRange.ARM_LEVEL.max(),
-                    "%.2f")) {
-                int armIndex = i;
-                context.session().applyParametricChange(
+            float[] armHeight = {(float) TowerArmLevelUiMath.displayArmHeight(profile, parameters, armTemplate, i)};
+            int armIndex = i;
+            TowerDesignerWidgets.formRowSliderTransaction(
+                context.pushDraftSnapshot(),
+                armLevelLabelKey(armTemplate.role()),
+                "##param_arm_level_" + armTemplate.id(),
+                armHeight,
+                TowerArmLevelUiMath.sliderMin(towerHeight, armTemplate),
+                TowerArmLevelUiMath.sliderMax(towerHeight, armTemplate),
+                "%.0f",
+                requestedHeight -> context.session().applyParametricChange(
                     context.draft(),
-                    source -> source.withArmLevelScale(profile, armIndex, level[0]));
-            }
-            TowerDesignerWidgets.pushUndoIfActivated(context.pushDraftSnapshot());
+                    source -> source.withArmLevelScale(
+                        profile,
+                        armIndex,
+                        TowerArmLevelUiMath.scaleFromArmHeight(requestedHeight, source.height(), armTemplate))));
         }
         PowerLineUiWidgets.textColored(0xFF9E9E9E, PlotI18n.tr("plugin.powerline.design.parametric_arm_levels_hint"));
     }
