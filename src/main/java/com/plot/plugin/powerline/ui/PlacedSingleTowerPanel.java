@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.model.PlacedSingleTower;
+import com.plot.plugin.powerline.model.SingleTowerPlacementStatus;
 import com.plot.plugin.powerline.placement.SingleTowerOrientation;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -74,6 +75,12 @@ public final class PlacedSingleTowerPanel {
             String.format("%.0f, %.0f", tower.getPlanPoint().x, tower.getPlanPoint().y),
             PlotI18n.tr(SingleTowerOrientation.labelKey(tower.getRotationQuadrant())),
             actions.resolveStyleLineName(tower, ctx.project()));
+        if (tower.getPlacementStatus() == SingleTowerPlacementStatus.PARTIAL) {
+            summary += " · " + PlotI18n.tr(
+                "plugin.powerline.single_tower.manage.partial",
+                tower.getPlacedBlockCount(),
+                tower.getExpectedBlockCount());
+        }
         if (ImGui.selectable(
                 PowerLineUiWidgets.stableSelectableLabel(summary, tower.getId()),
                 selected)) {

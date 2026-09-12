@@ -14,7 +14,10 @@ public final class PowerLineWorldCommandSync {
             return;
         }
         if (command instanceof SingleTowerPlaceCommand placeCommand) {
-            PlacedSingleTower tower = placeCommand.getTower();
+            PlacedSingleTower tower = placeCommand.getRegisteredTower();
+            if (tower == null) {
+                tower = placeCommand.getTower();
+            }
             if (tower != null) {
                 state.removePlacedSingleTower(tower.getId());
                 state.clearPlacedSingleTowerSelectionIf(tower.getId());
@@ -37,7 +40,7 @@ public final class PowerLineWorldCommandSync {
             return;
         }
         if (command instanceof SingleTowerPlaceCommand placeCommand) {
-            PlacedSingleTower tower = placeCommand.getTower();
+            PlacedSingleTower tower = placeCommand.getRegisteredTower();
             if (tower != null) {
                 state.addPlacedSingleTower(tower);
                 state.selectPlacedSingleTower(tower.getId());

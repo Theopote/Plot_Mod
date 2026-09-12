@@ -6,6 +6,7 @@ import com.plot.core.command.BlockRecord;
 import com.plot.core.command.Command;
 import com.plot.core.command.commands.PowerLineGenerateCommand;
 import com.plot.plugin.powerline.model.PlacedSingleTower;
+import com.plot.plugin.powerline.model.SingleTowerPlacementStatus;
 import com.plot.utils.PlotI18n;
 
 import java.util.Date;
@@ -27,6 +28,17 @@ public final class SingleTowerPlaceCommand implements Command {
 
     public PlacedSingleTower getTower() {
         return tower;
+    }
+
+    /** 按实际落地方块构造登记簿记录；无成功方块时返回 {@code null}。 */
+    public PlacedSingleTower getRegisteredTower() {
+        if (!hasAppliedRecords()) {
+            return null;
+        }
+        SingleTowerPlacementStatus status = SingleTowerPlacementStatus.fromCounts(
+            delegate.getAppliedRecordCount(),
+            tower.getExpectedBlockCount());
+        return tower.withAppliedPlacement(getAppliedRecords(), status);
     }
 
     public List<BlockRecord> getAppliedRecords() {

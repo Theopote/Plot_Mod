@@ -18,6 +18,8 @@ public final class PlacedSingleTower {
     private final String designLabel;
     private final String styleLineId;
     private final List<BlockRecord> blockRecords;
+    private final SingleTowerPlacementStatus placementStatus;
+    private final int expectedBlockCount;
 
     public PlacedSingleTower(
             Vec2d planPoint,
@@ -25,13 +27,16 @@ public final class PlacedSingleTower {
             String designLabel,
             String styleLineId,
             List<BlockRecord> blockRecords) {
-        this.id = UUID.randomUUID().toString();
-        this.planX = planPoint != null ? planPoint.x : 0.0;
-        this.planY = planPoint != null ? planPoint.y : 0.0;
-        this.rotationQuadrant = rotationQuadrant;
-        this.designLabel = designLabel != null ? designLabel : "";
-        this.styleLineId = styleLineId;
-        this.blockRecords = copyRecords(blockRecords);
+        this(
+            UUID.randomUUID().toString(),
+            planPoint != null ? planPoint.x : 0.0,
+            planPoint != null ? planPoint.y : 0.0,
+            rotationQuadrant,
+            designLabel,
+            styleLineId,
+            blockRecords,
+            SingleTowerPlacementStatus.FULL,
+            blockRecords != null ? blockRecords.size() : 0);
     }
 
     PlacedSingleTower(
@@ -42,6 +47,28 @@ public final class PlacedSingleTower {
             String designLabel,
             String styleLineId,
             List<BlockRecord> blockRecords) {
+        this(
+            id,
+            planX,
+            planY,
+            rotationQuadrant,
+            designLabel,
+            styleLineId,
+            blockRecords,
+            SingleTowerPlacementStatus.FULL,
+            blockRecords != null ? blockRecords.size() : 0);
+    }
+
+    PlacedSingleTower(
+            String id,
+            double planX,
+            double planY,
+            int rotationQuadrant,
+            String designLabel,
+            String styleLineId,
+            List<BlockRecord> blockRecords,
+            SingleTowerPlacementStatus placementStatus,
+            int expectedBlockCount) {
         this.id = id != null ? id : UUID.randomUUID().toString();
         this.planX = planX;
         this.planY = planY;
@@ -49,6 +76,10 @@ public final class PlacedSingleTower {
         this.designLabel = designLabel != null ? designLabel : "";
         this.styleLineId = styleLineId;
         this.blockRecords = copyRecords(blockRecords);
+        this.expectedBlockCount = Math.max(0, expectedBlockCount);
+        this.placementStatus = placementStatus != null
+            ? placementStatus
+            : SingleTowerPlacementStatus.fromCounts(this.blockRecords.size(), this.expectedBlockCount);
     }
 
     public String getId() {
@@ -77,6 +108,34 @@ public final class PlacedSingleTower {
 
     public int getBlockCount() {
         return blockRecords.size();
+    }
+
+    public SingleTowerPlacementStatus getPlacementStatus() {
+        return placementStatus;
+    }
+
+    public int getExpectedBlockCount() {
+        return expectedBlockCount;
+    }
+
+    public int getPlacedBlockCount() {
+        return blockRecords.size();
+    }
+
+    /** 按实际落地方块更新登记簿记录（保留 id 与预期方块数）。 */
+    public PlacedSingleTower withAppliedPlacement(
+            List<BlockRecord> appliedRecords,
+            SingleTowerPlacementStatus status) {
+        return new PlacedSingleTower(
+            id,
+            planX,
+            planY,
+            rotationQuadrant,
+            designLabel,
+            styleLineId,
+            appliedRecords,
+            status,
+            expectedBlockCount);
     }
 
     private static List<BlockRecord> copyRecords(List<BlockRecord> records) {

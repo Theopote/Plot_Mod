@@ -3520,6 +3520,7 @@
   "plugin.powerline.single_tower.manage.empty": "尚未放置单塔。",
   "plugin.powerline.single_tower.manage.count": "已放置 %d 座杆塔",
   "plugin.powerline.single_tower.manage.item": "%s @ %s · %s · %s",
+  "plugin.powerline.single_tower.manage.partial": "部分建成（%d / %d 方块）",
   "plugin.powerline.single_tower.delete_confirm": "从世界中移除杆塔「%s」？",
   "plugin.powerline.single_tower.deleted": "已移除杆塔「%s」。",
   "plugin.powerline.single_tower.deleted_partial": "已部分移除「%s」（%d / %d 个方块）。",

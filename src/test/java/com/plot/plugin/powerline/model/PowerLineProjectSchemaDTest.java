@@ -127,12 +127,21 @@ class PowerLineProjectSchemaDTest {
         line.setName("Style Source");
         project.addLine(line);
 
+        BlockRecord placed = new BlockRecord(new BlockPos(10, 64, 20), "minecraft:air", "minecraft:oak_fence");
+        List<BlockRecord> expected = List.of(
+            placed,
+            new BlockRecord(new BlockPos(11, 64, 20), "minecraft:air", "minecraft:oak_fence"),
+            new BlockRecord(new BlockPos(12, 64, 20), "minecraft:air", "minecraft:oak_fence"),
+            new BlockRecord(new BlockPos(13, 64, 20), "minecraft:air", "minecraft:oak_fence"),
+            new BlockRecord(new BlockPos(14, 64, 20), "minecraft:air", "minecraft:oak_fence"));
         PlacedSingleTower tower = new PlacedSingleTower(
             new Vec2d(12.5, 3.0),
             2,
             "Lattice A",
             line.getId(),
-            List.of(new BlockRecord(new BlockPos(10, 64, 20), "minecraft:air", "minecraft:oak_fence")));
+            expected).withAppliedPlacement(
+                List.of(placed),
+                com.plot.plugin.powerline.model.SingleTowerPlacementStatus.PARTIAL);
         project.addPlacedSingleTower(tower);
 
         String json = project.toJson();
@@ -150,5 +159,9 @@ class PowerLineProjectSchemaDTest {
         assertEquals(line.getId(), restoredTower.getStyleLineId());
         assertEquals(1, restoredTower.getBlockRecords().size());
         assertEquals("minecraft:oak_fence", restoredTower.getBlockRecords().getFirst().newBlockId);
+        assertEquals(
+            com.plot.plugin.powerline.model.SingleTowerPlacementStatus.PARTIAL,
+            restoredTower.getPlacementStatus());
+        assertEquals(5, restoredTower.getExpectedBlockCount());
     }
 }

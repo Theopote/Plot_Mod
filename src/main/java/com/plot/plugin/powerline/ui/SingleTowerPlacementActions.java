@@ -221,10 +221,13 @@ public final class SingleTowerPlacementActions {
             var result = command.getLastExecutionResult();
             if (command.hasAppliedRecords()) {
                 host.commands().pushExecuted(command);
+                PlacedSingleTower registered = command.getRegisteredTower();
+                if (registered != null) {
+                    state.addPlacedSingleTower(registered);
+                    state.selectPlacedSingleTower(registered.getId());
+                }
             }
             if (result != null && result.isFullSuccess()) {
-                state.addPlacedSingleTower(tower);
-                state.selectPlacedSingleTower(tower.getId());
                 state.setProjectStatus(
                     PlotI18n.tr(
                         "plugin.powerline.single_tower.build_success",

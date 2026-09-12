@@ -221,6 +221,8 @@ public class PowerLineProject {
         int rotationQuadrant;
         String designLabel;
         String styleLineId;
+        String placementStatus;
+        Integer expectedBlockCount;
         List<BlockRecordData> blockRecords = new ArrayList<>();
 
         static PlacedSingleTowerData from(PlacedSingleTower tower) {
@@ -231,6 +233,8 @@ public class PowerLineProject {
             data.rotationQuadrant = tower.getRotationQuadrant();
             data.designLabel = tower.getDesignLabel();
             data.styleLineId = tower.getStyleLineId();
+            data.placementStatus = tower.getPlacementStatus().name();
+            data.expectedBlockCount = tower.getExpectedBlockCount();
             for (BlockRecord record : tower.getBlockRecords()) {
                 data.blockRecords.add(BlockRecordData.from(record));
             }
@@ -249,6 +253,19 @@ public class PowerLineProject {
                     }
                 }
             }
+            SingleTowerPlacementStatus status = SingleTowerPlacementStatus.FULL;
+            if (placementStatus != null && !placementStatus.isBlank()) {
+                try {
+                    status = SingleTowerPlacementStatus.valueOf(placementStatus);
+                } catch (IllegalArgumentException ignored) {
+                    status = SingleTowerPlacementStatus.fromCounts(
+                        records.size(),
+                        expectedBlockCount != null ? expectedBlockCount : records.size());
+                }
+            }
+            int expected = expectedBlockCount != null
+                ? expectedBlockCount
+                : records.size();
             return new PlacedSingleTower(
                 id,
                 planX,
@@ -256,7 +273,9 @@ public class PowerLineProject {
                 rotationQuadrant,
                 designLabel,
                 styleLineId,
-                records);
+                records,
+                status,
+                expected);
         }
     }
 

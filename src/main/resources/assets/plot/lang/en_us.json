@@ -3520,6 +3520,7 @@
   "plugin.powerline.single_tower.manage.empty": "No single towers placed yet.",
   "plugin.powerline.single_tower.manage.count": "%d tower(s) placed",
   "plugin.powerline.single_tower.manage.item": "%s @ %s · %s · %s",
+  "plugin.powerline.single_tower.manage.partial": "Partial (%d / %d blocks)",
   "plugin.powerline.single_tower.delete_confirm": "Remove tower \"%s\" from the world?",
   "plugin.powerline.single_tower.deleted": "Removed tower \"%s\".",
   "plugin.powerline.single_tower.deleted_partial": "Partially removed \"%s\" (%d / %d blocks).",
