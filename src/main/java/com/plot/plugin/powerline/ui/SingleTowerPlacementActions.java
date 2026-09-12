@@ -190,8 +190,15 @@ public final class SingleTowerPlacementActions {
         }
 
         List<BlockRecord> records = new ArrayList<>(generation.placementRecords.values());
+        PlacedSingleTower tower = new PlacedSingleTower(
+            planPoint,
+            rotationQuadrant,
+            design.getName(),
+            styleSource.getId(),
+            records);
         SingleTowerPlaceCommand command = new SingleTowerPlaceCommand(
             records,
+            tower,
             host.projection(),
             host.placement());
         state.setProjectStatus(
@@ -204,11 +211,8 @@ public final class SingleTowerPlacementActions {
                 host.commands().pushExecuted(command);
             }
             if (result != null && result.isFullSuccess()) {
-                state.addPlacedSingleTower(new PlacedSingleTower(
-                    planPoint,
-                    rotationQuadrant,
-                    design.getName(),
-                    styleSource.getId()));
+                state.addPlacedSingleTower(tower);
+                state.selectPlacedSingleTower(tower.getId());
                 state.setProjectStatus(
                     PlotI18n.tr(
                         "plugin.powerline.single_tower.build_success",

@@ -71,6 +71,16 @@ public class PowerLineGenerateCommand implements Command {
         enqueueWritesReverse(appliedRecords, onComplete);
     }
 
+    /** 按记录中的 previousBlockId 恢复方块（用于移除已落地结构）。 */
+    public void restoreBlocksScheduled(Runnable onComplete) {
+        enqueueWritesReverse(requestedRecords, onComplete);
+    }
+
+    /** 按记录中的 newBlockId 重新落地（用于撤销移除）。 */
+    public void reapplyBlocksScheduled(Runnable onComplete) {
+        enqueueWrites(requestedRecords, true, onComplete);
+    }
+
     @Override
     public void execute() {
         enqueueWrites(requestedRecords, true, () -> { });
@@ -117,6 +127,10 @@ public class PowerLineGenerateCommand implements Command {
 
     public int getAppliedRecordCount() {
         return appliedRecords.size();
+    }
+
+    public List<BlockRecord> getAppliedRecords() {
+        return List.copyOf(appliedRecords);
     }
 
     private void enqueueWrites(List<BlockRecord> source, boolean applyNewBlocks, Runnable onComplete) {

@@ -48,6 +48,7 @@ public final class PowerLineActions {
     private final PowerLinePluginState state;
     private final Object projectLock;
     private final SingleTowerPlacementActions singleTowerPlacement;
+    private final PlacedSingleTowerActions placedSingleTowerActions;
     private PowerLineGenerator generator;
 
     public PowerLineActions(PluginContext host, PowerLinePluginState state, Object projectLock) {
@@ -55,10 +56,15 @@ public final class PowerLineActions {
         this.state = Objects.requireNonNull(state, "state");
         this.projectLock = Objects.requireNonNull(projectLock, "projectLock");
         this.singleTowerPlacement = new SingleTowerPlacementActions(host, state, projectLock);
+        this.placedSingleTowerActions = new PlacedSingleTowerActions(host, state);
     }
 
     public SingleTowerPlacementActions singleTowerPlacement() {
         return singleTowerPlacement;
+    }
+
+    public PlacedSingleTowerActions placedSingleTowerActions() {
+        return placedSingleTowerActions;
     }
 
     public void setGenerator(PowerLineGenerator generator) {

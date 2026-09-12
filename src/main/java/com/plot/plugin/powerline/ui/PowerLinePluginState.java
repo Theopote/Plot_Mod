@@ -42,6 +42,9 @@ public final class PowerLinePluginState {
     private String poleDesignerEditingId = "";
     private final PowerLineValidationUiState validationState = new PowerLineValidationUiState();
     private final List<PlacedSingleTower> placedSingleTowers = new ArrayList<>();
+    private String selectedPlacedSingleTowerId = "";
+    private String pendingDeletePlacedSingleTowerId = "";
+    private boolean placedSingleTowerDeleteConfirmPending;
 
     public PowerLineDesignProject getDesignProject() {
         return designProject;
@@ -194,5 +197,62 @@ public final class PowerLinePluginState {
         if (!placedSingleTowers.isEmpty()) {
             placedSingleTowers.removeLast();
         }
+    }
+
+    public void removePlacedSingleTower(String towerId) {
+        if (towerId == null || towerId.isBlank()) {
+            return;
+        }
+        placedSingleTowers.removeIf(tower -> towerId.equals(tower.getId()));
+    }
+
+    public PlacedSingleTower findPlacedSingleTower(String towerId) {
+        if (towerId == null || towerId.isBlank()) {
+            return null;
+        }
+        for (PlacedSingleTower tower : placedSingleTowers) {
+            if (towerId.equals(tower.getId())) {
+                return tower;
+            }
+        }
+        return null;
+    }
+
+    public String getSelectedPlacedSingleTowerId() {
+        return selectedPlacedSingleTowerId;
+    }
+
+    public PlacedSingleTower getSelectedPlacedSingleTower() {
+        return findPlacedSingleTower(selectedPlacedSingleTowerId);
+    }
+
+    public void selectPlacedSingleTower(String towerId) {
+        selectedPlacedSingleTowerId = towerId != null ? towerId : "";
+    }
+
+    public void clearPlacedSingleTowerSelection() {
+        selectedPlacedSingleTowerId = "";
+    }
+
+    public void clearPlacedSingleTowerSelectionIf(String towerId) {
+        if (towerId != null && towerId.equals(selectedPlacedSingleTowerId)) {
+            clearPlacedSingleTowerSelection();
+        }
+    }
+
+    public String getPendingDeletePlacedSingleTowerId() {
+        return pendingDeletePlacedSingleTowerId;
+    }
+
+    public void setPendingDeletePlacedSingleTowerId(String towerId) {
+        pendingDeletePlacedSingleTowerId = towerId != null ? towerId : "";
+    }
+
+    public boolean isPlacedSingleTowerDeleteConfirmPending() {
+        return placedSingleTowerDeleteConfirmPending;
+    }
+
+    public void setPlacedSingleTowerDeleteConfirmPending(boolean pending) {
+        this.placedSingleTowerDeleteConfirmPending = pending;
     }
 }

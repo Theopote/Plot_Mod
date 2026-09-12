@@ -2,8 +2,8 @@ package com.plot.plugin.powerline.ui;
 
 import com.plot.core.command.Command;
 import com.plot.core.command.CommandService;
+import com.plot.plugin.powerline.placement.PowerLineWorldCommandSync;
 import com.plot.plugin.powerline.placement.PowerLineWorldCommands;
-import com.plot.plugin.powerline.placement.SingleTowerPlaceCommand;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -91,9 +91,7 @@ public final class PowerLineToolbarPanel {
         }
         if (ImGui.button(PlotI18n.tr("plugin.powerline.undo_world"), halfWidth, 0)) {
             if (commands.undo()) {
-                if (undoCommand instanceof SingleTowerPlaceCommand) {
-                    ctx.state().removeLastPlacedSingleTower();
-                }
+                PowerLineWorldCommandSync.afterUndo(undoCommand, ctx.state());
                 ctx.invalidatePreview();
             }
         }
@@ -111,6 +109,7 @@ public final class PowerLineToolbarPanel {
         }
         if (ImGui.button(PlotI18n.tr("plugin.powerline.redo_world"), halfWidth, 0)) {
             if (commands.redo()) {
+                PowerLineWorldCommandSync.afterRedo(redoCommand, ctx.state());
                 ctx.invalidatePreview();
             }
         }

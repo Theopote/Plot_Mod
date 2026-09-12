@@ -17,25 +17,33 @@ public final class PowerLineStylePanel {
     private final PowerLineStyleControls styleControls;
     private final PoleDesignerPanel poleDesignerPanel;
     private final PowerLineStyleQuickTunePanel quickTunePanel;
+    private final PlacedSingleTowerPanel placedSingleTowerPanel;
 
     public PowerLineStylePanel(
             PowerLineUiContext ctx,
-            PoleDesignerPanel poleDesignerPanel) {
+            PoleDesignerPanel poleDesignerPanel,
+            PlacedSingleTowerPanel placedSingleTowerPanel) {
         this.ctx = ctx;
         this.styleControls = new PowerLineStyleControls(ctx);
         this.poleDesignerPanel = poleDesignerPanel;
         this.quickTunePanel = new PowerLineStyleQuickTunePanel(ctx, poleDesignerPanel);
+        this.placedSingleTowerPanel = placedSingleTowerPanel;
     }
 
     public void render() {
         ctx.selection().retainExisting(ctx.project());
+        placedSingleTowerPanel.render();
+
         PowerLineFootprint line = ctx.selection().primary(ctx.project());
         if (line == null) {
+            ImGui.separator();
             PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.select_line_hint"));
             PowerLineUiWidgets.renderLineSelector(ctx);
+            renderSingleTowerPlacement(null);
             return;
         }
 
+        ImGui.separator();
         PowerLineUiWidgets.renderLineSelector(ctx);
         ImGui.separator();
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.section.choose"));
@@ -57,6 +65,12 @@ public final class PowerLineStylePanel {
     private void renderSingleTowerPlacement(PowerLineFootprint line) {
         ImGui.separator();
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.single_tower.section"));
+        if (line == null) {
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.single_tower.need_line"));
+            return;
+        }
         if (ctx.singleTowerPlacement().isActive()) {
             PowerLineUiWidgets.textColored(
                 PluginUiColors.STATUS_INFO,

@@ -16,18 +16,18 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class SingleTowerPlaceCommandTest {
+class SingleTowerRemoveCommandTest {
 
     @Test
-    void executeThenUndoRestoresOriginalBlocks() {
+    void removeThenUndoRestoresTowerBlocks() {
         Map<BlockPos, String> world = new LinkedHashMap<>();
         BlockPos base = new BlockPos(10, 64, 20);
         world.put(base, "minecraft:grass_block");
 
         List<BlockRecord> records = List.of(
             new BlockRecord(base, "minecraft:grass_block", "minecraft:iron_bars"));
+        world.put(base, "minecraft:iron_bars");
 
         PlacedSingleTower tower = new PlacedSingleTower(
             new Vec2d(10, 20),
@@ -35,19 +35,16 @@ class SingleTowerPlaceCommandTest {
             "Test",
             "line-1",
             records);
-        SingleTowerPlaceCommand command = new SingleTowerPlaceCommand(
-            records,
+        SingleTowerRemoveCommand command = new SingleTowerRemoveCommand(
             tower,
             projection(world),
             syncPlacement(world));
         command.execute();
 
-        assertEquals("minecraft:iron_bars", world.get(base));
-        assertTrue(command.hasAppliedRecords());
+        assertEquals("minecraft:grass_block", world.get(base));
 
         command.undo();
-
-        assertEquals("minecraft:grass_block", world.get(base));
+        assertEquals("minecraft:iron_bars", world.get(base));
     }
 
     private static IBlockProjectionService projection(Map<BlockPos, String> world) {

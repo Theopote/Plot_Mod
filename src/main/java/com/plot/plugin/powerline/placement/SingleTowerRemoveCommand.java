@@ -11,17 +11,17 @@ import com.plot.utils.PlotI18n;
 import java.util.Date;
 import java.util.List;
 
-/** 单塔落地命令：委托 {@link PowerLineGenerateCommand}，独立撤销历史描述。 */
-public final class SingleTowerPlaceCommand implements Command {
+/** 移除已落地单塔：恢复方块；撤销/重做可往返。 */
+public final class SingleTowerRemoveCommand implements Command {
     private final PlacedSingleTower tower;
     private final PowerLineGenerateCommand delegate;
 
-    public SingleTowerPlaceCommand(
-            List<BlockRecord> records,
+    public SingleTowerRemoveCommand(
             PlacedSingleTower tower,
             IBlockProjectionService projection,
             IBlockPlacementService placement) {
         this.tower = tower;
+        List<BlockRecord> records = tower != null ? tower.getBlockRecords() : List.of();
         this.delegate = new PowerLineGenerateCommand(records, projection, placement);
     }
 
@@ -29,12 +29,8 @@ public final class SingleTowerPlaceCommand implements Command {
         return tower;
     }
 
-    public List<BlockRecord> getAppliedRecords() {
-        return delegate.getAppliedRecords();
-    }
-
     public void executeScheduled(Runnable onComplete) {
-        delegate.executeScheduled(onComplete);
+        delegate.restoreBlocksScheduled(onComplete);
     }
 
     public PowerLineGenerateCommand.ExecutionResult getLastExecutionResult() {
@@ -47,37 +43,30 @@ public final class SingleTowerPlaceCommand implements Command {
 
     @Override
     public void execute() {
-        delegate.execute();
+        delegate.restoreBlocksScheduled(() -> { });
     }
 
     @Override
     public void undo() {
-        delegate.undo();
+        delegate.reapplyBlocksScheduled(() -> { });
     }
 
     @Override
     public void redo() {
-        delegate.redo();
+        delegate.restoreBlocksScheduled(() -> { });
     }
 
     @Override
     public String getDescription() {
-        int count = delegate.hasAppliedRecords()
-            ? delegate.getAppliedRecordCount()
-            : delegate.getLastExecutionResult() != null
-                ? delegate.getLastExecutionResult().total()
-                : 0;
-        return PlotI18n.tr("plugin.powerline.single_tower.history.place", count);
+        return PlotI18n.tr(
+            "plugin.powerline.single_tower.history.remove",
+            tower != null ? tower.getDesignLabel() : "");
     }
 
     @Override
     public String getDetailedDescription() {
-        int count = delegate.hasAppliedRecords()
-            ? delegate.getAppliedRecordCount()
-            : delegate.getLastExecutionResult() != null
-                ? delegate.getLastExecutionResult().total()
-                : 0;
-        return PlotI18n.tr("plugin.powerline.single_tower.history.place.detail", count);
+        int blocks = tower != null ? tower.getBlockCount() : 0;
+        return PlotI18n.tr("plugin.powerline.single_tower.history.remove.detail", blocks);
     }
 
     @Override

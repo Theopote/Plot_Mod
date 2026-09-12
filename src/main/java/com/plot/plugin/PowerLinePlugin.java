@@ -43,7 +43,8 @@ public class PowerLinePlugin extends Plugin {
             PlacedSingleTowerCanvasRenderer.render(
                 drawList,
                 camera,
-                uiContext.state().getPlacedSingleTowers());
+                uiContext.state().getPlacedSingleTowers(),
+                uiContext.state().getSelectedPlacedSingleTowerId());
         }
     };
 

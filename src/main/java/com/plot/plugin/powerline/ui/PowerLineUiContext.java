@@ -202,6 +202,10 @@ public final class PowerLineUiContext {
         return actions.singleTowerPlacement();
     }
 
+    public PlacedSingleTowerActions placedSingleTowerActions() {
+        return actions.placedSingleTowerActions();
+    }
+
     public List<String> pendingDeleteLineIds() {
         return state.getPendingDeleteLineIds();
     }

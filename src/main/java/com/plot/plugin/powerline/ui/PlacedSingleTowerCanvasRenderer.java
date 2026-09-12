@@ -16,19 +16,30 @@ public final class PlacedSingleTowerCanvasRenderer {
     private PlacedSingleTowerCanvasRenderer() {
     }
 
-    public static void render(ImDrawList drawList, CanvasCamera camera, List<PlacedSingleTower> placements) {
+    public static void render(
+            ImDrawList drawList,
+            CanvasCamera camera,
+            List<PlacedSingleTower> placements,
+            String selectedTowerId) {
         if (drawList == null || camera == null || placements == null || placements.isEmpty()) {
             return;
         }
         for (PlacedSingleTower placement : placements) {
-            renderOne(drawList, camera, placement);
+            boolean selected = placement.getId().equals(selectedTowerId);
+            renderOne(drawList, camera, placement, selected);
         }
     }
 
-    private static void renderOne(ImDrawList drawList, CanvasCamera camera, PlacedSingleTower placement) {
+    private static void renderOne(
+            ImDrawList drawList,
+            CanvasCamera camera,
+            PlacedSingleTower placement,
+            boolean selected) {
         Vec2d center = camera.worldToScreen(placement.getPlanPoint());
-        drawList.addCircleFilled((float) center.x, (float) center.y, MARKER_RADIUS, PluginUiColors.STATUS_OK);
-        drawList.addCircle((float) center.x, (float) center.y, MARKER_RADIUS, PluginUiColors.RING_DARK, 16, 1.5f);
+        float radius = selected ? MARKER_RADIUS + 3f : MARKER_RADIUS;
+        int fill = selected ? PluginUiColors.ACCENT_BLUE : PluginUiColors.STATUS_OK;
+        drawList.addCircleFilled((float) center.x, (float) center.y, radius, fill);
+        drawList.addCircle((float) center.x, (float) center.y, radius, PluginUiColors.RING_DARK, 16, selected ? 2.5f : 1.5f);
 
         Vec2d tangent = SingleTowerOrientation.tangentForQuadrant(placement.getRotationQuadrant());
         Vec2d arrowEnd = placement.getPlanPoint().add(tangent.multiply(16.0 / Math.max(camera.getZoom(), 0.05)));
