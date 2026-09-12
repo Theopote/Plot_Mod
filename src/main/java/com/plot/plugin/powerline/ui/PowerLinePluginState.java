@@ -5,6 +5,7 @@ import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.PowerLinePathSelectionAnalysis;
 import com.plot.plugin.powerline.PowerLineSelectionSet;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
+import com.plot.plugin.powerline.model.PlacedSingleTower;
 import com.plot.plugin.powerline.model.PowerLineProject;
 import com.plot.plugin.powerline.model.PoleDesignDraftHistory;
 import com.plot.plugin.powerline.model.PowerLineProjectHistory;
@@ -40,6 +41,7 @@ public final class PowerLinePluginState {
     private boolean poleDesignerOpen = false;
     private String poleDesignerEditingId = "";
     private final PowerLineValidationUiState validationState = new PowerLineValidationUiState();
+    private final List<PlacedSingleTower> placedSingleTowers = new ArrayList<>();
 
     public PowerLineDesignProject getDesignProject() {
         return designProject;
@@ -176,5 +178,21 @@ public final class PowerLinePluginState {
 
     public PowerLineValidationUiState getValidationState() {
         return validationState;
+    }
+
+    public List<PlacedSingleTower> getPlacedSingleTowers() {
+        return List.copyOf(placedSingleTowers);
+    }
+
+    public void addPlacedSingleTower(PlacedSingleTower placement) {
+        if (placement != null) {
+            placedSingleTowers.add(placement);
+        }
+    }
+
+    public void removeLastPlacedSingleTower() {
+        if (!placedSingleTowers.isEmpty()) {
+            placedSingleTowers.removeLast();
+        }
     }
 }

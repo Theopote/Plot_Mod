@@ -16,6 +16,7 @@ import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelopeResolver;
 import com.plot.plugin.powerline.design.parametric.TowerLineBuildEnvelope;
 import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
 import com.plot.plugin.powerline.design.parametric.TowerParametricLinePlacement;
+import com.plot.plugin.powerline.model.PlacedSingleTower;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 import com.plot.plugin.powerline.model.TowerRole;
@@ -203,6 +204,11 @@ public final class SingleTowerPlacementActions {
                 host.commands().pushExecuted(command);
             }
             if (result != null && result.isFullSuccess()) {
+                state.addPlacedSingleTower(new PlacedSingleTower(
+                    planPoint,
+                    rotationQuadrant,
+                    design.getName(),
+                    styleSource.getId()));
                 state.setProjectStatus(
                     PlotI18n.tr(
                         "plugin.powerline.single_tower.build_success",
