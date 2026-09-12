@@ -147,14 +147,6 @@ public final class PoleDesignerPanel {
                         attachmentPanel.render(draft, this::pushDraftSnapshot);
                     });
                 renderFooter();
-                toolbar.renderPresetConfirmPopup(preset -> {
-                    pushDraftSnapshot();
-                    draft = preset;
-                    designNameBuffer.set(draft.getName());
-                    towerUiState.syncFromDraft(draft);
-                    towerSession.refreshConstraints(draft);
-                    ctx.state().setPoleDesignerEditingId("");
-                });
             } finally {
                 ImGui.end();
                 if (!designerWindowOpen.get()) {
