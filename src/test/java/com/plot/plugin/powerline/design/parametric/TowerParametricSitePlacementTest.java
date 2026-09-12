@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TowerParametricSitePlacementTest {
@@ -86,19 +87,20 @@ class TowerParametricSitePlacementTest {
     }
 
     @Test
-    void smartTowersPresetEnablesPerSiteParametricHeight() {
+    void smartTowersPresetKeepsExperimentalPerSiteHeightDisabled() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(120, 0)));
         PowerLineStylePresetCatalog.smartTowers().apply(line);
 
-        assertTrue(line.isPerSiteParametricHeightEnabled());
+        assertFalse(line.isPerSiteParametricHeightEnabled());
         assertTrue(line.hasParametricTowerConfig());
         assertEquals(TowerFamily.GRADED_LATTICE_3_PHASE_ID, line.getTowerFamilyId());
     }
 
     @Test
-    void generationUsesDifferentTowerHeightsForMountainAndValley() {
+    void experimentalPerSiteHeightProducesDifferentTowerHeightsWhenEnabled() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(120, 0)));
         PowerLineStylePresetCatalog.smartTowers().apply(line);
+        line.setPerSiteParametricHeightEnabled(true);
         line.setMaxPoleSpacing(150);
 
         TerrainSampler terrain = varyingTerrain(200, 64);

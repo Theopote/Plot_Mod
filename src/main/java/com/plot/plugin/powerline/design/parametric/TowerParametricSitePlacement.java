@@ -5,7 +5,7 @@ import com.plot.plugin.powerline.design.PoleDesign;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 单杆位参数化放置：按站点世界包络自适应塔高（Smart Towers）。 */
+/** 单杆位参数化放置（实验性）：按线路相对世界包络插值塔高。默认关闭。 */
 public final class TowerParametricSitePlacement {
     private TowerParametricSitePlacement() {
     }

@@ -6,10 +6,13 @@ import com.plot.plugin.powerline.design.TowerArmAttachmentBinding;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
  * 参数化杆塔编辑：将 {@link TowerParameterSet} 编译进 {@link PoleDesign}，保留 id/名称/工程元数据。
+ * <p>
+ * Constraint ERROR 时与 {@link TowerParametricDesignFactory#compileProfile} 一致：拒绝写入结构。
  */
 public final class TowerParametricEditor {
     private TowerParametricEditor() {
@@ -75,12 +78,22 @@ public final class TowerParametricEditor {
         if (design == null) {
             return;
         }
+        String previousProfileId = design.getGeneratorConfig() != null
+            ? design.getGeneratorConfig().profileId()
+            : null;
         TowerParameterSet resolved = parameters != null ? parameters : fallback;
         design.setGeneratorConfig(new TowerGeneratorConfig(profileId, TowerGeneratorMode.PARAMETRIC, resolved));
-        recompile(design, null);
+        recompile(design, null, previousProfileId);
     }
 
     public static TowerConstraintResult recompile(PoleDesign design, TowerBuildEnvelope envelope) {
+        return recompile(design, envelope, null);
+    }
+
+    public static TowerConstraintResult recompile(
+            PoleDesign design,
+            TowerBuildEnvelope envelope,
+            String previousProfileId) {
         if (design == null || design.getGeneratorConfig() == null || !design.getGeneratorConfig().isParametric()) {
             return null;
         }
@@ -91,17 +104,28 @@ public final class TowerParametricEditor {
             profile,
             config.parameters(),
             envelope);
+        design.setGeneratorConfig(config.withParameters(toParameterSet(result.resolved())));
+        if (result.hasErrors()) {
+            return result;
+        }
+
         List<ConductorAttachment> previousAttachments = new ArrayList<>(design.getAttachments());
+        boolean sameProfile = previousProfileId == null
+            || Objects.equals(previousProfileId, config.profileId());
         PoleDesign compiled = TowerStructureCompiler.compile(profile, result.resolved());
         design.setTowerStructure(compiled.getTowerStructure());
-        if (previousAttachments.isEmpty()) {
+        if (previousAttachments.isEmpty() || !sameProfile) {
             design.setAttachments(compiled.getAttachments());
         } else {
             TowerArmAttachmentBinding.ensureV2Bindings(design);
             design.setAttachments(previousAttachments);
         }
-        design.setGeneratorConfig(config.withParameters(toParameterSet(result.resolved())));
         return result;
+    }
+
+    public static boolean hasBlockingErrors(PoleDesign design, TowerBuildEnvelope envelope) {
+        TowerConstraintResult result = preview(design, envelopeParameters(design), envelope);
+        return result != null && result.hasErrors();
     }
 
     public static TowerConstraintResult preview(
@@ -143,6 +167,10 @@ public final class TowerParametricEditor {
             current.parameters()));
         recompile(design, envelope);
         return true;
+    }
+
+    private static TowerParameterSet envelopeParameters(PoleDesign design) {
+        return design.getGeneratorConfig().parameters();
     }
 
     private static TowerParameterSet toParameterSet(ResolvedTowerParameters resolved) {

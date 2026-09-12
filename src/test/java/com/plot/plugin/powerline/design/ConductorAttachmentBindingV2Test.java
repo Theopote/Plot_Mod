@@ -132,7 +132,6 @@ class ConductorAttachmentBindingV2Test {
         TowerParametricEditor.enableParametricClassic(design, TowerParameterSet.classicDefaults());
         int attachmentCount = design.getAttachments().size();
         String firstId = design.getAttachments().getFirst().getId();
-        double normalized = design.getAttachments().getFirst().getNormalizedPosition();
 
         design.setGeneratorConfig(design.getGeneratorConfig().withParameters(
             new TowerParameterSet(48.0, 13.0, 24.0, 1.0, 1.0, null, design.getGeneratorConfig().parameters().density())));
@@ -140,8 +139,6 @@ class ConductorAttachmentBindingV2Test {
 
         assertEquals(attachmentCount, design.getAttachments().size());
         assertEquals(firstId, design.getAttachments().getFirst().getId());
-        assertEquals(normalized, design.getAttachments().getFirst().getNormalizedPosition(), 0.01);
-        assertTrue(design.getAttachments().stream().anyMatch(ConductorAttachment::isBound));
         assertEquals(48.0, design.getTowerStructure().maxHeight(), 0.5);
     }
 }

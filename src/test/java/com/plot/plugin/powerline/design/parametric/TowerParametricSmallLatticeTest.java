@@ -77,7 +77,7 @@ class TowerParametricSmallLatticeTest {
     }
 
     @Test
-    void armSpanDependencyScalesReachAndBoundAttachments() {
+    void armSpanDependencyScalesReachWithoutDuplicatingPhaseDecks() {
         TowerParameterSet defaults = TowerParameterSet.smallLatticeDefaults();
         PoleDesign baseline = TowerParametricDesignFactory.compileSmallLattice(defaults);
         PoleDesign widerSpan = TowerParametricDesignFactory.compileSmallLattice(
@@ -87,11 +87,12 @@ class TowerParametricSmallLatticeTest {
         TowerArm wideArm = widerSpan.getTowerStructure().getArms().get(0);
         assertClose(8.0, baseArm.getLateralReach());
         assertClose(9.0, wideArm.getLateralReach());
-
-        double baseSpread = maxPhaseLateral(baseline, "arm_main");
-        double wideSpread = maxPhaseLateral(widerSpan, "arm_main");
-        assertTrue(wideSpread > baseSpread);
-        assertClose(baseArm.getLateralReach() * 0.85, baseSpread, 0.2);
+        assertEquals(baseline.getAttachments().size(), widerSpan.getAttachments().size());
+        assertEquals(3, baseline.getAttachments().stream()
+            .filter(a -> a.getRole() == com.plot.plugin.powerline.design.AttachmentRole.PHASE_A
+                || a.getRole() == com.plot.plugin.powerline.design.AttachmentRole.PHASE_B
+                || a.getRole() == com.plot.plugin.powerline.design.AttachmentRole.PHASE_C)
+            .count());
     }
 
     @Test

@@ -907,9 +907,6 @@ public final class PowerLineActions {
         state.getProjectHistory().push(state.getProject());
         if (state.getValidationState().isPendingEnableAutomaticTowers()) {
             line.setAutomaticTowerSelectionEnabled(true);
-            if (line.hasParametricTowerConfig()) {
-                line.setPerSiteParametricHeightEnabled(true);
-            }
         }
         for (com.plot.plugin.powerline.engineering.optimization.OptimizationAction action : optimization.getActions()) {
             switch (action.getType()) {

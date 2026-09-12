@@ -222,7 +222,8 @@ public final class TowerParameterProfiles {
                 StructureDensity.HIGH, classicHighBays()),
             LATTICE_LEG,
             LATTICE_BRACE,
-            ARM_MATERIAL);
+            ARM_MATERIAL,
+            TowerAttachmentTopology.classicLattice());
     }
 
     public static TowerParameterProfile smallLattice() {
@@ -263,7 +264,8 @@ public final class TowerParameterProfiles {
                 StructureDensity.HIGH, smallHighBays()),
             SMALL_LATTICE_MEMBER,
             SMALL_LATTICE_MEMBER,
-            ARM_MATERIAL);
+            ARM_MATERIAL,
+            TowerAttachmentTopology.classicLattice());
     }
 
     public static TowerParameterProfile tripleArm() {
@@ -324,7 +326,8 @@ public final class TowerParameterProfiles {
                 StructureDensity.HIGH, tripleHighBays()),
             LATTICE_LEG,
             LATTICE_BRACE,
-            ARM_MATERIAL);
+            ARM_MATERIAL,
+            TowerAttachmentTopology.doubleCircuitThreeDeck());
     }
 
     public static TowerParameterProfile cup() {
@@ -367,7 +370,8 @@ public final class TowerParameterProfiles {
                 StructureDensity.HIGH, cupHighBays()),
             LATTICE_LEG,
             LATTICE_BRACE,
-            ARM_MATERIAL);
+            ARM_MATERIAL,
+            TowerAttachmentTopology.heavyTransmission());
     }
 
     public static TowerParameterProfile heavy() {
@@ -419,7 +423,8 @@ public final class TowerParameterProfiles {
                 StructureDensity.HIGH, heavyHighBays()),
             LATTICE_LEG,
             LATTICE_BRACE,
-            ARM_MATERIAL);
+            ARM_MATERIAL,
+            TowerAttachmentTopology.heavyTransmission());
     }
 
     public static TowerParameterProfile mega() {
@@ -480,7 +485,8 @@ public final class TowerParameterProfiles {
                 StructureDensity.HIGH, megaHighBays()),
             LATTICE_LEG,
             LATTICE_BRACE,
-            ARM_MATERIAL);
+            ARM_MATERIAL,
+            TowerAttachmentTopology.megaThreeDeck());
     }
 
     public static TowerParameterProfile portal() {
@@ -540,7 +546,8 @@ public final class TowerParameterProfiles {
                 StructureDensity.HIGH, portalHighBays()),
             LATTICE_LEG,
             LATTICE_BRACE,
-            ARM_MATERIAL);
+            ARM_MATERIAL,
+            TowerAttachmentTopology.heavyDoubleCircuit());
     }
 
     public static TowerParameterProfile drum() {
@@ -602,7 +609,8 @@ public final class TowerParameterProfiles {
                 StructureDensity.HIGH, drumHighBays()),
             LATTICE_LEG,
             LATTICE_BRACE,
-            ARM_MATERIAL);
+            ARM_MATERIAL,
+            TowerAttachmentTopology.doubleCircuitDrum());
     }
 
     public static TowerParameterProfile uhv() {
@@ -664,7 +672,8 @@ public final class TowerParameterProfiles {
                 StructureDensity.HIGH, uhvHighBays()),
             LATTICE_LEG,
             LATTICE_BRACE,
-            ARM_MATERIAL);
+            ARM_MATERIAL,
+            TowerAttachmentTopology.uhvThreeDeck());
     }
 
     public static TowerParameterProfile steampunk() {
@@ -715,7 +724,8 @@ public final class TowerParameterProfiles {
                 StructureDensity.HIGH, heavyHighBays()),
             STEAMPUNK_LEG,
             STEAMPUNK_BRACE,
-            STEAMPUNK_ARM);
+            STEAMPUNK_ARM,
+            TowerAttachmentTopology.classicLattice());
     }
 
     public static TowerParameterProfile modernHvGlass() {
@@ -756,7 +766,8 @@ public final class TowerParameterProfiles {
                 StructureDensity.HIGH, smallHighBays()),
             MODERN_HV_LEG,
             MODERN_HV_BRACE,
-            MODERN_HV_ARM);
+            MODERN_HV_ARM,
+            TowerAttachmentTopology.threeHorizontal());
     }
 
     private static List<BayDensityConfig> classicLowBays() {

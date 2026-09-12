@@ -23,7 +23,14 @@ public record TowerParameterProfile(
         Map<StructureDensity, List<BayDensityConfig>> bayConfigsByDensity,
         MaterialMix legMaterial,
         MaterialMix braceMaterial,
-        MaterialMix armMaterial) {
+        MaterialMix armMaterial,
+        TowerAttachmentTopology attachmentTopology) {
+
+    public TowerParameterProfile {
+        if (attachmentTopology == null) {
+            throw new IllegalArgumentException("attachmentTopology is required");
+        }
+    }
 
     public boolean hasWaistControl() {
         for (TowerStationTemplate template : stationTemplates) {

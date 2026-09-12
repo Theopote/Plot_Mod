@@ -23,6 +23,7 @@ import com.plot.plugin.powerline.engineering.validation.ValidationLimits;
 import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelope;
 import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelopeResolver;
 import com.plot.plugin.powerline.design.parametric.TowerLineBuildEnvelope;
+import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
 import com.plot.plugin.powerline.design.parametric.TowerParametricLinePlacement;
 import com.plot.plugin.powerline.design.parametric.TowerParametricSitePlacement;
 import com.plot.plugin.powerline.style.ParametricStyleTowerApplicator;
@@ -206,12 +207,16 @@ public class PowerLineGenerator {
             coordinateTransformer);
         fillWaterFoundationIfNeeded(planPoint, placementBase, footprint, result);
 
-        int legacyWireHangY;
+        int legacyWireHangY = buildBaseY + (int) Math.round(footprint.getPoleHeight());
         List<ResolvedAttachment> attachments = List.of();
         boolean usesAttachmentConductors = false;
 
         if (design != null) {
-            if (design.hasTowerStructure()) {
+            boolean parametricBlocked = design.isParametricMode()
+                && TowerParametricEditor.hasBlockingErrors(design, parametricEnvelope);
+            if (parametricBlocked) {
+                result.warnings.add("parametric.constraint_error");
+            } else if (design.hasTowerStructure()) {
                 legacyWireHangY = TowerStructureGenerator.generate(
                     design.getTowerStructure(),
                     frame,

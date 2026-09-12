@@ -1,9 +1,6 @@
 package com.plot.plugin.powerline.design.parametric;
 
-import com.plot.plugin.powerline.design.ConductorAttachment;
-import com.plot.plugin.powerline.design.ConductorAttachmentPresets;
 import com.plot.plugin.powerline.design.PoleDesign;
-import com.plot.plugin.powerline.design.TowerArmAttachmentBinding;
 import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerArmSide;
 import com.plot.plugin.powerline.design.structure.TowerBay;
@@ -29,7 +26,7 @@ public final class TowerStructureCompiler {
         }
         PoleDesign design = new PoleDesign("parametric/" + profile.id(), "Parametric Tower");
         design.setTowerStructure(compileStructure(profile, resolved));
-        design.setAttachments(compileAttachments(resolved, design.getTowerStructure()));
+        design.setAttachments(TowerAttachmentCompiler.compile(profile, resolved, design.getTowerStructure()));
         return design;
     }
 
@@ -86,23 +83,5 @@ public final class TowerStructureCompiler {
         peak.setMaterial(profile.braceMaterial());
         structure.addDecoration(peak);
         return structure;
-    }
-
-    public static List<ConductorAttachment> compileAttachments(
-            ResolvedTowerParameters resolved,
-            TowerStructureDesign structure) {
-        List<ConductorAttachment> attachments = new ArrayList<>();
-        List<TowerArm> arms = structure.getArms().stream()
-            .sorted(Comparator.comparingDouble(TowerArm::getBaseHeight))
-            .toList();
-        for (TowerArm arm : arms) {
-            attachments.addAll(TowerArmAttachmentBinding.createBundledThreePhaseDeck(arm, 2));
-        }
-        if (!arms.isEmpty()) {
-            TowerArm upperArm = arms.get(arms.size() - 1);
-            double topWireHeight = TowerArmAttachmentBinding.conductorHangHeight(upperArm) + resolved.topWireLift();
-            attachments.addAll(ConductorAttachmentPresets.twinTopWires(topWireHeight, 1.5));
-        }
-        return attachments;
     }
 }

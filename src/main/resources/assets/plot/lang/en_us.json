@@ -3635,6 +3635,7 @@
   "plugin.powerline.warn.parametric_height_clamped_for_site": "Parametric tower height clamped to %d blocks at pole #%d",
   "plugin.powerline.warn.parametric_world_height_exceeded_on_site": "Parametric tower may exceed world height at pole #%d",
   "plugin.powerline.warn.parametric_world_height_exceeded_on_line": "Parametric tower exceeds world height along the line",
+  "plugin.powerline.warn.parametric_constraint_error": "Parametric tower constraints failed; structure generation skipped",
   "plugin.powerline.validation.section": "Line checks",
   "plugin.powerline.validation.hint": "Common-sense checks using your route spacing — not electrical engineering standards.",
   "plugin.powerline.validation.visual_checks": "Enable visual checks",

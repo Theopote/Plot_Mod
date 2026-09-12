@@ -3635,6 +3635,7 @@
   "plugin.powerline.warn.parametric_height_clamped_for_site": "参数化塔高已压至 %d 格（第 %d 号杆位）",
   "plugin.powerline.warn.parametric_world_height_exceeded_on_site": "第 %d 号杆位参数化塔高可能超出世界高度",
   "plugin.powerline.warn.parametric_world_height_exceeded_on_line": "参数化塔型在线路沿线超出世界高度限制",
+  "plugin.powerline.warn.parametric_constraint_error": "参数化塔型约束失败，已跳过结构生成",
   "plugin.powerline.validation.section": "线路检查",
   "plugin.powerline.validation.hint": "基于 Route 间距的常识性检查，不是电气工程规范。",
   "plugin.powerline.validation.visual_checks": "启用视觉检查",

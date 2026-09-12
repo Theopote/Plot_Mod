@@ -51,7 +51,8 @@ public class PowerLineFootprint {
     private boolean lineChecksEnabled = true;
     private boolean terrainAvoidanceEnabled = true;
     private boolean automaticTowerSelectionEnabled;
-    /** Smart Towers：各杆位按世界包络独立调整参数化塔高。 */
+    /** 实验性功能：基于世界高度包络的 per-site 塔高，默认关闭。 */
+    @Deprecated
     private boolean perSiteParametricHeightEnabled;
     /** 玩家曾在 Route 高级区手工调整间距；切换风格时不自动覆盖。 */
     private boolean spacingCustomized;

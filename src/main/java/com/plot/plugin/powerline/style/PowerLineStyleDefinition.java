@@ -201,8 +201,6 @@ public final class PowerLineStyleDefinition {
             PowerLineSpacingPolicy.applyStyleDefaultSpacing(line, spacingProfile);
         }
         line.setParametricTowerConfig(getParametricConfig());
-        line.setPerSiteParametricHeightEnabled(
-            previewKind == PowerLineStylePreset.StylePreviewKind.ADAPTIVE);
     }
 
     /** footprint 生效值是否仍与本定义默认 bundle 一致（不含 spacingCustomized）。 */
@@ -234,8 +232,7 @@ public final class PowerLineStyleDefinition {
         if (!PowerLineStyleParametricCatalog.parametersMatch(parametricConfig, line.getParametricTowerConfig())) {
             return false;
         }
-        boolean expectedPerSite = previewKind == PowerLineStylePreset.StylePreviewKind.ADAPTIVE;
-        if (line.isPerSiteParametricHeightEnabled() != expectedPerSite) {
+        if (line.isPerSiteParametricHeightEnabled()) {
             return false;
         }
         return expectedConductorCount() == PowerLineStylePreset.resolveConductorCount(line);

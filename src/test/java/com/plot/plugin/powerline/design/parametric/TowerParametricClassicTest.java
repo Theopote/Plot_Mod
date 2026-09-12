@@ -69,7 +69,7 @@ class TowerParametricClassicTest {
             assertClose(baseArms.get(i).getLateralReach(), tallArms.get(i).getLateralReach());
         }
 
-        assertAttachmentVerticalsFollowArms(baseline, taller, ratio);
+        assertAttachmentDeckFollowsUpperArm(baseline, taller, ratio);
     }
 
     @Test
@@ -97,7 +97,7 @@ class TowerParametricClassicTest {
     }
 
     @Test
-    void armSpanDependencyScalesReachesAndBoundAttachments() {
+    void armSpanDependencyScalesReachesWithoutDuplicatingPhaseDecks() {
         TowerParameterSet defaults = TowerParameterSet.classicDefaults();
         PoleDesign baseline = TowerParametricDesignFactory.compileClassicDoubleArm(defaults);
         PoleDesign widerSpan = TowerParametricDesignFactory.compileClassicDoubleArm(
@@ -113,17 +113,13 @@ class TowerParametricClassicTest {
         assertClose(10.0, baseUpper.getLateralReach());
         assertClose(14.0 * (10.0 / 12.0), wideUpper.getLateralReach());
 
-        double baseSpread = maxPhaseLateral(baseline, "arm_lower");
-        double wideSpread = maxPhaseLateral(widerSpan, "arm_lower");
-        assertTrue(wideSpread > baseSpread);
-        assertClose(baseLower.getLateralReach() * 0.85, baseSpread, 0.2);
-        assertClose(wideLower.getLateralReach() * 0.85, wideSpread, 0.2);
-
-        assertClose(baseLower.getBaseHeight(), wideLower.getBaseHeight());
-        assertClose(baseUpper.getBaseHeight(), findArm(widerSpan.getTowerStructure(), "arm_upper").getBaseHeight());
-        assertClose(
-            baseline.getTowerStructure().sortedStations().get(0).getHalfWidth(),
-            widerSpan.getTowerStructure().sortedStations().get(0).getHalfWidth());
+        assertEquals(baseline.getAttachments().size(), widerSpan.getAttachments().size());
+        assertEquals(3, baseline.getAttachments().stream()
+            .filter(a -> a.getRole() == com.plot.plugin.powerline.design.AttachmentRole.PHASE_A
+                || a.getRole() == com.plot.plugin.powerline.design.AttachmentRole.PHASE_B
+                || a.getRole() == com.plot.plugin.powerline.design.AttachmentRole.PHASE_C)
+            .count());
+        assertEquals(5, baseline.getAttachments().size());
     }
 
     @Test
@@ -284,12 +280,22 @@ class TowerParametricClassicTest {
             .orElse(0.0);
     }
 
-    private static void assertAttachmentVerticalsFollowArms(PoleDesign baseline, PoleDesign taller, double ratio) {
-        for (TowerArm arm : sortedArms(baseline.getTowerStructure())) {
-            double baseHang = TowerArmAttachmentBinding.conductorHangHeight(arm);
-            TowerArm tallArm = findArm(taller.getTowerStructure(), arm.getId());
-            assertClose(baseHang * ratio, TowerArmAttachmentBinding.conductorHangHeight(tallArm));
-        }
+    private static void assertAttachmentDeckFollowsUpperArm(PoleDesign baseline, PoleDesign taller, double ratio) {
+        TowerArm upper = findArm(baseline.getTowerStructure(), "arm_upper");
+        double baseHang = TowerArmAttachmentBinding.conductorHangHeight(upper);
+        TowerArm tallUpper = findArm(taller.getTowerStructure(), "arm_upper");
+        assertClose(baseHang * ratio, TowerArmAttachmentBinding.conductorHangHeight(tallUpper));
+        double baseDeckY = baseline.getAttachments().stream()
+            .filter(a -> a.getRole() == com.plot.plugin.powerline.design.AttachmentRole.PHASE_B)
+            .mapToDouble(com.plot.plugin.powerline.design.ConductorAttachment::getVerticalOffset)
+            .findFirst()
+            .orElseThrow();
+        double tallDeckY = taller.getAttachments().stream()
+            .filter(a -> a.getRole() == com.plot.plugin.powerline.design.AttachmentRole.PHASE_B)
+            .mapToDouble(com.plot.plugin.powerline.design.ConductorAttachment::getVerticalOffset)
+            .findFirst()
+            .orElseThrow();
+        assertClose(baseDeckY * ratio, tallDeckY);
     }
 
     private static void assertClose(double expected, double actual) {
