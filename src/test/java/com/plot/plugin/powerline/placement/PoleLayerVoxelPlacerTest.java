@@ -2,6 +2,7 @@ package com.plot.plugin.powerline.placement;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
+import com.plot.core.block.BlockSpec;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.preview.PoleVoxelPreviewModel;
 import com.plot.plugin.powerline.preview.PoleVoxelizer;
@@ -14,6 +15,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PoleLayerVoxelPlacerTest {
 
@@ -44,6 +46,41 @@ class PoleLayerVoxelPlacerTest {
     }
 
     @Test
+    void crossarmLightningRodUsesDirectionalFacing() {
+        var design = PoleDesignCatalog.steampunkBrassTower();
+        PreviewVoxelSink sink = new PreviewVoxelSink();
+        PoleLayerVoxelPlacer.placeDesignPreview(design, sink, "seed");
+
+        long directionalRods = sink.snapshot().stream()
+            .filter(voxel -> isDirectionalLightningRod(voxel.blockId()))
+            .count();
+        assertTrue(directionalRods >= 7, "rod crossarm should place facing lightning rods");
+
+        long eastWest = sink.snapshot().stream()
+            .filter(voxel -> hasLightningRodFacing(voxel.blockId(), "east", "west"))
+            .count();
+        assertTrue(eastWest >= 7, "rod crossarm should face along lateral axis");
+    }
+
+    @Test
+    void capLanternAndVineUseBlockState() {
+        PreviewVoxelSink japanese = new PreviewVoxelSink();
+        PoleLayerVoxelPlacer.placeDesignPreview(PoleDesignCatalog.japaneseStreetPole(), japanese, "seed");
+        assertTrue(japanese.snapshot().stream().anyMatch(voxel ->
+            "minecraft:lantern".equals(BlockSpec.parse(voxel.blockId()).blockId())
+                && "false".equals(BlockSpec.parse(voxel.blockId()).property("hanging"))));
+
+        PreviewVoxelSink rustic = new PreviewVoxelSink();
+        PoleLayerVoxelPlacer.placeDesignPreview(PoleDesignCatalog.rusticWoodPole(), rustic, "seed");
+        assertTrue(rustic.snapshot().stream().anyMatch(voxel -> {
+            BlockSpec spec = BlockSpec.parse(voxel.blockId());
+            return "minecraft:vine".equals(spec.blockId())
+                && "true".equals(spec.property("north"))
+                && "false".equals(spec.property("up"));
+        }));
+    }
+
+    @Test
     void voxelizerUsesSamePlacerAsExplicitPreview() {
         var design = PoleDesignCatalog.simpleWoodPole();
         PoleVoxelPreviewModel model = PoleVoxelizer.voxelize(design, "seed");
@@ -68,5 +105,31 @@ class PoleLayerVoxelPlacerTest {
 
     private static ICoordinateService identityCoordinates() {
         return com.plot.test.world.IdentityCoordinateService.INSTANCE;
+    }
+
+    private static boolean isDirectionalLightningRod(String blockId) {
+        BlockSpec spec = BlockSpec.parse(blockId);
+        if (!"minecraft:lightning_rod".equals(spec.blockId())) {
+            return false;
+        }
+        String facing = spec.property("facing");
+        return facing != null && !facing.isBlank();
+    }
+
+    private static boolean hasLightningRodFacing(String blockId, String... facings) {
+        BlockSpec spec = BlockSpec.parse(blockId);
+        if (!"minecraft:lightning_rod".equals(spec.blockId())) {
+            return false;
+        }
+        String facing = spec.property("facing");
+        if (facing == null) {
+            return false;
+        }
+        for (String candidate : facings) {
+            if (facing.equals(candidate)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

@@ -45,6 +45,19 @@ class BlockSpecTest {
     }
 
     @Test
+    void withPropertyBuildsMultiPropertySpec() {
+        BlockSpec spec = BlockSpec.with("minecraft:iron_trapdoor", "facing", "north")
+            .withProperty("half", "bottom")
+            .withProperty("open", "false");
+        assertEquals("north", spec.property("facing"));
+        assertEquals("bottom", spec.property("half"));
+        assertEquals(
+            "minecraft:iron_trapdoor[facing=north,half=bottom,open=false]",
+            spec.toSetBlockArgument());
+        assertEquals(spec, BlockSpec.parse(spec.toSetBlockArgument()));
+    }
+
+    @Test
     void parseWithoutPropertiesHasEmptyMap() {
         BlockSpec spec = BlockSpec.parse("minecraft:oak_fence");
         assertFalse(spec.hasProperties());

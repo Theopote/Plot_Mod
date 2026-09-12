@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.placement;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.block.BlockSpec;
 import com.plot.core.geometry.WorldCoordinateUtils;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
@@ -63,7 +64,7 @@ public final class PoleLayerVoxelPlacer {
             switch (layer.getShape()) {
                 case COLUMN -> placeColumnLayer(planPoint, currentY, layer, sink, materialSeedKey, mapper);
                 case CROSSARM -> placeCrossarmLayer(planPoint, currentY, layer, normal, sink, materialSeedKey, mapper);
-                case CAP -> placeCapLayer(planPoint, currentY, layer, sink, materialSeedKey, mapper);
+                case CAP -> placeCapLayer(planPoint, currentY, layer, normal, sink, materialSeedKey, mapper);
                 default -> { }
             }
             currentY += layer.getHeight();
@@ -93,10 +94,27 @@ public final class PoleLayerVoxelPlacer {
             Vec2d planPoint,
             int baseY,
             PoleLayer layer,
+            Vec2d crossarmNormal,
             VoxelSink sink,
             String materialSeedKey,
             PlanToBlockMapper mapper) {
-        putLayerBlock(planPoint, baseY, layer.getMaterial(), sink, materialSeedKey, mapper);
+        BlockPos pos = mapper.toBlockPos(planPoint, baseY);
+        String blockId = MaterialMixResolver.resolve(layer.getMaterial(), pos, materialSeedKey);
+        BlockSpec spec = capBlockSpec(blockId, crossarmNormal);
+        sink.put(pos.getX(), pos.getY(), pos.getZ(), spec);
+    }
+
+    private static BlockSpec capBlockSpec(String blockId, Vec2d crossarmNormal) {
+        if ("minecraft:iron_trapdoor".equals(blockId)) {
+            return DirectionalBlockSpecs.ironTrapdoorHorizontalHub(crossarmNormal);
+        }
+        if ("minecraft:lantern".equals(blockId)) {
+            return DirectionalBlockSpecs.poleTopLantern();
+        }
+        if ("minecraft:vine".equals(blockId)) {
+            return DirectionalBlockSpecs.rusticVineCap();
+        }
+        return BlockSpec.of(blockId);
     }
 
     private static void placeCrossarmLayer(
@@ -111,9 +129,20 @@ public final class PoleLayerVoxelPlacer {
         for (int y = baseY; y < baseY + layer.getHeight(); y++) {
             for (int offset = -half; offset <= half; offset++) {
                 Vec2d armPoint = planPoint.add(normal.multiply(offset));
-                putLayerBlock(armPoint, y, layer.getMaterial(), sink, materialSeedKey, mapper);
+                BlockPos pos = mapper.toBlockPos(armPoint, y);
+                String blockId = MaterialMixResolver.resolve(layer.getMaterial(), pos, materialSeedKey);
+                BlockSpec spec = crossarmBlockSpec(blockId, normal, offset);
+                sink.put(pos.getX(), pos.getY(), pos.getZ(), spec);
             }
         }
+    }
+
+    private static BlockSpec crossarmBlockSpec(String blockId, Vec2d normal, int offset) {
+        if ("minecraft:lightning_rod".equals(blockId)) {
+            Vec2d direction = offset >= 0 ? normal : normal.multiply(-1);
+            return DirectionalBlockSpecs.lightningRodAlong(direction);
+        }
+        return BlockSpec.of(blockId);
     }
 
     private static void putLayerBlock(

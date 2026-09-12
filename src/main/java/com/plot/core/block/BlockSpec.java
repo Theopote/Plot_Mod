@@ -84,6 +84,12 @@ public final class BlockSpec {
         return properties.get(key);
     }
 
+    public BlockSpec withProperty(String key, String value) {
+        Map<String, String> merged = new LinkedHashMap<>(properties);
+        merged.put(key, value);
+        return new BlockSpec(blockId, merged);
+    }
+
     /** /setblock 参数字符串（含 BlockState）。 */
     public String toSetBlockArgument() {
         if (properties.isEmpty()) {

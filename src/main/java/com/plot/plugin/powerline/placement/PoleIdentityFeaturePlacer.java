@@ -95,7 +95,7 @@ public final class PoleIdentityFeaturePlacer {
         int halfReach = crossarmHalfReach(design);
         Vec2d tip = planPoint.add(lateral.multiply(halfReach));
         putBlock(tip, armY, DirectionalBlockSpecs.verticalChain(), sink, mapper);
-        putBlock(tip, armY - 1, BlockSpec.of("minecraft:soul_lantern"), sink, mapper);
+        putBlock(tip, armY - 1, DirectionalBlockSpecs.hangingSoulLantern(), sink, mapper);
     }
 
     /** 十字避雷针横担（第二根垂直于既有横担）。 */
