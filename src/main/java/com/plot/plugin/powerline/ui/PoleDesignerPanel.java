@@ -11,23 +11,13 @@ import com.plot.plugin.powerline.design.structure.TowerDecorationCatalog;
 import com.plot.plugin.powerline.design.structure.TowerDecorationKind;
 import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
-import com.plot.plugin.powerline.design.parametric.ConstraintIssue;
-import com.plot.plugin.powerline.design.parametric.StructureDensity;
-import com.plot.core.terrain.MinecraftTerrainSampler;
-import com.plot.core.terrain.TerrainSampler;
-import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelope;
-import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelopeResolver;
-import com.plot.plugin.powerline.design.parametric.TowerArmRole;
-import com.plot.plugin.powerline.design.parametric.TowerArmTemplate;
-import com.plot.plugin.powerline.design.parametric.TowerLineBuildEnvelope;
-import com.plot.plugin.powerline.design.parametric.TowerConstraintResult;
-import com.plot.plugin.powerline.design.parametric.TowerConstraintSolver;
-import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
-import com.plot.plugin.powerline.design.parametric.ParameterRange;
-import com.plot.plugin.powerline.design.parametric.TowerParametricHeightLimits;
-import com.plot.plugin.powerline.design.parametric.TowerParameterProfile;
-import com.plot.plugin.powerline.design.parametric.TowerParameterProfiles;
-import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
+import com.plot.plugin.powerline.ui.tower.TowerAdvancedParametersPanel;
+import com.plot.plugin.powerline.ui.tower.TowerBasicParametersPanel;
+import com.plot.plugin.powerline.ui.tower.TowerDesignerContext;
+import com.plot.plugin.powerline.ui.tower.TowerDesignerSession;
+import com.plot.plugin.powerline.ui.tower.TowerDesignerUiState;
+import com.plot.plugin.powerline.ui.tower.TowerManualStructurePanel;
+import com.plot.plugin.powerline.ui.tower.TowerParameterStatusPanel;
 import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
@@ -37,7 +27,6 @@ import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.TowerRole;
-import com.plot.plugin.powerline.style.ParametricFootprintSync;
 import com.plot.ui.component.UIUtils;
 import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
@@ -45,16 +34,15 @@ import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
+import imgui.flag.ImGuiHoveredFlags;
 import imgui.flag.ImGuiMouseCursor;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 import imgui.type.ImString;
-import net.minecraft.client.MinecraftClient;
 
 import java.util.ArrayList;
-import java.util.Optional;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -94,10 +82,16 @@ public final class PoleDesignerPanel {
     private final ImBoolean designerWindowOpen = new ImBoolean(false);
     private boolean focusOnNextRender;
     private float previewColumnWidth = DEFAULT_PREVIEW_COLUMN_WIDTH;
-    private final ImBoolean showAdvancedStructure = new ImBoolean(false);
+    private final TowerDesignerUiState towerUiState = new TowerDesignerUiState();
+    private final TowerDesignerSession towerSession;
+    private final TowerBasicParametersPanel towerBasicPanel = new TowerBasicParametersPanel();
+    private final TowerAdvancedParametersPanel towerAdvancedPanel = new TowerAdvancedParametersPanel();
+    private final TowerManualStructurePanel towerManualPanel = new TowerManualStructurePanel();
+    private final TowerParameterStatusPanel towerStatusPanel = new TowerParameterStatusPanel();
 
     public PoleDesignerPanel(PowerLineUiContext ctx) {
         this.ctx = ctx;
+        this.towerSession = new TowerDesignerSession(ctx);
     }
 
     public void open(String designId) {
@@ -110,7 +104,8 @@ public final class PoleDesignerPanel {
             draft = newBlankDesign();
             ctx.state().setPoleDesignerEditingId("");
         }
-        showAdvancedStructure.set(draft.isManualLegacyMode());
+        towerUiState.syncFromDraft(draft);
+        towerSession.refreshConstraints(draft);
         designNameBuffer.set(draft.getName());
         ctx.state().getDesignDraftHistory().clear();
         captureOpenedBaseline();
@@ -341,8 +336,18 @@ public final class PoleDesignerPanel {
         float buttonsTotal = buttonWidth * 3f + DialogStyleManager.FOOTER_BUTTON_GAP * 2f;
         ImGui.setCursorPosX(DialogStyleManager.getContentStartX() + Math.max(0f, width - buttonsTotal));
 
+        boolean saveBlocked = draft.isParametricMode() && !towerSession.canBuild();
+        if (saveBlocked) {
+            ImGui.beginDisabled();
+        }
         if (ImGui.button(saveLabel, buttonWidth, 0)) {
             saveDraft(false);
+        }
+        if (saveBlocked) {
+            ImGui.endDisabled();
+            if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+                ImGui.setTooltip(PlotI18n.tr("plugin.powerline.design.tower_status_save_blocked_tooltip"));
+            }
         }
         ImGui.sameLine(0, DialogStyleManager.FOOTER_BUTTON_GAP);
         if (ImGui.button(saveAsLabel, buttonWidth, 0)) {
@@ -403,6 +408,8 @@ public final class PoleDesignerPanel {
     private void applyDraftFromHistory(PoleDesign restored) {
         draft = restored;
         designNameBuffer.set(draft.getName());
+        towerUiState.syncFromDraft(draft);
+        towerSession.refreshConstraints(draft);
     }
 
     private void renderPresetSelector() {
@@ -444,17 +451,23 @@ public final class PoleDesignerPanel {
             }
         }
 
-        renderParametricSection();
+        TowerDesignerContext towerContext = new TowerDesignerContext(
+            draft,
+            towerSession,
+            towerUiState,
+            this::pushDraftSnapshot);
+        towerBasicPanel.render(towerContext);
+        towerAdvancedPanel.render(towerContext);
+        towerStatusPanel.render(towerContext);
 
         if (!draft.hasTowerStructure()) {
             return;
         }
 
-        if (draft.isParametricMode() && !showAdvancedStructure.get()) {
-            renderParametricGeometrySummary();
-            return;
-        }
+        towerManualPanel.renderIfVisible(towerContext, ignored -> renderManualStructureBody());
+    }
 
+    private void renderManualStructureBody() {
         TowerStructureDesign structure = draft.getTowerStructure();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.structure_preset_lattice"), 0, 0)) {
             pushDraftSnapshot();
@@ -524,451 +537,6 @@ public final class PoleDesignerPanel {
         }
 
         renderDecorationSection(structure);
-    }
-
-    private void renderParametricSection() {
-        if (!draft.hasTowerStructure() && !draft.isParametricMode()) {
-            renderParametricEnableButtons(true);
-            return;
-        }
-
-        if (draft.isManualLegacyMode()) {
-            if (ImGui.button(PlotI18n.tr("plugin.powerline.design.parametric_restore"), 0, 0)) {
-                pushDraftSnapshot();
-                TowerBuildEnvelope envelope = TowerBuildEnvelopeResolver.tryFromClientPlayer().orElse(null);
-                if (TowerParametricEditor.restoreParametric(draft, envelope)) {
-                    showAdvancedStructure.set(false);
-                }
-            }
-            ImGui.separator();
-            return;
-        }
-
-        if (!draft.isParametricMode()) {
-            renderParametricEnableButtons(false);
-            return;
-        }
-
-        TowerParameterProfile profile = TowerParametricEditor.findProfile(draft.getGeneratorConfig().profileId())
-            .orElse(TowerParameterProfiles.classicDoubleArm());
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.parametric_section"));
-        PowerLineUiWidgets.textColored(0xFF9E9E9E, profileLabel(profile.id()));
-        TowerParameterSet parameters = draft.getGeneratorConfig().parameters();
-        Optional<TowerLineBuildEnvelope> lineEnvelope = tryResolveLineEnvelope();
-        TowerBuildEnvelope constraintEnvelope = lineEnvelope
-            .map(TowerLineBuildEnvelope::constraintEnvelope)
-            .orElse(TowerBuildEnvelopeResolver.tryFromClientPlayer().orElse(null));
-        TowerParametricHeightLimits.EffectiveHeightRange heightRange = TowerParametricHeightLimits.heightRange(
-            profile,
-            parameters,
-            constraintEnvelope);
-
-        float[] height = {(float) parameters.height()};
-        if (formRowSliderFloat(
-                "plugin.powerline.design.parametric_height",
-                "##param_height",
-                height,
-                (float) heightRange.min(),
-                (float) heightRange.max(),
-                "%.0f")) {
-            applyParametricParameters(withHeight(parameters, height[0]));
-        }
-        if (ImGui.isItemActivated()) {
-            pushDraftSnapshot();
-        }
-        if (heightRange.worldLimitedMax() != null) {
-            if (lineEnvelope.isPresent()) {
-                TowerLineBuildEnvelope envelope = lineEnvelope.get();
-                PowerLineUiWidgets.textColored(0xFF9E9E9E, PlotI18n.tr(
-                    "plugin.powerline.design.parametric_height_line_limit",
-                    envelope.limitingSiteIndex() + 1,
-                    (int) Math.floor(heightRange.worldLimitedMax())));
-            } else {
-                PowerLineUiWidgets.textColored(0xFF9E9E9E, PlotI18n.tr(
-                    "plugin.powerline.design.parametric_height_world_limit",
-                    (int) Math.floor(heightRange.worldLimitedMax())));
-            }
-        }
-
-        float[] baseWidth = {(float) parameters.baseWidth()};
-        if (formRowSliderFloat(
-                "plugin.powerline.design.parametric_base_width",
-                "##param_base_width",
-                baseWidth,
-                (float) profile.baseWidthRange().min(),
-                (float) profile.baseWidthRange().max(),
-                "%.0f")) {
-            applyParametricParameters(withBaseWidth(parameters, baseWidth[0]));
-        }
-        if (ImGui.isItemActivated()) {
-            pushDraftSnapshot();
-        }
-
-        float[] armSpan = {(float) parameters.armSpan()};
-        if (formRowSliderFloat(
-                "plugin.powerline.design.parametric_arm_span",
-                "##param_arm_span",
-                armSpan,
-                (float) profile.armSpanRange().min(),
-                (float) profile.armSpanRange().max(),
-                "%.0f")) {
-            applyParametricParameters(withArmSpan(parameters, armSpan[0]));
-        }
-        if (ImGui.isItemActivated()) {
-            pushDraftSnapshot();
-        }
-
-        renderDensityButtons(parameters);
-        renderAdvancedParametricControls(profile, parameters);
-        renderParametricConstraintHints();
-
-        ImGui.checkbox(
-            PlotI18n.tr("plugin.powerline.design.parametric_advanced_structure"),
-            showAdvancedStructure);
-        if (draft.isParametricMode() && ImGui.button(PlotI18n.tr("plugin.powerline.design.parametric_convert_manual"), 0, 0)) {
-            pushDraftSnapshot();
-            TowerParametricEditor.convertToManual(draft);
-            showAdvancedStructure.set(true);
-        }
-        ImGui.separator();
-    }
-
-    private void renderAdvancedParametricControls(TowerParameterProfile profile, TowerParameterSet parameters) {
-        ImGui.setNextItemOpen(false, imgui.flag.ImGuiCond.FirstUseEver);
-        if (!ImGui.collapsingHeader(
-                PlotI18n.tr("plugin.powerline.design.parametric_advanced_parameters"),
-                imgui.flag.ImGuiTreeNodeFlags.None)) {
-            return;
-        }
-
-        float[] depthScale = {(float) parameters.depthScale()};
-        if (formRowSliderFloat(
-                "plugin.powerline.design.parametric_depth_scale",
-                "##param_depth_scale",
-                depthScale,
-                (float) profile.depthScaleRange().min(),
-                (float) profile.depthScaleRange().max(),
-                "%.2f")) {
-            applyParametricParameters(withDepthScale(parameters, depthScale[0]));
-        }
-        if (ImGui.isItemActivated()) {
-            pushDraftSnapshot();
-        }
-        PowerLineUiWidgets.textColored(0xFF9E9E9E, PlotI18n.tr("plugin.powerline.design.parametric_depth_scale_hint"));
-
-        if (profile.hasWaistControl()) {
-            float[] waistRatio = {(float) parameters.waistRatio()};
-            if (formRowSliderFloat(
-                    "plugin.powerline.design.parametric_waist_ratio",
-                    "##param_waist_ratio",
-                    waistRatio,
-                    (float) ParameterRange.WAIST_RATIO.min(),
-                    (float) ParameterRange.WAIST_RATIO.max(),
-                    "%.2f")) {
-                applyParametricParameters(withWaistRatio(parameters, waistRatio[0]));
-            }
-            if (ImGui.isItemActivated()) {
-                pushDraftSnapshot();
-            }
-            PowerLineUiWidgets.textColored(0xFF9E9E9E, PlotI18n.tr("plugin.powerline.design.parametric_waist_ratio_hint"));
-        }
-
-        renderArmLevelControls(profile, parameters);
-    }
-
-    private void renderArmLevelControls(TowerParameterProfile profile, TowerParameterSet parameters) {
-        List<TowerArmTemplate> armTemplates = profile.armTemplates();
-        if (armTemplates.isEmpty()) {
-            return;
-        }
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.parametric_arm_levels_section"));
-        List<Double> scales = parameters.armLevelScalesForProfile(profile);
-        for (int i = 0; i < armTemplates.size(); i++) {
-            TowerArmTemplate armTemplate = armTemplates.get(i);
-            float[] level = {(float) scales.get(i).doubleValue()};
-            if (formRowSliderFloat(
-                    armLevelLabelKey(armTemplate.role()),
-                    "##param_arm_level_" + armTemplate.id(),
-                    level,
-                    (float) ParameterRange.ARM_LEVEL.min(),
-                    (float) ParameterRange.ARM_LEVEL.max(),
-                    "%.2f")) {
-                applyParametricParameters(parameters.withArmLevelScale(profile, i, level[0]));
-            }
-            if (ImGui.isItemActivated()) {
-                pushDraftSnapshot();
-            }
-        }
-        PowerLineUiWidgets.textColored(0xFF9E9E9E, PlotI18n.tr("plugin.powerline.design.parametric_arm_levels_hint"));
-    }
-
-    private static String armLevelLabelKey(TowerArmRole role) {
-        return switch (role) {
-            case LOWER -> "plugin.powerline.design.parametric_arm_level_lower";
-            case MIDDLE -> "plugin.powerline.design.parametric_arm_level_middle";
-            case UPPER -> "plugin.powerline.design.parametric_arm_level_upper";
-            case MAIN -> "plugin.powerline.design.parametric_arm_level_main";
-            case CUP -> "plugin.powerline.design.parametric_arm_level_cup";
-            case AUXILIARY -> "plugin.powerline.design.parametric_arm_level_auxiliary";
-        };
-    }
-
-    private void renderDensityButtons(TowerParameterSet parameters) {
-        DialogLayoutHelper.formRowLabel(PlotI18n.tr("plugin.powerline.design.parametric_density"));
-        for (StructureDensity density : StructureDensity.values()) {
-            boolean selected = parameters.density() == density;
-            if (selected) {
-                ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, 0xFF455A64);
-            }
-            if (ImGui.button(densityLabel(density) + "##density_" + density.name(), 0, 0)) {
-                pushDraftSnapshot();
-                applyParametricParameters(withDensity(parameters, density));
-            }
-            if (selected) {
-                ImGui.popStyleColor();
-            }
-            if (density != StructureDensity.HIGH) {
-                ImGui.sameLine();
-            }
-        }
-    }
-
-    private static String densityLabel(StructureDensity density) {
-        return switch (density) {
-            case LOW -> PlotI18n.tr("plugin.powerline.design.parametric_density_low");
-            case MEDIUM -> PlotI18n.tr("plugin.powerline.design.parametric_density_medium");
-            case HIGH -> PlotI18n.tr("plugin.powerline.design.parametric_density_high");
-        };
-    }
-
-    private void renderParametricEnableButtons(boolean fullSize) {
-        record ParametricEnableAction(String labelKey, Runnable action) {}
-        List<ParametricEnableAction> actions = List.of(
-            new ParametricEnableAction(
-                "plugin.powerline.design.parametric_enable_classic",
-                () -> TowerParametricEditor.enableParametricClassic(draft, TowerParameterSet.classicDefaults())),
-            new ParametricEnableAction(
-                "plugin.powerline.design.parametric_enable_small_lattice",
-                () -> TowerParametricEditor.enableParametricSmallLattice(draft, TowerParameterSet.smallLatticeDefaults())),
-            new ParametricEnableAction(
-                "plugin.powerline.design.parametric_enable_triple_arm",
-                () -> TowerParametricEditor.enableParametricTripleArm(draft, TowerParameterSet.tripleArmDefaults())),
-            new ParametricEnableAction(
-                "plugin.powerline.design.parametric_enable_cup",
-                () -> TowerParametricEditor.enableParametricCup(draft, TowerParameterSet.cupDefaults())),
-            new ParametricEnableAction(
-                "plugin.powerline.design.parametric_enable_heavy",
-                () -> TowerParametricEditor.enableParametricHeavy(draft, TowerParameterSet.heavyDefaults())),
-            new ParametricEnableAction(
-                "plugin.powerline.design.parametric_enable_mega",
-                () -> TowerParametricEditor.enableParametricMega(draft, TowerParameterSet.megaDefaults())),
-            new ParametricEnableAction(
-                "plugin.powerline.design.parametric_enable_portal",
-                () -> TowerParametricEditor.enableParametricPortal(draft, TowerParameterSet.portalDefaults())),
-            new ParametricEnableAction(
-                "plugin.powerline.design.parametric_enable_drum",
-                () -> TowerParametricEditor.enableParametricDrum(draft, TowerParameterSet.drumDefaults())),
-            new ParametricEnableAction(
-                "plugin.powerline.design.parametric_enable_uhv",
-                () -> TowerParametricEditor.enableParametricUhv(draft, TowerParameterSet.uhvDefaults())),
-            new ParametricEnableAction(
-                "plugin.powerline.design.parametric_enable_steampunk",
-                () -> TowerParametricEditor.enableParametricSteampunk(draft, TowerParameterSet.steampunkDefaults())),
-            new ParametricEnableAction(
-                "plugin.powerline.design.parametric_enable_modern_hv_glass",
-                () -> TowerParametricEditor.enableParametricModernHvGlass(draft, TowerParameterSet.modernHvGlassDefaults())));
-
-        for (int i = 0; i < actions.size(); i++) {
-            ParametricEnableAction action = actions.get(i);
-            boolean clicked = fullSize
-                ? ImGui.button(PlotI18n.tr(action.labelKey), 0, 0)
-                : ImGui.smallButton(PlotI18n.tr(action.labelKey));
-            if (clicked) {
-                pushDraftSnapshot();
-                action.action().run();
-            }
-            if (i < actions.size() - 1 && (i + 1) % 3 != 0) {
-                ImGui.sameLine();
-            }
-        }
-    }
-
-    private static String profileLabel(String profileId) {
-        if (TowerParameterProfiles.SMALL_LATTICE_ID.equals(profileId)) {
-            return PlotI18n.tr("plugin.powerline.design.parametric_profile_small_lattice");
-        }
-        if (TowerParameterProfiles.TRIPLE_ARM_ID.equals(profileId)) {
-            return PlotI18n.tr("plugin.powerline.design.parametric_profile_triple_arm");
-        }
-        if (TowerParameterProfiles.CUP_ID.equals(profileId)) {
-            return PlotI18n.tr("plugin.powerline.design.parametric_profile_cup");
-        }
-        if (TowerParameterProfiles.HEAVY_ID.equals(profileId)) {
-            return PlotI18n.tr("plugin.powerline.design.parametric_profile_heavy");
-        }
-        if (TowerParameterProfiles.MEGA_ID.equals(profileId)) {
-            return PlotI18n.tr("plugin.powerline.design.parametric_profile_mega");
-        }
-        if (TowerParameterProfiles.PORTAL_ID.equals(profileId)) {
-            return PlotI18n.tr("plugin.powerline.design.parametric_profile_portal");
-        }
-        if (TowerParameterProfiles.DRUM_ID.equals(profileId)) {
-            return PlotI18n.tr("plugin.powerline.design.parametric_profile_drum");
-        }
-        if (TowerParameterProfiles.UHV_ID.equals(profileId)) {
-            return PlotI18n.tr("plugin.powerline.design.parametric_profile_uhv");
-        }
-        if (TowerParameterProfiles.STEAMPUNK_ID.equals(profileId)) {
-            return PlotI18n.tr("plugin.powerline.design.parametric_profile_steampunk");
-        }
-        if (TowerParameterProfiles.MODERN_HV_GLASS_ID.equals(profileId)) {
-            return PlotI18n.tr("plugin.powerline.design.parametric_profile_modern_hv_glass");
-        }
-        return PlotI18n.tr("plugin.powerline.design.parametric_profile_classic");
-    }
-
-    private void renderParametricConstraintHints() {
-        Optional<TowerLineBuildEnvelope> lineEnvelope = tryResolveLineEnvelope();
-        TowerBuildEnvelope envelope = lineEnvelope
-            .map(TowerLineBuildEnvelope::constraintEnvelope)
-            .orElse(TowerBuildEnvelopeResolver.tryFromClientPlayer().orElse(null));
-        TowerConstraintResult advisory = TowerParametricEditor.preview(
-            draft,
-            draft.getGeneratorConfig().parameters(),
-            envelope);
-        if (advisory == null) {
-            return;
-        }
-        for (ConstraintIssue issue : advisory.issues()) {
-            if (TowerConstraintSolver.CODE_WORLD_HEIGHT_EXCEEDED.equals(issue.code())) {
-                if (lineEnvelope.isPresent()) {
-                    PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.parametric_world_height_line_warning"));
-                } else {
-                    PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.parametric_world_height_warning"));
-                }
-            }
-        }
-        for (var adjustment : advisory.adjustments()) {
-            if (adjustment.requestedValue() != adjustment.resolvedValue()) {
-                PowerLineUiWidgets.textColored(0xFF9E9E9E, PlotI18n.tr(
-                    "plugin.powerline.design.parametric_clamped",
-                    adjustment.parameter(),
-                    adjustment.resolvedValue()));
-            }
-        }
-    }
-
-    private void renderParametricGeometrySummary() {
-        TowerStructureDesign structure = draft.getTowerStructure();
-        TowerParameterSet parameters = draft.getGeneratorConfig().parameters();
-        PowerLineUiWidgets.text(PlotI18n.tr(
-            "plugin.powerline.design.parametric_summary",
-            (int) Math.round(parameters.height()),
-            (int) Math.round(parameters.baseWidth()),
-            (int) Math.round(parameters.armSpan()),
-            densityLabel(parameters.density())));
-        PowerLineUiWidgets.textColored(0xFF9E9E9E, PlotI18n.tr(
-            "plugin.powerline.design.parametric_station_count",
-            structure.getStations().size(),
-            structure.getArms().size()));
-    }
-
-    private void applyParametricParameters(TowerParameterSet parameters) {
-        draft.setGeneratorConfig(draft.getGeneratorConfig().withParameters(parameters));
-        TowerParametricEditor.recompile(draft, resolveParametricConstraintEnvelope());
-        syncParametricConfigToSelectedLine();
-    }
-
-    private void syncParametricConfigToSelectedLine() {
-        PowerLineFootprint line = ctx.selection().primary(ctx.project());
-        if (ParametricFootprintSync.syncFromDesign(line, draft)) {
-            ctx.invalidatePreview();
-        }
-    }
-
-    private Optional<TowerLineBuildEnvelope> tryResolveLineEnvelope() {
-        PowerLineFootprint line = ctx.selection().primary(ctx.project());
-        if (line == null) {
-            return Optional.empty();
-        }
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.world == null) {
-            return Optional.empty();
-        }
-        TerrainSampler terrain = MinecraftTerrainSampler.of(client.world, ctx.coordinates());
-        return TowerBuildEnvelopeResolver.tryFromFootprint(line, terrain, ctx.coordinates());
-    }
-
-    private TowerBuildEnvelope resolveParametricConstraintEnvelope() {
-        return tryResolveLineEnvelope()
-            .map(TowerLineBuildEnvelope::constraintEnvelope)
-            .orElse(TowerBuildEnvelopeResolver.tryFromClientPlayer().orElse(null));
-    }
-
-    private static TowerParameterSet withHeight(TowerParameterSet source, float height) {
-        return new TowerParameterSet(
-            height,
-            source.baseWidth(),
-            source.armSpan(),
-            source.depthScale(),
-            source.waistRatio(),
-            source.armLevelScales(),
-            source.density());
-    }
-
-    private static TowerParameterSet withBaseWidth(TowerParameterSet source, float baseWidth) {
-        return new TowerParameterSet(
-            source.height(),
-            baseWidth,
-            source.armSpan(),
-            source.depthScale(),
-            source.waistRatio(),
-            source.armLevelScales(),
-            source.density());
-    }
-
-    private static TowerParameterSet withArmSpan(TowerParameterSet source, float armSpan) {
-        return new TowerParameterSet(
-            source.height(),
-            source.baseWidth(),
-            armSpan,
-            source.depthScale(),
-            source.waistRatio(),
-            source.armLevelScales(),
-            source.density());
-    }
-
-    private static TowerParameterSet withDepthScale(TowerParameterSet source, float depthScale) {
-        return new TowerParameterSet(
-            source.height(),
-            source.baseWidth(),
-            source.armSpan(),
-            depthScale,
-            source.waistRatio(),
-            source.armLevelScales(),
-            source.density());
-    }
-
-    private static TowerParameterSet withWaistRatio(TowerParameterSet source, float waistRatio) {
-        return new TowerParameterSet(
-            source.height(),
-            source.baseWidth(),
-            source.armSpan(),
-            source.depthScale(),
-            waistRatio,
-            source.armLevelScales(),
-            source.density());
-    }
-
-    private static TowerParameterSet withDensity(TowerParameterSet source, StructureDensity density) {
-        return new TowerParameterSet(
-            source.height(),
-            source.baseWidth(),
-            source.armSpan(),
-            source.depthScale(),
-            source.waistRatio(),
-            source.armLevelScales(),
-            density);
     }
 
     private void renderDecorationSection(TowerStructureDesign structure) {
@@ -1635,7 +1203,7 @@ public final class PoleDesignerPanel {
         } else {
             ctx.actions().savePoleDesign(draft);
         }
-        syncParametricConfigToSelectedLine();
+        towerSession.syncParametricConfigToSelectedLine(draft);
         designNameBuffer.set(draft.getName());
         ctx.state().getDesignDraftHistory().clear();
         captureOpenedBaseline();
@@ -1653,6 +1221,8 @@ public final class PoleDesignerPanel {
                     pushDraftSnapshot();
                     draft = preset.copy();
                     designNameBuffer.set(draft.getName());
+                    towerUiState.syncFromDraft(draft);
+                    towerSession.refreshConstraints(draft);
                     ctx.state().setPoleDesignerEditingId("");
                 }
                 ImGui.closeCurrentPopup();
