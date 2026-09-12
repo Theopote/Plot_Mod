@@ -9,6 +9,26 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class DirectionalBlockSpecsTest {
 
     @Test
+    void verticalLightningRodFacesUp() {
+        assertEquals(
+            "minecraft:lightning_rod[facing=up]",
+            DirectionalBlockSpecs.verticalLightningRod().toSetBlockArgument());
+    }
+
+    @Test
+    void memberLightningRodUsesWorldDelta() {
+        assertEquals(
+            "minecraft:lightning_rod[facing=up]",
+            DirectionalBlockSpecs.lightningRodAlongMember(0, 3, 0).toSetBlockArgument());
+        assertEquals(
+            "minecraft:lightning_rod[facing=east]",
+            DirectionalBlockSpecs.lightningRodAlongMember(4, 0, 0).toSetBlockArgument());
+        assertEquals(
+            "minecraft:lightning_rod[facing=south]",
+            DirectionalBlockSpecs.lightningRodAlongMember(0, 0, 5).toSetBlockArgument());
+    }
+
+    @Test
     void lightningRodMapsPlanXToEastWest() {
         assertEquals(
             "minecraft:lightning_rod[facing=east]",

@@ -5,6 +5,7 @@ import com.plot.api.world.ICoordinateService;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
+import com.plot.plugin.powerline.placement.DirectionalBlockSpecs;
 import com.plot.plugin.powerline.design.structure.BracingPattern;
 import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerArmPlacement;
@@ -357,7 +358,7 @@ public final class TowerStructureGenerator {
             decoration.getLateralOffset(),
             base + mastHeight + 1,
             decoration.getLongitudinalOffset(),
-            "minecraft:lightning_rod",
+            DirectionalBlockSpecs.verticalLightningRod().toSetBlockArgument(),
             transform,
             footprint,
             result,
@@ -530,9 +531,14 @@ public final class TowerStructureGenerator {
             expandThickness(blocks);
         }
 
+        if (blocks.isEmpty()) {
+            return;
+        }
+        BlockPos samplePos = blocks.iterator().next();
+        String sampleBlockId = MaterialMixResolver.resolve(material, samplePos, footprint.getId());
+        String placementId = resolvePlacementBlockId(sampleBlockId, start, end, transform);
         for (BlockPos pos : blocks) {
-            String blockId = MaterialMixResolver.resolve(material, pos, footprint.getId());
-            recordBlock(result, pos, blockId, projection);
+            recordBlock(result, pos, placementId, projection);
         }
         switch (kind) {
             case LEG -> counters.addLeg(blocks.size());
@@ -574,6 +580,25 @@ public final class TowerStructureGenerator {
         if (maxY - minY > UNEVEN_BASE_WARNING_THRESHOLD) {
             result.warnings.add(PowerLineGenerationI18n.towerBaseUneven(maxY - minY));
         }
+    }
+
+    private static String resolvePlacementBlockId(
+            String blockId,
+            TowerLocalPoint memberStart,
+            TowerLocalPoint memberEnd,
+            TowerStructureTransform transform) {
+        if (!"minecraft:lightning_rod".equals(blockId)) {
+            return blockId;
+        }
+        if (memberStart != null && memberEnd != null && transform != null) {
+            double[] worldStart = transform.toWorld(memberStart);
+            double[] worldEnd = transform.toWorld(memberEnd);
+            return DirectionalBlockSpecs.lightningRodAlongMember(
+                worldEnd[0] - worldStart[0],
+                worldEnd[1] - worldStart[1],
+                worldEnd[2] - worldStart[2]).toSetBlockArgument();
+        }
+        return DirectionalBlockSpecs.verticalLightningRod().toSetBlockArgument();
     }
 
     private static void recordBlock(

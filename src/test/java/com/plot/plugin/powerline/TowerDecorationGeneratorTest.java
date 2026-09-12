@@ -5,7 +5,10 @@ import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.PlacementReadiness;
 import com.plot.api.world.WorldViewBounds;
+import com.plot.core.block.BlockSpec;
 import com.plot.core.command.BlockRecord;
+import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerBay;
 import com.plot.plugin.powerline.design.structure.TowerDecorationCatalog;
 import com.plot.plugin.powerline.design.structure.TowerStation;
@@ -39,6 +42,38 @@ class TowerDecorationGeneratorTest {
         PowerLineGenerationResult result = generateStructure(structure);
         assertFalse(blocksWithMaterial(result, "minecraft:iron_bars").isEmpty());
         assertFalse(blocksWithMaterial(result, "minecraft:lightning_rod").isEmpty());
+    }
+
+    @Test
+    void horizontalArmLightningRodUsesMemberFacing() {
+        TowerStructureDesign structure = simpleTower();
+        TowerArm arm = new TowerArm("rod_arm", 6.0, 4.0);
+        arm.setMaterial(MaterialMix.single("minecraft:lightning_rod"));
+        structure.addArm(arm);
+        PowerLineGenerationResult result = generateStructure(structure);
+        assertTrue(result.placementRecords.values().stream().anyMatch(record -> {
+            BlockSpec spec = BlockSpec.parse(record.newBlockId);
+            if (!"minecraft:lightning_rod".equals(spec.blockId())) {
+                return false;
+            }
+            String facing = spec.property("facing");
+            return facing != null
+                && !facing.isBlank()
+                && !"up".equals(facing)
+                && !"down".equals(facing);
+        }));
+    }
+
+    @Test
+    void antennaTipLightningRodFacesUp() {
+        TowerStructureDesign structure = simpleTower();
+        structure.addDecoration(TowerDecorationCatalog.antennaAtTop(8));
+        PowerLineGenerationResult result = generateStructure(structure);
+        assertTrue(result.placementRecords.values().stream().anyMatch(record -> {
+            BlockSpec spec = BlockSpec.parse(record.newBlockId);
+            return "minecraft:lightning_rod".equals(spec.blockId())
+                && "up".equals(spec.property("facing"));
+        }));
     }
 
     @Test
@@ -81,7 +116,7 @@ class TowerDecorationGeneratorTest {
     private static Set<BlockPos> blocksWithMaterial(PowerLineGenerationResult result, String material) {
         Set<BlockPos> blocks = new HashSet<>();
         for (BlockRecord record : result.placementRecords.values()) {
-            if (material.equals(record.newBlockId)) {
+            if (material.equals(BlockSpec.parse(record.newBlockId).blockId())) {
                 blocks.add(record.pos);
             }
         }

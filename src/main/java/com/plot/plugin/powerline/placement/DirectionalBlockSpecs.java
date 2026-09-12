@@ -26,6 +26,25 @@ public final class DirectionalBlockSpecs {
         return BlockSpec.with(LIGHTNING_ROD, "facing", facingFromPlan(planDirection));
     }
 
+    /** 竖向避雷针（塔顶天线等）。 */
+    public static BlockSpec verticalLightningRod() {
+        return BlockSpec.with(LIGHTNING_ROD, "facing", "up");
+    }
+
+    /** 塔体成员方向：世界坐标 delta → {@code facing}。 */
+    public static BlockSpec lightningRodAlongMember(double deltaX, double deltaY, double deltaZ) {
+        double absX = Math.abs(deltaX);
+        double absY = Math.abs(deltaY);
+        double absZ = Math.abs(deltaZ);
+        if (absY >= absX && absY >= absZ) {
+            return BlockSpec.with(LIGHTNING_ROD, "facing", deltaY >= 0.0 ? "up" : "down");
+        }
+        if (absX >= absZ) {
+            return BlockSpec.with(LIGHTNING_ROD, "facing", deltaX >= 0.0 ? "east" : "west");
+        }
+        return BlockSpec.with(LIGHTNING_ROD, "facing", deltaZ >= 0.0 ? "south" : "north");
+    }
+
     /** 竖向锁链（灯头下垂等）。 */
     public static BlockSpec verticalChain() {
         return BlockSpec.with(CHAIN, "axis", "y");

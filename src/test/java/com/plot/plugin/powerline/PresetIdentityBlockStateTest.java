@@ -2,6 +2,7 @@ package com.plot.plugin.powerline;
 
 import com.plot.core.block.BlockSpec;
 import com.plot.core.command.BlockRecord;
+import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
 import org.junit.jupiter.api.Test;
 
@@ -42,6 +43,18 @@ class PresetIdentityBlockStateTest {
             .filter(record -> isChainWithAxis(record, "y"))
             .count();
         assertTrue(verticalChains >= 2, "suburban lamp should place vertical chain segments");
+    }
+
+    @Test
+    void latticeSteelCatalogPlacesPoleTopLantern() {
+        PowerLineGenerationResult result = PresetMinecraftRealizabilitySupport.generate(
+            PresetMinecraftRealizabilitySupport.lineForPoleDesign(
+                PoleDesignCatalog.LATTICE_STEEL_TOWER_ID));
+
+        long poleTopLanterns = result.placementRecords.values().stream()
+            .filter(PresetIdentityBlockStateTest::isPoleTopLantern)
+            .count();
+        assertTrue(poleTopLanterns >= 2, "lattice steel catalog cap should place sitting lanterns");
     }
 
     @Test
