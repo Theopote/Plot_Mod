@@ -15,7 +15,7 @@ class TowerFamilyEditRolesTest {
     @Test
     void monsterPylonExposesFourEditableRoles() {
         TowerFamily family = TowerFamilyCatalog.findBuiltin(TowerFamily.MONSTER_PYLON_ID);
-        Map<TowerRole, String> roles = PoleDesignerPanel.editableFamilyRoles(family);
+        Map<TowerRole, String> roles = PoleDesignerFamilyRolePicker.editableFamilyRoles(family);
 
         assertEquals(4, roles.size());
         assertTrue(roles.containsKey(TowerRole.SUSPENSION));
@@ -27,6 +27,6 @@ class TowerFamilyEditRolesTest {
 
     @Test
     void nullFamilyYieldsEmptyRoles() {
-        assertTrue(PoleDesignerPanel.editableFamilyRoles(null).isEmpty());
+        assertTrue(PoleDesignerFamilyRolePicker.editableFamilyRoles(null).isEmpty());
     }
 }
