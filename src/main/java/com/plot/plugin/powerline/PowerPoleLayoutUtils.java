@@ -3,6 +3,7 @@ package com.plot.plugin.powerline;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.geometry.WorldProjectionMath;
+import com.plot.plugin.powerline.model.PoleSpacingMode;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 import com.plot.plugin.powerline.model.PoleLayoutConstraint;
 import com.plot.plugin.powerline.model.PoleOverride;
@@ -31,6 +32,35 @@ public final class PowerPoleLayoutUtils {
     /**
      * 沿路径计算立杆位置：起点、终点、转折顶点强制立杆；相邻强制点世界间距超过最大值时等距补插。
      */
+    public static List<Vec2d> computePolePositions(
+            List<Vec2d> pathPoints,
+            double cornerAngleThreshold,
+            PoleSpacingMode mode,
+            double maxPoleSpacingBlocks,
+            int targetTowerCount,
+            ICoordinateService coordinates) {
+        ICoordinateService coords = requireCoordinates(coordinates);
+        if (pathPoints == null || pathPoints.isEmpty()) {
+            return List.of();
+        }
+        PoleSpacingMode resolved = mode != null ? mode : PoleSpacingMode.AUTO_SPACING;
+        return switch (resolved) {
+            case AUTO_SPACING -> computePolePositions(
+                pathPoints,
+                cornerAngleThreshold,
+                maxPoleSpacingBlocks,
+                coords);
+            case TOWER_COUNT -> computeEvenlySpacedPoles(
+                pathPoints,
+                Math.max(2, targetTowerCount),
+                coords);
+            case ENDPOINTS_ONLY -> computeEndpointsOnly(pathPoints);
+            case ENDPOINTS_WITH_CORNERS -> dedupeMandatoryPolePoints(
+                mandatoryPolePoints(pathPoints, cornerAngleThreshold),
+                coords);
+        };
+    }
+
     public static List<Vec2d> computePolePositions(
             List<Vec2d> pathPoints,
             double cornerAngleThreshold,
@@ -66,8 +96,30 @@ public final class PowerPoleLayoutUtils {
             double cornerAngleThreshold,
             double maxPoleSpacingBlocks,
             ICoordinateService coordinates) {
+        return computePoleSites(
+            pathPoints,
+            cornerAngleThreshold,
+            PoleSpacingMode.AUTO_SPACING,
+            maxPoleSpacingBlocks,
+            2,
+            coordinates);
+    }
+
+    public static List<PowerPoleSite> computePoleSites(
+            List<Vec2d> pathPoints,
+            double cornerAngleThreshold,
+            PoleSpacingMode mode,
+            double maxPoleSpacingBlocks,
+            int targetTowerCount,
+            ICoordinateService coordinates) {
         ICoordinateService coords = requireCoordinates(coordinates);
-        List<Vec2d> positions = computePolePositions(pathPoints, cornerAngleThreshold, maxPoleSpacingBlocks, coords);
+        List<Vec2d> positions = computePolePositions(
+            pathPoints,
+            cornerAngleThreshold,
+            mode,
+            maxPoleSpacingBlocks,
+            targetTowerCount,
+            coords);
         List<PowerPoleSite> sites = new ArrayList<>(positions.size());
         for (int i = 0; i < positions.size(); i++) {
             PowerPoleSite site = new PowerPoleSite(positions.get(i));
@@ -89,7 +141,9 @@ public final class PowerPoleLayoutUtils {
         List<PowerPoleSite> sites = computePoleSites(
             footprint.getPathPoints(),
             footprint.getCornerAngleThreshold(),
+            footprint.getPoleSpacingMode(),
             footprint.getMaxPoleSpacing(),
+            footprint.getTargetTowerCount(),
             coords);
         insertLayoutConstraints(
             sites,
@@ -283,6 +337,37 @@ public final class PowerPoleLayoutUtils {
         double dot = in.normalize().dot(out.normalize());
         double angleDeg = Math.toDegrees(Math.acos(Math.max(-1.0, Math.min(1.0, dot))));
         return angleDeg > cornerAngleThreshold;
+    }
+
+    private static List<Vec2d> computeEndpointsOnly(List<Vec2d> pathPoints) {
+        if (pathPoints.size() == 1) {
+            return List.of(pathPoints.getFirst().copy());
+        }
+        return List.of(pathPoints.getFirst().copy(), pathPoints.getLast().copy());
+    }
+
+    private static List<Vec2d> computeEvenlySpacedPoles(
+            List<Vec2d> pathPoints,
+            int towerCount,
+            ICoordinateService coordinates) {
+        if (pathPoints == null || pathPoints.isEmpty()) {
+            return List.of();
+        }
+        if (pathPoints.size() == 1 || towerCount <= 1) {
+            return List.of(pathPoints.getFirst().copy());
+        }
+        double totalLength = coordinates.pathWorldLength(pathPoints);
+        if (totalLength <= POSITION_DEDUP_TOLERANCE_BLOCKS) {
+            return List.of(pathPoints.getFirst().copy());
+        }
+        int count = Math.max(2, towerCount);
+        List<Vec2d> result = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            double stationing = totalLength * i / (count - 1);
+            Vec2d point = pointAtStationing(pathPoints, stationing, coordinates);
+            addPoleIfDistinct(result, point, coordinates);
+        }
+        return result;
     }
 
     private static void appendInterpolatedPoles(

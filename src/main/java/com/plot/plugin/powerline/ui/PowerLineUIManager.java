@@ -19,7 +19,7 @@ public final class PowerLineUIManager {
         this.toolbarPanel = new PowerLineToolbarPanel(ctx);
         this.overviewPanel = new PowerLineOverviewPanel(ctx);
         this.poleDesignerPanel = new PoleDesignerPanel(ctx);
-        this.routePanel = new PowerLineRoutePanel(ctx);
+        this.routePanel = new PowerLineRoutePanel(ctx, overviewPanel);
         this.stylePanel = new PowerLineStylePanel(ctx, poleDesignerPanel);
         PowerLineValidationPanel validationPanel = new PowerLineValidationPanel(ctx);
         this.buildPanel = new PowerLineBuildPanel(ctx, validationPanel);
@@ -28,12 +28,12 @@ public final class PowerLineUIManager {
     public void render() {
         toolbarPanel.render();
         if (ImGui.beginTabBar("##powerline_tabs", ImGuiTabBarFlags.None)) {
-            renderTab("plugin.powerline.tab.overview", overviewPanel::render);
             renderTab("plugin.powerline.tab.route", routePanel::render);
             renderTab("plugin.powerline.tab.style", stylePanel::render);
             renderTab("plugin.powerline.tab.build", buildPanel::render);
             ImGui.endTabBar();
         }
+        ctx.singleTowerPlacement().tick();
     }
 
     private static void renderTab(String labelKey, Runnable body) {
@@ -44,7 +44,7 @@ public final class PowerLineUIManager {
     }
 
     public void renderDeferredModals() {
-        overviewPanel.renderDeleteConfirmPopup();
+        routePanel.renderDeleteConfirmPopup();
         buildPanel.renderBuildConfirmPopup();
         buildPanel.renderOptimizationConfirmPopup();
         poleDesignerPanel.render();

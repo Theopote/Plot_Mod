@@ -22,7 +22,7 @@ import java.util.Map;
  */
 public class PowerLineProject {
     /** Current on-disk schema. */
-    public static final int SCHEMA_VERSION = 6;
+    public static final int SCHEMA_VERSION = 7;
 
     private static final Gson GSON = new GsonBuilder()
         .setPrettyPrinting()
@@ -234,6 +234,8 @@ public class PowerLineProject {
         boolean automaticTowerSelectionEnabled;
         boolean perSiteParametricHeightEnabled;
         boolean spacingCustomized;
+        String poleSpacingMode;
+        int targetTowerCount = 2;
         StyleOverridesData styleOverrides;
         TowerGeneratorConfigData parametricTowerConfig;
     }
@@ -276,6 +278,8 @@ public class PowerLineProject {
                 lineData.automaticTowerSelectionEnabled = line.isAutomaticTowerSelectionEnabled();
                 lineData.perSiteParametricHeightEnabled = line.isPerSiteParametricHeightEnabled();
                 lineData.spacingCustomized = line.isSpacingCustomized();
+                lineData.poleSpacingMode = line.getPoleSpacingMode().name();
+                lineData.targetTowerCount = line.getTargetTowerCount();
                 com.plot.plugin.powerline.style.PowerLineStyleEditor.syncOverridesFromFootprint(line);
                 lineData.styleOverrides = StyleOverridesData.from(line.getStyleOverrides());
                 lineData.parametricTowerConfig = TowerGeneratorConfigData.from(line.getParametricTowerConfig());
@@ -353,6 +357,14 @@ public class PowerLineProject {
                 footprint.setAutomaticTowerSelectionEnabled(lineData.automaticTowerSelectionEnabled);
                 footprint.setPerSiteParametricHeightEnabled(lineData.perSiteParametricHeightEnabled);
                 footprint.setSpacingCustomized(lineData.spacingCustomized);
+                if (lineData.poleSpacingMode != null && !lineData.poleSpacingMode.isBlank()) {
+                    try {
+                        footprint.setPoleSpacingMode(PoleSpacingMode.valueOf(lineData.poleSpacingMode));
+                    } catch (IllegalArgumentException ignored) {
+                        footprint.setPoleSpacingMode(PoleSpacingMode.AUTO_SPACING);
+                    }
+                }
+                footprint.setTargetTowerCount(lineData.targetTowerCount);
                 StyleOverridesData overridesData = lineData.styleOverrides != null
                     ? lineData.styleOverrides
                     : new StyleOverridesData();

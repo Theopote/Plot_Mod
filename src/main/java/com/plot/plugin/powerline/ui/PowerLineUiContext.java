@@ -198,6 +198,10 @@ public final class PowerLineUiContext {
         actions.activatePathPickTool();
     }
 
+    public SingleTowerPlacementActions singleTowerPlacement() {
+        return actions.singleTowerPlacement();
+    }
+
     public List<String> pendingDeleteLineIds() {
         return state.getPendingDeleteLineIds();
     }

@@ -59,9 +59,18 @@ public final class PowerLineSpacingPolicy {
             return;
         }
         PoleSpacingProfile profile = profileFor(line);
+        applyMaxSpacing(line, profile.maxSpacingFor(density), false);
+    }
+
+    /** 设置最大档距；{@code customized} 为 false 时视为密度预设对齐。 */
+    public static void applyMaxSpacing(PowerLineFootprint line, double maxSpacing, boolean customized) {
+        if (line == null) {
+            return;
+        }
+        PoleSpacingProfile profile = profileFor(line);
         line.setMinPoleSpacing(profile.recommendedMin());
-        line.setMaxPoleSpacing(profile.maxSpacingFor(density));
-        line.setSpacingCustomized(false);
+        line.setMaxPoleSpacing(maxSpacing);
+        line.setSpacingCustomized(customized);
     }
 
     public static void applyStyleDefaultSpacing(PowerLineFootprint line, PoleSpacingProfile profile) {

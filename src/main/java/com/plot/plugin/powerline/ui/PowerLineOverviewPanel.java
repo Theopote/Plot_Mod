@@ -13,7 +13,7 @@ public final class PowerLineOverviewPanel {
         this.ctx = ctx;
     }
 
-    public void render() {
+    public void renderProjectSection() {
         PowerLineUiWidgets.text(PlotI18n.tr(
             "plugin.powerline.project_stats",
             ctx.project().getLineCount(),

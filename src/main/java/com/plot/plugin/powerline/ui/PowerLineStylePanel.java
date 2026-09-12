@@ -50,7 +50,28 @@ public final class PowerLineStylePanel {
             quickTunePanel.renderCustomFallback(line);
         }
 
+        renderSingleTowerPlacement(line);
         renderAdvancedStyle(line);
+    }
+
+    private void renderSingleTowerPlacement(PowerLineFootprint line) {
+        ImGui.separator();
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.single_tower.section"));
+        if (ctx.singleTowerPlacement().isActive()) {
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.STATUS_INFO,
+                PlotI18n.tr("plugin.powerline.single_tower.placing_hint"));
+            if (ImGui.button(PlotI18n.tr("plugin.powerline.single_tower.cancel"), 0, 0)) {
+                ctx.singleTowerPlacement().cancelPlacement();
+            }
+            return;
+        }
+        PowerLineUiWidgets.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.powerline.single_tower.section_hint"));
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.single_tower.start"), 0, 0)) {
+            ctx.singleTowerPlacement().beginPlacement(line);
+        }
     }
 
     private void renderStyleGallery(PowerLineFootprint line) {

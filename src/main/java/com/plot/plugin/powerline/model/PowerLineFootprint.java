@@ -56,6 +56,10 @@ public class PowerLineFootprint {
     private boolean perSiteParametricHeightEnabled;
     /** 玩家曾在 Route 高级区手工调整间距；切换风格时不自动覆盖。 */
     private boolean spacingCustomized;
+    /** 杆塔布置模式；默认按固定档距自动插杆。 */
+    private PoleSpacingMode poleSpacingMode = PoleSpacingMode.AUTO_SPACING;
+    /** {@link PoleSpacingMode#TOWER_COUNT} 时沿路径等距分布的杆塔数量。 */
+    private int targetTowerCount = 2;
     /** 相对 base {@link com.plot.plugin.powerline.style.PowerLineStyleDefinition} 的偏离项；见 {@link #styleInstance()}。 */
     private final StyleOverrides styleOverrides = new StyleOverrides();
 
@@ -371,6 +375,24 @@ public class PowerLineFootprint {
         this.spacingCustomized = spacingCustomized;
     }
 
+    public PoleSpacingMode getPoleSpacingMode() {
+        return poleSpacingMode != null ? poleSpacingMode : PoleSpacingMode.AUTO_SPACING;
+    }
+
+    public void setPoleSpacingMode(PoleSpacingMode poleSpacingMode) {
+        this.poleSpacingMode = poleSpacingMode != null
+            ? poleSpacingMode
+            : PoleSpacingMode.AUTO_SPACING;
+    }
+
+    public int getTargetTowerCount() {
+        return Math.max(2, targetTowerCount);
+    }
+
+    public void setTargetTowerCount(int targetTowerCount) {
+        this.targetTowerCount = Math.max(2, targetTowerCount);
+    }
+
     public StyleOverrides getStyleOverrides() {
         return styleOverrides;
     }
@@ -434,6 +456,8 @@ public class PowerLineFootprint {
         hash = 31 * hash + Boolean.hashCode(automaticTowerSelectionEnabled);
         hash = 31 * hash + Boolean.hashCode(perSiteParametricHeightEnabled);
         hash = 31 * hash + Boolean.hashCode(spacingCustomized);
+        hash = 31 * hash + Objects.hashCode(poleSpacingMode);
+        hash = 31 * hash + targetTowerCount;
         return hash;
     }
 

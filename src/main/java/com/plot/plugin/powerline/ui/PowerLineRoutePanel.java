@@ -1,5 +1,6 @@
 package com.plot.plugin.powerline.ui;
 
+import com.plot.plugin.powerline.model.PoleSpacingMode;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.style.PowerLineSpacingPolicy;
 import com.plot.plugin.powerline.style.PowerLineStyleEditor;
@@ -11,27 +12,36 @@ import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.type.ImInt;
 
-/** 线路 Tab：认领路径、布局密度偏好、地形适应。 */
+/** 线路 Tab：摘要、认领路径、杆塔布置。 */
 public final class PowerLineRoutePanel {
     private final PowerLineUiContext ctx;
     private final PowerLineAdoptPanel adoptPanel;
+    private final PowerLineOverviewPanel overviewPanel;
 
-    public PowerLineRoutePanel(PowerLineUiContext ctx) {
+    public PowerLineRoutePanel(PowerLineUiContext ctx, PowerLineOverviewPanel overviewPanel) {
         this.ctx = ctx;
         this.adoptPanel = new PowerLineAdoptPanel(ctx);
+        this.overviewPanel = overviewPanel;
     }
 
     public void render() {
+        ctx.selection().retainExisting(ctx.project());
+        PowerLineFootprint line = ctx.selection().primary(ctx.project());
+
+        if (line != null) {
+            PowerLineRouteSummaryRenderer.render(ctx, line);
+        }
+
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.path"));
         adoptPanel.render();
 
-        ctx.selection().retainExisting(ctx.project());
-        PowerLineFootprint line = ctx.selection().primary(ctx.project());
         if (line == null) {
             ImGui.separator();
             PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.no_line"));
             PowerLineUiWidgets.renderLineSelector(ctx);
+            renderProjectSection();
             return;
         }
 
@@ -40,11 +50,25 @@ public final class PowerLineRoutePanel {
         renderLineName(line);
         ImGui.separator();
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.placement"));
-        renderPlacementDensity(line);
-        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.density_hint"));
-        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.corner_hint"));
+        renderPolePlacement(line);
         renderTerrainAvoidance(line);
         renderAdvancedSpacing(line);
+        renderProjectSection();
+    }
+
+    public void renderDeleteConfirmPopup() {
+        overviewPanel.renderDeleteConfirmPopup();
+    }
+
+    private void renderProjectSection() {
+        ImGui.separator();
+        ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
+        if (!ImGui.collapsingHeader(
+                PlotI18n.tr("plugin.powerline.route.section.all_lines"),
+                ImGuiTreeNodeFlags.None)) {
+            return;
+        }
+        overviewPanel.renderProjectSection();
     }
 
     private void renderLineName(PowerLineFootprint line) {
@@ -60,32 +84,119 @@ public final class PowerLineRoutePanel {
         }
     }
 
-    private void renderPlacementDensity(PowerLineFootprint line) {
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.placement_density"));
-        PowerLineUiPresets.SpacingDensity current = PowerLineSpacingPolicy.effectiveDensity(line);
-
-        float spacing = ImGui.getStyle().getItemSpacingX();
-        float totalWidth = PowerLineSpacingCardRenderer.CARD_WIDTH
-            * PowerLineUiPresets.SpacingDensity.values().length
-            + spacing * (PowerLineUiPresets.SpacingDensity.values().length - 1);
-        float startX = ImGui.getCursorPosX();
-        if (totalWidth < ImGui.getContentRegionAvail().x) {
-            ImGui.setCursorPosX(startX + (ImGui.getContentRegionAvail().x - totalWidth) * 0.5f);
+    private void renderPolePlacement(PowerLineFootprint line) {
+        renderPlacementMode(line);
+        ImGui.spacing();
+        if (line.getPoleSpacingMode() == PoleSpacingMode.AUTO_SPACING) {
+            renderSpacingPresets(line);
+            renderSpacingSlider(line);
+        } else if (line.getPoleSpacingMode() == PoleSpacingMode.TOWER_COUNT) {
+            renderTowerCountInput(line);
+        } else {
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.route.placement_mode_hint." + line.getPoleSpacingMode().name()));
         }
+        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.corner_hint"));
+    }
 
+    private void renderPlacementMode(PowerLineFootprint line) {
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.placement_mode"));
+        PoleSpacingMode[] modes = PoleSpacingMode.values();
+        String[] labels = new String[modes.length];
+        for (int i = 0; i < modes.length; i++) {
+            labels[i] = PlotI18n.tr("plugin.powerline.route.placement_mode." + modes[i].name());
+        }
+        int current = line.getPoleSpacingMode().ordinal();
+        ImInt index = new ImInt(current);
+        if (ImGui.combo(
+                PowerLineUiWidgets.stableLabel("plugin.powerline.route.placement_mode", "placement_mode"),
+                index,
+                labels)) {
+            PoleSpacingMode selected = modes[index.get()];
+            if (selected != line.getPoleSpacingMode()) {
+                ctx.pushEditSnapshot();
+                line.setPoleSpacingMode(selected);
+                ctx.invalidatePreview();
+            }
+        }
+    }
+
+    private void renderSpacingPresets(PowerLineFootprint line) {
+        PowerLineUiPresets.SpacingDensity detected = PowerLineSpacingPolicy.detectDensity(line);
+        float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX() * 2f) / 3f;
         for (PowerLineUiPresets.SpacingDensity density : PowerLineUiPresets.SpacingDensity.values()) {
             if (density != PowerLineUiPresets.SpacingDensity.values()[0]) {
-                ImGui.sameLine(0f, spacing);
+                ImGui.sameLine();
             }
-            boolean selected = density == current;
+            boolean selected = !line.isSpacingCustomized() && density == detected;
             String label = PlotI18n.tr("plugin.powerline.route.spacing." + density.name().toLowerCase());
-            if (PowerLineSpacingCardRenderer.renderSpacingCard(line, density, label, selected)) {
+            if (selected) {
+                ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, PluginUiColors.ACCENT_BLUE);
+            }
+            if (ImGui.button(label + "##preset_" + density.name(), buttonWidth, 0)) {
                 ctx.pushEditSnapshot();
                 PowerLineUiPresets.applySpacing(line, density);
                 ctx.invalidatePreview();
             }
+            if (selected) {
+                ImGui.popStyleColor();
+            }
         }
-        ImGui.newLine();
+        ImGui.spacing();
+    }
+
+    private void renderSpacingSlider(PowerLineFootprint line) {
+        float sliderMin = (float) PowerLineFootprint.MIN_CONFIGURABLE_SPACING;
+        float sliderMax = (float) PowerLineSpacingPolicy.sliderMax(line);
+        float[] spacing = {(float) line.getMaxPoleSpacing()};
+        PowerLineUiWidgets.sliderFloatStableLineEdit(
+            ctx,
+            "pole_spacing",
+            "plugin.powerline.route.pole_spacing",
+            spacing,
+            sliderMin,
+            sliderMax,
+            "%.0f",
+            value -> {
+                line.setMaxPoleSpacing(value);
+                PowerLineStyleEditor.afterSpacingEdit(line);
+            });
+
+        ImGui.sameLine();
+        ImGui.setNextItemWidth(64f);
+        imgui.type.ImFloat input = new imgui.type.ImFloat(spacing[0]);
+        if (ImGui.inputFloat("##pole_spacing_input", input, 1f, 4f, "%.0f")) {
+            if (ImGui.isItemActivated()) {
+                ctx.pushEditSnapshot();
+            }
+            float clamped = Math.max(sliderMin, Math.min(sliderMax, input.get()));
+            line.setMaxPoleSpacing(clamped);
+            PowerLineStyleEditor.afterSpacingEdit(line);
+            ctx.invalidatePreview();
+        }
+        ImGui.sameLine();
+        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.spacing_blocks"));
+    }
+
+    private void renderTowerCountInput(PowerLineFootprint line) {
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.tower_count"));
+        ImInt count = new ImInt(line.getTargetTowerCount());
+        if (ImGui.inputInt("##tower_count", count, 1, 1)) {
+            if (ImGui.isItemActivated()) {
+                ctx.pushEditSnapshot();
+            }
+            line.setTargetTowerCount(count.get());
+            ctx.invalidatePreview();
+        }
+        double worldLength = line.computeWorldPathLength(ctx.coordinates());
+        int poles = line.getTargetTowerCount();
+        if (poles > 1 && worldLength > 0.0) {
+            double implied = worldLength / (poles - 1);
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.route.tower_count_implied_spacing", String.format("%.0f", implied)));
+        }
     }
 
     private void renderTerrainAvoidance(PowerLineFootprint line) {
