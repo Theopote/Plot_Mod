@@ -356,7 +356,11 @@ public class PowerLineGenerator {
         Vec2d outgoing = poles.get(index + 1).subtract(poles.get(index));
         Vec2d inNorm = incoming.lengthSquared() > 1e-12 ? incoming.normalize() : incoming;
         Vec2d outNorm = outgoing.lengthSquared() > 1e-12 ? outgoing.normalize() : outgoing;
-        return inNorm.add(outNorm);
+        Vec2d bisector = inNorm.add(outNorm);
+        if (bisector.lengthSquared() < 1e-12) {
+            return inNorm.lengthSquared() > 1e-12 ? inNorm : outNorm;
+        }
+        return bisector;
     }
 
     static Vec2d computePoleTangentFromSites(List<PowerPoleSite> sites, int index) {
