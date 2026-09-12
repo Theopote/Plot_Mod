@@ -53,6 +53,9 @@ public final class PowerLineValidationI18n {
                 "plugin.powerline.engineering.issue.tower_base_uneven",
                 issue.actual(),
                 issue.required());
+            case EngineeringRuleIds.TOWER_STRUCTURE_INVALID -> detailB != null && !detailB.isBlank()
+                ? PlotI18n.tr("plugin.powerline.engineering.issue.tower_structure", detailA, detailB)
+                : PlotI18n.tr("plugin.powerline.engineering.issue.tower_structure_simple", detailA);
             default -> issue.message() != null ? issue.message() : issue.ruleId();
         };
     }

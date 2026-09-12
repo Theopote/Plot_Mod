@@ -117,6 +117,28 @@ public record TowerGeneratorConfig(
         return parametricUhv(TowerParameterSet.uhvDefaults());
     }
 
+    public static TowerGeneratorConfig parametricSteampunk(TowerParameterSet parameters) {
+        return new TowerGeneratorConfig(
+            TowerParameterProfiles.STEAMPUNK_ID,
+            TowerGeneratorMode.PARAMETRIC,
+            parameters);
+    }
+
+    public static TowerGeneratorConfig parametricSteampunkDefaults() {
+        return parametricSteampunk(TowerParameterSet.steampunkDefaults());
+    }
+
+    public static TowerGeneratorConfig parametricModernHvGlass(TowerParameterSet parameters) {
+        return new TowerGeneratorConfig(
+            TowerParameterProfiles.MODERN_HV_GLASS_ID,
+            TowerGeneratorMode.PARAMETRIC,
+            parameters);
+    }
+
+    public static TowerGeneratorConfig parametricModernHvGlassDefaults() {
+        return parametricModernHvGlass(TowerParameterSet.modernHvGlassDefaults());
+    }
+
     public boolean isParametric() {
         return mode == TowerGeneratorMode.PARAMETRIC;
     }

@@ -19,7 +19,8 @@ public final class PowerLineValidator {
         new TerrainCollisionCheck(),
         new SagCheck(),
         new CornerCheck(),
-        new WireOverlapCheck()
+        new WireOverlapCheck(),
+        new TowerStructureValidationCheck()
     );
 
     private PowerLineValidator() {

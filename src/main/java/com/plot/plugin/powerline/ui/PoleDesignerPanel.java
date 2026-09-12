@@ -37,6 +37,7 @@ import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.TowerRole;
+import com.plot.plugin.powerline.style.ParametricFootprintSync;
 import com.plot.ui.component.UIUtils;
 import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
@@ -769,7 +770,13 @@ public final class PoleDesignerPanel {
                 () -> TowerParametricEditor.enableParametricDrum(draft, TowerParameterSet.drumDefaults())),
             new ParametricEnableAction(
                 "plugin.powerline.design.parametric_enable_uhv",
-                () -> TowerParametricEditor.enableParametricUhv(draft, TowerParameterSet.uhvDefaults())));
+                () -> TowerParametricEditor.enableParametricUhv(draft, TowerParameterSet.uhvDefaults())),
+            new ParametricEnableAction(
+                "plugin.powerline.design.parametric_enable_steampunk",
+                () -> TowerParametricEditor.enableParametricSteampunk(draft, TowerParameterSet.steampunkDefaults())),
+            new ParametricEnableAction(
+                "plugin.powerline.design.parametric_enable_modern_hv_glass",
+                () -> TowerParametricEditor.enableParametricModernHvGlass(draft, TowerParameterSet.modernHvGlassDefaults())));
 
         for (int i = 0; i < actions.size(); i++) {
             ParametricEnableAction action = actions.get(i);
@@ -810,6 +817,12 @@ public final class PoleDesignerPanel {
         }
         if (TowerParameterProfiles.UHV_ID.equals(profileId)) {
             return PlotI18n.tr("plugin.powerline.design.parametric_profile_uhv");
+        }
+        if (TowerParameterProfiles.STEAMPUNK_ID.equals(profileId)) {
+            return PlotI18n.tr("plugin.powerline.design.parametric_profile_steampunk");
+        }
+        if (TowerParameterProfiles.MODERN_HV_GLASS_ID.equals(profileId)) {
+            return PlotI18n.tr("plugin.powerline.design.parametric_profile_modern_hv_glass");
         }
         return PlotI18n.tr("plugin.powerline.design.parametric_profile_classic");
     }
@@ -863,6 +876,14 @@ public final class PoleDesignerPanel {
     private void applyParametricParameters(TowerParameterSet parameters) {
         draft.setGeneratorConfig(draft.getGeneratorConfig().withParameters(parameters));
         TowerParametricEditor.recompile(draft, resolveParametricConstraintEnvelope());
+        syncParametricConfigToSelectedLine();
+    }
+
+    private void syncParametricConfigToSelectedLine() {
+        PowerLineFootprint line = ctx.selection().primary(ctx.project());
+        if (ParametricFootprintSync.syncFromDesign(line, draft)) {
+            ctx.invalidatePreview();
+        }
     }
 
     private Optional<TowerLineBuildEnvelope> tryResolveLineEnvelope() {
@@ -1614,6 +1635,7 @@ public final class PoleDesignerPanel {
         } else {
             ctx.actions().savePoleDesign(draft);
         }
+        syncParametricConfigToSelectedLine();
         designNameBuffer.set(draft.getName());
         ctx.state().getDesignDraftHistory().clear();
         captureOpenedBaseline();

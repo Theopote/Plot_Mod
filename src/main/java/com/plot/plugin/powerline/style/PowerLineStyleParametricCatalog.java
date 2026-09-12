@@ -60,6 +60,12 @@ public final class PowerLineStyleParametricCatalog {
         if (PoleDesignCatalog.HEAVY_LATTICE_TOWER_ID.equals(poleDesignId)) {
             return TowerGeneratorConfig.parametricHeavy(TowerParameterSet.heavyDefaults());
         }
+        if (PoleDesignCatalog.STEAMPUNK_BRASS_TOWER_ID.equals(poleDesignId)) {
+            return TowerGeneratorConfig.parametricSteampunk(TowerParameterSet.steampunkDefaults());
+        }
+        if (PoleDesignCatalog.MODERN_HV_GLASS_TOWER_ID.equals(poleDesignId)) {
+            return TowerGeneratorConfig.parametricModernHvGlass(TowerParameterSet.modernHvGlassDefaults());
+        }
         return null;
     }
 

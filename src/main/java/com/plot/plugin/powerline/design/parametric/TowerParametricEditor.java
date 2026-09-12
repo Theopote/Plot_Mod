@@ -59,6 +59,14 @@ public final class TowerParametricEditor {
         enableParametric(design, TowerParameterProfiles.UHV_ID, parameters, TowerParameterSet.uhvDefaults());
     }
 
+    public static void enableParametricSteampunk(PoleDesign design, TowerParameterSet parameters) {
+        enableParametric(design, TowerParameterProfiles.STEAMPUNK_ID, parameters, TowerParameterSet.steampunkDefaults());
+    }
+
+    public static void enableParametricModernHvGlass(PoleDesign design, TowerParameterSet parameters) {
+        enableParametric(design, TowerParameterProfiles.MODERN_HV_GLASS_ID, parameters, TowerParameterSet.modernHvGlassDefaults());
+    }
+
     private static void enableParametric(
             PoleDesign design,
             String profileId,

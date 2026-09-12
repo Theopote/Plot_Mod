@@ -20,6 +20,8 @@ public final class TowerParameterProfiles {
     public static final String PORTAL_ID = "profile/portal";
     public static final String DRUM_ID = "profile/drum";
     public static final String UHV_ID = "profile/uhv";
+    public static final String STEAMPUNK_ID = "profile/steampunk";
+    public static final String MODERN_HV_GLASS_ID = "profile/modern_hv_glass";
 
     /** 参考几何：{@link com.plot.plugin.powerline.design.structure.TowerStructurePresets#classicDoubleArmTower()} */
     static final double CLASSIC_REF_HEIGHT = 36.0;
@@ -102,10 +104,34 @@ public final class TowerParameterProfiles {
     static final double UHV_REF_DOMINANT_REACH = 26.0;
     static final double UHV_DEPTH_RATIO = (UHV_REF_BASE_HALF_DEPTH * 2.0) / UHV_REF_BASE_WIDTH;
 
+    /** 参考几何：{@link com.plot.plugin.powerline.design.PoleDesignCatalog#steampunkBrassTower()} */
+    static final double STEAMPUNK_REF_HEIGHT = 28.0;
+    static final double STEAMPUNK_REF_BASE_WIDTH = 8.0;
+    static final double STEAMPUNK_REF_BASE_HALF_WIDTH = 4.0;
+    static final double STEAMPUNK_REF_BASE_HALF_DEPTH = 2.6;
+    static final double STEAMPUNK_REF_ARM_SPAN = 14.0;
+    static final double STEAMPUNK_REF_DOMINANT_REACH = 7.0;
+    static final double STEAMPUNK_DEPTH_RATIO = (STEAMPUNK_REF_BASE_HALF_DEPTH * 2.0) / STEAMPUNK_REF_BASE_WIDTH;
+
+    /** 参考几何：{@link com.plot.plugin.powerline.design.PoleDesignCatalog#modernHvGlassTower()} */
+    static final double MODERN_HV_REF_HEIGHT = 34.0;
+    static final double MODERN_HV_REF_BASE_WIDTH = 10.0;
+    static final double MODERN_HV_REF_BASE_HALF_WIDTH = 5.0;
+    static final double MODERN_HV_REF_BASE_HALF_DEPTH = 3.2;
+    static final double MODERN_HV_REF_ARM_SPAN = 18.0;
+    static final double MODERN_HV_REF_DOMINANT_REACH = 9.0;
+    static final double MODERN_HV_DEPTH_RATIO = (MODERN_HV_REF_BASE_HALF_DEPTH * 2.0) / MODERN_HV_REF_BASE_WIDTH;
+
     private static final MaterialMix LATTICE_LEG = MaterialMix.single("minecraft:iron_block");
     private static final MaterialMix LATTICE_BRACE = MaterialMix.single("minecraft:iron_bars");
     private static final MaterialMix SMALL_LATTICE_MEMBER = MaterialMix.single("minecraft:iron_bars");
     private static final MaterialMix ARM_MATERIAL = MaterialMix.single("minecraft:iron_bars");
+    private static final MaterialMix STEAMPUNK_LEG = MaterialMix.single("minecraft:copper_block");
+    private static final MaterialMix STEAMPUNK_BRACE = MaterialMix.single("minecraft:cut_copper");
+    private static final MaterialMix STEAMPUNK_ARM = MaterialMix.single("minecraft:gold_block");
+    private static final MaterialMix MODERN_HV_LEG = MaterialMix.single("minecraft:iron_block");
+    private static final MaterialMix MODERN_HV_BRACE = MaterialMix.single("minecraft:iron_bars");
+    private static final MaterialMix MODERN_HV_ARM = MaterialMix.single("minecraft:sea_lantern");
 
     private TowerParameterProfiles() {
     }
@@ -137,6 +163,12 @@ public final class TowerParameterProfiles {
         }
         if (UHV_ID.equals(profileId)) {
             return Optional.of(uhv());
+        }
+        if (STEAMPUNK_ID.equals(profileId)) {
+            return Optional.of(steampunk());
+        }
+        if (MODERN_HV_GLASS_ID.equals(profileId)) {
+            return Optional.of(modernHvGlass());
         }
         return Optional.empty();
     }
@@ -633,6 +665,98 @@ public final class TowerParameterProfiles {
             LATTICE_LEG,
             LATTICE_BRACE,
             ARM_MATERIAL);
+    }
+
+    public static TowerParameterProfile steampunk() {
+        List<TowerStationTemplate> stations = List.of(
+            new TowerStationTemplate("s0", TowerStationRole.BASE, 0.0 / STEAMPUNK_REF_HEIGHT, 1.0, 1.0),
+            new TowerStationTemplate("s1", TowerStationRole.LOWER_BODY, 7.0 / STEAMPUNK_REF_HEIGHT, 3.5 / STEAMPUNK_REF_BASE_HALF_WIDTH, 2.3 / STEAMPUNK_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s2", TowerStationRole.MID_BODY, 14.0 / STEAMPUNK_REF_HEIGHT, 3.0 / STEAMPUNK_REF_BASE_HALF_WIDTH, 2.0 / STEAMPUNK_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s3", TowerStationRole.SHOULDER, 22.0 / STEAMPUNK_REF_HEIGHT, 2.2 / STEAMPUNK_REF_BASE_HALF_WIDTH, 1.5 / STEAMPUNK_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s4", TowerStationRole.TOP, 1.0, 1.5 / STEAMPUNK_REF_BASE_HALF_WIDTH, 1.0 / STEAMPUNK_REF_BASE_HALF_DEPTH));
+
+        List<TowerArmTemplate> arms = List.of(
+            new TowerArmTemplate(
+                "arm_brass",
+                TowerArmRole.LOWER,
+                14.0 / STEAMPUNK_REF_HEIGHT,
+                6.0 / STEAMPUNK_REF_DOMINANT_REACH,
+                TowerArmShape.TAPERED,
+                BracingPattern.X,
+                3.0 / STEAMPUNK_REF_HEIGHT,
+                1.4 / STEAMPUNK_REF_BASE_HALF_DEPTH),
+            new TowerArmTemplate(
+                "arm_rod",
+                TowerArmRole.UPPER,
+                24.0 / STEAMPUNK_REF_HEIGHT,
+                1.0,
+                TowerArmShape.TRUSS,
+                BracingPattern.SINGLE_DIAGONAL,
+                2.0 / STEAMPUNK_REF_HEIGHT,
+                1.2 / STEAMPUNK_REF_BASE_HALF_DEPTH));
+
+        return new TowerParameterProfile(
+            STEAMPUNK_ID,
+            TowerSilhouette.DOUBLE_ARM,
+            new ParameterRange(22.0, 28.0, 36.0),
+            new ParameterRange(6.0, 8.0, 10.0),
+            new ParameterRange(10.0, 14.0, 18.0),
+            new ParameterRange(0.75, 1.0, 1.25),
+            STEAMPUNK_DEPTH_RATIO,
+            STEAMPUNK_REF_HEIGHT,
+            STEAMPUNK_REF_BASE_WIDTH,
+            STEAMPUNK_REF_ARM_SPAN,
+            3.0,
+            stations,
+            arms,
+            Map.of(
+                StructureDensity.LOW, heavyLowBays(),
+                StructureDensity.MEDIUM, heavyMediumBays(),
+                StructureDensity.HIGH, heavyHighBays()),
+            STEAMPUNK_LEG,
+            STEAMPUNK_BRACE,
+            STEAMPUNK_ARM);
+    }
+
+    public static TowerParameterProfile modernHvGlass() {
+        List<TowerStationTemplate> stations = List.of(
+            new TowerStationTemplate("s0", TowerStationRole.BASE, 0.0 / MODERN_HV_REF_HEIGHT, 1.0, 1.0),
+            new TowerStationTemplate("s1", TowerStationRole.LOWER_BODY, 12.0 / MODERN_HV_REF_HEIGHT, 4.5 / MODERN_HV_REF_BASE_HALF_WIDTH, 2.9 / MODERN_HV_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s2", TowerStationRole.MID_BODY, 22.0 / MODERN_HV_REF_HEIGHT, 3.5 / MODERN_HV_REF_BASE_HALF_WIDTH, 2.2 / MODERN_HV_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s3", TowerStationRole.TOP, 1.0, 2.5 / MODERN_HV_REF_BASE_HALF_WIDTH, 1.6 / MODERN_HV_REF_BASE_HALF_DEPTH));
+
+        List<TowerArmTemplate> arms = List.of(
+            new TowerArmTemplate(
+                "arm_glass",
+                TowerArmRole.MAIN,
+                30.0 / MODERN_HV_REF_HEIGHT,
+                1.0,
+                TowerArmShape.TRUSS,
+                BracingPattern.X,
+                3.0 / MODERN_HV_REF_HEIGHT,
+                1.8 / MODERN_HV_REF_BASE_HALF_DEPTH));
+
+        return new TowerParameterProfile(
+            MODERN_HV_GLASS_ID,
+            TowerSilhouette.TAPERED_LATTICE,
+            new ParameterRange(26.0, 34.0, 42.0),
+            new ParameterRange(8.0, 10.0, 12.0),
+            new ParameterRange(14.0, 18.0, 22.0),
+            new ParameterRange(0.75, 1.0, 1.25),
+            MODERN_HV_DEPTH_RATIO,
+            MODERN_HV_REF_HEIGHT,
+            MODERN_HV_REF_BASE_WIDTH,
+            MODERN_HV_REF_ARM_SPAN,
+            3.0,
+            stations,
+            arms,
+            Map.of(
+                StructureDensity.LOW, smallLowBays(),
+                StructureDensity.MEDIUM, smallMediumBays(),
+                StructureDensity.HIGH, smallHighBays()),
+            MODERN_HV_LEG,
+            MODERN_HV_BRACE,
+            MODERN_HV_ARM);
     }
 
     private static List<BayDensityConfig> classicLowBays() {

@@ -97,6 +97,26 @@ public final class TowerParametricDesignFactory {
         return resolveProfile(TowerParameterProfiles.uhv(), parameters, envelope);
     }
 
+    public static TowerConstraintResult resolveSteampunk(TowerParameterSet parameters) {
+        return resolveSteampunk(parameters, null);
+    }
+
+    public static TowerConstraintResult resolveSteampunk(
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        return resolveProfile(TowerParameterProfiles.steampunk(), parameters, envelope);
+    }
+
+    public static TowerConstraintResult resolveModernHvGlass(TowerParameterSet parameters) {
+        return resolveModernHvGlass(parameters, null);
+    }
+
+    public static TowerConstraintResult resolveModernHvGlass(
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        return resolveProfile(TowerParameterProfiles.modernHvGlass(), parameters, envelope);
+    }
+
     public static TowerConstraintResult resolveProfile(
             TowerParameterProfile profile,
             TowerParameterSet parameters,
@@ -193,6 +213,26 @@ public final class TowerParametricDesignFactory {
             TowerParameterSet parameters,
             TowerBuildEnvelope envelope) {
         return compileProfile(TowerParameterProfiles.uhv(), parameters, envelope);
+    }
+
+    public static PoleDesign compileSteampunk(TowerParameterSet parameters) {
+        return compileSteampunk(parameters, null);
+    }
+
+    public static PoleDesign compileSteampunk(
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        return compileProfile(TowerParameterProfiles.steampunk(), parameters, envelope);
+    }
+
+    public static PoleDesign compileModernHvGlass(TowerParameterSet parameters) {
+        return compileModernHvGlass(parameters, null);
+    }
+
+    public static PoleDesign compileModernHvGlass(
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        return compileProfile(TowerParameterProfiles.modernHvGlass(), parameters, envelope);
     }
 
     public static PoleDesign compileProfile(

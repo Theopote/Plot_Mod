@@ -11,6 +11,7 @@ public final class EngineeringRuleIds {
     public static final String SAG_MAXIMUM = "sag.maximum";
     public static final String TOWER_BASE_UNEVEN = "tower.base.uneven";
     public static final String TOWER_HEIGHT_MARGIN = "tower.height.margin";
+    public static final String TOWER_STRUCTURE_INVALID = "tower.structure.invalid";
 
     private EngineeringRuleIds() {
     }

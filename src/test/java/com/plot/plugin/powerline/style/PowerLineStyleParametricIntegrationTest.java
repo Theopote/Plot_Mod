@@ -122,6 +122,26 @@ class PowerLineStyleParametricIntegrationTest {
         assertEquals(TowerParameterProfiles.HEAVY_ID, config.profileId());
     }
 
+    @Test
+    void steampunkPresetAppliesParametricConfig() {
+        PowerLineFootprint line = line();
+        PowerLineStylePresetCatalog.steampunkBrass().apply(line);
+
+        assertTrue(line.hasParametricTowerConfig());
+        assertEquals(TowerParameterProfiles.STEAMPUNK_ID, line.getParametricTowerConfig().profileId());
+        assertEquals(28.0, line.getParametricTowerConfig().parameters().height(), 0.01);
+    }
+
+    @Test
+    void modernHvGlassPresetAppliesParametricConfig() {
+        PowerLineFootprint line = line();
+        PowerLineStylePresetCatalog.modernHvGlass().apply(line);
+
+        assertTrue(line.hasParametricTowerConfig());
+        assertEquals(TowerParameterProfiles.MODERN_HV_GLASS_ID, line.getParametricTowerConfig().profileId());
+        assertEquals(34.0, line.getParametricTowerConfig().parameters().height(), 0.01);
+    }
+
     private static PowerLineFootprint line() {
         return new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(80, 0)));
     }
