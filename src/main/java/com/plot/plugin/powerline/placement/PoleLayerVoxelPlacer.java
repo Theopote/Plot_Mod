@@ -68,6 +68,13 @@ public final class PoleLayerVoxelPlacer {
             }
             currentY += layer.getHeight();
         }
+        PoleIdentityFeaturePlacer.placeFeatures(
+            design,
+            planPoint,
+            layerBaseY,
+            normal,
+            sink,
+            mapper);
     }
 
     private static void placeColumnLayer(

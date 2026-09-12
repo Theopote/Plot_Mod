@@ -306,7 +306,7 @@ public final class PoleDesignCatalog {
         return design;
     }
 
-    /** 废土风电塔：锈蚀塔身 + 长桨叶横担。 */
+    /** 废土风电塔：锈蚀塔身 + 轮毂；四向桨叶由 {@link com.plot.plugin.powerline.placement.PoleIdentityFeaturePlacer} 实体化。 */
     public static PoleDesign wastelandWindTurbine() {
         PoleDesign design = new PoleDesign(WASTELAND_WIND_TURBINE_ID, "Wasteland Wind Turbine");
         List<PoleLayer> layers = new ArrayList<>();
@@ -318,12 +318,6 @@ public final class PoleDesignCatalog {
             PoleLayer.Shape.COLUMN,
             4,
             MaterialMix.single("minecraft:oxidized_copper")));
-        PoleLayer blade = new PoleLayer(
-            PoleLayer.Shape.CROSSARM,
-            1,
-            MaterialMix.single("minecraft:orange_terracotta"));
-        blade.setCrossarmLength(9);
-        layers.add(blade);
         layers.add(new PoleLayer(
             PoleLayer.Shape.CAP,
             1,
@@ -416,7 +410,7 @@ public final class PoleDesignCatalog {
         return design;
     }
 
-    /** 郊区路灯线：铸铁杆 + 暖色灯头（街区氛围）。 */
+    /** 郊区路灯线：铸铁杆 + 横担；末端灯头由 {@link com.plot.plugin.powerline.placement.PoleIdentityFeaturePlacer} 实体化。 */
     public static PoleDesign suburbanLampPole() {
         PoleDesign design = new PoleDesign(SUBURBAN_LAMP_POLE_ID, "Suburban Lamp Pole");
         List<PoleLayer> layers = new ArrayList<>();
@@ -430,16 +424,12 @@ public final class PoleDesignCatalog {
             MaterialMix.single("minecraft:iron_bars"));
         arm.setCrossarmLength(5);
         layers.add(arm);
-        layers.add(new PoleLayer(
-            PoleLayer.Shape.CAP,
-            1,
-            MaterialMix.single("minecraft:soul_lantern")));
         design.setLayers(layers);
         wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.SINGLE);
         return design;
     }
 
-    /** 现代配电杆：钢杆 + 变压器箱 + 短横担。 */
+    /** 现代配电杆：钢杆 + 短横担；侧挂变压器箱由 {@link com.plot.plugin.powerline.placement.PoleIdentityFeaturePlacer} 实体化。 */
     public static PoleDesign modernUtilityPole() {
         PoleDesign design = new PoleDesign(MODERN_UTILITY_POLE_ID, "Modern Utility Pole");
         List<PoleLayer> layers = new ArrayList<>();
@@ -447,10 +437,6 @@ public final class PoleDesignCatalog {
             PoleLayer.Shape.COLUMN,
             8,
             MaterialMix.single("minecraft:iron_bars")));
-        layers.add(new PoleLayer(
-            PoleLayer.Shape.COLUMN,
-            2,
-            MaterialMix.single("minecraft:iron_block")));
         PoleLayer crossarm = new PoleLayer(
             PoleLayer.Shape.CROSSARM,
             1,

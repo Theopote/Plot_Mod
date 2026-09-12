@@ -9,6 +9,7 @@ import com.plot.plugin.powerline.design.structure.TowerDecorationKind;
 import com.plot.plugin.powerline.design.structure.TowerMemberProfile;
 import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
+import com.plot.core.material.MaterialMix;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -78,10 +79,22 @@ public final class TowerStructureCompiler {
             structure.addArm(arm);
         }
 
-        TowerDecoration peak = new TowerDecoration("peak", TowerDecorationKind.ANTENNA, resolved.peakDecorationHeight());
-        peak.setSize(resolved.peakDecorationSize());
-        peak.setMaterial(profile.braceMaterial());
-        structure.addDecoration(peak);
+        if (TowerParameterProfiles.STEAMPUNK_ID.equals(profile.id())) {
+            TowerDecoration gear = new TowerDecoration(
+                "gear",
+                TowerDecorationKind.PLATFORM,
+                resolved.peakDecorationHeight());
+            gear.setSize(2.0);
+            gear.setMaterial(profile.armMaterial() != null
+                ? profile.armMaterial()
+                : MaterialMix.single("minecraft:gold_block"));
+            structure.addDecoration(gear);
+        } else {
+            TowerDecoration peak = new TowerDecoration("peak", TowerDecorationKind.ANTENNA, resolved.peakDecorationHeight());
+            peak.setSize(resolved.peakDecorationSize());
+            peak.setMaterial(profile.braceMaterial());
+            structure.addDecoration(peak);
+        }
         return structure;
     }
 }
