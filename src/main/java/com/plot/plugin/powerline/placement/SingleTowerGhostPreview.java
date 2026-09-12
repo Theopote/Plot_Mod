@@ -2,7 +2,6 @@ package com.plot.plugin.powerline.placement;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.PluginProjectionContext;
-import com.plot.core.command.BlockRecord;
 import com.plot.core.context.PluginContext;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.powerline.PoleFrame;
@@ -19,9 +18,6 @@ import com.plot.plugin.powerline.style.ParametricStyleTowerApplicator;
 import com.plot.core.geometry.WorldCoordinateUtils;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
-
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 /** 在指定画布点生成单塔 Ghost 方块预览。 */
 public final class SingleTowerGhostPreview {
@@ -86,23 +82,5 @@ public final class SingleTowerGhostPreview {
 
         result.poleCount = 1;
         return result.blockCount() > 0 ? result : null;
-    }
-
-    public static void projectToGhosts(PluginContext host, PowerLineGenerationResult result) {
-        if (host == null || result == null) {
-            return;
-        }
-        com.plot.api.world.IGhostBlockService ghosts = host.ghosts();
-        if (ghosts == null) {
-            return;
-        }
-        ghosts.clearAllGhostBlocks();
-        Map<net.minecraft.util.math.BlockPos, String> blocks = new LinkedHashMap<>();
-        for (BlockRecord record : result.placementRecords.values()) {
-            blocks.put(record.pos, record.newBlockId);
-        }
-        if (!blocks.isEmpty()) {
-            ghosts.addGhostBlocks(blocks);
-        }
     }
 }

@@ -36,7 +36,7 @@ public class PowerLinePlugin extends Plugin {
     private PowerLineUIManager uiManager;
 
     private final CanvasOverlayRegistry.Overlay placedTowersOverlay = (drawList, camera) -> {
-        if (uiContext == null) {
+        if (uiContext == null || !isActiveExtension()) {
             return;
         }
         synchronized (projectLock) {
@@ -49,7 +49,7 @@ public class PowerLinePlugin extends Plugin {
     };
 
     private final CanvasOverlayRegistry.Overlay singleTowerOverlay = (drawList, camera) -> {
-        if (uiContext == null) {
+        if (uiContext == null || !isActiveExtension()) {
             return;
         }
         synchronized (projectLock) {
@@ -61,7 +61,7 @@ public class PowerLinePlugin extends Plugin {
     };
 
     private final CanvasOverlayRegistry.Overlay engineeringOverlay = (drawList, camera) -> {
-        if (uiContext == null) {
+        if (uiContext == null || !isActiveExtension()) {
             return;
         }
         synchronized (projectLock) {
@@ -94,6 +94,10 @@ public class PowerLinePlugin extends Plugin {
             "plugin.powerline.desc",
             ExtensionPanelIcons.POWER_LINE
         );
+    }
+
+    private boolean isActiveExtension() {
+        return com.plot.core.plugin.PluginManager.getInstance().getActivePlugin() == this;
     }
 
     @Override

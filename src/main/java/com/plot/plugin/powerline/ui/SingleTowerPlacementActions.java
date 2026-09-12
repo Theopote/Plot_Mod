@@ -16,6 +16,7 @@ import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelopeResolver;
 import com.plot.plugin.powerline.design.parametric.TowerLineBuildEnvelope;
 import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
 import com.plot.plugin.powerline.design.parametric.TowerParametricLinePlacement;
+import com.plot.plugin.powerline.manager.PowerLinePreviewManager;
 import com.plot.plugin.powerline.model.PlacedSingleTower;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
@@ -39,15 +40,18 @@ public final class SingleTowerPlacementActions {
     private final PluginContext host;
     private final PowerLinePluginState state;
     private final Object projectLock;
+    private final PowerLinePreviewManager previewManager;
     private final SingleTowerPlacementSession session = new SingleTowerPlacementSession();
 
     public SingleTowerPlacementActions(
             PluginContext host,
             PowerLinePluginState state,
-            Object projectLock) {
+            Object projectLock,
+            PowerLinePreviewManager previewManager) {
         this.host = Objects.requireNonNull(host, "host");
         this.state = Objects.requireNonNull(state, "state");
         this.projectLock = Objects.requireNonNull(projectLock, "projectLock");
+        this.previewManager = Objects.requireNonNull(previewManager, "previewManager");
     }
 
     public SingleTowerPlacementSession session() {
@@ -85,9 +89,7 @@ public final class SingleTowerPlacementActions {
         }
 
         synchronized (projectLock) {
-            host.ghosts().clearAllGhostBlocks();
-            state.setLastGenerationResult(null);
-            state.setPreviewKey(null);
+            previewManager.enterSingleTowerMode();
             session.begin(design, design.getName(), styleSource);
         }
         state.setProjectStatus(
@@ -96,14 +98,24 @@ public final class SingleTowerPlacementActions {
     }
 
     public void cancelPlacement() {
+        cancelPlacement(true);
+    }
+
+    void cancelPlacementSilent() {
+        cancelPlacement(false);
+    }
+
+    private void cancelPlacement(boolean notify) {
         if (!session.isActive()) {
             return;
         }
         session.cancel();
-        host.ghosts().clearAllGhostBlocks();
-        state.setProjectStatus(
-            PlotI18n.tr("plugin.powerline.single_tower.cancelled"),
-            ProjectStatusSeverity.INFO);
+        previewManager.exitSingleTowerMode();
+        if (notify) {
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.single_tower.cancelled"),
+                ProjectStatusSeverity.INFO);
+        }
     }
 
     public void tick() {
@@ -117,7 +129,7 @@ public final class SingleTowerPlacementActions {
         switch (outcome.getResult()) {
             case NONE -> { }
             case CANCELLED -> {
-                host.ghosts().clearAllGhostBlocks();
+                previewManager.exitSingleTowerMode();
                 state.setProjectStatus(
                     PlotI18n.tr("plugin.powerline.single_tower.cancelled"),
                     ProjectStatusSeverity.INFO);
@@ -204,7 +216,7 @@ public final class SingleTowerPlacementActions {
         state.setProjectStatus(
             PlotI18n.tr("plugin.powerline.single_tower.build_in_progress", records.size()),
             ProjectStatusSeverity.INFO);
-        host.ghosts().clearAllGhostBlocks();
+        previewManager.clearGhostsOnly();
         command.executeScheduled(() -> PowerLineUiExecutor.runOnClientThread(() -> {
             var result = command.getLastExecutionResult();
             if (command.hasAppliedRecords()) {
@@ -251,7 +263,7 @@ public final class SingleTowerPlacementActions {
         SingleTowerPlacementState placement = session.snapshot();
         PowerLineFootprint styleSource = session.styleSource();
         if (placement == null || styleSource == null || !placement.hoverValid() || placement.planPoint() == null) {
-            host.ghosts().clearAllGhostBlocks();
+            previewManager.clearGhostsOnly();
             return;
         }
         World world = getClientWorld();
@@ -267,10 +279,10 @@ public final class SingleTowerPlacementActions {
             placement.rotationQuadrant(),
             terrain);
         if (preview == null) {
-            host.ghosts().clearAllGhostBlocks();
+            previewManager.clearGhostsOnly();
             return;
         }
-        SingleTowerGhostPreview.projectToGhosts(host, preview);
+        previewManager.showSingleTowerPreview(preview);
     }
 
     private boolean hasBlockingParametricIssues(

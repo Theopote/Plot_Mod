@@ -202,6 +202,10 @@ public final class PowerLineUiContext {
         return actions.singleTowerPlacement();
     }
 
+    public com.plot.plugin.powerline.manager.PowerLinePreviewManager previewManager() {
+        return actions.previewManager();
+    }
+
     public PlacedSingleTowerActions placedSingleTowerActions() {
         return actions.placedSingleTowerActions();
     }

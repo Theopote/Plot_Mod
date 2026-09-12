@@ -16,6 +16,7 @@ import com.plot.api.world.PluginProjectionContext;
 import com.plot.api.world.WorldProjectionUnavailableException;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.PowerLinePathSelectionAnalysis;
+import com.plot.plugin.powerline.manager.PowerLinePreviewManager;
 import com.plot.plugin.powerline.PowerLineGenerator;
 import com.plot.plugin.powerline.PowerLinePathUtils;
 import com.plot.plugin.powerline.PowerPoleLayoutUtils;
@@ -47,6 +48,7 @@ public final class PowerLineActions {
     private final PluginContext host;
     private final PowerLinePluginState state;
     private final Object projectLock;
+    private final PowerLinePreviewManager previewManager;
     private final SingleTowerPlacementActions singleTowerPlacement;
     private final PlacedSingleTowerActions placedSingleTowerActions;
     private PowerLineGenerator generator;
@@ -55,8 +57,13 @@ public final class PowerLineActions {
         this.host = Objects.requireNonNull(host, "host");
         this.state = Objects.requireNonNull(state, "state");
         this.projectLock = Objects.requireNonNull(projectLock, "projectLock");
-        this.singleTowerPlacement = new SingleTowerPlacementActions(host, state, projectLock);
+        this.previewManager = new PowerLinePreviewManager(host, state);
+        this.singleTowerPlacement = new SingleTowerPlacementActions(host, state, projectLock, previewManager);
         this.placedSingleTowerActions = new PlacedSingleTowerActions(host, state);
+    }
+
+    public PowerLinePreviewManager previewManager() {
+        return previewManager;
     }
 
     public SingleTowerPlacementActions singleTowerPlacement() {
@@ -191,6 +198,9 @@ public final class PowerLineActions {
     }
 
     private boolean calculatePreviewCore(PowerLineFootprint line) {
+        if (singleTowerPlacement.isActive()) {
+            singleTowerPlacement.cancelPlacementSilent();
+        }
         World world = getClientWorld();
         if (world == null || generator == null) {
             state.setProjectStatus(PlotI18n.tr("plugin.powerline.generate_world_unavailable"), ProjectStatusSeverity.ERROR);
@@ -207,11 +217,6 @@ public final class PowerLineActions {
                 PlotI18n.tr("plugin.powerline.projection_unavailable"),
                 ProjectStatusSeverity.ERROR);
             return false;
-        }
-
-        com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
-        if (ghostBlockManager != null) {
-            ghostBlockManager.clearAllGhostBlocks();
         }
 
         TerrainSampler terrain = MinecraftTerrainSampler.of(world, host.coordinates());
@@ -239,7 +244,7 @@ public final class PowerLineActions {
 
         state.setLastGenerationResult(result);
         state.setPreviewKey(PowerLinePreviewKey.capture(line, state.getDesignProject(), host.coordinates()));
-        projectGhosts(result);
+        previewManager.showLinePreview(result);
         state.setProjectStatus(PlotI18n.tr(
             "plugin.powerline.preview_ready",
             result.poleCount,
@@ -418,34 +423,25 @@ public final class PowerLineActions {
         }
     }
 
-    private void projectGhosts(PowerLineGenerationResult result) {
-        com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
-        if (ghostBlockManager == null) {
-            return;
-        }
-        java.util.LinkedHashMap<net.minecraft.util.math.BlockPos, String> ghosts = new java.util.LinkedHashMap<>();
-        for (BlockRecord record : result.placementRecords.values()) {
-            ghosts.put(record.pos, record.newBlockId);
-        }
-        ghostBlockManager.addGhostBlocks(ghosts);
-    }
-
     public void clearPreview() {
-        com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
-        if (ghostBlockManager != null) {
-            ghostBlockManager.clearAllGhostBlocks();
-        }
-        state.setLastGenerationResult(null);
-        state.setPreviewKey(null);
-        clearAnalysisReports();
+        previewManager.clearLineCachedPreview();
     }
 
     /**
      * 生成参数、线路选择或杆塔设计变更后调用，丢弃过期预览。
      */
     public void invalidatePreview() {
+        if (previewManager.isSingleTowerInteractive()) {
+            if (state.getLastGenerationResult() != null || state.getPreviewKey() != null) {
+                previewManager.clearLineCachedPreview();
+                state.setProjectStatus(
+                    PlotI18n.tr("plugin.powerline.preview_invalidated"),
+                    ProjectStatusSeverity.INFO);
+            }
+            return;
+        }
         if (state.getLastGenerationResult() != null || state.getPreviewKey() != null) {
-            clearPreview();
+            previewManager.clearLineCachedPreview();
             state.setProjectStatus(
                 PlotI18n.tr("plugin.powerline.preview_invalidated"),
                 ProjectStatusSeverity.INFO);
