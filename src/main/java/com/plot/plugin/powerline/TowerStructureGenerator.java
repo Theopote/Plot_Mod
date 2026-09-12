@@ -536,7 +536,7 @@ public final class TowerStructureGenerator {
         }
         BlockPos samplePos = blocks.iterator().next();
         String sampleBlockId = MaterialMixResolver.resolve(material, samplePos, footprint.getId());
-        String placementId = resolvePlacementBlockId(sampleBlockId, start, end, transform);
+        String placementId = memberPlacementId(sampleBlockId, start, end, transform);
         for (BlockPos pos : blocks) {
             recordBlock(result, pos, placementId, projection);
         }
@@ -582,23 +582,21 @@ public final class TowerStructureGenerator {
         }
     }
 
-    private static String resolvePlacementBlockId(
+    private static String memberPlacementId(
             String blockId,
             TowerLocalPoint memberStart,
             TowerLocalPoint memberEnd,
             TowerStructureTransform transform) {
-        if (!"minecraft:lightning_rod".equals(blockId)) {
-            return blockId;
-        }
         if (memberStart != null && memberEnd != null && transform != null) {
             double[] worldStart = transform.toWorld(memberStart);
             double[] worldEnd = transform.toWorld(memberEnd);
-            return DirectionalBlockSpecs.lightningRodAlongMember(
+            return DirectionalBlockSpecs.resolveMemberPlacement(
+                blockId,
                 worldEnd[0] - worldStart[0],
                 worldEnd[1] - worldStart[1],
                 worldEnd[2] - worldStart[2]).toSetBlockArgument();
         }
-        return DirectionalBlockSpecs.verticalLightningRod().toSetBlockArgument();
+        return DirectionalBlockSpecs.resolveMemberPlacement(blockId, null, null, null).toSetBlockArgument();
     }
 
     private static void recordBlock(

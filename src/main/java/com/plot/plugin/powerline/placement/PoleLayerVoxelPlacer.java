@@ -142,6 +142,9 @@ public final class PoleLayerVoxelPlacer {
             Vec2d direction = offset >= 0 ? normal : normal.multiply(-1);
             return DirectionalBlockSpecs.lightningRodAlong(direction);
         }
+        if (blockId != null && blockId.endsWith("_slab")) {
+            return DirectionalBlockSpecs.crossarmSlab(blockId);
+        }
         return BlockSpec.of(blockId);
     }
 

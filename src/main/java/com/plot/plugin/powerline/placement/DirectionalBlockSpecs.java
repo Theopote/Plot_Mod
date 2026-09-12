@@ -79,6 +79,35 @@ public final class DirectionalBlockSpecs {
             "up", "false"));
     }
 
+    /** 横担板/slab：下半砖贴附横担。 */
+    public static BlockSpec crossarmSlab(String blockId) {
+        if (blockId != null && blockId.endsWith("_slab")) {
+            return BlockSpec.with(blockId, "type", "bottom");
+        }
+        return BlockSpec.of(blockId);
+    }
+
+    /**
+     * 沿成员方向解析 BlockState（塔体成员、绝缘子串等）。
+     * 无成员向量时避雷针默认为竖向朝上。
+     */
+    public static BlockSpec resolveMemberPlacement(
+            String blockId,
+            Double deltaX,
+            Double deltaY,
+            Double deltaZ) {
+        if ("minecraft:lightning_rod".equals(blockId)) {
+            if (deltaX != null && deltaY != null && deltaZ != null) {
+                return lightningRodAlongMember(deltaX, deltaY, deltaZ);
+            }
+            return verticalLightningRod();
+        }
+        if ("minecraft:chain".equals(blockId) && deltaX != null && deltaY != null && deltaZ != null) {
+            return chainAlongMember(deltaX, deltaY, deltaZ);
+        }
+        return BlockSpec.of(blockId);
+    }
+
     /**
      * 水平铁活板门帽（风电轮毂等）：贴在下方柱顶，{@code half=bottom} 为水平盖板。
      */
@@ -86,6 +115,19 @@ public final class DirectionalBlockSpecs {
         return BlockSpec.with(IRON_TRAPDOOR, "facing", facingFromPlan(planDirection))
             .withProperty("half", "bottom")
             .withProperty("open", "false");
+    }
+
+    private static BlockSpec chainAlongMember(double deltaX, double deltaY, double deltaZ) {
+        double absX = Math.abs(deltaX);
+        double absY = Math.abs(deltaY);
+        double absZ = Math.abs(deltaZ);
+        if (absY >= absX && absY >= absZ) {
+            return verticalChain();
+        }
+        if (absX >= absZ) {
+            return BlockSpec.with(CHAIN, "axis", "x");
+        }
+        return BlockSpec.with(CHAIN, "axis", "z");
     }
 
     private static String facingFromPlan(Vec2d planDirection) {

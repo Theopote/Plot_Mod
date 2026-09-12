@@ -14,6 +14,7 @@ import com.plot.plugin.powerline.ResolvedAttachment;
 import com.plot.plugin.powerline.design.AttachmentRole;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.TowerRole;
+import com.plot.plugin.powerline.placement.DirectionalBlockSpecs;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.LinkedHashSet;
@@ -96,7 +97,6 @@ public final class JumperWireGenerator {
             : rawSagDepth;
 
         MaterialMix wireMaterial = ConductorMaterialPolicy.materialFor(attachment.role(), footprint);
-        Set<BlockPos> wireBlocks = new LinkedHashSet<>();
         double[] worldStart = planToWorldXz(planStart, coordinateTransformer);
         double[] worldEnd = planToWorldXz(planEnd, coordinateTransformer);
 
@@ -109,14 +109,39 @@ public final class JumperWireGenerator {
             double z1 = lerp(worldStart[1], worldEnd[1], t1);
             double y0 = wireY - sagDepthAt(t0, sagDepth);
             double y1 = wireY - sagDepthAt(t1, sagDepth);
-            wireBlocks.addAll(PowerLineWireRasterizer.rasterizeLine3D(
+            Set<BlockPos> wireBlocks = new LinkedHashSet<>(PowerLineWireRasterizer.rasterizeLine3D(
                 x0, y0, z0,
                 x1, y1, z1));
+            placeDirectedWireBlocks(
+                wireMaterial,
+                footprint,
+                result,
+                projectionHandler,
+                wireBlocks,
+                x1 - x0,
+                y1 - y0,
+                z1 - z0);
         }
+    }
 
+    private static void placeDirectedWireBlocks(
+            MaterialMix wireMaterial,
+            PowerLineFootprint footprint,
+            PowerLineGenerationResult result,
+            IBlockProjectionService projectionHandler,
+            Set<BlockPos> wireBlocks,
+            double deltaX,
+            double deltaY,
+            double deltaZ) {
+        if (wireBlocks == null || wireBlocks.isEmpty()) {
+            return;
+        }
+        BlockPos samplePos = wireBlocks.iterator().next();
+        String sampleBlockId = MaterialMixResolver.resolve(wireMaterial, samplePos, footprint.getId());
+        String placementId = DirectionalBlockSpecs.resolveMemberPlacement(
+            sampleBlockId, deltaX, deltaY, deltaZ).toSetBlockArgument();
         for (BlockPos pos : wireBlocks) {
-            String blockId = MaterialMixResolver.resolve(wireMaterial, pos, footprint.getId());
-            recordBlock(result, pos, blockId, projectionHandler);
+            recordBlock(result, pos, placementId, projectionHandler);
         }
     }
 

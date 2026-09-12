@@ -5,6 +5,7 @@ import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.PlacementReadiness;
 import com.plot.api.world.WorldViewBounds;
+import com.plot.core.block.BlockSpec;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.family.TowerFamily;
@@ -114,9 +115,9 @@ class PowerLineTowerFamilyIntegrationTest {
 
         PowerLineGenerationResult result = generate(line);
         boolean hasChain = result.placementRecords.values().stream()
-            .anyMatch(record -> "minecraft:chain".equals(record.newBlockId));
+            .anyMatch(record -> "minecraft:chain".equals(blockId(record)));
         boolean hasBars = result.placementRecords.values().stream()
-            .anyMatch(record -> "minecraft:iron_bars".equals(record.newBlockId));
+            .anyMatch(record -> "minecraft:iron_bars".equals(blockId(record)));
         assertTrue(hasChain, "ground wire should use chain material");
         assertTrue(hasBars, "phase conductors should use iron bars");
     }
@@ -132,7 +133,7 @@ class PowerLineTowerFamilyIntegrationTest {
         PowerLineGenerationResult result = generate(line);
         Set<BlockPos> chainBlocks = new HashSet<>();
         for (BlockRecord record : result.placementRecords.values()) {
-            if ("minecraft:chain".equals(record.newBlockId)) {
+            if ("minecraft:chain".equals(blockId(record))) {
                 chainBlocks.add(record.pos);
             }
         }
@@ -165,10 +166,10 @@ class PowerLineTowerFamilyIntegrationTest {
 
         PowerLineGenerationResult result = generate(line);
         long chainBlocks = result.placementRecords.values().stream()
-            .filter(record -> "minecraft:chain".equals(record.newBlockId))
+            .filter(record -> "minecraft:chain".equals(blockId(record)))
             .count();
         long barBlocks = result.placementRecords.values().stream()
-            .filter(record -> "minecraft:iron_bars".equals(record.newBlockId))
+            .filter(record -> "minecraft:iron_bars".equals(blockId(record)))
             .count();
         assertTrue(chainBlocks > 0, "twin top wires should place chain material");
         assertTrue(barBlocks > chainBlocks, "bundled phase conductors should dominate block count");
@@ -186,10 +187,10 @@ class PowerLineTowerFamilyIntegrationTest {
 
         PowerLineGenerationResult result = generate(line);
         long chainBlocks = result.placementRecords.values().stream()
-            .filter(record -> "minecraft:chain".equals(record.newBlockId))
+            .filter(record -> "minecraft:chain".equals(blockId(record)))
             .count();
         long barBlocks = result.placementRecords.values().stream()
-            .filter(record -> "minecraft:iron_bars".equals(record.newBlockId))
+            .filter(record -> "minecraft:iron_bars".equals(blockId(record)))
             .count();
         assertTrue(chainBlocks > 0, "twin top wires should place chain material");
         assertTrue(barBlocks > chainBlocks, "bundled phase conductors should dominate block count");
@@ -274,5 +275,9 @@ class PowerLineTowerFamilyIntegrationTest {
                 return PlacementReadiness.ok();
             }
         };
+    }
+
+    private static String blockId(BlockRecord record) {
+        return BlockSpec.parse(record.newBlockId).blockId();
     }
 }

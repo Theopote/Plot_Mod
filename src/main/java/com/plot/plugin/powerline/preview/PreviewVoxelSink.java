@@ -1,5 +1,6 @@
 package com.plot.plugin.powerline.preview;
 
+import com.plot.core.block.BlockSpec;
 import com.plot.plugin.powerline.placement.VoxelSink;
 
 import java.util.ArrayList;
@@ -17,6 +18,14 @@ public final class PreviewVoxelSink implements VoxelSink {
             return;
         }
         blocks.put(key(x, y, z), blockId);
+    }
+
+    @Override
+    public void put(int x, int y, int z, BlockSpec block) {
+        if (block == null) {
+            return;
+        }
+        blocks.put(key(x, y, z), block.toSetBlockArgument());
     }
 
     public List<PreviewVoxel> snapshot() {

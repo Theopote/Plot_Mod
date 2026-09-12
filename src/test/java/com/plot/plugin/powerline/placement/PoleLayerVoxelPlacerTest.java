@@ -63,6 +63,17 @@ class PoleLayerVoxelPlacerTest {
     }
 
     @Test
+    void crossarmSlabsUseBottomType() {
+        PreviewVoxelSink sink = new PreviewVoxelSink();
+        PoleLayerVoxelPlacer.placeDesignPreview(PoleDesignCatalog.japaneseStreetPole(), sink, "seed");
+        assertTrue(sink.snapshot().stream().anyMatch(voxel -> {
+            BlockSpec spec = BlockSpec.parse(voxel.blockId());
+            return "minecraft:dark_oak_slab".equals(spec.blockId())
+                && "bottom".equals(spec.property("type"));
+        }));
+    }
+
+    @Test
     void capLanternAndVineUseBlockState() {
         PreviewVoxelSink japanese = new PreviewVoxelSink();
         PoleLayerVoxelPlacer.placeDesignPreview(PoleDesignCatalog.japaneseStreetPole(), japanese, "seed");

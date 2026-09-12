@@ -73,6 +73,21 @@ class DirectionalBlockSpecsTest {
     }
 
     @Test
+    void crossarmSlabUsesBottomType() {
+        assertEquals(
+            "minecraft:oak_slab[type=bottom]",
+            DirectionalBlockSpecs.crossarmSlab("minecraft:oak_slab").toSetBlockArgument());
+    }
+
+    @Test
+    void resolveMemberPlacementHandlesVerticalChain() {
+        assertEquals(
+            "minecraft:chain[axis=y]",
+            DirectionalBlockSpecs.resolveMemberPlacement("minecraft:chain", 0.0, 1.0, 0.0)
+                .toSetBlockArgument());
+    }
+
+    @Test
     void poleTopLanternIsNotHanging() {
         assertEquals(
             "minecraft:lantern[hanging=false]",

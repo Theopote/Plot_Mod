@@ -7,6 +7,7 @@ import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
+import com.plot.core.block.BlockSpec;
 import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
 import com.plot.plugin.powerline.style.PowerLineStylePreviewBinding;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -113,7 +114,8 @@ class PowerLineStyleConsistencyTest {
         assertTrue(result.blockCount() > 0, preset.getId() + " block count");
         String wireBlock = preset.getWireMaterial().getPrimaryMaterial();
         assertTrue(
-            result.placementRecords.values().stream().anyMatch(r -> wireBlock.equals(r.newBlockId)),
+            result.placementRecords.values().stream()
+                .anyMatch(r -> wireBlock.equals(BlockSpec.parse(r.newBlockId).blockId())),
             preset.getId() + " should place wire material " + wireBlock);
         assertFalse(
             result.warnings.stream().anyMatch(w -> w.contains("not_found")),

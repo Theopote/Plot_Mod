@@ -80,6 +80,38 @@ class PresetIdentityBlockStateTest {
     }
 
     @Test
+    void steampunkParametricUsesValidDirectionalBlockStates() {
+        PowerLineGenerationResult result = PresetMinecraftRealizabilitySupport.generate(
+            PresetMinecraftRealizabilitySupport.lineForPreset(PowerLineStylePresetCatalog.steampunkBrass()));
+
+        assertNoBareDirectionalBlocks(result);
+
+        long goldBlocks = result.placementRecords.values().stream()
+            .filter(record -> "minecraft:gold_block".equals(BlockSpec.parse(record.newBlockId).blockId()))
+            .count();
+        assertTrue(goldBlocks >= 8, "steampunk parametric gear platform should place gold blocks");
+    }
+
+    @Test
+    void compactLatticeParametricUsesValidDirectionalBlockStates() {
+        PowerLineGenerationResult result = PresetMinecraftRealizabilitySupport.generate(
+            PresetMinecraftRealizabilitySupport.lineForPreset(PowerLineStylePresetCatalog.compactLattice()));
+
+        assertNoBareDirectionalBlocks(result);
+    }
+
+    @Test
+    void japaneseStreetCrossarmSlabsUseBottomType() {
+        PowerLineGenerationResult result = PresetMinecraftRealizabilitySupport.generate(
+            PresetMinecraftRealizabilitySupport.lineForPreset(PowerLineStylePresetCatalog.japaneseStreet()));
+
+        long bottomSlabs = result.placementRecords.values().stream()
+            .filter(PresetIdentityBlockStateTest::isCrossarmBottomSlab)
+            .count();
+        assertTrue(bottomSlabs >= 4, "japanese street crossarms should place bottom slabs");
+    }
+
+    @Test
     void fantasyCopperPlacesDirectionalLightningRods() {
         PowerLineGenerationResult result = PresetMinecraftRealizabilitySupport.generate(
             PresetMinecraftRealizabilitySupport.lineForPreset(PowerLineStylePresetCatalog.fantasyCopper()));
@@ -106,6 +138,45 @@ class PresetIdentityBlockStateTest {
             "minecraft:air",
             BlockSpec.with("minecraft:lightning_rod", "facing", "west"));
         assertEquals("minecraft:lightning_rod[facing=west]", record.newBlockId);
+    }
+
+    private static void assertNoBareDirectionalBlocks(PowerLineGenerationResult result) {
+        for (BlockRecord record : result.placementRecords.values()) {
+            BlockSpec spec = BlockSpec.parse(record.newBlockId);
+            String blockId = spec.blockId();
+            if ("minecraft:lightning_rod".equals(blockId)) {
+                assertTrue(
+                    spec.property("facing") != null && !spec.property("facing").isBlank(),
+                    "bare lightning_rod at " + record.pos + ": " + record.newBlockId);
+            }
+            if ("minecraft:chain".equals(blockId)) {
+                assertTrue(
+                    spec.property("axis") != null && !spec.property("axis").isBlank(),
+                    "bare chain at " + record.pos + ": " + record.newBlockId);
+            }
+            if ("minecraft:lantern".equals(blockId) || "minecraft:soul_lantern".equals(blockId)) {
+                assertTrue(
+                    spec.property("hanging") != null,
+                    "bare lantern at " + record.pos + ": " + record.newBlockId);
+            }
+            if ("minecraft:iron_trapdoor".equals(blockId)) {
+                assertTrue(
+                    spec.property("facing") != null && spec.property("half") != null,
+                    "bare trapdoor at " + record.pos + ": " + record.newBlockId);
+            }
+            if (blockId != null && blockId.endsWith("_slab")) {
+                assertTrue(
+                    spec.property("type") != null,
+                    "bare slab at " + record.pos + ": " + record.newBlockId);
+            }
+        }
+    }
+
+    private static boolean isCrossarmBottomSlab(BlockRecord record) {
+        BlockSpec spec = BlockSpec.parse(record.newBlockId);
+        return spec.blockId() != null
+            && spec.blockId().endsWith("_slab")
+            && "bottom".equals(spec.property("type"));
     }
 
     private static boolean isPoleTopLantern(BlockRecord record) {

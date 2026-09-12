@@ -11,6 +11,7 @@ import com.plot.plugin.powerline.engineering.clearance.WireClearance;
 import com.plot.plugin.powerline.geometry.ConductorSample;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.placement.DirectionalBlockSpecs;
 import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
 
@@ -199,7 +200,6 @@ public final class ConductorSpanGenerator {
 
         MaterialMix wireMaterial = ConductorMaterialPolicy.materialFor(start.role(), footprint);
         BundleVisual bundleVisual = resolveBundleVisual(start, end);
-        LinkedHashSet<BlockPos> wireBlocks = new LinkedHashSet<>();
         for (int i = 0; i < segmentCount; i++) {
             double tangentX = worldX[i + 1] - worldX[i];
             double tangentY = worldY[i + 1] - worldY[i];
@@ -207,16 +207,21 @@ public final class ConductorSpanGenerator {
             List<BlockPos> segmentBlocks = PowerLineWireRasterizer.rasterizeLine3D(
                 worldX[i], worldY[i], worldZ[i],
                 worldX[i + 1], worldY[i + 1], worldZ[i + 1]);
-            wireBlocks.addAll(bundleVisual.expandAll(segmentBlocks, tangentX, tangentY, tangentZ));
+            LinkedHashSet<BlockPos> wireBlocks = new LinkedHashSet<>(
+                bundleVisual.expandAll(segmentBlocks, tangentX, tangentY, tangentZ));
+            placeDirectedWireBlocks(
+                wireMaterial,
+                footprint,
+                result,
+                projectionHandler,
+                wireBlocks,
+                tangentX,
+                tangentY,
+                tangentZ);
         }
 
         for (int i = 0; i < sampleCount; i++) {
             checkClearance(worldX[i], worldY[i], worldZ[i], planPoints[i], terrain, result);
-        }
-
-        for (BlockPos pos : wireBlocks) {
-            String blockId = MaterialMixResolver.resolve(wireMaterial, pos, footprint.getId());
-            recordBlock(result, pos, blockId, projectionHandler);
         }
 
         result.conductorSpans.add(geometry);
@@ -269,6 +274,27 @@ public final class ConductorSpanGenerator {
                 planPoint.y,
                 (int) Math.round(worldY),
                 (int) Math.round(worldY - clearance)));
+        }
+    }
+
+    private static void placeDirectedWireBlocks(
+            MaterialMix wireMaterial,
+            PowerLineFootprint footprint,
+            PowerLineGenerationResult result,
+            IBlockProjectionService projectionHandler,
+            LinkedHashSet<BlockPos> wireBlocks,
+            double deltaX,
+            double deltaY,
+            double deltaZ) {
+        if (wireBlocks == null || wireBlocks.isEmpty()) {
+            return;
+        }
+        BlockPos samplePos = wireBlocks.iterator().next();
+        String sampleBlockId = MaterialMixResolver.resolve(wireMaterial, samplePos, footprint.getId());
+        String placementId = DirectionalBlockSpecs.resolveMemberPlacement(
+            sampleBlockId, deltaX, deltaY, deltaZ).toSetBlockArgument();
+        for (BlockPos pos : wireBlocks) {
+            recordBlock(result, pos, placementId, projectionHandler);
         }
     }
 

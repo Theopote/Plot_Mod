@@ -10,6 +10,7 @@ import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.ResolvedAttachment;
 import com.plot.plugin.powerline.VoxelLineRasterizer;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.placement.DirectionalBlockSpecs;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.LinkedHashSet;
@@ -49,11 +50,18 @@ public final class LineEquipmentGenerator {
         int endY = (int) Math.floor(attachment.conductorWorldY()) - 1;
         int x = (int) Math.floor(attachment.worldX());
         int z = (int) Math.floor(attachment.worldZ());
+        int deltaY = endY >= startY ? 1 : -1;
         MaterialMix material = attachment.insulatorMaterial();
         for (int y = startY; y <= endY; y++) {
-            BlockPos pos = new BlockPos(x, y, z);
-            String blockId = MaterialMixResolver.resolve(material, pos, footprint.getId());
-            recordBlock(result, pos, blockId, projectionHandler);
+            recordDirectedMemberBlock(
+                material,
+                footprint,
+                result,
+                projectionHandler,
+                new BlockPos(x, y, z),
+                0.0,
+                deltaY,
+                0.0);
         }
     }
 
@@ -71,14 +79,20 @@ public final class LineEquipmentGenerator {
             ? frame.right().normalize()
             : new Vec2d(1, 0);
         MaterialMix material = attachment.insulatorMaterial();
-        // Place two columns offset along the crossarm (right) direction
+        int deltaY = endY >= startY ? 1 : -1;
         for (int offset : new int[] {0, 1}) {
             int offsetX = (int) Math.round(right.x * offset);
             int offsetZ = (int) Math.round(right.y * offset);
             for (int y = startY; y <= endY; y++) {
-                BlockPos pos = new BlockPos(baseX + offsetX, y, baseZ + offsetZ);
-                String blockId = MaterialMixResolver.resolve(material, pos, footprint.getId());
-                recordBlock(result, pos, blockId, projectionHandler);
+                recordDirectedMemberBlock(
+                    material,
+                    footprint,
+                    result,
+                    projectionHandler,
+                    new BlockPos(baseX + offsetX, y, baseZ + offsetZ),
+                    0.0,
+                    deltaY,
+                    0.0);
             }
         }
     }
@@ -114,15 +128,15 @@ public final class LineEquipmentGenerator {
             x, midY, z,
             x, conductorY, z));
 
-        for (BlockPos pos : leftLeg) {
-            recordBlock(result, pos, MaterialMixResolver.resolve(material, pos, footprint.getId()), projectionHandler);
-        }
-        for (BlockPos pos : rightLeg) {
-            recordBlock(result, pos, MaterialMixResolver.resolve(material, pos, footprint.getId()), projectionHandler);
-        }
-        for (BlockPos pos : drop) {
-            recordBlock(result, pos, MaterialMixResolver.resolve(material, pos, footprint.getId()), projectionHandler);
-        }
+        placeDirectedMemberBlocks(
+            material, footprint, result, projectionHandler, leftLeg,
+            leftX, structuralY, leftZ, x, midY, z);
+        placeDirectedMemberBlocks(
+            material, footprint, result, projectionHandler, rightLeg,
+            rightX, structuralY, rightZ, x, midY, z);
+        placeDirectedMemberBlocks(
+            material, footprint, result, projectionHandler, drop,
+            x, midY, z, x, conductorY, z);
     }
 
     private static void placeStrain(
@@ -151,10 +165,60 @@ public final class LineEquipmentGenerator {
             attachment.worldZ()));
 
         MaterialMix material = attachment.insulatorMaterial();
-        for (BlockPos pos : blocks) {
-            String blockId = MaterialMixResolver.resolve(material, pos, footprint.getId());
-            recordBlock(result, pos, blockId, projectionHandler);
+        placeDirectedMemberBlocks(
+            material,
+            footprint,
+            result,
+            projectionHandler,
+            blocks,
+            structuralX,
+            y,
+            structuralZ,
+            attachment.worldX(),
+            y,
+            attachment.worldZ());
+    }
+
+    private static void placeDirectedMemberBlocks(
+            MaterialMix material,
+            PowerLineFootprint footprint,
+            PowerLineGenerationResult result,
+            IBlockProjectionService projectionHandler,
+            Set<BlockPos> blocks,
+            double startX,
+            double startY,
+            double startZ,
+            double endX,
+            double endY,
+            double endZ) {
+        if (blocks == null || blocks.isEmpty()) {
+            return;
         }
+        BlockPos samplePos = blocks.iterator().next();
+        String sampleBlockId = MaterialMixResolver.resolve(material, samplePos, footprint.getId());
+        String placementId = DirectionalBlockSpecs.resolveMemberPlacement(
+            sampleBlockId,
+            endX - startX,
+            endY - startY,
+            endZ - startZ).toSetBlockArgument();
+        for (BlockPos pos : blocks) {
+            recordBlock(result, pos, placementId, projectionHandler);
+        }
+    }
+
+    private static void recordDirectedMemberBlock(
+            MaterialMix material,
+            PowerLineFootprint footprint,
+            PowerLineGenerationResult result,
+            IBlockProjectionService projectionHandler,
+            BlockPos pos,
+            double deltaX,
+            double deltaY,
+            double deltaZ) {
+        String blockId = MaterialMixResolver.resolve(material, pos, footprint.getId());
+        String placementId = DirectionalBlockSpecs.resolveMemberPlacement(
+            blockId, deltaX, deltaY, deltaZ).toSetBlockArgument();
+        recordBlock(result, pos, placementId, projectionHandler);
     }
 
     private static void recordBlock(
