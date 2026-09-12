@@ -109,7 +109,9 @@ public class PowerLineGenerator {
         result.polePlacements.addAll(placements);
 
         for (int i = 0; i < placements.size(); i++) {
-            if (placements.get(i).role() == TowerRole.ANGLE && i > 0 && i < placements.size() - 1) {
+            TowerRole role = placements.get(i).role();
+            if ((role == TowerRole.ANGLE || role == TowerRole.TERMINAL || role == TowerRole.DEAD_END)
+                    && i > 0 && i < placements.size() - 1) {
                 Vec2d incoming = sites.get(i).getPlanPosition()
                     .subtract(sites.get(i - 1).getPlanPosition());
                 Vec2d outgoing = sites.get(i + 1).getPlanPosition()
@@ -351,7 +353,9 @@ public class PowerLineGenerator {
         }
         Vec2d incoming = poles.get(index).subtract(poles.get(index - 1));
         Vec2d outgoing = poles.get(index + 1).subtract(poles.get(index));
-        return incoming.add(outgoing);
+        Vec2d inNorm = incoming.lengthSquared() > 1e-12 ? incoming.normalize() : incoming;
+        Vec2d outNorm = outgoing.lengthSquared() > 1e-12 ? outgoing.normalize() : outgoing;
+        return inNorm.add(outNorm);
     }
 
     static Vec2d computePoleTangentFromSites(List<PowerPoleSite> sites, int index) {

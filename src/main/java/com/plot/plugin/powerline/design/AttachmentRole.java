@@ -22,6 +22,10 @@ public enum AttachmentRole {
         if ("GROUND_WIRE".equals(raw)) {
             return TOP_WIRE;
         }
-        return valueOf(raw);
+        try {
+            return valueOf(raw);
+        } catch (IllegalArgumentException e) {
+            return AUXILIARY;
+        }
     }
 }

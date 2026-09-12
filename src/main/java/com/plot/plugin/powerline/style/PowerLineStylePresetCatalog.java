@@ -16,6 +16,8 @@ import java.util.Map;
 
 /** 内置线路风格预设目录。 */
 public final class PowerLineStylePresetCatalog {
+    private static final Map<String, PowerLineStylePreset> INDEX_BY_ID = buildIndex();
+
     private PowerLineStylePresetCatalog() {
     }
 
@@ -118,6 +120,10 @@ public final class PowerLineStylePresetCatalog {
     }
 
     public static Map<String, PowerLineStylePreset> indexById() {
+        return INDEX_BY_ID;
+    }
+
+    private static Map<String, PowerLineStylePreset> buildIndex() {
         Map<String, PowerLineStylePreset> indexed = new LinkedHashMap<>();
         for (PowerLineStylePreset preset : defaultPresets()) {
             indexed.put(preset.getId(), preset);

@@ -105,7 +105,8 @@ public final class LineOptimizationEngine {
         OptimizationAction action = new OptimizationAction();
         action.setType(OptimizationActionType.SELECT_TALLER_TOWER);
         action.setPoleSiteId(site.getId());
-        action.setPoleIndex(indexOf(sites.sites, site) + 1);
+        int siteIndex = indexOf(sites.sites, site);
+        action.setPoleIndex(siteIndex >= 0 ? siteIndex + 1 : 0);
         action.setStationing(site.getStationing());
         action.setSpanId(span.getId());
         action.setCurrentDesignId(currentDesignId(site, sites));
@@ -159,7 +160,7 @@ public final class LineOptimizationEngine {
                 return i;
             }
         }
-        return 0;
+        return -1;
     }
 
     private static String currentDesignId(PowerPoleSite site, PowerLineGeometrySites sites) {
@@ -167,6 +168,6 @@ public final class LineOptimizationEngine {
             return site.getPoleDesignOverrideId();
         }
         int index = indexOf(sites.sites, site);
-        return sites.resolvedDesignId(index);
+        return index >= 0 ? sites.resolvedDesignId(index) : null;
     }
 }

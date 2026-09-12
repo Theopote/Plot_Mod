@@ -47,9 +47,9 @@ public final class TowerStructureGenerator {
 
         for (TowerValidationIssue issue : TowerStructureValidator.validate(
                 wrapForValidation(structure))) {
-            if (issue.severity().name().equals("ERROR")) {
+            if (issue.severity() == com.plot.plugin.powerline.design.structure.TowerValidationSeverity.ERROR) {
                 result.warnings.add(issue.localizedMessage());
-            } else if (issue.severity().name().equals("WARNING")) {
+            } else if (issue.severity() == com.plot.plugin.powerline.design.structure.TowerValidationSeverity.WARNING) {
                 result.warnings.add(issue.localizedMessage());
             }
         }
@@ -548,6 +548,7 @@ public final class TowerStructureGenerator {
         for (BlockPos pos : blocks) {
             expanded.add(pos.east());
             expanded.add(pos.south());
+            expanded.add(pos.east().south());
         }
         blocks.clear();
         blocks.addAll(expanded);

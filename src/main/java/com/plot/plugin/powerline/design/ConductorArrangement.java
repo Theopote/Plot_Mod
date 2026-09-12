@@ -68,7 +68,7 @@ public final class ConductorArrangement {
                 count++;
             }
         }
-        return count > 0 ? count : 1;
+        return count;
     }
 
     public static ConductorArrangement single() {

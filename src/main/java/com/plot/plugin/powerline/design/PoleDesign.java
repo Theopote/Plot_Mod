@@ -299,7 +299,7 @@ public class PoleDesign {
                     }
                 }
             }
-            if (!roles.isEmpty()) {
+            if (supportedRoles != null) {
                 metadata.setSupportedRoles(roles);
             }
             return metadata;

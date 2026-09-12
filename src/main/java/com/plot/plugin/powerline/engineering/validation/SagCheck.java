@@ -48,12 +48,19 @@ public final class SagCheck implements LineValidationCheck {
         }
         double startY = samples.getFirst().worldY();
         double endY = samples.getLast().worldY();
+        double totalLength = 0.0;
+        for (int i = 1; i < samples.size(); i++) {
+            totalLength += samples.get(i - 1).planPoint().distance(samples.get(i).planPoint());
+        }
         double maxSag = 0.0;
-        int lastIndex = samples.size() - 1;
+        double walked = 0.0;
         for (int i = 0; i < samples.size(); i++) {
-            double t = lastIndex == 0 ? 0.0 : (double) i / lastIndex;
+            double t = totalLength > 1e-6 ? walked / totalLength : 0.0;
             double chordY = startY + (endY - startY) * t;
             maxSag = Math.max(maxSag, chordY - samples.get(i).worldY());
+            if (i + 1 < samples.size()) {
+                walked += samples.get(i).planPoint().distance(samples.get(i + 1).planPoint());
+            }
         }
         return maxSag;
     }

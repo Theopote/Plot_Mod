@@ -91,13 +91,22 @@ public final class WireOverlapCheck implements LineValidationCheck {
     }
 
     private static boolean sameConductorGroup(ResolvedAttachment left, ResolvedAttachment right) {
-        if (left.role() != right.role()) {
-            return false;
+        return conductorGroupKey(left).equals(conductorGroupKey(right));
+    }
+
+    private static String conductorGroupKey(ResolvedAttachment attachment) {
+        String id = attachment.id();
+        if (id == null || id.isBlank()) {
+            return attachment.role().name();
         }
-        return left.role() == AttachmentRole.PHASE_A
-            || left.role() == AttachmentRole.PHASE_B
-            || left.role() == AttachmentRole.PHASE_C
-            || left.role() == AttachmentRole.TOP_WIRE;
+        int phaseMarker = id.indexOf("_phase_");
+        if (phaseMarker > 0) {
+            return id.substring(0, phaseMarker) + "|" + attachment.role().name();
+        }
+        if (id.startsWith("phase_")) {
+            return attachment.role().name();
+        }
+        return id;
     }
 
     private static boolean isPhaseOrGround(AttachmentRole role) {

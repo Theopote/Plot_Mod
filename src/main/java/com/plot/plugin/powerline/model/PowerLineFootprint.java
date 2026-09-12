@@ -28,6 +28,7 @@ public class PowerLineFootprint {
     private final String id;
     private String name;
     private List<Vec2d> pathPoints = new ArrayList<>();
+    private transient PathBounds cachedPathBounds;
     private String roadId;
     private double minPoleSpacing = 15.0;
     private double maxPoleSpacing = 30.0;
@@ -99,6 +100,35 @@ public class PowerLineFootprint {
         for (Vec2d point : pathPoints) {
             this.pathPoints.add(point.copy());
         }
+        cachedPathBounds = null;
+    }
+
+    /** 路径在平面坐标下的轴对齐包围盒（随路径修改失效重算）。 */
+    public PathBounds pathBounds() {
+        if (cachedPathBounds == null) {
+            cachedPathBounds = computePathBounds();
+        }
+        return cachedPathBounds;
+    }
+
+    public record PathBounds(double minX, double minZ, double maxX, double maxZ) {
+    }
+
+    private PathBounds computePathBounds() {
+        double minX = Double.POSITIVE_INFINITY;
+        double minZ = Double.POSITIVE_INFINITY;
+        double maxX = Double.NEGATIVE_INFINITY;
+        double maxZ = Double.NEGATIVE_INFINITY;
+        for (Vec2d point : pathPoints) {
+            minX = Math.min(minX, point.x);
+            minZ = Math.min(minZ, point.y);
+            maxX = Math.max(maxX, point.x);
+            maxZ = Math.max(maxZ, point.y);
+        }
+        if (pathPoints.isEmpty()) {
+            return new PathBounds(0.0, 0.0, 0.0, 0.0);
+        }
+        return new PathBounds(minX, minZ, maxX, maxZ);
     }
 
     public String getRoadId() {

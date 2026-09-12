@@ -269,6 +269,7 @@ public final class TowerStructurePreviewVoxelPlacer {
         for (BlockPos pos : blocks) {
             expanded.add(pos.east());
             expanded.add(pos.south());
+            expanded.add(pos.east().south());
         }
         blocks.clear();
         blocks.addAll(expanded);

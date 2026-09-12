@@ -69,7 +69,7 @@ class LineEquipmentGeneratorTest {
         LineEquipmentGenerator.place(attachment, frame(), footprint, result, projection());
 
         assertTrue(result.placementRecords.containsKey(new BlockPos(0, 64, 0)));
-        assertTrue(result.placementRecords.containsKey(new BlockPos(1, 64, 0)));
+        assertTrue(result.placementRecords.containsKey(new BlockPos(0, 64, 1)));
     }
 
     @Test
@@ -92,8 +92,8 @@ class LineEquipmentGeneratorTest {
 
         LineEquipmentGenerator.place(attachment, frame(), footprint, result, projection());
 
-        assertTrue(result.placementRecords.containsKey(new BlockPos(-1, 64, 0)));
-        assertTrue(result.placementRecords.containsKey(new BlockPos(1, 64, 0)));
+        assertTrue(result.placementRecords.containsKey(new BlockPos(0, 64, -1)));
+        assertTrue(result.placementRecords.containsKey(new BlockPos(0, 64, 1)));
         assertTrue(result.placementRecords.containsKey(new BlockPos(0, 70, 0)));
     }
 

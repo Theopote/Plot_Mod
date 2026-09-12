@@ -34,8 +34,8 @@ public final class LineEquipmentGenerator {
             : ResolvedAttachment.mountStyleFor(attachment.insulatorType());
         switch (style) {
             case HORIZONTAL -> placeStrain(attachment, frame, footprint, result, projectionHandler);
-            case TWIN_COLUMN -> placeTwinColumn(attachment, footprint, result, projectionHandler);
-            case V_PAIR -> placeVPair(attachment, footprint, result, projectionHandler);
+            case TWIN_COLUMN -> placeTwinColumn(attachment, frame, footprint, result, projectionHandler);
+            case V_PAIR -> placeVPair(attachment, frame, footprint, result, projectionHandler);
             default -> placeSuspension(attachment, footprint, result, projectionHandler);
         }
     }
@@ -59,17 +59,24 @@ public final class LineEquipmentGenerator {
 
     private static void placeTwinColumn(
             ResolvedAttachment attachment,
+            PoleFrame frame,
             PowerLineFootprint footprint,
             PowerLineGenerationResult result,
             IBlockProjectionService projectionHandler) {
         int startY = (int) Math.floor(attachment.structuralWorldY());
         int endY = (int) Math.floor(attachment.conductorWorldY()) - 1;
         int baseX = (int) Math.floor(attachment.worldX());
-        int z = (int) Math.floor(attachment.worldZ());
+        int baseZ = (int) Math.floor(attachment.worldZ());
+        Vec2d right = frame != null && frame.right().lengthSquared() > 1e-12
+            ? frame.right().normalize()
+            : new Vec2d(1, 0);
         MaterialMix material = attachment.insulatorMaterial();
-        for (int offsetX : new int[] {0, 1}) {
+        // Place two columns offset along the crossarm (right) direction
+        for (int offset : new int[] {0, 1}) {
+            int offsetX = (int) Math.round(right.x * offset);
+            int offsetZ = (int) Math.round(right.y * offset);
             for (int y = startY; y <= endY; y++) {
-                BlockPos pos = new BlockPos(baseX + offsetX, y, z);
+                BlockPos pos = new BlockPos(baseX + offsetX, y, baseZ + offsetZ);
                 String blockId = MaterialMixResolver.resolve(material, pos, footprint.getId());
                 recordBlock(result, pos, blockId, projectionHandler);
             }
@@ -78,21 +85,30 @@ public final class LineEquipmentGenerator {
 
     private static void placeVPair(
             ResolvedAttachment attachment,
+            PoleFrame frame,
             PowerLineFootprint footprint,
             PowerLineGenerationResult result,
             IBlockProjectionService projectionHandler) {
         int x = (int) Math.floor(attachment.worldX());
         int z = (int) Math.floor(attachment.worldZ());
+        Vec2d right = frame != null && frame.right().lengthSquared() > 1e-12
+            ? frame.right().normalize()
+            : new Vec2d(1, 0);
         double conductorY = attachment.conductorWorldY();
         double structuralY = attachment.structuralWorldY();
         double midY = structuralY + (conductorY - structuralY) * 0.55;
         MaterialMix material = attachment.insulatorMaterial();
 
+        double leftX = x - right.x;
+        double leftZ = z - right.y;
+        double rightX = x + right.x;
+        double rightZ = z + right.y;
+
         Set<BlockPos> leftLeg = new LinkedHashSet<>(VoxelLineRasterizer.rasterizeLine3D(
-            x - 1, structuralY, z,
+            leftX, structuralY, leftZ,
             x, midY, z));
         Set<BlockPos> rightLeg = new LinkedHashSet<>(VoxelLineRasterizer.rasterizeLine3D(
-            x + 1, structuralY, z,
+            rightX, structuralY, rightZ,
             x, midY, z));
         Set<BlockPos> drop = new LinkedHashSet<>(VoxelLineRasterizer.rasterizeLine3D(
             x, midY, z,

@@ -16,4 +16,9 @@ class AttachmentRoleTest {
     void parseRoleMigratesLegacyGroundWire() {
         assertEquals(AttachmentRole.TOP_WIRE, AttachmentRole.parseRole("GROUND_WIRE"));
     }
+
+    @Test
+    void parseRoleFallsBackForUnknownValues() {
+        assertEquals(AttachmentRole.AUXILIARY, AttachmentRole.parseRole("NOT_A_REAL_ROLE"));
+    }
 }

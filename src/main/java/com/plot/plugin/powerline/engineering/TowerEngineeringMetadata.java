@@ -42,9 +42,13 @@ public class TowerEngineeringMetadata {
     }
 
     public void setSupportedRoles(Set<TowerRole> supportedRoles) {
-        this.supportedRoles = supportedRoles != null && !supportedRoles.isEmpty()
-            ? EnumSet.copyOf(supportedRoles)
-            : EnumSet.of(TowerRole.SUSPENSION);
+        if (supportedRoles == null) {
+            this.supportedRoles = EnumSet.of(TowerRole.SUSPENSION);
+            return;
+        }
+        this.supportedRoles = supportedRoles.isEmpty()
+            ? EnumSet.noneOf(TowerRole.class)
+            : EnumSet.copyOf(supportedRoles);
     }
 
     public boolean supportsRole(TowerRole role) {

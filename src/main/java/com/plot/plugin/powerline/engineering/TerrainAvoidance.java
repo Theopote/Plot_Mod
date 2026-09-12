@@ -206,10 +206,16 @@ public final class TerrainAvoidance {
             }
         }
         Vec2d midpoint = midpointAlongPath(line.getPathPoints(), coordinates);
+        if (midpoint == null) {
+            return -1.0;
+        }
         return PowerPoleLayoutUtils.computeStationing(line.getPathPoints(), midpoint, coordinates);
     }
 
     private static Vec2d midpointAlongPath(List<Vec2d> pathPoints, ICoordinateService coordinates) {
+        if (pathPoints == null || pathPoints.isEmpty()) {
+            return null;
+        }
         double total = coordinates.pathWorldLength(pathPoints);
         double half = total * 0.5;
         double walked = 0.0;

@@ -190,12 +190,11 @@ public final class PowerLineOverviewRenderer {
         double maxY = Double.NEGATIVE_INFINITY;
 
         for (PowerLineFootprint line : lines) {
-            for (Vec2d point : line.getPathPoints()) {
-                minX = Math.min(minX, point.x);
-                minY = Math.min(minY, point.y);
-                maxX = Math.max(maxX, point.x);
-                maxY = Math.max(maxY, point.y);
-            }
+            PowerLineFootprint.PathBounds bounds = line.pathBounds();
+            minX = Math.min(minX, bounds.minX());
+            minY = Math.min(minY, bounds.minZ());
+            maxX = Math.max(maxX, bounds.maxX());
+            maxY = Math.max(maxY, bounds.maxZ());
         }
 
         double spanX = maxX - minX;

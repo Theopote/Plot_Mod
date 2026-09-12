@@ -54,15 +54,8 @@ public final class TowerRoleClassifier {
         }
     }
 
+    /** 端点偏转角始终为 0（端点无夹角可言）。 */
     private static double deflectionAtEnd(List<PowerPoleSite> sites, int index) {
-        if (sites.size() < 2) {
-            return 0.0;
-        }
-        if (index == 0) {
-            Vec2d outgoing = sites.get(1).getPlanPosition().subtract(sites.get(0).getPlanPosition());
-            return outgoing.lengthSquared() < 1e-12 ? 0.0 : 0.0;
-        }
-        Vec2d incoming = sites.get(index).getPlanPosition().subtract(sites.get(index - 1).getPlanPosition());
-        return incoming.lengthSquared() < 1e-12 ? 0.0 : 0.0;
+        return 0.0;
     }
 }

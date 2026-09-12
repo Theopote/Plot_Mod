@@ -63,9 +63,16 @@ public final class PowerLineAttachmentResolver {
         InsulatorMountStyle mountStyle = assembly != null
             ? assembly.getMountStyle()
             : ResolvedAttachment.mountStyleFor(insulatorType);
-        double structuralY = insulatorLength > 0
-            ? conductorY - insulatorLength
-            : conductorY;
+        double structuralY;
+        if (insulatorLength <= 0) {
+            structuralY = conductorY;
+        } else if (mountStyle == InsulatorMountStyle.COLUMN
+                || mountStyle == InsulatorMountStyle.TWIN_COLUMN
+                || mountStyle == InsulatorMountStyle.V_PAIR) {
+            structuralY = conductorY + insulatorLength;
+        } else {
+            structuralY = conductorY - insulatorLength;
+        }
 
         return new ResolvedAttachment(
             attachment.getId(),

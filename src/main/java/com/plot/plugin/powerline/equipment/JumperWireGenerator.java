@@ -19,7 +19,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-/** 转角塔上的局部跳线生成。 */
+/** 转角塔、中间终端塔、耐张塔上的局部跳线生成。 */
 public final class JumperWireGenerator {
     private static final int WIRE_SAMPLES_PER_BLOCK = 1;
     private static final double JUMPER_ARM_LENGTH = 2.0;
@@ -37,7 +37,7 @@ public final class JumperWireGenerator {
         if (placement == null
                 || footprint == null
                 || result == null
-                || placement.role() != TowerRole.ANGLE
+                || !needsJumper(placement.role())
                 || !placement.usesAttachmentConductors()) {
             return;
         }
@@ -97,15 +97,13 @@ public final class JumperWireGenerator {
         for (int i = 0; i < segmentCount; i++) {
             double t0 = (double) i / segmentCount;
             double t1 = (double) (i + 1) / segmentCount;
-            Vec2d p0 = sagPoint(planStart, planEnd, t0, sagDepth);
-            Vec2d p1 = sagPoint(planStart, planEnd, t1, sagDepth);
+            Vec2d xz0 = planStart.lerp(planEnd, t0);
+            Vec2d xz1 = planStart.lerp(planEnd, t1);
+            double y0 = wireY - sagDepthAt(t0, sagDepth);
+            double y1 = wireY - sagDepthAt(t1, sagDepth);
             wireBlocks.addAll(PowerLineWireRasterizer.rasterizeLine3D(
-                p0.x,
-                wireY,
-                p0.y,
-                p1.x,
-                wireY,
-                p1.y));
+                xz0.x, y0, xz0.y,
+                xz1.x, y1, xz1.y));
         }
 
         for (BlockPos pos : wireBlocks) {
@@ -114,17 +112,14 @@ public final class JumperWireGenerator {
         }
     }
 
-    private static Vec2d sagPoint(Vec2d start, Vec2d end, double t, double sagDepth) {
-        Vec2d linear = start.lerp(end, t);
-        double factor = 4.0 * t * (1.0 - t);
-        Vec2d chord = end.subtract(start);
-        Vec2d perp = new Vec2d(-chord.y, chord.x);
-        if (perp.lengthSquared() > 1e-12) {
-            perp = perp.normalize();
-        } else {
-            perp = new Vec2d(0, 1);
-        }
-        return linear.add(perp.multiply(-sagDepth * factor));
+    private static boolean needsJumper(TowerRole role) {
+        return role == TowerRole.ANGLE
+            || role == TowerRole.TERMINAL
+            || role == TowerRole.DEAD_END;
+    }
+
+    private static double sagDepthAt(double t, double sagDepth) {
+        return sagDepth * 4.0 * t * (1.0 - t);
     }
 
     private static Vec2d normalize(Vec2d direction) {

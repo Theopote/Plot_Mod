@@ -107,7 +107,11 @@ public final class AutomaticTowerSelector {
             }
             TowerEngineeringMetadata metadata = design.getEngineeringMetadata();
             if (metadata == null) {
-                metadata = TowerEngineeringMetadata.defaultsForRole(role);
+                TowerRole mappedRole = familyRoleForDesign(family, designId);
+                if (mappedRole == null) {
+                    continue;
+                }
+                metadata = TowerEngineeringMetadata.defaultsForRole(mappedRole);
             }
             if (!metadata.supportsRole(role)) {
                 continue;
@@ -121,6 +125,15 @@ public final class AutomaticTowerSelector {
             candidates.add(candidate);
         }
         return candidates;
+    }
+
+    private static TowerRole familyRoleForDesign(TowerFamily family, String designId) {
+        for (TowerRole mappedRole : TowerRole.values()) {
+            if (designId.equals(family.getDesignId(mappedRole))) {
+                return mappedRole;
+            }
+        }
+        return null;
     }
 
     private static String filterReason(TowerCandidate candidate, TowerSelectionContext context) {

@@ -99,7 +99,7 @@ public final class TowerArmAttachmentBinding {
         for (ConductorAttachment attachment : attachments) {
             if (arm.getId().equals(attachment.getArmId())) {
                 if (attachment.isBound()) {
-                    return;
+                    continue;
                 }
                 bound.add(attachment);
             }
@@ -260,11 +260,20 @@ public final class TowerArmAttachmentBinding {
         double normalized = reach > 1e-6
             ? attachment.getLateralOffset() / reach
             : 0.0;
+        double originalLateral = attachment.getLateralOffset();
+        double originalVertical = attachment.getVerticalOffset();
         attachment.setBindingMode(AttachmentBindingMode.BOUND);
         attachment.setArmId(arm.getId());
         attachment.setNormalizedPosition(normalized);
-        attachment.setVerticalAnchorOffset(attachment.getVerticalOffset() - conductorHangHeight(arm));
-        cacheResolvedOffsets(attachment, arm);
+        attachment.setVerticalAnchorOffset(originalVertical - conductorHangHeight(arm));
+        // If the normalized position was clamped, preserve the original offsets
+        // to avoid permanently moving legacy attachments inward.
+        if (Math.abs(normalized) > 1.0) {
+            attachment.setLateralOffset(originalLateral);
+            attachment.setVerticalOffset(originalVertical);
+        } else {
+            cacheResolvedOffsets(attachment, arm);
+        }
     }
 
     private static void cacheResolvedOffsets(ConductorAttachment attachment, TowerArm arm) {
