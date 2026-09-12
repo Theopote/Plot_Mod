@@ -18,10 +18,8 @@ import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
-import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiTableColumnFlags;
 import imgui.flag.ImGuiTableFlags;
-import imgui.flag.ImGuiTreeNodeFlags;
 
 /** Base preset 下的 Quick Customize（Tower / Wires 分区）。 */
 public final class PowerLineStyleQuickTunePanel {
@@ -120,7 +118,6 @@ public final class PowerLineStyleQuickTunePanel {
         renderWireMaterialRow(line, base);
         renderSagRow(line);
         endTuneTable();
-        renderTopWireInAdvanced(line);
     }
 
     private boolean beginTuneTable(String sectionId) {
@@ -317,26 +314,6 @@ public final class PowerLineStyleQuickTunePanel {
                     PowerLineStyleEditor.afterStyleEdit(line);
                 });
         }
-    }
-
-    private void renderTopWireInAdvanced(PowerLineFootprint line) {
-        ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
-        if (!ImGui.collapsingHeader(
-                PlotI18n.tr("plugin.powerline.style.quick_tune.top_wire"),
-                ImGuiTreeNodeFlags.None)) {
-            return;
-        }
-        PowerLineUiWidgets.renderMaterialMixPicker(
-            ctx,
-            "quick_top_wire_material",
-            PlotI18n.tr("plugin.powerline.top_wire_material"),
-            line.getTopWireMaterial(),
-            MaterialMix.single("minecraft:chain"),
-            mix -> {
-                line.setTopWireMaterial(mix);
-                PowerLineStyleEditor.afterStyleEdit(line);
-                ctx.invalidatePreview();
-            });
     }
 
     private void renderFooter(PowerLineFootprint line, PowerLineStylePreset base) {

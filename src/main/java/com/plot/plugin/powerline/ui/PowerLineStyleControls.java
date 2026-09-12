@@ -17,8 +17,10 @@ import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiTableColumnFlags;
 import imgui.flag.ImGuiTableFlags;
+import imgui.flag.ImGuiTreeNodeFlags;
 
 import java.util.List;
 import java.util.StringJoiner;
@@ -33,6 +35,38 @@ public final class PowerLineStyleControls {
 
     public PowerLineStyleControls(PowerLineUiContext ctx) {
         this.ctx = ctx;
+    }
+
+    /** 工程级覆盖：塔族、Fallback、逐杆角色、参数化入口、高级材质。 */
+    public void renderEngineeringOverrides(PowerLineFootprint line, PoleDesignerPanel poleDesignerPanel) {
+        renderTowerFamilyControls(line);
+        if (line.hasTowerFamily()) {
+            renderPoleDesignFallbackControls(line, poleDesignerPanel);
+        }
+        renderParametricDesignEntry(line, poleDesignerPanel);
+        renderPoleRoleInspector(line);
+        renderAdvancedMaterialControls(line);
+    }
+
+    public void renderPoleDesignFallbackControls(PowerLineFootprint line, PoleDesignerPanel poleDesignerPanel) {
+        renderPoleDesignControls(line, poleDesignerPanel, true);
+    }
+
+    public void renderParametricDesignEntry(PowerLineFootprint line, PoleDesignerPanel poleDesignerPanel) {
+        if (line.hasTowerFamily()) {
+            return;
+        }
+        ImGui.separator();
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.advanced.parametric_design"));
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.open_designer") + "##parametric_design_entry", 0, 0)) {
+            poleDesignerPanel.open(line.getPoleDesignId());
+        }
+    }
+
+    public void renderAdvancedMaterialControls(PowerLineFootprint line) {
+        ImGui.separator();
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.advanced.materials"));
+        renderMaterialControls(line);
     }
 
     public void renderMaterialControls(PowerLineFootprint line) {
@@ -227,10 +261,39 @@ public final class PowerLineStyleControls {
 
     public void renderPoleRoleInspector(PowerLineFootprint line) {
         ImGui.separator();
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.pole_roles_section"));
+        int overrideCount = countManualRoleOverrides(line);
+        boolean expanded = ctx.state().isPoleRoleInspectorOpen(line.getId());
 
+        if (overrideCount == 0 && !expanded) {
+            PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.advanced.role_overrides.section"));
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.style.advanced.role_overrides.all_auto"));
+            ImGui.sameLine();
+            if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.style.advanced.role_overrides.edit") + "##role_overrides")) {
+                ctx.state().setPoleRoleInspectorOpen(line.getId(), true);
+            }
+            return;
+        }
+
+        String header = overrideCount > 0
+            ? PlotI18n.tr("plugin.powerline.style.advanced.role_overrides.header", overrideCount)
+            : PlotI18n.tr("plugin.powerline.style.advanced.role_overrides.section");
+        ImGui.setNextItemOpen(expanded, ImGuiCond.Always);
+        if (ImGui.collapsingHeader(header, ImGuiTreeNodeFlags.None)) {
+            ctx.state().setPoleRoleInspectorOpen(line.getId(), true);
+            renderPoleRoleInspectorDetails(line);
+        } else {
+            ctx.state().setPoleRoleInspectorOpen(line.getId(), false);
+        }
+    }
+
+    private void renderPoleRoleInspectorDetails(PowerLineFootprint line) {
         List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(line, ctx.coordinates());
         if (sites.isEmpty()) {
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.style.advanced.role_overrides.no_towers"));
             return;
         }
 
@@ -282,6 +345,16 @@ public final class PowerLineStyleControls {
             ImGui.endTable();
         }
         ImGui.endChild();
+    }
+
+    private static int countManualRoleOverrides(PowerLineFootprint line) {
+        int count = 0;
+        for (PoleOverride override : line.getPoleOverrides()) {
+            if (override != null && override.getRoleOverride() != null) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private boolean beginValueActionTable(String tableId) {

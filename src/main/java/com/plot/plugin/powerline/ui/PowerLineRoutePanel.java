@@ -22,38 +22,44 @@ public final class PowerLineRoutePanel {
     private final PowerLineUiContext ctx;
     private final PowerLineAdoptPanel adoptPanel;
     private final PowerLineOverviewPanel overviewPanel;
+    private final PowerLineSingleTowerSection singleTowerSection;
 
-    public PowerLineRoutePanel(PowerLineUiContext ctx, PowerLineOverviewPanel overviewPanel) {
+    public PowerLineRoutePanel(
+            PowerLineUiContext ctx,
+            PowerLineOverviewPanel overviewPanel,
+            PlacedSingleTowerPanel placedSingleTowerPanel) {
         this.ctx = ctx;
         this.adoptPanel = new PowerLineAdoptPanel(ctx);
         this.overviewPanel = overviewPanel;
+        this.singleTowerSection = new PowerLineSingleTowerSection(ctx, placedSingleTowerPanel);
     }
 
     public void render() {
         ctx.selection().retainExisting(ctx.project());
         PowerLineFootprint line = ctx.selection().primary(ctx.project());
 
-        renderProjectSection();
-
-        ImGui.separator();
         renderCurrentLineHeader();
 
         ImGui.separator();
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.path"));
         adoptPanel.render(line);
 
-        if (line == null) {
-            return;
+        if (line != null) {
+            ImGui.separator();
+            renderLineName(line);
+            renderSourceReference(line);
+            ImGui.separator();
+            PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.placement"));
+            renderPolePlacement(line);
+            renderTerrainAvoidance(line);
+            renderAdvancedSpacing(line);
         }
 
         ImGui.separator();
-        renderLineName(line);
-        renderSourceReference(line);
+        singleTowerSection.render(line);
+
         ImGui.separator();
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.placement"));
-        renderPolePlacement(line);
-        renderTerrainAvoidance(line);
-        renderAdvancedSpacing(line);
+        renderProjectSection();
     }
 
     public void renderDeleteConfirmPopup() {

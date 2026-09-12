@@ -20,9 +20,9 @@ public final class PowerLineUIManager {
         this.toolbarPanel = new PowerLineToolbarPanel(ctx);
         this.overviewPanel = new PowerLineOverviewPanel(ctx);
         this.poleDesignerPanel = new PoleDesignerPanel(ctx);
-        this.routePanel = new PowerLineRoutePanel(ctx, overviewPanel);
         this.placedSingleTowerPanel = new PlacedSingleTowerPanel(ctx, ctx.placedSingleTowerActions());
-        this.stylePanel = new PowerLineStylePanel(ctx, poleDesignerPanel, placedSingleTowerPanel);
+        this.routePanel = new PowerLineRoutePanel(ctx, overviewPanel, placedSingleTowerPanel);
+        this.stylePanel = new PowerLineStylePanel(ctx, poleDesignerPanel);
         PowerLineValidationPanel validationPanel = new PowerLineValidationPanel(ctx);
         this.buildPanel = new PowerLineBuildPanel(ctx, validationPanel);
     }

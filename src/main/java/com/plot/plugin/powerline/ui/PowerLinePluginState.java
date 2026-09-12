@@ -25,6 +25,8 @@ public final class PowerLinePluginState {
     private PowerLinePathSelectionAnalysis pathSelection = PowerLinePathSelectionAnalysis.EMPTY;
     /** 正在更换参考路径的目标线路 id；非空时 Route 面板显示「应用选中路径」。 */
     private String pathRelinkLineId = "";
+    /** 工程级覆盖中展开杆塔角色列表的线路 id。 */
+    private String poleRoleInspectorOpenLineId = "";
 
     private volatile PowerLineGenerationResult lastGenerationResult;
     private PowerLinePreviewKey previewKey;
@@ -123,6 +125,18 @@ public final class PowerLinePluginState {
 
     public void clearPathRelink() {
         this.pathRelinkLineId = "";
+    }
+
+    public boolean isPoleRoleInspectorOpen(String lineId) {
+        return lineId != null
+            && !lineId.isBlank()
+            && lineId.equals(poleRoleInspectorOpenLineId);
+    }
+
+    public void setPoleRoleInspectorOpen(String lineId, boolean open) {
+        this.poleRoleInspectorOpenLineId = open && lineId != null && !lineId.isBlank()
+            ? lineId
+            : "";
     }
 
     public PowerLineGenerationResult getLastGenerationResult() {
