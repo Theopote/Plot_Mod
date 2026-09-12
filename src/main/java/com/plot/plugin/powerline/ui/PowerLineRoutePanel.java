@@ -132,12 +132,28 @@ public final class PowerLineRoutePanel {
             renderSpacingSlider(line);
         } else if (line.getPoleSpacingMode() == PoleSpacingMode.TOWER_COUNT) {
             renderTowerCountInput(line);
-        } else {
+        } else if (line.getPoleSpacingMode() == PoleSpacingMode.ENDPOINTS_ONLY) {
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.powerline.route.placement_mode_hint." + line.getPoleSpacingMode().name()));
+                PlotI18n.tr("plugin.powerline.route.placement_mode_hint.ENDPOINTS_ONLY"));
+        } else if (line.getPoleSpacingMode() == PoleSpacingMode.ENDPOINTS_WITH_CORNERS) {
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.route.placement_mode_hint.ENDPOINTS_WITH_CORNERS"));
         }
-        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.corner_hint"));
+        renderCornerBehaviorHint(line);
+    }
+
+    private void renderCornerBehaviorHint(PowerLineFootprint line) {
+        String hintKey = switch (line.getPoleSpacingMode()) {
+            case AUTO_SPACING -> "plugin.powerline.route.corner_hint.auto_spacing";
+            case ENDPOINTS_WITH_CORNERS -> "plugin.powerline.route.corner_hint.endpoints_with_corners";
+            default -> null;
+        };
+        if (hintKey == null) {
+            return;
+        }
+        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(hintKey));
     }
 
     private void renderPlacementMode(PowerLineFootprint line) {
@@ -321,6 +337,9 @@ public final class PowerLineRoutePanel {
             90f,
             "%.1f",
             line::setCornerAngleThreshold);
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.powerline.route.corner_hint.detail"));
+        }
 
         ctx.actions().closestMandatorySpacingViolation(line).ifPresent(distance -> PowerLineUiWidgets.textColored(
             PluginUiColors.WARNING,
