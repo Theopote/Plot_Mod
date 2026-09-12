@@ -28,13 +28,14 @@ public final class PowerLineToolbarPanel {
     }
 
     private void renderProjectHistoryToolbar() {
-        float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
+        float glyphWidth = ImGui.calcTextSize(PlotI18n.tr("plugin.powerline.undo")).x
+            + ImGui.getStyle().getFramePaddingX() * 2f;
 
         boolean undoDisabled = !ctx.projectHistory().canUndo();
         if (undoDisabled) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.undo"), buttonWidth, 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.undo") + "##powerline_project_undo", glyphWidth, 0)) {
             ctx.setProject(ctx.projectHistory().undo(ctx.project()));
             ctx.selection().retainExisting(ctx.project());
             ctx.setLineNameEditingId("");
@@ -52,7 +53,7 @@ public final class PowerLineToolbarPanel {
         if (redoDisabled) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.redo"), buttonWidth, 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.redo") + "##powerline_project_redo", glyphWidth, 0)) {
             ctx.setProject(ctx.projectHistory().redo(ctx.project()));
             ctx.selection().retainExisting(ctx.project());
             ctx.setLineNameEditingId("");
@@ -64,10 +65,6 @@ public final class PowerLineToolbarPanel {
         if (redoDisabled) {
             ImGui.endDisabled();
         }
-
-        PowerLineUiWidgets.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.powerline.undo_scope_hint"));
     }
 
     private void renderWorldPlacementToolbar() {
@@ -80,16 +77,15 @@ public final class PowerLineToolbarPanel {
             return;
         }
 
-        PowerLineUiWidgets.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.powerline.undo_world_section"));
+        ImGui.sameLine();
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.undo_world_section"));
+        ImGui.sameLine();
 
-        float halfWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
         boolean undoWorldDisabled = !PowerLineWorldCommands.isPowerLineWorldCommand(undoCommand);
         if (undoWorldDisabled) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.undo_world"), halfWidth, 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.undo_world") + "##powerline_world_undo", 0, 0)) {
             if (commands.undo()) {
                 PowerLineWorldCommandSync.afterUndo(undoCommand, ctx.state());
                 ctx.invalidatePreview();
@@ -107,7 +103,7 @@ public final class PowerLineToolbarPanel {
         if (redoWorldDisabled) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.redo_world"), halfWidth, 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.redo_world") + "##powerline_world_redo", 0, 0)) {
             if (commands.redo()) {
                 PowerLineWorldCommandSync.afterRedo(redoCommand, ctx.state());
                 ctx.invalidatePreview();
