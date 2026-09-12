@@ -20,6 +20,7 @@ import com.plot.plugin.powerline.manager.PowerLinePreviewManager;
 import com.plot.plugin.powerline.PowerLineGenerator;
 import com.plot.plugin.powerline.PowerLinePathUtils;
 import com.plot.plugin.powerline.PowerPoleLayoutUtils;
+import com.plot.plugin.powerline.path.ClosedLoopLayoutException;
 import com.plot.plugin.powerline.path.PowerLinePathLayout;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
@@ -120,7 +121,7 @@ public final class PowerLineActions {
                 state.getProject().addLine(line);
                 adoptedIds.add(line.getId());
                 adopted++;
-            } catch (IllegalArgumentException e) {
+            } catch (IllegalArgumentException | ClosedLoopLayoutException e) {
                 skipped++;
             }
         }

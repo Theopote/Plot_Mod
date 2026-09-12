@@ -9,6 +9,8 @@ import com.plot.plugin.powerline.model.PoleLayoutConstraint;
 import com.plot.plugin.powerline.model.PoleOverride;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.TowerRole;
+import com.plot.plugin.powerline.path.ClosedPathLayout;
+import com.plot.plugin.powerline.path.PowerLinePathLayout;
 import com.plot.plugin.powerline.path.PowerLineSourcePath;
 import com.plot.plugin.powerline.path.PolylineSourcePath;
 
@@ -72,6 +74,15 @@ public final class PowerPoleLayoutUtils {
         ICoordinateService coords = requireCoordinates(coordinates);
         if (sourcePath == null) {
             return List.of();
+        }
+        if (sourcePath.isClosed()) {
+            return ClosedPathLayout.computePolePositions(
+                sourcePath,
+                mode,
+                maxPoleSpacingBlocks,
+                targetTowerCount,
+                cornerAngleThreshold,
+                coords);
         }
         PoleSpacingMode resolved = mode != null ? mode : PoleSpacingMode.AUTO_SPACING;
         return switch (resolved) {
@@ -220,15 +231,7 @@ public final class PowerPoleLayoutUtils {
     public static List<PowerPoleSite> layoutAndSyncFootprint(
             PowerLineFootprint footprint,
             ICoordinateService coordinates) {
-        List<PowerPoleSite> sites = computePoleSites(footprint, coordinates);
-        if (footprint != null) {
-            List<Vec2d> towerPolyline = new ArrayList<>(sites.size());
-            for (PowerPoleSite site : sites) {
-                towerPolyline.add(site.getPlanPosition().copy());
-            }
-            footprint.setPathPoints(towerPolyline);
-        }
-        return sites;
+        return PowerLinePathLayout.layoutAndSync(footprint, coordinates);
     }
 
     /** 按世界里程（blocks，自路径起点）取画布点。 */

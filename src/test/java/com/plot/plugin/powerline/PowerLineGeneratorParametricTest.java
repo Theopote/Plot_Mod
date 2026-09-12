@@ -63,9 +63,9 @@ class PowerLineGeneratorParametricTest {
             40.0,
             false);
 
-        assertFalse(PowerLineGenerator.isSpanGenerable(List.of(valid, invalid), 0));
-        assertFalse(PowerLineGenerator.isSpanGenerable(List.of(invalid, valid), 0));
-        assertTrue(PowerLineGenerator.isSpanGenerable(List.of(valid, valid), 0));
+        assertFalse(PowerLineGenerator.isSpanGenerable(List.of(valid, invalid), 0, 1));
+        assertFalse(PowerLineGenerator.isSpanGenerable(List.of(invalid, valid), 0, 1));
+        assertTrue(PowerLineGenerator.isSpanGenerable(List.of(valid, valid), 0, 1));
     }
 
     @Test

@@ -108,16 +108,20 @@ public class PowerLineGenerator {
         }
         result.polePlacements.addAll(placements);
 
-        for (int i = 0; i < placements.size(); i++) {
+        boolean closedLoop = footprint.isClosedLoop();
+        int siteCount = placements.size();
+        for (int i = 0; i < siteCount; i++) {
             if (!placements.get(i).isValid()) {
                 continue;
             }
             TowerRole role = placements.get(i).role();
             if ((role == TowerRole.ANGLE || role == TowerRole.TERMINAL || role == TowerRole.DEAD_END)
-                    && i > 0 && i < placements.size() - 1) {
+                    && (closedLoop || (i > 0 && i < siteCount - 1))) {
+                int previousIndex = closedLoop ? (i - 1 + siteCount) % siteCount : i - 1;
+                int nextIndex = closedLoop ? (i + 1) % siteCount : i + 1;
                 Vec2d incoming = sites.get(i).getPlanPosition()
-                    .subtract(sites.get(i - 1).getPlanPosition());
-                Vec2d outgoing = sites.get(i + 1).getPlanPosition()
+                    .subtract(sites.get(previousIndex).getPlanPosition());
+                Vec2d outgoing = sites.get(nextIndex).getPlanPosition()
                     .subtract(sites.get(i).getPlanPosition());
                 JumperWireGenerator.generateForAngleTower(
                     placements.get(i),
@@ -130,17 +134,19 @@ public class PowerLineGenerator {
             }
         }
 
-        for (int span = 0; span < placements.size() - 1; span++) {
-            if (!isSpanGenerable(placements, span)) {
+        int spanCount = closedLoop ? siteCount : siteCount - 1;
+        for (int span = 0; span < spanCount; span++) {
+            int nextIndex = closedLoop ? (span + 1) % siteCount : span + 1;
+            if (!isSpanGenerable(placements, span, nextIndex)) {
                 continue;
             }
             ConductorSpanGenerator.generateBetween(
                 placements.get(span),
-                placements.get(span + 1),
+                placements.get(nextIndex),
                 span,
-                span + 1,
+                nextIndex,
                 sites.get(span).getId(),
-                sites.get(span + 1).getId(),
+                sites.get(nextIndex).getId(),
                 footprint,
                 terrain,
                 result,
@@ -164,7 +170,7 @@ public class PowerLineGenerator {
         Vec2d planPoint = site.getPlanPosition();
         PolePlacementBase placementBase = PolePlacementBase.resolve(planPoint, terrain);
         int buildBaseY = placementBase.buildBaseY();
-        Vec2d tangent = computePoleTangentFromSites(sites, index);
+        Vec2d tangent = computePoleTangentFromSites(sites, index, footprint.isClosedLoop());
         PoleFrame frame = PoleFrame.fromPole(planPoint, tangent, buildBaseY);
 
         TowerSelectionContext selectionContext = buildSelectionContext(
@@ -284,9 +290,9 @@ public class PowerLineGenerator {
             && TowerParametricEditor.hasBlockingErrors(design, envelope);
     }
 
-    static boolean isSpanGenerable(List<PolePlacement> placements, int spanIndex) {
-        return placements.get(spanIndex).isValid()
-            && placements.get(spanIndex + 1).isValid();
+    static boolean isSpanGenerable(List<PolePlacement> placements, int fromIndex, int toIndex) {
+        return placements.get(fromIndex).isValid()
+            && placements.get(toIndex).isValid();
     }
 
     static PolePlacement invalidPolePlacement(
@@ -387,18 +393,23 @@ public class PowerLineGenerator {
         return design.wireHangHeightFromGround(groundY);
     }
 
-    static Vec2d computePoleTangent(List<Vec2d> poles, int index) {
+    static Vec2d computePoleTangent(List<Vec2d> poles, int index, boolean closedLoop) {
         if (poles == null || poles.size() < 2) {
             return new Vec2d(1, 0);
         }
-        if (index <= 0) {
-            return poles.get(1).subtract(poles.get(0));
+        int size = poles.size();
+        if (!closedLoop) {
+            if (index <= 0) {
+                return poles.get(1).subtract(poles.get(0));
+            }
+            if (index >= size - 1) {
+                return poles.get(index).subtract(poles.get(index - 1));
+            }
         }
-        if (index >= poles.size() - 1) {
-            return poles.get(index).subtract(poles.get(index - 1));
-        }
-        Vec2d incoming = poles.get(index).subtract(poles.get(index - 1));
-        Vec2d outgoing = poles.get(index + 1).subtract(poles.get(index));
+        int previousIndex = closedLoop ? (index - 1 + size) % size : index - 1;
+        int nextIndex = closedLoop ? (index + 1) % size : index + 1;
+        Vec2d incoming = poles.get(index).subtract(poles.get(previousIndex));
+        Vec2d outgoing = poles.get(nextIndex).subtract(poles.get(index));
         Vec2d inNorm = incoming.lengthSquared() > 1e-12 ? incoming.normalize() : incoming;
         Vec2d outNorm = outgoing.lengthSquared() > 1e-12 ? outgoing.normalize() : outgoing;
         Vec2d bisector = inNorm.add(outNorm);
@@ -408,7 +419,7 @@ public class PowerLineGenerator {
         return bisector;
     }
 
-    static Vec2d computePoleTangentFromSites(List<PowerPoleSite> sites, int index) {
+    static Vec2d computePoleTangentFromSites(List<PowerPoleSite> sites, int index, boolean closedLoop) {
         if (sites == null || sites.size() < 2) {
             return new Vec2d(1, 0);
         }
@@ -416,7 +427,7 @@ public class PowerLineGenerator {
         for (PowerPoleSite site : sites) {
             positions.add(site.getPlanPosition());
         }
-        return computePoleTangent(positions, index);
+        return computePoleTangent(positions, index, closedLoop);
     }
 
     private static void emitParametricLineWarnings(

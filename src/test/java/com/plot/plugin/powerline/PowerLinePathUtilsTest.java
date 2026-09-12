@@ -33,8 +33,7 @@ class PowerLinePathUtilsTest {
         assertFalse(PowerLinePathUtils.isRejectedCurve(open));
 
         BezierCurveShape closed = new BezierCurveShape(anchors, controls, true);
-        assertFalse(PowerLinePathUtils.isAdoptableLine(closed));
-        assertTrue(PowerLinePathUtils.isRejectedClosedPath(closed));
+        assertTrue(PowerLinePathUtils.isAdoptableLine(closed));
     }
 
     @Test

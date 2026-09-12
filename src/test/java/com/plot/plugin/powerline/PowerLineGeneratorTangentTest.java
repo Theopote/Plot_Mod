@@ -15,7 +15,7 @@ class PowerLineGeneratorTangentTest {
             new Vec2d(0, 0),
             new Vec2d(10, 0),
             new Vec2d(10, 10));
-        Vec2d tangent = PowerLineGenerator.computePoleTangent(poles, 1);
+        Vec2d tangent = PowerLineGenerator.computePoleTangent(poles, 1, false);
 
         Vec2d forward = PoleFrame.fromPole(poles.get(1), tangent, 64).forward();
         assertEquals(Math.sqrt(0.5), forward.x, 1e-6);
@@ -28,7 +28,7 @@ class PowerLineGeneratorTangentTest {
             new Vec2d(0, 0),
             new Vec2d(0, 10),
             new Vec2d(0, 0));
-        Vec2d tangent = PowerLineGenerator.computePoleTangent(poles, 1);
+        Vec2d tangent = PowerLineGenerator.computePoleTangent(poles, 1, false);
 
         Vec2d forward = PoleFrame.fromPole(poles.get(1), tangent, 64).forward();
         assertEquals(0.0, forward.x, 1e-6);

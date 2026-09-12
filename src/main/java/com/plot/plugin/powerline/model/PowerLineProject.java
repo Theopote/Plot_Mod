@@ -26,7 +26,7 @@ import net.minecraft.util.math.BlockPos;
  */
 public class PowerLineProject {
     /** Current on-disk schema. */
-    public static final int SCHEMA_VERSION = 9;
+    public static final int SCHEMA_VERSION = 10;
 
     private static final Gson GSON = new GsonBuilder()
         .setPrettyPrinting()
@@ -358,6 +358,10 @@ public class PowerLineProject {
         boolean sourceClosed;
         List<Vec2dData> sourcePolylinePoints = new ArrayList<>();
         List<Vec2dData> sourceBezierControlPoints = new ArrayList<>();
+        Vec2dData sourceEllipseCenter;
+        double sourceEllipseRadiusX;
+        double sourceEllipseRadiusY;
+        double sourceEllipseRotation;
     }
 
     static class ProjectData {
@@ -414,6 +418,12 @@ public class PowerLineProject {
                     }
                     for (Vec2d point : source.bezierControlPoints()) {
                         lineData.sourceBezierControlPoints.add(new Vec2dData(point));
+                    }
+                    if (source.kind() == PowerLineSourceDescriptor.Kind.ELLIPSE && source.ellipseCenter() != null) {
+                        lineData.sourceEllipseCenter = new Vec2dData(source.ellipseCenter());
+                        lineData.sourceEllipseRadiusX = source.ellipseRadiusX();
+                        lineData.sourceEllipseRadiusY = source.ellipseRadiusY();
+                        lineData.sourceEllipseRotation = source.ellipseRotation();
                     }
                 }
                 data.lines.add(lineData);
@@ -530,9 +540,17 @@ public class PowerLineProject {
                         }
                         footprint.setSourceDescriptor(switch (kind) {
                             case POLYLINE -> PowerLineSourceDescriptor.polyline(
-                                lineData.sourceShapeId, polyline);
+                                lineData.sourceShapeId, polyline, lineData.sourceClosed);
                             case BEZIER -> PowerLineSourceDescriptor.bezier(
                                 lineData.sourceShapeId, bezierControls, lineData.sourceClosed);
+                            case ELLIPSE -> PowerLineSourceDescriptor.ellipse(
+                                lineData.sourceShapeId,
+                                lineData.sourceEllipseCenter != null
+                                    ? lineData.sourceEllipseCenter.toVec2d()
+                                    : new Vec2d(0, 0),
+                                lineData.sourceEllipseRadiusX,
+                                lineData.sourceEllipseRadiusY,
+                                lineData.sourceEllipseRotation);
                         });
                     } catch (IllegalArgumentException ignored) {
                         // keep legacy polyline-only footprint

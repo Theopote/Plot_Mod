@@ -3206,7 +3206,7 @@
   "plugin.powerline.adopt_batch": "批量认领 (%d)",
   "plugin.powerline.adopt_no_selection": "请先选择要认领的路径",
   "plugin.powerline.adopt_reject_curve": "该曲线无法认领为电力线路路径",
-  "plugin.powerline.adopt_reject_closed": "闭合路径暂不支持（Phase 2）",
+  "plugin.powerline.adopt_reject_closed_loop": "闭合线路需要至少 3 个非共线杆塔",
   "plugin.powerline.adopt_unsupported_hint": "仅支持直线/折线路径",
   "plugin.powerline.adopt_success": "线路认领成功",
   "plugin.powerline.adopt_success_batch": "已认领 %d 条线路",

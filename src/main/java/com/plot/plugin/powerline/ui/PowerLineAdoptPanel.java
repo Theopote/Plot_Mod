@@ -28,11 +28,6 @@ public final class PowerLineAdoptPanel {
                 PluginUiColors.WARNING,
                 PlotI18n.tr("plugin.powerline.adopt_reject_curve"));
         }
-        if (!selection.rejectedClosed().isEmpty()) {
-            PowerLineUiWidgets.textColored(
-                PluginUiColors.WARNING,
-                PlotI18n.tr("plugin.powerline.adopt_reject_closed"));
-        }
         if (!selection.unsupported().isEmpty() && !selection.canAdopt()) {
             PowerLineUiWidgets.textColored(
                 PluginUiColors.WARNING,

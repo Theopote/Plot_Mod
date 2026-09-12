@@ -137,6 +137,10 @@ public class PowerLineFootprint {
         return sourceDescriptor != null;
     }
 
+    public boolean isClosedLoop() {
+        return resolveSourcePath().isClosed();
+    }
+
     /** 路径在平面坐标下的轴对齐包围盒（随路径修改失效重算）。 */
     public PathBounds pathBounds() {
         if (cachedPathBounds == null) {

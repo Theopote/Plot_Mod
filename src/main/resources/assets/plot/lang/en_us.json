@@ -3206,7 +3206,7 @@
   "plugin.powerline.adopt_batch": "Adopt batch (%d)",
   "plugin.powerline.adopt_no_selection": "Select path(s) to adopt first",
   "plugin.powerline.adopt_reject_curve": "This curve cannot be adopted as a power line path",
-  "plugin.powerline.adopt_reject_closed": "Closed paths are not supported yet (Phase 2)",
+  "plugin.powerline.adopt_reject_closed_loop": "Closed path needs at least 3 non-collinear towers",
   "plugin.powerline.adopt_unsupported_hint": "Only line or polyline paths are supported",
   "plugin.powerline.adopt_success": "Line adopted",
   "plugin.powerline.adopt_success_batch": "Adopted %d lines",
