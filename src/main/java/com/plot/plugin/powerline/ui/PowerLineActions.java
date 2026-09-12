@@ -551,7 +551,7 @@ public final class PowerLineActions {
         state.setProjectStatus(
             PlotI18n.tr("plugin.powerline.build_in_progress", records.size()),
             ProjectStatusSeverity.INFO);
-        command.executeScheduled(() -> {
+        command.executeScheduled(() -> PowerLineUiExecutor.runOnClientThread(() -> {
             PowerLineGenerateCommand.ExecutionResult result = command.getLastExecutionResult();
             if (command.hasAppliedRecords()) {
                 host.commands().pushExecuted(command);
@@ -570,7 +570,7 @@ public final class PowerLineActions {
                     result.total()), ProjectStatusSeverity.WARNING);
             }
             clearPreview();
-        });
+        }));
     }
 
     private boolean ensurePreviewReadyForBuild(PowerLineFootprint line) {

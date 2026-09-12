@@ -205,7 +205,7 @@ public final class SingleTowerPlacementActions {
             PlotI18n.tr("plugin.powerline.single_tower.build_in_progress", records.size()),
             ProjectStatusSeverity.INFO);
         host.ghosts().clearAllGhostBlocks();
-        command.executeScheduled(() -> {
+        command.executeScheduled(() -> PowerLineUiExecutor.runOnClientThread(() -> {
             var result = command.getLastExecutionResult();
             if (command.hasAppliedRecords()) {
                 host.commands().pushExecuted(command);
@@ -241,7 +241,7 @@ public final class SingleTowerPlacementActions {
             if (session.isActive()) {
                 refreshGhostPreview();
             }
-        });
+        }));
     }
 
     public void refreshGhostPreview() {

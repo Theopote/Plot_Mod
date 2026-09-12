@@ -96,7 +96,7 @@ public final class PlacedSingleTowerActions {
         state.setProjectStatus(
             PlotI18n.tr("plugin.powerline.single_tower.remove_in_progress", tower.getDesignLabel()),
             ProjectStatusSeverity.INFO);
-        command.executeScheduled(() -> {
+        command.executeScheduled(() -> PowerLineUiExecutor.runOnClientThread(() -> {
             if (command.hasAppliedRecords()) {
                 host.commands().pushExecuted(command);
             }
@@ -120,7 +120,7 @@ public final class PlacedSingleTowerActions {
                     PlotI18n.tr("plugin.powerline.single_tower.delete_failed", tower.getDesignLabel()),
                     ProjectStatusSeverity.WARNING);
             }
-        });
+        }));
     }
 
     public String resolveStyleLineName(PlacedSingleTower tower, PowerLineProject project) {
