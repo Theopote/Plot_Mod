@@ -25,8 +25,8 @@ public final class PowerLineAdoptPanel {
 
         if (line != null && PowerLineSourceSync.hasLinkedSource(line)) {
             renderLinkedSource(line);
-            renderSelectionErrors(selection);
             if (ctx.isPathRelinkActive(line)) {
+                renderSelectionErrors(selection);
                 renderPathRelinkActions(line, selection);
             }
             return;

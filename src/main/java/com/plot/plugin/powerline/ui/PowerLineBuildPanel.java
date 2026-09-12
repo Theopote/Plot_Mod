@@ -257,7 +257,7 @@ public final class PowerLineBuildPanel {
         }
         PowerLineStylePreset basePreset = PowerLineStyleEditor.basePreset(line);
         double worldLength = line.computeWorldPathLength(ctx.coordinates());
-        double typicalSpan = typicalSpanBlocks(worldLength, result.poleCount, line.getMaxPoleSpacing());
+        double typicalSpan = typicalSpanBlocks(line, worldLength, result.poleCount, line.getMaxPoleSpacing());
         PowerLineUiWidgets.text(PlotI18n.tr(
             "plugin.powerline.wire_length_result",
             String.format("%.1f", result.wireLength)));
@@ -285,11 +285,19 @@ public final class PowerLineBuildPanel {
         ImGui.endChild();
     }
 
-    private static double typicalSpanBlocks(double worldLength, int poleCount, double maxPoleSpacing) {
-        if (poleCount > 1 && worldLength > 0.0) {
-            return worldLength / (poleCount - 1);
+    private static double typicalSpanBlocks(
+            PowerLineFootprint line,
+            double worldLength,
+            int poleCount,
+            double maxPoleSpacing) {
+        if (poleCount <= 0 || worldLength <= 0.0) {
+            return maxPoleSpacing;
         }
-        return maxPoleSpacing;
+        int spanCount = line.isClosedLoop() ? poleCount : poleCount - 1;
+        if (spanCount <= 0) {
+            return maxPoleSpacing;
+        }
+        return worldLength / spanCount;
     }
 
     private static String formatBlocks(double blocks) {

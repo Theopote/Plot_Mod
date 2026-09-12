@@ -67,8 +67,13 @@ public final class PowerLineRoutePanel {
     }
 
     private void renderProjectSection() {
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.all_lines"));
-        overviewPanel.renderProjectSection(true);
+        int count = ctx.project().getLineCount();
+        ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
+        if (ImGui.collapsingHeader(
+                PlotI18n.tr("plugin.powerline.route.section.all_lines_count", count),
+                ImGuiTreeNodeFlags.None)) {
+            overviewPanel.renderProjectSection(true);
+        }
     }
 
     private void renderCurrentLineHeader() {
@@ -110,7 +115,6 @@ public final class PowerLineRoutePanel {
                     PlotI18n.tr("plugin.powerline.source_stale"));
                 ImGui.spacing();
                 if (ImGui.button(PlotI18n.tr("plugin.powerline.relayout_from_source"), 0, 0)) {
-                    ctx.pushEditSnapshot();
                     ctx.relayoutLineFromSource(line);
                 }
             }

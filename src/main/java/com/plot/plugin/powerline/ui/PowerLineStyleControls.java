@@ -107,10 +107,6 @@ public final class PowerLineStyleControls {
         ctx.invalidatePreview();
     }
 
-    public void renderPoleDesignControls(PowerLineFootprint line, PoleDesignerPanel poleDesignerPanel) {
-        renderPoleDesignControls(line, poleDesignerPanel, false);
-    }
-
     public void renderPoleDesignControls(
             PowerLineFootprint line,
             PoleDesignerPanel poleDesignerPanel,

@@ -6,6 +6,8 @@ import com.plot.plugin.powerline.placement.SingleTowerOrientation;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiCond;
+import imgui.flag.ImGuiTreeNodeFlags;
 
 import java.util.List;
 
@@ -21,8 +23,13 @@ public final class PlacedSingleTowerPanel {
 
     public void render() {
         List<PlacedSingleTower> towers = ctx.state().getPlacedSingleTowers();
-        ImGui.separator();
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.single_tower.manage.section"));
+        ImGui.spacing();
+        ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
+        if (!ImGui.collapsingHeader(
+                PlotI18n.tr("plugin.powerline.single_tower.manage.section_count", towers.size()),
+                ImGuiTreeNodeFlags.None)) {
+            return;
+        }
         if (towers.isEmpty()) {
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
@@ -30,9 +37,6 @@ public final class PlacedSingleTowerPanel {
             return;
         }
 
-        PowerLineUiWidgets.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.powerline.single_tower.manage.count", towers.size()));
         ImGui.beginChild("powerline_placed_towers_list", 0, Math.min(180f, towers.size() * 52f + 8f), true);
         for (PlacedSingleTower tower : towers) {
             renderTowerRow(tower);

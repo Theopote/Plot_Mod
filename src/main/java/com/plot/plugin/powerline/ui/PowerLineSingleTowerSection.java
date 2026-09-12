@@ -26,8 +26,6 @@ public final class PowerLineSingleTowerSection {
     }
 
     private void renderPlacement(PowerLineFootprint line) {
-        ImGui.spacing();
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.single_tower.section"));
         if (line == null) {
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,

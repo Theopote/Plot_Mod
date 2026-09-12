@@ -5,16 +5,12 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
-/** 电力线路概览 Tab。 */
+/** Route Tab 中的项目线路管理组件。 */
 public final class PowerLineOverviewPanel {
     private final PowerLineUiContext ctx;
 
     public PowerLineOverviewPanel(PowerLineUiContext ctx) {
         this.ctx = ctx;
-    }
-
-    public void renderProjectSection() {
-        renderProjectSection(false);
     }
 
     public void renderProjectSection(boolean compact) {
