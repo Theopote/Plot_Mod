@@ -14,6 +14,10 @@ public final class PowerLineOverviewPanel {
     }
 
     public void renderProjectSection() {
+        renderProjectSection(false);
+    }
+
+    public void renderProjectSection(boolean compact) {
         PowerLineUiWidgets.text(PlotI18n.tr(
             "plugin.powerline.project_stats",
             ctx.project().getLineCount(),
@@ -48,7 +52,8 @@ public final class PowerLineOverviewPanel {
             ctx.coordinates());
 
         ImGui.spacing();
-        ImGui.beginChild("powerline_overview_list", 0, 0, true);
+        float listHeight = compact ? 120f : 0f;
+        ImGui.beginChild("powerline_overview_list", 0, listHeight, true);
         for (PowerLineFootprint line : ctx.project().getLines().values()) {
             renderLineRow(line);
         }

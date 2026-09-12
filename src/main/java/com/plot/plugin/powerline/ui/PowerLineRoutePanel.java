@@ -14,7 +14,7 @@ import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImInt;
 
-/** 线路 Tab：摘要、认领路径、杆塔布置。 */
+/** 线路 Tab：全部线路、认领路径、杆塔布置。 */
 public final class PowerLineRoutePanel {
     private final PowerLineUiContext ctx;
     private final PowerLineAdoptPanel adoptPanel;
@@ -30,10 +30,9 @@ public final class PowerLineRoutePanel {
         ctx.selection().retainExisting(ctx.project());
         PowerLineFootprint line = ctx.selection().primary(ctx.project());
 
-        if (line != null) {
-            PowerLineRouteSummaryRenderer.render(ctx, line);
-        }
+        renderProjectSection();
 
+        ImGui.separator();
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.path"));
         adoptPanel.render();
 
@@ -41,7 +40,6 @@ public final class PowerLineRoutePanel {
             ImGui.separator();
             PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.no_line"));
             PowerLineUiWidgets.renderLineSelector(ctx);
-            renderProjectSection();
             return;
         }
 
@@ -53,7 +51,6 @@ public final class PowerLineRoutePanel {
         renderPolePlacement(line);
         renderTerrainAvoidance(line);
         renderAdvancedSpacing(line);
-        renderProjectSection();
     }
 
     public void renderDeleteConfirmPopup() {
@@ -61,14 +58,8 @@ public final class PowerLineRoutePanel {
     }
 
     private void renderProjectSection() {
-        ImGui.separator();
-        ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
-        if (!ImGui.collapsingHeader(
-                PlotI18n.tr("plugin.powerline.route.section.all_lines"),
-                ImGuiTreeNodeFlags.None)) {
-            return;
-        }
-        overviewPanel.renderProjectSection();
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.all_lines"));
+        overviewPanel.renderProjectSection(true);
     }
 
     private void renderLineName(PowerLineFootprint line) {
