@@ -3708,6 +3708,7 @@
   "plugin.powerline.warn.missing_attachment_downstream": "下游杆塔缺少附件「%s」（%s），位置 (%.1f, %.1f)",
   "plugin.powerline.warn.attachment_role_mismatch": "附件「%s」角色不匹配：%s 与 %s — 已跳过该档",
   "plugin.powerline.warn.missing_attachment_upstream": "上游杆塔缺少附件「%s」（%s），位置 (%.1f, %.1f)",
+  "plugin.powerline.warn.duplicate_attachment_id": "重复附件 ID「%s」（%s）于杆塔 (%.1f, %.1f)，后项覆盖前项",
   "plugin.powerline.warn.clearance_at_point": "净空警告 (%.1f, %.1f)：导线 Y=%d，地面 Y=%d",
   "plugin.powerline.warn.pole_design_override_not_found": "未找到杆塔设计覆盖：%s",
   "plugin.powerline.warn.tower_family_not_found": "未找到塔型系列：%s",

@@ -127,6 +127,10 @@ public final class PowerLineUiContext {
         actions.invalidatePreview();
     }
 
+    public void clearAnalysisReports() {
+        actions.clearAnalysisReports();
+    }
+
     public boolean hasValidPreview(PowerLineFootprint line) {
         return actions.hasValidPreview(line);
     }

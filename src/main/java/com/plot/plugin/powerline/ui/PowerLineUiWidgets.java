@@ -260,20 +260,20 @@ public final class PowerLineUiWidgets {
         if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.validation.visual_checks"), visualChecks)) {
             ctx.pushEditSnapshot();
             line.setVisualChecksEnabled(!visualChecks);
-            ctx.invalidatePreview();
+            ctx.clearAnalysisReports();
         }
         ImGui.indent();
         boolean lineChecks = line.isLineChecksEnabled();
         if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.validation.line_checks"), lineChecks)) {
             ctx.pushEditSnapshot();
             line.setLineChecksEnabled(!lineChecks);
-            ctx.invalidatePreview();
+            ctx.clearAnalysisReports();
         }
         boolean terrainChecks = line.isTerrainAvoidanceEnabled();
         if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.validation.terrain_checks"), terrainChecks)) {
             ctx.pushEditSnapshot();
             line.setTerrainAvoidanceEnabled(!terrainChecks);
-            ctx.invalidatePreview();
+            ctx.clearAnalysisReports();
         }
         ImGui.unindent();
         boolean autoSelect = line.isAutomaticTowerSelectionEnabled();

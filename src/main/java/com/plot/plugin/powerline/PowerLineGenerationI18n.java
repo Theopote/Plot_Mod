@@ -20,6 +20,10 @@ public final class PowerLineGenerationI18n {
         return token("plugin.powerline.warn.missing_attachment_upstream", name, id, x, y);
     }
 
+    public static String duplicateAttachmentId(String name, String id, double x, double y) {
+        return token("plugin.powerline.warn.duplicate_attachment_id", name, id, x, y);
+    }
+
     public static String clearanceAtPoint(double x, double y, int wireY, int groundY) {
         return token("plugin.powerline.warn.clearance_at_point", x, y, wireY, groundY);
     }

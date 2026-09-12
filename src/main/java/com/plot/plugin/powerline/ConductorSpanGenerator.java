@@ -68,8 +68,14 @@ public final class ConductorSpanGenerator {
             PowerLineGenerationResult result,
             ICoordinateService coordinateTransformer,
             IBlockProjectionService projectionHandler) {
-        Map<String, ResolvedAttachment> startById = indexById(start.attachments());
-        Map<String, ResolvedAttachment> endById = indexById(end.attachments());
+        Map<String, ResolvedAttachment> startById = indexById(
+            start.attachments(),
+            result,
+            start.planPosition());
+        Map<String, ResolvedAttachment> endById = indexById(
+            end.attachments(),
+            result,
+            end.planPosition());
 
         for (String id : startById.keySet()) {
             ResolvedAttachment startAttachment = startById.get(id);
@@ -115,13 +121,26 @@ public final class ConductorSpanGenerator {
         }
     }
 
-    private static Map<String, ResolvedAttachment> indexById(List<ResolvedAttachment> attachments) {
+    private static Map<String, ResolvedAttachment> indexById(
+            List<ResolvedAttachment> attachments,
+            PowerLineGenerationResult result,
+            Vec2d polePosition) {
         java.util.LinkedHashMap<String, ResolvedAttachment> indexed = new java.util.LinkedHashMap<>();
         if (attachments == null) {
             return indexed;
         }
         for (ResolvedAttachment attachment : attachments) {
-            indexed.put(attachment.id(), attachment);
+            String id = attachment.id();
+            if (indexed.containsKey(id)) {
+                if (result != null) {
+                    result.warnings.add(PowerLineGenerationI18n.duplicateAttachmentId(
+                        attachment.name(),
+                        id,
+                        polePosition != null ? polePosition.x : 0.0,
+                        polePosition != null ? polePosition.y : 0.0));
+                }
+            }
+            indexed.put(id, attachment);
         }
         return indexed;
     }

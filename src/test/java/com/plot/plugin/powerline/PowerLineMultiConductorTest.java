@@ -59,6 +59,46 @@ class PowerLineMultiConductorTest {
     }
 
     @Test
+    void duplicateAttachmentIdEmitsWarning() {
+        ResolvedAttachment first = attachment("phase_a", "A-first", -3, 64);
+        ResolvedAttachment duplicate = attachment("phase_a", "A-duplicate", 0, 64);
+        ResolvedAttachment endA = attachment("phase_a", "A", -3, 64);
+
+        PolePlacement start = new PolePlacement(
+            new Vec2d(0, 0),
+            PoleFrame.fromPole(new Vec2d(0, 0), new Vec2d(1, 0), 64),
+            null,
+            List.of(first, duplicate),
+            74,
+            true);
+        PolePlacement end = new PolePlacement(
+            new Vec2d(10, 0),
+            PoleFrame.fromPole(new Vec2d(10, 0), new Vec2d(1, 0), 64),
+            null,
+            List.of(endA),
+            74,
+            true);
+
+        PowerLineFootprint footprint = WireTestSupport.horizontalLine(10.0);
+        PowerLineGenerationResult result = new PowerLineGenerationResult(footprint);
+        ConductorSpanGenerator.generateBetween(
+            start,
+            end,
+            0,
+            1,
+            "start",
+            "end",
+            footprint,
+            flatTerrain(64),
+            result,
+            identityCoordinates(),
+            projection());
+
+        assertTrue(result.warnings.stream().anyMatch(
+            w -> w.contains("plugin.powerline.warn.duplicate_attachment_id")));
+    }
+
+    @Test
     void attachmentMatchingUsesIdNotIndex() {
         ResolvedAttachment startA = attachment("phase_a", "A", -3, 64);
         ResolvedAttachment startB = attachment("phase_b", "B", 0, 64);

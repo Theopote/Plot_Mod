@@ -185,7 +185,7 @@ public final class PowerLineActions {
         TerrainSampler terrain = MinecraftTerrainSampler.of(world, host.coordinates());
         PowerLineValidationReport peekReport = com.plot.plugin.powerline.engineering.TerrainAvoidance
             .analyzeCollisions(peek.toGeometryModel(), terrain);
-        storeTerrainReport(peekReport);
+        storeTerrainReport(line, peekReport);
         if (!com.plot.plugin.powerline.engineering.TerrainAvoidance.hasTerrainIssues(peekReport)) {
             applyTerrainFixStatus(0, 0);
             syncPreviewAnalysis(line);
@@ -267,7 +267,7 @@ public final class PowerLineActions {
             return null;
         }
         PowerLineValidationReport report = computeTerrainReport(line, world);
-        storeTerrainReport(report);
+        storeTerrainReport(line, report);
         return report;
     }
 
@@ -296,12 +296,12 @@ public final class PowerLineActions {
             return;
         }
         if (line.isTerrainAvoidanceEnabled()) {
-            storeTerrainReport(computeTerrainReport(line, world));
+            storeTerrainReport(line, computeTerrainReport(line, world));
         } else {
             clearTerrainReport();
         }
         if (line.isLineChecksEnabled()) {
-            storeEngineeringReport(computeEngineeringReport(line, world));
+            storeEngineeringReport(line, computeEngineeringReport(line, world));
         } else {
             clearEngineeringReport();
         }
@@ -327,14 +327,16 @@ public final class PowerLineActions {
             .validate(result.toGeometryModel(), terrain, line);
     }
 
-    private void storeTerrainReport(PowerLineValidationReport report) {
+    private void storeTerrainReport(PowerLineFootprint line, PowerLineValidationReport report) {
         state.getValidationState().setLastTerrainReport(report);
-        state.getValidationState().setTerrainReportKey(PowerLineAnalysisKey.capture(state.getPreviewKey()));
+        state.getValidationState().setTerrainReportKey(
+            PowerLineAnalysisKey.capture(state.getPreviewKey(), line));
     }
 
-    private void storeEngineeringReport(PowerLineValidationReport report) {
+    private void storeEngineeringReport(PowerLineFootprint line, PowerLineValidationReport report) {
         state.getValidationState().setLastEngineeringReport(report);
-        state.getValidationState().setEngineeringReportKey(PowerLineAnalysisKey.capture(state.getPreviewKey()));
+        state.getValidationState().setEngineeringReportKey(
+            PowerLineAnalysisKey.capture(state.getPreviewKey(), line));
     }
 
     private PowerLineValidationReport validatedReport(
@@ -352,7 +354,7 @@ public final class PowerLineActions {
         return report;
     }
 
-    private void clearAnalysisReports() {
+    public void clearAnalysisReports() {
         state.getValidationState().clearAnalysisReports();
     }
 
@@ -383,7 +385,7 @@ public final class PowerLineActions {
             }
             PowerLineValidationReport report = com.plot.plugin.powerline.engineering.TerrainAvoidance
                 .analyzeCollisions(result.toGeometryModel(), terrain);
-            storeTerrainReport(report);
+            storeTerrainReport(line, report);
             if (!com.plot.plugin.powerline.engineering.TerrainAvoidance.hasTerrainIssues(report)) {
                 applyTerrainFixStatus(fixesApplied, 0);
                 return;
@@ -406,7 +408,7 @@ public final class PowerLineActions {
         }
         PowerLineValidationReport finalReport = com.plot.plugin.powerline.engineering.TerrainAvoidance
             .analyzeCollisions(finalResult.toGeometryModel(), terrain);
-        storeTerrainReport(finalReport);
+        storeTerrainReport(line, finalReport);
         applyTerrainFixStatus(
             fixesApplied,
             com.plot.plugin.powerline.engineering.TerrainAvoidance.countTerrainIssues(finalReport));
@@ -865,7 +867,7 @@ public final class PowerLineActions {
             return null;
         }
         PowerLineValidationReport report = computeEngineeringReport(line, world);
-        storeEngineeringReport(report);
+        storeEngineeringReport(line, report);
         return report;
     }
 

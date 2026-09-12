@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PowerLinePreviewKeyTest {
@@ -67,6 +68,20 @@ class PowerLinePreviewKeyTest {
         PowerLinePreviewKey key = PowerLinePreviewKey.capture(line, designs, nearView);
         assertTrue(key.matches(line, designs, nearView));
         assertFalse(key.matches(line, designs, farView));
+    }
+
+    @Test
+    void matchesWhenOnlyAnalysisTogglesChange() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
+        PowerLineDesignProject designs = new PowerLineDesignProject();
+        PowerLinePreviewKey key = PowerLinePreviewKey.capture(line, designs);
+
+        line.setLineChecksEnabled(false);
+        assertTrue(key.matches(line, designs));
+        assertNotEquals(line.geometryFingerprint(), line.generationFingerprint());
+
+        line.setTerrainAvoidanceEnabled(false);
+        assertTrue(key.matches(line, designs));
     }
 
     @Test

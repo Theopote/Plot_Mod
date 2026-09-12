@@ -16,4 +16,15 @@ class PowerLineGenerationI18nTest {
         assertTrue(token.startsWith("plugin.powerline.warn.missing_attachment_downstream|"));
         assertTrue(token.contains("phase_b"));
     }
+
+    @Test
+    void duplicateAttachmentIdTokenCarriesKeyAndArguments() {
+        String token = PowerLineGenerationI18n.duplicateAttachmentId(
+            "A-duplicate",
+            "phase_a",
+            10.0,
+            20.0);
+        assertTrue(token.startsWith("plugin.powerline.warn.duplicate_attachment_id|"));
+        assertTrue(token.contains("phase_a"));
+    }
 }

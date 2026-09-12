@@ -455,10 +455,8 @@ public class PowerLineFootprint {
         return com.plot.plugin.powerline.PowerPoleLayoutUtils.computePoleSites(this, coordinates).size();
     }
 
-    /**
-     * 影响生成结果的参数指纹（不含名称等纯展示字段）。
-     */
-    public int generationFingerprint() {
+    /** 影响塔/线几何的指纹（预览缓存用，不含纯分析开关）。 */
+    public int geometryFingerprint() {
         int hash = 1;
         for (Vec2d point : pathPoints) {
             hash = 31 * hash + Double.hashCode(point.x);
@@ -481,13 +479,27 @@ public class PowerLineFootprint {
         hash = 31 * hash + materialFingerprint(topWireMaterial);
         hash = 31 * hash + poleOverrides.hashCode();
         hash = 31 * hash + layoutConstraints.hashCode();
-        hash = 31 * hash + Boolean.hashCode(lineChecksEnabled);
-        hash = 31 * hash + Boolean.hashCode(terrainAvoidanceEnabled);
         hash = 31 * hash + Boolean.hashCode(automaticTowerSelectionEnabled);
         hash = 31 * hash + Boolean.hashCode(perSiteParametricHeightEnabled);
         hash = 31 * hash + Boolean.hashCode(spacingCustomized);
         hash = 31 * hash + Objects.hashCode(poleSpacingMode);
         hash = 31 * hash + targetTowerCount;
+        return hash;
+    }
+
+    /** 仅影响检查/分析行为的指纹（不改变生成几何）。 */
+    public int analysisFingerprint() {
+        int hash = 1;
+        hash = 31 * hash + Boolean.hashCode(lineChecksEnabled);
+        hash = 31 * hash + Boolean.hashCode(terrainAvoidanceEnabled);
+        return hash;
+    }
+
+    /**
+     * 影响生成结果的完整参数指纹（几何 + 分析）。
+     */
+    public int generationFingerprint() {
+        int hash = 31 * geometryFingerprint() + analysisFingerprint();
         return hash;
     }
 

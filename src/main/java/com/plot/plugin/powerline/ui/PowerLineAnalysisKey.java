@@ -4,21 +4,25 @@ import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 
 /**
- * 工程/地形分析缓存版本键：绑定到某次预览的线路与设计工程指纹。
+ * 工程/地形分析缓存版本键：绑定到某次预览的几何指纹与分析开关。
  */
 public record PowerLineAnalysisKey(
         String footprintId,
-        int footprintFingerprint,
+        int geometryFingerprint,
+        int analysisFingerprint,
         int designProjectFingerprint,
         int projectionFingerprint) {
 
-    public static PowerLineAnalysisKey capture(PowerLinePreviewKey previewKey) {
-        if (previewKey == null) {
+    public static PowerLineAnalysisKey capture(
+            PowerLinePreviewKey previewKey,
+            PowerLineFootprint footprint) {
+        if (previewKey == null || footprint == null) {
             return null;
         }
         return new PowerLineAnalysisKey(
             previewKey.footprintId(),
             previewKey.footprintFingerprint(),
+            footprint.analysisFingerprint(),
             previewKey.designProjectFingerprint(),
             previewKey.projectionFingerprint());
     }
@@ -33,7 +37,8 @@ public record PowerLineAnalysisKey(
         if (!footprintId.equals(footprint.getId())) {
             return false;
         }
-        return footprintFingerprint == currentPreviewKey.footprintFingerprint()
+        return geometryFingerprint == currentPreviewKey.footprintFingerprint()
+            && analysisFingerprint == footprint.analysisFingerprint()
             && designProjectFingerprint == currentPreviewKey.designProjectFingerprint()
             && projectionFingerprint == currentPreviewKey.projectionFingerprint();
     }

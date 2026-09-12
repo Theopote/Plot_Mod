@@ -31,7 +31,7 @@ public record PowerLinePreviewKey(
             : 0;
         return new PowerLinePreviewKey(
             footprint.getId(),
-            footprint.generationFingerprint(),
+            footprint.geometryFingerprint(),
             designProjectFingerprint(designProject),
             projectionFingerprint);
     }
@@ -46,7 +46,7 @@ public record PowerLinePreviewKey(
         int currentProjection = coordinates != null
             ? coordinates.captureProjection().fingerprint()
             : 0;
-        return footprintFingerprint == footprint.generationFingerprint()
+        return footprintFingerprint == footprint.geometryFingerprint()
             && designProjectFingerprint == designProjectFingerprint(designProject)
             && projectionFingerprint == currentProjection;
     }
@@ -55,7 +55,7 @@ public record PowerLinePreviewKey(
         if (footprint == null || footprintId == null || !footprintId.equals(footprint.getId())) {
             return false;
         }
-        return footprintFingerprint == footprint.generationFingerprint()
+        return footprintFingerprint == footprint.geometryFingerprint()
             && designProjectFingerprint == designProjectFingerprint(designProject)
             && projectionFingerprint == 0;
     }

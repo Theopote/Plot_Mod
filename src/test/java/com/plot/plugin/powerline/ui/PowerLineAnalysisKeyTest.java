@@ -20,7 +20,7 @@ class PowerLineAnalysisKeyTest {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
         PowerLineDesignProject designs = new PowerLineDesignProject();
         PowerLinePreviewKey previewKey = PowerLinePreviewKey.capture(line, designs);
-        PowerLineAnalysisKey analysisKey = PowerLineAnalysisKey.capture(previewKey);
+        PowerLineAnalysisKey analysisKey = PowerLineAnalysisKey.capture(previewKey, line);
 
         assertTrue(analysisKey.matches(line, designs, previewKey));
     }
@@ -31,7 +31,7 @@ class PowerLineAnalysisKeyTest {
         PowerLineDesignProject designs = new PowerLineDesignProject();
         ICoordinateService nearView = projectionService(100f, 1f);
         PowerLinePreviewKey previewKey = PowerLinePreviewKey.capture(line, designs, nearView);
-        PowerLineAnalysisKey analysisKey = PowerLineAnalysisKey.capture(previewKey);
+        PowerLineAnalysisKey analysisKey = PowerLineAnalysisKey.capture(previewKey, line);
 
         assertTrue(analysisKey.matches(line, designs, previewKey));
     }
@@ -41,7 +41,8 @@ class PowerLineAnalysisKeyTest {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
         PowerLineDesignProject designs = new PowerLineDesignProject();
         PowerLineAnalysisKey analysisKey = PowerLineAnalysisKey.capture(
-            PowerLinePreviewKey.capture(line, designs));
+            PowerLinePreviewKey.capture(line, designs),
+            line);
 
         line.setSagRatio(0.25);
         PowerLinePreviewKey currentPreviewKey = PowerLinePreviewKey.capture(line, designs);
@@ -50,11 +51,22 @@ class PowerLineAnalysisKeyTest {
     }
 
     @Test
+    void mismatchesWhenAnalysisToggleChanges() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
+        PowerLineDesignProject designs = new PowerLineDesignProject();
+        PowerLinePreviewKey previewKey = PowerLinePreviewKey.capture(line, designs);
+        PowerLineAnalysisKey analysisKey = PowerLineAnalysisKey.capture(previewKey, line);
+
+        line.setLineChecksEnabled(false);
+        assertFalse(analysisKey.matches(line, designs, previewKey));
+    }
+
+    @Test
     void mismatchesWhenFootprintIdChanges() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
         PowerLineDesignProject designs = new PowerLineDesignProject();
         PowerLinePreviewKey previewKey = PowerLinePreviewKey.capture(line, designs);
-        PowerLineAnalysisKey analysisKey = PowerLineAnalysisKey.capture(previewKey);
+        PowerLineAnalysisKey analysisKey = PowerLineAnalysisKey.capture(previewKey, line);
 
         PowerLineFootprint other = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
         PowerLinePreviewKey otherPreviewKey = PowerLinePreviewKey.capture(other, designs);

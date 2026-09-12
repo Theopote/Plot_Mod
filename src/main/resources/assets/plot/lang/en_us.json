@@ -3708,6 +3708,7 @@
   "plugin.powerline.warn.missing_attachment_downstream": "Missing attachment \"%s\" (%s) on downstream pole at (%.1f, %.1f)",
   "plugin.powerline.warn.attachment_role_mismatch": "Attachment role mismatch for \"%s\": %s vs %s — skipping span",
   "plugin.powerline.warn.missing_attachment_upstream": "Missing attachment \"%s\" (%s) on upstream pole at (%.1f, %.1f)",
+  "plugin.powerline.warn.duplicate_attachment_id": "Duplicate attachment id \"%s\" (%s) on pole at (%.1f, %.1f) — later entry overrides earlier",
   "plugin.powerline.warn.clearance_at_point": "Clearance warning at (%.1f, %.1f): wire Y=%d, ground Y=%d",
   "plugin.powerline.warn.pole_design_override_not_found": "Pole design override not found: %s",
   "plugin.powerline.warn.tower_family_not_found": "Tower family not found: %s",
