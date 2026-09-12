@@ -46,4 +46,24 @@ public final class PoleDesignResolver {
     public PowerLineDesignProject userDesigns() {
         return userDesigns;
     }
+
+    /**
+     * 返回可编辑副本：用户自定义设计返回拷贝，内置预设返回分叉副本。
+     */
+    public PoleDesign prepareEditableCopy(String designId) {
+        PoleDesign current = find(designId);
+        if (current == null) {
+            return new PoleDesign(com.plot.utils.PlotI18n.tr("plugin.powerline.pole_design_default"));
+        }
+        if (!PoleDesignCatalog.isBuiltinId(designId) && userDesigns.getDesign(designId) != null) {
+            return current.copy();
+        }
+        PoleDesign fork = new PoleDesign(current.getName());
+        fork.setLayers(current.getLayers());
+        fork.setAttachments(current.getAttachments());
+        fork.setTowerStructure(current.getTowerStructure());
+        fork.setEngineeringMetadata(current.getEngineeringMetadata());
+        fork.setGeneratorConfig(current.getGeneratorConfig());
+        return fork;
+    }
 }

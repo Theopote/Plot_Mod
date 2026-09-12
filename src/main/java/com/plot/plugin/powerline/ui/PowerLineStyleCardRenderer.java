@@ -12,6 +12,7 @@ import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.plugin.powerline.style.PowerLineStylePreviewBinding;
 import com.plot.plugin.powerline.style.PreviewRepresentation;
 import com.plot.plugin.powerline.style.StyleCardPreviewBinding;
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -24,10 +25,7 @@ public final class PowerLineStyleCardRenderer {
     private static final float PREVIEW_HEIGHT = 96f;
     private static final float LABEL_PADDING = 4f;
 
-    private static final int COLOR_BG = 0xFF1E1E1E;
     private static final int COLOR_BG_SELECTED = 0xFF263238;
-    private static final int COLOR_BORDER = 0xFF484848;
-    private static final int COLOR_SELECTED_RING = 0xFF4DA6FF;
     private static final int COLOR_LABEL = 0xFFE8E8E8;
     private static final int COLOR_LABEL_DIM = 0xFFB0B0B0;
     private static final int COLOR_CUSTOM_BG = 0xFF171717;
@@ -62,9 +60,9 @@ public final class PowerLineStyleCardRenderer {
         float x1 = x0 + CARD_WIDTH;
         float y1 = y0 + CARD_HEIGHT;
 
-        int bg = selected ? COLOR_BG_SELECTED : COLOR_BG;
+        int bg = selected ? COLOR_BG_SELECTED : PluginUiColors.MAP_BG;
         drawList.addRectFilled(x0, y0, x1, y1, bg);
-        int borderColor = selected ? COLOR_SELECTED_RING : COLOR_BORDER;
+        int borderColor = selected ? PluginUiColors.ACCENT_BLUE : PluginUiColors.PANEL_BORDER;
         float borderThickness = selected ? 2f : 1f;
         drawList.addRect(x0, y0, x1, y1, borderColor, 4f, 0, borderThickness);
 
@@ -104,7 +102,7 @@ public final class PowerLineStyleCardRenderer {
                 frontOrigin.y,
                 frontOrigin.x + previewW,
                 frontOrigin.y + previewH,
-                0xFF141414);
+                PluginUiColors.PANEL_BG_DARK);
             drawPackPreview(
                 drawList,
                 pack,
@@ -126,7 +124,7 @@ public final class PowerLineStyleCardRenderer {
                 sideOrigin.y,
                 sideOrigin.x + previewW,
                 sideOrigin.y + previewH,
-                0xFF141414);
+                PluginUiColors.PANEL_BG_DARK);
             drawSidePreview(
                 drawList, previewDesign, sideOrigin.x, sideOrigin.y, sideOrigin.x + previewW, sideOrigin.y + previewH);
             ImGui.dummy(previewW, previewH);
@@ -185,14 +183,14 @@ public final class PowerLineStyleCardRenderer {
             origin.y,
             origin.x + panelW,
             origin.y + LARGE_PREVIEW_PANEL_HEIGHT,
-            COLOR_BG,
+            PluginUiColors.MAP_BG,
             6f);
         drawList.addRect(
             origin.x,
             origin.y,
             origin.x + panelW,
             origin.y + LARGE_PREVIEW_PANEL_HEIGHT,
-            COLOR_BORDER,
+            PluginUiColors.PANEL_BORDER,
             6f,
             0,
             1f);
@@ -241,8 +239,8 @@ public final class PowerLineStyleCardRenderer {
         float y0 = origin.y;
         float x1 = x0 + COMPACT_WIDTH;
         float y1 = y0 + COMPACT_HEIGHT;
-        drawList.addRectFilled(x0, y0, x1, y1, COLOR_BG);
-        drawList.addRect(x0, y0, x1, y1, COLOR_BORDER, 3f, 0, 1f);
+        drawList.addRectFilled(x0, y0, x1, y1, PluginUiColors.MAP_BG);
+        drawList.addRect(x0, y0, x1, y1, PluginUiColors.PANEL_BORDER, 3f, 0, 1f);
         EffectiveStylePreview effective = EffectiveStylePreviewResolver.resolve(line, base, resolver);
         PoleDesign previewDesign = effective != null ? effective.previewDesign() : null;
         if (previewDesign != null) {
@@ -275,8 +273,8 @@ public final class PowerLineStyleCardRenderer {
         float y0 = origin.y;
         float x1 = x0 + COMPACT_WIDTH;
         float y1 = y0 + COMPACT_HEIGHT;
-        drawList.addRectFilled(x0, y0, x1, y1, COLOR_BG);
-        drawList.addRect(x0, y0, x1, y1, COLOR_BORDER, 3f, 0, 1f);
+        drawList.addRectFilled(x0, y0, x1, y1, PluginUiColors.MAP_BG);
+        drawList.addRect(x0, y0, x1, y1, PluginUiColors.PANEL_BORDER, 3f, 0, 1f);
         if (pack != null) {
             drawPackPreview(drawList, pack, x0 + 2f, y0 + 2f, x1 - 2f, y0 + COMPACT_PREVIEW_HEIGHT);
         } else {
@@ -385,8 +383,8 @@ public final class PowerLineStyleCardRenderer {
             float y0,
             float x1,
             float y1) {
-        drawList.addRectFilled(x0, y0, x1, y1, 0xFF141414);
-        drawDashedRect(drawList, x0 + 2f, y0 + 2f, x1 - 2f, y1 - 2f, COLOR_BORDER, 2f, 1f, 3f, 3f);
+        drawList.addRectFilled(x0, y0, x1, y1, PluginUiColors.PANEL_BG_DARK);
+        drawDashedRect(drawList, x0 + 2f, y0 + 2f, x1 - 2f, y1 - 2f, PluginUiColors.PANEL_BORDER, 2f, 1f, 3f, 3f);
     }
 
     /** 自定义样式：材质色块 + 调节滑条 + 虚线导线。 */

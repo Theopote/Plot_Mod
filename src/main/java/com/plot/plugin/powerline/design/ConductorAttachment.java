@@ -33,6 +33,8 @@ public class ConductorAttachment {
     /** BOUND 模式相对横担挂线高度的竖向偏移。 */
     private double verticalAnchorOffset;
     private boolean enabled = true;
+    /** 怪物级塔外相绝缘子布局（V 型串 vs 双串）。 */
+    private boolean outerPhaseInsulator;
 
     public ConductorAttachment() {
         this.id = UUID.randomUUID().toString();
@@ -182,6 +184,14 @@ public class ConductorAttachment {
         this.enabled = enabled;
     }
 
+    public boolean isOuterPhaseInsulator() {
+        return outerPhaseInsulator;
+    }
+
+    public void setOuterPhaseInsulator(boolean outerPhaseInsulator) {
+        this.outerPhaseInsulator = outerPhaseInsulator;
+    }
+
     public ConductorAttachment copy() {
         ConductorAttachment copy = new ConductorAttachment(id, name);
         copy.lateralOffset = lateralOffset;
@@ -200,6 +210,7 @@ public class ConductorAttachment {
         copy.normalizedPosition = normalizedPosition;
         copy.verticalAnchorOffset = verticalAnchorOffset;
         copy.enabled = enabled;
+        copy.outerPhaseInsulator = outerPhaseInsulator;
         return copy;
     }
 
@@ -223,6 +234,7 @@ public class ConductorAttachment {
             && Double.compare(normalizedPosition, other.normalizedPosition) == 0
             && Double.compare(verticalAnchorOffset, other.verticalAnchorOffset) == 0
             && enabled == other.enabled
+            && outerPhaseInsulator == other.outerPhaseInsulator
             && materialEquals(insulatorMaterial, other.insulatorMaterial);
     }
 
@@ -244,6 +256,7 @@ public class ConductorAttachment {
             normalizedPosition,
             verticalAnchorOffset,
             enabled,
+            outerPhaseInsulator,
             insulatorMaterial != null ? insulatorMaterial.getPrimaryMaterial() : null,
             insulatorMaterial != null ? insulatorMaterial.getAccentMaterial() : null,
             insulatorMaterial != null ? insulatorMaterial.getAccentRatio() : 0f);

@@ -3,7 +3,6 @@ package com.plot.plugin.powerline.ui;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
-import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
 import com.plot.plugin.powerline.PowerLineSagUtils;
@@ -255,13 +254,13 @@ public final class PowerLineStyleQuickTunePanel {
             origin.y,
             origin.x + previewWidth,
             origin.y + SAG_PREVIEW_HEIGHT,
-            0xFF141414);
+            PluginUiColors.PANEL_BG_DARK);
         drawList.addRect(
             origin.x,
             origin.y,
             origin.x + previewWidth,
             origin.y + SAG_PREVIEW_HEIGHT,
-            0xFF484848);
+            PluginUiColors.PANEL_BORDER);
         double maxDepth = line.isMaxSagDepthUnlimited()
             ? PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH
             : line.getMaxSagDepth();
@@ -598,20 +597,6 @@ public final class PowerLineStyleQuickTunePanel {
     }
 
     private PoleDesign ensureEditableDesign(PowerLineFootprint line) {
-        String id = line.getPoleDesignId();
-        PoleDesignResolver resolver = ctx.designResolver();
-        PoleDesign current = resolver.find(id);
-        if (current == null) {
-            return new PoleDesign(PlotI18n.tr("plugin.powerline.pole_design_default"));
-        }
-        if (!PoleDesignCatalog.isBuiltinId(id) && resolver.userDesigns().getDesign(id) != null) {
-            return current.copy();
-        }
-        PoleDesign fork = new PoleDesign(current.getName());
-        fork.setLayers(current.getLayers());
-        fork.setAttachments(current.getAttachments());
-        fork.setTowerStructure(current.getTowerStructure());
-        fork.setEngineeringMetadata(current.getEngineeringMetadata());
-        return fork;
+        return ctx.designResolver().prepareEditableCopy(line.getPoleDesignId());
     }
 }

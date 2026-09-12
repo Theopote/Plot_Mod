@@ -31,9 +31,6 @@ public final class PowerLineOverviewRenderer {
     private static final float SELECTED_PATH_THICKNESS = 3f;
     private static final float POLE_RADIUS = 3f;
 
-    private static final int COLOR_BG = 0xFF1E1E1E;
-    private static final int COLOR_BORDER = 0xFF484848;
-    private static final int COLOR_SELECTED_RING = 0xFF4DA6FF;
     private static final int[] LINE_COLORS = {
         0xFF4DA6FF,
         0xFF66CC66,
@@ -65,8 +62,8 @@ public final class PowerLineOverviewRenderer {
 
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
-        drawList.addRectFilled(origin.x, origin.y, origin.x + width, origin.y + height, COLOR_BG);
-        drawList.addRect(origin.x, origin.y, origin.x + width, origin.y + height, COLOR_BORDER);
+        drawList.addRectFilled(origin.x, origin.y, origin.x + width, origin.y + height, PluginUiColors.MAP_BG);
+        drawList.addRect(origin.x, origin.y, origin.x + width, origin.y + height, PluginUiColors.PANEL_BORDER);
 
         List<PowerLineFootprint> lines = new ArrayList<>(project.getLines().values());
         if (lines.isEmpty()) {
@@ -82,7 +79,7 @@ public final class PowerLineOverviewRenderer {
         for (int i = 0; i < lines.size(); i++) {
             PowerLineFootprint line = lines.get(i);
             boolean selected = selectedLineIds != null && selectedLineIds.contains(line.getId());
-            int color = selected ? COLOR_SELECTED_RING : lineColor(i);
+            int color = selected ? PluginUiColors.ACCENT_BLUE : lineColor(i);
             drawLinePath(drawList, line, viewport, color, selected);
             drawPoles(drawList, line, viewport, selected, coordinates);
         }
@@ -114,13 +111,13 @@ public final class PowerLineOverviewRenderer {
         float x = origin.x;
         float y = origin.y;
 
-        drawList.addRectFilled(x, y, x + THUMBNAIL_WIDTH, y + THUMBNAIL_HEIGHT, COLOR_BG);
-        int borderColor = selected ? COLOR_SELECTED_RING : COLOR_BORDER;
+        drawList.addRectFilled(x, y, x + THUMBNAIL_WIDTH, y + THUMBNAIL_HEIGHT, PluginUiColors.MAP_BG);
+        int borderColor = selected ? PluginUiColors.ACCENT_BLUE : PluginUiColors.PANEL_BORDER;
         drawList.addRect(x, y, x + THUMBNAIL_WIDTH, y + THUMBNAIL_HEIGHT, borderColor, 0f, 0, selected ? 2f : 1f);
 
         Bounds bounds = computeBounds(List.of(line));
         MapViewport viewport = buildViewport(bounds, x, y, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
-        int color = selected ? COLOR_SELECTED_RING : 0xFF9EC9FF;
+        int color = selected ? PluginUiColors.ACCENT_BLUE : 0xFF9EC9FF;
         drawLinePath(drawList, line, viewport, color, selected);
         drawPoles(drawList, line, viewport, selected, coordinates);
 
@@ -169,7 +166,7 @@ public final class PowerLineOverviewRenderer {
             MapViewport viewport,
             boolean selected,
             ICoordinateService coordinates) {
-        int color = selected ? COLOR_SELECTED_RING : 0xFFE0E0E0;
+        int color = selected ? PluginUiColors.ACCENT_BLUE : 0xFFE0E0E0;
         for (PowerPoleSite site : PowerPoleLayoutUtils.computePoleSites(line, coordinates)) {
             Vec2d pole = site.getPlanPosition();
             float sx = toScreenX(pole.x, viewport);

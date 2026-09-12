@@ -13,7 +13,7 @@ class PoleDesignDraftHistoryTest {
     void undoRestoresSnapshotTakenBeforeMutation() {
         PoleDesignDraftHistory history = new PoleDesignDraftHistory();
         PoleDesign draft = new PoleDesign("Original");
-        draft.getLayers().add(new PoleLayer(
+        draft.addLayer(new PoleLayer(
             PoleLayer.Shape.COLUMN,
             4,
             MaterialMix.single("minecraft:oak_planks")));

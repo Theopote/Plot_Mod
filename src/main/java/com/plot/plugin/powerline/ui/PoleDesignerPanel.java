@@ -816,7 +816,7 @@ public final class PoleDesignerPanel {
     }
 
     private void syncLatticePresetAttachments(TowerStructureDesign structure) {
-        draft.getAttachments().clear();
+        draft.clearAttachments();
         TowerArm mainArm = structure.getArms().isEmpty() ? null : structure.getArms().getFirst();
         if (mainArm != null) {
             for (ConductorAttachment attachment : TowerArmAttachmentBinding.createThreePhaseDeck(mainArm)) {
@@ -1077,7 +1077,7 @@ public final class PoleDesignerPanel {
         applyPendingLayerActions();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.add_layer"), 0, 0)) {
             pushDraftSnapshot();
-            draft.getLayers().add(new PoleLayer(
+            draft.addLayer(new PoleLayer(
                 PoleLayer.Shape.COLUMN,
                 1,
                 MaterialMix.single(PowerLineFootprint.DEFAULT_POLE_MATERIAL)));
@@ -1213,7 +1213,7 @@ public final class PoleDesignerPanel {
             switch (action.type()) {
                 case MOVE_UP -> moveLayer(action.index(), -1);
                 case MOVE_DOWN -> moveLayer(action.index(), 1);
-                case DELETE -> draft.getLayers().remove(action.index());
+                case DELETE -> draft.removeLayerAt(action.index());
             }
         }
     }
@@ -1223,8 +1223,7 @@ public final class PoleDesignerPanel {
         if (target < 0 || target >= draft.getLayers().size()) {
             return;
         }
-        PoleLayer current = draft.getLayers().remove(index);
-        draft.getLayers().add(target, current);
+        draft.moveLayer(index, target);
     }
 
     private void saveDraft(boolean forceNewId) {
@@ -1333,7 +1332,7 @@ public final class PoleDesignerPanel {
 
     private static PoleDesign newBlankDesign() {
         PoleDesign design = new PoleDesign(PlotI18n.tr("plugin.powerline.design.new_name"));
-        design.getLayers().add(new PoleLayer(
+        design.addLayer(new PoleLayer(
             PoleLayer.Shape.COLUMN,
             4,
             MaterialMix.single(PowerLineFootprint.DEFAULT_POLE_MATERIAL)));

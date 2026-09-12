@@ -214,7 +214,7 @@ class PowerLineMultiConductorTest {
 
     private static PoleDesign threePhaseDesign() {
         PoleDesign design = new PoleDesign("three-phase", "Three Phase");
-        design.getLayers().add(new PoleLayer(
+        design.addLayer(new PoleLayer(
             PoleLayer.Shape.COLUMN,
             8,
             MaterialMix.single("minecraft:oak_fence")));

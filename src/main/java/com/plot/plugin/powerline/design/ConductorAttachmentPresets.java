@@ -24,17 +24,17 @@ public final class ConductorAttachmentPresets {
             double lateralB,
             double lateralC) {
         List<ConductorAttachment> attachments = new ArrayList<>(3);
-        attachments.add(createPhase(PHASE_A_ID, "A", AttachmentRole.PHASE_A, lateralA, verticalOffset));
-        attachments.add(createPhase(PHASE_B_ID, "B", AttachmentRole.PHASE_B, lateralB, verticalOffset));
-        attachments.add(createPhase(PHASE_C_ID, "C", AttachmentRole.PHASE_C, lateralC, verticalOffset));
+        attachments.add(createPhase(PHASE_A_ID, "A", AttachmentRole.PHASE_A, lateralA, verticalOffset, true));
+        attachments.add(createPhase(PHASE_B_ID, "B", AttachmentRole.PHASE_B, lateralB, verticalOffset, false));
+        attachments.add(createPhase(PHASE_C_ID, "C", AttachmentRole.PHASE_C, lateralC, verticalOffset, true));
         return attachments;
     }
 
     public static List<ConductorAttachment> threePhaseVertical(double verticalOffset) {
         List<ConductorAttachment> attachments = new ArrayList<>(3);
-        attachments.add(createPhase(PHASE_A_ID, "A", AttachmentRole.PHASE_A, 0.0, verticalOffset - 1.0));
-        attachments.add(createPhase(PHASE_B_ID, "B", AttachmentRole.PHASE_B, 0.0, verticalOffset));
-        attachments.add(createPhase(PHASE_C_ID, "C", AttachmentRole.PHASE_C, 0.0, verticalOffset + 1.0));
+        attachments.add(createPhase(PHASE_A_ID, "A", AttachmentRole.PHASE_A, 0.0, verticalOffset - 1.0, true));
+        attachments.add(createPhase(PHASE_B_ID, "B", AttachmentRole.PHASE_B, 0.0, verticalOffset, false));
+        attachments.add(createPhase(PHASE_C_ID, "C", AttachmentRole.PHASE_C, 0.0, verticalOffset + 1.0, true));
         return attachments;
     }
 
@@ -86,12 +86,12 @@ public final class ConductorAttachmentPresets {
             double rightB,
             double rightC) {
         List<ConductorAttachment> attachments = new ArrayList<>(8);
-        attachments.add(createPhase("left_phase_a", "LA", AttachmentRole.PHASE_A, leftA, verticalOffset));
-        attachments.add(createPhase("left_phase_b", "LB", AttachmentRole.PHASE_B, leftB, verticalOffset));
-        attachments.add(createPhase("left_phase_c", "LC", AttachmentRole.PHASE_C, leftC, verticalOffset));
-        attachments.add(createPhase("right_phase_a", "RA", AttachmentRole.PHASE_A, rightA, verticalOffset));
-        attachments.add(createPhase("right_phase_b", "RB", AttachmentRole.PHASE_B, rightB, verticalOffset));
-        attachments.add(createPhase("right_phase_c", "RC", AttachmentRole.PHASE_C, rightC, verticalOffset));
+        attachments.add(createPhase("left_phase_a", "LA", AttachmentRole.PHASE_A, leftA, verticalOffset, true));
+        attachments.add(createPhase("left_phase_b", "LB", AttachmentRole.PHASE_B, leftB, verticalOffset, true));
+        attachments.add(createPhase("left_phase_c", "LC", AttachmentRole.PHASE_C, leftC, verticalOffset, true));
+        attachments.add(createPhase("right_phase_a", "RA", AttachmentRole.PHASE_A, rightA, verticalOffset, true));
+        attachments.add(createPhase("right_phase_b", "RB", AttachmentRole.PHASE_B, rightB, verticalOffset, true));
+        attachments.add(createPhase("right_phase_c", "RC", AttachmentRole.PHASE_C, rightC, verticalOffset, true));
         attachments.addAll(twinTopWires(verticalOffset + 6, 2.5));
         return attachments;
     }
@@ -109,18 +109,18 @@ public final class ConductorAttachmentPresets {
             double rightB,
             double rightC) {
         List<ConductorAttachment> attachments = new ArrayList<>(14);
-        attachments.add(createPhase("ll_phase_a", "LLA", AttachmentRole.PHASE_A, leftA, lowerDeckOffset));
-        attachments.add(createPhase("ll_phase_b", "LLB", AttachmentRole.PHASE_B, leftB, lowerDeckOffset));
-        attachments.add(createPhase("ll_phase_c", "LLC", AttachmentRole.PHASE_C, leftC, lowerDeckOffset));
-        attachments.add(createPhase("lr_phase_a", "LRA", AttachmentRole.PHASE_A, rightA, lowerDeckOffset));
-        attachments.add(createPhase("lr_phase_b", "LRB", AttachmentRole.PHASE_B, rightB, lowerDeckOffset));
-        attachments.add(createPhase("lr_phase_c", "LRC", AttachmentRole.PHASE_C, rightC, lowerDeckOffset));
-        attachments.add(createPhase("ul_phase_a", "ULA", AttachmentRole.PHASE_A, leftA, upperDeckOffset));
-        attachments.add(createPhase("ul_phase_b", "ULB", AttachmentRole.PHASE_B, leftB, upperDeckOffset));
-        attachments.add(createPhase("ul_phase_c", "ULC", AttachmentRole.PHASE_C, leftC, upperDeckOffset));
-        attachments.add(createPhase("ur_phase_a", "URA", AttachmentRole.PHASE_A, rightA, upperDeckOffset));
-        attachments.add(createPhase("ur_phase_b", "URB", AttachmentRole.PHASE_B, rightB, upperDeckOffset));
-        attachments.add(createPhase("ur_phase_c", "URC", AttachmentRole.PHASE_C, rightC, upperDeckOffset));
+        attachments.add(createPhase("ll_phase_a", "LLA", AttachmentRole.PHASE_A, leftA, lowerDeckOffset, true));
+        attachments.add(createPhase("ll_phase_b", "LLB", AttachmentRole.PHASE_B, leftB, lowerDeckOffset, true));
+        attachments.add(createPhase("ll_phase_c", "LLC", AttachmentRole.PHASE_C, leftC, lowerDeckOffset, true));
+        attachments.add(createPhase("lr_phase_a", "LRA", AttachmentRole.PHASE_A, rightA, lowerDeckOffset, true));
+        attachments.add(createPhase("lr_phase_b", "LRB", AttachmentRole.PHASE_B, rightB, lowerDeckOffset, true));
+        attachments.add(createPhase("lr_phase_c", "LRC", AttachmentRole.PHASE_C, rightC, lowerDeckOffset, true));
+        attachments.add(createPhase("ul_phase_a", "ULA", AttachmentRole.PHASE_A, leftA, upperDeckOffset, true));
+        attachments.add(createPhase("ul_phase_b", "ULB", AttachmentRole.PHASE_B, leftB, upperDeckOffset, true));
+        attachments.add(createPhase("ul_phase_c", "ULC", AttachmentRole.PHASE_C, leftC, upperDeckOffset, true));
+        attachments.add(createPhase("ur_phase_a", "URA", AttachmentRole.PHASE_A, rightA, upperDeckOffset, true));
+        attachments.add(createPhase("ur_phase_b", "URB", AttachmentRole.PHASE_B, rightB, upperDeckOffset, true));
+        attachments.add(createPhase("ur_phase_c", "URC", AttachmentRole.PHASE_C, rightC, upperDeckOffset, true));
         attachments.addAll(twinTopWires(upperDeckOffset + 8, 3.0));
         return attachments;
     }
@@ -133,7 +133,13 @@ public final class ConductorAttachmentPresets {
             double verticalOffset,
             int bundleCount) {
         int count = Math.max(1, bundleCount);
-        ConductorAttachment attachment = createPhase(baseId, name, role, centerLateral, verticalOffset);
+        ConductorAttachment attachment = createPhase(
+            baseId,
+            name,
+            role,
+            centerLateral,
+            verticalOffset,
+            role == AttachmentRole.PHASE_A || role == AttachmentRole.PHASE_C);
         attachment.setBundleVisual(BundleVisual.forSubconductorCount(count));
         return List.of(attachment);
     }
@@ -153,10 +159,21 @@ public final class ConductorAttachmentPresets {
             AttachmentRole role,
             double lateral,
             double verticalOffset) {
+        return createPhase(id, name, role, lateral, verticalOffset, false);
+    }
+
+    private static ConductorAttachment createPhase(
+            String id,
+            String name,
+            AttachmentRole role,
+            double lateral,
+            double verticalOffset,
+            boolean outerPhaseInsulator) {
         ConductorAttachment attachment = new ConductorAttachment(id, name);
         attachment.setRole(role);
         attachment.setLateralOffset(lateral);
         attachment.setVerticalOffset(verticalOffset);
+        attachment.setOuterPhaseInsulator(outerPhaseInsulator);
         return attachment;
     }
 }

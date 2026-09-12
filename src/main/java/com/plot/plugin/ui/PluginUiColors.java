@@ -38,6 +38,12 @@ public final class PluginUiColors {
     public static final int LEGEND_DARK = ImColor.rgba(112, 112, 112, 255);
     /** 描边 / 深色环 */
     public static final int RING_DARK = ImColor.rgba(32, 32, 32, 255);
+    /** 面板/卡片深色背景 */
+    public static final int PANEL_BG_DARK = ImColor.rgba(20, 20, 20, 255);
+    /** 预览缩略图背景 */
+    public static final int MAP_BG = ImColor.rgba(30, 30, 30, 255);
+    /** 面板/卡片边框 */
+    public static final int PANEL_BORDER = ImColor.rgba(72, 72, 72, 255);
     /** 删除按钮 */
     public static final int DELETE = ImColor.rgba(255, 0, 0, 255);
     public static final int DELETE_HOVER = ImColor.rgba(255, 32, 32, 255);

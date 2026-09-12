@@ -78,7 +78,7 @@ class PowerLinePreviewKeyTest {
         PowerLinePreviewKey key = PowerLinePreviewKey.capture(line, designs);
 
         PoleDesign edited = designs.getDesign(PoleDesignCatalog.SIMPLE_WOOD_POLE_ID);
-        edited.getAttachments().add(
+        edited.addAttachment(
             com.plot.plugin.powerline.design.ConductorAttachmentPresets.singleConductor(12.0).getFirst());
         assertFalse(key.matches(line, designs));
     }

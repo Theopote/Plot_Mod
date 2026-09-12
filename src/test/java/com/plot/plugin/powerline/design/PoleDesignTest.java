@@ -10,6 +10,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PoleDesignTest {
@@ -17,9 +18,9 @@ class PoleDesignTest {
     @Test
     void totalHeightSumsLayerHeights() {
         PoleDesign design = new PoleDesign("test");
-        design.getLayers().add(new PoleLayer(PoleLayer.Shape.COLUMN, 4, MaterialMix.single("minecraft:oak_fence")));
-        design.getLayers().add(new PoleLayer(PoleLayer.Shape.CROSSARM, 1, MaterialMix.single("minecraft:oak_slab")));
-        design.getLayers().add(new PoleLayer(PoleLayer.Shape.CAP, 1, MaterialMix.single("minecraft:lantern")));
+        design.addLayer(new PoleLayer(PoleLayer.Shape.COLUMN, 4, MaterialMix.single("minecraft:oak_fence")));
+        design.addLayer(new PoleLayer(PoleLayer.Shape.CROSSARM, 1, MaterialMix.single("minecraft:oak_slab")));
+        design.addLayer(new PoleLayer(PoleLayer.Shape.CAP, 1, MaterialMix.single("minecraft:lantern")));
 
         assertEquals(6, design.totalHeight());
     }
@@ -130,12 +131,22 @@ class PoleDesignTest {
     }
 
     @Test
+    void gettersExposeUnmodifiableLists() {
+        PoleDesign design = new PoleDesign("immutable");
+        design.addLayer(new PoleLayer(PoleLayer.Shape.COLUMN, 2, MaterialMix.single("minecraft:oak_fence")));
+        design.addAttachment(new ConductorAttachment("phase_a", "A"));
+
+        assertThrows(UnsupportedOperationException.class, () -> design.getLayers().add(new PoleLayer()));
+        assertThrows(UnsupportedOperationException.class, () -> design.getAttachments().clear());
+    }
+
+    @Test
     void topmostCrossarmIsConductorAttachmentLayer() {
         PoleDesign design = new PoleDesign("multi-crossarm");
-        design.getLayers().add(new PoleLayer(PoleLayer.Shape.COLUMN, 4, MaterialMix.single("minecraft:oak_fence")));
-        design.getLayers().add(new PoleLayer(PoleLayer.Shape.CROSSARM, 1, MaterialMix.single("minecraft:oak_slab")));
-        design.getLayers().add(new PoleLayer(PoleLayer.Shape.COLUMN, 3, MaterialMix.single("minecraft:oak_fence")));
-        design.getLayers().add(new PoleLayer(PoleLayer.Shape.CROSSARM, 1, MaterialMix.single("minecraft:oak_slab")));
+        design.addLayer(new PoleLayer(PoleLayer.Shape.COLUMN, 4, MaterialMix.single("minecraft:oak_fence")));
+        design.addLayer(new PoleLayer(PoleLayer.Shape.CROSSARM, 1, MaterialMix.single("minecraft:oak_slab")));
+        design.addLayer(new PoleLayer(PoleLayer.Shape.COLUMN, 3, MaterialMix.single("minecraft:oak_fence")));
+        design.addLayer(new PoleLayer(PoleLayer.Shape.CROSSARM, 1, MaterialMix.single("minecraft:oak_slab")));
 
         assertEquals(3, design.conductorCrossarmLayerIndex());
         assertEquals(73, design.wireHangHeightFromGround(64));

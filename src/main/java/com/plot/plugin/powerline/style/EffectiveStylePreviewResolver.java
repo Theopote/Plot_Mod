@@ -116,7 +116,7 @@ public final class EffectiveStylePreviewResolver {
             ? line.getPoleMaterial().copy()
             : MaterialMix.single(PowerLineFootprint.DEFAULT_POLE_MATERIAL);
         PoleDesign design = new PoleDesign("_effective_preview", "Preview");
-        design.getLayers().add(new PoleLayer(PoleLayer.Shape.COLUMN, height, material));
+        design.addLayer(new PoleLayer(PoleLayer.Shape.COLUMN, height, material));
         return design;
     }
 

@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.plugin.powerline.style.PowerLineSpacingPolicy;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -13,10 +14,7 @@ public final class PowerLineSpacingCardRenderer {
     private static final float PREVIEW_HEIGHT = 36f;
     private static final float LABEL_PADDING = 3f;
 
-    private static final int COLOR_BG = 0xFF1E1E1E;
     private static final int COLOR_BG_SELECTED = 0xFF263238;
-    private static final int COLOR_BORDER = 0xFF484848;
-    private static final int COLOR_SELECTED_RING = 0xFF4DA6FF;
     private static final int COLOR_PATH = 0xFF607D8B;
     private static final int COLOR_POLE = 0xFFE0E0E0;
     private static final int COLOR_LABEL = 0xFFE8E8E8;
@@ -89,9 +87,9 @@ public final class PowerLineSpacingCardRenderer {
             float x1,
             float y1,
             boolean selected) {
-        int bg = selected ? COLOR_BG_SELECTED : COLOR_BG;
+        int bg = selected ? COLOR_BG_SELECTED : PluginUiColors.MAP_BG;
         drawList.addRectFilled(x0, y0, x1, y1, bg);
-        int borderColor = selected ? COLOR_SELECTED_RING : COLOR_BORDER;
+        int borderColor = selected ? PluginUiColors.ACCENT_BLUE : PluginUiColors.PANEL_BORDER;
         float borderThickness = selected ? 2f : 1f;
         drawList.addRect(x0, y0, x1, y1, borderColor, 3f, 0, borderThickness);
     }

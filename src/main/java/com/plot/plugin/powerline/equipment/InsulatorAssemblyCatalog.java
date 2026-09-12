@@ -120,12 +120,7 @@ public final class InsulatorAssemblyCatalog {
                 applyAssembly(attachment, longStrain());
                 continue;
             }
-            String id = attachment.getId();
-            boolean outerPhase = id != null && (id.endsWith("_a") || id.endsWith("_c")
-                || id.contains("phase_a") || id.contains("phase_c")
-                || id.startsWith("left_") || id.startsWith("right_")
-                || id.startsWith("ul_") || id.startsWith("ur_") || id.startsWith("ll_") || id.startsWith("lr_"));
-            applyAssembly(attachment, outerPhase ? vPair() : twinString());
+            applyAssembly(attachment, usesOuterPhaseInsulator(attachment) ? vPair() : twinString());
         }
     }
 
@@ -137,6 +132,23 @@ public final class InsulatorAssemblyCatalog {
         attachment.setInsulatorType(assembly.getType());
         attachment.setInsulatorLength(assembly.getLength());
         attachment.setInsulatorMaterial(assembly.getMaterial());
+    }
+
+    static boolean usesOuterPhaseInsulator(ConductorAttachment attachment) {
+        if (attachment == null) {
+            return false;
+        }
+        if (attachment.isOuterPhaseInsulator()) {
+            return true;
+        }
+        return inferLegacyOuterPhaseInsulator(attachment.getId());
+    }
+
+    private static boolean inferLegacyOuterPhaseInsulator(String id) {
+        return id != null && (id.endsWith("_a") || id.endsWith("_c")
+            || id.contains("phase_a") || id.contains("phase_c")
+            || id.startsWith("left_") || id.startsWith("right_")
+            || id.startsWith("ul_") || id.startsWith("ur_") || id.startsWith("ll_") || id.startsWith("lr_"));
     }
 
     private static InsulatorAssembly assembly(

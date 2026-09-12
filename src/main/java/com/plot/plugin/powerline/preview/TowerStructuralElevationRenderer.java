@@ -12,6 +12,7 @@ import com.plot.plugin.powerline.design.structure.TowerDecoration;
 import com.plot.plugin.powerline.design.structure.TowerDecorationKind;
 import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
+import com.plot.plugin.ui.PluginUiColors;
 import imgui.ImDrawList;
 
 import java.util.List;
@@ -149,7 +150,7 @@ public final class TowerStructuralElevationRenderer {
         if (layout == null) {
             return false;
         }
-        drawList.addRectFilled(x0, y0, x1, y1, 0xFF141414);
+        drawList.addRectFilled(x0, y0, x1, y1, PluginUiColors.PANEL_BG_DARK);
         StructuralPalette palette = StructuralPalette.from(structure);
         drawLegs(drawList, structure, layout, palette, view);
         drawBays(drawList, structure, layout, palette, view);

@@ -18,7 +18,7 @@ class PoleDesignSerializationTest {
     @Test
     void attachmentsRoundTrip() {
         PoleDesign design = new PoleDesign("with-attachments", "With Attachments");
-        design.getLayers().add(new PoleLayer(
+        design.addLayer(new PoleLayer(
             PoleLayer.Shape.COLUMN,
             6,
             MaterialMix.single("minecraft:oak_fence")));
@@ -98,7 +98,7 @@ class PoleDesignSerializationTest {
     @Test
     void legacyDesignWithoutAttachmentsGetsDefaultOnLoad() {
         PoleDesign source = new PoleDesign("legacy-wood", "Legacy Wood");
-        source.getLayers().add(new PoleLayer(
+        source.addLayer(new PoleLayer(
             PoleLayer.Shape.COLUMN,
             8,
             MaterialMix.single("minecraft:oak_fence")));

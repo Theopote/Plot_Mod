@@ -14,6 +14,7 @@ import com.plot.plugin.powerline.equipment.InsulatorType;
 import com.plot.plugin.powerline.model.TowerRole;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.UUID;
@@ -57,7 +58,7 @@ public class PoleDesign {
     }
 
     public List<PoleLayer> getLayers() {
-        return layers;
+        return Collections.unmodifiableList(layers);
     }
 
     public void setLayers(List<PoleLayer> layers) {
@@ -73,7 +74,7 @@ public class PoleDesign {
     }
 
     public List<ConductorAttachment> getAttachments() {
-        return attachments;
+        return Collections.unmodifiableList(attachments);
     }
 
     public void setAttachments(List<ConductorAttachment> attachments) {
@@ -92,6 +93,37 @@ public class PoleDesign {
         if (attachment != null) {
             attachments.add(attachment.copy());
         }
+    }
+
+    public void clearAttachments() {
+        attachments.clear();
+    }
+
+    public void removeAttachmentsByArmId(String armId) {
+        if (armId == null) {
+            return;
+        }
+        attachments.removeIf(attachment -> armId.equals(attachment.getArmId()));
+    }
+
+    public void addLayer(PoleLayer layer) {
+        if (layer != null) {
+            layers.add(layer.copy());
+        }
+    }
+
+    public void removeLayerAt(int index) {
+        if (index >= 0 && index < layers.size()) {
+            layers.remove(index);
+        }
+    }
+
+    public void moveLayer(int fromIndex, int toIndex) {
+        if (fromIndex < 0 || fromIndex >= layers.size() || toIndex < 0 || toIndex >= layers.size()) {
+            return;
+        }
+        PoleLayer layer = layers.remove(fromIndex);
+        layers.add(toIndex, layer);
     }
 
     public void removeAttachment(String attachmentId) {
@@ -254,6 +286,7 @@ public class PoleDesign {
         String insulatorType;
         String insulatorAssemblyId;
         boolean enabled = true;
+        Boolean outerPhaseInsulator;
     }
 
     static class LayerData {
@@ -364,6 +397,9 @@ public class PoleDesign {
                 attachmentData.insulatorType = attachment.getInsulatorType().name();
                 attachmentData.insulatorAssemblyId = attachment.getInsulatorAssemblyId();
                 attachmentData.enabled = attachment.isEnabled();
+                if (attachment.isOuterPhaseInsulator()) {
+                    attachmentData.outerPhaseInsulator = true;
+                }
                 data.attachments.add(attachmentData);
             }
             if (design.towerStructure != null) {
@@ -432,6 +468,9 @@ public class PoleDesign {
                     attachment.setInsulatorType(InsulatorType.parse(attachmentData.insulatorType));
                     attachment.setInsulatorAssemblyId(attachmentData.insulatorAssemblyId);
                     attachment.setEnabled(attachmentData.enabled);
+                    if (Boolean.TRUE.equals(attachmentData.outerPhaseInsulator)) {
+                        attachment.setOuterPhaseInsulator(true);
+                    }
                     restoredAttachments.add(attachment);
                 }
             }

@@ -178,7 +178,7 @@ public final class TowerArmAttachmentBinding {
         if (design == null || armId == null) {
             return;
         }
-        design.getAttachments().removeIf(attachment -> armId.equals(attachment.getArmId()));
+        design.removeAttachmentsByArmId(armId);
     }
 
     /** 按横担高度推断未绑定的挂点（打开设计器时补全 legacy 设计）。 */
