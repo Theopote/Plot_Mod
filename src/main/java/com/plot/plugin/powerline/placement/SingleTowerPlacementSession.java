@@ -127,6 +127,10 @@ public final class SingleTowerPlacementSession {
         return styleSource;
     }
 
+    public PoleDesign design() {
+        return design;
+    }
+
     public Outcome tick(AppState appState, ICoordinateService coordinates, Runnable onHoverChanged) {
         if (!isActive()) {
             return Outcome.none();
@@ -174,10 +178,7 @@ public final class SingleTowerPlacementSession {
         }
 
         if (ImGui.isMouseClicked(0) && hoverValid && hoverPlanPoint != null) {
-            Vec2d placed = hoverPlanPoint.copy();
-            int rotation = rotationQuadrant;
-            cancel();
-            return Outcome.placed(placed, rotation);
+            return Outcome.placed(hoverPlanPoint.copy(), rotationQuadrant);
         }
 
         return Outcome.none();

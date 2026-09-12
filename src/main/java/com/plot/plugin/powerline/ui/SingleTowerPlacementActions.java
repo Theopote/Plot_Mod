@@ -1,6 +1,8 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.PluginProjectionContext;
+import com.plot.core.command.BlockRecord;
 import com.plot.core.context.PluginContext;
 import com.plot.core.terrain.MinecraftTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
@@ -9,20 +11,29 @@ import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.family.PoleDesignAssignmentResolver;
 import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
+import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelope;
+import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelopeResolver;
+import com.plot.plugin.powerline.design.parametric.TowerLineBuildEnvelope;
+import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
+import com.plot.plugin.powerline.design.parametric.TowerParametricLinePlacement;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.plugin.powerline.placement.SingleTowerGhostPreview;
 import com.plot.plugin.powerline.placement.SingleTowerOrientation;
+import com.plot.plugin.powerline.placement.SingleTowerPlaceCommand;
 import com.plot.plugin.powerline.placement.SingleTowerPlacementSession;
 import com.plot.plugin.powerline.placement.SingleTowerPlacementState;
+import com.plot.plugin.powerline.style.ParametricStyleTowerApplicator;
 import com.plot.utils.PlotI18n;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.world.World;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
-/** 单塔放置：激活、悬停预览、确认（骨架阶段仅状态与 Ghost，不写入世界）。 */
+/** 单塔放置：激活、悬停预览、世界建造与撤销。 */
 public final class SingleTowerPlacementActions {
     private final PluginContext host;
     private final PowerLinePluginState state;
@@ -113,23 +124,114 @@ public final class SingleTowerPlacementActions {
             case WORLD_UNAVAILABLE -> state.setProjectStatus(
                 PlotI18n.tr("plugin.powerline.generate_world_unavailable"),
                 ProjectStatusSeverity.ERROR);
-            case PLACED -> handlePlaced(outcome.getPlanPoint(), outcome.getRotationQuadrant());
+            case PLACED -> handlePlaced(
+                outcome.getPlanPoint(),
+                outcome.getRotationQuadrant(),
+                session.design(),
+                session.styleSource());
             default -> { }
         }
     }
 
-    private void handlePlaced(Vec2d planPoint, int rotationQuadrant) {
-        if (planPoint == null) {
+    private void handlePlaced(
+            Vec2d planPoint,
+            int rotationQuadrant,
+            PoleDesign design,
+            PowerLineFootprint styleSource) {
+        if (planPoint == null || design == null || styleSource == null) {
             return;
         }
-        // 骨架阶段：记录落点，后续 Phase 3 接入世界建造与 Undo。
+        World world = getClientWorld();
+        if (world == null) {
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.generate_world_unavailable"),
+                ProjectStatusSeverity.ERROR);
+            return;
+        }
+        if (PluginProjectionContext.tryCapture(host.coordinates()).isEmpty()) {
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.projection_unavailable"),
+                ProjectStatusSeverity.ERROR);
+            return;
+        }
+        com.plot.api.world.PlacementReadiness readiness = host.projection().checkWorldModificationReadiness();
+        if (!readiness.ready()) {
+            state.setProjectStatus(readiness.message(), ProjectStatusSeverity.ERROR);
+            return;
+        }
+        if (host.placement().isBusy()) {
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.build_in_progress_wait"),
+                ProjectStatusSeverity.WARNING);
+            return;
+        }
+
+        TerrainSampler terrain = MinecraftTerrainSampler.of(world, host.coordinates());
+        if (hasBlockingParametricIssues(styleSource, design, planPoint, terrain)) {
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.build_blocked_parametric"),
+                ProjectStatusSeverity.ERROR);
+            return;
+        }
+
+        PowerLineGenerationResult generation = SingleTowerGhostPreview.generate(
+            host,
+            design,
+            styleSource,
+            planPoint,
+            rotationQuadrant,
+            terrain);
+        if (generation == null || generation.placementRecords.isEmpty()) {
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.build_no_blocks"),
+                ProjectStatusSeverity.WARNING);
+            return;
+        }
+
+        List<BlockRecord> records = new ArrayList<>(generation.placementRecords.values());
+        SingleTowerPlaceCommand command = new SingleTowerPlaceCommand(
+            records,
+            host.projection(),
+            host.placement());
         state.setProjectStatus(
-            PlotI18n.tr(
-                "plugin.powerline.single_tower.placed_skeleton",
-                String.format("%.1f, %.1f", planPoint.x, planPoint.y),
-                PlotI18n.tr(SingleTowerOrientation.labelKey(rotationQuadrant))),
-            ProjectStatusSeverity.SUCCESS);
+            PlotI18n.tr("plugin.powerline.single_tower.build_in_progress", records.size()),
+            ProjectStatusSeverity.INFO);
         host.ghosts().clearAllGhostBlocks();
+        command.executeScheduled(() -> {
+            var result = command.getLastExecutionResult();
+            if (command.hasAppliedRecords()) {
+                host.commands().pushExecuted(command);
+            }
+            if (result != null && result.isFullSuccess()) {
+                state.setProjectStatus(
+                    PlotI18n.tr(
+                        "plugin.powerline.single_tower.build_success",
+                        result.success(),
+                        PlotI18n.tr(SingleTowerOrientation.labelKey(rotationQuadrant))),
+                    ProjectStatusSeverity.SUCCESS);
+            } else if (result != null && result.success() > 0) {
+                state.setProjectStatus(
+                    PlotI18n.tr(
+                        "plugin.powerline.build_partial",
+                        result.success(),
+                        result.total()),
+                    ProjectStatusSeverity.WARNING);
+            } else if (result != null && result.cancelled()) {
+                state.setProjectStatus(
+                    PlotI18n.tr(
+                        "plugin.powerline.build_cancelled",
+                        result.success(),
+                        result.total()),
+                    ProjectStatusSeverity.WARNING);
+            } else {
+                state.setProjectStatus(
+                    PlotI18n.tr("plugin.powerline.build_no_blocks"),
+                    ProjectStatusSeverity.WARNING);
+            }
+            if (session.isActive()) {
+                refreshGhostPreview();
+            }
+        });
     }
 
     public void refreshGhostPreview() {
@@ -159,6 +261,27 @@ public final class SingleTowerPlacementActions {
             return;
         }
         SingleTowerGhostPreview.projectToGhosts(host, preview);
+    }
+
+    private boolean hasBlockingParametricIssues(
+            PowerLineFootprint styleSource,
+            PoleDesign design,
+            Vec2d planPoint,
+            TerrainSampler terrain) {
+        if (styleSource == null || design == null || !styleSource.hasParametricTowerConfig() || terrain == null) {
+            return false;
+        }
+        TowerBuildEnvelope envelope = TowerBuildEnvelopeResolver.forSite(planPoint, terrain);
+        PoleDesign resolved = ParametricStyleTowerApplicator.apply(
+            design,
+            styleSource.getParametricTowerConfig(),
+            envelope);
+        if (resolved == null || !resolved.isParametricMode()) {
+            return false;
+        }
+        TowerLineBuildEnvelope lineEnvelope = TowerLineBuildEnvelope.fromSiteEnvelopes(List.of(envelope));
+        resolved = TowerParametricLinePlacement.prepare(resolved, lineEnvelope).design();
+        return TowerParametricEditor.hasBlockingErrors(resolved, envelope);
     }
 
     private PoleDesign resolveDesign(PowerLineFootprint line) {
