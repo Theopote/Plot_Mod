@@ -198,6 +198,74 @@ public final class PowerLineActions {
         }
     }
 
+    public void beginPathRelink(PowerLineFootprint line) {
+        if (line == null) {
+            return;
+        }
+        state.beginPathRelink(line.getId());
+        activatePathPickTool();
+    }
+
+    public boolean applyPathRelink(PowerLineFootprint line) {
+        if (line == null || !state.isPathRelinkActive(line.getId())) {
+            return false;
+        }
+        PowerLinePathSelectionAnalysis selection = state.getPathSelection();
+        if (!selection.canAdopt()) {
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.path.relink_select_one"),
+                ProjectStatusSeverity.WARNING);
+            return false;
+        }
+        if (selection.adoptable().size() != 1) {
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.path.relink_select_one"),
+                ProjectStatusSeverity.WARNING);
+            return false;
+        }
+        return relinkLineToShape(line, selection.adoptable().getFirst());
+    }
+
+    public boolean relinkLineToShape(PowerLineFootprint line, Shape shape) {
+        if (line == null || shape == null) {
+            return false;
+        }
+        if (com.plot.plugin.powerline.path.PowerLinePathAdapters.tryFrom(shape) == null) {
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.path.invalid_selection"),
+                ProjectStatusSeverity.WARNING);
+            return false;
+        }
+        if (shape.getId().equals(line.getSourceShapeId())) {
+            state.clearPathRelink();
+            state.setPathSelection(PowerLinePathSelectionAnalysis.EMPTY);
+            return relayoutLineFromSource(line);
+        }
+        state.getProjectHistory().push(state.getProject());
+        try {
+            PowerLineSourceSync.relink(line, shape, host.coordinates());
+            line.clearLayoutConstraints();
+            line.clearPoleOverrides();
+            invalidatePreview();
+            state.clearPathRelink();
+            state.setPathSelection(PowerLinePathSelectionAnalysis.EMPTY);
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.path.relink_success"),
+                ProjectStatusSeverity.SUCCESS);
+            return true;
+        } catch (ClosedLoopLayoutException e) {
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.adopt_reject_closed_loop"),
+                ProjectStatusSeverity.WARNING);
+            return false;
+        } catch (IllegalArgumentException e) {
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.path.invalid_selection"),
+                ProjectStatusSeverity.WARNING);
+            return false;
+        }
+    }
+
     public boolean calculatePreview(PowerLineFootprint line) {
         if (!calculatePreviewCore(line)) {
             return false;
@@ -528,7 +596,11 @@ public final class PowerLineActions {
     public void selectLine(String lineId, boolean multiToggle) {
         String previousPrimary = state.getSelection().primaryId();
         state.getSelection().select(lineId, multiToggle);
-        if (!state.getSelection().primaryId().equals(previousPrimary)) {
+        String newPrimary = state.getSelection().primaryId();
+        if (!state.isPathRelinkActive(newPrimary)) {
+            state.clearPathRelink();
+        }
+        if (!newPrimary.equals(previousPrimary)) {
             invalidatePreview();
         }
     }

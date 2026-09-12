@@ -76,11 +76,16 @@ public final class PowerLineSourceSync {
     }
 
     public static void relayout(PowerLineFootprint footprint, Shape liveShape, ICoordinateService coordinates) {
+        relink(footprint, liveShape, coordinates);
+    }
+
+    /** 将线路换绑到新的画布参考路径，并重新生成杆塔折线骨架。 */
+    public static void relink(PowerLineFootprint footprint, Shape newShape, ICoordinateService coordinates) {
         Objects.requireNonNull(footprint, "footprint");
-        Objects.requireNonNull(liveShape, "liveShape");
+        Objects.requireNonNull(newShape, "newShape");
         ICoordinateService coords = Objects.requireNonNull(coordinates, "coordinates");
-        PowerLineSourcePath sourcePath = PowerLinePathAdapters.from(liveShape);
-        PowerLineSourceDescriptor descriptor = PowerLineSourceDescriptor.capture(liveShape);
+        PowerLineSourcePath sourcePath = PowerLinePathAdapters.from(newShape);
+        PowerLineSourceDescriptor descriptor = PowerLineSourceDescriptor.capture(newShape);
         List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(footprint, sourcePath, coords);
         PowerLinePathLayout.commitLayout(footprint, descriptor, sourcePath, sites);
     }

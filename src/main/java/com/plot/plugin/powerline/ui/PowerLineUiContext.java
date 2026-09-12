@@ -206,6 +206,18 @@ public final class PowerLineUiContext {
         actions.activatePathPickTool();
     }
 
+    public boolean isPathRelinkActive(PowerLineFootprint line) {
+        return line != null && state.isPathRelinkActive(line.getId());
+    }
+
+    public void beginPathRelink(PowerLineFootprint line) {
+        actions.beginPathRelink(line);
+    }
+
+    public boolean applyPathRelink(PowerLineFootprint line) {
+        return actions.applyPathRelink(line);
+    }
+
     public SingleTowerPlacementActions singleTowerPlacement() {
         return actions.singleTowerPlacement();
     }

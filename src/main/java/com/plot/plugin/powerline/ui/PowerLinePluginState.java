@@ -23,6 +23,8 @@ public final class PowerLinePluginState {
     private final PoleDesignDraftHistory designDraftHistory = new PoleDesignDraftHistory();
     private final PowerLineSelectionSet selection = new PowerLineSelectionSet();
     private PowerLinePathSelectionAnalysis pathSelection = PowerLinePathSelectionAnalysis.EMPTY;
+    /** 正在更换参考路径的目标线路 id；非空时 Route 面板显示「应用选中路径」。 */
+    private String pathRelinkLineId = "";
 
     private volatile PowerLineGenerationResult lastGenerationResult;
     private PowerLinePreviewKey previewKey;
@@ -103,6 +105,24 @@ public final class PowerLinePluginState {
 
     public void setPathSelection(PowerLinePathSelectionAnalysis pathSelection) {
         this.pathSelection = pathSelection != null ? pathSelection : PowerLinePathSelectionAnalysis.EMPTY;
+    }
+
+    public String getPathRelinkLineId() {
+        return pathRelinkLineId;
+    }
+
+    public boolean isPathRelinkActive(String lineId) {
+        return lineId != null
+            && !lineId.isBlank()
+            && lineId.equals(pathRelinkLineId);
+    }
+
+    public void beginPathRelink(String lineId) {
+        this.pathRelinkLineId = lineId != null ? lineId : "";
+    }
+
+    public void clearPathRelink() {
+        this.pathRelinkLineId = "";
     }
 
     public PowerLineGenerationResult getLastGenerationResult() {

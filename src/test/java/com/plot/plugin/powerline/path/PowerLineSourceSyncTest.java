@@ -90,6 +90,49 @@ class PowerLineSourceSyncTest {
     }
 
     @Test
+    void relinkChangesSourceWhilePreservingLineIdentity() {
+        ArcShape original = new ArcShape(new Vec2d(0, 0), 40.0, 0.0, Math.PI);
+        ArcShape replacement = new ArcShape(new Vec2d(80, 0), 25.0, 0.0, Math.PI / 2.0);
+        PowerLineFootprint footprint = PowerLinePathLayout.adopt(original, IdentityCoordinateService.INSTANCE);
+        String lineId = footprint.getId();
+        String lineName = footprint.getName();
+        footprint.setName("Test Line");
+        footprint.addLayoutConstraint(
+            new com.plot.plugin.powerline.model.PoleLayoutConstraint(10.0, "test"));
+
+        PowerLineSourceSync.relink(footprint, replacement, IdentityCoordinateService.INSTANCE);
+
+        assertEquals(lineId, footprint.getId());
+        assertEquals("Test Line", footprint.getName());
+        assertEquals(replacement.getId(), footprint.getSourceShapeId());
+        assertTrue(footprint.getPathPoints().size() >= 2);
+    }
+
+    @Test
+    void relinkPreservesFootprintWhenNewGeometryIsInvalid() {
+        PolylineShape triangle = new PolylineShape(
+            List.of(new Vec2d(0, 0), new Vec2d(40, 0), new Vec2d(20, 30)),
+            true);
+        PolylineShape degenerate = new PolylineShape(
+            List.of(new Vec2d(0, 0), new Vec2d(20, 0), new Vec2d(40, 0)),
+            true);
+        PowerLineFootprint footprint = PowerLinePathLayout.adopt(triangle, IdentityCoordinateService.INSTANCE);
+        int fingerprint = footprint.getSourceDescriptor().fingerprint();
+        int towerCount = footprint.getPathPoints().size();
+
+        assertThrows(
+            ClosedLoopLayoutException.class,
+            () -> PowerLineSourceSync.relink(
+                footprint,
+                degenerate,
+                IdentityCoordinateService.INSTANCE));
+
+        assertEquals(fingerprint, footprint.getSourceDescriptor().fingerprint());
+        assertEquals(towerCount, footprint.getPathPoints().size());
+        assertEquals(triangle.getId(), footprint.getSourceShapeId());
+    }
+
+    @Test
     void closedLoopConstraintDoesNotDuplicateTowerAcrossSeam() {
         PolylineShape square = new PolylineShape(
             List.of(

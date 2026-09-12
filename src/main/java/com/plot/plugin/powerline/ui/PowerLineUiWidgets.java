@@ -181,9 +181,9 @@ public final class PowerLineUiWidgets {
         return changed;
     }
 
-    public static void renderLineSelector(PowerLineUiContext ctx) {
+    public static boolean renderLineSelector(PowerLineUiContext ctx) {
         if (ctx.project().getLineCount() == 0) {
-            return;
+            return false;
         }
         List<PowerLineFootprint> lines = new ArrayList<>(ctx.project().getLines().values());
         String[] labels = lines.stream().map(PowerLineFootprint::getName).toArray(String[]::new);
@@ -200,6 +200,7 @@ public final class PowerLineUiWidgets {
         if (ImGui.combo(stableLabel("plugin.powerline.select_line", "select_line"), index, labels)) {
             ctx.selectLine(ids[index.get()], false);
         }
+        return true;
     }
 
     public static void renderMaterialMixPicker(

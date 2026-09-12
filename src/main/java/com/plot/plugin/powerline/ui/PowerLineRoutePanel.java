@@ -36,18 +36,17 @@ public final class PowerLineRoutePanel {
         renderProjectSection();
 
         ImGui.separator();
+        renderCurrentLineHeader();
+
+        ImGui.separator();
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.path"));
-        adoptPanel.render();
+        adoptPanel.render(line);
 
         if (line == null) {
-            ImGui.separator();
-            PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.no_line"));
-            PowerLineUiWidgets.renderLineSelector(ctx);
             return;
         }
 
         ImGui.separator();
-        PowerLineUiWidgets.renderLineSelector(ctx);
         renderLineName(line);
         renderSourceReference(line);
         ImGui.separator();
@@ -64,6 +63,20 @@ public final class PowerLineRoutePanel {
     private void renderProjectSection() {
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.all_lines"));
         overviewPanel.renderProjectSection(true);
+    }
+
+    private void renderCurrentLineHeader() {
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.current_line"));
+        ImGui.sameLine();
+        float width = ImGui.getContentRegionAvail().x;
+        if (width > 0f) {
+            ImGui.setNextItemWidth(width);
+        }
+        if (!PowerLineUiWidgets.renderLineSelector(ctx)) {
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.route.current_line_empty"));
+        }
     }
 
     private void renderSourceReference(PowerLineFootprint line) {
