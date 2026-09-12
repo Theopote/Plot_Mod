@@ -263,10 +263,11 @@ public class BlockProjectionHandler implements IBlockProjectionService {
     private String normalizeBlockId(String blockId, boolean allowAir) {
         String candidate = (blockId == null || blockId.isEmpty()) ? "minecraft:white_wool" : blockId;
         try {
+            com.plot.core.block.BlockSpec spec = com.plot.core.block.BlockSpec.parse(candidate);
             String namespace = "minecraft";
-            String path = candidate;
-            if (candidate.contains(":")) {
-                String[] parts = candidate.split(":", 2);
+            String path = spec.blockId();
+            if (path.contains(":")) {
+                String[] parts = path.split(":", 2);
                 namespace = parts[0];
                 path = parts[1];
             }
@@ -276,7 +277,7 @@ public class BlockProjectionHandler implements IBlockProjectionService {
             if (blockType == Blocks.AIR) {
                 return allowAir ? "minecraft:air" : "minecraft:white_wool";
             }
-            return blockIdentifier.toString();
+            return spec.toSetBlockArgument();
         } catch (Exception e) {
             if (allowAir) {
                 LOGGER.warn("解析方块ID失败: {}，恢复路径回退空气", candidate, e);

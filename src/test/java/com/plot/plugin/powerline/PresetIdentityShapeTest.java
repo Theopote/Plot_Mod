@@ -1,5 +1,6 @@
 package com.plot.plugin.powerline;
 
+import com.plot.core.block.BlockSpec;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.design.parametric.TowerParameterProfiles;
@@ -93,7 +94,7 @@ class PresetIdentityShapeTest {
 
     private static long countBlock(PowerLineGenerationResult result, String blockId) {
         return result.placementRecords.values().stream()
-            .filter(record -> blockId.equals(record.newBlockId))
+            .filter(record -> blockId.equals(BlockSpec.parse(record.newBlockId).blockId()))
             .count();
     }
 

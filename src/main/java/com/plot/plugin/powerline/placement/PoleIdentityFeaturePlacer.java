@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.placement;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.block.BlockSpec;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.PoleLayer;
@@ -93,8 +94,8 @@ public final class PoleIdentityFeaturePlacer {
         int armY = layerTopY(layerBaseY, design, PoleLayer.Shape.CROSSARM);
         int halfReach = crossarmHalfReach(design);
         Vec2d tip = planPoint.add(lateral.multiply(halfReach));
-        putBlock(tip, armY, "minecraft:chain", sink, mapper);
-        putBlock(tip, armY - 1, "minecraft:soul_lantern", sink, mapper);
+        putBlock(tip, armY, DirectionalBlockSpecs.verticalChain(), sink, mapper);
+        putBlock(tip, armY - 1, BlockSpec.of("minecraft:soul_lantern"), sink, mapper);
     }
 
     /** 十字避雷针横担（第二根垂直于既有横担）。 */
@@ -108,10 +109,19 @@ public final class PoleIdentityFeaturePlacer {
             PlanToBlockMapper mapper) {
         int armY = layerTopY(layerBaseY, design, PoleLayer.Shape.CROSSARM);
         int halfReach = crossarmHalfReach(design);
-        String rod = "minecraft:lightning_rod";
         for (int step = 1; step <= halfReach; step++) {
-            putBlock(planPoint.add(forward.multiply(step)), armY, rod, sink, mapper);
-            putBlock(planPoint.add(forward.multiply(-step)), armY, rod, sink, mapper);
+            putBlock(
+                planPoint.add(forward.multiply(step)),
+                armY,
+                DirectionalBlockSpecs.lightningRodAlong(forward),
+                sink,
+                mapper);
+            putBlock(
+                planPoint.add(forward.multiply(-step)),
+                armY,
+                DirectionalBlockSpecs.lightningRodAlong(forward.multiply(-1)),
+                sink,
+                mapper);
         }
     }
 
@@ -171,8 +181,17 @@ public final class PoleIdentityFeaturePlacer {
             String blockId,
             VoxelSink sink,
             PlanToBlockMapper mapper) {
+        putBlock(planPoint, worldY, BlockSpec.of(blockId), sink, mapper);
+    }
+
+    private static void putBlock(
+            Vec2d planPoint,
+            int worldY,
+            BlockSpec block,
+            VoxelSink sink,
+            PlanToBlockMapper mapper) {
         BlockPos pos = mapper.toBlockPos(planPoint, worldY);
-        sink.put(pos.getX(), pos.getY(), pos.getZ(), blockId);
+        sink.put(pos.getX(), pos.getY(), pos.getZ(), block);
     }
 
     private static Vec2d normalize(Vec2d vector) {
