@@ -20,6 +20,7 @@ import com.plot.plugin.powerline.manager.PowerLinePreviewManager;
 import com.plot.plugin.powerline.PowerLineGenerator;
 import com.plot.plugin.powerline.PowerLinePathUtils;
 import com.plot.plugin.powerline.PowerPoleLayoutUtils;
+import com.plot.plugin.powerline.path.PowerLinePathLayout;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.parametric.TowerParametricBuildPolicy;
@@ -111,8 +112,7 @@ public final class PowerLineActions {
 
         for (Shape shape : selection.adoptable()) {
             try {
-                List<Vec2d> points = PowerLinePathUtils.extractPathPoints(shape);
-                PowerLineFootprint line = new PowerLineFootprint(points);
+                PowerLineFootprint line = PowerLinePathLayout.adopt(shape, host.coordinates());
                 line.setName(PlotI18n.tr("plugin.powerline.default_name", adopted + 1));
                 com.plot.plugin.powerline.style.PowerLineStyleEditor.selectPreset(
                     line,

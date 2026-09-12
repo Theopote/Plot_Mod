@@ -68,14 +68,13 @@ class PowerLineStabilizationTest {
     }
 
     @Test
-    void onlyBezierSelectionIsRejectedAndNotAdoptable() {
+    void openBezierSelectionIsAdoptable() {
         List<com.plot.core.model.Shape> selection = List.of(sampleBezier());
         PowerLinePathSelectionAnalysis analysis = PowerLinePathSelectionAnalysis.analyze(selection);
 
         assertTrue(analysis.hasCanvasSelection());
-        assertFalse(analysis.canAdopt());
-        assertEquals(1, analysis.rejectedCurves().size());
-        assertTrue(analysis.adoptable().isEmpty());
+        assertTrue(analysis.canAdopt());
+        assertEquals(1, analysis.adoptable().size());
     }
 
     @Test

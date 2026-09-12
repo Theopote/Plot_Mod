@@ -16,13 +16,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PowerLinePathSelectionAnalysisTest {
 
     @Test
-    void classifiesBezierAsRejectedCurve() {
+    void classifiesOpenBezierAsAdoptable() {
         BezierCurveShape curve = sampleBezier();
         PowerLinePathSelectionAnalysis analysis = PowerLinePathSelectionAnalysis.analyze(List.of(curve));
 
-        assertEquals(1, analysis.rejectedCurves().size());
+        assertEquals(1, analysis.adoptable().size());
         assertTrue(analysis.hasCanvasSelection());
-        assertFalse(analysis.canAdopt());
+        assertTrue(analysis.canAdopt());
     }
 
     @Test
@@ -36,11 +36,10 @@ class PowerLinePathSelectionAnalysisTest {
         PowerLinePathSelectionAnalysis analysis = PowerLinePathSelectionAnalysis.analyze(
             List.of(curve, line, closedPolyline));
 
-        assertEquals(1, analysis.adoptable().size());
-        assertEquals(1, analysis.rejectedCurves().size());
-        assertEquals(1, analysis.unsupported().size());
+        assertEquals(2, analysis.adoptable().size());
+        assertEquals(1, analysis.rejectedClosed().size());
         assertTrue(analysis.canAdopt());
-        assertEquals(2, analysis.skippedCount());
+        assertEquals(1, analysis.skippedCount());
     }
 
     @Test
@@ -48,8 +47,8 @@ class PowerLinePathSelectionAnalysisTest {
         BezierCurveShape curve = sampleBezier();
         PowerLinePathSelectionAnalysis analysis = PowerLinePathUtils.analyzeSelection(List.of(curve));
 
-        assertFalse(analysis.canAdopt());
-        assertEquals(1, analysis.rejectedCurves().size());
+        assertTrue(analysis.canAdopt());
+        assertEquals(1, analysis.adoptable().size());
     }
 
     private static BezierCurveShape sampleBezier() {

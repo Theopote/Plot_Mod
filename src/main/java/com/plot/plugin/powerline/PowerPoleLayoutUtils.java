@@ -9,6 +9,8 @@ import com.plot.plugin.powerline.model.PoleLayoutConstraint;
 import com.plot.plugin.powerline.model.PoleOverride;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.TowerRole;
+import com.plot.plugin.powerline.path.PowerLineSourcePath;
+import com.plot.plugin.powerline.path.PolylineSourcePath;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,26 +41,13 @@ public final class PowerPoleLayoutUtils {
             double maxPoleSpacingBlocks,
             int targetTowerCount,
             ICoordinateService coordinates) {
-        ICoordinateService coords = requireCoordinates(coordinates);
-        if (pathPoints == null || pathPoints.isEmpty()) {
-            return List.of();
-        }
-        PoleSpacingMode resolved = mode != null ? mode : PoleSpacingMode.AUTO_SPACING;
-        return switch (resolved) {
-            case AUTO_SPACING -> computePolePositions(
-                pathPoints,
-                cornerAngleThreshold,
-                maxPoleSpacingBlocks,
-                coords);
-            case TOWER_COUNT -> computeEvenlySpacedPoles(
-                pathPoints,
-                Math.max(2, targetTowerCount),
-                coords);
-            case ENDPOINTS_ONLY -> computeEndpointsOnly(pathPoints);
-            case ENDPOINTS_WITH_CORNERS -> dedupeMandatoryPolePoints(
-                mandatoryPolePoints(pathPoints, cornerAngleThreshold),
-                coords);
-        };
+        return computePolePositions(
+            PolylineSourcePath.open(pathPoints),
+            cornerAngleThreshold,
+            mode,
+            maxPoleSpacingBlocks,
+            targetTowerCount,
+            coordinates);
     }
 
     public static List<Vec2d> computePolePositions(
@@ -66,36 +55,75 @@ public final class PowerPoleLayoutUtils {
             double cornerAngleThreshold,
             double maxPoleSpacingBlocks,
             ICoordinateService coordinates) {
+        return computePolePositions(
+            PolylineSourcePath.open(pathPoints),
+            cornerAngleThreshold,
+            maxPoleSpacingBlocks,
+            coordinates);
+    }
+
+    public static List<Vec2d> computePolePositions(
+            PowerLineSourcePath sourcePath,
+            double cornerAngleThreshold,
+            PoleSpacingMode mode,
+            double maxPoleSpacingBlocks,
+            int targetTowerCount,
+            ICoordinateService coordinates) {
         ICoordinateService coords = requireCoordinates(coordinates);
-        if (pathPoints == null || pathPoints.isEmpty()) {
+        if (sourcePath == null) {
             return List.of();
         }
-        if (pathPoints.size() == 1) {
-            return List.of(pathPoints.getFirst().copy());
+        PoleSpacingMode resolved = mode != null ? mode : PoleSpacingMode.AUTO_SPACING;
+        return switch (resolved) {
+            case AUTO_SPACING -> computePolePositions(
+                sourcePath,
+                cornerAngleThreshold,
+                maxPoleSpacingBlocks,
+                coords);
+            case TOWER_COUNT -> computeEvenlySpacedPoles(
+                sourcePath,
+                Math.max(2, targetTowerCount),
+                coords);
+            case ENDPOINTS_ONLY -> computeEndpointsOnly(sourcePath, coords);
+            case ENDPOINTS_WITH_CORNERS -> mandatoryStationsAsPoints(
+                sourcePath.mandatoryStations(cornerAngleThreshold, coords),
+                sourcePath,
+                coords);
+        };
+    }
+
+    public static List<Vec2d> computePolePositions(
+            PowerLineSourcePath sourcePath,
+            double cornerAngleThreshold,
+            double maxPoleSpacingBlocks,
+            ICoordinateService coordinates) {
+        ICoordinateService coords = requireCoordinates(coordinates);
+        if (sourcePath == null) {
+            return List.of();
+        }
+        double totalLength = sourcePath.worldLength(coords);
+        if (totalLength <= POSITION_DEDUP_TOLERANCE_BLOCKS) {
+            return List.of(sourcePath.pointAtStation(0.0, coords).copy());
         }
 
         double maxSpacing = Math.max(0.1, maxPoleSpacingBlocks);
-        List<Vec2d> mandatory = dedupeMandatoryPolePoints(
-            mandatoryPolePoints(pathPoints, cornerAngleThreshold),
+        List<Double> mandatoryStations = dedupeMandatoryStations(
+            sourcePath.mandatoryStations(cornerAngleThreshold, coords),
+            sourcePath,
             coords);
-        if (mandatory.isEmpty()) {
+        if (mandatoryStations.isEmpty()) {
             return List.of();
-        }
-
-        List<Double> mandatoryStations = new ArrayList<>(mandatory.size());
-        for (Vec2d point : mandatory) {
-            mandatoryStations.add(computeStationing(pathPoints, point, coords));
         }
 
         List<Vec2d> result = new ArrayList<>();
         addPoleIfDistinct(
             result,
-            pointAtStationing(pathPoints, mandatoryStations.getFirst(), coords),
+            sourcePath.pointAtStation(mandatoryStations.getFirst(), coords),
             coords);
         for (int i = 0; i < mandatoryStations.size() - 1; i++) {
             appendInterpolatedPolesAlongPath(
                 result,
-                pathPoints,
+                sourcePath,
                 mandatoryStations.get(i),
                 mandatoryStations.get(i + 1),
                 maxSpacing,
@@ -126,9 +154,25 @@ public final class PowerPoleLayoutUtils {
             double maxPoleSpacingBlocks,
             int targetTowerCount,
             ICoordinateService coordinates) {
+        return computePoleSites(
+            PolylineSourcePath.open(pathPoints),
+            cornerAngleThreshold,
+            mode,
+            maxPoleSpacingBlocks,
+            targetTowerCount,
+            coordinates);
+    }
+
+    public static List<PowerPoleSite> computePoleSites(
+            PowerLineSourcePath sourcePath,
+            double cornerAngleThreshold,
+            PoleSpacingMode mode,
+            double maxPoleSpacingBlocks,
+            int targetTowerCount,
+            ICoordinateService coordinates) {
         ICoordinateService coords = requireCoordinates(coordinates);
         List<Vec2d> positions = computePolePositions(
-            pathPoints,
+            sourcePath,
             cornerAngleThreshold,
             mode,
             maxPoleSpacingBlocks,
@@ -137,7 +181,7 @@ public final class PowerPoleLayoutUtils {
         List<PowerPoleSite> sites = new ArrayList<>(positions.size());
         for (int i = 0; i < positions.size(); i++) {
             PowerPoleSite site = new PowerPoleSite(positions.get(i));
-            site.setStationing(computeStationing(pathPoints, positions.get(i), coords));
+            site.setStationing(sourcePath.stationAtPoint(positions.get(i), coords));
             site.setPathIndex(i);
             sites.add(site);
         }
@@ -152,8 +196,9 @@ public final class PowerPoleLayoutUtils {
             return List.of();
         }
         ICoordinateService coords = requireCoordinates(coordinates);
+        PowerLineSourcePath sourcePath = footprint.resolveSourcePath();
         List<PowerPoleSite> sites = computePoleSites(
-            footprint.getPathPoints(),
+            sourcePath,
             footprint.getCornerAngleThreshold(),
             footprint.getPoleSpacingMode(),
             footprint.getMaxPoleSpacing(),
@@ -162,7 +207,7 @@ public final class PowerPoleLayoutUtils {
         if (footprint.getPoleSpacingMode() != PoleSpacingMode.ENDPOINTS_ONLY) {
             insertLayoutConstraints(
                 sites,
-                footprint.getPathPoints(),
+                sourcePath,
                 footprint.getLayoutConstraints(),
                 footprint.getCornerAngleThreshold(),
                 coords);
@@ -171,20 +216,41 @@ public final class PowerPoleLayoutUtils {
         return sites;
     }
 
+    /** 由参考路径计算杆塔折线并写回 footprint.pathPoints。 */
+    public static List<PowerPoleSite> layoutAndSyncFootprint(
+            PowerLineFootprint footprint,
+            ICoordinateService coordinates) {
+        List<PowerPoleSite> sites = computePoleSites(footprint, coordinates);
+        if (footprint != null) {
+            List<Vec2d> towerPolyline = new ArrayList<>(sites.size());
+            for (PowerPoleSite site : sites) {
+                towerPolyline.add(site.getPlanPosition().copy());
+            }
+            footprint.setPathPoints(towerPolyline);
+        }
+        return sites;
+    }
+
     /** 按世界里程（blocks，自路径起点）取画布点。 */
     public static Vec2d pointAtStationing(
             List<Vec2d> pathPoints,
             double worldStationBlocks,
             ICoordinateService coordinates) {
-        return WorldProjectionMath.canvasPointAtWorldStation(
-            requireCoordinates(coordinates),
-            pathPoints,
-            worldStationBlocks);
+        return PolylineSourcePath.open(pathPoints)
+            .pointAtStation(worldStationBlocks, coordinates);
+    }
+
+    public static Vec2d pointAtStationing(
+            PowerLineSourcePath sourcePath,
+            double worldStationBlocks,
+            ICoordinateService coordinates) {
+        return requireSourcePath(sourcePath)
+            .pointAtStation(worldStationBlocks, coordinates);
     }
 
     private static void insertLayoutConstraints(
             List<PowerPoleSite> sites,
-            List<Vec2d> pathPoints,
+            PowerLineSourcePath sourcePath,
             List<PoleLayoutConstraint> constraints,
             double cornerAngleThreshold,
             ICoordinateService coordinates) {
@@ -207,7 +273,7 @@ public final class PowerPoleLayoutUtils {
                 continue;
             }
             Vec2d position = pointAtStationing(
-                pathPoints,
+                sourcePath,
                 constraint.getRequiredStationing(),
                 coordinates);
             PowerPoleSite inserted = new PowerPoleSite(position);
@@ -253,8 +319,15 @@ public final class PowerPoleLayoutUtils {
         return best;
     }
 
-    /** 世界里程（blocks）：杆位在路径上的投影距起点长度。 */
+    /** 世界里程（blocks）：杆位在折线顶点路径上的投影距起点长度。 */
     public static double computeStationing(
+            List<Vec2d> pathPoints,
+            Vec2d polePosition,
+            ICoordinateService coordinates) {
+        return computeStationingOnPolyline(pathPoints, polePosition, coordinates);
+    }
+
+    public static double computeStationingOnPolyline(
             List<Vec2d> pathPoints,
             Vec2d polePosition,
             ICoordinateService coordinates) {
@@ -355,32 +428,34 @@ public final class PowerPoleLayoutUtils {
         return angleDeg > cornerAngleThreshold;
     }
 
-    private static List<Vec2d> computeEndpointsOnly(List<Vec2d> pathPoints) {
-        if (pathPoints.size() == 1) {
-            return List.of(pathPoints.getFirst().copy());
+    private static List<Vec2d> computeEndpointsOnly(
+            PowerLineSourcePath sourcePath,
+            ICoordinateService coordinates) {
+        double length = sourcePath.worldLength(coordinates);
+        if (length <= POSITION_DEDUP_TOLERANCE_BLOCKS) {
+            return List.of(sourcePath.pointAtStation(0.0, coordinates).copy());
         }
-        return List.of(pathPoints.getFirst().copy(), pathPoints.getLast().copy());
+        return List.of(
+            sourcePath.pointAtStation(0.0, coordinates).copy(),
+            sourcePath.pointAtStation(length, coordinates).copy());
     }
 
     private static List<Vec2d> computeEvenlySpacedPoles(
-            List<Vec2d> pathPoints,
+            PowerLineSourcePath sourcePath,
             int towerCount,
             ICoordinateService coordinates) {
-        if (pathPoints == null || pathPoints.isEmpty()) {
+        if (sourcePath == null) {
             return List.of();
         }
-        if (pathPoints.size() == 1 || towerCount <= 1) {
-            return List.of(pathPoints.getFirst().copy());
-        }
-        double totalLength = coordinates.pathWorldLength(pathPoints);
-        if (totalLength <= POSITION_DEDUP_TOLERANCE_BLOCKS) {
-            return List.of(pathPoints.getFirst().copy());
+        double totalLength = sourcePath.worldLength(coordinates);
+        if (totalLength <= POSITION_DEDUP_TOLERANCE_BLOCKS || towerCount <= 1) {
+            return List.of(sourcePath.pointAtStation(0.0, coordinates).copy());
         }
         int count = Math.max(2, towerCount);
         List<Vec2d> result = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
             double stationing = totalLength * i / (count - 1);
-            Vec2d point = pointAtStationing(pathPoints, stationing, coordinates);
+            Vec2d point = sourcePath.pointAtStation(stationing, coordinates);
             addPoleIfDistinct(result, point, coordinates);
         }
         return result;
@@ -388,7 +463,7 @@ public final class PowerPoleLayoutUtils {
 
     private static void appendInterpolatedPolesAlongPath(
             List<Vec2d> result,
-            List<Vec2d> pathPoints,
+            PowerLineSourcePath sourcePath,
             double fromStationBlocks,
             double toStationBlocks,
             double maxSpacingBlocks,
@@ -397,14 +472,14 @@ public final class PowerPoleLayoutUtils {
         if (worldDistance <= POSITION_DEDUP_TOLERANCE_BLOCKS) {
             addPoleIfDistinct(
                 result,
-                pointAtStationing(pathPoints, toStationBlocks, coordinates),
+                sourcePath.pointAtStation(toStationBlocks, coordinates),
                 coordinates);
             return;
         }
         if (worldDistance <= maxSpacingBlocks) {
             addPoleIfDistinct(
                 result,
-                pointAtStationing(pathPoints, toStationBlocks, coordinates),
+                sourcePath.pointAtStation(toStationBlocks, coordinates),
                 coordinates);
             return;
         }
@@ -413,9 +488,43 @@ public final class PowerPoleLayoutUtils {
             double station = fromStationBlocks + worldDistance * i / segments;
             addPoleIfDistinct(
                 result,
-                pointAtStationing(pathPoints, station, coordinates),
+                sourcePath.pointAtStation(station, coordinates),
                 coordinates);
         }
+    }
+
+    private static List<Double> dedupeMandatoryStations(
+            List<Double> mandatoryStations,
+            PowerLineSourcePath sourcePath,
+            ICoordinateService coordinates) {
+        if (mandatoryStations == null || mandatoryStations.isEmpty()) {
+            return List.of();
+        }
+        List<Double> deduped = new ArrayList<>(mandatoryStations.size());
+        for (double station : mandatoryStations) {
+            if (deduped.isEmpty()) {
+                deduped.add(station);
+                continue;
+            }
+            Vec2d previous = sourcePath.pointAtStation(deduped.getLast(), coordinates);
+            Vec2d current = sourcePath.pointAtStation(station, coordinates);
+            if (!samePosition(previous, current, coordinates)) {
+                deduped.add(station);
+            }
+        }
+        return deduped;
+    }
+
+    private static List<Vec2d> mandatoryStationsAsPoints(
+            List<Double> mandatoryStations,
+            PowerLineSourcePath sourcePath,
+            ICoordinateService coordinates) {
+        List<Double> stations = dedupeMandatoryStations(mandatoryStations, sourcePath, coordinates);
+        List<Vec2d> points = new ArrayList<>(stations.size());
+        for (double station : stations) {
+            points.add(sourcePath.pointAtStation(station, coordinates).copy());
+        }
+        return points;
     }
 
     private static List<Vec2d> dedupeMandatoryPolePoints(
@@ -450,5 +559,9 @@ public final class PowerPoleLayoutUtils {
 
     private static ICoordinateService requireCoordinates(ICoordinateService coordinates) {
         return Objects.requireNonNull(coordinates, "coordinates");
+    }
+
+    private static PowerLineSourcePath requireSourcePath(PowerLineSourcePath sourcePath) {
+        return Objects.requireNonNull(sourcePath, "sourcePath");
     }
 }

@@ -5,46 +5,59 @@ import com.plot.core.geometry.shapes.BezierCurveShape;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.model.Shape;
+import com.plot.plugin.powerline.path.PowerLinePathAdapters;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 电力线路认领路径校验与提取（仅直线/折线）。
+ * 电力线路认领路径校验与提取。
  */
 public final class PowerLinePathUtils {
 
     public static final String REJECT_CURVE_KEY = "plugin.powerline.adopt_reject_curve";
+    public static final String REJECT_CLOSED_KEY = "plugin.powerline.adopt_reject_closed";
 
     private PowerLinePathUtils() {
     }
 
     public static boolean isAdoptableLine(Shape shape) {
-        if (shape instanceof LineShape) {
-            return shape.getPoints() != null && shape.getPoints().size() >= 2;
-        }
-        if (shape instanceof PolylineShape polyline) {
-            return !polyline.isClosed()
-                && polyline.getPoints() != null
-                && polyline.getPoints().size() >= 2;
-        }
-        return false;
+        return PowerLinePathAdapters.isAdoptable(shape);
     }
 
     public static boolean isRejectedCurve(Shape shape) {
-        return shape instanceof BezierCurveShape;
+        return shape instanceof BezierCurveShape && !PowerLinePathAdapters.isAdoptable(shape);
     }
 
+    public static boolean isRejectedClosedPath(Shape shape) {
+        return PowerLinePathAdapters.isClosedUnsupported(shape);
+    }
+
+    /**
+     * @deprecated 认领请使用 {@link com.plot.plugin.powerline.path.PowerLinePathLayout#adopt}。
+     */
+    @Deprecated
     public static List<Vec2d> extractPathPoints(Shape shape) {
-        if (!isAdoptableLine(shape)) {
-            throw new IllegalArgumentException("Shape is not an adoptable power line path");
+        if (shape instanceof LineShape) {
+            List<Vec2d> source = shape.getPoints();
+            List<Vec2d> points = new ArrayList<>(source.size());
+            for (Vec2d point : source) {
+                points.add(point.copy());
+            }
+            return points;
         }
-        List<Vec2d> source = shape.getPoints();
-        List<Vec2d> points = new ArrayList<>(source.size());
-        for (Vec2d point : source) {
-            points.add(point.copy());
+        if (shape instanceof PolylineShape polyline) {
+            if (polyline.isClosed()) {
+                throw new IllegalArgumentException("Shape is not an adoptable power line path");
+            }
+            List<Vec2d> source = polyline.getPoints();
+            List<Vec2d> points = new ArrayList<>(source.size());
+            for (Vec2d point : source) {
+                points.add(point.copy());
+            }
+            return points;
         }
-        return points;
+        throw new IllegalArgumentException("Shape is not an adoptable power line path");
     }
 
     public static PowerLinePathSelectionAnalysis analyzeSelection(List<Shape> shapes) {

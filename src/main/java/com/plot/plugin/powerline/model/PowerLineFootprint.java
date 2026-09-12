@@ -4,6 +4,10 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.PowerLineSagUtils;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
+import com.plot.plugin.powerline.path.PowerLineSourceDescriptor;
+import com.plot.plugin.powerline.path.PowerLineSourcePath;
+import com.plot.plugin.powerline.path.PolylineSourcePath;
+import com.plot.core.model.Shape;
 import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 import com.plot.plugin.powerline.style.PowerLineStyleInstance;
 import com.plot.plugin.powerline.style.StyleOverrides;
@@ -29,6 +33,8 @@ public class PowerLineFootprint {
     private String name;
     private List<Vec2d> pathPoints = new ArrayList<>();
     private transient PathBounds cachedPathBounds;
+    /** 认领时的参考路径快照；无则回退为 pathPoints 折线。 */
+    private PowerLineSourceDescriptor sourceDescriptor;
     private String roadId;
     private double minPoleSpacing = 15.0;
     private double maxPoleSpacing = 30.0;
@@ -101,6 +107,34 @@ public class PowerLineFootprint {
             this.pathPoints.add(point.copy());
         }
         cachedPathBounds = null;
+    }
+
+    public PowerLineSourceDescriptor getSourceDescriptor() {
+        return sourceDescriptor;
+    }
+
+    public void setSourceDescriptor(PowerLineSourceDescriptor sourceDescriptor) {
+        this.sourceDescriptor = sourceDescriptor;
+    }
+
+    public void bindSource(Shape shape) {
+        this.sourceDescriptor = PowerLineSourceDescriptor.capture(shape);
+    }
+
+    public PowerLineSourcePath resolveSourcePath() {
+        return resolveSourcePath(null);
+    }
+
+    public PowerLineSourcePath resolveSourcePath(Shape liveShape) {
+        PowerLineSourcePath resolved = PowerLineSourceDescriptor.resolve(liveShape, sourceDescriptor);
+        if (resolved != null) {
+            return resolved;
+        }
+        return PolylineSourcePath.open(pathPoints);
+    }
+
+    public boolean hasSourcePath() {
+        return sourceDescriptor != null;
     }
 
     /** 路径在平面坐标下的轴对齐包围盒（随路径修改失效重算）。 */
@@ -458,9 +492,13 @@ public class PowerLineFootprint {
     /** 影响塔/线几何的指纹（预览缓存用，不含纯分析开关）。 */
     public int geometryFingerprint() {
         int hash = 1;
-        for (Vec2d point : pathPoints) {
-            hash = 31 * hash + Double.hashCode(point.x);
-            hash = 31 * hash + Double.hashCode(point.y);
+        if (sourceDescriptor != null) {
+            hash = 31 * hash + sourceDescriptor.fingerprint();
+        } else {
+            for (Vec2d point : pathPoints) {
+                hash = 31 * hash + Double.hashCode(point.x);
+                hash = 31 * hash + Double.hashCode(point.y);
+            }
         }
         hash = 31 * hash + Double.hashCode(minPoleSpacing);
         hash = 31 * hash + Double.hashCode(maxPoleSpacing);

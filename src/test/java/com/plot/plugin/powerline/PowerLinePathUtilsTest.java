@@ -24,13 +24,17 @@ class PowerLinePathUtilsTest {
     }
 
     @Test
-    void rejectsBezierCurve() {
+    void acceptsOpenBezierAndRejectsClosedBezier() {
         List<Vec2d> anchors = List.of(new Vec2d(0, 0), new Vec2d(10, 0));
         List<Vec2d[]> controls = new ArrayList<>();
         controls.add(new Vec2d[]{new Vec2d(0, 10), new Vec2d(10, 10)});
-        BezierCurveShape curve = new BezierCurveShape(anchors, controls, false);
-        assertFalse(PowerLinePathUtils.isAdoptableLine(curve));
-        assertTrue(PowerLinePathUtils.isRejectedCurve(curve));
+        BezierCurveShape open = new BezierCurveShape(anchors, controls, false);
+        assertTrue(PowerLinePathUtils.isAdoptableLine(open));
+        assertFalse(PowerLinePathUtils.isRejectedCurve(open));
+
+        BezierCurveShape closed = new BezierCurveShape(anchors, controls, true);
+        assertFalse(PowerLinePathUtils.isAdoptableLine(closed));
+        assertTrue(PowerLinePathUtils.isRejectedClosedPath(closed));
     }
 
     @Test

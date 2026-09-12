@@ -7,6 +7,7 @@ import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfigData;
+import com.plot.plugin.powerline.path.PowerLineSourceDescriptor;
 import com.plot.plugin.powerline.style.StyleOverrides;
 
 import java.io.IOException;
@@ -25,7 +26,7 @@ import net.minecraft.util.math.BlockPos;
  */
 public class PowerLineProject {
     /** Current on-disk schema. */
-    public static final int SCHEMA_VERSION = 8;
+    public static final int SCHEMA_VERSION = 9;
 
     private static final Gson GSON = new GsonBuilder()
         .setPrettyPrinting()
@@ -352,6 +353,11 @@ public class PowerLineProject {
         int targetTowerCount = 2;
         StyleOverridesData styleOverrides;
         TowerGeneratorConfigData parametricTowerConfig;
+        String sourceShapeId;
+        String sourceKind;
+        boolean sourceClosed;
+        List<Vec2dData> sourcePolylinePoints = new ArrayList<>();
+        List<Vec2dData> sourceBezierControlPoints = new ArrayList<>();
     }
 
     static class ProjectData {
@@ -398,6 +404,18 @@ public class PowerLineProject {
                 com.plot.plugin.powerline.style.PowerLineStyleEditor.syncOverridesFromFootprint(line);
                 lineData.styleOverrides = StyleOverridesData.from(line.getStyleOverrides());
                 lineData.parametricTowerConfig = TowerGeneratorConfigData.from(line.getParametricTowerConfig());
+                PowerLineSourceDescriptor source = line.getSourceDescriptor();
+                if (source != null) {
+                    lineData.sourceShapeId = source.shapeId();
+                    lineData.sourceKind = source.kind().name();
+                    lineData.sourceClosed = source.closed();
+                    for (Vec2d point : source.polylinePoints()) {
+                        lineData.sourcePolylinePoints.add(new Vec2dData(point));
+                    }
+                    for (Vec2d point : source.bezierControlPoints()) {
+                        lineData.sourceBezierControlPoints.add(new Vec2dData(point));
+                    }
+                }
                 data.lines.add(lineData);
             }
             for (PlacedSingleTower tower : project.placedSingleTowers) {
@@ -489,6 +507,36 @@ public class PowerLineProject {
                 overridesData.applyTo(footprint.getStyleOverrides());
                 if (lineData.parametricTowerConfig != null) {
                     footprint.setParametricTowerConfig(lineData.parametricTowerConfig.toConfig());
+                }
+                if (lineData.sourceKind != null && !lineData.sourceKind.isBlank()) {
+                    try {
+                        PowerLineSourceDescriptor.Kind kind =
+                            PowerLineSourceDescriptor.Kind.valueOf(lineData.sourceKind);
+                        List<Vec2d> polyline = new ArrayList<>();
+                        if (lineData.sourcePolylinePoints != null) {
+                            for (Vec2dData pointData : lineData.sourcePolylinePoints) {
+                                if (pointData != null) {
+                                    polyline.add(pointData.toVec2d());
+                                }
+                            }
+                        }
+                        List<Vec2d> bezierControls = new ArrayList<>();
+                        if (lineData.sourceBezierControlPoints != null) {
+                            for (Vec2dData pointData : lineData.sourceBezierControlPoints) {
+                                if (pointData != null) {
+                                    bezierControls.add(pointData.toVec2d());
+                                }
+                            }
+                        }
+                        footprint.setSourceDescriptor(switch (kind) {
+                            case POLYLINE -> PowerLineSourceDescriptor.polyline(
+                                lineData.sourceShapeId, polyline);
+                            case BEZIER -> PowerLineSourceDescriptor.bezier(
+                                lineData.sourceShapeId, bezierControls, lineData.sourceClosed);
+                        });
+                    } catch (IllegalArgumentException ignored) {
+                        // keep legacy polyline-only footprint
+                    }
                 }
                 project.addLine(footprint);
             }
