@@ -110,6 +110,77 @@ public final class PowerLineUiWidgets {
             ctx::invalidatePreview);
     }
 
+    /** 线路编辑 inputFloat：激活时 snapshot，编辑中 live 改值，结束编辑后 invalidate preview。 */
+    public static boolean inputFloatStableLineEdit(
+            PowerLineUiContext ctx,
+            String idSuffix,
+            float[] value,
+            float step,
+            float stepFast,
+            String format,
+            float min,
+            float max,
+            Consumer<Float> onLiveChange) {
+        imgui.type.ImFloat input = new imgui.type.ImFloat(value[0]);
+        boolean changed = ImGui.inputFloat("##" + idSuffix, input, step, stepFast, format);
+        if (ImGui.isItemActivated()) {
+            ctx.pushEditSnapshot();
+        }
+        if (changed) {
+            float clamped = Math.max(min, Math.min(max, input.get()));
+            value[0] = clamped;
+            if (onLiveChange != null) {
+                onLiveChange.accept(clamped);
+            }
+        }
+        if (ImGui.isItemDeactivatedAfterEdit()) {
+            ctx.invalidatePreview();
+        }
+        return changed;
+    }
+
+    /** 线路编辑 inputInt：激活时 snapshot，编辑中 live 改值，结束编辑后 invalidate preview。 */
+    public static boolean inputIntStableLineEdit(
+            PowerLineUiContext ctx,
+            String idSuffix,
+            int[] value,
+            int step,
+            int stepFast,
+            Consumer<Integer> onLiveChange) {
+        imgui.type.ImInt input = new imgui.type.ImInt(value[0]);
+        boolean changed = ImGui.inputInt("##" + idSuffix, input, step, stepFast);
+        if (ImGui.isItemActivated()) {
+            ctx.pushEditSnapshot();
+        }
+        if (changed) {
+            value[0] = input.get();
+            if (onLiveChange != null) {
+                onLiveChange.accept(value[0]);
+            }
+        }
+        if (ImGui.isItemDeactivatedAfterEdit()) {
+            ctx.invalidatePreview();
+        }
+        return changed;
+    }
+
+    /** 线路编辑 inputText：激活时 snapshot，编辑中 live 改值。 */
+    public static boolean inputTextStableLineEdit(
+            PowerLineUiContext ctx,
+            String labelI18nKey,
+            String idSuffix,
+            imgui.type.ImString buffer,
+            Consumer<String> onLiveChange) {
+        boolean changed = ImGui.inputText(stableLabel(labelI18nKey, idSuffix), buffer);
+        if (ImGui.isItemActivated()) {
+            ctx.pushEditSnapshot();
+        }
+        if (changed && onLiveChange != null) {
+            onLiveChange.accept(buffer.get());
+        }
+        return changed;
+    }
+
     public static void renderLineSelector(PowerLineUiContext ctx) {
         if (ctx.project().getLineCount() == 0) {
             return;

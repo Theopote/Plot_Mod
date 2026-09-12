@@ -1,8 +1,10 @@
 package com.plot.plugin.powerline.model;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.family.TowerFamily;
+import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -116,5 +118,37 @@ class PowerLineProjectSchemaDTest {
         assertEquals(0.35, restoredLine.getStyleOverrides().getSagRatio(), 1e-6);
         assertNotNull(restoredLine.getStyleOverrides().getPreferredSpacing());
         assertTrue(com.plot.plugin.powerline.style.PowerLineStyleEditor.isModified(restoredLine));
+    }
+
+    @Test
+    void placedSingleTowersJsonRoundTrip() {
+        PowerLineProject project = new PowerLineProject();
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
+        line.setName("Style Source");
+        project.addLine(line);
+
+        PlacedSingleTower tower = new PlacedSingleTower(
+            new Vec2d(12.5, 3.0),
+            2,
+            "Lattice A",
+            line.getId(),
+            List.of(new BlockRecord(new BlockPos(10, 64, 20), "minecraft:air", "minecraft:oak_fence")));
+        project.addPlacedSingleTower(tower);
+
+        String json = project.toJson();
+        assertTrue(json.contains("\"placedSingleTowers\""));
+        assertTrue(json.contains("\"schemaVersion\": " + PowerLineProject.SCHEMA_VERSION));
+
+        PowerLineProject restored = PowerLineProject.fromJson(json);
+        assertEquals(1, restored.getPlacedSingleTowers().size());
+        PlacedSingleTower restoredTower = restored.getPlacedSingleTowers().getFirst();
+        assertEquals(tower.getId(), restoredTower.getId());
+        assertEquals(12.5, restoredTower.getPlanPoint().x, 1e-6);
+        assertEquals(3.0, restoredTower.getPlanPoint().y, 1e-6);
+        assertEquals(2, restoredTower.getRotationQuadrant());
+        assertEquals("Lattice A", restoredTower.getDesignLabel());
+        assertEquals(line.getId(), restoredTower.getStyleLineId());
+        assertEquals(1, restoredTower.getBlockRecords().size());
+        assertEquals("minecraft:oak_fence", restoredTower.getBlockRecords().getFirst().newBlockId);
     }
 }

@@ -16,7 +16,7 @@ import net.minecraft.world.World;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * 单塔放置会话：画布悬停跟随 + 正交旋转 + 左键确认（骨架阶段不写入世界）。
+ * 单塔放置会话：画布悬停跟随 + 正交旋转 + 左键确认后通过 {@link SingleTowerPlaceCommand} 写入世界。
  */
 public final class SingleTowerPlacementSession {
 

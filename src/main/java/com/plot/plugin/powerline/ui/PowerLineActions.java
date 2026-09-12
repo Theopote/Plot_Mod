@@ -760,6 +760,9 @@ public final class PowerLineActions {
         state.setPoleDesignerOpen(false);
         state.setPoleDesignerEditingId("");
         state.getDesignDraftHistory().clear();
+        state.clearPlacedSingleTowerSelection();
+        state.setPendingDeletePlacedSingleTowerId("");
+        state.setPlacedSingleTowerDeleteConfirmPending(false);
         invalidatePreview();
     }
 

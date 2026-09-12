@@ -80,6 +80,7 @@ public final class PowerLinePluginState {
 
     public void setProject(PowerLineProject project) {
         this.project = project != null ? project : new PowerLineProject();
+        syncPlacedSingleTowersFromProject();
     }
 
     public PowerLineProjectHistory getProjectHistory() {
@@ -190,12 +191,15 @@ public final class PowerLinePluginState {
     public void addPlacedSingleTower(PlacedSingleTower placement) {
         if (placement != null) {
             placedSingleTowers.add(placement);
+            project.addPlacedSingleTower(placement);
         }
     }
 
     public void removeLastPlacedSingleTower() {
         if (!placedSingleTowers.isEmpty()) {
+            PlacedSingleTower last = placedSingleTowers.getLast();
             placedSingleTowers.removeLast();
+            project.removePlacedSingleTower(last.getId());
         }
     }
 
@@ -204,6 +208,7 @@ public final class PowerLinePluginState {
             return;
         }
         placedSingleTowers.removeIf(tower -> towerId.equals(tower.getId()));
+        project.removePlacedSingleTower(towerId);
     }
 
     public PlacedSingleTower findPlacedSingleTower(String towerId) {
@@ -254,5 +259,10 @@ public final class PowerLinePluginState {
 
     public void setPlacedSingleTowerDeleteConfirmPending(boolean pending) {
         this.placedSingleTowerDeleteConfirmPending = pending;
+    }
+
+    private void syncPlacedSingleTowersFromProject() {
+        placedSingleTowers.clear();
+        placedSingleTowers.addAll(project.getPlacedSingleTowers());
     }
 }

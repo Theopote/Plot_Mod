@@ -3,6 +3,7 @@ package com.plot.plugin.powerline.model;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfigData;
@@ -17,12 +18,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.minecraft.util.math.BlockPos;
+
 /**
  * 电力线路项目（管理已认领的线路）。
  */
 public class PowerLineProject {
     /** Current on-disk schema. */
-    public static final int SCHEMA_VERSION = 7;
+    public static final int SCHEMA_VERSION = 8;
 
     private static final Gson GSON = new GsonBuilder()
         .setPrettyPrinting()
@@ -30,6 +33,7 @@ public class PowerLineProject {
         .create();
 
     private final Map<String, PowerLineFootprint> lines = new LinkedHashMap<>();
+    private final List<PlacedSingleTower> placedSingleTowers = new ArrayList<>();
 
     public Map<String, PowerLineFootprint> getLines() {
         return Collections.unmodifiableMap(new LinkedHashMap<>(lines));
@@ -56,6 +60,29 @@ public class PowerLineProject {
 
     public int getLineCount() {
         return lines.size();
+    }
+
+    public List<PlacedSingleTower> getPlacedSingleTowers() {
+        return Collections.unmodifiableList(new ArrayList<>(placedSingleTowers));
+    }
+
+    public void addPlacedSingleTower(PlacedSingleTower tower) {
+        if (tower != null) {
+            placedSingleTowers.add(tower);
+        }
+    }
+
+    public void removePlacedSingleTower(String towerId) {
+        if (towerId == null || towerId.isBlank()) {
+            return;
+        }
+        placedSingleTowers.removeIf(tower -> towerId.equals(tower.getId()));
+    }
+
+    public void removeLastPlacedSingleTower() {
+        if (!placedSingleTowers.isEmpty()) {
+            placedSingleTowers.removeLast();
+        }
     }
 
     public double getTotalPathLength() {
@@ -165,6 +192,74 @@ public class PowerLineProject {
         }
     }
 
+    static class BlockRecordData {
+        int x;
+        int y;
+        int z;
+        String previousBlockId;
+        String newBlockId;
+
+        static BlockRecordData from(BlockRecord record) {
+            BlockRecordData data = new BlockRecordData();
+            data.x = record.pos.getX();
+            data.y = record.pos.getY();
+            data.z = record.pos.getZ();
+            data.previousBlockId = record.previousBlockId;
+            data.newBlockId = record.newBlockId;
+            return data;
+        }
+
+        BlockRecord toRecord() {
+            return new BlockRecord(new BlockPos(x, y, z), previousBlockId, newBlockId);
+        }
+    }
+
+    static class PlacedSingleTowerData {
+        String id;
+        double planX;
+        double planY;
+        int rotationQuadrant;
+        String designLabel;
+        String styleLineId;
+        List<BlockRecordData> blockRecords = new ArrayList<>();
+
+        static PlacedSingleTowerData from(PlacedSingleTower tower) {
+            PlacedSingleTowerData data = new PlacedSingleTowerData();
+            data.id = tower.getId();
+            data.planX = tower.getPlanPoint().x;
+            data.planY = tower.getPlanPoint().y;
+            data.rotationQuadrant = tower.getRotationQuadrant();
+            data.designLabel = tower.getDesignLabel();
+            data.styleLineId = tower.getStyleLineId();
+            for (BlockRecord record : tower.getBlockRecords()) {
+                data.blockRecords.add(BlockRecordData.from(record));
+            }
+            return data;
+        }
+
+        PlacedSingleTower toTower() {
+            if (id == null || id.isBlank()) {
+                return null;
+            }
+            List<BlockRecord> records = new ArrayList<>();
+            if (blockRecords != null) {
+                for (BlockRecordData recordData : blockRecords) {
+                    if (recordData != null) {
+                        records.add(recordData.toRecord());
+                    }
+                }
+            }
+            return new PlacedSingleTower(
+                id,
+                planX,
+                planY,
+                rotationQuadrant,
+                designLabel,
+                styleLineId,
+                records);
+        }
+    }
+
     static class StyleOverridesData {
         Double sagRatio;
         Double maxSagDepth;
@@ -243,6 +338,7 @@ public class PowerLineProject {
     static class ProjectData {
         int schemaVersion = SCHEMA_VERSION;
         List<LineData> lines = new ArrayList<>();
+        List<PlacedSingleTowerData> placedSingleTowers = new ArrayList<>();
 
         static ProjectData from(PowerLineProject project) {
             ProjectData data = new ProjectData();
@@ -285,13 +381,16 @@ public class PowerLineProject {
                 lineData.parametricTowerConfig = TowerGeneratorConfigData.from(line.getParametricTowerConfig());
                 data.lines.add(lineData);
             }
+            for (PlacedSingleTower tower : project.placedSingleTowers) {
+                data.placedSingleTowers.add(PlacedSingleTowerData.from(tower));
+            }
             return data;
         }
 
         PowerLineProject toProject() {
             PowerLineProject project = new PowerLineProject();
             if (lines == null) {
-                return project;
+                lines = new ArrayList<>();
             }
             for (LineData lineData : lines) {
                 if (lineData == null || lineData.id == null || lineData.id.isBlank()) {
@@ -373,6 +472,17 @@ public class PowerLineProject {
                     footprint.setParametricTowerConfig(lineData.parametricTowerConfig.toConfig());
                 }
                 project.addLine(footprint);
+            }
+            if (placedSingleTowers != null) {
+                for (PlacedSingleTowerData towerData : placedSingleTowers) {
+                    if (towerData == null) {
+                        continue;
+                    }
+                    PlacedSingleTower tower = towerData.toTower();
+                    if (tower != null) {
+                        project.addPlacedSingleTower(tower);
+                    }
+                }
             }
             return project;
         }

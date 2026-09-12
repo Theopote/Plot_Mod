@@ -3502,6 +3502,7 @@
   "plugin.powerline.route.placement_mode_hint.ENDPOINTS_WITH_CORNERS": "Start, end, and corner poles — no intermediate spacing.",
   "plugin.powerline.route.tower_count": "Tower count",
   "plugin.powerline.route.tower_count_implied_spacing": "Implied spacing: %s blocks",
+  "plugin.powerline.route.tower_count_hint": "Towers are spaced evenly along path mileage; corners are not forced unless you use Endpoints + corners.",
   "plugin.powerline.single_tower.section": "Single tower",
   "plugin.powerline.single_tower.section_hint": "Place one tower on the canvas using the current line style.",
   "plugin.powerline.single_tower.start": "Place single tower",

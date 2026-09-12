@@ -67,12 +67,12 @@ public final class PowerLineRoutePanel {
             ctx.lineNameBuffer().set(line.getName());
             ctx.setLineNameEditingId(line.getId());
         }
-        if (ImGui.inputText(PlotI18n.tr("plugin.powerline.line_name"), ctx.lineNameBuffer())) {
-            line.setName(ctx.lineNameBuffer().get());
-        }
-        if (ImGui.isItemActivated()) {
-            ctx.pushEditSnapshot();
-        }
+        PowerLineUiWidgets.inputTextStableLineEdit(
+            ctx,
+            "plugin.powerline.line_name",
+            "line_name",
+            ctx.lineNameBuffer(),
+            name -> line.setName(name));
     }
 
     private void renderPolePlacement(PowerLineFootprint line) {
@@ -156,38 +156,46 @@ public final class PowerLineRoutePanel {
 
         ImGui.sameLine();
         ImGui.setNextItemWidth(64f);
-        imgui.type.ImFloat input = new imgui.type.ImFloat(spacing[0]);
-        if (ImGui.inputFloat("##pole_spacing_input", input, 1f, 4f, "%.0f")) {
-            if (ImGui.isItemActivated()) {
-                ctx.pushEditSnapshot();
-            }
-            float clamped = Math.max(sliderMin, Math.min(sliderMax, input.get()));
-            line.setMaxPoleSpacing(clamped);
-            PowerLineStyleEditor.afterSpacingEdit(line);
-            ctx.invalidatePreview();
-        }
+        float[] spacingInput = {spacing[0]};
+        PowerLineUiWidgets.inputFloatStableLineEdit(
+            ctx,
+            "pole_spacing_input",
+            spacingInput,
+            1f,
+            4f,
+            "%.0f",
+            sliderMin,
+            sliderMax,
+            value -> {
+                line.setMaxPoleSpacing(value);
+                PowerLineStyleEditor.afterSpacingEdit(line);
+            });
+        spacing[0] = spacingInput[0];
         ImGui.sameLine();
         PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.spacing_blocks"));
     }
 
     private void renderTowerCountInput(PowerLineFootprint line) {
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.tower_count"));
-        ImInt count = new ImInt(line.getTargetTowerCount());
-        if (ImGui.inputInt("##tower_count", count, 1, 1)) {
-            if (ImGui.isItemActivated()) {
-                ctx.pushEditSnapshot();
-            }
-            line.setTargetTowerCount(count.get());
-            ctx.invalidatePreview();
-        }
+        int[] count = {line.getTargetTowerCount()};
+        PowerLineUiWidgets.inputIntStableLineEdit(
+            ctx,
+            "tower_count",
+            count,
+            1,
+            1,
+            line::setTargetTowerCount);
         double worldLength = line.computeWorldPathLength(ctx.coordinates());
-        int poles = line.getTargetTowerCount();
+        int poles = count[0];
         if (poles > 1 && worldLength > 0.0) {
             double implied = worldLength / (poles - 1);
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.route.tower_count_implied_spacing", String.format("%.0f", implied)));
         }
+        PowerLineUiWidgets.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.powerline.route.tower_count_hint"));
     }
 
     private void renderTerrainAvoidance(PowerLineFootprint line) {
