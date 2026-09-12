@@ -3,13 +3,17 @@ package com.plot.plugin.powerline;
 import com.plot.api.geometry.Vec2d;
 import com.plot.test.world.IdentityCoordinateService;
 import com.plot.plugin.powerline.model.PowerPoleSite;
+import com.plot.core.geometry.shapes.CircleShape;
+import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.TowerRole;
+import com.plot.plugin.powerline.path.PowerLinePathLayout;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TowerRoleClassifierTest {
@@ -74,6 +78,34 @@ class TowerRoleClassifierTest {
         Vec2d incoming = new Vec2d(10, 0);
         Vec2d outgoing = new Vec2d(5, 0);
         assertEquals(0.0, TowerRoleClassifier.computeDeflectionAngle(incoming, outgoing), 1e-6);
+    }
+
+    @Test
+    void closedLoopHasNoTerminalTowers() {
+        CircleShape circle = new CircleShape(new Vec2d(50, 50), 30.0);
+        PowerLineFootprint footprint = PowerLinePathLayout.adopt(circle, IdentityCoordinateService.INSTANCE);
+        footprint.setMaxPoleSpacing(40.0);
+        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(
+            footprint,
+            IdentityCoordinateService.INSTANCE);
+        assertTrue(sites.size() >= 3);
+        for (PowerPoleSite site : sites) {
+            assertNotEquals(TowerRole.TERMINAL, site.getRole());
+        }
+    }
+
+    @Test
+    void closedLoopClassifiesInteriorAngles() {
+        List<PowerPoleSite> sites = new ArrayList<>();
+        sites.add(site(0, 0));
+        sites.add(site(40, 0));
+        sites.add(site(40, 40));
+        sites.add(site(0, 40));
+        TowerRoleClassifier.classifySites(sites, 5.0, true);
+        for (PowerPoleSite site : sites) {
+            assertNotEquals(TowerRole.TERMINAL, site.getRole());
+            assertEquals(TowerRole.ANGLE, site.getRole());
+        }
     }
 
     @Test

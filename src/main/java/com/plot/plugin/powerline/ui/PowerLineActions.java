@@ -23,6 +23,7 @@ import com.plot.plugin.powerline.PowerPoleLayoutUtils;
 import com.plot.plugin.powerline.path.ClosedLoopLayoutException;
 import com.plot.plugin.powerline.path.PowerLinePathLayout;
 import com.plot.plugin.powerline.path.PowerLineSourceSync;
+import com.plot.plugin.powerline.path.SourceSyncStatus;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.parametric.TowerParametricBuildPolicy;
@@ -166,8 +167,15 @@ public final class PowerLineActions {
                 ProjectStatusSeverity.WARNING);
             return false;
         }
-        if (!PowerLineSourceSync.isSourceStale(line, liveShape)) {
+        SourceSyncStatus syncStatus = PowerLineSourceSync.resolveStatus(line, liveShape);
+        if (syncStatus == SourceSyncStatus.OK) {
             return true;
+        }
+        if (syncStatus != SourceSyncStatus.STALE) {
+            state.setProjectStatus(
+                relayoutStatusMessage(syncStatus),
+                ProjectStatusSeverity.WARNING);
+            return false;
         }
         state.getProjectHistory().push(state.getProject());
         try {
@@ -180,6 +188,11 @@ public final class PowerLineActions {
         } catch (ClosedLoopLayoutException e) {
             state.setProjectStatus(
                 PlotI18n.tr("plugin.powerline.adopt_reject_closed_loop"),
+                ProjectStatusSeverity.WARNING);
+            return false;
+        } catch (IllegalArgumentException e) {
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.source_unsupported"),
                 ProjectStatusSeverity.WARNING);
             return false;
         }
@@ -997,6 +1010,15 @@ public final class PowerLineActions {
     private World getClientWorld() {
         MinecraftClient client = MinecraftClient.getInstance();
         return client != null ? client.world : null;
+    }
+
+    private static String relayoutStatusMessage(SourceSyncStatus status) {
+        return switch (status) {
+            case MISSING -> PlotI18n.tr("plugin.powerline.source_missing");
+            case UNSUPPORTED -> PlotI18n.tr("plugin.powerline.source_unsupported");
+            case DEGENERATE -> PlotI18n.tr("plugin.powerline.source_degenerate");
+            default -> PlotI18n.tr("plugin.powerline.source_stale");
+        };
     }
 
     private static String layoutConstraintReason(

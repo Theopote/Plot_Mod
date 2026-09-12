@@ -2,6 +2,8 @@ package com.plot.plugin.powerline.path;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.ArcShape;
+import com.plot.core.geometry.shapes.CircleShape;
+import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.geometry.shapes.SineCurveShape;
 import com.plot.core.model.Shape;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -10,7 +12,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PowerLineSourceSyncTest {
@@ -51,5 +55,68 @@ class PowerLineSourceSyncTest {
 
         assertTrue(PowerLineSourceSync.isSourceMissing(footprint, List.of()));
         assertFalse(PowerLineSourceSync.isSourceMissing(footprint, List.of(arc)));
+    }
+
+    @Test
+    void resolvesUnsupportedDegenerateCircle() {
+        CircleShape circle = new CircleShape(new Vec2d(0, 0), 30.0);
+        PowerLineFootprint footprint = PowerLinePathLayout.adopt(circle, IdentityCoordinateService.INSTANCE);
+
+        circle.setRadius(0.0);
+        assertEquals(SourceSyncStatus.UNSUPPORTED, PowerLineSourceSync.resolveStatus(footprint, circle));
+    }
+
+    @Test
+    void relayoutPreservesFootprintWhenGeometryBecomesInvalid() {
+        PolylineShape triangle = new PolylineShape(
+            List.of(new Vec2d(0, 0), new Vec2d(40, 0), new Vec2d(20, 30)),
+            true);
+        PowerLineFootprint footprint = PowerLinePathLayout.adopt(triangle, IdentityCoordinateService.INSTANCE);
+        int fingerprint = footprint.getSourceDescriptor().fingerprint();
+        int towerCount = footprint.getPathPoints().size();
+        Vec2d firstTower = footprint.getPathPoints().getFirst().copy();
+
+        triangle.setPoints(List.of(new Vec2d(0, 0), new Vec2d(20, 0), new Vec2d(40, 0)));
+        assertThrows(
+            ClosedLoopLayoutException.class,
+            () -> PowerLineSourceSync.relayout(
+                footprint,
+                triangle,
+                IdentityCoordinateService.INSTANCE));
+
+        assertEquals(fingerprint, footprint.getSourceDescriptor().fingerprint());
+        assertEquals(towerCount, footprint.getPathPoints().size());
+        assertEquals(firstTower, footprint.getPathPoints().getFirst());
+    }
+
+    @Test
+    void closedLoopConstraintDoesNotDuplicateTowerAcrossSeam() {
+        PolylineShape square = new PolylineShape(
+            List.of(
+                new Vec2d(0, 0),
+                new Vec2d(100, 0),
+                new Vec2d(100, 100),
+                new Vec2d(0, 100)),
+            true);
+        PowerLineFootprint footprint = PowerLinePathLayout.adopt(square, IdentityCoordinateService.INSTANCE);
+        footprint.setMaxPoleSpacing(120.0);
+
+        List<com.plot.plugin.powerline.model.PowerPoleSite> baseline =
+            com.plot.plugin.powerline.PowerPoleLayoutUtils.computePoleSites(
+                footprint,
+                IdentityCoordinateService.INSTANCE);
+        double perimeter = footprint.resolveSourcePath().worldLength(IdentityCoordinateService.INSTANCE);
+        double seamStation = ClosedPathGeometry.normalizeStation(
+            footprint.resolveSourcePath(),
+            baseline.getFirst().getStationing() + perimeter - 1.0,
+            perimeter);
+        footprint.addLayoutConstraint(
+            new com.plot.plugin.powerline.model.PoleLayoutConstraint(seamStation, "seam"));
+
+        List<com.plot.plugin.powerline.model.PowerPoleSite> withConstraint =
+            com.plot.plugin.powerline.PowerPoleLayoutUtils.computePoleSites(
+                footprint,
+                IdentityCoordinateService.INSTANCE);
+        assertEquals(baseline.size(), withConstraint.size());
     }
 }

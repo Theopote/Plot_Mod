@@ -3209,6 +3209,8 @@
   "plugin.powerline.adopt_reject_closed_loop": "Closed path needs at least 3 non-collinear towers",
   "plugin.powerline.source_stale": "Canvas reference path changed; tower layout may be outdated",
   "plugin.powerline.source_missing": "Linked canvas path was deleted",
+  "plugin.powerline.source_unsupported": "Linked canvas path is no longer a valid power line reference",
+  "plugin.powerline.source_degenerate": "Linked canvas path has collapsed to a degenerate shape",
   "plugin.powerline.relayout_from_source": "Relayout towers from canvas",
   "plugin.powerline.relayout_success": "Tower layout updated from canvas path",
   "plugin.powerline.adopt_unsupported_hint": "Only line or polyline paths are supported",

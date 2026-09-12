@@ -28,34 +28,47 @@ public final class TowerRoleClassifier {
     }
 
     public static void classifySites(List<PowerPoleSite> sites, double angleThresholdDegrees) {
+        classifySites(sites, angleThresholdDegrees, false);
+    }
+
+    public static void classifySites(
+            List<PowerPoleSite> sites,
+            double angleThresholdDegrees,
+            boolean closedLoop) {
         if (sites == null || sites.isEmpty()) {
             return;
         }
         double threshold = Math.max(0.0, angleThresholdDegrees);
+        int size = sites.size();
+        if (size == 1) {
+            PowerPoleSite site = sites.getFirst();
+            if (site.isRoleAutoAssigned()) {
+                site.setRole(closedLoop ? TowerRole.SUSPENSION : TowerRole.TERMINAL);
+                site.setDeflectionAngle(0.0);
+            }
+            return;
+        }
 
-        for (int i = 0; i < sites.size(); i++) {
+        for (int i = 0; i < size; i++) {
             PowerPoleSite site = sites.get(i);
             if (!site.isRoleAutoAssigned()) {
                 continue;
             }
-            if (i == 0 || i == sites.size() - 1) {
+            if (!closedLoop && (i == 0 || i == size - 1)) {
                 site.setRole(TowerRole.TERMINAL);
-                site.setDeflectionAngle(i == 0 || i == sites.size() - 1
-                    ? deflectionAtEnd(sites, i)
-                    : 0.0);
+                site.setDeflectionAngle(0.0);
                 continue;
             }
 
-            Vec2d incoming = sites.get(i).getPlanPosition().subtract(sites.get(i - 1).getPlanPosition());
-            Vec2d outgoing = sites.get(i + 1).getPlanPosition().subtract(sites.get(i).getPlanPosition());
+            int previousIndex = closedLoop ? (i - 1 + size) % size : i - 1;
+            int nextIndex = closedLoop ? (i + 1) % size : i + 1;
+            Vec2d incoming = sites.get(i).getPlanPosition()
+                .subtract(sites.get(previousIndex).getPlanPosition());
+            Vec2d outgoing = sites.get(nextIndex).getPlanPosition()
+                .subtract(sites.get(i).getPlanPosition());
             double deflection = computeDeflectionAngle(incoming, outgoing);
             site.setDeflectionAngle(deflection);
             site.setRole(deflection >= threshold ? TowerRole.ANGLE : TowerRole.SUSPENSION);
         }
-    }
-
-    /** 端点偏转角始终为 0（端点无夹角可言）。 */
-    private static double deflectionAtEnd(List<PowerPoleSite> sites, int index) {
-        return 0.0;
     }
 }

@@ -4,6 +4,7 @@ import com.plot.core.model.Shape;
 import com.plot.plugin.powerline.model.PoleSpacingMode;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.path.PowerLineSourceSync;
+import com.plot.plugin.powerline.path.SourceSyncStatus;
 import com.plot.plugin.powerline.style.PowerLineSpacingPolicy;
 import com.plot.plugin.powerline.style.PowerLineStyleEditor;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
@@ -70,23 +71,30 @@ public final class PowerLineRoutePanel {
             return;
         }
         java.util.List<Shape> canvasShapes = ctx.host().appState().getShapes();
-        if (PowerLineSourceSync.isSourceMissing(line, canvasShapes)) {
-            PowerLineUiWidgets.textColored(
+        SourceSyncStatus status = PowerLineSourceSync.resolveStatus(line, canvasShapes);
+        switch (status) {
+            case NOT_LINKED, OK -> {
+                return;
+            }
+            case MISSING -> PowerLineUiWidgets.textColored(
                 PluginUiColors.WARNING,
                 PlotI18n.tr("plugin.powerline.source_missing"));
-            return;
-        }
-        Shape liveShape = PowerLineSourceSync.findShape(canvasShapes, line.getSourceShapeId());
-        if (!PowerLineSourceSync.isSourceStale(line, liveShape)) {
-            return;
-        }
-        PowerLineUiWidgets.textColored(
-            PluginUiColors.WARNING,
-            PlotI18n.tr("plugin.powerline.source_stale"));
-        ImGui.spacing();
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.relayout_from_source"), 0, 0)) {
-            ctx.pushEditSnapshot();
-            ctx.relayoutLineFromSource(line);
+            case UNSUPPORTED -> PowerLineUiWidgets.textColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr("plugin.powerline.source_unsupported"));
+            case DEGENERATE -> PowerLineUiWidgets.textColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr("plugin.powerline.source_degenerate"));
+            case STALE -> {
+                PowerLineUiWidgets.textColored(
+                    PluginUiColors.WARNING,
+                    PlotI18n.tr("plugin.powerline.source_stale"));
+                ImGui.spacing();
+                if (ImGui.button(PlotI18n.tr("plugin.powerline.relayout_from_source"), 0, 0)) {
+                    ctx.pushEditSnapshot();
+                    ctx.relayoutLineFromSource(line);
+                }
+            }
         }
     }
 

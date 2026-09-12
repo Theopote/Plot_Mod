@@ -21,6 +21,7 @@ public final class PowerLinePathLayout {
         Objects.requireNonNull(shape, "shape");
         ICoordinateService coords = Objects.requireNonNull(coordinates, "coordinates");
         PowerLineSourcePath sourcePath = PowerLinePathAdapters.from(shape);
+        PowerLineSourceDescriptor descriptor = PowerLineSourceDescriptor.capture(shape);
         double length = sourcePath.worldLength(coords);
         Vec2d start = sourcePath.pointAtStation(0.0, coords);
         Vec2d end = sourcePath.isClosed()
@@ -29,23 +30,32 @@ public final class PowerLinePathLayout {
                 ? sourcePath.pointAtStation(length, coords)
                 : start.add(new Vec2d(1, 0));
         PowerLineFootprint footprint = new PowerLineFootprint(List.of(start.copy(), end.copy()));
-        footprint.setSourceDescriptor(PowerLineSourceDescriptor.capture(shape));
-        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(footprint, coords);
-        validateClosedLoop(sourcePath, sites);
-        syncTowerPolyline(footprint, sites);
+        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(footprint, sourcePath, coords);
+        commitLayout(footprint, descriptor, sourcePath, sites);
         return footprint;
     }
 
     public static List<PowerPoleSite> layoutAndSync(
             PowerLineFootprint footprint,
             ICoordinateService coordinates) {
-        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(footprint, coordinates);
-        validateClosedLoop(footprint.resolveSourcePath(), sites);
+        PowerLineSourcePath sourcePath = footprint.resolveSourcePath();
+        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(footprint, sourcePath, coordinates);
+        validateClosedLoop(sourcePath, sites);
         syncTowerPolyline(footprint, sites);
         return sites;
     }
 
-    private static void validateClosedLoop(PowerLineSourcePath sourcePath, List<PowerPoleSite> sites) {
+    public static void commitLayout(
+            PowerLineFootprint footprint,
+            PowerLineSourceDescriptor descriptor,
+            PowerLineSourcePath sourcePath,
+            List<PowerPoleSite> sites) {
+        validateClosedLoop(sourcePath, sites);
+        footprint.setSourceDescriptor(descriptor);
+        syncTowerPolyline(footprint, sites);
+    }
+
+    static void validateClosedLoop(PowerLineSourcePath sourcePath, List<PowerPoleSite> sites) {
         if (sourcePath == null || !sourcePath.isClosed()) {
             return;
         }

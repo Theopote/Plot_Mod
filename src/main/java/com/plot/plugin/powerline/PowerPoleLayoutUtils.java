@@ -9,6 +9,7 @@ import com.plot.plugin.powerline.model.PoleLayoutConstraint;
 import com.plot.plugin.powerline.model.PoleOverride;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.TowerRole;
+import com.plot.plugin.powerline.path.ClosedPathGeometry;
 import com.plot.plugin.powerline.path.ClosedPathLayout;
 import com.plot.plugin.powerline.path.PowerLinePathLayout;
 import com.plot.plugin.powerline.path.PowerLineSourcePath;
@@ -196,7 +197,7 @@ public final class PowerPoleLayoutUtils {
             site.setPathIndex(i);
             sites.add(site);
         }
-        TowerRoleClassifier.classifySites(sites, cornerAngleThreshold);
+        TowerRoleClassifier.classifySites(sites, cornerAngleThreshold, sourcePath.isClosed());
         return sites;
     }
 
@@ -206,24 +207,40 @@ public final class PowerPoleLayoutUtils {
         if (footprint == null) {
             return List.of();
         }
+        return computePoleSites(footprint, footprint.resolveSourcePath(), coordinates);
+    }
+
+    public static List<PowerPoleSite> computePoleSites(
+            PowerLineFootprint footprint,
+            PowerLineSourcePath sourcePath,
+            ICoordinateService coordinates) {
+        if (footprint == null) {
+            return List.of();
+        }
         ICoordinateService coords = requireCoordinates(coordinates);
-        PowerLineSourcePath sourcePath = footprint.resolveSourcePath();
+        PowerLineSourcePath resolvedPath = sourcePath != null
+            ? sourcePath
+            : footprint.resolveSourcePath();
         List<PowerPoleSite> sites = computePoleSites(
-            sourcePath,
+            resolvedPath,
             footprint.getCornerAngleThreshold(),
             footprint.getPoleSpacingMode(),
             footprint.getMaxPoleSpacing(),
             footprint.getTargetTowerCount(),
             coords);
+        double perimeter = resolvedPath.isClosed()
+            ? resolvedPath.worldLength(coords)
+            : 0.0;
         if (footprint.getPoleSpacingMode() != PoleSpacingMode.ENDPOINTS_ONLY) {
             insertLayoutConstraints(
                 sites,
-                sourcePath,
+                resolvedPath,
                 footprint.getLayoutConstraints(),
                 footprint.getCornerAngleThreshold(),
+                perimeter,
                 coords);
         }
-        applyOverrides(sites, footprint.getPoleOverrides());
+        applyOverrides(sites, footprint.getPoleOverrides(), perimeter);
         return sites;
     }
 
@@ -256,18 +273,24 @@ public final class PowerPoleLayoutUtils {
             PowerLineSourcePath sourcePath,
             List<PoleLayoutConstraint> constraints,
             double cornerAngleThreshold,
+            double perimeterBlocks,
             ICoordinateService coordinates) {
         if (sites == null || constraints == null || constraints.isEmpty()) {
             return;
         }
+        boolean closedLoop = sourcePath != null && sourcePath.isClosed();
         for (PoleLayoutConstraint constraint : constraints) {
             if (constraint == null) {
                 continue;
             }
             boolean exists = false;
             for (PowerPoleSite site : sites) {
-                if (Math.abs(site.getStationing() - constraint.getRequiredStationing())
-                        <= OVERRIDE_STATION_TOLERANCE_BLOCKS) {
+                if (stationsWithinTolerance(
+                    site.getStationing(),
+                    constraint.getRequiredStationing(),
+                    closedLoop,
+                    perimeterBlocks,
+                    OVERRIDE_STATION_TOLERANCE_BLOCKS)) {
                     exists = true;
                     break;
                 }
@@ -287,15 +310,23 @@ public final class PowerPoleLayoutUtils {
         for (int i = 0; i < sites.size(); i++) {
             sites.get(i).setPathIndex(i);
         }
-        TowerRoleClassifier.classifySites(sites, cornerAngleThreshold);
+        TowerRoleClassifier.classifySites(sites, cornerAngleThreshold, closedLoop);
     }
 
-    public static void applyOverrides(List<PowerPoleSite> sites, List<PoleOverride> overrides) {
+    public static void applyOverrides(
+            List<PowerPoleSite> sites,
+            List<PoleOverride> overrides,
+            double perimeterBlocks) {
         if (sites == null || overrides == null || overrides.isEmpty()) {
             return;
         }
+        boolean closedLoop = perimeterBlocks > 1e-12;
         for (PowerPoleSite site : sites) {
-            PoleOverride match = findNearestOverride(site.getStationing(), overrides);
+            PoleOverride match = findNearestOverride(
+                site.getStationing(),
+                overrides,
+                closedLoop,
+                perimeterBlocks);
             if (match == null) {
                 continue;
             }
@@ -309,17 +340,42 @@ public final class PowerPoleLayoutUtils {
         }
     }
 
-    private static PoleOverride findNearestOverride(double stationingBlocks, List<PoleOverride> overrides) {
+    private static PoleOverride findNearestOverride(
+            double stationingBlocks,
+            List<PoleOverride> overrides,
+            boolean closedLoop,
+            double perimeterBlocks) {
         PoleOverride best = null;
         double bestDistance = Double.MAX_VALUE;
         for (PoleOverride override : overrides) {
-            double distance = Math.abs(override.getPathDistance() - stationingBlocks);
+            double distance = closedLoop
+                ? ClosedPathGeometry.stationDistance(
+                    stationingBlocks,
+                    override.getPathDistance(),
+                    perimeterBlocks)
+                : Math.abs(override.getPathDistance() - stationingBlocks);
             if (distance <= OVERRIDE_STATION_TOLERANCE_BLOCKS && distance < bestDistance) {
                 best = override;
                 bestDistance = distance;
             }
         }
         return best;
+    }
+
+    private static boolean stationsWithinTolerance(
+            double stationA,
+            double stationB,
+            boolean closedLoop,
+            double perimeterBlocks,
+            double toleranceBlocks) {
+        if (closedLoop) {
+            return ClosedPathGeometry.stationsWithinTolerance(
+                stationA,
+                stationB,
+                perimeterBlocks,
+                toleranceBlocks);
+        }
+        return Math.abs(stationA - stationB) <= toleranceBlocks;
     }
 
     /** 世界里程（blocks）：杆位在折线顶点路径上的投影距起点长度。 */

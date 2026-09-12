@@ -48,4 +48,21 @@ public final class ClosedPathGeometry {
         }
         return Math.abs(signedArea(towerPoints)) > AREA_EPSILON;
     }
+
+    /** 沿闭合路径的最短世界里程距离（blocks）；开放路径退化为 {@code |a-b|}。 */
+    public static double stationDistance(double stationA, double stationB, double perimeterBlocks) {
+        double direct = Math.abs(stationA - stationB);
+        if (perimeterBlocks <= 1e-12) {
+            return direct;
+        }
+        return Math.min(direct, Math.max(0.0, perimeterBlocks - direct));
+    }
+
+    public static boolean stationsWithinTolerance(
+            double stationA,
+            double stationB,
+            double perimeterBlocks,
+            double toleranceBlocks) {
+        return stationDistance(stationA, stationB, perimeterBlocks) <= toleranceBlocks;
+    }
 }

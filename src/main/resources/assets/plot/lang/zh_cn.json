@@ -3209,6 +3209,8 @@
   "plugin.powerline.adopt_reject_closed_loop": "闭合线路需要至少 3 个非共线杆塔",
   "plugin.powerline.source_stale": "画布参考路径已变化，杆塔布局可能已过时",
   "plugin.powerline.source_missing": "关联的画布路径已被删除",
+  "plugin.powerline.source_unsupported": "关联的画布路径已无法作为电力线路参考",
+  "plugin.powerline.source_degenerate": "关联的画布路径已退化为无效几何",
   "plugin.powerline.relayout_from_source": "按画布路径重新布塔",
   "plugin.powerline.relayout_success": "已根据画布路径更新杆塔布局",
   "plugin.powerline.adopt_unsupported_hint": "仅支持直线/折线路径",
