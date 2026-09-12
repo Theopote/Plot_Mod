@@ -11,6 +11,7 @@ public final class PowerLineValidationUiState {
     private PowerLineAnalysisKey terrainReportKey;
     private OptimizationResult pendingOptimization;
     private boolean optimizationConfirmPending;
+    private boolean smartFixStrategyPending;
     private boolean pendingEnableAutomaticTowers;
     private boolean overlayEnabled = false;
 
@@ -70,6 +71,14 @@ public final class PowerLineValidationUiState {
         this.optimizationConfirmPending = optimizationConfirmPending;
     }
 
+    public boolean isSmartFixStrategyPending() {
+        return smartFixStrategyPending;
+    }
+
+    public void setSmartFixStrategyPending(boolean smartFixStrategyPending) {
+        this.smartFixStrategyPending = smartFixStrategyPending;
+    }
+
     public boolean isPendingEnableAutomaticTowers() {
         return pendingEnableAutomaticTowers;
     }
@@ -88,6 +97,7 @@ public final class PowerLineValidationUiState {
     public void clearOptimization() {
         pendingOptimization = null;
         optimizationConfirmPending = false;
+        smartFixStrategyPending = false;
         pendingEnableAutomaticTowers = false;
     }
 }

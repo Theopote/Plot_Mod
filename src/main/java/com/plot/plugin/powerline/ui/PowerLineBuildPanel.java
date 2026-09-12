@@ -15,9 +15,17 @@ import imgui.flag.ImGuiTreeNodeFlags;
 
 /** 建造 Tab：预览、友好状态、智能修正、生成。 */
 public final class PowerLineBuildPanel {
+    enum AdvancedReportFocus {
+        NONE,
+        TERRAIN,
+        ENGINEERING
+    }
+
     private final PowerLineUiContext ctx;
     private final PowerLineBuildActions buildActions;
     private final PowerLineValidationPanel validationPanel;
+    private boolean advancedChecksOpen = false;
+    private AdvancedReportFocus advancedReportFocus = AdvancedReportFocus.NONE;
 
     public PowerLineBuildPanel(PowerLineUiContext ctx, PowerLineValidationPanel validationPanel) {
         this.ctx = ctx;
@@ -39,7 +47,6 @@ public final class PowerLineBuildPanel {
         buildActions.renderPreviewActions(line);
         renderCompactPreviewSummary(line);
         renderFriendlyStatus(line);
-        validationPanel.renderSmartFixSection(line);
         ImGui.separator();
         buildActions.renderBuildAction(line);
         renderAdvancedChecks(line);
@@ -169,12 +176,14 @@ public final class PowerLineBuildPanel {
             PowerLineStatusIcon.renderOkLine(PlotI18n.tr("plugin.powerline.build.status.terrain_ok"));
             return;
         }
-        PowerLineStatusIcon.renderWarningLine(PlotI18n.tr("plugin.powerline.build.status.terrain_warning"));
-        renderIssueList(report);
-        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.terrain_apply_fix_hint"));
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.build.terrain_apply_fix"), 0, 0)) {
-            ctx.autoAdjustTerrain(line);
-        }
+        PowerLineStatusIcon.renderWarningLine(PlotI18n.tr(
+            "plugin.powerline.build.status.terrain_issues_summary",
+            PowerLineFriendlyStatus.terrainIssueCount(report)));
+        renderStatusActions(
+            PlotI18n.tr("plugin.powerline.build.terrain_apply_fix"),
+            () -> ctx.autoAdjustTerrain(line),
+            AdvancedReportFocus.TERRAIN,
+            "##build_status_terrain");
     }
 
     private void renderLineCheckStatus(PowerLineFootprint line, boolean terrainChecksActive) {
@@ -192,36 +201,51 @@ public final class PowerLineBuildPanel {
             }
             return;
         }
-        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.build.status.line_checks"));
-        renderIssueList(issues);
+        PowerLineStatusIcon.renderWarningLine(PlotI18n.tr(
+            "plugin.powerline.build.status.line_issues_summary",
+            issues.size()));
+        renderStatusActions(
+            PlotI18n.tr("plugin.powerline.build.auto_fix_issues"),
+            () -> validationPanel.requestSmartFix(line),
+            AdvancedReportFocus.ENGINEERING,
+            "##build_status_line_checks");
     }
 
-    private void renderIssueList(PowerLineValidationReport report) {
-        renderIssueList(report.getIssues());
-    }
-
-    private void renderIssueList(java.util.List<com.plot.plugin.powerline.engineering.PowerLineIssue> issues) {
-        int shown = 0;
-        for (var issue : issues) {
-            if (shown >= 4) {
-                PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-                    "plugin.powerline.build.more_issues",
-                    issues.size() - shown));
-                break;
+    private void renderStatusActions(
+            String autoFixLabel,
+            Runnable autoFixAction,
+            AdvancedReportFocus focus,
+            String detailId) {
+        if (autoFixLabel != null && autoFixAction != null) {
+            if (ImGui.button(autoFixLabel + detailId + "_auto_fix", 0, 0)) {
+                autoFixAction.run();
             }
-            PowerLineStatusIcon.renderWarningLine(PowerLineFriendlyStatus.friendlyIssue(issue));
-            PowerLineStatusIcon.renderIndentedHint(PowerLineFriendlyStatus.friendlySuggestion(issue));
-            shown++;
+            ImGui.sameLine();
         }
+        if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.build.view_details") + detailId)) {
+            openAdvancedChecks(focus);
+        }
+    }
+
+    private void openAdvancedChecks(AdvancedReportFocus focus) {
+        advancedChecksOpen = true;
+        advancedReportFocus = focus;
     }
 
     private void renderAdvancedChecks(PowerLineFootprint line) {
         ImGui.spacing();
-        ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.powerline.build.advanced_checks"), ImGuiTreeNodeFlags.None)) {
+        if (advancedChecksOpen) {
+            ImGui.setNextItemOpen(true, ImGuiCond.Always);
+        }
+        boolean open = ImGui.collapsingHeader(
+            PlotI18n.tr("plugin.powerline.build.advanced_checks"),
+            advancedChecksOpen ? ImGuiTreeNodeFlags.DefaultOpen : ImGuiTreeNodeFlags.None);
+        advancedChecksOpen = open;
+        if (open) {
             renderAdvancedPreviewMetrics(line);
             renderAdvancedPreviewDetails(line);
-            validationPanel.renderAdvancedChecksSection(line);
+            validationPanel.renderAdvancedChecksSection(line, advancedReportFocus);
+            advancedReportFocus = AdvancedReportFocus.NONE;
         }
     }
 
@@ -281,6 +305,7 @@ public final class PowerLineBuildPanel {
     }
 
     public void renderOptimizationConfirmPopup() {
+        validationPanel.renderSmartFixStrategyPopup();
         validationPanel.renderOptimizationConfirmPopup();
     }
 }

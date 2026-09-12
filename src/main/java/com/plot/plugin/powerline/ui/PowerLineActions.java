@@ -267,10 +267,17 @@ public final class PowerLineActions {
     }
 
     public boolean calculatePreview(PowerLineFootprint line) {
+        return calculatePreview(line, false);
+    }
+
+    public boolean calculatePreview(PowerLineFootprint line, boolean enableAutoRefresh) {
         if (!calculatePreviewCore(line)) {
             return false;
         }
         syncPreviewAnalysis(line);
+        if (enableAutoRefresh) {
+            state.setPreviewAutoRefreshEnabled(true);
+        }
         return state.getLastGenerationResult() != null;
     }
 
@@ -313,6 +320,10 @@ public final class PowerLineActions {
     }
 
     private boolean calculatePreviewCore(PowerLineFootprint line) {
+        return calculatePreviewCore(line, true);
+    }
+
+    private boolean calculatePreviewCore(PowerLineFootprint line, boolean announceSuccess) {
         if (singleTowerPlacement.isActive()) {
             singleTowerPlacement.cancelPlacementSilent();
         }
@@ -360,12 +371,14 @@ public final class PowerLineActions {
         state.setLastGenerationResult(result);
         state.setPreviewKey(PowerLinePreviewKey.capture(line, state.getDesignProject(), host.coordinates()));
         previewManager.showLinePreview(result);
-        state.setProjectStatus(PlotI18n.tr(
-            "plugin.powerline.preview_ready",
-            result.poleCount,
-            String.format("%.1f", result.wireLength),
-            result.warnings.size()),
-            result.warnings.isEmpty() ? ProjectStatusSeverity.SUCCESS : ProjectStatusSeverity.WARNING);
+        if (announceSuccess) {
+            state.setProjectStatus(PlotI18n.tr(
+                "plugin.powerline.preview_ready",
+                result.poleCount,
+                String.format("%.1f", result.wireLength),
+                result.warnings.size()),
+                result.warnings.isEmpty() ? ProjectStatusSeverity.SUCCESS : ProjectStatusSeverity.WARNING);
+        }
         return true;
     }
 
@@ -541,6 +554,7 @@ public final class PowerLineActions {
     }
 
     public void clearPreview() {
+        state.setPreviewAutoRefreshEnabled(false);
         previewManager.clearLineCachedPreview();
     }
 
@@ -550,6 +564,7 @@ public final class PowerLineActions {
     public void invalidatePreview() {
         if (previewManager.isSingleTowerInteractive()) {
             if (state.getLastGenerationResult() != null || state.getPreviewKey() != null) {
+                state.setPreviewAutoRefreshEnabled(false);
                 previewManager.clearLineCachedPreview();
                 state.setProjectStatus(
                     PlotI18n.tr("plugin.powerline.preview_invalidated"),
@@ -557,12 +572,39 @@ public final class PowerLineActions {
             }
             return;
         }
-        if (state.getLastGenerationResult() != null || state.getPreviewKey() != null) {
-            previewManager.clearLineCachedPreview();
-            state.setProjectStatus(
-                PlotI18n.tr("plugin.powerline.preview_invalidated"),
-                ProjectStatusSeverity.INFO);
+        if (state.getLastGenerationResult() == null && state.getPreviewKey() == null) {
+            return;
         }
+        if (tryAutoRefreshPreview()) {
+            return;
+        }
+        state.setPreviewAutoRefreshEnabled(false);
+        previewManager.clearLineCachedPreview();
+        state.setProjectStatus(
+            PlotI18n.tr("plugin.powerline.preview_invalidated"),
+            ProjectStatusSeverity.INFO);
+    }
+
+    private boolean tryAutoRefreshPreview() {
+        if (!state.isPreviewAutoRefreshEnabled()) {
+            return false;
+        }
+        PowerLineFootprint line = state.getSelection().primary(state.getProject());
+        if (line == null) {
+            return false;
+        }
+        if (refreshPreviewQuietly(line)) {
+            return true;
+        }
+        return false;
+    }
+
+    private boolean refreshPreviewQuietly(PowerLineFootprint line) {
+        if (!calculatePreviewCore(line, false)) {
+            return false;
+        }
+        syncPreviewAnalysis(line);
+        return state.getLastGenerationResult() != null;
     }
 
     public boolean isPreviewValidFor(PowerLineFootprint line) {
@@ -589,8 +631,15 @@ public final class PowerLineActions {
             return;
         }
         if (!isPreviewValidFor(line)) {
+            if (tryAutoRefreshPreview()) {
+                return;
+            }
             clearPreview();
         }
+    }
+
+    public boolean isPreviewAutoRefreshEnabled() {
+        return state.isPreviewAutoRefreshEnabled();
     }
 
     public void selectLine(String lineId, boolean multiToggle) {
@@ -601,6 +650,7 @@ public final class PowerLineActions {
             state.clearPathRelink();
         }
         if (!newPrimary.equals(previousPrimary)) {
+            state.setPreviewAutoRefreshEnabled(false);
             invalidatePreview();
         }
     }
@@ -609,6 +659,7 @@ public final class PowerLineActions {
         String previousPrimary = state.getSelection().primaryId();
         state.getSelection().selectAll(ids);
         if (!state.getSelection().primaryId().equals(previousPrimary)) {
+            state.setPreviewAutoRefreshEnabled(false);
             invalidatePreview();
         }
     }
@@ -616,6 +667,7 @@ public final class PowerLineActions {
     public void clearSelection() {
         if (!state.getSelection().isEmpty()) {
             state.getSelection().clear();
+            state.setPreviewAutoRefreshEnabled(false);
             invalidatePreview();
         }
     }

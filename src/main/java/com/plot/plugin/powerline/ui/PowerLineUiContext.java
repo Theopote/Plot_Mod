@@ -111,6 +111,10 @@ public final class PowerLineUiContext {
         return actions.calculatePreview(line);
     }
 
+    public boolean calculatePreview(PowerLineFootprint line, boolean enableAutoRefresh) {
+        return actions.calculatePreview(line, enableAutoRefresh);
+    }
+
     public boolean autoAdjustTerrain(PowerLineFootprint line) {
         return actions.autoAdjustTerrain(line);
     }
@@ -141,6 +145,10 @@ public final class PowerLineUiContext {
 
     public void syncPreviewValidity(PowerLineFootprint line) {
         actions.syncPreviewValidity(line);
+    }
+
+    public boolean isPreviewAutoRefreshEnabled() {
+        return actions.isPreviewAutoRefreshEnabled();
     }
 
     public void selectLine(String lineId, boolean multiToggle) {

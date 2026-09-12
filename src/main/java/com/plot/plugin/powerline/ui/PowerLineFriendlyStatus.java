@@ -102,6 +102,26 @@ public final class PowerLineFriendlyStatus {
         return report != null ? report.getIssues().size() : 0;
     }
 
+    public static int terrainIssueCount(PowerLineValidationReport report) {
+        if (report == null) {
+            return 0;
+        }
+        int count = 0;
+        for (PowerLineIssue issue : report.getIssues()) {
+            if (EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM.equals(issue.ruleId())) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public static int lineCheckIssueCount(PowerLineValidationReport report) {
+        if (report == null) {
+            return 0;
+        }
+        return report.issuesExcluding(EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM).size();
+    }
+
     public static boolean spacingSettingsValid(PowerLineFootprint line) {
         return line != null && line.getMaxPoleSpacing() >= line.getMinPoleSpacing();
     }
