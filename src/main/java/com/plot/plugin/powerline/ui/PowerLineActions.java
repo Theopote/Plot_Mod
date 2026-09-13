@@ -116,7 +116,7 @@ public final class PowerLineActions {
         for (Shape shape : selection.adoptable()) {
             try {
                 PowerLineFootprint line = PowerLinePathLayout.adopt(shape, host.coordinates());
-                line.setName(PlotI18n.tr("plugin.powerline.default_name", adopted + 1));
+                line.setName(nextDefaultLineName());
                 com.plot.plugin.powerline.style.PowerLineStyleEditor.selectPreset(
                     line,
                     com.plot.plugin.powerline.style.PowerLineStylePresetCatalog.classicWood());
@@ -152,6 +152,23 @@ public final class PowerLineActions {
                 PlotI18n.tr("plugin.powerline.adopt_success"),
                 ProjectStatusSeverity.SUCCESS);
         }
+    }
+
+    private String nextDefaultLineName() {
+        int number = 1;
+        while (lineNameExists(PlotI18n.tr("plugin.powerline.default_name", number))) {
+            number++;
+        }
+        return PlotI18n.tr("plugin.powerline.default_name", number);
+    }
+
+    private boolean lineNameExists(String candidate) {
+        for (PowerLineFootprint existing : state.getProject().getLines().values()) {
+            if (candidate.equals(existing.getName())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public boolean relayoutLineFromSource(PowerLineFootprint line) {
@@ -196,6 +213,19 @@ public final class PowerLineActions {
                 ProjectStatusSeverity.WARNING);
             return false;
         }
+    }
+
+    public boolean detachSourceAndKeepLayout(PowerLineFootprint line) {
+        if (line == null || !PowerLineSourceSync.hasLinkedSource(line)) {
+            return false;
+        }
+        state.getProjectHistory().push(state.getProject());
+        line.clearSourceDescriptor();
+        invalidatePreview();
+        state.setProjectStatus(
+            PlotI18n.tr("plugin.powerline.path.detached_snapshot"),
+            ProjectStatusSeverity.SUCCESS);
+        return true;
     }
 
     public void beginPathRelink(PowerLineFootprint line) {
@@ -337,6 +367,14 @@ public final class PowerLineActions {
             return false;
         }
 
+        SourceSyncStatus sourceStatus = PowerLineSourceSync.resolveStatus(
+            line,
+            host.appState().getShapes());
+        if (sourceStatus != SourceSyncStatus.NOT_LINKED && sourceStatus != SourceSyncStatus.OK) {
+            state.setProjectStatus(sourceStatusMessage(sourceStatus), ProjectStatusSeverity.WARNING);
+            return false;
+        }
+
         if (PluginProjectionContext.tryCapture(host.coordinates()).isEmpty()) {
             state.setLastGenerationResult(null);
             state.setProjectStatus(
@@ -380,6 +418,16 @@ public final class PowerLineActions {
                 result.warnings.isEmpty() ? ProjectStatusSeverity.SUCCESS : ProjectStatusSeverity.WARNING);
         }
         return true;
+    }
+
+    private String sourceStatusMessage(SourceSyncStatus status) {
+        return switch (status) {
+            case STALE -> PlotI18n.tr("plugin.powerline.source_stale");
+            case MISSING -> PlotI18n.tr("plugin.powerline.source_missing");
+            case UNSUPPORTED -> PlotI18n.tr("plugin.powerline.source_unsupported");
+            case DEGENERATE -> PlotI18n.tr("plugin.powerline.source_degenerate");
+            default -> PlotI18n.tr("plugin.powerline.source_stale");
+        };
     }
 
     public PowerLineValidationReport analyzeTerrainCollisions(PowerLineFootprint line) {
@@ -611,6 +659,12 @@ public final class PowerLineActions {
         PowerLinePreviewKey key = state.getPreviewKey();
         PowerLineGenerationResult result = state.getLastGenerationResult();
         if (key == null || result == null || line == null) {
+            return false;
+        }
+        SourceSyncStatus sourceStatus = PowerLineSourceSync.resolveStatus(
+            line,
+            host.appState().getShapes());
+        if (sourceStatus != SourceSyncStatus.NOT_LINKED && sourceStatus != SourceSyncStatus.OK) {
             return false;
         }
         if (result.footprint == null || !line.getId().equals(result.footprint.getId())) {

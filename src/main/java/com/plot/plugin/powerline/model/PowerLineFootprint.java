@@ -117,6 +117,11 @@ public class PowerLineFootprint {
         this.sourceDescriptor = sourceDescriptor;
     }
 
+    /** 解除画布参考路径关联，保留当前已同步的杆塔折线作为独立线路。 */
+    public void clearSourceDescriptor() {
+        this.sourceDescriptor = null;
+    }
+
     public void bindSource(Shape shape) {
         this.sourceDescriptor = PowerLineSourceDescriptor.capture(shape);
     }

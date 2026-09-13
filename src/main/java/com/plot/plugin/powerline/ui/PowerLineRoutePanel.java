@@ -119,6 +119,15 @@ public final class PowerLineRoutePanel {
                 }
             }
         }
+        if (status != SourceSyncStatus.OK && status != SourceSyncStatus.NOT_LINKED) {
+            ImGui.spacing();
+            if (ImGui.button(PlotI18n.tr("plugin.powerline.path.detach_keep_snapshot"), 0, 0)) {
+                ctx.detachSourceAndKeepLayout(line);
+            }
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.path.detach_keep_snapshot_hint"));
+        }
     }
 
     private void renderLineName(PowerLineFootprint line) {

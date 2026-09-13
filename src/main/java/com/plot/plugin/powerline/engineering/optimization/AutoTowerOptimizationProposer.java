@@ -47,7 +47,13 @@ public final class AutoTowerOptimizationProposer {
             }
             String currentId = i < placements.size() ? placements.get(i).resolvedDesignId() : null;
             TowerSelectionContext context = buildContext(
-                site, sites, i, family, groundClearance, heightMargin);
+                site,
+                sites,
+                i,
+                footprint.isClosedLoop(),
+                family,
+                groundClearance,
+                heightMargin);
             TowerSelectionResult selection = selector.select(context);
             if (!selection.hasSelection()) {
                 continue;
@@ -74,6 +80,7 @@ public final class AutoTowerOptimizationProposer {
             PowerPoleSite site,
             java.util.List<PowerPoleSite> sites,
             int index,
+            boolean closedLoop,
             com.plot.plugin.powerline.design.family.TowerFamily family,
             double groundClearance,
             double heightMargin) {
@@ -81,13 +88,22 @@ public final class AutoTowerOptimizationProposer {
         context.setSite(site);
         context.setFamily(family);
         context.setDeflectionAngle(site.getDeflectionAngle());
-        if (index > 0) {
+        if (closedLoop && sites.size() > 1) {
+            int previousIndex = (index - 1 + sites.size()) % sites.size();
+            int nextIndex = (index + 1) % sites.size();
             context.setIncomingSpan(com.plot.plugin.powerline.PowerPoleLayoutUtils.worldSpanBlocks(
-                sites.get(index - 1), site));
-        }
-        if (index < sites.size() - 1) {
+                sites.get(previousIndex), site));
             context.setOutgoingSpan(com.plot.plugin.powerline.PowerPoleLayoutUtils.worldSpanBlocks(
-                site, sites.get(index + 1)));
+                site, sites.get(nextIndex)));
+        } else {
+            if (index > 0) {
+                context.setIncomingSpan(com.plot.plugin.powerline.PowerPoleLayoutUtils.worldSpanBlocks(
+                    sites.get(index - 1), site));
+            }
+            if (index < sites.size() - 1) {
+                context.setOutgoingSpan(com.plot.plugin.powerline.PowerPoleLayoutUtils.worldSpanBlocks(
+                    site, sites.get(index + 1)));
+            }
         }
         context.setRequiredGroundClearance(groundClearance);
         context.setRequiredAttachmentHeight(groundClearance + heightMargin + 12.0);

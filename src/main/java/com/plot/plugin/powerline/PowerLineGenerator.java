@@ -210,7 +210,7 @@ public class PowerLineGenerator {
             design = design.copy();
             design.ensureDefaultConductorAttachments();
         }
-        if (design != null && isParametricBlocked(design, parametricEnvelope)) {
+        if (isParametricBlocked(design, parametricEnvelope)) {
             result.warnings.add("parametric.constraint_error");
             result.recordRole(site.getRole());
             return invalidPolePlacement(
@@ -328,11 +328,20 @@ public class PowerLineGenerator {
         TowerSelectionContext context = new TowerSelectionContext();
         context.setSite(site);
         context.setDeflectionAngle(site.getDeflectionAngle());
-        if (index > 0) {
-            context.setIncomingSpan(PowerPoleLayoutUtils.worldSpanBlocks(sites.get(index - 1), site));
-        }
-        if (index < sites.size() - 1) {
-            context.setOutgoingSpan(PowerPoleLayoutUtils.worldSpanBlocks(site, sites.get(index + 1)));
+        if (footprint.isClosedLoop()) {
+            int previousIndex = (index - 1 + sites.size()) % sites.size();
+            int nextIndex = (index + 1) % sites.size();
+            context.setIncomingSpan(PowerPoleLayoutUtils.worldSpanBlocks(
+                sites.get(previousIndex), site));
+            context.setOutgoingSpan(PowerPoleLayoutUtils.worldSpanBlocks(
+                site, sites.get(nextIndex)));
+        } else {
+            if (index > 0) {
+                context.setIncomingSpan(PowerPoleLayoutUtils.worldSpanBlocks(sites.get(index - 1), site));
+            }
+            if (index < sites.size() - 1) {
+                context.setOutgoingSpan(PowerPoleLayoutUtils.worldSpanBlocks(site, sites.get(index + 1)));
+            }
         }
         if (footprint.hasTowerFamily()) {
             context.setFamily(new TowerFamilyResolver().find(footprint.getTowerFamilyId()));

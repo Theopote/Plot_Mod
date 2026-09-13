@@ -107,6 +107,10 @@ public final class PowerLineUiContext {
         return actions.relayoutLineFromSource(line);
     }
 
+    public boolean detachSourceAndKeepLayout(PowerLineFootprint line) {
+        return actions.detachSourceAndKeepLayout(line);
+    }
+
     public boolean calculatePreview(PowerLineFootprint line) {
         return actions.calculatePreview(line);
     }
