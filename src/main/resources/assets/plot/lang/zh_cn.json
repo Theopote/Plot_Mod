@@ -4169,6 +4169,5 @@
   "status.plot.building.pick_footprint_right_click": "已选 1 个轮廓，右键确认",
   "status.plot.building.pick_footprint_right_click_multi": "已选多个轮廓，右键确认",
   "status.plot.building.pick_footprint_no_valid": "当前选择不是有效建筑轮廓",
-  "status.plot.building.pick_footprint_active": "Pick mode: select polygon/rectangle, right-click to confirm",
-  "status.plot.building.pick_footprint_active": "Pick mode: select polygon/rectangle, right-click to confirm"
+  "status.plot.building.pick_footprint_active": "拾取模式：点选或框选多边形/矩形，右键确认"
 }
