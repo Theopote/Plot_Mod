@@ -260,13 +260,6 @@ public final class PowerLineUiWidgets {
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.validation.hint"));
 
-        boolean visualChecks = line.isVisualChecksEnabled();
-        if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.validation.visual_checks"), visualChecks)) {
-            ctx.pushEditSnapshot();
-            line.setVisualChecksEnabled(!visualChecks);
-            ctx.clearAnalysisReports();
-        }
-        ImGui.indent();
         boolean lineChecks = line.isLineChecksEnabled();
         if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.validation.line_checks"), lineChecks)) {
             ctx.pushEditSnapshot();
@@ -277,29 +270,27 @@ public final class PowerLineUiWidgets {
             }
             ctx.clearAnalysisReports();
         }
-        renderTerrainCheckRouteStatus(line);
-        ImGui.unindent();
-        boolean autoSelect = line.isAutomaticTowerSelectionEnabled();
-        if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.engineering.auto_select"), autoSelect)) {
-            ctx.pushEditSnapshot();
-            line.setAutomaticTowerSelectionEnabled(!autoSelect);
-            ctx.invalidatePreview();
-        }
         if (includeOverlayToggle) {
             boolean overlay = ctx.state().getValidationState().isOverlayEnabled();
             if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.engineering.overlay"), overlay)) {
                 ctx.state().getValidationState().setOverlayEnabled(!overlay);
             }
         }
-        renderSagDepthControls(ctx, line);
+        boolean autoSelect = line.isAutomaticTowerSelectionEnabled();
+        if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.engineering.auto_select"), autoSelect)) {
+            ctx.pushEditSnapshot();
+            line.setAutomaticTowerSelectionEnabled(!autoSelect);
+            ctx.invalidatePreview();
+        }
+        renderEffectiveCheckConditions(line);
         textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.validation.disclaimer"));
     }
 
-    private static void renderTerrainCheckRouteStatus(PowerLineFootprint line) {
-        text(PlotI18n.tr("plugin.powerline.validation.terrain_checks"));
-        ImGui.indent();
+    private static void renderEffectiveCheckConditions(PowerLineFootprint line) {
+        ImGui.spacing();
+        text(PlotI18n.tr("plugin.powerline.validation.check_conditions"));
         if (line.isTerrainAvoidanceEnabled()) {
             textColored(
                 PluginUiColors.STATUS_OK,
@@ -312,12 +303,6 @@ public final class PowerLineUiWidgets {
         textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.validation.terrain_checks_route_hint"));
-        ImGui.unindent();
-    }
-
-    private static void renderSagDepthControls(
-            PowerLineUiContext ctx,
-            PowerLineFootprint line) {
         double effective = PowerLineSagPolicy.resolveMaxSagDepth(line);
         if (effective > 0.0) {
             textColored(
@@ -328,27 +313,9 @@ public final class PowerLineUiWidgets {
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.engineering.effective_max_sag_unlimited"));
         }
-        boolean unlimited = line.isMaxSagDepthUnlimited();
-        if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.max_sag_depth_unlimited"), unlimited)) {
-            ctx.pushEditSnapshot();
-            PowerLineUiPresets.applyMaxSagDepth(
-                line,
-                PowerLineUiPresets.displayMaxSagDepth(line),
-                !unlimited);
-            ctx.invalidatePreview();
-        }
-        if (!line.isMaxSagDepthUnlimited()) {
-            float[] maxDepth = {PowerLineUiPresets.displayMaxSagDepth(line)};
-            sliderFloatStableLineEdit(
-                ctx,
-                "max_sag_depth",
-                "plugin.powerline.max_sag_depth",
-                maxDepth,
-                1f,
-                PowerLineUiPresets.ADVANCED_MAX_SAG_DEPTH_MAX,
-                "%.0f",
-                depth -> PowerLineUiPresets.applyMaxSagDepth(line, depth, false));
-        }
+        textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.powerline.validation.sag_style_hint"));
     }
 
     /** 杆塔角色统计（仅 Advanced 区展示）。 */

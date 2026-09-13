@@ -11,7 +11,7 @@ import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiTreeNodeFlags;
 
-/** 样式 Tab：风格画廊 + Quick Customize + 高级设计器。 */
+/** 样式 Tab：当前样式 + 快速微调 + 预设画廊 + 高级设计器。 */
 public final class PowerLineStylePanel {
     private final PowerLineUiContext ctx;
     private final PowerLineStyleControls styleControls;
@@ -46,30 +46,27 @@ public final class PowerLineStylePanel {
             return;
         }
 
-        ImGui.separator();
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.section.choose"));
-        PowerLineUiWidgets.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.powerline.style.gallery_hint"));
-        renderStyleGallery(styleTarget, editingStandalone);
-
         PowerLineStylePreset base = PowerLineStyleEditor.basePreset(styleTarget);
         if (base != null) {
+            ImGui.separator();
+            quickTunePanel.renderCurrentStyleSection(styleTarget, base, !editingStandalone);
             ImGui.spacing();
             PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.section.quick_customize"));
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.style.quick_tune_hint"));
             if (editingStandalone) {
-                quickTunePanel.renderStandaloneTowerStyle(styleTarget, base);
+                quickTunePanel.renderStandaloneQuickTune(styleTarget, base);
             } else {
-                quickTunePanel.renderLineStyle(styleTarget, base);
+                quickTunePanel.renderLineQuickTune(styleTarget, base);
             }
         } else if (editingStandalone) {
             quickTunePanel.renderStandaloneCustomFallback(styleTarget);
         } else {
             quickTunePanel.renderCustomFallback(styleTarget);
         }
+
+        renderChangePresetGallery(styleTarget, editingStandalone, base);
 
         if (!editingStandalone) {
             renderAdvancedStyle(styleTarget);
@@ -108,14 +105,48 @@ public final class PowerLineStylePanel {
         }
     }
 
-    private void renderStyleGallery(PowerLineFootprint styleTarget, boolean standaloneStyle) {
+    private void renderChangePresetGallery(
+            PowerLineFootprint styleTarget,
+            boolean standaloneStyle,
+            PowerLineStylePreset base) {
+        ImGui.separator();
+        ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
+        if (!ImGui.collapsingHeader(
+                PlotI18n.tr("plugin.powerline.style.section.change_preset"),
+                ImGuiTreeNodeFlags.None)) {
+            return;
+        }
+        PowerLineUiWidgets.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.powerline.style.gallery_hint"));
+        renderStyleGallery(styleTarget, standaloneStyle, base);
+    }
+
+    private void renderStyleGallery(
+            PowerLineFootprint styleTarget,
+            boolean standaloneStyle,
+            PowerLineStylePreset base) {
+        StyleCategory activeCategory = base != null ? base.getCategory() : null;
+        StyleCategory forceOpen = ctx.state().getStyleGalleryOpenCategory();
         for (StyleCategory category : PowerLineStylePresetCatalog.galleryCategories()) {
-            ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
+            if (category == forceOpen) {
+                ImGui.setNextItemOpen(true, ImGuiCond.Always);
+            } else if (forceOpen == null && category == activeCategory) {
+                ImGui.setNextItemOpen(true, ImGuiCond.FirstUseEver);
+            } else {
+                ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
+            }
             if (ImGui.collapsingHeader(
                     PlotI18n.tr(category.sectionKey()),
                     ImGuiTreeNodeFlags.None)) {
-                renderStylePresetGrid(styleTarget, standaloneStyle, PowerLineStylePresetCatalog.presetsByCategory(category));
+                renderStylePresetGrid(
+                    styleTarget,
+                    standaloneStyle,
+                    PowerLineStylePresetCatalog.presetsByCategory(category));
             }
+        }
+        if (forceOpen != null) {
+            ctx.state().clearStyleGalleryOpenCategory();
         }
     }
 
@@ -146,6 +177,7 @@ public final class PowerLineStylePanel {
                     ctx.pushEditSnapshot();
                 }
                 PowerLineStyleEditor.selectPreset(styleTarget, preset);
+                ctx.state().notifyStyleGalleryCategory(preset.getCategory());
                 ctx.invalidatePreview();
                 ctx.singleTowerPlacement().refreshGhostPreview();
             }

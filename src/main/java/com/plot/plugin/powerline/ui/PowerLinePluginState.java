@@ -12,6 +12,7 @@ import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.plugin.powerline.model.PowerLineProjectHistory;
 import com.plot.plugin.powerline.model.SingleTowerStyleFootprint;
+import com.plot.plugin.powerline.style.StyleCategory;
 import imgui.type.ImString;
 
 import java.util.ArrayList;
@@ -56,6 +57,8 @@ public final class PowerLinePluginState {
     private TowerRole singleTowerRole = TowerRole.SUSPENSION;
     private PowerLineFootprint singleTowerStyle = SingleTowerStyleFootprint.createDefault();
     private StyleEditTarget styleEditTarget = StyleEditTarget.LINE;
+    /** 画廊中临时强制展开的 preset 分类（选中新 preset 后一帧）。 */
+    private StyleCategory styleGalleryOpenCategory;
 
     public PowerLineDesignProject getDesignProject() {
         return designProject;
@@ -331,6 +334,18 @@ public final class PowerLinePluginState {
 
     public void setStyleEditTarget(StyleEditTarget styleEditTarget) {
         this.styleEditTarget = styleEditTarget != null ? styleEditTarget : StyleEditTarget.LINE;
+    }
+
+    public void notifyStyleGalleryCategory(StyleCategory category) {
+        this.styleGalleryOpenCategory = category;
+    }
+
+    public StyleCategory getStyleGalleryOpenCategory() {
+        return styleGalleryOpenCategory;
+    }
+
+    public void clearStyleGalleryOpenCategory() {
+        styleGalleryOpenCategory = null;
     }
 
     private void syncPlacedSingleTowersFromProject() {

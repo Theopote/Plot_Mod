@@ -66,20 +66,9 @@ public final class PowerLineStyleControls {
     public void renderAdvancedMaterialControls(PowerLineFootprint line) {
         ImGui.separator();
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.advanced.materials"));
-        renderMaterialControls(line);
-    }
-
-    public void renderMaterialControls(PowerLineFootprint line) {
-        PowerLineUiWidgets.renderMaterialMixPicker(
-            ctx,
-            "wire_material",
-            PlotI18n.tr("plugin.powerline.wire_material"),
-            line.getWireMaterial(),
-            MaterialMix.single(PowerLineFootprint.DEFAULT_WIRE_MATERIAL),
-            mix -> {
-                line.setWireMaterial(mix);
-                onStyleEdited(line);
-            });
+        PowerLineUiWidgets.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.powerline.style.advanced.materials_hint"));
         PowerLineUiWidgets.renderMaterialMixPicker(
             ctx,
             "top_wire_material",
@@ -88,16 +77,6 @@ public final class PowerLineStyleControls {
             MaterialMix.single("minecraft:chain"),
             mix -> {
                 line.setTopWireMaterial(mix);
-                onStyleEdited(line);
-            });
-        PowerLineUiWidgets.renderMaterialMixPicker(
-            ctx,
-            "pole_material",
-            PlotI18n.tr("plugin.powerline.pole_material"),
-            line.getPoleMaterial(),
-            MaterialMix.single(PowerLineFootprint.DEFAULT_POLE_MATERIAL),
-            mix -> {
-                line.setPoleMaterial(mix);
                 onStyleEdited(line);
             });
     }

@@ -60,15 +60,23 @@ public final class PowerLineValidationPanel {
     public void renderAdvancedChecksSection(
             PowerLineFootprint line,
             PowerLineBuildPanel.AdvancedReportFocus focus) {
+        PowerLineUiWidgets.renderLineCheckControls(ctx, line, true);
         renderReanalyzeControl(line);
-        renderFocusedReports(line, focus);
-        renderRemainingReports(line, focus);
+        renderReportsSection(line, focus);
         var result = ctx.hasValidPreview(line) ? ctx.lastGenerationResult() : null;
         if (result != null) {
             ImGui.separator();
             PowerLineUiWidgets.renderTowerRoleStats(result);
         }
-        PowerLineUiWidgets.renderLineCheckControls(ctx, line, true);
+    }
+
+    private void renderReportsSection(
+            PowerLineFootprint line,
+            PowerLineBuildPanel.AdvancedReportFocus focus) {
+        ImGui.separator();
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.build.advanced.reports_section"));
+        renderFocusedReports(line, focus);
+        renderRemainingReports(line, focus);
     }
 
     private void renderFocusedReports(PowerLineFootprint line, PowerLineBuildPanel.AdvancedReportFocus focus) {

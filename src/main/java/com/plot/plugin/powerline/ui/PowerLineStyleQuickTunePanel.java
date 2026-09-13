@@ -39,29 +39,35 @@ public final class PowerLineStyleQuickTunePanel {
         this.poleDesignerPanel = poleDesignerPanel;
     }
 
-    public void renderLineStyle(PowerLineFootprint line, PowerLineStylePreset base) {
+    public void renderCurrentStyleSection(
+            PowerLineFootprint line,
+            PowerLineStylePreset base,
+            boolean includePlacementContext) {
         if (line == null || base == null) {
             return;
         }
-        ImGui.separator();
-        renderSelectedHeader(line, base);
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.section.current"));
+        renderSelectedPresetLabel(line, base);
         PowerLineStyleCardRenderer.renderLargeSelectedPreview(line, base, ctx.designResolver());
-        renderPlacementContext(line, base);
-        ImGui.spacing();
+        if (includePlacementContext) {
+            renderPlacementContext(line, base);
+        }
+    }
+
+    public void renderLineQuickTune(PowerLineFootprint line, PowerLineStylePreset base) {
+        if (line == null || base == null) {
+            return;
+        }
         renderTowerSection(line, base);
         ImGui.spacing();
         renderWiresSection(line, base);
         renderFooter(line, base);
     }
 
-    public void renderStandaloneTowerStyle(PowerLineFootprint style, PowerLineStylePreset base) {
+    public void renderStandaloneQuickTune(PowerLineFootprint style, PowerLineStylePreset base) {
         if (style == null || base == null) {
             return;
         }
-        ImGui.separator();
-        renderSelectedHeader(style, base);
-        PowerLineStyleCardRenderer.renderLargeSelectedPreview(style, base, ctx.designResolver());
-        ImGui.spacing();
         renderStandaloneTowerSection(style, base);
         renderFooter(style, base);
     }
@@ -84,9 +90,7 @@ public final class PowerLineStyleQuickTunePanel {
         renderWiresSection(line, null);
     }
 
-    private void renderSelectedHeader(PowerLineFootprint line, PowerLineStylePreset base) {
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.section.selected"));
-        ImGui.sameLine();
+    private void renderSelectedPresetLabel(PowerLineFootprint line, PowerLineStylePreset base) {
         PowerLineUiWidgets.text(PlotI18n.tr(base.getLabelKey()));
         if (PowerLineStyleEditor.isModified(line)) {
             ImGui.sameLine();
