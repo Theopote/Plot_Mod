@@ -27,11 +27,12 @@ public final class PowerLineRoutePanel {
     public PowerLineRoutePanel(
             PowerLineUiContext ctx,
             PowerLineOverviewPanel overviewPanel,
-            PlacedSingleTowerPanel placedSingleTowerPanel) {
+            PlacedSingleTowerPanel placedSingleTowerPanel,
+            PowerLineStyleQuickTunePanel quickTunePanel) {
         this.ctx = ctx;
         this.adoptPanel = new PowerLineAdoptPanel(ctx);
         this.overviewPanel = overviewPanel;
-        this.singleTowerSection = new PowerLineSingleTowerSection(ctx, placedSingleTowerPanel);
+        this.singleTowerSection = new PowerLineSingleTowerSection(ctx, placedSingleTowerPanel, quickTunePanel);
     }
 
     public void render() {
@@ -56,7 +57,7 @@ public final class PowerLineRoutePanel {
         }
 
         ImGui.separator();
-        singleTowerSection.render(line);
+        singleTowerSection.render();
 
         ImGui.separator();
         renderProjectSection();

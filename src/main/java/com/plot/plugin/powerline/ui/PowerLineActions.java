@@ -611,12 +611,10 @@ public final class PowerLineActions {
      */
     public void invalidatePreview() {
         if (previewManager.isSingleTowerInteractive()) {
+            singleTowerPlacement.refreshGhostPreview();
             if (state.getLastGenerationResult() != null || state.getPreviewKey() != null) {
                 state.setPreviewAutoRefreshEnabled(false);
                 previewManager.clearLineCachedPreview();
-                state.setProjectStatus(
-                    PlotI18n.tr("plugin.powerline.preview_invalidated"),
-                    ProjectStatusSeverity.INFO);
             }
             return;
         }

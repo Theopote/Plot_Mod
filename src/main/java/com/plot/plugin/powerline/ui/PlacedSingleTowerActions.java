@@ -8,6 +8,9 @@ import com.plot.plugin.powerline.model.PlacedSingleTower;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerLineProject;
 import com.plot.plugin.powerline.placement.SingleTowerRemoveCommand;
+import com.plot.plugin.powerline.model.SingleTowerStyleFootprint;
+import com.plot.plugin.powerline.style.PowerLineStyleEditor;
+import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.ui.canvas.Canvas;
 import com.plot.ui.canvas.CanvasAccess;
 import com.plot.utils.PlotI18n;
@@ -124,10 +127,21 @@ public final class PlacedSingleTowerActions {
     }
 
     public String resolveStyleLineName(PlacedSingleTower tower, PowerLineProject project) {
-        if (tower == null || project == null) {
+        if (tower == null) {
             return "";
         }
         String styleLineId = tower.getStyleLineId();
+        if (SingleTowerStyleFootprint.isStandaloneStyle(styleLineId)) {
+            PowerLineFootprint style = state.getSingleTowerStyle();
+            PowerLineStylePreset preset = PowerLineStyleEditor.basePreset(style);
+            if (preset != null) {
+                return PlotI18n.tr(preset.getLabelKey());
+            }
+            return PlotI18n.tr("plugin.powerline.single_tower.style_preset");
+        }
+        if (project == null) {
+            return "";
+        }
         if (styleLineId == null || styleLineId.isBlank()) {
             return PlotI18n.tr("plugin.powerline.single_tower.style_unknown");
         }

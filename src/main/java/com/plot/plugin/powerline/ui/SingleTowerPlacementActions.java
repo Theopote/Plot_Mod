@@ -63,10 +63,11 @@ public final class SingleTowerPlacementActions {
         return session.snapshot();
     }
 
-    public void beginPlacement(PowerLineFootprint styleSource) {
+    public void beginPlacement() {
+        PowerLineFootprint styleSource = state.getSingleTowerStyle();
         if (styleSource == null) {
             state.setProjectStatus(
-                PlotI18n.tr("plugin.powerline.select_line_hint"),
+                PlotI18n.tr("plugin.powerline.single_tower.no_design"),
                 ProjectStatusSeverity.WARNING);
             return;
         }
@@ -179,6 +180,8 @@ public final class SingleTowerPlacementActions {
             return;
         }
 
+        cancelPlacementSilent();
+
         TerrainSampler terrain = MinecraftTerrainSampler.of(world, host.coordinates());
         if (hasBlockingParametricIssues(styleSource, design, planPoint, terrain)) {
             state.setProjectStatus(
@@ -252,9 +255,6 @@ public final class SingleTowerPlacementActions {
                 state.setProjectStatus(
                     PlotI18n.tr("plugin.powerline.build_no_blocks"),
                     ProjectStatusSeverity.WARNING);
-            }
-            if (session.isActive()) {
-                refreshGhostPreview();
             }
         }));
     }

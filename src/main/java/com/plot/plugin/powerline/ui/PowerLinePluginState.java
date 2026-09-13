@@ -8,8 +8,10 @@ import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PlacedSingleTower;
 import com.plot.plugin.powerline.model.PowerLineProject;
 import com.plot.plugin.powerline.model.PoleDesignDraftHistory;
+import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.plugin.powerline.model.PowerLineProjectHistory;
+import com.plot.plugin.powerline.model.SingleTowerStyleFootprint;
 import imgui.type.ImString;
 
 import java.util.ArrayList;
@@ -52,6 +54,7 @@ public final class PowerLinePluginState {
     private String pendingDeletePlacedSingleTowerId = "";
     private boolean placedSingleTowerDeleteConfirmPending;
     private TowerRole singleTowerRole = TowerRole.SUSPENSION;
+    private PowerLineFootprint singleTowerStyle = SingleTowerStyleFootprint.createDefault();
 
     public PowerLineDesignProject getDesignProject() {
         return designProject;
@@ -312,6 +315,13 @@ public final class PowerLinePluginState {
 
     public void setSingleTowerRole(TowerRole singleTowerRole) {
         this.singleTowerRole = singleTowerRole != null ? singleTowerRole : TowerRole.SUSPENSION;
+    }
+
+    public PowerLineFootprint getSingleTowerStyle() {
+        if (singleTowerStyle == null) {
+            singleTowerStyle = SingleTowerStyleFootprint.createDefault();
+        }
+        return singleTowerStyle;
     }
 
     private void syncPlacedSingleTowersFromProject() {
