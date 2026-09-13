@@ -3600,7 +3600,6 @@
   "plugin.powerline.style.standalone_target_hint": "未选中线路：正在配置独立杆塔样式（也用于单独放置杆塔）。",
   "plugin.powerline.style.standalone_advanced_hint": "高级工程覆盖需先认领线路后再编辑。",
   "plugin.powerline.style.gallery_hint": "风格卡片决定整条线路的默认杆塔、材质与导线。下方微调与设计器在此基础上修改。",
-  "plugin.powerline.style.quick_tune_hint": "「编辑杆塔」会保存为定制设计；切换上方风格卡片会恢复该风格的默认值。",
   "plugin.powerline.style.category.utility": "配电杆塔",
   "plugin.powerline.style.category.transmission": "输电铁塔",
   "plugin.powerline.style.category.industrial": "超大型工业铁塔",
