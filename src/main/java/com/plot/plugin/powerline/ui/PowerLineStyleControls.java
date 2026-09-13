@@ -208,32 +208,6 @@ public final class PowerLineStyleControls {
         }
     }
 
-    public void renderPoleHeightControls(PowerLineFootprint line) {
-        if (line.hasPoleDesign() || line.hasTowerFamily()) {
-            PoleDesign design = line.hasPoleDesign()
-                ? ctx.designResolver().find(line.getPoleDesignId())
-                : null;
-            int designHeight = design != null ? design.totalHeight() : (int) line.getPoleHeight();
-            PowerLineUiWidgets.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.powerline.pole_design_height_hint", designHeight));
-            PowerLineUiWidgets.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.powerline.pole_height_from_design"));
-        } else {
-            float[] poleHeight = {(float) line.getPoleHeight()};
-            PowerLineUiWidgets.sliderFloatStableLineEdit(
-                ctx,
-                "pole_height",
-                "plugin.powerline.pole_height",
-                poleHeight,
-                1f,
-                64f,
-                "%.1f",
-                line::setPoleHeight);
-        }
-    }
-
     public void renderPoleRoleInspector(PowerLineFootprint line) {
         ImGui.separator();
         int overrideCount = countManualRoleOverrides(line);

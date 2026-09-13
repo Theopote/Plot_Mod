@@ -71,7 +71,7 @@ public final class PowerLineRoutePanel {
         if (ImGui.collapsingHeader(
                 PlotI18n.tr("plugin.powerline.route.section.all_lines_count", count),
                 ImGuiTreeNodeFlags.None)) {
-            overviewPanel.renderProjectSection(true);
+            overviewPanel.renderProjectSection();
         }
     }
 
