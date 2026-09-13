@@ -52,9 +52,6 @@ public final class PowerLineStylePanel {
             quickTunePanel.renderCurrentStyleSection(styleTarget, base, !editingStandalone);
             ImGui.spacing();
             PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.section.quick_customize"));
-            PowerLineUiWidgets.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.powerline.style.quick_tune_hint"));
             if (editingStandalone) {
                 quickTunePanel.renderStandaloneQuickTune(styleTarget, base);
             } else {
