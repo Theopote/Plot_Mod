@@ -33,10 +33,9 @@ public final class PowerLineToolbarPanel {
             ImGui.beginDisabled();
         }
         if (ImGui.button(PlotI18n.tr("plugin.powerline.undo") + "##powerline_project_undo", 0, 0)) {
-            ctx.setProject(ctx.projectHistory().undo(ctx.project()));
+            ctx.restoreWorkspaceSnapshot(ctx.projectHistory().undo(ctx.project(), ctx.designProject()));
             ctx.selection().retainExisting(ctx.project());
             ctx.setLineNameEditingId("");
-            ctx.invalidatePreview();
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.powerline.undo_project"));
@@ -51,10 +50,9 @@ public final class PowerLineToolbarPanel {
             ImGui.beginDisabled();
         }
         if (ImGui.button(PlotI18n.tr("plugin.powerline.redo") + "##powerline_project_redo", 0, 0)) {
-            ctx.setProject(ctx.projectHistory().redo(ctx.project()));
+            ctx.restoreWorkspaceSnapshot(ctx.projectHistory().redo(ctx.project(), ctx.designProject()));
             ctx.selection().retainExisting(ctx.project());
             ctx.setLineNameEditingId("");
-            ctx.invalidatePreview();
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.powerline.redo_project"));

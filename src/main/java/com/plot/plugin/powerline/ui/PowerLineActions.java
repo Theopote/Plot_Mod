@@ -132,7 +132,7 @@ public final class PowerLineActions {
             return;
         }
 
-        state.getProjectHistory().push(state.getProject());
+        pushWorkspaceSnapshot();
         int adopted = 0;
         int skipped = selection.skippedCount();
         List<String> adoptedIds = new ArrayList<>();
@@ -219,7 +219,7 @@ public final class PowerLineActions {
                 ProjectStatusSeverity.WARNING);
             return false;
         }
-        state.getProjectHistory().push(state.getProject());
+        pushWorkspaceSnapshot();
         try {
             PowerLineSourceSync.relayout(line, liveShape, host.coordinates());
             invalidatePreview();
@@ -246,7 +246,7 @@ public final class PowerLineActions {
         if (line == null || !PowerLineSourceSync.hasLinkedSource(line)) {
             return false;
         }
-        state.getProjectHistory().push(state.getProject());
+        pushWorkspaceSnapshot();
         line.clearSourceDescriptor();
         invalidatePreview();
         state.setProjectStatus(
@@ -298,7 +298,7 @@ public final class PowerLineActions {
             state.setPathSelection(PowerLinePathSelectionAnalysis.EMPTY);
             return relayoutLineFromSource(line);
         }
-        state.getProjectHistory().push(state.getProject());
+        pushWorkspaceSnapshot();
         try {
             PowerLineSourceSync.relink(line, shape, host.coordinates());
             line.clearLayoutConstraints();
@@ -372,7 +372,7 @@ public final class PowerLineActions {
             syncPreviewAnalysis(line);
             return true;
         }
-        state.getProjectHistory().push(state.getProject());
+        pushWorkspaceSnapshot();
         runTerrainAvoidance(line);
         syncPreviewAnalysis(line);
         return state.getLastGenerationResult() != null;
@@ -905,7 +905,7 @@ public final class PowerLineActions {
         if (ids == null || ids.isEmpty()) {
             return;
         }
-        state.getProjectHistory().push(state.getProject());
+        pushWorkspaceSnapshot();
         for (String id : ids) {
             state.getProject().removeLine(id);
             state.getSelection().retainExisting(state.getProject());
@@ -1059,6 +1059,7 @@ public final class PowerLineActions {
         if (design == null) {
             return;
         }
+        pushWorkspaceSnapshot();
         state.getDesignProject().addDesign(design.copy());
         if (isDesignReferencedByAnyLine(design.getId())) {
             invalidatePreview();
@@ -1078,9 +1079,24 @@ public final class PowerLineActions {
         return false;
     }
 
+    private void pushWorkspaceSnapshot() {
+        state.getProjectHistory().push(state.getProject(), state.getDesignProject());
+    }
+
+    private void restoreWorkspaceSnapshot(com.plot.plugin.powerline.model.PowerLineWorkspaceSnapshot snapshot) {
+        if (snapshot == null) {
+            return;
+        }
+        state.setProject(snapshot.project());
+        state.setDesignProject(snapshot.designProject());
+        invalidatePreview();
+    }
+
     private void discardPushedHistoryEntry() {
         if (state.getProjectHistory().canUndo()) {
-            state.setProject(state.getProjectHistory().undo(state.getProject()));
+            restoreWorkspaceSnapshot(state.getProjectHistory().undo(
+                state.getProject(),
+                state.getDesignProject()));
         }
     }
 
@@ -1235,7 +1251,7 @@ public final class PowerLineActions {
             state.getValidationState().clearOptimization();
             return;
         }
-        state.getProjectHistory().push(state.getProject());
+        pushWorkspaceSnapshot();
         if (state.getValidationState().isPendingEnableAutomaticTowers()) {
             line.setAutomaticTowerSelectionEnabled(true);
         }

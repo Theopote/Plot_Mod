@@ -85,10 +85,11 @@ class PowerLineStabilizationTest {
         line.setMaxPoleSpacing(20.0);
         project.addLine(line);
 
-        history.push(project);
+        PowerLineDesignProject designProject = new PowerLineDesignProject();
+        history.push(project, designProject);
         line.setMaxPoleSpacing(40.0);
 
-        PowerLineFootprint restored = history.undo(project).getLines().get(line.getId());
+        PowerLineFootprint restored = history.undo(project, designProject).project().getLines().get(line.getId());
         assertEquals(20.0, restored.getMaxPoleSpacing(), 1e-6);
     }
 
@@ -99,10 +100,11 @@ class PowerLineStabilizationTest {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
         project.addLine(line);
 
-        history.push(project);
+        PowerLineDesignProject designProject = new PowerLineDesignProject();
+        history.push(project, designProject);
         line.setPoleDesignId(PoleDesignCatalog.LATTICE_STEEL_TOWER_ID);
 
-        assertNull(history.undo(project).getLines().get(line.getId()).getPoleDesignId());
+        assertNull(history.undo(project, designProject).project().getLines().get(line.getId()).getPoleDesignId());
     }
 
     @Test

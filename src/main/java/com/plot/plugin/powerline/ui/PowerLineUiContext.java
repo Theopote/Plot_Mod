@@ -12,6 +12,7 @@ import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerLineProject;
 import com.plot.plugin.powerline.model.PowerLineProjectHistory;
+import com.plot.plugin.powerline.model.PowerLineWorkspaceSnapshot;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -84,7 +85,20 @@ public final class PowerLineUiContext {
     }
 
     public void pushEditSnapshot() {
-        state.getProjectHistory().push(state.getProject());
+        pushWorkspaceSnapshot();
+    }
+
+    public void pushWorkspaceSnapshot() {
+        state.getProjectHistory().push(state.getProject(), state.getDesignProject());
+    }
+
+    public void restoreWorkspaceSnapshot(PowerLineWorkspaceSnapshot snapshot) {
+        if (snapshot == null) {
+            return;
+        }
+        setProject(snapshot.project());
+        state.setDesignProject(snapshot.designProject());
+        invalidatePreview();
     }
 
     public void setProjectStatus(String status) {
