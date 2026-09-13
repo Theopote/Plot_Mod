@@ -15,8 +15,11 @@ public final class PlacedSingleTower {
     private final double planX;
     private final double planY;
     private final int rotationQuadrant;
+    private final String designId;
     private final String designLabel;
     private final String styleLineId;
+    private final String stylePresetId;
+    private final TowerRole towerRole;
     private final List<BlockRecord> blockRecords;
     private final SingleTowerPlacementStatus placementStatus;
     private final int expectedBlockCount;
@@ -24,19 +27,44 @@ public final class PlacedSingleTower {
     public PlacedSingleTower(
             Vec2d planPoint,
             int rotationQuadrant,
+            String designId,
             String designLabel,
             String styleLineId,
+            String stylePresetId,
+            TowerRole towerRole,
             List<BlockRecord> blockRecords) {
         this(
             UUID.randomUUID().toString(),
             planPoint != null ? planPoint.x : 0.0,
             planPoint != null ? planPoint.y : 0.0,
             rotationQuadrant,
+            designId,
             designLabel,
             styleLineId,
+            stylePresetId,
+            towerRole,
             blockRecords,
             SingleTowerPlacementStatus.FULL,
             blockRecords != null ? blockRecords.size() : 0);
+    }
+
+    /** @deprecated prefer {@link #PlacedSingleTower(Vec2d, int, String, String, String, String, TowerRole, List)} */
+    @Deprecated
+    public PlacedSingleTower(
+            Vec2d planPoint,
+            int rotationQuadrant,
+            String designLabel,
+            String styleLineId,
+            List<BlockRecord> blockRecords) {
+        this(
+            planPoint,
+            rotationQuadrant,
+            "",
+            designLabel,
+            styleLineId,
+            "",
+            null,
+            blockRecords);
     }
 
     PlacedSingleTower(
@@ -52,8 +80,11 @@ public final class PlacedSingleTower {
             planX,
             planY,
             rotationQuadrant,
+            "",
             designLabel,
             styleLineId,
+            "",
+            null,
             blockRecords,
             SingleTowerPlacementStatus.FULL,
             blockRecords != null ? blockRecords.size() : 0);
@@ -69,12 +100,43 @@ public final class PlacedSingleTower {
             List<BlockRecord> blockRecords,
             SingleTowerPlacementStatus placementStatus,
             int expectedBlockCount) {
+        this(
+            id,
+            planX,
+            planY,
+            rotationQuadrant,
+            "",
+            designLabel,
+            styleLineId,
+            "",
+            null,
+            blockRecords,
+            placementStatus,
+            expectedBlockCount);
+    }
+
+    PlacedSingleTower(
+            String id,
+            double planX,
+            double planY,
+            int rotationQuadrant,
+            String designId,
+            String designLabel,
+            String styleLineId,
+            String stylePresetId,
+            TowerRole towerRole,
+            List<BlockRecord> blockRecords,
+            SingleTowerPlacementStatus placementStatus,
+            int expectedBlockCount) {
         this.id = id != null ? id : UUID.randomUUID().toString();
         this.planX = planX;
         this.planY = planY;
         this.rotationQuadrant = rotationQuadrant;
+        this.designId = designId != null ? designId : "";
         this.designLabel = designLabel != null ? designLabel : "";
         this.styleLineId = styleLineId;
+        this.stylePresetId = stylePresetId != null ? stylePresetId : "";
+        this.towerRole = towerRole != null ? towerRole : TowerRole.SUSPENSION;
         this.blockRecords = copyRecords(blockRecords);
         this.expectedBlockCount = Math.max(0, expectedBlockCount);
         this.placementStatus = placementStatus != null
@@ -94,12 +156,24 @@ public final class PlacedSingleTower {
         return rotationQuadrant;
     }
 
+    public String getDesignId() {
+        return designId;
+    }
+
     public String getDesignLabel() {
         return designLabel;
     }
 
     public String getStyleLineId() {
         return styleLineId;
+    }
+
+    public String getStylePresetId() {
+        return stylePresetId;
+    }
+
+    public TowerRole getTowerRole() {
+        return towerRole;
     }
 
     public List<BlockRecord> getBlockRecords() {
@@ -131,8 +205,11 @@ public final class PlacedSingleTower {
             planX,
             planY,
             rotationQuadrant,
+            designId,
             designLabel,
             styleLineId,
+            stylePresetId,
+            towerRole,
             appliedRecords,
             status,
             expectedBlockCount);

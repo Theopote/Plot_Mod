@@ -220,8 +220,11 @@ public class PowerLineProject {
         double planX;
         double planY;
         int rotationQuadrant;
+        String designId;
         String designLabel;
         String styleLineId;
+        String stylePresetId;
+        String towerRole;
         String placementStatus;
         Integer expectedBlockCount;
         List<BlockRecordData> blockRecords = new ArrayList<>();
@@ -232,8 +235,11 @@ public class PowerLineProject {
             data.planX = tower.getPlanPoint().x;
             data.planY = tower.getPlanPoint().y;
             data.rotationQuadrant = tower.getRotationQuadrant();
+            data.designId = tower.getDesignId();
             data.designLabel = tower.getDesignLabel();
             data.styleLineId = tower.getStyleLineId();
+            data.stylePresetId = tower.getStylePresetId();
+            data.towerRole = tower.getTowerRole().name();
             data.placementStatus = tower.getPlacementStatus().name();
             data.expectedBlockCount = tower.getExpectedBlockCount();
             for (BlockRecord record : tower.getBlockRecords()) {
@@ -267,13 +273,24 @@ public class PowerLineProject {
             int expected = expectedBlockCount != null
                 ? expectedBlockCount
                 : records.size();
+            TowerRole role = TowerRole.SUSPENSION;
+            if (towerRole != null && !towerRole.isBlank()) {
+                try {
+                    role = TowerRole.valueOf(towerRole);
+                } catch (IllegalArgumentException ignored) {
+                    role = TowerRole.SUSPENSION;
+                }
+            }
             return new PlacedSingleTower(
                 id,
                 planX,
                 planY,
                 rotationQuadrant,
+                designId,
                 designLabel,
                 styleLineId,
+                stylePresetId,
+                role,
                 records,
                 status,
                 expected);

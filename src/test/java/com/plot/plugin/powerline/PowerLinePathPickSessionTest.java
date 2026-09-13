@@ -70,6 +70,30 @@ class PowerLinePathPickSessionTest {
     }
 
     @Test
+    void ctrlDeselectOnePathKeepsOthersInAccumulated() {
+        LineShape pathA = line(0, 0, 10, 0);
+        LineShape pathB = line(20, 0, 30, 0);
+
+        session.mergeSelectionChange(List.of(), List.of(pathA), false);
+        session.mergeSelectionChange(List.of(pathA), List.of(pathA, pathB), false);
+        session.mergeSelectionChange(List.of(pathA, pathB), List.of(pathB), true);
+
+        assertEquals(List.of(pathB.getId()), session.accumulatedPathIds());
+    }
+
+    @Test
+    void boxSelectThenNormalClickUnionsNewPathWithoutDroppingBoxSelection() {
+        LineShape pathA = line(0, 0, 10, 0);
+        LineShape pathB = line(20, 0, 30, 0);
+        LineShape pathC = line(40, 0, 50, 0);
+
+        session.mergeSelectionChange(List.of(), List.of(pathA, pathB), false);
+        session.mergeSelectionChange(List.of(pathA, pathB), List.of(pathC), false);
+
+        assertEquals(List.of(pathA.getId(), pathB.getId(), pathC.getId()), session.accumulatedPathIds());
+    }
+
+    @Test
     void ctrlClickTogglesNewlyAddedPathOffWhenNotYetAccumulated() {
         LineShape pathA = line(0, 0, 10, 0);
         LineShape pathB = line(20, 0, 30, 0);

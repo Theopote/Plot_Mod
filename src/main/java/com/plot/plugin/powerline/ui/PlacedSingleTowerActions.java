@@ -5,12 +5,9 @@ import com.plot.api.world.PluginProjectionContext;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.context.PluginContext;
 import com.plot.plugin.powerline.model.PlacedSingleTower;
-import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerLineProject;
 import com.plot.plugin.powerline.placement.SingleTowerRemoveCommand;
-import com.plot.plugin.powerline.model.SingleTowerStyleFootprint;
-import com.plot.plugin.powerline.style.PowerLineStyleEditor;
-import com.plot.plugin.powerline.style.PowerLineStylePreset;
+import com.plot.plugin.powerline.model.PlacedSingleTowerStyleResolver;
 import com.plot.ui.canvas.Canvas;
 import com.plot.ui.canvas.CanvasAccess;
 import com.plot.utils.PlotI18n;
@@ -127,28 +124,6 @@ public final class PlacedSingleTowerActions {
     }
 
     public String resolveStyleLineName(PlacedSingleTower tower, PowerLineProject project) {
-        if (tower == null) {
-            return "";
-        }
-        String styleLineId = tower.getStyleLineId();
-        if (SingleTowerStyleFootprint.isStandaloneStyle(styleLineId)) {
-            PowerLineFootprint style = state.getSingleTowerStyle();
-            PowerLineStylePreset preset = PowerLineStyleEditor.basePreset(style);
-            if (preset != null) {
-                return PlotI18n.tr(preset.getLabelKey());
-            }
-            return PlotI18n.tr("plugin.powerline.single_tower.style_preset");
-        }
-        if (project == null) {
-            return "";
-        }
-        if (styleLineId == null || styleLineId.isBlank()) {
-            return PlotI18n.tr("plugin.powerline.single_tower.style_unknown");
-        }
-        PowerLineFootprint line = project.getLines().get(styleLineId);
-        if (line == null) {
-            return PlotI18n.tr("plugin.powerline.single_tower.style_missing");
-        }
-        return line.getName();
+        return PlacedSingleTowerStyleResolver.resolveStyleName(tower, project);
     }
 }

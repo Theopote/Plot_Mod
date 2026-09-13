@@ -208,8 +208,11 @@ public final class SingleTowerPlacementActions {
         PlacedSingleTower tower = new PlacedSingleTower(
             planPoint,
             rotationQuadrant,
+            design.getId(),
             design.getName(),
             styleSource.getId(),
+            styleSource.getStylePresetId(),
+            state.getSingleTowerRole(),
             records);
         SingleTowerPlaceCommand command = new SingleTowerPlaceCommand(
             records,
