@@ -35,10 +35,17 @@ public final class PowerLineOverviewPanel {
             ctx.clearSelection();
         }
         ImGui.sameLine();
+        boolean deleteDisabled = ctx.selection().isEmpty();
+        if (deleteDisabled) {
+            ImGui.beginDisabled();
+        }
         if (ImGui.button(PlotI18n.tr("plugin.powerline.delete_selected"), buttonWidth, 0)) {
             ctx.pendingDeleteLineIds().clear();
             ctx.pendingDeleteLineIds().addAll(ctx.selection().ids());
             ctx.setDeleteConfirmPending(true);
+        }
+        if (deleteDisabled) {
+            ImGui.endDisabled();
         }
 
         PowerLineOverviewRenderer.renderProjectMap(
