@@ -7,6 +7,7 @@ import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleLayer;
+import com.plot.plugin.powerline.VoxelLineRasterizer;
 import com.plot.api.world.ICoordinateService;
 import net.minecraft.util.math.BlockPos;
 
@@ -127,19 +128,32 @@ public final class PoleLayerVoxelPlacer {
             PlanToBlockMapper mapper) {
         int half = layer.getCrossarmLength() / 2;
         for (int y = baseY; y < baseY + layer.getHeight(); y++) {
-            for (int offset = -half; offset <= half; offset++) {
-                Vec2d armPoint = planPoint.add(normal.multiply(offset));
-                BlockPos pos = mapper.toBlockPos(armPoint, y);
+            Vec2d startPoint = planPoint.add(normal.multiply(-half));
+            Vec2d endPoint = planPoint.add(normal.multiply(half));
+            BlockPos start = mapper.toBlockPos(startPoint, y);
+            BlockPos end = mapper.toBlockPos(endPoint, y);
+            for (BlockPos pos : VoxelLineRasterizer.rasterizeLine3D(
+                    start.getX(), start.getY(), start.getZ(),
+                    end.getX(), end.getY(), end.getZ())) {
                 String blockId = MaterialMixResolver.resolve(layer.getMaterial(), pos, materialSeedKey);
-                BlockSpec spec = crossarmBlockSpec(blockId, normal, offset);
+                BlockSpec spec = crossarmBlockSpec(blockId, normal, pos, start, end);
                 sink.put(pos.getX(), pos.getY(), pos.getZ(), spec);
             }
         }
     }
 
-    private static BlockSpec crossarmBlockSpec(String blockId, Vec2d normal, int offset) {
+    private static BlockSpec crossarmBlockSpec(
+            String blockId,
+            Vec2d normal,
+            BlockPos position,
+            BlockPos start,
+            BlockPos end) {
         if ("minecraft:lightning_rod".equals(blockId)) {
-            Vec2d direction = offset >= 0 ? normal : normal.multiply(-1);
+            double midpointX = (start.getX() + end.getX()) * 0.5;
+            double midpointZ = (start.getZ() + end.getZ()) * 0.5;
+            double side = (position.getX() - midpointX) * normal.x
+                + (position.getZ() - midpointZ) * normal.y;
+            Vec2d direction = side >= 0 ? normal : normal.multiply(-1);
             return DirectionalBlockSpecs.lightningRodAlong(direction);
         }
         if (blockId != null && blockId.endsWith("_slab")) {

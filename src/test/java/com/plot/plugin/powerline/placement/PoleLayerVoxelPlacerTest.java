@@ -3,7 +3,11 @@ package com.plot.plugin.powerline.placement;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.block.BlockSpec;
+import com.plot.core.material.MaterialMix;
+import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
+import com.plot.plugin.powerline.design.PoleLayer;
 import com.plot.plugin.powerline.preview.PoleVoxelPreviewModel;
 import com.plot.plugin.powerline.preview.PoleVoxelizer;
 import com.plot.plugin.powerline.preview.PreviewVoxel;
@@ -11,7 +15,9 @@ import com.plot.plugin.powerline.preview.PreviewVoxelSink;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -60,6 +66,49 @@ class PoleLayerVoxelPlacerTest {
             .filter(voxel -> hasLightningRodFacing(voxel.blockId(), "east", "west"))
             .count();
         assertTrue(eastWest >= 7, "rod crossarm should face along lateral axis");
+    }
+
+    @Test
+    void rotatedCrossarmRemainsSixConnected() {
+        PoleDesign design = new PoleDesign("rotated_crossarm", "Rotated crossarm");
+        design.addLayer(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            1,
+            MaterialMix.single("minecraft:oak_fence")));
+        PoleLayer crossarm = new PoleLayer(
+            PoleLayer.Shape.CROSSARM,
+            1,
+            MaterialMix.single("minecraft:iron_bars"));
+        crossarm.setCrossarmLength(7);
+        design.addLayer(crossarm);
+
+        PreviewVoxelSink sink = new PreviewVoxelSink();
+        PoleLayerVoxelPlacer.placeDesign(
+            design,
+            new Vec2d(0, 0),
+            0,
+            new Vec2d(1, 1),
+            sink,
+            "rotated",
+            PoleLayerVoxelPlacer.previewMapper());
+
+        Set<String> crossarmBlocks = new HashSet<>();
+        for (PreviewVoxel voxel : sink.snapshot()) {
+            if (voxel.y() == 1 && "minecraft:iron_bars".equals(BlockSpec.parse(voxel.blockId()).blockId())) {
+                crossarmBlocks.add(voxel.x() + "," + voxel.z());
+            }
+        }
+        assertTrue(crossarmBlocks.size() >= 7);
+        for (String key : crossarmBlocks) {
+            String[] parts = key.split(",");
+            int x = Integer.parseInt(parts[0]);
+            int z = Integer.parseInt(parts[1]);
+            boolean connected = crossarmBlocks.contains((x + 1) + "," + z)
+                || crossarmBlocks.contains((x - 1) + "," + z)
+                || crossarmBlocks.contains(x + "," + (z + 1))
+                || crossarmBlocks.contains(x + "," + (z - 1));
+            assertTrue(connected, "isolated rotated crossarm block at " + key);
+        }
     }
 
     @Test

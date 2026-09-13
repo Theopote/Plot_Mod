@@ -528,7 +528,11 @@ public final class TowerStructureGenerator {
             worldEnd[0], worldEnd[1], worldEnd[2]));
 
         if (thickness >= 2) {
-            expandThickness(blocks);
+            expandThickness(
+                blocks,
+                worldEnd[0] - worldStart[0],
+                worldEnd[1] - worldStart[1],
+                worldEnd[2] - worldStart[2]);
         }
 
         if (blocks.isEmpty()) {
@@ -547,15 +551,45 @@ public final class TowerStructureGenerator {
         }
     }
 
-    private static void expandThickness(Set<BlockPos> blocks) {
+    private static void expandThickness(
+            Set<BlockPos> blocks,
+            double deltaX,
+            double deltaY,
+            double deltaZ) {
+        int[] axes = crossSectionAxes(deltaX, deltaY, deltaZ);
         Set<BlockPos> expanded = new LinkedHashSet<>(blocks);
         for (BlockPos pos : blocks) {
-            expanded.add(pos.east());
-            expanded.add(pos.south());
-            expanded.add(pos.east().south());
+            BlockPos first = offset(pos, axes[0]);
+            BlockPos second = offset(pos, axes[1]);
+            expanded.add(first);
+            expanded.add(second);
+            expanded.add(offset(first, axes[1]));
         }
         blocks.clear();
         blocks.addAll(expanded);
+    }
+
+    /** Choose the two voxel axes most perpendicular to the member direction. */
+    private static int[] crossSectionAxes(double deltaX, double deltaY, double deltaZ) {
+        double absX = Math.abs(deltaX);
+        double absY = Math.abs(deltaY);
+        double absZ = Math.abs(deltaZ);
+        if (absX >= absY && absX >= absZ) {
+            return new int[] {1, 2};
+        }
+        if (absY >= absZ) {
+            return new int[] {0, 2};
+        }
+        return new int[] {0, 1};
+    }
+
+    private static BlockPos offset(BlockPos pos, int axis) {
+        return switch (axis) {
+            case 0 -> pos.up();
+            case 1 -> pos.east();
+            case 2 -> pos.south();
+            default -> pos;
+        };
     }
 
     private static void checkBaseTerrain(
