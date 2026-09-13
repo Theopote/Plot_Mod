@@ -41,7 +41,8 @@ final class ConductorAttachmentMatcher {
             endById,
             matchedStart,
             matchedEnd,
-            pairs);
+            pairs,
+            result);
         emitUnmatchedWarnings(
             startAttachments,
             endAttachments,
@@ -92,7 +93,8 @@ final class ConductorAttachmentMatcher {
             Map<String, ResolvedAttachment> endById,
             Set<ResolvedAttachment> matchedStart,
             Set<ResolvedAttachment> matchedEnd,
-            List<Pair> pairs) {
+            List<Pair> pairs,
+            PowerLineGenerationResult result) {
         Map<AttachmentRole, List<ResolvedAttachment>> unmatchedStartByRole =
             groupUnmatchedByRole(startAttachments, startById, matchedStart);
         Map<AttachmentRole, List<ResolvedAttachment>> unmatchedEndByRole =
@@ -108,6 +110,12 @@ final class ConductorAttachmentMatcher {
                 pairs.add(new Pair(startAttachment, endAttachment));
                 matchedStart.add(startAttachment);
                 matchedEnd.add(endAttachment);
+                if (result != null) {
+                    result.warnings.add(PowerLineGenerationI18n.attachmentRoleFallback(
+                        startAttachment.id(),
+                        endAttachment.id(),
+                        role));
+                }
             }
         }
     }

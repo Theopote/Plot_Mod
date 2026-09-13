@@ -51,6 +51,10 @@ class ConductorAttachmentMatcherTest {
         assertEquals(1, pairs.size());
         assertEquals("arm1_phase_a", pairs.get(0).start().id());
         assertEquals("phase_a", pairs.get(0).end().id());
+        assertTrue(result.warnings.stream().anyMatch(
+            w -> w.contains("plugin.powerline.warn.attachment_role_fallback")
+                && w.contains("arm1_phase_a")
+                && w.contains("phase_a")));
         assertTrue(result.warnings.stream().anyMatch(w -> w.contains("arm1_phase_b")));
         assertTrue(result.warnings.stream().anyMatch(w -> w.contains("phase_c")));
     }

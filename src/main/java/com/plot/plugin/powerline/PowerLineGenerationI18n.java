@@ -16,6 +16,10 @@ public final class PowerLineGenerationI18n {
         return token("plugin.powerline.warn.attachment_role_mismatch", id, startRole, endRole);
     }
 
+    public static String attachmentRoleFallback(String startId, String endId, Object role) {
+        return token("plugin.powerline.warn.attachment_role_fallback", startId, endId, role);
+    }
+
     public static String missingAttachmentUpstream(String name, String id, double x, double y) {
         return token("plugin.powerline.warn.missing_attachment_upstream", name, id, x, y);
     }

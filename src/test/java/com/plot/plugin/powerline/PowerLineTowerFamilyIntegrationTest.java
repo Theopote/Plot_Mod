@@ -8,10 +8,14 @@ import com.plot.api.world.WorldViewBounds;
 import com.plot.core.block.BlockSpec;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.design.PoleDesign;
+import com.plot.plugin.powerline.design.PoleDesignResolver;
+import com.plot.plugin.powerline.design.TowerArmAttachmentBinding;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
 import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
-import com.plot.plugin.powerline.design.PoleDesignResolver;
+import com.plot.plugin.powerline.design.structure.TowerArm;
+import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.test.world.IdentityCoordinateService;
@@ -218,6 +222,40 @@ class PowerLineTowerFamilyIntegrationTest {
     }
 
     @Test
+    void poleOverrideWithArmPrefixedAttachmentsConnectsViaRoleFallback() {
+        PoleDesign overrideDesign = armPrefixedThreePhaseDesign();
+        PowerLineFootprint line = straightLine(40);
+        line.setTowerFamilyId(TowerFamily.STANDARD_LATTICE_3_PHASE_ID);
+        line.setWireMaterial(MaterialMix.single("minecraft:iron_bars"));
+        line.setMaxPoleSpacing(50.0);
+        line.setSagRatio(0.0);
+
+        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(line, IdentityCoordinateService.INSTANCE);
+        PoleOverride override = new PoleOverride(sites.getLast().getStationing());
+        override.setPoleDesignOverrideId(overrideDesign.getId());
+        line.addPoleOverride(override);
+
+        PowerLineDesignProject designs = new PowerLineDesignProject();
+        designs.addDesign(overrideDesign);
+
+        PowerLineGenerationResult result = new PowerLineGenerator(identityCoordinates(), projection()).generate(
+            line,
+            flatTerrain(64),
+            new PoleDesignResolver(designs));
+
+        assertTrue(result.conductorSpans.size() >= 3, "phase spans should connect via role fallback");
+        assertTrue(result.wireLength > 0.0);
+        assertTrue(result.warnings.stream().anyMatch(
+            w -> w.contains("plugin.powerline.warn.attachment_role_fallback")
+                && w.contains("arm_main_phase_a")
+                && w.contains("phase_a")));
+        long phaseWireBlocks = result.placementRecords.values().stream()
+            .filter(record -> "minecraft:iron_bars".equals(blockId(record)))
+            .count();
+        assertTrue(phaseWireBlocks > 0, "phase conductors should place wire voxels across the span");
+    }
+
+    @Test
     void legacyLineWithoutFamilyStillWorks() {
         PowerLineFootprint line = straightLine(20);
         line.setPoleDesignId(TowerFamilyDesignPresets.LATTICE_SUSPENSION_ID);
@@ -280,4 +318,14 @@ class PowerLineTowerFamilyIntegrationTest {
     private static String blockId(BlockRecord record) {
         return BlockSpec.parse(record.newBlockId).blockId();
     }
+
+    private static PoleDesign armPrefixedThreePhaseDesign() {
+        TowerStructureDesign structure = new TowerStructureDesign();
+        structure.addArm(new TowerArm("arm_main", 36, 8));
+        PoleDesign design = new PoleDesign("test/arm_prefixed_three_phase", "Arm-Prefixed Three Phase");
+        design.setTowerStructure(structure);
+        design.setAttachments(TowerArmAttachmentBinding.createThreePhaseDeck(structure.getArms().getFirst()));
+        return design;
+    }
+
 }
