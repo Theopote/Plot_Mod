@@ -242,7 +242,11 @@ public final class PowerLineUiWidgets {
         boolean lineChecks = line.isLineChecksEnabled();
         if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.validation.line_checks"), lineChecks)) {
             ctx.pushEditSnapshot();
-            line.setLineChecksEnabled(!lineChecks);
+            boolean enabling = !lineChecks;
+            line.setLineChecksEnabled(enabling);
+            if (enabling) {
+                ctx.state().getValidationState().setOverlayEnabled(true);
+            }
             ctx.clearAnalysisReports();
         }
         boolean terrainChecks = line.isTerrainAvoidanceEnabled();

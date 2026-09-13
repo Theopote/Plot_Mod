@@ -55,6 +55,7 @@ public final class PowerLinePluginState {
     private boolean placedSingleTowerDeleteConfirmPending;
     private TowerRole singleTowerRole = TowerRole.SUSPENSION;
     private PowerLineFootprint singleTowerStyle = SingleTowerStyleFootprint.createDefault();
+    private StyleEditTarget styleEditTarget = StyleEditTarget.LINE;
 
     public PowerLineDesignProject getDesignProject() {
         return designProject;
@@ -322,6 +323,14 @@ public final class PowerLinePluginState {
             singleTowerStyle = SingleTowerStyleFootprint.createDefault();
         }
         return singleTowerStyle;
+    }
+
+    public StyleEditTarget getStyleEditTarget() {
+        return styleEditTarget != null ? styleEditTarget : StyleEditTarget.LINE;
+    }
+
+    public void setStyleEditTarget(StyleEditTarget styleEditTarget) {
+        this.styleEditTarget = styleEditTarget != null ? styleEditTarget : StyleEditTarget.LINE;
     }
 
     private void syncPlacedSingleTowersFromProject() {

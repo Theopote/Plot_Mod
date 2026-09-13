@@ -13,7 +13,8 @@ public final class PowerLineValidationUiState {
     private boolean optimizationConfirmPending;
     private boolean smartFixStrategyPending;
     private boolean pendingEnableAutomaticTowers;
-    private boolean overlayEnabled = false;
+    /** 与线路检查默认可用一致：有分析报告时默认在画布显示叠加层。 */
+    private boolean overlayEnabled = true;
 
     public PowerLineValidationReport getLastEngineeringReport() {
         return lastEngineeringReport;

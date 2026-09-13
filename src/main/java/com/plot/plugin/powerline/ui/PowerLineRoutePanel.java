@@ -46,7 +46,6 @@ public final class PowerLineRoutePanel {
 
         if (line != null) {
             ImGui.separator();
-            renderLineName(line);
             renderSourceReference(line);
             ImGui.separator();
             PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.placement"));
@@ -87,6 +86,12 @@ public final class PowerLineRoutePanel {
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.route.current_line_empty"));
+            return;
+        }
+        PowerLineFootprint line = ctx.selection().primary(ctx.project());
+        if (line != null) {
+            ImGui.spacing();
+            renderLineName(line);
         }
     }
 

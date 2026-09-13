@@ -27,24 +27,31 @@ public final class PowerLineStylePanel {
 
     public void render() {
         ctx.selection().retainExisting(ctx.project());
-        PowerLineFootprint line = ctx.selection().primary(ctx.project());
-        PowerLineFootprint styleTarget = line != null ? line : ctx.state().getSingleTowerStyle();
-        boolean standaloneStyle = line == null;
+        PowerLineFootprint selectedLine = ctx.selection().primary(ctx.project());
+        StyleEditTarget editTarget = ctx.state().getStyleEditTarget();
 
         ImGui.separator();
-        if (standaloneStyle) {
+        renderStyleTargetSelector(editTarget, selectedLine);
+
+        boolean editingStandalone = editTarget == StyleEditTarget.STANDALONE_TOWER;
+        PowerLineFootprint styleTarget;
+        if (editingStandalone) {
+            styleTarget = ctx.state().getSingleTowerStyle();
+        } else if (selectedLine != null) {
+            styleTarget = selectedLine;
+        } else {
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.powerline.style.standalone_target_hint"));
-        } else {
-            PowerLineUiWidgets.renderLineSelector(ctx);
+                PlotI18n.tr("plugin.powerline.style.select_line_for_style"));
+            return;
         }
+
         ImGui.separator();
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.section.choose"));
         PowerLineUiWidgets.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.style.gallery_hint"));
-        renderStyleGallery(styleTarget, standaloneStyle);
+        renderStyleGallery(styleTarget, editingStandalone);
 
         PowerLineStylePreset base = PowerLineStyleEditor.basePreset(styleTarget);
         if (base != null) {
@@ -53,12 +60,52 @@ public final class PowerLineStylePanel {
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.style.quick_tune_hint"));
-            quickTunePanel.render(styleTarget, base);
+            if (editingStandalone) {
+                quickTunePanel.renderStandaloneTowerStyle(styleTarget, base);
+            } else {
+                quickTunePanel.renderLineStyle(styleTarget, base);
+            }
+        } else if (editingStandalone) {
+            quickTunePanel.renderStandaloneCustomFallback(styleTarget);
         } else {
             quickTunePanel.renderCustomFallback(styleTarget);
         }
 
-        renderAdvancedStyle(styleTarget, standaloneStyle);
+        if (!editingStandalone) {
+            renderAdvancedStyle(styleTarget);
+        }
+    }
+
+    private void renderStyleTargetSelector(StyleEditTarget editTarget, PowerLineFootprint selectedLine) {
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.edit_target"));
+        if (ImGui.radioButton(
+                PlotI18n.tr("plugin.powerline.style.target.line"),
+                editTarget == StyleEditTarget.LINE)) {
+            ctx.state().setStyleEditTarget(StyleEditTarget.LINE);
+        }
+        ImGui.sameLine();
+        if (ImGui.radioButton(
+                PlotI18n.tr("plugin.powerline.style.target.standalone"),
+                editTarget == StyleEditTarget.STANDALONE_TOWER)) {
+            ctx.state().setStyleEditTarget(StyleEditTarget.STANDALONE_TOWER);
+        }
+
+        if (editTarget == StyleEditTarget.LINE) {
+            ImGui.spacing();
+            float width = ImGui.getContentRegionAvail().x;
+            if (width > 0f) {
+                ImGui.setNextItemWidth(width);
+            }
+            if (!PowerLineUiWidgets.renderLineSelector(ctx)) {
+                PowerLineUiWidgets.textColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr("plugin.powerline.route.current_line_empty"));
+            } else if (selectedLine != null) {
+                PowerLineUiWidgets.textColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr("plugin.powerline.style.editing_line", selectedLine.getName()));
+            }
+        }
     }
 
     private void renderStyleGallery(PowerLineFootprint styleTarget, boolean standaloneStyle) {
@@ -106,7 +153,7 @@ public final class PowerLineStylePanel {
         ImGui.newLine();
     }
 
-    private void renderAdvancedStyle(PowerLineFootprint styleTarget, boolean standaloneStyle) {
+    private void renderAdvancedStyle(PowerLineFootprint styleTarget) {
         ImGui.separator();
         ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
         if (!ImGui.collapsingHeader(
@@ -117,12 +164,6 @@ public final class PowerLineStylePanel {
         PowerLineUiWidgets.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.style.advanced_hint"));
-        if (standaloneStyle) {
-            PowerLineUiWidgets.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.powerline.style.standalone_advanced_hint"));
-            return;
-        }
         styleControls.renderEngineeringOverrides(styleTarget, poleDesignerPanel);
     }
 }
