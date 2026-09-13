@@ -218,6 +218,10 @@ public final class PowerLineUiContext {
         actions.activatePathPickTool();
     }
 
+    public com.plot.plugin.powerline.PowerLinePathPickSession pathPickSession() {
+        return actions.pathPickSession();
+    }
+
     public boolean isPathRelinkActive(PowerLineFootprint line) {
         return line != null && state.isPathRelinkActive(line.getId());
     }

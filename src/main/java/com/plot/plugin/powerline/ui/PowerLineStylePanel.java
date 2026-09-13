@@ -28,44 +28,46 @@ public final class PowerLineStylePanel {
     public void render() {
         ctx.selection().retainExisting(ctx.project());
         PowerLineFootprint line = ctx.selection().primary(ctx.project());
-        if (line == null) {
-            ImGui.separator();
-            PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.select_line_hint"));
-            PowerLineUiWidgets.renderLineSelector(ctx);
-            return;
-        }
+        PowerLineFootprint styleTarget = line != null ? line : ctx.state().getSingleTowerStyle();
+        boolean standaloneStyle = line == null;
 
         ImGui.separator();
-        PowerLineUiWidgets.renderLineSelector(ctx);
+        if (standaloneStyle) {
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.style.standalone_target_hint"));
+        } else {
+            PowerLineUiWidgets.renderLineSelector(ctx);
+        }
         ImGui.separator();
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.section.choose"));
         PowerLineUiWidgets.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.style.gallery_hint"));
-        renderStyleGallery(line);
+        renderStyleGallery(styleTarget, standaloneStyle);
 
-        PowerLineStylePreset base = PowerLineStyleEditor.basePreset(line);
+        PowerLineStylePreset base = PowerLineStyleEditor.basePreset(styleTarget);
         if (base != null) {
             ImGui.spacing();
             PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.section.quick_customize"));
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.style.quick_tune_hint"));
-            quickTunePanel.render(line, base);
+            quickTunePanel.render(styleTarget, base);
         } else {
-            quickTunePanel.renderCustomFallback(line);
+            quickTunePanel.renderCustomFallback(styleTarget);
         }
 
-        renderAdvancedStyle(line);
+        renderAdvancedStyle(styleTarget, standaloneStyle);
     }
 
-    private void renderStyleGallery(PowerLineFootprint line) {
+    private void renderStyleGallery(PowerLineFootprint styleTarget, boolean standaloneStyle) {
         for (StyleCategory category : PowerLineStylePresetCatalog.galleryCategories()) {
             ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
             if (ImGui.collapsingHeader(
                     PlotI18n.tr(category.sectionKey()),
                     ImGuiTreeNodeFlags.None)) {
-                renderStylePresetGrid(line, PowerLineStylePresetCatalog.presetsByCategory(category));
+                renderStylePresetGrid(styleTarget, standaloneStyle, PowerLineStylePresetCatalog.presetsByCategory(category));
             }
         }
     }
@@ -77,8 +79,11 @@ public final class PowerLineStylePanel {
         return Math.max(1, (int) ((avail + spacing) / (cardW + spacing)));
     }
 
-    private void renderStylePresetGrid(PowerLineFootprint line, java.util.List<PowerLineStylePreset> presets) {
-        PowerLineStylePreset base = PowerLineStyleEditor.basePreset(line);
+    private void renderStylePresetGrid(
+            PowerLineFootprint styleTarget,
+            boolean standaloneStyle,
+            java.util.List<PowerLineStylePreset> presets) {
+        PowerLineStylePreset base = PowerLineStyleEditor.basePreset(styleTarget);
         int columns = computePresetColumns();
         float spacing = ImGui.getStyle().getItemSpacingX();
 
@@ -89,16 +94,19 @@ public final class PowerLineStylePanel {
             PowerLineStylePreset preset = presets.get(i);
             boolean selected = base != null && base.getId().equals(preset.getId());
             String label = PlotI18n.tr(preset.getLabelKey());
-            if (PowerLineStyleCardRenderer.renderStyleCard(preset, label, selected, line)) {
-                ctx.pushEditSnapshot();
-                PowerLineStyleEditor.selectPreset(line, preset);
+            if (PowerLineStyleCardRenderer.renderStyleCard(preset, label, selected, styleTarget)) {
+                if (!standaloneStyle) {
+                    ctx.pushEditSnapshot();
+                }
+                PowerLineStyleEditor.selectPreset(styleTarget, preset);
                 ctx.invalidatePreview();
+                ctx.singleTowerPlacement().refreshGhostPreview();
             }
         }
         ImGui.newLine();
     }
 
-    private void renderAdvancedStyle(PowerLineFootprint line) {
+    private void renderAdvancedStyle(PowerLineFootprint styleTarget, boolean standaloneStyle) {
         ImGui.separator();
         ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
         if (!ImGui.collapsingHeader(
@@ -109,6 +117,12 @@ public final class PowerLineStylePanel {
         PowerLineUiWidgets.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.style.advanced_hint"));
-        styleControls.renderEngineeringOverrides(line, poleDesignerPanel);
+        if (standaloneStyle) {
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.style.standalone_advanced_hint"));
+            return;
+        }
+        styleControls.renderEngineeringOverrides(styleTarget, poleDesignerPanel);
     }
 }

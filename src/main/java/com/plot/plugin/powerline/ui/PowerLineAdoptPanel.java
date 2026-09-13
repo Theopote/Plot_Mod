@@ -3,7 +3,6 @@ package com.plot.plugin.powerline.ui;
 import com.plot.core.model.Shape;
 import com.plot.plugin.powerline.PowerLinePathSelectionAnalysis;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
-import com.plot.plugin.powerline.path.PowerLineSourceDescriptor;
 import com.plot.plugin.powerline.path.PowerLineSourceSync;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -26,29 +25,41 @@ public final class PowerLineAdoptPanel {
         if (line != null && PowerLineSourceSync.hasLinkedSource(line)) {
             renderLinkedSource(line);
             if (ctx.isPathRelinkActive(line)) {
-                renderSelectionErrors(selection);
+                renderPathPickSection(selection);
                 renderPathRelinkActions(line, selection);
             }
             return;
         }
 
-        if (ctx.project().getLineCount() == 0) {
-            PowerLineUiWidgets.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.powerline.path.no_lines"));
-            renderSelectionErrors(selection);
+        renderPathPickSection(selection);
+    }
+
+    private void renderPathPickSection(PowerLinePathSelectionAnalysis selection) {
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.pick_path"), 0, 0)) {
+            ctx.activatePathPickTool();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.powerline.pick_path_hint"));
+        }
+
+        if (ctx.pathPickSession().isActive()) {
             ImGui.spacing();
-            if (ImGui.button(PlotI18n.tr("plugin.powerline.path.create_from_canvas"), 0, 0)) {
-                if (selection.canAdopt()) {
-                    ctx.adoptSelectedPaths();
-                } else {
-                    ctx.activatePathPickTool();
-                }
+            int pickingCount = ctx.pathPickSession().getAccumulatedCount();
+            if (pickingCount > 0) {
+                PowerLineUiWidgets.textColored(
+                    PluginUiColors.STATUS_INFO,
+                    PlotI18n.tr("plugin.powerline.path.picking_count", pickingCount));
+            } else {
+                PowerLineUiWidgets.textColored(
+                    PluginUiColors.STATUS_INFO,
+                    PlotI18n.tr("plugin.powerline.path.picking_active"));
             }
             return;
         }
 
         renderSelectionErrors(selection);
+        renderSelectionSummary(selection);
+
         if (selection.canAdopt()) {
             ImGui.spacing();
             String label = selection.adoptable().size() > 1
@@ -57,12 +68,24 @@ public final class PowerLineAdoptPanel {
             if (ImGui.button(label, 0, 0)) {
                 ctx.adoptSelectedPaths();
             }
-        } else {
+        } else if (ctx.project().getLineCount() == 0) {
             ImGui.spacing();
-            if (ImGui.button(PlotI18n.tr("plugin.powerline.pick_path"), 0, 0)) {
-                ctx.activatePathPickTool();
-            }
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.path.no_lines"));
         }
+    }
+
+    private void renderSelectionSummary(PowerLinePathSelectionAnalysis selection) {
+        if (!selection.canAdopt()) {
+            return;
+        }
+        ImGui.spacing();
+        PowerLineUiWidgets.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr(
+                "plugin.powerline.path.selection_summary",
+                selection.adoptable().size()));
     }
 
     private void renderLinkedSource(PowerLineFootprint line) {
@@ -117,14 +140,15 @@ public final class PowerLineAdoptPanel {
         if (liveShape != null) {
             return PlotI18n.shapeTypeLabel(liveShape.getClass().getSimpleName());
         }
-        PowerLineSourceDescriptor descriptor = line.getSourceDescriptor();
+        var descriptor = line.getSourceDescriptor();
         if (descriptor != null) {
             return descriptorKindLabel(descriptor.kind());
         }
         return PlotI18n.tr("plugin.powerline.path.unknown_source");
     }
 
-    private static String descriptorKindLabel(PowerLineSourceDescriptor.Kind kind) {
+    private static String descriptorKindLabel(
+            com.plot.plugin.powerline.path.PowerLineSourceDescriptor.Kind kind) {
         if (kind == null) {
             return PlotI18n.tr("plugin.powerline.path.unknown_source");
         }

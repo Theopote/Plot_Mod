@@ -21,8 +21,7 @@ public final class PowerLineUIManager {
         this.overviewPanel = new PowerLineOverviewPanel(ctx);
         this.poleDesignerPanel = new PoleDesignerPanel(ctx);
         this.placedSingleTowerPanel = new PlacedSingleTowerPanel(ctx, ctx.placedSingleTowerActions());
-        PowerLineStyleQuickTunePanel quickTunePanel = new PowerLineStyleQuickTunePanel(ctx, poleDesignerPanel);
-        this.routePanel = new PowerLineRoutePanel(ctx, overviewPanel, placedSingleTowerPanel, quickTunePanel);
+        this.routePanel = new PowerLineRoutePanel(ctx, overviewPanel, placedSingleTowerPanel);
         this.stylePanel = new PowerLineStylePanel(ctx, poleDesignerPanel);
         PowerLineValidationPanel validationPanel = new PowerLineValidationPanel(ctx);
         this.buildPanel = new PowerLineBuildPanel(ctx, validationPanel);
@@ -37,6 +36,7 @@ public final class PowerLineUIManager {
             ImGui.endTabBar();
         }
         ctx.singleTowerPlacement().tick();
+        ctx.actions().tickPathPickSession();
     }
 
     private static void renderTab(String labelKey, Runnable body) {

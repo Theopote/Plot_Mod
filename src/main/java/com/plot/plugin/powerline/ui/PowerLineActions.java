@@ -14,6 +14,7 @@ import com.plot.plugin.powerline.engineering.validation.PowerLineValidationRepor
 import com.plot.plugin.powerline.engineering.optimization.OptimizationResult;
 import com.plot.api.world.PluginProjectionContext;
 import com.plot.api.world.WorldProjectionUnavailableException;
+import com.plot.plugin.powerline.PowerLinePathPickSession;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.PowerLinePathSelectionAnalysis;
 import com.plot.plugin.powerline.manager.PowerLinePreviewManager;
@@ -55,6 +56,7 @@ public final class PowerLineActions {
     private final PowerLinePreviewManager previewManager;
     private final SingleTowerPlacementActions singleTowerPlacement;
     private final PlacedSingleTowerActions placedSingleTowerActions;
+    private final PowerLinePathPickSession pathPickSession = new PowerLinePathPickSession();
     private PowerLineGenerator generator;
 
     public PowerLineActions(PluginContext host, PowerLinePluginState state, Object projectLock) {
@@ -76,6 +78,31 @@ public final class PowerLineActions {
 
     public PlacedSingleTowerActions placedSingleTowerActions() {
         return placedSingleTowerActions;
+    }
+
+    public PowerLinePathPickSession pathPickSession() {
+        return pathPickSession;
+    }
+
+    public void tickPathPickSession() {
+        if (!pathPickSession.isActive()) {
+            return;
+        }
+        PowerLinePathPickSession.Outcome outcome = pathPickSession.tick(host.appState());
+        applyPathPickOutcome(outcome);
+        if (pathPickSession.isActive()) {
+            List<Shape> selected = host.appState().getSelectedShapes();
+            String hintKey = pathPickSession.hintKeyForCurrentSelection(selected);
+            if ("status.plot.powerline.pick_path_right_click_multi".equals(hintKey)) {
+                state.setProjectStatus(
+                    PlotI18n.status(hintKey, pathPickSession.getAccumulatedCount()),
+                    ProjectStatusSeverity.INFO);
+            } else {
+                state.setProjectStatus(
+                    PlotI18n.status(hintKey),
+                    ProjectStatusSeverity.INFO);
+            }
+        }
     }
 
     public void setGenerator(PowerLineGenerator generator) {
@@ -1065,12 +1092,43 @@ public final class PowerLineActions {
         if (!(selectTool instanceof BaseTool baseTool)) {
             return;
         }
-        state.setPathSelection(PowerLinePathSelectionAnalysis.EMPTY);
+        pathPickSession.begin();
         toolManager.setActiveTool(selectTool);
         host.appState().setCurrentTool(baseTool);
         state.setProjectStatus(
-            PlotI18n.tr("plugin.powerline.pick_started"),
+            PlotI18n.tr("plugin.powerline.pick_path_hint"),
             ProjectStatusSeverity.INFO);
+    }
+
+    private void applyPathPickOutcome(PowerLinePathPickSession.Outcome outcome) {
+        switch (outcome.getResult()) {
+            case SUCCESS -> {
+                updateSelectedPaths();
+                PowerLinePathSelectionAnalysis selection = state.getPathSelection();
+                if (selection.canAdopt()) {
+                    int count = selection.adoptable().size();
+                    state.setProjectStatus(
+                        count > 1
+                            ? PlotI18n.tr("plugin.powerline.path.selection_ready_batch", count)
+                            : PlotI18n.tr("plugin.powerline.path.selection_ready"),
+                        ProjectStatusSeverity.SUCCESS);
+                } else {
+                    state.setProjectStatus(
+                        PlotI18n.tr("plugin.powerline.path.invalid_selection"),
+                        ProjectStatusSeverity.WARNING);
+                }
+            }
+            case NEED_SELECTION -> state.setProjectStatus(
+                PlotI18n.status("status.plot.powerline.pick_path_need_selection"),
+                ProjectStatusSeverity.WARNING);
+            case NO_VALID -> state.setProjectStatus(
+                PlotI18n.status("status.plot.powerline.pick_path_no_valid"),
+                ProjectStatusSeverity.WARNING);
+            case CANCELLED -> state.setProjectStatus(
+                PlotI18n.status("status.plot.powerline.pick_path_cancelled"),
+                ProjectStatusSeverity.INFO);
+            default -> { }
+        }
     }
 
     public PowerLineValidationReport analyzeEngineering(PowerLineFootprint line) {
