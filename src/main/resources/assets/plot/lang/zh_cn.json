@@ -3271,6 +3271,7 @@
   "plugin.powerline.locate_success": "已定位到「%s」",
   "plugin.powerline.project.loaded": "已加载电力线路数据：%s",
   "plugin.powerline.project.loaded_designs_failed": "线路项目已加载，但自定义杆塔设计无法读取。受影响线路将使用默认设计。",
+  "plugin.powerline.project.save_designs_failed": "线路项目已保存，但自定义杆塔设计未能写入：%s",
   "plugin.powerline.project.saved": "已保存电力线路数据：%s",
   "plugin.powerline.project.load_failed": "加载失败：%s",
   "plugin.powerline.project.save_failed": "保存失败：%s",

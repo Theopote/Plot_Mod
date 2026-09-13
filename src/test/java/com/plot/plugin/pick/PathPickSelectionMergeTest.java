@@ -39,6 +39,18 @@ class PathPickSelectionMergeTest {
     }
 
     @Test
+    void normalClickOnBlankClearsAccumulated() {
+        Map<String, Shape> accumulated = new LinkedHashMap<>();
+        LineShape pathA = line(0, 0, 10, 0);
+        LineShape pathB = line(20, 0, 30, 0);
+
+        merge(accumulated, List.of(), List.of(pathA, pathB), false);
+        merge(accumulated, List.of(pathA, pathB), List.of(), false);
+
+        assertTrue(accumulated.isEmpty());
+    }
+
+    @Test
     void ctrlClickRemovesDeselectedPathFromAccumulated() {
         Map<String, Shape> accumulated = new LinkedHashMap<>();
         LineShape pathA = line(0, 0, 10, 0);

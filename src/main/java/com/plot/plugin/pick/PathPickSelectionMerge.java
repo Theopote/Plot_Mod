@@ -13,7 +13,7 @@ import java.util.function.Function;
 /**
  * 路径/轮廓拾取会话共用的 selection delta 合并逻辑。
  * <p>
- * 普通点击：只 union 本次新增的选择；Ctrl 点击：只对 added/removed delta toggle。
+ * 普通点击：只 union 本次新增的选择；点空白清空累积；Ctrl 点击：只对 added/removed delta toggle。
  */
 public final class PathPickSelectionMerge {
 
@@ -77,6 +77,11 @@ public final class PathPickSelectionMerge {
         if (ctrlToggle) {
             toggleAdoptable(accumulated, findAdoptable.apply(delta.added()));
             toggleAdoptable(accumulated, findAdoptable.apply(delta.removed()));
+            return;
+        }
+
+        if (currentCanvas.isEmpty()) {
+            accumulated.clear();
             return;
         }
 

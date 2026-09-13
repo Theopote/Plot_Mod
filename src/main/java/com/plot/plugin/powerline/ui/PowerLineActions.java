@@ -115,9 +115,7 @@ public final class PowerLineActions {
     }
 
     public void adoptSelectedPaths() {
-        PowerLinePathSelectionAnalysis selection = PowerLinePathUtils.analyzeSelection(
-            host.appState().getSelectedShapes());
-        state.setPathSelection(selection);
+        PowerLinePathSelectionAnalysis selection = state.getPathSelection();
 
         if (!selection.hasCanvasSelection()) {
             state.setProjectStatus(
@@ -230,11 +228,13 @@ public final class PowerLineActions {
                 ProjectStatusSeverity.SUCCESS);
             return true;
         } catch (ClosedLoopLayoutException e) {
+            discardPushedHistoryEntry();
             state.setProjectStatus(
                 PlotI18n.tr("plugin.powerline.adopt_reject_closed_loop"),
                 ProjectStatusSeverity.WARNING);
             return false;
         } catch (IllegalArgumentException e) {
+            discardPushedHistoryEntry();
             state.setProjectStatus(
                 PlotI18n.tr("plugin.powerline.source_unsupported"),
                 ProjectStatusSeverity.WARNING);
@@ -311,11 +311,13 @@ public final class PowerLineActions {
                 ProjectStatusSeverity.SUCCESS);
             return true;
         } catch (ClosedLoopLayoutException e) {
+            discardPushedHistoryEntry();
             state.setProjectStatus(
                 PlotI18n.tr("plugin.powerline.adopt_reject_closed_loop"),
                 ProjectStatusSeverity.WARNING);
             return false;
         } catch (IllegalArgumentException e) {
+            discardPushedHistoryEntry();
             state.setProjectStatus(
                 PlotI18n.tr("plugin.powerline.path.invalid_selection"),
                 ProjectStatusSeverity.WARNING);
@@ -958,15 +960,24 @@ public final class PowerLineActions {
         }
         state.setCurrentProjectFile(ProjectPathResolver.sidecarFileName(filePath));
         boolean saved = saveProjectFile(projectsDir.resolve(state.getCurrentProjectFile()));
-        saveDesignProjectFile(designProjectsDir.resolve(state.getCurrentProjectFile()));
-        if (saved) {
+        boolean designsSaved = saveDesignProjectFile(designProjectsDir.resolve(state.getCurrentProjectFile()));
+        if (saved && designsSaved) {
             state.setProjectStatus(PlotI18n.tr("plugin.powerline.project.saved", filePath), ProjectStatusSeverity.SUCCESS);
+        } else if (saved) {
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.project.save_designs_failed", filePath),
+                ProjectStatusSeverity.WARNING);
         }
     }
 
     public void persistProject(Path projectsDir, Path designProjectsDir) {
-        saveProjectFile(projectsDir.resolve(state.getCurrentProjectFile()));
-        saveDesignProjectFile(designProjectsDir.resolve(state.getCurrentProjectFile()));
+        boolean saved = saveProjectFile(projectsDir.resolve(state.getCurrentProjectFile()));
+        boolean designsSaved = saveDesignProjectFile(designProjectsDir.resolve(state.getCurrentProjectFile()));
+        if (saved && !designsSaved) {
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.project.save_designs_failed", state.getCurrentProjectFile()),
+                ProjectStatusSeverity.WARNING);
+        }
     }
 
     public boolean loadProjectFile(Path file) {
@@ -1067,6 +1078,12 @@ public final class PowerLineActions {
         return false;
     }
 
+    private void discardPushedHistoryEntry() {
+        if (state.getProjectHistory().canUndo()) {
+            state.setProject(state.getProjectHistory().undo(state.getProject()));
+        }
+    }
+
     private boolean saveProjectFile(Path file) {
         if (file == null || state.getProject() == null) {
             return false;
@@ -1092,6 +1109,7 @@ public final class PowerLineActions {
         if (!(selectTool instanceof BaseTool baseTool)) {
             return;
         }
+        state.setPathSelection(PowerLinePathSelectionAnalysis.EMPTY);
         pathPickSession.begin();
         toolManager.setActiveTool(selectTool);
         host.appState().setCurrentTool(baseTool);
@@ -1103,7 +1121,7 @@ public final class PowerLineActions {
     private void applyPathPickOutcome(PowerLinePathPickSession.Outcome outcome) {
         switch (outcome.getResult()) {
             case SUCCESS -> {
-                updateSelectedPaths();
+                state.setPathSelection(PowerLinePathUtils.analyzeSelection(outcome.getPaths()));
                 PowerLinePathSelectionAnalysis selection = state.getPathSelection();
                 if (selection.canAdopt()) {
                     int count = selection.adoptable().size();

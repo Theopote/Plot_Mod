@@ -60,6 +60,17 @@ class PowerLinePathPickSessionTest {
     }
 
     @Test
+    void normalClickOnBlankClearsAccumulated() {
+        LineShape pathA = line(0, 0, 10, 0);
+        LineShape pathB = line(20, 0, 30, 0);
+
+        session.mergeSelectionChange(List.of(), List.of(pathA, pathB), false);
+        session.mergeSelectionChange(List.of(pathA, pathB), List.of(), false);
+
+        assertTrue(session.accumulatedPathIds().isEmpty());
+    }
+
+    @Test
     void ctrlClickRemovesDeselectedPathFromAccumulated() {
         LineShape pathA = line(0, 0, 10, 0);
 

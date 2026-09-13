@@ -3271,6 +3271,7 @@
   "plugin.powerline.locate_success": "Located \"%s\"",
   "plugin.powerline.project.loaded": "Loaded power line data: %s",
   "plugin.powerline.project.loaded_designs_failed": "Loaded line project, but custom tower designs could not be read. Affected lines will use defaults.",
+  "plugin.powerline.project.save_designs_failed": "Saved line project, but custom tower designs could not be written: %s",
   "plugin.powerline.project.saved": "Saved power line data: %s",
   "plugin.powerline.project.load_failed": "Load failed: %s",
   "plugin.powerline.project.save_failed": "Save failed: %s",

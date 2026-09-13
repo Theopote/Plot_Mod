@@ -51,6 +51,9 @@ public final class PowerLinePathLayout {
             PowerLineSourcePath sourcePath,
             List<PowerPoleSite> sites) {
         validateClosedLoop(sourcePath, sites);
+        if (sites == null || sites.size() < 2) {
+            throw new ClosedLoopLayoutException("Unable to derive tower polyline from source path");
+        }
         footprint.setSourceDescriptor(descriptor);
         syncTowerPolyline(footprint, sites);
     }

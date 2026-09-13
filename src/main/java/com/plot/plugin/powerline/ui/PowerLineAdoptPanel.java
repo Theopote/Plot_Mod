@@ -19,7 +19,6 @@ public final class PowerLineAdoptPanel {
     }
 
     public void render(PowerLineFootprint line) {
-        ctx.updateSelectedPaths();
         PowerLinePathSelectionAnalysis selection = ctx.pathSelection();
 
         if (line != null && PowerLineSourceSync.hasLinkedSource(line)) {
