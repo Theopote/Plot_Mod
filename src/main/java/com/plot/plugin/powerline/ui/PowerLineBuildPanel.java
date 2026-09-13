@@ -36,13 +36,11 @@ public final class PowerLineBuildPanel {
     public void render() {
         ctx.selection().retainExisting(ctx.project());
         PowerLineFootprint line = ctx.selection().primary(ctx.project());
+        renderCurrentLineHeader();
         if (line == null) {
             PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.select_line_hint"));
-            PowerLineUiWidgets.renderLineSelector(ctx);
             return;
         }
-
-        renderCurrentLineHeader();
         ImGui.spacing();
         buildActions.renderPreviewActions(line);
         renderCompactPreviewSummary(line);
@@ -59,7 +57,7 @@ public final class PowerLineBuildPanel {
         if (width > 0f) {
             ImGui.setNextItemWidth(width);
         }
-        PowerLineUiWidgets.renderLineSelector(ctx);
+        PowerLineUiWidgets.renderLineSelector(ctx, false);
     }
 
     private void renderCompactPreviewSummary(PowerLineFootprint line) {

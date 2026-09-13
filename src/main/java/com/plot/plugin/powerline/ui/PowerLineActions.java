@@ -1133,6 +1133,18 @@ public final class PowerLineActions {
             ProjectStatusSeverity.INFO);
     }
 
+    public void cancelPathPick() {
+        boolean wasPicking = pathPickSession.isActive();
+        if (wasPicking) {
+            pathPickSession.cancel();
+            state.setProjectStatus(
+                PlotI18n.status("status.plot.powerline.pick_path_cancelled"),
+                ProjectStatusSeverity.INFO);
+        }
+        state.clearPathRelink();
+        state.setPathSelection(PowerLinePathSelectionAnalysis.EMPTY);
+    }
+
     private void applyPathPickOutcome(PowerLinePathPickSession.Outcome outcome) {
         switch (outcome.getResult()) {
             case SUCCESS -> {
@@ -1157,9 +1169,12 @@ public final class PowerLineActions {
             case NO_VALID -> state.setProjectStatus(
                 PlotI18n.status("status.plot.powerline.pick_path_no_valid"),
                 ProjectStatusSeverity.WARNING);
-            case CANCELLED -> state.setProjectStatus(
-                PlotI18n.status("status.plot.powerline.pick_path_cancelled"),
-                ProjectStatusSeverity.INFO);
+            case CANCELLED -> {
+                state.clearPathRelink();
+                state.setProjectStatus(
+                    PlotI18n.status("status.plot.powerline.pick_path_cancelled"),
+                    ProjectStatusSeverity.INFO);
+            }
             default -> { }
         }
     }

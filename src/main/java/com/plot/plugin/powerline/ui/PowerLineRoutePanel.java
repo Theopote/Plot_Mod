@@ -82,7 +82,7 @@ public final class PowerLineRoutePanel {
         if (width > 0f) {
             ImGui.setNextItemWidth(width);
         }
-        if (!PowerLineUiWidgets.renderLineSelector(ctx)) {
+        if (!PowerLineUiWidgets.renderLineSelector(ctx, false)) {
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.route.current_line_empty"));
@@ -123,15 +123,6 @@ public final class PowerLineRoutePanel {
                     ctx.relayoutLineFromSource(line);
                 }
             }
-        }
-        if (status != SourceSyncStatus.OK && status != SourceSyncStatus.NOT_LINKED) {
-            ImGui.spacing();
-            if (ImGui.button(PlotI18n.tr("plugin.powerline.path.detach_keep_snapshot"), 0, 0)) {
-                ctx.detachSourceAndKeepLayout(line);
-            }
-            PowerLineUiWidgets.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.powerline.path.detach_keep_snapshot_hint"));
         }
     }
 

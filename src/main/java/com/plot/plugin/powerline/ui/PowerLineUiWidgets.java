@@ -180,25 +180,53 @@ public final class PowerLineUiWidgets {
     }
 
     public static boolean renderLineSelector(PowerLineUiContext ctx) {
+        return renderLineSelector(ctx, true);
+    }
+
+    /**
+     * @param showLabel {@code false} 时仅渲染 {@code ##select_line}，由页面提供「当前线路」等标题
+     * @return 是否已选中一条线路
+     */
+    public static boolean renderLineSelector(PowerLineUiContext ctx, boolean showLabel) {
         if (ctx.project().getLineCount() == 0) {
             return false;
         }
         List<PowerLineFootprint> lines = new ArrayList<>(ctx.project().getLines().values());
-        String[] labels = lines.stream().map(PowerLineFootprint::getName).toArray(String[]::new);
-        String[] ids = lines.stream().map(PowerLineFootprint::getId).toArray(String[]::new);
-        String primaryId = ctx.selection().primaryId();
-        int current = 0;
-        for (int i = 0; i < ids.length; i++) {
-            if (ids[i].equals(primaryId)) {
-                current = i;
-                break;
+        int itemCount = lines.size() + 1;
+        String[] labels = new String[itemCount];
+        String[] ids = new String[itemCount];
+        labels[0] = PlotI18n.tr("plugin.powerline.select_line_none");
+        ids[0] = "";
+        for (int i = 0; i < lines.size(); i++) {
+            labels[i + 1] = lines.get(i).getName();
+            ids[i + 1] = lines.get(i).getId();
+        }
+        int current = resolveLineSelectorIndex(ctx.selection().primaryId(), lines);
+        imgui.type.ImInt index = new imgui.type.ImInt(current);
+        String comboLabel = showLabel
+            ? stableLabel("plugin.powerline.select_line", "select_line")
+            : "##select_line";
+        if (ImGui.combo(comboLabel, index, labels)) {
+            String selectedId = ids[index.get()];
+            if (selectedId == null || selectedId.isBlank()) {
+                ctx.clearSelection();
+            } else {
+                ctx.selectLine(selectedId, false);
             }
         }
-        imgui.type.ImInt index = new imgui.type.ImInt(current);
-        if (ImGui.combo(stableLabel("plugin.powerline.select_line", "select_line"), index, labels)) {
-            ctx.selectLine(ids[index.get()], false);
+        return current != 0;
+    }
+
+    static int resolveLineSelectorIndex(String primaryId, List<PowerLineFootprint> lines) {
+        if (primaryId == null || primaryId.isBlank()) {
+            return 0;
         }
-        return true;
+        for (int i = 0; i < lines.size(); i++) {
+            if (lines.get(i).getId().equals(primaryId)) {
+                return i + 1;
+            }
+        }
+        return 0;
     }
 
     public static void renderMaterialMixPicker(

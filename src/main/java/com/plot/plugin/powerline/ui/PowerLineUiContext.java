@@ -232,6 +232,10 @@ public final class PowerLineUiContext {
         actions.activatePathPickTool();
     }
 
+    public void cancelPathPick() {
+        actions.cancelPathPick();
+    }
+
     public com.plot.plugin.powerline.PowerLinePathPickSession pathPickSession() {
         return actions.pathPickSession();
     }

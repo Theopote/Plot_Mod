@@ -96,7 +96,7 @@ public final class PowerLineStylePanel {
             if (width > 0f) {
                 ImGui.setNextItemWidth(width);
             }
-            if (!PowerLineUiWidgets.renderLineSelector(ctx)) {
+            if (!PowerLineUiWidgets.renderLineSelector(ctx, false)) {
                 PowerLineUiWidgets.textColored(
                     PluginUiColors.HINT_GRAY,
                     PlotI18n.tr("plugin.powerline.route.current_line_empty"));
