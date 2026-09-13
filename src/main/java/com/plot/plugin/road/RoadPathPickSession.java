@@ -3,6 +3,8 @@ package com.plot.plugin.road;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.BaseTool;
+import com.plot.plugin.pick.PathPickSelectionMerge;
+import com.plot.plugin.pick.PathPickSessionSnapshot;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
 
@@ -59,6 +61,7 @@ public class RoadPathPickSession {
 
     private boolean active;
     private final Map<String, Shape> accumulatedPaths = new LinkedHashMap<>();
+    private final PathPickSessionSnapshot canvasSnapshot = new PathPickSessionSnapshot();
 
     public boolean isActive() {
         return active;
@@ -71,11 +74,13 @@ public class RoadPathPickSession {
     public void begin() {
         active = true;
         accumulatedPaths.clear();
+        canvasSnapshot.reset();
     }
 
     public void cancel() {
         active = false;
         accumulatedPaths.clear();
+        canvasSnapshot.reset();
     }
 
     /**
@@ -89,17 +94,25 @@ public class RoadPathPickSession {
         if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
             active = false;
             accumulatedPaths.clear();
+            canvasSnapshot.reset();
             return Outcome.failed(Result.CANCELLED);
         }
+
+        canvasSnapshot.ensureInitialized(appState);
 
         BaseTool tool = appState.getCurrentTool();
         if (tool != null && "select".equals(tool.getId())
                 && ImGui.isMouseReleased(0)
                 && !ImGui.getIO().getWantCaptureMouse()) {
-            mergeCurrentSelection(appState);
+            PathPickSelectionMerge.merge(
+                accumulatedPaths,
+                canvasSnapshot.previousSelection(),
+                appState.getSelectedShapes(),
+                ImGui.getIO().getKeyCtrl(),
+                RoadGeometryUtils::findAdoptablePaths);
         }
 
-        syncSelectionToAccumulated(appState);
+        canvasSnapshot.capture(appState);
 
         if (!ImGui.isMouseClicked(1)) {
             return Outcome.none();
@@ -124,6 +137,7 @@ public class RoadPathPickSession {
 
         active = false;
         accumulatedPaths.clear();
+        canvasSnapshot.reset();
         appState.setSelectedShapes(paths);
         return Outcome.success(paths);
     }
@@ -132,7 +146,9 @@ public class RoadPathPickSession {
      * 根据当前累加的选择集生成提示文案（拾取进行中，尚未右键确认）。
      */
     public String hintKeyForCurrentSelection(List<Shape> selected) {
-        int count = Math.max(accumulatedPaths.size(), RoadGeometryUtils.findAdoptablePaths(selected).size());
+        int count = accumulatedPaths.isEmpty()
+            ? RoadGeometryUtils.findAdoptablePaths(selected).size()
+            : accumulatedPaths.size();
         if (count > 1) {
             return "status.plot.road.pick_path_right_click_multi";
         }
@@ -143,34 +159,5 @@ public class RoadPathPickSession {
             return "status.plot.road.pick_path_no_valid";
         }
         return "status.plot.road.pick_path_active";
-    }
-
-    private void mergeCurrentSelection(AppState appState) {
-        List<Shape> adoptable = RoadGeometryUtils.findAdoptablePaths(appState.getSelectedShapes());
-        if (adoptable.isEmpty()) {
-            return;
-        }
-
-        boolean toggleMode = ImGui.getIO().getKeyCtrl();
-        if (toggleMode) {
-            for (Shape path : adoptable) {
-                if (accumulatedPaths.containsKey(path.getId())) {
-                    accumulatedPaths.remove(path.getId());
-                } else {
-                    accumulatedPaths.put(path.getId(), path);
-                }
-            }
-        } else {
-            for (Shape path : adoptable) {
-                accumulatedPaths.put(path.getId(), path);
-            }
-        }
-    }
-
-    private void syncSelectionToAccumulated(AppState appState) {
-        if (accumulatedPaths.isEmpty()) {
-            return;
-        }
-        appState.setSelectedShapes(new ArrayList<>(accumulatedPaths.values()));
     }
 }

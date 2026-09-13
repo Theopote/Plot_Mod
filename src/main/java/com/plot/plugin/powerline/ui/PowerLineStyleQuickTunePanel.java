@@ -7,6 +7,7 @@ import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
 import com.plot.plugin.powerline.PowerLineSagUtils;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.model.SingleTowerStyleFootprint;
 import com.plot.plugin.powerline.style.PowerLineQuickTunePolicy;
 import com.plot.plugin.powerline.style.PowerLineSpacingPolicy;
 import com.plot.plugin.powerline.style.PowerLineStyleEditor;
@@ -274,45 +275,47 @@ public final class PowerLineStyleQuickTunePanel {
 
     private void renderSagRatioSlider(PowerLineFootprint line) {
         float[] sagRatio = {(float) (line.getSagRatio() * 100f)};
-        PowerLineUiWidgets.sliderFloatStableLineEdit(
-            ctx,
+        PowerLineUiWidgets.sliderFloatStable(
             "quick_sag_ratio",
             "plugin.powerline.sag_ratio",
             sagRatio,
             0f,
             (float) (PowerLineUiPresets.ADVANCED_SAG_MAX_RATIO * 100f),
             "%.0f%%",
+            () -> beginProjectBackedStyleEdit(line),
             value -> {
                 PowerLineUiPresets.applyAdvancedSag(line, value / 100f);
                 PowerLineStyleEditor.afterStyleEdit(line);
-            });
+            },
+            () -> completeStyleEdit(line));
     }
 
     private void renderMaxSagDepthControls(PowerLineFootprint line) {
         boolean unlimited = line.isMaxSagDepthUnlimited();
         if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.max_sag_depth_unlimited"), unlimited)) {
-            ctx.pushEditSnapshot();
+            beginProjectBackedStyleEdit(line);
             PowerLineUiPresets.applyMaxSagDepth(
                 line,
                 PowerLineUiPresets.displayMaxSagDepth(line),
                 !unlimited);
             PowerLineStyleEditor.afterStyleEdit(line);
-            ctx.invalidatePreview();
+            completeStyleEdit(line);
         }
         if (!line.isMaxSagDepthUnlimited()) {
             float[] maxDepth = {PowerLineUiPresets.displayMaxSagDepth(line)};
-            PowerLineUiWidgets.sliderFloatStableLineEdit(
-                ctx,
+            PowerLineUiWidgets.sliderFloatStable(
                 "quick_max_sag_depth",
                 "plugin.powerline.max_sag_depth",
                 maxDepth,
                 1f,
                 PowerLineUiPresets.ADVANCED_MAX_SAG_DEPTH_MAX,
                 "%.0f",
+                () -> beginProjectBackedStyleEdit(line),
                 value -> {
                     PowerLineUiPresets.applyMaxSagDepth(line, value, false);
                     PowerLineStyleEditor.afterStyleEdit(line);
-                });
+                },
+                () -> completeStyleEdit(line));
         }
     }
 
@@ -331,9 +334,9 @@ public final class PowerLineStyleQuickTunePanel {
                 PlotI18n.tr(base.getLabelKey())),
                 0,
                 0)) {
-            ctx.pushEditSnapshot();
+            beginProjectBackedStyleEdit(line);
             PowerLineStyleEditor.resetToBasePreset(line);
-            ctx.invalidatePreview();
+            completeStyleEdit(line);
         }
     }
 
@@ -419,7 +422,6 @@ public final class PowerLineStyleQuickTunePanel {
             ImGui.pushID(id + "_" + i);
             if (ImGui.button(options[i], buttonWidth, SEGMENT_HEIGHT)) {
                 if (!active) {
-                    ctx.pushEditSnapshot();
                     onSelect.accept(i);
                 }
             }
@@ -449,10 +451,10 @@ public final class PowerLineStyleQuickTunePanel {
             }
             ImGui.pushID("quick_sag_" + sag.name());
             if (ImGui.button(labels[i], buttonWidth, SEGMENT_HEIGHT)) {
-                ctx.pushEditSnapshot();
+                beginProjectBackedStyleEdit(line);
                 PowerLineUiPresets.applySag(line, sag);
                 PowerLineStyleEditor.afterStyleEdit(line);
-                ctx.invalidatePreview();
+                completeStyleEdit(line);
             }
             ImGui.popID();
             if (active) {
@@ -492,10 +494,10 @@ public final class PowerLineStyleQuickTunePanel {
         MaterialMix defaults = base != null
             ? base.getPoleMaterial()
             : MaterialMix.single(PowerLineFootprint.DEFAULT_POLE_MATERIAL);
-        openMaterialPicker(mix, defaults, selected -> {
+        openMaterialPicker(line, mix, defaults, selected -> {
             line.setPoleMaterial(selected);
             PowerLineStyleEditor.afterStyleEdit(line);
-            ctx.invalidatePreview();
+            completeStyleEdit(line);
         });
     }
 
@@ -504,14 +506,18 @@ public final class PowerLineStyleQuickTunePanel {
         MaterialMix defaults = base != null
             ? base.getWireMaterial()
             : MaterialMix.single(PowerLineFootprint.DEFAULT_WIRE_MATERIAL);
-        openMaterialPicker(mix, defaults, selected -> {
+        openMaterialPicker(line, mix, defaults, selected -> {
             line.setWireMaterial(selected);
             PowerLineStyleEditor.afterStyleEdit(line);
-            ctx.invalidatePreview();
+            completeStyleEdit(line);
         });
     }
 
-    private void openMaterialPicker(MaterialMix mix, MaterialMix defaults, java.util.function.Consumer<MaterialMix> onSelected) {
+    private void openMaterialPicker(
+            PowerLineFootprint line,
+            MaterialMix mix,
+            MaterialMix defaults,
+            java.util.function.Consumer<MaterialMix> onSelected) {
         java.util.List<String> initial = new java.util.ArrayList<>();
         if (mix.getPrimaryMaterial() != null && !mix.getPrimaryMaterial().isBlank()) {
             initial.add(mix.getPrimaryMaterial());
@@ -520,7 +526,7 @@ public final class PowerLineStyleQuickTunePanel {
             initial.add(mix.getAccentMaterial());
         }
         UIUtils.openPalettePicker(initial, blockIds -> {
-            ctx.pushEditSnapshot();
+            beginProjectBackedStyleEdit(line);
             onSelected.accept(UIUtils.fromPaletteSelection(blockIds, mix.getAccentRatio(), defaults));
         });
     }
@@ -529,11 +535,11 @@ public final class PowerLineStyleQuickTunePanel {
             PowerLineFootprint line,
             PowerLineStylePreset base,
             PowerLineQuickTunePolicy.PoleHeightBand band) {
+        beginProjectBackedStyleEdit(line);
         if (PowerLineQuickTunePolicy.supportsParametricTune(line)) {
-            ctx.pushEditSnapshot();
             PowerLineQuickTunePolicy.applyParametricPoleHeightBand(line, base, band);
             PowerLineStyleEditor.afterStyleEdit(line);
-            ctx.invalidatePreview();
+            completeStyleEdit(line);
             return;
         }
         if (!line.hasPoleDesign()) {
@@ -548,18 +554,18 @@ public final class PowerLineStyleQuickTunePanel {
             }
         }
         PowerLineStyleEditor.afterStyleEdit(line);
-        ctx.invalidatePreview();
+        completeStyleEdit(line);
     }
 
     private void applyCrossarmBand(
             PowerLineFootprint line,
             PowerLineStylePreset base,
             PowerLineQuickTunePolicy.CrossarmWidthBand band) {
+        beginProjectBackedStyleEdit(line);
         if (PowerLineQuickTunePolicy.supportsParametricTune(line)) {
-            ctx.pushEditSnapshot();
             PowerLineQuickTunePolicy.applyParametricCrossarmBand(line, base, band);
             PowerLineStyleEditor.afterStyleEdit(line);
-            ctx.invalidatePreview();
+            completeStyleEdit(line);
             return;
         }
         boolean wasBuiltin = PoleDesignCatalog.isBuiltinId(line.getPoleDesignId());
@@ -570,7 +576,20 @@ public final class PowerLineStyleQuickTunePanel {
             line.setPoleDesignId(editable.getId());
         }
         PowerLineStyleEditor.afterStyleEdit(line);
+        completeStyleEdit(line);
+    }
+
+    private void beginProjectBackedStyleEdit(PowerLineFootprint line) {
+        if (!SingleTowerStyleFootprint.isStandaloneStyle(line.getId())) {
+            ctx.pushEditSnapshot();
+        }
+    }
+
+    private void completeStyleEdit(PowerLineFootprint line) {
         ctx.invalidatePreview();
+        if (SingleTowerStyleFootprint.isStandaloneStyle(line.getId())) {
+            ctx.singleTowerPlacement().refreshGhostPreview();
+        }
     }
 
     private PoleDesign ensureEditableDesign(PowerLineFootprint line) {

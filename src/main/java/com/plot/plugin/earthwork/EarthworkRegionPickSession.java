@@ -4,6 +4,8 @@ import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.BaseTool;
+import com.plot.plugin.pick.PathPickSelectionMerge;
+import com.plot.plugin.pick.PathPickSessionSnapshot;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
 
@@ -59,6 +61,7 @@ public final class EarthworkRegionPickSession {
 
     private boolean active;
     private final Map<String, Shape> accumulatedRegions = new LinkedHashMap<>();
+    private final PathPickSessionSnapshot canvasSnapshot = new PathPickSessionSnapshot();
 
     public boolean isActive() {
         return active;
@@ -71,11 +74,13 @@ public final class EarthworkRegionPickSession {
     public void begin() {
         active = true;
         accumulatedRegions.clear();
+        canvasSnapshot.reset();
     }
 
     public void cancel() {
         active = false;
         accumulatedRegions.clear();
+        canvasSnapshot.reset();
     }
 
     public Outcome tick(AppState appState) {
@@ -86,17 +91,25 @@ public final class EarthworkRegionPickSession {
         if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
             active = false;
             accumulatedRegions.clear();
+            canvasSnapshot.reset();
             return Outcome.failed(Result.CANCELLED);
         }
+
+        canvasSnapshot.ensureInitialized(appState);
 
         BaseTool tool = appState.getCurrentTool();
         if (tool != null && "select".equals(tool.getId())
                 && ImGui.isMouseReleased(0)
                 && !ImGui.getIO().getWantCaptureMouse()) {
-            mergeCurrentSelection(appState);
+            PathPickSelectionMerge.merge(
+                accumulatedRegions,
+                canvasSnapshot.previousSelection(),
+                appState.getSelectedShapes(),
+                ImGui.getIO().getKeyCtrl(),
+                EarthworkGeometryUtils::findAdoptableRegions);
         }
 
-        syncSelectionToAccumulated(appState);
+        canvasSnapshot.capture(appState);
 
         if (!ImGui.isMouseClicked(1)) {
             return Outcome.none();
@@ -121,14 +134,15 @@ public final class EarthworkRegionPickSession {
 
         active = false;
         accumulatedRegions.clear();
+        canvasSnapshot.reset();
         appState.setSelectedShapes(regions);
         return Outcome.success(regions);
     }
 
     public String hintKeyForCurrentSelection(List<Shape> selected) {
-        int count = Math.max(
-            accumulatedRegions.size(),
-            EarthworkGeometryUtils.findAdoptableRegions(selected).size());
+        int count = accumulatedRegions.isEmpty()
+            ? EarthworkGeometryUtils.findAdoptableRegions(selected).size()
+            : accumulatedRegions.size();
         if (count > 1) {
             return "status.plot.earthwork.pick_region_right_click_multi";
         }
@@ -139,34 +153,5 @@ public final class EarthworkRegionPickSession {
             return "status.plot.earthwork.pick_region_no_valid";
         }
         return "status.plot.earthwork.pick_region_active";
-    }
-
-    private void mergeCurrentSelection(AppState appState) {
-        List<Shape> adoptable = EarthworkGeometryUtils.findAdoptableRegions(appState.getSelectedShapes());
-        if (adoptable.isEmpty()) {
-            return;
-        }
-
-        boolean toggleMode = ImGui.getIO().getKeyCtrl();
-        if (toggleMode) {
-            for (Shape region : adoptable) {
-                if (accumulatedRegions.containsKey(region.getId())) {
-                    accumulatedRegions.remove(region.getId());
-                } else {
-                    accumulatedRegions.put(region.getId(), region);
-                }
-            }
-        } else {
-            for (Shape region : adoptable) {
-                accumulatedRegions.put(region.getId(), region);
-            }
-        }
-    }
-
-    private void syncSelectionToAccumulated(AppState appState) {
-        if (accumulatedRegions.isEmpty()) {
-            return;
-        }
-        appState.setSelectedShapes(new ArrayList<>(accumulatedRegions.values()));
     }
 }
