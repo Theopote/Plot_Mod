@@ -99,11 +99,15 @@ class PowerLineMultiConductorTest {
     }
 
     @Test
-    void attachmentMatchingUsesIdNotIndex() {
-        ResolvedAttachment startA = attachment("phase_a", "A", -3, 64);
-        ResolvedAttachment startB = attachment("phase_b", "B", 0, 64);
-        ResolvedAttachment endA = attachment("phase_a", "A", -3, 64);
-        ResolvedAttachment endC = attachment("phase_c", "C", 3, 64);
+    void roleFallbackConnectsWhenIdsDifferButRolesAlign() {
+        ResolvedAttachment startA = attachmentAt(
+            new Vec2d(0, 0), "arm1_phase_a", "A", com.plot.plugin.powerline.design.AttachmentRole.PHASE_A, -3, 64);
+        ResolvedAttachment startB = attachmentAt(
+            new Vec2d(0, 0), "arm1_phase_b", "B", com.plot.plugin.powerline.design.AttachmentRole.PHASE_B, 0, 64);
+        ResolvedAttachment endA = attachmentAt(
+            new Vec2d(10, 0), "phase_a", "A", com.plot.plugin.powerline.design.AttachmentRole.PHASE_A, -3, 64);
+        ResolvedAttachment endB = attachmentAt(
+            new Vec2d(10, 0), "phase_b", "B", com.plot.plugin.powerline.design.AttachmentRole.PHASE_B, 0, 64);
 
         PolePlacement start = new PolePlacement(
             new Vec2d(0, 0),
@@ -116,7 +120,7 @@ class PowerLineMultiConductorTest {
             new Vec2d(10, 0),
             PoleFrame.fromPole(new Vec2d(10, 0), new Vec2d(1, 0), 64),
             null,
-            List.of(endA, endC),
+            List.of(endA, endB),
             74,
             true);
 
@@ -135,17 +139,23 @@ class PowerLineMultiConductorTest {
             identityCoordinates(),
             projection());
 
-        assertTrue(result.warnings.stream().anyMatch(w -> w.contains("phase_b")));
-        assertTrue(result.warnings.stream().anyMatch(w -> w.contains("phase_c")));
+        assertEquals(2, result.conductorSpans.size());
+        assertTrue(result.wireLength > 0.0);
     }
 
-    private static ResolvedAttachment attachment(String id, String name, double lateral, int groundY) {
-        PoleFrame frame = PoleFrame.fromPole(new Vec2d(0, 0), new Vec2d(1, 0), groundY);
+    private static ResolvedAttachment attachmentAt(
+            Vec2d polePlan,
+            String id,
+            String name,
+            com.plot.plugin.powerline.design.AttachmentRole role,
+            double lateral,
+            int groundY) {
+        PoleFrame frame = PoleFrame.fromPole(polePlan, new Vec2d(1, 0), groundY);
         Vec2d plan = frame.toPlanPoint(lateral, 0.0);
         return new ResolvedAttachment(
             id,
             name,
-            com.plot.plugin.powerline.design.AttachmentRole.PHASE_A,
+            role,
             plan,
             plan.x,
             groundY + 10.0,
@@ -153,6 +163,16 @@ class PowerLineMultiConductorTest {
             groundY + 10.0,
             com.plot.core.material.MaterialMix.single("minecraft:iron_bars"),
             0);
+    }
+
+    private static ResolvedAttachment attachment(String id, String name, double lateral, int groundY) {
+        return attachmentAt(
+            new Vec2d(0, 0),
+            id,
+            name,
+            com.plot.plugin.powerline.design.AttachmentRole.PHASE_A,
+            lateral,
+            groundY);
     }
 
     private static ICoordinateService identityCoordinates() {

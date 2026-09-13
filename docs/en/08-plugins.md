@@ -17,8 +17,9 @@ Plot includes several built-in plugins accessible from the **Extension** tab in 
 | **Earthwork Balance** | Shape uneven terrain into a buildable pad and show cut vs fill |
 | **Road System** | Plan and generate roads along paths |
 | **Building Generator** | Generate buildings from polygon or rectangle footprints |
+| **Power Lines** | Place poles along straight/polyline routes and generate decorative sagging wires |
 
-All plugin panels use **Overview / Adopt / Edit / Generate** tabs to organize the workflow.
+Earthwork, Road System, and Building Generator use **Overview / Adopt / Edit / Generate** tabs. Power Lines uses **Route / Style / Build** (the Route tab also includes the line list and overview map).
 
 ---
 
@@ -109,11 +110,41 @@ For builders: select the area for a house, castle, or plaza. The plugin suggests
 
 ---
 
+## Power Lines
+
+Adopt straight or polyline paths on the canvas, auto-place poles and crossarms, and generate decorative sagging wires (iron bars, chains, lightning rods, etc.). Good for street distribution, suburban lamps, lattice transmission towers, and similar builds.
+
+### Typical Workflow
+
+1. Draw route paths with line or polyline tools on the canvas
+2. Open **Extension** -> **Power Lines** -> enable the plugin
+3. On the **Route** tab, click **Pick path**, select or box-select paths, right-click to finish, then **Adopt line**
+4. On the same tab, set pole spacing, height, terrain avoidance, etc.; expand **All lines** at the bottom for the overview map and line switching
+5. On the **Style** tab, pick a style preset (wood, concrete, lattice tower, etc.); use Quick Customize for pole material and sag tweaks
+6. On the **Build** tab, click **Calculate preview** for ghost blocks, then **Preview and build**
+
+### Features
+
+- 25+ style presets (wood poles, Japanese street, concrete, lattice towers, steampunk, etc.)
+- Auto pole placement by max spacing; mandatory poles at corners
+- Single-phase / three-phase conductors, sag ratio and wire materials
+- Terrain clearance checks and automatic route adjustment
+- Line validation (spacing, sag, wire overlap, etc.) with canvas overlay
+- Pole designer (custom pole types) and single-tower placement mode
+- Plugin undo/redo (line edits) and world build undo
+
+### Data
+
+- Project data: `.minecraft/config/plugins/power_line/projects/`
+- Pole designs: `.minecraft/config/plugins/power_line/pole-designs/`
+
+---
+
 ## General Plugin Notes
 
 ### Pick Modes
 
-Earthwork, building, and road adopt operations temporarily capture canvas clicks. Do not switch tools during pick mode; press **Esc** to cancel. Watch the status bar.
+Earthwork, building, road, and power line adopt/pick operations temporarily capture canvas clicks. Do not switch tools during pick mode; press **Esc** to cancel. Watch the status bar.
 
 ### Conflicts with Drawing Tools
 
@@ -139,4 +170,4 @@ Pick mode temporarily captures canvas clicks. Press **Esc** to cancel.
 
 ### Conflicts with drawing tools
 
-Earthwork/building region pick, gallery placement, and road path adopt all capture canvas input in special modes. Watch the status bar.
+Earthwork/building region pick, gallery placement, road path adopt, and power line path pick all capture canvas input in special modes. Watch the status bar.

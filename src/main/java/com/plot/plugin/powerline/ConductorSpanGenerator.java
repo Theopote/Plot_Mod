@@ -69,36 +69,16 @@ public final class ConductorSpanGenerator {
             PowerLineGenerationResult result,
             ICoordinateService coordinateTransformer,
             IBlockProjectionService projectionHandler) {
-        Map<String, ResolvedAttachment> startById = indexById(
+        List<ConductorAttachmentMatcher.Pair> pairs = ConductorAttachmentMatcher.match(
             start.attachments(),
-            result,
-            start.planPosition());
-        Map<String, ResolvedAttachment> endById = indexById(
             end.attachments(),
             result,
+            start.planPosition(),
             end.planPosition());
-
-        for (String id : startById.keySet()) {
-            ResolvedAttachment startAttachment = startById.get(id);
-            ResolvedAttachment endAttachment = endById.get(id);
-            if (endAttachment == null) {
-                result.warnings.add(PowerLineGenerationI18n.missingAttachmentDownstream(
-                    startAttachment.name(),
-                    id,
-                    end.planPosition().x,
-                    end.planPosition().y));
-                continue;
-            }
-            if (startAttachment.role() != endAttachment.role()) {
-                result.warnings.add(PowerLineGenerationI18n.attachmentRoleMismatch(
-                    id,
-                    startAttachment.role(),
-                    endAttachment.role()));
-                continue;
-            }
+        for (ConductorAttachmentMatcher.Pair pair : pairs) {
             generateConductorSpan(
-                startAttachment,
-                endAttachment,
+                pair.start(),
+                pair.end(),
                 startPoleIndex,
                 endPoleIndex,
                 startSiteId,
@@ -109,41 +89,6 @@ public final class ConductorSpanGenerator {
                 coordinateTransformer,
                 projectionHandler);
         }
-
-        for (String id : endById.keySet()) {
-            if (!startById.containsKey(id)) {
-                ResolvedAttachment endAttachment = endById.get(id);
-                result.warnings.add(PowerLineGenerationI18n.missingAttachmentUpstream(
-                    endAttachment.name(),
-                    id,
-                    start.planPosition().x,
-                    start.planPosition().y));
-            }
-        }
-    }
-
-    private static Map<String, ResolvedAttachment> indexById(
-            List<ResolvedAttachment> attachments,
-            PowerLineGenerationResult result,
-            Vec2d polePosition) {
-        java.util.LinkedHashMap<String, ResolvedAttachment> indexed = new java.util.LinkedHashMap<>();
-        if (attachments == null) {
-            return indexed;
-        }
-        for (ResolvedAttachment attachment : attachments) {
-            String id = attachment.id();
-            if (indexed.containsKey(id)) {
-                if (result != null) {
-                    result.warnings.add(PowerLineGenerationI18n.duplicateAttachmentId(
-                        attachment.name(),
-                        id,
-                        polePosition != null ? polePosition.x : 0.0,
-                        polePosition != null ? polePosition.y : 0.0));
-                }
-            }
-            indexed.put(id, attachment);
-        }
-        return indexed;
     }
 
     static void generateConductorSpan(
