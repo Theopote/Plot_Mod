@@ -277,12 +277,7 @@ public final class PowerLineUiWidgets {
             }
             ctx.clearAnalysisReports();
         }
-        boolean terrainChecks = line.isTerrainAvoidanceEnabled();
-        if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.validation.terrain_checks"), terrainChecks)) {
-            ctx.pushEditSnapshot();
-            line.setTerrainAvoidanceEnabled(!terrainChecks);
-            ctx.clearAnalysisReports();
-        }
+        renderTerrainCheckRouteStatus(line);
         ImGui.unindent();
         boolean autoSelect = line.isAutomaticTowerSelectionEnabled();
         if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.engineering.auto_select"), autoSelect)) {
@@ -300,6 +295,24 @@ public final class PowerLineUiWidgets {
         textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.validation.disclaimer"));
+    }
+
+    private static void renderTerrainCheckRouteStatus(PowerLineFootprint line) {
+        text(PlotI18n.tr("plugin.powerline.validation.terrain_checks"));
+        ImGui.indent();
+        if (line.isTerrainAvoidanceEnabled()) {
+            textColored(
+                PluginUiColors.STATUS_OK,
+                PlotI18n.tr("plugin.powerline.validation.terrain_checks_enabled"));
+        } else {
+            textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.validation.terrain_checks_disabled"));
+        }
+        textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.powerline.validation.terrain_checks_route_hint"));
+        ImGui.unindent();
     }
 
     private static void renderSagDepthControls(

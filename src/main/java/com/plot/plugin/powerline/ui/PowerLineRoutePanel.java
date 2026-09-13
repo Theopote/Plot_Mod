@@ -268,7 +268,11 @@ public final class PowerLineRoutePanel {
         double worldLength = line.computeWorldPathLength(ctx.coordinates());
         int poles = count[0];
         if (poles > 1 && worldLength > 0.0) {
-            double implied = worldLength / (poles - 1);
+            double implied = PowerLineBuildMetrics.typicalSpanBlocks(
+                line,
+                worldLength,
+                poles,
+                line.getMaxPoleSpacing());
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.route.tower_count_implied_spacing", String.format("%.0f", implied)));
@@ -323,20 +327,6 @@ public final class PowerLineRoutePanel {
             "%.1f",
             value -> {
                 line.setMinPoleSpacing(value);
-                PowerLineStyleEditor.afterSpacingEdit(line);
-            });
-
-        float[] maxSpacing = {(float) line.getMaxPoleSpacing()};
-        PowerLineUiWidgets.sliderFloatStableLineEdit(
-            ctx,
-            "max_pole_spacing",
-            "plugin.powerline.max_pole_spacing",
-            maxSpacing,
-            sliderMin,
-            sliderMax,
-            "%.1f",
-            value -> {
-                line.setMaxPoleSpacing(value);
                 PowerLineStyleEditor.afterSpacingEdit(line);
             });
 
