@@ -9,8 +9,6 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
-import imgui.flag.ImGuiCond;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiWindowFlags;
 
 import java.util.ArrayList;
@@ -228,31 +226,8 @@ public final class PowerLineUiWidgets {
             PowerLineUiContext ctx,
             PowerLineFootprint line,
             boolean includeOverlayToggle) {
-        renderLineCheckControls(ctx, line, includeOverlayToggle, false);
-    }
-
-    public static void renderAdvancedEngineeringSection(PowerLineUiContext ctx, PowerLineFootprint line) {
         ImGui.separator();
-        ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
-        if (ImGui.collapsingHeader(
-                PlotI18n.tr("plugin.powerline.engineering.advanced_section"),
-                ImGuiTreeNodeFlags.None)) {
-            textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.powerline.engineering.advanced_hint"));
-            renderLineCheckControls(ctx, line, false, true);
-        }
-    }
-
-    private static void renderLineCheckControls(
-            PowerLineUiContext ctx,
-            PowerLineFootprint line,
-            boolean includeOverlayToggle,
-            boolean nestedInSection) {
-        if (!nestedInSection) {
-            ImGui.separator();
-            text(PlotI18n.tr("plugin.powerline.validation.section"));
-        }
+        text(PlotI18n.tr("plugin.powerline.validation.section"));
         textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.validation.hint"));

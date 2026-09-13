@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -37,11 +36,10 @@ class PowerLinePathUtilsTest {
     }
 
     @Test
-    void extractPathPointsCopiesVertices() {
-        List<Vec2d> points = PowerLinePathUtils.extractPathPoints(
-            new PolylineShape(List.of(new Vec2d(1, 2), new Vec2d(3, 4)), false));
-        assertEquals(2, points.size());
-        assertEquals(1.0, points.get(0).x, 1e-6);
-        assertEquals(4.0, points.get(1).y, 1e-6);
+    void closedPolylineIsAdoptableViaPathAdapters() {
+        PolylineShape closed = new PolylineShape(
+            List.of(new Vec2d(0, 0), new Vec2d(40, 0), new Vec2d(20, 30)),
+            true);
+        assertTrue(PowerLinePathUtils.isAdoptableLine(closed));
     }
 }
