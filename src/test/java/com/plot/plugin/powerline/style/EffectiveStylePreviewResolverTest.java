@@ -6,6 +6,8 @@ import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.PoleLayer;
+import com.plot.plugin.powerline.design.family.TowerFamily;
+import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import org.junit.jupiter.api.Test;
@@ -65,6 +67,41 @@ class EffectiveStylePreviewResolverTest {
                 && "minecraft:dark_oak_log".equals(layer.getMaterial().getPrimaryMaterial()));
         assertTrue(hasDarkOakColumn);
         assertEquals("minecraft:dark_oak_log", preview.poleMaterial().getPrimaryMaterial());
+    }
+
+    @Test
+    void prefersTowerFamilyOverFallbackPoleDesign() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
+        line.setTowerFamilyId(TowerFamily.STANDARD_LATTICE_3_PHASE_ID);
+        line.setPoleDesignId(PoleDesignCatalog.SIMPLE_WOOD_POLE_ID);
+        line.setParametricTowerConfig(null);
+
+        EffectiveStylePreview preview = EffectiveStylePreviewResolver.resolve(
+            line,
+            PowerLineStylePresetCatalog.classicLattice(),
+            new PoleDesignResolver(new PowerLineDesignProject()));
+
+        assertNotNull(preview);
+        assertEquals(TowerFamilyDesignPresets.LATTICE_SUSPENSION_ID, preview.previewDesign().getId());
+        assertTrue(preview.previewDesign().hasTowerStructure());
+    }
+
+    @Test
+    void preservesWireMaterialsInPreviewSnapshot() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
+        PowerLineStylePreset base = PowerLineStylePresetCatalog.classicWood();
+        base.apply(line);
+        line.setWireMaterial(MaterialMix.single("minecraft:copper_block"));
+        line.setTopWireMaterial(MaterialMix.single("minecraft:gold_block"));
+
+        EffectiveStylePreview preview = EffectiveStylePreviewResolver.resolve(
+            line,
+            base,
+            new PoleDesignResolver(new PowerLineDesignProject()));
+
+        assertNotNull(preview);
+        assertEquals("minecraft:copper_block", preview.wireMaterial().getPrimaryMaterial());
+        assertEquals("minecraft:gold_block", preview.topWireMaterial().getPrimaryMaterial());
     }
 
     @Test

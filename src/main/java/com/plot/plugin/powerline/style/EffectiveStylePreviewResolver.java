@@ -53,16 +53,16 @@ public final class EffectiveStylePreviewResolver {
                 return parametric;
             }
         }
-        if (line.hasPoleDesign()) {
-            PoleDesign fromLine = findDesign(line.getPoleDesignId(), resolver);
-            if (fromLine != null) {
-                return fromLine;
-            }
-        }
         if (line.hasTowerFamily()) {
             PoleDesign fromFamily = resolveFamilyRepresentative(line.getTowerFamilyId(), resolver);
             if (fromFamily != null) {
                 return fromFamily;
+            }
+        }
+        if (line.hasPoleDesign()) {
+            PoleDesign fromLine = findDesign(line.getPoleDesignId(), resolver);
+            if (fromLine != null) {
+                return fromLine;
             }
         }
         if (base != null) {

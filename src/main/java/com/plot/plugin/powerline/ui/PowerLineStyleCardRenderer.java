@@ -1,5 +1,6 @@
 package com.plot.plugin.powerline.ui;
 
+import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -8,6 +9,7 @@ import com.plot.plugin.powerline.preview.PowerLinePreviewOverlayRenderer;
 import com.plot.plugin.powerline.preview.TowerStructuralElevationRenderer;
 import com.plot.plugin.powerline.style.EffectiveStylePreview;
 import com.plot.plugin.powerline.style.EffectiveStylePreviewResolver;
+import com.plot.plugin.powerline.style.PowerLineStyleEditor;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.plugin.powerline.style.PowerLineStylePreviewBinding;
 import com.plot.plugin.powerline.style.PreviewRepresentation;
@@ -41,7 +43,7 @@ public final class PowerLineStyleCardRenderer {
      * 绘制可点击的风格卡片；返回是否被点击。
      */
     public static boolean renderStyleCard(PowerLineStylePreset pack, String label, boolean selected) {
-        return renderStyleCard(pack, label, selected, null);
+        return renderStyleCard(pack, label, selected, null, null);
     }
 
     public static boolean renderStyleCard(
@@ -49,6 +51,15 @@ public final class PowerLineStyleCardRenderer {
             String label,
             boolean selected,
             PowerLineFootprint lineContext) {
+        return renderStyleCard(pack, label, selected, lineContext, null);
+    }
+
+    public static boolean renderStyleCard(
+            PowerLineStylePreset pack,
+            String label,
+            boolean selected,
+            PowerLineFootprint lineContext,
+            PoleDesignResolver resolver) {
         if (pack == null) {
             return false;
         }
@@ -67,7 +78,18 @@ public final class PowerLineStyleCardRenderer {
         drawList.addRect(x0, y0, x1, y1, borderColor, 4f, 0, borderThickness);
 
         float previewY1 = y0 + PREVIEW_HEIGHT;
-        drawPackPreview(drawList, pack, x0 + 2f, y0 + 2f, x1 - 2f, previewY1 - 2f);
+        EffectiveStylePreview effective = resolveEffectiveCardPreview(pack, lineContext, resolver);
+        if (effective != null) {
+            drawEffectiveCardPreview(
+                drawList,
+                effective,
+                x0 + 2f,
+                y0 + 2f,
+                x1 - 2f,
+                previewY1 - 2f);
+        } else {
+            drawPackPreview(drawList, pack, x0 + 2f, y0 + 2f, x1 - 2f, previewY1 - 2f);
+        }
 
         float labelY = previewY1 + LABEL_PADDING;
         int labelColor = selected ? COLOR_LABEL : COLOR_LABEL_DIM;
@@ -80,16 +102,23 @@ public final class PowerLineStyleCardRenderer {
 
         ImGui.invisibleButton(buttonId, CARD_WIDTH, CARD_HEIGHT);
         if (ImGui.isItemHovered()) {
-            renderPackTooltip(pack, label, lineContext);
+            renderPackTooltip(pack, label, lineContext, resolver);
         }
         return ImGui.isItemClicked(0);
     }
 
-    private static void renderPackTooltip(PowerLineStylePreset pack, String label, PowerLineFootprint lineContext) {
+    private static void renderPackTooltip(
+            PowerLineStylePreset pack,
+            String label,
+            PowerLineFootprint lineContext,
+            PoleDesignResolver resolver) {
         ImGui.beginTooltip();
         PowerLineUiWidgets.text(label);
         ImGui.separator();
-        PoleDesign previewDesign = PowerLineStylePreviewBinding.previewDesign(pack);
+        EffectiveStylePreview effective = resolveEffectiveCardPreview(pack, lineContext, resolver);
+        PoleDesign previewDesign = effective != null
+            ? effective.previewDesign()
+            : PowerLineStylePreviewBinding.previewDesign(pack);
         if (previewDesign != null) {
             float previewW = ImGui.getFontSize() * 7f;
             float previewH = ImGui.getFontSize() * 9f;
@@ -103,13 +132,23 @@ public final class PowerLineStyleCardRenderer {
                 frontOrigin.x + previewW,
                 frontOrigin.y + previewH,
                 PluginUiColors.PANEL_BG_DARK);
-            drawPackPreview(
-                drawList,
-                pack,
-                frontOrigin.x,
-                frontOrigin.y,
-                frontOrigin.x + previewW,
-                frontOrigin.y + previewH);
+            if (effective != null) {
+                drawEffectiveCardPreview(
+                    drawList,
+                    effective,
+                    frontOrigin.x,
+                    frontOrigin.y,
+                    frontOrigin.x + previewW,
+                    frontOrigin.y + previewH);
+            } else {
+                drawPackPreview(
+                    drawList,
+                    pack,
+                    frontOrigin.x,
+                    frontOrigin.y,
+                    frontOrigin.x + previewW,
+                    frontOrigin.y + previewH);
+            }
             ImGui.dummy(previewW, previewH);
             ImGui.sameLine();
             ImGui.beginGroup();
@@ -203,6 +242,8 @@ public final class PowerLineStyleCardRenderer {
                 drawList,
                 binding,
                 PowerLineStylePreviewBinding.usesAdaptiveHeightMarker(base),
+                effective != null ? effective.wireMaterial() : null,
+                effective != null ? effective.topWireMaterial() : null,
                 innerX,
                 innerY,
                 innerX + previewW - 4f,
@@ -248,6 +289,8 @@ public final class PowerLineStyleCardRenderer {
                 drawList,
                 PowerLineStylePreviewBinding.bindingForDesign(previewDesign, base),
                 PowerLineStylePreviewBinding.usesAdaptiveHeightMarker(base),
+                effective != null ? effective.wireMaterial() : null,
+                effective != null ? effective.topWireMaterial() : null,
                 x0 + 2f,
                 y0 + 2f,
                 x1 - 2f,
@@ -318,6 +361,52 @@ public final class PowerLineStyleCardRenderer {
             drawList,
             binding,
             PowerLineStylePreviewBinding.usesAdaptiveHeightMarker(pack),
+            pack.getWireMaterial(),
+            pack.getTopWireMaterial(),
+            x0,
+            y0,
+            x1,
+            y1);
+    }
+
+    private static EffectiveStylePreview resolveEffectiveCardPreview(
+            PowerLineStylePreset pack,
+            PowerLineFootprint line,
+            PoleDesignResolver resolver) {
+        if (!shouldUseEffectivePreview(pack, line) || resolver == null) {
+            return null;
+        }
+        return EffectiveStylePreviewResolver.resolve(line, pack, resolver);
+    }
+
+    private static boolean shouldUseEffectivePreview(PowerLineStylePreset pack, PowerLineFootprint line) {
+        if (pack == null || line == null || !PowerLineStyleEditor.isModified(line)) {
+            return false;
+        }
+        PowerLineStylePreset base = PowerLineStyleEditor.basePreset(line);
+        return base != null && pack.getId().equals(base.getId());
+    }
+
+    private static void drawEffectiveCardPreview(
+            ImDrawList drawList,
+            EffectiveStylePreview effective,
+            float x0,
+            float y0,
+            float x1,
+            float y1) {
+        if (effective == null || effective.previewDesign() == null) {
+            return;
+        }
+        PowerLineStylePreset base = effective.basePreset();
+        StyleCardPreviewBinding binding = PowerLineStylePreviewBinding.bindingForDesign(
+            effective.previewDesign(),
+            base);
+        drawCardPreview(
+            drawList,
+            binding,
+            PowerLineStylePreviewBinding.usesAdaptiveHeightMarker(base),
+            effective.wireMaterial(),
+            effective.topWireMaterial(),
             x0,
             y0,
             x1,
@@ -328,6 +417,8 @@ public final class PowerLineStyleCardRenderer {
             ImDrawList drawList,
             StyleCardPreviewBinding binding,
             boolean adaptiveHeightMarker,
+            MaterialMix wireMaterial,
+            MaterialMix topWireMaterial,
             float x0,
             float y0,
             float x1,
@@ -356,6 +447,8 @@ public final class PowerLineStyleCardRenderer {
                 representation,
                 binding.overlay(),
                 adaptiveHeightMarker,
+                wireMaterial,
+                topWireMaterial,
                 x0,
                 y0,
                 x1,

@@ -1,5 +1,6 @@
 package com.plot.plugin.powerline.preview;
 
+import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import org.junit.jupiter.api.Test;
@@ -8,6 +9,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PowerLinePreviewOverlayRendererTest {
+
+    @Test
+    void resolvesWireColorsFromMaterialMix() {
+        int copper = BlockPreviewColors.previewColor(MaterialMix.single("minecraft:copper_block"), 0xFF90A4AE);
+        int gold = BlockPreviewColors.previewColor(MaterialMix.single("minecraft:gold_block"), 0xFFECEFF1);
+        assertEquals(0xFFE08A5A, copper);
+        assertEquals(0xFFFFD54F, gold);
+    }
 
     @Test
     void windHubSitsOnCrossarmNotCardTop() {

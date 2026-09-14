@@ -1,5 +1,6 @@
 package com.plot.plugin.powerline.preview;
 
+import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.AttachmentRole;
 import com.plot.plugin.powerline.design.ConductorAttachment;
 import com.plot.plugin.powerline.design.PoleDesign;
@@ -38,13 +39,32 @@ public final class PowerLinePreviewOverlayRenderer {
             float y0,
             float x1,
             float y1) {
+        draw(drawList, design, representation, overlay, adaptiveHeightMarker, null, null, x0, y0, x1, y1);
+    }
+
+    public static void draw(
+            ImDrawList drawList,
+            PoleDesign design,
+            PreviewRepresentation representation,
+            PreviewOverlay overlay,
+            boolean adaptiveHeightMarker,
+            MaterialMix wireMaterial,
+            MaterialMix topWireMaterial,
+            float x0,
+            float y0,
+            float x1,
+            float y1) {
         if (drawList == null || design == null) {
             return;
         }
+        int wireColor = BlockPreviewColors.previewColor(wireMaterial, COLOR_WIRE);
+        int topWireColor = BlockPreviewColors.previewColor(topWireMaterial, COLOR_TOP_WIRE);
         if (overlay != null && overlay != PreviewOverlay.NONE) {
             switch (overlay) {
-                case ATTACHMENTS -> drawAttachments(drawList, design, representation, x0, y0, x1, y1);
-                case DECORATIVE_CONDUCTORS -> drawDecorativeConductors(drawList, design, x0, y0, x1, y1);
+                case ATTACHMENTS -> drawAttachments(
+                    drawList, design, representation, wireColor, topWireColor, x0, y0, x1, y1);
+                case DECORATIVE_CONDUCTORS -> drawDecorativeConductors(
+                    drawList, design, wireColor, topWireColor, x0, y0, x1, y1);
                 case WIND_ROTOR -> drawWindRotorOverlay(drawList, design, x0, y0, x1, y1);
                 case ADAPTIVE_MARKER -> drawAdaptiveHeightMarker(drawList, x0, y0, x1, y1);
                 default -> { }
@@ -59,6 +79,8 @@ public final class PowerLinePreviewOverlayRenderer {
             ImDrawList drawList,
             PoleDesign design,
             PreviewRepresentation representation,
+            int wireColor,
+            int topWireColor,
             float x0,
             float y0,
             float x1,
@@ -70,18 +92,20 @@ public final class PowerLinePreviewOverlayRenderer {
                 return;
             }
             for (ConductorAttachment attachment : design.getAttachments()) {
-                drawStructuralAttachment(drawList, design, attachment, layout);
+                drawStructuralAttachment(drawList, design, attachment, layout, wireColor, topWireColor);
             }
             return;
         }
-        drawDecorativeConductors(drawList, design, x0, y0, x1, y1);
+        drawDecorativeConductors(drawList, design, wireColor, topWireColor, x0, y0, x1, y1);
     }
 
     private static void drawStructuralAttachment(
             ImDrawList drawList,
             PoleDesign design,
             ConductorAttachment attachment,
-            TowerStructuralElevationRenderer.StructuralLayout layout) {
+            TowerStructuralElevationRenderer.StructuralLayout layout,
+            int wireColor,
+            int topWireColor) {
         if (attachment == null || !attachment.isEnabled()) {
             return;
         }
@@ -91,7 +115,7 @@ public final class PowerLinePreviewOverlayRenderer {
         float yHang = layout.mapY(local.vertical());
         AttachmentRole role = attachment.getRole();
         if (role == AttachmentRole.TOP_WIRE) {
-            drawList.addCircleFilled(x, yHang, ATTACHMENT_DOT_RADIUS, COLOR_TOP_WIRE);
+            drawList.addCircleFilled(x, yHang, ATTACHMENT_DOT_RADIUS, topWireColor);
             return;
         }
         float insulatorLen = (float) Math.min(
@@ -99,14 +123,16 @@ public final class PowerLinePreviewOverlayRenderer {
             Math.max(INSULATOR_MIN_PX, attachment.getInsulatorLength() * layout.scale()));
         float yInsulatorEnd = yHang + insulatorLen;
         drawList.addLine(x, yHang, x, yInsulatorEnd, COLOR_INSULATOR, 1.2f);
-        drawList.addCircleFilled(x, yInsulatorEnd, ATTACHMENT_DOT_RADIUS, COLOR_WIRE);
+        drawList.addCircleFilled(x, yInsulatorEnd, ATTACHMENT_DOT_RADIUS, wireColor);
         float hintHalf = Math.min(WIRE_HINT_MAX_PX * 0.5f, 4.0f);
-        drawList.addLine(x - hintHalf, yInsulatorEnd, x + hintHalf, yInsulatorEnd, COLOR_WIRE, 1.0f);
+        drawList.addLine(x - hintHalf, yInsulatorEnd, x + hintHalf, yInsulatorEnd, wireColor, 1.0f);
     }
 
     private static void drawDecorativeConductors(
             ImDrawList drawList,
             PoleDesign design,
+            int wireColor,
+            int topWireColor,
             float x0,
             float y0,
             float x1,
@@ -139,15 +165,15 @@ public final class PowerLinePreviewOverlayRenderer {
             float yHang = PoleVoxelElevationRenderer.mapVerticalToScreen(layout, model, local.vertical());
             AttachmentRole role = attachment.getRole();
             if (role == AttachmentRole.TOP_WIRE) {
-                drawList.addCircleFilled(x, yHang, ATTACHMENT_DOT_RADIUS, COLOR_TOP_WIRE);
+                drawList.addCircleFilled(x, yHang, ATTACHMENT_DOT_RADIUS, topWireColor);
                 continue;
             }
             float insulatorLen = Math.min(INSULATOR_MAX_PX, Math.max(INSULATOR_MIN_PX, layout.blockSize() * 1.5f));
             float yEnd = yHang + insulatorLen;
             drawList.addLine(x, yHang, x, yEnd, COLOR_INSULATOR, 1.0f);
-            drawList.addCircleFilled(x, yEnd, ATTACHMENT_DOT_RADIUS, COLOR_WIRE);
+            drawList.addCircleFilled(x, yEnd, ATTACHMENT_DOT_RADIUS, wireColor);
             float hintHalf = Math.min(WIRE_HINT_MAX_PX * 0.5f, layout.blockSize() * 1.2f);
-            drawList.addLine(x - hintHalf, yEnd, x + hintHalf, yEnd, COLOR_WIRE, 0.9f);
+            drawList.addLine(x - hintHalf, yEnd, x + hintHalf, yEnd, wireColor, 0.9f);
         }
     }
 

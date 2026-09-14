@@ -122,7 +122,7 @@ public final class PowerLineStylePanel {
             PowerLineStylePreset preset = presets.get(i);
             boolean selected = base != null && base.getId().equals(preset.getId());
             String label = PlotI18n.tr(preset.getLabelKey());
-            if (PowerLineStyleCardRenderer.renderStyleCard(preset, label, selected, line)) {
+            if (PowerLineStyleCardRenderer.renderStyleCard(preset, label, selected, line, ctx.designResolver())) {
                 ctx.pushEditSnapshot();
                 PowerLineStyleEditor.selectPreset(line, preset);
                 ctx.state().notifyStyleGalleryCategory(preset.getCategory());
