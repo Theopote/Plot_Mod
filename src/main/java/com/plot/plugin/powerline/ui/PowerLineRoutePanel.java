@@ -39,9 +39,12 @@ public final class PowerLineRoutePanel {
         renderCurrentLineHeader();
 
         ImGui.separator();
+        renderProjectOverviewSection();
+
+        ImGui.separator();
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.path"));
         if (line != null) {
-            renderPathPreview(line);
+            renderPathCaption(line);
         }
         adoptPanel.render(line);
 
@@ -52,23 +55,16 @@ public final class PowerLineRoutePanel {
             renderPolePlacement(line);
             renderAdvancedSpacing(line);
         }
-
-        ImGui.separator();
-        renderProjectSection();
     }
 
     public void renderDeleteConfirmPopup() {
         overviewPanel.renderDeleteConfirmPopup();
     }
 
-    private void renderProjectSection() {
+    private void renderProjectOverviewSection() {
         int count = ctx.project().getLineCount();
-        ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
-        if (ImGui.collapsingHeader(
-                PlotI18n.tr("plugin.powerline.route.section.all_lines_count", count),
-                ImGuiTreeNodeFlags.None)) {
-            overviewPanel.renderProjectSection();
-        }
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.all_lines_count", count));
+        overviewPanel.renderProjectSection();
     }
 
     private void renderCurrentLineHeader() {
@@ -157,12 +153,10 @@ public final class PowerLineRoutePanel {
         renderTerrainAvoidance(line);
     }
 
-    private void renderPathPreview(PowerLineFootprint line) {
+    private void renderPathCaption(PowerLineFootprint line) {
         if (line.getPathPoints().size() < 2) {
             return;
         }
-        ImGui.spacing();
-        PowerLineOverviewRenderer.renderLinePathPreview(line, ctx.coordinates());
         PowerLineUiWidgets.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr(
