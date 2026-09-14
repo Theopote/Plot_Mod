@@ -4,6 +4,7 @@ import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiKey;
 
 /** Route Tab 中的项目线路管理组件。 */
@@ -15,6 +16,8 @@ public final class PowerLineOverviewPanel {
     }
 
     public void renderProjectSection() {
+        ctx.tickLineNameRenameCooldown();
+
         PowerLineUiWidgets.text(PlotI18n.tr(
             "plugin.powerline.project_stats",
             ctx.project().getLineCount(),
@@ -66,72 +69,93 @@ public final class PowerLineOverviewPanel {
     private void renderLineRow(PowerLineFootprint line) {
         ImGui.pushID(line.getId());
         boolean selected = ctx.selection().contains(line.getId());
+        boolean renaming = line.getId().equals(ctx.lineNameEditingId());
 
         if (PowerLineOverviewRenderer.renderLineThumbnail(line, selected, ctx.coordinates())) {
-            ctx.selectLine(line.getId(), ImGui.getIO().getKeyCtrl());
+            if (!renaming) {
+                ctx.selectLine(line.getId(), ImGui.getIO().getKeyCtrl());
+            }
         }
         ImGui.sameLine();
 
         float columnWidth = Math.max(120f, ImGui.getContentRegionAvailX() - 8f);
         ImGui.beginGroup();
         renderLineNameLabel(line, columnWidth, selected);
-        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-            "plugin.powerline.overview_item",
-            line.estimatePoleCount(ctx.coordinates()),
-            String.format("%.1f", line.computeWorldPathLength(ctx.coordinates()))));
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.locate") + "##locate", 0, 0)) {
-            ctx.locateLine(line);
-        }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.delete") + "##delete", 0, 0)) {
-            ctx.pendingDeleteLineIds().clear();
-            ctx.pendingDeleteLineIds().add(line.getId());
-            ctx.setDeleteConfirmPending(true);
+        if (!renaming) {
+            PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                "plugin.powerline.overview_item",
+                line.estimatePoleCount(ctx.coordinates()),
+                String.format("%.1f", line.computeWorldPathLength(ctx.coordinates()))));
+            if (ImGui.button(PlotI18n.tr("plugin.powerline.locate") + "##locate", 0, 0)) {
+                ctx.locateLine(line);
+            }
+            ImGui.sameLine();
+            if (ImGui.button(PlotI18n.tr("plugin.powerline.delete") + "##delete", 0, 0)) {
+                ctx.pendingDeleteLineIds().clear();
+                ctx.pendingDeleteLineIds().add(line.getId());
+                ctx.setDeleteConfirmPending(true);
+            }
         }
         ImGui.endGroup();
         ImGui.popID();
     }
 
     private void renderLineNameLabel(PowerLineFootprint line, float columnWidth, boolean selected) {
-        if (line.getId().equals(ctx.lineNameEditingId())) {
+        if (!line.getId().equals(ctx.lineNameEditingId())) {
             ImGui.setNextItemWidth(columnWidth);
-            if (ctx.consumeLineNameFocusPending()) {
-                ImGui.setKeyboardFocusHere();
+            if (ImGui.selectable(
+                    PowerLineUiWidgets.stableSelectableLabel(line.getName(), line.getId()),
+                    selected)) {
+                ctx.selectLine(line.getId(), ImGui.getIO().getKeyCtrl());
             }
-            boolean changed = ImGui.inputText("##powerline_line_rename_" + line.getId(), ctx.lineNameBuffer());
-            if (ImGui.isItemActivated()) {
-                ctx.pushEditSnapshot();
-            }
-            if (changed) {
-                line.setName(ctx.lineNameBuffer().get());
-            }
-            if (ImGui.isItemDeactivatedAfterEdit()) {
-                String trimmed = ctx.lineNameBuffer().get().trim();
-                if (!trimmed.isEmpty()) {
-                    line.setName(trimmed);
-                } else {
-                    ctx.lineNameBuffer().set(line.getName());
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(PlotI18n.tr("plugin.powerline.overview_rename_hint"));
+                if (ImGui.isMouseDoubleClicked(0)) {
+                    ctx.beginLineNameRename(line);
                 }
-                ctx.setLineNameEditingId("");
-            }
-            if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
-                ctx.lineNameBuffer().set(line.getName());
-                ctx.setLineNameEditingId("");
             }
             return;
         }
 
         ImGui.setNextItemWidth(columnWidth);
-        if (ImGui.selectable(
-                PowerLineUiWidgets.stableSelectableLabel(line.getName(), line.getId()),
-                selected)) {
-            ctx.selectLine(line.getId(), ImGui.getIO().getKeyCtrl());
+        if (ctx.consumeLineNameFocusPending()) {
+            ImGui.setKeyboardFocusHere();
         }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.powerline.overview_rename_hint"));
-            if (ImGui.isMouseDoubleClicked(0)) {
-                ctx.beginLineNameRename(line);
-            }
+
+        boolean enterPressed = ImGui.inputText(
+            "##powerline_line_rename_" + line.getId(),
+            ctx.lineNameBuffer(),
+            ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll);
+        if (ImGui.isItemActivated()) {
+            ctx.pushEditSnapshot();
+        }
+
+        boolean inputActive = ImGui.isItemActive();
+        boolean inputHovered = ImGui.isItemHovered();
+        boolean finished = false;
+        boolean canceled = false;
+
+        if (enterPressed || ImGui.isKeyPressed(ImGuiKey.Enter)) {
+            finished = true;
+        } else if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
+            canceled = true;
+        } else if (ImGui.isItemDeactivated()) {
+            finished = true;
+        } else if (ctx.isLineNameOutsideClickReady()
+                && ImGui.isMouseClicked(0)
+                && !inputHovered
+                && !inputActive) {
+            finished = true;
+        } else if (ctx.isLineNameOutsideClickReady()
+                && ImGui.isMouseClicked(0)
+                && !ImGui.getIO().getWantCaptureMouse()) {
+            finished = true;
+        }
+
+        if (canceled) {
+            ctx.cancelLineNameRename(line);
+        } else if (finished) {
+            ctx.commitLineNameRename(line);
         }
     }
 

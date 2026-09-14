@@ -32,7 +32,9 @@ public final class PowerLinePluginState {
     private boolean previewAutoRefreshEnabled;
     private final ImString lineNameBuffer = new ImString(64);
     private String lineNameEditingId = "";
+    private String lineNameBeforeRename = "";
     private boolean lineNameFocusPending;
+    private int lineNameIgnoreOutsideClickFrames;
 
     private final List<String> pendingDeleteLineIds = new ArrayList<>();
     private boolean deleteConfirmPending = false;
@@ -171,10 +173,15 @@ public final class PowerLinePluginState {
     }
 
     public void setLineNameEditingId(String lineNameEditingId) {
-        this.lineNameEditingId = lineNameEditingId != null ? lineNameEditingId : "";
-        if (this.lineNameEditingId.isEmpty()) {
-            lineNameFocusPending = false;
+        if (lineNameEditingId == null || lineNameEditingId.isBlank()) {
+            endLineNameRename();
+            return;
         }
+        this.lineNameEditingId = lineNameEditingId;
+    }
+
+    public String getLineNameBeforeRename() {
+        return lineNameBeforeRename;
     }
 
     public boolean isLineNameFocusPending() {
@@ -182,9 +189,28 @@ public final class PowerLinePluginState {
     }
 
     public void beginLineNameRename(String lineId, String currentName) {
-        lineNameBuffer.set(currentName != null ? currentName : "");
+        lineNameBeforeRename = currentName != null ? currentName : "";
+        lineNameBuffer.set(lineNameBeforeRename);
         lineNameEditingId = lineId != null ? lineId : "";
         lineNameFocusPending = !lineNameEditingId.isEmpty();
+        lineNameIgnoreOutsideClickFrames = 2;
+    }
+
+    public void endLineNameRename() {
+        lineNameEditingId = "";
+        lineNameBeforeRename = "";
+        lineNameFocusPending = false;
+        lineNameIgnoreOutsideClickFrames = 0;
+    }
+
+    public void tickLineNameRenameCooldown() {
+        if (lineNameIgnoreOutsideClickFrames > 0) {
+            lineNameIgnoreOutsideClickFrames--;
+        }
+    }
+
+    public boolean isLineNameOutsideClickReady() {
+        return lineNameIgnoreOutsideClickFrames == 0;
     }
 
     public boolean consumeLineNameFocusPending() {

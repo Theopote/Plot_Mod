@@ -303,4 +303,31 @@ public final class PowerLineUiContext {
     public boolean consumeLineNameFocusPending() {
         return state.consumeLineNameFocusPending();
     }
+
+    public void tickLineNameRenameCooldown() {
+        state.tickLineNameRenameCooldown();
+    }
+
+    public boolean isLineNameOutsideClickReady() {
+        return state.isLineNameOutsideClickReady();
+    }
+
+    public void commitLineNameRename(PowerLineFootprint line) {
+        if (line == null || !line.getId().equals(state.getLineNameEditingId())) {
+            state.endLineNameRename();
+            return;
+        }
+        String trimmed = state.getLineNameBuffer().get().trim();
+        if (!trimmed.isEmpty() && !trimmed.equals(line.getName())) {
+            line.setName(trimmed);
+        }
+        state.endLineNameRename();
+    }
+
+    public void cancelLineNameRename(PowerLineFootprint line) {
+        if (line != null && line.getId().equals(state.getLineNameEditingId())) {
+            state.getLineNameBuffer().set(state.getLineNameBeforeRename());
+        }
+        state.endLineNameRename();
+    }
 }
