@@ -3531,7 +3531,6 @@
   "plugin.powerline.route.section.all_lines": "All lines",
   "plugin.powerline.route.section.all_lines_count": "All lines (%d)",
   "plugin.powerline.route.pole_spacing": "Pole spacing",
-  "plugin.powerline.route.spacing_blocks": "blocks",
   "plugin.powerline.route.placement_mode": "Placement mode",
   "plugin.powerline.route.placement_mode.AUTO_SPACING": "Auto spacing",
   "plugin.powerline.route.placement_mode.TOWER_COUNT": "Tower count",

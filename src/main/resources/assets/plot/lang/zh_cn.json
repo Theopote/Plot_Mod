@@ -3531,7 +3531,6 @@
   "plugin.powerline.route.section.all_lines": "全部线路",
   "plugin.powerline.route.section.all_lines_count": "全部线路 (%d)",
   "plugin.powerline.route.pole_spacing": "杆塔间距",
-  "plugin.powerline.route.spacing_blocks": "格",
   "plugin.powerline.route.placement_mode": "布置模式",
   "plugin.powerline.route.placement_mode.AUTO_SPACING": "自动间距",
   "plugin.powerline.route.placement_mode.TOWER_COUNT": "指定数量",

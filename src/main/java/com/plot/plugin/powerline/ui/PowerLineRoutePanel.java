@@ -220,26 +220,6 @@ public final class PowerLineRoutePanel {
                 line.setMaxPoleSpacing(value);
                 PowerLineStyleEditor.afterSpacingEdit(line);
             });
-
-        ImGui.sameLine();
-        ImGui.setNextItemWidth(64f);
-        float[] spacingInput = {spacing[0]};
-        PowerLineUiWidgets.inputFloatStableLineEdit(
-            ctx,
-            "pole_spacing_input",
-            spacingInput,
-            1f,
-            4f,
-            "%.0f",
-            sliderMin,
-            sliderMax,
-            value -> {
-                line.setMaxPoleSpacing(value);
-                PowerLineStyleEditor.afterSpacingEdit(line);
-            });
-        spacing[0] = spacingInput[0];
-        ImGui.sameLine();
-        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.spacing_blocks"));
     }
 
     private void renderTowerCountInput(PowerLineFootprint line) {
