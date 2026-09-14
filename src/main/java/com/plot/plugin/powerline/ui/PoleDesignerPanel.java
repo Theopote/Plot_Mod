@@ -545,6 +545,7 @@ public final class PoleDesignerPanel {
         saved.setEngineeringMetadata(draft.getEngineeringMetadata());
         saved.setGeneratorConfig(draft.getGeneratorConfig());
         ctx.actions().savePoleDesign(saved);
+        ctx.state().notifyStyleGalleryOpenCustomTemplates();
         ctx.state().setProjectStatus(
             PlotI18n.tr("plugin.powerline.design.saved_as_template", saved.getName()),
             ProjectStatusSeverity.SUCCESS);

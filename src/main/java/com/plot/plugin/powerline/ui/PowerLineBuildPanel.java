@@ -98,9 +98,12 @@ public final class PowerLineBuildPanel {
     }
 
     private void renderStyleLine(PowerLineFootprint line) {
-        PowerLineStylePreset basePreset = PowerLineStyleEditor.basePreset(line);
+        PowerLineStylePreset basePreset = PowerLineStyleEditor.resolveBasePreset(
+            line,
+            ctx.state().getDesignProject());
         if (basePreset != null) {
-            String styleLabel = PlotI18n.tr(basePreset.getLabelKey());
+            String styleLabel = com.plot.plugin.powerline.style.UserPoleDesignTemplateCatalog.displayLabel(
+                basePreset);
             if (PowerLineStyleEditor.isModified(line)) {
                 styleLabel += PowerLineUiTextGlyphSafety.INLINE_SEPARATOR
                     + PlotI18n.tr("plugin.powerline.style.modified_badge");

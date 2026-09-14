@@ -13,6 +13,7 @@ import com.plot.plugin.powerline.style.EffectiveStylePreviewResolver;
 import com.plot.plugin.powerline.style.PowerLineStyleEditor;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.plugin.powerline.style.PowerLineStylePreviewBinding;
+import com.plot.plugin.powerline.style.UserPoleDesignTemplateCatalog;
 import com.plot.plugin.powerline.style.PreviewRepresentation;
 import com.plot.plugin.powerline.style.StyleCardPreviewBinding;
 import com.plot.plugin.ui.PluginUiColors;
@@ -106,6 +107,140 @@ public final class PowerLineStyleCardRenderer {
             renderPackTooltip(pack, label, lineContext, resolver);
         }
         return ImGui.isItemClicked(0);
+    }
+
+    /**
+     * 用户造型模板卡片；左键选中，右键打开删除菜单。
+     *
+     * @return {@code clicked} 左键选中；{@code deleteRequested} 右键菜单请求删除
+     */
+    public static UserTemplateCardResult renderUserTemplateCard(
+            PoleDesign design,
+            boolean selected,
+            PowerLineFootprint lineContext) {
+        if (design == null) {
+            return UserTemplateCardResult.none();
+        }
+        String label = design.getName();
+        String buttonId = "##powerline_user_template_card_" + design.getId();
+        ImVec2 origin = ImGui.getCursorScreenPos();
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        float x0 = origin.x;
+        float y0 = origin.y;
+        float x1 = x0 + CARD_WIDTH;
+        float y1 = y0 + CARD_HEIGHT;
+
+        int bg = selected ? COLOR_BG_SELECTED : PluginUiColors.MAP_BG;
+        drawList.addRectFilled(x0, y0, x1, y1, bg);
+        int borderColor = selected ? PluginUiColors.ACCENT_BLUE : PluginUiColors.PANEL_BORDER;
+        float borderThickness = selected ? 2f : 1f;
+        drawList.addRect(x0, y0, x1, y1, borderColor, 4f, 0, borderThickness);
+
+        float previewY1 = y0 + PREVIEW_HEIGHT;
+        PowerLineStylePreset preset = UserPoleDesignTemplateCatalog.toPreset(design, lineContext);
+        StyleCardPreviewBinding binding = PowerLineStylePreviewBinding.bindingForDesign(design, preset);
+        drawCardPreview(
+            drawList,
+            binding,
+            false,
+            preset.getWireMaterial(),
+            preset.getTopWireMaterial(),
+            x0 + 2f,
+            y0 + 2f,
+            x1 - 2f,
+            previewY1 - 2f);
+
+        float labelY = previewY1 + LABEL_PADDING;
+        int labelColor = selected ? COLOR_LABEL : COLOR_LABEL_DIM;
+        drawCenteredLabel(drawList, label, x0, labelY, CARD_WIDTH, COLOR_LABEL_DIM, labelColor);
+        String wireLabel = PlotI18n.tr(
+            "plugin.powerline.style.card_wires",
+            UserPoleDesignTemplateCatalog.attachmentChannelCount(design));
+        float wireY = labelY + ImGui.getFontSize() + 2f;
+        drawCenteredLabel(drawList, wireLabel, x0, wireY, CARD_WIDTH, COLOR_LABEL_DIM, COLOR_LABEL_DIM);
+
+        ImGui.invisibleButton(buttonId, CARD_WIDTH, CARD_HEIGHT);
+        if (ImGui.isItemHovered() && !ImGui.isPopupOpen("##powerline_user_template_ctx_" + design.getId())) {
+            renderUserTemplateTooltip(design, label, lineContext);
+        }
+        boolean clicked = ImGui.isItemClicked(0);
+        boolean deleteRequested = false;
+        if (ImGui.beginPopupContextItem("##powerline_user_template_ctx_" + design.getId())) {
+            if (ImGui.menuItem(PlotI18n.tr("plugin.powerline.style.delete_user_template"))) {
+                deleteRequested = true;
+            }
+            ImGui.endPopup();
+        }
+        return new UserTemplateCardResult(clicked, deleteRequested);
+    }
+
+    public record UserTemplateCardResult(boolean clicked, boolean deleteRequested) {
+        public static UserTemplateCardResult none() {
+            return new UserTemplateCardResult(false, false);
+        }
+    }
+
+    private static void renderUserTemplateTooltip(
+            PoleDesign design,
+            String label,
+            PowerLineFootprint lineContext) {
+        ImGui.beginTooltip();
+        PowerLineUiWidgets.text(label);
+        ImGui.separator();
+        float previewW = ImGui.getFontSize() * 7f;
+        float previewH = ImGui.getFontSize() * 9f;
+        ImVec2 headerOrigin = ImGui.getCursorScreenPos();
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.preview_front"));
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        ImVec2 frontOrigin = ImGui.getCursorScreenPos();
+        drawList.addRectFilled(
+            frontOrigin.x,
+            frontOrigin.y,
+            frontOrigin.x + previewW,
+            frontOrigin.y + previewH,
+            PluginUiColors.PANEL_BG_DARK);
+        PowerLineStylePreset preset = UserPoleDesignTemplateCatalog.toPreset(design, lineContext);
+        StyleCardPreviewBinding binding = PowerLineStylePreviewBinding.bindingForDesign(design, preset);
+        drawCardPreview(
+            drawList,
+            binding,
+            false,
+            preset.getWireMaterial(),
+            preset.getTopWireMaterial(),
+            frontOrigin.x,
+            frontOrigin.y,
+            frontOrigin.x + previewW,
+            frontOrigin.y + previewH);
+        ImGui.dummy(previewW, previewH);
+        ImGui.sameLine();
+        ImGui.beginGroup();
+        ImVec2 sideOrigin = ImGui.getCursorScreenPos();
+        drawList.addText(
+            sideOrigin.x,
+            headerOrigin.y,
+            COLOR_LABEL_DIM,
+            PlotI18n.tr("plugin.powerline.style.preview_side"));
+        drawList.addRectFilled(
+            sideOrigin.x,
+            sideOrigin.y,
+            sideOrigin.x + previewW,
+            sideOrigin.y + previewH,
+            PluginUiColors.PANEL_BG_DARK);
+        drawSidePreview(
+            drawList, design, sideOrigin.x, sideOrigin.y, sideOrigin.x + previewW, sideOrigin.y + previewH);
+        ImGui.dummy(previewW, previewH);
+        PowerLineUiWidgets.text(PlotI18n.tr(
+            "plugin.powerline.style.preview_height",
+            design.totalHeight()));
+        PowerLineUiWidgets.text(PlotI18n.tr(
+            "plugin.powerline.style.preview_wires",
+            UserPoleDesignTemplateCatalog.attachmentChannelCount(design)));
+        ImGui.endGroup();
+        ImGui.separator();
+        PowerLineUiWidgets.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.powerline.style.user_template_hint"));
+        ImGui.endTooltip();
     }
 
     private static void renderPackTooltip(

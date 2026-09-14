@@ -1,10 +1,12 @@
 package com.plot.plugin.powerline.ui;
 
+import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.style.PowerLineStyleEditor;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
 import com.plot.plugin.powerline.style.StyleCategory;
+import com.plot.plugin.powerline.style.UserPoleDesignTemplateCatalog;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -41,7 +43,7 @@ public final class PowerLineStylePanel {
             return;
         }
 
-        PowerLineStylePreset base = PowerLineStyleEditor.basePreset(line);
+        PowerLineStylePreset base = PowerLineStyleEditor.resolveBasePreset(line, ctx.state().getDesignProject());
 
         ImGui.separator();
         renderPresetGallery(line, base);
@@ -99,6 +101,88 @@ public final class PowerLineStylePanel {
         if (forceOpen != null) {
             ctx.state().clearStyleGalleryOpenCategory();
         }
+        renderUserTemplateGallery(line);
+        renderDeleteTemplateConfirm();
+    }
+
+    private void renderUserTemplateGallery(PowerLineFootprint line) {
+        java.util.List<PoleDesign> templates = UserPoleDesignTemplateCatalog.listTemplates(
+            ctx.state().getDesignProject());
+        if (templates.isEmpty()) {
+            return;
+        }
+        if (ctx.state().isStyleGalleryOpenCustomTemplates()) {
+            ImGui.setNextItemOpen(true, ImGuiCond.Always);
+        } else {
+            boolean hasSelectedTemplate = templates.stream()
+                .anyMatch(design -> UserPoleDesignTemplateCatalog.isTemplateSelected(line, design));
+            ImGui.setNextItemOpen(hasSelectedTemplate, ImGuiCond.FirstUseEver);
+        }
+        if (!ImGui.collapsingHeader(
+                PlotI18n.tr("plugin.powerline.style.section.user_templates"),
+                ImGuiTreeNodeFlags.None)) {
+            if (ctx.state().isStyleGalleryOpenCustomTemplates()) {
+                ctx.state().clearStyleGalleryOpenCustomTemplates();
+            }
+            return;
+        }
+        if (ctx.state().isStyleGalleryOpenCustomTemplates()) {
+            ctx.state().clearStyleGalleryOpenCustomTemplates();
+        }
+        renderUserTemplateGrid(line, templates);
+    }
+
+    private void renderUserTemplateGrid(PowerLineFootprint line, java.util.List<PoleDesign> templates) {
+        int columns = computePresetColumns();
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        for (int i = 0; i < templates.size(); i++) {
+            if (i > 0 && i % columns != 0) {
+                ImGui.sameLine(0f, spacing);
+            }
+            PoleDesign design = templates.get(i);
+            boolean selected = UserPoleDesignTemplateCatalog.isTemplateSelected(line, design);
+            PowerLineStyleCardRenderer.UserTemplateCardResult result =
+                PowerLineStyleCardRenderer.renderUserTemplateCard(design, selected, line);
+            if (result.clicked()) {
+                ctx.pushEditSnapshot();
+                PowerLineStyleEditor.selectUserTemplate(line, design, ctx.state().getDesignProject());
+                ctx.invalidatePreview();
+            } else if (result.deleteRequested()) {
+                ctx.state().requestDeleteUserTemplate(design.getId());
+            }
+        }
+        ImGui.newLine();
+    }
+
+    private void renderDeleteTemplateConfirm() {
+        String designId = ctx.state().getPendingDeleteUserTemplateId();
+        PoleDesign design = ctx.state().getDesignProject().getDesign(designId);
+        String designName = design != null ? design.getName() : designId;
+        if (PowerLineUiWidgets.beginDeferredPopupModal(
+                "##powerline_delete_user_template_confirm",
+                ctx.state().isDeleteUserTemplateConfirmPending(),
+                () -> ctx.state().setDeleteUserTemplateConfirmPending(false))) {
+            int usageCount = ctx.actions().countUserTemplateReferences(designId);
+            PowerLineUiWidgets.text(PlotI18n.tr(
+                "plugin.powerline.style.delete_user_template_confirm",
+                designName));
+            if (usageCount > 0) {
+                PowerLineUiWidgets.textColored(
+                    PluginUiColors.WARNING,
+                    PlotI18n.tr("plugin.powerline.style.delete_user_template_in_use_hint", usageCount));
+            }
+            if (ImGui.button(PlotI18n.tr("button.plot.confirm"), 120, 0)) {
+                ctx.actions().deleteUserPoleDesignTemplate(designId);
+                ctx.state().clearDeleteUserTemplateRequest();
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.sameLine();
+            if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
+                ctx.state().clearDeleteUserTemplateRequest();
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.endPopup();
+        }
     }
 
     private int computePresetColumns() {
@@ -111,7 +195,7 @@ public final class PowerLineStylePanel {
     private void renderStylePresetGrid(
             PowerLineFootprint line,
             java.util.List<PowerLineStylePreset> presets) {
-        PowerLineStylePreset base = PowerLineStyleEditor.basePreset(line);
+        PowerLineStylePreset base = PowerLineStyleEditor.resolveBasePreset(line, ctx.state().getDesignProject());
         int columns = computePresetColumns();
         float spacing = ImGui.getStyle().getItemSpacingX();
 

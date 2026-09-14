@@ -981,6 +981,60 @@ public final class PowerLineActions {
         state.setProjectStatus(PlotI18n.tr("plugin.powerline.design.saved", design.getName()), ProjectStatusSeverity.SUCCESS);
     }
 
+    public int countUserTemplateReferences(String designId) {
+        if (designId == null || designId.isBlank()) {
+            return 0;
+        }
+        int count = 0;
+        String presetId = com.plot.plugin.powerline.style.UserPoleDesignTemplateCatalog.presetIdFor(designId);
+        for (PowerLineFootprint line : state.getProject().getLines().values()) {
+            if (referencesUserTemplate(line, designId, presetId)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public boolean deleteUserPoleDesignTemplate(String designId) {
+        if (designId == null
+                || designId.isBlank()
+                || com.plot.plugin.powerline.style.LinePoleDesignOverrides.isLineInstanceDesignId(designId)) {
+            return false;
+        }
+        PoleDesign existing = state.getDesignProject().getDesign(designId);
+        if (existing == null) {
+            return false;
+        }
+        String name = existing.getName();
+        pushWorkspaceSnapshot();
+        detachUserTemplateFromLines(designId);
+        state.getDesignProject().removeDesign(designId);
+        invalidatePreview();
+        state.setProjectStatus(
+            PlotI18n.tr("plugin.powerline.style.delete_user_template_done", name),
+            ProjectStatusSeverity.SUCCESS);
+        return true;
+    }
+
+    private void detachUserTemplateFromLines(String designId) {
+        String presetId = com.plot.plugin.powerline.style.UserPoleDesignTemplateCatalog.presetIdFor(designId);
+        for (PowerLineFootprint line : state.getProject().getLines().values()) {
+            if (!referencesUserTemplate(line, designId, presetId)) {
+                continue;
+            }
+            com.plot.plugin.powerline.style.LinePoleDesignOverrides.removeLineInstance(
+                line,
+                state.getDesignProject());
+            if (presetId != null && presetId.equals(line.getStylePresetId())) {
+                line.setStylePresetId(null);
+            }
+            if (designId.equals(line.getPoleDesignId())) {
+                line.setPoleDesignId(null);
+            }
+            line.clearStyleOverrides();
+        }
+    }
+
     /** 将造型写入该线路私有实例，不覆盖内置或共享模板。 */
     public void saveLineInstancePoleDesign(PowerLineFootprint line, PoleDesign draft) {
         if (line == null || draft == null) {
@@ -992,15 +1046,24 @@ public final class PowerLineActions {
     }
 
     private boolean isDesignReferencedByAnyLine(String designId) {
-        if (designId == null || designId.isBlank()) {
+        return isUserTemplateReferencedByAnyLine(designId);
+    }
+
+    private boolean isUserTemplateReferencedByAnyLine(String designId) {
+        return countUserTemplateReferences(designId) > 0;
+    }
+
+    private static boolean referencesUserTemplate(
+            PowerLineFootprint line,
+            String designId,
+            String presetId) {
+        if (line == null) {
             return false;
         }
-        for (PowerLineFootprint line : state.getProject().getLines().values()) {
-            if (designId.equals(line.getPoleDesignId())) {
-                return true;
-            }
+        if (designId != null && designId.equals(line.getPoleDesignId())) {
+            return true;
         }
-        return false;
+        return presetId != null && presetId.equals(line.getStylePresetId());
     }
 
     private void pushWorkspaceSnapshot() {

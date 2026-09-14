@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.style;
 
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -27,6 +28,34 @@ public final class PowerLineStyleEditor {
     public static PowerLineStylePreset basePreset(PowerLineFootprint line) {
         PowerLineStyleInstance style = instance(line);
         return style != null ? style.basePreset() : null;
+    }
+
+    /** 解析当前 base preset（内置目录 + 用户造型模板）。 */
+    public static PowerLineStylePreset resolveBasePreset(
+            PowerLineFootprint line,
+            PowerLineDesignProject designProject) {
+        PowerLineStylePreset builtin = basePreset(line);
+        if (builtin != null) {
+            return builtin;
+        }
+        return UserPoleDesignTemplateCatalog.resolvePreset(line, designProject);
+    }
+
+    /** 将线路切换到用户造型模板（清除私有 fork 与微调覆盖）。 */
+    public static void selectUserTemplate(
+            PowerLineFootprint line,
+            PoleDesign design,
+            PowerLineDesignProject designProject) {
+        if (line == null || design == null) {
+            return;
+        }
+        if (designProject != null) {
+            LinePoleDesignOverrides.removeLineInstance(line, designProject);
+        }
+        line.clearStyleOverrides();
+        line.setSpacingCustomized(false);
+        UserPoleDesignTemplateCatalog.toPreset(design, line).apply(line);
+        syncOverridesFromFootprint(line);
     }
 
     /** 风格卡片：切换到新的 base preset（保留 spacingCustomized）。 */

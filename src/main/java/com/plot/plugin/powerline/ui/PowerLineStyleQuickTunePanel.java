@@ -12,6 +12,7 @@ import com.plot.plugin.powerline.style.PowerLineSpacingPolicy;
 import com.plot.plugin.powerline.style.LinePoleDesignOverrides;
 import com.plot.plugin.powerline.style.PowerLineStyleEditor;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
+import com.plot.plugin.powerline.style.UserPoleDesignTemplateCatalog;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
@@ -75,7 +76,7 @@ public final class PowerLineStyleQuickTunePanel {
     }
 
     private void renderSelectedPresetLabel(PowerLineFootprint line, PowerLineStylePreset base) {
-        PowerLineUiWidgets.text(PlotI18n.tr(base.getLabelKey()));
+        PowerLineUiWidgets.text(UserPoleDesignTemplateCatalog.displayLabel(base));
         if (PowerLineStyleEditor.isModified(line)) {
             ImGui.sameLine();
             PowerLineUiWidgets.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.powerline.style.modified_badge"));

@@ -51,6 +51,9 @@ public final class PowerLinePluginState {
     private final PowerLineValidationUiState validationState = new PowerLineValidationUiState();
     /** 画廊中临时强制展开的 preset 分类（选中新 preset 后一帧）。 */
     private StyleCategory styleGalleryOpenCategory;
+    private boolean styleGalleryOpenCustomTemplates;
+    private boolean deleteUserTemplateConfirmPending;
+    private String pendingDeleteUserTemplateId = "";
     /** 取消拾取后短暂屏蔽「拾取路径」，避免按钮换位误触。 */
     private int pathPickActivationBlockFrames;
 
@@ -282,6 +285,40 @@ public final class PowerLinePluginState {
 
     public void clearStyleGalleryOpenCategory() {
         styleGalleryOpenCategory = null;
+    }
+
+    public void notifyStyleGalleryOpenCustomTemplates() {
+        styleGalleryOpenCustomTemplates = true;
+    }
+
+    public boolean isStyleGalleryOpenCustomTemplates() {
+        return styleGalleryOpenCustomTemplates;
+    }
+
+    public void clearStyleGalleryOpenCustomTemplates() {
+        styleGalleryOpenCustomTemplates = false;
+    }
+
+    public void requestDeleteUserTemplate(String designId) {
+        pendingDeleteUserTemplateId = designId != null ? designId : "";
+        deleteUserTemplateConfirmPending = designId != null && !designId.isBlank();
+    }
+
+    public boolean isDeleteUserTemplateConfirmPending() {
+        return deleteUserTemplateConfirmPending;
+    }
+
+    public String getPendingDeleteUserTemplateId() {
+        return pendingDeleteUserTemplateId;
+    }
+
+    public void setDeleteUserTemplateConfirmPending(boolean pending) {
+        deleteUserTemplateConfirmPending = pending;
+    }
+
+    public void clearDeleteUserTemplateRequest() {
+        deleteUserTemplateConfirmPending = false;
+        pendingDeleteUserTemplateId = "";
     }
 
     public void blockPathPickActivation(int frames) {
