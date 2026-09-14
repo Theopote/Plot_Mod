@@ -136,7 +136,6 @@ class BuildingFootprintResolverTest {
     void legacyBasementDepthBlocksJsonMigratesToFloorDepth() {
         String json = """
             {
-              "schemaVersion": 3,
               "sites": [{
                 "id": "site-1",
                 "name": "Site",

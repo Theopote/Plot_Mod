@@ -8,8 +8,6 @@ import java.nio.file.Path;
 
 /**
  * 建筑项目持久化边界（Facade）：稳定对外 API，内部仍委托 {@link BuildingProject} JSON 实现。
- * <p>
- * 加载时经 {@link BuildingProjectMigrator} 自动迁移至当前 {@link BuildingProjectSchema}。
  */
 public final class BuildingProjectPersistence {
     private BuildingProjectPersistence() {

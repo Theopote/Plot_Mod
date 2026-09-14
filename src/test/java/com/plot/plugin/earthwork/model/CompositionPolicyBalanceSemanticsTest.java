@@ -70,7 +70,6 @@ class CompositionPolicyBalanceSemanticsTest {
     void legacyJsonBalanceMethodStillLoads() {
         String json = """
             {
-              "schemaVersion": 3,
               "sites": [{
                 "id": "site-1",
                 "name": "Site",

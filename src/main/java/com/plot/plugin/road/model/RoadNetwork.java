@@ -36,7 +36,6 @@ import com.plot.plugin.road.model.section.SlopeBatter;
 import com.plot.plugin.road.model.section.StreetFurniture;
 
 import com.plot.plugin.road.graph.RoadGraphQueries;
-import com.plot.plugin.road.model.serialization.migration.RoadNetworkMigrationRegistry;
 import com.plot.core.persistence.AtomicFileWriter;
 import com.plot.core.persistence.PersistenceException;
 import com.plot.utils.PlotI18n;
@@ -50,7 +49,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -75,7 +73,6 @@ import java.util.stream.Collectors;
  * @see RoadNetworkHistory
  */
 public class RoadNetwork {
-    public static final int CURRENT_FORMAT_VERSION = 1;
 
     private static final Gson GSON = new GsonBuilder()
         .setPrettyPrinting()
@@ -566,7 +563,7 @@ public class RoadNetwork {
                 PlotI18n.error("error.plot.road.network.corrupted_file"));
         }
 
-        final JsonObject root;
+        JsonObject root;
         try {
             JsonElement element = JsonParser.parseString(json);
             if (element == null || !element.isJsonObject()) {
@@ -582,11 +579,9 @@ public class RoadNetwork {
                 e);
         }
 
-        JsonObject migrated = RoadNetworkMigrationRegistry.getInstance().migrateToCurrent(root);
-
         final NetworkData data;
         try {
-            data = GSON.fromJson(migrated, NetworkData.class);
+            data = GSON.fromJson(root, NetworkData.class);
         } catch (JsonSyntaxException e) {
             throw new RoadNetworkFormatException(
                 RoadNetworkFormatException.Reason.INVALID_JSON,
@@ -604,14 +599,6 @@ public class RoadNetwork {
     }
 
     private static void validateNetworkData(NetworkData data) throws RoadNetworkFormatException {
-        if (data.formatVersion != CURRENT_FORMAT_VERSION) {
-            throw new RoadNetworkFormatException(
-                RoadNetworkFormatException.Reason.UNSUPPORTED_FORMAT_VERSION,
-                PlotI18n.error(
-                    "error.plot.road.network.unsupported_format",
-                    data.formatVersion,
-                    CURRENT_FORMAT_VERSION));
-        }
         if (data.nodes == null || data.edges == null || data.roads == null) {
             throw new RoadNetworkFormatException(
                 RoadNetworkFormatException.Reason.VALIDATION_FAILED,
@@ -720,15 +707,6 @@ public class RoadNetwork {
         List<Vec2dData> centerlinePoints = new ArrayList<>();
         String roadId;
         List<SlopeOverrideData> slopeOverrides = new ArrayList<>();
-
-        // Legacy fields (v1) — migrated into Road on load
-        Integer width;
-        String material;
-        Boolean includeSidewalk;
-        Integer sidewalkWidth;
-        String sidewalkMaterial;
-        Integer streetlightSpacing;
-        Float maxSlope;
         String sourceRoadId;
     }
 
@@ -975,17 +953,6 @@ public class RoadNetwork {
         String styleId;
         String themeId;
         CrossSectionData crossSection;
-        // Legacy flat fields (v1) — read for migration, not written on save
-        Integer width;
-        String material;
-        Boolean includeSidewalk;
-        Integer sidewalkWidth;
-        String sidewalkMaterial;
-        Boolean includeShoulder;
-        Integer shoulderWidth;
-        String shoulderMaterial;
-        Boolean includeDrainage;
-        Integer streetlightSpacing;
         Float maxSlope;
         String topologyMode;
         AlignmentData horizontalAlignment;
@@ -997,14 +964,12 @@ public class RoadNetwork {
     }
 
     static class NetworkData {
-        int formatVersion = CURRENT_FORMAT_VERSION;
         List<NodeData> nodes = new ArrayList<>();
         List<EdgeData> edges = new ArrayList<>();
         List<RoadData> roads = new ArrayList<>();
 
         static NetworkData from(RoadNetwork network) {
             NetworkData data = new NetworkData();
-            data.formatVersion = CURRENT_FORMAT_VERSION;
 
             for (RoadNode node : network.nodes.values()) {
                 NodeData nodeData = new NodeData();
@@ -1105,29 +1070,10 @@ public class RoadNetwork {
             boolean hasRoadData = roads != null && !roads.isEmpty();
             if (hasRoadData) {
                 for (RoadData roadData : roads) {
-                    RoadCrossSection crossSection = roadData.crossSection != null
-                        ? roadData.crossSection.toCrossSection()
-                        : RoadCrossSection.fromLegacy(
-                            roadData.width,
-                            RoadMaterialUtils.normalizeStoredMaterial(roadData.material),
-                            roadData.includeSidewalk,
-                            roadData.sidewalkWidth,
-                            RoadMaterialUtils.normalizeStoredMaterial(roadData.sidewalkMaterial),
-                            roadData.streetlightSpacing
-                        );
-                    RoadCrossSection.mergeLegacyFlatFields(
-                        crossSection,
-                        roadData.width,
-                        roadData.material,
-                        roadData.includeSidewalk,
-                        roadData.sidewalkWidth,
-                        roadData.sidewalkMaterial,
-                        roadData.includeShoulder,
-                        roadData.shoulderWidth,
-                        roadData.shoulderMaterial,
-                        roadData.includeDrainage,
-                        roadData.streetlightSpacing
-                    );
+                    if (roadData.crossSection == null) {
+                        continue;
+                    }
+                    RoadCrossSection crossSection = roadData.crossSection.toCrossSection();
                     Road road = new Road(
                         roadData.id,
                         roadData.name,
@@ -1180,9 +1126,7 @@ public class RoadNetwork {
                 );
                 network.edges.put(edge.getId(), edge);
 
-                if (!hasRoadData) {
-                    migrateLegacyEdge(network, edgeData, edge);
-                } else if (roadId != null && !roadId.isBlank()) {
+                if (roadId != null && !roadId.isBlank()) {
                     network.assignEdgeToRoad(edge.getId(), roadId);
                 }
             }
@@ -1210,32 +1154,6 @@ public class RoadNetwork {
                     end.addEdge(edge.getId());
                 }
             }
-        }
-
-        private static void migrateLegacyEdge(RoadNetwork network, EdgeData edgeData, RoadEdge edge) {
-            String roadId = edgeData.roadId != null ? edgeData.roadId : edgeData.sourceRoadId;
-            if (roadId == null || roadId.isBlank()) {
-                roadId = UUID.randomUUID().toString();
-                edge.setRoadId(roadId);
-            }
-
-            Road road = network.roads.get(roadId);
-            if (road == null) {
-                road = new Road(
-                    roadId,
-                    null,
-                    edgeData.width,
-                    RoadMaterialUtils.normalizeStoredMaterial(edgeData.material),
-                    edgeData.includeSidewalk,
-                    edgeData.sidewalkWidth,
-                    RoadMaterialUtils.normalizeStoredMaterial(edgeData.sidewalkMaterial),
-                    edgeData.streetlightSpacing,
-                    edgeData.maxSlope,
-                    java.util.Set.of()
-                );
-                network.roads.put(roadId, road);
-            }
-            network.assignEdgeToRoad(edge.getId(), roadId);
         }
     }
 }

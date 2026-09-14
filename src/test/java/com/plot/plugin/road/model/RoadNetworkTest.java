@@ -162,7 +162,12 @@ class RoadNetworkTest {
                 }
               ],
               "roads": [
-                {"id":"road-a","name":"A","segmentIds":["e1","stale-edge"]}
+                {
+                  "id":"road-a",
+                  "name":"A",
+                  "crossSection": {"carriageway": {"width": 5}},
+                  "segmentIds":["e1","stale-edge"]
+                }
               ]
             }
             """;
@@ -186,15 +191,11 @@ class RoadNetworkTest {
     }
 
     @Test
-    void loadFromMigratesLegacyNullArraysToEmptyNetwork() throws IOException {
-        Path file = tempDir.resolve("legacy-null-arrays.json");
+    void loadFromRejectsNullCollections() throws IOException {
+        Path file = tempDir.resolve("null-collections.json");
         Files.writeString(file, "{\"nodes\":[],\"edges\":null,\"roads\":null}");
 
-        RoadNetwork network = RoadNetwork.loadFrom(file);
-
-        assertTrue(network.getNodes().isEmpty());
-        assertTrue(network.getEdges().isEmpty());
-        assertTrue(network.getRoads().isEmpty());
+        assertThrows(RoadNetworkFormatException.class, () -> RoadNetwork.loadFrom(file));
     }
 
     @Test
@@ -225,7 +226,6 @@ class RoadNetworkTest {
         Path file = tempDir.resolve("empty-document.json");
         Files.writeString(file, """
             {
-              "formatVersion": 1,
               "nodes": [],
               "edges": [],
               "roads": []
@@ -240,9 +240,12 @@ class RoadNetworkTest {
     }
 
     @Test
-    void toJsonIncludesFormatVersion() {
+    void toJsonIncludesCoreCollections() {
         RoadNetwork network = new RoadNetwork();
-        assertTrue(network.toJson().contains("\"formatVersion\": " + RoadNetwork.CURRENT_FORMAT_VERSION));
+        String json = network.toJson();
+        assertTrue(json.contains("\"nodes\""));
+        assertTrue(json.contains("\"edges\""));
+        assertTrue(json.contains("\"roads\""));
     }
 
     @Test
@@ -450,41 +453,6 @@ class RoadNetworkTest {
     }
 
     @Test
-    void legacyJsonMigratesEdgePropertiesIntoRoad() {
-        String legacyJson = """
-            {
-              "nodes": [
-                {"id":"n1","position":{"x":0,"y":0},"connectedEdgeIds":["e1"]},
-                {"id":"n2","position":{"x":10,"y":0},"connectedEdgeIds":["e1"]}
-              ],
-              "edges": [
-                {
-                  "id":"e1",
-                  "startNodeId":"n1",
-                  "endNodeId":"n2",
-                  "centerlinePoints":[{"x":0,"y":0},{"x":10,"y":0}],
-                  "width":7,
-                  "maxSlope":5.0,
-                  "sourceRoadId":"legacy-road-1"
-                }
-              ]
-            }
-            """;
-
-        RoadNetwork restored = RoadNetwork.parseSnapshot(legacyJson);
-        RoadEdge edge = restored.getEdge("e1");
-        Road road = restored.getRoad("legacy-road-1");
-
-        assertNotNull(edge);
-        assertNotNull(road);
-        assertEquals("legacy-road-1", edge.getRoadId());
-        assertNull(edge.getSourceRoadId());
-        assertEquals(7, road.getWidth());
-        assertEquals(5.0f, road.getMaxSlope());
-        assertEquals(List.of("e1"), road.getOrderedSegmentIds());
-    }
-
-    @Test
     void jsonRoundTripPreservesSourceRoadId() {
         RoadNetwork network = new RoadNetwork();
         RoadSystemConfig config = new RoadSystemConfig("road_system");
@@ -636,50 +604,6 @@ class RoadNetworkTest {
         assertEquals(2, restoredRoad.getShoulderWidth());
         assertEquals(true, restoredRoad.getIncludeDrainage());
         assertEquals(12, restoredRoad.getStreetlightSpacing());
-    }
-
-    @Test
-    void legacyFlatRoadJsonMigratesIntoCrossSection() {
-        String legacyJson = """
-            {
-              "nodes": [
-                {"id":"n1","position":{"x":0,"y":0},"connectedEdgeIds":["e1"]},
-                {"id":"n2","position":{"x":10,"y":0},"connectedEdgeIds":["e1"]}
-              ],
-              "edges": [
-                {
-                  "id":"e1",
-                  "startNodeId":"n1",
-                  "endNodeId":"n2",
-                  "centerlinePoints":[{"x":0,"y":0},{"x":10,"y":0}],
-                  "roadId":"r1"
-                }
-              ],
-              "roads": [
-                {
-                  "id":"r1",
-                  "width":8,
-                  "includeSidewalk":true,
-                  "sidewalkWidth":2,
-                  "includeShoulder":true,
-                  "shoulderWidth":1,
-                  "includeDrainage":false,
-                  "segmentIds":["e1"]
-                }
-              ]
-            }
-            """;
-
-        RoadNetwork restored = RoadNetwork.parseSnapshot(legacyJson);
-        Road road = restored.getRoad("r1");
-
-        assertNotNull(road);
-        assertEquals(8, road.getWidth());
-        assertEquals(true, road.getIncludeSidewalk());
-        assertEquals(2, road.getSidewalkWidth());
-        assertEquals(true, road.getIncludeShoulder());
-        assertEquals(1, road.getShoulderWidth());
-        assertEquals(false, road.getIncludeDrainage());
     }
 
     @Test

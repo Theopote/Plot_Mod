@@ -71,48 +71,6 @@ class EarthworkProjectTest {
     }
 
     @Test
-    void legacyFillFactorMigratesToMaterialProperties() {
-        String json = """
-            {
-              "regions": [{
-                "id": "r1",
-                "name": "Legacy",
-                "outerPoints": [
-                  {"x": 0, "y": 0},
-                  {"x": 10, "y": 0},
-                  {"x": 10, "y": 10}
-                ],
-                "fillFactor": 1.25
-              }]
-            }
-            """;
-        EarthworkProject project = EarthworkProject.fromJson(json);
-        GradingRegion region = project.getRegion("r1");
-        assertEquals(1.0f, region.getMaterialProperties().reusableRatio(), 1e-6f);
-        assertEquals(0.8f, region.getMaterialProperties().cutToCompactedFillRatio(), 1e-6f);
-    }
-
-    @Test
-    void legacyGridSizeMigratesToPreviewGridSize() {
-        String json = """
-            {
-              "regions": [{
-                "id": "r1",
-                "name": "Legacy Grid",
-                "outerPoints": [
-                  {"x": 0, "y": 0},
-                  {"x": 10, "y": 0},
-                  {"x": 10, "y": 10}
-                ],
-                "gridSize": 7
-              }]
-            }
-            """;
-        EarthworkProject project = EarthworkProject.fromJson(json);
-        assertEquals(7, project.getRegion("r1").getPreviewGridSize());
-    }
-
-    @Test
     void corruptJsonThrowsInsteadOfSilentEmptyProject() {
         assertThrows(IllegalArgumentException.class, () -> EarthworkProject.fromJson("{not-valid-json"));
     }
@@ -173,11 +131,9 @@ class EarthworkProjectTest {
         site.addZone(zone);
 
         String json = project.toJson();
-        assertTrue(json.contains("\"schemaVersion\": 3"));
         assertTrue(json.contains("\"sites\""));
 
         EarthworkProject restored = EarthworkProject.fromJson(json);
-        assertEquals(EarthworkProject.SCHEMA_VERSION_CURRENT, restored.getSchemaVersion());
         assertEquals(1, restored.getSiteCount());
         EarthworkSite restoredSite = restored.getActiveSite();
         assertEquals("Main Site", restoredSite.getName());
@@ -220,7 +176,6 @@ class EarthworkProjectTest {
     void missingVerticalAdjustmentPolicyUsesTypeDefault() {
         String json = """
             {
-              "schemaVersion": 3,
               "sites": [{
                 "id": "site-1",
                 "name": "Site",
@@ -276,41 +231,6 @@ class EarthworkProjectTest {
         assertEquals(5, restoredZone.getDesignSurface().getFacets().getFirst().getPlane().getVerticalOffset());
         assertEquals(DesignSurfaceKind.MATCH_EXISTING,
             restoredZone.getDesignSurface().getFacets().getFirst().getPlane().getKind());
-    }
-
-    @Test
-    void v1RegionsMigrateToSiteWithZones() {
-        String json = """
-            {
-              "regions": [{
-                "id": "r1",
-                "name": "North",
-                "outerPoints": [
-                  {"x": 0, "y": 0},
-                  {"x": 10, "y": 0},
-                  {"x": 10, "y": 8}
-                ],
-                "surfaceMode": "THREE_POINT"
-              }, {
-                "id": "r2",
-                "name": "South",
-                "outerPoints": [
-                  {"x": 0, "y": 10},
-                  {"x": 10, "y": 10},
-                  {"x": 10, "y": 18}
-                ],
-                "surfaceMode": "FLAT"
-              }]
-            }
-            """;
-        EarthworkProject project = EarthworkProject.fromJson(json);
-        assertEquals(2, project.getRegionCount());
-        EarthworkSite site = project.getActiveSite();
-        assertEquals(2, site.getZoneCount());
-        assertEquals(4, site.getSiteBoundary().size());
-        assertEquals(GradingZoneType.SLOPED, site.getZone("r1").getType());
-        assertEquals(GradingZoneType.FLAT, site.getZone("r2").getType());
-        assertTrue(site.getSiteBoundaryArea() > 0.0);
     }
 
     @Test

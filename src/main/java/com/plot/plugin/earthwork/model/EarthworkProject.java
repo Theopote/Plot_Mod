@@ -6,8 +6,6 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.RegionGeometry;
 import com.plot.core.material.EarthMaterialClass;
 import com.plot.core.material.MaterialConversionModel;
-import com.plot.plugin.earthwork.persistence.EarthworkProjectMigrator;
-import com.plot.plugin.earthwork.persistence.EarthworkProjectSchema;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -25,20 +23,10 @@ import java.util.UUID;
  * Phase A：内部以 {@link EarthworkSite} 为聚合根，保留 {@link GradingRegion} 兼容 API。
  */
 public class EarthworkProject {
-    public static final int SCHEMA_VERSION_V1 = EarthworkProjectSchema.V1;
-    public static final int SCHEMA_VERSION_V2 = EarthworkProjectSchema.V2;
-    public static final int SCHEMA_VERSION_V3 = EarthworkProjectSchema.V3;
-    public static final int SCHEMA_VERSION_CURRENT = EarthworkProjectSchema.CURRENT;
-
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    private int schemaVersion = SCHEMA_VERSION_CURRENT;
     private final Map<String, EarthworkSite> sites = new LinkedHashMap<>();
     private String activeSiteId = "";
-
-    public int getSchemaVersion() {
-        return schemaVersion;
-    }
 
     public Map<String, EarthworkSite> getSites() {
         return Collections.unmodifiableMap(new LinkedHashMap<>(sites));
@@ -149,40 +137,16 @@ public class EarthworkProject {
         return GSON.toJson(ProjectData.from(this));
     }
 
-    /**
-     * 解析 JSON。损坏内容抛 {@link IllegalArgumentException}，不得静默变成空项目。
-     * 自动执行 schema v1 → v2 → v3 迁移链。
-     */
     public static EarthworkProject fromJson(String json) {
         if (json == null || json.isBlank()) {
             return new EarthworkProject();
         }
         try {
-            return EarthworkProjectMigrator.load(json);
+            ProjectData data = GSON.fromJson(json, ProjectData.class);
+            return data != null ? data.toProject() : new EarthworkProject();
         } catch (RuntimeException e) {
             throw new IllegalArgumentException("Invalid earthwork project JSON", e);
         }
-    }
-
-    /**
-     * 由 {@link EarthworkProjectMigrator} 在迁移完成后调用；不再执行版本升级。
-     */
-    public static EarthworkProject fromNormalizedJson(String json) {
-        ProjectData data = GSON.fromJson(json, ProjectData.class);
-        EarthworkProjectSchema.assertSupported(data.schemaVersion);
-        return data.toProject();
-    }
-
-    /**
-     * v1 → v2 迁移（供 {@link EarthworkProjectMigrator} 使用）。
-     */
-    public static String migrateV1JsonToV2Json(String json) {
-        ProjectData data = GSON.fromJson(json, ProjectData.class);
-        EarthworkProject project = data.migrateV1();
-        ProjectData v2 = ProjectData.from(project);
-        v2.schemaVersion = SCHEMA_VERSION_V2;
-        v2.regions = new ArrayList<>();
-        return GSON.toJson(v2);
     }
 
     /**
@@ -225,14 +189,11 @@ public class EarthworkProject {
     }
 
     static class ProjectData {
-        int schemaVersion;
         List<SiteData> sites = new ArrayList<>();
         String activeSiteId = "";
-        List<RegionData> regions = new ArrayList<>();
 
         static ProjectData from(EarthworkProject project) {
             ProjectData data = new ProjectData();
-            data.schemaVersion = SCHEMA_VERSION_CURRENT;
             data.activeSiteId = project.activeSiteId;
             for (EarthworkSite site : project.sites.values()) {
                 data.sites.add(SiteData.from(site));
@@ -241,12 +202,7 @@ public class EarthworkProject {
         }
 
         EarthworkProject toProject() {
-            return loadCurrent();
-        }
-
-        private EarthworkProject loadCurrent() {
             EarthworkProject project = new EarthworkProject();
-            project.schemaVersion = SCHEMA_VERSION_CURRENT;
             if (sites != null) {
                 for (SiteData siteData : sites) {
                     EarthworkSite site = siteData != null ? siteData.toSite() : null;
@@ -259,42 +215,6 @@ public class EarthworkProject {
                 project.activeSiteId = activeSiteId;
             }
             project.ensureActiveSite();
-            return project;
-        }
-
-        private EarthworkProject migrateV1() {
-            EarthworkProject project = new EarthworkProject();
-            project.schemaVersion = SCHEMA_VERSION_V2;
-            if (regions == null || regions.isEmpty()) {
-                project.ensureActiveSite();
-                return project;
-            }
-
-            EarthworkSite site = new EarthworkSite();
-            site.setName("Imported Site");
-            MaterialConversionModel siteMaterial = MaterialConversionModel.DEFAULT;
-
-            for (RegionData regionData : regions) {
-                GradingRegion region = regionData.toRegion();
-                if (region == null) {
-                    continue;
-                }
-                if (siteMaterial == MaterialConversionModel.DEFAULT) {
-                    siteMaterial = region.getMaterialProperties();
-                }
-                GradingZone zone = GradingZone.fromGradingRegion(region);
-                zone.setPriority(GradingZone.DEFAULT_PRIORITY);
-                site.addZone(zone);
-            }
-
-            if (site.getZoneCount() == 0) {
-                project.ensureActiveSite();
-                return project;
-            }
-
-            site.setMaterialModel(siteMaterial);
-            site.recomputeSiteBoundaryFromZones();
-            project.addSite(site);
             return project;
         }
     }
@@ -1063,93 +983,6 @@ public class EarthworkProject {
             edge.setLinkedZoneId(linkedZoneId);
             edge.setUseLinkedZoneFillMaterial(useLinkedZoneFillMaterial);
             return edge;
-        }
-    }
-
-  /** v1 兼容字段 */
-    static class RegionData {
-        String id;
-        String name;
-        List<Vec2dData> outerPoints = new ArrayList<>();
-        String surfaceMode = GradingSurfaceMode.LEVEL_PAD.name();
-        boolean autoBalance = true;
-        Integer manualTargetElevation;
-        float reusableRatio = MaterialConversionModel.DEFAULT_REUSABLE_RATIO;
-        float cutToCompactedFillRatio = MaterialConversionModel.DEFAULT_CUT_TO_COMPACTED_FILL_RATIO;
-        /** @deprecated 仅用于读取旧工程 */
-        @Deprecated
-        Float fillFactor;
-        String cutExposeMaterial = "";
-        String fillMaterial = GradingRegion.DEFAULT_FILL_MATERIAL;
-        int previewGridSize;
-        /** @deprecated 旧字段 */
-        @Deprecated
-        Integer gridSize;
-        double slopeDirectionDegrees;
-        int slopePitchRatio = GradingRegion.DEFAULT_SLOPE_PITCH_RATIO;
-        Double slopeAnchorCanvasX;
-        Double slopeAnchorCanvasY;
-        Integer slopeAnchorElevation;
-        double[] threePointCanvasX = new double[3];
-        double[] threePointCanvasY = new double[3];
-        int[] threePointElevation = new int[] {64, 64, 64};
-        boolean fitSlopeBalanceCutFill = true;
-
-        GradingRegion toRegion() {
-            if (outerPoints == null) {
-                return null;
-            }
-            List<Vec2d> points = readPoints(outerPoints);
-            if (points.size() < 3) {
-                return null;
-            }
-            String regionId = id != null && !id.isBlank() ? id : UUID.randomUUID().toString();
-            GradingRegion region = new GradingRegion(regionId, points);
-            region.setName(name);
-            region.setAutoBalance(autoBalance);
-            region.setManualTargetElevation(manualTargetElevation);
-            region.setSurfaceMode(GradingSurfaceMode.fromId(surfaceMode));
-            region.setMaterialProperties(resolveMaterialProperties());
-            if (cutExposeMaterial != null) {
-                region.setCutExposeMaterial(cutExposeMaterial);
-            }
-            if (fillMaterial != null) {
-                region.setFillMaterial(fillMaterial);
-            }
-            region.setPreviewGridSize(resolvePreviewGridSize());
-            region.setSlopeDirectionDegrees(slopeDirectionDegrees);
-            region.setSlopePitchRatio(slopePitchRatio);
-            if (slopeAnchorCanvasX != null && slopeAnchorCanvasY != null) {
-                region.setSlopeAnchorCanvas(new Vec2d(slopeAnchorCanvasX, slopeAnchorCanvasY));
-            }
-            region.setSlopeAnchorElevation(slopeAnchorElevation);
-            if (threePointCanvasX != null && threePointCanvasY != null && threePointElevation != null) {
-                for (int i = 0; i < 3; i++) {
-                    region.setThreePointControl(
-                        i,
-                        new Vec2d(threePointCanvasX[i], threePointCanvasY[i]),
-                        threePointElevation[i]);
-                }
-            }
-            region.setFitSlopeBalanceCutFill(fitSlopeBalanceCutFill);
-            return region;
-        }
-
-        private int resolvePreviewGridSize() {
-            if (previewGridSize > 0) {
-                return previewGridSize;
-            }
-            if (gridSize != null && gridSize > 0) {
-                return gridSize;
-            }
-            return GradingRegion.DEFAULT_PREVIEW_GRID_SIZE;
-        }
-
-        private MaterialConversionModel resolveMaterialProperties() {
-            if (fillFactor != null && fillFactor > 0.0f) {
-                return MaterialConversionModel.fromLegacyFillFactor(fillFactor);
-            }
-            return new MaterialConversionModel(reusableRatio, cutToCompactedFillRatio);
         }
     }
 }

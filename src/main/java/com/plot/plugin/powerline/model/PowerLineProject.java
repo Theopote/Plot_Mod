@@ -25,9 +25,6 @@ import net.minecraft.util.math.BlockPos;
  * 电力线路项目（管理已认领的线路）。
  */
 public class PowerLineProject {
-    /** Current on-disk schema. */
-    public static final int SCHEMA_VERSION = 12;
-
     private static final Gson GSON = new GsonBuilder()
         .setPrettyPrinting()
         .registerTypeAdapter(MaterialMix.class, new MaterialMixTypeAdapter())
@@ -278,12 +275,10 @@ public class PowerLineProject {
     }
 
     static class ProjectData {
-        int schemaVersion = SCHEMA_VERSION;
         List<LineData> lines = new ArrayList<>();
 
         static ProjectData from(PowerLineProject project) {
             ProjectData data = new ProjectData();
-            data.schemaVersion = SCHEMA_VERSION;
             for (PowerLineFootprint line : project.lines.values()) {
                 LineData lineData = new LineData();
                 lineData.id = line.getId();
