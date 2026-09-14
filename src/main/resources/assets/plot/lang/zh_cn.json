@@ -3546,7 +3546,7 @@
   "plugin.powerline.style.delete_user_template_in_use": "无法删除：仍有线路正在使用该造型模板。",
   "plugin.powerline.style.delete_user_template_done": "已删除造型模板「%s」",
   "plugin.powerline.style.advanced.materials_hint": "杆塔与导线材质在快速微调中设置；此处仅配置地线等高级材质。",
-  "plugin.powerline.style.select_line_for_style": "请先在上方选择要编辑的线路。",
+  "plugin.powerline.style.select_line_for_style": "请在线路标签页选择要编辑的线路。",
   "plugin.powerline.style.editing_line": "正在编辑：%s",
   "plugin.powerline.style.category.utility": "配电杆塔",
   "plugin.powerline.style.category.transmission": "输电铁塔",

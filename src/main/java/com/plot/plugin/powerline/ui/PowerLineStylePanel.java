@@ -62,19 +62,12 @@ public final class PowerLineStylePanel {
     }
 
     private void renderLineHeader(PowerLineFootprint line) {
-        float width = ImGui.getContentRegionAvail().x;
-        if (width > 0f) {
-            ImGui.setNextItemWidth(width);
+        if (line == null || ctx.isMultiLineSelection()) {
+            return;
         }
-        if (!PowerLineUiWidgets.renderLineSelector(ctx, false)) {
-            PowerLineUiWidgets.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.powerline.route.current_line_empty"));
-        } else if (line != null && !ctx.isMultiLineSelection()) {
-            PowerLineUiWidgets.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.powerline.style.editing_line", line.getName()));
-        }
+        PowerLineUiWidgets.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.powerline.style.editing_line", line.getName()));
     }
 
     private void renderPresetGallery(PowerLineFootprint line, PowerLineStylePreset base) {

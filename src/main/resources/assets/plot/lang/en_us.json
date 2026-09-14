@@ -3546,7 +3546,7 @@
   "plugin.powerline.style.delete_user_template_in_use": "Cannot delete: one or more lines still use this template.",
   "plugin.powerline.style.delete_user_template_done": "Deleted template \"%s\"",
   "plugin.powerline.style.advanced.materials_hint": "Pole and wire materials are in Quick customize; configure ground wire and other advanced mixes here.",
-  "plugin.powerline.style.select_line_for_style": "Select a line above to edit its style.",
+  "plugin.powerline.style.select_line_for_style": "Select a line on the Route tab to edit its style.",
   "plugin.powerline.style.editing_line": "Editing: %s",
   "plugin.powerline.style.category.utility": "Utility poles",
   "plugin.powerline.style.category.transmission": "Transmission towers",
