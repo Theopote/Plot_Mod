@@ -56,6 +56,34 @@ public final class PowerLinePreviewOverlayRenderer {
             float y0,
             float x1,
             float y1) {
+        draw(
+            drawList,
+            design,
+            representation,
+            overlay,
+            adaptiveHeightMarker,
+            wireMaterial,
+            topWireMaterial,
+            TowerStructuralElevationRenderer.LayoutFit.BALANCED,
+            x0,
+            y0,
+            x1,
+            y1);
+    }
+
+    public static void draw(
+            ImDrawList drawList,
+            PoleDesign design,
+            PreviewRepresentation representation,
+            PreviewOverlay overlay,
+            boolean adaptiveHeightMarker,
+            MaterialMix wireMaterial,
+            MaterialMix topWireMaterial,
+            TowerStructuralElevationRenderer.LayoutFit layoutFit,
+            float x0,
+            float y0,
+            float x1,
+            float y1) {
         if (drawList == null || design == null) {
             return;
         }
@@ -64,7 +92,7 @@ public final class PowerLinePreviewOverlayRenderer {
         if (overlay != null && overlay != PreviewOverlay.NONE) {
             switch (overlay) {
                 case ATTACHMENTS -> drawAttachments(
-                    drawList, design, representation, wireColor, topWireColor, x0, y0, x1, y1);
+                    drawList, design, representation, wireColor, topWireColor, layoutFit, x0, y0, x1, y1);
                 case DECORATIVE_CONDUCTORS -> drawDecorativeConductors(
                     drawList, design, wireColor, topWireColor, x0, y0, x1, y1);
                 case WIND_ROTOR -> drawWindRotorOverlay(drawList, design, x0, y0, x1, y1);
@@ -83,13 +111,21 @@ public final class PowerLinePreviewOverlayRenderer {
             PreviewRepresentation representation,
             int wireColor,
             int topWireColor,
+            TowerStructuralElevationRenderer.LayoutFit layoutFit,
             float x0,
             float y0,
             float x1,
             float y1) {
         if (representation == PreviewRepresentation.STRUCTURAL_FRONT && design.hasTowerStructure()) {
             TowerStructuralElevationRenderer.StructuralLayout layout =
-                TowerStructuralElevationRenderer.computeLayout(design, x0, y0, x1, y1);
+                TowerStructuralElevationRenderer.computeLayout(
+                    design,
+                    TowerStructuralElevationRenderer.StructuralView.FRONT,
+                    x0,
+                    y0,
+                    x1,
+                    y1,
+                    layoutFit);
             if (layout == null) {
                 return;
             }

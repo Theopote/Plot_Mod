@@ -16,28 +16,6 @@ public final class PowerLineStylePreviewBinding {
     private PowerLineStylePreviewBinding() {
     }
 
-    public enum BindingKind {
-        /** 缩略图主轮廓使用与 apply() 相同的杆塔设计 ID。 */
-        POLE_DESIGN,
-        /** 缩略图使用塔型族代表设计（非单一 apply 字段）。 */
-        TOWER_FAMILY_REPRESENTATIVE,
-        /** 缩略图使用正确杆塔设计，并叠加装饰性导线/配件（不影响几何主体）。 */
-        POLE_WITH_DECORATIVE_OVERLAY
-    }
-
-    public static BindingKind bindingKind(PowerLineStylePreset preset) {
-        if (preset == null) {
-            return BindingKind.POLE_DESIGN;
-        }
-        return switch (preset.getPreviewKind()) {
-            case LATTICE, HEAVY_LATTICE, TRIPLE_ARM, CUP_TOWER, MEGA_LATTICE, HEAVY_DOUBLE_CIRCUIT, INDUSTRIAL_PORTAL, MONSTER_PYLON,
-                 ADAPTIVE -> BindingKind.TOWER_FAMILY_REPRESENTATIVE;
-            case WOOD, STEEL_POLE, URBAN, MODERN_UTILITY, JAPANESE, WASTELAND_WIND, OLD_EUROPEAN, STEAMPUNK,
-                 MODERN_HV_GLASS, SUBURBAN_LAMP, ABANDONED, RUSTIC -> BindingKind.POLE_WITH_DECORATIVE_OVERLAY;
-            default -> BindingKind.POLE_DESIGN;
-        };
-    }
-
     /** Gallery 卡片预览绑定：主体绘制方式 + 叠加层。 */
     public static StyleCardPreviewBinding cardPreviewBinding(PowerLineStylePreset preset) {
         return new StyleCardPreviewBinding(
@@ -107,7 +85,6 @@ public final class PowerLineStylePreviewBinding {
             case WOOD, DOUBLE_WOOD, STEEL_POLE, URBAN, MODERN_UTILITY, JAPANESE, OLD_EUROPEAN, SUBURBAN_LAMP,
                  ABANDONED, RUSTIC, COPPER, WASTELAND_WIND
                 -> PreviewOverlay.DECORATIVE_CONDUCTORS;
-            default -> PreviewOverlay.NONE;
         };
     }
 

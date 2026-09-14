@@ -22,7 +22,15 @@ import java.util.List;
  * 保持完整真实比例，不经过体素化。
  */
 public final class TowerStructuralElevationRenderer {
+    public enum LayoutFit {
+        /** 完整纳入视口，不裁切。 */
+        BALANCED,
+        /** 画廊/紧凑卡片：优先可读塔高，宽横担可轻微裁切。 */
+        CARD_THUMBNAIL
+    }
+
     private static final float PADDING = 8f;
+    private static final float CARD_PADDING = 4f;
     private static final float LEG_THICKNESS = 2.2f;
     private static final float ARM_THICKNESS = 1.7f;
     private static final float BRACE_THICKNESS = 1.1f;
@@ -127,11 +135,33 @@ public final class TowerStructuralElevationRenderer {
     }
 
     public static boolean drawFront(ImDrawList drawList, PoleDesign design, float x0, float y0, float x1, float y1) {
-        return draw(drawList, design, StructuralView.FRONT, x0, y0, x1, y1);
+        return drawFront(drawList, design, x0, y0, x1, y1, LayoutFit.BALANCED);
+    }
+
+    public static boolean drawFront(
+            ImDrawList drawList,
+            PoleDesign design,
+            float x0,
+            float y0,
+            float x1,
+            float y1,
+            LayoutFit fit) {
+        return draw(drawList, design, StructuralView.FRONT, x0, y0, x1, y1, fit);
     }
 
     public static boolean drawSide(ImDrawList drawList, PoleDesign design, float x0, float y0, float x1, float y1) {
-        return draw(drawList, design, StructuralView.SIDE, x0, y0, x1, y1);
+        return drawSide(drawList, design, x0, y0, x1, y1, LayoutFit.BALANCED);
+    }
+
+    public static boolean drawSide(
+            ImDrawList drawList,
+            PoleDesign design,
+            float x0,
+            float y0,
+            float x1,
+            float y1,
+            LayoutFit fit) {
+        return draw(drawList, design, StructuralView.SIDE, x0, y0, x1, y1, fit);
     }
 
     private static boolean draw(
@@ -142,11 +172,23 @@ public final class TowerStructuralElevationRenderer {
             float y0,
             float x1,
             float y1) {
+        return draw(drawList, design, view, x0, y0, x1, y1, LayoutFit.BALANCED);
+    }
+
+    private static boolean draw(
+            ImDrawList drawList,
+            PoleDesign design,
+            StructuralView view,
+            float x0,
+            float y0,
+            float x1,
+            float y1,
+            LayoutFit fit) {
         if (drawList == null || design == null || !design.hasTowerStructure()) {
             return false;
         }
         TowerStructureDesign structure = design.getTowerStructure();
-        StructuralLayout layout = computeLayout(design, view, x0, y0, x1, y1);
+        StructuralLayout layout = computeLayout(design, view, x0, y0, x1, y1, fit);
         if (layout == null) {
             return false;
         }
@@ -175,7 +217,7 @@ public final class TowerStructuralElevationRenderer {
             float y0,
             float x1,
             float y1) {
-        return computeLayout(structure, StructuralView.FRONT, x0, y0, x1, y1);
+        return computeLayout(structure, StructuralView.FRONT, x0, y0, x1, y1, LayoutFit.BALANCED);
     }
 
     public static StructuralLayout computeLayout(
@@ -185,6 +227,17 @@ public final class TowerStructuralElevationRenderer {
             float y0,
             float x1,
             float y1) {
+        return computeLayout(structure, view, x0, y0, x1, y1, LayoutFit.BALANCED);
+    }
+
+    public static StructuralLayout computeLayout(
+            TowerStructureDesign structure,
+            StructuralView view,
+            float x0,
+            float y0,
+            float x1,
+            float y1,
+            LayoutFit fit) {
         if (structure == null) {
             return null;
         }
@@ -220,17 +273,15 @@ public final class TowerStructuralElevationRenderer {
                 maxHeight = Math.max(maxHeight, decoration.getBaseHeight() + 3.5);
             }
         }
-        float availW = Math.max(1f, x1 - x0 - PADDING * 2f);
-        float availH = Math.max(1f, y1 - y0 - PADDING * 2f);
-        float scale = Math.min(availW / (float) (maxHalfWidth * 2.0), availH / (float) maxHeight);
-        return new StructuralLayout(scale, (x0 + x1) * 0.5f, y1 - PADDING);
+        float padding = paddingFor(fit);
+        float availW = Math.max(1f, x1 - x0 - padding * 2f);
+        float availH = Math.max(1f, y1 - y0 - padding * 2f);
+        float scale = resolveScale(availW, availH, maxHalfWidth * 2.0, maxHeight, fit);
+        return new StructuralLayout(scale, (x0 + x1) * 0.5f, y1 - padding);
     }
 
     public static StructuralLayout computeLayout(PoleDesign design, float x0, float y0, float x1, float y1) {
-        if (design == null || !design.hasTowerStructure()) {
-            return null;
-        }
-        return computeLayout(design.getTowerStructure(), x0, y0, x1, y1);
+        return computeLayout(design, StructuralView.FRONT, x0, y0, x1, y1, LayoutFit.BALANCED);
     }
 
     public static StructuralLayout computeLayout(
@@ -240,14 +291,21 @@ public final class TowerStructuralElevationRenderer {
             float y0,
             float x1,
             float y1) {
+        return computeLayout(design, view, x0, y0, x1, y1, LayoutFit.BALANCED);
+    }
+
+    public static StructuralLayout computeLayout(
+            PoleDesign design,
+            StructuralView view,
+            float x0,
+            float y0,
+            float x1,
+            float y1,
+            LayoutFit fit) {
         if (design == null || !design.hasTowerStructure()) {
             return null;
         }
         TowerStructureDesign structure = design.getTowerStructure();
-        StructuralLayout structureLayout = computeLayout(structure, view, x0, y0, x1, y1);
-        if (structureLayout == null) {
-            return null;
-        }
         double maxHalfSpan = 1.0;
         double maxHeight = structure.maxHeight();
         for (TowerStation station : structure.sortedStations()) {
@@ -257,6 +315,19 @@ public final class TowerStructuralElevationRenderer {
             maxHalfSpan = Math.max(
                 maxHalfSpan,
                 view == StructuralView.FRONT ? arm.getLateralReach() : arm.getLongitudinalHalfWidth());
+        }
+        for (TowerDecoration decoration : structure.getDecorations()) {
+            if (decoration == null || !decoration.isEnabled()) {
+                continue;
+            }
+            double offset = Math.abs(decorationOffset(decoration, view));
+            double halfSize = decoration.getKind() == TowerDecorationKind.PLATFORM ? decoration.getSize() : 0.0;
+            maxHalfSpan = Math.max(maxHalfSpan, offset + halfSize);
+            if (decoration.getKind() == TowerDecorationKind.ANTENNA) {
+                maxHeight = Math.max(maxHeight, decoration.getBaseHeight() + Math.max(2.0, decoration.getSize()));
+            } else {
+                maxHeight = Math.max(maxHeight, decoration.getBaseHeight() + 3.5);
+            }
         }
         for (ConductorAttachment attachment : design.getAttachments()) {
             if (!attachment.isEnabled()) {
@@ -270,13 +341,38 @@ public final class TowerStructuralElevationRenderer {
             maxHalfSpan = Math.max(maxHalfSpan, Math.abs(offset) + 0.75);
             maxHeight = Math.max(maxHeight, local.vertical() + 0.75);
         }
-        if (maxHalfSpan <= 1.0 && maxHeight <= 0.0) {
-            return structureLayout;
+        float padding = paddingFor(fit);
+        float availW = Math.max(1f, x1 - x0 - padding * 2f);
+        float availH = Math.max(1f, y1 - y0 - padding * 2f);
+        float scale = resolveScale(availW, availH, maxHalfSpan * 2.0, maxHeight, fit);
+        return new StructuralLayout(scale, (x0 + x1) * 0.5f, y1 - padding);
+    }
+
+    private static float paddingFor(LayoutFit fit) {
+        return fit == LayoutFit.CARD_THUMBNAIL ? CARD_PADDING : PADDING;
+    }
+
+    private static float resolveScale(
+            float availW,
+            float availH,
+            double modelWidth,
+            double modelHeight,
+            LayoutFit fit) {
+        if (modelWidth <= 0.0 || modelHeight <= 0.0) {
+            return 1f;
         }
-        float availW = Math.max(1f, x1 - x0 - PADDING * 2f);
-        float availH = Math.max(1f, y1 - y0 - PADDING * 2f);
-        float scale = Math.min(availW / (float) (maxHalfSpan * 2.0), availH / (float) maxHeight);
-        return new StructuralLayout(scale, (x0 + x1) * 0.5f, y1 - PADDING);
+        float scaleByHeight = availH / (float) modelHeight;
+        float scaleByWidth = availW / (float) modelWidth;
+        if (fit != LayoutFit.CARD_THUMBNAIL) {
+            return Math.min(scaleByWidth, scaleByHeight);
+        }
+        float balanced = Math.min(scaleByWidth, scaleByHeight);
+        float heightPriority = scaleByHeight * 0.96f;
+        float minFill = StylePreviewLayout.cardThumbnailMinHeightFill();
+        if (modelHeight * balanced < availH * minFill) {
+            return heightPriority;
+        }
+        return balanced;
     }
 
     private static void drawLegs(

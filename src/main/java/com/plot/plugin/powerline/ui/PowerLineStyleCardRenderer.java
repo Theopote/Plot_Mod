@@ -6,6 +6,7 @@ import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.preview.PoleVoxelElevationRenderer;
 import com.plot.plugin.powerline.preview.PowerLinePreviewOverlayRenderer;
+import com.plot.plugin.powerline.preview.StylePreviewLayout;
 import com.plot.plugin.powerline.preview.TowerStructuralElevationRenderer;
 import com.plot.plugin.powerline.style.EffectiveStylePreview;
 import com.plot.plugin.powerline.style.EffectiveStylePreviewResolver;
@@ -23,8 +24,8 @@ import imgui.ImVec2;
 /** 样式 Tab 的杆塔风格卡片（缩略图 + 标签 + 选中高亮）。 */
 public final class PowerLineStyleCardRenderer {
     public static final float CARD_WIDTH = 120f;
-    public static final float CARD_HEIGHT = 144f;
-    private static final float PREVIEW_HEIGHT = 96f;
+    public static final float CARD_HEIGHT = 150f;
+    private static final float PREVIEW_HEIGHT = 102f;
     private static final float LABEL_PADDING = 4f;
 
     private static final int COLOR_BG_SELECTED = 0xFF263238;
@@ -427,10 +428,13 @@ public final class PowerLineStyleCardRenderer {
         PreviewRepresentation representation = binding != null
             ? binding.representation()
             : PreviewRepresentation.VOXEL_FRONT;
+        TowerStructuralElevationRenderer.LayoutFit layoutFit =
+            StylePreviewLayout.fitForBounds(x0, y0, x1, y1);
         boolean drawn = false;
         if (design != null) {
             if (representation == PreviewRepresentation.STRUCTURAL_FRONT) {
-                drawn = TowerStructuralElevationRenderer.drawFront(drawList, design, x0, y0, x1, y1);
+                drawn = TowerStructuralElevationRenderer.drawFront(
+                    drawList, design, x0, y0, x1, y1, layoutFit);
             }
             if (!drawn) {
                 drawn = PoleVoxelElevationRenderer.drawFront(drawList, design, x0, y0, x1, y1);
@@ -449,6 +453,7 @@ public final class PowerLineStyleCardRenderer {
                 adaptiveHeightMarker,
                 wireMaterial,
                 topWireMaterial,
+                layoutFit,
                 x0,
                 y0,
                 x1,
