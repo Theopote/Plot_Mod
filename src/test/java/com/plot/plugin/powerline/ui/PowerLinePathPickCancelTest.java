@@ -4,11 +4,13 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.context.PluginContext;
 import com.plot.core.geometry.shapes.LineShape;
+import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.plugin.powerline.PowerLinePathPickSession;
 import com.plot.plugin.powerline.PowerLinePathSelectionAnalysis;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerLineProject;
+import com.plot.test.world.IdentityCoordinateService;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -26,7 +28,7 @@ class PowerLinePathPickCancelTest {
             applicationContext.getCommandService(),
             applicationContext.getEventBus(),
             applicationContext.getToolManager(),
-            null,
+            IdentityCoordinateService.INSTANCE,
             null,
             null,
             null);
@@ -176,5 +178,44 @@ class PowerLinePathPickCancelTest {
             List.of(),
             List.of()));
         assertTrue(uiContext(state).isPathReplaceConfirmPending());
+    }
+
+    @Test
+    void applyPickedPathsDoesNotPushHistoryWhenAllCreationsFail() {
+        PowerLinePluginState state = new PowerLinePluginState();
+        state.setProject(new PowerLineProject());
+        state.setDesignProject(new PowerLineDesignProject());
+
+        PolylineShape degenerate = new PolylineShape(
+            List.of(new Vec2d(0, 0), new Vec2d(20, 0), new Vec2d(40, 0)),
+            true);
+        PowerLinePathSelectionAnalysis selection = PowerLinePathSelectionAnalysis.analyze(List.of(degenerate));
+        assertTrue(selection.canAdopt());
+        state.setPathSelection(selection);
+
+        uiContext(state).applyPickedPaths();
+
+        assertFalse(state.getProjectHistory().canUndo());
+        assertEquals(0, state.getProject().getLineCount());
+    }
+
+    @Test
+    void applyPickedPathsPushesHistoryOnlyOnFirstSuccessfulCreation() {
+        PowerLinePluginState state = new PowerLinePluginState();
+        state.setProject(new PowerLineProject());
+        state.setDesignProject(new PowerLineDesignProject());
+
+        LineShape validPath = new LineShape(new Vec2d(0, 0), new Vec2d(20, 0));
+        PolylineShape degenerate = new PolylineShape(
+            List.of(new Vec2d(0, 0), new Vec2d(20, 0), new Vec2d(40, 0)),
+            true);
+        PowerLinePathSelectionAnalysis selection = PowerLinePathSelectionAnalysis.analyze(
+            List.of(degenerate, validPath));
+        state.setPathSelection(selection);
+
+        uiContext(state).applyPickedPaths();
+
+        assertTrue(state.getProjectHistory().canUndo());
+        assertEquals(1, state.getProject().getLineCount());
     }
 }

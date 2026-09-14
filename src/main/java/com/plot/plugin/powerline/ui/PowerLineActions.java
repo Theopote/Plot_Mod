@@ -173,14 +173,13 @@ public final class PowerLineActions {
     }
 
     private void createLinesFromPickedPaths(PowerLinePathSelectionAnalysis selection) {
-        pushWorkspaceSnapshot();
         int created = 0;
         int skipped = selection.skippedCount();
         List<String> createdIds = new ArrayList<>();
         boolean curveRejected = !selection.rejectedCurves().isEmpty();
 
         for (Shape shape : selection.adoptable()) {
-            if (applyPickedPath(shape, createdIds)) {
+            if (applyPickedPath(shape, createdIds, created == 0)) {
                 created++;
             } else {
                 skipped++;
@@ -213,9 +212,12 @@ public final class PowerLineActions {
         }
     }
 
-    private boolean applyPickedPath(Shape shape, List<String> createdLineIds) {
+    private boolean applyPickedPath(Shape shape, List<String> createdLineIds, boolean captureSnapshot) {
         try {
             PowerLineFootprint line = PowerLinePathLayout.adopt(shape, host.coordinates());
+            if (captureSnapshot) {
+                pushWorkspaceSnapshot();
+            }
             line.setName(nextDefaultLineName());
             com.plot.plugin.powerline.style.PowerLineStyleEditor.selectPreset(
                 line,
