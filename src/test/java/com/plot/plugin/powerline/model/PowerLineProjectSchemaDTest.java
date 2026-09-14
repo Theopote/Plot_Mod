@@ -1,10 +1,8 @@
 package com.plot.plugin.powerline.model;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.family.TowerFamily;
-import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

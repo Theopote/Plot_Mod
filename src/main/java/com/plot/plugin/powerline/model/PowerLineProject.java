@@ -26,7 +26,7 @@ import net.minecraft.util.math.BlockPos;
  */
 public class PowerLineProject {
     /** Current on-disk schema. */
-    public static final int SCHEMA_VERSION = 11;
+    public static final int SCHEMA_VERSION = 12;
 
     private static final Gson GSON = new GsonBuilder()
         .setPrettyPrinting()
