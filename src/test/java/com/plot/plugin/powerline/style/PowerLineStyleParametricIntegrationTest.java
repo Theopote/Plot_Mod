@@ -53,6 +53,22 @@ class PowerLineStyleParametricIntegrationTest {
         assertEquals(
             TowerParameterProfiles.SMALL_LATTICE_ID,
             line.getParametricTowerConfig().profileId());
+        assertEquals(24.0, line.getParametricTowerConfig().parameters().height(), 0.01);
+    }
+
+    @Test
+    void taperedTowerUsesTallerWaistedSmallLatticeDefaults() {
+        PowerLineStylePreset preset = PowerLineStylePresetCatalog.taperedTower();
+        assertNotNull(preset.getDefinition().getParametricConfig());
+        assertEquals(
+            TowerParameterProfiles.SMALL_LATTICE_ID,
+            preset.getDefinition().getParametricConfig().profileId());
+        assertEquals(30.0, preset.getDefinition().getParametricConfig().parameters().height(), 0.01);
+        assertEquals(0.82, preset.getDefinition().getParametricConfig().parameters().waistRatio(), 0.01);
+
+        PowerLineFootprint line = line();
+        preset.apply(line);
+        assertEquals(30.0, line.getParametricTowerConfig().parameters().height(), 0.01);
     }
 
     @Test

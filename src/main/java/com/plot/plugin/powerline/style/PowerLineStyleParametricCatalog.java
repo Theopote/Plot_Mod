@@ -53,9 +53,11 @@ public final class PowerLineStyleParametricCatalog {
         if (poleDesignId == null || poleDesignId.isBlank()) {
             return null;
         }
-        if (PoleDesignCatalog.LATTICE_STEEL_TOWER_ID.equals(poleDesignId)
-                || PoleDesignCatalog.TAPERED_LATTICE_TOWER_ID.equals(poleDesignId)) {
+        if (PoleDesignCatalog.LATTICE_STEEL_TOWER_ID.equals(poleDesignId)) {
             return TowerGeneratorConfig.parametricSmallLattice(TowerParameterSet.smallLatticeDefaults());
+        }
+        if (PoleDesignCatalog.TAPERED_LATTICE_TOWER_ID.equals(poleDesignId)) {
+            return TowerGeneratorConfig.parametricSmallLattice(TowerParameterSet.taperedLatticeDefaults());
         }
         if (PoleDesignCatalog.HEAVY_LATTICE_TOWER_ID.equals(poleDesignId)) {
             return TowerGeneratorConfig.parametricHeavy(TowerParameterSet.heavyDefaults());

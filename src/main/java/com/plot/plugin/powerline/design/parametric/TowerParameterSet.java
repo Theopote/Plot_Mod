@@ -29,6 +29,11 @@ public record TowerParameterSet(
         return new TowerParameterSet(24.0, 9.0, 16.0, 1.0, DEFAULT_WAIST_RATIO, null, StructureDensity.MEDIUM);
     }
 
+    /** 锥形铁塔：更高、更收腰，与简易格构杆的紧凑剪影区分。 */
+    public static TowerParameterSet taperedLatticeDefaults() {
+        return new TowerParameterSet(30.0, 8.0, 17.0, 1.0, 0.82, null, StructureDensity.MEDIUM);
+    }
+
     public static TowerParameterSet tripleArmDefaults() {
         return new TowerParameterSet(50.0, 16.0, 29.0, 1.0, DEFAULT_WAIST_RATIO, null, StructureDensity.MEDIUM);
     }

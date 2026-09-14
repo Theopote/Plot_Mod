@@ -222,7 +222,11 @@ public final class PoleDesignCatalog {
         List<PoleLayer> layers = new ArrayList<>();
         layers.add(new PoleLayer(
             PoleLayer.Shape.COLUMN,
-            10,
+            7,
+            MaterialMix.single("minecraft:iron_bars")));
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            2,
             MaterialMix.single("minecraft:iron_block")));
         layers.add(new PoleLayer(
             PoleLayer.Shape.CAP,
