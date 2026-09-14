@@ -54,12 +54,12 @@ public final class PowerLineOverviewPanel {
             lineId -> ctx.selectLine(lineId, ImGui.getIO().getKeyCtrl()),
             ctx.coordinates());
 
-        ImGui.spacing();
-        ImGui.beginChild("powerline_overview_list", 0, 120f, true);
+        if (!ctx.project().getLines().isEmpty()) {
+            ImGui.spacing();
+        }
         for (PowerLineFootprint line : ctx.project().getLines().values()) {
             renderLineRow(line);
         }
-        ImGui.endChild();
     }
 
     private void renderLineRow(PowerLineFootprint line) {
@@ -93,8 +93,6 @@ public final class PowerLineOverviewPanel {
             ctx.setDeleteConfirmPending(true);
         }
         ImGui.endGroup();
-
-        ImGui.separator();
         ImGui.popID();
     }
 

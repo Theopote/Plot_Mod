@@ -128,7 +128,6 @@ public final class PowerLineRoutePanel {
 
     private void renderPolePlacement(PowerLineFootprint line) {
         renderPlacementMode(line);
-        ImGui.spacing();
         if (line.getPoleSpacingMode() == PoleSpacingMode.AUTO_SPACING) {
             renderSpacingPresets(line);
             renderSpacingSlider(line);
@@ -144,7 +143,6 @@ public final class PowerLineRoutePanel {
                 PlotI18n.tr("plugin.powerline.route.placement_mode_hint.ENDPOINTS_WITH_CORNERS"));
         }
         renderCornerBehaviorHint(line);
-        ImGui.spacing();
         renderTerrainAvoidance(line);
     }
 
