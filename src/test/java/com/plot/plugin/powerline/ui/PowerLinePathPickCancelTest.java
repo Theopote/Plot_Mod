@@ -31,7 +31,7 @@ class PowerLinePathPickCancelTest {
         state.beginLineNameRename(line.getId(), line.getName());
         state.getLineNameBuffer().set("Line B");
         state.getLineNameBuffer().set("Line B".trim());
-        assertTrue(state.getLineNameEditingId().equals(line.getId()));
+        assertEquals(state.getLineNameEditingId(), line.getId());
 
         String trimmed = state.getLineNameBuffer().get().trim();
         if (!trimmed.isEmpty()) {

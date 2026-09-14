@@ -4,7 +4,6 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.CircleShape;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.geometry.shapes.RectangleShape;
-import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.PlacementReadiness;
@@ -20,7 +19,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 

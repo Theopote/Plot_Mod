@@ -23,8 +23,6 @@ import com.plot.plugin.powerline.PowerLinePathUtils;
 import com.plot.plugin.powerline.PowerPoleLayoutUtils;
 import com.plot.plugin.powerline.path.ClosedLoopLayoutException;
 import com.plot.plugin.powerline.path.PowerLinePathLayout;
-import com.plot.plugin.powerline.path.PowerLineSourceSync;
-import com.plot.plugin.powerline.path.SourceSyncStatus;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.parametric.TowerParametricBuildPolicy;
@@ -33,7 +31,6 @@ import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerLineProject;
 import com.plot.core.terrain.MinecraftTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
-import com.plot.ui.canvas.Canvas;
 import com.plot.utils.PlotI18n;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.world.World;
@@ -310,14 +307,6 @@ public final class PowerLineActions {
             return false;
         }
 
-        SourceSyncStatus sourceStatus = PowerLineSourceSync.resolveStatus(
-            line,
-            host.appState().getShapes());
-        if (sourceStatus != SourceSyncStatus.NOT_LINKED && sourceStatus != SourceSyncStatus.OK) {
-            state.setProjectStatus(sourceStatusMessage(sourceStatus), ProjectStatusSeverity.WARNING);
-            return false;
-        }
-
         if (PluginProjectionContext.tryCapture(host.coordinates()).isEmpty()) {
             state.setLastGenerationResult(null);
             state.setProjectStatus(
@@ -360,16 +349,6 @@ public final class PowerLineActions {
                 result.warnings.isEmpty() ? ProjectStatusSeverity.SUCCESS : ProjectStatusSeverity.WARNING);
         }
         return true;
-    }
-
-    private String sourceStatusMessage(SourceSyncStatus status) {
-        return switch (status) {
-            case STALE -> PlotI18n.tr("plugin.powerline.source_stale");
-            case MISSING -> PlotI18n.tr("plugin.powerline.source_missing");
-            case UNSUPPORTED -> PlotI18n.tr("plugin.powerline.source_unsupported");
-            case DEGENERATE -> PlotI18n.tr("plugin.powerline.source_degenerate");
-            default -> PlotI18n.tr("plugin.powerline.source_stale");
-        };
     }
 
     public PowerLineValidationReport analyzeTerrainCollisions(PowerLineFootprint line) {
@@ -537,7 +516,7 @@ public final class PowerLineActions {
             .resolveStatusMessage(fixesApplied, remainingIssues);
         if (message != null) {
             ProjectStatusSeverity severity = remainingIssues > 0
-                ? (fixesApplied > 0 ? ProjectStatusSeverity.WARNING : ProjectStatusSeverity.WARNING)
+                ? (ProjectStatusSeverity.WARNING)
                 : (fixesApplied > 0 ? ProjectStatusSeverity.SUCCESS : ProjectStatusSeverity.INFO);
             state.setProjectStatus(message, severity);
         }
@@ -573,10 +552,7 @@ public final class PowerLineActions {
         if (line == null) {
             return false;
         }
-        if (refreshPreviewQuietly(line)) {
-            return true;
-        }
-        return false;
+        return refreshPreviewQuietly(line);
     }
 
     private boolean refreshPreviewQuietly(PowerLineFootprint line) {
@@ -591,12 +567,6 @@ public final class PowerLineActions {
         PowerLinePreviewKey key = state.getPreviewKey();
         PowerLineGenerationResult result = state.getLastGenerationResult();
         if (key == null || result == null || line == null) {
-            return false;
-        }
-        SourceSyncStatus sourceStatus = PowerLineSourceSync.resolveStatus(
-            line,
-            host.appState().getShapes());
-        if (sourceStatus != SourceSyncStatus.NOT_LINKED && sourceStatus != SourceSyncStatus.OK) {
             return false;
         }
         if (result.footprint == null || !line.getId().equals(result.footprint.getId())) {
@@ -740,29 +710,6 @@ public final class PowerLineActions {
 
     public boolean requestBuildConfirm(PowerLineFootprint line) {
         return ensurePreviewReadyForBuild(line);
-    }
-
-    public void locateLine(PowerLineFootprint line) {
-        if (line == null || line.getPathPoints().isEmpty()) {
-            return;
-        }
-        Vec2d centroid = computeCentroid(line.getPathPoints());
-        Canvas canvas = com.plot.ui.canvas.CanvasAccess.get();
-        if (canvas != null && canvas.getCamera() != null) {
-            canvas.getCamera().setOffset(centroid);
-            selectLine(line.getId(), false);
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.locate_success", line.getName()), ProjectStatusSeverity.SUCCESS);
-        }
-    }
-
-    private static Vec2d computeCentroid(List<Vec2d> points) {
-        double x = 0.0;
-        double y = 0.0;
-        for (Vec2d point : points) {
-            x += point.x;
-            y += point.y;
-        }
-        return new Vec2d(x / points.size(), y / points.size());
     }
 
     public boolean hasMinSpacingWarning(PowerLineFootprint line) {
@@ -1152,10 +1099,6 @@ public final class PowerLineActions {
                 designResolver());
         state.getValidationState().setPendingOptimization(optimization);
         return optimization;
-    }
-
-    public OptimizationResult proposeOptimization(PowerLineFootprint line) {
-        return proposeClearanceFix(line);
     }
 
     public void applyPendingOptimization(PowerLineFootprint line) {

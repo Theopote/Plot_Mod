@@ -38,7 +38,6 @@ public final class PowerLineRoutePanel {
         overviewPanel.renderProjectSection();
 
         ImGui.separator();
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.path"));
         adoptPanel.render(line);
 
         if (line != null) {

@@ -181,10 +181,6 @@ public final class PowerLineUiContext {
         actions.buildInWorld();
     }
 
-    public void locateLine(PowerLineFootprint line) {
-        actions.locateLine(line);
-    }
-
     public boolean hasMinSpacingWarning(PowerLineFootprint line) {
         return actions.hasMinSpacingWarning(line);
     }

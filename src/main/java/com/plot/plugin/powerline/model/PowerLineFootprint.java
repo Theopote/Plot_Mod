@@ -13,7 +13,6 @@ import com.plot.plugin.powerline.style.PowerLineStyleInstance;
 import com.plot.plugin.powerline.style.StyleOverrides;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -346,7 +345,7 @@ public class PowerLineFootprint {
     }
 
     public List<PoleOverride> getPoleOverrides() {
-        return Collections.unmodifiableList(new ArrayList<>(poleOverrides));
+        return List.copyOf(poleOverrides);
     }
 
     public void setPoleOverrides(List<PoleOverride> overrides) {
@@ -372,7 +371,7 @@ public class PowerLineFootprint {
     }
 
     public List<PoleLayoutConstraint> getLayoutConstraints() {
-        return Collections.unmodifiableList(new ArrayList<>(layoutConstraints));
+        return List.copyOf(layoutConstraints);
     }
 
     public void setLayoutConstraints(List<PoleLayoutConstraint> constraints) {
@@ -563,8 +562,7 @@ public class PowerLineFootprint {
      * 影响生成结果的完整参数指纹（几何 + 分析）。
      */
     public int generationFingerprint() {
-        int hash = 31 * geometryFingerprint() + analysisFingerprint();
-        return hash;
+        return 31 * geometryFingerprint() + analysisFingerprint();
     }
 
     private static int parametricConfigFingerprint(TowerGeneratorConfig config) {

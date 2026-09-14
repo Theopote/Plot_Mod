@@ -3,7 +3,6 @@ package com.plot.plugin.powerline.model;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.plot.api.geometry.Vec2d;
-import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfigData;
@@ -13,13 +12,8 @@ import com.plot.plugin.powerline.style.StyleOverrides;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-import net.minecraft.util.math.BlockPos;
 
 /**
  * 电力线路项目（管理已认领的线路）。
@@ -166,28 +160,6 @@ public class PowerLineProject {
         }
     }
 
-    static class BlockRecordData {
-        int x;
-        int y;
-        int z;
-        String previousBlockId;
-        String newBlockId;
-
-        static BlockRecordData from(BlockRecord record) {
-            BlockRecordData data = new BlockRecordData();
-            data.x = record.pos.getX();
-            data.y = record.pos.getY();
-            data.z = record.pos.getZ();
-            data.previousBlockId = record.previousBlockId;
-            data.newBlockId = record.newBlockId;
-            return data;
-        }
-
-        BlockRecord toRecord() {
-            return new BlockRecord(new BlockPos(x, y, z), previousBlockId, newBlockId);
-        }
-    }
-
     static class StyleOverridesData {
         Double sagRatio;
         Double maxSagDepth;
@@ -331,7 +303,7 @@ public class PowerLineProject {
                     if (source.ellipseCenter() != null
                             && source.kind() != PowerLineSourceDescriptor.Kind.POLYLINE
                             && source.kind() != PowerLineSourceDescriptor.Kind.BEZIER) {
-                        lineData.sourceEllipseCenter = new Vec2dData(source.ellipseCenter());
+                        lineData.sourceEllipseCenter = new Vec2dData(Objects.requireNonNull(source.ellipseCenter()));
                         lineData.sourceEllipseRadiusX = source.ellipseRadiusX();
                         lineData.sourceEllipseRadiusY = source.ellipseRadiusY();
                         lineData.sourceEllipseRotation = source.ellipseRotation();
