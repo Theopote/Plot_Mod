@@ -38,11 +38,12 @@ public final class PoleDesignerPanel {
     private static final float DESIGNER_HEIGHT = 760f;
     private static final int DESIGNER_WINDOW_FLAGS =
         ImGuiWindowFlags.NoDocking | ImGuiWindowFlags.NoSavedSettings;
+    private static final int NAME_BUFFER_CAPACITY = 128;
 
     private final PowerLineUiContext ctx;
     private PoleDesign draft;
-    private final ImString designNameBuffer = new ImString(64);
-    private final ImString saveAsNameBuffer = new ImString(64);
+    private final ImString designNameBuffer = new ImString(NAME_BUFFER_CAPACITY);
+    private final ImString saveAsNameBuffer = new ImString(NAME_BUFFER_CAPACITY);
     private boolean closeConfirmPending = false;
     private String openedBaselineJson = "";
     private final ImBoolean designerWindowOpen = new ImBoolean(false);
@@ -108,7 +109,7 @@ public final class PoleDesignerPanel {
         towerUiState.syncFromDraft(draft);
         towerSession.beginSession(draft);
         towerSession.refreshConstraints(draft);
-        designNameBuffer.set(draft.getName());
+        assignImString(designNameBuffer, draft.getName());
         ctx.state().getDesignDraftHistory().clear();
         captureOpenedBaseline();
         designerWindowOpen.set(true);
@@ -314,7 +315,7 @@ public final class PoleDesignerPanel {
         }
         ImGui.sameLine(0, DialogStyleManager.FOOTER_BUTTON_GAP);
         if (ImGui.button(saveAsLabel, buttonWidth, 0)) {
-            saveAsNameBuffer.set(draft.getName() + " Copy");
+            assignImString(saveAsNameBuffer, defaultSaveAsName());
             ImGui.openPopup("##pole_design_save_as");
         }
         if (saveBlocked) {
@@ -329,13 +330,17 @@ public final class PoleDesignerPanel {
         }
 
         if (ImGui.beginPopup("##pole_design_save_as")) {
-            ImGui.inputText(PlotI18n.tr("plugin.powerline.design.save_as_name"), saveAsNameBuffer);
+            if (DialogLayoutHelper.beginForm("##pole_design_save_as_form")) {
+                DialogLayoutHelper.formRowLabel(PlotI18n.tr("plugin.powerline.design.save_as_name"));
+                ImGui.inputText("##pole_design_save_as_name", saveAsNameBuffer);
+                DialogLayoutHelper.endForm();
+            }
             if (saveBlocked) {
                 ImGui.beginDisabled();
             }
             if (ImGui.button(PlotI18n.tr("button.plot.confirm"), 120, 0)) {
                 draft.setName(saveAsNameBuffer.get());
-                designNameBuffer.set(draft.getName());
+                assignImString(designNameBuffer, draft.getName());
                 if (saveDraft(true)) {
                     ImGui.closeCurrentPopup();
                 }
@@ -359,7 +364,7 @@ public final class PoleDesignerPanel {
 
     private void applyDraftFromHistory(PoleDesign restored) {
         draft = restored;
-        designNameBuffer.set(draft.getName());
+        assignImString(designNameBuffer, draft.getName());
         towerUiState.syncFromDraft(draft);
         towerSession.afterDraftRestored(draft);
     }
@@ -526,7 +531,7 @@ public final class PoleDesignerPanel {
             }
         }
         towerSession.commitFootprintBaselineAfterSave();
-        designNameBuffer.set(draft.getName());
+        assignImString(designNameBuffer, draft.getName());
         ctx.state().getDesignDraftHistory().clear();
         captureOpenedBaseline();
         ctx.state().setProjectStatus(
@@ -565,7 +570,7 @@ public final class PoleDesignerPanel {
         }
         towerSession.syncParametricConfigToSelectedLine(draft);
         towerSession.commitFootprintBaselineAfterSave();
-        designNameBuffer.set(draft.getName());
+        assignImString(designNameBuffer, draft.getName());
         ctx.state().getDesignDraftHistory().clear();
         captureOpenedBaseline();
         return true;
@@ -583,5 +588,21 @@ public final class PoleDesignerPanel {
             4,
             MaterialMix.single(PowerLineFootprint.DEFAULT_POLE_MATERIAL)));
         return design;
+    }
+
+    private String defaultSaveAsName() {
+        String base = draft != null ? draft.getName() : "";
+        if (editScope == PoleDesignerEditScope.LINE_INSTANCE) {
+            base = PlotI18n.tr("plugin.powerline.design.new_name");
+        }
+        return base + " Copy";
+    }
+
+    private static void assignImString(ImString buffer, String text) {
+        String value = text != null ? text : "";
+        if (value.length() >= NAME_BUFFER_CAPACITY) {
+            value = value.substring(0, NAME_BUFFER_CAPACITY - 1);
+        }
+        buffer.set(value);
     }
 }
