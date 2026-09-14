@@ -15,9 +15,7 @@ import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.PoleLayer;
-import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
-import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.plugin.powerline.style.LinePoleDesignOverrides;
 import com.plot.plugin.powerline.style.ParametricFootprintSync;
 import com.plot.plugin.ui.PluginUiColors;
@@ -30,7 +28,6 @@ import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImString;
 
-import java.util.Map;
 
 /** 杆塔分层设计器独立窗口（居中弹出、可拖动、不参与 DockSpace 停靠）。 */
 public final class PoleDesignerPanel {
