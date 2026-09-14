@@ -9,9 +9,6 @@ import java.util.List;
  * 图库持久化 JSON 结构。
  */
 public final class GallerySnapshot {
-    public static final int CURRENT_FORMAT_VERSION = 1;
-
-    public int formatVersion = CURRENT_FORMAT_VERSION;
     public List<ItemSnapshot> items = new ArrayList<>();
     public List<String> customCategories = new ArrayList<>();
     public List<String> removedPresetIds = new ArrayList<>();

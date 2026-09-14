@@ -2,8 +2,6 @@ package com.plot.core.model;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 import com.plot.api.model.ILayer;
 import com.plot.api.graphics.LineType;
@@ -12,7 +10,6 @@ import com.plot.core.layer.Layer;
 import com.plot.core.layer.LayerManager;
 import com.plot.core.model.serialization.ProjectSnapshot;
 import com.plot.core.model.serialization.ShapeSerialization;
-import com.plot.core.model.serialization.migration.ProjectMigrationRegistry;
 import com.plot.core.persistence.AtomicFileWriter;
 import com.plot.core.persistence.BackupManager;
 import com.plot.core.persistence.PersistenceException;
@@ -287,34 +284,9 @@ public class Project {
                     PlotI18n.error("error.plot.project.empty_input"));
         }
 
-        final JsonObject root;
-        try {
-            var element = JsonParser.parseString(data);
-            if (element == null || !element.isJsonObject()) {
-                throw new ProjectFormatException(
-                        ProjectFormatException.Reason.VALIDATION_FAILED,
-                        PlotI18n.error("error.plot.project.null_snapshot"));
-            }
-            root = element.getAsJsonObject();
-        } catch (ProjectFormatException e) {
-            throw e;
-        } catch (JsonSyntaxException e) {
-            throw new ProjectFormatException(
-                    ProjectFormatException.Reason.INVALID_JSON,
-                    PlotI18n.error("error.plot.project.invalid_json"),
-                    e);
-        } catch (RuntimeException e) {
-            throw new ProjectFormatException(
-                    ProjectFormatException.Reason.INVALID_JSON,
-                    PlotI18n.error("error.plot.project.invalid_json"),
-                    e);
-        }
-
-        ProjectMigrationRegistry.getInstance().migrateToCurrent(root);
-
         final ProjectSnapshot snapshot;
         try {
-            snapshot = GSON.fromJson(root, ProjectSnapshot.class);
+            snapshot = GSON.fromJson(data, ProjectSnapshot.class);
         } catch (JsonSyntaxException e) {
             throw new ProjectFormatException(
                     ProjectFormatException.Reason.INVALID_JSON,
@@ -333,12 +305,6 @@ public class Project {
     }
 
     private static void validateSnapshot(ProjectSnapshot snapshot) throws ProjectFormatException {
-        if (snapshot.formatVersion != ProjectSnapshot.CURRENT_FORMAT_VERSION) {
-            throw new ProjectFormatException(
-                    ProjectFormatException.Reason.UNSUPPORTED_FORMAT_VERSION,
-                    PlotI18n.error("error.plot.project.unsupported_format",
-                            snapshot.formatVersion, ProjectSnapshot.CURRENT_FORMAT_VERSION));
-        }
         if (snapshot.layers == null) {
             throw new ProjectFormatException(
                     ProjectFormatException.Reason.VALIDATION_FAILED,
@@ -374,7 +340,6 @@ public class Project {
 
     private ProjectSnapshot toSnapshot() {
         ProjectSnapshot snapshot = new ProjectSnapshot();
-        snapshot.formatVersion = ProjectSnapshot.CURRENT_FORMAT_VERSION;
         snapshot.name = name;
         snapshot.id = id;
         snapshot.description = description;

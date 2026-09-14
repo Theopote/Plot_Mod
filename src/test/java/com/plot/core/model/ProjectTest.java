@@ -2,7 +2,6 @@ package com.plot.core.model;
 
 import com.plot.core.layer.Layer;
 import com.plot.core.layer.LayerManager;
-import com.plot.core.model.serialization.ProjectSnapshot;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,25 +40,30 @@ class ProjectTest {
     }
 
     @Test
-    void deserializeUnsupportedFormatVersionThrows() {
+    void deserializeMissingLayersThrows() {
         String json = """
                 {
-                  "formatVersion": 99,
-                  "name": "Bad Version",
-                  "layers": []
+                  "name": "Null Layers",
+                  "id": "null-layers",
+                  "layers": null
                 }
                 """;
         ProjectFormatException ex = assertThrows(ProjectFormatException.class, () -> Project.deserialize(json));
-        assertEquals(ProjectFormatException.Reason.UNSUPPORTED_FORMAT_VERSION, ex.getReason());
+        assertEquals(ProjectFormatException.Reason.VALIDATION_FAILED, ex.getReason());
     }
 
     @Test
-    void deserializeV1MigratesToCurrent() throws ProjectFormatException {
+    void deserializeBareObjectThrowsMissingIdentity() {
+        ProjectFormatException ex = assertThrows(ProjectFormatException.class, () -> Project.deserialize("{}"));
+        assertEquals(ProjectFormatException.Reason.VALIDATION_FAILED, ex.getReason());
+    }
+
+    @Test
+    void deserializeCurrentFormatWithoutVersionField() throws ProjectFormatException {
         String json = """
                 {
-                  "formatVersion": 1,
-                  "name": "Legacy V1",
-                  "id": "legacy-v1",
+                  "name": "Current",
+                  "id": "current-id",
                   "layers": [
                     {
                       "id": "layer-1",
@@ -70,47 +74,9 @@ class ProjectTest {
                 }
                 """;
         Project project = Project.deserialize(json);
-        assertEquals("Legacy V1", project.getName());
+        assertEquals("Current", project.getName());
         assertEquals(1, project.getLayers().size());
-
-        String saved = project.serialize();
-        assertTrue(saved.contains("\"formatVersion\": " + ProjectSnapshot.CURRENT_FORMAT_VERSION)
-                || saved.contains("\"formatVersion\":" + ProjectSnapshot.CURRENT_FORMAT_VERSION));
-    }
-
-    @Test
-    void deserializeMissingFormatVersionMigratesFromV0() throws ProjectFormatException {
-        String json = """
-                {
-                  "name": "No Version Field",
-                  "id": "no-ver",
-                  "layers": []
-                }
-                """;
-        Project project = Project.deserialize(json);
-        assertEquals("No Version Field", project.getName());
-    }
-
-    @Test
-    void deserializeV1NullLayersMigratesToEmptyLayers() throws ProjectFormatException {
-        String json = """
-                {
-                  "formatVersion": 1,
-                  "name": "Null Layers",
-                  "id": "null-layers",
-                  "layers": null
-                }
-                """;
-        Project project = Project.deserialize(json);
-        assertEquals("Null Layers", project.getName());
-        assertFalse(project.getLayers().isEmpty());
-    }
-
-    @Test
-    void deserializeBareObjectMigratesWithDefaultName() throws ProjectFormatException {
-        Project project = Project.deserialize("{}");
-        assertEquals("Untitled", project.getName());
-        assertFalse(project.getLayers().isEmpty());
+        assertFalse(project.serialize().contains("\"formatVersion\""));
     }
 
     @Test
@@ -147,7 +113,6 @@ class ProjectTest {
         Path file = dir.resolve("truncated.plot");
         Files.writeString(file, """
                 {
-                  "formatVersion": 2,
                   "name": "Half",
                   "layers": [
                 """, StandardCharsets.UTF_8);
@@ -234,34 +199,14 @@ class ProjectTest {
     }
 
     @Test
-    void writeAtomicallyRejectsFutureFormatWithoutClobbering(@TempDir Path dir) throws IOException {
-        Path file = dir.resolve("v-future.plot");
-        String goodJson = new Project("Stable").serialize();
-        Project.writeAtomically(file, goodJson);
-        String original = Files.readString(file, StandardCharsets.UTF_8);
-
-        String future = """
-                {
-                  "formatVersion": 99,
-                  "name": "Future",
-                  "id": "future",
-                  "layers": []
-                }
-                """;
-        assertThrows(IOException.class, () -> Project.writeAtomically(file, future));
-        assertEquals(original, Files.readString(file, StandardCharsets.UTF_8));
-    }
-
-    @Test
     void minimalValidSnapshotDeserializes() throws ProjectFormatException {
         String json = """
                 {
-                  "formatVersion": %d,
                   "name": "Minimal",
                   "id": "test-id",
                   "layers": []
                 }
-                """.formatted(ProjectSnapshot.CURRENT_FORMAT_VERSION);
+                """;
 
         Project project = Project.deserialize(json);
         assertEquals("Minimal", project.getName());
