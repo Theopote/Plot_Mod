@@ -255,7 +255,7 @@ final class PoleDesignerAttachmentPanel {
                 attachment.setBindingMode(AttachmentBindingMode.FREE);
             } else {
                 TowerArm arm = arms.get(armIndex.get() - 1);
-                TowerArmAttachmentBinding.bindToArm(arm, attachment);
+                TowerArmAttachmentBinding.bindToArm(arm, attachment, draft.getTowerStructure());
             }
         }
     }

@@ -67,38 +67,50 @@ public final class PoleDesignerPanel {
     }
 
     /** 从线路插件打开：调整选中线路上的杆塔参数，不可更换塔型种类。 */
-    public void openForLineInstance(String baseDesignId) {
+    public void openLineInstance(String baseDesignId) {
         PowerLineFootprint line = ctx.selection().primary(ctx.project());
         String openId = LinePoleDesignOverrides.resolveOpenDesignId(
             line,
             baseDesignId,
             ctx.state().getDesignProject());
-        open(openId, PoleDesignerEditScope.LINE_INSTANCE);
+        openDesign(openId, PoleDesignerEditScope.LINE_INSTANCE, true);
     }
 
-    public void open(String designId) {
-        open(designId, PoleDesignerEditScope.LINE_INSTANCE);
+    /** 编辑共享造型模板（内置或用户造型库）。 */
+    public void openTemplate(String designId) {
+        if (designId == null || designId.isBlank()) {
+            createTemplate();
+            return;
+        }
+        openDesign(designId, PoleDesignerEditScope.DESIGN_TEMPLATE, false);
     }
 
-    private void open(String designId, PoleDesignerEditScope scope) {
+    /** 新建空白共享造型模板。 */
+    public void createTemplate() {
+        openDesign(null, PoleDesignerEditScope.DESIGN_TEMPLATE, false);
+    }
+
+    private void openDesign(String designId, PoleDesignerEditScope scope, boolean applyLineOverrides) {
         editScope = scope;
         PoleDesignResolver resolver = ctx.designResolver();
         PoleDesign source = designId != null ? resolver.find(designId) : null;
         if (source != null) {
             draft = source.copy();
             ctx.state().setPoleDesignerEditingId(source.getId());
-            applyLineParametricOverride(source.getId());
+            if (applyLineOverrides) {
+                applyLineParametricOverride(source.getId());
+            }
         } else {
             draft = newBlankDesign();
             ctx.state().setPoleDesignerEditingId("");
         }
+        TowerArmAttachmentBinding.inferArmBindings(draft);
         towerUiState.syncFromDraft(draft);
         towerSession.beginSession(draft);
         towerSession.refreshConstraints(draft);
         designNameBuffer.set(draft.getName());
         ctx.state().getDesignDraftHistory().clear();
         captureOpenedBaseline();
-        TowerArmAttachmentBinding.inferArmBindings(draft);
         designerWindowOpen.set(true);
         focusOnNextRender = true;
         ctx.state().setPoleDesignerOpen(true);
@@ -106,14 +118,14 @@ public final class PoleDesignerPanel {
 
     /**
      * 塔型族没有单一 {@code poleDesignId}：先选角色，再打开对应设计。
-     * 不要用 {@link #open}{@code null}——那会落到空白设计。
+     * 不要用 {@link #createTemplate} 代替空设计——那会落到空白模板。
      */
     public void requestCustomizeFamily(String familyId) {
         familyRolePicker.request(familyId);
     }
 
     public void render() {
-        familyRolePicker.render(designId -> open(designId, PoleDesignerEditScope.LINE_INSTANCE));
+        familyRolePicker.render(this::openLineInstance);
         if (draft != null) {
             renderCloseConfirmPopup();
         } else {

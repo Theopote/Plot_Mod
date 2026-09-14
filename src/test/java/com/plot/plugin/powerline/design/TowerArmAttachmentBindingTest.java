@@ -37,6 +37,41 @@ class TowerArmAttachmentBindingTest {
     }
 
     @Test
+    void bindToArmPreservesFreeAttachmentPosition() {
+        TowerStructureDesign structure = new TowerStructureDesign();
+        structure.addArm(new TowerArm("arm_main", 40, 10));
+        TowerArm arm = structure.getArms().getFirst();
+
+        ConductorAttachment attachment = new ConductorAttachment("free_phase", "A");
+        attachment.setBindingMode(AttachmentBindingMode.FREE);
+        attachment.setLateralOffset(6.0);
+        attachment.setVerticalOffset(32.0);
+
+        TowerArmAttachmentBinding.bindToArm(arm, attachment, structure);
+
+        TowerArmAttachmentBinding.ResolvedLocalOffsets resolved =
+            TowerArmAttachmentBinding.resolveLocalOffsets(attachment, structure);
+        assertTrue(attachment.isBound());
+        assertEquals(6.0, resolved.lateral(), 0.01);
+        assertEquals(32.0, resolved.vertical(), 0.01);
+    }
+
+    @Test
+    void releaseAttachmentsFromArmBakesCurrentBoundPosition() {
+        TowerStructureDesign structure = new TowerStructureDesign();
+        structure.addArm(new TowerArm("arm_main", 40, 10));
+        TowerArm arm = structure.getArms().getFirst();
+        ConductorAttachment attachment = TowerArmAttachmentBinding.createThreePhaseDeck(arm).get(0);
+        arm.setLateralReach(12.0);
+
+        TowerArmAttachmentBinding.releaseAttachmentsFromArm(structure, List.of(attachment), arm.getId());
+
+        assertFalse(attachment.isBound());
+        assertEquals(-10.2, attachment.getLateralOffset(), 0.01);
+        assertEquals(40.0, attachment.getVerticalOffset(), 0.01);
+    }
+
+    @Test
     void syncBoundVerticalOffsetsFollowsArmHeightChanges() {
         TowerArm arm = new TowerArm("arm_main", 30, 8);
         ConductorAttachment attachment = new ConductorAttachment("phase_a", "A");

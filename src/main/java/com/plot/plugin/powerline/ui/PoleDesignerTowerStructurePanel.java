@@ -264,7 +264,10 @@ final class PoleDesignerTowerStructurePanel {
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.delete_layer") + "##delete", 0, 0)) {
             pushDraftSnapshot.run();
-            TowerArmAttachmentBinding.clearArmBindings(draft.getAttachments(), arm.getId());
+            TowerArmAttachmentBinding.releaseAttachmentsFromArm(
+                structure,
+                draft.getAttachments(),
+                arm.getId());
             structure.removeArm(arm.getId());
         }
         DialogLayoutHelper.endForm();

@@ -163,7 +163,7 @@ public final class PowerLineStyleQuickTunePanel {
             PlotI18n.tr("plugin.powerline.style.quick_tune.tower_style"),
             resolveTowerLabel(line),
             PlotI18n.tr("plugin.powerline.style.quick_tune.edit_tower"),
-            () -> poleDesignerPanel.openForLineInstance(line.getPoleDesignId()));
+            () -> poleDesignerPanel.openLineInstance(line.getPoleDesignId()));
     }
 
     private void renderPoleHeightRow(PowerLineFootprint line, PowerLineStylePreset base) {

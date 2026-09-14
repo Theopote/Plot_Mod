@@ -65,14 +65,21 @@ public final class TowerArmAttachmentBinding {
     }
 
     public static void bindToArm(TowerArm arm, ConductorAttachment attachment) {
+        bindToArm(arm, attachment, null);
+    }
+
+    public static void bindToArm(
+            TowerArm arm,
+            ConductorAttachment attachment,
+            TowerStructureDesign structure) {
         if (arm == null || attachment == null) {
             return;
         }
-        attachment.setBindingMode(AttachmentBindingMode.BOUND);
-        attachment.setArmId(arm.getId());
-        attachment.setNormalizedPosition(0.0);
-        attachment.setVerticalAnchorOffset(0.0);
-        cacheResolvedOffsets(attachment, arm);
+        ResolvedLocalOffsets local = resolveLocalOffsets(attachment, structure);
+        attachment.setLateralOffset(local.lateral());
+        attachment.setVerticalOffset(local.vertical());
+        attachment.setLongitudinalOffset(local.longitudinal());
+        migrateLegacyToBound(attachment, arm);
     }
 
     public static void syncBoundVerticalOffsets(TowerArm arm, Iterable<ConductorAttachment> attachments) {
@@ -126,10 +133,6 @@ public final class TowerArmAttachmentBinding {
     }
 
     public static List<ConductorAttachment> createThreePhaseDeck(TowerArm arm) {
-        return createThreePhaseDeck(arm, DEFAULT_LATERAL_SCALE);
-    }
-
-    public static List<ConductorAttachment> createThreePhaseDeck(TowerArm arm, double lateralScale) {
         if (arm == null) {
             return List.of();
         }
@@ -163,14 +166,33 @@ public final class TowerArmAttachmentBinding {
     }
 
     public static void clearArmBindings(Iterable<ConductorAttachment> attachments, String armId) {
+        releaseAttachmentsFromArm(null, attachments, armId);
+    }
+
+    /**
+     * 删除横担前：将 BOUND 挂点烘焙为当前解析位置下的 FREE 偏移，避免跳回旧缓存。
+     */
+    public static void releaseAttachmentsFromArm(
+            TowerStructureDesign structure,
+            Iterable<ConductorAttachment> attachments,
+            String armId) {
         if (attachments == null || armId == null) {
             return;
         }
         for (ConductorAttachment attachment : attachments) {
-            if (armId.equals(attachment.getArmId())) {
-                attachment.setArmId(null);
-                attachment.setBindingMode(AttachmentBindingMode.FREE);
+            if (!armId.equals(attachment.getArmId())) {
+                continue;
             }
+            if (structure != null) {
+                ResolvedLocalOffsets resolved = resolveLocalOffsets(attachment, structure);
+                attachment.setLateralOffset(resolved.lateral());
+                attachment.setVerticalOffset(resolved.vertical());
+                attachment.setLongitudinalOffset(resolved.longitudinal());
+            }
+            attachment.setArmId(null);
+            attachment.setBindingMode(AttachmentBindingMode.FREE);
+            attachment.setNormalizedPosition(0.0);
+            attachment.setVerticalAnchorOffset(0.0);
         }
     }
 
