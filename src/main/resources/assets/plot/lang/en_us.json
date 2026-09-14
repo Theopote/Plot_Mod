@@ -3191,6 +3191,7 @@
   "plugin.powerline.overview_map": "Line map",
   "plugin.powerline.overview_map_hint": "Click a line on the map to select it",
   "plugin.powerline.overview_thumbnail_hint": "Click thumbnail to select this line",
+  "plugin.powerline.overview_rename_hint": "Double-click to rename",
   "plugin.powerline.locate": "Locate",
   "plugin.powerline.delete": "Delete",
   "plugin.powerline.delete_confirm": "Delete %d line(s)?",

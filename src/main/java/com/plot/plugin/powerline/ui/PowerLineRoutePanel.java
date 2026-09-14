@@ -74,12 +74,6 @@ public final class PowerLineRoutePanel {
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.route.current_line_empty"));
-            return;
-        }
-        PowerLineFootprint line = ctx.selection().primary(ctx.project());
-        if (line != null) {
-            ImGui.spacing();
-            renderLineName(line);
         }
     }
 
@@ -111,19 +105,6 @@ public final class PowerLineRoutePanel {
                 }
             }
         }
-    }
-
-    private void renderLineName(PowerLineFootprint line) {
-        if (!line.getId().equals(ctx.lineNameEditingId())) {
-            ctx.lineNameBuffer().set(line.getName());
-            ctx.setLineNameEditingId(line.getId());
-        }
-        PowerLineUiWidgets.inputTextStableLineEdit(
-            ctx,
-            "plugin.powerline.line_name",
-            "line_name",
-            ctx.lineNameBuffer(),
-                line::setName);
     }
 
     private void renderPolePlacement(PowerLineFootprint line) {

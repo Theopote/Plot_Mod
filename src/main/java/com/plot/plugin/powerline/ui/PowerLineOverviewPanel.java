@@ -4,6 +4,7 @@ import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiKey;
 
 /** Route Tab 中的项目线路管理组件。 */
 public final class PowerLineOverviewPanel {
@@ -73,12 +74,7 @@ public final class PowerLineOverviewPanel {
 
         float columnWidth = Math.max(120f, ImGui.getContentRegionAvailX() - 8f);
         ImGui.beginGroup();
-        ImGui.setNextItemWidth(columnWidth);
-        if (ImGui.selectable(
-                PowerLineUiWidgets.stableSelectableLabel(line.getName(), line.getId()),
-                selected)) {
-            ctx.selectLine(line.getId(), ImGui.getIO().getKeyCtrl());
-        }
+        renderLineNameLabel(line, columnWidth, selected);
         PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
             "plugin.powerline.overview_item",
             line.estimatePoleCount(ctx.coordinates()),
@@ -94,6 +90,49 @@ public final class PowerLineOverviewPanel {
         }
         ImGui.endGroup();
         ImGui.popID();
+    }
+
+    private void renderLineNameLabel(PowerLineFootprint line, float columnWidth, boolean selected) {
+        if (line.getId().equals(ctx.lineNameEditingId())) {
+            ImGui.setNextItemWidth(columnWidth);
+            if (ctx.consumeLineNameFocusPending()) {
+                ImGui.setKeyboardFocusHere();
+            }
+            boolean changed = ImGui.inputText("##powerline_line_rename_" + line.getId(), ctx.lineNameBuffer());
+            if (ImGui.isItemActivated()) {
+                ctx.pushEditSnapshot();
+            }
+            if (changed) {
+                line.setName(ctx.lineNameBuffer().get());
+            }
+            if (ImGui.isItemDeactivatedAfterEdit()) {
+                String trimmed = ctx.lineNameBuffer().get().trim();
+                if (!trimmed.isEmpty()) {
+                    line.setName(trimmed);
+                } else {
+                    ctx.lineNameBuffer().set(line.getName());
+                }
+                ctx.setLineNameEditingId("");
+            }
+            if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
+                ctx.lineNameBuffer().set(line.getName());
+                ctx.setLineNameEditingId("");
+            }
+            return;
+        }
+
+        ImGui.setNextItemWidth(columnWidth);
+        if (ImGui.selectable(
+                PowerLineUiWidgets.stableSelectableLabel(line.getName(), line.getId()),
+                selected)) {
+            ctx.selectLine(line.getId(), ImGui.getIO().getKeyCtrl());
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.powerline.overview_rename_hint"));
+            if (ImGui.isMouseDoubleClicked(0)) {
+                ctx.beginLineNameRename(line);
+            }
+        }
     }
 
     public void renderDeleteConfirmPopup() {

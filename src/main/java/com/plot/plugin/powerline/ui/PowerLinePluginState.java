@@ -32,6 +32,7 @@ public final class PowerLinePluginState {
     private boolean previewAutoRefreshEnabled;
     private final ImString lineNameBuffer = new ImString(64);
     private String lineNameEditingId = "";
+    private boolean lineNameFocusPending;
 
     private final List<String> pendingDeleteLineIds = new ArrayList<>();
     private boolean deleteConfirmPending = false;
@@ -171,6 +172,27 @@ public final class PowerLinePluginState {
 
     public void setLineNameEditingId(String lineNameEditingId) {
         this.lineNameEditingId = lineNameEditingId != null ? lineNameEditingId : "";
+        if (this.lineNameEditingId.isEmpty()) {
+            lineNameFocusPending = false;
+        }
+    }
+
+    public boolean isLineNameFocusPending() {
+        return lineNameFocusPending;
+    }
+
+    public void beginLineNameRename(String lineId, String currentName) {
+        lineNameBuffer.set(currentName != null ? currentName : "");
+        lineNameEditingId = lineId != null ? lineId : "";
+        lineNameFocusPending = !lineNameEditingId.isEmpty();
+    }
+
+    public boolean consumeLineNameFocusPending() {
+        if (!lineNameFocusPending) {
+            return false;
+        }
+        lineNameFocusPending = false;
+        return true;
     }
 
     public List<String> getPendingDeleteLineIds() {

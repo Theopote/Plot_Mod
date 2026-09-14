@@ -291,4 +291,16 @@ public final class PowerLineUiContext {
     public void setLineNameEditingId(String id) {
         state.setLineNameEditingId(id);
     }
+
+    public void beginLineNameRename(PowerLineFootprint line) {
+        if (line == null) {
+            return;
+        }
+        state.beginLineNameRename(line.getId(), line.getName());
+        selectLine(line.getId(), false);
+    }
+
+    public boolean consumeLineNameFocusPending() {
+        return state.consumeLineNameFocusPending();
+    }
 }
