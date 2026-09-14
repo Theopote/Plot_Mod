@@ -36,14 +36,10 @@ public final class PowerLinePathPickPanel {
     private void renderIdleState(PowerLineFootprint line, PowerLinePathSelectionAnalysis selection) {
         renderSelectionErrors(selection);
         boolean replaceMode = line != null;
-        String buttonKey = replaceMode
-            ? "plugin.powerline.path.replace_path"
-            : "plugin.powerline.path.create_from_path";
         String hintKey = replaceMode
             ? "plugin.powerline.path.replace_path_hint"
             : "plugin.powerline.path.create_from_path_hint";
-        String idSuffix = replaceMode ? "powerline_path_replace_idle" : "powerline_path_create_idle";
-        if (renderPathActionButton(buttonKey, idSuffix)) {
+        if (renderPathActionButton("plugin.powerline.path.pick_path", "powerline_path_pick_idle")) {
             if (replaceMode) {
                 ctx.activatePathPickForReplace(line);
             } else {
@@ -53,7 +49,12 @@ public final class PowerLinePathPickPanel {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr(hintKey));
         }
-        if (!replaceMode && ctx.project().getLineCount() == 0) {
+        if (replaceMode) {
+            ImGui.spacing();
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.path.replace_idle_hint"));
+        } else if (ctx.project().getLineCount() == 0) {
             ImGui.spacing();
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
@@ -89,26 +90,14 @@ public final class PowerLinePathPickPanel {
     }
 
     private void renderReplaceConfirmState() {
-        PowerLineFootprint target = ctx.pathReplaceTargetLine();
-        if (target != null) {
-            PowerLineUiWidgets.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.powerline.path.replace_confirm_target", target.getName()));
-            ImGui.spacing();
-        }
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.path.replace_confirm_title"));
+        ImGui.spacing();
         PowerLineUiWidgets.textColored(
             PluginUiColors.STATUS_INFO,
             PlotI18n.tr("plugin.powerline.path.replace_ready"));
-        ImGui.spacing();
-        PowerLineUiWidgets.textColored(
-            PluginUiColors.WARNING,
-            PlotI18n.tr("plugin.powerline.path.replace_clear_intro"));
         PowerLineUiWidgets.textColored(
             PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.powerline.path.replace_clear_constraints"));
-        PowerLineUiWidgets.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.powerline.path.replace_clear_overrides"));
+            PlotI18n.tr("plugin.powerline.path.replace_clear_summary"));
         ImGui.spacing();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.path.apply_replace") + "##powerline_path_apply_replace", 0, 0)) {
             ctx.confirmPathReplace();
