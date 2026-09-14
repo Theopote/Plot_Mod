@@ -3184,6 +3184,7 @@
   "hint.plot.powerline.redo_world": "Redo the last undone world placement.",
   "plugin.powerline.project_stats": "Lines: %d | Total length: %s blocks",
   "plugin.powerline.no_lines": "No adopted power lines yet",
+  "plugin.powerline.selection.multi_edit_blocked": "%d lines selected — choose one in the list or dropdown to edit",
   "plugin.powerline.select_all": "Select all",
   "plugin.powerline.clear_selection": "Clear selection",
   "plugin.powerline.delete_selected": "Delete selected",

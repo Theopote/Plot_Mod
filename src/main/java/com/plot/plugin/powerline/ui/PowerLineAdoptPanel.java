@@ -17,6 +17,11 @@ public final class PowerLineAdoptPanel {
     public void render(PowerLineFootprint line) {
         PowerLinePathSelectionAnalysis selection = ctx.pathSelection();
 
+        if (ctx.isMultiLineSelection() && !ctx.pathPickSession().isActive()) {
+            PowerLineUiWidgets.renderMultiLineEditBlocked(ctx);
+            return;
+        }
+
         if (ctx.pathPickSession().isActive()) {
             renderPickingState(selection);
             return;

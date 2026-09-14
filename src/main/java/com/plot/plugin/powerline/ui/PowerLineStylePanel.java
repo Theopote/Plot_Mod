@@ -37,6 +37,9 @@ public final class PowerLineStylePanel {
                 PlotI18n.tr("plugin.powerline.style.select_line_for_style"));
             return;
         }
+        if (PowerLineUiWidgets.renderMultiLineEditBlocked(ctx)) {
+            return;
+        }
 
         PowerLineStylePreset base = PowerLineStyleEditor.basePreset(line);
 
@@ -65,7 +68,7 @@ public final class PowerLineStylePanel {
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.route.current_line_empty"));
-        } else if (line != null) {
+        } else if (line != null && !ctx.isMultiLineSelection()) {
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.style.editing_line", line.getName()));

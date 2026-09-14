@@ -217,6 +217,17 @@ public final class PowerLineUiWidgets {
         return current != 0;
     }
 
+    /** 多选时阻断单线路编辑区，并提示用户先归一为单选。 */
+    public static boolean renderMultiLineEditBlocked(PowerLineUiContext ctx) {
+        if (!ctx.isMultiLineSelection()) {
+            return false;
+        }
+        PowerLineUiWidgets.textColored(
+            PluginUiColors.WARNING,
+            PlotI18n.tr("plugin.powerline.selection.multi_edit_blocked", ctx.selection().size()));
+        return true;
+    }
+
     static int resolveLineSelectorIndex(String primaryId, List<PowerLineFootprint> lines) {
         if (primaryId == null || primaryId.isBlank()) {
             return 0;

@@ -27,6 +27,10 @@ public final class PowerLineSelectionSet {
         return selectedIds.isEmpty();
     }
 
+    public boolean hasMultipleSelected() {
+        return selectedIds.size() > 1;
+    }
+
     public boolean contains(String id) {
         return id != null && selectedIds.contains(id);
     }

@@ -3184,6 +3184,7 @@
   "hint.plot.powerline.redo_world": "重做上一次撤销的世界落地。",
   "plugin.powerline.project_stats": "线路数：%d | 总长度：%s 格",
   "plugin.powerline.no_lines": "尚未认领任何线路",
+  "plugin.powerline.selection.multi_edit_blocked": "已选择 %d 条线路，请在线路列表或下拉框中选择一条进行编辑",
   "plugin.powerline.select_all": "全选",
   "plugin.powerline.clear_selection": "清除选择",
   "plugin.powerline.delete_selected": "删除选中",

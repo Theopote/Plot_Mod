@@ -68,6 +68,10 @@ public final class PowerLineUiContext {
         return state.getSelection();
     }
 
+    public boolean isMultiLineSelection() {
+        return state.getSelection().hasMultipleSelected();
+    }
+
     public PowerLinePathSelectionAnalysis pathSelection() {
         return state.getPathSelection();
     }

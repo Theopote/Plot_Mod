@@ -38,6 +38,9 @@ public final class PowerLineRoutePanel {
         overviewPanel.renderProjectSection();
 
         ImGui.separator();
+        if (PowerLineUiWidgets.renderMultiLineEditBlocked(ctx)) {
+            return;
+        }
         adoptPanel.render(line);
 
         if (line != null) {

@@ -108,6 +108,14 @@ public final class PowerLineActions {
     }
 
     public void autoApplyPickedPaths() {
+        if (state.getSelection().hasMultipleSelected()) {
+            state.setPathSelection(PowerLinePathSelectionAnalysis.EMPTY);
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.selection.multi_edit_blocked", state.getSelection().size()),
+                ProjectStatusSeverity.WARNING);
+            return;
+        }
+
         PowerLinePathSelectionAnalysis selection = state.getPathSelection();
         if (!selection.hasCanvasSelection()) {
             state.setProjectStatus(
@@ -979,6 +987,12 @@ public final class PowerLineActions {
     }
 
     public void activatePathPickTool() {
+        if (state.getSelection().hasMultipleSelected()) {
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.selection.multi_edit_blocked", state.getSelection().size()),
+                ProjectStatusSeverity.WARNING);
+            return;
+        }
         ToolManager toolManager = host.tools();
         var selectTool = toolManager.getTool("select");
         if (!(selectTool instanceof BaseTool baseTool)) {

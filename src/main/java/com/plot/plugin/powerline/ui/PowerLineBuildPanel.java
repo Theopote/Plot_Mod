@@ -41,6 +41,9 @@ public final class PowerLineBuildPanel {
             PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.select_line_hint"));
             return;
         }
+        if (PowerLineUiWidgets.renderMultiLineEditBlocked(ctx)) {
+            return;
+        }
         renderPreviewSection(line);
         renderFriendlyStatus(line);
         ImGui.separator();
