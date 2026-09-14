@@ -232,9 +232,6 @@ public final class PowerLineStyleDefinition {
         if (!PowerLineStyleParametricCatalog.parametersMatch(parametricConfig, line.getParametricTowerConfig())) {
             return false;
         }
-        if (line.isPerSiteParametricHeightEnabled()) {
-            return false;
-        }
         return expectedConductorCount() == PowerLineStylePreset.resolveConductorCount(line);
     }
 

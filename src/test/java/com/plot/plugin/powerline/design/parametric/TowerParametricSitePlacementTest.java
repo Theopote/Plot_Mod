@@ -1,9 +1,6 @@
 package com.plot.plugin.powerline.design.parametric;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.core.terrain.TerrainSampler;
-import com.plot.plugin.powerline.PowerLineGenerationResult;
-import com.plot.plugin.powerline.TerrainTestFixtures;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -13,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TowerParametricSitePlacementTest {
@@ -87,42 +83,11 @@ class TowerParametricSitePlacementTest {
     }
 
     @Test
-    void smartTowersPresetKeepsExperimentalPerSiteHeightDisabled() {
+    void smartTowersPresetEnablesParametricTowerConfig() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(120, 0)));
         PowerLineStylePresetCatalog.smartTowers().apply(line);
 
-        assertFalse(line.isPerSiteParametricHeightEnabled());
         assertTrue(line.hasParametricTowerConfig());
         assertEquals(TowerFamily.GRADED_LATTICE_3_PHASE_ID, line.getTowerFamilyId());
-    }
-
-    @Test
-    void experimentalPerSiteHeightProducesDifferentTowerHeightsWhenEnabled() {
-        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(120, 0)));
-        PowerLineStylePresetCatalog.smartTowers().apply(line);
-        line.setPerSiteParametricHeightEnabled(true);
-        line.setMaxPoleSpacing(150);
-
-        TerrainSampler terrain = varyingTerrain(200, 64);
-        PowerLineGenerationResult result = TerrainTestFixtures.generate(line, terrain);
-
-        assertEquals(2, result.poleCount);
-        double mountainHeight = result.polePlacements.get(0).design().getTowerStructure().maxHeight();
-        double valleyHeight = result.polePlacements.get(1).design().getTowerStructure().maxHeight();
-        assertTrue(valleyHeight > mountainHeight + 1.0);
-    }
-
-    private static TerrainSampler varyingTerrain(int mountainY, int valleyY) {
-        return new TerrainSampler() {
-            @Override
-            public int sampleSurfaceY(Vec2d planPoint) {
-                return planPoint.x < 60 ? mountainY : valleyY;
-            }
-
-            @Override
-            public boolean isSolidBlock(int worldX, int y, int worldZ) {
-                return false;
-            }
-        };
     }
 }

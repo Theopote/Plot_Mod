@@ -59,9 +59,6 @@ public class PowerLineFootprint {
     private boolean lineChecksEnabled = true;
     private boolean terrainAvoidanceEnabled = true;
     private boolean automaticTowerSelectionEnabled;
-    /** 实验性功能：基于世界高度包络的 per-site 塔高，默认关闭。 */
-    @Deprecated
-    private boolean perSiteParametricHeightEnabled;
     /** 玩家曾在 Route 高级区手工调整间距；切换风格时不自动覆盖。 */
     private boolean spacingCustomized;
     /** 杆塔布置模式；默认按固定档距自动插杆。 */
@@ -448,14 +445,6 @@ public class PowerLineFootprint {
         this.automaticTowerSelectionEnabled = automaticTowerSelectionEnabled;
     }
 
-    public boolean isPerSiteParametricHeightEnabled() {
-        return perSiteParametricHeightEnabled;
-    }
-
-    public void setPerSiteParametricHeightEnabled(boolean perSiteParametricHeightEnabled) {
-        this.perSiteParametricHeightEnabled = perSiteParametricHeightEnabled;
-    }
-
     public boolean isSpacingCustomized() {
         return spacingCustomized;
     }
@@ -543,7 +532,6 @@ public class PowerLineFootprint {
         hash = 31 * hash + poleOverrides.hashCode();
         hash = 31 * hash + layoutConstraints.hashCode();
         hash = 31 * hash + Boolean.hashCode(automaticTowerSelectionEnabled);
-        hash = 31 * hash + Boolean.hashCode(perSiteParametricHeightEnabled);
         hash = 31 * hash + Boolean.hashCode(spacingCustomized);
         hash = 31 * hash + Objects.hashCode(poleSpacingMode);
         hash = 31 * hash + targetTowerCount;

@@ -101,13 +101,12 @@ class TowerParametricStabilizationTest {
     }
 
     @Test
-    void smartTowersPresetDoesNotAutoEnableExperimentalPerSiteHeight() {
+    void smartTowersPresetEnablesParametricConfig() {
         PowerLineFootprint line = new PowerLineFootprint(
             java.util.List.of(new com.plot.api.geometry.Vec2d(0, 0), new com.plot.api.geometry.Vec2d(80, 0)));
         PowerLineStylePresetCatalog.smartTowers().apply(line);
 
         assertTrue(line.hasParametricTowerConfig());
-        assertFalse(line.isPerSiteParametricHeightEnabled());
     }
 
     @Test

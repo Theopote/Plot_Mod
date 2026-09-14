@@ -58,7 +58,6 @@ public final class PoleDesignAssignmentResolver {
         }
 
         if (footprint.isAutomaticTowerSelectionEnabled()
-                && !footprint.isPerSiteParametricHeightEnabled()
                 && selectionContext != null
                 && footprint.hasTowerFamily()) {
             AssignmentResult auto = resolveAutomatic(site, selectionContext, warnings);

@@ -25,7 +25,6 @@ import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelopeResolver;
 import com.plot.plugin.powerline.design.parametric.TowerLineBuildEnvelope;
 import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
 import com.plot.plugin.powerline.design.parametric.TowerParametricLinePlacement;
-import com.plot.plugin.powerline.design.parametric.TowerParametricSitePlacement;
 import com.plot.plugin.powerline.style.EffectivePoleDesignResolver;
 import com.plot.plugin.powerline.style.ParametricStyleTowerApplicator;
 import com.plot.plugin.powerline.design.structure.TowerStructureValidator;
@@ -184,9 +183,7 @@ public class PowerLineGenerator {
             assignmentResolver.resolve(site, footprint, selectionContext);
         result.warnings.addAll(assignment.warnings());
         PoleDesign design = assignment.design();
-        TowerBuildEnvelope parametricEnvelope = footprint.isPerSiteParametricHeightEnabled()
-            ? lineEnvelope.siteEnvelope(index)
-            : lineEnvelope.constraintEnvelope();
+        TowerBuildEnvelope parametricEnvelope = lineEnvelope.constraintEnvelope();
         if (design != null && footprint.hasParametricTowerConfig()) {
             design = ParametricStyleTowerApplicator.apply(
                 design,
@@ -194,17 +191,10 @@ public class PowerLineGenerator {
                 parametricEnvelope);
         }
         if (design != null) {
-            if (footprint.isPerSiteParametricHeightEnabled()) {
-                TowerParametricSitePlacement.PreparationResult prepared =
-                    TowerParametricSitePlacement.prepareForSite(design, lineEnvelope, index);
-                design = prepared.design();
-                emitParametricSiteWarnings(prepared.warnings(), index, result, emittedParametricLineWarnings);
-            } else {
-                TowerParametricLinePlacement.PreparationResult prepared =
-                    TowerParametricLinePlacement.prepare(design, lineEnvelope);
-                design = prepared.design();
-                emitParametricLineWarnings(prepared.warnings(), lineEnvelope, result, emittedParametricLineWarnings);
-            }
+            TowerParametricLinePlacement.PreparationResult prepared =
+                TowerParametricLinePlacement.prepare(design, lineEnvelope);
+            design = prepared.design();
+            emitParametricLineWarnings(prepared.warnings(), lineEnvelope, result, emittedParametricLineWarnings);
         }
         if (design != null && !design.hasEnabledAttachments()) {
             design = design.copy();
@@ -459,27 +449,6 @@ public class PowerLineGenerator {
                     lineEnvelope.limitingSiteIndex() + 1));
             } else if ("parametric.world_height_exceeded_on_line".equals(warning)) {
                 result.warnings.add(PowerLineGenerationI18n.parametricWorldHeightExceededOnLine());
-            }
-        }
-    }
-
-    private static void emitParametricSiteWarnings(
-            List<String> warnings,
-            int siteIndex,
-            PowerLineGenerationResult result,
-            Set<String> emittedParametricLineWarnings) {
-        for (String warning : warnings) {
-            String dedupeKey = warning + "@" + siteIndex;
-            if (!emittedParametricLineWarnings.add(dedupeKey)) {
-                continue;
-            }
-            if (warning.startsWith("parametric.height_clamped_for_site:")) {
-                int maxHeight = Integer.parseInt(warning.substring(warning.indexOf(':') + 1));
-                result.warnings.add(PowerLineGenerationI18n.parametricHeightClampedForSite(
-                    maxHeight,
-                    siteIndex + 1));
-            } else if ("parametric.world_height_exceeded_on_site".equals(warning)) {
-                result.warnings.add(PowerLineGenerationI18n.parametricWorldHeightExceededOnSite(siteIndex + 1));
             }
         }
     }

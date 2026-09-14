@@ -227,7 +227,6 @@ public class PowerLineProject {
         boolean lineChecksEnabled = true;
         boolean terrainAvoidanceEnabled = true;
         boolean automaticTowerSelectionEnabled;
-        boolean perSiteParametricHeightEnabled;
         boolean spacingCustomized;
         String poleSpacingMode;
         int targetTowerCount = 2;
@@ -281,7 +280,6 @@ public class PowerLineProject {
                 lineData.lineChecksEnabled = line.isLineChecksEnabled();
                 lineData.terrainAvoidanceEnabled = line.isTerrainAvoidanceEnabled();
                 lineData.automaticTowerSelectionEnabled = line.isAutomaticTowerSelectionEnabled();
-                lineData.perSiteParametricHeightEnabled = line.isPerSiteParametricHeightEnabled();
                 lineData.spacingCustomized = line.isSpacingCustomized();
                 lineData.poleSpacingMode = line.getPoleSpacingMode().name();
                 lineData.targetTowerCount = line.getTargetTowerCount();
@@ -383,7 +381,6 @@ public class PowerLineProject {
                 footprint.setLineChecksEnabled(lineData.lineChecksEnabled);
                 footprint.setTerrainAvoidanceEnabled(lineData.terrainAvoidanceEnabled);
                 footprint.setAutomaticTowerSelectionEnabled(lineData.automaticTowerSelectionEnabled);
-                footprint.setPerSiteParametricHeightEnabled(lineData.perSiteParametricHeightEnabled);
                 footprint.setSpacingCustomized(lineData.spacingCustomized);
                 if (lineData.poleSpacingMode != null && !lineData.poleSpacingMode.isBlank()) {
                     try {
