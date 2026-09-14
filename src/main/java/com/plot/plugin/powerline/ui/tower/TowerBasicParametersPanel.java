@@ -28,28 +28,23 @@ public final class TowerBasicParametersPanel {
             return;
         }
 
-        if (!draft.hasTowerStructure()) {
-            renderProfileForm(context, true);
-            return;
-        }
-
-        if (!draft.isParametricMode()) {
+        if (!draft.hasTowerStructure() || !draft.isParametricMode()) {
             return;
         }
 
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.tower_basic_section"));
-        renderProfileForm(context, false);
+        renderProfileForm(context);
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.tower_basic_dimensions"));
         renderDimensionsForm(context);
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.tower_structure_section"));
         renderDensityForm(context);
     }
 
-    private void renderProfileForm(TowerDesignerContext context, boolean enableOnChange) {
+    private void renderProfileForm(TowerDesignerContext context) {
         if (!DialogLayoutHelper.beginForm("##tower_profile_form")) {
             return;
         }
-        renderProfileCombo(context, enableOnChange);
+        renderProfileCombo(context);
         DialogLayoutHelper.endForm();
     }
 
@@ -69,7 +64,7 @@ public final class TowerBasicParametersPanel {
         DialogLayoutHelper.endForm();
     }
 
-    private void renderProfileCombo(TowerDesignerContext context, boolean enableOnChange) {
+    private void renderProfileCombo(TowerDesignerContext context) {
         PoleDesign draft = context.draft();
         List<TowerProfileUiCatalog.ProfileOption> options = TowerProfileUiCatalog.all();
         String[] labels = options.stream()
@@ -87,9 +82,7 @@ public final class TowerBasicParametersPanel {
         if (ImGui.combo("##tower_profile", profileIndex, labels)) {
             context.pushDraftSnapshot().run();
             TowerProfileUiCatalog.ProfileOption selected = options.get(profileIndex.get());
-            if (enableOnChange || !draft.isParametricMode()) {
-                context.session().enableProfile(draft, selected.id());
-            } else if (!context.session().isSameProfile(draft, selected.id())) {
+            if (!context.session().isSameProfile(draft, selected.id())) {
                 context.session().switchProfile(draft, selected.id());
             }
         }

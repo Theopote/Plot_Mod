@@ -140,8 +140,10 @@ public final class PoleDesignerPanel {
                         towerSession.previewShowsLastValidStructure()),
                     () -> {
                         renderStructureSection();
-                        ImGui.separator();
-                        layerPanel.render(draft, this::pushDraftSnapshot);
+                        if (!draft.hasTowerStructure()) {
+                            ImGui.separator();
+                            layerPanel.render(draft, this::pushDraftSnapshot);
+                        }
                         ImGui.separator();
                         attachmentPanel.render(draft, this::pushDraftSnapshot);
                     });
@@ -251,7 +253,10 @@ public final class PoleDesignerPanel {
         float buttonsTotal = buttonWidth * 3f + DialogStyleManager.FOOTER_BUTTON_GAP * 2f;
         ImGui.setCursorPosX(DialogStyleManager.getContentStartX() + Math.max(0f, width - buttonsTotal));
 
-        boolean saveBlocked = draft.isParametricMode() && !towerSession.canBuild();
+        boolean saveBlocked = draft.hasTowerStructure()
+            && draft.isParametricMode()
+            && !draft.isManualLegacyMode()
+            && !towerSession.canBuild();
         if (saveBlocked) {
             ImGui.beginDisabled();
         }
@@ -339,6 +344,9 @@ public final class PoleDesignerPanel {
     }
 
     private void applyLineParametricOverride(String designId) {
+        if (draft == null || !draft.hasTowerStructure()) {
+            return;
+        }
         PowerLineFootprint line = ctx.selection().primary(ctx.project());
         if (line == null || !line.hasParametricTowerConfig()) {
             return;

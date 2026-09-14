@@ -21,7 +21,7 @@ public final class ParametricFootprintSync {
      * @return 是否已将 draft 参数同步到 line
      */
     public static boolean syncFromDesign(PowerLineFootprint line, PoleDesign draft, String editingDesignId) {
-        if (line == null || draft == null || !draft.isParametricMode()) {
+        if (line == null || draft == null || !usesParametricTower(draft)) {
             return false;
         }
         if (!targetsEditedLine(line, draft, editingDesignId)) {
@@ -48,6 +48,27 @@ public final class ParametricFootprintSync {
         line.setParametricTowerConfig(draftConfig.copy());
         PowerLineStyleEditor.afterStyleEdit(line);
         return true;
+    }
+
+    /**
+     * 设计切回 Legacy 分层时，清除线路上由该设计同步的参数化覆盖。
+     *
+     * @return 是否已清除线路参数化配置
+     */
+    public static boolean clearFromDesign(PowerLineFootprint line, PoleDesign draft, String editingDesignId) {
+        if (line == null || draft == null || !line.hasParametricTowerConfig()) {
+            return false;
+        }
+        if (!targetsEditedLine(line, draft, editingDesignId)) {
+            return false;
+        }
+        line.setParametricTowerConfig(null);
+        PowerLineStyleEditor.afterStyleEdit(line);
+        return true;
+    }
+
+    public static boolean usesParametricTower(PoleDesign draft) {
+        return draft != null && draft.hasTowerStructure() && draft.isParametricMode();
     }
 
     private static boolean targetsEditedLine(

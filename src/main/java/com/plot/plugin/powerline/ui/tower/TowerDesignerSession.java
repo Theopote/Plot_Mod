@@ -57,6 +57,7 @@ public final class TowerDesignerSession {
             TowerArmAttachmentBinding.releaseBoundAttachmentsForLegacyLayers(draft);
             draft.clearTowerStructure();
             lastConstraintResult = null;
+            clearParametricConfigFromSelectedLine(draft);
             return;
         }
         if (draft.isManualLegacyMode()) {
@@ -125,9 +126,20 @@ public final class TowerDesignerSession {
     }
 
     public void syncParametricConfigToSelectedLine(PoleDesign draft) {
+        if (!ParametricFootprintSync.usesParametricTower(draft)) {
+            return;
+        }
         PowerLineFootprint line = ctx.selection().primary(ctx.project());
         String editingId = ctx.state().getPoleDesignerEditingId();
         if (ParametricFootprintSync.syncFromDesign(line, draft, editingId)) {
+            ctx.invalidatePreview();
+        }
+    }
+
+    public void clearParametricConfigFromSelectedLine(PoleDesign draft) {
+        PowerLineFootprint line = ctx.selection().primary(ctx.project());
+        String editingId = ctx.state().getPoleDesignerEditingId();
+        if (ParametricFootprintSync.clearFromDesign(line, draft, editingId)) {
             ctx.invalidatePreview();
         }
     }

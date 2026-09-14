@@ -43,6 +43,28 @@ class ParametricFootprintSyncTest {
     }
 
     @Test
+    void syncSkipsLegacyDesignWithoutTowerStructure() {
+        PowerLineFootprint line = styledLine();
+        PoleDesign draft = new PoleDesign("draft", "Draft");
+        TowerParametricEditor.enableParametricClassic(draft, TowerParameterSet.classicDefaults());
+        draft.clearTowerStructure();
+
+        assertFalse(ParametricFootprintSync.syncFromDesign(line, draft, "family-edit"));
+    }
+
+    @Test
+    void clearRemovesLineOverrideForEditedDesign() {
+        PowerLineFootprint line = styledLine();
+        line.setPoleDesignId("draft");
+        PoleDesign draft = new PoleDesign("draft", "Draft");
+        TowerParametricEditor.enableParametricClassic(draft, TowerParameterSet.classicDefaults());
+        ParametricFootprintSync.syncFromDesign(line, draft, "draft");
+
+        assertTrue(ParametricFootprintSync.clearFromDesign(line, draft, "draft"));
+        assertFalse(line.hasParametricTowerConfig());
+    }
+
+    @Test
     void syncSkipsMismatchedProfileOnFamilyLine() {
         PowerLineFootprint line = styledLine();
         PoleDesign draft = new PoleDesign("draft", "Draft");
