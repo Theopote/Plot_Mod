@@ -3445,6 +3445,7 @@
   "plugin.powerline.design.preview_front": "Front (longitudinal)",
   "plugin.powerline.preview_invalidated": "Preview expired — recalculate before building",
   "plugin.powerline.preview_stale": "Preview no longer matches current line settings — recalculate before building",
+  "plugin.powerline.build_world_stale": "World blocks in the build area changed — regenerate preview before building",
   "plugin.powerline.tower_family_section": "Tower family",
   "plugin.powerline.tower_family": "Tower family",
   "plugin.powerline.tower_family_none": "Single pole design (legacy)",

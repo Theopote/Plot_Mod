@@ -3445,6 +3445,7 @@
   "plugin.powerline.design.preview_front": "正视 (纵向)",
   "plugin.powerline.preview_invalidated": "预览已过期，请重新计算",
   "plugin.powerline.preview_stale": "预览与当前线路参数不一致，请重新计算后再落地",
+  "plugin.powerline.build_world_stale": "目标区域的世界方块已变化，请重新生成预览后再落地",
   "plugin.powerline.tower_family_section": "塔型族",
   "plugin.powerline.tower_family": "塔型族",
   "plugin.powerline.tower_family_none": "单杆设计（兼容模式）",

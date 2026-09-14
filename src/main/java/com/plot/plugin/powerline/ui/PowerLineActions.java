@@ -385,6 +385,10 @@ public final class PowerLineActions {
 
         state.setLastGenerationResult(result);
         state.setPreviewKey(PowerLinePreviewKey.capture(line, state.getDesignProject(), host.coordinates()));
+        state.setBuildRegionWorldFingerprint(
+            com.plot.plugin.powerline.placement.BuildRegionWorldFingerprint.capture(
+                result,
+                host.projection()));
         previewManager.showLinePreview(result);
         if (announceSuccess) {
             state.setProjectStatus(PlotI18n.tr(
@@ -684,10 +688,44 @@ public final class PowerLineActions {
         if (!ensurePreviewReadyForBuild(line)) {
             return;
         }
-        if (PowerLineBuildPolicy.hasBlockingIssues(
-                line,
-                cachedEngineeringReport(line),
-                cachedTerrainReport(line))) {
+
+        World world = getClientWorld();
+        if (world == null) {
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.projection_unavailable"),
+                ProjectStatusSeverity.ERROR);
+            return;
+        }
+
+        PowerLineGenerationResult resultSnapshot;
+        int previewWorldFingerprint;
+        synchronized (projectLock) {
+            PowerLineGenerationResult last = state.getLastGenerationResult();
+            if (last == null || last.placementRecords.isEmpty()) {
+                state.setProjectStatus(PlotI18n.tr("plugin.powerline.build_no_blocks"), ProjectStatusSeverity.WARNING);
+                return;
+            }
+            resultSnapshot = last;
+            previewWorldFingerprint = state.getBuildRegionWorldFingerprint();
+        }
+
+        if (!com.plot.plugin.powerline.placement.BuildRegionWorldFingerprint.matches(
+                resultSnapshot,
+                previewWorldFingerprint,
+                host.projection())) {
+            state.setProjectStatus(
+                PlotI18n.tr("plugin.powerline.build_world_stale"),
+                ProjectStatusSeverity.WARNING);
+            return;
+        }
+
+        PowerLineValidationReport engineeringReport = line.isLineChecksEnabled()
+            ? computeEngineeringReport(line, world)
+            : null;
+        PowerLineValidationReport terrainReport = line.isTerrainAvoidanceEnabled()
+            ? computeTerrainReport(line, world)
+            : null;
+        if (PowerLineBuildPolicy.hasBlockingIssues(line, engineeringReport, terrainReport)) {
             state.setProjectStatus(
                 PlotI18n.tr("plugin.powerline.build_blocked_validation"),
                 ProjectStatusSeverity.ERROR);
@@ -698,16 +736,6 @@ public final class PowerLineActions {
                 PlotI18n.tr("plugin.powerline.build_blocked_parametric"),
                 ProjectStatusSeverity.ERROR);
             return;
-        }
-
-        PowerLineGenerationResult resultSnapshot;
-        synchronized (projectLock) {
-            PowerLineGenerationResult last = state.getLastGenerationResult();
-            if (last == null || last.placementRecords.isEmpty()) {
-                state.setProjectStatus(PlotI18n.tr("plugin.powerline.build_no_blocks"), ProjectStatusSeverity.WARNING);
-                return;
-            }
-            resultSnapshot = last;
         }
 
         com.plot.api.world.PlacementReadiness readiness = host.projection().checkWorldModificationReadiness();
@@ -722,7 +750,8 @@ public final class PowerLineActions {
             return;
         }
 
-        List<BlockRecord> records = new ArrayList<>(resultSnapshot.placementRecords.values());
+        List<BlockRecord> records = com.plot.plugin.powerline.placement.BuildPlacementPreparer
+            .prepareExecutionRecords(resultSnapshot.placementRecords.values(), host.projection());
         PowerLineGenerateCommand command = new PowerLineGenerateCommand(records, host.projection(), host.placement());
         state.setProjectStatus(
             PlotI18n.tr("plugin.powerline.build_in_progress", records.size()),

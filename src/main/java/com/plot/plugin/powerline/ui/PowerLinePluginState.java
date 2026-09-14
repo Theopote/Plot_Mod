@@ -29,6 +29,7 @@ public final class PowerLinePluginState {
 
     private volatile PowerLineGenerationResult lastGenerationResult;
     private PowerLinePreviewKey previewKey;
+    private int buildRegionWorldFingerprint;
     private boolean previewAutoRefreshEnabled;
     private final ImString lineNameBuffer = new ImString(64);
     private String lineNameEditingId = "";
@@ -155,6 +156,17 @@ public final class PowerLinePluginState {
 
     public void setPreviewKey(PowerLinePreviewKey previewKey) {
         this.previewKey = previewKey;
+        if (previewKey == null) {
+            buildRegionWorldFingerprint = 0;
+        }
+    }
+
+    public int getBuildRegionWorldFingerprint() {
+        return buildRegionWorldFingerprint;
+    }
+
+    public void setBuildRegionWorldFingerprint(int buildRegionWorldFingerprint) {
+        this.buildRegionWorldFingerprint = buildRegionWorldFingerprint;
     }
 
     public boolean isPreviewAutoRefreshEnabled() {

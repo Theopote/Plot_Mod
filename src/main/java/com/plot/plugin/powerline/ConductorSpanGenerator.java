@@ -3,7 +3,6 @@ package com.plot.plugin.powerline;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
-import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.powerline.design.BundleVisual;
@@ -12,6 +11,8 @@ import com.plot.plugin.powerline.geometry.ConductorSample;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.placement.DirectionalBlockSpecs;
+import com.plot.plugin.powerline.placement.PlacementCategory;
+import com.plot.plugin.powerline.placement.PlacementWriter;
 import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
 
@@ -237,23 +238,7 @@ public final class ConductorSpanGenerator {
             String blockId = MaterialMixResolver.resolve(wireMaterial, pos, footprint.getId());
             String placementId = DirectionalBlockSpecs.resolveMemberPlacement(
                 blockId, deltaX, deltaY, deltaZ).toSetBlockArgument();
-            recordBlock(result, pos, placementId, projectionHandler);
+            PlacementWriter.put(result, projectionHandler, pos, placementId, PlacementCategory.WIRE);
         }
-    }
-
-    private static void recordBlock(
-            PowerLineGenerationResult result,
-            BlockPos pos,
-            String newBlockId,
-            IBlockProjectionService projectionHandler) {
-        BlockRecord existing = result.placementRecords.get(pos);
-        if (existing != null) {
-            result.placementRecords.put(pos, new BlockRecord(pos, existing.previousBlockId, newBlockId));
-            return;
-        }
-        String previous = projectionHandler != null
-            ? projectionHandler.getBlockIdAt(pos)
-            : "minecraft:air";
-        result.placementRecords.put(pos, new BlockRecord(pos, previous, newBlockId));
     }
 }

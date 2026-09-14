@@ -2,10 +2,11 @@ package com.plot.plugin.powerline;
 
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
-import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.powerline.placement.DirectionalBlockSpecs;
+import com.plot.plugin.powerline.placement.PlacementCategory;
+import com.plot.plugin.powerline.placement.PlacementWriter;
 import com.plot.plugin.powerline.design.structure.BracingPattern;
 import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerArmPlacement;
@@ -26,8 +27,6 @@ import java.util.Set;
 
 /** 参数化塔体结构生成（与导线拓扑独立）。 */
 public final class TowerStructureGenerator {
-    private static final double UNEVEN_BASE_WARNING_THRESHOLD = 2.0;
-
     private TowerStructureGenerator() {
     }
 
@@ -39,6 +38,18 @@ public final class TowerStructureGenerator {
             ICoordinateService coordinates,
             IBlockProjectionService projection,
             TerrainSampler terrain) {
+        return generate(structure, frame, footprint, result, coordinates, projection, terrain, null);
+    }
+
+    public static int generate(
+            TowerStructureDesign structure,
+            PoleFrame frame,
+            PowerLineFootprint footprint,
+            PowerLineGenerationResult result,
+            ICoordinateService coordinates,
+            IBlockProjectionService projection,
+            TerrainSampler terrain,
+            Set<BlockPos> structureScratch) {
         if (structure == null || frame == null || footprint == null || result == null) {
             return frame != null ? frame.groundY() : 0;
         }
@@ -59,8 +70,6 @@ public final class TowerStructureGenerator {
             return frame.groundY() + (int) Math.round(structure.maxHeight());
         }
 
-        checkBaseTerrain(stations.getFirst(), transform, terrain, result);
-
         for (int i = 1; i < stations.size(); i++) {
             TowerStation lower = stations.get(i - 1);
             TowerStation upper = stations.get(i);
@@ -72,7 +81,7 @@ public final class TowerStructureGenerator {
                 bay.setHorizontalRing(true);
             }
 
-            generateLegs(lower, upper, structure, transform, footprint, result, projection, counters);
+            generateLegs(lower, upper, structure, transform, footprint, result, projection, counters, structureScratch);
             generateFaceBracing(
                 lower,
                 upper,
@@ -84,7 +93,8 @@ public final class TowerStructureGenerator {
                 result,
                 projection,
                 counters,
-                true);
+                true,
+                structureScratch);
             generateFaceBracing(
                 lower,
                 upper,
@@ -96,21 +106,22 @@ public final class TowerStructureGenerator {
                 result,
                 projection,
                 counters,
-                false);
+                false,
+                structureScratch);
             if (bay.isHorizontalRing()) {
-                generateHorizontalRing(upper, structure, transform, footprint, result, projection, counters);
+                generateHorizontalRing(upper, structure, transform, footprint, result, projection, counters, structureScratch);
             }
             if (bay.isPlanDiagonalBracing()) {
-                generatePlanDiagonalBracing(upper, structure, transform, footprint, result, projection, counters);
+                generatePlanDiagonalBracing(upper, structure, transform, footprint, result, projection, counters, structureScratch);
             }
         }
 
         for (TowerArm arm : structure.getArms()) {
-            generateArm(arm, structure, transform, footprint, result, projection, counters);
+            generateArm(arm, structure, transform, footprint, result, projection, counters, structureScratch);
         }
 
         for (TowerDecoration decoration : structure.getDecorations()) {
-            generateDecoration(decoration, structure, transform, footprint, result, projection, counters);
+            generateDecoration(decoration, structure, transform, footprint, result, projection, counters, structureScratch);
         }
 
         result.structureBlockCount += counters.total();
@@ -135,13 +146,16 @@ public final class TowerStructureGenerator {
             PowerLineFootprint footprint,
             PowerLineGenerationResult result,
             IBlockProjectionService projection,
-            GenerationCounters counters) {
+            GenerationCounters counters,
+            Set<BlockPos> structureScratch) {
         MaterialMix material = structure.getPrimaryMaterial();
         int thickness = structure.getLegProfile().getThickness();
         for (int corner = 0; corner < TowerStructureGeometry.CORNER_COUNT; corner++) {
             TowerLocalPoint start = TowerStructureGeometry.cornerPoint(lower, corner);
             TowerLocalPoint end = TowerStructureGeometry.cornerPoint(upper, corner);
-            placeMember(start, end, material, thickness, transform, footprint, result, projection, counters, MemberKind.LEG);
+            placeMember(
+                start, end, material, thickness, transform, footprint, result, projection, counters,
+                MemberKind.LEG, structureScratch);
         }
     }
 
@@ -156,7 +170,8 @@ public final class TowerStructureGenerator {
             PowerLineGenerationResult result,
             IBlockProjectionService projection,
             GenerationCounters counters,
-            boolean frontBack) {
+            boolean frontBack,
+            Set<BlockPos> structureScratch) {
         if (pattern == BracingPattern.NONE || corners.length < 2) {
             return;
         }
@@ -168,18 +183,18 @@ public final class TowerStructureGenerator {
         TowerLocalPoint bUpper = TowerStructureGeometry.cornerPoint(upper, b);
 
         if (pattern == BracingPattern.X) {
-            placeBrace(aLower, bUpper, structure, transform, footprint, result, projection, counters);
-            placeBrace(bLower, aUpper, structure, transform, footprint, result, projection, counters);
+            placeBrace(aLower, bUpper, structure, transform, footprint, result, projection, counters, structureScratch);
+            placeBrace(bLower, aUpper, structure, transform, footprint, result, projection, counters, structureScratch);
         } else if (pattern == BracingPattern.K) {
             TowerLocalPoint centerUpper = midpoint(aUpper, bUpper);
-            placeBrace(aLower, centerUpper, structure, transform, footprint, result, projection, counters);
-            placeBrace(bLower, centerUpper, structure, transform, footprint, result, projection, counters);
+            placeBrace(aLower, centerUpper, structure, transform, footprint, result, projection, counters, structureScratch);
+            placeBrace(bLower, centerUpper, structure, transform, footprint, result, projection, counters, structureScratch);
         } else if (pattern == BracingPattern.SINGLE_DIAGONAL) {
-            placeBrace(aLower, bUpper, structure, transform, footprint, result, projection, counters);
+            placeBrace(aLower, bUpper, structure, transform, footprint, result, projection, counters, structureScratch);
         } else if (pattern == BracingPattern.V) {
             TowerLocalPoint centerLower = midpoint(aLower, bLower);
-            placeBrace(aUpper, centerLower, structure, transform, footprint, result, projection, counters);
-            placeBrace(bUpper, centerLower, structure, transform, footprint, result, projection, counters);
+            placeBrace(aUpper, centerLower, structure, transform, footprint, result, projection, counters, structureScratch);
+            placeBrace(bUpper, centerLower, structure, transform, footprint, result, projection, counters, structureScratch);
         }
     }
 
@@ -197,14 +212,17 @@ public final class TowerStructureGenerator {
             PowerLineFootprint footprint,
             PowerLineGenerationResult result,
             IBlockProjectionService projection,
-            GenerationCounters counters) {
+            GenerationCounters counters,
+            Set<BlockPos> structureScratch) {
         MaterialMix material = structure.getBraceMaterial();
         int thickness = structure.getBraceProfile().getThickness();
         for (int corner = 0; corner < TowerStructureGeometry.CORNER_COUNT; corner++) {
             int next = (corner + 1) % TowerStructureGeometry.CORNER_COUNT;
             TowerLocalPoint start = TowerStructureGeometry.cornerPoint(station, corner);
             TowerLocalPoint end = TowerStructureGeometry.cornerPoint(station, next);
-            placeMember(start, end, material, thickness, transform, footprint, result, projection, counters, MemberKind.BRACE);
+            placeMember(
+                start, end, material, thickness, transform, footprint, result, projection, counters,
+                MemberKind.BRACE, structureScratch);
         }
     }
 
@@ -216,7 +234,8 @@ public final class TowerStructureGenerator {
             PowerLineFootprint footprint,
             PowerLineGenerationResult result,
             IBlockProjectionService projection,
-            GenerationCounters counters) {
+            GenerationCounters counters,
+            Set<BlockPos> structureScratch) {
         MaterialMix material = structure.getBraceMaterial();
         int thickness = structure.getBraceProfile().getThickness();
         placeMember(
@@ -229,7 +248,8 @@ public final class TowerStructureGenerator {
             result,
             projection,
             counters,
-            MemberKind.BRACE);
+            MemberKind.BRACE,
+            structureScratch);
         placeMember(
             TowerStructureGeometry.cornerPoint(station, 1),
             TowerStructureGeometry.cornerPoint(station, 3),
@@ -240,7 +260,8 @@ public final class TowerStructureGenerator {
             result,
             projection,
             counters,
-            MemberKind.BRACE);
+            MemberKind.BRACE,
+            structureScratch);
     }
 
     private static void generateArm(
@@ -250,7 +271,8 @@ public final class TowerStructureGenerator {
             PowerLineFootprint footprint,
             PowerLineGenerationResult result,
             IBlockProjectionService projection,
-            GenerationCounters counters) {
+            GenerationCounters counters,
+            Set<BlockPos> structureScratch) {
         MaterialMix chordMaterial = arm.getMaterial() != null
             ? arm.getMaterial()
             : structure.getPrimaryMaterial();
@@ -262,10 +284,12 @@ public final class TowerStructureGenerator {
             chordMaterial,
             braceMaterial,
             (lateralStart, lateralEnd, height, longHalf, material) ->
-                placeArmChord(lateralStart, lateralEnd, height, longHalf, material,
-                    transform, footprint, result, projection, counters),
+                placeArmChord(
+                    lateralStart, lateralEnd, height, longHalf, material,
+                    transform, footprint, result, projection, counters, structureScratch),
             (start, end, material) ->
-                placeArmBrace(start, end, material, transform, footprint, result, projection, counters));
+                placeArmBrace(
+                    start, end, material, transform, footprint, result, projection, counters, structureScratch));
     }
 
     private static void placeArmChord(
@@ -278,22 +302,23 @@ public final class TowerStructureGenerator {
             PowerLineFootprint footprint,
             PowerLineGenerationResult result,
             IBlockProjectionService projection,
-            GenerationCounters counters) {
+            GenerationCounters counters,
+            Set<BlockPos> structureScratch) {
         if (longHalf <= 0) {
             placeMember(
                 TowerLocalPoint.of(lateralStart, height, 0),
                 TowerLocalPoint.of(lateralEnd, height, 0),
-                material, 1, transform, footprint, result, projection, counters, MemberKind.ARM);
+                material, 1, transform, footprint, result, projection, counters, MemberKind.ARM, structureScratch);
             return;
         }
         placeMember(
             TowerLocalPoint.of(lateralStart, height, -longHalf),
             TowerLocalPoint.of(lateralEnd, height, -longHalf),
-            material, 1, transform, footprint, result, projection, counters, MemberKind.ARM);
+            material, 1, transform, footprint, result, projection, counters, MemberKind.ARM, structureScratch);
         placeMember(
             TowerLocalPoint.of(lateralStart, height, longHalf),
             TowerLocalPoint.of(lateralEnd, height, longHalf),
-            material, 1, transform, footprint, result, projection, counters, MemberKind.ARM);
+            material, 1, transform, footprint, result, projection, counters, MemberKind.ARM, structureScratch);
     }
 
     private static void generateDecoration(
@@ -303,7 +328,8 @@ public final class TowerStructureGenerator {
             PowerLineFootprint footprint,
             PowerLineGenerationResult result,
             IBlockProjectionService projection,
-            GenerationCounters counters) {
+            GenerationCounters counters,
+            Set<BlockPos> structureScratch) {
         if (decoration == null || !decoration.isEnabled()) {
             return;
         }
@@ -315,7 +341,8 @@ public final class TowerStructureGenerator {
                 footprint,
                 result,
                 projection,
-                counters);
+                counters,
+                structureScratch);
             case WARNING_LIGHT -> placeDecorationBlock(
                 decoration,
                 defaultMaterialId(decoration, "minecraft:sea_lantern"),
@@ -323,9 +350,12 @@ public final class TowerStructureGenerator {
                 footprint,
                 result,
                 projection,
-                counters);
-            case ANTENNA -> generateAntenna(decoration, transform, footprint, result, projection, counters);
-            case PLATFORM -> generatePlatform(decoration, transform, footprint, result, projection, counters);
+                counters,
+                structureScratch);
+            case ANTENNA -> generateAntenna(
+                decoration, transform, footprint, result, projection, counters, structureScratch);
+            case PLATFORM -> generatePlatform(
+                decoration, transform, footprint, result, projection, counters, structureScratch);
             default -> { }
         }
     }
@@ -336,7 +366,8 @@ public final class TowerStructureGenerator {
             PowerLineFootprint footprint,
             PowerLineGenerationResult result,
             IBlockProjectionService projection,
-            GenerationCounters counters) {
+            GenerationCounters counters,
+            Set<BlockPos> structureScratch) {
         MaterialMix mastMaterial = decoration.getMaterial() != null
             ? decoration.getMaterial()
             : MaterialMix.single("minecraft:iron_bars");
@@ -350,7 +381,9 @@ public final class TowerStructureGenerator {
             decoration.getLateralOffset(),
             base + mastHeight,
             decoration.getLongitudinalOffset());
-        placeMember(bottom, top, mastMaterial, 1, transform, footprint, result, projection, counters, MemberKind.DECORATION);
+        placeMember(
+            bottom, top, mastMaterial, 1, transform, footprint, result, projection, counters,
+            MemberKind.DECORATION, structureScratch);
         placeDecorationBlockAt(
             decoration.getLateralOffset(),
             base + mastHeight + 1,
@@ -360,7 +393,8 @@ public final class TowerStructureGenerator {
             footprint,
             result,
             projection,
-            counters);
+            counters,
+            structureScratch);
     }
 
     private static void generatePlatform(
@@ -369,7 +403,8 @@ public final class TowerStructureGenerator {
             PowerLineFootprint footprint,
             PowerLineGenerationResult result,
             IBlockProjectionService projection,
-            GenerationCounters counters) {
+            GenerationCounters counters,
+            Set<BlockPos> structureScratch) {
         MaterialMix material = decoration.getMaterial() != null
             ? decoration.getMaterial()
             : MaterialMix.single("minecraft:iron_block");
@@ -387,20 +422,21 @@ public final class TowerStructureGenerator {
             result,
             projection,
             counters,
+            structureScratch,
             material);
         for (int step = 1; step <= radius; step++) {
             placeDecorationBlockAt(
                 lateralCenter + step, height, longitudinalCenter, null,
-                transform, footprint, result, projection, counters, material);
+                transform, footprint, result, projection, counters, structureScratch, material);
             placeDecorationBlockAt(
                 lateralCenter - step, height, longitudinalCenter, null,
-                transform, footprint, result, projection, counters, material);
+                transform, footprint, result, projection, counters, structureScratch, material);
             placeDecorationBlockAt(
                 lateralCenter, height, longitudinalCenter + step, null,
-                transform, footprint, result, projection, counters, material);
+                transform, footprint, result, projection, counters, structureScratch, material);
             placeDecorationBlockAt(
                 lateralCenter, height, longitudinalCenter - step, null,
-                transform, footprint, result, projection, counters, material);
+                transform, footprint, result, projection, counters, structureScratch, material);
         }
     }
 
@@ -411,7 +447,8 @@ public final class TowerStructureGenerator {
             PowerLineFootprint footprint,
             PowerLineGenerationResult result,
             IBlockProjectionService projection,
-            GenerationCounters counters) {
+            GenerationCounters counters,
+            Set<BlockPos> structureScratch) {
         placeDecorationBlockAt(
             decoration.getLateralOffset(),
             decoration.getBaseHeight(),
@@ -421,7 +458,8 @@ public final class TowerStructureGenerator {
             footprint,
             result,
             projection,
-            counters);
+            counters,
+            structureScratch);
     }
 
     private static void placeDecorationBlockAt(
@@ -433,7 +471,8 @@ public final class TowerStructureGenerator {
             PowerLineFootprint footprint,
             PowerLineGenerationResult result,
             IBlockProjectionService projection,
-            GenerationCounters counters) {
+            GenerationCounters counters,
+            Set<BlockPos> structureScratch) {
         placeDecorationBlockAt(
             lateral,
             height,
@@ -444,6 +483,7 @@ public final class TowerStructureGenerator {
             result,
             projection,
             counters,
+            structureScratch,
             MaterialMix.single(blockId));
     }
 
@@ -457,12 +497,13 @@ public final class TowerStructureGenerator {
             PowerLineGenerationResult result,
             IBlockProjectionService projection,
             GenerationCounters counters,
+            Set<BlockPos> structureScratch,
             MaterialMix material) {
         BlockPos pos = transform.toBlock(TowerLocalPoint.of(lateral, height, longitudinal));
         String resolved = blockId != null
             ? blockId
             : MaterialMixResolver.resolve(material, pos, footprint.getId());
-        recordBlock(result, pos, resolved, projection);
+        recordBlock(result, pos, resolved, projection, PlacementCategory.STRUCTURE, structureScratch);
         counters.addDecoration(1);
     }
 
@@ -481,8 +522,11 @@ public final class TowerStructureGenerator {
             PowerLineFootprint footprint,
             PowerLineGenerationResult result,
             IBlockProjectionService projection,
-            GenerationCounters counters) {
-        placeMember(start, end, material, 1, transform, footprint, result, projection, counters, MemberKind.ARM);
+            GenerationCounters counters,
+            Set<BlockPos> structureScratch) {
+        placeMember(
+            start, end, material, 1, transform, footprint, result, projection, counters,
+            MemberKind.ARM, structureScratch);
     }
 
     private static void placeBrace(
@@ -493,7 +537,8 @@ public final class TowerStructureGenerator {
             PowerLineFootprint footprint,
             PowerLineGenerationResult result,
             IBlockProjectionService projection,
-            GenerationCounters counters) {
+            GenerationCounters counters,
+            Set<BlockPos> structureScratch) {
         placeMember(
             start,
             end,
@@ -504,7 +549,8 @@ public final class TowerStructureGenerator {
             result,
             projection,
             counters,
-            MemberKind.BRACE);
+            MemberKind.BRACE,
+            structureScratch);
     }
 
     private static void placeMember(
@@ -517,7 +563,8 @@ public final class TowerStructureGenerator {
             PowerLineGenerationResult result,
             IBlockProjectionService projection,
             GenerationCounters counters,
-            MemberKind kind) {
+            MemberKind kind,
+            Set<BlockPos> structureScratch) {
         double[] worldStart = transform.toWorld(start);
         double[] worldEnd = transform.toWorld(end);
         Set<BlockPos> blocks = new LinkedHashSet<>(VoxelLineRasterizer.rasterizeLine3D(
@@ -535,9 +582,18 @@ public final class TowerStructureGenerator {
         if (blocks.isEmpty()) {
             return;
         }
+        PlacementCategory category = kind == MemberKind.ARM
+            ? PlacementCategory.ARM
+            : PlacementCategory.STRUCTURE;
         for (BlockPos pos : blocks) {
             String blockId = MaterialMixResolver.resolve(material, pos, footprint.getId());
-            recordBlock(result, pos, memberPlacementId(blockId, start, end, transform), projection);
+            recordBlock(
+                result,
+                pos,
+                memberPlacementId(blockId, start, end, transform),
+                projection,
+                category,
+                structureScratch);
         }
         switch (kind) {
             case LEG -> counters.addLeg(blocks.size());
@@ -589,28 +645,6 @@ public final class TowerStructureGenerator {
         };
     }
 
-    private static void checkBaseTerrain(
-            TowerStation baseStation,
-            TowerStructureTransform transform,
-            TerrainSampler terrain,
-            PowerLineGenerationResult result) {
-        if (terrain == null || baseStation == null) {
-            return;
-        }
-        int minY = Integer.MAX_VALUE;
-        int maxY = Integer.MIN_VALUE;
-        for (int corner = 0; corner < TowerStructureGeometry.CORNER_COUNT; corner++) {
-            TowerLocalPoint cornerPoint = TowerStructureGeometry.cornerPoint(baseStation, corner);
-            double[] world = transform.toWorld(cornerPoint);
-            int groundY = terrain.sampleSurfaceY(new com.plot.api.geometry.Vec2d(world[0], world[2]));
-            minY = Math.min(minY, groundY);
-            maxY = Math.max(maxY, groundY);
-        }
-        if (maxY - minY > UNEVEN_BASE_WARNING_THRESHOLD) {
-            result.warnings.add(PowerLineGenerationI18n.towerBaseUneven(maxY - minY));
-        }
-    }
-
     private static String memberPlacementId(
             String blockId,
             TowerLocalPoint memberStart,
@@ -632,16 +666,10 @@ public final class TowerStructureGenerator {
             PowerLineGenerationResult result,
             BlockPos pos,
             String newBlockId,
-            IBlockProjectionService projectionHandler) {
-        BlockRecord existing = result.placementRecords.get(pos);
-        if (existing != null) {
-            result.placementRecords.put(pos, new BlockRecord(pos, existing.previousBlockId, newBlockId));
-            return;
-        }
-        String previous = projectionHandler != null
-            ? projectionHandler.getBlockIdAt(pos)
-            : "minecraft:air";
-        result.placementRecords.put(pos, new BlockRecord(pos, previous, newBlockId));
+            IBlockProjectionService projectionHandler,
+            PlacementCategory category,
+            Set<BlockPos> structureScratch) {
+        PlacementWriter.put(result, projectionHandler, pos, newBlockId, category, structureScratch);
     }
 
     private static final class GenerationCounters {

@@ -3,7 +3,6 @@ package com.plot.plugin.powerline.placement;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
-import com.plot.core.command.BlockRecord;
 import com.plot.core.geometry.WorldCoordinateUtils;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
@@ -60,7 +59,12 @@ public final class PoleSiteDecorationClearance {
                 int clearTopY = Math.max(columnTopY, structureTopY);
                 for (int y = groundY + 1; y <= clearTopY; y++) {
                     if (terrain.isRoadClearableDecoration(column.getX(), y, column.getZ())) {
-                        recordAir(result, projection, new BlockPos(column.getX(), y, column.getZ()));
+                        PlacementWriter.put(
+                            result,
+                            projection,
+                            new BlockPos(column.getX(), y, column.getZ()),
+                            AIR,
+                            PlacementCategory.CLEARANCE);
                     }
                 }
             }
@@ -101,25 +105,6 @@ public final class PoleSiteDecorationClearance {
             return new Vec2d(1, 0);
         }
         return tangent.normalize();
-    }
-
-    private static void recordAir(
-            PowerLineGenerationResult result,
-            IBlockProjectionService projection,
-            BlockPos pos) {
-        BlockRecord existing = result.placementRecords.get(pos);
-        if (existing != null) {
-            if (AIR.equals(existing.newBlockId)) {
-                return;
-            }
-            result.placementRecords.put(pos, new BlockRecord(pos, existing.previousBlockId, AIR));
-            return;
-        }
-        String previous = projection.getBlockIdAt(pos);
-        if (AIR.equals(previous)) {
-            return;
-        }
-        result.placementRecords.put(pos, new BlockRecord(pos, previous, AIR));
     }
 
     record SiteFootprint(int lateralRadiusBlocks, int longitudinalRadiusBlocks, int structureHeightBlocks) {

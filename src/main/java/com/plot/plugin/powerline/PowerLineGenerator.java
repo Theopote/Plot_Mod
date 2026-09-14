@@ -5,7 +5,6 @@ import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.PluginProjectionContext;
 import com.plot.api.world.WorldProjectionUnavailableException;
-import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.powerline.design.PoleDesign;
@@ -15,8 +14,14 @@ import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
 import com.plot.plugin.powerline.placement.GenerationVoxelSink;
 import com.plot.plugin.powerline.placement.PoleLayerVoxelPlacer;
 import com.plot.plugin.powerline.placement.PolePlacementBase;
+import com.plot.plugin.powerline.placement.PlacementCategory;
+import com.plot.plugin.powerline.placement.PlacementWriter;
 import com.plot.plugin.powerline.placement.PoleSiteDecorationClearance;
-import com.plot.plugin.powerline.placement.PoleWaterFoundation;
+import com.plot.plugin.powerline.placement.StructureAwareDecorationClearance;
+import com.plot.plugin.powerline.placement.StructureFoundationGenerator;
+import com.plot.plugin.powerline.placement.TowerFoundationPlan;
+import com.plot.plugin.powerline.placement.TowerFoundationResolver;
+import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.ConductorAttachmentPresets;
 import com.plot.plugin.powerline.engineering.selection.TowerSelectionContext;
 import com.plot.plugin.powerline.engineering.validation.ValidationLimits;
@@ -39,6 +44,8 @@ import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -216,24 +223,53 @@ public class PowerLineGenerator {
             design = EffectivePoleDesignResolver.applyLineOverrides(design, footprint);
         }
 
-        PoleSiteDecorationClearance.clearAroundPole(
-            planPoint,
-            placementBase,
-            design,
-            footprint.getPoleHeight(),
-            tangent,
-            terrain,
-            result,
-            projectionHandler,
-            coordinateTransformer);
-        fillWaterFoundationIfNeeded(planPoint, placementBase, footprint, result);
+        boolean hasTowerStructure = design != null && design.hasTowerStructure();
+        TowerFoundationPlan foundationPlan = null;
+        if (hasTowerStructure) {
+            TowerStation baseStation = resolveBaseStation(design);
+            foundationPlan = TowerFoundationResolver.resolve(baseStation, frame, terrain);
+            if (TowerFoundationResolver.exceedsUnevenWarningThreshold(foundationPlan)) {
+                result.warnings.add(PowerLineGenerationI18n.towerBaseUneven(foundationPlan.unevenDeltaBlocks()));
+            }
+            buildBaseY = foundationPlan.referenceBuildBaseY();
+            frame = PoleFrame.fromPole(planPoint, tangent, buildBaseY);
+            StructureFoundationGenerator.fillTowerLegFoundations(
+                foundationPlan,
+                baseStation,
+                frame,
+                footprint.getPoleMaterial(),
+                footprint.getId(),
+                result,
+                projectionHandler,
+                coordinateTransformer);
+        } else {
+            PoleSiteDecorationClearance.clearAroundPole(
+                planPoint,
+                placementBase,
+                design,
+                footprint.getPoleHeight(),
+                tangent,
+                terrain,
+                result,
+                projectionHandler,
+                coordinateTransformer);
+            StructureFoundationGenerator.fillCenterColumn(
+                planPoint,
+                placementBase,
+                footprint.getPoleMaterial(),
+                footprint.getId(),
+                result,
+                projectionHandler,
+                coordinateTransformer);
+        }
 
         int legacyWireHangY;
         List<ResolvedAttachment> attachments;
         boolean usesAttachmentConductors;
+        Set<BlockPos> structureBlocks = hasTowerStructure ? new LinkedHashSet<>() : null;
 
         if (design != null) {
-            if (design.hasTowerStructure()) {
+            if (hasTowerStructure) {
                 legacyWireHangY = TowerStructureGenerator.generate(
                     design.getTowerStructure(),
                     frame,
@@ -241,7 +277,13 @@ public class PowerLineGenerator {
                     result,
                     coordinateTransformer,
                     projectionHandler,
-                    terrain);
+                    terrain,
+                    structureBlocks);
+                StructureAwareDecorationClearance.clearNearStructureBlocks(
+                    structureBlocks,
+                    terrain,
+                    result,
+                    projectionHandler);
             } else {
                 legacyWireHangY = applyPoleDesign(design, planPoint, placementBase, tangent, footprint, result);
             }
@@ -341,19 +383,12 @@ public class PowerLineGenerator {
         return context;
     }
 
-    private void fillWaterFoundationIfNeeded(
-            Vec2d planPoint,
-            PolePlacementBase placementBase,
-            PowerLineFootprint footprint,
-            PowerLineGenerationResult result) {
-        PoleWaterFoundation.fillBelowBuildBase(
-            planPoint,
-            placementBase,
-            footprint.getPoleMaterial(),
-            footprint.getId(),
-            result,
-            projectionHandler,
-            coordinateTransformer);
+    private static TowerStation resolveBaseStation(PoleDesign design) {
+        if (design == null || !design.hasTowerStructure()) {
+            return null;
+        }
+        var stations = design.getTowerStructure().sortedStations();
+        return stations.isEmpty() ? null : stations.getFirst();
     }
 
     private void generateDefaultPole(
@@ -367,7 +402,7 @@ public class PowerLineGenerator {
         for (int y = placementBase.poleLayerStartY(); y <= poleTopY; y++) {
             BlockPos pos = new BlockPos(column.getX(), y, column.getZ());
             String blockId = MaterialMixResolver.resolve(poleMaterial, pos, footprint.getId());
-            recordBlock(result, pos, blockId);
+            PlacementWriter.put(result, projectionHandler, pos, blockId, PlacementCategory.STRUCTURE);
         }
     }
 
@@ -454,13 +489,4 @@ public class PowerLineGenerator {
         }
     }
 
-    private void recordBlock(PowerLineGenerationResult result, BlockPos pos, String newBlockId) {
-        BlockRecord existing = result.placementRecords.get(pos);
-        if (existing != null) {
-            result.placementRecords.put(pos, new BlockRecord(pos, existing.previousBlockId, newBlockId));
-            return;
-        }
-        String previous = projectionHandler.getBlockIdAt(pos);
-        result.placementRecords.put(pos, new BlockRecord(pos, previous, newBlockId));
-    }
 }

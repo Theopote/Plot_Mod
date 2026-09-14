@@ -1,12 +1,15 @@
 package com.plot.plugin.powerline.placement;
 
 import com.plot.core.block.BlockSpec;
-import com.plot.core.command.BlockRecord;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.api.world.IBlockProjectionService;
-import net.minecraft.util.math.BlockPos;
 
-/** 将 {@link VoxelSink} 写入 {@link PowerLineGenerationResult} 放置记录。 */
+/**
+ * 将 {@link VoxelSink} 写入 {@link PowerLineGenerationResult} 放置记录。
+ * <p>
+ * 此处采集的 {@code previousBlockId} 仅用于预览期去重合并；真正落地与 Undo baseline
+ * 由 {@link BuildPlacementPreparer} 在执行前重新读取世界状态。
+ */
 public final class GenerationVoxelSink implements VoxelSink {
     private final PowerLineGenerationResult result;
     private final IBlockProjectionService projectionHandler;
@@ -23,7 +26,12 @@ public final class GenerationVoxelSink implements VoxelSink {
         if (blockId == null || blockId.isBlank()) {
             return;
         }
-        putRecord(x, y, z, blockId);
+        PlacementWriter.put(
+            result,
+            projectionHandler,
+            new net.minecraft.util.math.BlockPos(x, y, z),
+            blockId,
+            PlacementCategory.STRUCTURE);
     }
 
     @Override
@@ -31,24 +39,11 @@ public final class GenerationVoxelSink implements VoxelSink {
         if (block == null) {
             return;
         }
-        BlockPos pos = new BlockPos(x, y, z);
-        BlockRecord existing = result.placementRecords.get(pos);
-        if (existing != null) {
-            result.placementRecords.put(pos, new BlockRecord(pos, existing.previousBlockId, block));
-            return;
-        }
-        String previous = projectionHandler.getBlockIdAt(pos);
-        result.placementRecords.put(pos, new BlockRecord(pos, previous, block));
-    }
-
-    private void putRecord(int x, int y, int z, String blockId) {
-        BlockPos pos = new BlockPos(x, y, z);
-        BlockRecord existing = result.placementRecords.get(pos);
-        if (existing != null) {
-            result.placementRecords.put(pos, new BlockRecord(pos, existing.previousBlockId, blockId));
-            return;
-        }
-        String previous = projectionHandler.getBlockIdAt(pos);
-        result.placementRecords.put(pos, new BlockRecord(pos, previous, blockId));
+        PlacementWriter.put(
+            result,
+            projectionHandler,
+            new net.minecraft.util.math.BlockPos(x, y, z),
+            block,
+            PlacementCategory.STRUCTURE);
     }
 }

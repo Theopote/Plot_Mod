@@ -40,10 +40,14 @@ public final class LineOptimizationEngine {
         for (SpanAnalysis span : report.getSpans()) {
             for (var issue : span.getIssues()) {
                 if (EngineeringRuleIds.SPAN_MAXIMUM.equals(issue.ruleId())) {
+                    double stationing = midSpanStationing(span, sites);
+                    if (stationing < 0.0) {
+                        continue;
+                    }
                     OptimizationAction action = new OptimizationAction();
                     action.setType(OptimizationActionType.INSERT_POLE);
                     action.setSpanId(span.getId());
-                    action.setStationing(span.getHorizontalLength() * 0.5);
+                    action.setStationing(stationing);
                     action.setMessageKey(
                         "plugin.powerline.engineering.reason.insert_pole",
                         action.getStationing(),
@@ -152,6 +156,30 @@ public final class LineOptimizationEngine {
             }
             return best;
         }
+    }
+
+    private static double midSpanStationing(SpanAnalysis span, PowerLineGeometrySites sites) {
+        if (span == null || sites == null) {
+            return -1.0;
+        }
+        PowerPoleSite start = findSiteById(sites.sites, span.getStartPoleSiteId());
+        PowerPoleSite end = findSiteById(sites.sites, span.getEndPoleSiteId());
+        if (start == null || end == null) {
+            return -1.0;
+        }
+        return (start.getStationing() + end.getStationing()) * 0.5;
+    }
+
+    private static PowerPoleSite findSiteById(java.util.List<PowerPoleSite> sites, String siteId) {
+        if (sites == null || siteId == null || siteId.isBlank()) {
+            return null;
+        }
+        for (PowerPoleSite site : sites) {
+            if (site != null && siteId.equals(site.getId())) {
+                return site;
+            }
+        }
+        return null;
     }
 
     private static int indexOf(java.util.List<PowerPoleSite> sites, PowerPoleSite site) {

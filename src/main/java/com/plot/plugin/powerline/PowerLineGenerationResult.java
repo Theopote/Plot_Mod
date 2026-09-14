@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline;
 
 import com.plot.core.command.BlockRecord;
+import com.plot.plugin.powerline.placement.PlacementCategory;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
 import com.plot.plugin.powerline.geometry.PowerLineGeometryModel;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -19,6 +20,7 @@ import java.util.Map;
  */
 public class PowerLineGenerationResult {
     public final Map<BlockPos, BlockRecord> placementRecords = new LinkedHashMap<>();
+    public final Map<BlockPos, PlacementCategory> placementCategories = new LinkedHashMap<>();
     public final List<String> warnings = new ArrayList<>();
     public int poleCount;
     public double wireLength;
