@@ -95,7 +95,6 @@ public final class PowerLineRoutePanel {
         SourceSyncStatus status = PowerLineSourceSync.resolveStatus(line, canvasShapes);
         switch (status) {
             case NOT_LINKED, OK -> {
-                return;
             }
             case MISSING -> PowerLineUiWidgets.textColored(
                 PluginUiColors.WARNING,
@@ -128,7 +127,7 @@ public final class PowerLineRoutePanel {
             "plugin.powerline.line_name",
             "line_name",
             ctx.lineNameBuffer(),
-            name -> line.setName(name));
+                line::setName);
     }
 
     private void renderPolePlacement(PowerLineFootprint line) {
