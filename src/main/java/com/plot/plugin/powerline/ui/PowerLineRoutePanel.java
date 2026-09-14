@@ -38,7 +38,7 @@ public final class PowerLineRoutePanel {
         renderCurrentLineHeader();
 
         ImGui.separator();
-        renderProjectOverviewSection();
+        overviewPanel.renderProjectSection();
 
         ImGui.separator();
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.path"));
@@ -47,7 +47,6 @@ public final class PowerLineRoutePanel {
         if (line != null) {
             renderSourceReference(line);
             ImGui.separator();
-            PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.placement"));
             renderPolePlacement(line);
             renderAdvancedSpacing(line);
         }
@@ -55,12 +54,6 @@ public final class PowerLineRoutePanel {
 
     public void renderDeleteConfirmPopup() {
         overviewPanel.renderDeleteConfirmPopup();
-    }
-
-    private void renderProjectOverviewSection() {
-        int count = ctx.project().getLineCount();
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.all_lines_count", count));
-        overviewPanel.renderProjectSection();
     }
 
     private void renderCurrentLineHeader() {
@@ -140,7 +133,6 @@ public final class PowerLineRoutePanel {
     }
 
     private void renderPlacementMode(PowerLineFootprint line) {
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.placement_mode"));
         PoleSpacingMode[] modes = PoleSpacingMode.values();
         String[] labels = new String[modes.length];
         for (int i = 0; i < modes.length; i++) {
