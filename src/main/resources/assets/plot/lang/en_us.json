@@ -3471,6 +3471,8 @@
   "plugin.powerline.path.replace_picking_count": "Replacing line path · %d selected",
   "plugin.powerline.path.replace_picking_hint": "Select one new path; right-click to finish, then confirm replacement",
   "plugin.powerline.path.replace_ready": "New path selected",
+  "plugin.powerline.path.replace_confirm_target": "Replace line: %s",
+  "plugin.powerline.selection.frozen_replace_confirm": "Path replacement pending — apply or cancel before changing selection",
   "plugin.powerline.path.replace_clear_intro": "Replacing will clear:",
   "plugin.powerline.path.replace_clear_constraints": "• Auto/manual pole placement constraints",
   "plugin.powerline.path.replace_clear_overrides": "• Per-tower overrides and special tower assignments",

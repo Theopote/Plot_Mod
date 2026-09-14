@@ -217,6 +217,10 @@ public final class PowerLineUiWidgets {
         String comboLabel = showLabel
             ? stableLabel("plugin.powerline.select_line", "select_line")
             : "##select_line";
+        boolean selectionFrozen = ctx.isLineSelectionFrozen();
+        if (selectionFrozen) {
+            ImGui.beginDisabled();
+        }
         if (ImGui.combo(comboLabel, index, labels)) {
             String selectedId = ids[index.get()];
             if (selectedId == null || selectedId.isBlank()) {
@@ -224,6 +228,9 @@ public final class PowerLineUiWidgets {
             } else {
                 ctx.selectLine(selectedId, false);
             }
+        }
+        if (selectionFrozen) {
+            ImGui.endDisabled();
         }
         return current != 0;
     }

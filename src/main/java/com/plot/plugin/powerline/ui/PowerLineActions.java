@@ -641,6 +641,9 @@ public final class PowerLineActions {
     }
 
     public void selectLine(String lineId, boolean multiToggle) {
+        if (isLineSelectionFrozen()) {
+            return;
+        }
         String previousPrimary = state.getSelection().primaryId();
         state.getSelection().select(lineId, multiToggle);
         String newPrimary = state.getSelection().primaryId();
@@ -651,6 +654,9 @@ public final class PowerLineActions {
     }
 
     public void selectAll(java.util.Collection<String> ids) {
+        if (isLineSelectionFrozen()) {
+            return;
+        }
         String previousPrimary = state.getSelection().primaryId();
         state.getSelection().selectAll(ids);
         if (!state.getSelection().primaryId().equals(previousPrimary)) {
@@ -660,6 +666,9 @@ public final class PowerLineActions {
     }
 
     public void clearSelection() {
+        if (isLineSelectionFrozen()) {
+            return;
+        }
         if (!state.getSelection().isEmpty()) {
             state.getSelection().clear();
             state.setPreviewAutoRefreshEnabled(false);
@@ -1127,6 +1136,32 @@ public final class PowerLineActions {
         state.setProjectStatus(
             PlotI18n.tr("plugin.powerline.path.replace_ready"),
             ProjectStatusSeverity.SUCCESS);
+        syncSelectionToPathReplaceTarget();
+    }
+
+    public boolean isPathReplaceConfirmPending() {
+        if (!state.isPathReplacePending() || pathPickSession.isActive()) {
+            return false;
+        }
+        PowerLinePathSelectionAnalysis selection = state.getPathSelection();
+        return selection.canAdopt() && selection.adoptable().size() == 1;
+    }
+
+    public boolean isLineSelectionFrozen() {
+        return isPathReplaceConfirmPending();
+    }
+
+    private void syncSelectionToPathReplaceTarget() {
+        String targetId = state.getPathReplaceTargetLineId();
+        if (targetId == null || targetId.isBlank()) {
+            return;
+        }
+        String previousPrimary = state.getSelection().primaryId();
+        state.getSelection().select(targetId, false);
+        if (!targetId.equals(previousPrimary)) {
+            state.setPreviewAutoRefreshEnabled(false);
+            invalidatePreview();
+        }
     }
 
     public PowerLineValidationReport analyzeEngineering(PowerLineFootprint line) {

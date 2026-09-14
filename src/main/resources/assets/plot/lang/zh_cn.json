@@ -3471,6 +3471,8 @@
   "plugin.powerline.path.replace_picking_count": "正在替换线路路径 · 已选 %d 条",
   "plugin.powerline.path.replace_picking_hint": "选择一条新路径，右键完成后确认是否替换当前线路",
   "plugin.powerline.path.replace_ready": "新路径已选择",
+  "plugin.powerline.path.replace_confirm_target": "替换线路：%s",
+  "plugin.powerline.selection.frozen_replace_confirm": "路径替换确认中 — 请先应用或取消，再切换线路",
   "plugin.powerline.path.replace_clear_intro": "替换后将清除：",
   "plugin.powerline.path.replace_clear_constraints": "• 自动/手动杆位约束",
   "plugin.powerline.path.replace_clear_overrides": "• 逐杆塔覆盖与特殊塔指定",

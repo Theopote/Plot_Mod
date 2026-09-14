@@ -3,7 +3,9 @@ package com.plot.plugin.powerline.ui;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.context.PluginContext;
+import com.plot.core.geometry.shapes.LineShape;
 import com.plot.plugin.powerline.PowerLinePathPickSession;
+import com.plot.plugin.powerline.PowerLinePathSelectionAnalysis;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerLineProject;
@@ -127,5 +129,52 @@ class PowerLinePathPickCancelTest {
         assertTrue(state.isPathPickActivationBlocked());
         state.tickPathPickActivationBlock();
         assertFalse(state.isPathPickActivationBlocked());
+    }
+
+    @Test
+    void replaceConfirmFreezesLineSelection() {
+        PowerLinePluginState state = new PowerLinePluginState();
+        PowerLineFootprint lineA = sampleLine("Line A");
+        PowerLineFootprint lineB = sampleLine("Line B");
+        PowerLineProject project = new PowerLineProject();
+        project.addLine(lineA);
+        project.addLine(lineB);
+        state.setProject(project);
+        state.setDesignProject(new PowerLineDesignProject());
+        state.getSelection().select(lineA.getId(), false);
+
+        LineShape pickedPath = new LineShape(new Vec2d(0, 0), new Vec2d(20, 0));
+        state.beginPathReplacePick(lineA.getId());
+        state.setPathSelection(new PowerLinePathSelectionAnalysis(
+            List.of(pickedPath),
+            List.of(),
+            List.of()));
+
+        PowerLineUiContext ctx = uiContext(state);
+        assertTrue(ctx.isPathReplaceConfirmPending());
+        assertTrue(ctx.isLineSelectionFrozen());
+
+        ctx.selectLine(lineB.getId(), false);
+        assertEquals(lineA.getId(), state.getSelection().primaryId());
+
+        ctx.selectAll(project.getLines().keySet());
+        assertEquals(lineA.getId(), state.getSelection().primaryId());
+
+        ctx.clearSelection();
+        assertEquals(lineA.getId(), state.getSelection().primaryId());
+    }
+
+    @Test
+    void replaceConfirmPendingRequiresSingleAdoptablePath() {
+        PowerLinePluginState state = new PowerLinePluginState();
+        state.beginPathReplacePick("line-a");
+        assertFalse(uiContext(state).isPathReplaceConfirmPending());
+
+        LineShape pickedPath = new LineShape(new Vec2d(0, 0), new Vec2d(20, 0));
+        state.setPathSelection(new PowerLinePathSelectionAnalysis(
+            List.of(pickedPath),
+            List.of(),
+            List.of()));
+        assertTrue(uiContext(state).isPathReplaceConfirmPending());
     }
 }

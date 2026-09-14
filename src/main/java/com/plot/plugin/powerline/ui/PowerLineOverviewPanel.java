@@ -30,7 +30,18 @@ public final class PowerLineOverviewPanel {
 
         ctx.selection().retainExisting(ctx.project());
 
+        boolean selectionFrozen = ctx.isLineSelectionFrozen();
+        if (selectionFrozen) {
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.selection.frozen_replace_confirm"));
+            ImGui.spacing();
+        }
+
         float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX() * 2) / 3.0f;
+        if (selectionFrozen) {
+            ImGui.beginDisabled();
+        }
         if (ImGui.button(PlotI18n.tr("plugin.powerline.select_all"), buttonWidth, 0)) {
             ctx.selectAll(ctx.project().getLines().keySet());
         }
@@ -51,23 +62,35 @@ public final class PowerLineOverviewPanel {
         if (deleteDisabled) {
             ImGui.endDisabled();
         }
+        if (selectionFrozen) {
+            ImGui.endDisabled();
+        }
 
+        if (selectionFrozen) {
+            ImGui.beginDisabled();
+        }
         PowerLineOverviewRenderer.renderProjectMap(
             ctx.project(),
             ctx.selection().ids(),
             lineId -> ctx.selectLine(lineId, ImGui.getIO().getKeyCtrl()),
             ctx.coordinates());
+        if (selectionFrozen) {
+            ImGui.endDisabled();
+        }
 
         if (!ctx.project().getLines().isEmpty()) {
             ImGui.spacing();
         }
         for (PowerLineFootprint line : ctx.project().getLines().values()) {
-            renderLineRow(line);
+            renderLineRow(line, selectionFrozen);
         }
     }
 
-    private void renderLineRow(PowerLineFootprint line) {
+    private void renderLineRow(PowerLineFootprint line, boolean selectionFrozen) {
         ImGui.pushID(line.getId());
+        if (selectionFrozen) {
+            ImGui.beginDisabled();
+        }
         boolean selected = ctx.selection().contains(line.getId());
         boolean renaming = line.getId().equals(ctx.lineNameEditingId());
 
@@ -80,7 +103,7 @@ public final class PowerLineOverviewPanel {
 
         float columnWidth = Math.max(120f, ImGui.getContentRegionAvailX() - 8f);
         ImGui.beginGroup();
-        renderLineNameLabel(line, columnWidth, selected);
+        renderLineNameLabel(line, columnWidth, selected, selectionFrozen);
         if (!renaming) {
             PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
                 "plugin.powerline.overview_item",
@@ -93,10 +116,17 @@ public final class PowerLineOverviewPanel {
             }
         }
         ImGui.endGroup();
+        if (selectionFrozen) {
+            ImGui.endDisabled();
+        }
         ImGui.popID();
     }
 
-    private void renderLineNameLabel(PowerLineFootprint line, float columnWidth, boolean selected) {
+    private void renderLineNameLabel(
+            PowerLineFootprint line,
+            float columnWidth,
+            boolean selected,
+            boolean selectionFrozen) {
         if (!line.getId().equals(ctx.lineNameEditingId())) {
             ImGui.setNextItemWidth(columnWidth);
             if (ImGui.selectable(
@@ -104,7 +134,7 @@ public final class PowerLineOverviewPanel {
                     selected)) {
                 ctx.selectLine(line.getId(), ImGui.getIO().getKeyCtrl());
             }
-            if (ImGui.isItemHovered()) {
+            if (!selectionFrozen && ImGui.isItemHovered()) {
                 ImGui.setTooltip(PlotI18n.tr("plugin.powerline.overview_rename_hint"));
                 if (ImGui.isMouseDoubleClicked(0)) {
                     ctx.beginLineNameRename(line);

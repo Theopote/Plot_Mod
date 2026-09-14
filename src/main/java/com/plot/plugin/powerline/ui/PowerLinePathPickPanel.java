@@ -89,6 +89,13 @@ public final class PowerLinePathPickPanel {
     }
 
     private void renderReplaceConfirmState() {
+        PowerLineFootprint target = ctx.pathReplaceTargetLine();
+        if (target != null) {
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.path.replace_confirm_target", target.getName()));
+            ImGui.spacing();
+        }
         PowerLineUiWidgets.textColored(
             PluginUiColors.STATUS_INFO,
             PlotI18n.tr("plugin.powerline.path.replace_ready"));

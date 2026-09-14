@@ -260,6 +260,21 @@ public final class PowerLineUiContext {
         return state.isPathReplacePending();
     }
 
+    public boolean isPathReplaceConfirmPending() {
+        return actions.isPathReplaceConfirmPending();
+    }
+
+    public boolean isLineSelectionFrozen() {
+        return actions.isLineSelectionFrozen();
+    }
+
+    public PowerLineFootprint pathReplaceTargetLine() {
+        if (!state.isPathReplacePending()) {
+            return null;
+        }
+        return state.getProject().getLine(state.getPathReplaceTargetLineId());
+    }
+
     public void confirmPathReplace() {
         actions.confirmPathReplace();
     }
@@ -317,7 +332,7 @@ public final class PowerLineUiContext {
     }
 
     public void beginLineNameRename(PowerLineFootprint line) {
-        if (line == null) {
+        if (line == null || isLineSelectionFrozen()) {
             return;
         }
         state.beginLineNameRename(line.getId(), line.getName());
