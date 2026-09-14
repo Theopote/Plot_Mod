@@ -9,6 +9,7 @@ import com.plot.plugin.powerline.PowerLineSagUtils;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.style.PowerLineQuickTunePolicy;
 import com.plot.plugin.powerline.style.PowerLineSpacingPolicy;
+import com.plot.plugin.powerline.style.LinePoleDesignOverrides;
 import com.plot.plugin.powerline.style.PowerLineStyleEditor;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.plugin.ui.PluginUiColors;
@@ -361,7 +362,7 @@ public final class PowerLineStyleQuickTunePanel {
                 0,
                 0)) {
             beginProjectBackedStyleEdit(line);
-            PowerLineStyleEditor.resetToBasePreset(line);
+            PowerLineStyleEditor.resetToBasePreset(line, ctx.state().getDesignProject());
             completeStyleEdit(line);
         }
     }
@@ -581,13 +582,9 @@ public final class PowerLineStyleQuickTunePanel {
         if (!line.hasPoleDesign()) {
             PowerLineQuickTunePolicy.applyLegacyPoleHeight(line, band);
         } else {
-            boolean wasBuiltin = PoleDesignCatalog.isBuiltinId(line.getPoleDesignId());
             PoleDesign editable = ensureEditableDesign(line);
             PowerLineQuickTunePolicy.applyPoleHeightBand(editable, base, band);
-            ctx.actions().savePoleDesign(editable);
-            if (wasBuiltin) {
-                line.setPoleDesignId(editable.getId());
-            }
+            ctx.actions().saveLineInstancePoleDesign(line, editable);
         }
         PowerLineStyleEditor.afterStyleEdit(line);
         completeStyleEdit(line);
@@ -604,13 +601,9 @@ public final class PowerLineStyleQuickTunePanel {
             completeStyleEdit(line);
             return;
         }
-        boolean wasBuiltin = PoleDesignCatalog.isBuiltinId(line.getPoleDesignId());
         PoleDesign editable = ensureEditableDesign(line);
         PowerLineQuickTunePolicy.applyCrossarmWidthBand(editable, base, band);
-        ctx.actions().savePoleDesign(editable);
-        if (wasBuiltin) {
-            line.setPoleDesignId(editable.getId());
-        }
+        ctx.actions().saveLineInstancePoleDesign(line, editable);
         PowerLineStyleEditor.afterStyleEdit(line);
         completeStyleEdit(line);
     }
@@ -624,6 +617,14 @@ public final class PowerLineStyleQuickTunePanel {
     }
 
     private PoleDesign ensureEditableDesign(PowerLineFootprint line) {
-        return ctx.designResolver().prepareEditableCopy(line.getPoleDesignId());
+        String openId = LinePoleDesignOverrides.resolveOpenDesignId(
+            line,
+            line.getPoleDesignId(),
+            ctx.state().getDesignProject());
+        PoleDesign current = ctx.designResolver().find(openId);
+        if (current == null) {
+            return ctx.designResolver().prepareEditableCopy(line.getPoleDesignId());
+        }
+        return current.copy();
     }
 }

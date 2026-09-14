@@ -2,6 +2,7 @@ package com.plot.plugin.powerline.style;
 
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
+import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 
 import java.util.Objects;
@@ -48,6 +49,16 @@ public final class PowerLineStyleEditor {
         line.setSpacingCustomized(false);
         preset.apply(line);
         syncOverridesFromFootprint(line);
+    }
+
+    /** 重置为 base preset，并清除该线路的私有造型 fork。 */
+    public static void resetToBasePreset(
+            PowerLineFootprint line,
+            PowerLineDesignProject designProject) {
+        if (designProject != null) {
+            LinePoleDesignOverrides.removeLineInstance(line, designProject);
+        }
+        resetToBasePreset(line);
     }
 
     public static void afterStyleEdit(PowerLineFootprint line) {

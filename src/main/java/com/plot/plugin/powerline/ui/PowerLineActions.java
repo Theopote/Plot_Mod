@@ -29,6 +29,7 @@ import com.plot.plugin.powerline.design.parametric.TowerParametricBuildPolicy;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerLineProject;
+import com.plot.plugin.powerline.style.LinePoleDesignOverrides;
 import com.plot.core.terrain.MinecraftTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.utils.PlotI18n;
@@ -978,6 +979,16 @@ public final class PowerLineActions {
             invalidatePreview();
         }
         state.setProjectStatus(PlotI18n.tr("plugin.powerline.design.saved", design.getName()), ProjectStatusSeverity.SUCCESS);
+    }
+
+    /** 将造型写入该线路私有实例，不覆盖内置或共享模板。 */
+    public void saveLineInstancePoleDesign(PowerLineFootprint line, PoleDesign draft) {
+        if (line == null || draft == null) {
+            return;
+        }
+        pushWorkspaceSnapshot();
+        LinePoleDesignOverrides.saveLineInstance(line, draft, state.getDesignProject());
+        invalidatePreview();
     }
 
     private boolean isDesignReferencedByAnyLine(String designId) {

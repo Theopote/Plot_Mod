@@ -18,6 +18,8 @@ import com.plot.plugin.powerline.design.PoleLayer;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.TowerRole;
+import com.plot.plugin.powerline.style.LinePoleDesignOverrides;
+import com.plot.plugin.powerline.style.ParametricFootprintSync;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
@@ -65,8 +67,13 @@ public final class PoleDesignerPanel {
     }
 
     /** 从线路插件打开：调整选中线路上的杆塔参数，不可更换塔型种类。 */
-    public void openForLineInstance(String designId) {
-        open(designId, PoleDesignerEditScope.LINE_INSTANCE);
+    public void openForLineInstance(String baseDesignId) {
+        PowerLineFootprint line = ctx.selection().primary(ctx.project());
+        String openId = LinePoleDesignOverrides.resolveOpenDesignId(
+            line,
+            baseDesignId,
+            ctx.state().getDesignProject());
+        open(openId, PoleDesignerEditScope.LINE_INSTANCE);
     }
 
     public void open(String designId) {
@@ -262,18 +269,25 @@ public final class PoleDesignerPanel {
         float width = DialogStyleManager.getContentWidth();
 
         if (DialogLayoutHelper.beginForm("##designer_footer_form")) {
-            DialogLayoutHelper.formRowLabel(PlotI18n.tr("plugin.powerline.design.name"));
-            if (ImGui.inputText("##design_name", designNameBuffer)) {
-                draft.setName(designNameBuffer.get());
-            }
-            if (ImGui.isItemActivated()) {
-                pushDraftSnapshot();
+            if (editScope != PoleDesignerEditScope.LINE_INSTANCE) {
+                DialogLayoutHelper.formRowLabel(PlotI18n.tr("plugin.powerline.design.name"));
+                if (ImGui.inputText("##design_name", designNameBuffer)) {
+                    draft.setName(designNameBuffer.get());
+                }
+                if (ImGui.isItemActivated()) {
+                    pushDraftSnapshot();
+                }
             }
             DialogLayoutHelper.endForm();
         }
 
-        String saveLabel = PlotI18n.tr("plugin.powerline.design.save");
-        String saveAsLabel = PlotI18n.tr("plugin.powerline.design.save_as");
+        boolean lineInstance = editScope == PoleDesignerEditScope.LINE_INSTANCE;
+        String saveLabel = lineInstance
+            ? PlotI18n.tr("plugin.powerline.design.apply_to_line")
+            : PlotI18n.tr("plugin.powerline.design.save");
+        String saveAsLabel = lineInstance
+            ? PlotI18n.tr("plugin.powerline.design.save_as_template")
+            : PlotI18n.tr("plugin.powerline.design.save_as");
         String cancelLabel = PlotI18n.tr("button.plot.cancel");
         float buttonWidth = DialogStyleManager.getStandardButtonWidth(width, 3, saveLabel, saveAsLabel, cancelLabel);
         float buttonsTotal = buttonWidth * 3f + DialogStyleManager.FOOTER_BUTTON_GAP * 2f;
@@ -477,6 +491,53 @@ public final class PoleDesignerPanel {
         if (!towerSession.canSaveDraft(draft)) {
             return false;
         }
+        if (editScope == PoleDesignerEditScope.LINE_INSTANCE) {
+            if (forceNewId) {
+                return saveAsSharedTemplate();
+            }
+            return applyLineInstanceDraft();
+        }
+        return saveSharedDesignDraft(forceNewId);
+    }
+
+    private boolean applyLineInstanceDraft() {
+        PowerLineFootprint line = ctx.selection().primary(ctx.project());
+        if (ParametricFootprintSync.usesParametricTower(draft)) {
+            towerSession.syncParametricConfigToSelectedLine(draft);
+        } else if (line != null) {
+            ctx.actions().saveLineInstancePoleDesign(line, draft);
+            String instanceId = LinePoleDesignOverrides.lineInstanceDesignId(line);
+            ctx.state().setPoleDesignerEditingId(instanceId);
+            PoleDesign saved = ctx.designResolver().find(instanceId);
+            if (saved != null) {
+                draft = saved.copy();
+            }
+        }
+        towerSession.commitFootprintBaselineAfterSave();
+        designNameBuffer.set(draft.getName());
+        ctx.state().getDesignDraftHistory().clear();
+        captureOpenedBaseline();
+        ctx.state().setProjectStatus(
+            PlotI18n.tr("plugin.powerline.design.applied_to_line"),
+            ProjectStatusSeverity.SUCCESS);
+        return true;
+    }
+
+    private boolean saveAsSharedTemplate() {
+        PoleDesign saved = new PoleDesign(saveAsNameBuffer.get());
+        saved.setLayers(draft.getLayers());
+        saved.setAttachments(draft.getAttachments());
+        saved.setTowerStructure(draft.getTowerStructure());
+        saved.setEngineeringMetadata(draft.getEngineeringMetadata());
+        saved.setGeneratorConfig(draft.getGeneratorConfig());
+        ctx.actions().savePoleDesign(saved);
+        ctx.state().setProjectStatus(
+            PlotI18n.tr("plugin.powerline.design.saved_as_template", saved.getName()),
+            ProjectStatusSeverity.SUCCESS);
+        return true;
+    }
+
+    private boolean saveSharedDesignDraft(boolean forceNewId) {
         if (forceNewId || PoleDesignCatalog.isBuiltinId(draft.getId())) {
             PoleDesign saved = new PoleDesign(draft.getName());
             saved.setLayers(draft.getLayers());
