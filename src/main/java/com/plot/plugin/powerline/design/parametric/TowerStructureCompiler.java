@@ -44,13 +44,15 @@ public final class TowerStructureCompiler {
         List<ResolvedTowerStation> sortedStations = resolved.stations().stream()
             .sorted(Comparator.comparingDouble(ResolvedTowerStation::height))
             .toList();
+        List<TowerStation> towerStations = new ArrayList<>(sortedStations.size());
         for (ResolvedTowerStation station : sortedStations) {
-            structure.addStation(new TowerStation(
+            towerStations.add(new TowerStation(
                 station.id(),
                 station.height(),
                 station.halfWidth(),
                 station.halfDepth()));
         }
+        structure.setStations(towerStations);
 
         List<BayDensityConfig> bayConfigs = profile.bayConfigsByDensity().get(resolved.density());
         if (bayConfigs == null) {

@@ -276,12 +276,11 @@ public final class TowerStructurePresets {
         if (heights.length != halfWidths.length || heights.length != halfDepths.length) {
             throw new IllegalArgumentException("station arrays must have equal length");
         }
+        List<TowerStation> stations = new ArrayList<>(heights.length);
         for (int i = 0; i < heights.length; i++) {
-            structure.addStation(new TowerStation("s" + i, heights[i], halfWidths[i], halfDepths[i]));
-            if (i > 0) {
-                structure.addBay(bayWithBracing("s" + (i - 1), "s" + i));
-            }
+            stations.add(new TowerStation("s" + i, heights[i], halfWidths[i], halfDepths[i]));
         }
+        structure.setStations(stations);
     }
 
     private static void addVariedBays(

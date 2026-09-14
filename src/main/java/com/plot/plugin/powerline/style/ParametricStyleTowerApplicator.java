@@ -54,7 +54,11 @@ public final class ParametricStyleTowerApplicator {
             return applyToGenericDesign(source, styleConfig, envelope);
         }
         if (PowerLineStyleParametricCatalog.parametersMatch(familyDefault, styleConfig)) {
-            return source.copy();
+            PoleDesign design = source.copy();
+            design.setGeneratorConfig(styleConfig.copy());
+            TowerParametricEditor.recompile(design, envelope, roleSeed.profileId());
+            preserveRoleIdentity(source, design);
+            return design;
         }
 
         TowerParameterSet merged = TowerFamilyRoleParametricCatalog.mergeTunedParameters(
