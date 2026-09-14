@@ -283,6 +283,27 @@ final class PresetMinecraftRealizabilitySupport {
 
         if (gallery.hasTowerStructure() && effectiveDesign.hasTowerStructure()) {
             assertTrue(gallery.isParametricMode(), preset.getId() + " gallery should be parametric");
+            assertNotNull(gallery.getGeneratorConfig(), preset.getId() + " gallery generator config");
+            assertNotNull(effectiveDesign.getGeneratorConfig(), preset.getId() + " effective generator config");
+            assertEquals(
+                preset.getId() + " profile",
+                gallery.getGeneratorConfig().profileId(),
+                effectiveDesign.getGeneratorConfig().profileId());
+
+            if (TowerFamily.GRADED_LATTICE_3_PHASE_ID.equals(line.getTowerFamilyId())) {
+                TowerFamily family = TowerFamilyCatalog.findBuiltin(line.getTowerFamilyId());
+                assertNotNull(family, preset.getId() + " graded family");
+                assertEquals(
+                    preset.getId() + " suspension role",
+                    family.getDesignId(TowerRole.SUSPENSION),
+                    effectiveDesign.getId());
+                assertTrue(
+                    effectiveDesign.getTowerStructure().maxHeight()
+                        < gallery.getTowerStructure().maxHeight() - 1.0,
+                    preset.getId() + " effective should keep graded role height below family parametric compile");
+                return;
+            }
+
             assertEqualsClose(
                 preset.getId() + " height",
                 gallery.getTowerStructure().maxHeight(),
@@ -292,10 +313,6 @@ final class PresetMinecraftRealizabilitySupport {
                 preset.getId() + " arm count",
                 gallery.getTowerStructure().getArms().size(),
                 effectiveDesign.getTowerStructure().getArms().size());
-            assertEquals(
-                preset.getId() + " profile",
-                gallery.getGeneratorConfig().profileId(),
-                effectiveDesign.getGeneratorConfig().profileId());
         }
     }
 
