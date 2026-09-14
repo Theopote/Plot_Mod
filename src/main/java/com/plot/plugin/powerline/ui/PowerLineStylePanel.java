@@ -75,9 +75,6 @@ public final class PowerLineStylePanel {
 
     private void renderPresetGallery(PowerLineFootprint line, PowerLineStylePreset base) {
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.section.presets"));
-        PowerLineUiWidgets.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.powerline.style.gallery_hint"));
         ImGui.spacing();
         renderStyleGallery(line, base);
     }

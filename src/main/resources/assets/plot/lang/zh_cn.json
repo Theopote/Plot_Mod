@@ -3510,7 +3510,6 @@
   "plugin.powerline.style.advanced.materials_hint": "杆塔与导线材质在快速微调中设置；此处仅配置地线等高级材质。",
   "plugin.powerline.style.select_line_for_style": "请先在上方选择要编辑的线路。",
   "plugin.powerline.style.editing_line": "正在编辑：%s",
-  "plugin.powerline.style.gallery_hint": "风格卡片决定整条线路的默认杆塔、材质与导线。下方微调与设计器在此基础上修改。",
   "plugin.powerline.style.category.utility": "配电杆塔",
   "plugin.powerline.style.category.transmission": "输电铁塔",
   "plugin.powerline.style.category.industrial": "超大型工业铁塔",

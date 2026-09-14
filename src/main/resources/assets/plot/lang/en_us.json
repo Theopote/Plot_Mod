@@ -3510,7 +3510,6 @@
   "plugin.powerline.style.advanced.materials_hint": "Pole and wire materials are in Quick customize; configure ground wire and other advanced mixes here.",
   "plugin.powerline.style.select_line_for_style": "Select a line above to edit its style.",
   "plugin.powerline.style.editing_line": "Editing: %s",
-  "plugin.powerline.style.gallery_hint": "Style cards set line-wide defaults for towers, materials, and wires. Quick tune and the designer customize on top.",
   "plugin.powerline.style.category.utility": "Utility poles",
   "plugin.powerline.style.category.transmission": "Transmission towers",
   "plugin.powerline.style.category.industrial": "Industrial mega pylons",
