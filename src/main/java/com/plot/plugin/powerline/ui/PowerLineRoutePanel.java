@@ -3,6 +3,7 @@ package com.plot.plugin.powerline.ui;
 import com.plot.core.model.Shape;
 import com.plot.plugin.powerline.model.PoleSpacingMode;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.path.PowerLineSourceDescriptor;
 import com.plot.plugin.powerline.path.PowerLineSourceSync;
 import com.plot.plugin.powerline.path.SourceSyncStatus;
 import com.plot.plugin.powerline.style.PowerLineSpacingPolicy;
@@ -39,15 +40,16 @@ public final class PowerLineRoutePanel {
 
         ImGui.separator();
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.path"));
+        if (line != null) {
+            renderPathPreview(line);
+        }
         adoptPanel.render(line);
 
         if (line != null) {
-            ImGui.separator();
             renderSourceReference(line);
             ImGui.separator();
             PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.placement"));
             renderPolePlacement(line);
-            renderTerrainAvoidance(line);
             renderAdvancedSpacing(line);
         }
 
@@ -151,6 +153,49 @@ public final class PowerLineRoutePanel {
                 PlotI18n.tr("plugin.powerline.route.placement_mode_hint.ENDPOINTS_WITH_CORNERS"));
         }
         renderCornerBehaviorHint(line);
+        ImGui.spacing();
+        renderTerrainAvoidance(line);
+    }
+
+    private void renderPathPreview(PowerLineFootprint line) {
+        if (line.getPathPoints().size() < 2) {
+            return;
+        }
+        ImGui.spacing();
+        float avail = ImGui.getContentRegionAvail().x;
+        float thumbWidth = PowerLineOverviewRenderer.thumbnailWidth();
+        if (avail > thumbWidth) {
+            ImGui.setCursorPosX(ImGui.getCursorPosX() + (avail - thumbWidth) * 0.5f);
+        }
+        PowerLineOverviewRenderer.renderLineThumbnail(line, true, ctx.coordinates());
+        PowerLineUiWidgets.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr(
+                "plugin.powerline.route.path_preview_caption",
+                resolvePathKindLabel(line),
+                line.computeWorldPathLength(ctx.coordinates())));
+        ImGui.spacing();
+    }
+
+    private static String resolvePathKindLabel(PowerLineFootprint line) {
+        PowerLineSourceDescriptor descriptor = line.getSourceDescriptor();
+        if (descriptor != null) {
+            return descriptorKindLabel(descriptor.kind());
+        }
+        return PlotI18n.tr("plugin.powerline.route.path_preview_saved");
+    }
+
+    private static String descriptorKindLabel(PowerLineSourceDescriptor.Kind kind) {
+        if (kind == null) {
+            return PlotI18n.tr("plugin.powerline.path.unknown_source");
+        }
+        return switch (kind) {
+            case POLYLINE -> PlotI18n.shapeTypeLabel("PolylineShape");
+            case BEZIER -> PlotI18n.shapeTypeLabel("BezierCurveShape");
+            case ELLIPSE -> PlotI18n.shapeTypeLabel("EllipseShape");
+            case ARC -> PlotI18n.shapeTypeLabel("ArcShape");
+            case ELLIPTICAL_ARC -> PlotI18n.shapeTypeLabel("EllipticalArcShape");
+        };
     }
 
     private void renderCornerBehaviorHint(PowerLineFootprint line) {

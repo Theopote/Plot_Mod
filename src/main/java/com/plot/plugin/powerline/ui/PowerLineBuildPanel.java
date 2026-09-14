@@ -41,13 +41,19 @@ public final class PowerLineBuildPanel {
             PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.select_line_hint"));
             return;
         }
-        ImGui.spacing();
-        buildActions.renderPreviewActions(line);
-        renderCompactPreviewSummary(line);
+        renderPreviewSection(line);
         renderFriendlyStatus(line);
         ImGui.separator();
         buildActions.renderBuildAction(line);
         renderAdvancedChecks(line);
+    }
+
+    private void renderPreviewSection(PowerLineFootprint line) {
+        ImGui.separator();
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.build.preview_section"));
+        renderPreviewSummary(line);
+        ImGui.spacing();
+        buildActions.renderPreviewActions(line);
     }
 
     private void renderCurrentLineHeader() {
@@ -60,11 +66,9 @@ public final class PowerLineBuildPanel {
         PowerLineUiWidgets.renderLineSelector(ctx, false);
     }
 
-    private void renderCompactPreviewSummary(PowerLineFootprint line) {
+    private void renderPreviewSummary(PowerLineFootprint line) {
         ctx.syncPreviewValidity(line);
         PowerLineGenerationResult result = ctx.hasValidPreview(line) ? ctx.lastGenerationResult() : null;
-        ImGui.spacing();
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.build.preview_section"));
 
         if (result == null) {
             double worldLength = line.computeWorldPathLength(ctx.coordinates());

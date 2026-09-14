@@ -19,8 +19,10 @@ import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiTableColumnFlags;
 import imgui.flag.ImGuiTableFlags;
+import imgui.flag.ImGuiTreeNodeFlags;
 
 /** Base preset 下的 Quick Customize（Tower / Wires 分区）。 */
 public final class PowerLineStyleQuickTunePanel {
@@ -242,10 +244,15 @@ public final class PowerLineStyleQuickTunePanel {
         }
         renderInlineSagSegments(line, labels, selected);
         ImGui.spacing();
-        renderSagLivePreview(line);
-        ImGui.spacing();
-        renderSagRatioSlider(line);
-        renderMaxSagDepthControls(line);
+        ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
+        if (ImGui.collapsingHeader(
+                PlotI18n.tr("plugin.powerline.style.sag.precise_section"),
+                ImGuiTreeNodeFlags.None)) {
+            renderSagLivePreview(line);
+            ImGui.spacing();
+            renderSagRatioSlider(line);
+            renderMaxSagDepthControls(line);
+        }
     }
 
     private void renderSagLivePreview(PowerLineFootprint line) {

@@ -11,7 +11,7 @@ import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiTreeNodeFlags;
 
-/** 样式 Tab：当前样式 + 快速微调 + 预设画廊 + 高级设计器。 */
+/** 样式 Tab：预设 → 预览 → 快速微调 → 高级设计。 */
 public final class PowerLineStylePanel {
     private final PowerLineUiContext ctx;
     private final PowerLineStyleControls styleControls;
@@ -39,17 +39,21 @@ public final class PowerLineStylePanel {
         }
 
         PowerLineStylePreset base = PowerLineStyleEditor.basePreset(line);
+
+        ImGui.separator();
+        renderPresetGallery(line, base);
+
         if (base != null) {
             ImGui.separator();
-            quickTunePanel.renderCurrentStyleSection(line, base, true);
+            quickTunePanel.renderCurrentStyleSection(line, base, false);
             ImGui.spacing();
             PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.section.quick_customize"));
             quickTunePanel.renderLineQuickTune(line, base);
         } else {
+            ImGui.separator();
             quickTunePanel.renderCustomFallback(line);
         }
 
-        renderChangePresetGallery(line, base);
         renderAdvancedStyle(line);
     }
 
@@ -69,17 +73,12 @@ public final class PowerLineStylePanel {
         }
     }
 
-    private void renderChangePresetGallery(PowerLineFootprint line, PowerLineStylePreset base) {
-        ImGui.separator();
-        ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
-        if (!ImGui.collapsingHeader(
-                PlotI18n.tr("plugin.powerline.style.section.change_preset"),
-                ImGuiTreeNodeFlags.None)) {
-            return;
-        }
+    private void renderPresetGallery(PowerLineFootprint line, PowerLineStylePreset base) {
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.section.presets"));
         PowerLineUiWidgets.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.style.gallery_hint"));
+        ImGui.spacing();
         renderStyleGallery(line, base);
     }
 
