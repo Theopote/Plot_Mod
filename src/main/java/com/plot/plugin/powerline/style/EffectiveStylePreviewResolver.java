@@ -46,23 +46,23 @@ public final class EffectiveStylePreviewResolver {
             PowerLineFootprint line,
             PowerLineStylePreset base,
             PoleDesignResolver resolver) {
-        if (line.hasParametricTowerConfig()) {
-            PoleDesign parametric = PowerLineStyleParametricCatalog.compileRepresentative(
-                line.getParametricTowerConfig());
-            if (parametric != null) {
-                return parametric;
-            }
-        }
         if (line.hasTowerFamily()) {
             PoleDesign fromFamily = resolveFamilyRepresentative(line.getTowerFamilyId(), resolver);
             if (fromFamily != null) {
-                return fromFamily;
+                return applyLineParametric(line, fromFamily);
             }
         }
         if (line.hasPoleDesign()) {
             PoleDesign fromLine = findDesign(line.getPoleDesignId(), resolver);
             if (fromLine != null) {
-                return fromLine;
+                return applyLineParametric(line, fromLine);
+            }
+        }
+        if (line.hasParametricTowerConfig()) {
+            PoleDesign parametric = PowerLineStyleParametricCatalog.compileRepresentative(
+                line.getParametricTowerConfig());
+            if (parametric != null) {
+                return parametric;
             }
         }
         if (base != null) {
@@ -76,6 +76,17 @@ public final class EffectiveStylePreviewResolver {
             }
         }
         return null;
+    }
+
+    private static PoleDesign applyLineParametric(PowerLineFootprint line, PoleDesign source) {
+        if (source == null || !line.hasParametricTowerConfig()) {
+            return source;
+        }
+        return ParametricStyleTowerApplicator.apply(
+            source,
+            line.getParametricTowerConfig(),
+            null,
+            line);
     }
 
     private static PoleDesign resolveFamilyRepresentative(String familyId, PoleDesignResolver resolver) {

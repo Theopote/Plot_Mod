@@ -2,7 +2,6 @@ package com.plot.plugin.powerline.style;
 
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
-import com.plot.plugin.powerline.design.PoleLayer;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
 import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
@@ -76,12 +75,6 @@ public final class PowerLineStylePreviewBinding {
             return PreviewOverlay.ATTACHMENTS;
         }
         PreviewOverlay fromBase = base != null ? previewOverlay(base) : PreviewOverlay.NONE;
-        if (fromBase == PreviewOverlay.WIND_ROTOR) {
-            if (design == null || isWindPreviewDesign(design)) {
-                return PreviewOverlay.WIND_ROTOR;
-            }
-            return PreviewOverlay.DECORATIVE_CONDUCTORS;
-        }
         if (fromBase != PreviewOverlay.NONE) {
             return fromBase;
         }
@@ -91,21 +84,6 @@ public final class PowerLineStylePreviewBinding {
         return PreviewOverlay.NONE;
     }
 
-    static boolean isWindPreviewDesign(PoleDesign design) {
-        if (design == null) {
-            return false;
-        }
-        if (PoleDesignCatalog.WASTELAND_WIND_TURBINE_ID.equals(design.getId())) {
-            return true;
-        }
-        for (PoleLayer layer : design.getLayers()) {
-            if (layer.getShape() == PoleLayer.Shape.CROSSARM && layer.getCrossarmLength() >= 7) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     public static PreviewRepresentation previewRepresentation(PowerLineStylePreset preset) {
         if (preset == null) {
             return PreviewRepresentation.VOXEL_FRONT;
@@ -113,7 +91,7 @@ public final class PowerLineStylePreviewBinding {
         return switch (preset.getPreviewKind()) {
             case LATTICE, HEAVY_LATTICE, TRIPLE_ARM, CUP_TOWER, LATTICE_POLE, TAPERED,
                  MEGA_LATTICE, HEAVY_DOUBLE_CIRCUIT, INDUSTRIAL_PORTAL, MONSTER_PYLON,
-                 ADAPTIVE -> PreviewRepresentation.STRUCTURAL_FRONT;
+                 ADAPTIVE, STEAMPUNK, MODERN_HV_GLASS -> PreviewRepresentation.STRUCTURAL_FRONT;
             default -> PreviewRepresentation.VOXEL_FRONT;
         };
     }
@@ -124,12 +102,11 @@ public final class PowerLineStylePreviewBinding {
         }
         return switch (preset.getPreviewKind()) {
             case LATTICE, HEAVY_LATTICE, TRIPLE_ARM, CUP_TOWER, MEGA_LATTICE, HEAVY_DOUBLE_CIRCUIT,
-                 INDUSTRIAL_PORTAL, MONSTER_PYLON, ADAPTIVE, LATTICE_POLE, TAPERED
+                 INDUSTRIAL_PORTAL, MONSTER_PYLON, ADAPTIVE, LATTICE_POLE, TAPERED, STEAMPUNK, MODERN_HV_GLASS
                 -> PreviewOverlay.ATTACHMENTS;
             case WOOD, DOUBLE_WOOD, MODERN_UTILITY, JAPANESE, OLD_EUROPEAN, SUBURBAN_LAMP, ABANDONED, RUSTIC,
-                 STEAMPUNK, MODERN_HV_GLASS, COPPER
+                 COPPER, WASTELAND_WIND
                 -> PreviewOverlay.DECORATIVE_CONDUCTORS;
-            case WASTELAND_WIND -> PreviewOverlay.WIND_ROTOR;
             default -> PreviewOverlay.NONE;
         };
     }

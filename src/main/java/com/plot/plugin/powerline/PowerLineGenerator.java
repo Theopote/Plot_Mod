@@ -188,7 +188,8 @@ public class PowerLineGenerator {
             design = ParametricStyleTowerApplicator.apply(
                 design,
                 footprint.getParametricTowerConfig(),
-                parametricEnvelope);
+                parametricEnvelope,
+                footprint);
         }
         if (design != null) {
             TowerParametricLinePlacement.PreparationResult prepared =

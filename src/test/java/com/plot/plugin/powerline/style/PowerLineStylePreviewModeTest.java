@@ -38,6 +38,18 @@ class PowerLineStylePreviewModeTest {
     }
 
     @Test
+    void parametricDecorativeTowersUseStructuralPreview() {
+        PowerLineStylePreset steampunk = PowerLineStylePresetCatalog.steampunkBrass();
+        PowerLineStylePreset modernHv = PowerLineStylePresetCatalog.modernHvGlass();
+        assertEquals(PreviewRepresentation.STRUCTURAL_FRONT, PowerLineStylePreviewBinding.previewRepresentation(steampunk));
+        assertEquals(PreviewRepresentation.STRUCTURAL_FRONT, PowerLineStylePreviewBinding.previewRepresentation(modernHv));
+        assertEquals(PreviewOverlay.ATTACHMENTS, PowerLineStylePreviewBinding.previewOverlay(steampunk));
+        assertEquals(PreviewOverlay.ATTACHMENTS, PowerLineStylePreviewBinding.previewOverlay(modernHv));
+        assertTrue(PowerLineStylePreviewBinding.previewDesign(steampunk).hasTowerStructure());
+        assertTrue(PowerLineStylePreviewBinding.previewDesign(modernHv).hasTowerStructure());
+    }
+
+    @Test
     void megaUsesStructuralPreview() {
         assertEquals(
             PreviewRepresentation.STRUCTURAL_FRONT,
@@ -183,10 +195,10 @@ class PowerLineStylePreviewModeTest {
     }
 
     @Test
-    void wastelandWindUsesVoxelWithWindRotorOverlay() {
+    void wastelandWindUsesVoxelWithoutDuplicateRotorOverlay() {
         PowerLineStylePreset wind = PowerLineStylePresetCatalog.wastelandWind();
         assertEquals(PreviewRepresentation.VOXEL_FRONT, PowerLineStylePreviewBinding.previewRepresentation(wind));
-        assertEquals(PreviewOverlay.WIND_ROTOR, PowerLineStylePreviewBinding.previewOverlay(wind));
+        assertEquals(PreviewOverlay.DECORATIVE_CONDUCTORS, PowerLineStylePreviewBinding.previewOverlay(wind));
     }
 
     @Test
@@ -199,12 +211,12 @@ class PowerLineStylePreviewModeTest {
     }
 
     @Test
-    void bindingForWindDesignKeepsRotorOverlay() {
+    void bindingForWindDesignReliesOnVoxelRotorNotOverlay() {
         PoleDesign design = PowerLineStylePreviewBinding.previewDesign(PowerLineStylePresetCatalog.wastelandWind());
         StyleCardPreviewBinding binding = PowerLineStylePreviewBinding.bindingForDesign(
             design, PowerLineStylePresetCatalog.wastelandWind());
         assertEquals(PreviewRepresentation.VOXEL_FRONT, binding.representation());
-        assertEquals(PreviewOverlay.WIND_ROTOR, binding.overlay());
+        assertEquals(PreviewOverlay.DECORATIVE_CONDUCTORS, binding.overlay());
     }
 
     @Test
@@ -213,6 +225,8 @@ class PowerLineStylePreviewModeTest {
         assertSelectedMatchesGallery(PowerLineStylePresetCatalog.classicWood());
         assertSelectedMatchesGallery(PowerLineStylePresetCatalog.wastelandWind());
         assertSelectedMatchesGallery(PowerLineStylePresetCatalog.megaLattice());
+        assertSelectedMatchesGallery(PowerLineStylePresetCatalog.steampunkBrass());
+        assertSelectedMatchesGallery(PowerLineStylePresetCatalog.modernHvGlass());
     }
 
     private static void assertSelectedMatchesGallery(PowerLineStylePreset pack) {

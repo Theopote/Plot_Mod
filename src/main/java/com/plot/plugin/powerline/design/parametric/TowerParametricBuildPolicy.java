@@ -40,7 +40,8 @@ public final class TowerParametricBuildPolicy {
         PoleDesign design = ParametricStyleTowerApplicator.apply(
             base,
             line.getParametricTowerConfig(),
-            envelope);
+            envelope,
+            line);
         if (design == null || !design.isParametricMode()) {
             return false;
         }

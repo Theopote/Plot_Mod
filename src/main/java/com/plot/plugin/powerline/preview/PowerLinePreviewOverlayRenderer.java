@@ -9,6 +9,7 @@ import com.plot.plugin.powerline.design.PoleLayer;
 import com.plot.plugin.powerline.style.PreviewOverlay;
 import com.plot.plugin.powerline.style.PreviewRepresentation;
 import imgui.ImDrawList;
+import imgui.ImGui;
 
 /**
  * 风格预览装饰叠加层：挂点、绝缘子、短导线暗示、风电桨叶、分级塔标记。
@@ -25,6 +26,7 @@ public final class PowerLinePreviewOverlayRenderer {
     private static final int COLOR_TOP_WIRE = 0xFFECEFF1;
     private static final int COLOR_ROTOR = 0xFF78909C;
     private static final int COLOR_MARKER = 0xFF64B5F6;
+    private static final int COLOR_MARKER_LABEL = 0xFF90CAF9;
 
     private PowerLinePreviewOverlayRenderer() {
     }
@@ -118,7 +120,7 @@ public final class PowerLinePreviewOverlayRenderer {
             drawList.addCircleFilled(x, yHang, ATTACHMENT_DOT_RADIUS, topWireColor);
             return;
         }
-        float insulatorLen = (float) Math.min(
+        float insulatorLen = Math.min(
             INSULATOR_MAX_PX,
             Math.max(INSULATOR_MIN_PX, attachment.getInsulatorLength() * layout.scale()));
         float yInsulatorEnd = yHang + insulatorLen;
@@ -230,15 +232,36 @@ public final class PowerLinePreviewOverlayRenderer {
         drawList.addLine(cx, cy, x2, y2, COLOR_ROTOR, 1.4f);
     }
 
-    /** 智能分级塔：角落三段高度刻度。 */
+    /** 智能分级塔：右下角 S/M/L 高度档位提示（避免被误读为脏像素）。 */
     public static void drawAdaptiveHeightMarker(ImDrawList drawList, float x0, float y0, float x1, float y1) {
         float tickW = 3f;
-        float gap = 2f;
-        float baseX = x1 - 6f;
-        float baseY = y1 - 6f;
-        drawTick(drawList, baseX, baseY, tickW, 2f);
-        drawTick(drawList, baseX - gap - tickW, baseY - 3f, tickW, 4f);
-        drawTick(drawList, baseX - (gap + tickW) * 2f, baseY - 7f, tickW, 6f);
+        float gap = 3f;
+        float baseY = y1 - 4f;
+        float rightX = x1 - 4f;
+        float labelGap = 1f;
+        float labelHeight = ImGui.getFontSize();
+        drawAdaptiveTick(drawList, rightX - (gap + tickW) * 2f, baseY, tickW, 6f, "L", labelHeight, labelGap);
+        drawAdaptiveTick(drawList, rightX - gap - tickW, baseY, tickW, 4f, "M", labelHeight, labelGap);
+        drawAdaptiveTick(drawList, rightX, baseY, tickW, 2f, "S", labelHeight, labelGap);
+    }
+
+    private static void drawAdaptiveTick(
+            ImDrawList drawList,
+            float x,
+            float bottomY,
+            float width,
+            float height,
+            String label,
+            float labelHeight,
+            float labelGap) {
+        drawTick(drawList, x, bottomY, width, height);
+        if (label == null || label.isBlank()) {
+            return;
+        }
+        float textW = ImGui.calcTextSize(label).x;
+        float labelX = x + (width - textW) * 0.5f;
+        float labelY = bottomY - height - labelGap - labelHeight;
+        drawList.addText(labelX, labelY, COLOR_MARKER_LABEL, label);
     }
 
     private static void drawTick(ImDrawList drawList, float x, float bottomY, float width, float height) {

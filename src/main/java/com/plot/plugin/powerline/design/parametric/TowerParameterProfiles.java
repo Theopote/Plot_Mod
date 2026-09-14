@@ -700,7 +700,7 @@ public final class TowerParameterProfiles {
                 24.0 / STEAMPUNK_REF_HEIGHT,
                 1.0,
                 TowerArmShape.TRUSS,
-                BracingPattern.SINGLE_DIAGONAL,
+                BracingPattern.X,
                 2.0 / STEAMPUNK_REF_HEIGHT,
                 1.2 / STEAMPUNK_REF_BASE_HALF_DEPTH));
 
@@ -719,7 +719,7 @@ public final class TowerParameterProfiles {
             stations,
             arms,
             Map.of(
-                StructureDensity.LOW, heavyLowBays(),
+                StructureDensity.LOW, steampunkLowBays(),
                 StructureDensity.MEDIUM, heavyMediumBays(),
                 StructureDensity.HIGH, heavyHighBays()),
             STEAMPUNK_LEG,
@@ -870,6 +870,15 @@ public final class TowerParameterProfiles {
             new BayDensityConfig(BracingPattern.V, true, false),
             new BayDensityConfig(BracingPattern.V, true, false),
             new BayDensityConfig(BracingPattern.NONE, false, false));
+    }
+
+    private static List<BayDensityConfig> steampunkLowBays() {
+        return List.of(
+            new BayDensityConfig(BracingPattern.X, true, true),
+            new BayDensityConfig(BracingPattern.X, true, true),
+            new BayDensityConfig(BracingPattern.X, true, true),
+            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.X, false, false));
     }
 
     private static List<BayDensityConfig> heavyLowBays() {

@@ -3,12 +3,15 @@ package com.plot.plugin.powerline.design.parametric;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
+import com.plot.plugin.powerline.design.structure.BracingPattern;
 import com.plot.plugin.powerline.design.structure.TowerArm;
+import com.plot.plugin.powerline.design.structure.TowerBay;
 import com.plot.plugin.powerline.design.structure.TowerSilhouette;
 import com.plot.plugin.powerline.style.PowerLineStyleParametricCatalog;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -57,6 +60,31 @@ class TowerParametricDecorativeProfilesTest {
         assertEquals(TowerParameterProfiles.STEAMPUNK_ID, design.getGeneratorConfig().profileId());
         assertNotNull(design.getTowerStructure());
         assertTrue(design.getTowerStructure().maxHeight() > 20.0);
+    }
+
+    @Test
+    void steampunkArmsUseSymmetricBracing() {
+        PoleDesign compiled = TowerParametricDesignFactory.compileSteampunk(TowerParameterSet.steampunkDefaults());
+        for (TowerArm arm : compiled.getTowerStructure().getArms()) {
+            assertEquals(BracingPattern.X, arm.getBracing(), arm.getId());
+        }
+    }
+
+    @Test
+    void steampunkLowDensityBodyAvoidsSingleDiagonalBays() {
+        TowerParameterSet lowDensity = new TowerParameterSet(
+            28.0,
+            8.0,
+            14.0,
+            1.0,
+            TowerParameterSet.DEFAULT_WAIST_RATIO,
+            null,
+            StructureDensity.LOW);
+        PoleDesign compiled = TowerParametricDesignFactory.compileSteampunk(lowDensity);
+        for (TowerBay bay : compiled.getTowerStructure().getBays()) {
+            assertNotEquals(BracingPattern.SINGLE_DIAGONAL, bay.getFrontBackBracing());
+            assertNotEquals(BracingPattern.SINGLE_DIAGONAL, bay.getSideBracing());
+        }
     }
 
     @Test
