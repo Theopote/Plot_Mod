@@ -43,14 +43,13 @@ public final class PowerLineStylePanel {
         ImGui.separator();
         renderPresetGallery(line, base);
 
+        ImGui.separator();
         if (base != null) {
-            ImGui.separator();
             quickTunePanel.renderCurrentStyleSection(line, base, false);
             ImGui.spacing();
             PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.section.quick_customize"));
             quickTunePanel.renderLineQuickTune(line, base);
         } else {
-            ImGui.separator();
             quickTunePanel.renderCustomFallback(line);
         }
 
@@ -85,11 +84,7 @@ public final class PowerLineStylePanel {
         for (StyleCategory category : PowerLineStylePresetCatalog.galleryCategories()) {
             if (category == forceOpen) {
                 ImGui.setNextItemOpen(true, ImGuiCond.Always);
-            } else if (forceOpen == null && category == activeCategory) {
-                ImGui.setNextItemOpen(true, ImGuiCond.FirstUseEver);
-            } else {
-                ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
-            }
+            } else ImGui.setNextItemOpen(forceOpen == null && category == activeCategory, ImGuiCond.FirstUseEver);
             if (ImGui.collapsingHeader(
                     PlotI18n.tr(category.sectionKey()),
                     ImGuiTreeNodeFlags.None)) {
