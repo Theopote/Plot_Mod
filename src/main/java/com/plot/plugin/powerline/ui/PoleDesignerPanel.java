@@ -576,11 +576,6 @@ public final class PoleDesignerPanel {
         return true;
     }
 
-    /** 塔族可编辑角色 → designId（Regular / Corner / Dead-end / Terminal）。 */
-    static Map<TowerRole, String> editableFamilyRoles(TowerFamily family) {
-        return PoleDesignerFamilyRolePicker.editableFamilyRoles(family);
-    }
-
     private static PoleDesign newBlankDesign() {
         PoleDesign design = new PoleDesign(PlotI18n.tr("plugin.powerline.design.new_name"));
         design.addLayer(new PoleLayer(
