@@ -1,15 +1,9 @@
 package com.plot.plugin.powerline.ui;
 
-import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.PowerLineOverrideUtils;
 import com.plot.plugin.powerline.PowerPoleLayoutUtils;
-import com.plot.plugin.powerline.design.PoleDesign;
-import com.plot.plugin.powerline.design.PoleDesignCatalog;
-import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.family.TowerFamily;
-import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
 import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
-import com.plot.plugin.powerline.style.PowerLineStyleEditor;
 import com.plot.plugin.powerline.model.PoleOverride;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
@@ -22,10 +16,13 @@ import imgui.flag.ImGuiTableColumnFlags;
 import imgui.flag.ImGuiTableFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.StringJoiner;
 
-/** Style / Advanced 面板共享的样式控件（材质、杆型、角色等）。 */
+/** Style Advanced 面板：逐杆角色覆盖与异常驱动的塔族修复提示。 */
 public final class PowerLineStyleControls {
     private static final TowerRole[] TOWER_ROLES = TowerRole.values();
     /** Combo index 0 = Auto; 1..TOWER_ROLES.length = explicit role. */
@@ -37,179 +34,68 @@ public final class PowerLineStyleControls {
         this.ctx = ctx;
     }
 
-    /** 工程级覆盖：塔族、Fallback、逐杆角色、参数化入口、高级材质。 */
+    /** 高级设置：仅保留逐杆角色覆盖；塔族缺口以警告形式提示。 */
     public void renderEngineeringOverrides(PowerLineFootprint line, PoleDesignerPanel poleDesignerPanel) {
-        renderTowerFamilyControls(line);
-        if (line.hasTowerFamily()) {
-            renderPoleDesignFallbackControls(line, poleDesignerPanel);
-        }
-        renderParametricDesignEntry(line, poleDesignerPanel);
+        renderTowerFamilyGapWarnings(line, poleDesignerPanel);
         renderPoleRoleInspector(line);
-        renderAdvancedMaterialControls(line);
     }
 
-    public void renderPoleDesignFallbackControls(PowerLineFootprint line, PoleDesignerPanel poleDesignerPanel) {
-        renderPoleDesignControls(line, poleDesignerPanel, true);
-    }
-
-    public void renderParametricDesignEntry(PowerLineFootprint line, PoleDesignerPanel poleDesignerPanel) {
-        if (line.hasTowerFamily()) {
+    private void renderTowerFamilyGapWarnings(PowerLineFootprint line, PoleDesignerPanel poleDesignerPanel) {
+        if (!line.hasTowerFamily()) {
             return;
         }
-        ImGui.separator();
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.advanced.parametric_design"));
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.open_designer") + "##parametric_design_entry", 0, 0)) {
-            poleDesignerPanel.open(line.getPoleDesignId());
-        }
-    }
-
-    public void renderAdvancedMaterialControls(PowerLineFootprint line) {
-        ImGui.separator();
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.advanced.materials"));
-        PowerLineUiWidgets.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.powerline.style.advanced.materials_hint"));
-        PowerLineUiWidgets.renderMaterialMixPicker(
-            ctx,
-            "top_wire_material",
-            PlotI18n.tr("plugin.powerline.top_wire_material"),
-            line.getTopWireMaterial(),
-            MaterialMix.single("minecraft:chain"),
-            mix -> {
-                line.setTopWireMaterial(mix);
-                onStyleEdited(line);
-            });
-    }
-
-    private void onStyleEdited(PowerLineFootprint line) {
-        PowerLineStyleEditor.afterStyleEdit(line);
-        ctx.invalidatePreview();
-    }
-
-    public void renderPoleDesignControls(
-            PowerLineFootprint line,
-            PoleDesignerPanel poleDesignerPanel,
-            boolean nestedInAdvanced) {
-        if (!nestedInAdvanced) {
-            ImGui.separator();
-        }
-        String sectionLabel = line.hasTowerFamily()
-            ? PlotI18n.tr("plugin.powerline.pole_design_fallback")
-            : PlotI18n.tr("plugin.powerline.pole_design_section");
-        PowerLineUiWidgets.text(sectionLabel);
-
-        PoleDesignResolver resolver = ctx.designResolver();
-        List<PoleDesign> designs = resolver.listAll();
-        String noneLabel = PlotI18n.tr("plugin.powerline.pole_design_default");
-        String[] labels = new String[designs.size() + 1];
-        String[] ids = new String[designs.size() + 1];
-        labels[0] = noneLabel;
-        ids[0] = "";
-        for (int i = 0; i < designs.size(); i++) {
-            PoleDesign design = designs.get(i);
-            String prefix = PoleDesignCatalog.isBuiltinId(design.getId())
-                ? PlotI18n.tr("plugin.powerline.pole_design_builtin_prefix")
-                : "";
-            labels[i + 1] = prefix + design.getName();
-            ids[i + 1] = design.getId();
-        }
-
-        int current = 0;
-        String selectedId = line.getPoleDesignId() != null ? line.getPoleDesignId() : "";
-        for (int i = 0; i < ids.length; i++) {
-            if (ids[i].equals(selectedId)) {
-                current = i;
-                break;
-            }
-        }
-
-        if (!beginValueActionTable("pole_design")) {
+        List<TowerRole> missingRoles = findUnresolvedFamilyRoles(line);
+        if (missingRoles.isEmpty()) {
             return;
         }
-        ImGui.tableNextRow();
-        ImGui.tableNextColumn();
-        ImGui.setNextItemWidth(-1);
-        if (ImGui.beginCombo(
-                PowerLineUiWidgets.stableLabel("plugin.powerline.pole_design", "pole_design"),
-                labels[current])) {
-            for (int i = 0; i < labels.length; i++) {
-                if (ImGui.selectable(
-                        PowerLineUiWidgets.stableSelectableLabel(labels[i], ids[i]),
-                        current == i)) {
-                    ctx.pushEditSnapshot();
-                    line.setPoleDesignId(ids[i].isBlank() ? null : ids[i]);
-                    onStyleEdited(line);
-                }
-            }
-            ImGui.endCombo();
+        for (TowerRole role : missingRoles) {
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr("plugin.powerline.style.family_missing_role", localizedRoleName(role)));
         }
-        ImGui.tableNextColumn();
-        String openDesignerLabel = PlotI18n.tr("plugin.powerline.open_designer");
-        float padding = ImGui.getStyle().getFramePaddingX() * 2f;
-        float buttonWidth = ImGui.calcTextSize(openDesignerLabel).x + padding;
-        float avail = ImGui.getContentRegionAvail().x;
-        ImGui.setCursorPosX(ImGui.getCursorPosX() + Math.max(0f, avail - buttonWidth));
-        if (ImGui.button(openDesignerLabel + "##open_designer", 0, 0)) {
-            if (line.hasTowerFamily() && !line.hasPoleDesign()) {
-                poleDesignerPanel.requestCustomizeFamily(line.getTowerFamilyId());
-            } else {
-                poleDesignerPanel.open(line.getPoleDesignId());
-            }
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.style.fix_family") + "##fix_tower_family", 0, 0)) {
+            poleDesignerPanel.requestCustomizeFamily(line.getTowerFamilyId());
         }
-        ImGui.endTable();
+        ImGui.spacing();
     }
 
-    public void renderTowerFamilyControls(PowerLineFootprint line) {
-        ImGui.separator();
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.tower_family_section"));
-
-        TowerFamilyResolver familyResolver = new TowerFamilyResolver();
-        List<TowerFamily> families = familyResolver.listAll();
-        String noneLabel = PlotI18n.tr("plugin.powerline.tower_family_none");
-        String[] labels = new String[families.size() + 1];
-        String[] ids = new String[families.size() + 1];
-        labels[0] = noneLabel;
-        ids[0] = "";
-        for (int i = 0; i < families.size(); i++) {
-            TowerFamily family = families.get(i);
-            String prefix = TowerFamilyCatalog.isBuiltinId(family.getId())
-                ? PlotI18n.tr("plugin.powerline.tower_family_builtin_prefix")
-                : "";
-            labels[i + 1] = prefix + family.getName();
-            ids[i + 1] = family.getId();
+    private List<TowerRole> findUnresolvedFamilyRoles(PowerLineFootprint line) {
+        TowerFamily family = new TowerFamilyResolver().find(line.getTowerFamilyId());
+        if (family == null) {
+            return List.of();
         }
-
-        int current = 0;
-        String selectedId = line.getTowerFamilyId() != null ? line.getTowerFamilyId() : "";
-        for (int i = 0; i < ids.length; i++) {
-            if (ids[i].equals(selectedId)) {
-                current = i;
-                break;
+        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(line, ctx.coordinates());
+        if (sites.isEmpty()) {
+            return List.of();
+        }
+        Set<TowerRole> rolesPresent = new LinkedHashSet<>();
+        for (PowerPoleSite site : sites) {
+            if (site.getRole() != null) {
+                rolesPresent.add(site.getRole());
             }
         }
+        String suspensionDesign = family.getDesignId(TowerRole.SUSPENSION);
+        boolean hasSuspensionFallback = suspensionDesign != null && !suspensionDesign.isBlank();
+        boolean hasLineFallback = line.hasPoleDesign();
 
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.beginCombo(
-                PowerLineUiWidgets.stableLabel("plugin.powerline.tower_family", "tower_family"),
-                labels[current])) {
-            for (int i = 0; i < labels.length; i++) {
-                if (ImGui.selectable(
-                        PowerLineUiWidgets.stableSelectableLabel(labels[i], ids[i]),
-                        current == i)) {
-                    ctx.pushEditSnapshot();
-                    line.setTowerFamilyId(ids[i].isBlank() ? null : ids[i]);
-                    if (!ids[i].isBlank()) {
-                        line.setPoleDesignId(null);
-                    }
-                    onStyleEdited(line);
-                }
+        List<TowerRole> missing = new ArrayList<>();
+        for (TowerRole role : rolesPresent) {
+            String roleDesign = family.getDesignId(role);
+            if (roleDesign != null && !roleDesign.isBlank()) {
+                continue;
             }
-            ImGui.endCombo();
+            if (role != TowerRole.SUSPENSION && hasSuspensionFallback) {
+                continue;
+            }
+            if (hasLineFallback) {
+                continue;
+            }
+            missing.add(role);
         }
+        return missing;
     }
 
     public void renderPoleRoleInspector(PowerLineFootprint line) {
-        ImGui.separator();
         int overrideCount = countManualRoleOverrides(line);
         boolean expanded = ctx.state().isPoleRoleInspectorOpen(line.getId());
 
@@ -304,19 +190,6 @@ public final class PowerLineStyleControls {
             }
         }
         return count;
-    }
-
-    private boolean beginValueActionTable(String tableId) {
-        int flags = ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.PadOuterX;
-        if (!ImGui.beginTable(tableId, 2, flags)) {
-            return false;
-        }
-        String actionLabel = PlotI18n.tr("plugin.powerline.open_designer");
-        float padding = ImGui.getStyle().getFramePaddingX() * 2f + 8f;
-        float actionWidth = ImGui.calcTextSize(actionLabel).x + padding;
-        ImGui.tableSetupColumn("##value", ImGuiTableColumnFlags.WidthStretch);
-        ImGui.tableSetupColumn("##action", ImGuiTableColumnFlags.WidthFixed, actionWidth);
-        return true;
     }
 
     private static String roleLabel(PowerPoleSite site) {

@@ -7,7 +7,6 @@ import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
 import com.plot.plugin.powerline.PowerLineSagUtils;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
-import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.plugin.powerline.style.PowerLineQuickTunePolicy;
 import com.plot.plugin.powerline.style.PowerLineSpacingPolicy;
 import com.plot.plugin.powerline.style.PowerLineStyleEditor;
@@ -127,6 +126,7 @@ public final class PowerLineStyleQuickTunePanel {
         }
         renderWireLayoutRow(line, base);
         renderWireMaterialRow(line, base);
+        renderTopWireMaterialRow(line, base);
         renderSagRow(line);
         endTuneTable();
     }
@@ -227,6 +227,17 @@ public final class PowerLineStyleQuickTunePanel {
             value,
             PlotI18n.tr("plugin.powerline.style.quick_tune.change"),
             () -> openWireMaterialPicker(line, base));
+    }
+
+    private void renderTopWireMaterialRow(PowerLineFootprint line, PowerLineStylePreset base) {
+        MaterialMix mix = line.getTopWireMaterial();
+        String value = formatMaterialLabel(mix, "minecraft:chain");
+        renderValueRow(
+            "top_wire_material",
+            PlotI18n.tr("plugin.powerline.style.quick_tune.top_wire"),
+            value,
+            PlotI18n.tr("plugin.powerline.style.quick_tune.change"),
+            () -> openTopWireMaterialPicker(line, base));
     }
 
     private void renderSagRow(PowerLineFootprint line) {
@@ -523,6 +534,16 @@ public final class PowerLineStyleQuickTunePanel {
             : MaterialMix.single(PowerLineFootprint.DEFAULT_WIRE_MATERIAL);
         openMaterialPicker(line, mix, defaults, selected -> {
             line.setWireMaterial(selected);
+            PowerLineStyleEditor.afterStyleEdit(line);
+            completeStyleEdit(line);
+        });
+    }
+
+    private void openTopWireMaterialPicker(PowerLineFootprint line, PowerLineStylePreset base) {
+        MaterialMix mix = line.getTopWireMaterial();
+        MaterialMix defaults = MaterialMix.single("minecraft:chain");
+        openMaterialPicker(line, mix, defaults, selected -> {
+            line.setTopWireMaterial(selected);
             PowerLineStyleEditor.afterStyleEdit(line);
             completeStyleEdit(line);
         });

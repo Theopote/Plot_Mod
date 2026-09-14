@@ -11,7 +11,7 @@ import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiTreeNodeFlags;
 
-/** 样式 Tab：预设 → 预览 → 快速微调 → 高级设计。 */
+/** 样式 Tab：预设 → 预览 → 快速微调 → 高级设置。 */
 public final class PowerLineStylePanel {
     private final PowerLineUiContext ctx;
     private final PowerLineStyleControls styleControls;
