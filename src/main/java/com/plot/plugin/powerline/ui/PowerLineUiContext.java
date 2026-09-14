@@ -24,6 +24,7 @@ public final class PowerLineUiContext {
     private final PowerLinePluginState state;
     private final Object projectLock;
     private final PowerLineActions actions;
+    private final PowerLinePendingEdit pendingEdit = new PowerLinePendingEdit();
 
     public PowerLineUiContext(PluginContext host, PowerLinePluginState state, Object projectLock) {
         this.host = Objects.requireNonNull(host, "host");
@@ -96,6 +97,33 @@ public final class PowerLineUiContext {
         state.getProjectHistory().push(state.getProject(), state.getDesignProject());
     }
 
+    /** Marks an ImGui edit session; snapshot stays deferred until the first value change. */
+    public void beginPendingEdit(String editId) {
+        pendingEdit.begin(editId);
+    }
+
+    /** Captures a pre-edit workspace snapshot once per pending session on first change. */
+    public void capturePendingEditSnapshot(String editId) {
+        pendingEdit.captureOnChange(editId, this::pushWorkspaceSnapshot);
+    }
+
+    /** Ends a deferred edit session without pushing when nothing changed. */
+    public void endPendingEdit(String editId) {
+        pendingEdit.end(editId);
+    }
+
+    /**
+     * Tracks ImGui widget lifecycle for deferred history capture.
+     * Call each frame with {@code isItemActivated()}, {@code changed}, and {@code isItemDeactivatedAfterEdit()}.
+     */
+    public void trackPendingEdit(
+            String editId,
+            boolean activated,
+            boolean changed,
+            boolean deactivatedAfterEdit) {
+        pendingEdit.track(editId, activated, changed, deactivatedAfterEdit, this::pushWorkspaceSnapshot);
+    }
+
     public void restoreWorkspaceSnapshot(PowerLineWorkspaceSnapshot snapshot) {
         if (snapshot == null) {
             return;
@@ -117,8 +145,8 @@ public final class PowerLineUiContext {
         actions.updateSelectedPaths();
     }
 
-    public void adoptSelectedPaths() {
-        actions.adoptSelectedPaths();
+    public void applyPickedPaths() {
+        actions.applyPickedPaths();
     }
 
     public boolean calculatePreview(PowerLineFootprint line) {
@@ -220,8 +248,24 @@ public final class PowerLineUiContext {
         return state.getDesignProject();
     }
 
-    public void activatePathPickTool() {
-        actions.activatePathPickTool();
+    public void activatePathPickForCreate() {
+        actions.activatePathPickForCreate();
+    }
+
+    public void activatePathPickForReplace(PowerLineFootprint line) {
+        actions.activatePathPickForReplace(line);
+    }
+
+    public boolean isPathReplacePending() {
+        return state.isPathReplacePending();
+    }
+
+    public void confirmPathReplace() {
+        actions.confirmPathReplace();
+    }
+
+    public void cancelPathReplaceConfirm() {
+        actions.cancelPathReplaceConfirm();
     }
 
     public void cancelPathPick() {
@@ -299,6 +343,7 @@ public final class PowerLineUiContext {
         }
         String trimmed = state.getLineNameBuffer().get().trim();
         if (!trimmed.isEmpty() && !trimmed.equals(line.getName())) {
+            pushWorkspaceSnapshot();
             line.setName(trimmed);
         }
         state.endLineNameRename();

@@ -14,17 +14,17 @@ import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImInt;
 
-/** 线路 Tab：全部线路、认领路径、杆塔布置。 */
+/** 线路 Tab：全部线路、路径拾取、杆塔布置。 */
 public final class PowerLineRoutePanel {
     private final PowerLineUiContext ctx;
-    private final PowerLineAdoptPanel adoptPanel;
+    private final PowerLinePathPickPanel pathPickPanel;
     private final PowerLineOverviewPanel overviewPanel;
 
     public PowerLineRoutePanel(
             PowerLineUiContext ctx,
             PowerLineOverviewPanel overviewPanel) {
         this.ctx = ctx;
-        this.adoptPanel = new PowerLineAdoptPanel(ctx);
+        this.pathPickPanel = new PowerLinePathPickPanel(ctx);
         this.overviewPanel = overviewPanel;
     }
 
@@ -41,7 +41,7 @@ public final class PowerLineRoutePanel {
         if (PowerLineUiWidgets.renderMultiLineEditBlocked(ctx)) {
             return;
         }
-        adoptPanel.render(line);
+        pathPickPanel.render(line);
 
         if (line != null) {
             ImGui.separator();

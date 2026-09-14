@@ -22,6 +22,8 @@ public final class PowerLinePluginState {
     private final PoleDesignDraftHistory designDraftHistory = new PoleDesignDraftHistory();
     private final PowerLineSelectionSet selection = new PowerLineSelectionSet();
     private PowerLinePathSelectionAnalysis pathSelection = PowerLinePathSelectionAnalysis.EMPTY;
+    /** 非空时表示路径拾取用于替换该线路，完成拾取后需确认再应用。 */
+    private String pathReplaceTargetLineId = "";
     /** 工程级覆盖中展开杆塔角色列表的线路 id。 */
     private String poleRoleInspectorOpenLineId = "";
 
@@ -106,6 +108,22 @@ public final class PowerLinePluginState {
 
     public void setPathSelection(PowerLinePathSelectionAnalysis pathSelection) {
         this.pathSelection = pathSelection != null ? pathSelection : PowerLinePathSelectionAnalysis.EMPTY;
+    }
+
+    public String getPathReplaceTargetLineId() {
+        return pathReplaceTargetLineId;
+    }
+
+    public boolean isPathReplacePending() {
+        return pathReplaceTargetLineId != null && !pathReplaceTargetLineId.isBlank();
+    }
+
+    public void beginPathReplacePick(String lineId) {
+        this.pathReplaceTargetLineId = lineId != null ? lineId : "";
+    }
+
+    public void clearPathReplacePick() {
+        this.pathReplaceTargetLineId = "";
     }
 
     public boolean isPoleRoleInspectorOpen(String lineId) {

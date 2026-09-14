@@ -260,6 +260,14 @@ public class UIUtils {
         void set(MaterialMix material);
     }
 
+    /**
+     * Tracks ImGui edit lifecycle so history can be captured on first value change instead of focus.
+     */
+    @FunctionalInterface
+    public interface EditHistoryTracker {
+        void track(boolean activated, boolean changed, boolean deactivatedAfterEdit);
+    }
+
     public static void renderMaterialMixPicker(
             String buttonId,
             String label,
@@ -267,6 +275,24 @@ public class UIUtils {
             MaterialMix defaultMix,
             MaterialMixSetter setter,
             Runnable pushHistoryOnChange) {
+        renderMaterialMixPicker(
+            buttonId,
+            label,
+            currentValue,
+            defaultMix,
+            setter,
+            pushHistoryOnChange,
+            null);
+    }
+
+    public static void renderMaterialMixPicker(
+            String buttonId,
+            String label,
+            MaterialMix currentValue,
+            MaterialMix defaultMix,
+            MaterialMixSetter setter,
+            Runnable pushHistoryOnChange,
+            EditHistoryTracker accentHistoryTracker) {
         MaterialMix mix = currentValue != null ? currentValue : defaultMix;
         ImGui.pushID(buttonId);
         ImGui.textColored(PluginUiColors.HINT_GRAY, label);
@@ -275,7 +301,7 @@ public class UIUtils {
         if (hasAccentMaterial) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.material.accent_ratio"));
             ImGui.setNextItemWidth(Math.max(120f, ImGui.getContentRegionAvailX() - 4f));
-            renderAccentRatioSliderControl(mix, setter, "accent", pushHistoryOnChange);
+            renderAccentRatioSliderControl(mix, setter, "accent", pushHistoryOnChange, accentHistoryTracker);
         }
         ImGui.popID();
     }
@@ -331,7 +357,16 @@ public class UIUtils {
             MaterialMix mix,
             MaterialMixSetter setter,
             String id,
-            Runnable onActivated) {
+            Runnable pushHistoryOnChange) {
+        return renderAccentRatioSliderControl(mix, setter, id, pushHistoryOnChange, null);
+    }
+
+    public static boolean renderAccentRatioSliderControl(
+            MaterialMix mix,
+            MaterialMixSetter setter,
+            String id,
+            Runnable pushHistoryOnChange,
+            EditHistoryTracker historyTracker) {
         MaterialMix current = mix;
         if (current.getAccentRatio() <= 0f) {
             MaterialMix updated = current.copy();
@@ -343,8 +378,13 @@ public class UIUtils {
         float[] ratioPercent = {current.getAccentRatio() * 100f};
         ImGui.pushID(id);
         boolean ratioChanged = ImGui.sliderFloat("##accent_ratio", ratioPercent, 0f, 50f, "%.0f%%");
-        if (ImGui.isItemActivated() && onActivated != null) {
-            onActivated.run();
+        if (historyTracker != null) {
+            historyTracker.track(
+                ImGui.isItemActivated(),
+                ratioChanged,
+                ImGui.isItemDeactivatedAfterEdit());
+        } else if (ImGui.isItemActivated() && pushHistoryOnChange != null) {
+            pushHistoryOnChange.run();
         }
         if (ratioChanged) {
             MaterialMix updated = current.copy();

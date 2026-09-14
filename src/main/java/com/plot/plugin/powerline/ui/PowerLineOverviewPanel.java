@@ -122,9 +122,6 @@ public final class PowerLineOverviewPanel {
             "##powerline_line_rename_" + line.getId(),
             ctx.lineNameBuffer(),
             ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll);
-        if (ImGui.isItemActivated()) {
-            ctx.pushEditSnapshot();
-        }
 
         boolean inputActive = ImGui.isItemActive();
         boolean inputHovered = ImGui.isItemHovered();

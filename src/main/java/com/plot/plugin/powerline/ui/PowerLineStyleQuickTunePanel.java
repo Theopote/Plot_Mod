@@ -291,13 +291,13 @@ public final class PowerLineStyleQuickTunePanel {
     private void renderSagRatioSlider(PowerLineFootprint line) {
         float[] sagRatio = {(float) (line.getSagRatio() * 100f)};
         PowerLineUiWidgets.sliderFloatStable(
+            ctx,
             "quick_sag_ratio",
             "plugin.powerline.sag_ratio",
             sagRatio,
             0f,
             (float) (PowerLineUiPresets.ADVANCED_SAG_MAX_RATIO * 100f),
             "%.0f%%",
-            () -> beginProjectBackedStyleEdit(line),
             value -> {
                 PowerLineUiPresets.applyAdvancedSag(line, value / 100f);
                 PowerLineStyleEditor.afterStyleEdit(line);
@@ -319,13 +319,13 @@ public final class PowerLineStyleQuickTunePanel {
         if (!line.isMaxSagDepthUnlimited()) {
             float[] maxDepth = {PowerLineUiPresets.displayMaxSagDepth(line)};
             PowerLineUiWidgets.sliderFloatStable(
+                ctx,
                 "quick_max_sag_depth",
                 "plugin.powerline.max_sag_depth",
                 maxDepth,
                 1f,
                 PowerLineUiPresets.ADVANCED_MAX_SAG_DEPTH_MAX,
                 "%.0f",
-                () -> beginProjectBackedStyleEdit(line),
                 value -> {
                     PowerLineUiPresets.applyMaxSagDepth(line, value, false);
                     PowerLineStyleEditor.afterStyleEdit(line);

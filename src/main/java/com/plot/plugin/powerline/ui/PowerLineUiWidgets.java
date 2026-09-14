@@ -57,15 +57,16 @@ public final class PowerLineUiWidgets {
 
     /**
      * 稳定 ID 的 slider：拖动时实时改值，松手后仅触发一次 {@code onCommit}（通常 invalidate preview）。
+     * 工作区撤销在首次 value change 时 capture，focus  alone 不产生空 Undo。
      */
     public static boolean sliderFloatStable(
+            PowerLineUiContext ctx,
             String idSuffix,
             String labelI18nKey,
             float[] value,
             float min,
             float max,
             String format,
-            Runnable onActivated,
             Consumer<Float> onLiveChange,
             Runnable onCommit) {
         boolean changed = ImGui.sliderFloat(
@@ -74,8 +75,12 @@ public final class PowerLineUiWidgets {
             min,
             max,
             format);
-        if (ImGui.isItemActivated() && onActivated != null) {
-            onActivated.run();
+        if (ctx != null) {
+            ctx.trackPendingEdit(
+                idSuffix,
+                ImGui.isItemActivated(),
+                changed,
+                ImGui.isItemDeactivatedAfterEdit());
         }
         if (changed && onLiveChange != null) {
             onLiveChange.accept(value[0]);
@@ -97,13 +102,13 @@ public final class PowerLineUiWidgets {
             String format,
             Consumer<Float> onLiveChange) {
         return sliderFloatStable(
+            ctx,
             idSuffix,
             labelI18nKey,
             value,
             min,
             max,
             format,
-            ctx::pushEditSnapshot,
             onLiveChange,
             ctx::invalidatePreview);
     }
@@ -121,9 +126,11 @@ public final class PowerLineUiWidgets {
             Consumer<Float> onLiveChange) {
         imgui.type.ImFloat input = new imgui.type.ImFloat(value[0]);
         boolean changed = ImGui.inputFloat("##" + idSuffix, input, step, stepFast, format);
-        if (ImGui.isItemActivated()) {
-            ctx.pushEditSnapshot();
-        }
+        ctx.trackPendingEdit(
+            idSuffix,
+            ImGui.isItemActivated(),
+            changed,
+            ImGui.isItemDeactivatedAfterEdit());
         if (changed) {
             float clamped = Math.max(min, Math.min(max, input.get()));
             value[0] = clamped;
@@ -147,9 +154,11 @@ public final class PowerLineUiWidgets {
             Consumer<Integer> onLiveChange) {
         imgui.type.ImInt input = new imgui.type.ImInt(value[0]);
         boolean changed = ImGui.inputInt("##" + idSuffix, input, step, stepFast);
-        if (ImGui.isItemActivated()) {
-            ctx.pushEditSnapshot();
-        }
+        ctx.trackPendingEdit(
+            idSuffix,
+            ImGui.isItemActivated(),
+            changed,
+            ImGui.isItemDeactivatedAfterEdit());
         if (changed) {
             value[0] = input.get();
             if (onLiveChange != null) {
@@ -170,9 +179,11 @@ public final class PowerLineUiWidgets {
             imgui.type.ImString buffer,
             Consumer<String> onLiveChange) {
         boolean changed = ImGui.inputText(stableLabel(labelI18nKey, idSuffix), buffer);
-        if (ImGui.isItemActivated()) {
-            ctx.pushEditSnapshot();
-        }
+        ctx.trackPendingEdit(
+            idSuffix,
+            ImGui.isItemActivated(),
+            changed,
+            ImGui.isItemDeactivatedAfterEdit());
         if (changed && onLiveChange != null) {
             onLiveChange.accept(buffer.get());
         }
@@ -253,7 +264,12 @@ public final class PowerLineUiWidgets {
             current,
             defaultMix,
             onChange::accept,
-            () -> ctx.pushEditSnapshot());
+            () -> ctx.pushEditSnapshot(),
+            (activated, changed, deactivatedAfterEdit) -> ctx.trackPendingEdit(
+                id + "_accent",
+                activated,
+                changed,
+                deactivatedAfterEdit));
     }
 
     /**
