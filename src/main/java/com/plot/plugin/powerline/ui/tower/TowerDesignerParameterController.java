@@ -21,11 +21,20 @@ public final class TowerDesignerParameterController {
             PoleDesign draft,
             TowerBuildEnvelope envelope,
             UnaryOperator<TowerParameterSet> change) {
+        return applyParametricChange(draft, envelope, change, null);
+    }
+
+    public static ApplyResult applyParametricChange(
+            PoleDesign draft,
+            TowerBuildEnvelope envelope,
+            UnaryOperator<TowerParameterSet> change,
+            TowerParameterSet editBase) {
         if (draft == null || !draft.isParametricMode() || draft.getGeneratorConfig() == null) {
             return new ApplyResult(null);
         }
         TowerGeneratorConfig config = draft.getGeneratorConfig();
-        TowerParameterSet requested = change.apply(config.parameters());
+        TowerParameterSet base = editBase != null ? editBase : config.parameters();
+        TowerParameterSet requested = change.apply(base);
         draft.setGeneratorConfig(config.withParameters(requested));
         TowerConstraintResult result = TowerParametricEditor.recompile(draft, envelope);
         return new ApplyResult(result);

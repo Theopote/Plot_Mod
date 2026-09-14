@@ -25,6 +25,7 @@ import java.util.function.UnaryOperator;
 /** Parametric edit session: recompile, envelope resolution, footprint transaction, and preview sync. */
 public final class TowerDesignerSession {
     private final PowerLineUiContext ctx;
+    private final ParametricTowerEditState parametricState = new ParametricTowerEditState();
     private TowerConstraintResult lastConstraintResult;
     private TowerGeneratorConfig footprintBaseline;
     private boolean footprintRollbackEnabled;
@@ -43,6 +44,7 @@ public final class TowerDesignerSession {
         footprintRollbackEnabled = ParametricFootprintSync.targetsEditedLine(line, draft, editingId);
         footprintBaseline = captureFootprintBaseline(line);
         lastConstraintResult = null;
+        parametricState.captureFromDesign(draft);
     }
 
     public void endSession(boolean commit, PoleDesign draft) {
@@ -54,9 +56,11 @@ public final class TowerDesignerSession {
         footprintRollbackEnabled = false;
         footprintBaseline = null;
         lastConstraintResult = null;
+        parametricState.reset();
     }
 
     public void afterDraftRestored(PoleDesign draft) {
+        parametricState.captureFromDesign(draft);
         refreshConstraints(draft);
         syncParametricConfigToSelectedLine(draft);
     }
@@ -79,6 +83,7 @@ public final class TowerDesignerSession {
             return;
         }
         lastConstraintResult = TowerParametricEditor.recompile(draft, resolveConstraintEnvelope());
+        parametricState.applyRecompileResult(draft, lastConstraintResult);
     }
 
     /**
@@ -95,6 +100,7 @@ public final class TowerDesignerSession {
             TowerArmAttachmentBinding.releaseBoundAttachmentsForLegacyLayers(draft);
             draft.clearTowerStructure();
             lastConstraintResult = null;
+            parametricState.reset();
             clearParametricConfigFromSelectedLine(draft);
             return;
         }
@@ -107,6 +113,7 @@ public final class TowerDesignerSession {
             return;
         }
         lastConstraintResult = TowerParametricEditor.recompile(draft, resolveConstraintEnvelope());
+        parametricState.applyRecompileResult(draft, lastConstraintResult);
         if (!draft.hasTowerStructure()) {
             String profileId = draft.getGeneratorConfig() != null
                 ? draft.getGeneratorConfig().profileId()
@@ -114,14 +121,23 @@ public final class TowerDesignerSession {
             switchProfile(draft, profileId);
         } else {
             TowerArmAttachmentBinding.ensureV2Bindings(draft);
+            parametricState.captureFromDesign(draft);
         }
         syncParametricConfigToSelectedLine(draft);
     }
 
     public void applyParametricChange(PoleDesign draft, UnaryOperator<TowerParameterSet> change) {
-        TowerDesignerParameterController.ApplyResult result =
-            TowerDesignerParameterController.applyParametricChange(draft, resolveConstraintEnvelope(), change);
-        lastConstraintResult = result.constraintResult();
+        applyParametricChange(draft, resolveConstraintEnvelope(), change);
+    }
+
+    public void applyParametricChange(
+            PoleDesign draft,
+            TowerBuildEnvelope envelope,
+            UnaryOperator<TowerParameterSet> change) {
+        TowerParameterSet requested = change.apply(parametricState.parametersForEdit(draft));
+        parametricState.recordRequested(draft, requested);
+        lastConstraintResult = TowerParametricEditor.recompile(draft, envelope);
+        parametricState.applyRecompileResult(draft, lastConstraintResult);
         syncParametricConfigToSelectedLine(draft);
     }
 
@@ -132,6 +148,7 @@ public final class TowerDesignerSession {
                 option.id(),
                 option.defaults().get(),
                 resolveConstraintEnvelope());
+            parametricState.applyRecompileResult(draft, lastConstraintResult);
             syncParametricConfigToSelectedLine(draft);
         });
     }
@@ -169,7 +186,11 @@ public final class TowerDesignerSession {
         }
         PowerLineFootprint line = ctx.selection().primary(ctx.project());
         String editingId = ctx.state().getPoleDesignerEditingId();
-        if (ParametricFootprintSync.syncFromDesign(line, draft, editingId)) {
+        TowerParameterSet footprintParameters = parametricState.footprintParameters(lastConstraintResult);
+        boolean synced = footprintParameters != null
+            ? ParametricFootprintSync.syncFromDesign(line, draft, editingId, footprintParameters)
+            : ParametricFootprintSync.syncFromDesign(line, draft, editingId);
+        if (synced) {
             ctx.invalidatePreview();
         }
     }
@@ -189,6 +210,7 @@ public final class TowerDesignerSession {
     public void onConvertToManual(PoleDesign draft) {
         TowerParametricEditor.convertToManual(draft);
         lastConstraintResult = null;
+        parametricState.reset();
     }
 
     public boolean restoreParametric(PoleDesign draft) {
@@ -196,6 +218,7 @@ public final class TowerDesignerSession {
             return false;
         }
         lastConstraintResult = TowerParametricEditor.recompile(draft, resolveConstraintEnvelope());
+        parametricState.applyRecompileResult(draft, lastConstraintResult);
         syncParametricConfigToSelectedLine(draft);
         return true;
     }
@@ -222,6 +245,18 @@ public final class TowerDesignerSession {
     public TowerGeneratorMode mode(PoleDesign draft) {
         TowerGeneratorConfig config = generatorConfig(draft);
         return config != null ? config.mode() : null;
+    }
+
+    TowerParameterSet requestedParameters() {
+        return parametricState.requestedParameters();
+    }
+
+    TowerParameterSet resolvedParameters() {
+        return parametricState.resolvedParameters();
+    }
+
+    TowerParameterSet lastValidParameters() {
+        return parametricState.lastValidParameters();
     }
 
     private void rollbackFootprint(PoleDesign draft) {

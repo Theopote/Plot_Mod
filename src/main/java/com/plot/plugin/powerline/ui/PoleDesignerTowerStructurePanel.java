@@ -53,7 +53,6 @@ final class PoleDesignerTowerStructurePanel {
             pushDraftSnapshot.run();
             double nextHeight = structure.maxHeight() + 8;
             structure.addStation(new TowerStation(null, nextHeight, 2, 2));
-            structure.setBays(TowerStructurePresets.defaultBaysForStations(structure.getStations()));
         }
 
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.structure_arms"));
@@ -282,6 +281,7 @@ final class PoleDesignerTowerStructurePanel {
         if (PoleDesignerFormRows.sliderFloat(
                 "plugin.powerline.design.station_height", "##h", height, 1f, 256f, "%.1f")) {
             station.setHeight(height[0]);
+            structure.rebuildOrReconcileBays();
         }
         if (ImGui.isItemActivated()) {
             pushDraftSnapshot.run();

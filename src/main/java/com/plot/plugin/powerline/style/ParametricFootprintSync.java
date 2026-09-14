@@ -2,6 +2,7 @@ package com.plot.plugin.powerline.style;
 
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
+import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 
 /** 将杆塔设计器中的参数化配置写回线路 footprint。 */
@@ -31,6 +32,31 @@ public final class ParametricFootprintSync {
         if (draftConfig == null) {
             return false;
         }
+        return syncConfig(line, draftConfig);
+    }
+
+    /**
+     * Sync explicit parameters (e.g. last-valid on constraint error) to the edited line.
+     */
+    public static boolean syncFromDesign(
+            PowerLineFootprint line,
+            PoleDesign draft,
+            String editingDesignId,
+            TowerParameterSet parameters) {
+        if (line == null || draft == null || parameters == null || !usesParametricTower(draft)) {
+            return false;
+        }
+        if (!targetsEditedLine(line, draft, editingDesignId)) {
+            return false;
+        }
+        TowerGeneratorConfig draftConfig = draft.getGeneratorConfig();
+        if (draftConfig == null) {
+            return false;
+        }
+        return syncConfig(line, draftConfig.withParameters(parameters));
+    }
+
+    private static boolean syncConfig(PowerLineFootprint line, TowerGeneratorConfig draftConfig) {
         TowerGeneratorConfig lineConfig = line.getParametricTowerConfig();
         if (lineConfig == null) {
             line.setParametricTowerConfig(draftConfig.copy());

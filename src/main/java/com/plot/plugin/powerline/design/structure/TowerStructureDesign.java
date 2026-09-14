@@ -53,6 +53,7 @@ public class TowerStructureDesign {
         if (station != null) {
             stations.add(station.copy());
             sortStations();
+            rebuildOrReconcileBays();
         }
     }
 
@@ -63,6 +64,13 @@ public class TowerStructureDesign {
         stations.removeIf(station -> stationId.equals(station.getId()));
         bays.removeIf(bay ->
             stationId.equals(bay.getLowerStationId()) || stationId.equals(bay.getUpperStationId()));
+        rebuildOrReconcileBays();
+    }
+
+    /** Reconcile bays with height-sorted station adjacency after add/delete/move. */
+    public void rebuildOrReconcileBays() {
+        sortStations();
+        TowerStructureBayReconciliation.rebuildOrReconcileBays(this);
     }
 
     public TowerStation findStation(String stationId) {

@@ -244,9 +244,13 @@ public final class TowerStructurePresets {
         sorted.sort(java.util.Comparator.comparingDouble(TowerStation::getHeight));
         List<TowerBay> bays = new ArrayList<>();
         for (int i = 1; i < sorted.size(); i++) {
-            bays.add(bayWithBracing(sorted.get(i - 1).getId(), sorted.get(i).getId()));
+            bays.add(defaultBayBetween(sorted.get(i - 1).getId(), sorted.get(i).getId()));
         }
         return bays;
+    }
+
+    public static TowerBay defaultBayBetween(String lowerStationId, String upperStationId) {
+        return bayWithBracing(lowerStationId, upperStationId);
     }
 
     // -------------------------------------------------------------------------

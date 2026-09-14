@@ -157,10 +157,10 @@ public final class TowerParametricEditor {
             profile,
             config.parameters(),
             envelope);
-        design.setGeneratorConfig(config.withParameters(toParameterSet(result.resolved())));
         if (result.hasErrors()) {
             return result;
         }
+        design.setGeneratorConfig(config.withParameters(toParameterSet(result.resolved())));
 
         List<ConductorAttachment> previousAttachments = new ArrayList<>(design.getAttachments());
         boolean sameProfile = previousProfileId != null
