@@ -9,6 +9,7 @@ import com.plot.plugin.powerline.design.parametric.TowerParameterProfile;
 import com.plot.plugin.powerline.design.parametric.TowerParameterProfiles;
 import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 import com.plot.plugin.powerline.ui.PowerLineUiWidgets;
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -34,6 +35,13 @@ public final class TowerAdvancedParametersPanel {
     }
 
     private void renderManualLegacyHeader(TowerDesignerContext context) {
+        if (context.locksStructureKind()) {
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.design.line_instance_manual_hint"));
+            ImGui.separator();
+            return;
+        }
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.parametric_restore"), 0, 0)) {
             context.pushDraftSnapshot().run();
             if (context.session().restoreParametric(context.draft())) {
@@ -130,7 +138,9 @@ public final class TowerAdvancedParametersPanel {
     }
 
     private void renderExpertModeControls(TowerDesignerContext context) {
-        PoleDesign draft = context.draft();
+        if (context.locksStructureKind()) {
+            return;
+        }
         ImGui.checkbox(
             PlotI18n.tr("plugin.powerline.design.parametric_advanced_structure"),
             context.uiState().showAdvancedStructure);

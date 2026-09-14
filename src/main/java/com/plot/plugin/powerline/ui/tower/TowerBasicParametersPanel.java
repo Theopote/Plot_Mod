@@ -33,7 +33,9 @@ public final class TowerBasicParametersPanel {
         }
 
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.tower_basic_section"));
-        renderProfileForm(context);
+        if (!context.locksStructureKind()) {
+            renderProfileForm(context);
+        }
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.tower_basic_dimensions"));
         renderDimensionsForm(context);
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.tower_structure_section"));

@@ -9,6 +9,7 @@ import com.plot.plugin.powerline.ui.tower.TowerDesignerSession;
 import com.plot.plugin.powerline.ui.tower.TowerDesignerUiState;
 import com.plot.plugin.powerline.ui.tower.TowerManualStructurePanel;
 import com.plot.plugin.powerline.ui.tower.TowerParameterStatusPanel;
+import com.plot.plugin.powerline.ui.tower.TowerProfileUiCatalog;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
@@ -46,6 +47,7 @@ public final class PoleDesignerPanel {
     private boolean focusOnNextRender;
     private final TowerDesignerUiState towerUiState = new TowerDesignerUiState();
     private final TowerDesignerSession towerSession;
+    private PoleDesignerEditScope editScope = PoleDesignerEditScope.DESIGN_TEMPLATE;
     private final TowerBasicParametersPanel towerBasicPanel = new TowerBasicParametersPanel();
     private final TowerAdvancedParametersPanel towerAdvancedPanel = new TowerAdvancedParametersPanel();
     private final TowerManualStructurePanel towerManualPanel = new TowerManualStructurePanel();
@@ -62,7 +64,17 @@ public final class PoleDesignerPanel {
         this.towerSession = new TowerDesignerSession(ctx);
     }
 
+    /** 从线路插件打开：调整选中线路上的杆塔参数，不可更换塔型种类。 */
+    public void openForLineInstance(String designId) {
+        open(designId, PoleDesignerEditScope.LINE_INSTANCE);
+    }
+
     public void open(String designId) {
+        open(designId, PoleDesignerEditScope.LINE_INSTANCE);
+    }
+
+    private void open(String designId, PoleDesignerEditScope scope) {
+        editScope = scope;
         PoleDesignResolver resolver = ctx.designResolver();
         PoleDesign source = designId != null ? resolver.find(designId) : null;
         if (source != null) {
@@ -94,7 +106,7 @@ public final class PoleDesignerPanel {
     }
 
     public void render() {
-        familyRolePicker.render(this::open);
+        familyRolePicker.render(designId -> open(designId, PoleDesignerEditScope.LINE_INSTANCE));
         if (draft != null) {
             renderCloseConfirmPopup();
         } else {
@@ -115,7 +127,7 @@ public final class PoleDesignerPanel {
             }
             designerWindowOpen.set(true);
             if (!ImGui.begin(
-                    PlotI18n.tr("plugin.powerline.design.window", draft.getName()),
+                    windowTitle(draft),
                     designerWindowOpen,
                     DESIGNER_WINDOW_FLAGS)) {
                 ImGui.end();
@@ -179,6 +191,7 @@ public final class PoleDesignerPanel {
         ctx.state().setPoleDesignerEditingId("");
         draft = null;
         openedBaselineJson = "";
+        editScope = PoleDesignerEditScope.DESIGN_TEMPLATE;
         designerWindowOpen.set(false);
     }
 
@@ -326,7 +339,48 @@ public final class PoleDesignerPanel {
     }
 
     private void renderStructureSection() {
+        if (editScope == PoleDesignerEditScope.LINE_INSTANCE) {
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.design.line_instance_hint"));
+            ImGui.separator();
+        }
+
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.structure"));
+        if (editScope == PoleDesignerEditScope.LINE_INSTANCE) {
+            renderLockedStructureKind();
+        } else {
+            renderStructureModeRadios();
+        }
+
+        TowerDesignerContext towerContext = new TowerDesignerContext(
+            draft,
+            towerSession,
+            towerUiState,
+            this::pushDraftSnapshot,
+            editScope);
+        towerBasicPanel.render(towerContext);
+        towerAdvancedPanel.render(towerContext);
+        towerStatusPanel.render(towerContext);
+
+        if (!draft.hasTowerStructure()) {
+            return;
+        }
+
+        boolean structureReadOnly = draft.isParametricMode() && !draft.isManualLegacyMode();
+        towerManualPanel.renderIfVisible(
+            towerContext,
+            ignored -> renderTowerStructureEditor(structureReadOnly));
+    }
+
+    private String windowTitle(PoleDesign draft) {
+        if (editScope == PoleDesignerEditScope.LINE_INSTANCE) {
+            return PlotI18n.tr("plugin.powerline.design.window_line_tune", draft.getName());
+        }
+        return PlotI18n.tr("plugin.powerline.design.window", draft.getName());
+    }
+
+    private void renderStructureModeRadios() {
         boolean useTower = draft.hasTowerStructure();
         if (ImGui.radioButton(PlotI18n.tr("plugin.powerline.design.structure_legacy"), !useTower)) {
             if (useTower) {
@@ -341,24 +395,25 @@ public final class PoleDesignerPanel {
                 towerSession.syncStructureMode(draft, true);
             }
         }
+    }
 
-        TowerDesignerContext towerContext = new TowerDesignerContext(
-            draft,
-            towerSession,
-            towerUiState,
-            this::pushDraftSnapshot);
-        towerBasicPanel.render(towerContext);
-        towerAdvancedPanel.render(towerContext);
-        towerStatusPanel.render(towerContext);
-
+    private void renderLockedStructureKind() {
         if (!draft.hasTowerStructure()) {
+            PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.structure_kind_legacy_layers"));
             return;
         }
-
-        boolean structureReadOnly = draft.isParametricMode() && !draft.isManualLegacyMode();
-        towerManualPanel.renderIfVisible(
-            towerContext,
-            ignored -> renderTowerStructureEditor(structureReadOnly));
+        if (draft.isManualLegacyMode()) {
+            PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.structure_kind_manual_legacy"));
+            return;
+        }
+        if (draft.isParametricMode() && draft.getGeneratorConfig() != null) {
+            String profileLabel = TowerProfileUiCatalog.labelFor(draft.getGeneratorConfig().profileId());
+            PowerLineUiWidgets.text(PlotI18n.tr(
+                "plugin.powerline.design.structure_kind_parametric",
+                profileLabel));
+            return;
+        }
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.structure_tower"));
     }
 
     private void renderTowerStructureEditor(boolean readOnly) {
