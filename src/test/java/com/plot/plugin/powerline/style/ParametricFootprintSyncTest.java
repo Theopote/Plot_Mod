@@ -53,6 +53,23 @@ class ParametricFootprintSyncTest {
     }
 
     @Test
+    void restoreBaselineReturnsLineConfigToSessionSnapshot() {
+        PowerLineFootprint line = styledLine();
+        line.setPoleDesignId("draft");
+        PoleDesign draft = new PoleDesign("draft", "Draft");
+        TowerParametricEditor.enableParametricClassic(draft, TowerParameterSet.classicDefaults());
+        TowerGeneratorConfig baseline = draft.getGeneratorConfig().copy();
+        ParametricFootprintSync.syncFromDesign(line, draft, "draft");
+
+        draft.setGeneratorConfig(draft.getGeneratorConfig().withParameters(
+            new TowerParameterSet(55.0, 13.0, 24.0, 1.0, 1.0, null, StructureDensity.MEDIUM)));
+        ParametricFootprintSync.syncFromDesign(line, draft, "draft");
+
+        assertTrue(ParametricFootprintSync.restoreBaseline(line, draft, "draft", baseline));
+        assertEquals(36.0, line.getParametricTowerConfig().parameters().height(), 0.01);
+    }
+
+    @Test
     void clearRemovesLineOverrideForEditedDesign() {
         PowerLineFootprint line = styledLine();
         line.setPoleDesignId("draft");

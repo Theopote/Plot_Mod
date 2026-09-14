@@ -3332,6 +3332,7 @@
   "plugin.powerline.design.tower_status_generic_issue": "Parameter constraint issue",
   "plugin.powerline.design.tower_status_save_blocked_tooltip": "Fix blocking tower parameter issues before saving",
   "plugin.powerline.design.tower_expert_mode": "Expert structure editing",
+  "plugin.powerline.design.tower_structure_readonly_hint": "Structure is preview-only in parametric mode. Changing height or arm parameters regenerates the tower; use Convert to Manual to edit stations and arms by hand.",
   "plugin.powerline.design.tower_preview_last_valid": "Preview shows the last valid structure until constraints are fixed",
   "plugin.powerline.design.parametric_convert_manual_confirm_body": "Manual mode stops automatic parametric updates. The current resolved structure is kept as the starting point.",
   "plugin.powerline.design.parametric_enable_classic": "Enable Classic parametric",

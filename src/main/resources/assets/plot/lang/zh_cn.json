@@ -3332,6 +3332,7 @@
   "plugin.powerline.design.tower_status_generic_issue": "参数约束问题",
   "plugin.powerline.design.tower_status_save_blocked_tooltip": "请先修正阻断性参数问题后再保存",
   "plugin.powerline.design.tower_expert_mode": "专家结构编辑",
+  "plugin.powerline.design.tower_structure_readonly_hint": "参数化模式下结构为预览（只读）。修改高度/横担等参数会自动重新生成；要手工编辑请使用「转换为手动结构」。",
   "plugin.powerline.design.tower_preview_last_valid": "预览显示上次有效结构，修正约束后更新",
   "plugin.powerline.design.parametric_convert_manual_confirm_body": "转换为手动模式后，Station / Arm / Attachment 将停止自动参数联动。当前解析后的结构会作为起点保留。",
   "plugin.powerline.design.parametric_enable_classic": "启用 Classic 参数化",

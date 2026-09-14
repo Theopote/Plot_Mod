@@ -22,10 +22,12 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.UnaryOperator;
 
-/** Parametric edit session: recompile, envelope resolution, and footprint sync. */
+/** Parametric edit session: recompile, envelope resolution, footprint transaction, and preview sync. */
 public final class TowerDesignerSession {
     private final PowerLineUiContext ctx;
     private TowerConstraintResult lastConstraintResult;
+    private TowerGeneratorConfig footprintBaseline;
+    private boolean footprintRollbackEnabled;
 
     public TowerDesignerSession(PowerLineUiContext ctx) {
         this.ctx = ctx;
@@ -33,6 +35,42 @@ public final class TowerDesignerSession {
 
     public TowerConstraintResult lastConstraintResult() {
         return lastConstraintResult;
+    }
+
+    public void beginSession(PoleDesign draft) {
+        PowerLineFootprint line = ctx.selection().primary(ctx.project());
+        String editingId = ctx.state().getPoleDesignerEditingId();
+        footprintRollbackEnabled = ParametricFootprintSync.targetsEditedLine(line, draft, editingId);
+        footprintBaseline = captureFootprintBaseline(line);
+        lastConstraintResult = null;
+    }
+
+    public void endSession(boolean commit, PoleDesign draft) {
+        if (commit) {
+            commitFootprintBaseline();
+        } else {
+            rollbackFootprint(draft);
+        }
+        footprintRollbackEnabled = false;
+        footprintBaseline = null;
+        lastConstraintResult = null;
+    }
+
+    public void afterDraftRestored(PoleDesign draft) {
+        refreshConstraints(draft);
+        syncParametricConfigToSelectedLine(draft);
+    }
+
+    public boolean canSaveDraft(PoleDesign draft) {
+        if (draft == null) {
+            return false;
+        }
+        if (draft.hasTowerStructure()
+                && draft.isParametricMode()
+                && !draft.isManualLegacyMode()) {
+            return canBuild();
+        }
+        return true;
     }
 
     public void refreshConstraints(PoleDesign draft) {
@@ -184,5 +222,35 @@ public final class TowerDesignerSession {
     public TowerGeneratorMode mode(PoleDesign draft) {
         TowerGeneratorConfig config = generatorConfig(draft);
         return config != null ? config.mode() : null;
+    }
+
+    private void rollbackFootprint(PoleDesign draft) {
+        if (!footprintRollbackEnabled) {
+            return;
+        }
+        PowerLineFootprint line = ctx.selection().primary(ctx.project());
+        String editingId = ctx.state().getPoleDesignerEditingId();
+        if (ParametricFootprintSync.restoreBaseline(line, draft, editingId, footprintBaseline)) {
+            ctx.invalidatePreview();
+        }
+    }
+
+    public void commitFootprintBaselineAfterSave() {
+        commitFootprintBaseline();
+    }
+
+    private void commitFootprintBaseline() {
+        if (!footprintRollbackEnabled) {
+            return;
+        }
+        PowerLineFootprint line = ctx.selection().primary(ctx.project());
+        footprintBaseline = captureFootprintBaseline(line);
+    }
+
+    private static TowerGeneratorConfig captureFootprintBaseline(PowerLineFootprint line) {
+        if (line == null || !line.hasParametricTowerConfig()) {
+            return null;
+        }
+        return line.getParametricTowerConfig().copy();
     }
 }

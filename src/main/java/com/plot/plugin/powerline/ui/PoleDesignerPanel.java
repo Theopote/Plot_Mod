@@ -17,6 +17,7 @@ import com.plot.plugin.powerline.design.PoleLayer;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.TowerRole;
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.utils.PlotI18n;
@@ -73,6 +74,7 @@ public final class PoleDesignerPanel {
             ctx.state().setPoleDesignerEditingId("");
         }
         towerUiState.syncFromDraft(draft);
+        towerSession.beginSession(draft);
         towerSession.refreshConstraints(draft);
         designNameBuffer.set(draft.getName());
         ctx.state().getDesignDraftHistory().clear();
@@ -161,15 +163,18 @@ public final class PoleDesignerPanel {
 
     private void handleCloseRequest() {
         if (draft == null || !isDraftDirty()) {
-            finalizeClose();
+            finalizeClose(false);
             return;
         }
         designerWindowOpen.set(true);
         closeConfirmPending = true;
     }
 
-    private void finalizeClose() {
+    private void finalizeClose(boolean committed) {
         dismissCloseConfirmPopup();
+        if (draft != null) {
+            towerSession.endSession(committed, draft);
+        }
         ctx.state().setPoleDesignerOpen(false);
         ctx.state().setPoleDesignerEditingId("");
         draft = null;
@@ -205,14 +210,22 @@ public final class PoleDesignerPanel {
         }
         try {
             PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.close_confirm"));
+            boolean saveBlocked = !towerSession.canSaveDraft(draft);
+            if (saveBlocked) {
+                ImGui.beginDisabled();
+            }
             if (ImGui.button(PlotI18n.tr("plugin.powerline.design.save"), 120, 0)) {
-                saveDraft(false);
-                finalizeClose();
+                if (saveDraft(false)) {
+                    finalizeClose(true);
+                }
                 return;
+            }
+            if (saveBlocked) {
+                ImGui.endDisabled();
             }
             ImGui.sameLine();
             if (ImGui.button(PlotI18n.tr("plugin.powerline.design.discard"), 120, 0)) {
-                finalizeClose();
+                finalizeClose(false);
                 return;
             }
             ImGui.sameLine();
@@ -253,15 +266,17 @@ public final class PoleDesignerPanel {
         float buttonsTotal = buttonWidth * 3f + DialogStyleManager.FOOTER_BUTTON_GAP * 2f;
         ImGui.setCursorPosX(DialogStyleManager.getContentStartX() + Math.max(0f, width - buttonsTotal));
 
-        boolean saveBlocked = draft.hasTowerStructure()
-            && draft.isParametricMode()
-            && !draft.isManualLegacyMode()
-            && !towerSession.canBuild();
+        boolean saveBlocked = !towerSession.canSaveDraft(draft);
         if (saveBlocked) {
             ImGui.beginDisabled();
         }
         if (ImGui.button(saveLabel, buttonWidth, 0)) {
             saveDraft(false);
+        }
+        ImGui.sameLine(0, DialogStyleManager.FOOTER_BUTTON_GAP);
+        if (ImGui.button(saveAsLabel, buttonWidth, 0)) {
+            saveAsNameBuffer.set(draft.getName() + " Copy");
+            ImGui.openPopup("##pole_design_save_as");
         }
         if (saveBlocked) {
             ImGui.endDisabled();
@@ -270,22 +285,24 @@ public final class PoleDesignerPanel {
             }
         }
         ImGui.sameLine(0, DialogStyleManager.FOOTER_BUTTON_GAP);
-        if (ImGui.button(saveAsLabel, buttonWidth, 0)) {
-            saveAsNameBuffer.set(draft.getName() + " Copy");
-            ImGui.openPopup("##pole_design_save_as");
-        }
-        ImGui.sameLine(0, DialogStyleManager.FOOTER_BUTTON_GAP);
         if (ImGui.button(cancelLabel, buttonWidth, 0)) {
             handleCloseRequest();
         }
 
         if (ImGui.beginPopup("##pole_design_save_as")) {
             ImGui.inputText(PlotI18n.tr("plugin.powerline.design.save_as_name"), saveAsNameBuffer);
+            if (saveBlocked) {
+                ImGui.beginDisabled();
+            }
             if (ImGui.button(PlotI18n.tr("button.plot.confirm"), 120, 0)) {
                 draft.setName(saveAsNameBuffer.get());
                 designNameBuffer.set(draft.getName());
-                saveDraft(true);
-                ImGui.closeCurrentPopup();
+                if (saveDraft(true)) {
+                    ImGui.closeCurrentPopup();
+                }
+            }
+            if (saveBlocked) {
+                ImGui.endDisabled();
             }
             ImGui.sameLine();
             if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
@@ -305,7 +322,7 @@ public final class PoleDesignerPanel {
         draft = restored;
         designNameBuffer.set(draft.getName());
         towerUiState.syncFromDraft(draft);
-        towerSession.refreshConstraints(draft);
+        towerSession.afterDraftRestored(draft);
     }
 
     private void renderStructureSection() {
@@ -338,9 +355,23 @@ public final class PoleDesignerPanel {
             return;
         }
 
+        boolean structureReadOnly = draft.isParametricMode() && !draft.isManualLegacyMode();
         towerManualPanel.renderIfVisible(
             towerContext,
-            ignored -> towerStructurePanel.render(draft, this::pushDraftSnapshot));
+            ignored -> renderTowerStructureEditor(structureReadOnly));
+    }
+
+    private void renderTowerStructureEditor(boolean readOnly) {
+        if (readOnly) {
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.design.tower_structure_readonly_hint"));
+            ImGui.beginDisabled();
+        }
+        towerStructurePanel.render(draft, readOnly ? () -> { } : this::pushDraftSnapshot);
+        if (readOnly) {
+            ImGui.endDisabled();
+        }
     }
 
     private void applyLineParametricOverride(String designId) {
@@ -384,9 +415,12 @@ public final class PoleDesignerPanel {
         return lineConfig.isParametric();
     }
 
-    private void saveDraft(boolean forceNewId) {
+    private boolean saveDraft(boolean forceNewId) {
         if (draft == null) {
-            return;
+            return false;
+        }
+        if (!towerSession.canSaveDraft(draft)) {
+            return false;
         }
         if (forceNewId || PoleDesignCatalog.isBuiltinId(draft.getId())) {
             PoleDesign saved = new PoleDesign(draft.getName());
@@ -402,9 +436,11 @@ public final class PoleDesignerPanel {
             ctx.actions().savePoleDesign(draft);
         }
         towerSession.syncParametricConfigToSelectedLine(draft);
+        towerSession.commitFootprintBaselineAfterSave();
         designNameBuffer.set(draft.getName());
         ctx.state().getDesignDraftHistory().clear();
         captureOpenedBaseline();
+        return true;
     }
 
     /** 塔族可编辑角色 → designId（Regular / Corner / Dead-end / Terminal）。 */

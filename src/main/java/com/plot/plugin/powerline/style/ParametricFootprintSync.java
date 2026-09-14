@@ -71,7 +71,33 @@ public final class ParametricFootprintSync {
         return draft != null && draft.hasTowerStructure() && draft.isParametricMode();
     }
 
-    private static boolean targetsEditedLine(
+    /**
+     * 将线路参数化配置恢复为会话基线（取消/放弃编辑时）。
+     */
+    public static boolean restoreBaseline(
+            PowerLineFootprint line,
+            PoleDesign draft,
+            String editingDesignId,
+            TowerGeneratorConfig baseline) {
+        if (line == null || !targetsEditedLine(line, draft, editingDesignId)) {
+            return false;
+        }
+        TowerGeneratorConfig current = line.hasParametricTowerConfig()
+            ? line.getParametricTowerConfig()
+            : null;
+        if (configsEquivalent(baseline, current)) {
+            return false;
+        }
+        if (baseline == null) {
+            line.setParametricTowerConfig(null);
+        } else {
+            line.setParametricTowerConfig(baseline.copy());
+        }
+        PowerLineStyleEditor.afterStyleEdit(line);
+        return true;
+    }
+
+    public static boolean targetsEditedLine(
             PowerLineFootprint line,
             PoleDesign draft,
             String editingDesignId) {
@@ -87,5 +113,17 @@ public final class ParametricFootprintSync {
             return false;
         }
         return line.getParametricTowerConfig().profileId().equals(draft.getGeneratorConfig().profileId());
+    }
+
+    private static boolean configsEquivalent(TowerGeneratorConfig left, TowerGeneratorConfig right) {
+        if (left == null && right == null) {
+            return true;
+        }
+        if (left == null || right == null) {
+            return false;
+        }
+        return left.mode() == right.mode()
+            && left.profileId().equals(right.profileId())
+            && PowerLineStyleParametricCatalog.parametersMatch(left, right);
     }
 }
