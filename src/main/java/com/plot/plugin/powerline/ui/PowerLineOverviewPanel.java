@@ -29,6 +29,7 @@ public final class PowerLineOverviewPanel {
         }
 
         ctx.selection().retainExisting(ctx.project());
+        PowerLineOverviewLayoutCache.retainOnly(ctx.project().getLines().keySet());
 
         boolean selectionFrozen = ctx.isLineSelectionFrozen();
         if (selectionFrozen) {
@@ -107,7 +108,7 @@ public final class PowerLineOverviewPanel {
         if (!renaming) {
             PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
                 "plugin.powerline.overview_item",
-                line.estimatePoleCount(ctx.coordinates()),
+                PowerLineOverviewLayoutCache.poleCount(line, ctx.coordinates()),
                 String.format("%.1f", line.computeWorldPathLength(ctx.coordinates()))));
             if (ImGui.button(PlotI18n.tr("plugin.powerline.delete") + "##delete", 0, 0)) {
                 ctx.pendingDeleteLineIds().clear();

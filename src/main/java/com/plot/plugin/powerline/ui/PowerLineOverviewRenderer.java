@@ -2,7 +2,6 @@ package com.plot.plugin.powerline.ui;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
-import com.plot.plugin.powerline.PowerPoleLayoutUtils;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 import com.plot.plugin.powerline.model.PowerLineProject;
@@ -175,7 +174,7 @@ public final class PowerLineOverviewRenderer {
             boolean selected,
             ICoordinateService coordinates) {
         int color = selected ? PluginUiColors.ACCENT_BLUE : 0xFFE0E0E0;
-        for (PowerPoleSite site : PowerPoleLayoutUtils.computePoleSites(line, coordinates)) {
+        for (PowerPoleSite site : PowerLineOverviewLayoutCache.poleSites(line, coordinates)) {
             Vec2d pole = site.getPlanPosition();
             float sx = toScreenX(pole.x, viewport);
             float sy = toScreenY(pole.y, viewport);
