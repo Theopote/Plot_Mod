@@ -191,7 +191,9 @@ public final class PowerLineValidationCanvasRenderer {
             float x = (float) screen.x;
             float y = (float) screen.y;
             drawList.addText(x - 4f, y - 14f, ERROR_COLOR, "!");
-            String label = String.format("%.1f / %.1f", issue.actual(), issue.required());
+            String label = PowerLineUiFormat.format(issue.actual())
+                + " / "
+                + PowerLineUiFormat.format(issue.required());
             drawList.addText(x + 6f, y - 6f, PluginUiColors.HINT_GRAY, label);
         }
     }

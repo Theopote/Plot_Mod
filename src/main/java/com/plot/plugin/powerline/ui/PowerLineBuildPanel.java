@@ -154,13 +154,13 @@ public final class PowerLineBuildPanel {
             case TOO_CLOSE -> PowerLineStatusIcon.renderWarningLine(
                 PlotI18n.tr(
                     "plugin.powerline.build.status.spacing_too_close",
-                    String.format("%.1f", spacing.worstSpan()),
-                    String.format("%.1f", spacing.limit())));
+                    PowerLineUiFormat.format(spacing.worstSpan()),
+                    PowerLineUiFormat.format(spacing.limit())));
             case TOO_FAR -> PowerLineStatusIcon.renderWarningLine(
                 PlotI18n.tr(
                     "plugin.powerline.build.status.spacing_too_far",
-                    String.format("%.1f", spacing.worstSpan()),
-                    String.format("%.1f", spacing.limit())));
+                    PowerLineUiFormat.format(spacing.worstSpan()),
+                    PowerLineUiFormat.format(spacing.limit())));
             default -> { }
         }
     }
@@ -269,7 +269,7 @@ public final class PowerLineBuildPanel {
             line, worldLength, result.poleCount, line.getMaxPoleSpacing());
         PowerLineUiWidgets.text(PlotI18n.tr(
             "plugin.powerline.wire_length_result",
-            String.format("%.1f", result.wireLength)));
+            PowerLineUiFormat.format(result.wireLength)));
         PowerLineUiWidgets.text(PlotI18n.tr(
             "plugin.powerline.build.conductor_count",
             PowerLineQuickTunePolicy.conductorCount(line, basePreset)));
@@ -295,7 +295,7 @@ public final class PowerLineBuildPanel {
     }
 
     private static String formatBlocks(double blocks) {
-        return String.format("%.0f", blocks);
+        return PowerLineUiFormat.format(blocks);
     }
 
     private static String formatBlockCount(int blocks) {

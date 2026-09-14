@@ -119,7 +119,7 @@ final class PoleDesignerAttachmentPanel {
                     normalized,
                     -1f,
                     1f,
-                    "%.2f")) {
+                    PowerLineUiFormat.SLIDER)) {
                 attachment.setNormalizedPosition(normalized[0]);
                 TowerArmAttachmentBinding.refreshBoundCache(attachment, draft.getTowerStructure());
             }
@@ -134,7 +134,7 @@ final class PoleDesignerAttachmentPanel {
                     anchor,
                     -8f,
                     8f,
-                    "%.1f")) {
+                    PowerLineUiFormat.SLIDER)) {
                 attachment.setVerticalAnchorOffset(anchor[0]);
                 TowerArmAttachmentBinding.refreshBoundCache(attachment, draft.getTowerStructure());
             }
@@ -156,7 +156,7 @@ final class PoleDesignerAttachmentPanel {
                     lateral,
                     -8f,
                     8f,
-                    "%.1f")) {
+                    PowerLineUiFormat.SLIDER)) {
                 attachment.setLateralOffset(lateral[0]);
             }
             if (ImGui.isItemActivated()) {
@@ -170,7 +170,7 @@ final class PoleDesignerAttachmentPanel {
                     vertical,
                     1f,
                     64f,
-                    "%.1f")) {
+                    PowerLineUiFormat.SLIDER)) {
                 attachment.setVerticalOffset(vertical[0]);
             }
             if (ImGui.isItemActivated()) {
@@ -185,7 +185,7 @@ final class PoleDesignerAttachmentPanel {
                 longitudinal,
                 -4f,
                 4f,
-                "%.1f")) {
+                PowerLineUiFormat.SLIDER)) {
             attachment.setLongitudinalOffset(longitudinal[0]);
         }
         if (ImGui.isItemActivated()) {

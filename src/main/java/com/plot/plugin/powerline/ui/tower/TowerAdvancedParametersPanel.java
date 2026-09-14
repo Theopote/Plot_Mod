@@ -8,6 +8,7 @@ import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
 import com.plot.plugin.powerline.design.parametric.TowerParameterProfile;
 import com.plot.plugin.powerline.design.parametric.TowerParameterProfiles;
 import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
+import com.plot.plugin.powerline.ui.PowerLineUiFormat;
 import com.plot.plugin.powerline.ui.PowerLineUiWidgets;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.dialog.DialogLayoutHelper;
@@ -75,7 +76,7 @@ public final class TowerAdvancedParametersPanel {
             depthScale,
             (float) profile.depthScaleRange().min(),
             (float) profile.depthScaleRange().max(),
-            "%.2f",
+            PowerLineUiFormat.SLIDER,
             newDepth -> context.session().applyParametricChange(
                 draft,
                 source -> withDepthScale(source, newDepth)));
@@ -90,7 +91,7 @@ public final class TowerAdvancedParametersPanel {
                 waistRatio,
                 (float) ParameterRange.WAIST_RATIO.min(),
                 (float) ParameterRange.WAIST_RATIO.max(),
-                "%.2f",
+                PowerLineUiFormat.SLIDER,
                 newWaist -> context.session().applyParametricChange(
                     draft,
                     source -> withWaistRatio(source, newWaist)));
@@ -125,7 +126,7 @@ public final class TowerAdvancedParametersPanel {
                 armHeight,
                 TowerArmLevelUiMath.sliderMin(towerHeight, armTemplate),
                 TowerArmLevelUiMath.sliderMax(towerHeight, armTemplate),
-                "%.0f",
+                PowerLineUiFormat.SLIDER,
                 requestedHeight -> context.session().applyParametricChange(
                     context.draft(),
                     source -> source.withArmLevelScale(

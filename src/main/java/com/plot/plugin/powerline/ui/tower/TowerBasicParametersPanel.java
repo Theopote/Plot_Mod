@@ -10,6 +10,7 @@ import com.plot.plugin.powerline.design.parametric.TowerParametricHeightLimits;
 import com.plot.plugin.powerline.design.parametric.TowerParameterProfile;
 import com.plot.plugin.powerline.design.parametric.TowerParameterProfiles;
 import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
+import com.plot.plugin.powerline.ui.PowerLineUiFormat;
 import com.plot.plugin.powerline.ui.PowerLineUiWidgets;
 import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.utils.PlotI18n;
@@ -110,7 +111,7 @@ public final class TowerBasicParametersPanel {
             height,
             (float) heightRange.min(),
             (float) heightRange.max(),
-            "%.0f",
+            PowerLineUiFormat.SLIDER,
             newHeight -> context.session().applyParametricChange(draft, source -> withHeight(source, newHeight)));
         renderHeightLimitHint(heightRange, lineEnvelope);
         renderClampHint(context, "height");
@@ -123,7 +124,7 @@ public final class TowerBasicParametersPanel {
             baseWidth,
             (float) profile.baseWidthRange().min(),
             (float) profile.baseWidthRange().max(),
-            "%.0f",
+            PowerLineUiFormat.SLIDER,
             newWidth -> context.session().applyParametricChange(draft, source -> withBaseWidth(source, newWidth)));
         renderClampHint(context, "baseWidth");
 
@@ -135,7 +136,7 @@ public final class TowerBasicParametersPanel {
             armSpan,
             (float) profile.armSpanRange().min(),
             (float) profile.armSpanRange().max(),
-            "%.0f",
+            PowerLineUiFormat.SLIDER,
             newSpan -> context.session().applyParametricChange(draft, source -> withArmSpan(source, newSpan)));
         renderClampHint(context, "armSpan");
     }

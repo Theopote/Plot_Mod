@@ -21,7 +21,7 @@ public final class PowerLineOverviewPanel {
         PowerLineUiWidgets.text(PlotI18n.tr(
             "plugin.powerline.project_stats",
             ctx.project().getLineCount(),
-            String.format("%.1f", ctx.project().getTotalWorldPathLength(ctx.coordinates()))));
+            PowerLineUiFormat.format(ctx.project().getTotalWorldPathLength(ctx.coordinates()))));
 
         if (ctx.project().getLineCount() == 0) {
             PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.no_lines"));
@@ -109,7 +109,7 @@ public final class PowerLineOverviewPanel {
             PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
                 "plugin.powerline.overview_item",
                 PowerLineOverviewLayoutCache.poleCount(line, ctx.coordinates()),
-                String.format("%.1f", line.computeWorldPathLength(ctx.coordinates()))));
+                PowerLineUiFormat.format(line.computeWorldPathLength(ctx.coordinates()))));
             if (ImGui.button(PlotI18n.tr("plugin.powerline.delete") + "##delete", 0, 0)) {
                 ctx.pendingDeleteLineIds().clear();
                 ctx.pendingDeleteLineIds().add(line.getId());

@@ -156,7 +156,7 @@ final class PoleDesignerTowerStructurePanel {
                 baseHeight,
                 0f,
                 256f,
-                "%.1f")) {
+                PowerLineUiFormat.SLIDER)) {
             decoration.setBaseHeight(baseHeight[0]);
         }
         if (ImGui.isItemActivated()) {
@@ -169,7 +169,7 @@ final class PoleDesignerTowerStructurePanel {
             String sizeKey = decoration.getKind() == TowerDecorationKind.PLATFORM
                 ? "plugin.powerline.design.decoration_platform_radius"
                 : "plugin.powerline.design.decoration_antenna_height";
-            if (PoleDesignerFormRows.sliderFloat(sizeKey, "##deco_size", size, 0.5f, 32f, "%.1f")) {
+            if (PoleDesignerFormRows.sliderFloat(sizeKey, "##deco_size", size, 0.5f, 32f, PowerLineUiFormat.SLIDER)) {
                 decoration.setSize(size[0]);
             }
             if (ImGui.isItemActivated()) {
@@ -215,7 +215,7 @@ final class PoleDesignerTowerStructurePanel {
                 baseHeight,
                 0f,
                 256f,
-                "%.1f")) {
+                PowerLineUiFormat.SLIDER)) {
             arm.setBaseHeight(baseHeight[0]);
             TowerArmAttachmentBinding.syncBoundVerticalOffsets(arm, draft.getAttachments());
         }
@@ -230,7 +230,7 @@ final class PoleDesignerTowerStructurePanel {
                 reach,
                 1f,
                 32f,
-                "%.1f")) {
+                PowerLineUiFormat.SLIDER)) {
             arm.setLateralReach(reach[0]);
         }
         if (ImGui.isItemActivated()) {
@@ -244,7 +244,7 @@ final class PoleDesignerTowerStructurePanel {
                 verticalDrop,
                 0f,
                 32f,
-                "%.1f")) {
+                PowerLineUiFormat.SLIDER)) {
             arm.setVerticalDrop(verticalDrop[0]);
         }
         if (ImGui.isItemActivated()) {
@@ -282,7 +282,7 @@ final class PoleDesignerTowerStructurePanel {
         }
         float[] height = {(float) station.getHeight()};
         if (PoleDesignerFormRows.sliderFloat(
-                "plugin.powerline.design.station_height", "##h", height, 1f, 256f, "%.1f")) {
+                "plugin.powerline.design.station_height", "##h", height, 1f, 256f, PowerLineUiFormat.SLIDER)) {
             station.setHeight(height[0]);
             structure.rebuildOrReconcileBays();
         }
@@ -292,7 +292,7 @@ final class PoleDesignerTowerStructurePanel {
 
         float[] width = {(float) station.getHalfWidth()};
         if (PoleDesignerFormRows.sliderFloat(
-                "plugin.powerline.design.station_width", "##w", width, 0.5f, 16f, "%.1f")) {
+                "plugin.powerline.design.station_width", "##w", width, 0.5f, 16f, PowerLineUiFormat.SLIDER)) {
             station.setHalfWidth(width[0]);
         }
         if (ImGui.isItemActivated()) {
@@ -301,7 +301,7 @@ final class PoleDesignerTowerStructurePanel {
 
         float[] depth = {(float) station.getHalfDepth()};
         if (PoleDesignerFormRows.sliderFloat(
-                "plugin.powerline.design.station_depth", "##d", depth, 0.5f, 16f, "%.1f")) {
+                "plugin.powerline.design.station_depth", "##d", depth, 0.5f, 16f, PowerLineUiFormat.SLIDER)) {
             station.setHalfDepth(depth[0]);
         }
         if (ImGui.isItemActivated()) {

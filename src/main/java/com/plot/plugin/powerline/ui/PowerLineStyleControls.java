@@ -195,7 +195,7 @@ public final class PowerLineStyleControls {
     private static String roleLabel(PowerPoleSite site) {
         String code = PowerLineOverrideUtils.roleShortCode(site.getRole());
         if (site.getDeflectionAngle() > 0.5 && site.getRole() == TowerRole.ANGLE) {
-            return code + " " + String.format("%.0f°", site.getDeflectionAngle());
+            return code + " " + String.format(PowerLineUiFormat.DEGREES, site.getDeflectionAngle());
         }
         return code + " " + localizedRoleName(site.getRole());
     }

@@ -310,7 +310,7 @@ public final class PowerLineStyleQuickTunePanel {
             sagRatio,
             0f,
             (float) (PowerLineUiPresets.ADVANCED_SAG_MAX_RATIO * 100f),
-            "%.0f%%",
+            PowerLineUiFormat.SLIDER_PERCENT,
             value -> {
                 PowerLineUiPresets.applyAdvancedSag(line, value / 100f);
                 PowerLineStyleEditor.afterStyleEdit(line);
@@ -338,7 +338,7 @@ public final class PowerLineStyleQuickTunePanel {
                 maxDepth,
                 1f,
                 PowerLineUiPresets.ADVANCED_MAX_SAG_DEPTH_MAX,
-                "%.0f",
+                PowerLineUiFormat.SLIDER,
                 value -> {
                     PowerLineUiPresets.applyMaxSagDepth(line, value, false);
                     PowerLineStyleEditor.afterStyleEdit(line);

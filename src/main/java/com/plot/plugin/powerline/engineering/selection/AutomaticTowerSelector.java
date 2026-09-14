@@ -77,16 +77,16 @@ public final class AutomaticTowerSelector {
         result.setSelectedDesignId(best.getPoleDesignId());
         result.addReason(String.format(
             Locale.ROOT,
-            "selected_score|%.1f|%.0f|%.0f|%.0f",
+            "selected_score|%.2f|%.2f|%.2f|%.2f",
             best.getScore(),
             best.getNominalHeight(),
             best.getSupportedMaxSpan(),
             best.getSupportedMaxAngle()));
         if (context.getDeflectionAngle() > 0.5) {
-            result.addReason(String.format(Locale.ROOT, "route_deflection|%.0f", context.getDeflectionAngle()));
+            result.addReason(String.format(Locale.ROOT, "route_deflection|%.2f", context.getDeflectionAngle()));
         }
         if (context.maxAdjacentSpan() > 0.5) {
-            result.addReason(String.format(Locale.ROOT, "adjacent_span|%.0f", context.maxAdjacentSpan()));
+            result.addReason(String.format(Locale.ROOT, "adjacent_span|%.2f", context.maxAdjacentSpan()));
         }
         return result;
     }

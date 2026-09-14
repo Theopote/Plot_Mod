@@ -156,7 +156,7 @@ public final class PowerLineRoutePanel {
             spacing,
             sliderMin,
             sliderMax,
-            "%.0f",
+            PowerLineUiFormat.SLIDER,
             value -> {
                 line.setMaxPoleSpacing(value);
                 PowerLineStyleEditor.afterSpacingEdit(line);
@@ -183,7 +183,7 @@ public final class PowerLineRoutePanel {
                 line.getMaxPoleSpacing());
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.powerline.route.tower_count_implied_spacing", String.format("%.0f", implied)));
+                PlotI18n.tr("plugin.powerline.route.tower_count_implied_spacing", PowerLineUiFormat.format(implied)));
         }
         PowerLineUiWidgets.textColored(
             PluginUiColors.HINT_GRAY,
@@ -232,7 +232,7 @@ public final class PowerLineRoutePanel {
             minSpacing,
             sliderMin,
             sliderMax,
-            "%.1f",
+            PowerLineUiFormat.SLIDER,
             value -> {
                 line.setMinPoleSpacing(value);
                 PowerLineStyleEditor.afterSpacingEdit(line);
@@ -248,7 +248,7 @@ public final class PowerLineRoutePanel {
             cornerAngle,
             0f,
             90f,
-            "%.1f",
+            PowerLineUiFormat.SLIDER,
             line::setCornerAngleThreshold);
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("plugin.powerline.route.corner_hint.detail"));
@@ -296,7 +296,7 @@ public final class PowerLineRoutePanel {
             ImGui.pushID("powerline_auto_pole_" + i);
             PowerLineStatusIcon.renderBulletLine(PlotI18n.tr(
                 "plugin.powerline.route.auto_poles.entry",
-                String.format("%.1f", constraint.getRequiredStationing()),
+                PowerLineUiFormat.format(constraint.getRequiredStationing()),
                 PowerLineAutoPoleLabels.friendlyReason(constraint)));
             if (ImGui.button(PlotI18n.tr("plugin.powerline.route.auto_poles.remove"), 0, 0)) {
                 ctx.pushEditSnapshot();

@@ -389,7 +389,7 @@ public final class PowerLineActions {
         if (announceSuccess) {
             state.setProjectStatus(PlotI18n.tr(
                 "plugin.powerline.preview_ready",
-                String.format("%.1f", result.wireLength),
+                PowerLineUiFormat.format(result.wireLength),
                 result.warnings.size()),
                 result.warnings.isEmpty() ? ProjectStatusSeverity.SUCCESS : ProjectStatusSeverity.WARNING);
         }
