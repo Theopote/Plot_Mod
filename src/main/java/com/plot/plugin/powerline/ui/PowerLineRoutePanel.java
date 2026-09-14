@@ -1,10 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
-import com.plot.core.model.Shape;
 import com.plot.plugin.powerline.model.PoleSpacingMode;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
-import com.plot.plugin.powerline.path.PowerLineSourceSync;
-import com.plot.plugin.powerline.path.SourceSyncStatus;
 import com.plot.plugin.powerline.style.PowerLineSpacingPolicy;
 import com.plot.plugin.powerline.style.PowerLineStyleEditor;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
@@ -45,7 +42,6 @@ public final class PowerLineRoutePanel {
         adoptPanel.render(line);
 
         if (line != null) {
-            renderSourceReference(line);
             ImGui.separator();
             renderPolePlacement(line);
             renderAdvancedSpacing(line);
@@ -67,36 +63,6 @@ public final class PowerLineRoutePanel {
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.route.current_line_empty"));
-        }
-    }
-
-    private void renderSourceReference(PowerLineFootprint line) {
-        if (!PowerLineSourceSync.hasLinkedSource(line)) {
-            return;
-        }
-        java.util.List<Shape> canvasShapes = ctx.host().appState().getShapes();
-        SourceSyncStatus status = PowerLineSourceSync.resolveStatus(line, canvasShapes);
-        switch (status) {
-            case NOT_LINKED, OK -> {
-            }
-            case MISSING -> PowerLineUiWidgets.textColored(
-                PluginUiColors.WARNING,
-                PlotI18n.tr("plugin.powerline.source_missing"));
-            case UNSUPPORTED -> PowerLineUiWidgets.textColored(
-                PluginUiColors.WARNING,
-                PlotI18n.tr("plugin.powerline.source_unsupported"));
-            case DEGENERATE -> PowerLineUiWidgets.textColored(
-                PluginUiColors.WARNING,
-                PlotI18n.tr("plugin.powerline.source_degenerate"));
-            case STALE -> {
-                PowerLineUiWidgets.textColored(
-                    PluginUiColors.WARNING,
-                    PlotI18n.tr("plugin.powerline.source_stale"));
-                ImGui.spacing();
-                if (ImGui.button(PlotI18n.tr("plugin.powerline.relayout_from_source"), 0, 0)) {
-                    ctx.relayoutLineFromSource(line);
-                }
-            }
         }
     }
 

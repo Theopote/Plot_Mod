@@ -24,7 +24,7 @@ class PowerLineSourceSyncTest {
         ArcShape arc = new ArcShape(new Vec2d(0, 0), 40.0, 0.0, Math.PI);
         PowerLineFootprint footprint = PowerLinePathLayout.adopt(arc, IdentityCoordinateService.INSTANCE);
 
-        assertTrue(footprint.hasSourcePath());
+        assertFalse(footprint.hasSourcePath());
         assertTrue(footprint.getPathPoints().size() >= 2);
     }
 
@@ -37,6 +37,7 @@ class PowerLineSourceSyncTest {
             40.0,
             0.0);
         PowerLineFootprint footprint = PowerLinePathLayout.adopt(sine, IdentityCoordinateService.INSTANCE);
+        footprint.bindSource(sine);
         List<Shape> shapes = List.of(sine);
 
         assertFalse(PowerLineSourceSync.isSourceStale(footprint, sine));
@@ -52,6 +53,7 @@ class PowerLineSourceSyncTest {
     void detectsMissingLinkedShape() {
         ArcShape arc = new ArcShape(new Vec2d(0, 0), 30.0, 0.0, Math.PI / 2.0);
         PowerLineFootprint footprint = PowerLinePathLayout.adopt(arc, IdentityCoordinateService.INSTANCE);
+        footprint.bindSource(arc);
 
         assertTrue(PowerLineSourceSync.isSourceMissing(footprint, List.of()));
         assertFalse(PowerLineSourceSync.isSourceMissing(footprint, List.of(arc)));
@@ -61,6 +63,7 @@ class PowerLineSourceSyncTest {
     void resolvesUnsupportedDegenerateCircle() {
         CircleShape circle = new CircleShape(new Vec2d(0, 0), 30.0);
         PowerLineFootprint footprint = PowerLinePathLayout.adopt(circle, IdentityCoordinateService.INSTANCE);
+        footprint.bindSource(circle);
 
         circle.setRadius(0.0);
         assertEquals(SourceSyncStatus.UNSUPPORTED, PowerLineSourceSync.resolveStatus(footprint, circle));
@@ -72,6 +75,7 @@ class PowerLineSourceSyncTest {
             List.of(new Vec2d(0, 0), new Vec2d(40, 0), new Vec2d(20, 30)),
             true);
         PowerLineFootprint footprint = PowerLinePathLayout.adopt(triangle, IdentityCoordinateService.INSTANCE);
+        footprint.bindSource(triangle);
         int fingerprint = footprint.getSourceDescriptor().fingerprint();
         int towerCount = footprint.getPathPoints().size();
         Vec2d firstTower = footprint.getPathPoints().getFirst().copy();
@@ -94,6 +98,7 @@ class PowerLineSourceSyncTest {
         ArcShape original = new ArcShape(new Vec2d(0, 0), 40.0, 0.0, Math.PI);
         ArcShape replacement = new ArcShape(new Vec2d(80, 0), 25.0, 0.0, Math.PI / 2.0);
         PowerLineFootprint footprint = PowerLinePathLayout.adopt(original, IdentityCoordinateService.INSTANCE);
+        footprint.bindSource(original);
         String lineId = footprint.getId();
         String lineName = footprint.getName();
         footprint.setName("Test Line");
@@ -117,6 +122,7 @@ class PowerLineSourceSyncTest {
             List.of(new Vec2d(0, 0), new Vec2d(20, 0), new Vec2d(40, 0)),
             true);
         PowerLineFootprint footprint = PowerLinePathLayout.adopt(triangle, IdentityCoordinateService.INSTANCE);
+        footprint.bindSource(triangle);
         int fingerprint = footprint.getSourceDescriptor().fingerprint();
         int towerCount = footprint.getPathPoints().size();
 

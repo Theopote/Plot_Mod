@@ -10,10 +10,8 @@ import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerLineProject;
 import com.plot.plugin.powerline.model.PowerLineProjectHistory;
-import com.plot.plugin.powerline.model.PowerLineWorkspaceSnapshot;
 import com.plot.plugin.powerline.path.ClosedLoopLayoutException;
 import com.plot.plugin.powerline.path.PowerLinePathLayout;
-import com.plot.plugin.powerline.path.PowerLineSourceSync;
 import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
 import com.plot.test.world.IdentityCoordinateService;
 import org.junit.jupiter.api.Test;
@@ -22,7 +20,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -72,7 +70,7 @@ class PowerLineActionsHotPathTest {
     }
 
     @Test
-    void failedRelinkDiscardsPhantomHistoryEntry() {
+    void failedSnapshotApplyPreservesFootprint() {
         PolylineShape triangle = new PolylineShape(
             List.of(new Vec2d(0, 0), new Vec2d(40, 0), new Vec2d(20, 30)),
             true);
@@ -81,32 +79,17 @@ class PowerLineActionsHotPathTest {
             true);
         PowerLineFootprint footprint = PowerLinePathLayout.adopt(triangle, IdentityCoordinateService.INSTANCE);
 
-        PowerLineProject project = new PowerLineProject();
-        project.addLine(footprint);
-        PowerLineDesignProject designs = new PowerLineDesignProject();
-        PowerLineProjectHistory history = new PowerLineProjectHistory();
-
-        String projectJsonBefore = project.toJson();
-        String designsJsonBefore = designs.toJson();
         int towerCountBefore = footprint.getPathPoints().size();
 
-        history.push(project, designs);
         assertThrows(
             ClosedLoopLayoutException.class,
-            () -> PowerLineSourceSync.relink(footprint, degenerate, IdentityCoordinateService.INSTANCE));
+            () -> PowerLinePathLayout.applySnapshot(
+                footprint,
+                degenerate,
+                IdentityCoordinateService.INSTANCE));
 
         assertEquals(towerCountBefore, footprint.getPathPoints().size());
-        assertEquals(triangle.getId(), footprint.getSourceShapeId());
-
-        PowerLineWorkspaceSnapshot restored = history.undo(project, designs);
-        project = restored.project();
-        designs = restored.designProject();
-        PowerLineFootprint restoredLine = project.getLines().get(footprint.getId());
-        assertNotNull(restoredLine);
-
-        assertEquals(projectJsonBefore, project.toJson());
-        assertEquals(designsJsonBefore, designs.toJson());
-        assertFalse(history.canUndo());
+        assertNull(footprint.getSourceDescriptor());
     }
 
     @Test

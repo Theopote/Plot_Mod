@@ -71,9 +71,8 @@ class ClosedPathLayoutTest {
     void circleUsesUniformRingWithoutDuplicateClosureTower() {
         CircleShape circle = new CircleShape(new Vec2d(50, 50), 30.0);
         PowerLineFootprint footprint = PowerLinePathLayout.adopt(circle, IdentityCoordinateService.INSTANCE);
-        footprint.setMaxPoleSpacing(30.0);
-        PowerLinePathLayout.layoutAndSync(footprint, IdentityCoordinateService.INSTANCE);
 
+        assertTrue(footprint.isClosedLoop());
         assertTrue(footprint.getPathPoints().size() >= 3);
         for (int i = 0; i < footprint.getPathPoints().size(); i++) {
             for (int j = i + 1; j < footprint.getPathPoints().size(); j++) {

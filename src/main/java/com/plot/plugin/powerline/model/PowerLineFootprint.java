@@ -35,6 +35,8 @@ public class PowerLineFootprint {
     private transient PathBounds cachedPathBounds;
     /** 认领时的参考路径快照；无则回退为 pathPoints 折线。 */
     private PowerLineSourceDescriptor sourceDescriptor;
+    /** 快照路径是否为闭合环路（无 sourceDescriptor 时由认领写入）。 */
+    private boolean closedPath;
     private String roadId;
     private double minPoleSpacing = 15.0;
     private double maxPoleSpacing = 30.0;
@@ -135,7 +137,7 @@ public class PowerLineFootprint {
         if (resolved != null) {
             return resolved;
         }
-        return PolylineSourcePath.open(pathPoints);
+        return PolylineSourcePath.of(pathPoints, closedPath);
     }
 
     public boolean hasSourcePath() {
@@ -146,8 +148,19 @@ public class PowerLineFootprint {
         return sourceDescriptor != null ? sourceDescriptor.shapeId() : null;
     }
 
+    public boolean isClosedPath() {
+        return closedPath;
+    }
+
+    public void setClosedPath(boolean closedPath) {
+        this.closedPath = closedPath;
+    }
+
     public boolean isClosedLoop() {
-        return resolveSourcePath().isClosed();
+        if (sourceDescriptor != null) {
+            return resolveSourcePath().isClosed();
+        }
+        return closedPath;
     }
 
     /** 路径在平面坐标下的轴对齐包围盒（随路径修改失效重算）。 */

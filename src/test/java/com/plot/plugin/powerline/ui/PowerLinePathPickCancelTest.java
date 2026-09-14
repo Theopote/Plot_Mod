@@ -23,15 +23,6 @@ class PowerLinePathPickCancelTest {
     }
 
     @Test
-    void clearPathRelinkEndsRelinkMode() {
-        PowerLinePluginState state = new PowerLinePluginState();
-        state.beginPathRelink("line-1");
-        assertTrue(state.isPathRelinkActive("line-1"));
-        state.clearPathRelink();
-        assertFalse(state.isPathRelinkActive("line-1"));
-    }
-
-    @Test
     void lineNameRenameCommitAndCancelRestoreOriginal() {
         PowerLinePluginState state = new PowerLinePluginState();
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0)));

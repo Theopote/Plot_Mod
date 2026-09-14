@@ -10,6 +10,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PowerLinePathLayoutTest {
 
@@ -35,6 +36,7 @@ class PowerLinePathLayoutTest {
     void commitLayoutPreservesExistingDescriptorWhenNewSitesAreInsufficient() {
         LineShape original = new LineShape(new Vec2d(0, 0), new Vec2d(40, 0));
         PowerLineFootprint footprint = PowerLinePathLayout.adopt(original, com.plot.test.world.IdentityCoordinateService.INSTANCE);
+        footprint.bindSource(original);
         int fingerprint = footprint.getSourceDescriptor().fingerprint();
         int towerCount = footprint.getPathPoints().size();
 
@@ -52,5 +54,26 @@ class PowerLinePathLayoutTest {
         assertEquals(fingerprint, footprint.getSourceDescriptor().fingerprint());
         assertEquals(towerCount, footprint.getPathPoints().size());
         assertEquals(original.getId(), footprint.getSourceShapeId());
+    }
+
+    @Test
+    void adoptDoesNotRetainCanvasSourceLink() {
+        LineShape line = new LineShape(new Vec2d(0, 0), new Vec2d(40, 0));
+        PowerLineFootprint footprint = PowerLinePathLayout.adopt(line, com.plot.test.world.IdentityCoordinateService.INSTANCE);
+
+        assertNull(footprint.getSourceDescriptor());
+        assertTrue(footprint.getPathPoints().size() >= 2);
+    }
+
+    @Test
+    void applySnapshotUpdatesPathWithoutLinkingSource() {
+        LineShape original = new LineShape(new Vec2d(0, 0), new Vec2d(40, 0));
+        PowerLineFootprint footprint = PowerLinePathLayout.adopt(original, com.plot.test.world.IdentityCoordinateService.INSTANCE);
+        LineShape replacement = new LineShape(new Vec2d(80, 0), new Vec2d(160, 0));
+
+        PowerLinePathLayout.applySnapshot(footprint, replacement, com.plot.test.world.IdentityCoordinateService.INSTANCE);
+
+        assertNull(footprint.getSourceDescriptor());
+        assertTrue(footprint.getPathPoints().size() >= 2);
     }
 }

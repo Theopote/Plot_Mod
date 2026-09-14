@@ -21,7 +21,6 @@ public final class PowerLinePathLayout {
         Objects.requireNonNull(shape, "shape");
         ICoordinateService coords = Objects.requireNonNull(coordinates, "coordinates");
         PowerLineSourcePath sourcePath = PowerLinePathAdapters.from(shape);
-        PowerLineSourceDescriptor descriptor = PowerLineSourceDescriptor.capture(shape);
         double length = sourcePath.worldLength(coords);
         Vec2d start = sourcePath.pointAtStation(0.0, coords);
         Vec2d end = sourcePath.isClosed()
@@ -31,8 +30,21 @@ public final class PowerLinePathLayout {
                 : start.add(new Vec2d(1, 0));
         PowerLineFootprint footprint = new PowerLineFootprint(List.of(start.copy(), end.copy()));
         List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(footprint, sourcePath, coords);
-        commitLayout(footprint, descriptor, sourcePath, sites);
+        commitLayout(footprint, null, sourcePath, sites);
         return footprint;
+    }
+
+    /** 从画布路径快照更新已有线路的杆塔折线，不保留画布关联。 */
+    public static void applySnapshot(
+            PowerLineFootprint footprint,
+            Shape shape,
+            ICoordinateService coordinates) {
+        Objects.requireNonNull(footprint, "footprint");
+        Objects.requireNonNull(shape, "shape");
+        ICoordinateService coords = Objects.requireNonNull(coordinates, "coordinates");
+        PowerLineSourcePath sourcePath = PowerLinePathAdapters.from(shape);
+        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(footprint, sourcePath, coords);
+        commitLayout(footprint, null, sourcePath, sites);
     }
 
     public static List<PowerPoleSite> layoutAndSync(
@@ -55,6 +67,7 @@ public final class PowerLinePathLayout {
             throw new ClosedLoopLayoutException("Unable to derive tower polyline from source path");
         }
         footprint.setSourceDescriptor(descriptor);
+        footprint.setClosedPath(sourcePath != null && sourcePath.isClosed());
         syncTowerPolyline(footprint, sites);
     }
 

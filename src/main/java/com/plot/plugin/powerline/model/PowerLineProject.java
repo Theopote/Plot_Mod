@@ -264,6 +264,7 @@ public class PowerLineProject {
         String sourceShapeId;
         String sourceKind;
         boolean sourceClosed;
+        boolean pathClosed;
         List<Vec2dData> sourcePolylinePoints = new ArrayList<>();
         List<Vec2dData> sourceBezierControlPoints = new ArrayList<>();
         Vec2dData sourceEllipseCenter;
@@ -315,6 +316,7 @@ public class PowerLineProject {
                 com.plot.plugin.powerline.style.PowerLineStyleEditor.syncOverridesFromFootprint(line);
                 lineData.styleOverrides = StyleOverridesData.from(line.getStyleOverrides());
                 lineData.parametricTowerConfig = TowerGeneratorConfigData.from(line.getParametricTowerConfig());
+                lineData.pathClosed = line.isClosedLoop();
                 PowerLineSourceDescriptor source = line.getSourceDescriptor();
                 if (source != null) {
                     lineData.sourceShapeId = source.shapeId();
@@ -419,6 +421,7 @@ public class PowerLineProject {
                     }
                 }
                 footprint.setTargetTowerCount(lineData.targetTowerCount);
+                footprint.setClosedPath(lineData.pathClosed);
                 StyleOverridesData overridesData = lineData.styleOverrides != null
                     ? lineData.styleOverrides
                     : new StyleOverridesData();

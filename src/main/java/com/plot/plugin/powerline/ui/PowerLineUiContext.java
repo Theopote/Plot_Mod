@@ -117,14 +117,6 @@ public final class PowerLineUiContext {
         actions.adoptSelectedPaths();
     }
 
-    public boolean relayoutLineFromSource(PowerLineFootprint line) {
-        return actions.relayoutLineFromSource(line);
-    }
-
-    public boolean detachSourceAndKeepLayout(PowerLineFootprint line) {
-        return actions.detachSourceAndKeepLayout(line);
-    }
-
     public boolean calculatePreview(PowerLineFootprint line) {
         return actions.calculatePreview(line);
     }
@@ -242,18 +234,6 @@ public final class PowerLineUiContext {
 
     public com.plot.plugin.powerline.PowerLinePathPickSession pathPickSession() {
         return actions.pathPickSession();
-    }
-
-    public boolean isPathRelinkActive(PowerLineFootprint line) {
-        return line != null && state.isPathRelinkActive(line.getId());
-    }
-
-    public void beginPathRelink(PowerLineFootprint line) {
-        actions.beginPathRelink(line);
-    }
-
-    public boolean applyPathRelink(PowerLineFootprint line) {
-        return actions.applyPathRelink(line);
     }
 
     public com.plot.plugin.powerline.manager.PowerLinePreviewManager previewManager() {

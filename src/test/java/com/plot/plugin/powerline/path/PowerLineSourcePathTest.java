@@ -23,7 +23,6 @@ class PowerLineSourcePathTest {
 
         PowerPoleLayoutUtils.layoutAndSyncFootprint(footprint, IdentityCoordinateService.INSTANCE);
 
-        assertTrue(footprint.hasSourcePath());
         assertTrue(footprint.getPathPoints().size() >= 3);
         PowerLineSourcePath source = footprint.resolveSourcePath();
         for (Vec2d tower : footprint.getPathPoints()) {
@@ -42,6 +41,7 @@ class PowerLineSourcePathTest {
     void sourceDescriptorRoundTripsThroughProjectJson() {
         BezierCurveShape curve = sampleBezier();
         PowerLineFootprint footprint = PowerLinePathLayout.adopt(curve, IdentityCoordinateService.INSTANCE);
+        footprint.bindSource(curve);
         com.plot.plugin.powerline.model.PowerLineProject project =
             new com.plot.plugin.powerline.model.PowerLineProject();
         project.addLine(footprint);
