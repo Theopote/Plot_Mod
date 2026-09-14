@@ -22,16 +22,13 @@ public final class PowerLineRoutePanel {
     private final PowerLineUiContext ctx;
     private final PowerLineAdoptPanel adoptPanel;
     private final PowerLineOverviewPanel overviewPanel;
-    private final PowerLineSingleTowerSection singleTowerSection;
 
     public PowerLineRoutePanel(
             PowerLineUiContext ctx,
-            PowerLineOverviewPanel overviewPanel,
-            PlacedSingleTowerPanel placedSingleTowerPanel) {
+            PowerLineOverviewPanel overviewPanel) {
         this.ctx = ctx;
         this.adoptPanel = new PowerLineAdoptPanel(ctx);
         this.overviewPanel = overviewPanel;
-        this.singleTowerSection = new PowerLineSingleTowerSection(ctx, placedSingleTowerPanel);
     }
 
     public void render() {
@@ -53,9 +50,6 @@ public final class PowerLineRoutePanel {
             renderTerrainAvoidance(line);
             renderAdvancedSpacing(line);
         }
-
-        ImGui.separator();
-        singleTowerSection.render();
 
         ImGui.separator();
         renderProjectSection();

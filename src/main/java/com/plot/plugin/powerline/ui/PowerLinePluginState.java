@@ -5,13 +5,9 @@ import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.PowerLinePathSelectionAnalysis;
 import com.plot.plugin.powerline.PowerLineSelectionSet;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
-import com.plot.plugin.powerline.model.PlacedSingleTower;
 import com.plot.plugin.powerline.model.PowerLineProject;
 import com.plot.plugin.powerline.model.PoleDesignDraftHistory;
-import com.plot.plugin.powerline.model.PowerLineFootprint;
-import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.plugin.powerline.model.PowerLineProjectHistory;
-import com.plot.plugin.powerline.model.SingleTowerStyleFootprint;
 import com.plot.plugin.powerline.style.StyleCategory;
 import imgui.type.ImString;
 
@@ -50,13 +46,6 @@ public final class PowerLinePluginState {
     private boolean poleDesignerOpen = false;
     private String poleDesignerEditingId = "";
     private final PowerLineValidationUiState validationState = new PowerLineValidationUiState();
-    private final List<PlacedSingleTower> placedSingleTowers = new ArrayList<>();
-    private String selectedPlacedSingleTowerId = "";
-    private String pendingDeletePlacedSingleTowerId = "";
-    private boolean placedSingleTowerDeleteConfirmPending;
-    private TowerRole singleTowerRole = TowerRole.SUSPENSION;
-    private PowerLineFootprint singleTowerStyle = SingleTowerStyleFootprint.createDefault();
-    private StyleEditTarget styleEditTarget = StyleEditTarget.LINE;
     /** 画廊中临时强制展开的 preset 分类（选中新 preset 后一帧）。 */
     private StyleCategory styleGalleryOpenCategory;
 
@@ -94,7 +83,6 @@ public final class PowerLinePluginState {
 
     public void setProject(PowerLineProject project) {
         this.project = project != null ? project : new PowerLineProject();
-        syncPlacedSingleTowersFromProject();
     }
 
     public PowerLineProjectHistory getProjectHistory() {
@@ -236,106 +224,6 @@ public final class PowerLinePluginState {
         return validationState;
     }
 
-    public List<PlacedSingleTower> getPlacedSingleTowers() {
-        return List.copyOf(placedSingleTowers);
-    }
-
-    public void addPlacedSingleTower(PlacedSingleTower placement) {
-        if (placement != null) {
-            placedSingleTowers.add(placement);
-            project.addPlacedSingleTower(placement);
-        }
-    }
-
-    public void removeLastPlacedSingleTower() {
-        if (!placedSingleTowers.isEmpty()) {
-            PlacedSingleTower last = placedSingleTowers.getLast();
-            placedSingleTowers.removeLast();
-            project.removePlacedSingleTower(last.getId());
-        }
-    }
-
-    public void removePlacedSingleTower(String towerId) {
-        if (towerId == null || towerId.isBlank()) {
-            return;
-        }
-        placedSingleTowers.removeIf(tower -> towerId.equals(tower.getId()));
-        project.removePlacedSingleTower(towerId);
-    }
-
-    public PlacedSingleTower findPlacedSingleTower(String towerId) {
-        if (towerId == null || towerId.isBlank()) {
-            return null;
-        }
-        for (PlacedSingleTower tower : placedSingleTowers) {
-            if (towerId.equals(tower.getId())) {
-                return tower;
-            }
-        }
-        return null;
-    }
-
-    public String getSelectedPlacedSingleTowerId() {
-        return selectedPlacedSingleTowerId;
-    }
-
-    public PlacedSingleTower getSelectedPlacedSingleTower() {
-        return findPlacedSingleTower(selectedPlacedSingleTowerId);
-    }
-
-    public void selectPlacedSingleTower(String towerId) {
-        selectedPlacedSingleTowerId = towerId != null ? towerId : "";
-    }
-
-    public void clearPlacedSingleTowerSelection() {
-        selectedPlacedSingleTowerId = "";
-    }
-
-    public void clearPlacedSingleTowerSelectionIf(String towerId) {
-        if (towerId != null && towerId.equals(selectedPlacedSingleTowerId)) {
-            clearPlacedSingleTowerSelection();
-        }
-    }
-
-    public String getPendingDeletePlacedSingleTowerId() {
-        return pendingDeletePlacedSingleTowerId;
-    }
-
-    public void setPendingDeletePlacedSingleTowerId(String towerId) {
-        pendingDeletePlacedSingleTowerId = towerId != null ? towerId : "";
-    }
-
-    public boolean isPlacedSingleTowerDeleteConfirmPending() {
-        return placedSingleTowerDeleteConfirmPending;
-    }
-
-    public void setPlacedSingleTowerDeleteConfirmPending(boolean pending) {
-        this.placedSingleTowerDeleteConfirmPending = pending;
-    }
-
-    public TowerRole getSingleTowerRole() {
-        return singleTowerRole != null ? singleTowerRole : TowerRole.SUSPENSION;
-    }
-
-    public void setSingleTowerRole(TowerRole singleTowerRole) {
-        this.singleTowerRole = singleTowerRole != null ? singleTowerRole : TowerRole.SUSPENSION;
-    }
-
-    public PowerLineFootprint getSingleTowerStyle() {
-        if (singleTowerStyle == null) {
-            singleTowerStyle = SingleTowerStyleFootprint.createDefault();
-        }
-        return singleTowerStyle;
-    }
-
-    public StyleEditTarget getStyleEditTarget() {
-        return styleEditTarget != null ? styleEditTarget : StyleEditTarget.LINE;
-    }
-
-    public void setStyleEditTarget(StyleEditTarget styleEditTarget) {
-        this.styleEditTarget = styleEditTarget != null ? styleEditTarget : StyleEditTarget.LINE;
-    }
-
     public void notifyStyleGalleryCategory(StyleCategory category) {
         this.styleGalleryOpenCategory = category;
     }
@@ -348,8 +236,4 @@ public final class PowerLinePluginState {
         styleGalleryOpenCategory = null;
     }
 
-    private void syncPlacedSingleTowersFromProject() {
-        placedSingleTowers.clear();
-        placedSingleTowers.addAll(project.getPlacedSingleTowers());
-    }
 }

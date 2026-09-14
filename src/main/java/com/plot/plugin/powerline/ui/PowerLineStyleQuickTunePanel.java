@@ -7,7 +7,6 @@ import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
 import com.plot.plugin.powerline.PowerLineSagUtils;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
-import com.plot.plugin.powerline.model.SingleTowerStyleFootprint;
 import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.plugin.powerline.style.PowerLineQuickTunePolicy;
 import com.plot.plugin.powerline.style.PowerLineSpacingPolicy;
@@ -64,23 +63,6 @@ public final class PowerLineStyleQuickTunePanel {
         renderFooter(line, base);
     }
 
-    public void renderStandaloneQuickTune(PowerLineFootprint style, PowerLineStylePreset base) {
-        if (style == null || base == null) {
-            return;
-        }
-        renderStandaloneTowerSection(style, base);
-        renderFooter(style, base);
-    }
-
-    public void renderStandaloneCustomFallback(PowerLineFootprint style) {
-        if (style == null) {
-            return;
-        }
-        ImGui.separator();
-        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.style.custom"));
-        renderStandaloneTowerSection(style, null);
-    }
-
     public void renderCustomFallback(PowerLineFootprint line) {
         if (line == null) {
             return;
@@ -133,49 +115,6 @@ public final class PowerLineStyleQuickTunePanel {
         }
         renderPoleMaterialRow(line, base);
         endTuneTable();
-    }
-
-    private void renderStandaloneTowerSection(PowerLineFootprint style, PowerLineStylePreset base) {
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.style.section.tower_tune"));
-        ImGui.separator();
-        if (!beginTuneTable("standalone_tower")) {
-            return;
-        }
-        renderTowerStyleRow(style);
-        renderStandaloneRoleRow(style);
-        if (PowerLineQuickTunePolicy.supportsPoleHeightTune(style, ctx.designResolver())) {
-            renderPoleHeightRow(style, base);
-        }
-        if (PowerLineQuickTunePolicy.supportsCrossarmTune(style, ctx.designResolver())) {
-            renderCrossarmRow(style, base);
-        }
-        renderPoleMaterialRow(style, base);
-        endTuneTable();
-    }
-
-    private void renderStandaloneRoleRow(PowerLineFootprint style) {
-        java.util.List<TowerRole> roles = SingleTowerRoleOptions.selectableRoles(style);
-        TowerRole selected = SingleTowerRoleOptions.normalizeSelection(style, ctx.state().getSingleTowerRole());
-        if (selected != ctx.state().getSingleTowerRole()) {
-            ctx.state().setSingleTowerRole(selected);
-        }
-        int currentIndex = SingleTowerRoleOptions.indexOf(roles, selected);
-        imgui.type.ImInt roleIndex = new imgui.type.ImInt(currentIndex);
-        ImGui.tableNextRow();
-        ImGui.tableNextColumn();
-        ImGui.alignTextToFramePadding();
-        PowerLineUiWidgets.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.powerline.single_tower.role_label"));
-        ImGui.tableNextColumn();
-        ImGui.alignTextToFramePadding();
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvail().x);
-        if (ImGui.combo("##standalone_style_role", roleIndex, roles.stream()
-                .map(SingleTowerRoleOptions::label)
-                .toArray(String[]::new))) {
-            ctx.state().setSingleTowerRole(SingleTowerRoleOptions.roleAt(roles, roleIndex.get()));
-            ctx.singleTowerPlacement().refreshGhostPreview();
-        }
     }
 
     private void renderWiresSection(PowerLineFootprint line, PowerLineStylePreset base) {
@@ -649,16 +588,11 @@ public final class PowerLineStyleQuickTunePanel {
     }
 
     private void beginProjectBackedStyleEdit(PowerLineFootprint line) {
-        if (!SingleTowerStyleFootprint.isStandaloneStyle(line.getId())) {
-            ctx.pushEditSnapshot();
-        }
+        ctx.pushEditSnapshot();
     }
 
     private void completeStyleEdit(PowerLineFootprint line) {
         ctx.invalidatePreview();
-        if (SingleTowerStyleFootprint.isStandaloneStyle(line.getId())) {
-            ctx.singleTowerPlacement().refreshGhostPreview();
-        }
     }
 
     private PoleDesign ensureEditableDesign(PowerLineFootprint line) {

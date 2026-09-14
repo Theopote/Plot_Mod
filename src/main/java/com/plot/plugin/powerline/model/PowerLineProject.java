@@ -34,7 +34,6 @@ public class PowerLineProject {
         .create();
 
     private final Map<String, PowerLineFootprint> lines = new LinkedHashMap<>();
-    private final List<PlacedSingleTower> placedSingleTowers = new ArrayList<>();
 
     public Map<String, PowerLineFootprint> getLines() {
         return Collections.unmodifiableMap(new LinkedHashMap<>(lines));
@@ -61,29 +60,6 @@ public class PowerLineProject {
 
     public int getLineCount() {
         return lines.size();
-    }
-
-    public List<PlacedSingleTower> getPlacedSingleTowers() {
-        return Collections.unmodifiableList(new ArrayList<>(placedSingleTowers));
-    }
-
-    public void addPlacedSingleTower(PlacedSingleTower tower) {
-        if (tower != null) {
-            placedSingleTowers.add(tower);
-        }
-    }
-
-    public void removePlacedSingleTower(String towerId) {
-        if (towerId == null || towerId.isBlank()) {
-            return;
-        }
-        placedSingleTowers.removeIf(tower -> towerId.equals(tower.getId()));
-    }
-
-    public void removeLastPlacedSingleTower() {
-        if (!placedSingleTowers.isEmpty()) {
-            placedSingleTowers.removeLast();
-        }
     }
 
     public double getTotalPathLength() {
@@ -215,88 +191,6 @@ public class PowerLineProject {
         }
     }
 
-    static class PlacedSingleTowerData {
-        String id;
-        double planX;
-        double planY;
-        int rotationQuadrant;
-        String designId;
-        String designLabel;
-        String styleLineId;
-        String stylePresetId;
-        String towerRole;
-        String placementStatus;
-        Integer expectedBlockCount;
-        List<BlockRecordData> blockRecords = new ArrayList<>();
-
-        static PlacedSingleTowerData from(PlacedSingleTower tower) {
-            PlacedSingleTowerData data = new PlacedSingleTowerData();
-            data.id = tower.getId();
-            data.planX = tower.getPlanPoint().x;
-            data.planY = tower.getPlanPoint().y;
-            data.rotationQuadrant = tower.getRotationQuadrant();
-            data.designId = tower.getDesignId();
-            data.designLabel = tower.getDesignLabel();
-            data.styleLineId = tower.getStyleLineId();
-            data.stylePresetId = tower.getStylePresetId();
-            data.towerRole = tower.getTowerRole().name();
-            data.placementStatus = tower.getPlacementStatus().name();
-            data.expectedBlockCount = tower.getExpectedBlockCount();
-            for (BlockRecord record : tower.getBlockRecords()) {
-                data.blockRecords.add(BlockRecordData.from(record));
-            }
-            return data;
-        }
-
-        PlacedSingleTower toTower() {
-            if (id == null || id.isBlank()) {
-                return null;
-            }
-            List<BlockRecord> records = new ArrayList<>();
-            if (blockRecords != null) {
-                for (BlockRecordData recordData : blockRecords) {
-                    if (recordData != null) {
-                        records.add(recordData.toRecord());
-                    }
-                }
-            }
-            SingleTowerPlacementStatus status = SingleTowerPlacementStatus.FULL;
-            if (placementStatus != null && !placementStatus.isBlank()) {
-                try {
-                    status = SingleTowerPlacementStatus.valueOf(placementStatus);
-                } catch (IllegalArgumentException ignored) {
-                    status = SingleTowerPlacementStatus.fromCounts(
-                        records.size(),
-                        expectedBlockCount != null ? expectedBlockCount : records.size());
-                }
-            }
-            int expected = expectedBlockCount != null
-                ? expectedBlockCount
-                : records.size();
-            TowerRole role = TowerRole.SUSPENSION;
-            if (towerRole != null && !towerRole.isBlank()) {
-                try {
-                    role = TowerRole.valueOf(towerRole);
-                } catch (IllegalArgumentException ignored) {
-                    role = TowerRole.SUSPENSION;
-                }
-            }
-            return new PlacedSingleTower(
-                id,
-                planX,
-                planY,
-                rotationQuadrant,
-                designId,
-                designLabel,
-                styleLineId,
-                stylePresetId,
-                role,
-                records,
-                status,
-                expected);
-        }
-    }
-
     static class StyleOverridesData {
         Double sagRatio;
         Double maxSagDepth;
@@ -386,7 +280,6 @@ public class PowerLineProject {
     static class ProjectData {
         int schemaVersion = SCHEMA_VERSION;
         List<LineData> lines = new ArrayList<>();
-        List<PlacedSingleTowerData> placedSingleTowers = new ArrayList<>();
 
         static ProjectData from(PowerLineProject project) {
             ProjectData data = new ProjectData();
@@ -450,9 +343,6 @@ public class PowerLineProject {
                     }
                 }
                 data.lines.add(lineData);
-            }
-            for (PlacedSingleTower tower : project.placedSingleTowers) {
-                data.placedSingleTowers.add(PlacedSingleTowerData.from(tower));
             }
             return data;
         }
@@ -598,17 +488,6 @@ public class PowerLineProject {
                     }
                 }
                 project.addLine(footprint);
-            }
-            if (placedSingleTowers != null) {
-                for (PlacedSingleTowerData towerData : placedSingleTowers) {
-                    if (towerData == null) {
-                        continue;
-                    }
-                    PlacedSingleTower tower = towerData.toTower();
-                    if (tower != null) {
-                        project.addPlacedSingleTower(tower);
-                    }
-                }
             }
             return project;
         }

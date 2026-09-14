@@ -252,16 +252,8 @@ public final class PowerLineUiContext {
         return actions.applyPathRelink(line);
     }
 
-    public SingleTowerPlacementActions singleTowerPlacement() {
-        return actions.singleTowerPlacement();
-    }
-
     public com.plot.plugin.powerline.manager.PowerLinePreviewManager previewManager() {
         return actions.previewManager();
-    }
-
-    public PlacedSingleTowerActions placedSingleTowerActions() {
-        return actions.placedSingleTowerActions();
     }
 
     public List<String> pendingDeleteLineIds() {

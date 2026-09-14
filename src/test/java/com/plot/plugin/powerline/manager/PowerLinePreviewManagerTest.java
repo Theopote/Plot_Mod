@@ -74,38 +74,12 @@ class PowerLinePreviewManagerTest {
     }
 
     @Test
-    void enterSingleTowerModeClearsLinePreviewMetadata() {
-        PowerLineFootprint line = sampleLine();
-        state.setPreviewKey(PowerLinePreviewKey.capture(line, state.getDesignProject()));
-        state.setLastGenerationResult(sampleResult(line));
-
-        manager.enterSingleTowerMode();
-
-        assertEquals(PowerLinePreviewManager.Mode.SINGLE_TOWER_INTERACTIVE, manager.getMode());
-        assertNull(state.getPreviewKey());
-        assertNull(state.getLastGenerationResult());
-        assertTrue(clearCount.get() >= 1);
-    }
-
-    @Test
     void showLinePreviewSetsLineCachedMode() {
         PowerLineFootprint line = sampleLine();
         manager.showLinePreview(sampleResult(line));
 
         assertEquals(PowerLinePreviewManager.Mode.LINE_CACHED, manager.getMode());
         assertEquals(1, ghostBatches.size());
-    }
-
-    @Test
-    void invalidateLineMetadataDuringSingleTowerKeepsInteractiveMode() {
-        PowerLineFootprint line = sampleLine();
-        manager.enterSingleTowerMode();
-        manager.showSingleTowerPreview(sampleResult(line));
-
-        manager.clearLineCachedPreview();
-
-        assertEquals(PowerLinePreviewManager.Mode.SINGLE_TOWER_INTERACTIVE, manager.getMode());
-        assertTrue(clearCount.get() >= 1);
     }
 
     @Test
@@ -129,11 +103,11 @@ class PowerLinePreviewManagerTest {
     }
 
     @Test
-    void exitSingleTowerModeClearsGhostsAndResetsMode() {
+    void clearLineCachedPreviewClearsGhostsAndResetsMode() {
         PowerLineFootprint line = sampleLine();
-        manager.showSingleTowerPreview(sampleResult(line));
+        manager.showLinePreview(sampleResult(line));
 
-        manager.exitSingleTowerMode();
+        manager.clearLineCachedPreview();
 
         assertEquals(PowerLinePreviewManager.Mode.NONE, manager.getMode());
         assertTrue(clearCount.get() >= 1);

@@ -120,48 +120,4 @@ class PowerLineProjectSchemaDTest {
         assertTrue(com.plot.plugin.powerline.style.PowerLineStyleEditor.isModified(restoredLine));
     }
 
-    @Test
-    void placedSingleTowersJsonRoundTrip() {
-        PowerLineProject project = new PowerLineProject();
-        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
-        line.setName("Style Source");
-        project.addLine(line);
-
-        BlockRecord placed = new BlockRecord(new BlockPos(10, 64, 20), "minecraft:air", "minecraft:oak_fence");
-        List<BlockRecord> expected = List.of(
-            placed,
-            new BlockRecord(new BlockPos(11, 64, 20), "minecraft:air", "minecraft:oak_fence"),
-            new BlockRecord(new BlockPos(12, 64, 20), "minecraft:air", "minecraft:oak_fence"),
-            new BlockRecord(new BlockPos(13, 64, 20), "minecraft:air", "minecraft:oak_fence"),
-            new BlockRecord(new BlockPos(14, 64, 20), "minecraft:air", "minecraft:oak_fence"));
-        PlacedSingleTower tower = new PlacedSingleTower(
-            new Vec2d(12.5, 3.0),
-            2,
-            "Lattice A",
-            line.getId(),
-            expected).withAppliedPlacement(
-                List.of(placed),
-                com.plot.plugin.powerline.model.SingleTowerPlacementStatus.PARTIAL);
-        project.addPlacedSingleTower(tower);
-
-        String json = project.toJson();
-        assertTrue(json.contains("\"placedSingleTowers\""));
-        assertTrue(json.contains("\"schemaVersion\": " + PowerLineProject.SCHEMA_VERSION));
-
-        PowerLineProject restored = PowerLineProject.fromJson(json);
-        assertEquals(1, restored.getPlacedSingleTowers().size());
-        PlacedSingleTower restoredTower = restored.getPlacedSingleTowers().getFirst();
-        assertEquals(tower.getId(), restoredTower.getId());
-        assertEquals(12.5, restoredTower.getPlanPoint().x, 1e-6);
-        assertEquals(3.0, restoredTower.getPlanPoint().y, 1e-6);
-        assertEquals(2, restoredTower.getRotationQuadrant());
-        assertEquals("Lattice A", restoredTower.getDesignLabel());
-        assertEquals(line.getId(), restoredTower.getStyleLineId());
-        assertEquals(1, restoredTower.getBlockRecords().size());
-        assertEquals("minecraft:oak_fence", restoredTower.getBlockRecords().getFirst().newBlockId);
-        assertEquals(
-            com.plot.plugin.powerline.model.SingleTowerPlacementStatus.PARTIAL,
-            restoredTower.getPlacementStatus());
-        assertEquals(5, restoredTower.getExpectedBlockCount());
-    }
 }

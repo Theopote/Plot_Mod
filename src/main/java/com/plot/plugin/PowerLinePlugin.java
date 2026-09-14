@@ -6,9 +6,6 @@ import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
 import com.plot.plugin.powerline.PowerLineGenerator;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
-import com.plot.plugin.powerline.placement.SingleTowerPlacementState;
-import com.plot.plugin.powerline.ui.PlacedSingleTowerCanvasRenderer;
-import com.plot.plugin.powerline.ui.SingleTowerCanvasOverlayRenderer;
 import com.plot.plugin.powerline.ui.PowerLineValidationCanvasRenderer;
 import com.plot.plugin.powerline.ui.PowerLinePluginState;
 import com.plot.plugin.powerline.ui.PowerLineUiContext;
@@ -34,31 +31,6 @@ public class PowerLinePlugin extends Plugin {
 
     private PowerLineUiContext uiContext;
     private PowerLineUIManager uiManager;
-
-    private final CanvasOverlayRegistry.Overlay placedTowersOverlay = (drawList, camera) -> {
-        if (uiContext == null || !isActiveExtension()) {
-            return;
-        }
-        synchronized (projectLock) {
-            PlacedSingleTowerCanvasRenderer.render(
-                drawList,
-                camera,
-                uiContext.state().getPlacedSingleTowers(),
-                uiContext.state().getSelectedPlacedSingleTowerId());
-        }
-    };
-
-    private final CanvasOverlayRegistry.Overlay singleTowerOverlay = (drawList, camera) -> {
-        if (uiContext == null || !isActiveExtension()) {
-            return;
-        }
-        synchronized (projectLock) {
-            SingleTowerPlacementState placement = uiContext.singleTowerPlacement().snapshot();
-            if (placement != null) {
-                SingleTowerCanvasOverlayRenderer.render(drawList, camera, placement);
-            }
-        }
-    };
 
     private final CanvasOverlayRegistry.Overlay engineeringOverlay = (drawList, camera) -> {
         if (uiContext == null || !isActiveExtension()) {
@@ -116,8 +88,6 @@ public class PowerLinePlugin extends Plugin {
 
         ctx().events().subscribe(this, ProjectLoadedEvent.class, projectLoadedListener);
         ctx().events().subscribe(this, ProjectSavedEvent.class, projectSavedListener);
-        CanvasOverlayRegistry.register(placedTowersOverlay);
-        CanvasOverlayRegistry.register(singleTowerOverlay);
         CanvasOverlayRegistry.register(engineeringOverlay);
         loadProjectForCurrentProject();
     }
@@ -132,8 +102,6 @@ public class PowerLinePlugin extends Plugin {
 
     @Override
     public void onDisable() {
-        CanvasOverlayRegistry.unregister(placedTowersOverlay);
-        CanvasOverlayRegistry.unregister(singleTowerOverlay);
         CanvasOverlayRegistry.unregister(engineeringOverlay);
         persistProject();
         try {

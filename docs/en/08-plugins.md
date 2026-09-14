@@ -130,7 +130,7 @@ Adopt straight or polyline paths on the canvas, auto-place poles and crossarms, 
 - Single-phase / three-phase conductors, sag ratio and wire materials
 - Terrain clearance checks and automatic route adjustment
 - Line validation (spacing, sag, wire overlap, etc.) with canvas overlay
-- Pole designer (custom pole types) and single-tower placement mode
+- Pole designer (custom pole types)
 - Plugin undo/redo (line edits) and world build undo
 
 ### Data

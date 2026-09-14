@@ -9,8 +9,6 @@ public final class PowerLineWorldCommands {
     }
 
     public static boolean isPowerLineWorldCommand(Command command) {
-        return command instanceof PowerLineGenerateCommand
-            || command instanceof SingleTowerPlaceCommand
-            || command instanceof SingleTowerRemoveCommand;
+        return command instanceof PowerLineGenerateCommand;
     }
 }

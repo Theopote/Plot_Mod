@@ -13,15 +13,13 @@ public final class PowerLineUIManager {
     private final PowerLineRoutePanel routePanel;
     private final PowerLineStylePanel stylePanel;
     private final PowerLineBuildPanel buildPanel;
-    private final PlacedSingleTowerPanel placedSingleTowerPanel;
 
     public PowerLineUIManager(PowerLineUiContext ctx) {
         this.ctx = ctx;
         this.toolbarPanel = new PowerLineToolbarPanel(ctx);
         this.overviewPanel = new PowerLineOverviewPanel(ctx);
         this.poleDesignerPanel = new PoleDesignerPanel(ctx);
-        this.placedSingleTowerPanel = new PlacedSingleTowerPanel(ctx, ctx.placedSingleTowerActions());
-        this.routePanel = new PowerLineRoutePanel(ctx, overviewPanel, placedSingleTowerPanel);
+        this.routePanel = new PowerLineRoutePanel(ctx, overviewPanel);
         this.stylePanel = new PowerLineStylePanel(ctx, poleDesignerPanel);
         PowerLineValidationPanel validationPanel = new PowerLineValidationPanel(ctx);
         this.buildPanel = new PowerLineBuildPanel(ctx, validationPanel);
@@ -35,7 +33,6 @@ public final class PowerLineUIManager {
             renderTab("plugin.powerline.tab.build", buildPanel::render);
             ImGui.endTabBar();
         }
-        ctx.singleTowerPlacement().tick();
         ctx.actions().tickPathPickSession();
     }
 
@@ -48,7 +45,6 @@ public final class PowerLineUIManager {
 
     public void renderDeferredModals() {
         routePanel.renderDeleteConfirmPopup();
-        placedSingleTowerPanel.renderDeleteConfirmPopup();
         buildPanel.renderBuildConfirmPopup();
         buildPanel.renderOptimizationConfirmPopup();
         poleDesignerPanel.render();

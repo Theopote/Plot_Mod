@@ -54,8 +54,6 @@ public final class PowerLineActions {
     private final PowerLinePluginState state;
     private final Object projectLock;
     private final PowerLinePreviewManager previewManager;
-    private final SingleTowerPlacementActions singleTowerPlacement;
-    private final PlacedSingleTowerActions placedSingleTowerActions;
     private final PowerLinePathPickSession pathPickSession = new PowerLinePathPickSession();
     private PowerLineGenerator generator;
 
@@ -64,20 +62,10 @@ public final class PowerLineActions {
         this.state = Objects.requireNonNull(state, "state");
         this.projectLock = Objects.requireNonNull(projectLock, "projectLock");
         this.previewManager = new PowerLinePreviewManager(host, state);
-        this.singleTowerPlacement = new SingleTowerPlacementActions(host, state, projectLock, previewManager);
-        this.placedSingleTowerActions = new PlacedSingleTowerActions(host, state);
     }
 
     public PowerLinePreviewManager previewManager() {
         return previewManager;
-    }
-
-    public SingleTowerPlacementActions singleTowerPlacement() {
-        return singleTowerPlacement;
-    }
-
-    public PlacedSingleTowerActions placedSingleTowerActions() {
-        return placedSingleTowerActions;
     }
 
     public PowerLinePathPickSession pathPickSession() {
@@ -383,9 +371,6 @@ public final class PowerLineActions {
     }
 
     private boolean calculatePreviewCore(PowerLineFootprint line, boolean announceSuccess) {
-        if (singleTowerPlacement.isActive()) {
-            singleTowerPlacement.cancelPlacementSilent();
-        }
         World world = getClientWorld();
         if (world == null || generator == null) {
             state.setProjectStatus(PlotI18n.tr("plugin.powerline.generate_world_unavailable"), ProjectStatusSeverity.ERROR);
@@ -638,14 +623,6 @@ public final class PowerLineActions {
      * 生成参数、线路选择或杆塔设计变更后调用，丢弃过期预览。
      */
     public void invalidatePreview() {
-        if (previewManager.isSingleTowerInteractive()) {
-            singleTowerPlacement.refreshGhostPreview();
-            if (state.getLastGenerationResult() != null || state.getPreviewKey() != null) {
-                state.setPreviewAutoRefreshEnabled(false);
-                previewManager.clearLineCachedPreview();
-            }
-            return;
-        }
         if (state.getLastGenerationResult() == null && state.getPreviewKey() == null) {
             return;
         }
@@ -1018,9 +995,6 @@ public final class PowerLineActions {
         state.setPoleDesignerOpen(false);
         state.setPoleDesignerEditingId("");
         state.getDesignDraftHistory().clear();
-        state.clearPlacedSingleTowerSelection();
-        state.setPendingDeletePlacedSingleTowerId("");
-        state.setPlacedSingleTowerDeleteConfirmPending(false);
         invalidatePreview();
     }
 

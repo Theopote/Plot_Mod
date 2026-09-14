@@ -14,7 +14,6 @@ import com.plot.core.tool.BaseTool;
 import com.plot.infrastructure.event.mouse.MouseEvent;
 import com.plot.ui.panel.gallery.GalleryPlacementGuard;
 import com.plot.plugin.earthwork.EarthworkPickGuard;
-import com.plot.plugin.powerline.placement.SingleTowerPickGuard;
 import com.plot.utils.ExceptionDebug;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
@@ -79,8 +78,7 @@ public class CanvasInputHandler {
 
             // 图库放置 / 土方拾取模式优先：避免与绘制/选择工具争抢同一次点击
             if (GalleryPlacementGuard.isActive()
-                    || EarthworkPickGuard.isActive()
-                    || SingleTowerPickGuard.isActive()) {
+                    || EarthworkPickGuard.isActive()) {
                 return;
             }
 
