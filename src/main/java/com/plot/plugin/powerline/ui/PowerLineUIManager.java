@@ -26,6 +26,10 @@ public final class PowerLineUIManager {
     }
 
     public void render() {
+        ctx.state().tickPathPickActivationBlock();
+        if (ctx.pathPickSession().isActive()) {
+            ctx.actions().tickPathPickSession();
+        }
         toolbarPanel.render();
         if (ImGui.beginTabBar("##powerline_tabs", ImGuiTabBarFlags.None)) {
             renderTab("plugin.powerline.tab.route", routePanel::render);
@@ -33,7 +37,6 @@ public final class PowerLineUIManager {
             renderTab("plugin.powerline.tab.build", buildPanel::render);
             ImGui.endTabBar();
         }
-        ctx.actions().tickPathPickSession();
     }
 
     private static void renderTab(String labelKey, Runnable body) {

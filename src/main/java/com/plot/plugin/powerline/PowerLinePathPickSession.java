@@ -71,15 +71,34 @@ public final class PowerLinePathPickSession {
     }
 
     public void begin() {
+        begin(null);
+    }
+
+    public void begin(AppState appState) {
         active = true;
         accumulatedPaths.clear();
         canvasSnapshot.reset();
+        if (appState != null) {
+            canvasSnapshot.beginSession(appState);
+        }
+    }
+
+    public List<Shape> sessionStartSelection() {
+        return canvasSnapshot.sessionStartSelection();
     }
 
     public void cancel() {
+        cancel(null);
+    }
+
+    public void cancel(AppState appState) {
+        List<Shape> restoreSelection = canvasSnapshot.sessionStartSelection();
         active = false;
         accumulatedPaths.clear();
         canvasSnapshot.reset();
+        if (appState != null) {
+            appState.setSelectedShapes(restoreSelection);
+        }
     }
 
     public Outcome tick(AppState appState) {
@@ -88,9 +107,11 @@ public final class PowerLinePathPickSession {
         }
 
         if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
+            List<Shape> restoreSelection = canvasSnapshot.sessionStartSelection();
             active = false;
             accumulatedPaths.clear();
             canvasSnapshot.reset();
+            appState.setSelectedShapes(restoreSelection);
             return Outcome.failed(Result.CANCELLED);
         }
 

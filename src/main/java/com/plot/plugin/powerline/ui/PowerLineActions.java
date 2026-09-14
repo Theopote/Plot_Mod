@@ -55,6 +55,7 @@ public final class PowerLineActions {
     private final Object projectLock;
     private final PowerLinePreviewManager previewManager;
     private final PowerLinePathPickSession pathPickSession = new PowerLinePathPickSession();
+    private String lastPathPickStatusKey = "";
     private PowerLineGenerator generator;
 
     public PowerLineActions(PluginContext host, PowerLinePluginState state, Object projectLock) {
@@ -74,22 +75,29 @@ public final class PowerLineActions {
 
     public void tickPathPickSession() {
         if (!pathPickSession.isActive()) {
+            lastPathPickStatusKey = "";
             return;
         }
         PowerLinePathPickSession.Outcome outcome = pathPickSession.tick(host.appState());
         applyPathPickOutcome(outcome);
-        if (pathPickSession.isActive()) {
-            List<Shape> selected = host.appState().getSelectedShapes();
-            String hintKey = pathPickSession.hintKeyForCurrentSelection(selected);
-            if ("status.plot.powerline.pick_path_right_click_multi".equals(hintKey)) {
-                state.setProjectStatus(
-                    PlotI18n.status(hintKey, pathPickSession.getAccumulatedCount()),
-                    ProjectStatusSeverity.INFO);
-            } else {
-                state.setProjectStatus(
-                    PlotI18n.status(hintKey),
-                    ProjectStatusSeverity.INFO);
-            }
+        if (!pathPickSession.isActive()) {
+            lastPathPickStatusKey = "";
+            return;
+        }
+        List<Shape> selected = host.appState().getSelectedShapes();
+        String hintKey = pathPickSession.hintKeyForCurrentSelection(selected);
+        if (hintKey.equals(lastPathPickStatusKey)) {
+            return;
+        }
+        lastPathPickStatusKey = hintKey;
+        if ("status.plot.powerline.pick_path_right_click_multi".equals(hintKey)) {
+            state.setProjectStatus(
+                PlotI18n.status(hintKey, pathPickSession.getAccumulatedCount()),
+                ProjectStatusSeverity.INFO);
+        } else {
+            state.setProjectStatus(
+                PlotI18n.status(hintKey),
+                ProjectStatusSeverity.INFO);
         }
     }
 
@@ -1099,7 +1107,7 @@ public final class PowerLineActions {
             return;
         }
         state.setPathSelection(PowerLinePathSelectionAnalysis.EMPTY);
-        pathPickSession.begin();
+        pathPickSession.begin(host.appState());
         toolManager.setActiveTool(selectTool);
         host.appState().setCurrentTool(baseTool);
         state.setProjectStatus(
@@ -1110,13 +1118,15 @@ public final class PowerLineActions {
     public void cancelPathPick() {
         boolean wasPicking = pathPickSession.isActive();
         if (wasPicking) {
-            pathPickSession.cancel();
+            pathPickSession.cancel(host.appState());
             state.setProjectStatus(
                 PlotI18n.status("status.plot.powerline.pick_path_cancelled"),
                 ProjectStatusSeverity.INFO);
         }
         state.clearPathRelink();
         state.setPathSelection(PowerLinePathSelectionAnalysis.EMPTY);
+        state.blockPathPickActivation(2);
+        lastPathPickStatusKey = "";
     }
 
     private void applyPathPickOutcome(PowerLinePathPickSession.Outcome outcome) {
@@ -1145,6 +1155,8 @@ public final class PowerLineActions {
                 ProjectStatusSeverity.WARNING);
             case CANCELLED -> {
                 state.clearPathRelink();
+                state.setPathSelection(PowerLinePathSelectionAnalysis.EMPTY);
+                state.blockPathPickActivation(2);
                 state.setProjectStatus(
                     PlotI18n.status("status.plot.powerline.pick_path_cancelled"),
                     ProjectStatusSeverity.INFO);

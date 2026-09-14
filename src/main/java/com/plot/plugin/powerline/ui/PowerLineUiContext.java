@@ -236,6 +236,10 @@ public final class PowerLineUiContext {
         actions.cancelPathPick();
     }
 
+    public boolean isPathPickActivationBlocked() {
+        return state.isPathPickActivationBlocked();
+    }
+
     public com.plot.plugin.powerline.PowerLinePathPickSession pathPickSession() {
         return actions.pathPickSession();
     }

@@ -6,6 +6,7 @@ import com.plot.ui.component.UIComponent;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
+import imgui.flag.ImGuiWindowFlags;
 
 import com.plot.ui.component.ExtensionPanelIcons;
 import com.plot.ui.component.UIUtils;
@@ -110,7 +111,12 @@ public class ExtensionPanel implements UIComponent {
 
                 float contentW = ImGui.getContentRegionAvailX();
                 float contentH = ImGui.getContentRegionAvailY();
-                if (contentW >= 24f && contentH >= 24f && ImGui.beginChild("##plugin_content", 0, 0, false)) {
+                if (contentW >= 24f && contentH >= 24f && ImGui.beginChild(
+                        "##plugin_content",
+                        0,
+                        0,
+                        false,
+                        ImGuiWindowFlags.AlwaysVerticalScrollbar)) {
                     try {
                         if (currentActivePlugin.isEnabled()) {
                             currentActivePlugin.render();

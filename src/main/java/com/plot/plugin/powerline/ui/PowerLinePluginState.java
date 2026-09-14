@@ -48,6 +48,8 @@ public final class PowerLinePluginState {
     private final PowerLineValidationUiState validationState = new PowerLineValidationUiState();
     /** 画廊中临时强制展开的 preset 分类（选中新 preset 后一帧）。 */
     private StyleCategory styleGalleryOpenCategory;
+    /** 取消拾取后短暂屏蔽「拾取路径」，避免按钮换位误触。 */
+    private int pathPickActivationBlockFrames;
 
     public PowerLineDesignProject getDesignProject() {
         return designProject;
@@ -234,6 +236,22 @@ public final class PowerLinePluginState {
 
     public void clearStyleGalleryOpenCategory() {
         styleGalleryOpenCategory = null;
+    }
+
+    public void blockPathPickActivation(int frames) {
+        if (frames > 0) {
+            pathPickActivationBlockFrames = Math.max(pathPickActivationBlockFrames, frames);
+        }
+    }
+
+    public void tickPathPickActivationBlock() {
+        if (pathPickActivationBlockFrames > 0) {
+            pathPickActivationBlockFrames--;
+        }
+    }
+
+    public boolean isPathPickActivationBlocked() {
+        return pathPickActivationBlockFrames > 0;
     }
 
 }

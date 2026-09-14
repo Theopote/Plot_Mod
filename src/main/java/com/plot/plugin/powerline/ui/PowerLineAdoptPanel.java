@@ -12,6 +12,8 @@ import java.util.List;
 
 /** 电力线路路径认领（Route Tab）。 */
 public final class PowerLineAdoptPanel {
+    private static final float PATH_ADOPT_MIN_HEIGHT = 96f;
+
     private enum PickingMode {
         ADOPT,
         RELINK
@@ -24,6 +26,12 @@ public final class PowerLineAdoptPanel {
     }
 
     public void render(PowerLineFootprint line) {
+        ImGui.beginChild("powerline_route_path_adopt", 0, PATH_ADOPT_MIN_HEIGHT, false);
+        renderPathAdoptContent(line);
+        ImGui.endChild();
+    }
+
+    private void renderPathAdoptContent(PowerLineFootprint line) {
         PowerLinePathSelectionAnalysis selection = ctx.pathSelection();
 
         if (line != null && PowerLineSourceSync.hasLinkedSource(line)) {
@@ -51,7 +59,7 @@ public final class PowerLineAdoptPanel {
 
     private void renderIdleAdoptState(PowerLinePathSelectionAnalysis selection) {
         renderSelectionErrors(selection);
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.pick_path"), 0, 0)) {
+        if (renderPickPathButton("powerline_path_pick_idle")) {
             ctx.activatePathPickTool();
         }
         if (ImGui.isItemHovered()) {
@@ -87,7 +95,7 @@ public final class PowerLineAdoptPanel {
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.path.right_click_finish"));
         ImGui.spacing();
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.path.cancel_pick"), 0, 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.path.cancel_pick") + "##powerline_path_cancel_pick", 0, 0)) {
             ctx.cancelPathPick();
         }
         renderSelectionErrors(selection);
@@ -108,11 +116,11 @@ public final class PowerLineAdoptPanel {
         String adoptLabel = selection.adoptable().size() > 1
             ? PlotI18n.tr("plugin.powerline.adopt_batch", selection.adoptable().size())
             : PlotI18n.tr("plugin.powerline.adopt");
-        if (ImGui.button(adoptLabel, 0, 0)) {
+        if (ImGui.button(adoptLabel + "##powerline_path_adopt", 0, 0)) {
             ctx.adoptSelectedPaths();
         }
         ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.path.repick"), 0, 0)) {
+        if (renderRepickButton("powerline_path_repick_ready")) {
             ctx.activatePathPickTool();
         }
     }
@@ -123,11 +131,11 @@ public final class PowerLineAdoptPanel {
         renderSelectionErrors(selection);
         if (!selection.canAdopt()) {
             ImGui.spacing();
-            if (ImGui.button(PlotI18n.tr("plugin.powerline.path.repick"), 0, 0)) {
+            if (renderRepickButton("powerline_path_repick_relink_empty")) {
                 ctx.activatePathPickTool();
             }
             ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("plugin.powerline.path.cancel_pick"), 0, 0)) {
+            if (ImGui.button(PlotI18n.tr("plugin.powerline.path.cancel_pick") + "##powerline_path_cancel_relink", 0, 0)) {
                 ctx.cancelPathPick();
             }
             return;
@@ -137,11 +145,11 @@ public final class PowerLineAdoptPanel {
             PowerLineUiWidgets.textColored(
                 PluginUiColors.WARNING,
                 PlotI18n.tr("plugin.powerline.path.relink_select_one"));
-            if (ImGui.button(PlotI18n.tr("plugin.powerline.path.repick"), 0, 0)) {
+            if (renderRepickButton("powerline_path_repick_relink_multi")) {
                 ctx.activatePathPickTool();
             }
             ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("plugin.powerline.path.cancel_pick"), 0, 0)) {
+            if (ImGui.button(PlotI18n.tr("plugin.powerline.path.cancel_pick") + "##powerline_path_cancel_relink_multi", 0, 0)) {
                 ctx.cancelPathPick();
             }
             return;
@@ -152,11 +160,11 @@ public final class PowerLineAdoptPanel {
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.path.relink_same_source"));
-            if (ImGui.button(PlotI18n.tr("plugin.powerline.path.repick"), 0, 0)) {
+            if (renderRepickButton("powerline_path_repick_same_source")) {
                 ctx.activatePathPickTool();
             }
             ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("plugin.powerline.path.cancel_pick"), 0, 0)) {
+            if (ImGui.button(PlotI18n.tr("plugin.powerline.path.cancel_pick") + "##powerline_path_cancel_same_source", 0, 0)) {
                 ctx.cancelPathPick();
             }
             return;
@@ -166,17 +174,47 @@ public final class PowerLineAdoptPanel {
             PluginUiColors.STATUS_INFO,
             PlotI18n.tr("plugin.powerline.path.relink_ready"));
         ImGui.spacing();
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.path.apply_selection"), 0, 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.path.apply_selection") + "##powerline_path_apply_relink", 0, 0)) {
             ctx.applyPathRelink(line);
         }
         ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.path.repick"), 0, 0)) {
+        if (renderRepickButton("powerline_path_repick_relink_ready")) {
             ctx.activatePathPickTool();
         }
         ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.path.cancel_pick"), 0, 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.path.cancel_pick") + "##powerline_path_cancel_relink_ready", 0, 0)) {
             ctx.cancelPathPick();
         }
+    }
+
+    private boolean renderRepickButton(String idSuffix) {
+        boolean blocked = ctx.isPathPickActivationBlocked();
+        if (blocked) {
+            ImGui.beginDisabled();
+        }
+        boolean clicked = ImGui.button(
+            PlotI18n.tr("plugin.powerline.path.repick") + "##" + idSuffix,
+            0,
+            0);
+        if (blocked) {
+            ImGui.endDisabled();
+        }
+        return clicked && !blocked;
+    }
+
+    private boolean renderPickPathButton(String idSuffix) {
+        boolean blocked = ctx.isPathPickActivationBlocked();
+        if (blocked) {
+            ImGui.beginDisabled();
+        }
+        boolean clicked = ImGui.button(
+            PlotI18n.tr("plugin.powerline.pick_path") + "##" + idSuffix,
+            0,
+            0);
+        if (blocked) {
+            ImGui.endDisabled();
+        }
+        return clicked && !blocked;
     }
 
     private void renderLinkedSource(PowerLineFootprint line) {
@@ -186,11 +224,11 @@ public final class PowerLineAdoptPanel {
             return;
         }
         ImGui.spacing();
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.path.change"), 0, 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.path.change") + "##powerline_path_change", 0, 0)) {
             ctx.beginPathRelink(line);
         }
         ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.path.detach"), 0, 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.path.detach") + "##powerline_path_detach", 0, 0)) {
             ctx.detachSourceAndKeepLayout(line);
         }
         if (ImGui.isItemHovered()) {

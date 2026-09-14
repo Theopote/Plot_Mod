@@ -25,4 +25,16 @@ class PowerLinePathPickCancelTest {
         state.clearPathRelink();
         assertFalse(state.isPathRelinkActive("line-1"));
     }
+
+    @Test
+    void cancelPathPickBlocksImmediateReactivation() {
+        PowerLinePluginState state = new PowerLinePluginState();
+        assertFalse(state.isPathPickActivationBlocked());
+        state.blockPathPickActivation(2);
+        assertTrue(state.isPathPickActivationBlocked());
+        state.tickPathPickActivationBlock();
+        assertTrue(state.isPathPickActivationBlocked());
+        state.tickPathPickActivationBlock();
+        assertFalse(state.isPathPickActivationBlocked());
+    }
 }
