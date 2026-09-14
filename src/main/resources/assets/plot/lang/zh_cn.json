@@ -3528,8 +3528,6 @@
   "plugin.powerline.route.auto_pole.reason.engineering": "工程修正",
   "plugin.powerline.route.auto_pole.reason.generic": "自动调整",
   "plugin.powerline.route.advanced": "高级布置",
-  "plugin.powerline.route.path_preview_caption": "%s · %.0f 格",
-  "plugin.powerline.route.path_preview_saved": "已保存路径",
   "plugin.powerline.route.section.all_lines": "全部线路",
   "plugin.powerline.route.section.all_lines_count": "全部线路 (%d)",
   "plugin.powerline.route.pole_spacing": "杆塔间距",

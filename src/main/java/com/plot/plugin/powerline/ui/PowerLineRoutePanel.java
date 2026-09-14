@@ -3,7 +3,6 @@ package com.plot.plugin.powerline.ui;
 import com.plot.core.model.Shape;
 import com.plot.plugin.powerline.model.PoleSpacingMode;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
-import com.plot.plugin.powerline.path.PowerLineSourceDescriptor;
 import com.plot.plugin.powerline.path.PowerLineSourceSync;
 import com.plot.plugin.powerline.path.SourceSyncStatus;
 import com.plot.plugin.powerline.style.PowerLineSpacingPolicy;
@@ -43,9 +42,6 @@ public final class PowerLineRoutePanel {
 
         ImGui.separator();
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.section.path"));
-        if (line != null) {
-            renderPathCaption(line);
-        }
         adoptPanel.render(line);
 
         if (line != null) {
@@ -150,40 +146,6 @@ public final class PowerLineRoutePanel {
         renderCornerBehaviorHint(line);
         ImGui.spacing();
         renderTerrainAvoidance(line);
-    }
-
-    private void renderPathCaption(PowerLineFootprint line) {
-        if (line.getPathPoints().size() < 2) {
-            return;
-        }
-        PowerLineUiWidgets.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr(
-                "plugin.powerline.route.path_preview_caption",
-                resolvePathKindLabel(line),
-                line.computeWorldPathLength(ctx.coordinates())));
-        ImGui.spacing();
-    }
-
-    private static String resolvePathKindLabel(PowerLineFootprint line) {
-        PowerLineSourceDescriptor descriptor = line.getSourceDescriptor();
-        if (descriptor != null) {
-            return descriptorKindLabel(descriptor.kind());
-        }
-        return PlotI18n.tr("plugin.powerline.route.path_preview_saved");
-    }
-
-    private static String descriptorKindLabel(PowerLineSourceDescriptor.Kind kind) {
-        if (kind == null) {
-            return PlotI18n.tr("plugin.powerline.path.unknown_source");
-        }
-        return switch (kind) {
-            case POLYLINE -> PlotI18n.shapeTypeLabel("PolylineShape");
-            case BEZIER -> PlotI18n.shapeTypeLabel("BezierCurveShape");
-            case ELLIPSE -> PlotI18n.shapeTypeLabel("EllipseShape");
-            case ARC -> PlotI18n.shapeTypeLabel("ArcShape");
-            case ELLIPTICAL_ARC -> PlotI18n.shapeTypeLabel("EllipticalArcShape");
-        };
     }
 
     private void renderCornerBehaviorHint(PowerLineFootprint line) {

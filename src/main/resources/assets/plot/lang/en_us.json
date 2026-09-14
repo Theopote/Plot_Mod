@@ -3528,8 +3528,6 @@
   "plugin.powerline.route.auto_pole.reason.engineering": "engineering fix",
   "plugin.powerline.route.auto_pole.reason.generic": "automatic adjustment",
   "plugin.powerline.route.advanced": "Advanced layout",
-  "plugin.powerline.route.path_preview_caption": "%s · %.0f blocks",
-  "plugin.powerline.route.path_preview_saved": "Saved path",
   "plugin.powerline.route.section.all_lines": "All lines",
   "plugin.powerline.route.section.all_lines_count": "All lines (%d)",
   "plugin.powerline.route.pole_spacing": "Pole spacing",
