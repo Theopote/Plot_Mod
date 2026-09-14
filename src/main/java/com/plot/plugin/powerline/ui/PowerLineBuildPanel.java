@@ -173,14 +173,13 @@ public final class PowerLineBuildPanel {
                 PlotI18n.tr("plugin.powerline.build.status.corners_ok"));
             case MISSING -> PowerLineStatusIcon.renderWarningLine(
                 PlotI18n.tr("plugin.powerline.build.status.corners_missing", corners.missingCount()));
-            case NO_PATH -> { }
             default -> { }
         }
     }
 
     private void renderTerrainStatus(PowerLineFootprint line) {
         PowerLineValidationReport report = ctx.actions().cachedTerrainReport(line);
-        if (report == null || !PowerLineFriendlyStatus.hasTerrainIssues(report)) {
+        if (!PowerLineFriendlyStatus.hasTerrainIssues(report)) {
             PowerLineStatusIcon.renderOkLine(PlotI18n.tr("plugin.powerline.build.status.terrain_ok"));
             return;
         }

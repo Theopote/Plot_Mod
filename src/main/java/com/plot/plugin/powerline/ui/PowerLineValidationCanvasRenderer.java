@@ -85,8 +85,7 @@ public final class PowerLineValidationCanvasRenderer {
         for (ConductorSpanGeometry span : geometry.getConductorSpans()) {
             String pairKey = span.getStartPoleIndex() + ":" + span.getEndPoleIndex();
             PowerLineIssueSeverity severity = bySpanId.getOrDefault(span.getSpanId(), PowerLineIssueSeverity.INFO);
-            PowerLineIssueSeverity existing = byPolePair.get(pairKey);
-            byPolePair.put(pairKey, worstOf(existing, severity));
+            byPolePair.compute(pairKey, (k, existing) -> worstOf(existing, severity));
         }
         return byPolePair;
     }
@@ -169,8 +168,7 @@ public final class PowerLineValidationCanvasRenderer {
             CanvasCamera camera,
             List<PowerPoleSite> sites,
             Map<String, PowerLineIssueSeverity> poleSeverity) {
-        for (int i = 0; i < sites.size(); i++) {
-            PowerPoleSite site = sites.get(i);
+        for (PowerPoleSite site : sites) {
             PowerLineIssueSeverity severity = poleSeverity.getOrDefault(site.getId(), PowerLineIssueSeverity.INFO);
             int color = colorFor(severity);
             Vec2d screen = camera.worldToScreen(site.getPlanPosition());

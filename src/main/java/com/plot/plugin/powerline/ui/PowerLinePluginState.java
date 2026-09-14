@@ -185,10 +185,6 @@ public final class PowerLinePluginState {
         return lineNameBeforeRename;
     }
 
-    public boolean isLineNameFocusPending() {
-        return lineNameFocusPending;
-    }
-
     public void beginLineNameRename(String lineId, String currentName) {
         lineNameBeforeRename = currentName != null ? currentName : "";
         lineNameBuffer.set(lineNameBeforeRename);

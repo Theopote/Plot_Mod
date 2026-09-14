@@ -32,29 +32,9 @@ public final class PowerLineStyleCardRenderer {
     private static final int COLOR_BG_SELECTED = 0xFF263238;
     private static final int COLOR_LABEL = 0xFFE8E8E8;
     private static final int COLOR_LABEL_DIM = 0xFFB0B0B0;
-    private static final int COLOR_CUSTOM_BG = 0xFF171717;
-    private static final int COLOR_CUSTOM_BORDER = 0xFF757575;
-    private static final int COLOR_CUSTOM_ACCENT = 0xFF78909C;
-    private static final int COLOR_CUSTOM_SLIDER = 0xFF546E7A;
-    private static final int COLOR_CUSTOM_KNOB = 0xFFB0BEC5;
-
     private PowerLineStyleCardRenderer() {
     }
 
-    /**
-     * 绘制可点击的风格卡片；返回是否被点击。
-     */
-    public static boolean renderStyleCard(PowerLineStylePreset pack, String label, boolean selected) {
-        return renderStyleCard(pack, label, selected, null, null);
-    }
-
-    public static boolean renderStyleCard(
-            PowerLineStylePreset pack,
-            String label,
-            boolean selected,
-            PowerLineFootprint lineContext) {
-        return renderStyleCard(pack, label, selected, lineContext, null);
-    }
 
     public static boolean renderStyleCard(
             PowerLineStylePreset pack,
@@ -95,12 +75,12 @@ public final class PowerLineStyleCardRenderer {
 
         float labelY = previewY1 + LABEL_PADDING;
         int labelColor = selected ? COLOR_LABEL : COLOR_LABEL_DIM;
-        drawCenteredLabel(drawList, label, x0, labelY, CARD_WIDTH, COLOR_LABEL_DIM, labelColor);
+        drawCenteredLabel(drawList, label, x0, labelY, labelColor);
         String wireLabel = PlotI18n.tr(
             "plugin.powerline.style.card_wires",
             pack.attachmentChannelCount());
         float wireY = labelY + ImGui.getFontSize() + 2f;
-        drawCenteredLabel(drawList, wireLabel, x0, wireY, CARD_WIDTH, COLOR_LABEL_DIM, COLOR_LABEL_DIM);
+        drawCenteredLabel(drawList, wireLabel, x0, wireY, COLOR_LABEL_DIM);
 
         ImGui.invisibleButton(buttonId, CARD_WIDTH, CARD_HEIGHT);
         if (ImGui.isItemHovered()) {
@@ -152,12 +132,12 @@ public final class PowerLineStyleCardRenderer {
 
         float labelY = previewY1 + LABEL_PADDING;
         int labelColor = selected ? COLOR_LABEL : COLOR_LABEL_DIM;
-        drawCenteredLabel(drawList, label, x0, labelY, CARD_WIDTH, COLOR_LABEL_DIM, labelColor);
+        drawCenteredLabel(drawList, label, x0, labelY, labelColor);
         String wireLabel = PlotI18n.tr(
             "plugin.powerline.style.card_wires",
             UserPoleDesignTemplateCatalog.attachmentChannelCount(design));
         float wireY = labelY + ImGui.getFontSize() + 2f;
-        drawCenteredLabel(drawList, wireLabel, x0, wireY, CARD_WIDTH, COLOR_LABEL_DIM, COLOR_LABEL_DIM);
+        drawCenteredLabel(drawList, wireLabel, x0, wireY, COLOR_LABEL_DIM);
 
         ImGui.invisibleButton(buttonId, CARD_WIDTH, CARD_HEIGHT);
         if (ImGui.isItemHovered() && !ImGui.isPopupOpen("##powerline_user_template_ctx_" + design.getId())) {
@@ -329,13 +309,6 @@ public final class PowerLineStyleCardRenderer {
         return CARD_WIDTH;
     }
 
-    public static float cardHeight() {
-        return CARD_HEIGHT;
-    }
-
-    public static final float COMPACT_WIDTH = 72f;
-    public static final float COMPACT_HEIGHT = 80f;
-    private static final float COMPACT_PREVIEW_HEIGHT = 56f;
     private static final float LARGE_PREVIEW_PANEL_HEIGHT = 148f;
 
     /** 选中风格的立面预览：显示线路当前生效设计（含 Quick Tune），非 base preset 默认。 */
@@ -378,8 +351,8 @@ public final class PowerLineStyleCardRenderer {
                 drawList,
                 binding,
                 PowerLineStylePreviewBinding.usesAdaptiveHeightMarker(base),
-                effective != null ? effective.wireMaterial() : null,
-                effective != null ? effective.topWireMaterial() : null,
+                    effective.wireMaterial(),
+                    effective.topWireMaterial(),
                 innerX,
                 innerY,
                 innerX + previewW - 4f,
@@ -403,82 +376,6 @@ public final class PowerLineStyleCardRenderer {
     @Deprecated
     public static void renderLargeSelectedPreview(PowerLineStylePreset preset) {
         renderLargeSelectedPreview(null, preset, null);
-    }
-
-    /** Build 摘要：当前生效设计的紧凑预览。 */
-    public static void renderCompactStylePreview(
-            PowerLineFootprint line,
-            PowerLineStylePreset base,
-            PoleDesignResolver resolver) {
-        ImVec2 origin = ImGui.getCursorScreenPos();
-        ImDrawList drawList = ImGui.getWindowDrawList();
-        float x0 = origin.x;
-        float y0 = origin.y;
-        float x1 = x0 + COMPACT_WIDTH;
-        float y1 = y0 + COMPACT_HEIGHT;
-        drawList.addRectFilled(x0, y0, x1, y1, PluginUiColors.MAP_BG);
-        drawList.addRect(x0, y0, x1, y1, PluginUiColors.PANEL_BORDER, 3f, 0, 1f);
-        EffectiveStylePreview effective = EffectiveStylePreviewResolver.resolve(line, base, resolver);
-        PoleDesign previewDesign = effective != null ? effective.previewDesign() : null;
-        if (previewDesign != null) {
-            drawCardPreview(
-                drawList,
-                PowerLineStylePreviewBinding.bindingForDesign(previewDesign, base),
-                PowerLineStylePreviewBinding.usesAdaptiveHeightMarker(base),
-                effective != null ? effective.wireMaterial() : null,
-                effective != null ? effective.topWireMaterial() : null,
-                x0 + 2f,
-                y0 + 2f,
-                x1 - 2f,
-                y0 + COMPACT_PREVIEW_HEIGHT);
-        } else if (base != null) {
-            drawPackPreview(drawList, base, x0 + 2f, y0 + 2f, x1 - 2f, y0 + COMPACT_PREVIEW_HEIGHT);
-        } else {
-            drawMissingPreviewPlaceholder(
-                drawList,
-                x0 + 2f,
-                y0 + 2f,
-                x1 - 2f,
-                y0 + COMPACT_PREVIEW_HEIGHT);
-        }
-        ImGui.dummy(COMPACT_WIDTH, COMPACT_HEIGHT);
-    }
-
-    /** 只读紧凑风格预览（Gallery 卡片等，base preset 默认）。 */
-    public static void renderCompactStylePreview(PowerLineStylePreset pack) {
-        ImVec2 origin = ImGui.getCursorScreenPos();
-        ImDrawList drawList = ImGui.getWindowDrawList();
-        float x0 = origin.x;
-        float y0 = origin.y;
-        float x1 = x0 + COMPACT_WIDTH;
-        float y1 = y0 + COMPACT_HEIGHT;
-        drawList.addRectFilled(x0, y0, x1, y1, PluginUiColors.MAP_BG);
-        drawList.addRect(x0, y0, x1, y1, PluginUiColors.PANEL_BORDER, 3f, 0, 1f);
-        if (pack != null) {
-            drawPackPreview(drawList, pack, x0 + 2f, y0 + 2f, x1 - 2f, y0 + COMPACT_PREVIEW_HEIGHT);
-        } else {
-            drawMissingPreviewPlaceholder(
-                drawList,
-                x0 + 2f,
-                y0 + 2f,
-                x1 - 2f,
-                y0 + COMPACT_PREVIEW_HEIGHT);
-        }
-        ImGui.dummy(COMPACT_WIDTH, COMPACT_HEIGHT);
-    }
-
-    /** 自定义样式占位图（Build 摘要：未选中或未匹配的风格预设）。 */
-    public static void renderCompactCustomStylePreview() {
-        ImVec2 origin = ImGui.getCursorScreenPos();
-        ImDrawList drawList = ImGui.getWindowDrawList();
-        float x0 = origin.x;
-        float y0 = origin.y;
-        float x1 = x0 + COMPACT_WIDTH;
-        float y1 = y0 + COMPACT_HEIGHT;
-        drawList.addRectFilled(x0, y0, x1, y1, COLOR_CUSTOM_BG);
-        drawDashedRect(drawList, x0 + 1f, y0 + 1f, x1 - 1f, y1 - 1f, COLOR_CUSTOM_BORDER, 3f, 1f, 4f, 3f);
-        drawCustomStylePreview(drawList, x0 + 2f, y0 + 2f, x1 - 2f, y0 + COMPACT_PREVIEW_HEIGHT);
-        ImGui.dummy(COMPACT_WIDTH, COMPACT_HEIGHT);
     }
 
     private static void drawPackPreview(
@@ -579,21 +476,19 @@ public final class PowerLineStyleCardRenderer {
             drawMissingPreviewPlaceholder(drawList, x0, y0, x1, y1);
             return;
         }
-        if (binding != null) {
-            PowerLinePreviewOverlayRenderer.draw(
-                drawList,
-                design,
-                representation,
-                binding.overlay(),
-                adaptiveHeightMarker,
-                wireMaterial,
-                topWireMaterial,
-                layoutFit,
-                x0,
-                y0,
-                x1,
-                y1);
-        }
+        PowerLinePreviewOverlayRenderer.draw(
+            drawList,
+            design,
+            representation,
+            binding.overlay(),
+            adaptiveHeightMarker,
+            wireMaterial,
+            topWireMaterial,
+            layoutFit,
+            x0,
+            y0,
+            x1,
+            y1);
     }
 
     private static void drawSidePreview(
@@ -618,46 +513,6 @@ public final class PowerLineStyleCardRenderer {
             float y1) {
         drawList.addRectFilled(x0, y0, x1, y1, PluginUiColors.PANEL_BG_DARK);
         drawDashedRect(drawList, x0 + 2f, y0 + 2f, x1 - 2f, y1 - 2f, PluginUiColors.PANEL_BORDER, 2f, 1f, 3f, 3f);
-    }
-
-    /** 自定义样式：材质色块 + 调节滑条 + 虚线导线。 */
-    private static void drawCustomStylePreview(ImDrawList drawList, float x0, float y0, float x1, float y1) {
-        float swatchSize = 6f;
-        float swatchY = y1 - swatchSize - 3f;
-        float swatchGap = 4f;
-        float swatchX = x0 + 6f;
-        drawList.addRectFilled(swatchX, swatchY, swatchX + swatchSize, swatchY + swatchSize, 0xFF9E9E9E);
-        swatchX += swatchSize + swatchGap;
-        drawList.addRectFilled(swatchX, swatchY, swatchX + swatchSize, swatchY + swatchSize, 0xFF8D6E63);
-        swatchX += swatchSize + swatchGap;
-        drawList.addRectFilled(swatchX, swatchY, swatchX + swatchSize, swatchY + swatchSize, 0xFF546E7A);
-
-        float sliderLeft = x0 + 8f;
-        float sliderRight = x1 - 8f;
-        drawCustomSlider(drawList, sliderLeft, y0 + 8f, sliderRight, 0.35f);
-        drawCustomSlider(drawList, sliderLeft, y0 + 16f, sliderRight, 0.62f);
-        drawCustomSlider(drawList, sliderLeft, y0 + 24f, sliderRight, 0.48f);
-
-        float poleX = x0 + (x1 - x0) * 0.72f;
-        float poleTop = y0 + 10f;
-        float poleBottom = swatchY - 2f;
-        drawList.addLine(poleX, poleTop, poleX, poleBottom, COLOR_CUSTOM_ACCENT, 1.8f);
-
-        float wireLeft = x0 + 10f;
-        float wireRight = x1 - 10f;
-        float wireBase = y0 + (y1 - y0) * 0.42f;
-        drawDashedLine(drawList, wireLeft, wireBase, wireRight, wireBase - 4f, COLOR_CUSTOM_ACCENT, 1.2f, 4f, 3f);
-    }
-
-    private static void drawCustomSlider(
-            ImDrawList drawList,
-            float left,
-            float y,
-            float right,
-            float knobT) {
-        drawList.addLine(left, y, right, y, COLOR_CUSTOM_SLIDER, 1.2f);
-        float knobX = left + (right - left) * knobT;
-        drawList.addCircleFilled(knobX, y, 2.5f, COLOR_CUSTOM_KNOB);
     }
 
     private static void drawDashedRect(
@@ -719,21 +574,19 @@ public final class PowerLineStyleCardRenderer {
             String text,
             float x,
             float y,
-            float width,
-            int dimColor,
             int brightColor) {
         if (text == null || text.isBlank()) {
             return;
         }
         float textW = ImGui.calcTextSize(text).x;
-        float maxW = width - LABEL_PADDING * 2f;
+        float maxW = PowerLineStyleCardRenderer.CARD_WIDTH - LABEL_PADDING * 2f;
         if (textW > maxW && text.length() > 3) {
             String clipped = clipLabel(text, maxW);
             textW = ImGui.calcTextSize(clipped).x;
-            drawList.addText(x + (width - textW) * 0.5f, y, dimColor, clipped);
+            drawList.addText(x + (PowerLineStyleCardRenderer.CARD_WIDTH - textW) * 0.5f, y, PowerLineStyleCardRenderer.COLOR_LABEL_DIM, clipped);
             return;
         }
-        drawList.addText(x + (width - textW) * 0.5f, y, brightColor, text);
+        drawList.addText(x + (PowerLineStyleCardRenderer.CARD_WIDTH - textW) * 0.5f, y, brightColor, text);
     }
 
     private static String clipLabel(String text, float maxWidth) {

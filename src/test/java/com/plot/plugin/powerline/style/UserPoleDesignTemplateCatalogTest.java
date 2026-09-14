@@ -27,7 +27,7 @@ class UserPoleDesignTemplateCatalogTest {
 
         List<PoleDesign> templates = UserPoleDesignTemplateCatalog.listTemplates(project);
         assertEquals(1, templates.size());
-        assertEquals(template.getId(), templates.get(0).getId());
+        assertEquals(template.getId(), templates.getFirst().getId());
     }
 
     @Test

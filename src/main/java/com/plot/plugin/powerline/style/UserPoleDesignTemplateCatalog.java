@@ -68,9 +68,6 @@ public final class UserPoleDesignTemplateCatalog {
         return design != null ? toPreset(design, line) : null;
     }
 
-    public static PowerLineStylePreset toPreset(PoleDesign design) {
-        return toPreset(design, null);
-    }
 
     public static PowerLineStylePreset toPreset(PoleDesign design, PowerLineFootprint lineContext) {
         if (design == null) {

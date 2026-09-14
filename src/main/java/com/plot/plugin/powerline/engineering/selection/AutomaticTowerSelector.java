@@ -6,11 +6,7 @@ import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.engineering.TowerEngineeringMetadata;
 import com.plot.plugin.powerline.model.TowerRole;
 
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
+import java.util.*;
 
 /** 基于工程元数据的确定性塔型选择（只读规划，不修改用户设计定义）。 */
 public final class AutomaticTowerSelector {
@@ -72,7 +68,7 @@ public final class AutomaticTowerSelector {
             return result;
         }
 
-        viable.sort((a, b) -> Double.compare(a.getScore(), b.getScore()));
+        viable.sort(Comparator.comparingDouble(TowerCandidate::getScore));
         TowerCandidate best = viable.getFirst();
         result.setSelectedDesignId(best.getPoleDesignId());
         result.addReason(String.format(
