@@ -9,11 +9,8 @@ import com.plot.plugin.powerline.placement.DirectionalBlockSpecs;
 import com.plot.plugin.powerline.design.structure.BracingPattern;
 import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerArmPlacement;
-import com.plot.plugin.powerline.design.structure.TowerArmSide;
 import com.plot.plugin.powerline.design.structure.TowerBay;
 import com.plot.plugin.powerline.design.structure.TowerDecoration;
-import com.plot.plugin.powerline.design.structure.TowerDecorationKind;
-import com.plot.plugin.powerline.design.structure.TowerMemberProfile;
 import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.design.structure.TowerStructureGeometry;
@@ -62,7 +59,7 @@ public final class TowerStructureGenerator {
             return frame.groundY() + (int) Math.round(structure.maxHeight());
         }
 
-        checkBaseTerrain(stations.get(0), transform, terrain, result);
+        checkBaseTerrain(stations.getFirst(), transform, terrain, result);
 
         for (int i = 1; i < stations.size(); i++) {
             TowerStation lower = stations.get(i - 1);
@@ -119,7 +116,7 @@ public final class TowerStructureGenerator {
         result.structureBlockCount += counters.total();
         result.braceBlockCount += counters.braceBlocks;
         result.armBlockCount += counters.armBlocks;
-        return frame.groundY() + (int) Math.round(stations.get(stations.size() - 1).getHeight());
+        return frame.groundY() + (int) Math.round(stations.getLast().getHeight());
     }
 
     private static com.plot.plugin.powerline.design.PoleDesign wrapForValidation(

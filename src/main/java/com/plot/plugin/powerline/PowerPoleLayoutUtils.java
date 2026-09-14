@@ -2,13 +2,11 @@ package com.plot.plugin.powerline;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
-import com.plot.core.geometry.WorldProjectionMath;
 import com.plot.plugin.powerline.model.PoleSpacingMode;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 import com.plot.plugin.powerline.model.PoleLayoutConstraint;
 import com.plot.plugin.powerline.model.PoleOverride;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
-import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.plugin.powerline.path.ClosedPathGeometry;
 import com.plot.plugin.powerline.path.ClosedPathLayout;
 import com.plot.plugin.powerline.path.PowerLinePathLayout;
@@ -482,17 +480,6 @@ public final class PowerPoleLayoutUtils {
         return Math.abs(to.getStationing() - from.getStationing());
     }
 
-    public static double deflectionAtSite(List<PowerPoleSite> sites, int index) {
-        if (sites == null || index <= 0 || index >= sites.size() - 1) {
-            return 0.0;
-        }
-        Vec2d incoming = sites.get(index).getPlanPosition()
-            .subtract(sites.get(index - 1).getPlanPosition());
-        Vec2d outgoing = sites.get(index + 1).getPlanPosition()
-            .subtract(sites.get(index).getPlanPosition());
-        return TowerRoleClassifier.computeDeflectionAngle(incoming, outgoing);
-    }
-
     /** 必须立杆的路径点：起点、转角顶点、终点。 */
     public static List<Vec2d> mandatoryPolePoints(List<Vec2d> pathPoints, double cornerAngleThreshold) {
         if (pathPoints == null || pathPoints.isEmpty()) {
@@ -688,19 +675,6 @@ public final class PowerPoleLayoutUtils {
             points.add(sourcePath.pointAtStation(station, coordinates).copy());
         }
         return points;
-    }
-
-    private static List<Vec2d> dedupeMandatoryPolePoints(
-            List<Vec2d> mandatory,
-            ICoordinateService coordinates) {
-        if (mandatory == null || mandatory.isEmpty()) {
-            return List.of();
-        }
-        List<Vec2d> deduped = new ArrayList<>(mandatory.size());
-        for (Vec2d point : mandatory) {
-            addPoleIfDistinct(deduped, point, coordinates);
-        }
-        return deduped;
     }
 
     private static void addPoleIfDistinct(

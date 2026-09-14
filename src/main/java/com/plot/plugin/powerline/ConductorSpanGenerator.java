@@ -17,7 +17,6 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 
 /** 相邻杆塔挂点匹配与多导线 span 生成。 */
 public final class ConductorSpanGenerator {

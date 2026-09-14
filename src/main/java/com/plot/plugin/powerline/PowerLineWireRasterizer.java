@@ -2,7 +2,6 @@ package com.plot.plugin.powerline;
 
 import net.minecraft.util.math.BlockPos;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -34,14 +33,5 @@ public final class PowerLineWireRasterizer {
         return VoxelLineRasterizer.rasterizeLine3D(x0, y0, z0, x1, y1, z1);
     }
 
-    /**
-     * 在相邻体素之间沿曼哈顿路径步进，保证每步只改变一个轴。
-     */
-    static List<BlockPos> rasterizeBlockLine3D(BlockPos from, BlockPos to) {
-        return VoxelLineRasterizer.rasterizeBlockLine3D(from, to);
-    }
 
-    private static BlockPos blockCell(double x, double y, double z) {
-        return new BlockPos((int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z));
-    }
 }

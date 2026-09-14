@@ -237,9 +237,9 @@ public class PowerLineGenerator {
             coordinateTransformer);
         fillWaterFoundationIfNeeded(planPoint, placementBase, footprint, result);
 
-        int legacyWireHangY = buildBaseY + (int) Math.round(footprint.getPoleHeight());
-        List<ResolvedAttachment> attachments = List.of();
-        boolean usesAttachmentConductors = false;
+        int legacyWireHangY;
+        List<ResolvedAttachment> attachments;
+        boolean usesAttachmentConductors;
 
         if (design != null) {
             if (design.hasTowerStructure()) {

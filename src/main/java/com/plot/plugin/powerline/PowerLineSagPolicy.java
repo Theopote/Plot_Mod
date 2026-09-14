@@ -15,9 +15,6 @@ public final class PowerLineSagPolicy {
         if (footprint == null) {
             return PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH;
         }
-        if (footprint.getMaxSagDepth() > 0.0) {
-            return footprint.getMaxSagDepth();
-        }
-        return 0.0;
+        return Math.max(footprint.getMaxSagDepth(), 0.0);
     }
 }

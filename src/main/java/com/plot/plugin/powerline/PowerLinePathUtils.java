@@ -11,9 +11,6 @@ import java.util.List;
  */
 public final class PowerLinePathUtils {
 
-    public static final String REJECT_CURVE_KEY = "plugin.powerline.adopt_reject_curve";
-    public static final String REJECT_CLOSED_LOOP_KEY = "plugin.powerline.adopt_reject_closed_loop";
-
     private PowerLinePathUtils() {
     }
 
