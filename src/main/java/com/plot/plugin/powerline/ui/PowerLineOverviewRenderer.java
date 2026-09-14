@@ -136,6 +136,39 @@ public final class PowerLineOverviewRenderer {
         return THUMBNAIL_HEIGHT;
     }
 
+    /** 单条线路路径预览：宽度占满可用区域，高度按画布比例计算。 */
+    public static void renderLinePathPreview(
+            PowerLineFootprint line,
+            ICoordinateService coordinates) {
+        if (line == null || line.getPathPoints().size() < 2) {
+            return;
+        }
+
+        float mapWidth = ImGui.getContentRegionAvail().x;
+        float mapHeight = mapHeightForWidth(mapWidth);
+        ImGui.beginChild("powerline_route_path_preview", 0, mapHeight, true);
+
+        float width = ImGui.getContentRegionAvail().x;
+        float height = ImGui.getContentRegionAvail().y;
+        if (width < 1f || height < 1f) {
+            ImGui.endChild();
+            return;
+        }
+
+        ImVec2 origin = ImGui.getCursorScreenPos();
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        drawList.addRectFilled(origin.x, origin.y, origin.x + width, origin.y + height, PluginUiColors.MAP_BG);
+        drawList.addRect(origin.x, origin.y, origin.x + width, origin.y + height, PluginUiColors.PANEL_BORDER);
+
+        Bounds bounds = computeBounds(List.of(line));
+        MapViewport viewport = buildViewport(bounds, origin.x, origin.y, width, height);
+        drawLinePath(drawList, line, viewport, PluginUiColors.ACCENT_BLUE, true);
+        drawPoles(drawList, line, viewport, true, coordinates);
+
+        ImGui.dummy(width, height);
+        ImGui.endChild();
+    }
+
     private static void drawLinePath(
             ImDrawList drawList,
             PowerLineFootprint line,

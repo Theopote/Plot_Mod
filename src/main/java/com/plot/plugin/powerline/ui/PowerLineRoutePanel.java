@@ -162,12 +162,7 @@ public final class PowerLineRoutePanel {
             return;
         }
         ImGui.spacing();
-        float avail = ImGui.getContentRegionAvail().x;
-        float thumbWidth = PowerLineOverviewRenderer.thumbnailWidth();
-        if (avail > thumbWidth) {
-            ImGui.setCursorPosX(ImGui.getCursorPosX() + (avail - thumbWidth) * 0.5f);
-        }
-        PowerLineOverviewRenderer.renderLineThumbnail(line, true, ctx.coordinates());
+        PowerLineOverviewRenderer.renderLinePathPreview(line, ctx.coordinates());
         PowerLineUiWidgets.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr(
