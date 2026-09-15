@@ -13,18 +13,12 @@ import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.test.world.IdentityCoordinateService;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3i;
 import org.junit.jupiter.api.Test;
 
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class StructureAwareDecorationClearanceTest {
 
@@ -118,7 +112,7 @@ class StructureAwareDecorationClearanceTest {
         assertFalse(
             isClearanceAir(result, farDecoration),
             "expected distant in-bbox decoration left untouched at " + farDecoration);
-        assertFalse(AIR.equals(blockIdAt(result, legBlock)));
+        assertNotEquals(AIR, blockIdAt(result, legBlock));
     }
 
     @Test
@@ -163,7 +157,7 @@ class StructureAwareDecorationClearanceTest {
     private static BlockPos findSurfaceStructureBlock(Set<BlockPos> structureBlocks) {
         return structureBlocks.stream()
             .filter(pos -> pos.getY() >= 65)
-            .min((a, b) -> Integer.compare(a.getY(), b.getY()))
+            .min(Comparator.comparingInt(Vec3i::getY))
             .orElseThrow();
     }
 
