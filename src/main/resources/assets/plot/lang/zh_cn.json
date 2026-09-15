@@ -4123,5 +4123,5 @@
   "status.plot.building.pick_footprint_right_click": "已选 1 个轮廓，右键确认",
   "status.plot.building.pick_footprint_right_click_multi": "已选多个轮廓，右键确认",
   "status.plot.building.pick_footprint_no_valid": "当前选择不是有效建筑轮廓",
-  "plugin.powerline.style.quick_tune_hint": "Tweak the preset without losing your style identity"
+  "plugin.powerline.style.quick_tune_hint": "微调预设参数，同时保留当前风格标识"
 }
