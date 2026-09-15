@@ -216,10 +216,11 @@ public class ImGuiRenderer {
         0
     };
 
-    /** 界面常用符号区段（箭头、破折号等） */
+    /** 界面常用符号区段（箭头、破折号、比较符等） */
     private static final short[] UI_SYMBOL_GLYPH_RANGES = new short[] {
         (short) 0x2190, (short) 0x21FF,
         (short) 0x2010, (short) 0x2017,
+        (short) 0x2264, (short) 0x2265, // ≤ ≥
         (short) 0x2715, (short) 0x2717,
         0
     };
@@ -245,7 +246,7 @@ public class ImGuiRenderer {
         ImFontConfig cjkConfig = null;
         ImFontConfig symbolConfig = null;
         try {
-            keptLatinGlyphRanges = io.getFonts().getGlyphRangesDefault();
+            keptLatinGlyphRanges = appendGlyphRange(io.getFonts().getGlyphRangesDefault(), (short) 0x2264, (short) 0x2265);
             keptCjkGlyphRanges = CJK_ONLY_GLYPH_RANGES;
             keptSymbolGlyphRanges = UI_SYMBOL_GLYPH_RANGES;
             io.getFonts().setTexDesiredWidth(4096);
@@ -382,6 +383,19 @@ public class ImGuiRenderer {
             LOGGER.warn("Failed to read bundled font {}", BUNDLED_CJK_FONT, e);
             return null;
         }
+    }
+
+    /** 在 ImGui 字形范围数组末尾（终止 0 之前）追加一段 codepoint 区间。 */
+    private static short[] appendGlyphRange(short[] ranges, short from, short to) {
+        if (ranges == null || ranges.length == 0) {
+            return new short[] {from, to, 0};
+        }
+        short[] extended = new short[ranges.length + 2];
+        System.arraycopy(ranges, 0, extended, 0, ranges.length - 1);
+        extended[ranges.length - 1] = from;
+        extended[ranges.length] = to;
+        extended[ranges.length + 1] = 0;
+        return extended;
     }
 
     /**
