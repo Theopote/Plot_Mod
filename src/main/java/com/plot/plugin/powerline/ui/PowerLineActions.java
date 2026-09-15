@@ -338,10 +338,6 @@ public final class PowerLineActions {
     }
 
     private boolean calculatePreviewCore(PowerLineFootprint line) {
-        return calculatePreviewCore(line, true);
-    }
-
-    private boolean calculatePreviewCore(PowerLineFootprint line, boolean announceSuccess) {
         World world = getClientWorld();
         if (world == null || generator == null) {
             state.setProjectStatus(PlotI18n.tr("plugin.powerline.generate_world_unavailable"), ProjectStatusSeverity.ERROR);
@@ -390,13 +386,6 @@ public final class PowerLineActions {
                 result,
                 host.projection()));
         previewManager.showLinePreview(result);
-        if (announceSuccess) {
-            state.setProjectStatus(PlotI18n.tr(
-                "plugin.powerline.preview_ready",
-                PowerLineUiFormat.format(result.wireLength),
-                result.warnings.size()),
-                result.warnings.isEmpty() ? ProjectStatusSeverity.SUCCESS : ProjectStatusSeverity.WARNING);
-        }
         return true;
     }
 
@@ -605,7 +594,7 @@ public final class PowerLineActions {
     }
 
     private boolean refreshPreviewQuietly(PowerLineFootprint line) {
-        if (!calculatePreviewCore(line, false)) {
+        if (!calculatePreviewCore(line)) {
             return false;
         }
         syncPreviewAnalysis(line);

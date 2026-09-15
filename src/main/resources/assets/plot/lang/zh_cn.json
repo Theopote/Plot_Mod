@@ -3236,7 +3236,6 @@
   "plugin.powerline.build_confirm_warnings": "仍有 %d 个工程警告。",
   "plugin.powerline.build_anyway": "仍然建造",
   "plugin.powerline.build_return_adjust": "返回调整",
-  "plugin.powerline.preview_ready": "预览就绪：导线 %s 格 | %d 处净空警告",
   "plugin.powerline.generate_world_unavailable": "无法访问世界，请进入游戏世界后再试",
   "plugin.powerline.projection_unavailable": "无法获取世界投影 — 请先进入正交顶视图",
   "plugin.powerline.generate_empty_result": "生成结果为空",
