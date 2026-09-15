@@ -34,6 +34,32 @@ public final class TowerDesignerWidgets {
             float max,
             String format,
             Consumer<Float> onChanged) {
+        return formRowSliderTransaction(
+            pushDraftSnapshot,
+            labelKey,
+            fieldId,
+            value,
+            min,
+            max,
+            format,
+            onChanged,
+            null);
+    }
+
+    /**
+     * Live {@code onChanged} while dragging; optional {@code onCommit} when the slider is released
+     * (e.g. sync footprint / invalidate line preview once per edit).
+     */
+    public static boolean formRowSliderTransaction(
+            Runnable pushDraftSnapshot,
+            String labelKey,
+            String fieldId,
+            float[] value,
+            float min,
+            float max,
+            String format,
+            Consumer<Float> onChanged,
+            Runnable onCommit) {
         DialogLayoutHelper.formRowLabel(PlotI18n.tr(labelKey));
         boolean changed = ImGui.sliderFloat(fieldId, value, min, max, format);
         if (ImGui.isItemActivated()) {
@@ -41,6 +67,9 @@ public final class TowerDesignerWidgets {
         }
         if (changed) {
             onChanged.accept(value[0]);
+        }
+        if (onCommit != null && ImGui.isItemDeactivatedAfterEdit()) {
+            onCommit.run();
         }
         return changed;
     }

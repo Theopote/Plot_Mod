@@ -3,7 +3,6 @@ package com.plot.plugin.powerline.ui.tower;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.parametric.ConstraintAdjustment;
 import com.plot.plugin.powerline.design.parametric.ConstraintIssue;
-import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelope;
 import com.plot.plugin.powerline.design.parametric.TowerConstraintResult;
 import com.plot.plugin.powerline.design.parametric.TowerConstraintSolver;
 import com.plot.plugin.powerline.design.parametric.TowerLineBuildEnvelope;
@@ -57,11 +56,9 @@ public final class TowerParameterStatusPanel {
         TowerParameterProfile profile = TowerParametricEditor.findProfile(draft.getGeneratorConfig().profileId())
             .orElse(TowerParameterProfiles.classicDoubleArm());
         TowerParameterSet parameters = draft.getGeneratorConfig().parameters();
-        TowerBuildEnvelope envelope = context.session().resolveConstraintEnvelope();
-        TowerParametricHeightLimits.EffectiveHeightRange heightRange = TowerParametricHeightLimits.heightRange(
+        TowerParametricHeightLimits.EffectiveHeightRange heightRange = context.session().heightRange(
             profile,
-            parameters,
-            envelope);
+            parameters);
         int resolvedHeight = (int) Math.round(parameters.height());
         int maxHeight = (int) Math.floor(heightRange.max());
         DialogLayoutHelperStatus.row(
@@ -71,12 +68,6 @@ public final class TowerParameterStatusPanel {
 
     private void renderConstraintStatus(TowerDesignerContext context) {
         TowerConstraintResult result = context.session().lastConstraintResult();
-        if (result == null) {
-            result = TowerParametricEditor.preview(
-                context.draft(),
-                context.draft().getGeneratorConfig().parameters(),
-                context.session().resolveConstraintEnvelope());
-        }
         if (result == null) {
             DialogLayoutHelperStatus.row(
                 PlotI18n.tr("plugin.powerline.design.tower_status_state"),

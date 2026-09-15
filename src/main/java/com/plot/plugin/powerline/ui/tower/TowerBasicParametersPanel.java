@@ -3,7 +3,6 @@ package com.plot.plugin.powerline.ui.tower;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.parametric.ConstraintAdjustment;
 import com.plot.plugin.powerline.design.parametric.StructureDensity;
-import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelope;
 import com.plot.plugin.powerline.design.parametric.TowerLineBuildEnvelope;
 import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
 import com.plot.plugin.powerline.design.parametric.TowerParametricHeightLimits;
@@ -97,11 +96,9 @@ public final class TowerBasicParametersPanel {
             .orElse(TowerParameterProfiles.classicDoubleArm());
         TowerParameterSet parameters = draft.getGeneratorConfig().parameters();
         Optional<TowerLineBuildEnvelope> lineEnvelope = context.session().tryResolveLineEnvelope();
-        TowerBuildEnvelope constraintEnvelope = context.session().resolveConstraintEnvelope();
-        TowerParametricHeightLimits.EffectiveHeightRange heightRange = TowerParametricHeightLimits.heightRange(
+        TowerParametricHeightLimits.EffectiveHeightRange heightRange = context.session().heightRange(
             profile,
-            parameters,
-            constraintEnvelope);
+            parameters);
 
         float[] height = {(float) parameters.height()};
         TowerDesignerWidgets.formRowSliderTransaction(
@@ -112,7 +109,11 @@ public final class TowerBasicParametersPanel {
             (float) heightRange.min(),
             (float) heightRange.max(),
             PowerLineUiFormat.SLIDER,
-            newHeight -> context.session().applyParametricChange(draft, source -> withHeight(source, newHeight)));
+            newHeight -> context.session().applyParametricChange(
+                draft,
+                source -> withHeight(source, newHeight),
+                false),
+            () -> context.session().syncParametricConfigToSelectedLine(draft));
         renderHeightLimitHint(heightRange, lineEnvelope);
         renderClampHint(context, "height");
 
@@ -125,7 +126,11 @@ public final class TowerBasicParametersPanel {
             (float) profile.baseWidthRange().min(),
             (float) profile.baseWidthRange().max(),
             PowerLineUiFormat.SLIDER,
-            newWidth -> context.session().applyParametricChange(draft, source -> withBaseWidth(source, newWidth)));
+            newWidth -> context.session().applyParametricChange(
+                draft,
+                source -> withBaseWidth(source, newWidth),
+                false),
+            () -> context.session().syncParametricConfigToSelectedLine(draft));
         renderClampHint(context, "baseWidth");
 
         float[] armSpan = {(float) parameters.armSpan()};
@@ -137,7 +142,11 @@ public final class TowerBasicParametersPanel {
             (float) profile.armSpanRange().min(),
             (float) profile.armSpanRange().max(),
             PowerLineUiFormat.SLIDER,
-            newSpan -> context.session().applyParametricChange(draft, source -> withArmSpan(source, newSpan)));
+            newSpan -> context.session().applyParametricChange(
+                draft,
+                source -> withArmSpan(source, newSpan),
+                false),
+            () -> context.session().syncParametricConfigToSelectedLine(draft));
         renderClampHint(context, "armSpan");
     }
 

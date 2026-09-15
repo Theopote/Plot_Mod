@@ -81,7 +81,9 @@ public final class PoleDesignPreviewRenderer {
         float eachPaneHeight = Math.max(28f, (contentHeight - PANE_GAP) * 0.5f);
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
-        PoleVoxelPreviewModel model = PoleVoxelizer.voxelize(design);
+        PoleVoxelPreviewModel model = design.hasTowerStructure()
+            ? null
+            : PoleVoxelizer.voxelize(design);
 
         float frontY0 = origin.y;
         float frontY1 = frontY0 + eachPaneHeight;

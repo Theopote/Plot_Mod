@@ -79,7 +79,9 @@ public final class TowerAdvancedParametersPanel {
             PowerLineUiFormat.SLIDER,
             newDepth -> context.session().applyParametricChange(
                 draft,
-                source -> withDepthScale(source, newDepth)));
+                source -> withDepthScale(source, newDepth),
+                false),
+            () -> context.session().syncParametricConfigToSelectedLine(draft));
         DialogLayoutHelper.formRowHelp(PlotI18n.tr("plugin.powerline.design.parametric_depth_scale_hint"));
 
         if (profile.hasWaistControl()) {
@@ -94,7 +96,9 @@ public final class TowerAdvancedParametersPanel {
                 PowerLineUiFormat.SLIDER,
                 newWaist -> context.session().applyParametricChange(
                     draft,
-                    source -> withWaistRatio(source, newWaist)));
+                    source -> withWaistRatio(source, newWaist),
+                    false),
+                () -> context.session().syncParametricConfigToSelectedLine(draft));
             DialogLayoutHelper.formRowHelp(PlotI18n.tr("plugin.powerline.design.parametric_waist_ratio_hint"));
         }
         DialogLayoutHelper.endForm();
@@ -132,7 +136,9 @@ public final class TowerAdvancedParametersPanel {
                     source -> source.withArmLevelScale(
                         profile,
                         armIndex,
-                        TowerArmLevelUiMath.scaleFromArmHeight(requestedHeight, source.height(), armTemplate))));
+                        TowerArmLevelUiMath.scaleFromArmHeight(requestedHeight, source.height(), armTemplate)),
+                    false),
+                () -> context.session().syncParametricConfigToSelectedLine(context.draft()));
         }
         DialogLayoutHelper.formRowHelp(PlotI18n.tr("plugin.powerline.design.parametric_arm_levels_hint"));
         DialogLayoutHelper.endForm();

@@ -73,6 +73,23 @@ class TowerDesignerSessionTest {
     }
 
     @Test
+    void liveParametricEditDoesNotSyncFootprintUntilCommitted() {
+        SessionFixture fixture = newSessionWithLine("custom-tower");
+        PoleDesign draft = parametricDraft("custom-tower");
+        fixture.line.setParametricTowerConfig(draft.getGeneratorConfig().copy());
+        double baselineHeight = fixture.line.getParametricTowerConfig().parameters().height();
+
+        fixture.session.beginSession(draft);
+        fixture.session.applyParametricChange(draft, source -> withHeight(source, 40.0), false);
+        double editedHeight = draft.getGeneratorConfig().parameters().height();
+        assertNotEquals(baselineHeight, editedHeight, 0.01);
+        assertEquals(baselineHeight, fixture.line.getParametricTowerConfig().parameters().height(), 0.01);
+
+        fixture.session.syncParametricConfigToSelectedLine(draft);
+        assertEquals(editedHeight, fixture.line.getParametricTowerConfig().parameters().height(), 0.01);
+    }
+
+    @Test
     void canSaveDraftAllowsValidParametricDesign() {
         SessionFixture fixture = newSessionWithLine("custom-tower");
         PoleDesign draft = parametricDraft("custom-tower");

@@ -11,6 +11,8 @@ import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorMode;
 import com.plot.plugin.powerline.design.parametric.TowerLineBuildEnvelope;
 import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
+import com.plot.plugin.powerline.design.parametric.TowerParametricHeightLimits;
+import com.plot.plugin.powerline.design.parametric.TowerParameterProfile;
 import com.plot.plugin.powerline.design.parametric.TowerParameterProfiles;
 import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -29,6 +31,11 @@ public final class TowerDesignerSession {
     private TowerConstraintResult lastConstraintResult;
     private TowerGeneratorConfig footprintBaseline;
     private boolean footprintRollbackEnabled;
+    private boolean constraintEnvelopeResolved;
+    private TowerBuildEnvelope cachedConstraintEnvelope;
+    private Optional<TowerLineBuildEnvelope> cachedLineEnvelope = Optional.empty();
+    private TowerParametricHeightLimits.EffectiveHeightRange cachedHeightRange;
+    private String cachedHeightRangeKey;
 
     public TowerDesignerSession(PowerLineUiContext ctx) {
         this.ctx = ctx;
@@ -44,7 +51,9 @@ public final class TowerDesignerSession {
         footprintRollbackEnabled = ParametricFootprintSync.targetsEditedLine(line, draft, editingId);
         footprintBaseline = captureFootprintBaseline(line);
         lastConstraintResult = null;
+        invalidateConstraintCache();
         parametricState.captureFromDesign(draft);
+        refreshConstraints(draft);
     }
 
     public void endSession(boolean commit, PoleDesign draft) {
@@ -56,10 +65,12 @@ public final class TowerDesignerSession {
         footprintRollbackEnabled = false;
         footprintBaseline = null;
         lastConstraintResult = null;
+        invalidateConstraintCache();
         parametricState.reset();
     }
 
     public void afterDraftRestored(PoleDesign draft) {
+        invalidateConstraintCache();
         parametricState.captureFromDesign(draft);
         refreshConstraints(draft);
         syncParametricConfigToSelectedLine(draft);
@@ -100,6 +111,7 @@ public final class TowerDesignerSession {
             TowerArmAttachmentBinding.releaseBoundAttachmentsForLegacyLayers(draft);
             draft.clearTowerStructure();
             lastConstraintResult = null;
+            invalidateConstraintCache();
             parametricState.reset();
             clearParametricConfigFromSelectedLine(draft);
             return;
@@ -127,18 +139,35 @@ public final class TowerDesignerSession {
     }
 
     public void applyParametricChange(PoleDesign draft, UnaryOperator<TowerParameterSet> change) {
-        applyParametricChange(draft, resolveConstraintEnvelope(), change);
+        applyParametricChange(draft, change, true);
+    }
+
+    public void applyParametricChange(
+            PoleDesign draft,
+            UnaryOperator<TowerParameterSet> change,
+            boolean syncFootprint) {
+        applyParametricChange(draft, resolveConstraintEnvelope(), change, syncFootprint);
     }
 
     public void applyParametricChange(
             PoleDesign draft,
             TowerBuildEnvelope envelope,
             UnaryOperator<TowerParameterSet> change) {
+        applyParametricChange(draft, envelope, change, true);
+    }
+
+    public void applyParametricChange(
+            PoleDesign draft,
+            TowerBuildEnvelope envelope,
+            UnaryOperator<TowerParameterSet> change,
+            boolean syncFootprint) {
         TowerParameterSet requested = change.apply(parametricState.parametersForEdit(draft));
         parametricState.recordRequested(draft, requested);
         lastConstraintResult = TowerParametricEditor.recompile(draft, envelope);
         parametricState.applyRecompileResult(draft, lastConstraintResult);
-        syncParametricConfigToSelectedLine(draft);
+        if (syncFootprint) {
+            syncParametricConfigToSelectedLine(draft);
+        }
     }
 
     public void switchProfile(PoleDesign draft, String profileId) {
@@ -162,6 +191,42 @@ public final class TowerDesignerSession {
     }
 
     public Optional<TowerLineBuildEnvelope> tryResolveLineEnvelope() {
+        ensureConstraintEnvelopeResolved();
+        return cachedLineEnvelope;
+    }
+
+    public TowerBuildEnvelope resolveConstraintEnvelope() {
+        ensureConstraintEnvelopeResolved();
+        return cachedConstraintEnvelope;
+    }
+
+    public TowerParametricHeightLimits.EffectiveHeightRange heightRange(
+            TowerParameterProfile profile,
+            TowerParameterSet parameters) {
+        String cacheKey = heightRangeCacheKey(profile, parameters, resolveConstraintEnvelope());
+        if (cachedHeightRange != null && cacheKey.equals(cachedHeightRangeKey)) {
+            return cachedHeightRange;
+        }
+        cachedHeightRangeKey = cacheKey;
+        cachedHeightRange = TowerParametricHeightLimits.heightRange(
+            profile,
+            parameters,
+            cachedConstraintEnvelope);
+        return cachedHeightRange;
+    }
+
+    private void ensureConstraintEnvelopeResolved() {
+        if (constraintEnvelopeResolved) {
+            return;
+        }
+        cachedLineEnvelope = resolveLineEnvelopeUncached();
+        cachedConstraintEnvelope = cachedLineEnvelope
+            .map(TowerLineBuildEnvelope::constraintEnvelope)
+            .orElse(TowerBuildEnvelopeResolver.tryFromClientPlayer().orElse(null));
+        constraintEnvelopeResolved = true;
+    }
+
+    private Optional<TowerLineBuildEnvelope> resolveLineEnvelopeUncached() {
         PowerLineFootprint line = ctx.selection().primary(ctx.project());
         if (line == null) {
             return Optional.empty();
@@ -174,10 +239,35 @@ public final class TowerDesignerSession {
         return TowerBuildEnvelopeResolver.tryFromFootprint(line, terrain, ctx.coordinates());
     }
 
-    public TowerBuildEnvelope resolveConstraintEnvelope() {
-        return tryResolveLineEnvelope()
-            .map(TowerLineBuildEnvelope::constraintEnvelope)
-            .orElse(TowerBuildEnvelopeResolver.tryFromClientPlayer().orElse(null));
+    private void invalidateConstraintCache() {
+        constraintEnvelopeResolved = false;
+        cachedConstraintEnvelope = null;
+        cachedLineEnvelope = Optional.empty();
+        cachedHeightRange = null;
+        cachedHeightRangeKey = null;
+    }
+
+    private static String heightRangeCacheKey(
+            TowerParameterProfile profile,
+            TowerParameterSet parameters,
+            TowerBuildEnvelope envelope) {
+        StringBuilder key = new StringBuilder(128);
+        key.append(profile != null ? profile.id() : "");
+        if (parameters != null) {
+            key.append('|').append(parameters.baseWidth());
+            key.append('|').append(parameters.armSpan());
+            key.append('|').append(parameters.depthScale());
+            key.append('|').append(parameters.waistRatio());
+            key.append('|').append(parameters.armLevelScales());
+            key.append('|').append(parameters.density());
+        }
+        if (envelope != null) {
+            key.append('|').append(envelope.worldBottomY());
+            key.append('|').append(envelope.worldTopExclusiveY());
+            key.append('|').append(envelope.groundY());
+            key.append('|').append(envelope.topSafetyMargin());
+        }
+        return key.toString();
     }
 
     public void syncParametricConfigToSelectedLine(PoleDesign draft) {
