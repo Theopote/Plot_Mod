@@ -161,6 +161,14 @@ public final class PowerLineRoutePanel {
                 line.setMaxPoleSpacing(value);
                 PowerLineStyleEditor.afterSpacingEdit(line);
             });
+        if (ImGui.isItemHovered()) {
+            PoleSpacingProfile profile = PowerLineSpacingPolicy.profileFor(line);
+            ImGui.setTooltip(PlotI18n.tr(
+                "plugin.powerline.route.pole_spacing_style_tooltip",
+                PowerLineUiFormat.format(profile.recommendedMin()),
+                PowerLineUiFormat.format(profile.recommendedMax()),
+                PowerLineUiFormat.format(profile.preferred())));
+        }
     }
 
     private void renderTowerCountInput(PowerLineFootprint line) {
@@ -201,27 +209,48 @@ public final class PowerLineRoutePanel {
     }
 
     private void renderAdvancedSpacing(PowerLineFootprint line) {
+        PoleSpacingMode mode = line.getPoleSpacingMode();
+        if (mode == PoleSpacingMode.ENDPOINTS_ONLY) {
+            renderPausedAutoPoles(line);
+            return;
+        }
+        if (!shouldShowAdvancedSection(line)) {
+            return;
+        }
+
         ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
         if (!ImGui.collapsingHeader(
                 PlotI18n.tr("plugin.powerline.route.advanced"),
                 ImGuiTreeNodeFlags.None)) {
             return;
         }
-        PoleSpacingProfile profile = PowerLineSpacingPolicy.profileFor(line);
-        PowerLineUiWidgets.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr(
-                "plugin.powerline.route.spacing_style_range",
-                profile.recommendedMin(),
-                profile.preferred(),
-                profile.recommendedMax()));
-        PowerLineUiWidgets.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr(
-                "plugin.powerline.route.current_spacing",
-                line.getMinPoleSpacing(),
-                line.getMaxPoleSpacing()));
 
+        if (mode == PoleSpacingMode.AUTO_SPACING) {
+            renderCornerAngleThreshold(line);
+            renderCloseSpacingWarningThreshold(line);
+            renderSpacingRecommendation(line);
+            ctx.actions().closestMandatorySpacingViolation(line).ifPresent(distance -> PowerLineUiWidgets.textColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr("plugin.powerline.min_spacing_warning", PowerLineUiFormat.format(distance))));
+        } else if (mode == PoleSpacingMode.ENDPOINTS_WITH_CORNERS) {
+            renderCornerAngleThreshold(line);
+        }
+
+        renderAutoAddedPoles(line);
+    }
+
+    private static boolean shouldShowAdvancedSection(PowerLineFootprint line) {
+        PoleSpacingMode mode = line.getPoleSpacingMode();
+        if (mode == PoleSpacingMode.AUTO_SPACING || mode == PoleSpacingMode.ENDPOINTS_WITH_CORNERS) {
+            return true;
+        }
+        if (mode == PoleSpacingMode.TOWER_COUNT) {
+            return !line.getLayoutConstraints().isEmpty();
+        }
+        return false;
+    }
+
+    private void renderCloseSpacingWarningThreshold(PowerLineFootprint line) {
         float sliderMin = (float) PowerLineFootprint.MIN_CONFIGURABLE_SPACING;
         float sliderMax = (float) PowerLineSpacingPolicy.sliderMax(line);
         float[] minSpacing = {(float) line.getMinPoleSpacing()};
@@ -237,9 +266,9 @@ public final class PowerLineRoutePanel {
                 line.setMinPoleSpacing(value);
                 PowerLineStyleEditor.afterSpacingEdit(line);
             });
+    }
 
-        renderSpacingRecommendation(line);
-
+    private void renderCornerAngleThreshold(PowerLineFootprint line) {
         float[] cornerAngle = {(float) line.getCornerAngleThreshold()};
         PowerLineUiWidgets.sliderFloatStableLineEdit(
             ctx,
@@ -253,11 +282,6 @@ public final class PowerLineRoutePanel {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("plugin.powerline.route.corner_hint.detail"));
         }
-
-        ctx.actions().closestMandatorySpacingViolation(line).ifPresent(distance -> PowerLineUiWidgets.textColored(
-            PluginUiColors.WARNING,
-            PlotI18n.tr("plugin.powerline.min_spacing_warning", distance)));
-        renderAutoAddedPoles(line);
     }
 
     private void renderSpacingRecommendation(PowerLineFootprint line) {
@@ -273,12 +297,27 @@ public final class PowerLineRoutePanel {
             PluginUiColors.WARNING,
             PlotI18n.tr(
                 "plugin.powerline.route.spacing_recommendation",
-                profile.preferred(),
-                line.getMaxPoleSpacing()));
+                PowerLineUiFormat.format(profile.preferred()),
+                PowerLineUiFormat.format(line.getMaxPoleSpacing())));
         if (ImGui.button(PlotI18n.tr("plugin.powerline.route.apply_recommended_spacing"), 0, 0)) {
             ctx.pushEditSnapshot();
             PowerLineSpacingPolicy.applyStyleDefaultSpacing(line, profile);
             PowerLineStyleEditor.afterSpacingAdopted(line);
+            ctx.invalidatePreview();
+        }
+    }
+
+    private void renderPausedAutoPoles(PowerLineFootprint line) {
+        int count = line.getLayoutConstraints().size();
+        if (count <= 0) {
+            return;
+        }
+        PowerLineUiWidgets.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.powerline.route.auto_poles.paused_endpoints", count));
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.route.auto_poles.clear_all"), 0, 0)) {
+            ctx.pushEditSnapshot();
+            line.clearLayoutConstraints();
             ctx.invalidatePreview();
         }
     }
@@ -294,10 +333,11 @@ public final class PowerLineRoutePanel {
         for (int i = 0; i < constraints.size(); i++) {
             var constraint = constraints.get(i);
             ImGui.pushID("powerline_auto_pole_" + i);
-            PowerLineStatusIcon.renderBulletLine(PlotI18n.tr(
+            ImGui.text(PlotI18n.tr(
                 "plugin.powerline.route.auto_poles.entry",
                 PowerLineUiFormat.format(constraint.getRequiredStationing()),
                 PowerLineAutoPoleLabels.friendlyReason(constraint)));
+            ImGui.sameLine();
             if (ImGui.button(PlotI18n.tr("plugin.powerline.route.auto_poles.remove"), 0, 0)) {
                 ctx.pushEditSnapshot();
                 line.removeLayoutConstraint(i);
