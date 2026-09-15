@@ -189,10 +189,10 @@ public final class PowerLineValidationPanel {
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr(
                     "plugin.powerline.engineering.issue_detail",
-                    issue.actual(),
-                    issue.required(),
-                    issue.location().planPoint().x,
-                    issue.location().planPoint().y));
+                    PowerLineUiFormat.format(issue.actual()),
+                    PowerLineUiFormat.format(issue.required()),
+                    PowerLineUiFormat.format(issue.location().planPoint().x),
+                    PowerLineUiFormat.format(issue.location().planPoint().y)));
         }
         ImGui.endChild();
     }
@@ -236,7 +236,7 @@ public final class PowerLineValidationPanel {
         if (action.getType() == OptimizationActionType.INSERT_POLE) {
             PowerLineUiWidgets.text(PlotI18n.tr(
                 "plugin.powerline.engineering.proposal_insert_pole",
-                action.getStationing(),
+                PowerLineUiFormat.format(action.getStationing()),
                 PowerLineValidationI18n.optimizationReason(action)));
             return;
         }

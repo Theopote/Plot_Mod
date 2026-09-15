@@ -3,6 +3,7 @@ package com.plot.plugin.powerline.engineering;
 import com.plot.plugin.powerline.design.structure.TowerValidationIssue;
 import com.plot.plugin.powerline.engineering.optimization.OptimizationAction;
 import com.plot.plugin.powerline.engineering.optimization.OptimizationActionType;
+import com.plot.plugin.powerline.ui.PowerLineUiFormat;
 import com.plot.utils.PlotI18n;
 
 /** 线路检查与优化建议的国际化文案。 */
@@ -19,40 +20,40 @@ public final class PowerLineValidationI18n {
         return switch (issue.ruleId()) {
             case EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM -> PlotI18n.tr(
                 "plugin.powerline.engineering.issue.clearance_ground",
-                issue.actual(),
-                issue.required());
+                formatNumber(issue.actual()),
+                formatNumber(issue.required()));
             case EngineeringRuleIds.SPAN_MAXIMUM -> PlotI18n.tr(
                 "plugin.powerline.engineering.issue.span_max",
-                issue.actual(),
-                issue.required());
+                formatNumber(issue.actual()),
+                formatNumber(issue.required()));
             case EngineeringRuleIds.SPAN_MINIMUM -> PlotI18n.tr(
                 "plugin.powerline.engineering.issue.span_min",
-                issue.actual(),
-                issue.required());
+                formatNumber(issue.actual()),
+                formatNumber(issue.required()));
             case EngineeringRuleIds.TOWER_ROLE_ANGLE -> PlotI18n.tr(
                 "plugin.powerline.engineering.issue.tower_angle",
-                issue.actual(),
-                issue.required());
+                formatNumber(issue.actual()),
+                formatNumber(issue.required()));
             case EngineeringRuleIds.CONDUCTOR_SEPARATION_PHASE -> PlotI18n.tr(
                 "plugin.powerline.engineering.issue.conductor_sep_phase",
-                issue.actual(),
-                issue.required(),
+                formatNumber(issue.actual()),
+                formatNumber(issue.required()),
                 detailA != null ? detailA : "?",
                 detailB != null ? detailB : "?");
             case EngineeringRuleIds.CONDUCTOR_SEPARATION_GROUND -> PlotI18n.tr(
                 "plugin.powerline.engineering.issue.conductor_sep_ground",
-                issue.actual(),
-                issue.required(),
+                formatNumber(issue.actual()),
+                formatNumber(issue.required()),
                 detailA != null ? detailA : "?",
                 detailB != null ? detailB : "?");
             case EngineeringRuleIds.SAG_MAXIMUM -> PlotI18n.tr(
                 "plugin.powerline.engineering.issue.sag_max",
-                issue.actual(),
-                issue.required());
+                formatNumber(issue.actual()),
+                formatNumber(issue.required()));
             case EngineeringRuleIds.TOWER_BASE_UNEVEN -> PlotI18n.tr(
                 "plugin.powerline.engineering.issue.tower_base_uneven",
-                issue.actual(),
-                issue.required());
+                formatNumber(issue.actual()),
+                formatNumber(issue.required()));
             case EngineeringRuleIds.TOWER_STRUCTURE_INVALID -> detailB != null && !detailB.isBlank()
                 ? PlotI18n.tr("plugin.powerline.engineering.issue.tower_structure", detailA, detailB)
                 : PlotI18n.tr("plugin.powerline.engineering.issue.tower_structure_simple", detailA);
@@ -76,7 +77,7 @@ public final class PowerLineValidationI18n {
             return "";
         }
         if (action.getMessageKey() != null && !action.getMessageKey().isBlank()) {
-            return PlotI18n.tr(action.getMessageKey(), action.getMessageArgs());
+            return PlotI18n.tr(action.getMessageKey(), formatNumbers(action.getMessageArgs()));
         }
         if (action.getType() == OptimizationActionType.MANUAL_REVIEW) {
             return PlotI18n.tr("plugin.powerline.engineering.reason.manual_review");
@@ -96,7 +97,7 @@ public final class PowerLineValidationI18n {
             return "";
         }
         String key = "plugin.powerline.engineering.selection." + reasonCode;
-        return PlotI18n.tr(key, args);
+        return PlotI18n.tr(key, formatNumbers(args));
     }
 
     public static String selectionReasonToken(String token) {
@@ -113,5 +114,20 @@ public final class PowerLineValidationI18n {
             args[i - 1] = parts[i];
         }
         return selectionReason(code, args);
+    }
+
+    private static Object formatNumber(Object value) {
+        if (value instanceof Number number) {
+            return PowerLineUiFormat.format(number.doubleValue());
+        }
+        return value;
+    }
+
+    private static Object[] formatNumbers(Object... args) {
+        Object[] formatted = new Object[args.length];
+        for (int i = 0; i < args.length; i++) {
+            formatted[i] = formatNumber(args[i]);
+        }
+        return formatted;
     }
 }

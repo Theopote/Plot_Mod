@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline;
 
 import com.plot.plugin.powerline.model.TowerRole;
+import com.plot.plugin.powerline.ui.PowerLineUiFormat;
 import com.plot.utils.PlotI18n;
 
 /** 预览/生成阶段 warning 文案（存储 i18n token，展示时再翻译）。 */
@@ -95,8 +96,15 @@ public final class PowerLineGenerationI18n {
     private static String token(String key, Object... args) {
         StringBuilder builder = new StringBuilder(key);
         for (Object arg : args) {
-            builder.append('|').append(arg);
+            builder.append('|').append(formatTokenArg(arg));
         }
         return builder.toString();
+    }
+
+    private static String formatTokenArg(Object arg) {
+        if (arg instanceof Double || arg instanceof Float) {
+            return PowerLineUiFormat.format(((Number) arg).doubleValue());
+        }
+        return String.valueOf(arg);
     }
 }

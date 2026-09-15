@@ -341,7 +341,9 @@ public final class PowerLineUiWidgets {
         if (effective > 0.0) {
             textColored(
                 PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.powerline.engineering.effective_max_sag", effective));
+                PlotI18n.tr(
+                    "plugin.powerline.engineering.effective_max_sag",
+                    PowerLineUiFormat.format(effective)));
         } else {
             textColored(
                 PluginUiColors.HINT_GRAY,
