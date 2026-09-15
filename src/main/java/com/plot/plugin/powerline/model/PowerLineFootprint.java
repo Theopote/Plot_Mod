@@ -203,9 +203,6 @@ public class PowerLineFootprint {
         this.closeSpacingWarningThreshold = Math.max(
             MIN_CONFIGURABLE_SPACING,
             closeSpacingWarningThreshold);
-        if (this.maxPoleSpacing < this.closeSpacingWarningThreshold) {
-            this.maxPoleSpacing = this.closeSpacingWarningThreshold;
-        }
     }
 
     public double getMaxPoleSpacing() {
@@ -215,7 +212,7 @@ public class PowerLineFootprint {
     public void setMaxPoleSpacing(double maxPoleSpacing) {
         this.maxPoleSpacing = Math.min(
             ABSOLUTE_MAX_POLE_SPACING,
-            Math.max(getCloseSpacingWarningThreshold(), maxPoleSpacing));
+            Math.max(MIN_CONFIGURABLE_SPACING, maxPoleSpacing));
     }
 
     public double getCornerAngleThreshold() {

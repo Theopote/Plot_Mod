@@ -64,8 +64,6 @@ public final class PowerLineSpacingPolicy {
         if (line == null) {
             return;
         }
-        PoleSpacingProfile profile = profileFor(line);
-        line.setCloseSpacingWarningThreshold(profile.defaultCloseSpacingWarningThreshold());
         line.setMaxPoleSpacing(maxSpacing);
         line.setSpacingCustomized(customized);
     }

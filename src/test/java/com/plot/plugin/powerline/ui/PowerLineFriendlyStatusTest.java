@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PowerLineFriendlyStatusTest {
 
@@ -27,6 +28,15 @@ class PowerLineFriendlyStatusTest {
         assertEquals(
             PowerLineFriendlyStatus.SpacingKind.INVALID_SETTINGS,
             PowerLineFriendlyStatus.evaluateSpacing(null, IdentityCoordinateService.INSTANCE).kind());
+    }
+
+    @Test
+    void warningThresholdAboveMaxSpacingIsValidSettings() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
+        line.setMaxPoleSpacing(30.0);
+        line.setCloseSpacingWarningThreshold(40.0);
+
+        assertTrue(PowerLineFriendlyStatus.spacingSettingsValid(line));
     }
 
     @Test

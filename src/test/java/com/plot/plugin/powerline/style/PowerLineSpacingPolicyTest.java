@@ -122,6 +122,21 @@ class PowerLineSpacingPolicyTest {
         assertEquals(PowerLineUiPresets.SpacingDensity.NORMAL, PowerLineUiPresets.detectSpacing(line));
     }
 
+    @Test
+    void applyDensityPreservesCloseWarningThreshold() {
+        PowerLineFootprint line = sampleLine();
+        PowerLineStylePresetCatalog.classicWood().apply(line);
+        line.setCloseSpacingWarningThreshold(10.0);
+
+        PowerLineUiPresets.applySpacing(line, PowerLineUiPresets.SpacingDensity.DENSE);
+
+        assertEquals(10.0, line.getCloseSpacingWarningThreshold(), 0.01);
+        assertEquals(
+            PowerLineStylePresetCatalog.classicWood().getSpacingProfile().denseMaxSpacing(),
+            line.getMaxPoleSpacing(),
+            1.0);
+    }
+
     private static PowerLineFootprint sampleLine() {
         return new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(80, 0)));
     }

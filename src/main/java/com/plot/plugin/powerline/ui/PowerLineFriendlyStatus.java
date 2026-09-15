@@ -123,7 +123,7 @@ public final class PowerLineFriendlyStatus {
     }
 
     public static boolean spacingSettingsValid(PowerLineFootprint line) {
-        return line != null && line.getMaxPoleSpacing() >= line.getCloseSpacingWarningThreshold();
+        return line != null;
     }
 
     public static SpacingEvaluation evaluateSpacing(
