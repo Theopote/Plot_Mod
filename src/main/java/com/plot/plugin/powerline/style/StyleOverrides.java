@@ -121,7 +121,7 @@ public class StyleOverrides {
         if (wireMaterial != null) count++;
         if (poleMaterial != null) count++;
         if (topWireMaterial != null) count++;
-        if (preferredSpacing != null || recommendedMinSpacing != null) count++;
+        if (preferredSpacing != null) count++;
         if (poleDesignId != null) count++;
         if (towerFamilyId != null) count++;
         if (parametricTowerConfig != null) count++;

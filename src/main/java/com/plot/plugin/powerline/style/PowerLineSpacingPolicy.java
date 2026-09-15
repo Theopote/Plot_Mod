@@ -35,9 +35,6 @@ public final class PowerLineSpacingPolicy {
             return PowerLineUiPresets.SpacingDensity.NORMAL;
         }
         PoleSpacingProfile profile = profileFor(line);
-        if (!spacingClose(line.getMinPoleSpacing(), profile.recommendedMin(), DENSITY_MATCH_TOLERANCE)) {
-            return null;
-        }
         double max = line.getMaxPoleSpacing();
         PowerLineUiPresets.SpacingDensity closest = PowerLineUiPresets.SpacingDensity.NORMAL;
         double best = Math.abs(max - profile.preferred());
@@ -87,8 +84,7 @@ public final class PowerLineSpacingPolicy {
             return false;
         }
         PoleSpacingProfile profile = preset.getSpacingProfile();
-        return !spacingClose(line.getMinPoleSpacing(), profile.recommendedMin(), DENSITY_MATCH_TOLERANCE)
-            || !spacingClose(line.getMaxPoleSpacing(), profile.preferred(), DENSITY_MATCH_TOLERANCE);
+        return !spacingClose(line.getMaxPoleSpacing(), profile.preferred(), DENSITY_MATCH_TOLERANCE);
     }
 
     /** Route 布局密度偏好；未识别时默认为均衡（Balanced）。 */

@@ -211,7 +211,7 @@ public final class PowerLineRoutePanel {
     private void renderAdvancedSpacing(PowerLineFootprint line) {
         PoleSpacingMode mode = line.getPoleSpacingMode();
         if (mode == PoleSpacingMode.ENDPOINTS_ONLY) {
-            renderPausedAutoPoles(line);
+            renderPausedAutoCorrectionPoles(line);
             return;
         }
         if (!shouldShowAdvancedSection(line)) {
@@ -236,7 +236,7 @@ public final class PowerLineRoutePanel {
             renderCornerAngleThreshold(line);
         }
 
-        renderAutoAddedPoles(line);
+        renderAutoCorrectionPoles(line);
     }
 
     private static boolean shouldShowAdvancedSection(PowerLineFootprint line) {
@@ -262,10 +262,7 @@ public final class PowerLineRoutePanel {
             sliderMin,
             sliderMax,
             PowerLineUiFormat.SLIDER,
-            value -> {
-                line.setMinPoleSpacing(value);
-                PowerLineStyleEditor.afterSpacingEdit(line);
-            });
+            line::setMinPoleSpacing);
     }
 
     private void renderCornerAngleThreshold(PowerLineFootprint line) {
@@ -307,7 +304,7 @@ public final class PowerLineRoutePanel {
         }
     }
 
-    private void renderPausedAutoPoles(PowerLineFootprint line) {
+    private void renderPausedAutoCorrectionPoles(PowerLineFootprint line) {
         int count = line.getLayoutConstraints().size();
         if (count <= 0) {
             return;
@@ -322,7 +319,7 @@ public final class PowerLineRoutePanel {
         }
     }
 
-    private void renderAutoAddedPoles(PowerLineFootprint line) {
+    private void renderAutoCorrectionPoles(PowerLineFootprint line) {
         var constraints = line.getLayoutConstraints();
         if (constraints.isEmpty()) {
             return;

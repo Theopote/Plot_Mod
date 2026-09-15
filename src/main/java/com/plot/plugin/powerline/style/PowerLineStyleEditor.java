@@ -94,6 +94,7 @@ public final class PowerLineStyleEditor {
         syncOverridesFromFootprint(line);
     }
 
+    /** 最大档距（style spacing）被用户修改后调用；不包含过近警告阈值。 */
     public static void afterSpacingEdit(PowerLineFootprint line) {
         if (line == null) {
             return;
@@ -148,16 +149,15 @@ public final class PowerLineStyleEditor {
     }
 
     private static void syncSpacingOverrides(PowerLineFootprint line) {
-        PowerLineStylePreset preset = basePreset(line);
         StyleOverrides overrides = line.getStyleOverrides();
+        overrides.setRecommendedMinSpacing(null);
+        PowerLineStylePreset preset = basePreset(line);
         if (preset == null || !line.isSpacingCustomized()) {
             overrides.setPreferredSpacing(null);
-            overrides.setRecommendedMinSpacing(null);
             return;
         }
         PoleSpacingProfile profile = preset.getSpacingProfile();
         overrides.setPreferredSpacing(overrideSpacing(line.getMaxPoleSpacing(), profile.preferred()));
-        overrides.setRecommendedMinSpacing(overrideSpacing(line.getMinPoleSpacing(), profile.recommendedMin()));
     }
 
     private static Double overrideSag(double actual, PowerLineStyleDefinition definition) {

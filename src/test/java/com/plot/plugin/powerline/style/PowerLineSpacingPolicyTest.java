@@ -87,6 +87,42 @@ class PowerLineSpacingPolicyTest {
         assertEquals(PowerLineFootprint.MIN_CONFIGURABLE_SPACING, line.getMinPoleSpacing(), 0.01);
     }
 
+    @Test
+    void closeWarningThresholdDoesNotCustomizeStyleSpacing() {
+        PowerLineFootprint line = sampleLine();
+        PowerLineStylePreset preset = PowerLineStylePresetCatalog.classicWood();
+        preset.apply(line);
+
+        line.setMinPoleSpacing(12.0);
+
+        assertFalse(line.isSpacingCustomized());
+        assertFalse(PowerLineSpacingPolicy.differsFromStyleRecommendation(line, preset));
+        assertNull(line.getStyleOverrides().getRecommendedMinSpacing());
+    }
+
+    @Test
+    void differsFromStyleRecommendationIgnoresCloseWarningThreshold() {
+        PowerLineFootprint line = sampleLine();
+        PowerLineStylePreset preset = PowerLineStylePresetCatalog.classicWood();
+        preset.apply(line);
+        line.setMinPoleSpacing(10.0);
+
+        assertFalse(PowerLineSpacingPolicy.differsFromStyleRecommendation(line, preset));
+
+        line.setMaxPoleSpacing(55.0);
+        line.setSpacingCustomized(true);
+        assertTrue(PowerLineSpacingPolicy.differsFromStyleRecommendation(line, preset));
+    }
+
+    @Test
+    void densityDetectionIgnoresCloseWarningThreshold() {
+        PowerLineFootprint line = sampleLine();
+        PowerLineStylePresetCatalog.classicWood().apply(line);
+        line.setMinPoleSpacing(10.0);
+
+        assertEquals(PowerLineUiPresets.SpacingDensity.NORMAL, PowerLineUiPresets.detectSpacing(line));
+    }
+
     private static PowerLineFootprint sampleLine() {
         return new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(80, 0)));
     }

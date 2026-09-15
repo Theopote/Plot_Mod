@@ -5,7 +5,7 @@ import com.plot.plugin.powerline.ui.PowerLineUiPresets;
 /**
  * 风格预设的杆塔间距推荐元数据（Minecraft 装饰尺度，非工程规范）。
  *
- * @param recommendedMin 美观建议下限（Route 滑块起点 / 密度卡片共用）
+ * @param recommendedMin 过近警告阈值默认值（工程/UI 偏好，不属于 style spacing override）
  * @param preferred      「自然」档推荐最大档距
  * @param recommendedMax 疏松上限与高级滑块上限
  */
