@@ -1,5 +1,7 @@
 package com.plot.plugin.powerline.design;
 
+import com.plot.plugin.powerline.design.PoleDesign;
+import com.plot.plugin.powerline.design.PoleLayer;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
@@ -80,5 +82,36 @@ class ConductorAttachmentPresetsTest {
         PowerLineStylePreset preset = PowerLineStylePresetCatalog.classicLattice();
         assertEquals(TowerFamily.STANDARD_LATTICE_3_PHASE_ID, preset.getTowerFamilyId());
         assertEquals(3, preset.expectedConductorCount());
+    }
+
+    @Test
+    void createNextLegacyAssignsSequentialPhaseLetters() {
+        PoleDesign design = new PoleDesign("test");
+        design.setAttachments(ConductorAttachmentPresets.threePhaseHorizontal(12.0));
+
+        ConductorAttachment next = ConductorAttachmentPresets.createNextLegacy(design);
+        assertEquals("D", next.getName());
+        assertEquals("phase_d", next.getId());
+        assertEquals(AttachmentRole.AUXILIARY, next.getRole());
+    }
+
+    @Test
+    void createNextLegacyStartsAtAOnEmptyDesign() {
+        PoleDesign design = new PoleDesign("empty");
+        design.addLayer(new PoleLayer(PoleLayer.Shape.COLUMN, 8, null));
+
+        ConductorAttachment first = ConductorAttachmentPresets.createNextLegacy(design);
+        assertEquals("A", first.getName());
+        assertEquals("phase_a", first.getId());
+        assertEquals(AttachmentRole.PHASE_A, first.getRole());
+    }
+
+    @Test
+    void createNextLegacySkipsDefaultAttachmentPlaceholderName() {
+        PoleDesign design = new PoleDesign("test");
+        design.addAttachment(new ConductorAttachment());
+
+        ConductorAttachment next = ConductorAttachmentPresets.createNextLegacy(design);
+        assertEquals("A", next.getName());
     }
 }

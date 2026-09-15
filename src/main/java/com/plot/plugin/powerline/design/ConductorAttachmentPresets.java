@@ -1,7 +1,9 @@
 package com.plot.plugin.powerline.design;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /** 常用导线挂点预设。 */
 public final class ConductorAttachmentPresets {
@@ -36,6 +38,22 @@ public final class ConductorAttachmentPresets {
         attachments.add(createPhase(PHASE_B_ID, "B", AttachmentRole.PHASE_B, 0.0, verticalOffset, false));
         attachments.add(createPhase(PHASE_C_ID, "C", AttachmentRole.PHASE_C, 0.0, verticalOffset + 1.0, true));
         return attachments;
+    }
+
+    /**
+     * Legacy 分层设计器「+ 添加挂点」：按 A→B→C… 分配未占用的单字母名称与 {@code phase_*} id。
+     */
+    public static ConductorAttachment createNextLegacy(PoleDesign design) {
+        Set<Character> usedLetters = usedPhaseLetters(design);
+        char letter = nextAvailableLetter(usedLetters);
+        String name = String.valueOf(letter);
+        String id = uniqueAttachmentId(design, phaseIdForLetter(letter));
+        ConductorAttachment attachment = new ConductorAttachment(id, name);
+        attachment.setRole(roleForLetter(letter));
+        if (design != null && design.totalHeight() > 0) {
+            attachment.setVerticalOffset(Math.max(1.0, design.totalHeight() - 1.0));
+        }
+        return attachment;
     }
 
     public static List<ConductorAttachment> singleConductor(double verticalOffset) {
@@ -151,6 +169,72 @@ public final class ConductorAttachmentPresets {
         attachment.setVerticalOffset(vertical);
         attachment.setInsulatorLength(1);
         return attachment;
+    }
+
+    static Set<Character> usedPhaseLetters(PoleDesign design) {
+        Set<Character> used = new HashSet<>();
+        if (design == null) {
+            return used;
+        }
+        for (ConductorAttachment attachment : design.getAttachments()) {
+            collectUsedLetter(used, attachment.getName());
+            collectUsedLetter(used, letterFromPhaseId(attachment.getId()));
+        }
+        return used;
+    }
+
+    static char nextAvailableLetter(Set<Character> usedLetters) {
+        for (char letter = 'A'; letter <= 'Z'; letter++) {
+            if (!usedLetters.contains(letter)) {
+                return letter;
+            }
+        }
+        return 'A';
+    }
+
+    private static void collectUsedLetter(Set<Character> used, String raw) {
+        if (raw == null || raw.isBlank()) {
+            return;
+        }
+        String trimmed = raw.trim();
+        if (trimmed.length() == 1) {
+            char letter = trimmed.charAt(0);
+            if (Character.isLetter(letter)) {
+                used.add(Character.toUpperCase(letter));
+            }
+        }
+    }
+
+    private static String letterFromPhaseId(String id) {
+        if (id == null || !id.startsWith("phase_") || id.length() != "phase_".length() + 1) {
+            return null;
+        }
+        char letter = id.charAt("phase_".length());
+        return Character.isLetter(letter) ? String.valueOf(letter) : null;
+    }
+
+    private static String phaseIdForLetter(char letter) {
+        return "phase_" + Character.toLowerCase(letter);
+    }
+
+    private static String uniqueAttachmentId(PoleDesign design, String baseId) {
+        if (design == null || design.findAttachment(baseId) == null) {
+            return baseId;
+        }
+        int suffix = 2;
+        while (design.findAttachment(baseId + "_" + suffix) != null) {
+            suffix++;
+        }
+        return baseId + "_" + suffix;
+    }
+
+    private static AttachmentRole roleForLetter(char letter) {
+        return switch (Character.toUpperCase(letter)) {
+            case 'A' -> AttachmentRole.PHASE_A;
+            case 'B' -> AttachmentRole.PHASE_B;
+            case 'C' -> AttachmentRole.PHASE_C;
+            default -> AttachmentRole.AUXILIARY;
+        };
     }
 
     private static ConductorAttachment createPhase(

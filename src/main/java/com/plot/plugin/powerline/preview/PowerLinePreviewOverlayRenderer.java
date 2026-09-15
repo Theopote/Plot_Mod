@@ -27,8 +27,79 @@ public final class PowerLinePreviewOverlayRenderer {
     private static final int COLOR_ROTOR = 0xFF78909C;
     private static final int COLOR_MARKER = 0xFF64B5F6;
     private static final int COLOR_MARKER_LABEL = 0xFF90CAF9;
+    private static final int COLOR_ATTACHMENT_LABEL = 0xFFE0E0E0;
+
+    /** 风格卡片等紧凑预览：绝缘子串屏幕长度上限。 */
+    public static final float COMPACT_INSULATOR_MAX_PX = INSULATOR_MAX_PX;
+    /** 杆塔设计器：按方块比例绘制，不压扁绝缘子长度。 */
+    public static final float PROPORTIONAL_INSULATOR_MAX_PX = Float.MAX_VALUE;
 
     private PowerLinePreviewOverlayRenderer() {
+    }
+
+    public static float resolveInsulatorScreenLength(
+            int blockLength,
+            float pixelsPerBlock,
+            float maxInsulatorPx) {
+        if (blockLength <= 0 || pixelsPerBlock <= 0f) {
+            return 0f;
+        }
+        float scaled = blockLength * pixelsPerBlock;
+        float visible = Math.max(INSULATOR_MIN_PX, scaled);
+        if (maxInsulatorPx < PROPORTIONAL_INSULATOR_MAX_PX / 2f) {
+            return Math.min(maxInsulatorPx, visible);
+        }
+        return visible;
+    }
+
+    /**
+     * 正视挂点叠加：结构挂点、绝缘子串与导线端点。
+     * {@code maxInsulatorPx} 为 {@link #COMPACT_INSULATOR_MAX_PX} 时用于风格卡片，为
+     * {@link #PROPORTIONAL_INSULATOR_MAX_PX} 时用于杆塔设计器。
+     */
+    public static void drawFrontAttachmentOverlay(
+            ImDrawList drawList,
+            ConductorAttachment attachment,
+            float x,
+            float yHang,
+            float pixelsPerBlock,
+            float maxInsulatorPx,
+            int structuralColor,
+            int structuralRingColor,
+            int wireColor,
+            int topWireColor,
+            float structuralDotRadius,
+            String label) {
+        if (drawList == null || attachment == null || !attachment.isEnabled()) {
+            return;
+        }
+        AttachmentRole role = attachment.getRole();
+        if (role == AttachmentRole.TOP_WIRE) {
+            drawList.addCircleFilled(x, yHang, structuralDotRadius, topWireColor);
+            if (label != null && !label.isBlank()) {
+                drawList.addText(x + 6f, yHang - ImGui.getFontSize() * 0.5f, COLOR_ATTACHMENT_LABEL, label);
+            }
+            return;
+        }
+        drawList.addCircleFilled(x, yHang, structuralDotRadius, structuralColor);
+        drawList.addCircle(x, yHang, structuralDotRadius + 0.5f, structuralRingColor, 12, 1.2f);
+
+        float insulatorLen = resolveInsulatorScreenLength(
+            attachment.getInsulatorLength(),
+            pixelsPerBlock,
+            maxInsulatorPx);
+        if (insulatorLen > 0f) {
+            float yInsulatorEnd = yHang + insulatorLen;
+            drawList.addLine(x, yHang, x, yInsulatorEnd, COLOR_INSULATOR, 1.2f);
+            drawList.addCircleFilled(x, yInsulatorEnd, ATTACHMENT_DOT_RADIUS, wireColor);
+            float hintHalf = Math.min(
+                WIRE_HINT_MAX_PX * 0.5f,
+                Math.max(4.0f, pixelsPerBlock));
+            drawList.addLine(x - hintHalf, yInsulatorEnd, x + hintHalf, yInsulatorEnd, wireColor, 1.0f);
+        }
+        if (label != null && !label.isBlank()) {
+            drawList.addText(x + 6f, yHang - ImGui.getFontSize() * 0.5f, COLOR_ATTACHMENT_LABEL, label);
+        }
     }
 
     public static void draw(
@@ -149,21 +220,19 @@ public final class PowerLinePreviewOverlayRenderer {
         }
         TowerArmAttachmentBinding.ResolvedLocalOffsets local =
             TowerArmAttachmentBinding.resolveLocalOffsets(attachment, design.getTowerStructure());
-        float x = layout.mapX(local.lateral());
-        float yHang = layout.mapY(local.vertical());
-        AttachmentRole role = attachment.getRole();
-        if (role == AttachmentRole.TOP_WIRE) {
-            drawList.addCircleFilled(x, yHang, ATTACHMENT_DOT_RADIUS, topWireColor);
-            return;
-        }
-        float insulatorLen = Math.min(
-            INSULATOR_MAX_PX,
-            Math.max(INSULATOR_MIN_PX, attachment.getInsulatorLength() * layout.scale()));
-        float yInsulatorEnd = yHang + insulatorLen;
-        drawList.addLine(x, yHang, x, yInsulatorEnd, COLOR_INSULATOR, 1.2f);
-        drawList.addCircleFilled(x, yInsulatorEnd, ATTACHMENT_DOT_RADIUS, wireColor);
-        float hintHalf = Math.min(WIRE_HINT_MAX_PX * 0.5f, 4.0f);
-        drawList.addLine(x - hintHalf, yInsulatorEnd, x + hintHalf, yInsulatorEnd, wireColor, 1.0f);
+        drawFrontAttachmentOverlay(
+            drawList,
+            attachment,
+            layout.mapX(local.lateral()),
+            layout.mapY(local.vertical()),
+            layout.scale(),
+            COMPACT_INSULATOR_MAX_PX,
+            COLOR_WIRE,
+            COLOR_WIRE,
+            wireColor,
+            topWireColor,
+            ATTACHMENT_DOT_RADIUS,
+            null);
     }
 
     private static void drawDecorativeConductors(
@@ -201,17 +270,19 @@ public final class PowerLinePreviewOverlayRenderer {
                 model,
                 local.lateral());
             float yHang = PoleVoxelElevationRenderer.mapVerticalToScreen(layout, model, local.vertical());
-            AttachmentRole role = attachment.getRole();
-            if (role == AttachmentRole.TOP_WIRE) {
-                drawList.addCircleFilled(x, yHang, ATTACHMENT_DOT_RADIUS, topWireColor);
-                continue;
-            }
-            float insulatorLen = Math.min(INSULATOR_MAX_PX, Math.max(INSULATOR_MIN_PX, layout.blockSize() * 1.5f));
-            float yEnd = yHang + insulatorLen;
-            drawList.addLine(x, yHang, x, yEnd, COLOR_INSULATOR, 1.0f);
-            drawList.addCircleFilled(x, yEnd, ATTACHMENT_DOT_RADIUS, wireColor);
-            float hintHalf = Math.min(WIRE_HINT_MAX_PX * 0.5f, layout.blockSize() * 1.2f);
-            drawList.addLine(x - hintHalf, yEnd, x + hintHalf, yEnd, wireColor, 0.9f);
+            drawFrontAttachmentOverlay(
+                drawList,
+                attachment,
+                x,
+                yHang,
+                layout.blockSize(),
+                COMPACT_INSULATOR_MAX_PX,
+                COLOR_WIRE,
+                COLOR_WIRE,
+                wireColor,
+                topWireColor,
+                ATTACHMENT_DOT_RADIUS,
+                null);
         }
     }
 

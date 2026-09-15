@@ -47,7 +47,7 @@ final class PoleDesignerAttachmentPanel {
         }
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.add_attachment"), 0, 0)) {
             pushDraftSnapshot.run();
-            draft.addAttachment(new ConductorAttachment());
+            draft.addAttachment(ConductorAttachmentPresets.createNextLegacy(draft));
         }
     }
 
@@ -94,7 +94,7 @@ final class PoleDesignerAttachmentPanel {
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.add_attachment"), 0, 0)) {
             pushDraftSnapshot.run();
-            draft.addAttachment(new ConductorAttachment());
+            draft.addAttachment(ConductorAttachmentPresets.createNextLegacy(draft));
         }
     }
 

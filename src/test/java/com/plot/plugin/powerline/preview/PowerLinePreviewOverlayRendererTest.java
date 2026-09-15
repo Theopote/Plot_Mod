@@ -11,6 +11,30 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PowerLinePreviewOverlayRendererTest {
 
     @Test
+    void proportionalInsulatorLengthTracksBlockCount() {
+        float shortLen = PowerLinePreviewOverlayRenderer.resolveInsulatorScreenLength(
+            2,
+            6f,
+            PowerLinePreviewOverlayRenderer.PROPORTIONAL_INSULATOR_MAX_PX);
+        float longLen = PowerLinePreviewOverlayRenderer.resolveInsulatorScreenLength(
+            8,
+            6f,
+            PowerLinePreviewOverlayRenderer.PROPORTIONAL_INSULATOR_MAX_PX);
+        assertTrue(longLen > shortLen);
+        assertEquals(12f, shortLen, 0.01f);
+        assertEquals(48f, longLen, 0.01f);
+    }
+
+    @Test
+    void compactInsulatorLengthCapsForStyleCards() {
+        float capped = PowerLinePreviewOverlayRenderer.resolveInsulatorScreenLength(
+            8,
+            6f,
+            PowerLinePreviewOverlayRenderer.COMPACT_INSULATOR_MAX_PX);
+        assertEquals(PowerLinePreviewOverlayRenderer.COMPACT_INSULATOR_MAX_PX, capped, 0.01f);
+    }
+
+    @Test
     void resolvesWireColorsFromMaterialMix() {
         int copper = BlockPreviewColors.previewColor(MaterialMix.single("minecraft:copper_block"), 0xFF90A4AE);
         int gold = BlockPreviewColors.previewColor(MaterialMix.single("minecraft:gold_block"), 0xFFECEFF1);

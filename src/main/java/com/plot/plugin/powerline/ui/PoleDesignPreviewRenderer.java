@@ -9,6 +9,7 @@ import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.preview.PoleVoxelElevationRenderer;
 import com.plot.plugin.powerline.preview.PoleVoxelPreviewModel;
 import com.plot.plugin.powerline.preview.PoleVoxelizer;
+import com.plot.plugin.powerline.preview.PowerLinePreviewOverlayRenderer;
 import com.plot.plugin.powerline.preview.TowerStructuralElevationRenderer;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
@@ -37,6 +38,8 @@ public final class PoleDesignPreviewRenderer {
     private static final int COLOR_STATION_GUIDE = 0x9978909C;
     private static final int COLOR_ARM_GUIDE = 0x99546E7A;
     private static final int COLOR_LABEL = 0xFFE0E0E0;
+    private static final int COLOR_WIRE = 0xFF90A4AE;
+    private static final int COLOR_TOP_WIRE = 0xFFECEFF1;
 
     private PoleDesignPreviewRenderer() {
     }
@@ -184,19 +187,28 @@ public final class PoleDesignPreviewRenderer {
                 : arm.getLongitudinalHalfWidth();
             drawList.addLine(layout.mapX(-halfSpan), y, layout.mapX(halfSpan), y, COLOR_ARM_GUIDE, 1.5f);
         }
+        if (view != PoleVoxelElevationRenderer.ElevationView.FRONT) {
+            return;
+        }
         for (ConductorAttachment attachment : design.getAttachments()) {
             if (!attachment.isEnabled()) {
                 continue;
             }
             TowerArmAttachmentBinding.ResolvedLocalOffsets local =
                 TowerArmAttachmentBinding.resolveLocalOffsets(attachment, design.getTowerStructure());
-            double horizontal = view == PoleVoxelElevationRenderer.ElevationView.FRONT
-                ? local.lateral()
-                : local.longitudinal();
-            float x = layout.mapX(horizontal);
-            float y = layout.mapY(local.vertical());
-            drawList.addCircleFilled(x, y, 4f, COLOR_ATTACHMENT);
-            drawList.addCircle(x, y, 4.5f, COLOR_ATTACHMENT_RING, 12, 1.2f);
+            PowerLinePreviewOverlayRenderer.drawFrontAttachmentOverlay(
+                drawList,
+                attachment,
+                layout.mapX(local.lateral()),
+                layout.mapY(local.vertical()),
+                layout.scale(),
+                PowerLinePreviewOverlayRenderer.PROPORTIONAL_INSULATOR_MAX_PX,
+                COLOR_ATTACHMENT,
+                COLOR_ATTACHMENT_RING,
+                COLOR_WIRE,
+                COLOR_TOP_WIRE,
+                4f,
+                null);
         }
     }
 
@@ -268,11 +280,27 @@ public final class PoleDesignPreviewRenderer {
                 : local.longitudinal();
             float x = PoleVoxelElevationRenderer.mapHorizontalToScreen(layout, view, model, horizontal);
             float y = PoleVoxelElevationRenderer.mapVerticalToScreen(layout, model, local.vertical());
-            drawList.addCircleFilled(x, y, 4f, COLOR_ATTACHMENT);
-            drawList.addCircle(x, y, 4.5f, COLOR_ATTACHMENT_RING, 12, 1.2f);
-            String name = attachment.getName();
-            if (name != null && !name.isBlank()) {
-                drawList.addText(x + 6f, y - ImGui.getFontSize() * 0.5f, COLOR_LABEL, name);
+            if (view == PoleVoxelElevationRenderer.ElevationView.FRONT) {
+                PowerLinePreviewOverlayRenderer.drawFrontAttachmentOverlay(
+                    drawList,
+                    attachment,
+                    x,
+                    y,
+                    layout.blockSize(),
+                    PowerLinePreviewOverlayRenderer.PROPORTIONAL_INSULATOR_MAX_PX,
+                    COLOR_ATTACHMENT,
+                    COLOR_ATTACHMENT_RING,
+                    COLOR_WIRE,
+                    COLOR_TOP_WIRE,
+                    4f,
+                    attachment.getName());
+            } else {
+                drawList.addCircleFilled(x, y, 4f, COLOR_ATTACHMENT);
+                drawList.addCircle(x, y, 4.5f, COLOR_ATTACHMENT_RING, 12, 1.2f);
+                String name = attachment.getName();
+                if (name != null && !name.isBlank()) {
+                    drawList.addText(x + 6f, y - ImGui.getFontSize() * 0.5f, COLOR_LABEL, name);
+                }
             }
         }
     }
