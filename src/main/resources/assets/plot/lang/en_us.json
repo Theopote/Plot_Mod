@@ -3206,7 +3206,7 @@
   "plugin.powerline.select_line": "Select line",
   "plugin.powerline.select_line_none": "— No line selected —",
   "plugin.powerline.select_line_hint": "Select a line first",
-  "plugin.powerline.min_pole_spacing": "Close-spacing warning threshold",
+  "plugin.powerline.close_spacing_warning_threshold": "Close-spacing warning threshold",
   "plugin.powerline.max_pole_spacing": "Recommended max spacing",
   "plugin.powerline.corner_angle": "Corner angle threshold",
   "plugin.powerline.pole_height": "Pole height",

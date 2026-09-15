@@ -23,7 +23,7 @@ import java.util.UUID;
 public class PowerLineFootprint {
     public static final String DEFAULT_POLE_MATERIAL = "minecraft:oak_fence";
     public static final String DEFAULT_WIRE_MATERIAL = "minecraft:iron_bars";
-    /** 玩家可在 Route 高级区配置的最小间距下限（格）。 */
+    /** 过近警告阈值与最大档距滑块的下限（格）。 */
     public static final double MIN_CONFIGURABLE_SPACING = 5.0;
     /** 高级滑块绝对上限（格）。 */
     public static final double ABSOLUTE_MAX_POLE_SPACING = 300.0;
@@ -37,7 +37,7 @@ public class PowerLineFootprint {
     /** 快照路径是否为闭合环路（无 sourceDescriptor 时由认领写入）。 */
     private boolean closedPath;
     private String roadId;
-    private double minPoleSpacing = 15.0;
+    private double closeSpacingWarningThreshold = 15.0;
     private double maxPoleSpacing = 30.0;
     private double cornerAngleThreshold = 5.0;
     private double poleHeight = 10.0;
@@ -195,14 +195,16 @@ public class PowerLineFootprint {
         this.roadId = roadId;
     }
 
-    public double getMinPoleSpacing() {
-        return minPoleSpacing;
+    public double getCloseSpacingWarningThreshold() {
+        return closeSpacingWarningThreshold;
     }
 
-    public void setMinPoleSpacing(double minPoleSpacing) {
-        this.minPoleSpacing = Math.max(MIN_CONFIGURABLE_SPACING, minPoleSpacing);
-        if (this.maxPoleSpacing < this.minPoleSpacing) {
-            this.maxPoleSpacing = this.minPoleSpacing;
+    public void setCloseSpacingWarningThreshold(double closeSpacingWarningThreshold) {
+        this.closeSpacingWarningThreshold = Math.max(
+            MIN_CONFIGURABLE_SPACING,
+            closeSpacingWarningThreshold);
+        if (this.maxPoleSpacing < this.closeSpacingWarningThreshold) {
+            this.maxPoleSpacing = this.closeSpacingWarningThreshold;
         }
     }
 
@@ -213,7 +215,7 @@ public class PowerLineFootprint {
     public void setMaxPoleSpacing(double maxPoleSpacing) {
         this.maxPoleSpacing = Math.min(
             ABSOLUTE_MAX_POLE_SPACING,
-            Math.max(getMinPoleSpacing(), maxPoleSpacing));
+            Math.max(getCloseSpacingWarningThreshold(), maxPoleSpacing));
     }
 
     public double getCornerAngleThreshold() {
@@ -514,7 +516,7 @@ public class PowerLineFootprint {
                 hash = 31 * hash + Double.hashCode(point.y);
             }
         }
-        hash = 31 * hash + Double.hashCode(minPoleSpacing);
+        hash = 31 * hash + Double.hashCode(closeSpacingWarningThreshold);
         hash = 31 * hash + Double.hashCode(maxPoleSpacing);
         hash = 31 * hash + Double.hashCode(cornerAngleThreshold);
         if (!hasPoleDesign()) {

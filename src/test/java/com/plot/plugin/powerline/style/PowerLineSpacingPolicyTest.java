@@ -35,7 +35,7 @@ class PowerLineSpacingPolicyTest {
         PowerLineFootprint line = sampleLine();
         PowerLineStylePresetCatalog.classicWood().apply(line);
 
-        assertEquals(15.0, line.getMinPoleSpacing(), 0.01);
+        assertEquals(15.0, line.getCloseSpacingWarningThreshold(), 0.01);
         assertEquals(30.0, line.getMaxPoleSpacing(), 0.01);
         assertFalse(line.isSpacingCustomized());
         assertEquals(PowerLineUiPresets.SpacingDensity.NORMAL, PowerLineUiPresets.detectSpacing(line));
@@ -61,7 +61,7 @@ class PowerLineSpacingPolicyTest {
         PowerLineStylePresetCatalog.classicLattice().apply(line);
         PowerLineUiPresets.applySpacing(line, PowerLineUiPresets.SpacingDensity.SPARSE);
 
-        assertEquals(100.0, line.getMinPoleSpacing(), 0.01);
+        assertEquals(100.0, line.getCloseSpacingWarningThreshold(), 0.01);
         assertEquals(
             PowerLineStylePresetCatalog.classicLattice().getSpacingProfile().sparseMaxSpacing(),
             line.getMaxPoleSpacing(),
@@ -83,8 +83,8 @@ class PowerLineSpacingPolicyTest {
     @Test
     void minConfigurableFloorIsFive() {
         PowerLineFootprint line = sampleLine();
-        line.setMinPoleSpacing(2.0);
-        assertEquals(PowerLineFootprint.MIN_CONFIGURABLE_SPACING, line.getMinPoleSpacing(), 0.01);
+        line.setCloseSpacingWarningThreshold(2.0);
+        assertEquals(PowerLineFootprint.MIN_CONFIGURABLE_SPACING, line.getCloseSpacingWarningThreshold(), 0.01);
     }
 
     @Test
@@ -93,11 +93,10 @@ class PowerLineSpacingPolicyTest {
         PowerLineStylePreset preset = PowerLineStylePresetCatalog.classicWood();
         preset.apply(line);
 
-        line.setMinPoleSpacing(12.0);
+        line.setCloseSpacingWarningThreshold(12.0);
 
         assertFalse(line.isSpacingCustomized());
         assertFalse(PowerLineSpacingPolicy.differsFromStyleRecommendation(line, preset));
-        assertNull(line.getStyleOverrides().getRecommendedMinSpacing());
     }
 
     @Test
@@ -105,7 +104,7 @@ class PowerLineSpacingPolicyTest {
         PowerLineFootprint line = sampleLine();
         PowerLineStylePreset preset = PowerLineStylePresetCatalog.classicWood();
         preset.apply(line);
-        line.setMinPoleSpacing(10.0);
+        line.setCloseSpacingWarningThreshold(10.0);
 
         assertFalse(PowerLineSpacingPolicy.differsFromStyleRecommendation(line, preset));
 
@@ -118,7 +117,7 @@ class PowerLineSpacingPolicyTest {
     void densityDetectionIgnoresCloseWarningThreshold() {
         PowerLineFootprint line = sampleLine();
         PowerLineStylePresetCatalog.classicWood().apply(line);
-        line.setMinPoleSpacing(10.0);
+        line.setCloseSpacingWarningThreshold(10.0);
 
         assertEquals(PowerLineUiPresets.SpacingDensity.NORMAL, PowerLineUiPresets.detectSpacing(line));
     }

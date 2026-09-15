@@ -123,7 +123,7 @@ public final class PowerLineFriendlyStatus {
     }
 
     public static boolean spacingSettingsValid(PowerLineFootprint line) {
-        return line != null && line.getMaxPoleSpacing() >= line.getMinPoleSpacing();
+        return line != null && line.getMaxPoleSpacing() >= line.getCloseSpacingWarningThreshold();
     }
 
     public static SpacingEvaluation evaluateSpacing(
@@ -139,7 +139,7 @@ public final class PowerLineFriendlyStatus {
         }
 
         sites.sort(Comparator.comparingDouble(PowerPoleSite::getStationing));
-        double minAllowed = line.getMinPoleSpacing();
+        double minAllowed = line.getCloseSpacingWarningThreshold();
         double maxAllowed = line.getMaxPoleSpacing();
 
         double worstShort = Double.MAX_VALUE;

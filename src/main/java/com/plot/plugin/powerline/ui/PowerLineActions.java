@@ -811,7 +811,7 @@ public final class PowerLineActions {
         double closest = Double.MAX_VALUE;
         for (int i = 1; i < mandatory.size(); i++) {
             double span = host.coordinates().projectedDistance(mandatory.get(i - 1), mandatory.get(i));
-            if (span < line.getMinPoleSpacing()) {
+            if (span < line.getCloseSpacingWarningThreshold()) {
                 closest = Math.min(closest, span);
             }
         }

@@ -15,7 +15,7 @@ public record ValidationLimits(
     public static final double DEFAULT_MAX_SPAN = 40.0;
     /** 硬下限：杆距几乎叠在一起。 */
     public static final double ABSOLUTE_MIN_VISUAL_SPAN = 5.0;
-    /** @deprecated 使用 {@link #ABSOLUTE_MIN_VISUAL_SPAN} 或线路 {@code minPoleSpacing} */
+    /** @deprecated 使用 {@link #ABSOLUTE_MIN_VISUAL_SPAN} 或线路 {@code closeSpacingWarningThreshold} */
     @Deprecated
     public static final double DEFAULT_MIN_SPAN = ABSOLUTE_MIN_VISUAL_SPAN;
     public static final double DEFAULT_SUSPENSION_ANGLE = 5.0;
@@ -24,7 +24,7 @@ public record ValidationLimits(
 
     public static ValidationLimits fromFootprint(PowerLineFootprint footprint) {
         double configuredMax = footprint != null ? footprint.getMaxPoleSpacing() : 0.0;
-        double configuredMin = footprint != null ? footprint.getMinPoleSpacing() : 0.0;
+        double configuredMin = footprint != null ? footprint.getCloseSpacingWarningThreshold() : 0.0;
         double maxSpan = configuredMax > 0.0 ? configuredMax : DEFAULT_MAX_SPAN;
         double minSpan = configuredMin > 0.0 ? configuredMin : ABSOLUTE_MIN_VISUAL_SPAN;
         double suspensionAngle = footprint != null

@@ -150,7 +150,6 @@ public final class PowerLineStyleEditor {
 
     private static void syncSpacingOverrides(PowerLineFootprint line) {
         StyleOverrides overrides = line.getStyleOverrides();
-        overrides.setRecommendedMinSpacing(null);
         PowerLineStylePreset preset = basePreset(line);
         if (preset == null || !line.isSpacingCustomized()) {
             overrides.setPreferredSpacing(null);

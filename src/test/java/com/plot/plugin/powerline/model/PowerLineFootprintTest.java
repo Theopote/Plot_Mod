@@ -19,9 +19,9 @@ class PowerLineFootprintTest {
                 new com.plot.api.geometry.Vec2d(0, 0),
                 new com.plot.api.geometry.Vec2d(10, 0)));
         footprint.setMaxPoleSpacing(12.0);
-        footprint.setMinPoleSpacing(20.0);
+        footprint.setCloseSpacingWarningThreshold(20.0);
 
-        assertEquals(20.0, footprint.getMinPoleSpacing(), 1e-6);
+        assertEquals(20.0, footprint.getCloseSpacingWarningThreshold(), 1e-6);
         assertEquals(20.0, footprint.getMaxPoleSpacing(), 1e-6);
     }
 
@@ -29,8 +29,8 @@ class PowerLineFootprintTest {
     void minSpacingCannotGoBelowConfigurableFloor() {
         PowerLineFootprint footprint = new PowerLineFootprint(
             List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
-        footprint.setMinPoleSpacing(2.0);
-        assertEquals(PowerLineFootprint.MIN_CONFIGURABLE_SPACING, footprint.getMinPoleSpacing(), 1e-6);
+        footprint.setCloseSpacingWarningThreshold(2.0);
+        assertEquals(PowerLineFootprint.MIN_CONFIGURABLE_SPACING, footprint.getCloseSpacingWarningThreshold(), 1e-6);
     }
 
     @Test
@@ -39,10 +39,10 @@ class PowerLineFootprintTest {
             java.util.List.of(
                 new com.plot.api.geometry.Vec2d(0, 0),
                 new com.plot.api.geometry.Vec2d(10, 0)));
-        footprint.setMinPoleSpacing(8.0);
+        footprint.setCloseSpacingWarningThreshold(8.0);
         footprint.setMaxPoleSpacing(5.0);
 
-        assertEquals(8.0, footprint.getMinPoleSpacing(), 1e-6);
+        assertEquals(8.0, footprint.getCloseSpacingWarningThreshold(), 1e-6);
         assertEquals(8.0, footprint.getMaxPoleSpacing(), 1e-6);
     }
 

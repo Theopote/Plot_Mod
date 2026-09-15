@@ -36,7 +36,7 @@ class PowerLineFriendlyStatusTest {
             new Vec2d(10, 0),
             new Vec2d(10, 10)));
         line.setMaxPoleSpacing(20.0);
-        line.setMinPoleSpacing(15.0);
+        line.setCloseSpacingWarningThreshold(15.0);
 
         assertEquals(
             PowerLineFriendlyStatus.SpacingKind.TOO_CLOSE,

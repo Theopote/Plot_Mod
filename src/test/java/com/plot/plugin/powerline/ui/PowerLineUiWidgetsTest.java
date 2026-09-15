@@ -8,8 +8,10 @@ class PowerLineUiWidgetsTest {
 
     @Test
     void stableLabelKeepsHiddenIdSuffix() {
-        String label = PowerLineUiWidgets.stableLabel("plugin.powerline.min_pole_spacing", "min_pole_spacing");
-        assertTrue(label.endsWith("##min_pole_spacing"));
+        String label = PowerLineUiWidgets.stableLabel(
+            "plugin.powerline.close_spacing_warning_threshold",
+            "close_spacing_warning_threshold");
+        assertTrue(label.endsWith("##close_spacing_warning_threshold"));
         assertTrue(label.contains("##"));
     }
 

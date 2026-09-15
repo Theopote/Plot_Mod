@@ -77,8 +77,8 @@ class PowerLineStyleConsistencyTest {
         preset.apply(line);
 
         assertEquals(
-            preset.getSpacingProfile().recommendedMin(),
-            line.getMinPoleSpacing(),
+            preset.getSpacingProfile().defaultCloseSpacingWarningThreshold(),
+            line.getCloseSpacingWarningThreshold(),
             0.01,
             preset.getId() + " min spacing");
         assertEquals(

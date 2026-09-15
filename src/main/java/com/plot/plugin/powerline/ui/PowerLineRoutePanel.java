@@ -165,7 +165,7 @@ public final class PowerLineRoutePanel {
             PoleSpacingProfile profile = PowerLineSpacingPolicy.profileFor(line);
             ImGui.setTooltip(PlotI18n.tr(
                 "plugin.powerline.route.pole_spacing_style_tooltip",
-                PowerLineUiFormat.format(profile.recommendedMin()),
+                PowerLineUiFormat.format(profile.defaultCloseSpacingWarningThreshold()),
                 PowerLineUiFormat.format(profile.recommendedMax()),
                 PowerLineUiFormat.format(profile.preferred())));
         }
@@ -253,16 +253,16 @@ public final class PowerLineRoutePanel {
     private void renderCloseSpacingWarningThreshold(PowerLineFootprint line) {
         float sliderMin = (float) PowerLineFootprint.MIN_CONFIGURABLE_SPACING;
         float sliderMax = (float) PowerLineSpacingPolicy.sliderMax(line);
-        float[] minSpacing = {(float) line.getMinPoleSpacing()};
+        float[] threshold = {(float) line.getCloseSpacingWarningThreshold()};
         PowerLineUiWidgets.sliderFloatStableLineEdit(
             ctx,
-            "min_pole_spacing",
-            "plugin.powerline.min_pole_spacing",
-            minSpacing,
+            "close_spacing_warning_threshold",
+            "plugin.powerline.close_spacing_warning_threshold",
+            threshold,
             sliderMin,
             sliderMax,
             PowerLineUiFormat.SLIDER,
-            line::setMinPoleSpacing);
+            line::setCloseSpacingWarningThreshold);
     }
 
     private void renderCornerAngleThreshold(PowerLineFootprint line) {

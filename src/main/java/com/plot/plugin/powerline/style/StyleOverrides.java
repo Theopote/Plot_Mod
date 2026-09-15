@@ -16,7 +16,6 @@ public class StyleOverrides {
     private MaterialMix poleMaterial;
     private MaterialMix topWireMaterial;
     private Double preferredSpacing;
-    private Double recommendedMinSpacing;
     private String poleDesignId;
     private String towerFamilyId;
     private TowerGeneratorConfig parametricTowerConfig;
@@ -69,14 +68,6 @@ public class StyleOverrides {
         this.preferredSpacing = preferredSpacing;
     }
 
-    public Double getRecommendedMinSpacing() {
-        return recommendedMinSpacing;
-    }
-
-    public void setRecommendedMinSpacing(Double recommendedMinSpacing) {
-        this.recommendedMinSpacing = recommendedMinSpacing;
-    }
-
     public String getPoleDesignId() {
         return poleDesignId;
     }
@@ -108,7 +99,6 @@ public class StyleOverrides {
             && poleMaterial == null
             && topWireMaterial == null
             && preferredSpacing == null
-            && recommendedMinSpacing == null
             && poleDesignId == null
             && towerFamilyId == null
             && parametricTowerConfig == null;
@@ -135,7 +125,6 @@ public class StyleOverrides {
         poleMaterial = null;
         topWireMaterial = null;
         preferredSpacing = null;
-        recommendedMinSpacing = null;
         poleDesignId = null;
         towerFamilyId = null;
         parametricTowerConfig = null;
@@ -149,7 +138,6 @@ public class StyleOverrides {
         copy.poleMaterial = poleMaterial != null ? poleMaterial.copy() : null;
         copy.topWireMaterial = topWireMaterial != null ? topWireMaterial.copy() : null;
         copy.preferredSpacing = preferredSpacing;
-        copy.recommendedMinSpacing = recommendedMinSpacing;
         copy.poleDesignId = poleDesignId;
         copy.towerFamilyId = towerFamilyId;
         copy.parametricTowerConfig = parametricTowerConfig != null ? parametricTowerConfig.copy() : null;

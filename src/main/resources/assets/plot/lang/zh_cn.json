@@ -3206,7 +3206,7 @@
   "plugin.powerline.select_line": "选择线路",
   "plugin.powerline.select_line_none": "— 未选择线路 —",
   "plugin.powerline.select_line_hint": "请先选择一条线路",
-  "plugin.powerline.min_pole_spacing": "过近警告阈值",
+  "plugin.powerline.close_spacing_warning_threshold": "过近警告阈值",
   "plugin.powerline.max_pole_spacing": "建议最大间距",
   "plugin.powerline.corner_angle": "转角识别角度",
   "plugin.powerline.pole_height": "杆高",

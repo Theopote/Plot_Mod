@@ -167,7 +167,6 @@ public class PowerLineProject {
         MaterialMix poleMaterial;
         MaterialMix topWireMaterial;
         Double preferredSpacing;
-        Double recommendedMinSpacing;
         String poleDesignId;
         String towerFamilyId;
 
@@ -182,7 +181,6 @@ public class PowerLineProject {
             data.poleMaterial = overrides.getPoleMaterial();
             data.topWireMaterial = overrides.getTopWireMaterial();
             data.preferredSpacing = overrides.getPreferredSpacing();
-            data.recommendedMinSpacing = overrides.getRecommendedMinSpacing();
             data.poleDesignId = overrides.getPoleDesignId();
             data.towerFamilyId = overrides.getTowerFamilyId();
             return data;
@@ -199,7 +197,6 @@ public class PowerLineProject {
             overrides.setPoleMaterial(poleMaterial);
             overrides.setTopWireMaterial(topWireMaterial);
             overrides.setPreferredSpacing(preferredSpacing);
-            overrides.setRecommendedMinSpacing(recommendedMinSpacing);
             overrides.setPoleDesignId(poleDesignId);
             overrides.setTowerFamilyId(towerFamilyId);
         }
@@ -210,7 +207,10 @@ public class PowerLineProject {
         String name;
         List<Vec2dData> pathPoints = new ArrayList<>();
         String roadId;
-        double minPoleSpacing = 15.0;
+        double closeSpacingWarningThreshold = 15.0;
+        /** 旧版 JSON 字段，读取后映射为 {@link #closeSpacingWarningThreshold} */
+        @Deprecated
+        Double minPoleSpacing;
         double maxPoleSpacing = 30.0;
         double cornerAngleThreshold = 5.0;
         double poleHeight = 10.0;
@@ -244,6 +244,13 @@ public class PowerLineProject {
         double sourceEllipseRotation;
         double sourceArcStartAngle;
         double sourceArcEndAngle;
+
+        static double resolveCloseSpacingWarningThreshold(LineData lineData) {
+            if (lineData.minPoleSpacing != null) {
+                return lineData.minPoleSpacing;
+            }
+            return lineData.closeSpacingWarningThreshold;
+        }
     }
 
     static class ProjectData {
@@ -259,7 +266,7 @@ public class PowerLineProject {
                     lineData.pathPoints.add(new Vec2dData(point));
                 }
                 lineData.roadId = line.getRoadId();
-                lineData.minPoleSpacing = line.getMinPoleSpacing();
+                lineData.closeSpacingWarningThreshold = line.getCloseSpacingWarningThreshold();
                 lineData.maxPoleSpacing = line.getMaxPoleSpacing();
                 lineData.cornerAngleThreshold = line.getCornerAngleThreshold();
                 lineData.poleHeight = line.getPoleHeight();
@@ -342,7 +349,8 @@ public class PowerLineProject {
                 if (lineData.name != null) {
                     footprint.setName(lineData.name);
                 }
-                footprint.setMinPoleSpacing(lineData.minPoleSpacing);
+                footprint.setCloseSpacingWarningThreshold(
+                    LineData.resolveCloseSpacingWarningThreshold(lineData));
                 footprint.setMaxPoleSpacing(lineData.maxPoleSpacing);
                 footprint.setCornerAngleThreshold(lineData.cornerAngleThreshold);
                 footprint.setPoleHeight(lineData.poleHeight);

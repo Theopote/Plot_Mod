@@ -65,7 +65,7 @@ public final class PowerLineSpacingPolicy {
             return;
         }
         PoleSpacingProfile profile = profileFor(line);
-        line.setMinPoleSpacing(profile.recommendedMin());
+        line.setCloseSpacingWarningThreshold(profile.defaultCloseSpacingWarningThreshold());
         line.setMaxPoleSpacing(maxSpacing);
         line.setSpacingCustomized(customized);
     }
@@ -74,7 +74,7 @@ public final class PowerLineSpacingPolicy {
         if (line == null || profile == null) {
             return;
         }
-        line.setMinPoleSpacing(profile.recommendedMin());
+        line.setCloseSpacingWarningThreshold(profile.defaultCloseSpacingWarningThreshold());
         line.setMaxPoleSpacing(profile.preferred());
         line.setSpacingCustomized(false);
     }
