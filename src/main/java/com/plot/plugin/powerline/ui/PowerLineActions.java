@@ -1283,8 +1283,9 @@ public final class PowerLineActions {
         if (result == null) {
             return null;
         }
+        boolean assumeAutomaticEnabled = state.getValidationState().isPendingEnableAutomaticTowers();
         OptimizationResult optimization = com.plot.plugin.powerline.engineering.optimization.AutoTowerOptimizationProposer
-            .propose(result, line, designResolver());
+            .propose(result, line, designResolver(), assumeAutomaticEnabled);
         state.getValidationState().setPendingOptimization(optimization);
         return optimization;
     }
@@ -1329,7 +1330,7 @@ public final class PowerLineActions {
             state.getValidationState().clearOptimization();
             return;
         }
-        if (optimization.getActions().isEmpty()) {
+        if (!optimization.hasApplicableActions()) {
             state.getValidationState().clearOptimization();
             return;
         }

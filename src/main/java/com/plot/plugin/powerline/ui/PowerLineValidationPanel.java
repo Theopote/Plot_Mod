@@ -150,8 +150,8 @@ public final class PowerLineValidationPanel {
     }
 
     private void beginAutoTowerSelection(PowerLineFootprint line) {
-        ctx.actions().proposeAutoTowerSelection(line);
         ctx.state().getValidationState().setPendingEnableAutomaticTowers(true);
+        ctx.actions().proposeAutoTowerSelection(line);
         ctx.state().getValidationState().setSmartFixStrategyPending(false);
         ctx.state().getValidationState().setOptimizationConfirmPending(true);
     }
@@ -204,16 +204,37 @@ public final class PowerLineValidationPanel {
                 () -> ctx.state().getValidationState().setOptimizationConfirmPending(false))) {
             var optimization = ctx.state().getValidationState().getPendingOptimization();
             PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.engineering.proposed_changes"));
-            boolean hasChanges = optimization != null && !optimization.getActions().isEmpty();
-            if (hasChanges) {
+            boolean hasApplicable = optimization != null && optimization.hasApplicableActions();
+            boolean hasManualReview = optimization != null && !optimization.manualReviewActions().isEmpty();
+            if (hasApplicable) {
                 PoleDesignResolver resolver = ctx.designResolver();
-                for (OptimizationAction action : optimization.getActions()) {
+                for (OptimizationAction action : optimization.applicableActions()) {
                     renderProposedAction(action, resolver);
                 }
-            } else {
-                PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.engineering.no_changes"));
             }
-            if (hasChanges) {
+            if (hasManualReview) {
+                ImGui.separator();
+                PowerLineUiWidgets.textColored(
+                    PluginUiColors.WARNING,
+                    PlotI18n.tr("plugin.powerline.engineering.manual_review_section"));
+                for (OptimizationAction action : optimization.manualReviewActions()) {
+                    PowerLineUiWidgets.textColored(
+                        PluginUiColors.WARNING,
+                        PowerLineValidationI18n.optimizationReason(action));
+                }
+            }
+            if (!hasApplicable && !hasManualReview) {
+                PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.engineering.no_changes"));
+                PowerLineFootprint line = ctx.selection().primary(ctx.project());
+                PowerLineValidationReport report = line != null ? ctx.actions().cachedEngineeringReport(line) : null;
+                int issueCount = report != null ? PowerLineFriendlyStatus.lineCheckIssueCount(report) : 0;
+                if (issueCount > 0) {
+                    PowerLineUiWidgets.textColored(
+                        PluginUiColors.HINT_GRAY,
+                        PlotI18n.tr("plugin.powerline.engineering.no_changes_hint", issueCount));
+                }
+            }
+            if (hasApplicable) {
                 if (ImGui.button(PlotI18n.tr("button.plot.confirm"), 120, 0)) {
                     PowerLineFootprint line = ctx.selection().primary(ctx.project());
                     ctx.actions().applyPendingOptimization(line);

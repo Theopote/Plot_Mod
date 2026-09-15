@@ -21,8 +21,22 @@ public final class AutoTowerOptimizationProposer {
             PowerLineGenerationResult generation,
             PowerLineFootprint footprint,
             PoleDesignResolver designResolver) {
+        return propose(generation, footprint, designResolver, false);
+    }
+
+    /**
+     * @param assumeAutomaticEnabled 为 true 时跳过「智能杆塔适配」开关检查，用于用户从策略弹窗选择智能选塔、尚未写入线路模型的场景。
+     */
+    public static OptimizationResult propose(
+            PowerLineGenerationResult generation,
+            PowerLineFootprint footprint,
+            PoleDesignResolver designResolver,
+            boolean assumeAutomaticEnabled) {
         OptimizationResult result = new OptimizationResult();
-        if (generation == null || footprint == null || !footprint.isAutomaticTowerSelectionEnabled()) {
+        if (generation == null || footprint == null) {
+            return result;
+        }
+        if (!footprint.isAutomaticTowerSelectionEnabled() && !assumeAutomaticEnabled) {
             return result;
         }
         if (!footprint.hasTowerFamily() || designResolver == null) {

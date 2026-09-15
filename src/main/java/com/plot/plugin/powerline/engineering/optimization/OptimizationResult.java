@@ -44,4 +44,34 @@ public class OptimizationResult {
     public void setRequiresRegeneration(boolean requiresRegeneration) {
         this.requiresRegeneration = requiresRegeneration;
     }
+
+    /** 用户确认后可自动应用的动作（不含需人工复核项）。 */
+    public boolean hasApplicableActions() {
+        for (OptimizationAction action : actions) {
+            if (action != null && action.getType() != OptimizationActionType.MANUAL_REVIEW) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public List<OptimizationAction> applicableActions() {
+        List<OptimizationAction> applicable = new ArrayList<>();
+        for (OptimizationAction action : actions) {
+            if (action != null && action.getType() != OptimizationActionType.MANUAL_REVIEW) {
+                applicable.add(action);
+            }
+        }
+        return applicable;
+    }
+
+    public List<OptimizationAction> manualReviewActions() {
+        List<OptimizationAction> reviews = new ArrayList<>();
+        for (OptimizationAction action : actions) {
+            if (action != null && action.getType() == OptimizationActionType.MANUAL_REVIEW) {
+                reviews.add(action);
+            }
+        }
+        return reviews;
+    }
 }
