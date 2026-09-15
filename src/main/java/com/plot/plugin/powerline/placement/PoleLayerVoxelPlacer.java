@@ -99,10 +99,15 @@ public final class PoleLayerVoxelPlacer {
             VoxelSink sink,
             String materialSeedKey,
             PlanToBlockMapper mapper) {
-        BlockPos pos = mapper.toBlockPos(planPoint, baseY);
-        String blockId = MaterialMixResolver.resolve(layer.getMaterial(), pos, materialSeedKey);
-        BlockSpec spec = capBlockSpec(blockId, crossarmNormal);
-        sink.put(pos.getX(), pos.getY(), pos.getZ(), spec);
+        int topY = baseY + layer.getHeight() - 1;
+        for (int y = baseY; y <= topY; y++) {
+            BlockPos pos = mapper.toBlockPos(planPoint, y);
+            String blockId = MaterialMixResolver.resolve(layer.getMaterial(), pos, materialSeedKey);
+            BlockSpec spec = y == topY
+                ? capBlockSpec(blockId, crossarmNormal)
+                : BlockSpec.of(blockId);
+            sink.put(pos.getX(), pos.getY(), pos.getZ(), spec);
+        }
     }
 
     private static BlockSpec capBlockSpec(String blockId, Vec2d crossarmNormal) {

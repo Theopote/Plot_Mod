@@ -3292,6 +3292,7 @@
   "plugin.powerline.design.shape.cap": "顶帽",
   "plugin.powerline.design.layer_shape": "形状",
   "plugin.powerline.design.layer_height": "高度",
+  "plugin.powerline.design.layer_cap_height_hint": "顶帽可叠高至多 8 格；最顶一格使用灯笼/活板门等朝向规则。",
   "plugin.powerline.design.layer_crossarm_span": "跨度",
   "plugin.powerline.design.layer_material": "材质",
   "plugin.powerline.design.add_layer": "+ 添加一层",

@@ -7,6 +7,9 @@ import com.plot.plugin.powerline.model.PowerLineFootprint;
  * 杆塔单层定义。
  */
 public class PoleLayer {
+    public static final int COLUMN_MAX_HEIGHT = 32;
+    public static final int CAP_MAX_HEIGHT = 8;
+
     public enum Shape {
         COLUMN,
         /** 横担层；多层时最上方（层栈中最后一个）横担为导线悬挂层。 */
@@ -47,7 +50,7 @@ public class PoleLayer {
     public void setShape(Shape shape) {
         this.shape = shape != null ? shape : Shape.COLUMN;
         if (this.shape == Shape.CAP) {
-            this.height = 1;
+            this.height = clampHeight(Shape.CAP, this.height);
         }
     }
 
@@ -56,11 +59,16 @@ public class PoleLayer {
     }
 
     public void setHeight(int height) {
-        if (shape == Shape.CAP) {
-            this.height = 1;
-            return;
-        }
-        this.height = Math.max(1, Math.min(32, height));
+        this.height = clampHeight(shape, height);
+    }
+
+    public static int maxHeightForShape(Shape shape) {
+        return shape == Shape.CAP ? CAP_MAX_HEIGHT : COLUMN_MAX_HEIGHT;
+    }
+
+    private static int clampHeight(Shape shape, int height) {
+        int max = maxHeightForShape(shape);
+        return Math.max(1, Math.min(max, height));
     }
 
     public int getCrossarmLength() {

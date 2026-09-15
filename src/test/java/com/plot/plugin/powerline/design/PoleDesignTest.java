@@ -45,10 +45,12 @@ class PoleDesignTest {
     }
 
     @Test
-    void capLayerHeightIsAlwaysOne() {
+    void capLayerHeightIsClamped() {
         PoleLayer layer = new PoleLayer(PoleLayer.Shape.CAP, 1, MaterialMix.single("minecraft:stone"));
         layer.setHeight(5);
-        assertEquals(1, layer.getHeight());
+        assertEquals(5, layer.getHeight());
+        layer.setHeight(12);
+        assertEquals(PoleLayer.CAP_MAX_HEIGHT, layer.getHeight());
     }
 
     @Test

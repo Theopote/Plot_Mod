@@ -58,12 +58,21 @@ final class PoleDesignerLayerPanel {
             layer.setShape(PoleLayer.Shape.values()[shapeIndex.get()]);
         }
 
+        int maxHeight = PoleLayer.maxHeightForShape(layer.getShape());
         int[] height = {layer.getHeight()};
-        if (PoleDesignerFormRows.sliderInt("plugin.powerline.design.layer_height", "##height", height, 1, 64)) {
+        if (PoleDesignerFormRows.sliderInt(
+                "plugin.powerline.design.layer_height",
+                "##height",
+                height,
+                1,
+                maxHeight)) {
             layer.setHeight(height[0]);
         }
         if (ImGui.isItemActivated()) {
             pushDraftSnapshot.run();
+        }
+        if (layer.getShape() == PoleLayer.Shape.CAP) {
+            DialogLayoutHelper.formRowHelp(PlotI18n.tr("plugin.powerline.design.layer_cap_height_hint"));
         }
 
         if (layer.getShape() == PoleLayer.Shape.CROSSARM) {

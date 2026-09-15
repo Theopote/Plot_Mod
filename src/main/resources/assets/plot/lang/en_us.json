@@ -3292,6 +3292,7 @@
   "plugin.powerline.design.shape.cap": "Cap",
   "plugin.powerline.design.layer_shape": "Shape",
   "plugin.powerline.design.layer_height": "Height",
+  "plugin.powerline.design.layer_cap_height_hint": "Cap layers stack up to 8 blocks; only the top block uses lantern/trapdoor facing rules.",
   "plugin.powerline.design.layer_crossarm_span": "Span",
   "plugin.powerline.design.layer_material": "Material",
   "plugin.powerline.design.add_layer": "+ Add layer",

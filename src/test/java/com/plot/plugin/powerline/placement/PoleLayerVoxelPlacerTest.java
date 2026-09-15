@@ -123,6 +123,32 @@ class PoleLayerVoxelPlacerTest {
     }
 
     @Test
+    void stackedCapPlacesLanternOnlyOnTopBlock() {
+        PoleDesign design = new PoleDesign("stacked-cap", "Stacked Cap");
+        design.addLayer(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            4,
+            MaterialMix.single("minecraft:oak_fence")));
+        PoleLayer cap = new PoleLayer(
+            PoleLayer.Shape.CAP,
+            3,
+            MaterialMix.single("minecraft:lantern"));
+        design.addLayer(cap);
+
+        PreviewVoxelSink sink = new PreviewVoxelSink();
+        PoleLayerVoxelPlacer.placeDesignPreview(design, sink, "seed");
+        long sittingLanterns = sink.snapshot().stream()
+            .filter(voxel -> {
+                BlockSpec spec = BlockSpec.parse(voxel.blockId());
+                return "minecraft:lantern".equals(spec.blockId())
+                    && "false".equals(spec.property("hanging"));
+            })
+            .count();
+        assertEquals(1, sittingLanterns);
+        assertEquals(7, sink.snapshot().size());
+    }
+
+    @Test
     void capLanternAndVineUseBlockState() {
         PreviewVoxelSink japanese = new PreviewVoxelSink();
         PoleLayerVoxelPlacer.placeDesignPreview(PoleDesignCatalog.japaneseStreetPole(), japanese, "seed");
