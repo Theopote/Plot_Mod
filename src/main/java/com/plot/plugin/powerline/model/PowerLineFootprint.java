@@ -144,10 +144,6 @@ public class PowerLineFootprint {
         return sourceDescriptor != null ? sourceDescriptor.shapeId() : null;
     }
 
-    public boolean isClosedPath() {
-        return closedPath;
-    }
-
     public void setClosedPath(boolean closedPath) {
         this.closedPath = closedPath;
     }
@@ -409,11 +405,6 @@ public class PowerLineFootprint {
     /** 是否启用任意视觉/常识性检查（线路检查或地形净空）。 */
     public boolean isVisualChecksEnabled() {
         return lineChecksEnabled || terrainAvoidanceEnabled;
-    }
-
-    public void setVisualChecksEnabled(boolean enabled) {
-        lineChecksEnabled = enabled;
-        terrainAvoidanceEnabled = enabled;
     }
 
     /** @deprecated use {@link #isLineChecksEnabled()} */

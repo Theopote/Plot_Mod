@@ -8,7 +8,6 @@ import com.plot.plugin.powerline.engineering.EngineeringRuleIds;
 import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
-import com.plot.utils.PlotI18n;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -51,55 +50,12 @@ public final class PowerLineFriendlyStatus {
         }
     }
 
-    public static String friendlyIssue(PowerLineIssue issue) {
-        if (issue == null) {
-            return "";
-        }
-        return switch (issue.ruleId()) {
-            case EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM -> PlotI18n.tr(
-                "plugin.powerline.friendly.terrain_close");
-            case EngineeringRuleIds.SPAN_MAXIMUM -> PlotI18n.tr(
-                "plugin.powerline.friendly.span_too_long");
-            case EngineeringRuleIds.SPAN_MINIMUM -> PlotI18n.tr(
-                "plugin.powerline.friendly.span_too_short");
-            case EngineeringRuleIds.TOWER_ROLE_ANGLE -> PlotI18n.tr(
-                "plugin.powerline.friendly.corner_tower");
-            case EngineeringRuleIds.SAG_MAXIMUM -> PlotI18n.tr(
-                "plugin.powerline.friendly.sag_too_deep");
-            case EngineeringRuleIds.CONDUCTOR_SEPARATION_PHASE,
-                 EngineeringRuleIds.CONDUCTOR_SEPARATION_GROUND -> PlotI18n.tr(
-                "plugin.powerline.friendly.wires_too_close");
-            case EngineeringRuleIds.TOWER_BASE_UNEVEN -> PlotI18n.tr(
-                "plugin.powerline.friendly.uneven_ground");
-            default -> PlotI18n.tr("plugin.powerline.friendly.generic_issue");
-        };
-    }
-
-    public static String friendlySuggestion(PowerLineIssue issue) {
-        if (issue == null) {
-            return "";
-        }
-        return switch (issue.ruleId()) {
-            case EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM -> PlotI18n.tr(
-                "plugin.powerline.friendly.suggest_terrain");
-            case EngineeringRuleIds.SPAN_MAXIMUM -> PlotI18n.tr(
-                "plugin.powerline.friendly.suggest_span");
-            case EngineeringRuleIds.SPAN_MINIMUM -> PlotI18n.tr(
-                "plugin.powerline.friendly.suggest_dense");
-            default -> PlotI18n.tr("plugin.powerline.friendly.suggest_review");
-        };
-    }
-
     public static boolean hasTerrainIssues(PowerLineValidationReport report) {
         if (report == null) {
             return false;
         }
         return report.getIssues().stream()
             .anyMatch(i -> EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM.equals(i.ruleId()));
-    }
-
-    public static int friendlyIssueCount(PowerLineValidationReport report) {
-        return report != null ? report.getIssues().size() : 0;
     }
 
     public static int terrainIssueCount(PowerLineValidationReport report) {

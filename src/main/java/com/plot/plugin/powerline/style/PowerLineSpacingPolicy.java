@@ -82,7 +82,7 @@ public final class PowerLineSpacingPolicy {
             return false;
         }
         PoleSpacingProfile profile = preset.getSpacingProfile();
-        return !spacingClose(line.getMaxPoleSpacing(), profile.preferred(), DENSITY_MATCH_TOLERANCE);
+        return !spacingClose(line.getMaxPoleSpacing(), profile.preferred());
     }
 
     /** Route 布局密度偏好；未识别时默认为均衡（Balanced）。 */
@@ -100,7 +100,7 @@ public final class PowerLineSpacingPolicy {
         return profile.maxSpacingFor(resolved);
     }
 
-    private static boolean spacingClose(double actual, double expected, double tolerance) {
-        return Math.abs(actual - expected) <= tolerance;
+    private static boolean spacingClose(double actual, double expected) {
+        return Math.abs(actual - expected) <= PowerLineSpacingPolicy.DENSITY_MATCH_TOLERANCE;
     }
 }
