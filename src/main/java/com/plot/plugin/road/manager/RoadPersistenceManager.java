@@ -59,7 +59,6 @@ public final class RoadPersistenceManager {
         Path file = getNetworksDir().resolve(DEFAULT_NETWORK_FILE);
         if (loadNetworkFile(file, onLoaded, onSelectionReset)) {
             currentNetworkFile = DEFAULT_NETWORK_FILE;
-            status.info(PlotI18n.tr("plugin.road.network.default_loaded"));
         }
     }
 
@@ -75,7 +74,6 @@ public final class RoadPersistenceManager {
         // 仅在加载成功后才绑定 currentNetworkFile，避免失败时把旧路网写进新工程文件
         if (loadNetworkFile(file, onLoaded, onSelectionReset)) {
             currentNetworkFile = targetFile;
-            status.success(PlotI18n.tr("plugin.road.network.loaded", filePath));
         }
     }
 

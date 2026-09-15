@@ -137,7 +137,6 @@ public class BuildingPlugin extends Plugin {
         Path file = getProjectsDir().resolve(DEFAULT_PROJECT_FILE);
         if (uiContext.loadProjectFile(file)) {
             uiContext.setCurrentProjectFile(DEFAULT_PROJECT_FILE);
-            uiContext.setProjectStatus(com.plot.utils.PlotI18n.tr("plugin.building.project.default_loaded"));
         }
     }
 

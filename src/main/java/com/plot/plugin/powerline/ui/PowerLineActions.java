@@ -863,11 +863,7 @@ public final class PowerLineActions {
         boolean designsLoaded = loadDesignProjectFile(designProjectsDir.resolve(targetFile));
         if (loaded) {
             state.setCurrentProjectFile(targetFile);
-            if (designsLoaded) {
-                state.setProjectStatus(
-                    PlotI18n.tr("plugin.powerline.project.loaded", filePath),
-                    ProjectStatusSeverity.SUCCESS);
-            } else {
+            if (!designsLoaded) {
                 state.setProjectStatus(
                     PlotI18n.tr("plugin.powerline.project.loaded_designs_failed", filePath),
                     ProjectStatusSeverity.WARNING);
@@ -927,9 +923,6 @@ public final class PowerLineActions {
         }
         if (loadProjectFile(projectsDir.resolve(defaultProjectFile))) {
             state.setCurrentProjectFile(defaultProjectFile);
-            state.setProjectStatus(
-                PlotI18n.tr("plugin.powerline.project.default_loaded"),
-                ProjectStatusSeverity.SUCCESS);
         }
         loadDesignProjectFile(designProjectsDir.resolve(defaultProjectFile));
     }

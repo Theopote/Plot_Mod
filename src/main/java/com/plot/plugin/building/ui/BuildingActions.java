@@ -615,7 +615,6 @@ public final class BuildingActions {
         Path file = projectsDir.resolve(targetFile);
         if (loadProjectFile(file)) {
             state.setCurrentProjectFile(targetFile);
-            state.setProjectStatus(PlotI18n.tr("plugin.building.project.loaded", filePath));
         }
     }
 
@@ -666,7 +665,6 @@ public final class BuildingActions {
         Path file = projectsDir.resolve(defaultProjectFile);
         if (loadProjectFile(file)) {
             state.setCurrentProjectFile(defaultProjectFile);
-            state.setProjectStatus(PlotI18n.tr("plugin.building.project.default_loaded"));
         }
     }
 

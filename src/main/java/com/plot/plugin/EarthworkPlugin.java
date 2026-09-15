@@ -213,7 +213,6 @@ public class EarthworkPlugin extends Plugin implements IBuildingPadElevationServ
         Path file = getProjectsDir().resolve(targetFile);
         if (loadProjectFile(file)) {
             currentProjectFile = targetFile;
-            uiContext.setProjectStatus(PlotI18n.tr("plugin.earthwork.project.loaded", filePath));
         }
     }
 
@@ -260,7 +259,6 @@ public class EarthworkPlugin extends Plugin implements IBuildingPadElevationServ
         Path file = getProjectsDir().resolve(DEFAULT_PROJECT_FILE);
         if (loadProjectFile(file)) {
             currentProjectFile = DEFAULT_PROJECT_FILE;
-            uiContext.setProjectStatus(PlotI18n.tr("plugin.earthwork.project.default_loaded"));
         }
     }
 
