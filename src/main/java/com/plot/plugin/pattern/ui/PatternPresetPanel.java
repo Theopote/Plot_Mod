@@ -52,12 +52,15 @@ public final class PatternPresetPanel {
             ImGui.pushID(i);
             
             boolean selected = (i == selectedPresetIndex);
-            if (ImGui.selectable(preset.getName() + "##preset", selected)) {
+            if (ImGui.selectable(preset.getDisplayName() + "##preset", selected)) {
                 selectedPresetIndex = i;
             }
             
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(preset.getDescription() != null ? preset.getDescription() : "");
+                String tooltip = preset.getDisplayDescription();
+                if (!tooltip.isBlank()) {
+                    ImGui.setTooltip(tooltip);
+                }
             }
             
             ImGui.popID();
@@ -98,7 +101,7 @@ public final class PatternPresetPanel {
                 if (ImGui.button(PlotI18n.tr("plugin.pattern.delete_preset"), 0, 0)) {
                     library.deletePreset(selectedPreset.getId());
                     selectedPresetIndex = -1;
-                    ctx.setProjectStatus(PlotI18n.tr("plugin.pattern.preset_deleted", selectedPreset.getName()));
+                    ctx.setProjectStatus(PlotI18n.tr("plugin.pattern.preset_deleted", selectedPreset.getDisplayName()));
                 }
             }
         }

@@ -21,6 +21,7 @@ import com.plot.plugin.pattern.model.ImagePatternConfig;
 import com.plot.plugin.pattern.model.PatternFootprint;
 import com.plot.plugin.pattern.model.PatternProject;
 import com.plot.plugin.pattern.model.PatternSource;
+import com.plot.plugin.pattern.image.PatternPresetImageStore;
 import com.plot.plugin.pattern.model.PatternPreset;
 import com.plot.plugin.pattern.model.PatternPresetLibrary;
 import com.plot.ui.canvas.Canvas;
@@ -614,10 +615,27 @@ public final class PatternActions {
         }
 
         PatternPreset preset = PatternPreset.fromFootprint(footprint, name);
-        if (preset != null) {
-            library.addPreset(preset);
-            state.setProjectStatus(PlotI18n.tr("plugin.pattern.preset_saved", name));
+        if (preset == null) {
+            return;
         }
+        if (preset.getSource() == PatternSource.IMAGE) {
+            ImagePatternConfig imageConfig = preset.getImageConfig();
+            if (imageConfig != null && imageConfig.hasImage()) {
+                try {
+                    String assetPath = PatternPresetImageStore.copyFootprintImageToPresetAsset(
+                        library.getPluginDataDir(),
+                        preset.getId(),
+                        imageConfig);
+                    imageConfig.setImagePath(assetPath);
+                    preset.setImageConfig(imageConfig);
+                } catch (IOException e) {
+                    state.setProjectStatus(PlotI18n.tr("plugin.pattern.preset_save_failed", e.getMessage()));
+                    return;
+                }
+            }
+        }
+        library.addPreset(preset);
+        state.setProjectStatus(PlotI18n.tr("plugin.pattern.preset_saved", name));
     }
 
     public void loadPreset(PatternPreset preset, PatternFootprint footprint) {
@@ -636,7 +654,7 @@ public final class PatternActions {
         }
         
         invalidatePreview();
-        state.setProjectStatus(PlotI18n.tr("plugin.pattern.preset_loaded", preset.getName()));
+        state.setProjectStatus(PlotI18n.tr("plugin.pattern.preset_loaded", preset.getDisplayName()));
     }
 
     public void deletePreset(String presetId) {

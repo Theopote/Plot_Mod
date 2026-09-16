@@ -1,9 +1,7 @@
 package com.plot.plugin.pattern.model;
 
-import com.plot.api.geometry.Vec2d;
+import com.plot.utils.PlotI18n;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -12,10 +10,13 @@ import java.util.Objects;
 public class PatternPreset {
     private String id;
     private String name;
+    private String nameKey;
     private String description;
+    private String descriptionKey;
     private PatternSource source;
     private ProceduralPatternConfig proceduralConfig;
     private ImagePatternConfig imageConfig;
+    private PatternBorderConfig borderConfig;
     private boolean isBuiltIn;
     private long createdAt;
     private long lastUsed;
@@ -57,12 +58,50 @@ public class PatternPreset {
         this.name = name != null && !name.isBlank() ? name.trim() : this.name;
     }
 
+    public String getNameKey() {
+        return nameKey;
+    }
+
+    public void setNameKey(String nameKey) {
+        this.nameKey = nameKey;
+    }
+
+    public String getDisplayName() {
+        if (isBuiltIn && nameKey != null && !nameKey.isBlank()) {
+            return PlotI18n.tr(nameKey);
+        }
+        return name != null ? name : "";
+    }
+
     public String getDescription() {
         return description;
     }
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getDescriptionKey() {
+        return descriptionKey;
+    }
+
+    public void setDescriptionKey(String descriptionKey) {
+        this.descriptionKey = descriptionKey;
+    }
+
+    public String getDisplayDescription() {
+        if (isBuiltIn && descriptionKey != null && !descriptionKey.isBlank()) {
+            return PlotI18n.tr(descriptionKey);
+        }
+        return description != null ? description : "";
+    }
+
+    public PatternBorderConfig getBorderConfig() {
+        return borderConfig != null ? borderConfig.copy() : new PatternBorderConfig();
+    }
+
+    public void setBorderConfig(PatternBorderConfig borderConfig) {
+        this.borderConfig = borderConfig != null ? borderConfig.copy() : new PatternBorderConfig();
     }
 
     public PatternSource getSource() {
@@ -123,8 +162,11 @@ public class PatternPreset {
         copy.name = this.name;
         copy.description = this.description;
         copy.source = this.source;
+        copy.nameKey = this.nameKey;
+        copy.descriptionKey = this.descriptionKey;
         copy.proceduralConfig = this.proceduralConfig != null ? this.proceduralConfig.copy() : null;
         copy.imageConfig = this.imageConfig != null ? this.imageConfig.copy() : null;
+        copy.borderConfig = this.borderConfig != null ? this.borderConfig.copy() : null;
         copy.isBuiltIn = this.isBuiltIn;
         copy.createdAt = this.createdAt;
         copy.lastUsed = this.lastUsed;
@@ -141,6 +183,7 @@ public class PatternPreset {
         } else if (source == PatternSource.IMAGE && imageConfig != null) {
             footprint.setImagePattern(imageConfig.copy());
         }
+        footprint.setBorderConfig(getBorderConfig());
     }
 
     public static PatternPreset fromFootprint(PatternFootprint footprint, String name) {
@@ -155,6 +198,7 @@ public class PatternPreset {
         } else {
             preset.imageConfig = footprint.getImagePattern();
         }
+        preset.borderConfig = footprint.getBorderConfig();
         return preset;
     }
 
