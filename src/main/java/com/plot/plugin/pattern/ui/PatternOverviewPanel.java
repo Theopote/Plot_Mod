@@ -84,11 +84,11 @@ public final class PatternOverviewPanel {
     }
 
     public void renderDeleteConfirmPopup() {
-        if (!ctx.deleteConfirmPending()) {
-            return;
+        if (ctx.deleteConfirmPending()) {
+            ImGui.openPopup("##pattern_delete_confirm");
+            ctx.setDeleteConfirmPending(false);
         }
-        ImGui.openPopup("##pattern_delete_confirm");
-        ctx.setDeleteConfirmPending(false);
+
         if (ImGui.beginPopupModal("##pattern_delete_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
             int count = ctx.pendingDeleteFootprintIds().size();
             ImGui.text(PlotI18n.tr("plugin.pattern.delete_confirm", count));

@@ -77,7 +77,7 @@ public final class PatternActions {
     }
 
     public boolean calculatePreview(PatternFootprint footprint) {
-        return calculatePreview(List.of(footprint), false);
+        return calculatePreview(List.of(footprint), true);
     }
 
     public boolean calculatePreview(List<PatternFootprint> footprints, boolean autoProjectGhosts) {

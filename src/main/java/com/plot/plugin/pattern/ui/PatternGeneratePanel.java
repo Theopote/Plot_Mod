@@ -18,6 +18,7 @@ public final class PatternGeneratePanel {
     }
 
     public void render() {
+        PatternUiWidgets.ensurePrimaryFootprintSelected(ctx);
         ctx.selection().retainExisting(ctx.project());
         PatternFootprint footprint = ctx.selection().primary(ctx.project());
         float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
@@ -82,7 +83,6 @@ public final class PatternGeneratePanel {
             }
             if (ImGui.button(PlotI18n.tr("plugin.pattern.build_direct"), ImGui.getContentRegionAvailX(), 0)) {
                 if (ctx.calculatePreview(footprint)) {
-                    ctx.projectPreview();
                     ctx.setBuildConfirmPending(true);
                 }
             }
@@ -105,20 +105,34 @@ public final class PatternGeneratePanel {
     }
 
     public void renderBuildConfirmPopup() {
-        if (!ctx.buildConfirmPending()) {
-            return;
+        if (ctx.buildConfirmPending()) {
+            ImGui.openPopup("##pattern_build_confirm");
+            ctx.setBuildConfirmPending(false);
         }
-        ImGui.openPopup("##pattern_build_confirm");
-        ctx.setBuildConfirmPending(false);
+
         if (ImGui.beginPopupModal("##pattern_build_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
             int blockCount = ctx.lastGenerationResult() != null
                 ? ctx.lastGenerationResult().getBlockCount()
                 : 0;
             ImGui.text(PlotI18n.tr("plugin.pattern.build_confirm_message", blockCount));
+
+            com.plot.api.world.PlacementReadiness readiness =
+                ctx.host().projection().checkWorldModificationReadiness();
+            if (!readiness.ready()) {
+                ImGui.textColored(PluginUiColors.ERROR_SOFT, readiness.message());
+            }
+
             ImGui.spacing();
+            boolean canBuild = readiness.ready() && !ctx.host().placement().isBusy();
+            if (!canBuild) {
+                ImGui.beginDisabled();
+            }
             if (ImGui.button(PlotI18n.tr("plugin.pattern.build_confirm_yes"), 120, 0)) {
                 ctx.buildInWorld();
                 ImGui.closeCurrentPopup();
+            }
+            if (!canBuild) {
+                ImGui.endDisabled();
             }
             ImGui.sameLine();
             if (ImGui.button(PlotI18n.tr("plugin.pattern.build_confirm_no"), 120, 0)) {

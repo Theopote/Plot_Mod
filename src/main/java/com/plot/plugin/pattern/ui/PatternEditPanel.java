@@ -19,6 +19,7 @@ public final class PatternEditPanel {
     }
 
     public void render() {
+        PatternUiWidgets.ensurePrimaryFootprintSelected(ctx);
         ctx.selection().retainExisting(ctx.project());
         PatternFootprint footprint = ctx.selection().primary(ctx.project());
         if (footprint == null) {

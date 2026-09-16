@@ -38,6 +38,7 @@ public final class PatternUiWidgets {
         if (ctx.project().getFootprintCount() == 0) {
             return;
         }
+        ensurePrimaryFootprintSelected(ctx);
         List<PatternFootprint> footprints = new ArrayList<>(ctx.project().getFootprints().values());
         String[] labels = footprints.stream().map(PatternFootprint::getName).toArray(String[]::new);
         String[] ids = footprints.stream().map(PatternFootprint::getId).toArray(String[]::new);
@@ -52,6 +53,17 @@ public final class PatternUiWidgets {
         ImInt index = new ImInt(current);
         if (ImGui.combo(PlotI18n.tr("plugin.pattern.select_footprint"), index, labels)) {
             ctx.selection().select(ids[index.get()], false);
+        }
+    }
+
+    /**
+     * 下拉框会默认显示第一项，但 selection 可能仍为空；与建筑插件行为对齐，自动选中首个区域。
+     */
+    public static void ensurePrimaryFootprintSelected(PatternUiContext ctx) {
+        ctx.selection().retainExisting(ctx.project());
+        if (ctx.selection().isEmpty() && ctx.project().getFootprintCount() > 0) {
+            String firstId = ctx.project().getFootprints().keySet().iterator().next();
+            ctx.selection().select(firstId, false);
         }
     }
 
