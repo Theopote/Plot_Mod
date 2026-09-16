@@ -87,6 +87,14 @@ public final class PatternDesignPanel {
             ImGui.textColored(PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.pattern.checkerboard_materials_hint"));
         }
+        if (pattern.getType() == ProceduralPatternConfig.PatternType.HERRINGBONE) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.pattern.herringbone_geometry_hint"));
+        }
+        if (pattern.getType() == ProceduralPatternConfig.PatternType.CONCENTRIC_RINGS) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.pattern.ring_offset_hint"));
+        }
         PatternUiWidgets.renderMaterialList(ctx, pattern, beforeEdit, commitPattern);
 
         if (capabilities.tileSize()) {

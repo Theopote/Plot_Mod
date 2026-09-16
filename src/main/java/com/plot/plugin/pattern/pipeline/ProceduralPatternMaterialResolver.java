@@ -52,16 +52,21 @@ public final class ProceduralPatternMaterialResolver implements PatternMaterialR
         if (materials.isEmpty()) {
             return 0;
         }
-        PatternCoordinateTransform.Point point =
-            PatternCoordinateTransform.transform(config, patternX, patternZ);
         return switch (config.getType()) {
-            case CHECKERBOARD -> resolveCheckerboard(config, point.x(), point.z(), materials);
-            case STRIPES -> resolveStripes(config, point.x(), point.z(), materials);
-            case CONCENTRIC_RINGS -> resolveConcentricRings(config, point.x(), point.z(), regionCentroid, materials);
-            case MOSAIC -> resolveMosaic(config, point.x(), point.z(), materials, seedKey);
-            case HEXAGONAL -> resolveHexagonal(config, point.x(), point.z(), materials);
-            case DIAMOND -> resolveDiamond(config, point.x(), point.z(), materials);
-            case HERRINGBONE -> resolveHerringbone(config, point.x(), point.z(), materials);
+            case CONCENTRIC_RINGS -> resolveConcentricRings(config, patternX, patternZ, regionCentroid, materials);
+            case CHECKERBOARD, STRIPES, MOSAIC, HEXAGONAL, DIAMOND, HERRINGBONE -> {
+                PatternCoordinateTransform.Point point =
+                    PatternCoordinateTransform.transform(config, patternX, patternZ);
+                yield switch (config.getType()) {
+                    case CHECKERBOARD -> resolveCheckerboard(config, point.x(), point.z(), materials);
+                    case STRIPES -> resolveStripes(config, point.x(), point.z(), materials);
+                    case MOSAIC -> resolveMosaic(config, point.x(), point.z(), materials, seedKey);
+                    case HEXAGONAL -> resolveHexagonal(config, point.x(), point.z(), materials);
+                    case DIAMOND -> resolveDiamond(config, point.x(), point.z(), materials);
+                    case HERRINGBONE -> resolveHerringbone(config, point.x(), point.z(), materials);
+                    default -> 0;
+                };
+            }
         };
     }
 
@@ -105,8 +110,11 @@ public final class ProceduralPatternMaterialResolver implements PatternMaterialR
         if (center == null) {
             center = regionCentroid != null ? regionCentroid : new Vec2d(0, 0);
         }
-        double dx = x - center.x;
-        double dz = z - center.y;
+        Vec2d offset = config.getOffset();
+        double centerX = center.x + (offset != null ? offset.x : 0.0);
+        double centerZ = center.y + (offset != null ? offset.y : 0.0);
+        double dx = x - centerX;
+        double dz = z - centerZ;
         double distance = Math.sqrt(dx * dx + dz * dz);
         double tileSize = PatternCoordinateTransform.effectiveTileSize(config);
         return positiveMod(floorDiv(distance, tileSize), materials.size());

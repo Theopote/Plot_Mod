@@ -145,6 +145,7 @@ public final class PatternUiWidgets {
                 beforeChange.run();
             }
             pattern.setType(types[current.get()]);
+            com.plot.plugin.pattern.model.PatternConfigSanitizer.sanitizeForType(pattern);
             if (onChanged != null) {
                 onChanged.run();
             }

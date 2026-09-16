@@ -119,14 +119,22 @@ Claim closed regions on the canvas and replace one layer of surface blocks with 
 
 1. Draw a **closed** paving region with polygon, rectangle, circle, or ellipse tools (polylines must close end-to-end)
 2. Open **Extension** -> **Pattern Generator** -> enable the plugin
-3. Use the **Adopt** tab to pick/claim regions (**select outer and inner rings together** to auto-detect holes)
-4. On **Edit**, choose a procedural pattern or **import an image**, configure materials/palette and fit mode; use **Add hole from selection** for extra holes
+3. On the **Region** tab, pick/claim regions (**select outer and inner rings together** to auto-detect holes)
+4. On the **Design** tab, pick a preset or configure procedural / **import image**, border, and holes
 5. On **Generate**, click **Calculate preview** (ghost blocks) -> **Confirm build**
+
+### Design Tab Layout
+
+- **Presets**: built-in and user presets (border included when applied)
+- **Footprint basics**: name, procedural vs image source
+- **Pattern parameters**: capability-driven per pattern type
+- **Border**: solid edge v1 (width, outer outline, hole edges, material)
 
 ### Features
 
-- Four procedural patterns + image pixel art (stretch / contain / tile)
-- **Holes** auto-detected when adopting outer + inner rings together; manual add on Edit tab; orange outlines on canvas
+- **Seven** procedural patterns: checkerboard, stripes, concentric rings, mosaic, hexagonal, diamond, diagonal brick; plus image pixel art (stretch / contain / tile)
+- Built-in and user preset libraries; image presets use dedicated assets (`preset-assets/`)
+- Add/remove **holes** on Region or Design tab; auto-detect when adopting outer + inner rings (orange canvas outlines)
 - Pattern Space canvas sampling, separate from world projection
 - Ghost preview (isolated owner, does not interfere with other plugins)
 - Build undo/redo (only restores blocks that were actually written)
@@ -135,8 +143,10 @@ Claim closed regions on the canvas and replace one layer of surface blocks with 
 
 ### Data
 
-- Project data: `.minecraft/plot/plugins/pattern/projects/`
-- Imported images: `.minecraft/plot/plugins/pattern/images/`
+- Project data: `.minecraft/plot/plugins/pattern/projects/` (includes `schemaVersion`)
+- Footprint images: `.minecraft/plot/plugins/pattern/images/`
+- Preset images: `.minecraft/plot/plugins/pattern/preset-assets/`
+- User presets: `.minecraft/plot/plugins/pattern/presets/user_presets.json`
 
 ---
 
