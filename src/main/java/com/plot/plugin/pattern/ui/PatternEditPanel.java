@@ -1,11 +1,14 @@
 package com.plot.plugin.pattern.ui;
 
+import com.plot.plugin.pattern.model.ImagePatternConfig;
 import com.plot.plugin.pattern.model.PatternFootprint;
+import com.plot.plugin.pattern.model.PatternSource;
 import com.plot.plugin.pattern.model.ProceduralPatternConfig;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.type.ImFloat;
+import imgui.type.ImInt;
 
 /** 图案编辑 Tab。 */
 public final class PatternEditPanel {
@@ -39,11 +42,26 @@ public final class PatternEditPanel {
             }
         }
 
+        Runnable commitChange = () -> {
+            ctx.projectHistory().push(ctx.project());
+            ctx.actions().invalidatePreview();
+        };
+
+        PatternUiWidgets.renderSourceCombo(footprint, commitChange);
+        ImGui.spacing();
+
+        if (footprint.getSource() == PatternSource.IMAGE) {
+            renderImageEditor(footprint, commitChange);
+        } else {
+            renderProceduralEditor(footprint, commitChange);
+        }
+    }
+
+    private void renderProceduralEditor(PatternFootprint footprint, Runnable commitChange) {
         ProceduralPatternConfig pattern = footprint.getPattern();
         Runnable commitPattern = () -> {
             footprint.setPattern(pattern);
-            ctx.projectHistory().push(ctx.project());
-            ctx.actions().invalidatePreview();
+            commitChange.run();
         };
 
         PatternUiWidgets.renderPatternTypeCombo(pattern, type -> commitPattern.run());
@@ -85,5 +103,53 @@ public final class PatternEditPanel {
                 commitPattern.run();
             }
         }
+    }
+
+    private void renderImageEditor(PatternFootprint footprint, Runnable commitChange) {
+        ImagePatternConfig imagePattern = footprint.getImagePattern();
+        Runnable commitImage = () -> {
+            footprint.setImagePattern(imagePattern);
+            commitChange.run();
+        };
+
+        if (ImGui.button(PlotI18n.tr("plugin.pattern.import_image"), 0, 0)) {
+            ctx.importImageForFootprint(footprint);
+        }
+        if (imagePattern.hasImage()) {
+            ImGui.sameLine();
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                "plugin.pattern.image_info",
+                imagePattern.getImageWidth(),
+                imagePattern.getImageHeight(),
+                imagePattern.getImagePath()));
+        } else {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.pattern.image_missing"));
+        }
+
+        PatternUiWidgets.renderImageFitModeCombo(imagePattern, commitImage);
+        if (imagePattern.getFitMode() == ImagePatternConfig.FitMode.TILE) {
+            ImFloat tileScale = new ImFloat((float) imagePattern.getTileScale());
+            if (ImGui.sliderFloat(
+                    PlotI18n.tr("plugin.pattern.image_tile_scale"),
+                    tileScale.getData(),
+                    0.25f,
+                    8.0f,
+                    "%.2f")) {
+                imagePattern.setTileScale(tileScale.get());
+                commitImage.run();
+            }
+        }
+
+        ImInt alphaThreshold = new ImInt(imagePattern.getAlphaThreshold());
+        if (ImGui.sliderInt(
+                PlotI18n.tr("plugin.pattern.image_alpha_threshold"),
+                alphaThreshold.getData(),
+                0,
+                255)) {
+            imagePattern.setAlphaThreshold(alphaThreshold.get());
+            commitImage.run();
+        }
+
+        PatternUiWidgets.renderImagePaletteList(imagePattern, commitImage);
     }
 }

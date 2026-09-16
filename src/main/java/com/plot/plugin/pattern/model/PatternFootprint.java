@@ -3,7 +3,6 @@ package com.plot.plugin.pattern.model;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.PolygonRegionUtils;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -14,7 +13,9 @@ public class PatternFootprint {
     private final String id;
     private String name;
     private List<Vec2d> outerPoints;
-    private ProceduralPatternConfig pattern = new ProceduralPatternConfig();
+    private PatternSource source = PatternSource.PROCEDURAL;
+    private ProceduralPatternConfig proceduralPattern = new ProceduralPatternConfig();
+    private ImagePatternConfig imagePattern = new ImagePatternConfig();
 
     public PatternFootprint(List<Vec2d> outerPoints) {
         this(UUID.randomUUID().toString(), outerPoints);
@@ -46,12 +47,31 @@ public class PatternFootprint {
         this.outerPoints = copyPoints(outerPoints);
     }
 
+    public PatternSource getSource() {
+        return source != null ? source : PatternSource.PROCEDURAL;
+    }
+
+    public void setSource(PatternSource source) {
+        this.source = source != null ? source : PatternSource.PROCEDURAL;
+    }
+
     public ProceduralPatternConfig getPattern() {
-        return pattern != null ? pattern.copy() : new ProceduralPatternConfig();
+        return proceduralPattern != null ? proceduralPattern.copy() : new ProceduralPatternConfig();
     }
 
     public void setPattern(ProceduralPatternConfig pattern) {
-        this.pattern = pattern != null ? pattern.copy() : new ProceduralPatternConfig();
+        this.proceduralPattern = pattern != null ? pattern.copy() : new ProceduralPatternConfig();
+        if (this.source == null) {
+            this.source = PatternSource.PROCEDURAL;
+        }
+    }
+
+    public ImagePatternConfig getImagePattern() {
+        return imagePattern != null ? imagePattern.copy() : new ImagePatternConfig();
+    }
+
+    public void setImagePattern(ImagePatternConfig imagePattern) {
+        this.imagePattern = imagePattern != null ? imagePattern.copy() : new ImagePatternConfig();
     }
 
     public double computeArea() {

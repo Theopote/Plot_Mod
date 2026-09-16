@@ -1,6 +1,7 @@
 package com.plot.plugin.pattern.model;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.pattern.model.PatternSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -42,6 +43,38 @@ class PatternProjectTest {
         assertEquals(3.0, restoredFootprint.getPattern().getTileSize(), 1e-6);
         assertEquals(45.0, restoredFootprint.getPattern().getAngleDegrees(), 1e-6);
         assertEquals(0.6, restoredFootprint.getPattern().getMosaicPrimaryRatio(), 1e-6);
+    }
+
+    @Test
+    void jsonRoundTripPreservesImagePattern() {
+        PatternProject project = new PatternProject();
+        PatternFootprint footprint = new PatternFootprint(List.of(
+            new Vec2d(0, 0),
+            new Vec2d(6, 0),
+            new Vec2d(6, 4)
+        ));
+        footprint.setSource(PatternSource.IMAGE);
+        ImagePatternConfig imagePattern = footprint.getImagePattern();
+        imagePattern.setImagePath("images/test-footprint.png");
+        imagePattern.setImageWidth(64);
+        imagePattern.setImageHeight(32);
+        imagePattern.setFitMode(ImagePatternConfig.FitMode.CONTAIN);
+        imagePattern.setTileScale(2.0);
+        imagePattern.setAlphaThreshold(200);
+        imagePattern.setPaletteBlocks(List.of("minecraft:white_wool", "minecraft:black_wool"));
+        footprint.setImagePattern(imagePattern);
+        project.addFootprint(footprint);
+
+        PatternProject restored = PatternProject.fromJson(project.toJson());
+        PatternFootprint restoredFootprint = restored.getFootprint(footprint.getId());
+        assertNotNull(restoredFootprint);
+        assertEquals(PatternSource.IMAGE, restoredFootprint.getSource());
+        assertEquals("images/test-footprint.png", restoredFootprint.getImagePattern().getImagePath());
+        assertEquals(64, restoredFootprint.getImagePattern().getImageWidth());
+        assertEquals(ImagePatternConfig.FitMode.CONTAIN, restoredFootprint.getImagePattern().getFitMode());
+        assertEquals(2.0, restoredFootprint.getImagePattern().getTileScale(), 1e-6);
+        assertEquals(200, restoredFootprint.getImagePattern().getAlphaThreshold());
+        assertEquals(2, restoredFootprint.getImagePattern().getPaletteBlocks().size());
     }
 
     @Test

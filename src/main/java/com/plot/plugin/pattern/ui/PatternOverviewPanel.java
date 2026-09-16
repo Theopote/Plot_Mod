@@ -67,7 +67,7 @@ public final class PatternOverviewPanel {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
                 "plugin.pattern.overview_item",
                 String.format("%.1f", footprint.computeArea()),
-                PatternUiWidgets.patternTypeLabel(footprint.getPattern().getType())));
+                PatternUiWidgets.sourceLabel(footprint)));
 
             if (ImGui.button(PlotI18n.tr("plugin.pattern.locate"), 60, 0)) {
                 ctx.locateFootprint(footprint);

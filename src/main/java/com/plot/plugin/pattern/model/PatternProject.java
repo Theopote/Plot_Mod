@@ -114,11 +114,23 @@ public class PatternProject {
         double mosaicPrimaryRatio;
     }
 
+    static class ImagePatternData {
+        String imagePath;
+        int imageWidth;
+        int imageHeight;
+        List<String> paletteBlocks = new ArrayList<>();
+        String fitMode;
+        double tileScale;
+        int alphaThreshold;
+    }
+
     static class FootprintData {
         String id;
         String name;
         List<Vec2dData> outerPoints = new ArrayList<>();
+        String source;
         PatternData pattern;
+        ImagePatternData imagePattern;
     }
 
     static class ProjectData {
@@ -130,21 +142,35 @@ public class PatternProject {
                 FootprintData footprintData = new FootprintData();
                 footprintData.id = footprint.getId();
                 footprintData.name = footprint.getName();
+                footprintData.source = footprint.getSource().name();
                 for (Vec2d point : footprint.getOuterPoints()) {
                     footprintData.outerPoints.add(new Vec2dData(point));
                 }
-                ProceduralPatternConfig pattern = footprint.getPattern();
+
+                ProceduralPatternConfig procedural = footprint.getPattern();
                 PatternData patternData = new PatternData();
-                patternData.type = pattern.getType().name();
-                patternData.materials = pattern.getMaterials();
-                patternData.tileSize = pattern.getTileSize();
-                patternData.angleDegrees = pattern.getAngleDegrees();
-                Vec2d center = pattern.getCenterOverride();
+                patternData.type = procedural.getType().name();
+                patternData.materials = procedural.getMaterials();
+                patternData.tileSize = procedural.getTileSize();
+                patternData.angleDegrees = procedural.getAngleDegrees();
+                Vec2d center = procedural.getCenterOverride();
                 if (center != null) {
                     patternData.centerOverride = new Vec2dData(center);
                 }
-                patternData.mosaicPrimaryRatio = pattern.getMosaicPrimaryRatio();
+                patternData.mosaicPrimaryRatio = procedural.getMosaicPrimaryRatio();
                 footprintData.pattern = patternData;
+
+                ImagePatternConfig image = footprint.getImagePattern();
+                ImagePatternData imageData = new ImagePatternData();
+                imageData.imagePath = image.getImagePath();
+                imageData.imageWidth = image.getImageWidth();
+                imageData.imageHeight = image.getImageHeight();
+                imageData.paletteBlocks = image.getPaletteBlocks();
+                imageData.fitMode = image.getFitMode().name();
+                imageData.tileScale = image.getTileScale();
+                imageData.alphaThreshold = image.getAlphaThreshold();
+                footprintData.imagePattern = imageData;
+
                 data.footprints.add(footprintData);
             }
             return data;
@@ -170,6 +196,8 @@ public class PatternProject {
                     : UUID.randomUUID().toString();
                 PatternFootprint footprint = new PatternFootprint(id, points);
                 footprint.setName(footprintData.name);
+                footprint.setSource(parseSource(footprintData.source));
+
                 if (footprintData.pattern != null) {
                     ProceduralPatternConfig pattern = new ProceduralPatternConfig();
                     pattern.setType(parsePatternType(footprintData.pattern.type));
@@ -182,9 +210,33 @@ public class PatternProject {
                     pattern.setMosaicPrimaryRatio(footprintData.pattern.mosaicPrimaryRatio);
                     footprint.setPattern(pattern);
                 }
+
+                if (footprintData.imagePattern != null) {
+                    ImagePatternConfig imagePattern = new ImagePatternConfig();
+                    imagePattern.setImagePath(footprintData.imagePattern.imagePath);
+                    imagePattern.setImageWidth(footprintData.imagePattern.imageWidth);
+                    imagePattern.setImageHeight(footprintData.imagePattern.imageHeight);
+                    imagePattern.setPaletteBlocks(footprintData.imagePattern.paletteBlocks);
+                    imagePattern.setFitMode(parseFitMode(footprintData.imagePattern.fitMode));
+                    imagePattern.setTileScale(footprintData.imagePattern.tileScale);
+                    imagePattern.setAlphaThreshold(footprintData.imagePattern.alphaThreshold);
+                    footprint.setImagePattern(imagePattern);
+                }
+
                 project.addFootprint(footprint);
             }
             return project;
+        }
+
+        private static PatternSource parseSource(String source) {
+            if (source == null || source.isBlank()) {
+                return PatternSource.PROCEDURAL;
+            }
+            try {
+                return PatternSource.valueOf(source.trim().toUpperCase());
+            } catch (IllegalArgumentException ignored) {
+                return PatternSource.PROCEDURAL;
+            }
         }
 
         private static ProceduralPatternConfig.PatternType parsePatternType(String type) {
@@ -195,6 +247,17 @@ public class PatternProject {
                 return ProceduralPatternConfig.PatternType.valueOf(type.trim().toUpperCase());
             } catch (IllegalArgumentException ignored) {
                 return ProceduralPatternConfig.PatternType.CHECKERBOARD;
+            }
+        }
+
+        private static ImagePatternConfig.FitMode parseFitMode(String fitMode) {
+            if (fitMode == null || fitMode.isBlank()) {
+                return ImagePatternConfig.FitMode.STRETCH;
+            }
+            try {
+                return ImagePatternConfig.FitMode.valueOf(fitMode.trim().toUpperCase());
+            } catch (IllegalArgumentException ignored) {
+                return ImagePatternConfig.FitMode.STRETCH;
             }
         }
     }

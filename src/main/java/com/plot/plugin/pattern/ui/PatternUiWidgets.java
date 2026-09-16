@@ -1,6 +1,8 @@
 package com.plot.plugin.pattern.ui;
 
+import com.plot.plugin.pattern.model.ImagePatternConfig;
 import com.plot.plugin.pattern.model.PatternFootprint;
+import com.plot.plugin.pattern.model.PatternSource;
 import com.plot.plugin.pattern.model.ProceduralPatternConfig;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.UIUtils;
@@ -124,5 +126,96 @@ public final class PatternUiWidgets {
 
     public static String patternTypeLabel(ProceduralPatternConfig.PatternType type) {
         return PlotI18n.tr("plugin.pattern.type." + type.name().toLowerCase());
+    }
+
+    public static String sourceLabel(PatternFootprint footprint) {
+        if (footprint.getSource() == PatternSource.IMAGE) {
+            return PlotI18n.tr("plugin.pattern.source.image");
+        }
+        return patternTypeLabel(footprint.getPattern().getType());
+    }
+
+    public static void renderSourceCombo(
+            PatternFootprint footprint,
+            Runnable onChanged) {
+        PatternSource[] sources = PatternSource.values();
+        String[] labels = new String[] {
+            PlotI18n.tr("plugin.pattern.source.procedural"),
+            PlotI18n.tr("plugin.pattern.source.image")
+        };
+        ImInt current = new ImInt(footprint.getSource().ordinal());
+        if (ImGui.combo(PlotI18n.tr("plugin.pattern.pattern_source"), current, labels)) {
+            footprint.setSource(sources[current.get()]);
+            if (onChanged != null) {
+                onChanged.run();
+            }
+        }
+    }
+
+    public static void renderImagePaletteList(
+            ImagePatternConfig imagePattern,
+            Runnable onChanged) {
+        List<String> palette = new ArrayList<>(imagePattern.getPaletteBlocks());
+        ImGui.text(PlotI18n.tr("plugin.pattern.image_palette"));
+        for (int i = 0; i < palette.size(); i++) {
+            ImGui.pushID(i);
+            final int index = i;
+            String blockId = palette.get(index);
+            ImGui.text(PlotI18n.tr("plugin.pattern.palette_slot", index + 1));
+            ImGui.sameLine();
+            if (ImGui.button(UIUtils.getBlockDisplayName(blockId) + "##palette", 0, 0)) {
+                UIUtils.openBlockPicker(blockId, selected -> {
+                    palette.set(index, selected);
+                    imagePattern.setPaletteBlocks(palette);
+                    if (onChanged != null) {
+                        onChanged.run();
+                    }
+                });
+            }
+            ImGui.sameLine();
+            boolean canRemove = palette.size() > 2;
+            if (!canRemove) {
+                ImGui.beginDisabled();
+            }
+            if (ImGui.button(PlotI18n.tr("plugin.pattern.remove_material") + "##palette_rm", 0, 0)) {
+                palette.remove(index);
+                imagePattern.setPaletteBlocks(palette);
+                if (onChanged != null) {
+                    onChanged.run();
+                }
+            }
+            if (!canRemove) {
+                ImGui.endDisabled();
+            }
+            ImGui.popID();
+        }
+        if (palette.size() < 32) {
+            if (ImGui.button(PlotI18n.tr("plugin.pattern.add_palette_block"), 0, 0)) {
+                UIUtils.openBlockPicker("minecraft:white_wool", selected -> {
+                    palette.add(selected);
+                    imagePattern.setPaletteBlocks(palette);
+                    if (onChanged != null) {
+                        onChanged.run();
+                    }
+                });
+            }
+        }
+    }
+
+    public static void renderImageFitModeCombo(
+            ImagePatternConfig imagePattern,
+            Runnable onChanged) {
+        ImagePatternConfig.FitMode[] modes = ImagePatternConfig.FitMode.values();
+        String[] labels = new String[modes.length];
+        for (int i = 0; i < modes.length; i++) {
+            labels[i] = PlotI18n.tr("plugin.pattern.image_fit." + modes[i].name().toLowerCase());
+        }
+        ImInt current = new ImInt(imagePattern.getFitMode().ordinal());
+        if (ImGui.combo(PlotI18n.tr("plugin.pattern.image_fit_mode"), current, labels)) {
+            imagePattern.setFitMode(modes[current.get()]);
+            if (onChanged != null) {
+                onChanged.run();
+            }
+        }
     }
 }

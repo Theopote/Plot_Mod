@@ -30,6 +30,10 @@ public final class PatternUiContext {
         this.actions = new PatternActions(host, state, projectLock);
     }
 
+    public void setPluginDataDir(Path pluginDataDir) {
+        actions.setPluginDataDir(pluginDataDir);
+    }
+
     public void setPatternGenerator(PatternGenerator patternGenerator) {
         actions.setPatternGenerator(patternGenerator);
     }
@@ -168,6 +172,10 @@ public final class PatternUiContext {
 
     public void adoptSelectedRegions() {
         actions.adoptSelectedRegions();
+    }
+
+    public void importImageForFootprint(PatternFootprint footprint) {
+        actions.importImageForFootprint(footprint);
     }
 
     public void deleteFootprints(List<String> ids) {

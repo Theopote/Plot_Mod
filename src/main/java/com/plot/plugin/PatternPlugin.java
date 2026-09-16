@@ -51,13 +51,15 @@ public class PatternPlugin extends Plugin {
     public void onEnable() {
         PatternGenerator patternGenerator;
         try {
-            patternGenerator = new PatternGenerator(ctx().coordinates(), ctx().projection());
+            Path pluginDataDir = getDataFolder().toPath();
+            patternGenerator = new PatternGenerator(ctx().coordinates(), ctx().projection(), pluginDataDir);
         } catch (Exception e) {
             LOGGER.error("初始化图案生成器失败: {}", e.getMessage(), e);
             throw new RuntimeException("图案插件初始化失败", e);
         }
 
         uiContext = new PatternUiContext(ctx(), pluginState, projectLock);
+        uiContext.setPluginDataDir(getDataFolder().toPath());
         uiContext.setPatternGenerator(patternGenerator);
         uiManager = new PatternUIManager(uiContext);
 
