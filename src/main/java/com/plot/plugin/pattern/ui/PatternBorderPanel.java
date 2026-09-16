@@ -9,7 +9,7 @@ import imgui.ImGui;
 import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 
-/** 图案边框配置面板。 */
+/** 图案边框配置（嵌入图案页）。 */
 public final class PatternBorderPanel {
     private final PatternUiContext ctx;
 
@@ -17,18 +17,21 @@ public final class PatternBorderPanel {
         this.ctx = ctx;
     }
 
-    public void render() {
-        PatternFootprint footprint = ctx.selection().primary(ctx.project());
+    public void renderSection(PatternFootprint footprint) {
         if (footprint == null) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.pattern.select_footprint_hint"));
+            return;
+        }
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.pattern.border_section"))) {
             return;
         }
 
         PatternBorderConfig borderConfig = footprint.getBorderConfig();
         Runnable beforeEdit = () -> ctx.projectHistory().push(ctx.project());
-        Runnable commit = () -> ctx.actions().invalidatePreview();
+        Runnable commit = () -> {
+            footprint.setBorderConfig(borderConfig);
+            ctx.actions().invalidatePreview();
+        };
 
-        // 启用/禁用边框
         ImBoolean enabled = new ImBoolean(borderConfig.isEnabled());
         if (ImGui.checkbox(PlotI18n.tr("plugin.pattern.border_enabled"), enabled)) {
             beforeEdit.run();
@@ -42,11 +45,8 @@ public final class PatternBorderPanel {
         }
 
         ImGui.spacing();
-
-        // 边框样式
         renderBorderStyleCombo(borderConfig, beforeEdit, commit);
 
-        // 边框宽度
         ImFloat borderWidth = new ImFloat((float) borderConfig.getBorderWidth());
         boolean widthChanged = ImGui.sliderFloat(
             PlotI18n.tr("plugin.pattern.border_width"),
@@ -62,7 +62,6 @@ public final class PatternBorderPanel {
             commit.run();
         }
 
-        // 边框位置选项
         ImBoolean innerBorder = new ImBoolean(borderConfig.isInnerBorder());
         if (ImGui.checkbox(PlotI18n.tr("plugin.pattern.border_inner"), innerBorder)) {
             beforeEdit.run();
@@ -77,7 +76,6 @@ public final class PatternBorderPanel {
             commit.run();
         }
 
-        // 圆角半径
         ImFloat cornerRadius = new ImFloat((float) borderConfig.getCornerRadius());
         boolean radiusChanged = ImGui.sliderFloat(
             PlotI18n.tr("plugin.pattern.border_corner_radius"),
@@ -94,8 +92,6 @@ public final class PatternBorderPanel {
         }
 
         ImGui.spacing();
-
-        // 边框材质选择
         ImGui.text(PlotI18n.tr("plugin.pattern.border_material"));
         String currentMaterial = borderConfig.getPrimaryBorderMaterial();
         if (ImGui.button(UIUtils.getBlockDisplayName(currentMaterial) + "##border_mat", 0, 0)) {
@@ -116,7 +112,7 @@ public final class PatternBorderPanel {
         for (int i = 0; i < styles.length; i++) {
             labels[i] = PlotI18n.tr("plugin.pattern.border_style." + styles[i].name().toLowerCase());
         }
-        
+
         imgui.type.ImInt current = new imgui.type.ImInt(borderConfig.getStyle().ordinal());
         if (ImGui.combo(PlotI18n.tr("plugin.pattern.border_style"), current, labels)) {
             beforeEdit.run();

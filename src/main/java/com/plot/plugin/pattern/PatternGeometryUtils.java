@@ -292,6 +292,21 @@ public final class PatternGeometryUtils {
         return groups;
     }
 
+    public record AdoptSelectionSummary(int selectedShapeCount, int outerCount, int holeCount) {
+    }
+
+    public static AdoptSelectionSummary summarizeAdoptSelection(List<Shape> shapes) {
+        List<AdoptedRegionGroup> groups = groupAdoptableRegionsWithHoles(shapes);
+        int holeCount = 0;
+        for (AdoptedRegionGroup group : groups) {
+            holeCount += group.holes().size();
+        }
+        return new AdoptSelectionSummary(
+            shapes != null ? shapes.size() : 0,
+            groups.size(),
+            holeCount);
+    }
+
     public static List<Vec2d> extractFirstRegionFromShapes(List<Shape> shapes) {
         if (shapes == null) {
             return List.of();

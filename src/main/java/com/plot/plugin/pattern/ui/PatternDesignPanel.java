@@ -2,22 +2,28 @@ package com.plot.plugin.pattern.ui;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.pattern.model.ImagePatternConfig;
+import com.plot.plugin.pattern.model.PatternCapabilities;
 import com.plot.plugin.pattern.model.PatternFootprint;
 import com.plot.plugin.pattern.model.PatternSource;
 import com.plot.plugin.pattern.model.ProceduralPatternConfig;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
 
-/** 图案编辑 Tab。 */
-public final class PatternEditPanel {
+/** 图案设计 Tab（预设 + 编辑 + 边框）。 */
+public final class PatternDesignPanel {
     private final PatternUiContext ctx;
+    private final PatternPresetPanel presetPanel;
+    private final PatternBorderPanel borderPanel;
 
-    public PatternEditPanel(PatternUiContext ctx) {
+    public PatternDesignPanel(PatternUiContext ctx) {
         this.ctx = ctx;
+        this.presetPanel = new PatternPresetPanel(ctx);
+        this.borderPanel = new PatternBorderPanel(ctx);
     }
 
     public void render() {
@@ -34,6 +40,11 @@ public final class PatternEditPanel {
         PatternUiWidgets.renderFootprintSelector(ctx);
         ImGui.spacing();
 
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.pattern.preset_section"), ImGuiTreeNodeFlags.DefaultOpen)) {
+            presetPanel.renderSection();
+            ImGui.spacing();
+        }
+
         if (ctx.footprintNameEditingId().equals(footprint.getId())) {
             if (ImGui.inputText(PlotI18n.tr("plugin.pattern.footprint_name"), ctx.footprintNameBuffer())) {
                 footprint.setName(ctx.footprintNameBuffer().get());
@@ -48,8 +59,6 @@ public final class PatternEditPanel {
         Runnable beforeEdit = () -> ctx.projectHistory().push(ctx.project());
         Runnable invalidate = () -> ctx.actions().invalidatePreview();
 
-        PatternUiWidgets.renderFootprintGeometrySection(ctx, footprint, invalidate);
-
         PatternUiWidgets.renderSourceCombo(footprint, beforeEdit, invalidate);
         ImGui.spacing();
 
@@ -58,6 +67,8 @@ public final class PatternEditPanel {
         } else {
             renderProceduralEditor(footprint, beforeEdit, invalidate);
         }
+
+        borderPanel.renderSection(footprint);
     }
 
     private void renderProceduralEditor(
@@ -65,6 +76,7 @@ public final class PatternEditPanel {
             Runnable beforeEdit,
             Runnable invalidate) {
         ProceduralPatternConfig pattern = footprint.getPattern();
+        PatternCapabilities capabilities = PatternCapabilities.forType(pattern.getType());
         Runnable commitPattern = () -> {
             footprint.setPattern(pattern);
             invalidate.run();
@@ -77,22 +89,24 @@ public final class PatternEditPanel {
         }
         PatternUiWidgets.renderMaterialList(ctx, pattern, beforeEdit, commitPattern);
 
-        ImFloat tileSize = new ImFloat((float) pattern.getTileSize());
-        boolean tileChanged = ImGui.sliderFloat(
-            PlotI18n.tr("plugin.pattern.tile_size"),
-            tileSize.getData(),
-            0.5f,
-            (float) ProceduralPatternConfig.MAX_TILE_SIZE,
-            "%.1f");
-        if (ImGui.isItemActivated()) {
-            beforeEdit.run();
-        }
-        if (tileChanged) {
-            pattern.setTileSize(tileSize.get());
-            commitPattern.run();
+        if (capabilities.tileSize()) {
+            ImFloat tileSize = new ImFloat((float) pattern.getTileSize());
+            boolean tileChanged = ImGui.sliderFloat(
+                PlotI18n.tr("plugin.pattern.tile_size"),
+                tileSize.getData(),
+                0.5f,
+                (float) ProceduralPatternConfig.MAX_TILE_SIZE,
+                "%.1f");
+            if (ImGui.isItemActivated()) {
+                beforeEdit.run();
+            }
+            if (tileChanged) {
+                pattern.setTileSize(tileSize.get());
+                commitPattern.run();
+            }
         }
 
-        if (pattern.getType() == ProceduralPatternConfig.PatternType.STRIPES) {
+        if (capabilities.rotation()) {
             ImFloat angle = new ImFloat((float) pattern.getAngleDegrees());
             boolean angleChanged = ImGui.sliderFloat(
                 PlotI18n.tr("plugin.pattern.angle_degrees"),
@@ -109,7 +123,15 @@ public final class PatternEditPanel {
             }
         }
 
-        if (pattern.getType() == ProceduralPatternConfig.PatternType.MOSAIC) {
+        if (capabilities.offset()) {
+            renderOffsetControls(pattern, beforeEdit, commitPattern);
+        }
+
+        if (capabilities.density()) {
+            renderDensityControl(pattern, beforeEdit, commitPattern);
+        }
+
+        if (capabilities.mosaicRatio()) {
             ImFloat ratio = new ImFloat((float) pattern.getMosaicPrimaryRatio());
             boolean ratioChanged = ImGui.sliderFloat(
                 PlotI18n.tr("plugin.pattern.mosaic_primary_ratio"),
@@ -126,18 +148,8 @@ public final class PatternEditPanel {
             }
         }
 
-        if (pattern.getType() == ProceduralPatternConfig.PatternType.CONCENTRIC_RINGS) {
+        if (capabilities.centerOverride()) {
             renderConcentricRingCenter(footprint, pattern, beforeEdit, commitPattern);
-        }
-
-        // 添加偏移控制
-        renderOffsetControls(pattern, beforeEdit, commitPattern);
-        
-        // 添加密度控制（适用于新图案类型）
-        if (pattern.getType() == ProceduralPatternConfig.PatternType.HEXAGONAL ||
-            pattern.getType() == ProceduralPatternConfig.PatternType.DIAMOND ||
-            pattern.getType() == ProceduralPatternConfig.PatternType.HERRINGBONE) {
-            renderDensityControl(pattern, beforeEdit, commitPattern);
         }
     }
 
@@ -196,10 +208,10 @@ public final class PatternEditPanel {
             ProceduralPatternConfig pattern,
             Runnable beforeEdit,
             Runnable commitPattern) {
-        com.plot.api.geometry.Vec2d offset = pattern.getOffset();
+        Vec2d offset = pattern.getOffset();
         ImFloat offsetX = new ImFloat((float) offset.x);
         ImFloat offsetZ = new ImFloat((float) offset.y);
-        
+
         boolean offsetChanged = ImGui.inputFloat(
             PlotI18n.tr("plugin.pattern.offset_x"),
             offsetX,
@@ -212,12 +224,12 @@ public final class PatternEditPanel {
             0.1f,
             0.5f,
             "%.1f");
-        
+
         if (ImGui.isItemActivated()) {
             beforeEdit.run();
         }
         if (offsetChanged) {
-            pattern.setOffset(new com.plot.api.geometry.Vec2d(offsetX.get(), offsetZ.get()));
+            pattern.setOffset(new Vec2d(offsetX.get(), offsetZ.get()));
             commitPattern.run();
         }
     }
@@ -233,7 +245,7 @@ public final class PatternEditPanel {
             0.1f,
             3.0f,
             "%.2f");
-        
+
         if (ImGui.isItemActivated()) {
             beforeEdit.run();
         }
@@ -241,7 +253,7 @@ public final class PatternEditPanel {
             pattern.setDensity(density.get());
             commitPattern.run();
         }
-        
+
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.pattern.density_hint"));
     }
 

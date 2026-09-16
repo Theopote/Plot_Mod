@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * 程序化图案材质解析（Checkerboard / Stripes / Rings / Mosaic / Hexagonal / Diamond / Herringbone）。
+ * 程序化图案材质解析。
  */
 public final class ProceduralPatternMaterialResolver implements PatternMaterialResolver {
     private final ProceduralPatternConfig config;
@@ -52,14 +52,16 @@ public final class ProceduralPatternMaterialResolver implements PatternMaterialR
         if (materials.isEmpty()) {
             return 0;
         }
+        PatternCoordinateTransform.Point point =
+            PatternCoordinateTransform.transform(config, patternX, patternZ);
         return switch (config.getType()) {
-            case CHECKERBOARD -> resolveCheckerboard(config, patternX, patternZ, materials);
-            case STRIPES -> resolveStripes(config, patternX, patternZ, materials);
-            case CONCENTRIC_RINGS -> resolveConcentricRings(config, patternX, patternZ, regionCentroid, materials);
-            case MOSAIC -> resolveMosaic(config, patternX, patternZ, materials, seedKey);
-            case HEXAGONAL -> resolveHexagonal(config, patternX, patternZ, materials);
-            case DIAMOND -> resolveDiamond(config, patternX, patternZ, materials);
-            case HERRINGBONE -> resolveHerringbone(config, patternX, patternZ, materials, seedKey);
+            case CHECKERBOARD -> resolveCheckerboard(config, point.x(), point.z(), materials);
+            case STRIPES -> resolveStripes(config, point.x(), point.z(), materials);
+            case CONCENTRIC_RINGS -> resolveConcentricRings(config, point.x(), point.z(), regionCentroid, materials);
+            case MOSAIC -> resolveMosaic(config, point.x(), point.z(), materials, seedKey);
+            case HEXAGONAL -> resolveHexagonal(config, point.x(), point.z(), materials);
+            case DIAMOND -> resolveDiamond(config, point.x(), point.z(), materials);
+            case HERRINGBONE -> resolveHerringbone(config, point.x(), point.z(), materials);
         };
     }
 
@@ -72,53 +74,53 @@ public final class ProceduralPatternMaterialResolver implements PatternMaterialR
 
     private static int resolveCheckerboard(
             ProceduralPatternConfig config,
-            double patternX,
-            double patternZ,
+            double x,
+            double z,
             List<String> materials) {
-        double tileSize = Math.max(1e-6, config.getTileSize());
-        int parity = floorDiv(patternX, tileSize) + floorDiv(patternZ, tileSize);
+        double tileSize = PatternCoordinateTransform.effectiveTileSize(config);
+        int parity = floorDiv(x, tileSize) + floorDiv(z, tileSize);
         return positiveMod(parity, materials.size());
     }
 
     private static int resolveStripes(
             ProceduralPatternConfig config,
-            double patternX,
-            double patternZ,
+            double x,
+            double z,
             List<String> materials) {
         double radians = Math.toRadians(config.getAngleDegrees());
         double cos = Math.cos(radians);
         double sin = Math.sin(radians);
-        double rotatedX = patternX * cos + patternZ * sin;
-        double tileSize = Math.max(1e-6, config.getTileSize());
+        double rotatedX = x * cos + z * sin;
+        double tileSize = PatternCoordinateTransform.effectiveTileSize(config);
         return positiveMod(floorDiv(rotatedX, tileSize), materials.size());
     }
 
     private static int resolveConcentricRings(
             ProceduralPatternConfig config,
-            double patternX,
-            double patternZ,
+            double x,
+            double z,
             Vec2d regionCentroid,
             List<String> materials) {
         Vec2d center = config.getCenterOverride();
         if (center == null) {
             center = regionCentroid != null ? regionCentroid : new Vec2d(0, 0);
         }
-        double dx = patternX - center.x;
-        double dz = patternZ - center.y;
+        double dx = x - center.x;
+        double dz = z - center.y;
         double distance = Math.sqrt(dx * dx + dz * dz);
-        double tileSize = Math.max(1e-6, config.getTileSize());
+        double tileSize = PatternCoordinateTransform.effectiveTileSize(config);
         return positiveMod(floorDiv(distance, tileSize), materials.size());
     }
 
     private static int resolveMosaic(
             ProceduralPatternConfig config,
-            double patternX,
-            double patternZ,
+            double x,
+            double z,
             List<String> materials,
             String seedKey) {
-        double tileSize = Math.max(0.5, config.getTileSize());
-        int cellX = floorDiv(patternX, tileSize);
-        int cellZ = floorDiv(patternZ, tileSize);
+        double tileSize = Math.max(0.5, PatternCoordinateTransform.effectiveTileSize(config));
+        int cellX = floorDiv(x, tileSize);
+        int cellZ = floorDiv(z, tileSize);
         BlockPos pos = new BlockPos(cellX, 0, cellZ);
 
         if (materials.size() <= 2) {
@@ -143,75 +145,52 @@ public final class ProceduralPatternMaterialResolver implements PatternMaterialR
 
     private static int resolveHexagonal(
             ProceduralPatternConfig config,
-            double patternX,
-            double patternZ,
+            double x,
+            double z,
             List<String> materials) {
-        double tileSize = Math.max(1e-6, config.getTileSize());
-        Vec2d offset = config.getOffset();
-        double offsetX = offset != null ? offset.x : 0;
-        double offsetZ = offset != null ? offset.y : 0;
-        
-        // 六边形网格计算
-        double hexWidth = tileSize * Math.sqrt(3);
-        double hexHeight = tileSize * 2;
-        
-        double x = patternX + offsetX;
-        double z = patternZ + offsetZ;
-        
-        // 计算六边形网格坐标
+        double hexSize = PatternCoordinateTransform.effectiveTileSize(config);
+        double hexWidth = hexSize * Math.sqrt(3);
+        double hexHeight = hexSize * 2.0;
+
         double col = x / hexWidth;
         double row = z / (hexHeight * 0.75);
-        
         int colInt = (int) Math.floor(col);
         int rowInt = (int) Math.floor(row);
-        
-        // 判断是否在偏移行
-        boolean isOffsetRow = (rowInt % 2) != 0;
-        double effectiveCol = isOffsetRow ? col - 0.5 : col;
-        
-        // 计算六边形内部位置
-        double colFrac = col - colInt;
-        double rowFrac = row - rowInt;
-        
-        // 六边形内部判断
-        double centerX = isOffsetRow ? 0.5 : 0;
-        double dz = rowFrac - 0.5;
-        double dx = colFrac - centerX;
-        
+        boolean offsetRow = (rowInt & 1) != 0;
+        double centerX = offsetRow ? 0.5 : 0.0;
+        double localX = col - colInt - centerX;
+        double localZ = row - rowInt - 0.5;
+
+        if (!isInsideFlatTopHex(localX, localZ, hexSize, hexWidth, hexHeight)) {
+            return positiveMod(colInt + rowInt + 1, materials.size());
+        }
         int hexIndex = rowInt * 2 + colInt;
         return positiveMod(hexIndex, materials.size());
     }
 
+    private static boolean isInsideFlatTopHex(
+            double localX,
+            double localZ,
+            double hexSize,
+            double hexWidth,
+            double hexHeight) {
+        double halfWidth = hexWidth * 0.5;
+        double halfHeight = hexHeight * 0.5;
+        double ax = Math.abs(localX) * halfWidth;
+        double az = Math.abs(localZ) * halfHeight;
+        return ax + az * (halfWidth / halfHeight) <= halfWidth * 0.5;
+    }
+
     private static int resolveDiamond(
             ProceduralPatternConfig config,
-            double patternX,
-            double patternZ,
+            double x,
+            double z,
             List<String> materials) {
-        double tileSize = Math.max(1e-6, config.getTileSize());
-        Vec2d offset = config.getOffset();
-        double offsetX = offset != null ? offset.x : 0;
-        double offsetZ = offset != null ? offset.y : 0;
-        
-        double radians = Math.toRadians(config.getAngleDegrees());
-        double cos = Math.cos(radians);
-        double sin = Math.sin(radians);
-        
-        double x = patternX + offsetX;
-        double z = patternZ + offsetZ;
-        
-        // 旋转坐标
-        double rotatedX = x * cos + z * sin;
-        double rotatedZ = -x * sin + z * cos;
-        
-        // 菱形网格计算
-        double diamondSize = tileSize * config.getDensity();
-        int cellX = floorDiv(rotatedX, diamondSize);
-        int cellZ = floorDiv(rotatedZ, diamondSize);
-        
-        // 菱形判断 (曼哈顿距离)
-        double localX = (rotatedX - cellX * diamondSize) / diamondSize;
-        double localZ = (rotatedZ - cellZ * diamondSize) / diamondSize;
-        
+        double diamondSize = PatternCoordinateTransform.effectiveTileSize(config);
+        int cellX = floorDiv(x, diamondSize);
+        int cellZ = floorDiv(z, diamondSize);
+        double localX = (x - cellX * diamondSize) / diamondSize;
+        double localZ = (z - cellZ * diamondSize) / diamondSize;
         boolean isDiamond = (Math.abs(localX - 0.5) + Math.abs(localZ - 0.5)) < 0.5;
         int baseIndex = cellX + cellZ;
         return positiveMod(baseIndex + (isDiamond ? 0 : 1), materials.size());
@@ -219,51 +198,20 @@ public final class ProceduralPatternMaterialResolver implements PatternMaterialR
 
     private static int resolveHerringbone(
             ProceduralPatternConfig config,
-            double patternX,
-            double patternZ,
-            List<String> materials,
-            String seedKey) {
-        double tileSize = Math.max(1e-6, config.getTileSize());
-        Vec2d offset = config.getOffset();
-        double offsetX = offset != null ? offset.x : 0;
-        double offsetZ = offset != null ? offset.y : 0;
-        
-        double radians = Math.toRadians(config.getAngleDegrees());
-        double cos = Math.cos(radians);
-        double sin = Math.sin(radians);
-        
-        double x = patternX + offsetX;
-        double z = patternZ + offsetZ;
-        
-        // 旋转坐标
-        double rotatedX = x * cos + z * sin;
-        double rotatedZ = -x * sin + z * cos;
-        
-        // 人字形网格计算
-        double brickWidth = tileSize * config.getDensity();
-        double brickHeight = tileSize * 0.5;
-        
-        int row = floorDiv(rotatedZ, brickHeight);
-        boolean isOffsetRow = (row % 2) != 0;
-        
-        double localZ = rotatedZ - row * brickHeight;
-        double effectiveX = isOffsetRow ? rotatedX - brickWidth * 0.5 : rotatedX;
-        
+            double x,
+            double z,
+            List<String> materials) {
+        double brickWidth = PatternCoordinateTransform.effectiveTileSize(config);
+        double brickHeight = brickWidth * 0.5;
+        int row = floorDiv(z, brickHeight);
+        boolean offsetRow = (row & 1) != 0;
+        double effectiveX = offsetRow ? x - brickWidth * 0.5 : x;
         int col = floorDiv(effectiveX, brickWidth);
         double localX = effectiveX - col * brickWidth;
-        
-        // 人字形判断 (基于位置的倾斜)
-        boolean isHerringbone = localX < localZ * (brickWidth / brickHeight);
-        
+        double localZ = z - row * brickHeight;
+        boolean herringbone = localX < localZ * (brickWidth / brickHeight);
         int baseIndex = row * 2 + col;
-        int herringboneOffset = isHerringbone ? 1 : 0;
-        
-        // 使用种子进行轻微随机化
-        BlockPos pos = new BlockPos(col, row, 0);
-        double randomValue = MaterialMixResolver.unitRandomAt(pos, seedKey);
-        int randomOffset = randomValue < 0.1 ? 1 : 0;
-        
-        return positiveMod(baseIndex + herringboneOffset + randomOffset, materials.size());
+        return positiveMod(baseIndex + (herringbone ? 1 : 0), materials.size());
     }
 
     private static int indexOfMaterial(List<String> materials, String resolved) {

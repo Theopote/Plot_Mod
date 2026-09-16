@@ -8,43 +8,33 @@ import imgui.flag.ImGuiTabBarFlags;
 public final class PatternUIManager {
     private final PatternUiContext ctx;
     private final PatternToolbarPanel toolbarPanel;
-    private final PatternOverviewPanel overviewPanel;
-    private final PatternAdoptPanel adoptPanel;
-    private final PatternEditPanel editPanel;
+    private final PatternRegionPanel regionPanel;
+    private final PatternDesignPanel designPanel;
     private final PatternGeneratePanel generatePanel;
-    private final PatternPresetPanel presetPanel;
-    private final PatternBorderPanel borderPanel;
 
     public PatternUIManager(PatternUiContext ctx) {
         this.ctx = ctx;
         this.toolbarPanel = new PatternToolbarPanel(ctx);
-        this.overviewPanel = new PatternOverviewPanel(ctx);
-        this.adoptPanel = new PatternAdoptPanel(ctx);
-        this.editPanel = new PatternEditPanel(ctx);
+        this.regionPanel = new PatternRegionPanel(ctx);
+        this.designPanel = new PatternDesignPanel(ctx);
         this.generatePanel = new PatternGeneratePanel(ctx);
-        this.presetPanel = new PatternPresetPanel(ctx);
-        this.borderPanel = new PatternBorderPanel(ctx);
     }
 
     public void render() {
-        // 检查插件状态，确保UI在插件正常状态下渲染
         if (ctx == null || ctx.host() == null) {
             return;
         }
 
         if (ctx.pickSession().isActive()) {
-            adoptPanel.tickPickSession();
+            regionPanel.tickPickSession();
         }
 
         toolbarPanel.render();
 
         if (ImGui.beginTabBar("##pattern_tabs", ImGuiTabBarFlags.None)) {
-            renderTab("plugin.pattern.tab.overview", overviewPanel::render);
-            renderTab("plugin.pattern.tab.adopt", adoptPanel::render);
-            renderTab("plugin.pattern.tab.edit", editPanel::render);
+            renderTab("plugin.pattern.tab.region", regionPanel::render);
+            renderTab("plugin.pattern.tab.design", designPanel::render);
             renderTab("plugin.pattern.tab.generate", generatePanel::render);
-            renderTab("plugin.pattern.tab.presets", presetPanel::render);
-            renderTab("plugin.pattern.tab.border", borderPanel::render);
             ImGui.endTabBar();
         }
     }
@@ -57,7 +47,7 @@ public final class PatternUIManager {
     }
 
     public void renderDeferredModals() {
-        overviewPanel.renderDeleteConfirmPopup();
+        regionPanel.renderDeleteConfirmPopup();
         generatePanel.renderBuildConfirmPopup();
     }
 }

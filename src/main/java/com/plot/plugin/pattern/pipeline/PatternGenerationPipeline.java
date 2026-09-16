@@ -4,6 +4,7 @@ import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.pattern.PatternGenerationIssue;
 import com.plot.plugin.pattern.PatternGenerationResult;
+import com.plot.plugin.pattern.model.PatternBorderConfig;
 import com.plot.plugin.pattern.model.PatternFootprint;
 import com.plot.plugin.pattern.space.PatternSample;
 import com.plot.plugin.pattern.space.PatternSampling;
@@ -60,10 +61,19 @@ public final class PatternGenerationPipeline {
         TerrainSurfaceProjector projector = TerrainSurfaceProjector.of(world, coordinates);
         PatternPlacementRecorder recorder = new PatternPlacementRecorder(projection, result);
 
+        PatternBorderConfig borderConfig = footprint.getBorderConfig();
+        String borderMaterial = borderConfig.isEnabled() ? borderConfig.getPrimaryBorderMaterial() : null;
+
         int skippedTransparent = 0;
         int fallbackElevation = 0;
         for (PatternSample sample : samples) {
-            String blockId = materialResolver.resolveMaterial(space, sample);
+            String blockId;
+            if (borderMaterial != null
+                && PatternBorderSampler.shouldUseBorderMaterial(footprint, borderConfig, sample)) {
+                blockId = borderMaterial;
+            } else {
+                blockId = materialResolver.resolveMaterial(space, sample);
+            }
             if (blockId == null) {
                 skippedTransparent++;
                 continue;

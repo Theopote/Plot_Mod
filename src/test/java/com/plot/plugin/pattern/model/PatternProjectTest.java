@@ -50,6 +50,40 @@ class PatternProjectTest {
     }
 
     @Test
+    void jsonRoundTripPreservesOffsetDensityAndBorder() {
+        PatternProject project = new PatternProject();
+        PatternFootprint footprint = new PatternFootprint(List.of(
+            new Vec2d(0, 0),
+            new Vec2d(8, 0),
+            new Vec2d(8, 8),
+            new Vec2d(0, 8)));
+        ProceduralPatternConfig pattern = footprint.getPattern();
+        pattern.setType(ProceduralPatternConfig.PatternType.DIAMOND);
+        pattern.setOffset(new Vec2d(4.0, 7.0));
+        pattern.setDensity(1.8);
+        pattern.setAngleDegrees(45.0);
+        footprint.setPattern(pattern);
+
+        PatternBorderConfig border = new PatternBorderConfig();
+        border.setEnabled(true);
+        border.setBorderWidth(2.0);
+        border.setOuterBorder(true);
+        border.setBorderMaterials(List.of("minecraft:andesite"));
+        footprint.setBorderConfig(border);
+        project.addFootprint(footprint);
+
+        PatternProject restored = PatternProject.fromJson(project.toJson());
+        PatternFootprint restoredFootprint = restored.getFootprint(footprint.getId());
+        assertNotNull(restoredFootprint);
+        assertEquals(4.0, restoredFootprint.getPattern().getOffset().x, 1e-6);
+        assertEquals(7.0, restoredFootprint.getPattern().getOffset().y, 1e-6);
+        assertEquals(1.8, restoredFootprint.getPattern().getDensity(), 1e-6);
+        assertTrue(restoredFootprint.getBorderConfig().isEnabled());
+        assertEquals(2.0, restoredFootprint.getBorderConfig().getBorderWidth(), 1e-6);
+        assertEquals("minecraft:andesite", restoredFootprint.getBorderConfig().getPrimaryBorderMaterial());
+    }
+
+    @Test
     void jsonRoundTripPreservesHoles() {
         PatternProject project = new PatternProject();
         PatternFootprint footprint = new PatternFootprint(List.of(

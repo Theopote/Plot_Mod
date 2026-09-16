@@ -19,6 +19,7 @@ import java.util.UUID;
  */
 public class PatternProject {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    public static final int CURRENT_SCHEMA_VERSION = 1;
 
     private final Map<String, PatternFootprint> footprints = new LinkedHashMap<>();
 
@@ -111,7 +112,19 @@ public class PatternProject {
         double tileSize;
         double angleDegrees;
         Vec2dData centerOverride;
+        Vec2dData offset;
+        double density;
         double mosaicPrimaryRatio;
+    }
+
+    static class BorderData {
+        String style;
+        List<String> borderMaterials = new ArrayList<>();
+        double borderWidth;
+        boolean innerBorder;
+        boolean outerBorder;
+        double cornerRadius;
+        boolean enabled;
     }
 
     static class ImagePatternData {
@@ -131,14 +144,17 @@ public class PatternProject {
         String source;
         PatternData pattern;
         ImagePatternData imagePattern;
+        BorderData border;
         List<List<Vec2dData>> holes = new ArrayList<>();
     }
 
     static class ProjectData {
+        int schemaVersion = CURRENT_SCHEMA_VERSION;
         List<FootprintData> footprints = new ArrayList<>();
 
         static ProjectData from(PatternProject project) {
             ProjectData data = new ProjectData();
+            data.schemaVersion = CURRENT_SCHEMA_VERSION;
             for (PatternFootprint footprint : project.footprints.values()) {
                 FootprintData footprintData = new FootprintData();
                 footprintData.id = footprint.getId();
@@ -165,8 +181,22 @@ public class PatternProject {
                 if (center != null) {
                     patternData.centerOverride = new Vec2dData(center);
                 }
+                Vec2d offset = procedural.getOffset();
+                patternData.offset = new Vec2dData(offset);
+                patternData.density = procedural.getDensity();
                 patternData.mosaicPrimaryRatio = procedural.getMosaicPrimaryRatio();
                 footprintData.pattern = patternData;
+
+                PatternBorderConfig border = footprint.getBorderConfig();
+                BorderData borderData = new BorderData();
+                borderData.style = border.getStyle().name();
+                borderData.borderMaterials = border.getBorderMaterials();
+                borderData.borderWidth = border.getBorderWidth();
+                borderData.innerBorder = border.isInnerBorder();
+                borderData.outerBorder = border.isOuterBorder();
+                borderData.cornerRadius = border.getCornerRadius();
+                borderData.enabled = border.isEnabled();
+                footprintData.border = borderData;
 
                 ImagePatternConfig image = footprint.getImagePattern();
                 ImagePatternData imageData = new ImagePatternData();
@@ -233,8 +263,26 @@ public class PatternProject {
                     if (footprintData.pattern.centerOverride != null) {
                         pattern.setCenterOverride(footprintData.pattern.centerOverride.toVec2d());
                     }
+                    if (footprintData.pattern.offset != null) {
+                        pattern.setOffset(footprintData.pattern.offset.toVec2d());
+                    }
+                    if (footprintData.pattern.density > 0) {
+                        pattern.setDensity(footprintData.pattern.density);
+                    }
                     pattern.setMosaicPrimaryRatio(footprintData.pattern.mosaicPrimaryRatio);
                     footprint.setPattern(pattern);
+                }
+
+                if (footprintData.border != null) {
+                    PatternBorderConfig border = new PatternBorderConfig();
+                    border.setStyle(parseBorderStyle(footprintData.border.style));
+                    border.setBorderMaterials(footprintData.border.borderMaterials);
+                    border.setBorderWidth(footprintData.border.borderWidth);
+                    border.setInnerBorder(footprintData.border.innerBorder);
+                    border.setOuterBorder(footprintData.border.outerBorder);
+                    border.setCornerRadius(footprintData.border.cornerRadius);
+                    border.setEnabled(footprintData.border.enabled);
+                    footprint.setBorderConfig(border);
                 }
 
                 if (footprintData.imagePattern != null) {
@@ -284,6 +332,17 @@ public class PatternProject {
                 return ImagePatternConfig.FitMode.valueOf(fitMode.trim().toUpperCase());
             } catch (IllegalArgumentException ignored) {
                 return ImagePatternConfig.FitMode.STRETCH;
+            }
+        }
+
+        private static PatternBorderConfig.BorderStyle parseBorderStyle(String style) {
+            if (style == null || style.isBlank()) {
+                return PatternBorderConfig.BorderStyle.NONE;
+            }
+            try {
+                return PatternBorderConfig.BorderStyle.valueOf(style.trim().toUpperCase());
+            } catch (IllegalArgumentException ignored) {
+                return PatternBorderConfig.BorderStyle.NONE;
             }
         }
     }

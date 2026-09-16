@@ -22,7 +22,7 @@ public final class PatternPresetPanel {
         this.ctx = ctx;
     }
 
-    public void render() {
+    public void renderSection() {
         PatternPresetLibrary library = ctx.presetLibrary();
         if (library == null) {
             ImGui.textColored(PluginUiColors.ERROR_SOFT, PlotI18n.tr("plugin.pattern.preset_library_unavailable"));
@@ -102,6 +102,10 @@ public final class PatternPresetPanel {
                 }
             }
         }
+    }
+
+    public void render() {
+        renderSection();
     }
 
     private void saveCurrentAsPreset() {

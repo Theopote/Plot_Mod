@@ -52,6 +52,10 @@ public final class PatternUiContext {
         return state;
     }
 
+    public void setShowAddRegionPanel(boolean show) {
+        state.setShowAddRegionPanel(show);
+    }
+
     public Object projectLock() {
         return projectLock;
     }

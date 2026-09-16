@@ -20,7 +20,7 @@ Plot includes several built-in plugins accessible from the **Extension** tab in 
 | **Pattern Generator** | Claim closed regions and replace surface blocks with procedural patterns or imported pixel art |
 | **Power Lines** | Place poles along straight/polyline routes and generate decorative sagging wires |
 
-Earthwork, Road System, Building Generator, and Pattern Generator use **Overview / Adopt / Edit / Generate** tabs. Power Lines uses **Route / Style / Build** (the Route tab also includes the line list and overview map).
+Earthwork, Road System, and Building Generator use **Overview / Adopt / Edit / Generate** tabs. Pattern Generator uses **Region / Pattern / Generate**. Power Lines uses **Route / Style / Build** (the Route tab also includes the line list and overview map).
 
 ---
 
