@@ -69,6 +69,7 @@ public class PluginManager implements IPluginManager {
             installPlugin(new com.plot.plugin.RoadSystemPlugin(), true);
             installPlugin(new com.plot.plugin.BuildingPlugin(), true);
             installPlugin(new com.plot.plugin.PowerLinePlugin(), true);
+            installPlugin(new com.plot.plugin.PatternPlugin(), true);
             LogManager.getInstance().info("Registered {} plugins after builtins", plugins.size());
         } catch (Exception e) {
             LogManager.getInstance().error("Failed to register builtin plugins", e);
@@ -104,7 +105,7 @@ public class PluginManager implements IPluginManager {
         transitionAndNotify(plugin, PluginState.LOADED);
 
         if (dependencyGraph.hasCircularDependencies()) {
-            rollbackInstall(plugin, PluginState.FAILED);
+            rollbackInstall(plugin);
             throw new PluginException("Circular dependency detected for plugin: " + id);
         }
 
@@ -125,7 +126,7 @@ public class PluginManager implements IPluginManager {
             notifyStateChange(plugin, beforeInit, PluginState.INITIALIZED);
             notifyListenersLoaded(plugin);
         } catch (Exception e) {
-            rollbackInstall(plugin, PluginState.FAILED);
+            rollbackInstall(plugin);
             throw new PluginException("Failed to initialize plugin: " + id, e);
         }
 
@@ -137,7 +138,7 @@ public class PluginManager implements IPluginManager {
         return plugin;
     }
 
-    private void rollbackInstall(IPlugin plugin, PluginState failureState) {
+    private void rollbackInstall(IPlugin plugin) {
         String id = plugin.getId();
         try {
             if (plugin.isEnabled()) {
@@ -160,7 +161,7 @@ public class PluginManager implements IPluginManager {
         } catch (Exception ignored) {
             // best-effort
         }
-        transitionAndNotify(plugin, failureState);
+        transitionAndNotify(plugin, PluginState.FAILED);
         try {
             plugin.dispose();
             transitionAndNotify(plugin, PluginState.DISPOSED);
@@ -471,10 +472,6 @@ public class PluginManager implements IPluginManager {
             }
         }
         return true;
-    }
-
-    public PluginDependencyGraph getDependencyGraph() {
-        return dependencyGraph;
     }
 
     @Override

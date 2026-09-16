@@ -1,0 +1,68 @@
+package com.plot.plugin.pattern.model;
+
+import com.plot.api.geometry.Vec2d;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+class PatternProjectTest {
+
+    @Test
+    void jsonRoundTripPreservesAllFields() {
+        PatternProject project = new PatternProject();
+        PatternFootprint footprint = new PatternFootprint(List.of(
+            new Vec2d(0, 0),
+            new Vec2d(10, 0),
+            new Vec2d(10, 8),
+            new Vec2d(0, 8)
+        ));
+        footprint.setName("Plaza");
+        ProceduralPatternConfig pattern = new ProceduralPatternConfig();
+        pattern.setType(ProceduralPatternConfig.PatternType.STRIPES);
+        pattern.setMaterials(List.of("minecraft:stone", "minecraft:quartz_block", "minecraft:deepslate"));
+        pattern.setTileSize(3.0);
+        pattern.setAngleDegrees(45.0);
+        pattern.setMosaicPrimaryRatio(0.6);
+        footprint.setPattern(pattern);
+        project.addFootprint(footprint);
+
+        PatternProject restored = PatternProject.fromJson(project.toJson());
+        PatternFootprint restoredFootprint = restored.getFootprint(footprint.getId());
+        assertNotNull(restoredFootprint);
+        assertEquals("Plaza", restoredFootprint.getName());
+        assertEquals(4, restoredFootprint.getOuterPoints().size());
+        assertEquals(ProceduralPatternConfig.PatternType.STRIPES, restoredFootprint.getPattern().getType());
+        assertEquals(3, restoredFootprint.getPattern().getMaterials().size());
+        assertEquals(3.0, restoredFootprint.getPattern().getTileSize(), 1e-6);
+        assertEquals(45.0, restoredFootprint.getPattern().getAngleDegrees(), 1e-6);
+        assertEquals(0.6, restoredFootprint.getPattern().getMosaicPrimaryRatio(), 1e-6);
+    }
+
+    @Test
+    void saveAndLoadFromFile(@TempDir Path tempDir) throws IOException {
+        PatternProject project = new PatternProject();
+        PatternFootprint footprint = new PatternFootprint(List.of(
+            new Vec2d(0, 0),
+            new Vec2d(4, 0),
+            new Vec2d(4, 4)
+        ));
+        ProceduralPatternConfig pattern = footprint.getPattern();
+        pattern.setType(ProceduralPatternConfig.PatternType.MOSAIC);
+        footprint.setPattern(pattern);
+        project.addFootprint(footprint);
+
+        Path file = tempDir.resolve("pattern.json");
+        project.saveTo(file);
+        PatternProject loaded = PatternProject.loadFrom(file);
+        assertEquals(1, loaded.getFootprintCount());
+        assertEquals(
+            ProceduralPatternConfig.PatternType.MOSAIC,
+            loaded.getFootprints().values().iterator().next().getPattern().getType());
+    }
+}
