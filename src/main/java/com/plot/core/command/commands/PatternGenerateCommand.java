@@ -101,7 +101,7 @@ public class PatternGenerateCommand implements Command {
             return;
         }
         lastExecutionResult = applySync(requestedRecords, true);
-        captureAppliedFromIndices(requestedRecords, allIndices(requestedRecords.size()));
+        captureAppliedFromIndices(requestedRecords, lastExecutionResult.successfulWriteIndices());
         LOGGER.info("铺装图案落地完成: {}/{}", lastExecutionResult.success(), lastExecutionResult.total());
     }
 
@@ -126,7 +126,7 @@ public class PatternGenerateCommand implements Command {
             return;
         }
         lastExecutionResult = applySync(toApply, true);
-        captureAppliedFromIndices(toApply, allIndices(toApply.size()));
+        captureAppliedFromIndices(toApply, lastExecutionResult.successfulWriteIndices());
     }
 
     @Override
@@ -158,6 +158,14 @@ public class PatternGenerateCommand implements Command {
         return !appliedRecords.isEmpty();
     }
 
+    public int getAppliedRecordCount() {
+        return appliedRecords.size();
+    }
+
+    public List<BlockRecord> getAppliedRecords() {
+        return List.copyOf(appliedRecords);
+    }
+
     private void enqueueWrites(
             List<BlockRecord> source,
             boolean applyNewBlocks,
@@ -187,7 +195,7 @@ public class PatternGenerateCommand implements Command {
         }
 
         lastExecutionResult = applySync(source, applyNewBlocks);
-        captureAppliedFromIndices(source, allIndices(source.size()));
+        captureAppliedFromIndices(source, lastExecutionResult.successfulWriteIndices());
         if (onComplete != null) {
             onComplete.run();
         }
@@ -222,13 +230,21 @@ public class PatternGenerateCommand implements Command {
 
     private ExecutionResult applySync(List<BlockRecord> source, boolean applyNewBlocks) {
         int success = 0;
-        for (BlockRecord record : source) {
+        List<Integer> successfulIndices = new ArrayList<>();
+        for (int i = 0; i < source.size(); i++) {
+            BlockRecord record = source.get(i);
             String blockId = applyNewBlocks ? record.newBlockId : record.previousBlockId;
             if (blockWriter.setBlockAt(record.pos, blockId)) {
                 success++;
+                successfulIndices.add(i);
             }
         }
-        return new ExecutionResult(success, source.size() - success, source.size());
+        return new ExecutionResult(
+            success,
+            source.size() - success,
+            source.size(),
+            false,
+            List.copyOf(successfulIndices));
     }
 
     private ExecutionResult applySyncUndo(List<BlockRecord> source) {
@@ -254,14 +270,6 @@ public class PatternGenerateCommand implements Command {
             }
         }
         appliedRecords = List.copyOf(applied);
-    }
-
-    private static List<Integer> allIndices(int size) {
-        List<Integer> indices = new ArrayList<>(size);
-        for (int i = 0; i < size; i++) {
-            indices.add(i);
-        }
-        return indices;
     }
 
     private static ExecutionResult toExecutionResult(IBlockPlacementService.ExecutionResult result) {
