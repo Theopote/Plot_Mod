@@ -1,18 +1,42 @@
-package com.plot.plugin.pattern;
+package com.plot.plugin.pattern.pipeline;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.pattern.model.ProceduralPatternConfig;
+import com.plot.plugin.pattern.space.PatternSample;
+import com.plot.plugin.pattern.space.PatternSpace;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
- * 在 Pattern Space（画布坐标）下解析程序化图案材质下标。
+ * 程序化图案材质解析（Checkerboard / Stripes / Rings / Mosaic）。
  */
-public final class ProceduralPatternResolver {
-    private ProceduralPatternResolver() {
+public final class ProceduralPatternMaterialResolver implements PatternMaterialResolver {
+    private final ProceduralPatternConfig config;
+
+    public ProceduralPatternMaterialResolver(ProceduralPatternConfig config) {
+        this.config = Objects.requireNonNull(config, "config").copy();
+    }
+
+    @Override
+    public String resolveMaterial(PatternSpace space, PatternSample sample) {
+        if (sample == null || space == null) {
+            return null;
+        }
+        List<String> materials = config.getMaterials();
+        if (materials.isEmpty()) {
+            return null;
+        }
+        int index = resolveMaterialIndex(
+            config,
+            sample.x(),
+            sample.z(),
+            space.regionCentroid(),
+            space.seedKey());
+        return materials.get(Math.min(index, materials.size() - 1));
     }
 
     public static int resolveMaterialIndex(
@@ -34,6 +58,13 @@ public final class ProceduralPatternResolver {
             case CONCENTRIC_RINGS -> resolveConcentricRings(config, patternX, patternZ, regionCentroid, materials);
             case MOSAIC -> resolveMosaic(config, patternX, patternZ, materials, seedKey);
         };
+    }
+
+    public static MaterialMix buildMosaicMix(ProceduralPatternConfig config, List<String> materials) {
+        String primary = materials.getFirst();
+        String accent = materials.size() > 1 ? materials.get(1) : primary;
+        float accentRatio = (float) (1.0 - config.getMosaicPrimaryRatio());
+        return new MaterialMix(primary, accent, accentRatio);
     }
 
     private static int resolveCheckerboard(
@@ -105,13 +136,6 @@ public final class ProceduralPatternResolver {
             }
         }
         return materials.size() - 1;
-    }
-
-    static MaterialMix buildMosaicMix(ProceduralPatternConfig config, List<String> materials) {
-        String primary = materials.getFirst();
-        String accent = materials.size() > 1 ? materials.get(1) : primary;
-        float accentRatio = (float) (1.0 - config.getMosaicPrimaryRatio());
-        return new MaterialMix(primary, accent, accentRatio);
     }
 
     private static int indexOfMaterial(List<String> materials, String resolved) {
