@@ -119,7 +119,7 @@ public final class PatternActions {
         }
         state.setProjectStatus(PlotI18n.tr(
             "plugin.pattern.generate_preview_ready",
-            merged.blockCount));
+            merged.getBlockCount()));
         return true;
     }
 
@@ -184,15 +184,9 @@ public final class PatternActions {
         state.setProjectStatus(PlotI18n.tr("plugin.pattern.build_in_progress", records.size()));
         command.executeScheduled(() -> {
             PatternGenerateCommand.ExecutionResult result = command.getLastExecutionResult();
-            if (result != null && result.cancelled()) {
-                if (result.success() > 0) {
-                    host.commands().pushExecuted(command);
-                }
-                applyBuildResultStatus(result);
-                clearPreview();
-                return;
+            if (command.hasAppliedRecords()) {
+                host.commands().pushExecuted(command);
             }
-            host.commands().pushExecuted(command);
             applyBuildResultStatus(result);
             clearPreview();
         });
@@ -332,32 +326,42 @@ public final class PatternActions {
         state.setProjectStatus(PlotI18n.tr("plugin.pattern.import_image_waiting"));
         PatternImageFilePicker.pickImageAsync(PlotI18n.tr("plugin.pattern.import_image_dialog_title"))
             .thenAccept(optional -> {
-                if (optional.isEmpty()) {
-                    state.setProjectStatus(PlotI18n.tr("plugin.pattern.import_image_cancelled"));
-                    return;
-                }
-                try {
-                    state.getProjectHistory().push(state.getProject());
-                    ImagePatternConfig imagePattern = footprint.getImagePattern();
-                    PatternImageStore.ImportedImage imported = PatternImageStore.importImage(
-                        pluginDataDir,
-                        footprint.getId(),
-                        optional.get());
-                    imported.applyTo(imagePattern);
-                    footprint.setImagePattern(imagePattern);
-                    footprint.setSource(PatternSource.IMAGE);
-                    invalidatePreview();
-                    state.setProjectStatus(PlotI18n.tr(
-                        "plugin.pattern.import_image_success",
-                        imported.width(),
-                        imported.height()));
-                } catch (IOException e) {
-                    LOGGER.error("导入图片失败: {}", e.getMessage(), e);
-                    state.setProjectStatus(PlotI18n.tr(
-                        "plugin.pattern.import_image_failed",
-                        e.getMessage()));
+                MinecraftClient client = MinecraftClient.getInstance();
+                Runnable apply = () -> applyImportedImage(footprint, optional);
+                if (client != null) {
+                    client.execute(apply);
+                } else {
+                    apply.run();
                 }
             });
+    }
+
+    private void applyImportedImage(PatternFootprint footprint, java.util.Optional<java.nio.file.Path> optional) {
+        if (optional.isEmpty()) {
+            state.setProjectStatus(PlotI18n.tr("plugin.pattern.import_image_cancelled"));
+            return;
+        }
+        try {
+            state.getProjectHistory().push(state.getProject());
+            ImagePatternConfig imagePattern = footprint.getImagePattern();
+            PatternImageStore.ImportedImage imported = PatternImageStore.importImage(
+                pluginDataDir,
+                footprint.getId(),
+                optional.get());
+            imported.applyTo(imagePattern);
+            footprint.setImagePattern(imagePattern);
+            footprint.setSource(PatternSource.IMAGE);
+            invalidatePreview();
+            state.setProjectStatus(PlotI18n.tr(
+                "plugin.pattern.import_image_success",
+                imported.width(),
+                imported.height()));
+        } catch (IOException e) {
+            LOGGER.error("导入图片失败: {}", e.getMessage(), e);
+            state.setProjectStatus(PlotI18n.tr(
+                "plugin.pattern.import_image_failed",
+                e.getMessage()));
+        }
     }
 
     public void deleteFootprints(List<String> ids) {
@@ -366,6 +370,15 @@ public final class PatternActions {
         }
         state.getProjectHistory().push(state.getProject());
         for (String id : ids) {
+            PatternFootprint footprint = state.getProject().getFootprints().get(id);
+            if (footprint != null
+                && footprint.getSource() == PatternSource.IMAGE
+                && pluginDataDir != null) {
+                ImagePatternConfig imagePattern = footprint.getImagePattern();
+                if (imagePattern != null && imagePattern.hasImage()) {
+                    PatternImageStore.deleteImage(pluginDataDir, imagePattern.getImagePath());
+                }
+            }
             state.getProject().removeFootprint(id);
             state.getSelection().remove(id);
         }

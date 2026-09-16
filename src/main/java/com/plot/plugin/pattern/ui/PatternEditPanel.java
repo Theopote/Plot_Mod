@@ -42,50 +42,59 @@ public final class PatternEditPanel {
             }
         }
 
-        Runnable commitChange = () -> {
-            ctx.projectHistory().push(ctx.project());
-            ctx.actions().invalidatePreview();
-        };
+        Runnable beforeEdit = () -> ctx.projectHistory().push(ctx.project());
+        Runnable invalidate = () -> ctx.actions().invalidatePreview();
 
-        PatternUiWidgets.renderSourceCombo(footprint, commitChange);
+        PatternUiWidgets.renderSourceCombo(footprint, beforeEdit, invalidate);
         ImGui.spacing();
 
         if (footprint.getSource() == PatternSource.IMAGE) {
-            renderImageEditor(footprint, commitChange);
+            renderImageEditor(footprint, beforeEdit, invalidate);
         } else {
-            renderProceduralEditor(footprint, commitChange);
+            renderProceduralEditor(footprint, beforeEdit, invalidate);
         }
     }
 
-    private void renderProceduralEditor(PatternFootprint footprint, Runnable commitChange) {
+    private void renderProceduralEditor(
+            PatternFootprint footprint,
+            Runnable beforeEdit,
+            Runnable invalidate) {
         ProceduralPatternConfig pattern = footprint.getPattern();
         Runnable commitPattern = () -> {
             footprint.setPattern(pattern);
-            commitChange.run();
+            invalidate.run();
         };
 
-        PatternUiWidgets.renderPatternTypeCombo(pattern, type -> commitPattern.run());
-        PatternUiWidgets.renderMaterialList(ctx, pattern, commitPattern);
+        PatternUiWidgets.renderPatternTypeCombo(pattern, beforeEdit, commitPattern);
+        PatternUiWidgets.renderMaterialList(ctx, pattern, beforeEdit, commitPattern);
 
         ImFloat tileSize = new ImFloat((float) pattern.getTileSize());
-        if (ImGui.sliderFloat(
-                PlotI18n.tr("plugin.pattern.tile_size"),
-                tileSize.getData(),
-                0.5f,
-                16.0f,
-                "%.1f")) {
+        boolean tileChanged = ImGui.sliderFloat(
+            PlotI18n.tr("plugin.pattern.tile_size"),
+            tileSize.getData(),
+            0.5f,
+            16.0f,
+            "%.1f");
+        if (ImGui.isItemActivated()) {
+            beforeEdit.run();
+        }
+        if (tileChanged) {
             pattern.setTileSize(tileSize.get());
             commitPattern.run();
         }
 
         if (pattern.getType() == ProceduralPatternConfig.PatternType.STRIPES) {
             ImFloat angle = new ImFloat((float) pattern.getAngleDegrees());
-            if (ImGui.sliderFloat(
-                    PlotI18n.tr("plugin.pattern.angle_degrees"),
-                    angle.getData(),
-                    0.0f,
-                    180.0f,
-                    "%.0f°")) {
+            boolean angleChanged = ImGui.sliderFloat(
+                PlotI18n.tr("plugin.pattern.angle_degrees"),
+                angle.getData(),
+                0.0f,
+                180.0f,
+                "%.0f°");
+            if (ImGui.isItemActivated()) {
+                beforeEdit.run();
+            }
+            if (angleChanged) {
                 pattern.setAngleDegrees(angle.get());
                 commitPattern.run();
             }
@@ -93,23 +102,30 @@ public final class PatternEditPanel {
 
         if (pattern.getType() == ProceduralPatternConfig.PatternType.MOSAIC) {
             ImFloat ratio = new ImFloat((float) pattern.getMosaicPrimaryRatio());
-            if (ImGui.sliderFloat(
-                    PlotI18n.tr("plugin.pattern.mosaic_primary_ratio"),
-                    ratio.getData(),
-                    0.2f,
-                    0.9f,
-                    "%.2f")) {
+            boolean ratioChanged = ImGui.sliderFloat(
+                PlotI18n.tr("plugin.pattern.mosaic_primary_ratio"),
+                ratio.getData(),
+                0.2f,
+                0.9f,
+                "%.2f");
+            if (ImGui.isItemActivated()) {
+                beforeEdit.run();
+            }
+            if (ratioChanged) {
                 pattern.setMosaicPrimaryRatio(ratio.get());
                 commitPattern.run();
             }
         }
     }
 
-    private void renderImageEditor(PatternFootprint footprint, Runnable commitChange) {
+    private void renderImageEditor(
+            PatternFootprint footprint,
+            Runnable beforeEdit,
+            Runnable invalidate) {
         ImagePatternConfig imagePattern = footprint.getImagePattern();
         Runnable commitImage = () -> {
             footprint.setImagePattern(imagePattern);
-            commitChange.run();
+            invalidate.run();
         };
 
         if (ImGui.button(PlotI18n.tr("plugin.pattern.import_image"), 0, 0)) {
@@ -126,30 +142,38 @@ public final class PatternEditPanel {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.pattern.image_missing"));
         }
 
-        PatternUiWidgets.renderImageFitModeCombo(imagePattern, commitImage);
+        PatternUiWidgets.renderImageFitModeCombo(imagePattern, beforeEdit, commitImage);
         if (imagePattern.getFitMode() == ImagePatternConfig.FitMode.TILE) {
             ImFloat tileScale = new ImFloat((float) imagePattern.getTileScale());
-            if (ImGui.sliderFloat(
-                    PlotI18n.tr("plugin.pattern.image_tile_scale"),
-                    tileScale.getData(),
-                    0.25f,
-                    8.0f,
-                    "%.2f")) {
+            boolean tileScaleChanged = ImGui.sliderFloat(
+                PlotI18n.tr("plugin.pattern.image_tile_scale"),
+                tileScale.getData(),
+                0.25f,
+                8.0f,
+                "%.2f");
+            if (ImGui.isItemActivated()) {
+                beforeEdit.run();
+            }
+            if (tileScaleChanged) {
                 imagePattern.setTileScale(tileScale.get());
                 commitImage.run();
             }
         }
 
         ImInt alphaThreshold = new ImInt(imagePattern.getAlphaThreshold());
-        if (ImGui.sliderInt(
-                PlotI18n.tr("plugin.pattern.image_alpha_threshold"),
-                alphaThreshold.getData(),
-                0,
-                255)) {
+        boolean alphaChanged = ImGui.sliderInt(
+            PlotI18n.tr("plugin.pattern.image_alpha_threshold"),
+            alphaThreshold.getData(),
+            0,
+            255);
+        if (ImGui.isItemActivated()) {
+            beforeEdit.run();
+        }
+        if (alphaChanged) {
             imagePattern.setAlphaThreshold(alphaThreshold.get());
             commitImage.run();
         }
 
-        PatternUiWidgets.renderImagePaletteList(imagePattern, commitImage);
+        PatternUiWidgets.renderImagePaletteList(imagePattern, beforeEdit, commitImage);
     }
 }

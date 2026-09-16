@@ -95,7 +95,7 @@ public final class PatternGeneratePanel {
         if (ctx.lastGenerationResult() != null) {
             ImGui.text(PlotI18n.tr(
                 "plugin.pattern.preview_stats",
-                ctx.lastGenerationResult().blockCount));
+                ctx.lastGenerationResult().getBlockCount()));
             if (ImGui.button(PlotI18n.tr("plugin.pattern.build_confirm"), ImGui.getContentRegionAvailX(), 0)) {
                 if (buildReadiness.ready()) {
                     ctx.setBuildConfirmPending(true);
@@ -112,7 +112,7 @@ public final class PatternGeneratePanel {
         ctx.setBuildConfirmPending(false);
         if (ImGui.beginPopupModal("##pattern_build_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
             int blockCount = ctx.lastGenerationResult() != null
-                ? ctx.lastGenerationResult().blockCount
+                ? ctx.lastGenerationResult().getBlockCount()
                 : 0;
             ImGui.text(PlotI18n.tr("plugin.pattern.build_confirm_message", blockCount));
             ImGui.spacing();

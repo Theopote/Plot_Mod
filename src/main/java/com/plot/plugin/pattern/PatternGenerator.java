@@ -23,7 +23,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * 铺装图案生成器：在区域内地表高度替换表层方块。
+ * 铺装图案生成器：Pattern Space 采样 → 地形投影 → 表层替换。
  */
 public class PatternGenerator {
     private final ICoordinateService coordinateTransformer;
@@ -54,8 +54,6 @@ public class PatternGenerator {
         } else {
             generateProceduralPattern(footprint, world, outerPoints, result);
         }
-
-        result.blockCount = result.placementRecords.size();
         return result;
     }
 
@@ -69,19 +67,16 @@ public class PatternGenerator {
         EngineeringTerrainService terrain = EngineeringTerrainService.of(world);
         List<Vec2d> cellCenters = PolygonRegionUtils.collectFootprintCellCenters(outerPoints);
 
-        for (Vec2d center : cellCenters) {
-            BlockPos column = PatternGeometryUtils.canvasToBlockXZ(center, coordinateTransformer);
-            int surfaceY = terrain.sampleGroundSurface(column.getX(), column.getZ());
-            BlockPos pos = new BlockPos(column.getX(), surfaceY, column.getZ());
+        for (Vec2d canvasCenter : cellCenters) {
             int materialIndex = ProceduralPatternResolver.resolveMaterialIndex(
                 pattern,
-                column.getX(),
-                column.getZ(),
+                canvasCenter.x,
+                canvasCenter.y,
                 regionCentroid,
                 footprint.getId());
             List<String> materials = pattern.getMaterials();
             String newBlockId = materials.get(Math.min(materialIndex, materials.size() - 1));
-            recordBlock(result, pos, newBlockId);
+            placeSurfaceBlock(canvasCenter, terrain, result, newBlockId);
         }
     }
 
@@ -102,17 +97,25 @@ public class PatternGenerator {
         EngineeringTerrainService terrain = EngineeringTerrainService.of(world);
         List<Vec2d> cellCenters = PolygonRegionUtils.collectFootprintCellCenters(outerPoints);
 
-        for (Vec2d center : cellCenters) {
+        for (Vec2d canvasCenter : cellCenters) {
             String newBlockId = ImagePatternResolver.resolveBlockId(
-                config, raster, matcher, center, bounds);
+                config, raster, matcher, canvasCenter, bounds);
             if (newBlockId == null) {
                 continue;
             }
-            BlockPos column = PatternGeometryUtils.canvasToBlockXZ(center, coordinateTransformer);
-            int surfaceY = terrain.sampleGroundSurface(column.getX(), column.getZ());
-            BlockPos pos = new BlockPos(column.getX(), surfaceY, column.getZ());
-            recordBlock(result, pos, newBlockId);
+            placeSurfaceBlock(canvasCenter, terrain, result, newBlockId);
         }
+    }
+
+    private void placeSurfaceBlock(
+            Vec2d canvasCenter,
+            EngineeringTerrainService terrain,
+            PatternGenerationResult result,
+            String newBlockId) {
+        BlockPos column = PatternGeometryUtils.canvasToBlockXZ(canvasCenter, coordinateTransformer);
+        int surfaceY = terrain.sampleGroundSurface(column.getX(), column.getZ());
+        BlockPos pos = new BlockPos(column.getX(), surfaceY, column.getZ());
+        recordBlock(result, pos, newBlockId);
     }
 
     private void recordBlock(PatternGenerationResult result, BlockPos pos, String newBlockId) {

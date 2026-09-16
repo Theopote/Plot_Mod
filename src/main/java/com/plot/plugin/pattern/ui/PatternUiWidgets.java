@@ -12,7 +12,6 @@ import imgui.type.ImInt;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
 
 /** 图案插件共享 ImGui 控件。 */
 public final class PatternUiWidgets {
@@ -59,6 +58,7 @@ public final class PatternUiWidgets {
     public static void renderMaterialList(
             PatternUiContext ctx,
             ProceduralPatternConfig pattern,
+            Runnable beforeChange,
             Runnable onChanged) {
         List<String> materials = new ArrayList<>(pattern.getMaterials());
         ImGui.text(PlotI18n.tr("plugin.pattern.materials"));
@@ -69,6 +69,9 @@ public final class PatternUiWidgets {
             ImGui.text(PlotI18n.tr("plugin.pattern.material_slot", index + 1));
             ImGui.sameLine();
             if (ImGui.button(UIUtils.getBlockDisplayName(material) + "##mat", 0, 0)) {
+                if (beforeChange != null) {
+                    beforeChange.run();
+                }
                 UIUtils.openBlockPicker(material, blockId -> {
                     materials.set(index, blockId);
                     pattern.setMaterials(materials);
@@ -83,6 +86,9 @@ public final class PatternUiWidgets {
                 ImGui.beginDisabled();
             }
             if (ImGui.button(PlotI18n.tr("plugin.pattern.remove_material") + "##rm", 0, 0)) {
+                if (beforeChange != null) {
+                    beforeChange.run();
+                }
                 materials.remove(index);
                 pattern.setMaterials(materials);
                 if (onChanged != null) {
@@ -96,6 +102,9 @@ public final class PatternUiWidgets {
         }
         if (materials.size() < 6) {
             if (ImGui.button(PlotI18n.tr("plugin.pattern.add_material"), 0, 0)) {
+                if (beforeChange != null) {
+                    beforeChange.run();
+                }
                 UIUtils.openBlockPicker(ProceduralPatternConfig.DEFAULT_MATERIAL_A, blockId -> {
                     materials.add(blockId);
                     pattern.setMaterials(materials);
@@ -109,7 +118,8 @@ public final class PatternUiWidgets {
 
     public static void renderPatternTypeCombo(
             ProceduralPatternConfig pattern,
-            Consumer<ProceduralPatternConfig.PatternType> onChanged) {
+            Runnable beforeChange,
+            Runnable onChanged) {
         ProceduralPatternConfig.PatternType[] types = ProceduralPatternConfig.PatternType.values();
         String[] labels = new String[types.length];
         for (int i = 0; i < types.length; i++) {
@@ -117,9 +127,12 @@ public final class PatternUiWidgets {
         }
         ImInt current = new ImInt(pattern.getType().ordinal());
         if (ImGui.combo(PlotI18n.tr("plugin.pattern.pattern_type"), current, labels)) {
+            if (beforeChange != null) {
+                beforeChange.run();
+            }
             pattern.setType(types[current.get()]);
             if (onChanged != null) {
-                onChanged.accept(types[current.get()]);
+                onChanged.run();
             }
         }
     }
@@ -137,6 +150,7 @@ public final class PatternUiWidgets {
 
     public static void renderSourceCombo(
             PatternFootprint footprint,
+            Runnable beforeChange,
             Runnable onChanged) {
         PatternSource[] sources = PatternSource.values();
         String[] labels = new String[] {
@@ -145,6 +159,9 @@ public final class PatternUiWidgets {
         };
         ImInt current = new ImInt(footprint.getSource().ordinal());
         if (ImGui.combo(PlotI18n.tr("plugin.pattern.pattern_source"), current, labels)) {
+            if (beforeChange != null) {
+                beforeChange.run();
+            }
             footprint.setSource(sources[current.get()]);
             if (onChanged != null) {
                 onChanged.run();
@@ -154,6 +171,7 @@ public final class PatternUiWidgets {
 
     public static void renderImagePaletteList(
             ImagePatternConfig imagePattern,
+            Runnable beforeChange,
             Runnable onChanged) {
         List<String> palette = new ArrayList<>(imagePattern.getPaletteBlocks());
         ImGui.text(PlotI18n.tr("plugin.pattern.image_palette"));
@@ -164,6 +182,9 @@ public final class PatternUiWidgets {
             ImGui.text(PlotI18n.tr("plugin.pattern.palette_slot", index + 1));
             ImGui.sameLine();
             if (ImGui.button(UIUtils.getBlockDisplayName(blockId) + "##palette", 0, 0)) {
+                if (beforeChange != null) {
+                    beforeChange.run();
+                }
                 UIUtils.openBlockPicker(blockId, selected -> {
                     palette.set(index, selected);
                     imagePattern.setPaletteBlocks(palette);
@@ -178,6 +199,9 @@ public final class PatternUiWidgets {
                 ImGui.beginDisabled();
             }
             if (ImGui.button(PlotI18n.tr("plugin.pattern.remove_material") + "##palette_rm", 0, 0)) {
+                if (beforeChange != null) {
+                    beforeChange.run();
+                }
                 palette.remove(index);
                 imagePattern.setPaletteBlocks(palette);
                 if (onChanged != null) {
@@ -191,6 +215,9 @@ public final class PatternUiWidgets {
         }
         if (palette.size() < 32) {
             if (ImGui.button(PlotI18n.tr("plugin.pattern.add_palette_block"), 0, 0)) {
+                if (beforeChange != null) {
+                    beforeChange.run();
+                }
                 UIUtils.openBlockPicker("minecraft:white_wool", selected -> {
                     palette.add(selected);
                     imagePattern.setPaletteBlocks(palette);
@@ -204,6 +231,7 @@ public final class PatternUiWidgets {
 
     public static void renderImageFitModeCombo(
             ImagePatternConfig imagePattern,
+            Runnable beforeChange,
             Runnable onChanged) {
         ImagePatternConfig.FitMode[] modes = ImagePatternConfig.FitMode.values();
         String[] labels = new String[modes.length];
@@ -212,6 +240,9 @@ public final class PatternUiWidgets {
         }
         ImInt current = new ImInt(imagePattern.getFitMode().ordinal());
         if (ImGui.combo(PlotI18n.tr("plugin.pattern.image_fit_mode"), current, labels)) {
+            if (beforeChange != null) {
+                beforeChange.run();
+            }
             imagePattern.setFitMode(modes[current.get()]);
             if (onChanged != null) {
                 onChanged.run();

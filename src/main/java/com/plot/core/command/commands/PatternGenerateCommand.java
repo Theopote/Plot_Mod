@@ -16,13 +16,19 @@ import java.util.List;
 
 /**
  * 铺装图案落地命令（支持撤销/重做）。
+ *
+ * <p>Undo / Redo 只操作 {@code appliedRecords}，避免部分失败时撤销未改动的格子。
  */
 public class PatternGenerateCommand implements Command {
     private static final Logger LOGGER = LoggerFactory.getLogger(PatternGenerateCommand.class);
 
-    public record ExecutionResult(int success, int failed, int total, boolean cancelled) {
+    public record ExecutionResult(int success, int failed, int total, boolean cancelled, List<Integer> successfulWriteIndices) {
         public ExecutionResult(int success, int failed, int total) {
-            this(success, failed, total, false);
+            this(success, failed, total, false, List.of());
+        }
+
+        public ExecutionResult(int success, int failed, int total, boolean cancelled) {
+            this(success, failed, total, cancelled, List.of());
         }
 
         public boolean isFullSuccess() {
@@ -39,7 +45,8 @@ public class PatternGenerateCommand implements Command {
         boolean setBlockAt(net.minecraft.util.math.BlockPos pos, String blockId);
     }
 
-    private final List<BlockRecord> records;
+    private final List<BlockRecord> requestedRecords;
+    private List<BlockRecord> appliedRecords = List.of();
     private final Date timestamp;
     private final BlockWriter blockWriter;
     private final boolean schedulePlacement;
@@ -66,7 +73,7 @@ public class PatternGenerateCommand implements Command {
             BlockWriter blockWriter,
             boolean schedulePlacement,
             IBlockPlacementService placementScheduler) {
-        this.records = records != null ? new ArrayList<>(records) : new ArrayList<>();
+        this.requestedRecords = records != null ? List.copyOf(records) : List.of();
         this.timestamp = new Date();
         this.blockWriter = blockWriter;
         this.schedulePlacement = schedulePlacement;
@@ -76,7 +83,7 @@ public class PatternGenerateCommand implements Command {
     }
 
     public void executeScheduled(Runnable onComplete) {
-        enqueueWrites(records, true, () -> {
+        enqueueWrites(requestedRecords, true, () -> {
             if (onComplete != null) {
                 onComplete.run();
             }
@@ -84,46 +91,54 @@ public class PatternGenerateCommand implements Command {
     }
 
     public void undoScheduled(Runnable onComplete) {
-        enqueueWritesReverse(records, () -> {
-            if (onComplete != null) {
-                onComplete.run();
-            }
-        });
+        enqueueWritesReverse(appliedRecords, onComplete);
     }
 
     @Override
     public void execute() {
         if (schedulePlacement) {
-            enqueueWrites(records, true, () -> { });
+            enqueueWrites(requestedRecords, true, () -> { });
             return;
         }
-        lastExecutionResult = applySync(records, true);
+        lastExecutionResult = applySync(requestedRecords, true);
+        captureAppliedFromIndices(requestedRecords, allIndices(requestedRecords.size()));
         LOGGER.info("铺装图案落地完成: {}/{}", lastExecutionResult.success(), lastExecutionResult.total());
     }
 
     @Override
     public void undo() {
-        if (schedulePlacement) {
-            enqueueWritesReverse(records, () -> { });
+        if (appliedRecords.isEmpty()) {
             return;
         }
-        lastExecutionResult = applySyncUndo(records);
+        if (schedulePlacement) {
+            enqueueWritesReverse(appliedRecords, () -> { });
+            return;
+        }
+        lastExecutionResult = applySyncUndo(appliedRecords);
         LOGGER.info("铺装图案撤销完成: {}/{}", lastExecutionResult.success(), lastExecutionResult.total());
     }
 
     @Override
     public void redo() {
-        execute();
+        List<BlockRecord> toApply = appliedRecords.isEmpty() ? requestedRecords : appliedRecords;
+        if (schedulePlacement) {
+            enqueueWrites(toApply, true, () -> { });
+            return;
+        }
+        lastExecutionResult = applySync(toApply, true);
+        captureAppliedFromIndices(toApply, allIndices(toApply.size()));
     }
 
     @Override
     public String getDescription() {
-        return PlotI18n.tr("plugin.pattern.history.generate", records.size());
+        int count = hasAppliedRecords() ? appliedRecords.size() : requestedRecords.size();
+        return PlotI18n.tr("plugin.pattern.history.generate", count);
     }
 
     @Override
     public String getDetailedDescription() {
-        return PlotI18n.tr("plugin.pattern.history.generate.detail", records.size());
+        int count = hasAppliedRecords() ? appliedRecords.size() : requestedRecords.size();
+        return PlotI18n.tr("plugin.pattern.history.generate.detail", count);
     }
 
     @Override
@@ -132,11 +147,15 @@ public class PatternGenerateCommand implements Command {
     }
 
     public int getRecordCount() {
-        return records.size();
+        return requestedRecords.size();
     }
 
     public ExecutionResult getLastExecutionResult() {
         return lastExecutionResult;
+    }
+
+    public boolean hasAppliedRecords() {
+        return !appliedRecords.isEmpty();
     }
 
     private void enqueueWrites(
@@ -150,13 +169,16 @@ public class PatternGenerateCommand implements Command {
         }
 
         if (schedulePlacement) {
+            List<BlockRecord> sourceSnapshot = List.copyOf(source);
             placementScheduler.enqueue(writes, result -> {
                 lastExecutionResult = toExecutionResult(result);
-                LOGGER.info("铺装图案{}完成: {}/{} 成功, {} 失败",
+                captureAppliedFromIndices(sourceSnapshot, lastExecutionResult.successfulWriteIndices());
+                LOGGER.info("铺装图案{}完成: {}/{} 成功, {} 失败（applied {}）",
                     applyNewBlocks ? "落地" : "撤销",
                     lastExecutionResult.success(),
                     lastExecutionResult.total(),
-                    lastExecutionResult.failed());
+                    lastExecutionResult.failed(),
+                    appliedRecords.size());
                 if (onComplete != null) {
                     onComplete.run();
                 }
@@ -164,7 +186,8 @@ public class PatternGenerateCommand implements Command {
             return;
         }
 
-        lastExecutionResult = applySync(records, applyNewBlocks);
+        lastExecutionResult = applySync(source, applyNewBlocks);
+        captureAppliedFromIndices(source, allIndices(source.size()));
         if (onComplete != null) {
             onComplete.run();
         }
@@ -219,12 +242,34 @@ public class PatternGenerateCommand implements Command {
         return new ExecutionResult(success, source.size() - success, source.size());
     }
 
+    private void captureAppliedFromIndices(List<BlockRecord> source, List<Integer> successfulWriteIndices) {
+        if (successfulWriteIndices == null || successfulWriteIndices.isEmpty() || source.isEmpty()) {
+            appliedRecords = List.of();
+            return;
+        }
+        List<BlockRecord> applied = new ArrayList<>(successfulWriteIndices.size());
+        for (int index : successfulWriteIndices) {
+            if (index >= 0 && index < source.size()) {
+                applied.add(source.get(index));
+            }
+        }
+        appliedRecords = List.copyOf(applied);
+    }
+
+    private static List<Integer> allIndices(int size) {
+        List<Integer> indices = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            indices.add(i);
+        }
+        return indices;
+    }
+
     private static ExecutionResult toExecutionResult(IBlockPlacementService.ExecutionResult result) {
         return new ExecutionResult(
             result.success(),
             result.failed(),
             result.total(),
-            result.cancelled()
-        );
+            result.cancelled(),
+            result.successfulWriteIndices());
     }
 }

@@ -1,6 +1,6 @@
 package com.plot.plugin.pattern.image;
 
-import com.plot.plugin.powerline.preview.BlockPreviewColors;
+import com.plot.core.material.BlockColorRegistry;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,7 +45,7 @@ public final class BlockColorMatcher {
             if (blockId == null || blockId.isBlank()) {
                 continue;
             }
-            int argb = BlockPreviewColors.colorFor(blockId.trim());
+            int argb = BlockColorRegistry.colorFor(blockId.trim());
             built.add(new PaletteEntry(
                 blockId.trim(),
                 (argb >> 16) & 0xFF,

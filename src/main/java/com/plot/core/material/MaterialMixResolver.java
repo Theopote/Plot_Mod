@@ -19,6 +19,11 @@ public final class MaterialMixResolver {
         return resolve(mix, pos, seedKey, material -> material);
     }
 
+    /** 将 (pos, seedKey) 映射到 [0, 1) 的稳定伪随机数，供图案/材质采样复用。 */
+    public static double unitRandomAt(BlockPos pos, String seedKey) {
+        return deterministicUnitFloat(pos, seedKey);
+    }
+
     public static String resolve(
             MaterialMix mix,
             BlockPos pos,

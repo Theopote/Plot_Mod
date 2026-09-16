@@ -9,7 +9,7 @@ import net.minecraft.util.math.BlockPos;
 import java.util.List;
 
 /**
- * 给定区域内的一个世界坐标点，按图案配置算出应使用 materials 列表里的第几个材质（下标）。
+ * 在 Pattern Space（画布坐标）下解析程序化图案材质下标。
  */
 public final class ProceduralPatternResolver {
     private ProceduralPatternResolver() {
@@ -17,8 +17,8 @@ public final class ProceduralPatternResolver {
 
     public static int resolveMaterialIndex(
             ProceduralPatternConfig config,
-            double worldX,
-            double worldZ,
+            double patternX,
+            double patternZ,
             Vec2d regionCentroid,
             String seedKey) {
         if (config == null) {
@@ -29,71 +29,82 @@ public final class ProceduralPatternResolver {
             return 0;
         }
         return switch (config.getType()) {
-            case CHECKERBOARD -> resolveCheckerboard(config, worldX, worldZ, materials);
-            case STRIPES -> resolveStripes(config, worldX, worldZ, materials);
-            case CONCENTRIC_RINGS -> resolveConcentricRings(config, worldX, worldZ, regionCentroid, materials);
-            case MOSAIC -> resolveMosaic(config, worldX, worldZ, materials, seedKey);
+            case CHECKERBOARD -> resolveCheckerboard(config, patternX, patternZ, materials);
+            case STRIPES -> resolveStripes(config, patternX, patternZ, materials);
+            case CONCENTRIC_RINGS -> resolveConcentricRings(config, patternX, patternZ, regionCentroid, materials);
+            case MOSAIC -> resolveMosaic(config, patternX, patternZ, materials, seedKey);
         };
     }
 
     private static int resolveCheckerboard(
             ProceduralPatternConfig config,
-            double worldX,
-            double worldZ,
+            double patternX,
+            double patternZ,
             List<String> materials) {
         double tileSize = Math.max(1e-6, config.getTileSize());
-        int parity = (floorDiv(worldX, tileSize) + floorDiv(worldZ, tileSize)) & 1;
+        int parity = (floorDiv(patternX, tileSize) + floorDiv(patternZ, tileSize)) & 1;
         return Math.min(parity, Math.min(1, materials.size() - 1));
     }
 
     private static int resolveStripes(
             ProceduralPatternConfig config,
-            double worldX,
-            double worldZ,
+            double patternX,
+            double patternZ,
             List<String> materials) {
         double radians = Math.toRadians(config.getAngleDegrees());
         double cos = Math.cos(radians);
         double sin = Math.sin(radians);
-        // 投影到条纹法线方向（θ=0 沿 X，θ=90° 沿 Z）
-        double rotatedX = worldX * cos + worldZ * sin;
+        double rotatedX = patternX * cos + patternZ * sin;
         double tileSize = Math.max(1e-6, config.getTileSize());
-        int stripe = positiveMod(floorDiv(rotatedX, tileSize), materials.size());
-        return stripe;
+        return positiveMod(floorDiv(rotatedX, tileSize), materials.size());
     }
 
     private static int resolveConcentricRings(
             ProceduralPatternConfig config,
-            double worldX,
-            double worldZ,
+            double patternX,
+            double patternZ,
             Vec2d regionCentroid,
             List<String> materials) {
         Vec2d center = config.getCenterOverride();
         if (center == null) {
             center = regionCentroid != null ? regionCentroid : new Vec2d(0, 0);
         }
-        double dx = worldX - center.x;
-        double dz = worldZ - center.y;
+        double dx = patternX - center.x;
+        double dz = patternZ - center.y;
         double distance = Math.sqrt(dx * dx + dz * dz);
         double tileSize = Math.max(1e-6, config.getTileSize());
-        int ring = positiveMod(floorDiv(distance, tileSize), materials.size());
-        return ring;
+        return positiveMod(floorDiv(distance, tileSize), materials.size());
     }
 
     private static int resolveMosaic(
             ProceduralPatternConfig config,
-            double worldX,
-            double worldZ,
+            double patternX,
+            double patternZ,
             List<String> materials,
             String seedKey) {
-        MaterialMix mix = buildMosaicMix(config, materials);
-        BlockPos pos = new BlockPos((int) Math.floor(worldX), 0, (int) Math.floor(worldZ));
-        String resolved = MaterialMixResolver.resolve(mix, pos, seedKey, material -> material);
+        double tileSize = Math.max(0.5, config.getTileSize());
+        int cellX = floorDiv(patternX, tileSize);
+        int cellZ = floorDiv(patternZ, tileSize);
+        BlockPos pos = new BlockPos(cellX, 0, cellZ);
+
+        if (materials.size() <= 2) {
+            MaterialMix mix = buildMosaicMix(config, materials);
+            String resolved = MaterialMixResolver.resolve(mix, pos, seedKey, material -> material);
+            return indexOfMaterial(materials, resolved);
+        }
+
+        double value = MaterialMixResolver.unitRandomAt(pos, seedKey);
+        double primaryRatio = config.getMosaicPrimaryRatio();
+        double accentShare = (1.0 - primaryRatio) / (materials.size() - 1);
+        double cumulative = 0.0;
         for (int i = 0; i < materials.size(); i++) {
-            if (materials.get(i).equals(resolved)) {
+            double weight = i == 0 ? primaryRatio : accentShare;
+            cumulative += weight;
+            if (value < cumulative) {
                 return i;
             }
         }
-        return 0;
+        return materials.size() - 1;
     }
 
     static MaterialMix buildMosaicMix(ProceduralPatternConfig config, List<String> materials) {
@@ -101,6 +112,15 @@ public final class ProceduralPatternResolver {
         String accent = materials.size() > 1 ? materials.get(1) : primary;
         float accentRatio = (float) (1.0 - config.getMosaicPrimaryRatio());
         return new MaterialMix(primary, accent, accentRatio);
+    }
+
+    private static int indexOfMaterial(List<String> materials, String resolved) {
+        for (int i = 0; i < materials.size(); i++) {
+            if (materials.get(i).equals(resolved)) {
+                return i;
+            }
+        }
+        return 0;
     }
 
     private static int floorDiv(double value, double divisor) {

@@ -11,9 +11,12 @@ import java.util.Map;
  */
 public class PatternGenerationResult {
     public final Map<BlockPos, BlockRecord> placementRecords = new LinkedHashMap<>();
-    public int blockCount;
 
     public boolean hasPlacements() {
         return !placementRecords.isEmpty();
+    }
+
+    public int getBlockCount() {
+        return placementRecords.size();
     }
 }

@@ -21,14 +21,19 @@ public final class PatternImageStore {
     }
 
     public static Path resolveImagePath(Path pluginDataDir, String relativePath) {
-        if (relativePath == null || relativePath.isBlank()) {
+        if (relativePath == null || relativePath.isBlank() || pluginDataDir == null) {
             return null;
         }
+        Path base = pluginDataDir.toAbsolutePath().normalize();
         Path normalized = Path.of(relativePath).normalize();
         if (normalized.isAbsolute()) {
-            return normalized;
+            return null;
         }
-        return pluginDataDir.resolve(normalized).normalize();
+        Path resolved = base.resolve(normalized).normalize();
+        if (!resolved.startsWith(base)) {
+            return null;
+        }
+        return resolved;
     }
 
     public static ImportedImage importImage(Path pluginDataDir, String footprintId, Path sourceFile)

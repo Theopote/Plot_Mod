@@ -90,10 +90,12 @@ class ProceduralPatternResolverTest {
         config.setMosaicPrimaryRatio(0.7);
 
         MaterialMix mix = ProceduralPatternResolver.buildMosaicMix(config, config.getMaterials());
-        BlockPos pos = new BlockPos(12, 0, -7);
+        int cellX = (int) Math.floor(12 / config.getTileSize());
+        int cellZ = (int) Math.floor(-7 / config.getTileSize());
+        BlockPos pos = new BlockPos(cellX, 0, cellZ);
         String expected = MaterialMixResolver.resolve(mix, pos, "footprint-1", material -> material);
         int index = ProceduralPatternResolver.resolveMaterialIndex(
-            config, pos.getX(), pos.getZ(), new Vec2d(0, 0), "footprint-1");
+            config, 12, -7, new Vec2d(0, 0), "footprint-1");
         assertEquals(expected, config.getMaterials().get(index));
     }
 }
