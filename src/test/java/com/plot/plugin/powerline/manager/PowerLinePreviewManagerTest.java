@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.manager;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.GhostBlockOwners;
 import com.plot.api.world.IGhostBlockService;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.context.ApplicationContext;
@@ -27,38 +28,46 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PowerLinePreviewManagerTest {
     private final List<Map<BlockPos, String>> ghostBatches = new ArrayList<>();
-    private final AtomicInteger clearCount = new AtomicInteger();
+    private final AtomicInteger clearOwnerCount = new AtomicInteger();
     private PowerLinePluginState state;
     private PowerLinePreviewManager manager;
 
     @BeforeEach
     void setUp() {
         ghostBatches.clear();
-        clearCount.set(0);
+        clearOwnerCount.set(0);
         state = new PowerLinePluginState();
         ApplicationContext applicationContext = ApplicationContext.getInstance();
         IGhostBlockService ghosts = new IGhostBlockService() {
             @Override
             public void clearAllGhostBlocks() {
-                clearCount.incrementAndGet();
             }
 
             @Override
-            public void addGhostBlock(BlockPos position, String blockType) {
+            public void clearGhostBlocks(String ownerId) {
+                if (GhostBlockOwners.POWER_LINE.equals(ownerId)) {
+                    clearOwnerCount.incrementAndGet();
+                }
             }
 
             @Override
-            public void addGhostBlock(Vec2d position, double height, String blockType) {
+            public void replaceGhostBlocks(String ownerId, Map<BlockPos, String> blocks) {
+                if (GhostBlockOwners.POWER_LINE.equals(ownerId)) {
+                    ghostBatches.add(new LinkedHashMap<>(blocks));
+                }
+            }
+
+            @Override
+            public void addGhostBlock(String ownerId, BlockPos position, String blockType) {
+            }
+
+            @Override
+            public void addGhostBlock(String ownerId, Vec2d position, double height, String blockType) {
             }
 
             @Override
             public int getVisibleGhostBlockCount() {
                 return 0;
-            }
-
-            @Override
-            public void addGhostBlocks(Map<BlockPos, String> blocks) {
-                ghostBatches.add(new LinkedHashMap<>(blocks));
             }
         };
         PluginContext host = new PluginContext(
@@ -110,7 +119,7 @@ class PowerLinePreviewManagerTest {
         manager.clearLineCachedPreview();
 
         assertEquals(PowerLinePreviewManager.Mode.NONE, manager.getMode());
-        assertTrue(clearCount.get() >= 1);
+        assertTrue(clearOwnerCount.get() >= 1);
     }
 
     private static PowerLineFootprint sampleLine() {

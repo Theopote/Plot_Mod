@@ -1,6 +1,7 @@
 package com.plot.infrastructure.event.block;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.GhostBlockOwners;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.Events;
 import com.plot.utils.PlotI18n;
@@ -24,59 +25,54 @@ import java.util.concurrent.atomic.AtomicLong;
 public class GhostBlockManager implements com.plot.api.world.IGhostBlockService {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/GhostBlockManager");
     private static GhostBlockManager INSTANCE;
-    
+
     private final EventBus eventBus;
-    
-    // 幽灵方块存储 - 使用线程安全的集合
+
     private final Map<String, GhostBlock> ghostBlocks = new ConcurrentHashMap<>();
     private final List<String> blockIds = new CopyOnWriteArrayList<>();
+    private final Map<String, Set<String>> ownerBlockIds = new ConcurrentHashMap<>();
     private final AtomicLong ghostIdSequence = new AtomicLong();
 
-    // 渲染相关
     private boolean renderingEnabled = true;
-    private float opacity = 0.45f; // 幽灵方块透明度
-    
-    /**
-     * 幽灵方块数据类
-     */
+    private float opacity = 0.45f;
+
     public static class GhostBlock {
         private final String id;
+        private final String ownerId;
         private final Vec2d position;
         private final double height;
         private final String blockType;
         private boolean visible;
-        
-        public GhostBlock(String id, Vec2d position, double height, String blockType) {
+
+        public GhostBlock(String id, String ownerId, Vec2d position, double height, String blockType) {
             this.id = id;
+            this.ownerId = ownerId != null ? ownerId : GhostBlockOwners.LEGACY;
             this.position = position;
             this.height = height;
             this.blockType = blockType;
             this.visible = true;
         }
-        
-        // Getters
+
         public String getId() { return id; }
+        public String getOwnerId() { return ownerId; }
         public Vec2d getPosition() { return position; }
         public double getHeight() { return height; }
         public String getBlockType() { return blockType; }
         public boolean isVisible() { return visible; }
-        
+
         public void setVisible(boolean visible) { this.visible = visible; }
-        
-        /**
-         * 获取Minecraft方块实例
-         */
+
         public Block getBlock() {
             try {
                 String namespace = "minecraft";
                 String path = blockType;
-                
+
                 if (blockType.contains(":")) {
                     String[] parts = blockType.split(":", 2);
                     namespace = parts[0];
                     path = parts[1];
                 }
-                
+
                 Identifier blockIdentifier = Identifier.of(namespace, path);
                 Block block = Registries.BLOCK.get(blockIdentifier);
                 return block != Blocks.AIR ? block : Blocks.WHITE_WOOL;
@@ -85,67 +81,64 @@ public class GhostBlockManager implements com.plot.api.world.IGhostBlockService 
                 return Blocks.WHITE_WOOL;
             }
         }
-        
+
         @Override
         public String toString() {
-            return String.format("GhostBlock[id=%s, pos=(%.2f,%.2f), height=%.2f, type=%s, visible=%b]", 
-                id, position.x, position.y, height, blockType, visible);
+            return String.format(
+                "GhostBlock[id=%s, owner=%s, pos=(%.2f,%.2f), height=%.2f, type=%s, visible=%b]",
+                id, ownerId, position.x, position.y, height, blockType, visible);
         }
     }
-    
-    /**
-     * 获取单例实例
-     */
+
     public static GhostBlockManager getInstance() {
         if (INSTANCE == null) {
             INSTANCE = new GhostBlockManager();
         }
         return INSTANCE;
     }
-    
-    /**
-     * 私有构造函数
-     */
+
     private GhostBlockManager() {
         this.eventBus = EventBus.getInstance();
         LOGGER.info("幽灵方块管理器已初始化");
     }
-    
-    /**
-     * 添加幽灵方块（使用Vec2d和高度）
-     *
-     * @param position  方块位置 (画布坐标)
-     * @param height    方块高度 (Y坐标)
-     * @param blockType 方块类型ID
-     */
+
+    @Override
     public void addGhostBlock(Vec2d position, double height, String blockType) {
-        String id = generateGhostBlockId();
-        GhostBlock ghostBlock = new GhostBlock(id, position, height, blockType);
-        
-        ghostBlocks.put(id, ghostBlock);
-        blockIds.add(id);
-        
-        LOGGER.debug("添加幽灵方块: {}", ghostBlock);
-    }
-    
-    /**
-     * 添加幽灵方块（使用BlockPos）
-     *
-     * @param position  方块位置 (BlockPos)
-     * @param blockType 方块类型ID
-     */
-    public void addGhostBlock(BlockPos position, String blockType) {
-        // 将BlockPos转换为Vec2d和高度
-        Vec2d pos2d = new Vec2d(position.getX(), position.getZ());
-        double height = position.getY();
-        addGhostBlock(pos2d, height, blockType);
+        addGhostBlock(GhostBlockOwners.LEGACY, position, height, blockType);
     }
 
-    /**
-     * 批量添加幽灵方块（片区预览）：避免逐个分配 Random ID。
-     */
+    @Override
+    public void addGhostBlock(String ownerId, Vec2d position, double height, String blockType) {
+        String id = generateGhostBlockId();
+        String resolvedOwner = resolveOwner(ownerId);
+        GhostBlock ghostBlock = new GhostBlock(id, resolvedOwner, position, height, blockType);
+
+        ghostBlocks.put(id, ghostBlock);
+        blockIds.add(id);
+        ownerBlockIds.computeIfAbsent(resolvedOwner, ignored -> ConcurrentHashMap.newKeySet()).add(id);
+
+        LOGGER.debug("添加幽灵方块: {}", ghostBlock);
+    }
+
+    @Override
+    public void addGhostBlock(BlockPos position, String blockType) {
+        addGhostBlock(GhostBlockOwners.LEGACY, position, blockType);
+    }
+
+    @Override
+    public void addGhostBlock(String ownerId, BlockPos position, String blockType) {
+        Vec2d pos2d = new Vec2d(position.getX(), position.getZ());
+        double height = position.getY();
+        addGhostBlock(ownerId, pos2d, height, blockType);
+    }
+
     @Override
     public void addGhostBlocks(Map<BlockPos, String> blocks) {
+        addGhostBlocks(GhostBlockOwners.LEGACY, blocks);
+    }
+
+    @Override
+    public void addGhostBlocks(String ownerId, Map<BlockPos, String> blocks) {
         if (blocks == null || blocks.isEmpty()) {
             return;
         }
@@ -154,26 +147,49 @@ public class GhostBlockManager implements com.plot.api.world.IGhostBlockService 
             if (position == null || entry.getValue() == null) {
                 continue;
             }
-            addGhostBlock(position, entry.getValue());
+            addGhostBlock(ownerId, position, entry.getValue());
         }
     }
 
-    /**
-     * 移除指定的幽灵方块
-     *
-     * @param id 幽灵方块ID
-     */
+    @Override
+    public void replaceGhostBlocks(String ownerId, Map<BlockPos, String> blocks) {
+        clearGhostBlocks(ownerId);
+        addGhostBlocks(ownerId, blocks);
+    }
+
     public void removeGhostBlock(String id) {
         GhostBlock removed = ghostBlocks.remove(id);
         if (removed != null) {
             blockIds.remove(id);
+            Set<String> owned = ownerBlockIds.get(removed.getOwnerId());
+            if (owned != null) {
+                owned.remove(id);
+                if (owned.isEmpty()) {
+                    ownerBlockIds.remove(removed.getOwnerId(), owned);
+                }
+            }
             LOGGER.debug("移除幽灵方块: {}", removed);
         }
     }
-    
-    /**
-     * 清空所有幽灵方块
-     */
+
+    @Override
+    public void clearGhostBlocks(String ownerId) {
+        String resolvedOwner = resolveOwner(ownerId);
+        Set<String> ids = ownerBlockIds.remove(resolvedOwner);
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+        int count = 0;
+        for (String id : ids) {
+            if (ghostBlocks.remove(id) != null) {
+                blockIds.remove(id);
+                count++;
+            }
+        }
+        LOGGER.debug("已清空 owner={} 的幽灵方块，共 {} 个", resolvedOwner, count);
+    }
+
+    @Override
     public void clearAllGhostBlocks() {
         int count = 0;
         try {
@@ -183,6 +199,7 @@ public class GhostBlockManager implements com.plot.api.world.IGhostBlockService 
             }
             ghostBlocks.clear();
             blockIds.clear();
+            ownerBlockIds.clear();
             LOGGER.info("已清空所有幽灵方块，共清理 {} 个", count);
         } catch (Throwable t) {
             LOGGER.error("清空幽灵方块集合时发生异常", t);
@@ -197,46 +214,48 @@ public class GhostBlockManager implements com.plot.api.world.IGhostBlockService 
         }
     }
 
-    /**
-     * 获取可见的幽灵方块列表
-     * @return 可见的幽灵方块列表
-     */
     public List<GhostBlock> getVisibleGhostBlocks() {
         return ghostBlocks.values().stream()
                 .filter(GhostBlock::isVisible)
                 .toList();
     }
 
-    /**
-     * 获取可见幽灵方块数量
-     * @return 可见的幽灵方块数量
-     */
+    @Override
     public int getVisibleGhostBlockCount() {
         return (int) ghostBlocks.values().stream()
                 .filter(GhostBlock::isVisible)
                 .count();
     }
-    
-    /**
-     * 获取渲染相关设置
-     */
+
+    @Override
+    public int getVisibleGhostBlockCount(String ownerId) {
+        String resolvedOwner = resolveOwner(ownerId);
+        return (int) ghostBlocks.values().stream()
+                .filter(block -> block.isVisible() && resolvedOwner.equals(block.getOwnerId()))
+                .count();
+    }
+
     public boolean isRenderingEnabled() {
         return renderingEnabled;
     }
-    
+
     public float getOpacity() {
         return opacity;
     }
-    
+
     public void setOpacity(float opacity) {
         this.opacity = Math.max(0.0f, Math.min(1.0f, opacity));
         LOGGER.debug("幽灵方块透明度设置: {}", this.opacity);
     }
-    
-    /**
-     * 生成唯一的幽灵方块ID（顺序号，片区预览大量插入时避免 Random/时间戳开销）
-     */
+
     private String generateGhostBlockId() {
         return "ghost_" + ghostIdSequence.incrementAndGet();
     }
-} 
+
+    private static String resolveOwner(String ownerId) {
+        if (ownerId == null || ownerId.isBlank()) {
+            return GhostBlockOwners.LEGACY;
+        }
+        return ownerId;
+    }
+}

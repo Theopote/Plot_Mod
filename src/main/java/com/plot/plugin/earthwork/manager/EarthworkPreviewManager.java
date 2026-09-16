@@ -1,5 +1,6 @@
 package com.plot.plugin.earthwork.manager;
 
+import com.plot.api.world.GhostBlockOwners;
 import com.plot.api.world.IGhostBlockService;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.context.PluginContext;
@@ -131,11 +132,6 @@ public final class EarthworkPreviewManager {
             return false;
         }
 
-        IGhostBlockService ghostBlockManager = host.ghosts();
-        if (ghostBlockManager != null) {
-            ghostBlockManager.clearAllGhostBlocks();
-        }
-
         long started = System.nanoTime();
         EarthworkSite site = project.getActiveSite();
         try {
@@ -213,7 +209,7 @@ public final class EarthworkPreviewManager {
         if (ghostBlockManager == null) {
             return new GhostProjectionSummary(0, result.placementRecords.size(), 1);
         }
-        ghostBlockManager.clearAllGhostBlocks();
+        ghostBlockManager.clearGhostBlocks(GhostBlockOwners.EARTHWORK);
         int total = result.placementRecords.size();
         int stride = total > 4000 ? (int) Math.ceil(total / 4000.0) : 1;
         int index = 0;
@@ -225,7 +221,7 @@ public final class EarthworkPreviewManager {
             shown++;
             EarthworkGenerationResult.ChangeType changeType = result.changeTypes.get(record.pos);
             String ghostBlock = ghostBlockFor(changeType);
-            ghostBlockManager.addGhostBlock(record.pos, ghostBlock);
+            ghostBlockManager.addGhostBlock(GhostBlockOwners.EARTHWORK, record.pos, ghostBlock);
         }
         GhostProjectionSummary summary = new GhostProjectionSummary(shown, total, stride);
         return summary;
@@ -244,7 +240,7 @@ public final class EarthworkPreviewManager {
     public void clearPreview() {
         IGhostBlockService ghostBlockManager = host.ghosts();
         if (ghostBlockManager != null) {
-            ghostBlockManager.clearAllGhostBlocks();
+            ghostBlockManager.clearGhostBlocks(GhostBlockOwners.EARTHWORK);
         }
         lastGenerationResult = null;
         lastValidationReport = EarthworkValidationReport.empty();

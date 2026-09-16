@@ -1,5 +1,6 @@
 package com.plot.plugin.powerline.manager;
 
+import com.plot.api.world.GhostBlockOwners;
 import com.plot.api.world.IGhostBlockService;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.context.PluginContext;
@@ -59,7 +60,7 @@ public final class PowerLinePreviewManager {
     public void clearGhostsOnly() {
         IGhostBlockService ghosts = host.ghosts();
         if (ghosts != null) {
-            ghosts.clearAllGhostBlocks();
+            ghosts.clearGhostBlocks(GhostBlockOwners.POWER_LINE);
         }
     }
 
@@ -74,13 +75,10 @@ public final class PowerLinePreviewManager {
         if (ghosts == null || result == null) {
             return;
         }
-        ghosts.clearAllGhostBlocks();
         Map<BlockPos, String> blocks = new LinkedHashMap<>();
         for (BlockRecord record : result.placementRecords.values()) {
             blocks.put(record.pos, record.newBlockId);
         }
-        if (!blocks.isEmpty()) {
-            ghosts.addGhostBlocks(blocks);
-        }
+        ghosts.replaceGhostBlocks(GhostBlockOwners.POWER_LINE, blocks);
     }
 }

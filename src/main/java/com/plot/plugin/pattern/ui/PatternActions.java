@@ -1,6 +1,7 @@
 package com.plot.plugin.pattern.ui;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.GhostBlockOwners;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.command.commands.PatternGenerateCommand;
 import com.plot.core.context.PluginContext;
@@ -90,11 +91,6 @@ public final class PatternActions {
             return false;
         }
 
-        com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
-        if (ghostBlockManager != null) {
-            ghostBlockManager.clearAllGhostBlocks();
-        }
-
         PatternGenerationResult merged = new PatternGenerationResult();
         try {
             for (PatternFootprint footprint : footprints) {
@@ -132,19 +128,18 @@ public final class PatternActions {
         if (ghostBlockManager == null) {
             return;
         }
-        ghostBlockManager.clearAllGhostBlocks();
         LinkedHashMap<net.minecraft.util.math.BlockPos, String> ghosts =
             new LinkedHashMap<>(lastGenerationResult.placementRecords.size());
         for (BlockRecord record : lastGenerationResult.placementRecords.values()) {
             ghosts.put(record.pos, record.newBlockId);
         }
-        ghostBlockManager.addGhostBlocks(ghosts);
+        ghostBlockManager.replaceGhostBlocks(GhostBlockOwners.PATTERN, ghosts);
     }
 
     public void clearPreview() {
         com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
         if (ghostBlockManager != null) {
-            ghostBlockManager.clearAllGhostBlocks();
+            ghostBlockManager.clearGhostBlocks(GhostBlockOwners.PATTERN);
         }
         state.setLastGenerationResult(null);
     }

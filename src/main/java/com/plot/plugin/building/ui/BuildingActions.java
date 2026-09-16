@@ -1,6 +1,7 @@
 package com.plot.plugin.building.ui;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.GhostBlockOwners;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.command.commands.BuildingGenerateCommand;
 import com.plot.core.context.PluginContext;
@@ -119,11 +120,6 @@ public final class BuildingActions {
             boolean autoProjectGhosts,
             boolean buildConfirmOnComplete) {
         World world = getClientWorld();
-        com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
-        if (ghostBlockManager != null) {
-            ghostBlockManager.clearAllGhostBlocks();
-        }
-
         DistrictGenerationResult district;
         try {
             district = buildingGenerator.generateDistrict(buildings, world);
@@ -143,10 +139,6 @@ public final class BuildingActions {
             boolean autoProjectGhosts,
             boolean buildConfirmOnComplete) {
         cancelDistrictPreviewJob();
-        com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
-        if (ghostBlockManager != null) {
-            ghostBlockManager.clearAllGhostBlocks();
-        }
         state.setLastDistrictResult(null);
         state.setLastGenerationResult(null);
         state.setDistrictPreviewBuildConfirmPending(buildConfirmOnComplete);
@@ -267,20 +259,19 @@ public final class BuildingActions {
         if (ghostBlockManager == null) {
             return;
         }
-        ghostBlockManager.clearAllGhostBlocks();
         java.util.LinkedHashMap<net.minecraft.util.math.BlockPos, String> ghosts =
             new java.util.LinkedHashMap<>(lastGenerationResult.placementRecords.size());
         for (BlockRecord record : lastGenerationResult.placementRecords.values()) {
             ghosts.put(record.pos, record.newBlockId);
         }
-        ghostBlockManager.addGhostBlocks(ghosts);
+        ghostBlockManager.replaceGhostBlocks(GhostBlockOwners.BUILDING, ghosts);
     }
 
     public void clearPreview() {
         cancelDistrictPreviewJob();
         com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
         if (ghostBlockManager != null) {
-            ghostBlockManager.clearAllGhostBlocks();
+            ghostBlockManager.clearGhostBlocks(GhostBlockOwners.BUILDING);
         }
         state.setLastGenerationResult(null);
         state.setLastDistrictResult(null);

@@ -1,5 +1,6 @@
 package com.plot.plugin.road.manager;
 
+import com.plot.api.world.GhostBlockOwners;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.command.commands.GenerateRoadCommand;
 import com.plot.core.context.PluginContext;
@@ -107,10 +108,6 @@ public final class RoadPreviewManager {
             return false;
         }
 
-        com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
-        if (ghostBlockManager != null) {
-            ghostBlockManager.clearAllGhostBlocks();
-        }
         try {
             RoadNetworkGenerator.PreviewResult previewResult = networkGenerator.generatePreview(network, world);
             lastGenerationResult = previewResult.aggregate();
@@ -196,16 +193,18 @@ public final class RoadPreviewManager {
             return;
         }
 
-        ghostBlockManager.clearAllGhostBlocks();
+        java.util.LinkedHashMap<net.minecraft.util.math.BlockPos, String> ghosts =
+            new java.util.LinkedHashMap<>(lastGenerationResult.placementRecords.size());
         for (BlockRecord record : lastGenerationResult.placementRecords.values()) {
-            ghostBlockManager.addGhostBlock(record.pos, record.newBlockId);
+            ghosts.put(record.pos, record.newBlockId);
         }
+        ghostBlockManager.replaceGhostBlocks(GhostBlockOwners.ROAD, ghosts);
     }
 
     public void clearPreview() {
         com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
         if (ghostBlockManager != null) {
-            ghostBlockManager.clearAllGhostBlocks();
+            ghostBlockManager.clearGhostBlocks(GhostBlockOwners.ROAD);
         }
         lastEdgeResults = Collections.emptyMap();
         lastNodeElevations = Collections.emptyMap();
@@ -330,7 +329,7 @@ public final class RoadPreviewManager {
         try {
             com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
             if (ghostBlockManager != null) {
-                ghostBlockManager.clearAllGhostBlocks();
+                ghostBlockManager.clearGhostBlocks(GhostBlockOwners.ROAD);
             }
         } catch (IllegalStateException ignored) {
             // 逻辑侧 PluginContext 无世界服务时跳过虚影清理

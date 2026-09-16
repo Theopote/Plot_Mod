@@ -1,6 +1,7 @@
 package com.plot.infrastructure.event.block;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.GhostBlockOwners;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
@@ -133,8 +134,8 @@ public class LineToBlockHandler {
         LOGGER.info("线转方块参数: 图形数量={}, 调色盘大小={}, 精简比率={}, 标高={}, 预览模式={}, 封闭填充={}",
                 shapes.size(), paletteBlocks.size(), simplificationRatio, targetYLevel, isPreview, fillClosedShapes);
 
-        // 清理之前的幽灵方块
-        ghostBlockManager.clearAllGhostBlocks();
+        // 仅清理本功能的幽灵方块，避免误伤插件预览
+        ghostBlockManager.clearGhostBlocks(GhostBlockOwners.LINE_TO_BLOCK);
 
         // 定义方块处理逻辑
         BiConsumer<BlockPos, String> blockAction = getBlockPosStringBiConsumer(isPreview);
@@ -183,7 +184,7 @@ public class LineToBlockHandler {
             // 预览模式：添加幽灵方块
             blockAction = (pos, blockId) -> {
                 // 直接传递BlockPos，更清晰！
-                ghostBlockManager.addGhostBlock(pos, blockId);
+                ghostBlockManager.addGhostBlock(GhostBlockOwners.LINE_TO_BLOCK, pos, blockId);
                 LOGGER.debug("创建幽灵方块: {} 在位置 {}", blockId, pos.toShortString());
             };
         } else {
