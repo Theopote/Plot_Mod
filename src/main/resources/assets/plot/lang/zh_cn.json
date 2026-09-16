@@ -3361,6 +3361,7 @@
   "plugin.pattern.show_user_presets": "显示用户预设",
   "plugin.pattern.border_enabled": "启用边框",
   "plugin.pattern.border_disabled_hint": "边框未启用，无法编辑边框参数",
+  "plugin.pattern.border_v1_hint": "沿外轮廓与孔洞边缘铺设实线边框。",
   "plugin.pattern.border_style": "边框样式",
   "plugin.pattern.border_style.none": "无边框",
   "plugin.pattern.border_style.solid": "实线",

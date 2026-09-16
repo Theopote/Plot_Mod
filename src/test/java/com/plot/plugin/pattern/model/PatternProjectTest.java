@@ -68,7 +68,7 @@ class PatternProjectTest {
         border.setEnabled(true);
         border.setBorderWidth(2.0);
         border.setOuterBorder(true);
-        border.setBorderMaterials(List.of("minecraft:andesite"));
+        border.setBorderMaterial("minecraft:andesite");
         footprint.setBorderConfig(border);
         project.addFootprint(footprint);
 
@@ -81,6 +81,36 @@ class PatternProjectTest {
         assertTrue(restoredFootprint.getBorderConfig().isEnabled());
         assertEquals(2.0, restoredFootprint.getBorderConfig().getBorderWidth(), 1e-6);
         assertEquals("minecraft:andesite", restoredFootprint.getBorderConfig().getPrimaryBorderMaterial());
+    }
+
+    @Test
+    void loadsLegacyBorderMaterialsList() {
+        String json = """
+            {
+              "schemaVersion": 1,
+              "footprints": [{
+                "id": "fp-1",
+                "name": "Test",
+                "outerPoints": [{"x":0,"y":0},{"x":4,"y":0},{"x":4,"y":4},{"x":0,"y":4}],
+                "source": "PROCEDURAL",
+                "pattern": {"type":"CHECKERBOARD","materials":["a","b"],"tileSize":1.0},
+                "border": {
+                  "style": "NONE",
+                  "borderMaterials": ["minecraft:brick"],
+                  "borderWidth": 1.5,
+                  "innerBorder": false,
+                  "outerBorder": true,
+                  "cornerRadius": 2.0,
+                  "enabled": true
+                }
+              }]
+            }
+            """;
+        PatternProject project = PatternProject.fromJson(json);
+        PatternBorderConfig border = project.getFootprint("fp-1").getBorderConfig();
+        assertTrue(border.isEnabled());
+        assertEquals("minecraft:brick", border.getBorderMaterial());
+        assertEquals(1.5, border.getBorderWidth(), 1e-6);
     }
 
     @Test

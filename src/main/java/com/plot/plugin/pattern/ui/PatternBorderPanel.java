@@ -9,7 +9,7 @@ import imgui.ImGui;
 import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 
-/** 图案边框配置（嵌入图案页）。 */
+/** 图案边框 v1：实线边缘（嵌入图案页）。 */
 public final class PatternBorderPanel {
     private final PatternUiContext ctx;
 
@@ -44,8 +44,8 @@ public final class PatternBorderPanel {
             return;
         }
 
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.pattern.border_v1_hint"));
         ImGui.spacing();
-        renderBorderStyleCombo(borderConfig, beforeEdit, commit);
 
         ImFloat borderWidth = new ImFloat((float) borderConfig.getBorderWidth());
         boolean widthChanged = ImGui.sliderFloat(
@@ -76,48 +76,15 @@ public final class PatternBorderPanel {
             commit.run();
         }
 
-        ImFloat cornerRadius = new ImFloat((float) borderConfig.getCornerRadius());
-        boolean radiusChanged = ImGui.sliderFloat(
-            PlotI18n.tr("plugin.pattern.border_corner_radius"),
-            cornerRadius.getData(),
-            0.0f,
-            3.0f,
-            "%.1f");
-        if (ImGui.isItemActivated()) {
-            beforeEdit.run();
-        }
-        if (radiusChanged) {
-            borderConfig.setCornerRadius(cornerRadius.get());
-            commit.run();
-        }
-
         ImGui.spacing();
         ImGui.text(PlotI18n.tr("plugin.pattern.border_material"));
-        String currentMaterial = borderConfig.getPrimaryBorderMaterial();
+        String currentMaterial = borderConfig.getBorderMaterial();
         if (ImGui.button(UIUtils.getBlockDisplayName(currentMaterial) + "##border_mat", 0, 0)) {
             beforeEdit.run();
             UIUtils.openBlockPicker(currentMaterial, blockId -> {
-                borderConfig.setBorderMaterials(java.util.List.of(blockId));
+                borderConfig.setBorderMaterial(blockId);
                 commit.run();
             });
-        }
-    }
-
-    private void renderBorderStyleCombo(
-            PatternBorderConfig borderConfig,
-            Runnable beforeEdit,
-            Runnable commit) {
-        PatternBorderConfig.BorderStyle[] styles = PatternBorderConfig.BorderStyle.values();
-        String[] labels = new String[styles.length];
-        for (int i = 0; i < styles.length; i++) {
-            labels[i] = PlotI18n.tr("plugin.pattern.border_style." + styles[i].name().toLowerCase());
-        }
-
-        imgui.type.ImInt current = new imgui.type.ImInt(borderConfig.getStyle().ordinal());
-        if (ImGui.combo(PlotI18n.tr("plugin.pattern.border_style"), current, labels)) {
-            beforeEdit.run();
-            borderConfig.setStyle(styles[current.get()]);
-            commit.run();
         }
     }
 }

@@ -3361,6 +3361,7 @@
   "plugin.pattern.show_user_presets": "Show user presets",
   "plugin.pattern.border_enabled": "Enable border",
   "plugin.pattern.border_disabled_hint": "Border is disabled, border parameters cannot be edited",
+  "plugin.pattern.border_v1_hint": "Solid edge border along the outer outline and hole edges.",
   "plugin.pattern.border_style": "Border style",
   "plugin.pattern.border_style.none": "No border",
   "plugin.pattern.border_style.solid": "Solid",

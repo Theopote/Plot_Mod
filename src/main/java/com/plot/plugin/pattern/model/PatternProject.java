@@ -19,7 +19,7 @@ import java.util.UUID;
  */
 public class PatternProject {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    public static final int CURRENT_SCHEMA_VERSION = 1;
+    public static final int CURRENT_SCHEMA_VERSION = 2;
 
     private final Map<String, PatternFootprint> footprints = new LinkedHashMap<>();
 
@@ -118,12 +118,13 @@ public class PatternProject {
     }
 
     static class BorderData {
-        String style;
-        List<String> borderMaterials = new ArrayList<>();
+        String borderMaterial;
+        @Deprecated String style;
+        @Deprecated List<String> borderMaterials = new ArrayList<>();
         double borderWidth;
         boolean innerBorder;
         boolean outerBorder;
-        double cornerRadius;
+        @Deprecated double cornerRadius;
         boolean enabled;
     }
 
@@ -189,12 +190,10 @@ public class PatternProject {
 
                 PatternBorderConfig border = footprint.getBorderConfig();
                 BorderData borderData = new BorderData();
-                borderData.style = border.getStyle().name();
-                borderData.borderMaterials = border.getBorderMaterials();
+                borderData.borderMaterial = border.getBorderMaterial();
                 borderData.borderWidth = border.getBorderWidth();
                 borderData.innerBorder = border.isInnerBorder();
                 borderData.outerBorder = border.isOuterBorder();
-                borderData.cornerRadius = border.getCornerRadius();
                 borderData.enabled = border.isEnabled();
                 footprintData.border = borderData;
 
@@ -275,12 +274,17 @@ public class PatternProject {
 
                 if (footprintData.border != null) {
                     PatternBorderConfig border = new PatternBorderConfig();
-                    border.setStyle(parseBorderStyle(footprintData.border.style));
-                    border.setBorderMaterials(footprintData.border.borderMaterials);
-                    border.setBorderWidth(footprintData.border.borderWidth);
+                    if (footprintData.border.borderMaterial != null && !footprintData.border.borderMaterial.isBlank()) {
+                        border.setBorderMaterial(footprintData.border.borderMaterial);
+                    } else if (footprintData.border.borderMaterials != null
+                        && !footprintData.border.borderMaterials.isEmpty()) {
+                        border.setBorderMaterial(footprintData.border.borderMaterials.getFirst());
+                    }
+                    if (footprintData.border.borderWidth > 0) {
+                        border.setBorderWidth(footprintData.border.borderWidth);
+                    }
                     border.setInnerBorder(footprintData.border.innerBorder);
                     border.setOuterBorder(footprintData.border.outerBorder);
-                    border.setCornerRadius(footprintData.border.cornerRadius);
                     border.setEnabled(footprintData.border.enabled);
                     footprint.setBorderConfig(border);
                 }
@@ -335,15 +339,5 @@ public class PatternProject {
             }
         }
 
-        private static PatternBorderConfig.BorderStyle parseBorderStyle(String style) {
-            if (style == null || style.isBlank()) {
-                return PatternBorderConfig.BorderStyle.NONE;
-            }
-            try {
-                return PatternBorderConfig.BorderStyle.valueOf(style.trim().toUpperCase());
-            } catch (IllegalArgumentException ignored) {
-                return PatternBorderConfig.BorderStyle.NONE;
-            }
-        }
     }
 }

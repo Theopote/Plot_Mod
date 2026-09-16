@@ -25,7 +25,7 @@ class PatternPresetTest {
         PatternBorderConfig border = new PatternBorderConfig();
         border.setEnabled(true);
         border.setBorderWidth(2.0);
-        border.setStyle(PatternBorderConfig.BorderStyle.SOLID);
+        border.setBorderMaterial("minecraft:stone_bricks");
         footprint.setBorderConfig(border);
 
         PatternPreset preset = PatternPreset.fromFootprint(footprint, "Test preset");
@@ -34,7 +34,7 @@ class PatternPresetTest {
 
         assertTrue(target.getBorderConfig().isEnabled());
         assertEquals(2.0, target.getBorderConfig().getBorderWidth(), 1e-6);
-        assertEquals(PatternBorderConfig.BorderStyle.SOLID, target.getBorderConfig().getStyle());
+        assertEquals("minecraft:stone_bricks", target.getBorderConfig().getBorderMaterial());
     }
 
     @Test

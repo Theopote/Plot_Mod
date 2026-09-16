@@ -1,52 +1,40 @@
 package com.plot.plugin.pattern.model;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
 /**
- * 图案边框配置，用于为图案添加边框或边缘处理
+ * 图案边框 v1：实线边缘（外轮廓 / 孔洞），不含样式、圆角或多材质。
  */
 public class PatternBorderConfig {
-    public enum BorderStyle {
-        NONE,           // 无边框
-        SOLID,          // 实线边框
-        DASHED,         // 虚线边框
-        DOTTED,         // 点线边框
-        DOUBLE,         // 双线边框
-        OUTLINE         // 轮廓边框
-    }
-
-    private BorderStyle style = BorderStyle.NONE;
-    private List<String> borderMaterials = new ArrayList<>();
+    private String borderMaterial = "minecraft:stone_bricks";
     private double borderWidth = 1.0;
     private boolean innerBorder = false;
     private boolean outerBorder = true;
-    private double cornerRadius = 0.0;
     private boolean enabled = false;
 
-    public PatternBorderConfig() {
-        // 默认边框材质
-        borderMaterials.add("minecraft:stone_bricks");
+    public String getBorderMaterial() {
+        return borderMaterial != null && !borderMaterial.isBlank()
+            ? borderMaterial
+            : "minecraft:stone_bricks";
     }
 
-    public BorderStyle getStyle() {
-        return style != null ? style : BorderStyle.NONE;
+    public void setBorderMaterial(String borderMaterial) {
+        this.borderMaterial = borderMaterial != null && !borderMaterial.isBlank()
+            ? borderMaterial.trim()
+            : "minecraft:stone_bricks";
     }
 
-    public void setStyle(BorderStyle style) {
-        this.style = style != null ? style : BorderStyle.NONE;
-    }
-
-    public List<String> getBorderMaterials() {
-        return new ArrayList<>(borderMaterials);
-    }
-
+    /** 仅用于旧版 JSON 迁移，取列表首项 */
+    @Deprecated
     public void setBorderMaterials(List<String> borderMaterials) {
-        this.borderMaterials = borderMaterials != null ? new ArrayList<>(borderMaterials) : new ArrayList<>();
-        if (this.borderMaterials.isEmpty()) {
-            this.borderMaterials.add("minecraft:stone_bricks");
+        if (borderMaterials != null && !borderMaterials.isEmpty()) {
+            setBorderMaterial(borderMaterials.getFirst());
         }
+    }
+
+    public String getPrimaryBorderMaterial() {
+        return getBorderMaterial();
     }
 
     public double getBorderWidth() {
@@ -73,14 +61,6 @@ public class PatternBorderConfig {
         this.outerBorder = outerBorder;
     }
 
-    public double getCornerRadius() {
-        return Math.max(0.0, Math.min(3.0, cornerRadius));
-    }
-
-    public void setCornerRadius(double cornerRadius) {
-        this.cornerRadius = Math.max(0.0, Math.min(3.0, cornerRadius));
-    }
-
     public boolean isEnabled() {
         return enabled;
     }
@@ -89,18 +69,12 @@ public class PatternBorderConfig {
         this.enabled = enabled;
     }
 
-    public String getPrimaryBorderMaterial() {
-        return borderMaterials.isEmpty() ? "minecraft:stone_bricks" : borderMaterials.get(0);
-    }
-
     public PatternBorderConfig copy() {
         PatternBorderConfig copy = new PatternBorderConfig();
-        copy.style = this.style;
-        copy.borderMaterials = new ArrayList<>(this.borderMaterials);
+        copy.borderMaterial = this.borderMaterial;
         copy.borderWidth = this.borderWidth;
         copy.innerBorder = this.innerBorder;
         copy.outerBorder = this.outerBorder;
-        copy.cornerRadius = this.cornerRadius;
         copy.enabled = this.enabled;
         return copy;
     }
@@ -113,14 +87,12 @@ public class PatternBorderConfig {
         return Double.compare(that.borderWidth, borderWidth) == 0 &&
                innerBorder == that.innerBorder &&
                outerBorder == that.outerBorder &&
-               Double.compare(that.cornerRadius, cornerRadius) == 0 &&
                enabled == that.enabled &&
-               style == that.style &&
-               Objects.equals(borderMaterials, that.borderMaterials);
+               Objects.equals(getBorderMaterial(), that.getBorderMaterial());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(style, borderMaterials, borderWidth, innerBorder, outerBorder, cornerRadius, enabled);
+        return Objects.hash(getBorderMaterial(), borderWidth, innerBorder, outerBorder, enabled);
     }
 }
