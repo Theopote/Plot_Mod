@@ -7,6 +7,7 @@ import com.plot.plugin.pattern.PatternRegionPickSession;
 import com.plot.plugin.pattern.PatternSelectionSet;
 import com.plot.plugin.pattern.model.PatternProject;
 import com.plot.plugin.pattern.model.PatternProjectHistory;
+import com.plot.plugin.pattern.model.PatternPresetLibrary;
 import imgui.type.ImString;
 
 import java.util.ArrayList;
@@ -31,6 +32,7 @@ public final class PatternPluginState {
     private volatile String projectStatus = "";
     private String currentProjectFile = "default.json";
     private final ContentFingerprint.Tracker contentFingerprint = new ContentFingerprint.Tracker();
+    private PatternPresetLibrary presetLibrary;
 
     public PatternProject getProject() {
         return project;
@@ -114,5 +116,13 @@ public final class PatternPluginState {
 
     public ContentFingerprint.Tracker getContentFingerprint() {
         return contentFingerprint;
+    }
+
+    public PatternPresetLibrary getPresetLibrary() {
+        return presetLibrary;
+    }
+
+    public void setPresetLibrary(PatternPresetLibrary presetLibrary) {
+        this.presetLibrary = presetLibrary;
     }
 }

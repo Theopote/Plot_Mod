@@ -12,6 +12,8 @@ public final class PatternUIManager {
     private final PatternAdoptPanel adoptPanel;
     private final PatternEditPanel editPanel;
     private final PatternGeneratePanel generatePanel;
+    private final PatternPresetPanel presetPanel;
+    private final PatternBorderPanel borderPanel;
 
     public PatternUIManager(PatternUiContext ctx) {
         this.ctx = ctx;
@@ -20,6 +22,8 @@ public final class PatternUIManager {
         this.adoptPanel = new PatternAdoptPanel(ctx);
         this.editPanel = new PatternEditPanel(ctx);
         this.generatePanel = new PatternGeneratePanel(ctx);
+        this.presetPanel = new PatternPresetPanel(ctx);
+        this.borderPanel = new PatternBorderPanel(ctx);
     }
 
     public void render() {
@@ -39,6 +43,8 @@ public final class PatternUIManager {
             renderTab("plugin.pattern.tab.adopt", adoptPanel::render);
             renderTab("plugin.pattern.tab.edit", editPanel::render);
             renderTab("plugin.pattern.tab.generate", generatePanel::render);
+            renderTab("plugin.pattern.tab.presets", presetPanel::render);
+            renderTab("plugin.pattern.tab.border", borderPanel::render);
             ImGui.endTabBar();
         }
     }

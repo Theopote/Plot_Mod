@@ -129,6 +129,16 @@ public final class PatternEditPanel {
         if (pattern.getType() == ProceduralPatternConfig.PatternType.CONCENTRIC_RINGS) {
             renderConcentricRingCenter(footprint, pattern, beforeEdit, commitPattern);
         }
+
+        // 添加偏移控制
+        renderOffsetControls(pattern, beforeEdit, commitPattern);
+        
+        // 添加密度控制（适用于新图案类型）
+        if (pattern.getType() == ProceduralPatternConfig.PatternType.HEXAGONAL ||
+            pattern.getType() == ProceduralPatternConfig.PatternType.DIAMOND ||
+            pattern.getType() == ProceduralPatternConfig.PatternType.HERRINGBONE) {
+            renderDensityControl(pattern, beforeEdit, commitPattern);
+        }
     }
 
     private void renderConcentricRingCenter(
@@ -180,6 +190,59 @@ public final class PatternEditPanel {
             }
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.pattern.ring_center_hint"));
         }
+    }
+
+    private void renderOffsetControls(
+            ProceduralPatternConfig pattern,
+            Runnable beforeEdit,
+            Runnable commitPattern) {
+        com.plot.api.geometry.Vec2d offset = pattern.getOffset();
+        ImFloat offsetX = new ImFloat((float) offset.x);
+        ImFloat offsetZ = new ImFloat((float) offset.y);
+        
+        boolean offsetChanged = ImGui.inputFloat(
+            PlotI18n.tr("plugin.pattern.offset_x"),
+            offsetX,
+            0.1f,
+            0.5f,
+            "%.1f");
+        offsetChanged |= ImGui.inputFloat(
+            PlotI18n.tr("plugin.pattern.offset_z"),
+            offsetZ,
+            0.1f,
+            0.5f,
+            "%.1f");
+        
+        if (ImGui.isItemActivated()) {
+            beforeEdit.run();
+        }
+        if (offsetChanged) {
+            pattern.setOffset(new com.plot.api.geometry.Vec2d(offsetX.get(), offsetZ.get()));
+            commitPattern.run();
+        }
+    }
+
+    private void renderDensityControl(
+            ProceduralPatternConfig pattern,
+            Runnable beforeEdit,
+            Runnable commitPattern) {
+        ImFloat density = new ImFloat((float) pattern.getDensity());
+        boolean densityChanged = ImGui.sliderFloat(
+            PlotI18n.tr("plugin.pattern.density"),
+            density.getData(),
+            0.1f,
+            3.0f,
+            "%.2f");
+        
+        if (ImGui.isItemActivated()) {
+            beforeEdit.run();
+        }
+        if (densityChanged) {
+            pattern.setDensity(density.get());
+            commitPattern.run();
+        }
+        
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.pattern.density_hint"));
     }
 
     private void renderImageEditor(

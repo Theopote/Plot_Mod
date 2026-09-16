@@ -58,6 +58,11 @@ public class PatternPlugin extends Plugin {
         try {
             Path pluginDataDir = getDataFolder().toPath();
             patternGenerator = new PatternGenerator(ctx().coordinates(), ctx().projection(), pluginDataDir);
+            
+            // 初始化预设库
+            com.plot.plugin.pattern.model.PatternPresetLibrary presetLibrary = 
+                new com.plot.plugin.pattern.model.PatternPresetLibrary(pluginDataDir.resolve("presets"));
+            pluginState.setPresetLibrary(presetLibrary);
         } catch (Exception e) {
             LOGGER.error("初始化图案生成器失败: {}", e.getMessage(), e);
             throw new RuntimeException("图案插件初始化失败", e);

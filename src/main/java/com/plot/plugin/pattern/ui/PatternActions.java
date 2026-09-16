@@ -21,6 +21,8 @@ import com.plot.plugin.pattern.model.ImagePatternConfig;
 import com.plot.plugin.pattern.model.PatternFootprint;
 import com.plot.plugin.pattern.model.PatternProject;
 import com.plot.plugin.pattern.model.PatternSource;
+import com.plot.plugin.pattern.model.PatternPreset;
+import com.plot.plugin.pattern.model.PatternPresetLibrary;
 import com.plot.ui.canvas.Canvas;
 import com.plot.utils.PlotI18n;
 import net.minecraft.client.MinecraftClient;
@@ -592,5 +594,79 @@ public final class PatternActions {
     public World getClientWorld() {
         MinecraftClient client = MinecraftClient.getInstance();
         return client != null ? client.world : null;
+    }
+
+    // 预设管理功能
+    public PatternPresetLibrary getPresetLibrary() {
+        return state.getPresetLibrary();
+    }
+
+    public void saveAsPreset(PatternFootprint footprint, String name) {
+        if (footprint == null || name == null || name.isBlank()) {
+            state.setProjectStatus(PlotI18n.tr("plugin.pattern.preset_save_failed", "无效的名称"));
+            return;
+        }
+
+        PatternPresetLibrary library = state.getPresetLibrary();
+        if (library == null) {
+            state.setProjectStatus(PlotI18n.tr("plugin.pattern.preset_library_unavailable"));
+            return;
+        }
+
+        PatternPreset preset = PatternPreset.fromFootprint(footprint, name);
+        if (preset != null) {
+            library.addPreset(preset);
+            state.setProjectStatus(PlotI18n.tr("plugin.pattern.preset_saved", name));
+        }
+    }
+
+    public void loadPreset(PatternPreset preset, PatternFootprint footprint) {
+        if (preset == null || footprint == null) {
+            state.setProjectStatus(PlotI18n.tr("plugin.pattern.preset_load_failed", "无效的预设"));
+            return;
+        }
+
+        state.getProjectHistory().push(state.getProject());
+        preset.applyToFootprint(footprint);
+        preset.updateLastUsed();
+        
+        PatternPresetLibrary library = state.getPresetLibrary();
+        if (library != null) {
+            library.usePreset(preset.getId());
+        }
+        
+        invalidatePreview();
+        state.setProjectStatus(PlotI18n.tr("plugin.pattern.preset_loaded", preset.getName()));
+    }
+
+    public void deletePreset(String presetId) {
+        PatternPresetLibrary library = state.getPresetLibrary();
+        if (library == null) {
+            state.setProjectStatus(PlotI18n.tr("plugin.pattern.preset_library_unavailable"));
+            return;
+        }
+
+        PatternPreset preset = library.getPreset(presetId);
+        if (preset != null && !preset.isBuiltIn()) {
+            library.deletePreset(presetId);
+            state.setProjectStatus(PlotI18n.tr("plugin.pattern.preset_deleted", preset.getName()));
+        } else {
+            state.setProjectStatus(PlotI18n.tr("plugin.pattern.preset_delete_builtin"));
+        }
+    }
+
+    public void updatePreset(PatternPreset preset) {
+        PatternPresetLibrary library = state.getPresetLibrary();
+        if (library == null) {
+            state.setProjectStatus(PlotI18n.tr("plugin.pattern.preset_library_unavailable"));
+            return;
+        }
+
+        if (preset != null && !preset.isBuiltIn()) {
+            library.updatePreset(preset);
+            state.setProjectStatus(PlotI18n.tr("plugin.pattern.preset_updated", preset.getName()));
+        } else {
+            state.setProjectStatus(PlotI18n.tr("plugin.pattern.preset_update_builtin"));
+        }
     }
 }

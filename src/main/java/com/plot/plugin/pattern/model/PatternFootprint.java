@@ -18,6 +18,7 @@ public class PatternFootprint {
     private PatternSource source = PatternSource.PROCEDURAL;
     private ProceduralPatternConfig proceduralPattern = new ProceduralPatternConfig();
     private ImagePatternConfig imagePattern = new ImagePatternConfig();
+    private PatternBorderConfig borderConfig = new PatternBorderConfig();
 
     public PatternFootprint(List<Vec2d> outerPoints) {
         this(UUID.randomUUID().toString(), outerPoints);
@@ -82,6 +83,14 @@ public class PatternFootprint {
 
     public void setImagePattern(ImagePatternConfig imagePattern) {
         this.imagePattern = imagePattern != null ? imagePattern.copy() : new ImagePatternConfig();
+    }
+
+    public PatternBorderConfig getBorderConfig() {
+        return borderConfig != null ? borderConfig.copy() : new PatternBorderConfig();
+    }
+
+    public void setBorderConfig(PatternBorderConfig borderConfig) {
+        this.borderConfig = borderConfig != null ? borderConfig.copy() : new PatternBorderConfig();
     }
 
     public double computeArea() {

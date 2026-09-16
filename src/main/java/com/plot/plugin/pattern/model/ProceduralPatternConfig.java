@@ -22,7 +22,10 @@ public class ProceduralPatternConfig {
         CHECKERBOARD,
         STRIPES,
         CONCENTRIC_RINGS,
-        MOSAIC
+        MOSAIC,
+        HEXAGONAL,
+        DIAMOND,
+        HERRINGBONE
     }
 
     private PatternType type = PatternType.CHECKERBOARD;
@@ -31,6 +34,8 @@ public class ProceduralPatternConfig {
     private double angleDegrees = 0.0;
     private Vec2d centerOverride;
     private double mosaicPrimaryRatio = 0.7;
+    private Vec2d offset = new Vec2d(0, 0);
+    private double density = 1.0;
 
     public PatternType getType() {
         return type;
@@ -82,6 +87,22 @@ public class ProceduralPatternConfig {
             Math.min(MAX_MOSAIC_PRIMARY_RATIO, mosaicPrimaryRatio));
     }
 
+    public Vec2d getOffset() {
+        return offset != null ? offset.copy() : new Vec2d(0, 0);
+    }
+
+    public void setOffset(Vec2d offset) {
+        this.offset = offset != null ? offset.copy() : new Vec2d(0, 0);
+    }
+
+    public double getDensity() {
+        return density;
+    }
+
+    public void setDensity(double density) {
+        this.density = Math.max(0.1, Math.min(3.0, density));
+    }
+
     public ProceduralPatternConfig copy() {
         ProceduralPatternConfig copy = new ProceduralPatternConfig();
         copy.type = type;
@@ -90,6 +111,8 @@ public class ProceduralPatternConfig {
         copy.angleDegrees = angleDegrees;
         copy.centerOverride = centerOverride != null ? centerOverride.copy() : null;
         copy.mosaicPrimaryRatio = mosaicPrimaryRatio;
+        copy.offset = offset != null ? offset.copy() : new Vec2d(0, 0);
+        copy.density = density;
         return copy;
     }
 

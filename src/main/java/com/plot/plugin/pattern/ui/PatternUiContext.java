@@ -9,6 +9,8 @@ import com.plot.plugin.pattern.PatternSelectionSet;
 import com.plot.plugin.pattern.model.PatternFootprint;
 import com.plot.plugin.pattern.model.PatternProject;
 import com.plot.plugin.pattern.model.PatternProjectHistory;
+import com.plot.plugin.pattern.model.PatternPreset;
+import com.plot.plugin.pattern.model.PatternPresetLibrary;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -200,5 +202,13 @@ public final class PatternUiContext {
 
     public void setCurrentProjectFile(String file) {
         state.setCurrentProjectFile(file);
+    }
+
+    public PatternPresetLibrary presetLibrary() {
+        return state.getPresetLibrary();
+    }
+
+    public void setPresetLibrary(PatternPresetLibrary presetLibrary) {
+        state.setPresetLibrary(presetLibrary);
     }
 }
