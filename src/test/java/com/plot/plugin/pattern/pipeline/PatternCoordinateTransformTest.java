@@ -37,4 +37,14 @@ class PatternCoordinateTransformTest {
 
         assertEquals(2.0, PatternCoordinateTransform.effectiveTileSize(config), 1e-6);
     }
+
+    @Test
+    void herringboneDensityMatchesHexScaling() {
+        ProceduralPatternConfig config = new ProceduralPatternConfig();
+        config.setType(ProceduralPatternConfig.PatternType.HERRINGBONE);
+        config.setDensity(2.0);
+        config.setTileSize(4.0);
+
+        assertEquals(2.0, PatternCoordinateTransform.effectiveTileSize(config), 1e-6);
+    }
 }

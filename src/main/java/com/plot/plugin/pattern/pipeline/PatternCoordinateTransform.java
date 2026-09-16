@@ -36,8 +36,8 @@ public final class PatternCoordinateTransform {
         double tileSize = Math.max(1e-6, config.getTileSize());
         double density = Math.max(0.1, config.getDensity());
         return switch (config.getType()) {
-            case HEXAGONAL -> tileSize / density;
-            case DIAMOND, HERRINGBONE -> tileSize * density;
+            case HEXAGONAL, HERRINGBONE -> tileSize / density;
+            case DIAMOND -> tileSize * density;
             default -> tileSize;
         };
     }

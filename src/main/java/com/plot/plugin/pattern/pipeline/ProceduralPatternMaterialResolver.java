@@ -148,37 +148,10 @@ public final class ProceduralPatternMaterialResolver implements PatternMaterialR
             double x,
             double z,
             List<String> materials) {
-        double hexSize = PatternCoordinateTransform.effectiveTileSize(config);
-        double hexWidth = hexSize * Math.sqrt(3);
-        double hexHeight = hexSize * 2.0;
-
-        double col = x / hexWidth;
-        double row = z / (hexHeight * 0.75);
-        int colInt = (int) Math.floor(col);
-        int rowInt = (int) Math.floor(row);
-        boolean offsetRow = (rowInt & 1) != 0;
-        double centerX = offsetRow ? 0.5 : 0.0;
-        double localX = col - colInt - centerX;
-        double localZ = row - rowInt - 0.5;
-
-        if (!isInsideFlatTopHex(localX, localZ, hexSize, hexWidth, hexHeight)) {
-            return positiveMod(colInt + rowInt + 1, materials.size());
-        }
-        int hexIndex = rowInt * 2 + colInt;
-        return positiveMod(hexIndex, materials.size());
-    }
-
-    private static boolean isInsideFlatTopHex(
-            double localX,
-            double localZ,
-            double hexSize,
-            double hexWidth,
-            double hexHeight) {
-        double halfWidth = hexWidth * 0.5;
-        double halfHeight = hexHeight * 0.5;
-        double ax = Math.abs(localX) * halfWidth;
-        double az = Math.abs(localZ) * halfHeight;
-        return ax + az * (halfWidth / halfHeight) <= halfWidth * 0.5;
+        double circumradius = PatternCoordinateTransform.effectiveTileSize(config);
+        HexagonalPatternGeometry.Axial axial =
+            HexagonalPatternGeometry.pixelToAxial(x, z, circumradius);
+        return HexagonalPatternGeometry.materialIndex(axial, materials.size());
     }
 
     private static int resolveDiamond(
@@ -202,16 +175,7 @@ public final class ProceduralPatternMaterialResolver implements PatternMaterialR
             double z,
             List<String> materials) {
         double brickWidth = PatternCoordinateTransform.effectiveTileSize(config);
-        double brickHeight = brickWidth * 0.5;
-        int row = floorDiv(z, brickHeight);
-        boolean offsetRow = (row & 1) != 0;
-        double effectiveX = offsetRow ? x - brickWidth * 0.5 : x;
-        int col = floorDiv(effectiveX, brickWidth);
-        double localX = effectiveX - col * brickWidth;
-        double localZ = z - row * brickHeight;
-        boolean herringbone = localX < localZ * (brickWidth / brickHeight);
-        int baseIndex = row * 2 + col;
-        return positiveMod(baseIndex + (herringbone ? 1 : 0), materials.size());
+        return HerringbonePatternGeometry.materialIndex(x, z, brickWidth, materials.size());
     }
 
     private static int indexOfMaterial(List<String> materials, String resolved) {
@@ -224,14 +188,10 @@ public final class ProceduralPatternMaterialResolver implements PatternMaterialR
     }
 
     private static int floorDiv(double value, double divisor) {
-        return (int) Math.floor(value / divisor);
+        return PatternGridMath.floorDiv(value, divisor);
     }
 
     private static int positiveMod(int value, int modulus) {
-        if (modulus <= 0) {
-            return 0;
-        }
-        int mod = value % modulus;
-        return mod < 0 ? mod + modulus : mod;
+        return PatternGridMath.positiveMod(value, modulus);
     }
 }
