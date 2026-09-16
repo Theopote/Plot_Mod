@@ -11,9 +11,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
@@ -181,10 +179,43 @@ public class PatternPresetLibrary {
                 }
             }
             LOGGER.info("加载了 {} 个用户图案预设", loaded.size());
+            migrateUserPresetImageAssets();
         } catch (IOException e) {
             LOGGER.error("加载用户图案预设失败: {}", e.getMessage(), e);
         } catch (Exception e) {
             LOGGER.error("解析用户图案预设失败: {}", e.getMessage(), e);
+        }
+    }
+
+    private void migrateUserPresetImageAssets() {
+        boolean changed = false;
+        for (PatternPreset preset : presets) {
+            if (preset.isBuiltIn() || preset.getSource() != PatternSource.IMAGE) {
+                continue;
+            }
+            ImagePatternConfig imageConfig = preset.getImageConfig();
+            if (!PatternPresetImageStore.needsMigrationToPresetAsset(imageConfig)) {
+                continue;
+            }
+            try {
+                String assetPath = PatternPresetImageStore.copyFootprintImageToPresetAsset(
+                    pluginDataDir,
+                    preset.getId(),
+                    imageConfig);
+                imageConfig.setImagePath(assetPath);
+                preset.setImageConfig(imageConfig);
+                changed = true;
+                LOGGER.info("已迁移预设图片资产: {} -> {}", preset.getId(), assetPath);
+            } catch (IOException e) {
+                LOGGER.warn(
+                    "无法迁移预设 {} 的图片资产 ({}): {}",
+                    preset.getId(),
+                    imageConfig.getImagePath(),
+                    e.getMessage());
+            }
+        }
+        if (changed) {
+            saveUserPresets();
         }
     }
 

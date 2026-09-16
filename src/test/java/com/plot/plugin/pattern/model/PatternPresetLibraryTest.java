@@ -3,6 +3,8 @@ package com.plot.plugin.pattern.model;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import com.plot.plugin.pattern.image.PatternImageStore;
+import com.plot.plugin.pattern.image.PatternPresetImageStore;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -75,5 +77,40 @@ class PatternPresetLibraryTest {
         assertEquals("Legacy", library.getUserPresets().getFirst().getName());
         assertEquals(9, library.getBuiltInPresets().size());
         assertTrue(Files.exists(tempDir.resolve("presets/user_presets.json")));
+    }
+
+    @Test
+    void migratesLegacyFootprintImagePathsOnLoad() throws IOException {
+        Path source = tempDir.resolve("source.png");
+        Files.write(source, new byte[] {(byte) 0x89, 0x50, 0x4E, 0x47});
+        Files.createDirectories(PatternImageStore.imagesDir(tempDir));
+        String footprintRelative = "images/old-footprint.png";
+        Files.copy(source, tempDir.resolve(footprintRelative));
+
+        PatternPreset legacyImage = new PatternPreset("Image preset", new ImagePatternConfig());
+        legacyImage.setId("legacy-image-preset");
+        legacyImage.setSource(PatternSource.IMAGE);
+        ImagePatternConfig imageConfig = legacyImage.getImageConfig();
+        imageConfig.setImagePath(footprintRelative);
+        imageConfig.setImageWidth(1);
+        imageConfig.setImageHeight(1);
+        legacyImage.setImageConfig(imageConfig);
+
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        Files.createDirectories(tempDir.resolve("presets"));
+        Files.writeString(
+            tempDir.resolve("presets/user_presets.json"),
+            gson.toJson(List.of(legacyImage)));
+
+        PatternPresetLibrary library = new PatternPresetLibrary(tempDir);
+        PatternPreset loaded = library.getUserPresets().getFirst();
+        String migratedPath = loaded.getImageConfig().getImagePath();
+
+        assertTrue(PatternPresetImageStore.isPresetAssetPath(migratedPath));
+        assertTrue(Files.exists(tempDir.resolve(migratedPath)));
+
+        String persistedJson = Files.readString(tempDir.resolve("presets/user_presets.json"));
+        List<PatternPreset> persisted = gson.fromJson(persistedJson, new TypeToken<List<PatternPreset>>() {}.getType());
+        assertTrue(PatternPresetImageStore.isPresetAssetPath(persisted.getFirst().getImageConfig().getImagePath()));
     }
 }

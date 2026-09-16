@@ -13,12 +13,28 @@ import java.util.Locale;
  */
 public final class PatternPresetImageStore {
     private static final String PRESET_ASSETS_DIR = "preset-assets";
+    private static final String FOOTPRINT_IMAGES_DIR = "images/";
 
     private PatternPresetImageStore() {
     }
 
     public static Path presetAssetsDir(Path pluginDataDir) {
         return pluginDataDir.resolve(PRESET_ASSETS_DIR);
+    }
+
+    public static boolean isPresetAssetPath(String relativePath) {
+        return relativePath != null && relativePath.startsWith(PRESET_ASSETS_DIR + "/");
+    }
+
+    public static boolean isFootprintImagePath(String relativePath) {
+        return relativePath != null && relativePath.startsWith(FOOTPRINT_IMAGES_DIR);
+    }
+
+    public static boolean needsMigrationToPresetAsset(ImagePatternConfig config) {
+        return config != null
+            && config.hasImage()
+            && isFootprintImagePath(config.getImagePath())
+            && !isPresetAssetPath(config.getImagePath());
     }
 
     public static String copyFootprintImageToPresetAsset(
