@@ -19,11 +19,14 @@ public final class HexagonalPatternGeometry {
         return roundAxial(fq, fr);
     }
 
+    /**
+     * {@code q + r} 在六边形网格上沿对角线周期分布，三色时比 {@code q - r} 更均匀。
+     */
     public static int materialIndex(Axial axial, int materialCount) {
         if (materialCount <= 0) {
             return 0;
         }
-        return PatternGridMath.positiveMod(axial.q - axial.r, materialCount);
+        return PatternGridMath.positiveMod(axial.q + axial.r, materialCount);
     }
 
     static Axial roundAxial(double q, double r) {

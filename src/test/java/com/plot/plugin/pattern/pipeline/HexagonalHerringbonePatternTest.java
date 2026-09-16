@@ -8,6 +8,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HexagonalHerringbonePatternTest {
 
@@ -35,14 +36,31 @@ class HexagonalHerringbonePatternTest {
         String grid = PatternGridSnapshot.render(config, 0, 8, 0, 5, 0.5);
         assertEquals(
             """
-            001100001
-            011110011
-            211112211
-            220022220
-            200002200
-            100001100
+            001111112
+            011111122
+            111112222
+            112222220
+            122222200
+            222220000
             """.trim(),
             grid);
+    }
+
+    @Test
+    void hexagonalThreeColorsBalanceAcrossGrid() {
+        ProceduralPatternConfig config = hexConfig(2.0, 1.0, List.of("a", "b", "c"));
+        int[] counts = new int[3];
+        Vec2d centroid = new Vec2d(0, 0);
+        for (int z = 0; z < 12; z++) {
+            for (int x = 0; x < 12; x++) {
+                int index = ProceduralPatternMaterialResolver.resolveMaterialIndex(
+                    config, x + 0.5, z + 0.5, centroid, "seed");
+                counts[index]++;
+            }
+        }
+        int min = Math.min(counts[0], Math.min(counts[1], counts[2]));
+        int max = Math.max(counts[0], Math.max(counts[1], counts[2]));
+        assertTrue(max - min <= 6, "color counts should stay balanced: " + java.util.Arrays.toString(counts));
     }
 
     @Test
