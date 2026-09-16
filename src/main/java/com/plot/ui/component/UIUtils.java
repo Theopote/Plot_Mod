@@ -109,6 +109,8 @@ public class UIUtils {
      */
     public static boolean imageButton(Identifier icon, String tooltip, float width, float height, boolean isSelected, boolean rounded) {
         boolean clicked = false;
+        int styleVarCount = 0;
+        int styleColorCount = 0;
         
         try {
             UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
@@ -133,19 +135,28 @@ public class UIUtils {
             
             // 设置按钮样式
             ImGui.pushStyleColor(ImGuiCol.Border, borderColor);
+            styleColorCount++;
             ImGui.pushStyleColor(ImGuiCol.Button, buttonColor);
+            styleColorCount++;
             ImGui.pushStyleColor(ImGuiCol.ButtonHovered, hoveredColor);
+            styleColorCount++;
             ImGui.pushStyleColor(ImGuiCol.ButtonActive, activeColor);
+            styleColorCount++;
             
             // 设置提示文字样式
             ImGui.pushStyleColor(ImGuiCol.PopupBg, currentTheme.tooltipBackground);
+            styleColorCount++;
             ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.tooltipText);
+            styleColorCount++;
             ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.buttonBorder);
+            styleColorCount++;
             
             // 设置按钮样式
             // PNG 图标按钮不保留内边距，保证图标铺满按钮可用区域
             ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 0, 0);
+            styleVarCount++;
             ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, rounded ? currentTheme.toolbarControlRounding : 0);
+            styleVarCount++;
             
             // 获取纹理ID并渲染按钮
             int textureId = ImGuiUtils.getTextureId(icon);
@@ -161,8 +172,13 @@ public class UIUtils {
         } catch (Exception e) {
             LOGGER.error("Error rendering image button for {}: {}", icon, e.getMessage());
         } finally {
-            ImGui.popStyleVar(2);
-            ImGui.popStyleColor(7);
+            // 安全地弹出样式，使用实际计数避免栈不平衡
+            if (styleVarCount > 0) {
+                ImGui.popStyleVar(styleVarCount);
+            }
+            if (styleColorCount > 0) {
+                ImGui.popStyleColor(styleColorCount);
+            }
         }
         
         return clicked;

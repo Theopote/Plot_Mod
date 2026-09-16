@@ -82,18 +82,21 @@ public class ExtensionPanel implements UIComponent {
                 ImGui.popStyleColor();
 
                 ImGui.sameLine();
-                if (enabledCheckboxPlugin != currentActivePlugin) {
-                    enabledCheckboxPlugin = currentActivePlugin;
-                    enabledRef.set(currentActivePlugin.isEnabled());
-                }
+                // 每次渲染都同步复选框状态，确保状态一致性
+                enabledCheckboxPlugin = currentActivePlugin;
+                enabledRef.set(currentActivePlugin.isEnabled());
                 if (ImGui.checkbox(
                     PlotI18n.tr("panel.plot.extension_enabled") + "##plugin_enabled",
                     enabledRef
                 )) {
                     if (enabledRef.get()) {
-                        pluginManager.enablePlugin(currentActivePlugin);
+                        if (!currentActivePlugin.isEnabled()) {
+                            pluginManager.enablePlugin(currentActivePlugin);
+                        }
                     } else {
-                        pluginManager.disablePlugin(currentActivePlugin);
+                        if (currentActivePlugin.isEnabled()) {
+                            pluginManager.disablePlugin(currentActivePlugin);
+                        }
                     }
                 }
 

@@ -76,9 +76,8 @@ public class PatternPlugin extends Plugin {
 
     @Override
     public void onDeactivate() {
-        if (isEnabled()) {
-            persistProject();
-        }
+        // 无论插件是否启用都应该执行持久化操作，确保数据不丢失
+        persistProject();
         super.onDeactivate();
     }
 
@@ -98,7 +97,7 @@ public class PatternPlugin extends Plugin {
 
     @Override
     public void render() {
-        if (uiManager != null) {
+        if (uiManager != null && isEnabled()) {
             uiManager.render();
         }
     }

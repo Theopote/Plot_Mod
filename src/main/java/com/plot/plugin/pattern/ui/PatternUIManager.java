@@ -23,6 +23,11 @@ public final class PatternUIManager {
     }
 
     public void render() {
+        // 检查插件状态，确保UI在插件正常状态下渲染
+        if (ctx == null || ctx.host() == null) {
+            return;
+        }
+
         if (ctx.pickSession().isActive()) {
             adoptPanel.tickPickSession();
         }
