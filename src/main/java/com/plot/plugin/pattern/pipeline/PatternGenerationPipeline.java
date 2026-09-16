@@ -2,12 +2,12 @@ package com.plot.plugin.pattern.pipeline;
 
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
+import com.plot.plugin.pattern.PatternGenerationIssue;
 import com.plot.plugin.pattern.PatternGenerationResult;
 import com.plot.plugin.pattern.model.PatternFootprint;
 import com.plot.plugin.pattern.space.PatternSample;
 import com.plot.plugin.pattern.space.PatternSampling;
 import com.plot.plugin.pattern.space.PatternSpace;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 import java.util.List;
@@ -39,28 +39,50 @@ public final class PatternGenerationPipeline {
             World world) {
         PatternGenerationResult result = new PatternGenerationResult();
         if (footprint == null || materialResolver == null) {
+            result.setIssue(PatternGenerationIssue.NO_SAMPLE_POINTS);
             return result;
         }
         if (footprint.getOuterPoints().size() < 3) {
+            result.setIssue(PatternGenerationIssue.REGION_TOO_SMALL);
             return result;
         }
 
         PatternSpace space = PatternSpace.fromFootprint(footprint);
-        List<PatternSample> samples = PatternSampling.collectFootprintSamples(footprint.getOuterPoints());
+        List<PatternSample> samples = PatternSampling.collectFootprintSamples(
+            footprint.getOuterPoints(),
+            footprint.getHoles());
+        result.setSampleCount(samples.size());
         if (samples.isEmpty()) {
+            result.setIssue(PatternGenerationIssue.NO_SAMPLE_POINTS);
             return result;
         }
 
         TerrainSurfaceProjector projector = TerrainSurfaceProjector.of(world, coordinates);
         PatternPlacementRecorder recorder = new PatternPlacementRecorder(projection, result);
 
+        int skippedTransparent = 0;
+        int fallbackElevation = 0;
         for (PatternSample sample : samples) {
             String blockId = materialResolver.resolveMaterial(space, sample);
             if (blockId == null) {
+                skippedTransparent++;
                 continue;
             }
-            BlockPos pos = projector.projectSurface(sample);
-            recorder.record(pos, blockId);
+            TerrainSurfaceProjector.SurfaceProjection surface = projector.projectSurface(sample);
+            if (surface.usedFallbackElevation()) {
+                fallbackElevation++;
+            }
+            recorder.record(surface.pos(), blockId);
+        }
+
+        result.setSkippedTransparentCount(skippedTransparent);
+        result.setFallbackElevationCount(fallbackElevation);
+        if (!result.hasPlacements()) {
+            if (skippedTransparent >= samples.size()) {
+                result.setIssue(PatternGenerationIssue.ALL_PIXELS_TRANSPARENT);
+            } else {
+                result.setIssue(PatternGenerationIssue.NO_SAMPLE_POINTS);
+            }
         }
         return result;
     }

@@ -4,8 +4,7 @@ import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.pattern.model.PatternFootprint;
 import com.plot.plugin.pattern.pipeline.PatternGenerationPipeline;
-import com.plot.plugin.pattern.pipeline.PatternMaterialResolver;
-import com.plot.plugin.pattern.pipeline.PatternMaterialResolvers;
+import com.plot.plugin.pattern.pipeline.PatternMaterialResolverFactory;
 import net.minecraft.world.World;
 
 import java.nio.file.Path;
@@ -29,8 +28,17 @@ public class PatternGenerator {
     }
 
     public PatternGenerationResult generate(PatternFootprint footprint, World world) {
-        return PatternMaterialResolvers.forFootprint(footprint, pluginDataDir)
-            .map(resolver -> pipeline.generate(footprint, resolver, world))
-            .orElseGet(PatternGenerationResult::new);
+        PatternMaterialResolverFactory.Outcome outcome =
+            PatternMaterialResolverFactory.forFootprint(footprint, pluginDataDir);
+        if (!outcome.canGenerate()) {
+            PatternGenerationResult failed = new PatternGenerationResult();
+            failed.setIssue(outcome.issue());
+            return failed;
+        }
+        PatternGenerationResult result = pipeline.generate(footprint, outcome.resolver(), world);
+        if (!result.hasPlacements() && result.getIssue() == PatternGenerationIssue.NONE) {
+            result.setIssue(outcome.issue());
+        }
+        return result;
     }
 }

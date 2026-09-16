@@ -149,7 +149,7 @@ public class ImagePatternConfig {
             }
         }
         if (normalized.isEmpty()) {
-            return new ArrayList<>(defaultPalette());
+            return normalized;
         }
         while (normalized.size() < MIN_PALETTE_SIZE) {
             normalized.add("minecraft:stone");

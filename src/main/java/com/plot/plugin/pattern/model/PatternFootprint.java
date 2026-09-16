@@ -3,6 +3,7 @@ package com.plot.plugin.pattern.model;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.PolygonRegionUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -13,6 +14,7 @@ public class PatternFootprint {
     private final String id;
     private String name;
     private List<Vec2d> outerPoints;
+    private List<List<Vec2d>> holes = new ArrayList<>();
     private PatternSource source = PatternSource.PROCEDURAL;
     private ProceduralPatternConfig proceduralPattern = new ProceduralPatternConfig();
     private ImagePatternConfig imagePattern = new ImagePatternConfig();
@@ -47,6 +49,14 @@ public class PatternFootprint {
         this.outerPoints = copyPoints(outerPoints);
     }
 
+    public List<List<Vec2d>> getHoles() {
+        return copyHoles(holes);
+    }
+
+    public void setHoles(List<List<Vec2d>> holes) {
+        this.holes = copyHoles(holes);
+    }
+
     public PatternSource getSource() {
         return source != null ? source : PatternSource.PROCEDURAL;
     }
@@ -75,7 +85,7 @@ public class PatternFootprint {
     }
 
     public double computeArea() {
-        return Math.abs(PolygonRegionUtils.signedAreaOfRing(outerPoints));
+        return Math.abs(PolygonRegionUtils.computeSignedArea(outerPoints, holes));
     }
 
     public Vec2d computeCentroid() {
@@ -84,5 +94,18 @@ public class PatternFootprint {
 
     private static List<Vec2d> copyPoints(List<Vec2d> points) {
         return PolygonRegionUtils.copyPoints(points);
+    }
+
+    private static List<List<Vec2d>> copyHoles(List<List<Vec2d>> source) {
+        if (source == null || source.isEmpty()) {
+            return new ArrayList<>();
+        }
+        List<List<Vec2d>> copied = new ArrayList<>(source.size());
+        for (List<Vec2d> hole : source) {
+            if (hole != null && hole.size() >= 3) {
+                copied.add(copyPoints(hole));
+            }
+        }
+        return copied;
     }
 }

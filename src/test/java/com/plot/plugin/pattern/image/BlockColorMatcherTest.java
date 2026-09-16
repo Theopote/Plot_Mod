@@ -20,4 +20,11 @@ class BlockColorMatcherTest {
         assertEquals("minecraft:blackstone", matcher.nearestBlock(20, 20, 20));
         assertEquals("minecraft:orange_terracotta", matcher.nearestBlock(164, 87, 41));
     }
+
+    @Test
+    void emptyPaletteFallsBackToStone() {
+        BlockColorMatcher matcher = new BlockColorMatcher(List.of());
+        assertEquals("minecraft:stone", matcher.nearestBlock(128, 128, 128));
+        assertEquals(0, matcher.paletteSize());
+    }
 }

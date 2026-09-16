@@ -13,6 +13,9 @@ import java.util.Objects;
  * 地形投影：Pattern Space 采样点 → 世界地表方块位置。
  */
 public final class TerrainSurfaceProjector {
+    public record SurfaceProjection(BlockPos pos, boolean usedFallbackElevation) {
+    }
+
     private final ICoordinateService coordinates;
     private final EngineeringTerrainService terrain;
 
@@ -25,9 +28,13 @@ public final class TerrainSurfaceProjector {
         return new TerrainSurfaceProjector(coordinates, EngineeringTerrainService.of(world));
     }
 
-    public BlockPos projectSurface(PatternSample sample) {
+    public SurfaceProjection projectSurface(PatternSample sample) {
         BlockPos column = PatternGeometryUtils.canvasToBlockXZ(sample.toCanvas(), coordinates);
-        int surfaceY = terrain.sampleGroundSurface(column.getX(), column.getZ());
-        return new BlockPos(column.getX(), surfaceY, column.getZ());
+        int worldX = column.getX();
+        int worldZ = column.getZ();
+        boolean chunkLoaded = terrain.isChunkLoaded(worldX, worldZ);
+        int surfaceY = terrain.sampleGroundSurface(worldX, worldZ);
+        boolean usedFallback = !chunkLoaded;
+        return new SurfaceProjection(new BlockPos(worldX, surfaceY, worldZ), usedFallback);
     }
 }

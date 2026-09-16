@@ -26,7 +26,7 @@
 | [设置与快捷键](zh/05-settings-shortcuts.md) | 吸附、网格、快捷键自定义 |
 | [常见问题](zh/06-faq.md) | 排障、限制说明、技巧汇总 |
 | [图库](zh/07-gallery.md) | 预设图形、保存选中、放置到画布 |
-| [扩展插件](zh/08-plugins.md) | 道路系统、土方平衡、建筑轮廓生成器 |
+| [扩展插件](zh/08-plugins.md) | 道路系统、土方平衡、建筑轮廓生成器、图案生成器 |
 
 ### English
 
@@ -39,7 +39,7 @@
 | [Settings & Shortcuts](en/05-settings-shortcuts.md) | Snap, grid, keymap customization |
 | [FAQ](en/06-faq.md) | Troubleshooting and tips |
 | [Gallery](en/07-gallery.md) | Presets, save selection, place on canvas |
-| [Extension Plugins](en/08-plugins.md) | Road system, earthwork, building generator |
+| [Extension Plugins](en/08-plugins.md) | Road system, earthwork, building generator, pattern generator |
 
 ## 相关链接
 

@@ -10,6 +10,7 @@ import com.plot.core.model.Shape;
 import com.plot.core.persistence.ProjectPathResolver;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
+import com.plot.plugin.pattern.PatternGenerationIssue;
 import com.plot.plugin.pattern.PatternGenerationResult;
 import com.plot.plugin.pattern.PatternGenerator;
 import com.plot.plugin.pattern.PatternGeometryUtils;
@@ -95,7 +96,7 @@ public final class PatternActions {
         try {
             for (PatternFootprint footprint : footprints) {
                 PatternGenerationResult result = patternGenerator.generate(footprint, world);
-                merged.placementRecords.putAll(result.placementRecords);
+                merged.mergeFrom(result);
             }
         } catch (Exception e) {
             LOGGER.error("铺装预览生成失败: {}", e.getMessage(), e);
@@ -106,17 +107,38 @@ public final class PatternActions {
 
         state.setLastGenerationResult(merged);
         if (!merged.hasPlacements()) {
-            state.setProjectStatus(PlotI18n.tr("plugin.pattern.generate_empty_result"));
+            state.setProjectStatus(statusForIssue(merged.getIssue()));
             return false;
         }
 
         if (autoProjectGhosts) {
             projectPreview();
         }
-        state.setProjectStatus(PlotI18n.tr(
-            "plugin.pattern.generate_preview_ready",
-            merged.getBlockCount()));
+        state.setProjectStatus(formatPreviewReadyStatus(merged));
         return true;
+    }
+
+    private static String statusForIssue(PatternGenerationIssue issue) {
+        if (issue == null || issue == PatternGenerationIssue.NONE || issue.statusKey().isBlank()) {
+            return PlotI18n.tr("plugin.pattern.generate_empty_result");
+        }
+        return PlotI18n.tr(issue.statusKey());
+    }
+
+    private static String formatPreviewReadyStatus(PatternGenerationResult result) {
+        String message = PlotI18n.tr("plugin.pattern.generate_preview_ready", result.getBlockCount());
+        if (result.getFallbackElevationCount() > 0) {
+            message += " — " + PlotI18n.tr(
+                "plugin.pattern.preview_fallback_elevation",
+                result.getFallbackElevationCount(),
+                result.getBlockCount());
+        }
+        if (result.getSkippedOverlapCount() > 0) {
+            message += " — " + PlotI18n.tr(
+                "plugin.pattern.preview_overlap_skipped",
+                result.getSkippedOverlapCount());
+        }
+        return message;
     }
 
     public void projectPreview() {
@@ -160,6 +182,14 @@ public final class PatternActions {
                 return;
             }
             resultSnapshot = lastGenerationResult;
+        }
+
+        if (resultSnapshot.exceedsFallbackBuildThreshold()) {
+            state.setProjectStatus(PlotI18n.tr(
+                "plugin.pattern.build_fallback_elevation_blocked",
+                resultSnapshot.getFallbackElevationCount(),
+                resultSnapshot.getBlockCount()));
+            return;
         }
 
         com.plot.api.world.PlacementReadiness readiness =
@@ -284,18 +314,54 @@ public final class PatternActions {
             return;
         }
 
-        state.getProjectHistory().push(state.getProject());
-        int adopted = 0;
-        List<String> adoptedIds = new ArrayList<>();
+        int skippedOpen = 0;
+        int skippedSmall = 0;
         for (Shape shape : state.getSelectedRegions()) {
-            List<Vec2d> points = PatternGeometryUtils.extractRegionPoints(shape);
-            if (points.size() < 3) {
+            List<Vec2d> rawPoints = PatternGeometryUtils.extractRawBoundaryPoints(shape);
+            if (rawPoints.size() < 3) {
+                if (shape instanceof com.plot.core.geometry.shapes.PolylineShape
+                    || shape instanceof com.plot.core.geometry.shapes.FreeDrawPath) {
+                    skippedOpen++;
+                }
                 continue;
             }
+            List<Vec2d> points = PatternGeometryUtils.extractRegionPoints(shape);
+            if (points.size() < 3
+                || Math.abs(com.plot.core.geometry.PolygonRegionUtils.signedAreaOfRing(points))
+                    < PatternGeometryUtils.MIN_ADOPT_AREA_SQ) {
+                skippedSmall++;
+            }
+        }
+
+        List<PatternGeometryUtils.AdoptedRegionGroup> groups =
+            PatternGeometryUtils.groupAdoptableRegionsWithHoles(state.getSelectedRegions());
+        if (groups.isEmpty()) {
+            if (skippedOpen > 0) {
+                state.setProjectStatus(PlotI18n.tr("plugin.pattern.adopt_open_polyline"));
+            } else if (skippedSmall > 0) {
+                state.setProjectStatus(PlotI18n.tr("plugin.pattern.adopt_area_too_small"));
+            } else {
+                state.setProjectStatus(PlotI18n.tr("plugin.pattern.adopt_no_selection"));
+            }
+            return;
+        }
+
+        state.getProjectHistory().push(state.getProject());
+        int adopted = 0;
+        int holeCount = 0;
+        boolean overlapWarning = false;
+        List<String> adoptedIds = new ArrayList<>();
+        for (PatternGeometryUtils.AdoptedRegionGroup group : groups) {
+            List<Vec2d> points = group.outerPoints();
+            if (PatternGeometryUtils.overlapsExistingFootprint(points, state.getProject())) {
+                overlapWarning = true;
+            }
             PatternFootprint footprint = new PatternFootprint(points);
+            footprint.setHoles(group.holes());
             footprint.setName(PlotI18n.tr("plugin.pattern.default_name", adopted + 1));
             state.getProject().addFootprint(footprint);
             adoptedIds.add(footprint.getId());
+            holeCount += group.holes().size();
             adopted++;
         }
 
@@ -304,13 +370,31 @@ public final class PatternActions {
             state.getSelection().selectAll(adoptedIds);
             clearPreview();
         }
-        if (adopted == 0) {
-            state.setProjectStatus(PlotI18n.tr("plugin.pattern.adopt_no_selection"));
-        } else if (adopted > 1) {
-            state.setProjectStatus(PlotI18n.tr("plugin.pattern.adopt_success_batch", adopted));
-        } else {
-            state.setProjectStatus(PlotI18n.tr("plugin.pattern.adopt_success"));
+        state.setProjectStatus(resolveAdoptStatus(adopted, holeCount, overlapWarning, skippedOpen, skippedSmall));
+    }
+
+    private static String resolveAdoptStatus(
+            int adopted,
+            int holeCount,
+            boolean overlapWarning,
+            int skippedOpen,
+            int skippedSmall) {
+        if (overlapWarning) {
+            return PlotI18n.tr("plugin.pattern.adopt_overlap_warning", adopted);
         }
+        if (adopted == 1 && holeCount > 0) {
+            return PlotI18n.tr("plugin.pattern.adopt_success_with_holes", holeCount);
+        }
+        if (adopted > 1 && holeCount > 0) {
+            return PlotI18n.tr("plugin.pattern.adopt_success_batch_with_holes", adopted, holeCount);
+        }
+        if (adopted > 1) {
+            return PlotI18n.tr("plugin.pattern.adopt_success_batch", adopted);
+        }
+        if (skippedOpen > 0 || skippedSmall > 0) {
+            return PlotI18n.tr("plugin.pattern.adopt_success");
+        }
+        return PlotI18n.tr("plugin.pattern.adopt_success");
     }
 
     public void importImageForFootprint(PatternFootprint footprint) {
@@ -357,6 +441,56 @@ public final class PatternActions {
                 "plugin.pattern.import_image_failed",
                 e.getMessage()));
         }
+    }
+
+    public void addHoleFromCanvasSelection(PatternFootprint footprint) {
+        if (footprint == null) {
+            return;
+        }
+        List<Vec2d> hole = PatternGeometryUtils.extractFirstRegionFromShapes(
+            host.appState().getSelectedShapes());
+        PatternGeometryUtils.HoleAddIssue issue = PatternGeometryUtils.validateHoleForFootprint(
+            footprint.getOuterPoints(),
+            footprint.getHoles(),
+            hole);
+        if (issue != PatternGeometryUtils.HoleAddIssue.NONE) {
+            state.setProjectStatus(issue.statusKey().isBlank()
+                ? PlotI18n.tr("plugin.pattern.geometry_no_valid_selection")
+                : PlotI18n.tr(issue.statusKey()));
+            return;
+        }
+        state.getProjectHistory().push(state.getProject());
+        List<List<Vec2d>> holes = new ArrayList<>(footprint.getHoles());
+        holes.add(hole);
+        footprint.setHoles(holes);
+        invalidatePreview();
+        state.setProjectStatus(PlotI18n.tr("plugin.pattern.geometry_hole_added"));
+    }
+
+    public void clearFootprintHoles(PatternFootprint footprint) {
+        if (footprint == null || footprint.getHoles().isEmpty()) {
+            return;
+        }
+        state.getProjectHistory().push(state.getProject());
+        footprint.setHoles(List.of());
+        invalidatePreview();
+        state.setProjectStatus(PlotI18n.tr("plugin.pattern.geometry_holes_cleared"));
+    }
+
+    public void removeFootprintHole(PatternFootprint footprint, int holeIndex) {
+        if (footprint == null) {
+            return;
+        }
+        List<List<Vec2d>> holes = footprint.getHoles();
+        if (holeIndex < 0 || holeIndex >= holes.size()) {
+            return;
+        }
+        state.getProjectHistory().push(state.getProject());
+        List<List<Vec2d>> updated = new ArrayList<>(holes);
+        updated.remove(holeIndex);
+        footprint.setHoles(updated);
+        invalidatePreview();
+        state.setProjectStatus(PlotI18n.tr("plugin.pattern.geometry_hole_removed"));
     }
 
     public void deleteFootprints(List<String> ids) {

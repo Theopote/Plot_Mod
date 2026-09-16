@@ -131,6 +131,7 @@ public class PatternProject {
         String source;
         PatternData pattern;
         ImagePatternData imagePattern;
+        List<List<Vec2dData>> holes = new ArrayList<>();
     }
 
     static class ProjectData {
@@ -145,6 +146,13 @@ public class PatternProject {
                 footprintData.source = footprint.getSource().name();
                 for (Vec2d point : footprint.getOuterPoints()) {
                     footprintData.outerPoints.add(new Vec2dData(point));
+                }
+                for (List<Vec2d> hole : footprint.getHoles()) {
+                    List<Vec2dData> holeData = new ArrayList<>();
+                    for (Vec2d point : hole) {
+                        holeData.add(new Vec2dData(point));
+                    }
+                    footprintData.holes.add(holeData);
                 }
 
                 ProceduralPatternConfig procedural = footprint.getPattern();
@@ -197,6 +205,24 @@ public class PatternProject {
                 PatternFootprint footprint = new PatternFootprint(id, points);
                 footprint.setName(footprintData.name);
                 footprint.setSource(parseSource(footprintData.source));
+                if (footprintData.holes != null) {
+                    List<List<Vec2d>> holes = new ArrayList<>();
+                    for (List<Vec2dData> holeData : footprintData.holes) {
+                        if (holeData == null || holeData.size() < 3) {
+                            continue;
+                        }
+                        List<Vec2d> hole = new ArrayList<>();
+                        for (Vec2dData pointData : holeData) {
+                            if (pointData != null) {
+                                hole.add(pointData.toVec2d());
+                            }
+                        }
+                        if (hole.size() >= 3) {
+                            holes.add(hole);
+                        }
+                    }
+                    footprint.setHoles(holes);
+                }
 
                 if (footprintData.pattern != null) {
                     ProceduralPatternConfig pattern = new ProceduralPatternConfig();

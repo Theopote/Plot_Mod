@@ -11,6 +11,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PatternProjectTest {
 
@@ -29,6 +30,7 @@ class PatternProjectTest {
         pattern.setMaterials(List.of("minecraft:stone", "minecraft:quartz_block", "minecraft:deepslate"));
         pattern.setTileSize(3.0);
         pattern.setAngleDegrees(45.0);
+        pattern.setCenterOverride(new Vec2d(5.0, 4.0));
         pattern.setMosaicPrimaryRatio(0.6);
         footprint.setPattern(pattern);
         project.addFootprint(footprint);
@@ -43,6 +45,31 @@ class PatternProjectTest {
         assertEquals(3.0, restoredFootprint.getPattern().getTileSize(), 1e-6);
         assertEquals(45.0, restoredFootprint.getPattern().getAngleDegrees(), 1e-6);
         assertEquals(0.6, restoredFootprint.getPattern().getMosaicPrimaryRatio(), 1e-6);
+        assertEquals(5.0, restoredFootprint.getPattern().getCenterOverride().x, 1e-6);
+        assertEquals(4.0, restoredFootprint.getPattern().getCenterOverride().y, 1e-6);
+    }
+
+    @Test
+    void jsonRoundTripPreservesHoles() {
+        PatternProject project = new PatternProject();
+        PatternFootprint footprint = new PatternFootprint(List.of(
+            new Vec2d(0, 0),
+            new Vec2d(10, 0),
+            new Vec2d(10, 10),
+            new Vec2d(0, 10)));
+        footprint.setHoles(List.of(List.of(
+            new Vec2d(3, 3),
+            new Vec2d(7, 3),
+            new Vec2d(7, 7),
+            new Vec2d(3, 7))));
+        project.addFootprint(footprint);
+
+        PatternProject restored = PatternProject.fromJson(project.toJson());
+        PatternFootprint restoredFootprint = restored.getFootprint(footprint.getId());
+        assertNotNull(restoredFootprint);
+        assertEquals(1, restoredFootprint.getHoles().size());
+        assertEquals(4, restoredFootprint.getHoles().getFirst().size());
+        assertTrue(restoredFootprint.computeArea() < 100.0);
     }
 
     @Test

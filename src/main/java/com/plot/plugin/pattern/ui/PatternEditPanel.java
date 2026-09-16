@@ -1,5 +1,6 @@
 package com.plot.plugin.pattern.ui;
 
+import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.pattern.model.ImagePatternConfig;
 import com.plot.plugin.pattern.model.PatternFootprint;
 import com.plot.plugin.pattern.model.PatternSource;
@@ -7,6 +8,7 @@ import com.plot.plugin.pattern.model.ProceduralPatternConfig;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
 
@@ -46,6 +48,8 @@ public final class PatternEditPanel {
         Runnable beforeEdit = () -> ctx.projectHistory().push(ctx.project());
         Runnable invalidate = () -> ctx.actions().invalidatePreview();
 
+        PatternUiWidgets.renderFootprintGeometrySection(ctx, footprint, invalidate);
+
         PatternUiWidgets.renderSourceCombo(footprint, beforeEdit, invalidate);
         ImGui.spacing();
 
@@ -67,6 +71,10 @@ public final class PatternEditPanel {
         };
 
         PatternUiWidgets.renderPatternTypeCombo(pattern, beforeEdit, commitPattern);
+        if (pattern.getType() == ProceduralPatternConfig.PatternType.CHECKERBOARD) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.pattern.checkerboard_materials_hint"));
+        }
         PatternUiWidgets.renderMaterialList(ctx, pattern, beforeEdit, commitPattern);
 
         ImFloat tileSize = new ImFloat((float) pattern.getTileSize());
@@ -74,7 +82,7 @@ public final class PatternEditPanel {
             PlotI18n.tr("plugin.pattern.tile_size"),
             tileSize.getData(),
             0.5f,
-            16.0f,
+            (float) ProceduralPatternConfig.MAX_TILE_SIZE,
             "%.1f");
         if (ImGui.isItemActivated()) {
             beforeEdit.run();
@@ -116,6 +124,61 @@ public final class PatternEditPanel {
                 pattern.setMosaicPrimaryRatio(ratio.get());
                 commitPattern.run();
             }
+        }
+
+        if (pattern.getType() == ProceduralPatternConfig.PatternType.CONCENTRIC_RINGS) {
+            renderConcentricRingCenter(footprint, pattern, beforeEdit, commitPattern);
+        }
+    }
+
+    private void renderConcentricRingCenter(
+            PatternFootprint footprint,
+            ProceduralPatternConfig pattern,
+            Runnable beforeEdit,
+            Runnable commitPattern) {
+        ImBoolean useCentroid = new ImBoolean(pattern.getCenterOverride() == null);
+        if (ImGui.checkbox(PlotI18n.tr("plugin.pattern.ring_use_centroid"), useCentroid)) {
+            beforeEdit.run();
+            if (useCentroid.get()) {
+                pattern.setCenterOverride(null);
+            } else {
+                pattern.setCenterOverride(footprint.computeCentroid());
+            }
+            commitPattern.run();
+        }
+        if (!useCentroid.get()) {
+            Vec2d center = pattern.getCenterOverride();
+            if (center == null) {
+                center = footprint.computeCentroid();
+                pattern.setCenterOverride(center);
+            }
+            ImFloat centerX = new ImFloat((float) center.x);
+            ImFloat centerZ = new ImFloat((float) center.y);
+            boolean centerChanged = ImGui.inputFloat(
+                PlotI18n.tr("plugin.pattern.ring_center_x"),
+                centerX,
+                0.5f,
+                1.0f,
+                "%.1f");
+            centerChanged |= ImGui.inputFloat(
+                PlotI18n.tr("plugin.pattern.ring_center_z"),
+                centerZ,
+                0.5f,
+                1.0f,
+                "%.1f");
+            if (ImGui.isItemActivated()) {
+                beforeEdit.run();
+            }
+            if (centerChanged) {
+                pattern.setCenterOverride(new Vec2d(centerX.get(), centerZ.get()));
+                commitPattern.run();
+            }
+            if (ImGui.button(PlotI18n.tr("plugin.pattern.ring_center_reset"), 0, 0)) {
+                beforeEdit.run();
+                pattern.setCenterOverride(null);
+                commitPattern.run();
+            }
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.pattern.ring_center_hint"));
         }
     }
 

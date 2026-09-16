@@ -114,7 +114,7 @@ No unified save/load UI yet. Auto-persisted: keybindings, tool configs, plugin c
 
 ### Where are the extension plugins?
 
-Switch to the **Extension** tab on the right, click a plugin icon, and check **Enable plugin**. See [Extension Plugins](08-plugins.md). Built-in: **Road System**, **Earthwork Balance**, **Building Generator**.
+Switch to the **Extension** tab on the right, click a plugin icon, and check **Enable plugin**. See [Extension Plugins](08-plugins.md). Built-in: **Road System**, **Earthwork Balance**, **Building Generator**, **Pattern Generator**, **Power Lines**.
 
 ### Tools in lang files but not available?
 

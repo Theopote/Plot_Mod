@@ -17,9 +17,10 @@ Plot includes several built-in plugins accessible from the **Extension** tab in 
 | **Earthwork Balance** | Shape uneven terrain into a buildable pad and show cut vs fill |
 | **Road System** | Plan and generate roads along paths |
 | **Building Generator** | Generate buildings from polygon or rectangle footprints |
+| **Pattern Generator** | Claim closed regions and replace surface blocks with procedural patterns or imported pixel art |
 | **Power Lines** | Place poles along straight/polyline routes and generate decorative sagging wires |
 
-Earthwork, Road System, and Building Generator use **Overview / Adopt / Edit / Generate** tabs. Power Lines uses **Route / Style / Build** (the Route tab also includes the line list and overview map).
+Earthwork, Road System, Building Generator, and Pattern Generator use **Overview / Adopt / Edit / Generate** tabs. Power Lines uses **Route / Style / Build** (the Route tab also includes the line list and overview map).
 
 ---
 
@@ -110,6 +111,35 @@ For builders: select the area for a house, castle, or plaza. The plugin suggests
 
 ---
 
+## Pattern Generator
+
+Claim closed regions on the canvas and replace one layer of surface blocks with checkerboard, stripes, concentric rings, mosaic, or imported PNG/JPG pixel art (no full terrain grading). Good for plazas, ground textures, and pixel-art floors.
+
+### Typical Workflow
+
+1. Draw a **closed** paving region with polygon, rectangle, circle, or ellipse tools (polylines must close end-to-end)
+2. Open **Extension** -> **Pattern Generator** -> enable the plugin
+3. Use the **Adopt** tab to pick/claim regions (**select outer and inner rings together** to auto-detect holes)
+4. On **Edit**, choose a procedural pattern or **import an image**, configure materials/palette and fit mode; use **Add hole from selection** for extra holes
+5. On **Generate**, click **Calculate preview** (ghost blocks) -> **Confirm build**
+
+### Features
+
+- Four procedural patterns + image pixel art (stretch / contain / tile)
+- **Holes** auto-detected when adopting outer + inner rings together; manual add on Edit tab; orange outlines on canvas
+- Pattern Space canvas sampling, separate from world projection
+- Ghost preview (isolated owner, does not interfere with other plugins)
+- Build undo/redo (only restores blocks that were actually written)
+- Image mode reports specific issues (not imported / missing file / all transparent / empty palette)
+- Preview warns when unloaded chunks fall back to Y=64; build is blocked if too many cells use fallback
+
+### Data
+
+- Project data: `.minecraft/plot/plugins/pattern/projects/`
+- Imported images: `.minecraft/plot/plugins/pattern/images/`
+
+---
+
 ## Power Lines
 
 Adopt straight or polyline paths on the canvas, auto-place poles and crossarms, and generate decorative sagging wires (iron bars, chains, lightning rods, etc.). Good for street distribution, suburban lamps, lattice transmission towers, and similar builds.
@@ -144,7 +174,7 @@ Adopt straight or polyline paths on the canvas, auto-place poles and crossarms, 
 
 ### Pick Modes
 
-Earthwork, building, road, and power line adopt/pick operations temporarily capture canvas clicks. Do not switch tools during pick mode; press **Esc** to cancel. Watch the status bar.
+Earthwork, building, road, pattern, and power line adopt/pick operations temporarily capture canvas clicks. Do not switch tools during pick mode; press **Esc** to cancel. Watch the status bar.
 
 ### Conflicts with Drawing Tools
 
@@ -170,4 +200,4 @@ Pick mode temporarily captures canvas clicks. Press **Esc** to cancel.
 
 ### Conflicts with drawing tools
 
-Earthwork/building region pick, gallery placement, road path adopt, and power line path pick all capture canvas input in special modes. Watch the status bar.
+Earthwork/building region pick, pattern region adopt, gallery placement, road path adopt, and power line path pick all capture canvas input in special modes. Watch the status bar.

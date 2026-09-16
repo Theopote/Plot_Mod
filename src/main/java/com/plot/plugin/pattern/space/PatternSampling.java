@@ -14,10 +14,16 @@ public final class PatternSampling {
     }
 
     public static List<PatternSample> collectFootprintSamples(List<Vec2d> outerPoints) {
+        return collectFootprintSamples(outerPoints, List.of());
+    }
+
+    public static List<PatternSample> collectFootprintSamples(
+            List<Vec2d> outerPoints,
+            List<List<Vec2d>> holes) {
         if (outerPoints == null || outerPoints.size() < 3) {
             return List.of();
         }
-        List<Vec2d> cellCenters = PolygonRegionUtils.collectFootprintCellCenters(outerPoints);
+        List<Vec2d> cellCenters = PolygonRegionUtils.collectFootprintCellCenters(outerPoints, holes);
         List<PatternSample> samples = new ArrayList<>(cellCenters.size());
         for (Vec2d center : cellCenters) {
             samples.add(PatternSample.fromCanvas(center));

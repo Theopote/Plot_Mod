@@ -73,8 +73,8 @@ public final class ProceduralPatternMaterialResolver implements PatternMaterialR
             double patternZ,
             List<String> materials) {
         double tileSize = Math.max(1e-6, config.getTileSize());
-        int parity = (floorDiv(patternX, tileSize) + floorDiv(patternZ, tileSize)) & 1;
-        return Math.min(parity, Math.min(1, materials.size() - 1));
+        int parity = floorDiv(patternX, tileSize) + floorDiv(patternZ, tileSize);
+        return positiveMod(parity, materials.size());
     }
 
     private static int resolveStripes(

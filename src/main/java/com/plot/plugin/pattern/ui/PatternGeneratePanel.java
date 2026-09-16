@@ -93,9 +93,27 @@ public final class PatternGeneratePanel {
         }
 
         if (ctx.lastGenerationResult() != null) {
+            com.plot.plugin.pattern.PatternGenerationResult preview = ctx.lastGenerationResult();
             ImGui.text(PlotI18n.tr(
                 "plugin.pattern.preview_stats",
-                ctx.lastGenerationResult().getBlockCount()));
+                preview.getBlockCount()));
+            if (preview.getFallbackElevationCount() > 0) {
+                ImGui.textColored(
+                    preview.exceedsFallbackBuildThreshold()
+                        ? PluginUiColors.ERROR_SOFT
+                        : PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr(
+                        "plugin.pattern.preview_fallback_elevation",
+                        preview.getFallbackElevationCount(),
+                        preview.getBlockCount()));
+            }
+            if (preview.getSkippedOverlapCount() > 0) {
+                ImGui.textColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr(
+                        "plugin.pattern.preview_overlap_skipped",
+                        preview.getSkippedOverlapCount()));
+            }
             if (ImGui.button(PlotI18n.tr("plugin.pattern.build_confirm"), ImGui.getContentRegionAvailX(), 0)) {
                 if (buildReadiness.ready()) {
                     ctx.setBuildConfirmPending(true);
@@ -122,8 +140,29 @@ public final class PatternGeneratePanel {
                 ImGui.textColored(PluginUiColors.ERROR_SOFT, readiness.message());
             }
 
+            com.plot.plugin.pattern.PatternGenerationResult preview = ctx.lastGenerationResult();
+            boolean fallbackBlocked = preview != null && preview.exceedsFallbackBuildThreshold();
+            if (preview != null && preview.getFallbackElevationCount() > 0) {
+                ImGui.textColored(
+                    fallbackBlocked ? PluginUiColors.ERROR_SOFT : PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr(
+                        "plugin.pattern.preview_fallback_elevation",
+                        preview.getFallbackElevationCount(),
+                        preview.getBlockCount()));
+            }
+            if (fallbackBlocked) {
+                ImGui.textColored(
+                    PluginUiColors.ERROR_SOFT,
+                    PlotI18n.tr(
+                        "plugin.pattern.build_fallback_elevation_blocked",
+                        preview.getFallbackElevationCount(),
+                        preview.getBlockCount()));
+            }
+
             ImGui.spacing();
-            boolean canBuild = readiness.ready() && !ctx.host().placement().isBusy();
+            boolean canBuild = readiness.ready()
+                && !ctx.host().placement().isBusy()
+                && !fallbackBlocked;
             if (!canBuild) {
                 ImGui.beginDisabled();
             }

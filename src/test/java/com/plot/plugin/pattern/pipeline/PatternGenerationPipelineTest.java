@@ -45,6 +45,28 @@ class PatternGenerationPipelineTest {
     }
 
     @Test
+    void holesExcludeInteriorCells() {
+        PatternFootprint footprint = new PatternFootprint(List.of(
+            new Vec2d(0, 0),
+            new Vec2d(6, 0),
+            new Vec2d(6, 6),
+            new Vec2d(0, 6)));
+        footprint.setHoles(List.of(List.of(
+            new Vec2d(2, 2),
+            new Vec2d(4, 2),
+            new Vec2d(4, 4),
+            new Vec2d(2, 4))));
+
+        int withoutHole = PatternSampling.collectFootprintSamples(footprint.getOuterPoints()).size();
+        int withHole = PatternSampling.collectFootprintSamples(
+            footprint.getOuterPoints(),
+            footprint.getHoles()).size();
+
+        assertTrue(withHole < withoutHole);
+        assertTrue(withHole > 0);
+    }
+
+    @Test
     void pipelineProjectsSamplesToPlacementRecords() {
         ProceduralPatternConfig pattern = new ProceduralPatternConfig();
         pattern.setType(ProceduralPatternConfig.PatternType.CHECKERBOARD);

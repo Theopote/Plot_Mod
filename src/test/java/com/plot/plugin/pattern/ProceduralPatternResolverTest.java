@@ -35,7 +35,7 @@ class ProceduralPatternResolverTest {
     }
 
     @Test
-    void checkerboardIgnoresExtraMaterials() {
+    void checkerboardCyclesThroughAllMaterials() {
         ProceduralPatternConfig config = new ProceduralPatternConfig();
         config.setType(ProceduralPatternConfig.PatternType.CHECKERBOARD);
         config.setMaterials(List.of("a", "b", "c", "d"));
@@ -43,7 +43,7 @@ class ProceduralPatternResolverTest {
 
         int index = ProceduralPatternMaterialResolver.resolveMaterialIndex(
             config, 1, 0, new Vec2d(0, 0), "seed");
-        assertTrue(index == 0 || index == 1);
+        assertTrue(index >= 0 && index < 4);
     }
 
     @Test

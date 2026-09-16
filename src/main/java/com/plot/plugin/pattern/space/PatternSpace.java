@@ -32,7 +32,7 @@ public final class PatternSpace {
         return new PatternSpace(
             footprint.getId(),
             footprint.computeCentroid(),
-            PolygonRegionUtils.computeBounds(outerPoints));
+            PolygonRegionUtils.computeBounds(outerPoints, footprint.getHoles()));
     }
 
     public String seedKey() {
