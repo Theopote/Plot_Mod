@@ -4,13 +4,10 @@ import com.plot.core.model.Project;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
-import com.plot.plugin.pattern.PatternFootprintGeometryCanvasRenderer;
 import com.plot.plugin.pattern.PatternGenerator;
 import com.plot.plugin.pattern.ui.PatternPluginState;
 import com.plot.plugin.pattern.ui.PatternUiContext;
 import com.plot.plugin.pattern.ui.PatternUIManager;
-import com.plot.ui.canvas.CanvasCamera;
-import com.plot.ui.canvas.CanvasOverlayRegistry;
 import com.plot.ui.component.ExtensionPanelIcons;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,8 +37,6 @@ public class PatternPlugin extends Plugin {
             onProjectSaved(saved.getFilePath());
         }
     };
-
-    private final CanvasOverlayRegistry.Overlay geometryOverlay = this::renderGeometryOverlay;
 
     public PatternPlugin() {
         super(
@@ -75,7 +70,6 @@ public class PatternPlugin extends Plugin {
 
         ctx().events().subscribe(this, ProjectLoadedEvent.class, projectLoadedListener);
         ctx().events().subscribe(this, ProjectSavedEvent.class, projectSavedListener);
-        CanvasOverlayRegistry.register(geometryOverlay);
         loadProjectForCurrentProject();
     }
 
@@ -98,7 +92,6 @@ public class PatternPlugin extends Plugin {
         } catch (Exception e) {
             LOGGER.error("取消事件订阅失败: {}", e.getMessage(), e);
         }
-        CanvasOverlayRegistry.unregister(geometryOverlay);
     }
 
     @Override
@@ -112,25 +105,6 @@ public class PatternPlugin extends Plugin {
     public void renderDeferredModals() {
         if (uiManager != null) {
             uiManager.renderDeferredModals();
-        }
-    }
-
-    private void renderGeometryOverlay(imgui.ImDrawList drawList, CanvasCamera camera) {
-        if (!isEnabled() || uiContext == null) {
-            return;
-        }
-        com.plot.api.plugin.IPlugin active = com.plot.core.plugin.PluginManager.getInstance().getActivePlugin();
-        if (active != this) {
-            return;
-        }
-        synchronized (projectLock) {
-            if (uiContext.project().getFootprintCount() <= 0) {
-                return;
-            }
-            uiContext.selection().retainExisting(uiContext.project());
-            String selectedId = uiContext.selection().primaryId();
-            PatternFootprintGeometryCanvasRenderer.render(
-                drawList, camera, uiContext.project(), selectedId);
         }
     }
 
