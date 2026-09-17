@@ -49,9 +49,6 @@ public final class PatternMaterialResolverFactory {
         if (config == null || !config.hasImage()) {
             return Outcome.failed(PatternGenerationIssue.IMAGE_NOT_IMPORTED);
         }
-        if (config.getPaletteBlocks().isEmpty()) {
-            return Outcome.failed(PatternGenerationIssue.EMPTY_PALETTE);
-        }
         Optional<com.plot.plugin.pattern.image.ImagePatternRaster> raster =
             PatternImageStore.loadRaster(pluginDataDir, config);
         if (raster.isEmpty()) {
@@ -60,6 +57,6 @@ public final class PatternMaterialResolverFactory {
         return Outcome.ok(new ImagePatternMaterialResolver(
             config,
             raster.get(),
-            new BlockColorMatcher(config.getPaletteBlocks())));
+            new BlockColorMatcher()));
     }
 }

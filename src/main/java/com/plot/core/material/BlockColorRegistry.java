@@ -1,6 +1,7 @@
 package com.plot.core.material;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -95,5 +96,10 @@ public final class BlockColorRegistry {
         int g = 80 + ((hash >> 8) & 0x7F);
         int b = 80 + ((hash >> 16) & 0x7F);
         return 0xFF000000 | (r << 16) | (g << 8) | b;
+    }
+
+    /** 图片图案自动匹配使用的已知方块目录。 */
+    public static List<String> knownBlockIds() {
+        return List.copyOf(KNOWN.keySet());
     }
 }

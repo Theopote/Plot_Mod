@@ -8,6 +8,9 @@ import com.plot.plugin.pattern.model.PatternSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -32,7 +35,7 @@ class PatternMaterialResolverFactoryTest {
     }
 
     @Test
-    void emptyPaletteReportsIssue() {
+    void emptyPaletteStillBuildsImageResolverAutomatically() throws IOException {
         PatternFootprint footprint = sampleFootprint();
         footprint.setSource(PatternSource.IMAGE);
         ImagePatternConfig image = footprint.getImagePattern();
@@ -42,11 +45,15 @@ class PatternMaterialResolverFactoryTest {
         image.setPaletteBlocks(java.util.List.of());
         footprint.setImagePattern(image);
 
+        Path imageFile = pluginDataDir.resolve("images/test.png");
+        java.nio.file.Files.createDirectories(imageFile.getParent());
+        ImageIO.write(new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB), "png", imageFile.toFile());
+
         PatternMaterialResolverFactory.Outcome outcome =
             PatternMaterialResolverFactory.forFootprint(footprint, pluginDataDir);
 
-        assertFalse(outcome.canGenerate());
-        assertEquals(PatternGenerationIssue.EMPTY_PALETTE, outcome.issue());
+        assertTrue(outcome.canGenerate());
+        assertEquals(PatternGenerationIssue.NONE, outcome.issue());
     }
 
     @Test

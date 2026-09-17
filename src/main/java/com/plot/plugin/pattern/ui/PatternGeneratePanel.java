@@ -92,6 +92,8 @@ public final class PatternGeneratePanel {
             ImGui.textColored(PluginUiColors.ERROR_SOFT, buildReadiness.message());
         }
 
+        PatternPreviewRenderer.render(ctx.lastGenerationResult());
+
         if (ctx.lastGenerationResult() != null) {
             com.plot.plugin.pattern.PatternGenerationResult preview = ctx.lastGenerationResult();
             ImGui.text(PlotI18n.tr(

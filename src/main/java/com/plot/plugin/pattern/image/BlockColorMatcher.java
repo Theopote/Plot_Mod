@@ -11,6 +11,10 @@ import java.util.List;
 public final class BlockColorMatcher {
     private final List<PaletteEntry> entries;
 
+    public BlockColorMatcher() {
+        this(BlockColorRegistry.knownBlockIds());
+    }
+
     public BlockColorMatcher(List<String> blockIds) {
         this.entries = buildEntries(blockIds);
     }

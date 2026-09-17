@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BlockColorMatcherTest {
 
@@ -26,5 +27,12 @@ class BlockColorMatcherTest {
         BlockColorMatcher matcher = new BlockColorMatcher(List.of());
         assertEquals("minecraft:stone", matcher.nearestBlock(128, 128, 128));
         assertEquals(0, matcher.paletteSize());
+    }
+
+    @Test
+    void defaultMatcherUsesAutomaticBlockColorCatalog() {
+        BlockColorMatcher matcher = new BlockColorMatcher();
+        assertTrue(matcher.paletteSize() > 0);
+        assertEquals("minecraft:quartz_block", matcher.nearestBlock(236, 239, 241));
     }
 }

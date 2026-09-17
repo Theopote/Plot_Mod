@@ -321,6 +321,8 @@ public final class PatternDesignPanel {
             commitImage.run();
         }
 
-        PatternUiWidgets.renderImagePaletteList(imagePattern, beforeEdit, commitImage);
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.pattern.image_palette_auto"));
     }
 }
