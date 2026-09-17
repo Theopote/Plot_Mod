@@ -2,6 +2,7 @@ package com.plot.plugin.pattern.model;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.annotations.SerializedName;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.WorldProjectionSnapshot;
 import com.plot.plugin.pattern.PatternBlockCountCache;
@@ -126,20 +127,26 @@ public class PatternProject {
 
     static class BorderData {
         String borderMaterial;
-        @Deprecated String style;
-        @Deprecated List<String> borderMaterials = new ArrayList<>();
+        /** 旧版 schema 字段，仅用于反序列化兼容。 */
+        @SerializedName("style")
+        String legacyStyle;
+        /** 旧版 schema 字段，仅用于反序列化兼容。 */
+        @SerializedName("borderMaterials")
+        List<String> legacyBorderMaterials = new ArrayList<>();
         double borderWidth;
         boolean innerBorder;
         boolean outerBorder;
-        @Deprecated double cornerRadius;
+        /** 旧版 schema 字段，仅用于反序列化兼容。 */
+        @SerializedName("cornerRadius")
+        double legacyCornerRadius;
         boolean enabled;
 
         String resolvedBorderMaterial() {
             if (borderMaterial != null && !borderMaterial.isBlank()) {
                 return borderMaterial;
             }
-            if (borderMaterials != null && !borderMaterials.isEmpty()) {
-                return borderMaterials.getFirst();
+            if (legacyBorderMaterials != null && !legacyBorderMaterials.isEmpty()) {
+                return legacyBorderMaterials.getFirst();
             }
             return null;
         }
