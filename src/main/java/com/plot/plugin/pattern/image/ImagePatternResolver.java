@@ -69,7 +69,7 @@ public final class ImagePatternResolver {
         double u = clamp01(localX / spanX);
         double v = clamp01(localZ / spanZ);
         int pixelX = clamp((int) Math.floor(u * imageWidth), 0, imageWidth - 1);
-        int pixelY = clamp((int) Math.floor((1.0 - v) * imageHeight), 0, imageHeight - 1);
+        int pixelY = clamp((int) Math.floor(v * imageHeight), 0, imageHeight - 1);
         return new SampleCoord(pixelX, pixelY);
     }
 
@@ -94,7 +94,7 @@ public final class ImagePatternResolver {
             return null;
         }
         int pixelX = clamp((int) Math.floor(imageX), 0, imageWidth - 1);
-        int pixelY = clamp((int) Math.floor(imageHeight - 1 - imageY), 0, imageHeight - 1);
+        int pixelY = clamp((int) Math.floor(imageY), 0, imageHeight - 1);
         return new SampleCoord(pixelX, pixelY);
     }
 
@@ -107,7 +107,6 @@ public final class ImagePatternResolver {
         double scale = Math.max(0.25, tileScale);
         int pixelX = positiveMod((int) Math.floor(localX / scale), imageWidth);
         int pixelY = positiveMod((int) Math.floor(localZ / scale), imageHeight);
-        pixelY = imageHeight - 1 - pixelY;
         return new SampleCoord(pixelX, pixelY);
     }
 

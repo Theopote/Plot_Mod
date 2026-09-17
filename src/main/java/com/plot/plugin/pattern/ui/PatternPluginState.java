@@ -25,6 +25,7 @@ public final class PatternPluginState {
     private String footprintNameEditingId = "";
     private String footprintNameBeforeRename = "";
     private final ImString footprintNameBuffer = new ImString(64);
+    private final ImString imageImportPathBuffer = new ImString(512);
     private boolean footprintNameFocusPending = false;
     private int footprintNameIgnoreOutsideClickFrames = 0;
 
@@ -119,6 +120,10 @@ public final class PatternPluginState {
 
     public ImString getFootprintNameBuffer() {
         return footprintNameBuffer;
+    }
+
+    public ImString getImageImportPathBuffer() {
+        return imageImportPathBuffer;
     }
 
     public List<String> getPendingDeleteFootprintIds() {

@@ -307,6 +307,19 @@ public final class PatternDesignPanel {
                 PlotI18n.tr("plugin.pattern.image_missing"));
         }
 
+        ImGui.spacing();
+        ImGui.text(PlotI18n.tr("plugin.pattern.import_image_path_label"));
+        float confirmWidth = 72f;
+        ImGui.setNextItemWidth(Math.max(120f, ImGui.getContentRegionAvailX() - confirmWidth - ImGui.getStyle().getItemSpacingX()));
+        ImGui.inputText("##pattern_import_image_path", ctx.imageImportPathBuffer());
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.pattern.import_image_confirm") + "##path", confirmWidth, 0)) {
+            ctx.importImageFromPath(footprint.getId(), ctx.imageImportPathBuffer().get());
+        }
+        PatternUiWidgets.textColoredWrapped(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.pattern.import_image_path_hint"));
+
         String[] matchModeLabels = {
             PlotI18n.tr("plugin.pattern.image_match_auto"),
             PlotI18n.tr("plugin.pattern.image_match_custom")

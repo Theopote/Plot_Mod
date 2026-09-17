@@ -16,8 +16,8 @@ class ImagePatternResolverTest {
     @Test
     void stretchMapsRegionCornersToImagePixels() {
         BufferedImage image = new BufferedImage(2, 2, BufferedImage.TYPE_INT_ARGB);
-        image.setRGB(0, 1, 0xFFECEFF1); // quartz, maps from region min corner
-        image.setRGB(1, 0, 0xFFA45729); // orange terracotta, maps from region max corner
+        image.setRGB(0, 0, 0xFFECEFF1); // quartz, maps from region min corner
+        image.setRGB(1, 1, 0xFFA45729); // orange terracotta, maps from region max corner
         ImagePatternRaster raster = ImagePatternRaster.fromBufferedImage(image);
 
         ImagePatternConfig config = new ImagePatternConfig();

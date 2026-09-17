@@ -235,6 +235,14 @@ public final class PatternUiContext {
         actions.importImageForFootprint(footprint);
     }
 
+    public imgui.type.ImString imageImportPathBuffer() {
+        return state.getImageImportPathBuffer();
+    }
+
+    public void importImageFromPath(String footprintId, String pathText) {
+        actions.importImageFromPath(footprintId, pathText);
+    }
+
     public void deleteFootprints(List<String> ids) {
         actions.deleteFootprints(ids);
     }

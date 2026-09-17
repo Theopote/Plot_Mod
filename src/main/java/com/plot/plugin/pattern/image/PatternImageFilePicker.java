@@ -1,73 +1,47 @@
 package com.plot.plugin.pattern.image;
 
-import javax.swing.JFileChooser;
-import javax.swing.SwingUtilities;
-import javax.swing.filechooser.FileNameExtensionFilter;
-import java.awt.FileDialog;
-import java.awt.Frame;
-import java.io.File;
+import org.lwjgl.PointerBuffer;
+import org.lwjgl.system.MemoryStack;
+import org.lwjgl.util.tinyfd.TinyFileDialogs;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.nio.file.Path;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * 系统文件选择器。必须在 Minecraft 客户端主线程调用，避免后台线程打开 AWT 对话框失败。
+ * 原生文件选择器（LWJGL tinyfiledialogs），适用于 Minecraft headless 环境。
  */
 public final class PatternImageFilePicker {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Plot/PatternImageFilePicker");
+    private static final String[] FILTER_PATTERNS = {
+        "*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp", "*.webp"
+    };
+
     private PatternImageFilePicker() {
     }
 
     public static Optional<Path> pickImage(String title) {
-        try {
-            if (SwingUtilities.isEventDispatchThread()) {
-                return showChooser(title);
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            PointerBuffer filters = stack.mallocPointer(FILTER_PATTERNS.length);
+            for (String pattern : FILTER_PATTERNS) {
+                filters.put(stack.UTF8(pattern));
             }
-            AtomicReference<Optional<Path>> result = new AtomicReference<>(Optional.empty());
-            SwingUtilities.invokeAndWait(() -> result.set(showChooser(title)));
-            return result.get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return Optional.empty();
-        } catch (Exception ignored) {
-            return showFileDialog(title);
-        }
-    }
+            filters.flip();
 
-    private static Optional<Path> showChooser(String title) {
-        JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle(title);
-        chooser.setFileFilter(new FileNameExtensionFilter(
-            "Image",
-            "png",
-            "jpg",
-            "jpeg",
-            "gif",
-            "bmp",
-            "webp"));
-        if (chooser.showOpenDialog(null) != JFileChooser.APPROVE_OPTION) {
+            String selected = TinyFileDialogs.tinyfd_openFileDialog(
+                title,
+                null,
+                filters,
+                "Image files",
+                false);
+            if (selected == null || selected.isBlank()) {
+                return Optional.empty();
+            }
+            return Optional.of(Path.of(selected));
+        } catch (Exception e) {
+            LOGGER.warn("打开图片文件选择器失败: {}", e.getMessage());
             return Optional.empty();
         }
-        File file = chooser.getSelectedFile();
-        return file != null ? Optional.of(file.toPath()) : Optional.empty();
-    }
-
-    private static Optional<Path> showFileDialog(String title) {
-        FileDialog dialog = new FileDialog((Frame) null, title, FileDialog.LOAD);
-        dialog.setFilenameFilter((dir, name) -> {
-            String lower = name.toLowerCase();
-            return lower.endsWith(".png")
-                || lower.endsWith(".jpg")
-                || lower.endsWith(".jpeg")
-                || lower.endsWith(".gif")
-                || lower.endsWith(".bmp")
-                || lower.endsWith(".webp");
-        });
-        dialog.setVisible(true);
-        String fileName = dialog.getFile();
-        String directory = dialog.getDirectory();
-        if (fileName == null || directory == null) {
-            return Optional.empty();
-        }
-        return Optional.of(new File(directory, fileName).toPath());
     }
 }

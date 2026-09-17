@@ -400,15 +400,33 @@ public final class PatternActions {
             return;
         }
         String footprintId = footprint.getId();
-        state.setProjectStatus(PlotI18n.tr("plugin.pattern.import_image_waiting"));
         java.util.Optional<java.nio.file.Path> optional = PatternImageFilePicker.pickImage(
             PlotI18n.tr("plugin.pattern.import_image_dialog_title"));
+        if (optional.isEmpty()) {
+            return;
+        }
         applyImportedImage(footprintId, optional);
+    }
+
+    public void importImageFromPath(String footprintId, String pathText) {
+        if (footprintId == null || footprintId.isBlank() || pluginDataDir == null) {
+            state.setProjectStatus(PlotI18n.tr("plugin.pattern.import_image_failed", "plugin data unavailable"));
+            return;
+        }
+        if (pathText == null || pathText.isBlank()) {
+            state.setProjectStatus(PlotI18n.tr("plugin.pattern.import_image_path_empty"));
+            return;
+        }
+        java.nio.file.Path path = java.nio.file.Path.of(pathText.trim());
+        if (!java.nio.file.Files.exists(path)) {
+            state.setProjectStatus(PlotI18n.tr("plugin.pattern.import_image_path_missing", path));
+            return;
+        }
+        applyImportedImage(footprintId, java.util.Optional.of(path));
     }
 
     private void applyImportedImage(String footprintId, java.util.Optional<java.nio.file.Path> optional) {
         if (optional.isEmpty()) {
-            state.setProjectStatus(PlotI18n.tr("plugin.pattern.import_image_cancelled"));
             return;
         }
         PatternFootprint footprint = state.getProject().getFootprint(footprintId);
