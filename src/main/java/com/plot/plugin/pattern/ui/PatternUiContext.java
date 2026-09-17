@@ -52,10 +52,6 @@ public final class PatternUiContext {
         return state;
     }
 
-    public void setShowAddRegionPanel(boolean show) {
-        state.setShowAddRegionPanel(show);
-    }
-
     public Object projectLock() {
         return projectLock;
     }
@@ -160,20 +156,12 @@ public final class PatternUiContext {
         actions.startPickSession();
     }
 
+    public void cancelPickSession() {
+        actions.cancelPickSession();
+    }
+
     public void handlePickSessionTick() {
         actions.handlePickSessionTick();
-    }
-
-    public void updateSelectedRegions() {
-        actions.updateSelectedRegions();
-    }
-
-    public void selectAllClosedShapesOnCanvas() {
-        actions.selectAllClosedShapesOnCanvas();
-    }
-
-    public double computeSelectedRegionArea() {
-        return actions.computeSelectedRegionArea();
     }
 
     public void adoptSelectedRegions() {

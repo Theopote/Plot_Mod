@@ -122,11 +122,11 @@ public final class PatternSelectionSet {
         return project.getFootprint(primaryId);
     }
 
-    public double totalArea(PatternProject project) {
-        double area = 0.0;
+    public int totalBlockCount(PatternProject project) {
+        int count = 0;
         for (PatternFootprint footprint : resolve(project)) {
-            area += footprint.computeArea();
+            count += footprint.computeBlockCount();
         }
-        return area;
+        return count;
     }
 }

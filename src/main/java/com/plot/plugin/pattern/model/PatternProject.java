@@ -54,6 +54,14 @@ public class PatternProject {
         return footprints.values().stream().mapToDouble(PatternFootprint::computeArea).sum();
     }
 
+    public int totalBlockCount() {
+        int count = 0;
+        for (PatternFootprint footprint : footprints.values()) {
+            count += footprint.computeBlockCount();
+        }
+        return count;
+    }
+
     public String toJson() {
         return GSON.toJson(ProjectData.from(this));
     }

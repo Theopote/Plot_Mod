@@ -1,16 +1,12 @@
 package com.plot.plugin.pattern.ui;
 
-import com.plot.core.model.Shape;
-import com.plot.plugin.pattern.PatternGeometryUtils;
 import com.plot.plugin.pattern.model.PatternFootprint;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 
-import java.util.List;
-
-/** 区域管理 Tab（概览 + 认领）。 */
+/** 区域管理 Tab：拾取范围 + 预览范围。 */
 public final class PatternRegionPanel {
     private final PatternUiContext ctx;
 
@@ -23,25 +19,60 @@ public final class PatternRegionPanel {
     }
 
     public void render() {
-        float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
-        if (ImGui.button(PlotI18n.tr("plugin.pattern.add_region_from_canvas"), half, 0)) {
-            ctx.state().setShowAddRegionPanel(!ctx.state().isShowAddRegionPanel());
+        renderPickSection();
+        ImGui.separator();
+        renderPreviewSection();
+
+        PatternFootprint primary = ctx.selection().primary(ctx.project());
+        if (primary != null) {
+            ImGui.separator();
+            PatternUiWidgets.renderFootprintGeometrySection(ctx, primary, () -> ctx.actions().invalidatePreview());
         }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.pattern.select_all_closed"), half, 0)) {
-            ctx.selectAllClosedShapesOnCanvas();
-            ctx.state().setShowAddRegionPanel(true);
+    }
+
+    private void renderPickSection() {
+        ImGui.text(PlotI18n.tr("plugin.pattern.pick_section_title"));
+        ImGui.spacing();
+
+        if (ctx.pickSession().isActive()) {
+            int count = ctx.pickSession().getAccumulatedCount();
+            if (count > 0) {
+                ImGui.textColored(
+                    PluginUiColors.STATUS_INFO,
+                    PlotI18n.tr("plugin.pattern.pick_picking_count", count));
+            } else {
+                ImGui.textColored(
+                    PluginUiColors.STATUS_INFO,
+                    PlotI18n.tr("plugin.pattern.pick_picking_active"));
+            }
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.pattern.pick_right_click_finish"));
+            if (ImGui.button(PlotI18n.tr("plugin.pattern.cancel_pick") + "##pattern_cancel_pick", 0, 0)) {
+                ctx.cancelPickSession();
+            }
+            return;
         }
 
-        if (ctx.state().isShowAddRegionPanel()) {
-            renderAddRegionSection();
-            ImGui.spacing();
+        if (ImGui.button(PlotI18n.tr("plugin.pattern.pick_range") + "##pattern_pick_range", 0, 0)) {
+            ctx.startPickSession();
         }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.pattern.pick_range_hint"));
+        }
+        ImGui.spacing();
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.pattern.draw_region_hint"));
+    }
 
-        ImGui.text(PlotI18n.tr(
-            "plugin.pattern.region_list_header",
-            ctx.project().getFootprintCount()));
+    private void renderPreviewSection() {
+        ImGui.text(PlotI18n.tr("plugin.pattern.preview_section_title"));
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+            "plugin.pattern.project_stats",
+            ctx.project().getFootprintCount(),
+            ctx.project().totalBlockCount()));
+
         if (ctx.project().getFootprintCount() == 0) {
+            ImGui.spacing();
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.pattern.no_footprints"));
             return;
         }
@@ -78,82 +109,48 @@ public final class PatternRegionPanel {
             ImGui.endDisabled();
         }
 
-        ImGui.beginChild("pattern_region_list", 0, 220, true);
+        ImGui.spacing();
+        PatternOverviewRenderer.renderProjectMap(
+            ctx.project(),
+            ctx.selection().ids(),
+            id -> ctx.selection().select(id, ImGui.getIO().getKeyCtrl()));
+
+        ImGui.spacing();
         for (PatternFootprint footprint : ctx.project().getFootprints().values()) {
-            ImGui.pushID(footprint.getId());
-            boolean selected = ctx.selection().contains(footprint.getId());
-            if (ImGui.selectable(footprint.getName() + "##row", selected)) {
-                ctx.selection().select(footprint.getId(), ImGui.getIO().getKeyCtrl());
-            }
-            ImGui.sameLine();
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-                "plugin.pattern.overview_item",
-                String.format("%.1f", footprint.computeArea()),
-                PatternUiWidgets.sourceLabel(footprint)));
-
-            if (ImGui.button(PlotI18n.tr("plugin.pattern.locate"), 60, 0)) {
-                ctx.locateFootprint(footprint);
-            }
-            ImGui.popID();
-        }
-        ImGui.endChild();
-
-        PatternFootprint primary = ctx.selection().primary(ctx.project());
-        if (primary != null) {
-            ImGui.spacing();
-            PatternUiWidgets.renderFootprintGeometrySection(ctx, primary, () -> ctx.actions().invalidatePreview());
+            renderFootprintRow(footprint);
         }
     }
 
-    private void renderAddRegionSection() {
-        ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.pattern.add_region_title"));
+    private void renderFootprintRow(PatternFootprint footprint) {
+        ImGui.pushID(footprint.getId());
+        boolean selected = ctx.selection().contains(footprint.getId());
 
-        if (ctx.pickSession().isActive()) {
-            int count = ctx.pickSession().getAccumulatedCount();
-            if (count > 0) {
-                ImGui.text(String.format(PlotI18n.tr("plugin.pattern.regions_selected"), count));
-            }
-        } else {
-            ctx.updateSelectedRegions();
-        }
-
-        List<Shape> selected = ctx.selectedRegions();
-        if (!selected.isEmpty()) {
-            PatternGeometryUtils.AdoptSelectionSummary summary =
-                PatternGeometryUtils.summarizeAdoptSelection(selected);
-            ImGui.text(PlotI18n.tr(
-                "plugin.pattern.adopt_selection_summary",
-                summary.selectedShapeCount(),
-                summary.outerCount(),
-                summary.holeCount()));
-            ImGui.text(PlotI18n.tr(
-                "plugin.pattern.regions_selected_detail",
-                selected.size(),
-                String.format("%.1f", ctx.computeSelectedRegionArea())));
-        } else {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.pattern.draw_region_hint"));
-        }
-
-        if (ImGui.button(PlotI18n.tr("plugin.pattern.pick_region"), 0, 0)) {
-            ctx.startPickSession();
+        if (PatternOverviewRenderer.renderFootprintThumbnail(footprint, selected)) {
+            ctx.selection().select(footprint.getId(), ImGui.getIO().getKeyCtrl());
         }
         ImGui.sameLine();
-        boolean adoptDisabled = selected.isEmpty();
-        if (adoptDisabled) {
-            ImGui.beginDisabled();
+
+        float columnWidth = Math.max(120f, ImGui.getContentRegionAvailX() - 68f);
+        ImGui.beginGroup();
+        ImGui.setNextItemWidth(columnWidth);
+        if (ImGui.selectable(footprint.getName() + "##row", selected)) {
+            ctx.selection().select(footprint.getId(), ImGui.getIO().getKeyCtrl());
         }
-        if (ImGui.button(PlotI18n.tr("plugin.pattern.confirm_add_regions"), 0, 0)) {
-            ctx.adoptSelectedRegions();
-            ctx.state().setShowAddRegionPanel(false);
-        }
-        if (adoptDisabled) {
-            ImGui.endDisabled();
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+            "plugin.pattern.overview_item",
+            footprint.computeBlockCount(),
+            PatternUiWidgets.sourceLabel(footprint)));
+        if (ImGui.button(PlotI18n.tr("plugin.pattern.locate") + "##locate", 0, 0)) {
+            ctx.locateFootprint(footprint);
         }
         ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.pattern.add_region_cancel"), 0, 0)) {
-            ctx.state().setShowAddRegionPanel(false);
+        if (ImGui.button(PlotI18n.tr("plugin.pattern.delete") + "##delete", 0, 0)) {
+            ctx.pendingDeleteFootprintIds().clear();
+            ctx.pendingDeleteFootprintIds().add(footprint.getId());
+            ctx.setDeleteConfirmPending(true);
         }
+        ImGui.endGroup();
+        ImGui.popID();
     }
 
     public void renderDeleteConfirmPopup() {

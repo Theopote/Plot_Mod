@@ -271,15 +271,18 @@ public final class PatternActions {
         state.setProjectStatus(PlotI18n.tr("plugin.pattern.pick_started"));
     }
 
+    public void cancelPickSession() {
+        state.getPickSession().cancel();
+        state.setProjectStatus(PlotI18n.tr("plugin.pattern.pick_cancelled"));
+    }
+
     public void handlePickSessionTick() {
         PatternRegionPickSession.Outcome outcome = state.getPickSession().tick(host.appState());
         switch (outcome.getResult()) {
             case SUCCESS -> {
                 state.getSelectedRegions().clear();
                 state.getSelectedRegions().addAll(outcome.getRegions());
-                state.setProjectStatus(PlotI18n.tr(
-                    "plugin.pattern.pick_success",
-                    state.getSelectedRegions().size()));
+                adoptSelectedRegions();
             }
             case NEED_SELECTION -> state.setProjectStatus(PlotI18n.tr("plugin.pattern.pick_need_selection"));
             case NO_VALID -> state.setProjectStatus(PlotI18n.tr("plugin.pattern.pick_no_valid"));
@@ -297,41 +300,14 @@ public final class PatternActions {
             PatternGeometryUtils.findAdoptableRegions(host.appState().getSelectedShapes()));
     }
 
-    public void selectAllClosedShapesOnCanvas() {
-        List<Shape> adoptable = PatternGeometryUtils.findAdoptableRegions(host.appState().getShapes());
-        host.appState().setSelectedShapes(new ArrayList<>(adoptable));
-        updateSelectedRegions();
-        state.setProjectStatus(adoptable.isEmpty()
-            ? PlotI18n.tr("plugin.pattern.pick_no_valid")
-            : PlotI18n.tr("plugin.pattern.select_all_closed_success", adoptable.size()));
-    }
-
-    public double computeSelectedRegionArea() {
-        double area = 0.0;
-        for (Shape shape : state.getSelectedRegions()) {
-            List<Vec2d> points = PatternGeometryUtils.extractRegionPoints(shape);
-            area += Math.abs(com.plot.core.geometry.PolygonRegionUtils.signedAreaOfRing(points));
-        }
-        return area;
-    }
-
     public void adoptSelectedRegions() {
         if (state.getSelectedRegions().isEmpty()) {
             state.setProjectStatus(PlotI18n.tr("plugin.pattern.adopt_no_selection"));
             return;
         }
 
-        int skippedOpen = 0;
         int skippedSmall = 0;
         for (Shape shape : state.getSelectedRegions()) {
-            List<Vec2d> rawPoints = PatternGeometryUtils.extractRawBoundaryPoints(shape);
-            if (rawPoints.size() < 3) {
-                if (shape instanceof com.plot.core.geometry.shapes.PolylineShape
-                    || shape instanceof com.plot.core.geometry.shapes.FreeDrawPath) {
-                    skippedOpen++;
-                }
-                continue;
-            }
             List<Vec2d> points = PatternGeometryUtils.extractRegionPoints(shape);
             if (points.size() < 3
                 || Math.abs(com.plot.core.geometry.PolygonRegionUtils.signedAreaOfRing(points))
@@ -343,9 +319,7 @@ public final class PatternActions {
         List<PatternGeometryUtils.AdoptedRegionGroup> groups =
             PatternGeometryUtils.groupAdoptableRegionsWithHoles(state.getSelectedRegions());
         if (groups.isEmpty()) {
-            if (skippedOpen > 0) {
-                state.setProjectStatus(PlotI18n.tr("plugin.pattern.adopt_open_polyline"));
-            } else if (skippedSmall > 0) {
+            if (skippedSmall > 0) {
                 state.setProjectStatus(PlotI18n.tr("plugin.pattern.adopt_area_too_small"));
             } else {
                 state.setProjectStatus(PlotI18n.tr("plugin.pattern.adopt_no_selection"));
@@ -377,14 +351,13 @@ public final class PatternActions {
             state.getSelection().selectAll(adoptedIds);
             clearPreview();
         }
-        state.setProjectStatus(resolveAdoptStatus(adopted, holeCount, overlapWarning, skippedOpen, skippedSmall));
+        state.setProjectStatus(resolveAdoptStatus(adopted, holeCount, overlapWarning, skippedSmall));
     }
 
     private static String resolveAdoptStatus(
             int adopted,
             int holeCount,
             boolean overlapWarning,
-            int skippedOpen,
             int skippedSmall) {
         if (overlapWarning) {
             return PlotI18n.tr("plugin.pattern.adopt_overlap_warning", adopted);
@@ -398,7 +371,7 @@ public final class PatternActions {
         if (adopted > 1) {
             return PlotI18n.tr("plugin.pattern.adopt_success_batch", adopted);
         }
-        if (skippedOpen > 0 || skippedSmall > 0) {
+        if (skippedSmall > 0) {
             return PlotI18n.tr("plugin.pattern.adopt_success");
         }
         return PlotI18n.tr("plugin.pattern.adopt_success");

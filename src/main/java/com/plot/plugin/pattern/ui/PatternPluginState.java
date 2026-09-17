@@ -28,8 +28,6 @@ public final class PatternPluginState {
     private final List<String> pendingDeleteFootprintIds = new ArrayList<>();
     private boolean deleteConfirmPending = false;
     private boolean buildConfirmPending = false;
-    private boolean showAddRegionPanel = false;
-
     private volatile String projectStatus = "";
     private String currentProjectFile = "default.json";
     private final ContentFingerprint.Tracker contentFingerprint = new ContentFingerprint.Tracker();
@@ -97,14 +95,6 @@ public final class PatternPluginState {
 
     public void setBuildConfirmPending(boolean buildConfirmPending) {
         this.buildConfirmPending = buildConfirmPending;
-    }
-
-    public boolean isShowAddRegionPanel() {
-        return showAddRegionPanel;
-    }
-
-    public void setShowAddRegionPanel(boolean showAddRegionPanel) {
-        this.showAddRegionPanel = showAddRegionPanel;
     }
 
     public String getProjectStatus() {

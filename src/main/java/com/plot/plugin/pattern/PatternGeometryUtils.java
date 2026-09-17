@@ -52,15 +52,14 @@ public final class PatternGeometryUtils {
         return points.size() >= 3 && hasMeaningfulArea(points);
     }
 
+    /**
+     * 从画布图形提取铺装区域外轮廓；开放折线/自由路径会自动按首尾相连作为封闭区域。
+     */
     public static List<Vec2d> extractRegionPoints(Shape shape) {
         if (shape == null) {
             return List.of();
         }
-        List<Vec2d> raw = extractRawBoundaryPoints(shape);
-        if (raw.size() < 3) {
-            return List.of();
-        }
-        return PolygonRegionUtils.normalizeRegionOutline(raw);
+        return PolygonRegionUtils.normalizeRegionOutline(extractRawBoundaryPoints(shape));
     }
 
     public static List<Vec2d> extractRawBoundaryPoints(Shape shape) {
@@ -68,15 +67,13 @@ public final class PatternGeometryUtils {
             return List.of();
         }
         if (shape instanceof PolylineShape polyline) {
-            List<Vec2d> points = PolygonRegionUtils.copyPoints(polyline.getPoints());
-            return isClosedPointLoop(points) ? points : List.of();
+            return PolygonRegionUtils.copyPoints(polyline.getPoints());
         }
         if (shape instanceof Polygon polygon) {
             return PolygonRegionUtils.copyPoints(polygon.getPoints());
         }
         if (shape instanceof FreeDrawPath freeDraw) {
-            List<Vec2d> points = PolygonRegionUtils.copyPoints(freeDraw.getPoints());
-            return isClosedPointLoop(points) ? points : List.of();
+            return PolygonRegionUtils.copyPoints(freeDraw.getPoints());
         }
         if (shape instanceof BezierCurveShape bezier) {
             List<Vec2d> curvePoints = bezier.getCurvePoints();
@@ -325,6 +322,22 @@ public final class PatternGeometryUtils {
             return 0.0;
         }
         return Math.abs(PolygonRegionUtils.signedAreaOfRing(holePoints));
+    }
+
+    public static int computeBlockCount(List<Vec2d> outerPoints, List<List<Vec2d>> holes) {
+        if (outerPoints == null || outerPoints.size() < 3) {
+            return 0;
+        }
+        return PolygonRegionUtils.collectFootprintCellCenters(outerPoints, holes).size();
+    }
+
+    public static int computeBlockCountForShapes(List<Shape> shapes) {
+        List<AdoptedRegionGroup> groups = groupAdoptableRegionsWithHoles(shapes);
+        int count = 0;
+        for (AdoptedRegionGroup group : groups) {
+            count += computeBlockCount(group.outerPoints(), group.holes());
+        }
+        return count;
     }
 
     public static BlockPos canvasToBlockXZ(Vec2d canvasPos, ICoordinateService transformer) {

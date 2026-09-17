@@ -97,6 +97,10 @@ public class PatternFootprint {
         return Math.abs(PolygonRegionUtils.computeSignedArea(outerPoints, holes));
     }
 
+    public int computeBlockCount() {
+        return PolygonRegionUtils.collectFootprintCellCenters(outerPoints, holes).size();
+    }
+
     public Vec2d computeCentroid() {
         return PolygonRegionUtils.computeCentroid(outerPoints);
     }
