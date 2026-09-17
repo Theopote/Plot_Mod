@@ -50,6 +50,7 @@ public final class PatternUIManager {
 
     public void renderDeferredModals() {
         regionPanel.renderDeleteConfirmPopup();
+        designPanel.renderDeferredModals();
         generatePanel.renderBuildConfirmPopup();
     }
 }

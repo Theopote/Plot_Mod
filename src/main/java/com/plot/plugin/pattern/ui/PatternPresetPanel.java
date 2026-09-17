@@ -7,6 +7,7 @@ import com.plot.plugin.pattern.model.PatternSource;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImString;
 
@@ -18,6 +19,7 @@ public final class PatternPresetPanel {
     private final ImString newPresetName = new ImString(64);
     private int selectedPresetIndex = -1;
     private boolean showUserPresets = false;
+    private boolean savePresetPopupPending = false;
     private PatternSource lastRenderedSource;
 
     public PatternPresetPanel(PatternUiContext ctx) {
@@ -50,6 +52,10 @@ public final class PatternPresetPanel {
         }
 
         ImGui.spacing();
+
+        if (showUserPresets) {
+            ImGui.text(PlotI18n.tr("plugin.pattern.preset_user_list_title"));
+        }
 
         List<PatternPreset> presets = showUserPresets
             ? library.getUserPresets(resolvedSource)
@@ -87,14 +93,8 @@ public final class PatternPresetPanel {
 
         if (!showUserPresets) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.pattern.preset_builtin_hint"));
-        } else {
-            ImGui.text(PlotI18n.tr("plugin.pattern.create_preset"));
-            ImGui.sameLine();
-            ImGui.inputText("##new_preset_name", newPresetName);
-            ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("plugin.pattern.save_as_preset"), 0, 0)) {
-                saveCurrentAsPreset();
-            }
+        } else if (ImGui.button(PlotI18n.tr("plugin.pattern.save_current_as_preset"), 0, 0)) {
+            savePresetPopupPending = true;
         }
 
         ImGui.spacing();
@@ -127,21 +127,48 @@ public final class PatternPresetPanel {
         return PlotI18n.tr("plugin.pattern.no_builtin_presets");
     }
 
-    private void saveCurrentAsPreset() {
+    public void renderSavePresetPopup() {
+        if (savePresetPopupPending) {
+            ImGui.openPopup("##pattern_save_preset");
+            savePresetPopupPending = false;
+        }
+
+        if (ImGui.beginPopupModal("##pattern_save_preset", ImGuiWindowFlags.AlwaysAutoResize)) {
+            ImGui.text(PlotI18n.tr("plugin.pattern.preset_name_label"));
+            ImGui.setNextItemWidth(240f);
+            ImGui.inputText("##pattern_new_preset_name", newPresetName);
+
+            ImGui.spacing();
+            if (ImGui.button(PlotI18n.tr("plugin.pattern.preset_save"), 96, 0)) {
+                if (saveCurrentAsPreset()) {
+                    ImGui.closeCurrentPopup();
+                }
+            }
+            ImGui.sameLine();
+            if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 96, 0)) {
+                newPresetName.set("");
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.endPopup();
+        }
+    }
+
+    private boolean saveCurrentAsPreset() {
         String name = newPresetName.get().trim();
         if (name.isEmpty()) {
             ctx.setProjectStatus(PlotI18n.tr("plugin.pattern.preset_name_empty"));
-            return;
+            return false;
         }
 
         PatternFootprint footprint = ctx.selection().primary(ctx.project());
         if (footprint == null) {
             ctx.setProjectStatus(PlotI18n.tr("plugin.pattern.no_footprint_selected"));
-            return;
+            return false;
         }
 
         ctx.actions().saveAsPreset(footprint, name);
         newPresetName.set("");
+        return true;
     }
 
     private void applySelectedPreset(PatternPreset preset) {

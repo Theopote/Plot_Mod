@@ -14,6 +14,7 @@ import imgui.type.ImInt;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /** 图案插件共享 ImGui 控件。 */
 public final class PatternUiWidgets {
@@ -100,10 +101,7 @@ public final class PatternUiWidgets {
             ImGui.text(PlotI18n.tr("plugin.pattern.material_slot", index + 1));
             ImGui.sameLine();
             if (ImGui.button(UIUtils.getBlockDisplayName(material) + "##mat", 0, 0)) {
-                if (beforeChange != null) {
-                    beforeChange.run();
-                }
-                UIUtils.openBlockPicker(material, blockId -> {
+                openBlockPickerIfChanged(material, beforeChange, blockId -> {
                     materials.set(index, blockId);
                     pattern.setMaterials(materials);
                     if (onChanged != null) {
@@ -133,10 +131,10 @@ public final class PatternUiWidgets {
         }
         if (materials.size() < 6) {
             if (ImGui.button(PlotI18n.tr("plugin.pattern.add_material"), 0, 0)) {
-                if (beforeChange != null) {
-                    beforeChange.run();
-                }
                 UIUtils.openBlockPicker(ProceduralPatternConfig.DEFAULT_MATERIAL_A, blockId -> {
+                    if (beforeChange != null) {
+                        beforeChange.run();
+                    }
                     materials.add(blockId);
                     pattern.setMaterials(materials);
                     if (onChanged != null) {
@@ -251,10 +249,7 @@ public final class PatternUiWidgets {
             ImGui.text(PlotI18n.tr("plugin.pattern.palette_slot", index + 1));
             ImGui.sameLine();
             if (ImGui.button(UIUtils.getBlockDisplayName(blockId) + "##palette", 0, 0)) {
-                if (beforeChange != null) {
-                    beforeChange.run();
-                }
-                UIUtils.openBlockPicker(blockId, selected -> {
+                openBlockPickerIfChanged(blockId, beforeChange, selected -> {
                     palette.set(index, selected);
                     imagePattern.setPaletteBlocks(palette);
                     if (onChanged != null) {
@@ -284,10 +279,10 @@ public final class PatternUiWidgets {
         }
         if (palette.size() < 32) {
             if (ImGui.button(PlotI18n.tr("plugin.pattern.add_palette_block"), 0, 0)) {
-                if (beforeChange != null) {
-                    beforeChange.run();
-                }
                 UIUtils.openBlockPicker("minecraft:white_wool", selected -> {
+                    if (beforeChange != null) {
+                        beforeChange.run();
+                    }
                     palette.add(selected);
                     imagePattern.setPaletteBlocks(palette);
                     if (onChanged != null) {
@@ -367,5 +362,20 @@ public final class PatternUiWidgets {
         }
         ImGui.endChild();
         ImGui.spacing();
+    }
+
+    private static void openBlockPickerIfChanged(
+            String currentBlockId,
+            Runnable beforeChange,
+            Consumer<String> onChanged) {
+        UIUtils.openBlockPicker(currentBlockId, selected -> {
+            if (selected.equals(currentBlockId)) {
+                return;
+            }
+            if (beforeChange != null) {
+                beforeChange.run();
+            }
+            onChanged.accept(selected);
+        });
     }
 }

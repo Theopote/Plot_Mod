@@ -65,6 +65,10 @@ public final class PatternDesignPanel {
         borderPanel.renderSection(footprint);
     }
 
+    public void renderDeferredModals() {
+        presetPanel.renderSavePresetPopup();
+    }
+
     private void renderRegionSection(PatternFootprint footprint) {
         ImGui.text(PlotI18n.tr("plugin.pattern.section.region"));
         if (footprint == null) {

@@ -80,8 +80,11 @@ public final class PatternBorderPanel {
         ImGui.text(PlotI18n.tr("plugin.pattern.border_material"));
         String currentMaterial = borderConfig.getBorderMaterial();
         if (ImGui.button(UIUtils.getBlockDisplayName(currentMaterial) + "##border_mat", 0, 0)) {
-            beforeEdit.run();
             UIUtils.openBlockPicker(currentMaterial, blockId -> {
+                if (blockId.equals(currentMaterial)) {
+                    return;
+                }
+                beforeEdit.run();
                 borderConfig.setBorderMaterial(blockId);
                 commit.run();
             });
