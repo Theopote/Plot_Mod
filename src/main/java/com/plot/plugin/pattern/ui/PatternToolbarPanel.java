@@ -23,6 +23,7 @@ public final class PatternToolbarPanel {
             ctx.setProject(ctx.projectHistory().undo(ctx.project()));
             ctx.syncSelectedFootprintAfterHistory();
             ctx.setFootprintNameEditingId("");
+            ctx.state().bumpProjectRevision();
             ctx.clearPreview();
         }
         if (undoDisabled) {
@@ -38,6 +39,7 @@ public final class PatternToolbarPanel {
             ctx.setProject(ctx.projectHistory().redo(ctx.project()));
             ctx.syncSelectedFootprintAfterHistory();
             ctx.setFootprintNameEditingId("");
+            ctx.state().bumpProjectRevision();
             ctx.clearPreview();
         }
         if (redoDisabled) {

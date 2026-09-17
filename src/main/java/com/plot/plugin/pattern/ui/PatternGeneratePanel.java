@@ -45,7 +45,7 @@ public final class PatternGeneratePanel {
                 ctx.calculatePreview(ctx.selection().resolve(ctx.project()), true);
             }
             ImGui.sameLine();
-            boolean hasPreview = ctx.lastGenerationResult() != null;
+            boolean hasPreview = ctx.hasValidPreview();
             if (!hasPreview) {
                 ImGui.beginDisabled();
             }
@@ -68,7 +68,7 @@ public final class PatternGeneratePanel {
                 ctx.calculatePreview(footprint);
             }
             ImGui.sameLine();
-            boolean hasPreview = ctx.lastGenerationResult() != null;
+            boolean hasPreview = ctx.hasValidPreview();
             if (!hasPreview) {
                 ImGui.beginDisabled();
             }
@@ -94,7 +94,7 @@ public final class PatternGeneratePanel {
 
         PatternPreviewRenderer.render(ctx.lastGenerationResult());
 
-        if (ctx.lastGenerationResult() != null) {
+        if (ctx.hasValidPreview()) {
             com.plot.plugin.pattern.PatternGenerationResult preview = ctx.lastGenerationResult();
             ImGui.text(PlotI18n.tr(
                 "plugin.pattern.preview_stats",
@@ -131,7 +131,7 @@ public final class PatternGeneratePanel {
         }
 
         if (ImGui.beginPopupModal("##pattern_build_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
-            int blockCount = ctx.lastGenerationResult() != null
+            int blockCount = ctx.hasValidPreview()
                 ? ctx.lastGenerationResult().getBlockCount()
                 : 0;
             ImGui.text(PlotI18n.tr("plugin.pattern.build_confirm_message", blockCount));
@@ -142,7 +142,8 @@ public final class PatternGeneratePanel {
                 ImGui.textColored(PluginUiColors.ERROR_SOFT, readiness.message());
             }
 
-            com.plot.plugin.pattern.PatternGenerationResult preview = ctx.lastGenerationResult();
+            com.plot.plugin.pattern.PatternGenerationResult preview =
+                ctx.hasValidPreview() ? ctx.lastGenerationResult() : null;
             boolean fallbackBlocked = preview != null && preview.exceedsFallbackBuildThreshold();
             if (preview != null && preview.getFallbackElevationCount() > 0) {
                 ImGui.textColored(
@@ -163,6 +164,7 @@ public final class PatternGeneratePanel {
 
             ImGui.spacing();
             boolean canBuild = readiness.ready()
+                && ctx.hasValidPreview()
                 && !ctx.host().placement().isBusy()
                 && !fallbackBlocked;
             if (!canBuild) {

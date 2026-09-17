@@ -12,6 +12,8 @@ import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
 import com.plot.plugin.pattern.PatternGenerationIssue;
 import com.plot.plugin.pattern.PatternGenerationResult;
+import com.plot.plugin.pattern.PatternGenerationSnapshot;
+import com.plot.plugin.pattern.PatternPreviewKey;
 import com.plot.plugin.pattern.PatternGenerator;
 import com.plot.plugin.pattern.PatternGeometryUtils;
 import com.plot.plugin.pattern.PatternRegionPickSession;
@@ -77,7 +79,49 @@ public final class PatternActions {
         state.setFootprintNameEditingId("");
         state.getPickSession().cancel();
         state.getSelectedRegions().clear();
+        state.resetProjectRevision();
         clearPreview();
+    }
+
+    public void pushProjectHistory() {
+        state.getProjectHistory().push(state.getProject());
+        state.bumpProjectRevision();
+    }
+
+    public boolean hasValidPreview() {
+        PatternGenerationSnapshot snapshot = state.getGenerationSnapshot();
+        if (snapshot == null || !snapshot.hasPlacements()) {
+            return false;
+        }
+        return snapshot.matches(
+            state.getProject(),
+            state.getSelection(),
+            state.getProjectRevision(),
+            host.coordinates());
+    }
+
+    public PatternGenerationResult currentPreviewResult() {
+        PatternGenerationSnapshot snapshot = state.getGenerationSnapshot();
+        return hasValidPreview() && snapshot != null ? snapshot.result() : null;
+    }
+
+    public void reconcilePreviewLifecycle() {
+        PatternGenerationSnapshot snapshot = state.getGenerationSnapshot();
+        if (snapshot == null) {
+            return;
+        }
+        if (!snapshot.matches(
+                state.getProject(),
+                state.getSelection(),
+                state.getProjectRevision(),
+                host.coordinates())) {
+            clearPreview();
+            state.setProjectStatus(PlotI18n.tr("plugin.pattern.preview_invalidated"));
+        }
+    }
+
+    public void onSelectionChanged() {
+        reconcilePreviewLifecycle();
     }
 
     public boolean calculatePreview(PatternFootprint footprint) {
@@ -111,7 +155,11 @@ public final class PatternActions {
             return false;
         }
 
-        state.setLastGenerationResult(merged);
+        PatternPreviewKey previewKey = PatternPreviewKey.capture(
+            footprints,
+            state.getProjectRevision(),
+            host.coordinates());
+        state.setGenerationSnapshot(new PatternGenerationSnapshot(previewKey, merged));
         if (!merged.hasPlacements()) {
             clearPreview();
             state.setProjectStatus(statusForIssue(merged.getIssue()));
@@ -149,8 +197,8 @@ public final class PatternActions {
     }
 
     public void projectPreview() {
-        PatternGenerationResult lastGenerationResult = state.getLastGenerationResult();
-        if (lastGenerationResult == null) {
+        PatternGenerationResult previewResult = currentPreviewResult();
+        if (previewResult == null) {
             return;
         }
         com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
@@ -158,8 +206,8 @@ public final class PatternActions {
             return;
         }
         LinkedHashMap<net.minecraft.util.math.BlockPos, String> ghosts =
-            new LinkedHashMap<>(lastGenerationResult.placementRecords.size());
-        for (BlockRecord record : lastGenerationResult.placementRecords.values()) {
+            new LinkedHashMap<>(previewResult.placementRecords.size());
+        for (BlockRecord record : previewResult.placementRecords.values()) {
             ghosts.put(record.pos, record.newBlockId);
         }
         ghostBlockManager.replaceGhostBlocks(GhostBlockOwners.PATTERN, ghosts);
@@ -170,11 +218,11 @@ public final class PatternActions {
         if (ghostBlockManager != null) {
             ghostBlockManager.clearGhostBlocks(GhostBlockOwners.PATTERN);
         }
-        state.setLastGenerationResult(null);
+        state.setGenerationSnapshot(null);
     }
 
     public void invalidatePreview() {
-        if (state.getLastGenerationResult() != null) {
+        if (state.getGenerationSnapshot() != null) {
             clearPreview();
             state.setProjectStatus(PlotI18n.tr("plugin.pattern.preview_invalidated"));
         }
@@ -183,12 +231,21 @@ public final class PatternActions {
     public void buildInWorld() {
         PatternGenerationResult resultSnapshot;
         synchronized (projectLock) {
-            PatternGenerationResult lastGenerationResult = state.getLastGenerationResult();
-            if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
+            if (!hasValidPreview()) {
+                if (state.getGenerationSnapshot() != null) {
+                    clearPreview();
+                    state.setProjectStatus(PlotI18n.tr("plugin.pattern.preview_stale"));
+                } else {
+                    state.setProjectStatus(PlotI18n.tr("plugin.pattern.build_no_blocks"));
+                }
+                return;
+            }
+            PatternGenerationSnapshot snapshot = state.getGenerationSnapshot();
+            resultSnapshot = snapshot != null ? snapshot.result() : null;
+            if (resultSnapshot == null || resultSnapshot.placementRecords.isEmpty()) {
                 state.setProjectStatus(PlotI18n.tr("plugin.pattern.build_no_blocks"));
                 return;
             }
-            resultSnapshot = lastGenerationResult;
         }
 
         if (resultSnapshot.exceedsFallbackBuildThreshold()) {
@@ -254,6 +311,7 @@ public final class PatternActions {
         if (canvas != null && canvas.getCamera() != null) {
             canvas.getCamera().setOffset(centroid);
             state.getSelection().select(footprint.getId(), false);
+            onSelectionChanged();
             state.setProjectStatus(PlotI18n.tr("plugin.pattern.locate_success", footprint.getName()));
         }
     }
@@ -327,7 +385,7 @@ public final class PatternActions {
             return;
         }
 
-        state.getProjectHistory().push(state.getProject());
+        pushProjectHistory();
         int adopted = 0;
         int holeCount = 0;
         boolean overlapWarning = false;
@@ -435,7 +493,7 @@ public final class PatternActions {
             return;
         }
         try {
-            state.getProjectHistory().push(state.getProject());
+            pushProjectHistory();
             ImagePatternConfig imagePattern = footprint.getImagePattern();
             PatternImageStore.ImportedImage imported = PatternImageStore.importImage(
                 pluginDataDir,
@@ -461,7 +519,7 @@ public final class PatternActions {
         if (footprint == null || footprint.getHoles().isEmpty()) {
             return;
         }
-        state.getProjectHistory().push(state.getProject());
+        pushProjectHistory();
         footprint.setHoles(List.of());
         invalidatePreview();
         state.setProjectStatus(PlotI18n.tr("plugin.pattern.geometry_holes_cleared"));
@@ -475,7 +533,7 @@ public final class PatternActions {
         if (holeIndex < 0 || holeIndex >= holes.size()) {
             return;
         }
-        state.getProjectHistory().push(state.getProject());
+        pushProjectHistory();
         List<List<Vec2d>> updated = new ArrayList<>(holes);
         updated.remove(holeIndex);
         footprint.setHoles(updated);
@@ -487,7 +545,7 @@ public final class PatternActions {
         if (ids == null || ids.isEmpty()) {
             return;
         }
-        state.getProjectHistory().push(state.getProject());
+        pushProjectHistory();
         for (String id : ids) {
             PatternFootprint footprint = state.getProject().getFootprints().get(id);
             if (footprint != null
@@ -540,6 +598,7 @@ public final class PatternActions {
                 state.getSelection().select(state.getProject().getFootprints().keySet().iterator().next(), false);
             }
             resetAfterProjectLoad();
+            onSelectionChanged();
             return true;
         } catch (IOException e) {
             LOGGER.error("加载图案项目失败: {}", e.getMessage(), e);
@@ -631,7 +690,7 @@ public final class PatternActions {
             return;
         }
 
-        state.getProjectHistory().push(state.getProject());
+        pushProjectHistory();
         preset.applyToFootprint(footprint);
         preset.updateLastUsed();
         

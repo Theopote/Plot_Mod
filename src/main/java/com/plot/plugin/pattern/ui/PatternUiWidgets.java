@@ -71,7 +71,7 @@ public final class PatternUiWidgets {
         }
         ImInt index = new ImInt(current);
         if (ImGui.combo(PlotI18n.tr("plugin.pattern.select_footprint"), index, labels)) {
-            ctx.selection().select(ids[index.get()], false);
+            ctx.selectFootprint(ids[index.get()], false);
         }
     }
 
@@ -82,7 +82,7 @@ public final class PatternUiWidgets {
         ctx.selection().retainExisting(ctx.project());
         if (ctx.selection().isEmpty() && ctx.project().getFootprintCount() > 0) {
             String firstId = ctx.project().getFootprints().keySet().iterator().next();
-            ctx.selection().select(firstId, false);
+            ctx.selectFootprint(firstId, false);
         }
     }
 

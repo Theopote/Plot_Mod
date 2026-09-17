@@ -46,7 +46,7 @@ public final class PatternDesignPanel {
         }
 
         ImGui.separator();
-        Runnable beforeEdit = () -> ctx.projectHistory().push(ctx.project());
+        Runnable beforeEdit = () -> ctx.pushProjectHistory();
         Runnable invalidate = () -> ctx.actions().invalidatePreview();
 
         if (footprint.getSource() == PatternSource.IMAGE) {
@@ -75,7 +75,7 @@ public final class PatternDesignPanel {
 
     private void renderSourceSection(PatternFootprint footprint) {
         ImGui.text(PlotI18n.tr("plugin.pattern.section.source"));
-        Runnable beforeEdit = () -> ctx.projectHistory().push(ctx.project());
+        Runnable beforeEdit = () -> ctx.pushProjectHistory();
         Runnable invalidate = () -> ctx.actions().invalidatePreview();
         if (PatternUiWidgets.renderSourceRadio(footprint, beforeEdit, invalidate)) {
             presetPanel.resetSelection();

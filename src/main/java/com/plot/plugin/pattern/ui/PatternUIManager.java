@@ -25,6 +25,8 @@ public final class PatternUIManager {
             return;
         }
 
+        ctx.actions().reconcilePreviewLifecycle();
+
         if (ctx.pickSession().isActive()) {
             regionPanel.tickPickSession();
         }

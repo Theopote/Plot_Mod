@@ -90,7 +90,7 @@ public final class PatternRegionPanel {
 
         float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX() * 2) / 3.0f;
         if (ImGui.button(PlotI18n.tr("plugin.pattern.select_all"), buttonWidth, 0)) {
-            ctx.selection().selectAll(ctx.project().getFootprints().keySet());
+            ctx.selectAllFootprints(ctx.project().getFootprints().keySet());
         }
         ImGui.sameLine();
         boolean clearDisabled = ctx.selection().isEmpty();
@@ -99,6 +99,7 @@ public final class PatternRegionPanel {
         }
         if (ImGui.button(PlotI18n.tr("plugin.pattern.clear_selection"), buttonWidth, 0)) {
             ctx.selection().clear();
+            ctx.actions().onSelectionChanged();
         }
         if (clearDisabled) {
             ImGui.endDisabled();
@@ -121,7 +122,7 @@ public final class PatternRegionPanel {
         PatternOverviewRenderer.renderProjectMap(
             ctx.project(),
             ctx.selection().ids(),
-            id -> ctx.selection().select(id, ImGui.getIO().getKeyCtrl()));
+            id -> ctx.selectFootprint(id, ImGui.getIO().getKeyCtrl()));
 
         ImGui.spacing();
         for (PatternFootprint footprint : ctx.project().getFootprints().values()) {
@@ -136,7 +137,7 @@ public final class PatternRegionPanel {
 
         if (PatternOverviewRenderer.renderFootprintThumbnail(footprint, selected)) {
             if (!renaming) {
-                ctx.selection().select(footprint.getId(), ImGui.getIO().getKeyCtrl());
+                ctx.selectFootprint(footprint.getId(), ImGui.getIO().getKeyCtrl());
             }
         }
         ImGui.sameLine();
@@ -169,7 +170,7 @@ public final class PatternRegionPanel {
             if (ImGui.selectable(
                     PatternUiWidgets.stableSelectableLabel(footprint.getName(), footprint.getId()),
                     selected)) {
-                ctx.selection().select(footprint.getId(), ImGui.getIO().getKeyCtrl());
+                ctx.selectFootprint(footprint.getId(), ImGui.getIO().getKeyCtrl());
             }
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip(PlotI18n.tr("plugin.pattern.overview_rename_hint"));

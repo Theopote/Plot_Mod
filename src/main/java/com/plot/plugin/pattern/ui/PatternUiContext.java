@@ -6,6 +6,7 @@ import com.plot.core.context.PluginContext;
 import imgui.ImGui;
 import com.plot.core.model.Shape;
 import com.plot.plugin.pattern.PatternGenerationResult;
+import com.plot.plugin.pattern.PatternGenerationSnapshot;
 import com.plot.plugin.pattern.PatternGenerator;
 import com.plot.plugin.pattern.PatternRegionPickSession;
 import com.plot.plugin.pattern.PatternSelectionSet;
@@ -104,7 +105,29 @@ public final class PatternUiContext {
     }
 
     public PatternGenerationResult lastGenerationResult() {
-        return state.getLastGenerationResult();
+        return actions.currentPreviewResult();
+    }
+
+    public PatternGenerationSnapshot generationSnapshot() {
+        return state.getGenerationSnapshot();
+    }
+
+    public boolean hasValidPreview() {
+        return actions.hasValidPreview();
+    }
+
+    public void pushProjectHistory() {
+        actions.pushProjectHistory();
+    }
+
+    public void selectFootprint(String id, boolean multiToggle) {
+        selection().select(id, multiToggle);
+        actions.onSelectionChanged();
+    }
+
+    public void selectAllFootprints(java.util.Collection<String> ids) {
+        selection().selectAll(ids);
+        actions.onSelectionChanged();
     }
 
     public String projectStatus() {
@@ -128,7 +151,7 @@ public final class PatternUiContext {
             return;
         }
         state.beginFootprintNameRename(footprint.getId(), footprint.getName());
-        selection().select(footprint.getId(), false);
+        selectFootprint(footprint.getId(), false);
     }
 
     public boolean consumeFootprintNameFocusPending() {
@@ -150,7 +173,7 @@ public final class PatternUiContext {
         }
         String trimmed = state.getFootprintNameBuffer().get().trim();
         if (!trimmed.isEmpty() && !trimmed.equals(footprint.getName())) {
-            projectHistory().push(project());
+            pushProjectHistory();
             footprint.setName(trimmed);
         }
         state.endFootprintNameRename();

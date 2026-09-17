@@ -2,7 +2,7 @@ package com.plot.plugin.pattern.ui;
 
 import com.plot.core.model.Shape;
 import com.plot.core.persistence.ContentFingerprint;
-import com.plot.plugin.pattern.PatternGenerationResult;
+import com.plot.plugin.pattern.PatternGenerationSnapshot;
 import com.plot.plugin.pattern.PatternRegionPickSession;
 import com.plot.plugin.pattern.PatternSelectionSet;
 import com.plot.plugin.pattern.model.PatternProject;
@@ -21,7 +21,8 @@ public final class PatternPluginState {
     private final PatternRegionPickSession pickSession = new PatternRegionPickSession();
     private final List<Shape> selectedRegions = new ArrayList<>();
 
-    private volatile PatternGenerationResult lastGenerationResult;
+    private volatile PatternGenerationSnapshot generationSnapshot;
+    private long projectRevision;
     private String footprintNameEditingId = "";
     private String footprintNameBeforeRename = "";
     private final ImString footprintNameBuffer = new ImString(64);
@@ -61,12 +62,25 @@ public final class PatternPluginState {
         return selectedRegions;
     }
 
-    public PatternGenerationResult getLastGenerationResult() {
-        return lastGenerationResult;
+    public PatternGenerationSnapshot getGenerationSnapshot() {
+        return generationSnapshot;
     }
 
-    public void setLastGenerationResult(PatternGenerationResult lastGenerationResult) {
-        this.lastGenerationResult = lastGenerationResult;
+    public void setGenerationSnapshot(PatternGenerationSnapshot generationSnapshot) {
+        this.generationSnapshot = generationSnapshot;
+    }
+
+    public long getProjectRevision() {
+        return projectRevision;
+    }
+
+    public long bumpProjectRevision() {
+        projectRevision++;
+        return projectRevision;
+    }
+
+    public void resetProjectRevision() {
+        projectRevision = 0L;
     }
 
     public String getFootprintNameEditingId() {
