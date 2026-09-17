@@ -149,6 +149,51 @@ public final class EngineeringTerrainService {
     }
 
     /**
+     * 铺装/图案等「直接替换地表」的落点：列顶向下第一个非空气、非流体方块 Y。
+     * <p>
+     * 与 {@link #sampleGroundSurface} 不同，已铺设的人工方块（羊毛、混凝土等）也算落点，
+     * 以便在同一区域再次生成时能替换已有图案，而不是落到其下方的自然地面上。
+     */
+    public int samplePlacementSurface(int worldX, int worldZ) {
+        if (world == null || !isChunkLoaded(worldX, worldZ)) {
+            return DEFAULT_GROUND_ELEVATION;
+        }
+        try {
+            int topY = sampleRawSurface(worldX, worldZ);
+            int bottomY = world.getBottomY();
+            return findPlacementSurfaceY(topY, bottomY, y -> {
+                BlockState state = world.getBlockState(new BlockPos(worldX, y, worldZ));
+                return isPlacementSurfaceBlock(state);
+            });
+        } catch (Exception e) {
+            LOGGER.warn("采样铺装落点失败 ({}, {}): {}", worldX, worldZ, e.getMessage());
+            return DEFAULT_GROUND_ELEVATION;
+        }
+    }
+
+    /**
+     * 纯函数：从列顶向下找第一个可铺装落点 Y（供测试与 {@link #samplePlacementSurface} 共用）。
+     */
+    public static int findPlacementSurfaceY(
+            int rawSurfaceY,
+            int bottomY,
+            java.util.function.IntPredicate isPlacementSurfaceAtY) {
+        if (isPlacementSurfaceAtY == null) {
+            return bottomY;
+        }
+        for (int y = rawSurfaceY; y >= bottomY; y--) {
+            if (isPlacementSurfaceAtY.test(y)) {
+                return y;
+            }
+        }
+        return bottomY;
+    }
+
+    static boolean isPlacementSurfaceBlock(BlockState state) {
+        return state != null && !state.isAir() && state.getFluidState().isEmpty();
+    }
+
+    /**
      * 列顶向下第一个非空气方块 Y（含流体、植被与构筑物）。
      */
     public int sampleSolidSurface(int worldX, int worldZ) {

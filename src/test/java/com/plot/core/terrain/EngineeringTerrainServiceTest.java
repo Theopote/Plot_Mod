@@ -51,6 +51,7 @@ class EngineeringTerrainServiceTest {
         assertEquals(EngineeringTerrainService.DEFAULT_GROUND_ELEVATION, service.sampleWaterSurface(0, 0));
         assertTrue(service.findWaterSurface(0, 0).isEmpty());
         assertEquals(EngineeringTerrainService.DEFAULT_GROUND_ELEVATION, service.sampleSolidSurface(0, 0));
+        assertEquals(EngineeringTerrainService.DEFAULT_GROUND_ELEVATION, service.samplePlacementSurface(0, 0));
         assertFalse(service.isSolidEngineeringBlock(0, 64, 0));
         assertFalse(service.isWireObstruction(0, 64, 0));
         assertFalse(service.isClearableNaturalDecoration(0, 64, 0));
@@ -177,6 +178,20 @@ class EngineeringTerrainServiceTest {
 
     private static long pack(BlockPos pos) {
         return BlockPos.asLong(pos.getX(), pos.getY(), pos.getZ());
+    }
+
+    @Test
+    void placementSurfaceUsesTopSolidBlockIncludingPlayerPlacedPattern() {
+        int surfaceY = EngineeringTerrainService.findPlacementSurfaceY(64, 60, y -> y == 64 || y == 63);
+        assertEquals(64, surfaceY);
+    }
+
+    @Test
+    void placementSurfaceSkipsAirAndFluids() {
+        int surfaceY = EngineeringTerrainService.findPlacementSurfaceY(64, 60, y -> y == 63);
+        assertEquals(63, surfaceY);
+
+        assertFalse(EngineeringTerrainService.isPlacementSurfaceBlock(null));
     }
 
     @Test

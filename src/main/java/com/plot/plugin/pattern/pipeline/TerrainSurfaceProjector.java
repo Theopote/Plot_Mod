@@ -10,7 +10,7 @@ import net.minecraft.world.World;
 import java.util.Objects;
 
 /**
- * 地形投影：Pattern Space 采样点 → 世界地表方块位置。
+ * 地形投影：Pattern Space 采样点 → 世界列顶可替换方块位置。
  */
 public final class TerrainSurfaceProjector {
     public record SurfaceProjection(BlockPos pos, boolean usedFallbackElevation) {
@@ -33,7 +33,7 @@ public final class TerrainSurfaceProjector {
         int worldX = column.getX();
         int worldZ = column.getZ();
         boolean chunkLoaded = terrain.isChunkLoaded(worldX, worldZ);
-        int surfaceY = terrain.sampleGroundSurface(worldX, worldZ);
+        int surfaceY = terrain.samplePlacementSurface(worldX, worldZ);
         boolean usedFallback = !chunkLoaded;
         return new SurfaceProjection(new BlockPos(worldX, surfaceY, worldZ), usedFallback);
     }
