@@ -106,9 +106,8 @@ public class CameraManager {
             orthographicCamera.setEnabled(false);
         }
 
-        // 恢复到打开 Plot 界面之前的玩家位置（而非拖动后的位置）
-        Vec3d currentPosition = savedState != null ? savedState.position
-                : new Vec3d(player.getX(), player.getY(), player.getZ());
+        // 使用当前玩家位置，因为拖动时已经更新了玩家位置
+        Vec3d currentPosition = new Vec3d(player.getX(), player.getY(), player.getZ());
         
         // 恢复角度和 HUD 状态（如果保存了状态）
         if (savedState != null) {
@@ -122,16 +121,7 @@ public class CameraManager {
             client.options.hudHidden = false;
         }
         
-        // 确保玩家位置正确（恢复到打开界面前的位置，Y坐标做安全性校验）
-        World world = player.getEntityWorld();
-        if (world != null) {
-            BlockPos pos = new BlockPos((int)currentPosition.x, (int)currentPosition.y, (int)currentPosition.z);
-            int terrainHeight = world.getTopY(Heightmap.Type.WORLD_SURFACE, pos.getX(), pos.getZ());
-            double safeY = Math.max(terrainHeight + 1.0, currentPosition.y);
-            player.setPos(currentPosition.x, safeY, currentPosition.z);
-        } else {
-            player.setPos(currentPosition.x, currentPosition.y, currentPosition.z);
-        }
+        // 玩家位置保持拖动后的位置；此处不再重设位置
 
         // 重置旋转角度和平移值（因为已经反映在玩家位置上了）
         rotationAngle = 0.0f;
@@ -139,7 +129,7 @@ public class CameraManager {
         panY = 0.0f;
         panBasePlayerPos = null;
 
-        LOGGER.info("Restored camera state: pitch={}, yaw={}, pos={} (恢复到打开界面前的位置)",
+        LOGGER.info("Restored camera state: pitch={}, yaw={}, pos={} (保持拖动后的位置)",
                 player.getPitch(), player.getYaw(), currentPosition);
     }
 
