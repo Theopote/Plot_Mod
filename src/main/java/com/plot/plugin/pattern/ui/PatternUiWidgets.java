@@ -282,10 +282,6 @@ public final class PatternUiWidgets {
         }
         ImGui.spacing();
 
-        if (ImGui.button(PlotI18n.tr("plugin.pattern.geometry_add_hole_from_selection"), 0, 0)) {
-            ctx.actions().addHoleFromCanvasSelection(footprint);
-        }
-        ImGui.sameLine();
         boolean clearDisabled = holes.isEmpty();
         if (clearDisabled) {
             ImGui.beginDisabled();

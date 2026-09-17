@@ -423,30 +423,6 @@ public final class PatternActions {
         }
     }
 
-    public void addHoleFromCanvasSelection(PatternFootprint footprint) {
-        if (footprint == null) {
-            return;
-        }
-        List<Vec2d> hole = PatternGeometryUtils.extractFirstRegionFromShapes(
-            host.appState().getSelectedShapes());
-        PatternGeometryUtils.HoleAddIssue issue = PatternGeometryUtils.validateHoleForFootprint(
-            footprint.getOuterPoints(),
-            footprint.getHoles(),
-            hole);
-        if (issue != PatternGeometryUtils.HoleAddIssue.NONE) {
-            state.setProjectStatus(issue.statusKey().isBlank()
-                ? PlotI18n.tr("plugin.pattern.geometry_no_valid_selection")
-                : PlotI18n.tr(issue.statusKey()));
-            return;
-        }
-        state.getProjectHistory().push(state.getProject());
-        List<List<Vec2d>> holes = new ArrayList<>(footprint.getHoles());
-        holes.add(hole);
-        footprint.setHoles(holes);
-        invalidatePreview();
-        state.setProjectStatus(PlotI18n.tr("plugin.pattern.geometry_hole_added"));
-    }
-
     public void clearFootprintHoles(PatternFootprint footprint) {
         if (footprint == null || footprint.getHoles().isEmpty()) {
             return;

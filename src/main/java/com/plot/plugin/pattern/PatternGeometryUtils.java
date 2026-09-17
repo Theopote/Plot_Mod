@@ -309,26 +309,6 @@ public final class PatternGeometryUtils {
             holeCount);
     }
 
-    public static List<Vec2d> extractFirstRegionFromShapes(List<Shape> shapes) {
-        if (shapes == null) {
-            return List.of();
-        }
-        for (Shape shape : shapes) {
-            List<Vec2d> points = extractRegionPoints(shape);
-            if (points.size() >= 3) {
-                return points;
-            }
-        }
-        return List.of();
-    }
-
-    public static double holeArea(List<Vec2d> holePoints) {
-        if (holePoints == null || holePoints.size() < 3) {
-            return 0.0;
-        }
-        return Math.abs(PolygonRegionUtils.signedAreaOfRing(holePoints));
-    }
-
     /**
      * 统计区域投影到 Minecraft 平面上的方块列数（随当前视图投影变化）。
      */
