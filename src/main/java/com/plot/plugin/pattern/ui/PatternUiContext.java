@@ -214,16 +214,12 @@ public final class PatternUiContext {
         actions.syncSelectedFootprintAfterHistory();
     }
 
-    public boolean calculatePreview(PatternFootprint footprint) {
-        return actions.calculatePreview(footprint);
+    public boolean updatePreview(PatternFootprint footprint) {
+        return actions.updatePreview(footprint);
     }
 
-    public boolean calculatePreview(List<PatternFootprint> footprints, boolean autoProjectGhosts) {
-        return actions.calculatePreview(footprints, autoProjectGhosts);
-    }
-
-    public void projectPreview() {
-        actions.projectPreview();
+    public boolean updatePreview(List<PatternFootprint> footprints) {
+        return actions.updatePreview(footprints);
     }
 
     public void clearPreview() {

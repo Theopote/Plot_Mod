@@ -6,9 +6,6 @@ import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /** 图案生成 Tab。 */
 public final class PatternGeneratePanel {
     private final PatternUiContext ctx;
@@ -37,54 +34,20 @@ public final class PatternGeneratePanel {
         com.plot.api.world.PlacementReadiness buildReadiness =
             ctx.host().projection().checkWorldModificationReadiness();
 
+        renderPreviewControls(selectedCount, footprint, half);
+
         if (selectedCount > 1) {
-            if (ImGui.button(
-                    PlotI18n.tr("plugin.pattern.preview_selected", selectedCount),
-                    half,
-                    0)) {
-                ctx.calculatePreview(ctx.selection().resolve(ctx.project()), true);
-            }
-            ImGui.sameLine();
-            boolean hasPreview = ctx.hasValidPreview();
-            if (!hasPreview) {
-                ImGui.beginDisabled();
-            }
-            if (ImGui.button(PlotI18n.tr("plugin.pattern.clear_preview"), half, 0)) {
-                ctx.clearPreview();
-            }
-            if (!hasPreview) {
-                ImGui.endDisabled();
-            }
             if (ImGui.button(
                     PlotI18n.tr("plugin.pattern.build_selected", selectedCount),
                     ImGui.getContentRegionAvailX(),
                     0)) {
-                if (ctx.calculatePreview(ctx.selection().resolve(ctx.project()), true)) {
+                if (ctx.updatePreview(ctx.selection().resolve(ctx.project()))) {
                     ctx.setBuildConfirmPending(true);
                 }
             }
-        } else {
-            if (ImGui.button(PlotI18n.tr("plugin.pattern.calc_preview"), half, 0)) {
-                ctx.calculatePreview(footprint);
-            }
-            ImGui.sameLine();
-            boolean hasPreview = ctx.hasValidPreview();
-            if (!hasPreview) {
-                ImGui.beginDisabled();
-            }
-            if (ImGui.button(PlotI18n.tr("plugin.pattern.clear_preview"), half, 0)) {
-                ctx.clearPreview();
-            }
-            if (!hasPreview) {
-                ImGui.endDisabled();
-            }
-            if (ImGui.button(PlotI18n.tr("plugin.pattern.project_preview"), ImGui.getContentRegionAvailX(), 0)) {
-                ctx.projectPreview();
-            }
-            if (ImGui.button(PlotI18n.tr("plugin.pattern.build_direct"), ImGui.getContentRegionAvailX(), 0)) {
-                if (ctx.calculatePreview(footprint)) {
-                    ctx.setBuildConfirmPending(true);
-                }
+        } else if (ImGui.button(PlotI18n.tr("plugin.pattern.build_direct"), ImGui.getContentRegionAvailX(), 0)) {
+            if (ctx.updatePreview(footprint)) {
+                ctx.setBuildConfirmPending(true);
             }
         }
 
@@ -121,6 +84,30 @@ public final class PatternGeneratePanel {
                     ctx.setBuildConfirmPending(true);
                 }
             }
+        }
+    }
+
+    private void renderPreviewControls(int selectedCount, PatternFootprint footprint, float halfWidth) {
+        String updateLabel = selectedCount > 1
+            ? PlotI18n.tr("plugin.pattern.update_preview_selected", selectedCount)
+            : PlotI18n.tr("plugin.pattern.update_preview");
+        if (ImGui.button(updateLabel, halfWidth, 0)) {
+            if (selectedCount > 1) {
+                ctx.updatePreview(ctx.selection().resolve(ctx.project()));
+            } else {
+                ctx.updatePreview(footprint);
+            }
+        }
+        ImGui.sameLine();
+        boolean hasPreview = ctx.hasValidPreview();
+        if (!hasPreview) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.pattern.clear_preview"), halfWidth, 0)) {
+            ctx.clearPreview();
+        }
+        if (!hasPreview) {
+            ImGui.endDisabled();
         }
     }
 

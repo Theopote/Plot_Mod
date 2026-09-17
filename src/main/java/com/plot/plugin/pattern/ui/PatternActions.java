@@ -124,8 +124,16 @@ public final class PatternActions {
         reconcilePreviewLifecycle();
     }
 
+    public boolean updatePreview(PatternFootprint footprint) {
+        return updatePreview(List.of(footprint));
+    }
+
+    public boolean updatePreview(List<PatternFootprint> footprints) {
+        return calculatePreview(footprints, true);
+    }
+
     public boolean calculatePreview(PatternFootprint footprint) {
-        return calculatePreview(List.of(footprint), true);
+        return updatePreview(footprint);
     }
 
     public boolean calculatePreview(List<PatternFootprint> footprints, boolean autoProjectGhosts) {
