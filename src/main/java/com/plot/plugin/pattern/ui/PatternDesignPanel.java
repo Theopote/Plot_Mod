@@ -14,6 +14,8 @@ import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
 
+import java.nio.file.Path;
+
 /** 图案设计 Tab：区域 → 来源 → 预设 → 参数 → 边框。 */
 public final class PatternDesignPanel {
     private final PatternUiContext ctx;
@@ -291,35 +293,29 @@ public final class PatternDesignPanel {
             invalidate.run();
         };
 
-        if (ImGui.button(PlotI18n.tr("plugin.pattern.import_image"), 0, 0)) {
+        ImGui.text(PlotI18n.tr("plugin.pattern.image_source_label"));
+        if (ImGui.button(PlotI18n.tr("plugin.pattern.select_image"), 0, 0)) {
             ctx.importImageForFootprint(footprint);
         }
         if (imagePattern.hasImage()) {
-            ImGui.sameLine();
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-                "plugin.pattern.image_info",
-                imagePattern.getImageWidth(),
-                imagePattern.getImageHeight(),
-                imagePattern.getImagePath()));
+            ImGui.text(imageDisplayName(imagePattern));
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr(
+                    "plugin.pattern.image_dimensions",
+                    imagePattern.getImageWidth(),
+                    imagePattern.getImageHeight()));
         } else {
             PatternUiWidgets.textColoredWrapped(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.pattern.image_missing"));
         }
 
-        ImGui.spacing();
-        ImGui.text(PlotI18n.tr("plugin.pattern.import_image_path_label"));
-        float confirmWidth = 72f;
-        ImGui.setNextItemWidth(Math.max(120f, ImGui.getContentRegionAvailX() - confirmWidth - ImGui.getStyle().getItemSpacingX()));
-        ImGui.inputText("##pattern_import_image_path", ctx.imageImportPathBuffer());
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.pattern.import_image_confirm") + "##path", confirmWidth, 0)) {
-            ctx.importImageFromPath(footprint.getId(), ctx.imageImportPathBuffer().get());
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.pattern.image_advanced"))) {
+            renderAdvancedImageImport(footprint);
         }
-        PatternUiWidgets.textColoredWrapped(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.pattern.import_image_path_hint"));
 
+        ImGui.spacing();
         String[] matchModeLabels = {
             PlotI18n.tr("plugin.pattern.image_match_auto"),
             PlotI18n.tr("plugin.pattern.image_match_custom")
@@ -371,5 +367,30 @@ public final class PatternDesignPanel {
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.pattern.image_palette_auto"));
         }
+    }
+
+    private void renderAdvancedImageImport(PatternFootprint footprint) {
+        float loadWidth = 96f;
+        ImGui.setNextItemWidth(Math.max(
+            120f,
+            ImGui.getContentRegionAvailX() - loadWidth - ImGui.getStyle().getItemSpacingX()));
+        ImGui.inputText(
+            PlotI18n.tr("plugin.pattern.import_image_path_label") + "##pattern_import_image_path",
+            ctx.imageImportPathBuffer());
+        if (ImGui.button(PlotI18n.tr("plugin.pattern.import_from_path"), loadWidth, 0)) {
+            ctx.importImageFromPath(footprint.getId(), ctx.imageImportPathBuffer().get());
+        }
+        PatternUiWidgets.textColoredWrapped(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.pattern.import_image_path_hint"));
+    }
+
+    private static String imageDisplayName(ImagePatternConfig imagePattern) {
+        String path = imagePattern.getImagePath();
+        if (path == null || path.isBlank()) {
+            return "";
+        }
+        Path fileName = Path.of(path).getFileName();
+        return fileName != null ? fileName.toString() : path;
     }
 }
