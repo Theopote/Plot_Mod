@@ -1,5 +1,6 @@
 package com.plot.plugin.pattern.ui;
 
+import com.plot.api.world.ICoordinateService;
 import com.plot.core.context.PluginContext;
 import com.plot.core.model.Shape;
 import com.plot.plugin.pattern.PatternGenerationResult;
@@ -46,6 +47,10 @@ public final class PatternUiContext {
 
     public PluginContext host() {
         return host;
+    }
+
+    public ICoordinateService coordinates() {
+        return host.coordinates();
     }
 
     public PatternPluginState state() {

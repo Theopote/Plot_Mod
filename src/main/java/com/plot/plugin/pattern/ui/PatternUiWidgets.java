@@ -1,6 +1,7 @@
 package com.plot.plugin.pattern.ui;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.pattern.PatternBlockCountCache;
 import com.plot.plugin.pattern.PatternGeometryUtils;
 import com.plot.plugin.pattern.model.ImagePatternConfig;
 import com.plot.plugin.pattern.model.PatternFootprint;
@@ -28,7 +29,7 @@ public final class PatternUiWidgets {
         ImGui.text(PlotI18n.tr(
             "plugin.pattern.selection_summary",
             ctx.selection().size(),
-            ctx.selection().totalBlockCount(ctx.project())));
+            ctx.selection().totalBlockCount(ctx.project(), ctx.coordinates())));
         PatternFootprint primary = ctx.selection().primary(ctx.project());
         if (primary != null && ctx.selection().size() > 1) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
@@ -274,7 +275,7 @@ public final class PatternUiWidgets {
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
             "plugin.pattern.geometry_outer_summary",
             outerPoints.size(),
-            footprint.computeBlockCount()));
+            PatternBlockCountCache.blockCount(footprint, ctx.coordinates())));
         List<List<Vec2d>> holes = footprint.getHoles();
         if (!holes.isEmpty()) {
             ImGui.text(PlotI18n.tr("plugin.pattern.geometry_hole_count", holes.size()));
@@ -311,7 +312,7 @@ public final class PatternUiWidgets {
                 "plugin.pattern.geometry_hole_item",
                 i + 1,
                 hole.size(),
-                PatternGeometryUtils.computeBlockCount(hole, List.of())));
+                PatternGeometryUtils.countProjectedWorldBlocks(hole, List.of(), ctx.coordinates())));
             ImGui.sameLine();
             if (ImGui.smallButton(PlotI18n.tr("plugin.pattern.delete"))) {
                 ctx.actions().removeFootprintHole(footprint, i);

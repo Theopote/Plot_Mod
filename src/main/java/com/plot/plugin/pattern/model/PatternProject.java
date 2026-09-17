@@ -3,6 +3,9 @@ package com.plot.plugin.pattern.model;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.ICoordinateService;
+import com.plot.plugin.pattern.PatternBlockCountCache;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -54,10 +57,10 @@ public class PatternProject {
         return footprints.values().stream().mapToDouble(PatternFootprint::computeArea).sum();
     }
 
-    public int totalBlockCount() {
+    public int totalBlockCount(ICoordinateService coordinates) {
         int count = 0;
         for (PatternFootprint footprint : footprints.values()) {
-            count += footprint.computeBlockCount();
+            count += PatternBlockCountCache.blockCount(footprint, coordinates);
         }
         return count;
     }
@@ -283,19 +286,7 @@ public class PatternProject {
                 }
 
                 if (footprintData.border != null) {
-                    PatternBorderConfig border = new PatternBorderConfig();
-                    if (footprintData.border.borderMaterial != null && !footprintData.border.borderMaterial.isBlank()) {
-                        border.setBorderMaterial(footprintData.border.borderMaterial);
-                    } else if (footprintData.border.borderMaterials != null
-                        && !footprintData.border.borderMaterials.isEmpty()) {
-                        border.setBorderMaterial(footprintData.border.borderMaterials.getFirst());
-                    }
-                    if (footprintData.border.borderWidth > 0) {
-                        border.setBorderWidth(footprintData.border.borderWidth);
-                    }
-                    border.setInnerBorder(footprintData.border.innerBorder);
-                    border.setOuterBorder(footprintData.border.outerBorder);
-                    border.setEnabled(footprintData.border.enabled);
+                    PatternBorderConfig border = getPatternBorderConfig(footprintData);
                     footprint.setBorderConfig(border);
                 }
 
@@ -317,6 +308,23 @@ public class PatternProject {
                 project.addFootprint(footprint);
             }
             return project;
+        }
+
+        private @NotNull PatternBorderConfig getPatternBorderConfig(FootprintData footprintData) {
+            PatternBorderConfig border = new PatternBorderConfig();
+            if (footprintData.border.borderMaterial != null && !footprintData.border.borderMaterial.isBlank()) {
+                border.setBorderMaterial(footprintData.border.borderMaterial);
+            } else if (footprintData.border.borderMaterials != null
+                && !footprintData.border.borderMaterials.isEmpty()) {
+                border.setBorderMaterial(footprintData.border.borderMaterials.getFirst());
+            }
+            if (footprintData.border.borderWidth > 0) {
+                border.setBorderWidth(footprintData.border.borderWidth);
+            }
+            border.setInnerBorder(footprintData.border.innerBorder);
+            border.setOuterBorder(footprintData.border.outerBorder);
+            border.setEnabled(footprintData.border.enabled);
+            return border;
         }
 
         private static PatternSource parseSource(String source) {

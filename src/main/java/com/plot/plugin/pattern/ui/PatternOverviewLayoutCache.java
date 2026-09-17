@@ -4,7 +4,6 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.PolygonRegionUtils;
 import com.plot.plugin.pattern.model.PatternFootprint;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -61,11 +60,6 @@ final class PatternOverviewLayoutCache {
             CACHE.clear();
             return;
         }
-        Iterator<Map.Entry<String, Entry>> iterator = CACHE.entrySet().iterator();
-        while (iterator.hasNext()) {
-            if (!footprintIds.contains(iterator.next().getKey())) {
-                iterator.remove();
-            }
-        }
+        CACHE.entrySet().removeIf(stringEntryEntry -> !footprintIds.contains(stringEntryEntry.getKey()));
     }
 }

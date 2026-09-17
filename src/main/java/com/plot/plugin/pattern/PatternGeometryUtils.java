@@ -3,6 +3,7 @@ package com.plot.plugin.pattern;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.geometry.PolygonRegionUtils;
+import com.plot.core.geometry.WorldProjectionMath;
 import com.plot.core.geometry.shapes.AnnotationShape;
 import com.plot.core.geometry.shapes.ArcShape;
 import com.plot.core.geometry.shapes.BezierCurveShape;
@@ -21,7 +22,9 @@ import com.plot.plugin.pattern.model.PatternProject;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 铺装区域几何工具（认领与坐标转换）。
@@ -66,18 +69,22 @@ public final class PatternGeometryUtils {
         if (shape == null || isExcludedRegionShape(shape)) {
             return List.of();
         }
-        if (shape instanceof PolylineShape polyline) {
-            return PolygonRegionUtils.copyPoints(polyline.getPoints());
-        }
-        if (shape instanceof Polygon polygon) {
-            return PolygonRegionUtils.copyPoints(polygon.getPoints());
-        }
-        if (shape instanceof FreeDrawPath freeDraw) {
-            return PolygonRegionUtils.copyPoints(freeDraw.getPoints());
-        }
-        if (shape instanceof BezierCurveShape bezier) {
-            List<Vec2d> curvePoints = bezier.getCurvePoints();
-            return curvePoints != null ? PolygonRegionUtils.copyPoints(curvePoints) : List.of();
+        switch (shape) {
+            case PolylineShape polyline -> {
+                return PolygonRegionUtils.copyPoints(polyline.getPoints());
+            }
+            case Polygon polygon -> {
+                return PolygonRegionUtils.copyPoints(polygon.getPoints());
+            }
+            case FreeDrawPath freeDraw -> {
+                return PolygonRegionUtils.copyPoints(freeDraw.getPoints());
+            }
+            case BezierCurveShape bezier -> {
+                List<Vec2d> curvePoints = bezier.getCurvePoints();
+                return curvePoints != null ? PolygonRegionUtils.copyPoints(curvePoints) : List.of();
+            }
+            default -> {
+            }
         }
         if (shape instanceof RectangleShape
             || shape instanceof CircleShape
@@ -211,7 +218,7 @@ public final class PatternGeometryUtils {
         }
         List<List<Vec2d>> holes = existingHoles != null ? existingHoles : List.of();
         for (Vec2d point : holePoints) {
-            if (point == null || !PolygonRegionUtils.containsPoint(outerPoints, holes, point)) {
+            if (!PolygonRegionUtils.containsPoint(outerPoints, holes, point)) {
                 return HoleAddIssue.OUTSIDE_OUTER;
             }
         }
@@ -324,17 +331,60 @@ public final class PatternGeometryUtils {
         return Math.abs(PolygonRegionUtils.signedAreaOfRing(holePoints));
     }
 
-    public static int computeBlockCount(List<Vec2d> outerPoints, List<List<Vec2d>> holes) {
-        return PolygonRegionUtils.countFootprintCells(outerPoints, holes);
+    /**
+     * 统计区域投影到 Minecraft 平面上的方块列数（随当前视图投影变化）。
+     */
+    public static int countProjectedWorldBlocks(
+            List<Vec2d> outerPoints,
+            List<List<Vec2d>> holes,
+            ICoordinateService coordinates) {
+        if (outerPoints == null || outerPoints.size() < 3) {
+            return 0;
+        }
+        if (coordinates == null) {
+            return PolygonRegionUtils.countFootprintCells(outerPoints, holes);
+        }
+        try {
+            double cellSize = canvasUnitsPerWorldBlock(outerPoints, coordinates);
+            List<Vec2d> centers = PolygonRegionUtils.collectFootprintCellCenters(outerPoints, holes, cellSize);
+            if (centers.isEmpty()) {
+                return 0;
+            }
+            Set<Long> columns = new HashSet<>();
+            for (Vec2d center : centers) {
+                BlockPos column = canvasToBlockXZ(center, coordinates);
+                columns.add(packColumn(column.getX(), column.getZ()));
+            }
+            return columns.size();
+        } catch (RuntimeException ignored) {
+            return PolygonRegionUtils.countFootprintCells(outerPoints, holes);
+        }
     }
 
-    public static int computeBlockCountForShapes(List<Shape> shapes) {
+    public static int countProjectedWorldBlocksForShapes(List<Shape> shapes, ICoordinateService coordinates) {
         List<AdoptedRegionGroup> groups = groupAdoptableRegionsWithHoles(shapes);
         int count = 0;
         for (AdoptedRegionGroup group : groups) {
-            count += computeBlockCount(group.outerPoints(), group.holes());
+            count += countProjectedWorldBlocks(group.outerPoints(), group.holes(), coordinates);
         }
         return count;
+    }
+
+    private static double canvasUnitsPerWorldBlock(List<Vec2d> outerPoints, ICoordinateService coordinates) {
+        Vec2d probe = PolygonRegionUtils.computeCentroid(outerPoints);
+        double sum = 0.0;
+        int count = outerPoints.size();
+        for (int i = 0; i < count; i++) {
+            Vec2d start = outerPoints.get(i);
+            Vec2d end = outerPoints.get((i + 1) % count);
+            sum += WorldProjectionMath.canvasUnitsPerWorldBlock(coordinates, probe, end.subtract(start));
+        }
+        double average = sum / count;
+        return Math.max(1e-6, Math.min(1.0, average));
+    }
+
+    private static long packColumn(int x, int z) {
+        return ((long) x << 32) ^ (z & 0xffffffffL);
     }
 
     public static BlockPos canvasToBlockXZ(Vec2d canvasPos, ICoordinateService transformer) {

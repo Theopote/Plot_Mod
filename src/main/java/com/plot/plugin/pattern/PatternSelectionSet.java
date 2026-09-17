@@ -1,5 +1,6 @@
 package com.plot.plugin.pattern;
 
+import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.pattern.model.PatternFootprint;
 import com.plot.plugin.pattern.model.PatternProject;
 
@@ -122,10 +123,10 @@ public final class PatternSelectionSet {
         return project.getFootprint(primaryId);
     }
 
-    public int totalBlockCount(PatternProject project) {
+    public int totalBlockCount(PatternProject project, ICoordinateService coordinates) {
         int count = 0;
         for (PatternFootprint footprint : resolve(project)) {
-            count += footprint.computeBlockCount();
+            count += PatternBlockCountCache.blockCount(footprint, coordinates);
         }
         return count;
     }

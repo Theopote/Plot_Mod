@@ -1,5 +1,6 @@
 package com.plot.plugin.pattern.ui;
 
+import com.plot.plugin.pattern.PatternBlockCountCache;
 import com.plot.plugin.pattern.model.PatternFootprint;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -69,7 +70,7 @@ public final class PatternRegionPanel {
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
             "plugin.pattern.project_stats",
             ctx.project().getFootprintCount(),
-            ctx.project().totalBlockCount()));
+            ctx.project().totalBlockCount(ctx.coordinates())));
 
         if (ctx.project().getFootprintCount() == 0) {
             ImGui.spacing();
@@ -78,7 +79,9 @@ public final class PatternRegionPanel {
         }
 
         ctx.selection().retainExisting(ctx.project());
-        PatternOverviewLayoutCache.retainOnly(ctx.project().getFootprints().keySet());
+        var footprintIds = ctx.project().getFootprints().keySet();
+        PatternOverviewLayoutCache.retainOnly(footprintIds);
+        PatternBlockCountCache.retainOnly(footprintIds);
         PatternUiWidgets.renderSelectionSummary(ctx);
 
         float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX() * 2) / 3.0f;
@@ -139,7 +142,7 @@ public final class PatternRegionPanel {
         }
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
             "plugin.pattern.overview_item",
-            footprint.computeBlockCount(),
+            PatternBlockCountCache.blockCount(footprint, ctx.coordinates()),
             PatternUiWidgets.sourceLabel(footprint)));
         if (ImGui.button(PlotI18n.tr("plugin.pattern.locate") + "##locate", 0, 0)) {
             ctx.locateFootprint(footprint);
