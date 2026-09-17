@@ -399,22 +399,21 @@ public final class PatternActions {
             state.setProjectStatus(PlotI18n.tr("plugin.pattern.import_image_failed", "plugin data unavailable"));
             return;
         }
+        String footprintId = footprint.getId();
         state.setProjectStatus(PlotI18n.tr("plugin.pattern.import_image_waiting"));
-        PatternImageFilePicker.pickImageAsync(PlotI18n.tr("plugin.pattern.import_image_dialog_title"))
-            .thenAccept(optional -> {
-                MinecraftClient client = MinecraftClient.getInstance();
-                Runnable apply = () -> applyImportedImage(footprint, optional);
-                if (client != null) {
-                    client.execute(apply);
-                } else {
-                    apply.run();
-                }
-            });
+        java.util.Optional<java.nio.file.Path> optional = PatternImageFilePicker.pickImage(
+            PlotI18n.tr("plugin.pattern.import_image_dialog_title"));
+        applyImportedImage(footprintId, optional);
     }
 
-    private void applyImportedImage(PatternFootprint footprint, java.util.Optional<java.nio.file.Path> optional) {
+    private void applyImportedImage(String footprintId, java.util.Optional<java.nio.file.Path> optional) {
         if (optional.isEmpty()) {
             state.setProjectStatus(PlotI18n.tr("plugin.pattern.import_image_cancelled"));
+            return;
+        }
+        PatternFootprint footprint = state.getProject().getFootprint(footprintId);
+        if (footprint == null) {
+            state.setProjectStatus(PlotI18n.tr("plugin.pattern.import_image_failed", "region not found"));
             return;
         }
         try {
@@ -422,7 +421,7 @@ public final class PatternActions {
             ImagePatternConfig imagePattern = footprint.getImagePattern();
             PatternImageStore.ImportedImage imported = PatternImageStore.importImage(
                 pluginDataDir,
-                footprint.getId(),
+                footprintId,
                 optional.get());
             imported.applyTo(imagePattern);
             footprint.setImagePattern(imagePattern);

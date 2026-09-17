@@ -77,9 +77,7 @@ public final class PatternDesignPanel {
         ImGui.text(PlotI18n.tr("plugin.pattern.section.source"));
         Runnable beforeEdit = () -> ctx.projectHistory().push(ctx.project());
         Runnable invalidate = () -> ctx.actions().invalidatePreview();
-        PatternSource previousSource = footprint.getSource();
-        PatternUiWidgets.renderSourceCombo(footprint, beforeEdit, invalidate);
-        if (footprint.getSource() != previousSource) {
+        if (PatternUiWidgets.renderSourceRadio(footprint, beforeEdit, invalidate)) {
             presetPanel.resetSelection();
         }
         PatternUiWidgets.textColoredWrapped(

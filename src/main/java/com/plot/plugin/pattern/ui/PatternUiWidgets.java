@@ -180,25 +180,41 @@ public final class PatternUiWidgets {
         return patternTypeLabel(footprint.getPattern().getType());
     }
 
-    public static void renderSourceCombo(
+    public static boolean renderSourceRadio(
             PatternFootprint footprint,
             Runnable beforeChange,
             Runnable onChanged) {
-        PatternSource[] sources = PatternSource.values();
-        String[] labels = new String[] {
-            PlotI18n.tr("plugin.pattern.source.procedural"),
-            PlotI18n.tr("plugin.pattern.source.image")
-        };
-        ImInt current = new ImInt(footprint.getSource().ordinal());
-        if (ImGui.combo(PlotI18n.tr("plugin.pattern.pattern_source"), current, labels)) {
-            if (beforeChange != null) {
-                beforeChange.run();
-            }
-            footprint.setSource(sources[current.get()]);
-            if (onChanged != null) {
-                onChanged.run();
+        PatternSource current = footprint.getSource();
+        boolean changed = false;
+
+        if (ImGui.radioButton(
+                PlotI18n.tr("plugin.pattern.source.procedural"),
+                current == PatternSource.PROCEDURAL)) {
+            if (current != PatternSource.PROCEDURAL) {
+                if (beforeChange != null) {
+                    beforeChange.run();
+                }
+                footprint.setSource(PatternSource.PROCEDURAL);
+                changed = true;
             }
         }
+        ImGui.sameLine();
+        if (ImGui.radioButton(
+                PlotI18n.tr("plugin.pattern.source.image"),
+                current == PatternSource.IMAGE)) {
+            if (current != PatternSource.IMAGE) {
+                if (beforeChange != null) {
+                    beforeChange.run();
+                }
+                footprint.setSource(PatternSource.IMAGE);
+                changed = true;
+            }
+        }
+
+        if (changed && onChanged != null) {
+            onChanged.run();
+        }
+        return changed;
     }
 
     public static void renderImagePaletteList(
