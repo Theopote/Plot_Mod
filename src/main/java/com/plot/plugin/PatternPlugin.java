@@ -91,6 +91,7 @@ public class PatternPlugin extends Plugin {
         persistProject();
         if (uiContext != null) {
             uiContext.pickSession().cancel();
+            uiContext.clearPreview();
         }
         try {
             ctx().events().unsubscribeOwner(this);

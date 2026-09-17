@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PatternPresetImageStoreTest {
@@ -57,5 +58,24 @@ class PatternPresetImageStoreTest {
             tempDir, "preset-del", config);
         PatternPresetImageStore.deletePresetAsset(tempDir, assetPath);
         assertFalse(Files.exists(tempDir.resolve(assetPath)));
+    }
+
+    @Test
+    void rejectsPathTraversalAssetIds() throws IOException {
+        Path source = tempDir.resolve("source.png");
+        Files.write(source, new byte[] {(byte) 0x89, 0x50, 0x4E, 0x47});
+
+        assertThrows(IOException.class, () -> PatternImageStore.importImage(
+            tempDir, "../outside/footprint", source));
+
+        ImagePatternConfig config = new ImagePatternConfig();
+        String sourceRelativePath = "images/source.png";
+        Files.createDirectories(PatternImageStore.imagesDir(tempDir));
+        Files.copy(source, tempDir.resolve(sourceRelativePath));
+        config.setImagePath(sourceRelativePath);
+        config.setImageWidth(1);
+        config.setImageHeight(1);
+        assertThrows(IOException.class, () -> PatternPresetImageStore.copyFootprintImageToPresetAsset(
+            tempDir, "../outside/preset", config));
     }
 }

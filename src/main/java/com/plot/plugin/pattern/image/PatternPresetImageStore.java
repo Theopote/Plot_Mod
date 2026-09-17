@@ -52,7 +52,10 @@ public final class PatternPresetImageStore {
         Files.createDirectories(presetAssetsDir(pluginDataDir));
         String extension = extensionOf(sourceFile);
         String relativePath = PRESET_ASSETS_DIR + "/" + presetId + extension;
-        Path target = pluginDataDir.resolve(relativePath);
+        Path target = PatternImageStore.resolveImagePath(pluginDataDir, relativePath);
+        if (target == null || !PatternImageStore.isSafeAssetId(presetId)) {
+            throw new IOException("Invalid preset image id");
+        }
         Files.copy(sourceFile, target, StandardCopyOption.REPLACE_EXISTING);
         return relativePath;
     }

@@ -38,13 +38,16 @@ public final class PatternImageStore {
 
     public static ImportedImage importImage(Path pluginDataDir, String footprintId, Path sourceFile)
             throws IOException {
-        if (sourceFile == null || !Files.exists(sourceFile)) {
+        if (pluginDataDir == null || sourceFile == null || !Files.exists(sourceFile)) {
             throw new IOException("Source image not found");
         }
         Files.createDirectories(imagesDir(pluginDataDir));
         String extension = extensionOf(sourceFile);
         String relativePath = "images/" + footprintId + extension;
-        Path target = pluginDataDir.resolve(relativePath);
+        Path target = resolveImagePath(pluginDataDir, relativePath);
+        if (target == null || !isSafeAssetId(footprintId)) {
+            throw new IOException("Invalid footprint image id");
+        }
         Files.copy(sourceFile, target, StandardCopyOption.REPLACE_EXISTING);
 
         ImagePatternRaster raster = ImagePatternRaster.load(target);
@@ -88,6 +91,10 @@ public final class PatternImageStore {
             case ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp" -> ext;
             default -> ".png";
         };
+    }
+
+    static boolean isSafeAssetId(String id) {
+        return id != null && id.matches("[A-Za-z0-9_-]+");
     }
 
     public record ImportedImage(String relativePath, int width, int height) {

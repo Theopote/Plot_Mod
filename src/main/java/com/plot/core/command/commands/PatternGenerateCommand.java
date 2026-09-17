@@ -115,6 +115,7 @@ public class PatternGenerateCommand implements Command {
             return;
         }
         lastExecutionResult = applySyncUndo(appliedRecords);
+        removeAppliedAtIndices(lastExecutionResult.successfulWriteIndices());
         LOGGER.info("铺装图案撤销完成: {}/{}", lastExecutionResult.success(), lastExecutionResult.total());
     }
 
@@ -211,6 +212,8 @@ public class PatternGenerateCommand implements Command {
         if (schedulePlacement) {
             placementScheduler.enqueue(writes, result -> {
                 lastExecutionResult = toExecutionResult(result);
+                removeAppliedAtIndices(mapReverseIndices(
+                    appliedRecords.size(), lastExecutionResult.successfulWriteIndices()));
                 LOGGER.info("铺装图案撤销完成: {}/{} 成功, {} 失败",
                     lastExecutionResult.success(),
                     lastExecutionResult.total(),
@@ -249,13 +252,47 @@ public class PatternGenerateCommand implements Command {
 
     private ExecutionResult applySyncUndo(List<BlockRecord> source) {
         int success = 0;
+        List<Integer> successfulIndices = new ArrayList<>();
         for (int i = source.size() - 1; i >= 0; i--) {
             BlockRecord record = source.get(i);
             if (blockWriter.setBlockAt(record.pos, record.previousBlockId)) {
                 success++;
+                successfulIndices.add(i);
             }
         }
-        return new ExecutionResult(success, source.size() - success, source.size());
+        return new ExecutionResult(
+            success,
+            source.size() - success,
+            source.size(),
+            false,
+            List.copyOf(successfulIndices));
+    }
+
+    private void removeAppliedAtIndices(List<Integer> successfulIndices) {
+        if (successfulIndices == null || successfulIndices.isEmpty() || appliedRecords.isEmpty()) {
+            return;
+        }
+        java.util.Set<Integer> removed = new java.util.HashSet<>(successfulIndices);
+        List<BlockRecord> remaining = new ArrayList<>();
+        for (int i = 0; i < appliedRecords.size(); i++) {
+            if (!removed.contains(i)) {
+                remaining.add(appliedRecords.get(i));
+            }
+        }
+        appliedRecords = List.copyOf(remaining);
+    }
+
+    private static List<Integer> mapReverseIndices(int sourceSize, List<Integer> reverseIndices) {
+        if (reverseIndices == null || reverseIndices.isEmpty()) {
+            return List.of();
+        }
+        List<Integer> originalIndices = new ArrayList<>(reverseIndices.size());
+        for (int reverseIndex : reverseIndices) {
+            if (reverseIndex >= 0 && reverseIndex < sourceSize) {
+                originalIndices.add(sourceSize - 1 - reverseIndex);
+            }
+        }
+        return List.copyOf(originalIndices);
     }
 
     private void captureAppliedFromIndices(List<BlockRecord> source, List<Integer> successfulWriteIndices) {

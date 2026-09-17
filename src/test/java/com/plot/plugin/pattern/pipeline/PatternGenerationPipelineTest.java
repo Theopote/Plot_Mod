@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.PlacementReadiness;
 import com.plot.plugin.pattern.PatternGenerationResult;
+import com.plot.plugin.pattern.PatternGenerationIssue;
 import com.plot.plugin.pattern.model.PatternFootprint;
 import com.plot.plugin.pattern.model.ProceduralPatternConfig;
 import com.plot.plugin.pattern.space.PatternSample;
@@ -112,5 +113,41 @@ class PatternGenerationPipelineTest {
             .anyMatch(record -> "minecraft:black_wool".equals(record.newBlockId)));
         assertTrue(result.placementRecords.values().stream()
             .allMatch(record -> record.pos.getY() == 64));
+    }
+
+    @Test
+    void rejectsRegionWithExcessiveEstimatedSampleCount() {
+        PatternFootprint footprint = new PatternFootprint(List.of(
+            new Vec2d(0, 0),
+            new Vec2d(1000, 0),
+            new Vec2d(1000, 1000),
+            new Vec2d(0, 1000)));
+
+        PatternGenerationPipeline pipeline = new PatternGenerationPipeline(
+            IdentityCoordinateService.INSTANCE,
+            new IBlockProjectionService() {
+                @Override
+                public PlacementReadiness checkWorldModificationReadiness() {
+                    return PlacementReadiness.ok();
+                }
+
+                @Override
+                public String getBlockIdAt(BlockPos pos) {
+                    return "minecraft:grass_block";
+                }
+
+                @Override
+                public boolean setBlockAt(BlockPos pos, String blockId) {
+                    return false;
+                }
+            });
+
+        PatternGenerationResult result = pipeline.generate(
+            footprint,
+            new ProceduralPatternMaterialResolver(new ProceduralPatternConfig()),
+            null);
+
+        assertEquals(PatternGenerationIssue.REGION_TOO_LARGE, result.getIssue());
+        assertTrue(result.placementRecords.isEmpty());
     }
 }

@@ -2,6 +2,7 @@ package com.plot.plugin.pattern.pipeline;
 
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
+import com.plot.core.geometry.PolygonRegionUtils;
 import com.plot.plugin.pattern.PatternGenerationIssue;
 import com.plot.plugin.pattern.PatternGenerationResult;
 import com.plot.plugin.pattern.model.PatternBorderConfig;
@@ -24,6 +25,7 @@ import java.util.Objects;
  * </ol>
  */
 public final class PatternGenerationPipeline {
+    private static final long MAX_ESTIMATED_SAMPLE_POINTS = 250_000L;
     private final ICoordinateService coordinates;
     private final IBlockProjectionService projection;
 
@@ -45,6 +47,15 @@ public final class PatternGenerationPipeline {
         }
         if (footprint.getOuterPoints().size() < 3) {
             result.setIssue(PatternGenerationIssue.REGION_TOO_SMALL);
+            return result;
+        }
+
+        PolygonRegionUtils.RectBounds bounds = PolygonRegionUtils.computeBounds(
+            footprint.getOuterPoints(), footprint.getHoles());
+        long estimatedWidth = (long) Math.ceil(Math.max(0.0, bounds.width()));
+        long estimatedDepth = (long) Math.ceil(Math.max(0.0, bounds.depth()));
+        if (estimatedWidth > 0 && estimatedDepth > MAX_ESTIMATED_SAMPLE_POINTS / estimatedWidth) {
+            result.setIssue(PatternGenerationIssue.REGION_TOO_LARGE);
             return result;
         }
 

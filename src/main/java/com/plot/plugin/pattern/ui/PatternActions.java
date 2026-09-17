@@ -87,10 +87,12 @@ public final class PatternActions {
     public boolean calculatePreview(List<PatternFootprint> footprints, boolean autoProjectGhosts) {
         World world = getClientWorld();
         if (world == null || patternGenerator == null) {
+            clearPreview();
             state.setProjectStatus(PlotI18n.tr("plugin.pattern.generate_world_unavailable"));
             return false;
         }
         if (footprints == null || footprints.isEmpty()) {
+            clearPreview();
             state.setProjectStatus(PlotI18n.tr("plugin.pattern.select_footprint_hint"));
             return false;
         }
@@ -103,13 +105,14 @@ public final class PatternActions {
             }
         } catch (Exception e) {
             LOGGER.error("铺装预览生成失败: {}", e.getMessage(), e);
-            state.setLastGenerationResult(null);
+            clearPreview();
             state.setProjectStatus(PlotI18n.tr("plugin.pattern.generate_empty_result"));
             return false;
         }
 
         state.setLastGenerationResult(merged);
         if (!merged.hasPlacements()) {
+            clearPreview();
             state.setProjectStatus(statusForIssue(merged.getIssue()));
             return false;
         }
