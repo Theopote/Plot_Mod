@@ -56,31 +56,34 @@ public final class PatternPresetPanel {
             : library.getBuiltInPresets(resolvedSource);
         if (presets.isEmpty()) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, emptyPresetsMessage(resolvedSource, showUserPresets));
-            return;
-        }
-
-        ImGui.beginChild("preset_list", 0, 150, true);
-        for (int i = 0; i < presets.size(); i++) {
-            PatternPreset preset = presets.get(i);
-            ImGui.pushID(i);
-
-            boolean selected = i == selectedPresetIndex;
-            if (ImGui.selectable(preset.getDisplayName() + "##preset", selected)) {
-                selectedPresetIndex = i;
+            if (!showUserPresets) {
+                return;
             }
+            ImGui.spacing();
+        } else {
+            ImGui.beginChild("preset_list", 0, 150, true);
+            for (int i = 0; i < presets.size(); i++) {
+                PatternPreset preset = presets.get(i);
+                ImGui.pushID(i);
 
-            if (ImGui.isItemHovered()) {
-                String tooltip = preset.getDisplayDescription();
-                if (!tooltip.isBlank()) {
-                    ImGui.setTooltip(tooltip);
+                boolean selected = i == selectedPresetIndex;
+                if (ImGui.selectable(preset.getDisplayName() + "##preset", selected)) {
+                    selectedPresetIndex = i;
                 }
+
+                if (ImGui.isItemHovered()) {
+                    String tooltip = preset.getDisplayDescription();
+                    if (!tooltip.isBlank()) {
+                        ImGui.setTooltip(tooltip);
+                    }
+                }
+
+                ImGui.popID();
             }
+            ImGui.endChild();
 
-            ImGui.popID();
+            ImGui.spacing();
         }
-        ImGui.endChild();
-
-        ImGui.spacing();
 
         if (!showUserPresets) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.pattern.preset_builtin_hint"));
