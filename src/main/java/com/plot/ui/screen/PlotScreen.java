@@ -136,6 +136,9 @@ public class PlotScreen extends Screen {
         if (!CameraManager.getInstance().isOrthographic()) {
             CameraManager.getInstance().toggleCamera();
         }
+
+        // 记录打开界面前的世界时间，关闭界面时恢复
+        com.plot.client.WorldTimeManager.getInstance().saveCurrentTime();
         
         // 设置 Plot 屏幕打开状态（用于控制云渲染和雾渲染）
         PlotScreenState.setPlotScreenOpen(true);
@@ -959,7 +962,10 @@ public class PlotScreen extends Screen {
         // 恢复相机状态（包括 HUD 状态）
         CameraManager.getInstance().setToPerspective();
         CameraManager.getInstance().restoreState();
-        
+
+        // 恢复打开界面之前的世界时间
+        com.plot.client.WorldTimeManager.getInstance().restoreSavedTime();
+
         super.removed();
     }
 
