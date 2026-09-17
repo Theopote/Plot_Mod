@@ -13,6 +13,7 @@ import net.minecraft.world.World;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * 图案生成管线：
@@ -38,62 +39,109 @@ public final class PatternGenerationPipeline {
             PatternFootprint footprint,
             PatternMaterialResolver materialResolver,
             World world) {
-        PatternGenerationResult result = new PatternGenerationResult();
+        PatternGenerationSession session = beginSession(footprint, materialResolver, world);
+        if (session.isFailed()) {
+            return session.result();
+        }
+        while (!session.isComplete()) {
+            processSamples(session, Integer.MAX_VALUE, null);
+        }
+        finalizeSession(session);
+        return session.result();
+    }
+
+    public PatternGenerationSession beginSession(
+            PatternFootprint footprint,
+            PatternMaterialResolver materialResolver,
+            World world) {
         if (footprint == null || materialResolver == null) {
-            result.setIssue(PatternGenerationIssue.NO_SAMPLE_POINTS);
-            return result;
+            return PatternGenerationSession.failed(footprint, PatternGenerationIssue.NO_SAMPLE_POINTS);
         }
         if (footprint.getOuterPoints().size() < 3) {
-            result.setIssue(PatternGenerationIssue.REGION_TOO_SMALL);
-            return result;
+            return PatternGenerationSession.failed(footprint, PatternGenerationIssue.REGION_TOO_SMALL);
         }
 
         PatternSpace space = PatternSpace.fromFootprint(footprint);
         List<PatternSample> samples = PatternSampling.collectFootprintSamples(
             footprint.getOuterPoints(),
             footprint.getHoles());
-        result.setSampleCount(samples.size());
         if (samples.isEmpty()) {
-            result.setIssue(PatternGenerationIssue.NO_SAMPLE_POINTS);
-            return result;
+            return PatternGenerationSession.failed(footprint, PatternGenerationIssue.NO_SAMPLE_POINTS);
         }
 
+        PatternGenerationResult result = new PatternGenerationResult();
         TerrainSurfaceProjector projector = TerrainSurfaceProjector.of(world, coordinates);
         PatternPlacementRecorder recorder = new PatternPlacementRecorder(projection, result);
-
         PatternBorderConfig borderConfig = footprint.getBorderConfig();
         String borderMaterial = borderConfig.isEnabled() ? borderConfig.getPrimaryBorderMaterial() : null;
 
-        int skippedTransparent = 0;
-        int fallbackElevation = 0;
-        for (PatternSample sample : samples) {
-            String blockId;
-            if (borderMaterial != null
-                && PatternBorderSampler.shouldUseBorderMaterial(footprint, borderConfig, sample)) {
-                blockId = borderMaterial;
-            } else {
-                blockId = materialResolver.resolveMaterial(space, sample);
-            }
-            if (blockId == null) {
-                skippedTransparent++;
-                continue;
-            }
-            TerrainSurfaceProjector.SurfaceProjection surface = projector.projectSurface(sample);
-            if (surface.usedFallbackElevation()) {
-                fallbackElevation++;
-            }
-            recorder.record(surface.pos(), blockId);
+        return PatternGenerationSession.ready(
+            footprint,
+            materialResolver,
+            result,
+            space,
+            samples,
+            projector,
+            recorder,
+            borderConfig,
+            borderMaterial);
+    }
+
+    /**
+     * @return 本批次处理的采样点数
+     */
+    public int processSamples(
+            PatternGenerationSession session,
+            int maxSamples,
+            Consumer<PatternGenerationSamplePhase> phaseListener) {
+        if (session == null || session.isFailed() || session.isComplete() || maxSamples <= 0) {
+            return 0;
         }
 
-        result.setSkippedTransparentCount(skippedTransparent);
-        result.setFallbackElevationCount(fallbackElevation);
-        if (!result.hasPlacements()) {
-            if (skippedTransparent >= samples.size()) {
-                result.setIssue(PatternGenerationIssue.ALL_PIXELS_TRANSPARENT);
+        List<PatternSample> samples = session.samples();
+        int start = session.nextSampleIndex();
+        int end = Math.min(start + maxSamples, samples.size());
+        int processed = 0;
+
+        for (int i = start; i < end; i++) {
+            PatternSample sample = samples.get(i);
+            String blockId;
+            if (session.borderMaterial() != null
+                && PatternBorderSampler.shouldUseBorderMaterial(
+                    session.footprint(),
+                    session.borderConfig(),
+                    sample)) {
+                blockId = session.borderMaterial();
             } else {
-                result.setIssue(PatternGenerationIssue.NO_SAMPLE_POINTS);
+                if (phaseListener != null) {
+                    phaseListener.accept(PatternGenerationSamplePhase.RESOLVING);
+                }
+                blockId = session.resolver().resolveMaterial(session.space(), sample);
             }
+            if (blockId == null) {
+                session.recordSkippedTransparent();
+                processed++;
+                continue;
+            }
+            if (phaseListener != null) {
+                phaseListener.accept(PatternGenerationSamplePhase.PROJECTING);
+            }
+            TerrainSurfaceProjector.SurfaceProjection surface = session.projector().projectSurface(sample);
+            if (surface.usedFallbackElevation()) {
+                session.recordFallbackElevation();
+            }
+            session.recorder().record(surface.pos(), blockId);
+            processed++;
         }
-        return result;
+
+        session.advanceSampleIndex(processed);
+        return processed;
+    }
+
+    public void finalizeSession(PatternGenerationSession session) {
+        if (session == null || session.isFailed()) {
+            return;
+        }
+        session.applyFinalize();
     }
 }

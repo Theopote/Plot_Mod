@@ -25,6 +25,7 @@ public final class PatternUIManager {
             return;
         }
 
+        ctx.actions().tickPreviewJob();
         ctx.actions().reconcilePreviewLifecycle();
 
         if (ctx.pickSession().isActive()) {

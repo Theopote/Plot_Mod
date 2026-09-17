@@ -47,11 +47,23 @@ public final class PatternToolbarPanel {
         }
 
         if (!ctx.projectStatus().isEmpty()) {
-            ImGui.textColored(PluginUiColors.STATUS_OK, ctx.projectStatus());
+            ImGui.textColored(
+                ctx.isPreviewBusy() ? PluginUiColors.STATUS_INFO : PluginUiColors.STATUS_OK,
+                ctx.projectStatus());
         }
 
+        renderPreviewJobControls();
         renderActivePlacementControls();
         ImGui.separator();
+    }
+
+    private void renderPreviewJobControls() {
+        if (!ctx.isPreviewBusy()) {
+            return;
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.pattern.cancel_preview"), 0, 0)) {
+            ctx.cancelPreviewJob();
+        }
     }
 
     private void renderActivePlacementControls() {

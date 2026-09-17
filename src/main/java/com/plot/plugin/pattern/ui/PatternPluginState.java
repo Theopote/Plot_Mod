@@ -22,6 +22,7 @@ public final class PatternPluginState {
     private final List<Shape> selectedRegions = new ArrayList<>();
 
     private volatile PatternGenerationSnapshot generationSnapshot;
+    private volatile PatternPreviewJob previewJob;
     private long projectRevision;
     private String footprintNameEditingId = "";
     private String footprintNameBeforeRename = "";
@@ -68,6 +69,14 @@ public final class PatternPluginState {
 
     public void setGenerationSnapshot(PatternGenerationSnapshot generationSnapshot) {
         this.generationSnapshot = generationSnapshot;
+    }
+
+    public PatternPreviewJob getPreviewJob() {
+        return previewJob;
+    }
+
+    public void setPreviewJob(PatternPreviewJob previewJob) {
+        this.previewJob = previewJob;
     }
 
     public long getProjectRevision() {

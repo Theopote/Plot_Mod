@@ -232,6 +232,22 @@ public final class PatternUiContext {
         actions.clearPreview();
     }
 
+    public void tickPreviewJob() {
+        actions.tickPreviewJob();
+    }
+
+    public boolean isPreviewBusy() {
+        return actions.isPreviewBusy();
+    }
+
+    public PatternPreviewJob previewJob() {
+        return actions.previewJob();
+    }
+
+    public void cancelPreviewJob() {
+        actions.cancelPreviewJob();
+    }
+
     public void buildInWorld() {
         actions.buildInWorld();
     }

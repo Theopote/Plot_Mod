@@ -148,4 +148,56 @@ class PatternGenerationPipelineTest {
 
         assertTrue(result.getBlockCount() > 0);
     }
+
+    @Test
+    void incrementalSessionMatchesSinglePassGenerate() {
+        ProceduralPatternConfig pattern = new ProceduralPatternConfig();
+        pattern.setType(ProceduralPatternConfig.PatternType.CHECKERBOARD);
+        pattern.setMaterials(List.of("minecraft:white_wool", "minecraft:black_wool"));
+        pattern.setTileSize(2.0);
+
+        PatternFootprint footprint = new PatternFootprint(List.of(
+            new Vec2d(0, 0),
+            new Vec2d(4, 0),
+            new Vec2d(4, 4),
+            new Vec2d(0, 4)));
+        footprint.setPattern(pattern);
+
+        IBlockProjectionService projection = new IBlockProjectionService() {
+            @Override
+            public PlacementReadiness checkWorldModificationReadiness() {
+                return PlacementReadiness.ok();
+            }
+
+            @Override
+            public String getBlockIdAt(BlockPos pos) {
+                return "minecraft:grass_block";
+            }
+
+            @Override
+            public boolean setBlockAt(BlockPos pos, String blockId) {
+                return false;
+            }
+        };
+
+        PatternGenerationPipeline pipeline = new PatternGenerationPipeline(
+            IdentityCoordinateService.INSTANCE,
+            projection);
+        PatternMaterialResolver resolver = new ProceduralPatternMaterialResolver(pattern);
+
+        PatternGenerationResult expected = pipeline.generate(footprint, resolver, null);
+
+        PatternGenerationSession session = pipeline.beginSession(footprint, resolver, null);
+        while (!session.isComplete()) {
+            pipeline.processSamples(session, 3, null);
+        }
+        pipeline.finalizeSession(session);
+        PatternGenerationResult incremental = session.result();
+
+        assertEquals(expected.getBlockCount(), incremental.getBlockCount());
+        assertEquals(expected.getSampleCount(), incremental.getSampleCount());
+        assertEquals(expected.getSkippedTransparentCount(), incremental.getSkippedTransparentCount());
+        assertEquals(expected.getFallbackElevationCount(), incremental.getFallbackElevationCount());
+        assertEquals(expected.placementRecords.keySet(), incremental.placementRecords.keySet());
+    }
 }

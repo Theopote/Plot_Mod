@@ -81,6 +81,7 @@ public final class PatternActions {
         state.getPickSession().cancel();
         state.getSelectedRegions().clear();
         state.resetProjectRevision();
+        cancelPreviewJobSilently();
         clearPreview();
     }
 
@@ -107,6 +108,20 @@ public final class PatternActions {
     }
 
     public void reconcilePreviewLifecycle() {
+        PatternPreviewJob job = state.getPreviewJob();
+        if (job != null && job.isRunning()) {
+            if (!job.previewKey().matches(
+                    state.getProject(),
+                    state.getSelection(),
+                    state.getProjectRevision(),
+                    host.coordinates())) {
+                cancelPreviewJobSilently();
+                clearPreview();
+                state.setProjectStatus(PlotI18n.tr("plugin.pattern.preview_invalidated"));
+            }
+            return;
+        }
+
         PatternGenerationSnapshot snapshot = state.getGenerationSnapshot();
         if (snapshot == null) {
             return;
@@ -140,46 +155,126 @@ public final class PatternActions {
     public boolean calculatePreview(List<PatternFootprint> footprints, boolean autoProjectGhosts) {
         World world = getClientWorld();
         if (world == null || patternGenerator == null) {
+            cancelPreviewJobSilently();
             clearPreview();
             state.setProjectStatus(PlotI18n.tr("plugin.pattern.generate_world_unavailable"));
             return false;
         }
         if (footprints == null || footprints.isEmpty()) {
+            cancelPreviewJobSilently();
             clearPreview();
             state.setProjectStatus(PlotI18n.tr("plugin.pattern.select_footprint_hint"));
             return false;
         }
 
-        state.setProjectStatus(PlotI18n.tr("plugin.pattern.generate_in_progress"));
-        PatternGenerationResult merged = new PatternGenerationResult();
-        try {
-            for (PatternFootprint footprint : footprints) {
-                PatternGenerationResult result = patternGenerator.generate(footprint, world);
-                merged.mergeFrom(result);
-            }
-        } catch (Exception e) {
-            LOGGER.error("铺装预览生成失败: {}", e.getMessage(), e);
-            clearPreview();
-            state.setProjectStatus(PlotI18n.tr("plugin.pattern.generate_empty_result"));
-            return false;
-        }
+        startPreviewJob(footprints, autoProjectGhosts);
+        return false;
+    }
 
+    private void startPreviewJob(List<PatternFootprint> footprints, boolean autoProjectGhosts) {
+        cancelPreviewJobSilently();
+        clearPreview();
         PatternPreviewKey previewKey = PatternPreviewKey.capture(
             footprints,
             state.getProjectRevision(),
             host.coordinates());
-        state.setGenerationSnapshot(new PatternGenerationSnapshot(previewKey, merged));
+        PatternPreviewJob job = new PatternPreviewJob(footprints, previewKey, autoProjectGhosts, this);
+        state.setPreviewJob(job);
+        updatePreviewJobProgress(job);
+    }
+
+    public void tickPreviewJob() {
+        PatternPreviewJob job = state.getPreviewJob();
+        if (job != null && job.isRunning()) {
+            try {
+                job.tick();
+            } catch (Exception e) {
+                LOGGER.error("铺装预览生成失败: {}", e.getMessage(), e);
+                failPreviewJob(job);
+            }
+        }
+    }
+
+    public boolean isPreviewBusy() {
+        PatternPreviewJob job = state.getPreviewJob();
+        return job != null && job.isRunning();
+    }
+
+    public PatternPreviewJob previewJob() {
+        return state.getPreviewJob();
+    }
+
+    public void cancelPreviewJob() {
+        PatternPreviewJob job = state.getPreviewJob();
+        if (job == null) {
+            return;
+        }
+        job.cancel();
+        state.setPreviewJob(null);
+        state.setProjectStatus(PlotI18n.tr("plugin.pattern.preview_cancelled"));
+    }
+
+    private void cancelPreviewJobSilently() {
+        PatternPreviewJob job = state.getPreviewJob();
+        if (job != null) {
+            job.cancel();
+        }
+        state.setPreviewJob(null);
+    }
+
+    void updatePreviewJobProgress(PatternPreviewJob job) {
+        if (job == null) {
+            return;
+        }
+        String phaseKey = switch (job.phase()) {
+            case SAMPLING -> "plugin.pattern.preview_phase_sampling";
+            case PROJECTING -> "plugin.pattern.preview_phase_projecting";
+            default -> "plugin.pattern.preview_phase_resolving";
+        };
+        state.setProjectStatus(PlotI18n.tr(phaseKey) + " — "
+            + PlotI18n.tr(
+                "plugin.pattern.preview_progress",
+                job.processedCount(),
+                job.totalCount()));
+    }
+
+    void failPreviewJob(PatternPreviewJob job) {
+        if (job != null) {
+            job.cancel();
+        }
+        if (state.getPreviewJob() == job) {
+            state.setPreviewJob(null);
+        }
+        clearPreview();
+        state.setProjectStatus(PlotI18n.tr("plugin.pattern.generate_empty_result"));
+    }
+
+    void finishCancelledPreviewJob(PatternPreviewJob job) {
+        if (state.getPreviewJob() == job) {
+            state.setPreviewJob(null);
+            state.setProjectStatus(PlotI18n.tr("plugin.pattern.preview_cancelled"));
+        }
+    }
+
+    void completePreviewJob(
+            PatternPreviewJob job,
+            PatternGenerationResult merged,
+            boolean autoProjectGhosts) {
+        if (state.getPreviewJob() != job) {
+            return;
+        }
+        state.setPreviewJob(null);
+        state.setGenerationSnapshot(new PatternGenerationSnapshot(job.previewKey(), merged));
         if (!merged.hasPlacements()) {
             clearPreview();
             state.setProjectStatus(statusForIssue(merged.getIssue()));
-            return false;
+            return;
         }
 
         if (autoProjectGhosts) {
             projectPreview();
         }
         state.setProjectStatus(formatPreviewReadyStatus(merged));
-        return true;
     }
 
     private static String statusForIssue(PatternGenerationIssue issue) {
@@ -223,6 +318,7 @@ public final class PatternActions {
     }
 
     public void clearPreview() {
+        cancelPreviewJobSilently();
         com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearGhostBlocks(GhostBlockOwners.PATTERN);
