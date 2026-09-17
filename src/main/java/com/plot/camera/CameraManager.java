@@ -106,9 +106,9 @@ public class CameraManager {
             orthographicCamera.setEnabled(false);
         }
 
-        // 关键修改：使用当前玩家位置（因为拖动时已经更新了玩家位置）
-        // 而不是恢复保存的位置，这样玩家关闭窗口后会保持在拖动后的位置
-        Vec3d currentPosition = new Vec3d(player.getX(), player.getY(), player.getZ());
+        // 恢复到打开 Plot 界面之前的玩家位置（而非拖动后的位置）
+        Vec3d currentPosition = savedState != null ? savedState.position
+                : new Vec3d(player.getX(), player.getY(), player.getZ());
         
         // 恢复角度和 HUD 状态（如果保存了状态）
         if (savedState != null) {
@@ -122,8 +122,7 @@ public class CameraManager {
             client.options.hudHidden = false;
         }
         
-        // 确保玩家位置正确（使用当前位置，但可能需要调整Y坐标到地面）
-        // 注意：X和Z坐标保持拖动后的值，Y坐标可能需要调整到合理的高度
+        // 确保玩家位置正确（恢复到打开界面前的位置，Y坐标做安全性校验）
         World world = player.getEntityWorld();
         if (world != null) {
             BlockPos pos = new BlockPos((int)currentPosition.x, (int)currentPosition.y, (int)currentPosition.z);
@@ -140,7 +139,7 @@ public class CameraManager {
         panY = 0.0f;
         panBasePlayerPos = null;
 
-        LOGGER.info("Restored camera state: pitch={}, yaw={}, pos={} (使用拖动后的位置)",
+        LOGGER.info("Restored camera state: pitch={}, yaw={}, pos={} (恢复到打开界面前的位置)",
                 player.getPitch(), player.getYaw(), currentPosition);
     }
 
