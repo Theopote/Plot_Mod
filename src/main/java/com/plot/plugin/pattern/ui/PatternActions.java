@@ -339,7 +339,7 @@ public final class PatternActions {
             }
             PatternFootprint footprint = new PatternFootprint(points);
             footprint.setHoles(group.holes());
-            footprint.setName(PlotI18n.tr("plugin.pattern.default_name", adopted + 1));
+            footprint.setName(nextDefaultFootprintName());
             state.getProject().addFootprint(footprint);
             adoptedIds.add(footprint.getId());
             holeCount += group.holes().size();
@@ -352,6 +352,23 @@ public final class PatternActions {
             clearPreview();
         }
         state.setProjectStatus(resolveAdoptStatus(adopted, holeCount, overlapWarning, skippedSmall));
+    }
+
+    private String nextDefaultFootprintName() {
+        int number = 1;
+        while (footprintNameExists(PlotI18n.tr("plugin.pattern.default_name", number))) {
+            number++;
+        }
+        return PlotI18n.tr("plugin.pattern.default_name", number);
+    }
+
+    private boolean footprintNameExists(String candidate) {
+        for (PatternFootprint existing : state.getProject().getFootprints().values()) {
+            if (candidate.equals(existing.getName())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String resolveAdoptStatus(

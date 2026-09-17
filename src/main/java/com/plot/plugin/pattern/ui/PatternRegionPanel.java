@@ -33,9 +33,6 @@ public final class PatternRegionPanel {
     }
 
     private void renderPickSection() {
-        ImGui.text(PlotI18n.tr("plugin.pattern.pick_section_title"));
-        ImGui.spacing();
-
         if (ctx.pickSession().isActive()) {
             int count = ctx.pickSession().getAccumulatedCount();
             if (count > 0) {

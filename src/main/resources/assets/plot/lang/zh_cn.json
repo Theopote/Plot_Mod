@@ -3184,7 +3184,6 @@
   "plugin.pattern.project_stats": "区域数：%d | 方块数：%d",
   "plugin.pattern.no_footprints": "尚未认领任何铺装区域",
   "plugin.pattern.overview_item": "%d 方块 | %s",
-  "plugin.pattern.pick_section_title": "拾取范围",
   "plugin.pattern.preview_section_title": "预览范围",
   "plugin.pattern.pick_range": "拾取范围",
   "plugin.pattern.pick_range_hint": "在画布上选择封闭区域图形；未闭合的折线会自动首尾相连",

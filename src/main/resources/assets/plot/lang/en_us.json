@@ -3184,7 +3184,6 @@
   "plugin.pattern.project_stats": "Regions: %d | Blocks: %d",
   "plugin.pattern.no_footprints": "No paving regions adopted yet",
   "plugin.pattern.overview_item": "%d blocks | %s",
-  "plugin.pattern.pick_section_title": "Pick range",
   "plugin.pattern.preview_section_title": "Preview",
   "plugin.pattern.pick_range": "Pick range",
   "plugin.pattern.pick_range_hint": "Select closed region shapes on the canvas; open polylines are auto-closed",

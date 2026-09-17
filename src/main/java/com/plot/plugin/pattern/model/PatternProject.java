@@ -133,6 +133,16 @@ public class PatternProject {
         boolean outerBorder;
         @Deprecated double cornerRadius;
         boolean enabled;
+
+        String resolvedBorderMaterial() {
+            if (borderMaterial != null && !borderMaterial.isBlank()) {
+                return borderMaterial;
+            }
+            if (borderMaterials != null && !borderMaterials.isEmpty()) {
+                return borderMaterials.getFirst();
+            }
+            return null;
+        }
     }
 
     static class ImagePatternData {
@@ -308,11 +318,9 @@ public class PatternProject {
 
         private @NotNull PatternBorderConfig getPatternBorderConfig(FootprintData footprintData) {
             PatternBorderConfig border = new PatternBorderConfig();
-            if (footprintData.border.borderMaterial != null && !footprintData.border.borderMaterial.isBlank()) {
-                border.setBorderMaterial(footprintData.border.borderMaterial);
-            } else if (footprintData.border.borderMaterials != null
-                && !footprintData.border.borderMaterials.isEmpty()) {
-                border.setBorderMaterial(footprintData.border.borderMaterials.getFirst());
+            String borderMaterial = footprintData.border.resolvedBorderMaterial();
+            if (borderMaterial != null) {
+                border.setBorderMaterial(borderMaterial);
             }
             if (footprintData.border.borderWidth > 0) {
                 border.setBorderWidth(footprintData.border.borderWidth);
