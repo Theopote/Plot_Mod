@@ -14,7 +14,7 @@ import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
 
-/** 图案设计 Tab（预设 + 编辑 + 边框）。 */
+/** 图案设计 Tab：区域 → 来源 → 预设 → 参数 → 边框。 */
 public final class PatternDesignPanel {
     private final PatternUiContext ctx;
     private final PatternPresetPanel presetPanel;
@@ -31,32 +31,62 @@ public final class PatternDesignPanel {
         ctx.selection().retainExisting(ctx.project());
         PatternFootprint footprint = ctx.selection().primary(ctx.project());
         if (footprint == null) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.pattern.select_footprint_hint"));
-            PatternUiWidgets.renderFootprintSelector(ctx);
+            renderRegionSection(null);
             return;
         }
 
-        PatternUiWidgets.renderFootprintSelector(ctx);
-        ImGui.spacing();
+        renderRegionSection(footprint);
+        ImGui.separator();
+        renderSourceSection(footprint);
+        ImGui.separator();
 
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.pattern.preset_section"), ImGuiTreeNodeFlags.DefaultOpen)) {
-            presetPanel.renderSection();
+            presetPanel.renderSection(footprint.getSource());
             ImGui.spacing();
         }
 
+        ImGui.separator();
         Runnable beforeEdit = () -> ctx.projectHistory().push(ctx.project());
         Runnable invalidate = () -> ctx.actions().invalidatePreview();
 
-        PatternUiWidgets.renderSourceCombo(footprint, beforeEdit, invalidate);
-        ImGui.spacing();
-
         if (footprint.getSource() == PatternSource.IMAGE) {
-            renderImageEditor(footprint, beforeEdit, invalidate);
+            if (ImGui.collapsingHeader(PlotI18n.tr("plugin.pattern.image_params_section"), ImGuiTreeNodeFlags.DefaultOpen)) {
+                renderImageEditor(footprint, beforeEdit, invalidate);
+            }
         } else {
-            renderProceduralEditor(footprint, beforeEdit, invalidate);
+            if (ImGui.collapsingHeader(PlotI18n.tr("plugin.pattern.procedural_params_section"), ImGuiTreeNodeFlags.DefaultOpen)) {
+                renderProceduralEditor(footprint, beforeEdit, invalidate);
+            }
         }
 
+        ImGui.separator();
         borderPanel.renderSection(footprint);
+    }
+
+    private void renderRegionSection(PatternFootprint footprint) {
+        ImGui.text(PlotI18n.tr("plugin.pattern.section.region"));
+        if (footprint == null) {
+            PatternUiWidgets.textColoredWrapped(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.pattern.select_footprint_hint"));
+        }
+        PatternUiWidgets.renderFootprintSelector(ctx);
+    }
+
+    private void renderSourceSection(PatternFootprint footprint) {
+        ImGui.text(PlotI18n.tr("plugin.pattern.section.source"));
+        Runnable beforeEdit = () -> ctx.projectHistory().push(ctx.project());
+        Runnable invalidate = () -> ctx.actions().invalidatePreview();
+        PatternSource previousSource = footprint.getSource();
+        PatternUiWidgets.renderSourceCombo(footprint, beforeEdit, invalidate);
+        if (footprint.getSource() != previousSource) {
+            presetPanel.resetSelection();
+        }
+        PatternUiWidgets.textColoredWrapped(
+            PluginUiColors.HINT_GRAY,
+            footprint.getSource() == PatternSource.IMAGE
+                ? PlotI18n.tr("plugin.pattern.source.image_hint")
+                : PlotI18n.tr("plugin.pattern.source.procedural_hint"));
     }
 
     private void renderProceduralEditor(
@@ -274,7 +304,9 @@ public final class PatternDesignPanel {
                 imagePattern.getImageHeight(),
                 imagePattern.getImagePath()));
         } else {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.pattern.image_missing"));
+            PatternUiWidgets.textColoredWrapped(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.pattern.image_missing"));
         }
 
         String[] matchModeLabels = {

@@ -66,10 +66,25 @@ public class PatternPresetLibrary {
             .collect(Collectors.toList());
     }
 
+    public List<PatternPreset> getBuiltInPresets(PatternSource source) {
+        return filterBySource(getBuiltInPresets(), source);
+    }
+
     public List<PatternPreset> getUserPresets() {
         return presets.stream()
             .filter(preset -> !preset.isBuiltIn())
             .map(PatternPreset::copy)
+            .collect(Collectors.toList());
+    }
+
+    public List<PatternPreset> getUserPresets(PatternSource source) {
+        return filterBySource(getUserPresets(), source);
+    }
+
+    private static List<PatternPreset> filterBySource(List<PatternPreset> presets, PatternSource source) {
+        PatternSource resolved = source != null ? source : PatternSource.PROCEDURAL;
+        return presets.stream()
+            .filter(preset -> preset.getSource() == resolved)
             .collect(Collectors.toList());
     }
 
