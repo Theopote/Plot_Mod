@@ -36,24 +36,12 @@ public final class PatternDesignPanel {
             return;
         }
 
-        PatternUiWidgets.renderSelectionSummary(ctx);
         PatternUiWidgets.renderFootprintSelector(ctx);
         ImGui.spacing();
 
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.pattern.preset_section"), ImGuiTreeNodeFlags.DefaultOpen)) {
             presetPanel.renderSection();
             ImGui.spacing();
-        }
-
-        if (ctx.footprintNameEditingId().equals(footprint.getId())) {
-            if (ImGui.inputText(PlotI18n.tr("plugin.pattern.footprint_name"), ctx.footprintNameBuffer())) {
-                footprint.setName(ctx.footprintNameBuffer().get());
-            }
-        } else {
-            ctx.footprintNameBuffer().set(footprint.getName());
-            if (ImGui.button(PlotI18n.tr("plugin.pattern.edit_name"), 0, 0)) {
-                ctx.setFootprintNameEditingId(footprint.getId());
-            }
         }
 
         Runnable beforeEdit = () -> ctx.projectHistory().push(ctx.project());
