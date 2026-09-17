@@ -3477,6 +3477,7 @@
   "plugin.powerline.select_line_hint": "请先选择一条线路",
   "plugin.powerline.close_spacing_warning_threshold": "过近警告阈值",
   "plugin.powerline.max_pole_spacing": "建议最大间距",
+  "plugin.powerline.min_pole_spacing": "建议最小间距",
   "plugin.powerline.corner_angle": "转角识别角度",
   "plugin.powerline.pole_height": "杆高",
   "plugin.powerline.sag_ratio": "垂度比例",
@@ -3495,6 +3496,7 @@
   "plugin.powerline.wire_length_result": "导线总长：%s 格",
   "plugin.powerline.block_count_result": "方块数：%d",
   "plugin.powerline.clearance_warnings": "净空警告：%d 处",
+  "plugin.powerline.preview_ready": "预览已就绪：导线 %s 格 | 净空警告 %d 处",
   "plugin.powerline.build": "落地到世界",
   "plugin.powerline.build_confirm": "确定将 %d 个方块落地到世界？",
   "plugin.powerline.build_confirm_issues": "仍有 %d 个线路问题（其中 %d 个可能穿过地形）。",
@@ -4394,7 +4396,5 @@
   "status.plot.building.pick_footprint_right_click": "已选 1 个轮廓，右键确认",
   "status.plot.building.pick_footprint_right_click_multi": "已选多个轮廓，右键确认",
   "status.plot.building.pick_footprint_no_valid": "当前选择不是有效建筑轮廓",
-  "plugin.powerline.style.quick_tune_hint": "微调预设参数，同时保留当前风格标识",
-  "plugin.powerline.min_pole_spacing": "Recommended min spacing",
-  "plugin.powerline.preview_ready": "Preview ready: %s blocks wire | %d clearance warnings"
+  "plugin.powerline.style.quick_tune_hint": "微调预设参数，同时保留当前风格标识"
 }
