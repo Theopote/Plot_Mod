@@ -4,7 +4,6 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.PlacementReadiness;
 import com.plot.plugin.pattern.PatternGenerationResult;
-import com.plot.plugin.pattern.PatternGenerationIssue;
 import com.plot.plugin.pattern.model.PatternFootprint;
 import com.plot.plugin.pattern.model.ProceduralPatternConfig;
 import com.plot.plugin.pattern.space.PatternSample;
@@ -116,7 +115,7 @@ class PatternGenerationPipelineTest {
     }
 
     @Test
-    void rejectsRegionWithExcessiveEstimatedSampleCount() {
+    void generatesRegionWithoutAnArtificialSizeRejection() {
         PatternFootprint footprint = new PatternFootprint(List.of(
             new Vec2d(0, 0),
             new Vec2d(1000, 0),
@@ -147,7 +146,6 @@ class PatternGenerationPipelineTest {
             new ProceduralPatternMaterialResolver(new ProceduralPatternConfig()),
             null);
 
-        assertEquals(PatternGenerationIssue.REGION_TOO_LARGE, result.getIssue());
-        assertTrue(result.placementRecords.isEmpty());
+        assertTrue(result.getBlockCount() > 0);
     }
 }
