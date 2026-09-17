@@ -123,6 +123,46 @@ public final class PatternUiContext {
         state.setFootprintNameEditingId(id);
     }
 
+    public void beginFootprintNameRename(PatternFootprint footprint) {
+        if (footprint == null) {
+            return;
+        }
+        state.beginFootprintNameRename(footprint.getId(), footprint.getName());
+        selection().select(footprint.getId(), false);
+    }
+
+    public boolean consumeFootprintNameFocusPending() {
+        return state.consumeFootprintNameFocusPending();
+    }
+
+    public void tickFootprintNameRenameCooldown() {
+        state.tickFootprintNameRenameCooldown();
+    }
+
+    public boolean isFootprintNameOutsideClickReady() {
+        return state.isFootprintNameOutsideClickReady();
+    }
+
+    public void commitFootprintNameRename(PatternFootprint footprint) {
+        if (footprint == null || !footprint.getId().equals(state.getFootprintNameEditingId())) {
+            state.endFootprintNameRename();
+            return;
+        }
+        String trimmed = state.getFootprintNameBuffer().get().trim();
+        if (!trimmed.isEmpty() && !trimmed.equals(footprint.getName())) {
+            projectHistory().push(project());
+            footprint.setName(trimmed);
+        }
+        state.endFootprintNameRename();
+    }
+
+    public void cancelFootprintNameRename(PatternFootprint footprint) {
+        if (footprint != null && footprint.getId().equals(state.getFootprintNameEditingId())) {
+            state.getFootprintNameBuffer().set(state.getFootprintNameBeforeRename());
+        }
+        state.endFootprintNameRename();
+    }
+
     public imgui.type.ImString footprintNameBuffer() {
         return state.getFootprintNameBuffer();
     }

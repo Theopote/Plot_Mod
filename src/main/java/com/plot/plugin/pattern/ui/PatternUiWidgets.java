@@ -1,7 +1,6 @@
 package com.plot.plugin.pattern.ui;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.plugin.pattern.PatternBlockCountCache;
 import com.plot.plugin.pattern.PatternGeometryUtils;
 import com.plot.plugin.pattern.model.ImagePatternConfig;
 import com.plot.plugin.pattern.model.PatternFootprint;
@@ -19,6 +18,23 @@ import java.util.List;
 /** 图案插件共享 ImGui 控件。 */
 public final class PatternUiWidgets {
     private PatternUiWidgets() {
+    }
+
+    public static float wrapPos() {
+        return ImGui.getCursorPosX() + ImGui.getContentRegionAvailX();
+    }
+
+    public static String stableSelectableLabel(String visibleLabel, String idSuffix) {
+        return visibleLabel + "##" + idSuffix;
+    }
+
+    public static void textColoredWrapped(int color, String text) {
+        if (text == null || text.isBlank()) {
+            return;
+        }
+        ImGui.pushTextWrapPos(wrapPos());
+        ImGui.textColored(color, text);
+        ImGui.popTextWrapPos();
     }
 
     public static void renderSelectionSummary(PatternUiContext ctx) {
@@ -270,12 +286,6 @@ public final class PatternUiWidgets {
             PatternUiContext ctx,
             PatternFootprint footprint,
             Runnable invalidate) {
-        List<Vec2d> outerPoints = footprint.getOuterPoints();
-        ImGui.text(PlotI18n.tr("plugin.pattern.geometry_header"));
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-            "plugin.pattern.geometry_outer_summary",
-            outerPoints.size(),
-            PatternBlockCountCache.blockCount(footprint, ctx.currentProjection())));
         List<List<Vec2d>> holes = footprint.getHoles();
         if (!holes.isEmpty()) {
             ImGui.text(PlotI18n.tr("plugin.pattern.geometry_hole_count", holes.size()));

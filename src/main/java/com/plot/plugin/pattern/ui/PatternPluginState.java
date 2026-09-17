@@ -23,7 +23,10 @@ public final class PatternPluginState {
 
     private volatile PatternGenerationResult lastGenerationResult;
     private String footprintNameEditingId = "";
+    private String footprintNameBeforeRename = "";
     private final ImString footprintNameBuffer = new ImString(64);
+    private boolean footprintNameFocusPending = false;
+    private int footprintNameIgnoreOutsideClickFrames = 0;
 
     private final List<String> pendingDeleteFootprintIds = new ArrayList<>();
     private boolean deleteConfirmPending = false;
@@ -70,7 +73,48 @@ public final class PatternPluginState {
     }
 
     public void setFootprintNameEditingId(String footprintNameEditingId) {
-        this.footprintNameEditingId = footprintNameEditingId != null ? footprintNameEditingId : "";
+        if (footprintNameEditingId == null || footprintNameEditingId.isBlank()) {
+            endFootprintNameRename();
+            return;
+        }
+        this.footprintNameEditingId = footprintNameEditingId;
+    }
+
+    public String getFootprintNameBeforeRename() {
+        return footprintNameBeforeRename;
+    }
+
+    public void beginFootprintNameRename(String footprintId, String currentName) {
+        footprintNameBeforeRename = currentName != null ? currentName : "";
+        footprintNameBuffer.set(footprintNameBeforeRename);
+        footprintNameEditingId = footprintId != null ? footprintId : "";
+        footprintNameFocusPending = !footprintNameEditingId.isEmpty();
+        footprintNameIgnoreOutsideClickFrames = 2;
+    }
+
+    public void endFootprintNameRename() {
+        footprintNameEditingId = "";
+        footprintNameBeforeRename = "";
+        footprintNameFocusPending = false;
+        footprintNameIgnoreOutsideClickFrames = 0;
+    }
+
+    public void tickFootprintNameRenameCooldown() {
+        if (footprintNameIgnoreOutsideClickFrames > 0) {
+            footprintNameIgnoreOutsideClickFrames--;
+        }
+    }
+
+    public boolean isFootprintNameOutsideClickReady() {
+        return footprintNameIgnoreOutsideClickFrames == 0;
+    }
+
+    public boolean consumeFootprintNameFocusPending() {
+        if (!footprintNameFocusPending) {
+            return false;
+        }
+        footprintNameFocusPending = false;
+        return true;
     }
 
     public ImString getFootprintNameBuffer() {

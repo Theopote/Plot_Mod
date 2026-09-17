@@ -6,6 +6,8 @@ import com.plot.plugin.pattern.model.PatternFootprint;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiInputTextFlags;
+import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiWindowFlags;
 
 /** 区域管理 Tab：拾取范围 + 预览范围。 */
@@ -60,10 +62,14 @@ public final class PatternRegionPanel {
             ImGui.setTooltip(PlotI18n.tr("plugin.pattern.pick_range_hint"));
         }
         ImGui.spacing();
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.pattern.draw_region_hint"));
+        PatternUiWidgets.textColoredWrapped(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.pattern.draw_region_hint"));
     }
 
     private void renderPreviewSection() {
+        ctx.tickFootprintNameRenameCooldown();
+
         var projection = ctx.currentProjection();
         ImGui.text(PlotI18n.tr("plugin.pattern.preview_section_title"));
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
@@ -81,7 +87,6 @@ public final class PatternRegionPanel {
         var footprintIds = ctx.project().getFootprints().keySet();
         PatternOverviewLayoutCache.retainOnly(footprintIds);
         PatternBlockCountCache.retainOnly(footprintIds);
-        PatternUiWidgets.renderSelectionSummary(ctx);
 
         float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX() * 2) / 3.0f;
         if (ImGui.button(PlotI18n.tr("plugin.pattern.select_all"), buttonWidth, 0)) {
@@ -127,33 +132,91 @@ public final class PatternRegionPanel {
     private void renderFootprintRow(PatternFootprint footprint, WorldProjectionSnapshot projection) {
         ImGui.pushID(footprint.getId());
         boolean selected = ctx.selection().contains(footprint.getId());
+        boolean renaming = footprint.getId().equals(ctx.footprintNameEditingId());
 
         if (PatternOverviewRenderer.renderFootprintThumbnail(footprint, selected)) {
-            ctx.selection().select(footprint.getId(), ImGui.getIO().getKeyCtrl());
+            if (!renaming) {
+                ctx.selection().select(footprint.getId(), ImGui.getIO().getKeyCtrl());
+            }
         }
         ImGui.sameLine();
 
         float columnWidth = Math.max(120f, ImGui.getContentRegionAvailX() - 68f);
         ImGui.beginGroup();
-        ImGui.setNextItemWidth(columnWidth);
-        if (ImGui.selectable(footprint.getName() + "##row", selected)) {
-            ctx.selection().select(footprint.getId(), ImGui.getIO().getKeyCtrl());
-        }
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-            "plugin.pattern.overview_item",
-            PatternBlockCountCache.blockCount(footprint, projection),
-            PatternUiWidgets.sourceLabel(footprint)));
-        if (ImGui.button(PlotI18n.tr("plugin.pattern.locate") + "##locate", 0, 0)) {
-            ctx.locateFootprint(footprint);
-        }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.pattern.delete") + "##delete", 0, 0)) {
-            ctx.pendingDeleteFootprintIds().clear();
-            ctx.pendingDeleteFootprintIds().add(footprint.getId());
-            ctx.setDeleteConfirmPending(true);
+        renderFootprintNameLabel(footprint, columnWidth, selected);
+        if (!renaming) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                "plugin.pattern.overview_item",
+                PatternBlockCountCache.blockCount(footprint, projection),
+                PatternUiWidgets.sourceLabel(footprint)));
+            if (ImGui.button(PlotI18n.tr("plugin.pattern.locate") + "##locate", 0, 0)) {
+                ctx.locateFootprint(footprint);
+            }
+            ImGui.sameLine();
+            if (ImGui.button(PlotI18n.tr("plugin.pattern.delete") + "##delete", 0, 0)) {
+                ctx.pendingDeleteFootprintIds().clear();
+                ctx.pendingDeleteFootprintIds().add(footprint.getId());
+                ctx.setDeleteConfirmPending(true);
+            }
         }
         ImGui.endGroup();
         ImGui.popID();
+    }
+
+    private void renderFootprintNameLabel(PatternFootprint footprint, float columnWidth, boolean selected) {
+        if (!footprint.getId().equals(ctx.footprintNameEditingId())) {
+            ImGui.setNextItemWidth(columnWidth);
+            if (ImGui.selectable(
+                    PatternUiWidgets.stableSelectableLabel(footprint.getName(), footprint.getId()),
+                    selected)) {
+                ctx.selection().select(footprint.getId(), ImGui.getIO().getKeyCtrl());
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(PlotI18n.tr("plugin.pattern.overview_rename_hint"));
+                if (ImGui.isMouseDoubleClicked(0)) {
+                    ctx.beginFootprintNameRename(footprint);
+                }
+            }
+            return;
+        }
+
+        ImGui.setNextItemWidth(columnWidth);
+        if (ctx.consumeFootprintNameFocusPending()) {
+            ImGui.setKeyboardFocusHere();
+        }
+
+        boolean enterPressed = ImGui.inputText(
+            "##pattern_footprint_rename_" + footprint.getId(),
+            ctx.footprintNameBuffer(),
+            ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll);
+
+        boolean inputActive = ImGui.isItemActive();
+        boolean inputHovered = ImGui.isItemHovered();
+        boolean finished = false;
+        boolean canceled = false;
+
+        if (enterPressed || ImGui.isKeyPressed(ImGuiKey.Enter)) {
+            finished = true;
+        } else if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
+            canceled = true;
+        } else if (ImGui.isItemDeactivated()) {
+            finished = true;
+        } else if (ctx.isFootprintNameOutsideClickReady()
+                && ImGui.isMouseClicked(0)
+                && !inputHovered
+                && !inputActive) {
+            finished = true;
+        } else if (ctx.isFootprintNameOutsideClickReady()
+                && ImGui.isMouseClicked(0)
+                && !ImGui.getIO().getWantCaptureMouse()) {
+            finished = true;
+        }
+
+        if (canceled) {
+            ctx.cancelFootprintNameRename(footprint);
+        } else if (finished) {
+            ctx.commitFootprintNameRename(footprint);
+        }
     }
 
     public void renderDeleteConfirmPopup() {
