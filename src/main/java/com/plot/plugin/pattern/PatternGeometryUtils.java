@@ -2,8 +2,8 @@ package com.plot.plugin.pattern;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
+import com.plot.api.world.WorldProjectionSnapshot;
 import com.plot.core.geometry.PolygonRegionUtils;
-import com.plot.core.geometry.WorldProjectionMath;
 import com.plot.core.geometry.shapes.AnnotationShape;
 import com.plot.core.geometry.shapes.ArcShape;
 import com.plot.core.geometry.shapes.BezierCurveShape;
@@ -22,9 +22,7 @@ import com.plot.plugin.pattern.model.PatternProject;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * 铺装区域几何工具（认领与坐标转换）。
@@ -338,53 +336,100 @@ public final class PatternGeometryUtils {
             List<Vec2d> outerPoints,
             List<List<Vec2d>> holes,
             ICoordinateService coordinates) {
-        if (outerPoints == null || outerPoints.size() < 3) {
-            return 0;
-        }
         if (coordinates == null) {
             return PolygonRegionUtils.countFootprintCells(outerPoints, holes);
         }
         try {
-            double cellSize = canvasUnitsPerWorldBlock(outerPoints, coordinates);
-            List<Vec2d> centers = PolygonRegionUtils.collectFootprintCellCenters(outerPoints, holes, cellSize);
-            if (centers.isEmpty()) {
-                return 0;
-            }
-            Set<Long> columns = new HashSet<>();
-            for (Vec2d center : centers) {
-                BlockPos column = canvasToBlockXZ(center, coordinates);
-                columns.add(packColumn(column.getX(), column.getZ()));
-            }
-            return columns.size();
+            return countProjectedWorldBlocks(outerPoints, holes, coordinates.captureProjection());
         } catch (RuntimeException ignored) {
             return PolygonRegionUtils.countFootprintCells(outerPoints, holes);
         }
     }
 
-    public static int countProjectedWorldBlocksForShapes(List<Shape> shapes, ICoordinateService coordinates) {
+    public static int countProjectedWorldBlocks(
+            List<Vec2d> outerPoints,
+            List<List<Vec2d>> holes,
+            WorldProjectionSnapshot projection) {
+        if (outerPoints == null || outerPoints.size() < 3) {
+            return 0;
+        }
+        if (projection == null || !projection.isValid()) {
+            return PolygonRegionUtils.countFootprintCells(outerPoints, holes);
+        }
+        try {
+            Polygon outer = PolygonRegionUtils.toPolygon(outerPoints);
+            List<Polygon> holePolygons = new ArrayList<>();
+            if (holes != null) {
+                for (List<Vec2d> hole : holes) {
+                    if (hole != null && hole.size() >= 3) {
+                        holePolygons.add(PolygonRegionUtils.toPolygon(hole));
+                    }
+                }
+            }
+
+            double minWx = Double.POSITIVE_INFINITY;
+            double minWz = Double.POSITIVE_INFINITY;
+            double maxWx = Double.NEGATIVE_INFINITY;
+            double maxWz = Double.NEGATIVE_INFINITY;
+            for (Vec2d point : outerPoints) {
+                if (point == null) {
+                    continue;
+                }
+                Vec2d world = projection.toWorld(point);
+                minWx = Math.min(minWx, world.x);
+                minWz = Math.min(minWz, world.y);
+                maxWx = Math.max(maxWx, world.x);
+                maxWz = Math.max(maxWz, world.y);
+            }
+
+            int minX = (int) Math.floor(minWx);
+            int maxX = (int) Math.ceil(maxWx);
+            int minZ = (int) Math.floor(minWz);
+            int maxZ = (int) Math.ceil(maxWz);
+            long spanX = (long) maxX - minX + 1L;
+            long spanZ = (long) maxZ - minZ + 1L;
+            if (spanX <= 0 || spanZ <= 0) {
+                return 0;
+            }
+            long cells = spanX * spanZ;
+            if (cells > 2_000_000L) {
+                return PolygonRegionUtils.countFootprintCells(outerPoints, holes);
+            }
+
+            int count = 0;
+            for (int wx = minX; wx <= maxX; wx++) {
+                for (int wz = minZ; wz <= maxZ; wz++) {
+                    Vec2d canvas = projection.toCanvas(new Vec2d(wx + 0.5, wz + 0.5));
+                    if (!outer.contains(canvas)) {
+                        continue;
+                    }
+                    boolean inHole = false;
+                    for (Polygon holePolygon : holePolygons) {
+                        if (holePolygon.contains(canvas)) {
+                            inHole = true;
+                            break;
+                        }
+                    }
+                    if (!inHole) {
+                        count++;
+                    }
+                }
+            }
+            return count;
+        } catch (RuntimeException ignored) {
+            return PolygonRegionUtils.countFootprintCells(outerPoints, holes);
+        }
+    }
+
+    public static int countProjectedWorldBlocksForShapes(
+            List<Shape> shapes,
+            WorldProjectionSnapshot projection) {
         List<AdoptedRegionGroup> groups = groupAdoptableRegionsWithHoles(shapes);
         int count = 0;
         for (AdoptedRegionGroup group : groups) {
-            count += countProjectedWorldBlocks(group.outerPoints(), group.holes(), coordinates);
+            count += countProjectedWorldBlocks(group.outerPoints(), group.holes(), projection);
         }
         return count;
-    }
-
-    private static double canvasUnitsPerWorldBlock(List<Vec2d> outerPoints, ICoordinateService coordinates) {
-        Vec2d probe = PolygonRegionUtils.computeCentroid(outerPoints);
-        double sum = 0.0;
-        int count = outerPoints.size();
-        for (int i = 0; i < count; i++) {
-            Vec2d start = outerPoints.get(i);
-            Vec2d end = outerPoints.get((i + 1) % count);
-            sum += WorldProjectionMath.canvasUnitsPerWorldBlock(coordinates, probe, end.subtract(start));
-        }
-        double average = sum / count;
-        return Math.max(1e-6, Math.min(1.0, average));
-    }
-
-    private static long packColumn(int x, int z) {
-        return ((long) x << 32) ^ (z & 0xffffffffL);
     }
 
     public static BlockPos canvasToBlockXZ(Vec2d canvasPos, ICoordinateService transformer) {

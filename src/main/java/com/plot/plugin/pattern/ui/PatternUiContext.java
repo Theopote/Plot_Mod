@@ -1,7 +1,9 @@
 package com.plot.plugin.pattern.ui;
 
 import com.plot.api.world.ICoordinateService;
+import com.plot.api.world.WorldProjectionSnapshot;
 import com.plot.core.context.PluginContext;
+import imgui.ImGui;
 import com.plot.core.model.Shape;
 import com.plot.plugin.pattern.PatternGenerationResult;
 import com.plot.plugin.pattern.PatternGenerator;
@@ -25,6 +27,8 @@ public final class PatternUiContext {
     private final PatternPluginState state;
     private final Object projectLock;
     private final PatternActions actions;
+    private int projectionCaptureFrame = -1;
+    private WorldProjectionSnapshot projectionSnapshot = WorldProjectionSnapshot.UNKNOWN;
 
     public PatternUiContext(PluginContext host, PatternPluginState state, Object projectLock) {
         this.host = Objects.requireNonNull(host, "host");
@@ -51,6 +55,20 @@ public final class PatternUiContext {
 
     public ICoordinateService coordinates() {
         return host.coordinates();
+    }
+
+    /** 每帧捕获一次视图投影，供区域 Tab 方块数统计复用。 */
+    public WorldProjectionSnapshot currentProjection() {
+        int frame = ImGui.getFrameCount();
+        if (frame != projectionCaptureFrame) {
+            projectionCaptureFrame = frame;
+            try {
+                projectionSnapshot = host.coordinates().captureProjection();
+            } catch (RuntimeException ignored) {
+                projectionSnapshot = WorldProjectionSnapshot.UNKNOWN;
+            }
+        }
+        return projectionSnapshot;
     }
 
     public PatternPluginState state() {

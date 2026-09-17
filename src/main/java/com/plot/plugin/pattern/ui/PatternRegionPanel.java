@@ -1,5 +1,6 @@
 package com.plot.plugin.pattern.ui;
 
+import com.plot.api.world.WorldProjectionSnapshot;
 import com.plot.plugin.pattern.PatternBlockCountCache;
 import com.plot.plugin.pattern.model.PatternFootprint;
 import com.plot.plugin.ui.PluginUiColors;
@@ -66,11 +67,12 @@ public final class PatternRegionPanel {
     }
 
     private void renderPreviewSection() {
+        var projection = ctx.currentProjection();
         ImGui.text(PlotI18n.tr("plugin.pattern.preview_section_title"));
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
             "plugin.pattern.project_stats",
             ctx.project().getFootprintCount(),
-            ctx.project().totalBlockCount(ctx.coordinates())));
+            ctx.project().totalBlockCount(projection)));
 
         if (ctx.project().getFootprintCount() == 0) {
             ImGui.spacing();
@@ -121,11 +123,11 @@ public final class PatternRegionPanel {
 
         ImGui.spacing();
         for (PatternFootprint footprint : ctx.project().getFootprints().values()) {
-            renderFootprintRow(footprint);
+            renderFootprintRow(footprint, projection);
         }
     }
 
-    private void renderFootprintRow(PatternFootprint footprint) {
+    private void renderFootprintRow(PatternFootprint footprint, WorldProjectionSnapshot projection) {
         ImGui.pushID(footprint.getId());
         boolean selected = ctx.selection().contains(footprint.getId());
 
@@ -142,7 +144,7 @@ public final class PatternRegionPanel {
         }
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
             "plugin.pattern.overview_item",
-            PatternBlockCountCache.blockCount(footprint, ctx.coordinates()),
+            PatternBlockCountCache.blockCount(footprint, projection),
             PatternUiWidgets.sourceLabel(footprint)));
         if (ImGui.button(PlotI18n.tr("plugin.pattern.locate") + "##locate", 0, 0)) {
             ctx.locateFootprint(footprint);

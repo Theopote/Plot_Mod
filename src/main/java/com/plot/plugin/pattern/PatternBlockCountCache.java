@@ -1,8 +1,8 @@
 package com.plot.plugin.pattern;
 
 import com.plot.api.world.ICoordinateService;
+import com.plot.api.world.WorldProjectionSnapshot;
 import com.plot.plugin.pattern.model.PatternFootprint;
-
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -18,12 +18,14 @@ public final class PatternBlockCountCache {
     private PatternBlockCountCache() {
     }
 
-    public static int blockCount(PatternFootprint footprint, ICoordinateService coordinates) {
+    public static int blockCount(PatternFootprint footprint, WorldProjectionSnapshot projection) {
         if (footprint == null) {
             return 0;
         }
         int geometryFingerprint = footprint.geometryFingerprint();
-        int projectionFingerprint = projectionFingerprint(coordinates);
+        int projectionFingerprint = projection != null && projection.isValid()
+            ? projection.uiFingerprint()
+            : 0;
         Entry cached = CACHE.get(footprint.getId());
         if (cached != null
                 && cached.geometryFingerprint == geometryFingerprint
@@ -33,11 +35,32 @@ public final class PatternBlockCountCache {
         int blockCount = PatternGeometryUtils.countProjectedWorldBlocks(
             footprint.getOuterPoints(),
             footprint.getHoles(),
-            coordinates);
+            projection);
         CACHE.put(
             footprint.getId(),
             new Entry(geometryFingerprint, projectionFingerprint, blockCount));
         return blockCount;
+    }
+
+    public static int blockCount(PatternFootprint footprint, ICoordinateService coordinates) {
+        if (coordinates == null) {
+            return blockCount(footprint, WorldProjectionSnapshot.UNKNOWN);
+        }
+        try {
+            return blockCount(footprint, coordinates.captureProjection());
+        } catch (RuntimeException ignored) {
+            return blockCount(footprint, WorldProjectionSnapshot.UNKNOWN);
+        }
+    }
+
+    public static int totalBlockCount(
+            Iterable<PatternFootprint> footprints,
+            WorldProjectionSnapshot projection) {
+        int count = 0;
+        for (PatternFootprint footprint : footprints) {
+            count += blockCount(footprint, projection);
+        }
+        return count;
     }
 
     public static void retainOnly(Set<String> footprintIds) {
@@ -45,22 +68,6 @@ public final class PatternBlockCountCache {
             CACHE.clear();
             return;
         }
-        Iterator<Map.Entry<String, Entry>> iterator = CACHE.entrySet().iterator();
-        while (iterator.hasNext()) {
-            if (!footprintIds.contains(iterator.next().getKey())) {
-                iterator.remove();
-            }
-        }
-    }
-
-    private static int projectionFingerprint(ICoordinateService coordinates) {
-        if (coordinates == null) {
-            return 0;
-        }
-        try {
-            return coordinates.captureProjection().fingerprint();
-        } catch (RuntimeException ignored) {
-            return 0;
-        }
+        CACHE.entrySet().removeIf(stringEntryEntry -> !footprintIds.contains(stringEntryEntry.getKey()));
     }
 }

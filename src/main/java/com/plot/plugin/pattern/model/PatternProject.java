@@ -3,7 +3,7 @@ package com.plot.plugin.pattern.model;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.plot.api.geometry.Vec2d;
-import com.plot.api.world.ICoordinateService;
+import com.plot.api.world.WorldProjectionSnapshot;
 import com.plot.plugin.pattern.PatternBlockCountCache;
 import org.jetbrains.annotations.NotNull;
 
@@ -57,12 +57,8 @@ public class PatternProject {
         return footprints.values().stream().mapToDouble(PatternFootprint::computeArea).sum();
     }
 
-    public int totalBlockCount(ICoordinateService coordinates) {
-        int count = 0;
-        for (PatternFootprint footprint : footprints.values()) {
-            count += PatternBlockCountCache.blockCount(footprint, coordinates);
-        }
-        return count;
+    public int totalBlockCount(WorldProjectionSnapshot projection) {
+        return PatternBlockCountCache.totalBlockCount(footprints.values(), projection);
     }
 
     public String toJson() {

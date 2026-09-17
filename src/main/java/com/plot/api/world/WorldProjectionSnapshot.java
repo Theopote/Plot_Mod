@@ -63,6 +63,24 @@ public record WorldProjectionSnapshot(
         return total;
     }
 
+    /** Minecraft XZ → 画布坐标（与 {@link #toWorld} 互逆）。 */
+    public Vec2d toCanvas(Vec2d world) {
+        if (world == null) {
+            throw new WorldProjectionUnavailableException("World point cannot be null");
+        }
+        if (!isValid()) {
+            throw new WorldProjectionUnavailableException("World projection snapshot is invalid");
+        }
+        double spanX = worldBounds.maxX() - worldBounds.minX();
+        double spanZ = worldBounds.maxZ() - worldBounds.minZ();
+        if (spanX < 1e-9 || spanZ < 1e-9) {
+            throw new WorldProjectionUnavailableException("World projection span is too small");
+        }
+        double canvasX = (world.x - worldBounds.minX()) / spanX * canvasWidth;
+        double canvasY = (world.y - worldBounds.minZ()) / spanZ * canvasHeight;
+        return new Vec2d(canvasX, canvasY);
+    }
+
     public int fingerprint() {
         int hash = 1;
         if (worldBounds != null) {
@@ -75,6 +93,21 @@ public record WorldProjectionSnapshot(
         hash = 31 * hash + Float.hashCode(viewScale);
         hash = 31 * hash + Float.hashCode(canvasWidth);
         hash = 31 * hash + Float.hashCode(canvasHeight);
+        return hash;
+    }
+
+    /**
+     * UI 展示用指纹：仅含视图尺度，不含玩家绝对坐标，避免每帧缓存失效。
+     */
+    public int uiFingerprint() {
+        int hash = Float.hashCode(viewDistance);
+        hash = 31 * hash + Float.hashCode(viewScale);
+        hash = 31 * hash + Float.hashCode(canvasWidth);
+        hash = 31 * hash + Float.hashCode(canvasHeight);
+        if (worldBounds != null) {
+            hash = 31 * hash + Double.hashCode(worldBounds.maxX() - worldBounds.minX());
+            hash = 31 * hash + Double.hashCode(worldBounds.maxZ() - worldBounds.minZ());
+        }
         return hash;
     }
 
