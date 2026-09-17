@@ -78,7 +78,7 @@ public final class PatternPreviewRenderer {
             }
             BlockPos pos = record.pos;
             float cellX = offsetX + (pos.getX() - bounds.minX) * scale;
-            float cellY = offsetY + (bounds.maxZ - pos.getZ()) * scale;
+            float cellY = offsetY + (pos.getZ() - bounds.minZ) * scale;
             float cellSize = Math.max(1f, scale);
             drawList.addRectFilled(cellX, cellY, cellX + cellSize, cellY + cellSize, colorFor(record.newBlockId));
         }
