@@ -78,6 +78,7 @@ public final class PatternRegionPanel {
         }
 
         ctx.selection().retainExisting(ctx.project());
+        PatternOverviewLayoutCache.retainOnly(ctx.project().getFootprints().keySet());
         PatternUiWidgets.renderSelectionSummary(ctx);
 
         float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX() * 2) / 3.0f;

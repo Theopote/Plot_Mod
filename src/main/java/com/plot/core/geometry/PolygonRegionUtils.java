@@ -153,6 +153,49 @@ public final class PolygonRegionUtils {
         return computeBounds(points);
     }
 
+    /**
+     * 统计区域轮廓内的格点数（不分配采样点列表，供 UI 展示用）。
+     */
+    public static int countFootprintCells(List<Vec2d> outerRing, List<List<Vec2d>> holes) {
+        if (outerRing == null || outerRing.size() < 3) {
+            return 0;
+        }
+        Polygon outer = toPolygon(outerRing);
+        List<Polygon> holePolygons = new ArrayList<>();
+        if (holes != null) {
+            for (List<Vec2d> hole : holes) {
+                if (hole != null && hole.size() >= 3) {
+                    holePolygons.add(toPolygon(hole));
+                }
+            }
+        }
+        RectBounds bounds = computeBounds(outerRing, holes);
+        int count = 0;
+        int minX = (int) Math.floor(bounds.minX());
+        int maxX = (int) Math.ceil(bounds.maxX());
+        int minZ = (int) Math.floor(bounds.minZ());
+        int maxZ = (int) Math.ceil(bounds.maxZ());
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                Vec2d center = new Vec2d(x + 0.5, z + 0.5);
+                if (!outer.contains(center)) {
+                    continue;
+                }
+                boolean inHole = false;
+                for (Polygon holePolygon : holePolygons) {
+                    if (holePolygon.contains(center)) {
+                        inHole = true;
+                        break;
+                    }
+                }
+                if (!inHole) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
     public static List<Vec2d> collectFootprintCellCenters(List<Vec2d> points) {
         return collectFootprintCellCenters(points, List.of());
     }

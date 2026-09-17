@@ -127,8 +127,8 @@ public final class PatternOverviewRenderer {
             MapViewport viewport,
             int color,
             boolean selected) {
-        drawRing(drawList, footprint.getOuterPoints(), viewport, color, selected);
-        for (List<Vec2d> hole : footprint.getHoles()) {
+        drawRing(drawList, PatternOverviewLayoutCache.outerPoints(footprint), viewport, color, selected);
+        for (List<Vec2d> hole : PatternOverviewLayoutCache.holes(footprint)) {
             drawRing(drawList, hole, viewport, PluginUiColors.RING_DARK, false);
         }
     }
@@ -167,8 +167,7 @@ public final class PatternOverviewRenderer {
         double maxY = Double.NEGATIVE_INFINITY;
 
         for (PatternFootprint footprint : footprints) {
-            PolygonRegionUtils.RectBounds bounds =
-                PolygonRegionUtils.computeBounds(footprint.getOuterPoints(), footprint.getHoles());
+            PolygonRegionUtils.RectBounds bounds = PatternOverviewLayoutCache.bounds(footprint);
             minX = Math.min(minX, bounds.minX());
             minY = Math.min(minY, bounds.minZ());
             maxX = Math.max(maxX, bounds.maxX());
@@ -261,8 +260,8 @@ public final class PatternOverviewRenderer {
         String hit = null;
         double smallestArea = Double.MAX_VALUE;
         for (PatternFootprint footprint : footprints) {
-            List<Vec2d> outer = footprint.getOuterPoints();
-            if (!PolygonRegionUtils.containsPoint(outer, footprint.getHoles(), point)) {
+            List<Vec2d> outer = PatternOverviewLayoutCache.outerPoints(footprint);
+            if (!PolygonRegionUtils.containsPoint(outer, PatternOverviewLayoutCache.holes(footprint), point)) {
                 continue;
             }
             double area = Math.abs(PolygonRegionUtils.signedAreaOfRing(outer));

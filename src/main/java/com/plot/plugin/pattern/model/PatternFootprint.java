@@ -19,6 +19,7 @@ public class PatternFootprint {
     private ProceduralPatternConfig proceduralPattern = new ProceduralPatternConfig();
     private ImagePatternConfig imagePattern = new ImagePatternConfig();
     private PatternBorderConfig borderConfig = new PatternBorderConfig();
+    private transient int cachedBlockCount = -1;
 
     public PatternFootprint(List<Vec2d> outerPoints) {
         this(UUID.randomUUID().toString(), outerPoints);
@@ -48,6 +49,7 @@ public class PatternFootprint {
 
     public void setOuterPoints(List<Vec2d> outerPoints) {
         this.outerPoints = copyPoints(outerPoints);
+        invalidateBlockCountCache();
     }
 
     public List<List<Vec2d>> getHoles() {
@@ -56,6 +58,7 @@ public class PatternFootprint {
 
     public void setHoles(List<List<Vec2d>> holes) {
         this.holes = copyHoles(holes);
+        invalidateBlockCountCache();
     }
 
     public PatternSource getSource() {
@@ -98,11 +101,40 @@ public class PatternFootprint {
     }
 
     public int computeBlockCount() {
-        return PolygonRegionUtils.collectFootprintCellCenters(outerPoints, holes).size();
+        if (cachedBlockCount < 0) {
+            cachedBlockCount = PolygonRegionUtils.countFootprintCells(outerPoints, holes);
+        }
+        return cachedBlockCount;
     }
 
     public Vec2d computeCentroid() {
         return PolygonRegionUtils.computeCentroid(outerPoints);
+    }
+
+    public int geometryFingerprint() {
+        int hash = outerPoints.size();
+        for (Vec2d point : outerPoints) {
+            hash = 31 * hash + pointFingerprint(point);
+        }
+        hash = 31 * hash + holes.size();
+        for (List<Vec2d> hole : holes) {
+            hash = 31 * hash + hole.size();
+            for (Vec2d point : hole) {
+                hash = 31 * hash + pointFingerprint(point);
+            }
+        }
+        return hash;
+    }
+
+    private static int pointFingerprint(Vec2d point) {
+        if (point == null) {
+            return 0;
+        }
+        return Double.hashCode(point.x) * 31 + Double.hashCode(point.y);
+    }
+
+    private void invalidateBlockCountCache() {
+        cachedBlockCount = -1;
     }
 
     private static List<Vec2d> copyPoints(List<Vec2d> points) {

@@ -325,10 +325,7 @@ public final class PatternGeometryUtils {
     }
 
     public static int computeBlockCount(List<Vec2d> outerPoints, List<List<Vec2d>> holes) {
-        if (outerPoints == null || outerPoints.size() < 3) {
-            return 0;
-        }
-        return PolygonRegionUtils.collectFootprintCellCenters(outerPoints, holes).size();
+        return PolygonRegionUtils.countFootprintCells(outerPoints, holes);
     }
 
     public static int computeBlockCountForShapes(List<Shape> shapes) {
