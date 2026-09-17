@@ -97,6 +97,7 @@ public final class PatternActions {
             return false;
         }
 
+        state.setProjectStatus(PlotI18n.tr("plugin.pattern.generate_in_progress"));
         PatternGenerationResult merged = new PatternGenerationResult();
         try {
             for (PatternFootprint footprint : footprints) {

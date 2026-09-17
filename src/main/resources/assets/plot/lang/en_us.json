@@ -3267,6 +3267,7 @@
   "plugin.pattern.build_confirm_yes": "Confirm",
   "plugin.pattern.build_confirm_no": "Cancel",
   "plugin.pattern.generate_world_unavailable": "World unavailable — open Plot in-game",
+  "plugin.pattern.generate_in_progress": "Generating pattern, please wait…",
   "plugin.pattern.generate_empty_result": "Preview is empty",
   "plugin.pattern.generate_preview_ready": "Preview ready: %d block(s)",
   "plugin.pattern.preview_invalidated": "Parameters changed — preview cleared",

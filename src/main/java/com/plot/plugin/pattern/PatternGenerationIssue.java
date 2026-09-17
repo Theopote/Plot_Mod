@@ -11,8 +11,7 @@ public enum PatternGenerationIssue {
     EMPTY_PALETTE("plugin.pattern.issue.empty_palette"),
     NO_SAMPLE_POINTS("plugin.pattern.issue.no_sample_points"),
     ALL_PIXELS_TRANSPARENT("plugin.pattern.issue.all_pixels_transparent"),
-    REGION_TOO_SMALL("plugin.pattern.issue.region_too_small"),
-    REGION_TOO_LARGE("plugin.pattern.issue.region_too_large");
+    REGION_TOO_SMALL("plugin.pattern.issue.region_too_small");
 
     private final String statusKey;
 
