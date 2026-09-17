@@ -102,4 +102,54 @@ public final class BlockColorRegistry {
     public static List<String> knownBlockIds() {
         return List.copyOf(KNOWN.keySet());
     }
+
+    /** 适合地面铺装自动匹配的完整方块材质，不包含附件、台阶和透明装饰方块。 */
+    public static List<String> pavingSafeBlockIds() {
+        return List.of(
+            "minecraft:iron_block",
+            "minecraft:stone_bricks",
+            "minecraft:mossy_cobblestone",
+            "minecraft:copper_block",
+            "minecraft:weathered_copper",
+            "minecraft:blackstone",
+            "minecraft:deepslate_bricks",
+            "minecraft:polished_blackstone",
+            "minecraft:gold_block",
+            "minecraft:cut_copper",
+            "minecraft:oxidized_copper",
+            "minecraft:orange_terracotta",
+            "minecraft:quartz_block",
+            "minecraft:white_wool",
+            "minecraft:light_gray_wool",
+            "minecraft:gray_wool",
+            "minecraft:black_wool",
+            "minecraft:brown_wool",
+            "minecraft:red_wool",
+            "minecraft:orange_wool",
+            "minecraft:yellow_wool",
+            "minecraft:lime_wool",
+            "minecraft:green_wool",
+            "minecraft:cyan_wool",
+            "minecraft:light_blue_wool",
+            "minecraft:blue_wool",
+            "minecraft:purple_wool",
+            "minecraft:magenta_wool",
+            "minecraft:pink_wool",
+            "minecraft:white_concrete",
+            "minecraft:gray_concrete",
+            "minecraft:black_concrete",
+            "minecraft:brown_concrete",
+            "minecraft:red_concrete",
+            "minecraft:orange_concrete",
+            "minecraft:yellow_concrete",
+            "minecraft:lime_concrete",
+            "minecraft:green_concrete",
+            "minecraft:cyan_concrete",
+            "minecraft:light_blue_concrete",
+            "minecraft:blue_concrete",
+            "minecraft:purple_concrete",
+            "minecraft:magenta_concrete",
+            "minecraft:pink_concrete",
+            "minecraft:terracotta");
+    }
 }

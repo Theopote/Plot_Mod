@@ -12,7 +12,7 @@ public final class BlockColorMatcher {
     private final List<PaletteEntry> entries;
 
     public BlockColorMatcher() {
-        this(BlockColorRegistry.knownBlockIds());
+        this(BlockColorRegistry.pavingSafeBlockIds());
     }
 
     public BlockColorMatcher(List<String> blockIds) {

@@ -35,7 +35,7 @@ class PatternMaterialResolverFactoryTest {
     }
 
     @Test
-    void emptyPaletteStillBuildsImageResolverAutomatically() throws IOException {
+    void customEmptyPaletteReportsIssue() throws IOException {
         PatternFootprint footprint = sampleFootprint();
         footprint.setSource(PatternSource.IMAGE);
         ImagePatternConfig image = footprint.getImagePattern();
@@ -43,6 +43,7 @@ class PatternMaterialResolverFactoryTest {
         image.setImageWidth(1);
         image.setImageHeight(1);
         image.setPaletteBlocks(java.util.List.of());
+        image.setMaterialMatchMode(ImagePatternConfig.MaterialMatchMode.CUSTOM);
         footprint.setImagePattern(image);
 
         Path imageFile = pluginDataDir.resolve("images/test.png");
@@ -52,8 +53,8 @@ class PatternMaterialResolverFactoryTest {
         PatternMaterialResolverFactory.Outcome outcome =
             PatternMaterialResolverFactory.forFootprint(footprint, pluginDataDir);
 
-        assertTrue(outcome.canGenerate());
-        assertEquals(PatternGenerationIssue.NONE, outcome.issue());
+        assertFalse(outcome.canGenerate());
+        assertEquals(PatternGenerationIssue.EMPTY_PALETTE, outcome.issue());
     }
 
     @Test

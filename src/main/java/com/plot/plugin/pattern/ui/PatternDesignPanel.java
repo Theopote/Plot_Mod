@@ -289,6 +289,18 @@ public final class PatternDesignPanel {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.pattern.image_missing"));
         }
 
+        String[] matchModeLabels = {
+            PlotI18n.tr("plugin.pattern.image_match_auto"),
+            PlotI18n.tr("plugin.pattern.image_match_custom")
+        };
+        ImInt matchMode = new ImInt(imagePattern.getMaterialMatchMode().ordinal());
+        if (ImGui.combo(PlotI18n.tr("plugin.pattern.image_match_mode"), matchMode, matchModeLabels)) {
+            beforeEdit.run();
+            imagePattern.setMaterialMatchMode(
+                ImagePatternConfig.MaterialMatchMode.values()[matchMode.get()]);
+            commitImage.run();
+        }
+
         PatternUiWidgets.renderImageFitModeCombo(imagePattern, beforeEdit, commitImage);
         if (imagePattern.getFitMode() == ImagePatternConfig.FitMode.TILE) {
             ImFloat tileScale = new ImFloat((float) imagePattern.getTileScale());
@@ -321,8 +333,12 @@ public final class PatternDesignPanel {
             commitImage.run();
         }
 
-        ImGui.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.pattern.image_palette_auto"));
+        if (imagePattern.getMaterialMatchMode() == ImagePatternConfig.MaterialMatchMode.CUSTOM) {
+            PatternUiWidgets.renderImagePaletteList(imagePattern, beforeEdit, commitImage);
+        } else {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.pattern.image_palette_auto"));
+        }
     }
 }

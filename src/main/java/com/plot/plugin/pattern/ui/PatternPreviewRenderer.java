@@ -1,6 +1,7 @@
 package com.plot.plugin.pattern.ui;
 
 import com.plot.core.command.BlockRecord;
+import com.plot.core.material.BlockColorRegistry;
 import com.plot.plugin.pattern.PatternGenerationResult;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -19,7 +20,6 @@ public final class PatternPreviewRenderer {
     private static final int MAX_RENDERED_CELLS = 12_000;
     private static final int COLOR_BACKGROUND = 0xFF20252A;
     private static final int COLOR_BORDER = 0xFF56616B;
-    private static final int COLOR_EMPTY = 0xFF31383E;
     private static final int COLOR_LABEL = 0xFFD5D9DC;
 
     private PatternPreviewRenderer() {
@@ -89,11 +89,7 @@ public final class PatternPreviewRenderer {
     }
 
     private static int colorFor(String blockId) {
-        int hash = blockId == null ? 0 : blockId.hashCode();
-        int r = 90 + ((hash >>> 16) & 0x7F);
-        int g = 90 + ((hash >>> 8) & 0x7F);
-        int b = 90 + (hash & 0x7F);
-        return 0xFF000000 | (r << 16) | (g << 8) | b;
+        return BlockColorRegistry.colorFor(blockId);
     }
 
     private record Bounds(int minX, int maxX, int minZ, int maxZ) {

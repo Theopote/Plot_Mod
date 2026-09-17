@@ -54,9 +54,15 @@ public final class PatternMaterialResolverFactory {
         if (raster.isEmpty()) {
             return Outcome.failed(PatternGenerationIssue.IMAGE_FILE_MISSING);
         }
+        BlockColorMatcher matcher = config.getMaterialMatchMode() == ImagePatternConfig.MaterialMatchMode.CUSTOM
+            ? new BlockColorMatcher(config.getPaletteBlocks())
+            : new BlockColorMatcher();
+        if (matcher.paletteSize() == 0) {
+            return Outcome.failed(PatternGenerationIssue.EMPTY_PALETTE);
+        }
         return Outcome.ok(new ImagePatternMaterialResolver(
             config,
             raster.get(),
-            new BlockColorMatcher()));
+            matcher));
     }
 }

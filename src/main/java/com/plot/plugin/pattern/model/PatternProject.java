@@ -133,6 +133,7 @@ public class PatternProject {
         int imageWidth;
         int imageHeight;
         List<String> paletteBlocks = new ArrayList<>();
+        String materialMatchMode;
         String fitMode;
         double tileScale;
         int alphaThreshold;
@@ -203,6 +204,7 @@ public class PatternProject {
                 imageData.imageWidth = image.getImageWidth();
                 imageData.imageHeight = image.getImageHeight();
                 imageData.paletteBlocks = image.getPaletteBlocks();
+                imageData.materialMatchMode = image.getMaterialMatchMode().name();
                 imageData.fitMode = image.getFitMode().name();
                 imageData.tileScale = image.getTileScale();
                 imageData.alphaThreshold = image.getAlphaThreshold();
@@ -295,6 +297,9 @@ public class PatternProject {
                     imagePattern.setImageWidth(footprintData.imagePattern.imageWidth);
                     imagePattern.setImageHeight(footprintData.imagePattern.imageHeight);
                     imagePattern.setPaletteBlocks(footprintData.imagePattern.paletteBlocks);
+                    imagePattern.setMaterialMatchMode(parseMaterialMatchMode(
+                        footprintData.imagePattern.materialMatchMode,
+                        footprintData.imagePattern.paletteBlocks));
                     imagePattern.setFitMode(parseFitMode(footprintData.imagePattern.fitMode));
                     imagePattern.setTileScale(footprintData.imagePattern.tileScale);
                     imagePattern.setAlphaThreshold(footprintData.imagePattern.alphaThreshold);
@@ -336,6 +341,21 @@ public class PatternProject {
                 return ImagePatternConfig.FitMode.valueOf(fitMode.trim().toUpperCase());
             } catch (IllegalArgumentException ignored) {
                 return ImagePatternConfig.FitMode.STRETCH;
+            }
+        }
+
+        private static ImagePatternConfig.MaterialMatchMode parseMaterialMatchMode(
+                String mode,
+                List<String> paletteBlocks) {
+            if (mode == null || mode.isBlank()) {
+                return paletteBlocks != null && !paletteBlocks.isEmpty()
+                    ? ImagePatternConfig.MaterialMatchMode.CUSTOM
+                    : ImagePatternConfig.MaterialMatchMode.AUTO;
+            }
+            try {
+                return ImagePatternConfig.MaterialMatchMode.valueOf(mode.trim().toUpperCase());
+            } catch (IllegalArgumentException ignored) {
+                return ImagePatternConfig.MaterialMatchMode.AUTO;
             }
         }
 

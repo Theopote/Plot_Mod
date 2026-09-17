@@ -35,4 +35,13 @@ class BlockColorMatcherTest {
         assertTrue(matcher.paletteSize() > 0);
         assertEquals("minecraft:quartz_block", matcher.nearestBlock(236, 239, 241));
     }
+
+    @Test
+    void defaultMatcherExcludesNonPavingBlocks() {
+        BlockColorMatcher matcher = new BlockColorMatcher();
+        assertTrue(matcher.nearestBlock(160, 130, 110).endsWith("_wool")
+            || matcher.nearestBlock(160, 130, 110).endsWith("_concrete")
+            || matcher.nearestBlock(160, 130, 110).endsWith("_terracotta")
+            || matcher.nearestBlock(160, 130, 110).equals("minecraft:orange_terracotta"));
+    }
 }

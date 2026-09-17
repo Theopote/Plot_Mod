@@ -22,10 +22,16 @@ public class ImagePatternConfig {
         TILE
     }
 
+    public enum MaterialMatchMode {
+        AUTO,
+        CUSTOM
+    }
+
     private String imagePath = "";
     private int imageWidth;
     private int imageHeight;
     private List<String> paletteBlocks = defaultPalette();
+    private MaterialMatchMode materialMatchMode = MaterialMatchMode.AUTO;
     private FitMode fitMode = FitMode.STRETCH;
     private double tileScale = 1.0;
     private int alphaThreshold = DEFAULT_ALPHA_THRESHOLD;
@@ -62,6 +68,14 @@ public class ImagePatternConfig {
         this.paletteBlocks = normalizePalette(paletteBlocks);
     }
 
+    public MaterialMatchMode getMaterialMatchMode() {
+        return materialMatchMode != null ? materialMatchMode : MaterialMatchMode.AUTO;
+    }
+
+    public void setMaterialMatchMode(MaterialMatchMode materialMatchMode) {
+        this.materialMatchMode = materialMatchMode != null ? materialMatchMode : MaterialMatchMode.AUTO;
+    }
+
     public FitMode getFitMode() {
         return fitMode != null ? fitMode : FitMode.STRETCH;
     }
@@ -96,6 +110,7 @@ public class ImagePatternConfig {
         copy.imageWidth = imageWidth;
         copy.imageHeight = imageHeight;
         copy.paletteBlocks = copyPalette(paletteBlocks);
+        copy.materialMatchMode = materialMatchMode;
         copy.fitMode = fitMode;
         copy.tileScale = tileScale;
         copy.alphaThreshold = alphaThreshold;
