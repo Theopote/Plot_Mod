@@ -3,6 +3,7 @@ package com.plot.plugin.pattern;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.RectangleShape;
 import com.plot.core.model.Shape;
+import net.minecraft.util.math.BlockPos;
 import com.plot.plugin.pattern.model.PatternFootprint;
 import com.plot.plugin.pattern.model.PatternProject;
 import org.junit.jupiter.api.Test;
@@ -140,5 +141,12 @@ class PatternGeometryUtilsTest {
 
         assertEquals(1, groups.size());
         assertEquals(2, groups.getFirst().holes().size());
+    }
+
+    @Test
+    void convertsNegativeCellCentersToTheContainingMinecraftBlock() {
+        BlockPos pos = PatternGeometryUtils.canvasToBlockXZ(new Vec2d(-0.5, -1.5), null);
+        assertEquals(-1, pos.getX());
+        assertEquals(-2, pos.getZ());
     }
 }

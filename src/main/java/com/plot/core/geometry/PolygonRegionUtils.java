@@ -229,10 +229,16 @@ public final class PolygonRegionUtils {
         if (transformer != null) {
             Vec2d worldPos = transformer.canvasToMinecraftWorld(canvasPos);
             if (worldPos != null) {
-                return new BlockPos((int) worldPos.x, 0, (int) worldPos.y);
+                return new BlockPos(
+                    (int) Math.floor(worldPos.x),
+                    0,
+                    (int) Math.floor(worldPos.y));
             }
         }
-        return new BlockPos((int) canvasPos.x, 0, (int) canvasPos.y);
+        return new BlockPos(
+            (int) Math.floor(canvasPos.x),
+            0,
+            (int) Math.floor(canvasPos.y));
     }
 
     public record RectBounds(double minX, double maxX, double minZ, double maxZ) {
