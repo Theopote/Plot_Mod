@@ -180,6 +180,27 @@ public final class PatternUiWidgets {
         return patternTypeLabel(footprint.getPattern().getType());
     }
 
+    /** @return {@code true} 当内置/我的预设切换发生变化 */
+    public static boolean renderPresetScopeRadio(imgui.type.ImBoolean showUserPresets) {
+        boolean userScope = showUserPresets.get();
+        boolean changed = false;
+
+        if (ImGui.radioButton(PlotI18n.tr("plugin.pattern.preset_scope_builtin"), !userScope)) {
+            if (userScope) {
+                showUserPresets.set(false);
+                changed = true;
+            }
+        }
+        ImGui.sameLine();
+        if (ImGui.radioButton(PlotI18n.tr("plugin.pattern.preset_scope_user"), userScope)) {
+            if (!userScope) {
+                showUserPresets.set(true);
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
     public static boolean renderSourceRadio(
             PatternFootprint footprint,
             Runnable beforeChange,

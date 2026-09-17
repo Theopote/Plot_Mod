@@ -1,7 +1,6 @@
 package com.plot.plugin.pattern.ui;
 
 import com.plot.core.command.BlockRecord;
-import com.plot.core.material.BlockColorRegistry;
 import com.plot.plugin.pattern.PatternGenerationResult;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -17,7 +16,6 @@ import java.util.Map;
 public final class PatternPreviewRenderer {
     private static final float PREVIEW_HEIGHT = 220f;
     private static final float PADDING = 10f;
-    private static final int MAX_RENDERED_CELLS = 12_000;
     private static final int COLOR_BACKGROUND = 0xFF20252A;
     private static final int COLOR_BORDER = 0xFF56616B;
     private static final int COLOR_LABEL = 0xFFD5D9DC;
@@ -63,24 +61,25 @@ public final class PatternPreviewRenderer {
         float plotY0 = y0 + 24f;
         float plotX1 = x1 - 6f;
         float plotY1 = y1 - 6f;
-        float scale = Math.min(
-            (plotX1 - plotX0) / Math.max(1f, bounds.width()),
-            (plotY1 - plotY0) / Math.max(1f, bounds.depth()));
-        float offsetX = plotX0 + ((plotX1 - plotX0) - bounds.width() * scale) * 0.5f;
-        float offsetY = plotY0 + ((plotY1 - plotY0) - bounds.depth() * scale) * 0.5f;
-        int stride = Math.max(1, (result.placementRecords.size() + MAX_RENDERED_CELLS - 1) / MAX_RENDERED_CELLS);
+        int bucketWidth = Math.max(1, (int) Math.floor(plotX1 - plotX0));
+        int bucketHeight = Math.max(1, (int) Math.floor(plotY1 - plotY0));
+        PatternPreviewBuckets buckets = PatternPreviewBucketMapper.aggregate(
+            result.placementRecords,
+            bounds,
+            bucketWidth,
+            bucketHeight);
 
-        int index = 0;
         drawList.pushClipRect(plotX0, plotY0, plotX1, plotY1);
-        for (BlockRecord record : result.placementRecords.values()) {
-            if (index++ % stride != 0) {
-                continue;
+        for (int py = 0; py < bucketHeight; py++) {
+            float cellY = plotY0 + py;
+            for (int px = 0; px < bucketWidth; px++) {
+                if (buckets.countAt(px, py) == 0) {
+                    continue;
+                }
+                int color = buckets.colorAt(px, py);
+                float cellX = plotX0 + px;
+                drawList.addRectFilled(cellX, cellY, cellX + 1f, cellY + 1f, color);
             }
-            BlockPos pos = record.pos;
-            float cellX = offsetX + (pos.getX() - bounds.minX) * scale;
-            float cellY = offsetY + (pos.getZ() - bounds.minZ) * scale;
-            float cellSize = Math.max(1f, scale);
-            drawList.addRectFilled(cellX, cellY, cellX + cellSize, cellY + cellSize, colorFor(record.newBlockId));
         }
         drawList.popClipRect();
 
@@ -88,11 +87,19 @@ public final class PatternPreviewRenderer {
         ImGui.endChild();
     }
 
-    private static int colorFor(String blockId) {
-        return BlockColorRegistry.colorFor(blockId);
-    }
+    static final class Bounds {
+        final int minX;
+        final int maxX;
+        final int minZ;
+        final int maxZ;
 
-    private record Bounds(int minX, int maxX, int minZ, int maxZ) {
+        Bounds(int minX, int maxX, int minZ, int maxZ) {
+            this.minX = minX;
+            this.maxX = maxX;
+            this.minZ = minZ;
+            this.maxZ = maxZ;
+        }
+
         static Bounds from(Map<BlockPos, BlockRecord> records) {
             int minX = Integer.MAX_VALUE;
             int maxX = Integer.MIN_VALUE;

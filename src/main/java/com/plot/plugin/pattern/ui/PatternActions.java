@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -483,7 +484,13 @@ public final class PatternActions {
             state.setProjectStatus(PlotI18n.tr("plugin.pattern.import_image_path_empty"));
             return;
         }
-        java.nio.file.Path path = java.nio.file.Path.of(pathText.trim());
+        final Path path;
+        try {
+            path = Path.of(pathText.trim());
+        } catch (InvalidPathException | SecurityException e) {
+            state.setProjectStatus(PlotI18n.tr("plugin.pattern.import_image_path_invalid", pathText.trim()));
+            return;
+        }
         if (!java.nio.file.Files.exists(path)) {
             state.setProjectStatus(PlotI18n.tr("plugin.pattern.import_image_path_missing", path));
             return;
@@ -491,7 +498,7 @@ public final class PatternActions {
         applyImportedImage(footprintId, java.util.Optional.of(path));
     }
 
-    private void applyImportedImage(String footprintId, java.util.Optional<java.nio.file.Path> optional) {
+    private void applyImportedImage(String footprintId, java.util.Optional<Path> optional) {
         if (optional.isEmpty()) {
             return;
         }
@@ -500,13 +507,15 @@ public final class PatternActions {
             state.setProjectStatus(PlotI18n.tr("plugin.pattern.import_image_failed", "region not found"));
             return;
         }
+        ImagePatternConfig imagePattern = footprint.getImagePattern();
+        String previousPath = imagePattern.getImagePath();
         try {
-            pushProjectHistory();
-            ImagePatternConfig imagePattern = footprint.getImagePattern();
-            PatternImageStore.ImportedImage imported = PatternImageStore.importImage(
+            PatternImageStore.ImportedImage imported = PatternImageStore.importReplacing(
                 pluginDataDir,
                 footprintId,
-                optional.get());
+                optional.get(),
+                previousPath);
+            pushProjectHistory();
             imported.applyTo(imagePattern);
             footprint.setImagePattern(imagePattern);
             footprint.setSource(PatternSource.IMAGE);

@@ -28,6 +28,7 @@ public final class PatternUiContext {
     private final PatternPluginState state;
     private final Object projectLock;
     private final PatternActions actions;
+    private final PatternFootprintRenameController footprintRename;
     private int projectionCaptureFrame = -1;
     private WorldProjectionSnapshot projectionSnapshot = WorldProjectionSnapshot.UNKNOWN;
 
@@ -36,6 +37,7 @@ public final class PatternUiContext {
         this.state = Objects.requireNonNull(state, "state");
         this.projectLock = Objects.requireNonNull(projectLock, "projectLock");
         this.actions = new PatternActions(host, state, projectLock);
+        this.footprintRename = new PatternFootprintRenameController(this);
     }
 
     public void setPluginDataDir(Path pluginDataDir) {
@@ -48,6 +50,10 @@ public final class PatternUiContext {
 
     public PatternActions actions() {
         return actions;
+    }
+
+    public PatternFootprintRenameController footprintRename() {
+        return footprintRename;
     }
 
     public PluginContext host() {

@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -42,7 +42,7 @@ public final class PatternImageStore {
             throw new IOException("Source image not found");
         }
         Files.createDirectories(imagesDir(pluginDataDir));
-        String extension = extensionOf(sourceFile);
+        String extension = PatternImageFormats.requireSupportedExtension(sourceFile);
         String relativePath = "images/" + footprintId + extension;
         Path target = resolveImagePath(pluginDataDir, relativePath);
         if (target == null || !isSafeAssetId(footprintId)) {
@@ -52,6 +52,23 @@ public final class PatternImageStore {
 
         ImagePatternRaster raster = ImagePatternRaster.load(target);
         return new ImportedImage(relativePath, raster.width(), raster.height());
+    }
+
+    /**
+     * 导入新图片；新文件写入成功后再删除旧关联文件（路径不同时）。
+     */
+    public static ImportedImage importReplacing(
+            Path pluginDataDir,
+            String footprintId,
+            Path sourceFile,
+            String previousRelativePath) throws IOException {
+        ImportedImage imported = importImage(pluginDataDir, footprintId, sourceFile);
+        if (previousRelativePath != null
+                && !previousRelativePath.isBlank()
+                && !Objects.equals(previousRelativePath, imported.relativePath())) {
+            deleteImage(pluginDataDir, previousRelativePath);
+        }
+        return imported;
     }
 
     public static Optional<ImagePatternRaster> loadRaster(Path pluginDataDir, ImagePatternConfig config) {
@@ -78,19 +95,6 @@ public final class PatternImageStore {
                 // best effort
             }
         }
-    }
-
-    private static String extensionOf(Path file) {
-        String name = file.getFileName().toString().toLowerCase(Locale.ROOT);
-        int dot = name.lastIndexOf('.');
-        if (dot <= 0 || dot >= name.length() - 1) {
-            return ".png";
-        }
-        String ext = name.substring(dot);
-        return switch (ext) {
-            case ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp" -> ext;
-            default -> ".png";
-        };
     }
 
     static boolean isSafeAssetId(String id) {

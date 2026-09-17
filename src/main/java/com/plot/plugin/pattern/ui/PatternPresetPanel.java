@@ -44,7 +44,7 @@ public final class PatternPresetPanel {
                 : PlotI18n.tr("plugin.pattern.preset_section_procedural_hint"));
 
         ImBoolean showUser = new ImBoolean(showUserPresets);
-        if (ImGui.checkbox(PlotI18n.tr("plugin.pattern.show_user_presets"), showUser)) {
+        if (PatternUiWidgets.renderPresetScopeRadio(showUser)) {
             showUserPresets = showUser.get();
             selectedPresetIndex = -1;
         }

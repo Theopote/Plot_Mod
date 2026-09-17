@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.Locale;
 
 /**
  * 预设专用图片资产（与 footprint 的 images/ 目录隔离）。
@@ -50,7 +49,7 @@ public final class PatternPresetImageStore {
             throw new IOException("Source image not found: " + source.getImagePath());
         }
         Files.createDirectories(presetAssetsDir(pluginDataDir));
-        String extension = extensionOf(sourceFile);
+        String extension = PatternImageFormats.requireSupportedExtension(sourceFile);
         String relativePath = PRESET_ASSETS_DIR + "/" + presetId + extension;
         Path target = PatternImageStore.resolveImagePath(pluginDataDir, relativePath);
         if (target == null || !PatternImageStore.isSafeAssetId(presetId)) {
@@ -77,16 +76,4 @@ public final class PatternPresetImageStore {
         }
     }
 
-    private static String extensionOf(Path file) {
-        String name = file.getFileName().toString().toLowerCase(Locale.ROOT);
-        int dot = name.lastIndexOf('.');
-        if (dot <= 0 || dot >= name.length() - 1) {
-            return ".png";
-        }
-        String ext = name.substring(dot);
-        return switch (ext) {
-            case ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp" -> ext;
-            default -> ".png";
-        };
-    }
 }

@@ -22,7 +22,7 @@ public final class PatternToolbarPanel {
         if (ImGui.button(PlotI18n.tr("plugin.pattern.undo"), buttonWidth, 0)) {
             ctx.setProject(ctx.projectHistory().undo(ctx.project()));
             ctx.syncSelectedFootprintAfterHistory();
-            ctx.setFootprintNameEditingId("");
+            ctx.footprintRename().cancelActive();
             ctx.state().bumpProjectRevision();
             ctx.clearPreview();
         }
@@ -38,7 +38,7 @@ public final class PatternToolbarPanel {
         if (ImGui.button(PlotI18n.tr("plugin.pattern.redo"), buttonWidth, 0)) {
             ctx.setProject(ctx.projectHistory().redo(ctx.project()));
             ctx.syncSelectedFootprintAfterHistory();
-            ctx.setFootprintNameEditingId("");
+            ctx.footprintRename().cancelActive();
             ctx.state().bumpProjectRevision();
             ctx.clearPreview();
         }
