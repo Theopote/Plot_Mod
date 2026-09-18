@@ -27,5 +27,9 @@ public final class PatternConfigSanitizer {
         if (!capabilities.radialSectorCount()) {
             pattern.setRadialSectorCount(ProceduralPatternConfig.DEFAULT_RADIAL_SECTOR_COUNT);
         }
+        if (pattern.getType() == ProceduralPatternConfig.PatternType.FISH_SCALE
+            && pattern.getTileSize() < ProceduralPatternConfig.MIN_FISH_SCALE_TILE_SIZE) {
+            pattern.setTileSize(ProceduralPatternConfig.MIN_FISH_SCALE_TILE_SIZE);
+        }
     }
 }

@@ -133,18 +133,37 @@ final class AdvancedPatternGeometry {
             double x,
             double z,
             List<String> materials) {
-        double radius = PatternCoordinateTransform.effectiveTileSize(config);
-        double rowHeight = radius * 0.5;
-        int row = PatternGridMath.floorDiv(z, rowHeight);
-        double offsetX = (row & 1) != 0 ? radius * 0.5 : 0.0;
-        int col = PatternGridMath.floorDiv(x - offsetX, radius);
-        double centerX = offsetX + col * radius + radius * 0.5;
-        double centerZ = row * rowHeight;
+        double scaleWidth = PatternCoordinateTransform.effectiveTileSize(config);
+        double rowPitch = scaleWidth * 0.5;
+        int row = PatternGridMath.floorDiv(z, rowPitch);
+        double stagger = (row & 1) != 0 ? scaleWidth * 0.5 : 0.0;
+        double localX = x - stagger;
+        int col = PatternGridMath.floorDiv(localX, scaleWidth);
+        int nearestCol = nearestScaleColumn(localX, scaleWidth, col);
+        double centerX = stagger + nearestCol * scaleWidth + scaleWidth * 0.5;
+        double crownZ = row * rowPitch;
         double dx = x - centerX;
-        double dz = z - centerZ;
-        double distSq = dx * dx + dz * dz;
-        boolean inScale = distSq <= radius * radius * 0.22 && dz <= radius * 0.35;
-        return PatternGridMath.positiveMod(col + row + (inScale ? 0 : 1), materials.size());
+        double dz = z - crownZ;
+        double normX = dx / (scaleWidth * 0.42);
+        double normZ = dz / (rowPitch * 0.75);
+        boolean inCrown = dz >= 0.0
+            && dz <= rowPitch
+            && normX * normX + normZ * normZ <= 1.0;
+        return PatternGridMath.positiveMod(nearestCol + row + (inCrown ? 0 : 1), materials.size());
+    }
+
+    private static int nearestScaleColumn(double localX, double scaleWidth, int hintCol) {
+        int nearest = hintCol;
+        double nearestDist = Double.MAX_VALUE;
+        for (int candidate = hintCol - 1; candidate <= hintCol + 1; candidate++) {
+            double center = candidate * scaleWidth + scaleWidth * 0.5;
+            double dist = Math.abs(localX - center);
+            if (dist < nearestDist) {
+                nearestDist = dist;
+                nearest = candidate;
+            }
+        }
+        return nearest;
     }
 
     private static Vec2d resolveCenter(ProceduralPatternConfig config, Vec2d regionCentroid) {

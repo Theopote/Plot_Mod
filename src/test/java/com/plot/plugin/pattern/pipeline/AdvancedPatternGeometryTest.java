@@ -200,6 +200,37 @@ class AdvancedPatternGeometryTest {
     }
 
     @Test
+    void fishScaleDiffersFromRunningBondAtSameTileSize() {
+        ProceduralPatternConfig runningBond = new ProceduralPatternConfig();
+        runningBond.setType(ProceduralPatternConfig.PatternType.RUNNING_BOND);
+        runningBond.setTileSize(ProceduralPatternConfig.MIN_FISH_SCALE_TILE_SIZE);
+        runningBond.setMaterials(List.of("a", "b"));
+
+        ProceduralPatternConfig fishScale = new ProceduralPatternConfig();
+        fishScale.setType(ProceduralPatternConfig.PatternType.FISH_SCALE);
+        fishScale.setTileSize(ProceduralPatternConfig.MIN_FISH_SCALE_TILE_SIZE);
+        fishScale.setMaterials(List.of("a", "b"));
+
+        boolean anyDifference = false;
+        for (int z = 0; z < 6; z++) {
+            for (int x = 0; x < 12; x++) {
+                int bond = ProceduralPatternMaterialResolver.resolveMaterialIndex(
+                    runningBond, x + 0.5, z + 0.5, null, "seed", null);
+                int scale = ProceduralPatternMaterialResolver.resolveMaterialIndex(
+                    fishScale, x + 0.5, z + 0.5, null, "seed", null);
+                if (bond != scale) {
+                    anyDifference = true;
+                    break;
+                }
+            }
+            if (anyDifference) {
+                break;
+            }
+        }
+        assertTrue(anyDifference, "fish scale should not degenerate into running bond");
+    }
+
+    @Test
     void fishScaleDensityScalesTileSize() {
         ProceduralPatternConfig config = new ProceduralPatternConfig();
         config.setType(ProceduralPatternConfig.PatternType.FISH_SCALE);

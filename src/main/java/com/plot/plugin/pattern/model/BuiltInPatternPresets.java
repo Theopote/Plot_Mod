@@ -176,7 +176,7 @@ public final class BuiltInPatternPresets {
                 "plugin.pattern.preset.builtin.fish_scale_prismarine.description",
                 config -> {
                     config.setType(ProceduralPatternConfig.PatternType.FISH_SCALE);
-                    config.setTileSize(1.2);
+                    config.setTileSize(3.0);
                     config.setDensity(1.0);
                     config.setMaterials(List.of("minecraft:prismarine", "minecraft:dark_prismarine"));
                 }));

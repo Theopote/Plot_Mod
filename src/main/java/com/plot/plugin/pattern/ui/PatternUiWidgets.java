@@ -5,12 +5,15 @@ import com.plot.plugin.pattern.PatternGeometryUtils;
 import com.plot.plugin.pattern.model.ImagePatternConfig;
 import com.plot.plugin.pattern.model.PatternFootprint;
 import com.plot.plugin.pattern.model.PatternSource;
+import com.plot.plugin.pattern.model.PatternFootprint;
 import com.plot.plugin.pattern.model.PatternTypeCatalog;
 import com.plot.plugin.pattern.model.ProceduralPatternConfig;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.type.ImBoolean;
+import imgui.type.ImFloat;
 import imgui.type.ImInt;
 
 import java.util.ArrayList;
@@ -186,6 +189,67 @@ public final class PatternUiWidgets {
 
     public static String patternTypeLabel(ProceduralPatternConfig.PatternType type) {
         return PlotI18n.tr("plugin.pattern.type." + type.name().toLowerCase());
+    }
+
+    public static void renderPatternCenterControl(
+            PatternFootprint footprint,
+            ProceduralPatternConfig pattern,
+            Runnable beforeChange,
+            Runnable onChanged) {
+        ImBoolean useRegionCenter = new ImBoolean(pattern.getCenterOverride() == null);
+        if (ImGui.checkbox(PlotI18n.tr("plugin.pattern.center_use_region"), useRegionCenter)) {
+            if (beforeChange != null) {
+                beforeChange.run();
+            }
+            if (useRegionCenter.get()) {
+                pattern.setCenterOverride(null);
+            } else {
+                pattern.setCenterOverride(footprint.computeCentroid());
+            }
+            if (onChanged != null) {
+                onChanged.run();
+            }
+        }
+        if (!useRegionCenter.get()) {
+            Vec2d center = pattern.getCenterOverride();
+            if (center == null) {
+                center = footprint.computeCentroid();
+                pattern.setCenterOverride(center);
+            }
+            ImFloat centerX = new ImFloat((float) center.x);
+            ImFloat centerZ = new ImFloat((float) center.y);
+            boolean centerChanged = ImGui.inputFloat(
+                PlotI18n.tr("plugin.pattern.center_x"),
+                centerX,
+                0.5f,
+                1.0f,
+                "%.1f");
+            centerChanged |= ImGui.inputFloat(
+                PlotI18n.tr("plugin.pattern.center_z"),
+                centerZ,
+                0.5f,
+                1.0f,
+                "%.1f");
+            if (ImGui.isItemActivated() && beforeChange != null) {
+                beforeChange.run();
+            }
+            if (centerChanged) {
+                pattern.setCenterOverride(new Vec2d(centerX.get(), centerZ.get()));
+                if (onChanged != null) {
+                    onChanged.run();
+                }
+            }
+            if (ImGui.button(PlotI18n.tr("plugin.pattern.center_reset"), 0, 0)) {
+                if (beforeChange != null) {
+                    beforeChange.run();
+                }
+                pattern.setCenterOverride(null);
+                if (onChanged != null) {
+                    onChanged.run();
+                }
+            }
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.pattern.center_hint"));
+        }
     }
 
     public static String sourceLabel(PatternFootprint footprint) {

@@ -10,7 +10,6 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
-import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
 
@@ -125,14 +124,21 @@ public final class PatternDesignPanel {
             ImGui.textColored(PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.pattern.windmill_geometry_hint"));
         }
+        if (pattern.getType() == ProceduralPatternConfig.PatternType.FISH_SCALE) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.pattern.fish_scale_geometry_hint"));
+        }
         PatternUiWidgets.renderMaterialList(ctx, pattern, beforeEdit, commitPattern);
 
         if (capabilities.tileSize()) {
+            float minTileSize = pattern.getType() == ProceduralPatternConfig.PatternType.FISH_SCALE
+                ? (float) ProceduralPatternConfig.MIN_FISH_SCALE_TILE_SIZE
+                : 0.5f;
             ImFloat tileSize = new ImFloat((float) pattern.getTileSize());
             boolean tileChanged = ImGui.sliderFloat(
                 PlotI18n.tr("plugin.pattern.tile_size"),
                 tileSize.getData(),
-                0.5f,
+                minTileSize,
                 (float) ProceduralPatternConfig.MAX_TILE_SIZE,
                 "%.1f");
             if (ImGui.isItemActivated()) {
@@ -191,7 +197,7 @@ public final class PatternDesignPanel {
         }
 
         if (capabilities.centerOverride()) {
-            renderConcentricRingCenter(footprint, pattern, beforeEdit, commitPattern);
+            PatternUiWidgets.renderPatternCenterControl(footprint, pattern, beforeEdit, commitPattern);
         }
     }
 
@@ -215,57 +221,6 @@ public final class PatternDesignPanel {
         ImGui.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.pattern.radial_sector_angle_hint", pattern.radialSectorAngleDegrees()));
-    }
-
-    private void renderConcentricRingCenter(
-            PatternFootprint footprint,
-            ProceduralPatternConfig pattern,
-            Runnable beforeEdit,
-            Runnable commitPattern) {
-        ImBoolean useCentroid = new ImBoolean(pattern.getCenterOverride() == null);
-        if (ImGui.checkbox(PlotI18n.tr("plugin.pattern.ring_use_centroid"), useCentroid)) {
-            beforeEdit.run();
-            if (useCentroid.get()) {
-                pattern.setCenterOverride(null);
-            } else {
-                pattern.setCenterOverride(footprint.computeCentroid());
-            }
-            commitPattern.run();
-        }
-        if (!useCentroid.get()) {
-            Vec2d center = pattern.getCenterOverride();
-            if (center == null) {
-                center = footprint.computeCentroid();
-                pattern.setCenterOverride(center);
-            }
-            ImFloat centerX = new ImFloat((float) center.x);
-            ImFloat centerZ = new ImFloat((float) center.y);
-            boolean centerChanged = ImGui.inputFloat(
-                PlotI18n.tr("plugin.pattern.ring_center_x"),
-                centerX,
-                0.5f,
-                1.0f,
-                "%.1f");
-            centerChanged |= ImGui.inputFloat(
-                PlotI18n.tr("plugin.pattern.ring_center_z"),
-                centerZ,
-                0.5f,
-                1.0f,
-                "%.1f");
-            if (ImGui.isItemActivated()) {
-                beforeEdit.run();
-            }
-            if (centerChanged) {
-                pattern.setCenterOverride(new Vec2d(centerX.get(), centerZ.get()));
-                commitPattern.run();
-            }
-            if (ImGui.button(PlotI18n.tr("plugin.pattern.ring_center_reset"), 0, 0)) {
-                beforeEdit.run();
-                pattern.setCenterOverride(null);
-                commitPattern.run();
-            }
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.pattern.ring_center_hint"));
-        }
     }
 
     private void renderOffsetControls(

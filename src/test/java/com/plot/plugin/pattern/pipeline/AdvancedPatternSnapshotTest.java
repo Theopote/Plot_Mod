@@ -86,14 +86,17 @@ class AdvancedPatternSnapshotTest {
 
     @Test
     void fishScaleSnapshotTwoMaterials() {
-        ProceduralPatternConfig config = config(ProceduralPatternConfig.PatternType.FISH_SCALE, 2.0, 1.0);
+        ProceduralPatternConfig config = config(
+            ProceduralPatternConfig.PatternType.FISH_SCALE,
+            ProceduralPatternConfig.MIN_FISH_SCALE_TILE_SIZE,
+            1.0);
         assertSnapshot(config, 0, 11, 0, 5, null, """
-            001100110011
-            011001100110
-            001100110011
-            011001100110
-            001100110011
-            011001100110
+            001110011100
+            011100111001
+            001110011100
+            111001110011
+            001000010000
+            001110011100
             """);
     }
 

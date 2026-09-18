@@ -14,6 +14,7 @@ public class ProceduralPatternConfig {
     private static final int MIN_MATERIALS = 2;
     private static final int MAX_MATERIALS = 6;
     private static final double MIN_TILE_SIZE = 0.5;
+    public static final double MIN_FISH_SCALE_TILE_SIZE = 2.5;
     public static final double MAX_TILE_SIZE = 32.0;
     private static final double MIN_MOSAIC_PRIMARY_RATIO = 0.2;
     private static final double MAX_MOSAIC_PRIMARY_RATIO = 0.9;
