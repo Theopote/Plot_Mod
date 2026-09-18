@@ -125,7 +125,8 @@ public final class PatternGeneratePanel {
         String updateLabel = selectedCount > 1
             ? PlotI18n.tr("plugin.pattern.update_preview_selected", selectedCount)
             : PlotI18n.tr("plugin.pattern.update_preview");
-        if (ctx.isPreviewBusy()) {
+        boolean previewBusy = ctx.isPreviewBusy();
+        if (previewBusy) {
             ImGui.beginDisabled();
         }
         if (ImGui.button(updateLabel, halfWidth, 0)) {
@@ -135,18 +136,19 @@ public final class PatternGeneratePanel {
                 ctx.updatePreview(footprint);
             }
         }
-        if (ctx.isPreviewBusy()) {
+        if (previewBusy) {
             ImGui.endDisabled();
         }
         ImGui.sameLine();
         boolean hasPreview = ctx.hasValidPreview();
-        if (!hasPreview || ctx.isPreviewBusy()) {
+        boolean clearDisabled = !hasPreview || previewBusy;
+        if (clearDisabled) {
             ImGui.beginDisabled();
         }
         if (ImGui.button(PlotI18n.tr("plugin.pattern.clear_preview"), halfWidth, 0)) {
             ctx.clearPreview();
         }
-        if (!hasPreview || ctx.isPreviewBusy()) {
+        if (clearDisabled) {
             ImGui.endDisabled();
         }
     }
