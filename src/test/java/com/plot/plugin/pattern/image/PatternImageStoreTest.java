@@ -85,6 +85,21 @@ class PatternImageStoreTest {
     }
 
     @Test
+    void corruptImageDoesNotLeaveAsset() throws IOException {
+        Path corrupt = tempDir.resolve("bad.png");
+        Files.writeString(corrupt, "not-a-png");
+
+        assertThrows(IOException.class, () -> PatternImageStore.importImage(tempDir, "fp-1", corrupt));
+
+        Path footprintDir = tempDir.resolve("images/fp-1");
+        if (Files.exists(footprintDir)) {
+            try (var entries = Files.list(footprintDir)) {
+                assertFalse(entries.findAny().isPresent());
+            }
+        }
+    }
+
+    @Test
     void rejectsUnknownExtensionInsteadOfRenamingToPng() throws IOException {
         Path source = tempDir.resolve("logo.xyz");
         writeImage(source, "png");

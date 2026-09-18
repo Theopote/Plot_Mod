@@ -599,12 +599,12 @@ public final class PatternActions {
             return;
         }
         ImagePatternConfig imagePattern = footprint.getImagePattern();
-        pushProjectHistory();
         try {
             PatternImageStore.ImportedImage imported = PatternImageStore.importImage(
                 pluginDataDir,
                 footprintId,
                 optional.get());
+            pushProjectHistory();
             imported.applyTo(imagePattern);
             footprint.setImagePattern(imagePattern);
             footprint.setSource(PatternSource.IMAGE);

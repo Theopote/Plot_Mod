@@ -59,9 +59,17 @@ public final class PatternImageStore {
             throw new IOException("Invalid footprint image path");
         }
         Files.copy(sourceFile, target, StandardCopyOption.REPLACE_EXISTING);
-
-        ImagePatternRaster raster = ImagePatternRaster.load(target);
-        return new ImportedImage(relativePath, raster.width(), raster.height());
+        try {
+            ImagePatternRaster raster = ImagePatternRaster.load(target);
+            return new ImportedImage(relativePath, raster.width(), raster.height());
+        } catch (IOException e) {
+            try {
+                Files.deleteIfExists(target);
+            } catch (IOException ignored) {
+                // best effort cleanup for failed import transaction
+            }
+            throw e;
+        }
     }
 
     /**
