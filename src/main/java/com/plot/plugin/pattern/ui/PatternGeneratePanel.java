@@ -6,6 +6,8 @@ import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 
+import java.text.NumberFormat;
+
 /** 图案生成 Tab。 */
 public final class PatternGeneratePanel {
     private final PatternUiContext ctx;
@@ -111,14 +113,21 @@ public final class PatternGeneratePanel {
         if (job == null) {
             return;
         }
+
+        ImGui.textColored(PluginUiColors.STATUS_INFO, PlotI18n.tr(job.phaseTranslationKey()));
         ImGui.progressBar(job.progressFraction(), ImGui.getContentRegionAvailX(), 0);
-        ImGui.text(PlotI18n.tr(
-            "plugin.pattern.preview_progress",
-            job.processedCount(),
-            job.totalCount()));
+        if (job.totalCount() > 0) {
+            ImGui.text(PlotI18n.tr("plugin.pattern.preview_progress_percent", job.progressPercent()));
+            ImGui.text(formatSampleCounts(job.processedCount(), job.totalCount()));
+        }
         if (ImGui.button(PlotI18n.tr("plugin.pattern.cancel_preview"), 0, 0)) {
             ctx.cancelPreviewJob();
         }
+    }
+
+    private static String formatSampleCounts(int processed, int total) {
+        NumberFormat formatter = NumberFormat.getIntegerInstance();
+        return formatter.format(processed) + " / " + formatter.format(total);
     }
 
     private void renderPreviewControls(int selectedCount, PatternFootprint footprint, float halfWidth) {

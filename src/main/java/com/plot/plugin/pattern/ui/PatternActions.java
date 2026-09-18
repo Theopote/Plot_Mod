@@ -226,16 +226,11 @@ public final class PatternActions {
         if (job == null) {
             return;
         }
-        String phaseKey = switch (job.phase()) {
-            case SAMPLING -> "plugin.pattern.preview_phase_sampling";
-            case PROJECTING -> "plugin.pattern.preview_phase_projecting";
-            default -> "plugin.pattern.preview_phase_resolving";
-        };
-        state.setProjectStatus(PlotI18n.tr(phaseKey) + " — "
-            + PlotI18n.tr(
-                "plugin.pattern.preview_progress",
-                job.processedCount(),
-                job.totalCount()));
+        String status = PlotI18n.tr(job.phaseTranslationKey());
+        if (job.totalCount() > 0) {
+            status += " — " + PlotI18n.tr("plugin.pattern.preview_progress_percent", job.progressPercent());
+        }
+        state.setProjectStatus(status);
     }
 
     void failPreviewJob(PatternPreviewJob job) {

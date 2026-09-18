@@ -205,9 +205,27 @@ public final class PatternPreviewJob {
 
     public float progressFraction() {
         if (totalSamples <= 0) {
-            return phase == Phase.SAMPLING ? 0f : 1f;
+            return 0f;
         }
         return Math.min(1f, (float) processedSamples / totalSamples);
+    }
+
+    public int progressPercent() {
+        return Math.round(progressFraction() * 100f);
+    }
+
+    public String phaseTranslationKey() {
+        return phaseTranslationKey(phase);
+    }
+
+    public static String phaseTranslationKey(Phase phase) {
+        return switch (phase) {
+            case PENDING -> "plugin.pattern.preview_phase_pending";
+            case SAMPLING -> "plugin.pattern.preview_phase_sampling";
+            case RESOLVING -> "plugin.pattern.preview_phase_resolving";
+            case PROJECTING -> "plugin.pattern.preview_phase_projecting";
+            default -> "plugin.pattern.preview_phase_resolving";
+        };
     }
 
     List<PatternFootprint> footprints() {
