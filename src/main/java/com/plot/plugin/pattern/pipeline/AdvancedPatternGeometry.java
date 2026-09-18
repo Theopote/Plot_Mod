@@ -37,7 +37,16 @@ final class AdvancedPatternGeometry {
         double tile = PatternCoordinateTransform.effectiveTileSize(config);
         int gridX = PatternGridMath.floorDiv(x, tile);
         int gridZ = PatternGridMath.floorDiv(z, tile);
-        return PatternGridMath.positiveMod(gridX + gridZ, materials.size());
+        int blockX = PatternGridMath.floorDiv(gridX, 2);
+        int blockZ = PatternGridMath.floorDiv(gridZ, 2);
+        int localX = gridX - blockX * 2;
+        int localZ = gridZ - blockZ * 2;
+        if ((blockX + blockZ & 1) == 0) {
+            // 2×1 横向砖组：同一行内相邻格同材质
+            return PatternGridMath.positiveMod(blockZ + localZ + blockX, materials.size());
+        }
+        // 1×2 纵向砖组：同一列内相邻格同材质
+        return PatternGridMath.positiveMod(blockX + localX + blockZ, materials.size());
     }
 
     static int scatter(
