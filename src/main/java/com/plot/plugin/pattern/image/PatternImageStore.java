@@ -6,11 +6,14 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * 图案插件图片持久化（复制到插件数据目录）。
+ * <p>
+ * Footprint 图片使用不可变资产路径 {@code images/{footprintId}/{assetId}.ext}，
+ * 导入时只新增文件、不覆盖或删除旧资产，以便项目 Undo/Redo 能恢复历史引用。
  */
 public final class PatternImageStore {
     private PatternImageStore() {
@@ -41,12 +44,19 @@ public final class PatternImageStore {
         if (pluginDataDir == null || sourceFile == null || !Files.exists(sourceFile)) {
             throw new IOException("Source image not found");
         }
-        Files.createDirectories(imagesDir(pluginDataDir));
-        String extension = PatternImageFormats.requireSupportedExtension(sourceFile);
-        String relativePath = "images/" + footprintId + extension;
-        Path target = resolveImagePath(pluginDataDir, relativePath);
-        if (target == null || !isSafeAssetId(footprintId)) {
+        if (!isSafeAssetId(footprintId)) {
             throw new IOException("Invalid footprint image id");
+        }
+
+        String extension = PatternImageFormats.requireSupportedExtension(sourceFile);
+        String assetId = UUID.randomUUID().toString().replace("-", "");
+        String relativePath = "images/" + footprintId + "/" + assetId + extension;
+
+        Path imagesBase = imagesDir(pluginDataDir).toAbsolutePath().normalize();
+        Files.createDirectories(imagesBase.resolve(footprintId));
+        Path target = resolveImagePath(pluginDataDir, relativePath);
+        if (target == null || !target.startsWith(imagesBase)) {
+            throw new IOException("Invalid footprint image path");
         }
         Files.copy(sourceFile, target, StandardCopyOption.REPLACE_EXISTING);
 
@@ -55,20 +65,15 @@ public final class PatternImageStore {
     }
 
     /**
-     * 导入新图片；新文件写入成功后再删除旧关联文件（路径不同时）。
+     * @deprecated 旧资产不再删除；请使用 {@link #importImage(Path, String, Path)}。
      */
+    @Deprecated
     public static ImportedImage importReplacing(
             Path pluginDataDir,
             String footprintId,
             Path sourceFile,
             String previousRelativePath) throws IOException {
-        ImportedImage imported = importImage(pluginDataDir, footprintId, sourceFile);
-        if (previousRelativePath != null
-                && !previousRelativePath.isBlank()
-                && !Objects.equals(previousRelativePath, imported.relativePath())) {
-            deleteImage(pluginDataDir, previousRelativePath);
-        }
-        return imported;
+        return importImage(pluginDataDir, footprintId, sourceFile);
     }
 
     public static Optional<ImagePatternRaster> loadRaster(Path pluginDataDir, ImagePatternConfig config) {
@@ -86,6 +91,9 @@ public final class PatternImageStore {
         }
     }
 
+    /**
+     * 物理删除图片资产。Footprint 删除与图片替换不应调用此方法，以免破坏 Undo/Redo。
+     */
     public static void deleteImage(Path pluginDataDir, String relativePath) {
         Path file = resolveImagePath(pluginDataDir, relativePath);
         if (file != null) {

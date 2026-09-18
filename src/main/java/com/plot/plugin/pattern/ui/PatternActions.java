@@ -604,14 +604,12 @@ public final class PatternActions {
             return;
         }
         ImagePatternConfig imagePattern = footprint.getImagePattern();
-        String previousPath = imagePattern.getImagePath();
+        pushProjectHistory();
         try {
-            PatternImageStore.ImportedImage imported = PatternImageStore.importReplacing(
+            PatternImageStore.ImportedImage imported = PatternImageStore.importImage(
                 pluginDataDir,
                 footprintId,
-                optional.get(),
-                previousPath);
-            pushProjectHistory();
+                optional.get());
             imported.applyTo(imagePattern);
             footprint.setImagePattern(imagePattern);
             footprint.setSource(PatternSource.IMAGE);
@@ -660,15 +658,6 @@ public final class PatternActions {
         }
         pushProjectHistory();
         for (String id : ids) {
-            PatternFootprint footprint = state.getProject().getFootprints().get(id);
-            if (footprint != null
-                && footprint.getSource() == PatternSource.IMAGE
-                && pluginDataDir != null) {
-                ImagePatternConfig imagePattern = footprint.getImagePattern();
-                if (imagePattern != null && imagePattern.hasImage()) {
-                    PatternImageStore.deleteImage(pluginDataDir, imagePattern.getImagePath());
-                }
-            }
             state.getProject().removeFootprint(id);
             state.getSelection().remove(id);
         }
