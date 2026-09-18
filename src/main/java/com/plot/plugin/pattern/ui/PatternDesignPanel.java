@@ -85,11 +85,6 @@ public final class PatternDesignPanel {
         if (PatternUiWidgets.renderSourceRadio(footprint, beforeEdit, invalidate)) {
             presetPanel.resetSelection();
         }
-        PatternUiWidgets.textColoredWrapped(
-            PluginUiColors.HINT_GRAY,
-            footprint.getSource() == PatternSource.IMAGE
-                ? PlotI18n.tr("plugin.pattern.source.image_hint")
-                : PlotI18n.tr("plugin.pattern.source.procedural_hint"));
     }
 
     private void renderProceduralEditor(
@@ -286,7 +281,6 @@ public final class PatternDesignPanel {
             invalidate.run();
         };
 
-        ImGui.text(PlotI18n.tr("plugin.pattern.image_source_label"));
         if (ImGui.button(PlotI18n.tr("plugin.pattern.select_image"), 0, 0)) {
             ctx.importImageForFootprint(footprint);
         }

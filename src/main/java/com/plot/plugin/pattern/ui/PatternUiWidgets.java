@@ -298,6 +298,9 @@ public final class PatternUiWidgets {
                 changed = true;
             }
         }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.pattern.source.procedural_hint"));
+        }
         ImGui.sameLine();
         if (ImGui.radioButton(
                 PlotI18n.tr("plugin.pattern.source.image"),
@@ -309,6 +312,9 @@ public final class PatternUiWidgets {
                 footprint.setSource(PatternSource.IMAGE);
                 changed = true;
             }
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.pattern.source.image_hint"));
         }
 
         if (changed && onChanged != null) {

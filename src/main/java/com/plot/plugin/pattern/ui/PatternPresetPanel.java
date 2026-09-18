@@ -43,12 +43,6 @@ public final class PatternPresetPanel {
             lastRenderedSource = resolvedSource;
         }
 
-        PatternUiWidgets.textColoredWrapped(
-            PluginUiColors.HINT_GRAY,
-            resolvedSource == PatternSource.IMAGE
-                ? PlotI18n.tr("plugin.pattern.preset_section_image_hint")
-                : PlotI18n.tr("plugin.pattern.preset_section_procedural_hint"));
-
         ImBoolean showUser = new ImBoolean(showUserPresets);
         if (PatternUiWidgets.renderPresetScopeRadio(showUser)) {
             showUserPresets = showUser.get();
