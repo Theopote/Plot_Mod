@@ -3,7 +3,6 @@ package com.plot.plugin.pattern.model;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
-import com.plot.plugin.pattern.image.PatternBuiltinPresetAssets;
 import com.plot.plugin.pattern.image.PatternPresetImageStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,7 +41,6 @@ public class PatternPresetLibrary {
         try {
             Files.createDirectories(pluginDataDir.resolve("presets"));
             PatternPresetImageStore.presetAssetsDir(pluginDataDir);
-            PatternBuiltinPresetAssets.installAll(pluginDataDir);
             loadUserPresets();
             syncBuiltInPresets();
         } catch (IOException e) {

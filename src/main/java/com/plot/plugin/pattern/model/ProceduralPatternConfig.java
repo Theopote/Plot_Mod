@@ -140,7 +140,7 @@ public class ProceduralPatternConfig {
             }
         }
         while (normalized.size() < MIN_MATERIALS) {
-            normalized.add(normalized.size() == 0 ? DEFAULT_MATERIAL_A : DEFAULT_MATERIAL_B);
+            normalized.add(normalized.isEmpty() ? DEFAULT_MATERIAL_A : DEFAULT_MATERIAL_B);
         }
         if (normalized.size() > MAX_MATERIALS) {
             return new ArrayList<>(normalized.subList(0, MAX_MATERIALS));

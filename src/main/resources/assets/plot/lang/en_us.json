@@ -3426,8 +3426,6 @@
   "plugin.pattern.preset.builtin.frame_border.description": "Concentric border rings from region edge",
   "plugin.pattern.preset.builtin.fish_scale_prismarine.name": "Prismarine fish scale",
   "plugin.pattern.preset.builtin.fish_scale_prismarine.description": "Overlapping fish-scale prismarine tiles",
-  "plugin.pattern.preset.builtin.zebra_crossing.name": "Zebra crossing",
-  "plugin.pattern.preset.builtin.zebra_crossing.description": "Black and white crossing stripes",
   "plugin.pattern.herringbone_geometry_hint": "Staggered rows with diagonal split inside each brick; block-grid approximation, not classic plank herringbone.",
   "plugin.pattern.ring_offset_hint": "For concentric rings, X/Z offset shifts the ring center; the pattern is not rotated around the origin.",
   "plugin.pattern.apply_preset": "Apply preset",

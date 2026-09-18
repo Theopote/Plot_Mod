@@ -1,9 +1,5 @@
 package com.plot.plugin.pattern.model;
 
-import com.plot.plugin.pattern.image.PatternBuiltinPresetAssets;
-import com.plot.plugin.pattern.model.ImagePatternConfig.FitMode;
-import com.plot.plugin.pattern.model.ImagePatternConfig.MaterialMatchMode;
-
 import java.util.List;
 
 /**
@@ -183,20 +179,6 @@ public final class BuiltInPatternPresets {
                     config.setTileSize(1.2);
                     config.setDensity(1.0);
                     config.setMaterials(List.of("minecraft:prismarine", "minecraft:dark_prismarine"));
-                }),
-            image(
-                "zebra_crossing",
-                "plugin.pattern.preset.builtin.zebra_crossing.name",
-                "plugin.pattern.preset.builtin.zebra_crossing.description",
-                config -> {
-                    config.setImagePath(PatternBuiltinPresetAssets.relativePath("zebra_crossing"));
-                    config.setImageWidth(64);
-                    config.setImageHeight(16);
-                    config.setFitMode(FitMode.STRETCH);
-                    config.setMaterialMatchMode(MaterialMatchMode.CUSTOM);
-                    config.setPaletteBlocks(List.of(
-                        "minecraft:white_concrete",
-                        "minecraft:black_concrete"));
                 }));
     }
 
@@ -213,23 +195,6 @@ public final class BuiltInPatternPresets {
         preset.setDescriptionKey(descriptionKey);
         preset.setSource(PatternSource.PROCEDURAL);
         preset.setProceduralConfig(config);
-        preset.setBuiltIn(true);
-        return preset;
-    }
-
-    private static PatternPreset image(
-            String slug,
-            String nameKey,
-            String descriptionKey,
-            java.util.function.Consumer<ImagePatternConfig> configurer) {
-        ImagePatternConfig config = new ImagePatternConfig();
-        configurer.accept(config);
-        PatternPreset preset = new PatternPreset();
-        preset.setId(ID_PREFIX + slug);
-        preset.setNameKey(nameKey);
-        preset.setDescriptionKey(descriptionKey);
-        preset.setSource(PatternSource.IMAGE);
-        preset.setImageConfig(config);
         preset.setBuiltIn(true);
         return preset;
     }

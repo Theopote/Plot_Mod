@@ -3426,8 +3426,6 @@
   "plugin.pattern.preset.builtin.frame_border.description": "由区域边缘向内逐圈回字边",
   "plugin.pattern.preset.builtin.fish_scale_prismarine.name": "海晶石鱼鳞",
   "plugin.pattern.preset.builtin.fish_scale_prismarine.description": "叠瓦式海晶石鱼鳞铺装",
-  "plugin.pattern.preset.builtin.zebra_crossing.name": "斑马线",
-  "plugin.pattern.preset.builtin.zebra_crossing.description": "黑白相间斑马线条纹",
   "plugin.pattern.herringbone_geometry_hint": "半砖错缝 + 砖内对角分色；方块栅格下为近似效果，非经典 1:2 长条人字铺。",
   "plugin.pattern.ring_offset_hint": "同心环的 X/Z 偏移会平移圆心，不会绕原点旋转图案。",
   "plugin.pattern.apply_preset": "应用预设",
