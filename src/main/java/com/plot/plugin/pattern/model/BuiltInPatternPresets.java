@@ -68,7 +68,7 @@ public final class BuiltInPatternPresets {
                     config.setType(ProceduralPatternConfig.PatternType.STRIPES);
                     config.setTileSize(1.0);
                     config.setAngleDegrees(90.0);
-                    config.setMaterials(List.of("minecraft:stone_bricks", "minecraft:brick", "minecraft:sandstone"));
+                    config.setMaterials(List.of("minecraft:stone_bricks", "minecraft:bricks", "minecraft:sandstone"));
                 }),
             procedural(
                 "hexagonal_stone",
