@@ -5,6 +5,7 @@ import com.plot.plugin.pattern.PatternGeometryUtils;
 import com.plot.plugin.pattern.model.ImagePatternConfig;
 import com.plot.plugin.pattern.model.PatternFootprint;
 import com.plot.plugin.pattern.model.PatternSource;
+import com.plot.plugin.pattern.model.PatternTypeCatalog;
 import com.plot.plugin.pattern.model.ProceduralPatternConfig;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.UIUtils;
@@ -149,21 +150,37 @@ public final class PatternUiWidgets {
             ProceduralPatternConfig pattern,
             Runnable beforeChange,
             Runnable onChanged) {
-        ProceduralPatternConfig.PatternType[] types = ProceduralPatternConfig.PatternType.values();
-        String[] labels = new String[types.length];
-        for (int i = 0; i < types.length; i++) {
-            labels[i] = PlotI18n.tr("plugin.pattern.type." + types[i].name().toLowerCase());
-        }
-        ImInt current = new ImInt(pattern.getType().ordinal());
-        if (ImGui.combo(PlotI18n.tr("plugin.pattern.pattern_type"), current, labels)) {
-            if (beforeChange != null) {
-                beforeChange.run();
+        ProceduralPatternConfig.PatternType current = pattern.getType();
+        if (ImGui.beginCombo(PlotI18n.tr("plugin.pattern.pattern_type"), patternTypeLabel(current))) {
+            boolean firstGroup = true;
+            for (PatternTypeCatalog.Category category : PatternTypeCatalog.categories()) {
+                if (!firstGroup) {
+                    ImGui.spacing();
+                }
+                firstGroup = false;
+                ImGui.textDisabled(PlotI18n.tr(category.labelKey()));
+                for (ProceduralPatternConfig.PatternType type : category.types()) {
+                    boolean selected = type == current;
+                    if (ImGui.selectable(
+                            stableSelectableLabel(patternTypeLabel(type), type.name()),
+                            selected)) {
+                        if (type != current) {
+                            if (beforeChange != null) {
+                                beforeChange.run();
+                            }
+                            pattern.setType(type);
+                            com.plot.plugin.pattern.model.PatternConfigSanitizer.sanitizeForType(pattern);
+                            if (onChanged != null) {
+                                onChanged.run();
+                            }
+                        }
+                    }
+                    if (selected) {
+                        ImGui.setItemDefaultFocus();
+                    }
+                }
             }
-            pattern.setType(types[current.get()]);
-            com.plot.plugin.pattern.model.PatternConfigSanitizer.sanitizeForType(pattern);
-            if (onChanged != null) {
-                onChanged.run();
-            }
+            ImGui.endCombo();
         }
     }
 
