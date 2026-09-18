@@ -61,27 +61,19 @@ public final class PatternPreviewRenderer {
         float plotY0 = y0 + 24f;
         float plotX1 = x1 - 6f;
         float plotY1 = y1 - 6f;
-        int bucketWidth = Math.max(1, (int) Math.floor(plotX1 - plotX0));
-        int bucketHeight = Math.max(1, (int) Math.floor(plotY1 - plotY0));
+        int screenW = Math.max(1, (int) Math.floor(plotX1 - plotX0));
+        int screenH = Math.max(1, (int) Math.floor(plotY1 - plotY0));
+        int worldW = bounds.worldWidth();
+        int worldD = bounds.worldDepth();
+        int bucketWidth = PatternPreviewRasterDraw.bucketWidth(screenW, worldW);
+        int bucketHeight = PatternPreviewRasterDraw.bucketHeight(screenH, worldD);
         PatternPreviewBuckets buckets = PatternPreviewBucketMapper.aggregate(
             result.placementRecords,
             bounds,
             bucketWidth,
             bucketHeight);
 
-        drawList.pushClipRect(plotX0, plotY0, plotX1, plotY1);
-        for (int py = 0; py < bucketHeight; py++) {
-            float cellY = plotY0 + py;
-            for (int px = 0; px < bucketWidth; px++) {
-                if (buckets.countAt(px, py) == 0) {
-                    continue;
-                }
-                int color = buckets.colorAt(px, py);
-                float cellX = plotX0 + px;
-                drawList.addRectFilled(cellX, cellY, cellX + 1f, cellY + 1f, color);
-            }
-        }
-        drawList.popClipRect();
+        PatternPreviewRasterDraw.drawBuckets(drawList, buckets, plotX0, plotY0, plotX1, plotY1);
 
         ImGui.dummy(width, PREVIEW_HEIGHT);
         ImGui.endChild();
@@ -114,12 +106,20 @@ public final class PatternPreviewRenderer {
             return new Bounds(minX, maxX, minZ, maxZ);
         }
 
+        int worldWidth() {
+            return maxX - minX + 1;
+        }
+
+        int worldDepth() {
+            return maxZ - minZ + 1;
+        }
+
         float width() {
-            return maxX - minX + 1f;
+            return worldWidth();
         }
 
         float depth() {
-            return maxZ - minZ + 1f;
+            return worldDepth();
         }
     }
 }

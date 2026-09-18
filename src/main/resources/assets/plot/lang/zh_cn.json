@@ -3416,6 +3416,7 @@
   "plugin.pattern.save_current_as_preset": "+ 保存当前为预设",
   "plugin.pattern.preset_name_label": "预设名称",
   "plugin.pattern.preset_save": "保存",
+  "plugin.pattern.preset_preview_empty": "无预览",
   "plugin.pattern.border_enabled": "启用边框",
   "plugin.pattern.border_disabled_hint": "边框未启用，无法编辑边框参数",
   "plugin.pattern.border_v1_hint": "沿外轮廓与孔洞边缘铺设实线边框。",

@@ -60,4 +60,26 @@ class PatternPreviewBucketsTest {
         assertTrue(buckets.countAt(0, 0) > 0);
         assertTrue(buckets.countAt(59, 59) > 0);
     }
+
+    @Test
+    void smallRegionUsesWorldResolutionBucketsNotScreenDots() {
+        PatternGenerationResult result = new PatternGenerationResult();
+        for (int x = 0; x < 16; x++) {
+            for (int z = 0; z < 16; z++) {
+                result.placementRecords.put(
+                    new BlockPos(x, 64, z),
+                    new BlockRecord(
+                        new BlockPos(x, 64, z),
+                        "minecraft:grass_block",
+                        (x + z) % 2 == 0 ? "minecraft:white_wool" : "minecraft:black_wool"));
+            }
+        }
+
+        PatternPreviewRenderer.Bounds bounds = PatternPreviewRenderer.Bounds.from(result.placementRecords);
+        int bucketWidth = PatternPreviewRasterDraw.bucketWidth(200, bounds.worldWidth());
+        int bucketHeight = PatternPreviewRasterDraw.bucketHeight(180, bounds.worldDepth());
+
+        assertEquals(16, bucketWidth);
+        assertEquals(16, bucketHeight);
+    }
 }
