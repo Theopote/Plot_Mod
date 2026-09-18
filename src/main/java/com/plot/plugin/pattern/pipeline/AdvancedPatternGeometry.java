@@ -106,7 +106,14 @@ final class AdvancedPatternGeometry {
             PatternSpace space,
             List<String> materials) {
         double tile = PatternCoordinateTransform.effectiveTileSize(config);
-        double distToEdge = distanceToBounds(x, z, space);
+        double distToEdge = space == null
+            ? 0.0
+            : PatternPolygonBoundaryDistance.distanceToPolygonBoundary(
+                x,
+                z,
+                space.outerRing(),
+                space.holes(),
+                space.regionBounds());
         int ring = PatternGridMath.floorDiv(distToEdge, tile);
         return PatternGridMath.positiveMod(ring, materials.size());
     }
@@ -128,16 +135,6 @@ final class AdvancedPatternGeometry {
         double distSq = dx * dx + dz * dz;
         boolean inScale = distSq <= radius * radius * 0.22 && dz <= radius * 0.35;
         return PatternGridMath.positiveMod(col + row + (inScale ? 0 : 1), materials.size());
-    }
-
-    private static double distanceToBounds(double x, double z, PatternSpace space) {
-        if (space == null) {
-            return 0.0;
-        }
-        var bounds = space.regionBounds();
-        return Math.max(0.0, Math.min(
-            Math.min(x - bounds.minX(), bounds.maxX() - x),
-            Math.min(z - bounds.minZ(), bounds.maxZ() - z)));
     }
 
     private static Vec2d resolveCenter(ProceduralPatternConfig config, Vec2d regionCentroid) {

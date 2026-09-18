@@ -84,15 +84,74 @@ class AdvancedPatternGeometryTest {
         config.setMaterials(List.of("edge", "inner"));
         config.setTileSize(1.0);
 
+        List<Vec2d> square = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(10, 0),
+            new Vec2d(10, 10),
+            new Vec2d(0, 10));
         PatternSpace space = new PatternSpace(
             "seed",
             new Vec2d(5, 5),
-            new PolygonRegionUtils.RectBounds(0, 10, 0, 10));
+            PolygonRegionUtils.computeBounds(square),
+            square,
+            List.of());
         int edge = ProceduralPatternMaterialResolver.resolveMaterialIndex(
             config, 0.5, 5, space.regionCentroid(), "seed", space);
         int center = ProceduralPatternMaterialResolver.resolveMaterialIndex(
             config, 5, 5, space.regionCentroid(), "seed", space);
         assertNotEquals(edge, center);
+    }
+
+    @Test
+    void frameFollowsTriangleBoundaryNotBoundingBox() {
+        ProceduralPatternConfig config = new ProceduralPatternConfig();
+        config.setType(ProceduralPatternConfig.PatternType.FRAME);
+        config.setMaterials(List.of("edge", "inner"));
+        config.setTileSize(1.0);
+
+        List<Vec2d> triangle = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(10, 0),
+            new Vec2d(5, 5));
+        PatternSpace space = new PatternSpace(
+            "seed",
+            new Vec2d(5, 1.5),
+            PolygonRegionUtils.computeBounds(triangle),
+            triangle,
+            List.of());
+
+        int nearSlope = ProceduralPatternMaterialResolver.resolveMaterialIndex(
+            config, 9.0, 1.0, space.regionCentroid(), "seed", space);
+        assertEquals(0, nearSlope);
+    }
+
+    @Test
+    void frameTreatsHoleBoundaryAsEdge() {
+        ProceduralPatternConfig config = new ProceduralPatternConfig();
+        config.setType(ProceduralPatternConfig.PatternType.FRAME);
+        config.setMaterials(List.of("edge", "inner"));
+        config.setTileSize(1.0);
+
+        List<Vec2d> outer = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(10, 0),
+            new Vec2d(10, 10),
+            new Vec2d(0, 10));
+        List<Vec2d> hole = List.of(
+            new Vec2d(4, 4),
+            new Vec2d(6, 4),
+            new Vec2d(6, 6),
+            new Vec2d(4, 6));
+        PatternSpace space = new PatternSpace(
+            "seed",
+            new Vec2d(5, 5),
+            PolygonRegionUtils.computeBounds(outer, List.of(hole)),
+            outer,
+            List.of(hole));
+
+        int nearHole = ProceduralPatternMaterialResolver.resolveMaterialIndex(
+            config, 3.5, 5.0, space.regionCentroid(), "seed", space);
+        assertEquals(0, nearHole);
     }
 
     @Test
