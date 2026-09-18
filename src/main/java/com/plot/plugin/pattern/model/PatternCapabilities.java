@@ -23,6 +23,13 @@ public record PatternCapabilities(
             case HEXAGONAL -> new PatternCapabilities(true, true, true, true, false, false);
             case DIAMOND -> new PatternCapabilities(true, true, true, true, false, false);
             case HERRINGBONE -> new PatternCapabilities(true, true, true, true, false, false);
+            case RUNNING_BOND -> new PatternCapabilities(true, true, true, true, false, false);
+            case CROSSHATCH -> new PatternCapabilities(true, true, true, false, false, false);
+            case SCATTER -> new PatternCapabilities(true, false, true, false, false, false);
+            case RADIAL -> new PatternCapabilities(true, false, true, false, true, false);
+            case WINDMILL -> new PatternCapabilities(true, false, true, false, true, false);
+            case FRAME -> new PatternCapabilities(true, false, true, false, false, false);
+            case FISH_SCALE -> new PatternCapabilities(true, true, true, true, false, false);
         };
     }
 }

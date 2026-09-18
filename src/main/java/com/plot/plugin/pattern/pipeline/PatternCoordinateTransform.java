@@ -34,7 +34,11 @@ public final class PatternCoordinateTransform {
     public static boolean skipsRotation(ProceduralPatternConfig.PatternType type) {
         return type == ProceduralPatternConfig.PatternType.STRIPES
             || type == ProceduralPatternConfig.PatternType.CONCENTRIC_RINGS
-            || type == ProceduralPatternConfig.PatternType.MOSAIC;
+            || type == ProceduralPatternConfig.PatternType.MOSAIC
+            || type == ProceduralPatternConfig.PatternType.SCATTER
+            || type == ProceduralPatternConfig.PatternType.RADIAL
+            || type == ProceduralPatternConfig.PatternType.FRAME
+            || type == ProceduralPatternConfig.PatternType.WINDMILL;
     }
 
     public static double effectiveTileSize(ProceduralPatternConfig config) {
@@ -44,7 +48,7 @@ public final class PatternCoordinateTransform {
         double tileSize = Math.max(1e-6, config.getTileSize());
         double density = Math.max(0.1, config.getDensity());
         return switch (config.getType()) {
-            case HEXAGONAL, HERRINGBONE, DIAMOND -> tileSize / density;
+            case HEXAGONAL, HERRINGBONE, DIAMOND, RUNNING_BOND, FISH_SCALE -> tileSize / density;
             default -> tileSize;
         };
     }

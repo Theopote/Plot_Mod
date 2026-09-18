@@ -35,7 +35,8 @@ public final class ProceduralPatternMaterialResolver implements PatternMaterialR
             sample.x(),
             sample.z(),
             space.regionCentroid(),
-            space.seedKey());
+            space.seedKey(),
+            space);
         return materials.get(Math.min(index, materials.size() - 1));
     }
 
@@ -45,6 +46,16 @@ public final class ProceduralPatternMaterialResolver implements PatternMaterialR
             double patternZ,
             Vec2d regionCentroid,
             String seedKey) {
+        return resolveMaterialIndex(config, patternX, patternZ, regionCentroid, seedKey, null);
+    }
+
+    public static int resolveMaterialIndex(
+            ProceduralPatternConfig config,
+            double patternX,
+            double patternZ,
+            Vec2d regionCentroid,
+            String seedKey,
+            PatternSpace space) {
         if (config == null) {
             return 0;
         }
@@ -54,7 +65,11 @@ public final class ProceduralPatternMaterialResolver implements PatternMaterialR
         }
         return switch (config.getType()) {
             case CONCENTRIC_RINGS -> resolveConcentricRings(config, patternX, patternZ, regionCentroid, materials);
-            case CHECKERBOARD, STRIPES, MOSAIC, HEXAGONAL, DIAMOND, HERRINGBONE -> {
+            case RADIAL -> AdvancedPatternGeometry.radial(config, patternX, patternZ, regionCentroid, materials);
+            case FRAME -> AdvancedPatternGeometry.frame(config, patternX, patternZ, space, materials);
+            case SCATTER -> AdvancedPatternGeometry.scatter(config, patternX, patternZ, materials, seedKey);
+            case WINDMILL -> AdvancedPatternGeometry.windmill(config, patternX, patternZ, regionCentroid, materials);
+            case CHECKERBOARD, STRIPES, MOSAIC, HEXAGONAL, DIAMOND, HERRINGBONE, RUNNING_BOND, CROSSHATCH, FISH_SCALE -> {
                 PatternCoordinateTransform.Point point =
                     PatternCoordinateTransform.transform(config, patternX, patternZ);
                 yield switch (config.getType()) {
@@ -64,6 +79,9 @@ public final class ProceduralPatternMaterialResolver implements PatternMaterialR
                     case HEXAGONAL -> resolveHexagonal(config, point.x(), point.z(), materials);
                     case DIAMOND -> resolveDiamond(config, point.x(), point.z(), materials);
                     case HERRINGBONE -> resolveHerringbone(config, point.x(), point.z(), materials);
+                    case RUNNING_BOND -> AdvancedPatternGeometry.runningBond(config, point.x(), point.z(), materials);
+                    case CROSSHATCH -> AdvancedPatternGeometry.crosshatch(config, point.x(), point.z(), materials);
+                    case FISH_SCALE -> AdvancedPatternGeometry.fishScale(config, point.x(), point.z(), materials);
                     default -> 0;
                 };
             }

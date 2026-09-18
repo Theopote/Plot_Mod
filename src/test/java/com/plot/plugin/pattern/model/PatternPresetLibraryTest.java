@@ -26,7 +26,7 @@ class PatternPresetLibraryTest {
     @Test
     void alwaysProvidesBuiltInPresets() {
         PatternPresetLibrary library = new PatternPresetLibrary(tempDir);
-        assertEquals(9, library.getBuiltInPresets().size());
+        assertEquals(17, library.getBuiltInPresets().size());
         assertTrue(library.getBuiltInPresets().stream()
             .allMatch(PatternPreset::isBuiltIn));
         assertNotNull(library.getPreset("builtin:checkerboard_classic"));
@@ -39,12 +39,12 @@ class PatternPresetLibraryTest {
         library.addPreset(user);
 
         assertEquals(1, library.getUserPresets().size());
-        assertEquals(9, library.getBuiltInPresets().size());
+        assertEquals(17, library.getBuiltInPresets().size());
 
         PatternPresetLibrary reloaded = new PatternPresetLibrary(tempDir);
         assertEquals(1, reloaded.getUserPresets().size());
         assertEquals("My preset", reloaded.getUserPresets().getFirst().getName());
-        assertEquals(9, reloaded.getBuiltInPresets().size());
+        assertEquals(17, reloaded.getBuiltInPresets().size());
     }
 
     @Test
@@ -75,7 +75,7 @@ class PatternPresetLibraryTest {
         PatternPresetLibrary library = new PatternPresetLibrary(tempDir);
         assertEquals(1, library.getUserPresets().size());
         assertEquals("Legacy", library.getUserPresets().getFirst().getName());
-        assertEquals(9, library.getBuiltInPresets().size());
+        assertEquals(17, library.getBuiltInPresets().size());
         assertTrue(Files.exists(tempDir.resolve("presets/user_presets.json")));
     }
 

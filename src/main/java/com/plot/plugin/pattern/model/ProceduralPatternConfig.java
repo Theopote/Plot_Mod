@@ -25,7 +25,14 @@ public class ProceduralPatternConfig {
         MOSAIC,
         HEXAGONAL,
         DIAMOND,
-        HERRINGBONE
+        HERRINGBONE,
+        RUNNING_BOND,
+        CROSSHATCH,
+        SCATTER,
+        RADIAL,
+        WINDMILL,
+        FRAME,
+        FISH_SCALE
     }
 
     private PatternType type = PatternType.CHECKERBOARD;
