@@ -123,6 +123,7 @@ public class PatternProject {
         Vec2dData offset;
         double density;
         double mosaicPrimaryRatio;
+        int radialSectorCount;
     }
 
     static class BorderData {
@@ -211,6 +212,7 @@ public class PatternProject {
                 patternData.offset = new Vec2dData(offset);
                 patternData.density = procedural.getDensity();
                 patternData.mosaicPrimaryRatio = procedural.getMosaicPrimaryRatio();
+                patternData.radialSectorCount = procedural.getRadialSectorCount();
                 footprintData.pattern = patternData;
 
                 PatternBorderConfig border = footprint.getBorderConfig();
@@ -295,6 +297,15 @@ public class PatternProject {
                         pattern.setDensity(footprintData.pattern.density);
                     }
                     pattern.setMosaicPrimaryRatio(footprintData.pattern.mosaicPrimaryRatio);
+                    if (pattern.getType() == ProceduralPatternConfig.PatternType.RADIAL) {
+                        if (footprintData.pattern.radialSectorCount > 0) {
+                            pattern.setRadialSectorCount(footprintData.pattern.radialSectorCount);
+                        } else {
+                            pattern.setRadialSectorCount(
+                                ProceduralPatternConfig.radialSectorCountFromLegacyTileSize(
+                                    footprintData.pattern.tileSize));
+                        }
+                    }
                     footprint.setPattern(pattern);
                 }
 

@@ -9,27 +9,46 @@ public record PatternCapabilities(
         boolean offset,
         boolean density,
         boolean centerOverride,
-        boolean mosaicRatio) {
+        boolean mosaicRatio,
+        boolean radialSectorCount) {
 
     public static PatternCapabilities forType(ProceduralPatternConfig.PatternType type) {
         if (type == null) {
             type = ProceduralPatternConfig.PatternType.CHECKERBOARD;
         }
         return switch (type) {
-            case CHECKERBOARD -> new PatternCapabilities(true, true, true, false, false, false);
-            case STRIPES -> new PatternCapabilities(true, true, true, false, false, false);
-            case CONCENTRIC_RINGS -> new PatternCapabilities(true, false, true, false, true, false);
-            case MOSAIC -> new PatternCapabilities(true, false, true, false, false, true);
-            case HEXAGONAL -> new PatternCapabilities(true, true, true, true, false, false);
-            case DIAMOND -> new PatternCapabilities(true, true, true, true, false, false);
-            case HERRINGBONE -> new PatternCapabilities(true, true, true, true, false, false);
-            case RUNNING_BOND -> new PatternCapabilities(true, true, true, true, false, false);
-            case CROSSHATCH -> new PatternCapabilities(true, true, true, false, false, false);
-            case SCATTER -> new PatternCapabilities(true, false, true, false, false, false);
-            case RADIAL -> new PatternCapabilities(true, false, true, false, true, false);
-            case WINDMILL -> new PatternCapabilities(true, false, true, false, true, false);
-            case FRAME -> new PatternCapabilities(true, false, true, false, false, false);
-            case FISH_SCALE -> new PatternCapabilities(true, true, true, true, false, false);
+            case CHECKERBOARD -> caps(true, true, true, false, false, false, false);
+            case STRIPES -> caps(true, true, true, false, false, false, false);
+            case CONCENTRIC_RINGS -> caps(true, false, true, false, true, false, false);
+            case MOSAIC -> caps(true, false, true, false, false, true, false);
+            case HEXAGONAL -> caps(true, true, true, true, false, false, false);
+            case DIAMOND -> caps(true, true, true, true, false, false, false);
+            case HERRINGBONE -> caps(true, true, true, true, false, false, false);
+            case RUNNING_BOND -> caps(true, true, true, true, false, false, false);
+            case CROSSHATCH -> caps(true, true, true, false, false, false, false);
+            case SCATTER -> caps(true, false, true, false, false, false, false);
+            case RADIAL -> caps(false, false, true, false, true, false, true);
+            case WINDMILL -> caps(true, false, true, false, true, false, false);
+            case FRAME -> caps(true, false, true, false, false, false, false);
+            case FISH_SCALE -> caps(true, true, true, true, false, false, false);
         };
+    }
+
+    private static PatternCapabilities caps(
+            boolean tileSize,
+            boolean rotation,
+            boolean offset,
+            boolean density,
+            boolean centerOverride,
+            boolean mosaicRatio,
+            boolean radialSectorCount) {
+        return new PatternCapabilities(
+            tileSize,
+            rotation,
+            offset,
+            density,
+            centerOverride,
+            mosaicRatio,
+            radialSectorCount);
     }
 }

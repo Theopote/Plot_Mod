@@ -141,7 +141,7 @@ public final class BuiltInPatternPresets {
                 "plugin.pattern.preset.builtin.radial_slate.description",
                 config -> {
                     config.setType(ProceduralPatternConfig.PatternType.RADIAL);
-                    config.setTileSize(1.2);
+                    config.setRadialSectorCount(12);
                     config.setMaterials(List.of(
                         "minecraft:deepslate",
                         "minecraft:polished_deepslate",

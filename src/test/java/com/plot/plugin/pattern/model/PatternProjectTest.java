@@ -50,6 +50,42 @@ class PatternProjectTest {
     }
 
     @Test
+    void jsonRoundTripPreservesRadialSectorCount() {
+        PatternProject project = new PatternProject();
+        PatternFootprint footprint = new PatternFootprint(List.of(
+            new Vec2d(0, 0),
+            new Vec2d(10, 0),
+            new Vec2d(10, 10),
+            new Vec2d(0, 10)));
+        ProceduralPatternConfig pattern = new ProceduralPatternConfig();
+        pattern.setType(ProceduralPatternConfig.PatternType.RADIAL);
+        pattern.setRadialSectorCount(8);
+        footprint.setPattern(pattern);
+        project.addFootprint(footprint);
+
+        PatternProject restored = PatternProject.fromJson(project.toJson());
+        assertEquals(8, restored.getFootprint(footprint.getId()).getPattern().getRadialSectorCount());
+    }
+
+    @Test
+    void legacyRadialTileSizeMigratesToSectorCount() {
+        String json = """
+            {
+              "footprints": [{
+                "id": "fp-radial",
+                "outerPoints": [{"x":0,"y":0},{"x":10,"y":0},{"x":10,"y":10},{"x":0,"y":10}],
+                "pattern": {"type":"RADIAL","materials":["a","b"],"tileSize":2.0}
+              }]
+            }
+            """;
+
+        PatternProject restored = PatternProject.fromJson(json);
+        assertEquals(
+            12,
+            restored.getFootprint("fp-radial").getPattern().getRadialSectorCount());
+    }
+
+    @Test
     void jsonRoundTripPreservesOffsetDensityAndBorder() {
         PatternProject project = new PatternProject();
         PatternFootprint footprint = new PatternFootprint(List.of(

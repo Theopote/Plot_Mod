@@ -24,5 +24,8 @@ public final class PatternConfigSanitizer {
         if (!capabilities.mosaicRatio()) {
             pattern.setMosaicPrimaryRatio(0.7);
         }
+        if (!capabilities.radialSectorCount()) {
+            pattern.setRadialSectorCount(ProceduralPatternConfig.DEFAULT_RADIAL_SECTOR_COUNT);
+        }
     }
 }

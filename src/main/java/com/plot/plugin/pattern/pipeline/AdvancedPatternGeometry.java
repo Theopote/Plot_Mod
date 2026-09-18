@@ -84,7 +84,7 @@ final class AdvancedPatternGeometry {
         if (angle < 0) {
             angle += Math.PI * 2.0;
         }
-        double sectorDegrees = Math.max(10.0, config.getTileSize() * 15.0);
+        double sectorDegrees = config.radialSectorAngleDegrees();
         int sector = PatternGridMath.floorDiv(Math.toDegrees(angle), sectorDegrees);
         return PatternGridMath.positiveMod(sector, materials.size());
     }
@@ -95,6 +95,7 @@ final class AdvancedPatternGeometry {
             double z,
             Vec2d regionCentroid,
             List<String> materials) {
+        // 四象限十字条纹：非传统 pinwheel 砖组模块。
         Vec2d center = resolveCenter(config, regionCentroid);
         double lx = x - center.x;
         double lz = z - center.y;

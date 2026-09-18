@@ -97,12 +97,29 @@ class AdvancedPatternGeometryTest {
         ProceduralPatternConfig config = new ProceduralPatternConfig();
         config.setType(ProceduralPatternConfig.PatternType.RADIAL);
         config.setMaterials(List.of("a", "b", "c", "d"));
-        config.setTileSize(1.0);
+        config.setRadialSectorCount(12);
 
         Vec2d centroid = new Vec2d(0, 0);
         int east = ProceduralPatternMaterialResolver.resolveMaterialIndex(config, 5, 0, centroid, "seed");
         int north = ProceduralPatternMaterialResolver.resolveMaterialIndex(config, 0, 5, centroid, "seed");
         assertNotEquals(east, north);
+    }
+
+    @Test
+    void radialSectorCountControlsAngularWidth() {
+        ProceduralPatternConfig config = new ProceduralPatternConfig();
+        config.setType(ProceduralPatternConfig.PatternType.RADIAL);
+        config.setMaterials(List.of("a", "b"));
+        config.setRadialSectorCount(4);
+
+        Vec2d centroid = new Vec2d(0, 0);
+        int east = ProceduralPatternMaterialResolver.resolveMaterialIndex(config, 5, 0, centroid, "seed");
+        int north = ProceduralPatternMaterialResolver.resolveMaterialIndex(config, 0, 5, centroid, "seed");
+        int northeast = ProceduralPatternMaterialResolver.resolveMaterialIndex(config, 5, 5, centroid, "seed");
+
+        assertEquals(east, northeast);
+        assertNotEquals(east, north);
+        assertEquals(90.0, config.radialSectorAngleDegrees(), 1e-6);
     }
 
     @Test

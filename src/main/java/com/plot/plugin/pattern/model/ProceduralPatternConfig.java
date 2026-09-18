@@ -17,6 +17,9 @@ public class ProceduralPatternConfig {
     public static final double MAX_TILE_SIZE = 32.0;
     private static final double MIN_MOSAIC_PRIMARY_RATIO = 0.2;
     private static final double MAX_MOSAIC_PRIMARY_RATIO = 0.9;
+    public static final int MIN_RADIAL_SECTOR_COUNT = 3;
+    public static final int MAX_RADIAL_SECTOR_COUNT = 72;
+    public static final int DEFAULT_RADIAL_SECTOR_COUNT = 12;
 
     public enum PatternType {
         CHECKERBOARD,
@@ -43,6 +46,7 @@ public class ProceduralPatternConfig {
     private double mosaicPrimaryRatio = 0.7;
     private Vec2d offset = new Vec2d(0, 0);
     private double density = 1.0;
+    private int radialSectorCount = DEFAULT_RADIAL_SECTOR_COUNT;
 
     public PatternType getType() {
         return type;
@@ -110,6 +114,26 @@ public class ProceduralPatternConfig {
         this.density = Math.max(0.1, Math.min(3.0, density));
     }
 
+    public int getRadialSectorCount() {
+        return radialSectorCount;
+    }
+
+    public void setRadialSectorCount(int radialSectorCount) {
+        this.radialSectorCount = Math.max(
+            MIN_RADIAL_SECTOR_COUNT,
+            Math.min(MAX_RADIAL_SECTOR_COUNT, radialSectorCount));
+    }
+
+    public double radialSectorAngleDegrees() {
+        return 360.0 / getRadialSectorCount();
+    }
+
+    /** 旧版 RADIAL 用 tileSize×15 表示扇区角度，加载时迁移为扇区数量。 */
+    public static int radialSectorCountFromLegacyTileSize(double tileSize) {
+        double sectorDegrees = Math.max(10.0, tileSize * 15.0);
+        return (int) Math.round(360.0 / sectorDegrees);
+    }
+
     public ProceduralPatternConfig copy() {
         ProceduralPatternConfig copy = new ProceduralPatternConfig();
         copy.type = type;
@@ -120,6 +144,7 @@ public class ProceduralPatternConfig {
         copy.mosaicPrimaryRatio = mosaicPrimaryRatio;
         copy.offset = offset != null ? offset.copy() : new Vec2d(0, 0);
         copy.density = density;
+        copy.radialSectorCount = radialSectorCount;
         return copy;
     }
 

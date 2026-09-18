@@ -117,6 +117,14 @@ public final class PatternDesignPanel {
             ImGui.textColored(PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.pattern.ring_offset_hint"));
         }
+        if (pattern.getType() == ProceduralPatternConfig.PatternType.RADIAL) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.pattern.radial_geometry_hint"));
+        }
+        if (pattern.getType() == ProceduralPatternConfig.PatternType.WINDMILL) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.pattern.windmill_geometry_hint"));
+        }
         PatternUiWidgets.renderMaterialList(ctx, pattern, beforeEdit, commitPattern);
 
         if (capabilities.tileSize()) {
@@ -178,9 +186,35 @@ public final class PatternDesignPanel {
             }
         }
 
+        if (capabilities.radialSectorCount()) {
+            renderRadialSectorCountControl(pattern, beforeEdit, commitPattern);
+        }
+
         if (capabilities.centerOverride()) {
             renderConcentricRingCenter(footprint, pattern, beforeEdit, commitPattern);
         }
+    }
+
+    private void renderRadialSectorCountControl(
+            ProceduralPatternConfig pattern,
+            Runnable beforeEdit,
+            Runnable commitPattern) {
+        ImInt sectorCount = new ImInt(pattern.getRadialSectorCount());
+        boolean changed = ImGui.sliderInt(
+            PlotI18n.tr("plugin.pattern.radial_sector_count"),
+            sectorCount.getData(),
+            ProceduralPatternConfig.MIN_RADIAL_SECTOR_COUNT,
+            ProceduralPatternConfig.MAX_RADIAL_SECTOR_COUNT);
+        if (ImGui.isItemActivated()) {
+            beforeEdit.run();
+        }
+        if (changed) {
+            pattern.setRadialSectorCount(sectorCount.get());
+            commitPattern.run();
+        }
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.pattern.radial_sector_angle_hint", pattern.radialSectorAngleDegrees()));
     }
 
     private void renderConcentricRingCenter(
