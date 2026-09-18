@@ -9,7 +9,8 @@ import imgui.ImVec2;
 
 /** 图案预设卡片：缩略图 + 标签 + 选中高亮。 */
 final class PatternPresetCardRenderer {
-    static final float CARD_WIDTH = 96f;
+    /** 略宽以容纳中文预设名，列数仍由 {@link PatternPresetPanel} 自适应。 */
+    static final float CARD_WIDTH = 112f;
     static final float CARD_HEIGHT = 118f;
     private static final float PREVIEW_HEIGHT = 80f;
     private static final float LABEL_PADDING = 4f;
