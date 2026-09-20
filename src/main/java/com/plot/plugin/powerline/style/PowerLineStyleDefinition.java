@@ -186,7 +186,7 @@ public final class PowerLineStyleDefinition {
         }
         line.setStylePresetId(presetId);
         line.styleState().setAppliedDefinition(this);
-        line.styleState().clearMaterialAndTowerOverrides();
+        line.styleState().clearPresetStyleOverrides();
         if (towerFamilyId != null) {
             line.setTowerFamilyId(towerFamilyId);
             line.setPoleDesignId(null);

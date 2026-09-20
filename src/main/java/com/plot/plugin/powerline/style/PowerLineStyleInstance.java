@@ -6,7 +6,7 @@ import com.plot.plugin.powerline.model.PowerLineStyleState;
 /**
  * 线路上的风格实例：Base Preset + User Overrides。
  * <p>
- * 材质/塔型生效值由 {@link PowerLineStyleState} resolve 层解析；
+ * 材质/塔型/垂度生效值由 {@link PowerLineStyleState} resolve 层解析；
  * {@link StyleOverrides} 记录相对 base {@link PowerLineStyleDefinition} 的偏离项
  * （{@code null} 字段 = 沿用预设默认）。
  */

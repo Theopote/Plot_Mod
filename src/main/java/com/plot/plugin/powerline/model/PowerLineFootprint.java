@@ -2,7 +2,6 @@ package com.plot.plugin.powerline.model;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
-import com.plot.plugin.powerline.PowerLineSagUtils;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.path.PowerLineSourceDescriptor;
 import com.plot.plugin.powerline.path.PowerLineSourcePath;
@@ -23,6 +22,7 @@ import java.util.UUID;
 public class PowerLineFootprint {
     public static final String DEFAULT_POLE_MATERIAL = "minecraft:oak_fence";
     public static final String DEFAULT_WIRE_MATERIAL = "minecraft:iron_bars";
+    public static final double DEFAULT_SAG_RATIO = 0.15;
     /** 过近警告阈值与最大档距滑块的下限（格）。 */
     public static final double MIN_CONFIGURABLE_SPACING = 5.0;
     /** 高级滑块绝对上限（格）。 */
@@ -41,9 +41,6 @@ public class PowerLineFootprint {
     private double maxPoleSpacing = 30.0;
     private double cornerAngleThreshold = 5.0;
     private double poleHeight = 10.0;
-    private double sagRatio = 0.15;
-    /** 单跨最大下垂深度（格），{@code <= 0} 表示不限制。 */
-    private double maxSagDepth = PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH;
     private final List<PoleOverride> poleOverrides = new ArrayList<>();
     private final List<PoleLayoutConstraint> layoutConstraints = new ArrayList<>();
     /** 杆塔布置模式；默认按固定档距自动插杆。 */
@@ -223,26 +220,26 @@ public class PowerLineFootprint {
     }
 
     public double getSagRatio() {
-        return sagRatio;
+        return styleState.resolveSagRatio(styleDefinition());
     }
 
     public void setSagRatio(double sagRatio) {
-        this.sagRatio = Math.max(0.0, Math.min(1.0, sagRatio));
+        styleState.setSagRatio(sagRatio, styleDefinition());
     }
 
     public double getMaxSagDepth() {
-        return maxSagDepth;
+        return styleState.resolveMaxSagDepth(styleDefinition());
     }
 
     /**
      * @param maxSagDepth 单跨最大下垂深度（格），{@code <= 0} 表示不单独限制（沿用工程 profile）
      */
     public void setMaxSagDepth(double maxSagDepth) {
-        this.maxSagDepth = maxSagDepth <= 0.0 ? 0.0 : Math.max(1.0, Math.min(64.0, maxSagDepth));
+        styleState.setMaxSagDepth(maxSagDepth, styleDefinition());
     }
 
     public boolean isMaxSagDepthUnlimited() {
-        return maxSagDepth <= 0.0;
+        return styleState.isMaxSagDepthUnlimited(styleDefinition());
     }
 
     public MaterialMix getWireMaterial() {
@@ -454,8 +451,8 @@ public class PowerLineFootprint {
         if (!hasPoleDesign()) {
             hash = 31 * hash + Double.hashCode(poleHeight);
         }
-        hash = 31 * hash + Double.hashCode(sagRatio);
-        hash = 31 * hash + Double.hashCode(maxSagDepth);
+        hash = 31 * hash + Double.hashCode(getSagRatio());
+        hash = 31 * hash + Double.hashCode(getMaxSagDepth());
         hash = 31 * hash + materialFingerprint(getWireMaterial());
         hash = 31 * hash + materialFingerprint(getPoleMaterial());
         hash = 31 * hash + Objects.hashCode(getPoleDesignId());

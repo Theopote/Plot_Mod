@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -91,10 +92,10 @@ class SteelPoleGroupPreviewTest {
     @Test
     void taperedPresetUsesTallerWaistedDefaults() {
         PowerLineStylePreset tapered = PowerLineStylePresetCatalog.taperedTower();
-        TowerParameterSet parameters = tapered.getDefinition().getParametricConfig().parameters();
-        TowerParameterSet compact = PowerLineStylePresetCatalog.compactLattice()
-            .getDefinition()
-            .getParametricConfig()
+        TowerParameterSet parameters = Objects.requireNonNull(tapered.getDefinition().getParametricConfig()).parameters();
+        TowerParameterSet compact = Objects.requireNonNull(PowerLineStylePresetCatalog.compactLattice()
+                        .getDefinition()
+                        .getParametricConfig())
             .parameters();
         assertTrue(parameters.height() > compact.height());
         assertTrue(parameters.waistRatio() < compact.waistRatio());

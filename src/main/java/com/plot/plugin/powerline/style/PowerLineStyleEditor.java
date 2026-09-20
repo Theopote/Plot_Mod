@@ -7,14 +7,12 @@ import com.plot.plugin.powerline.model.PowerLineFootprint;
 
 
 /**
- * Base Preset + Overrides 状态机（footprint 存生效值，overrides 记录偏离项）。
+ * Base Preset + Overrides 状态机（偏离项存 StyleState，生效值经 resolve 层解析）。
  * <p>
  * 概念模型见 {@link PowerLineStyleDefinition}（定义）与 {@link PowerLineStyleInstance}（实例）。
  */
 public final class PowerLineStyleEditor {
-    private static final double SAG_TOLERANCE = 0.01;
     private static final double SPACING_TOLERANCE = 4.0;
-    private static final double MAX_SAG_TOLERANCE = 0.5;
 
     private PowerLineStyleEditor() {
     }
@@ -140,8 +138,6 @@ public final class PowerLineStyleEditor {
             return;
         }
         PowerLineStyleDefinition definition = preset.getDefinition();
-        overrides.setSagRatio(overrideSag(line.getSagRatio(), definition));
-        overrides.setMaxSagDepth(overrideMaxSagDepth(line, definition));
         overrides.setParametricTowerConfig(overrideParametric(
             line.getParametricTowerConfig(),
             definition.getParametricConfig()));
@@ -165,19 +161,6 @@ public final class PowerLineStyleEditor {
         if (Math.abs(line.getMaxPoleSpacing() - preferred) > SPACING_TOLERANCE) {
             overrides.setPreferredSpacing(line.getMaxPoleSpacing());
         }
-    }
-
-    private static Double overrideSag(double actual, PowerLineStyleDefinition definition) {
-        double expected = definition.getSagPreset().ratio();
-        return Math.abs(actual - expected) <= SAG_TOLERANCE ? null : actual;
-    }
-
-    private static Double overrideMaxSagDepth(PowerLineFootprint line, PowerLineStyleDefinition definition) {
-        if (line.isMaxSagDepthUnlimited()) {
-            return -1.0;
-        }
-        double expected = definition.getMaxSagDepth();
-        return Math.abs(line.getMaxSagDepth() - expected) <= MAX_SAG_TOLERANCE ? null : line.getMaxSagDepth();
     }
 
     private static TowerGeneratorConfig overrideParametric(

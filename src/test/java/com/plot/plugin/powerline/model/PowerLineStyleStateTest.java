@@ -73,6 +73,49 @@ class PowerLineStyleStateTest {
         assertTrue(line.styleInstance().matchesBaseDefinition());
     }
 
+    @Test
+    void resolveSagFromPresetDefinitionWhenUnmodified() {
+        PowerLineFootprint line = line();
+        PowerLineStyleEditor.selectPreset(line, PowerLineStylePresetCatalog.classicWood());
+        PowerLineStyleDefinition definition = line.styleInstance().definition();
+
+        assertEquals(definition.getSagPreset().ratio(), line.getSagRatio(), 1e-6);
+        assertNull(line.getStyleOverrides().getSagRatio());
+    }
+
+    @Test
+    void sagEditStoresOverrideAndResolvesEffectiveValue() {
+        PowerLineFootprint line = line();
+        PowerLineStyleEditor.selectPreset(line, PowerLineStylePresetCatalog.classicWood());
+        line.setSagRatio(0.35);
+        PowerLineStyleEditor.afterStyleEdit(line);
+
+        assertEquals(0.35, line.getSagRatio(), 1e-6);
+        assertEquals(0.35, line.getStyleOverrides().getSagRatio(), 1e-6);
+    }
+
+    @Test
+    void unlimitedMaxSagDepthStoresSentinelOverride() {
+        PowerLineFootprint line = line();
+        PowerLineStyleEditor.selectPreset(line, PowerLineStylePresetCatalog.classicWood());
+        line.setMaxSagDepth(0.0);
+
+        assertTrue(line.isMaxSagDepthUnlimited());
+        assertEquals(-1.0, line.getStyleOverrides().getMaxSagDepth(), 1e-6);
+    }
+
+    @Test
+    void defaultSagAndMaxSagResolveWithoutOverrides() {
+        PowerLineFootprint line = line();
+
+        assertEquals(PowerLineFootprint.DEFAULT_SAG_RATIO, line.getSagRatio(), 1e-6);
+        assertEquals(
+            com.plot.plugin.powerline.PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH,
+            line.getMaxSagDepth(),
+            1e-6);
+        assertTrue(line.getStyleOverrides().isEmpty());
+    }
+
     private static PowerLineFootprint line() {
         return new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
     }

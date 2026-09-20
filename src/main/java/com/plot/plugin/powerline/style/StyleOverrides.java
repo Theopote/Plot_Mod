@@ -137,6 +137,13 @@ public class StyleOverrides {
         return hash;
     }
 
+    public int styleValueFingerprint() {
+        int hash = materialAndTowerFingerprint();
+        hash = 31 * hash + Objects.hashCode(sagRatio);
+        hash = 31 * hash + Objects.hashCode(maxSagDepth);
+        return hash;
+    }
+
     public void clear() {
         sagRatio = null;
         maxSagDepth = null;

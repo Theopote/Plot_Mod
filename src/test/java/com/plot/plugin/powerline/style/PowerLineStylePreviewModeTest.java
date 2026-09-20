@@ -13,9 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Comparator;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Preview v3 混合预览：模式路由、结构比例、叠加层与可区分性。 */
 class PowerLineStylePreviewModeTest {
@@ -73,7 +71,7 @@ class PowerLineStylePreviewModeTest {
         PoleDesign design = PowerLineStylePreviewBinding.previewDesign(PowerLineStylePresetCatalog.cupTower());
         List<TowerArm> arms = design.getTowerStructure().getArms();
         assertEquals(1, arms.size());
-        TowerArm arm = arms.get(0);
+        TowerArm arm = arms.getFirst();
         assertEquals(TowerArmShape.UPSWEEP, arm.getShape());
         assertTrue(arm.getLateralReach() >= 15.0, "cup arm should be visually wide");
     }
@@ -175,7 +173,7 @@ class PowerLineStylePreviewModeTest {
         float cardH = 92f;
         TowerStructuralElevationRenderer.StructuralLayout layout =
             TowerStructuralElevationRenderer.computeLayout(structure, 0, 0, cardW, cardH);
-        assertTrue(layout != null);
+        assertNotNull(layout);
         double modelAspect = maxModelHalfWidth(structure) * 2.0 / structure.maxHeight();
         double screenAspect = cardW / cardH;
         double fittedAspect = modelAspect <= screenAspect

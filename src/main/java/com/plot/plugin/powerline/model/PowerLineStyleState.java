@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.model;
 
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.PowerLineSagUtils;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 import com.plot.plugin.powerline.style.PowerLineStyleDefinition;
@@ -9,11 +10,17 @@ import com.plot.plugin.powerline.style.StyleOverrides;
 import java.util.Objects;
 
 /**
- * 线路风格实例状态：base preset、参数化塔配置、材质/塔型偏离项与 resolve 层。
+ * 线路风格实例状态：base preset、参数化塔配置、风格偏离项与 resolve 层。
  * <p>
- * 生效材质与塔型由 {@code preset + overrides → resolve} 得出，不再在 Footprint 上重复存储。
+ * 生效材质、塔型与垂度由 {@code preset + overrides → resolve} 得出，不再在 Footprint 上重复存储。
  */
 public final class PowerLineStyleState {
+    private static final double SAG_TOLERANCE = 0.01;
+    private static final double MAX_SAG_TOLERANCE = 0.5;
+    private static final double DEFAULT_SAG_RATIO = 0.15;
+    /** {@link StyleOverrides#getMaxSagDepth()} 为 {@code -1} 时表示不限制单跨下垂深度。 */
+    private static final double UNLIMITED_MAX_SAG_SENTINEL = -1.0;
+
     private String presetId;
     private TowerGeneratorConfig parametricTowerConfig;
     private PowerLineStyleDefinition appliedDefinition;
@@ -116,6 +123,33 @@ public final class PowerLineStyleState {
         return resolvedDefinition != null ? resolvedDefinition.getPoleDesignId() : null;
     }
 
+    public double resolveSagRatio(PowerLineStyleDefinition definition) {
+        Double override = overrides().getSagRatio();
+        if (override != null) {
+            return override;
+        }
+        return expectedSagRatio(definition != null ? definition : appliedDefinition);
+    }
+
+    public double resolveMaxSagDepth(PowerLineStyleDefinition definition) {
+        Double override = overrides().getMaxSagDepth();
+        if (override != null) {
+            if (override <= UNLIMITED_MAX_SAG_SENTINEL + 0.5) {
+                return 0.0;
+            }
+            return override;
+        }
+        return expectedMaxSagDepth(definition != null ? definition : appliedDefinition);
+    }
+
+    public boolean isMaxSagDepthUnlimited(PowerLineStyleDefinition definition) {
+        Double override = overrides().getMaxSagDepth();
+        if (override != null) {
+            return override <= UNLIMITED_MAX_SAG_SENTINEL + 0.5;
+        }
+        return false;
+    }
+
     public void setWireMaterial(MaterialMix actual, PowerLineStyleDefinition definition) {
         MaterialMix normalized = actual != null
             ? actual.copy()
@@ -162,15 +196,42 @@ public final class PowerLineStyleState {
             resolvedDefinition != null ? resolvedDefinition.getPoleDesignId() : null));
     }
 
+    public void setSagRatio(double actual, PowerLineStyleDefinition definition) {
+        double normalized = Math.max(0.0, Math.min(1.0, actual));
+        overrides().setSagRatio(overrideSag(
+            normalized,
+            definition != null ? definition : appliedDefinition));
+    }
+
+    public void setMaxSagDepth(double actual, PowerLineStyleDefinition definition) {
+        PowerLineStyleDefinition resolvedDefinition = definition != null ? definition : appliedDefinition;
+        if (actual <= 0.0) {
+            overrides().setMaxSagDepth(overrideUnlimitedMaxSagDepth(resolvedDefinition));
+            return;
+        }
+        double normalized = Math.max(1.0, Math.min(64.0, actual));
+        overrides().setMaxSagDepth(overrideMaxSagDepth(normalized, resolvedDefinition));
+    }
+
     public void clearMaterialAndTowerOverrides() {
         overrides().clearMaterialAndTower();
     }
 
-    /** 风格层指纹（preset + 参数化塔 + 材质/塔型偏离）。 */
+    public void clearSagOverrides() {
+        overrides().setSagRatio(null);
+        overrides().setMaxSagDepth(null);
+    }
+
+    public void clearPresetStyleOverrides() {
+        clearMaterialAndTowerOverrides();
+        clearSagOverrides();
+    }
+
+    /** 风格层指纹（preset + 参数化塔 + 风格偏离项）。 */
     public int generationFingerprint() {
         int hash = Objects.hashCode(presetId);
         hash = 31 * hash + parametricConfigFingerprint(parametricTowerConfig);
-        hash = 31 * hash + overrides().materialAndTowerFingerprint();
+        hash = 31 * hash + overrides().styleValueFingerprint();
         return hash;
     }
 
@@ -188,6 +249,34 @@ public final class PowerLineStyleState {
         hash = 31 * hash + Objects.hashCode(parameters.density());
         hash = 31 * hash + Objects.hashCode(parameters.armLevelScales());
         return hash;
+    }
+
+    private static double expectedSagRatio(PowerLineStyleDefinition definition) {
+        if (definition != null) {
+            return definition.getSagPreset().ratio();
+        }
+        return DEFAULT_SAG_RATIO;
+    }
+
+    private static double expectedMaxSagDepth(PowerLineStyleDefinition definition) {
+        if (definition != null) {
+            return definition.getMaxSagDepth();
+        }
+        return PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH;
+    }
+
+    private static Double overrideSag(double actual, PowerLineStyleDefinition definition) {
+        double expected = expectedSagRatio(definition);
+        return Math.abs(actual - expected) <= SAG_TOLERANCE ? null : actual;
+    }
+
+    private static Double overrideMaxSagDepth(double actual, PowerLineStyleDefinition definition) {
+        double expected = expectedMaxSagDepth(definition);
+        return Math.abs(actual - expected) <= MAX_SAG_TOLERANCE ? null : actual;
+    }
+
+    private static Double overrideUnlimitedMaxSagDepth(PowerLineStyleDefinition definition) {
+        return UNLIMITED_MAX_SAG_SENTINEL;
     }
 
     private static MaterialMix overrideMaterial(

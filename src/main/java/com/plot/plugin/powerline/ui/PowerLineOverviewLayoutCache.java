@@ -6,7 +6,6 @@ import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -45,12 +44,7 @@ final class PowerLineOverviewLayoutCache {
             CACHE.clear();
             return;
         }
-        Iterator<Map.Entry<String, Entry>> iterator = CACHE.entrySet().iterator();
-        while (iterator.hasNext()) {
-            if (!lineIds.contains(iterator.next().getKey())) {
-                iterator.remove();
-            }
-        }
+        CACHE.entrySet().removeIf(stringEntryEntry -> !lineIds.contains(stringEntryEntry.getKey()));
     }
 
     static void clear() {
