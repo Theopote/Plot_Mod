@@ -16,8 +16,9 @@ import java.util.Map;
 public final class DirectionalBlockSpecs {
     private static final String LIGHTNING_ROD = "minecraft:lightning_rod";
     private static final String IRON_BARS = "minecraft:iron_bars";
+    /** iron_bars 仅支持水平四向连接；竖向靠连续堆叠表现。 */
     private static final List<String> IRON_BAR_CONNECTION_AXES = List.of(
-        "north", "south", "east", "west", "up", "down");
+        "north", "south", "east", "west");
     private static final String CHAIN = "minecraft:chain";
     private static final String SOUL_LANTERN = "minecraft:soul_lantern";
     private static final String LANTERN = "minecraft:lantern";
@@ -51,9 +52,9 @@ public final class DirectionalBlockSpecs {
         return BlockSpec.with(LIGHTNING_ROD, "facing", deltaZ >= 0.0 ? "south" : "north");
     }
 
-    /** 竖向铁栏杆（塔腿/斜撑默认朝上连接）。 */
+    /** 竖向铁栏杆（无水平连接；竖向本体由方块模型表现）。 */
     public static BlockSpec verticalIronBars() {
-        return BlockSpec.with(IRON_BARS, "up", "true");
+        return BlockSpec.of(IRON_BARS);
     }
 
     /**
@@ -82,13 +83,13 @@ public final class DirectionalBlockSpecs {
         return "true".equalsIgnoreCase(value);
     }
 
-    /** 塔体成员方向：世界坐标 delta → iron_bars 连接轴（仅用于无体素路径时的回退）。 */
+    /** 塔体成员方向：世界坐标 delta → iron_bars 水平连接轴（竖向成员无属性）。 */
     public static BlockSpec ironBarsAlongMember(double deltaX, double deltaY, double deltaZ) {
         double absX = Math.abs(deltaX);
         double absY = Math.abs(deltaY);
         double absZ = Math.abs(deltaZ);
         if (absY >= absX && absY >= absZ) {
-            return BlockSpec.with(IRON_BARS, deltaY >= 0.0 ? "up" : "down", "true");
+            return verticalIronBars();
         }
         if (absX >= absZ) {
             return BlockSpec.with(IRON_BARS, deltaX >= 0.0 ? "east" : "west", "true");
@@ -138,11 +139,6 @@ public final class DirectionalBlockSpecs {
             props.put("east", "true");
         } else if (dx < 0) {
             props.put("west", "true");
-        }
-        if (dy > 0) {
-            props.put("up", "true");
-        } else if (dy < 0) {
-            props.put("down", "true");
         }
         if (dz > 0) {
             props.put("south", "true");

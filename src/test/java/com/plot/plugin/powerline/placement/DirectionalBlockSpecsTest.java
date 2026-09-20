@@ -94,7 +94,7 @@ class DirectionalBlockSpecsTest {
 
     @Test
     void ironBarsAlongVoxelPathConnectsDiagonalNeighbors() {
-        List<BlockPos> path = VoxelLineRasterizer.rasterizeLine3D(0, 0, 0, 2, 2, 0);
+        List<BlockPos> path = VoxelLineRasterizer.rasterizeLine3D(0, 0, 0, 2, 0, 2);
         boolean hasTurn = false;
         for (int i = 1; i < path.size() - 1; i++) {
             BlockSpec spec = DirectionalBlockSpecs.ironBarsAlongVoxelPath(path, i);
@@ -115,14 +115,13 @@ class DirectionalBlockSpecsTest {
     }
 
     @Test
-    void mergeIronBarsPlacementsCombinesConnectionAxes() {
+    void mergeIronBarsPlacementsCombinesHorizontalAxesOnly() {
         String merged = DirectionalBlockSpecs.mergeIronBarsPlacements(
             "minecraft:iron_bars[east=true]",
-            "minecraft:iron_bars[north=true,up=true]");
+            "minecraft:iron_bars[north=true]");
         BlockSpec spec = BlockSpec.parse(merged);
         assertEquals("true", spec.property("east"));
         assertEquals("true", spec.property("north"));
-        assertEquals("true", spec.property("up"));
     }
 
     @Test
@@ -135,9 +134,9 @@ class DirectionalBlockSpecsTest {
     }
 
     @Test
-    void ironBarsAlongMemberUsesConnectionAxis() {
+    void ironBarsAlongMemberUsesHorizontalConnectionAxis() {
         assertEquals(
-            "minecraft:iron_bars[up=true]",
+            "minecraft:iron_bars",
             DirectionalBlockSpecs.ironBarsAlongMember(0.0, 3.0, 0.0).toSetBlockArgument());
         assertEquals(
             "minecraft:iron_bars[east=true]",
@@ -148,9 +147,9 @@ class DirectionalBlockSpecsTest {
     }
 
     @Test
-    void resolveMemberPlacementDefaultsIronBarsToVertical() {
+    void resolveMemberPlacementDefaultsIronBarsToPlainBlock() {
         assertEquals(
-            "minecraft:iron_bars[up=true]",
+            "minecraft:iron_bars",
             DirectionalBlockSpecs.resolveMemberPlacement("minecraft:iron_bars", null, null, null)
                 .toSetBlockArgument());
     }

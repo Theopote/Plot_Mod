@@ -55,7 +55,7 @@ class TowerStructureGeneratorTest {
             }
             BlockSpec spec = record.newBlockSpec();
             int connections = 0;
-            for (String axis : List.of("north", "south", "east", "west", "up", "down")) {
+            for (String axis : List.of("north", "south", "east", "west")) {
                 if ("true".equals(spec.property(axis))) {
                     connections++;
                 }

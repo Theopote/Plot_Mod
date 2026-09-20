@@ -2,6 +2,7 @@ package com.plot.plugin.powerline.placement;
 
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.core.block.BlockSpec;
+import com.plot.core.block.BlockStateSanitizer;
 import com.plot.core.command.BlockRecord;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import net.minecraft.util.math.BlockPos;
@@ -65,7 +66,8 @@ public final class PlacementWriter {
         String previous = existing != null
             ? existing.previousBlockId
             : (projection != null ? projection.getBlockIdAt(pos) : "minecraft:air");
-        String resolvedBlockId = mergeIronBarsIfNeeded(existing, blockId);
+        String resolvedBlockId = BlockStateSanitizer.sanitizeSetBlockArgument(
+            mergeIronBarsIfNeeded(existing, blockId));
         result.placementRecords.put(pos, new BlockRecord(pos, previous, resolvedBlockId));
         result.placementCategories.put(pos, category);
         if (structureScratch != null && category.priority() >= PlacementCategory.STRUCTURE.priority()) {

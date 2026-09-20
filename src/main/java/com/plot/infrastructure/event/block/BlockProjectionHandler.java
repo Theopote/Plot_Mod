@@ -277,7 +277,7 @@ public class BlockProjectionHandler implements IBlockProjectionService {
             if (blockType == Blocks.AIR) {
                 return allowAir ? "minecraft:air" : "minecraft:white_wool";
             }
-            return spec.toSetBlockArgument();
+            return com.plot.core.block.BlockStateSanitizer.sanitizeSetBlockArgument(spec.toSetBlockArgument());
         } catch (Exception e) {
             if (allowAir) {
                 LOGGER.warn("解析方块ID失败: {}，恢复路径回退空气", candidate, e);
