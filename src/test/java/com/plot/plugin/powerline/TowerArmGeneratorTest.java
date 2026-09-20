@@ -13,6 +13,7 @@ import com.plot.plugin.powerline.design.structure.TowerArmSide;
 import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.placement.PlacementCategory;
 import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
@@ -30,9 +31,9 @@ class TowerArmGeneratorTest {
     void bothSideArmIsSymmetric() {
         TowerStructureDesign structure = baseTower();
         structure.addArm(new TowerArm("arm", 10, 4));
-        Set<Integer> xs = armXs(generate(structure, new Vec2d(1, 0)));
-        assertTrue(xs.contains(-4) || xs.stream().anyMatch(x -> x < 0));
-        assertTrue(xs.contains(4) || xs.stream().anyMatch(x -> x > 0));
+        Set<Integer> lateralSpan = armLateralSpan(generate(structure, new Vec2d(1, 0)));
+        assertTrue(lateralSpan.contains(-4) || lateralSpan.stream().anyMatch(z -> z < 0));
+        assertTrue(lateralSpan.contains(4) || lateralSpan.stream().anyMatch(z -> z > 0));
     }
 
     @Test
@@ -41,8 +42,8 @@ class TowerArmGeneratorTest {
         TowerArm arm = new TowerArm("arm", 10, 4);
         arm.setSide(TowerArmSide.LEFT);
         structure.addArm(arm);
-        Set<Integer> xs = armXs(generate(structure, new Vec2d(1, 0)));
-        assertFalse(xs.stream().anyMatch(x -> x > 2));
+        Set<Integer> lateralSpan = armLateralSpan(generate(structure, new Vec2d(1, 0)));
+        assertFalse(lateralSpan.stream().anyMatch(z -> z > 2));
     }
 
     @Test
@@ -65,9 +66,9 @@ class TowerArmGeneratorTest {
         TowerArm arm = new TowerArm("arm", 10, 4);
         arm.setSide(TowerArmSide.RIGHT);
         structure.addArm(arm);
-        Set<Integer> xs = armXs(generate(structure, new Vec2d(1, 0)));
-        assertFalse(xs.stream().anyMatch(x -> x < -1));
-        assertTrue(xs.stream().anyMatch(x -> x > 0));
+        Set<Integer> lateralSpan = armLateralSpan(generate(structure, new Vec2d(1, 0)));
+        assertFalse(lateralSpan.stream().anyMatch(z -> z < -1));
+        assertTrue(lateralSpan.stream().anyMatch(z -> z > 0));
     }
 
     @Test
@@ -142,10 +143,10 @@ class TowerArmGeneratorTest {
     void armRotatesWithTower() {
         TowerStructureDesign structure = baseTower();
         structure.addArm(new TowerArm("arm", 10, 3));
-        Set<Integer> eastXs = armXs(generate(structure, new Vec2d(1, 0)));
-        Set<Integer> northZs = armZs(generate(structure, new Vec2d(0, 1)));
-        assertFalse(eastXs.isEmpty());
-        assertFalse(northZs.isEmpty());
+        Set<Integer> eastSpan = armWorldAxisSpan(generate(structure, new Vec2d(1, 0)), true);
+        Set<Integer> northSpan = armWorldAxisSpan(generate(structure, new Vec2d(0, 1)), false);
+        assertFalse(eastSpan.isEmpty());
+        assertFalse(northSpan.isEmpty());
     }
 
     private static boolean hasArmBlockAtY(PowerLineGenerationResult result, int y) {
@@ -199,26 +200,20 @@ class TowerArmGeneratorTest {
         return structureWithoutBracing(height, reach, drop, TowerArmSide.BOTH, "minecraft:iron_bars");
     }
 
-    private static Set<Integer> armXs(PowerLineGenerationResult result) {
-        Set<Integer> xs = new HashSet<>();
-        int y = 64 + 10;
-        for (BlockRecord record : result.placementRecords.values()) {
-            if (record.pos.getY() == y) {
-                xs.add(record.pos.getX());
-            }
-        }
-        return xs;
+    /** 横担沿 pole-local lateral 伸出；路径朝东时 lateral 映射为世界 Z。 */
+    private static Set<Integer> armLateralSpan(PowerLineGenerationResult result) {
+        return armWorldAxisSpan(result, true);
     }
 
-    private static Set<Integer> armZs(PowerLineGenerationResult result) {
-        Set<Integer> zs = new HashSet<>();
+    private static Set<Integer> armWorldAxisSpan(PowerLineGenerationResult result, boolean worldZ) {
+        Set<Integer> span = new HashSet<>();
         int y = 64 + 10;
-        for (BlockRecord record : result.placementRecords.values()) {
-            if (record.pos.getY() == y) {
-                zs.add(record.pos.getZ());
+        for (BlockPos pos : result.placementRecords.keySet()) {
+            if (pos.getY() == y && result.placementCategories.get(pos) == PlacementCategory.ARM) {
+                span.add(worldZ ? pos.getZ() : pos.getX());
             }
         }
-        return zs;
+        return span;
     }
 
     private static TowerStructureDesign baseTower() {

@@ -7,9 +7,13 @@ import com.plot.api.world.PlacementReadiness;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.structure.BracingPattern;
+import com.plot.plugin.powerline.design.structure.TowerArm;
+import com.plot.plugin.powerline.design.structure.TowerArmShape;
+import com.plot.plugin.powerline.design.structure.TowerArmSide;
 import com.plot.plugin.powerline.design.structure.TowerBay;
 import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
+import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
@@ -19,6 +23,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -190,6 +195,47 @@ class TowerStructureGeneratorTest {
     }
 
     @Test
+    void armHeightBetweenStationsGetsSupportRing() {
+        TowerStructureDesign structure = TowerStructurePresets.smallLatticeTower();
+        structure.findOrCreateBay("s0", "s1").setHorizontalRing(false);
+        structure.findOrCreateBay("s1", "s2").setHorizontalRing(false);
+        structure.findOrCreateBay("s2", "s3").setHorizontalRing(false);
+
+        int armHeight = 64 + 20;
+        PowerLineGenerationResult result = generateStructure(structure);
+        int ringBlocks = countBraceBlocksNearHeight(result, armHeight);
+        assertTrue(ringBlocks >= 2, "expected support ring near arm height, got " + ringBlocks);
+    }
+
+    @Test
+    void duplicateArmSupportRingsArePlacedOncePerHeight() {
+        TowerStructureDesign singleArm = towerWithArmsAtHeight(6, 1);
+        TowerStructureDesign duplicateArms = towerWithArmsAtHeight(6, 2);
+
+        int singleCount = countBraceBlocksNearHeight(generateStructure(singleArm), 64 + 6);
+        int duplicateCount = countBraceBlocksNearHeight(generateStructure(duplicateArms), 64 + 6);
+
+        assertTrue(singleCount >= 4, "support ring should connect tower corners");
+        assertEquals(singleCount, duplicateCount, "same-height arms should not duplicate support rings");
+    }
+
+    private static TowerStructureDesign towerWithArmsAtHeight(double armHeight, int armCount) {
+        TowerStructureDesign structure = new TowerStructureDesign();
+        structure.addStation(new TowerStation("s0", 0, 4, 3));
+        structure.addStation(new TowerStation("s1", 12, 2, 1.5));
+        structure.addBay(new TowerBay("s0", "s1"));
+        structure.getBays().getFirst().setHorizontalRing(false);
+        for (int i = 0; i < armCount; i++) {
+            TowerArm arm = new TowerArm("arm_" + i, armHeight, 8 - i);
+            arm.setSide(TowerArmSide.BOTH);
+            arm.setShape(TowerArmShape.TRUSS);
+            arm.setLongitudinalHalfWidth(1.0);
+            structure.addArm(arm);
+        }
+        return structure;
+    }
+
+    @Test
     void xBracingProducesDiagonalEndpoints() {
         TowerStructureDesign structure = twoStationTower();
         structure.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.X);
@@ -210,6 +256,17 @@ class TowerStructureGeneratorTest {
         BlockRecord record = result.placementRecords.get(neighbor);
         return record != null && "minecraft:iron_bars".equals(record.baseBlockId())
             || record != null && "minecraft:gold_block".equals(record.baseBlockId());
+    }
+
+    private static int countBraceBlocksNearHeight(PowerLineGenerationResult result, int worldY) {
+        int count = 0;
+        for (BlockRecord record : result.placementRecords.values()) {
+            if (Math.abs(record.pos.getY() - worldY) <= 1
+                    && "minecraft:iron_bars".equals(record.baseBlockId())) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private static Set<BlockPos> blocksWithMaterial(PowerLineGenerationResult result, String material) {

@@ -21,6 +21,7 @@ import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -115,8 +116,19 @@ public final class TowerStructureGenerator {
             }
         }
 
+        Set<Long> armSupportRingHeights = new HashSet<>();
         for (TowerArm arm : structure.getArms()) {
-            generateArm(arm, structure, transform, footprint, result, projection, counters, structureScratch);
+            generateArm(
+                arm,
+                structure,
+                stations,
+                transform,
+                footprint,
+                result,
+                projection,
+                counters,
+                structureScratch,
+                armSupportRingHeights);
         }
 
         for (TowerDecoration decoration : structure.getDecorations()) {
@@ -266,12 +278,14 @@ public final class TowerStructureGenerator {
     private static void generateArm(
             TowerArm arm,
             TowerStructureDesign structure,
+            List<TowerStation> stations,
             TowerStructureTransform transform,
             PowerLineFootprint footprint,
             PowerLineGenerationResult result,
             IBlockProjectionService projection,
             GenerationCounters counters,
-            Set<BlockPos> structureScratch) {
+            Set<BlockPos> structureScratch,
+            Set<Long> armSupportRingHeights) {
         MaterialMix chordMaterial = arm.getMaterial() != null
             ? arm.getMaterial()
             : structure.getPrimaryMaterial();
@@ -289,6 +303,96 @@ public final class TowerStructureGenerator {
             (start, end, material) ->
                 placeArmBrace(
                     start, end, material, transform, footprint, result, projection, counters, structureScratch));
+        generateArmSupportRing(
+            arm,
+            structure,
+            stations,
+            transform,
+            footprint,
+            result,
+            projection,
+            counters,
+            structureScratch,
+            armSupportRingHeights);
+    }
+
+    /**
+     * 在横担高度放置插值水平环，把四根主柱在塔身截面处连成一体。
+     * 横担常落在 station 之间；没有这层环时，横担与塔身会在 voxel 层断裂。
+     */
+    private static void generateArmSupportRing(
+            TowerArm arm,
+            TowerStructureDesign structure,
+            List<TowerStation> stations,
+            TowerStructureTransform transform,
+            PowerLineFootprint footprint,
+            PowerLineGenerationResult result,
+            IBlockProjectionService projection,
+            GenerationCounters counters,
+            Set<BlockPos> structureScratch,
+            Set<Long> armSupportRingHeights) {
+        if (arm == null || stations == null || stations.size() < 2) {
+            return;
+        }
+        double height = arm.getBaseHeight();
+        long heightKey = Math.round(height * 1000.0);
+        if (!armSupportRingHeights.add(heightKey)) {
+            return;
+        }
+        TowerStructureGeometry.Footprint footprintAtHeight =
+            TowerStructureGeometry.interpolatedFootprintAtHeight(stations, height);
+        if (footprintAtHeight.halfWidth() < 0.5 || footprintAtHeight.halfDepth() < 0.5) {
+            return;
+        }
+        generateHorizontalRingAtHeight(
+            height,
+            footprintAtHeight,
+            structure,
+            transform,
+            footprint,
+            result,
+            projection,
+            counters,
+            structureScratch);
+    }
+
+    private static void generateHorizontalRingAtHeight(
+            double height,
+            TowerStructureGeometry.Footprint footprintAtHeight,
+            TowerStructureDesign structure,
+            TowerStructureTransform transform,
+            PowerLineFootprint footprint,
+            PowerLineGenerationResult result,
+            IBlockProjectionService projection,
+            GenerationCounters counters,
+            Set<BlockPos> structureScratch) {
+        MaterialMix material = structure.getBraceMaterial();
+        int thickness = structure.getBraceProfile().getThickness();
+        for (int corner = 0; corner < TowerStructureGeometry.CORNER_COUNT; corner++) {
+            int next = (corner + 1) % TowerStructureGeometry.CORNER_COUNT;
+            TowerLocalPoint start = TowerStructureGeometry.cornerPointAt(
+                height,
+                corner,
+                footprintAtHeight.halfWidth(),
+                footprintAtHeight.halfDepth());
+            TowerLocalPoint end = TowerStructureGeometry.cornerPointAt(
+                height,
+                next,
+                footprintAtHeight.halfWidth(),
+                footprintAtHeight.halfDepth());
+            placeMember(
+                start,
+                end,
+                material,
+                thickness,
+                transform,
+                footprint,
+                result,
+                projection,
+                counters,
+                MemberKind.BRACE,
+                structureScratch);
+        }
     }
 
     private static void placeArmChord(
