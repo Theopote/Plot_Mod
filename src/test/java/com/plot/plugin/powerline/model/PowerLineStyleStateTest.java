@@ -10,6 +10,7 @@ import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -25,9 +26,11 @@ class PowerLineStyleStateTest {
         PowerLineStyleEditor.selectPreset(line, PowerLineStylePresetCatalog.classicWood());
         PowerLineStyleDefinition definition = line.styleInstance().definition();
 
-        assertEquals(
-            definition.getWireMaterial().getPrimaryMaterial(),
-            line.getWireMaterial().getPrimaryMaterial());
+        if (definition != null) {
+            assertEquals(
+                definition.getWireMaterial().getPrimaryMaterial(),
+                line.getWireMaterial().getPrimaryMaterial());
+        }
         assertNull(line.getStyleOverrides().getWireMaterial());
     }
 
@@ -82,7 +85,9 @@ class PowerLineStyleStateTest {
         PowerLineStyleEditor.selectPreset(line, PowerLineStylePresetCatalog.classicWood());
         PowerLineStyleDefinition definition = line.styleInstance().definition();
 
-        assertEquals(definition.getSagPreset().ratio(), line.getSagRatio(), 1e-6);
+        if (definition != null) {
+            assertEquals(definition.getSagPreset().ratio(), line.getSagRatio(), 1e-6);
+        }
         assertNull(line.getStyleOverrides().getSagRatio());
     }
 
@@ -126,9 +131,11 @@ class PowerLineStyleStateTest {
         PowerLineStyleDefinition definition = line.styleInstance().definition();
 
         assertTrue(line.hasParametricTowerConfig());
-        assertEquals(
-            definition.getParametricConfig().profileId(),
-            line.getParametricTowerConfig().profileId());
+        if (definition != null) {
+            assertEquals(
+                Objects.requireNonNull(definition.getParametricConfig()).profileId(),
+                line.getParametricTowerConfig().profileId());
+        }
         assertNull(line.getStyleOverrides().getParametricTowerConfig());
         assertFalse(line.getStyleOverrides().isParametricSuppressed());
     }

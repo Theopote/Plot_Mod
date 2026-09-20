@@ -41,14 +41,6 @@ class PresetPreviewSymmetryTest {
         assertSymmetricBracing(compiled.getTowerStructure());
     }
 
-    @Test
-    void steampunkGalleryUsesVoxelRepresentation() {
-        var preset = PowerLineStylePresetCatalog.steampunkBrass();
-        assertEquals(
-            com.plot.plugin.powerline.style.PreviewRepresentation.VOXEL_FRONT,
-            com.plot.plugin.powerline.style.PowerLineStylePreviewBinding.previewRepresentation(preset));
-    }
-
     private static void assertSymmetricBracing(TowerStructureDesign structure) {
         for (TowerArm arm : structure.getArms()) {
             assertNotEquals(

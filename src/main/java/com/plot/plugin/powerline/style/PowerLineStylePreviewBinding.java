@@ -16,12 +16,9 @@ public final class PowerLineStylePreviewBinding {
     private PowerLineStylePreviewBinding() {
     }
 
-    /** Gallery 卡片预览绑定：主体绘制方式 + 叠加层。 */
+    /** Gallery 卡片预览绑定：体素立面 + 叠加层。 */
     public static StyleCardPreviewBinding cardPreviewBinding(PowerLineStylePreset preset) {
-        return new StyleCardPreviewBinding(
-            previewDesign(preset),
-            previewRepresentation(preset),
-            previewOverlay(preset));
+        return new StyleCardPreviewBinding(previewDesign(preset), previewOverlay(preset));
     }
 
     /**
@@ -29,19 +26,7 @@ public final class PowerLineStylePreviewBinding {
      * 塔体与落地建造共用 {@link com.plot.plugin.powerline.preview.PoleVoxelizer} 体素路径。
      */
     public static StyleCardPreviewBinding bindingForDesign(PoleDesign design, PowerLineStylePreset base) {
-        PreviewRepresentation representation = previewRepresentationForDesign(design, base);
-        PreviewOverlay overlay = previewOverlayForDesign(design, base);
-        return new StyleCardPreviewBinding(design, representation, overlay);
-    }
-
-    static PreviewRepresentation previewRepresentationForDesign(PoleDesign design, PowerLineStylePreset base) {
-        if (design != null && design.hasTowerStructure()) {
-            return PreviewRepresentation.VOXEL_FRONT;
-        }
-        if (base != null) {
-            return previewRepresentation(base);
-        }
-        return PreviewRepresentation.VOXEL_FRONT;
+        return new StyleCardPreviewBinding(design, previewOverlayForDesign(design, base));
     }
 
     static PreviewOverlay previewOverlayForDesign(PoleDesign design, PowerLineStylePreset base) {
@@ -56,18 +41,6 @@ public final class PowerLineStylePreviewBinding {
             return PreviewOverlay.DECORATIVE_CONDUCTORS;
         }
         return PreviewOverlay.NONE;
-    }
-
-    public static PreviewRepresentation previewRepresentation(PowerLineStylePreset preset) {
-        if (preset == null) {
-            return PreviewRepresentation.VOXEL_FRONT;
-        }
-        return switch (preset.getPreviewKind()) {
-            case LATTICE, HEAVY_LATTICE, TRIPLE_ARM, CUP_TOWER, LATTICE_POLE, TAPERED,
-                 MEGA_LATTICE, HEAVY_DOUBLE_CIRCUIT, INDUSTRIAL_PORTAL, MONSTER_PYLON,
-                 ADAPTIVE, STEAMPUNK, MODERN_HV_GLASS -> PreviewRepresentation.VOXEL_FRONT;
-            default -> PreviewRepresentation.VOXEL_FRONT;
-        };
     }
 
     public static PreviewOverlay previewOverlay(PowerLineStylePreset preset) {

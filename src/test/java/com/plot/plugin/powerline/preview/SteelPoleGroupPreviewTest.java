@@ -10,7 +10,6 @@ import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
 import com.plot.plugin.powerline.style.PowerLineStylePreviewBinding;
 import com.plot.plugin.powerline.style.PreviewOverlay;
-import com.plot.plugin.powerline.style.PreviewRepresentation;
 import com.plot.plugin.powerline.style.StyleCardPreviewBinding;
 import org.junit.jupiter.api.Test;
 
@@ -34,22 +33,20 @@ class SteelPoleGroupPreviewTest {
         PowerLineStylePresetCatalog.taperedTower());
 
     @Test
-    void utilitySteelPolesUseVoxelPreviewWithDecorativeConductors() {
+    void utilitySteelPolesUseDecorativeConductorsOverlay() {
         for (PowerLineStylePreset preset : List.of(
             PowerLineStylePresetCatalog.simpleSteel(),
             PowerLineStylePresetCatalog.urbanConcrete(),
             PowerLineStylePresetCatalog.modernUtility())) {
-            assertEquals(PreviewRepresentation.VOXEL_FRONT, PowerLineStylePreviewBinding.previewRepresentation(preset), preset.getId());
             assertEquals(PreviewOverlay.DECORATIVE_CONDUCTORS, PowerLineStylePreviewBinding.previewOverlay(preset), preset.getId());
         }
     }
 
     @Test
-    void latticeSteelPresetsUseVoxelPreviewWithAttachments() {
+    void latticeSteelPresetsUseAttachmentsOverlay() {
         for (PowerLineStylePreset preset : List.of(
             PowerLineStylePresetCatalog.compactLattice(),
             PowerLineStylePresetCatalog.taperedTower())) {
-            assertEquals(PreviewRepresentation.VOXEL_FRONT, PowerLineStylePreviewBinding.previewRepresentation(preset), preset.getId());
             assertEquals(PreviewOverlay.ATTACHMENTS, PowerLineStylePreviewBinding.previewOverlay(preset), preset.getId());
             assertTrue(PowerLineStylePreviewBinding.previewDesign(preset).hasTowerStructure(), preset.getId());
         }
@@ -60,9 +57,7 @@ class SteelPoleGroupPreviewTest {
         Set<String> signatures = new HashSet<>();
         for (PowerLineStylePreset preset : STEEL_GROUP) {
             StyleCardPreviewBinding binding = PowerLineStylePreviewBinding.cardPreviewBinding(preset);
-            String signature = binding.representation().name()
-                + "|"
-                + binding.overlay().name()
+            String signature = binding.overlay().name()
                 + "|"
                 + previewShapeSignature(binding.design());
             assertTrue(signatures.add(signature), "duplicate gallery signature for " + preset.getId() + ": " + signature);
@@ -106,7 +101,6 @@ class SteelPoleGroupPreviewTest {
         for (PowerLineStylePreset preset : STEEL_GROUP) {
             StyleCardPreviewBinding gallery = PowerLineStylePreviewBinding.cardPreviewBinding(preset);
             StyleCardPreviewBinding selected = PowerLineStylePreviewBinding.bindingForDesign(gallery.design(), preset);
-            assertEquals(gallery.representation(), selected.representation(), preset.getId());
             assertEquals(gallery.overlay(), selected.overlay(), preset.getId());
         }
     }

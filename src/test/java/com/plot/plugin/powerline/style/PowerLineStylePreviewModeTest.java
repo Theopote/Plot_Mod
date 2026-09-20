@@ -18,39 +18,20 @@ import static org.junit.jupiter.api.Assertions.*;
 class PowerLineStylePreviewModeTest {
 
     @Test
-    void classicWoodUsesVoxelPreview() {
-        assertEquals(
-            PreviewRepresentation.VOXEL_FRONT,
-            PowerLineStylePreviewBinding.previewRepresentation(PowerLineStylePresetCatalog.classicWood()));
+    void classicWoodUsesDecorativeConductorsOverlay() {
         assertEquals(
             PreviewOverlay.DECORATIVE_CONDUCTORS,
             PowerLineStylePreviewBinding.previewOverlay(PowerLineStylePresetCatalog.classicWood()));
     }
 
     @Test
-    void classicLatticeUsesVoxelPreview() {
-        assertEquals(
-            PreviewRepresentation.VOXEL_FRONT,
-            PowerLineStylePreviewBinding.previewRepresentation(PowerLineStylePresetCatalog.classicLattice()));
-    }
-
-    @Test
-    void parametricDecorativeTowersUseVoxelPreview() {
+    void parametricDecorativeTowersUseAttachmentsOverlay() {
         PowerLineStylePreset steampunk = PowerLineStylePresetCatalog.steampunkBrass();
         PowerLineStylePreset modernHv = PowerLineStylePresetCatalog.modernHvGlass();
-        assertEquals(PreviewRepresentation.VOXEL_FRONT, PowerLineStylePreviewBinding.previewRepresentation(steampunk));
-        assertEquals(PreviewRepresentation.VOXEL_FRONT, PowerLineStylePreviewBinding.previewRepresentation(modernHv));
         assertEquals(PreviewOverlay.ATTACHMENTS, PowerLineStylePreviewBinding.previewOverlay(steampunk));
         assertEquals(PreviewOverlay.ATTACHMENTS, PowerLineStylePreviewBinding.previewOverlay(modernHv));
         assertTrue(PowerLineStylePreviewBinding.previewDesign(steampunk).hasTowerStructure());
         assertTrue(PowerLineStylePreviewBinding.previewDesign(modernHv).hasTowerStructure());
-    }
-
-    @Test
-    void megaUsesVoxelPreview() {
-        assertEquals(
-            PreviewRepresentation.VOXEL_FRONT,
-            PowerLineStylePreviewBinding.previewRepresentation(PowerLineStylePresetCatalog.megaLattice()));
     }
 
     @Test
@@ -168,24 +149,19 @@ class PowerLineStylePreviewModeTest {
     void smartTowersUseMediumRepresentativeAndAdaptiveMarker() {
         PowerLineStylePreset smart = PowerLineStylePresetCatalog.smartTowers();
         assertTrue(PowerLineStylePreviewBinding.usesAdaptiveHeightMarker(smart));
-        assertEquals(
-            PreviewRepresentation.VOXEL_FRONT,
-            PowerLineStylePreviewBinding.previewRepresentation(smart));
     }
 
     @Test
-    void wastelandWindUsesVoxelWithoutDuplicateRotorOverlay() {
+    void wastelandWindUsesDecorativeConductorsWithoutRotorOverlay() {
         PowerLineStylePreset wind = PowerLineStylePresetCatalog.wastelandWind();
-        assertEquals(PreviewRepresentation.VOXEL_FRONT, PowerLineStylePreviewBinding.previewRepresentation(wind));
         assertEquals(PreviewOverlay.DECORATIVE_CONDUCTORS, PowerLineStylePreviewBinding.previewOverlay(wind));
     }
 
     @Test
-    void bindingForLatticeDesignUsesVoxel() {
+    void bindingForLatticeDesignUsesAttachmentsOverlay() {
         PoleDesign design = PowerLineStylePreviewBinding.previewDesign(PowerLineStylePresetCatalog.classicLattice());
         StyleCardPreviewBinding binding = PowerLineStylePreviewBinding.bindingForDesign(
             design, PowerLineStylePresetCatalog.classicLattice());
-        assertEquals(PreviewRepresentation.VOXEL_FRONT, binding.representation());
         assertEquals(PreviewOverlay.ATTACHMENTS, binding.overlay());
     }
 
@@ -194,7 +170,6 @@ class PowerLineStylePreviewModeTest {
         PoleDesign design = PowerLineStylePreviewBinding.previewDesign(PowerLineStylePresetCatalog.wastelandWind());
         StyleCardPreviewBinding binding = PowerLineStylePreviewBinding.bindingForDesign(
             design, PowerLineStylePresetCatalog.wastelandWind());
-        assertEquals(PreviewRepresentation.VOXEL_FRONT, binding.representation());
         assertEquals(PreviewOverlay.DECORATIVE_CONDUCTORS, binding.overlay());
     }
 
@@ -211,7 +186,6 @@ class PowerLineStylePreviewModeTest {
     private static void assertSelectedMatchesGallery(PowerLineStylePreset pack) {
         StyleCardPreviewBinding gallery = PowerLineStylePreviewBinding.cardPreviewBinding(pack);
         StyleCardPreviewBinding selected = PowerLineStylePreviewBinding.bindingForDesign(gallery.design(), pack);
-        assertEquals(gallery.representation(), selected.representation(), pack.getId());
         assertEquals(gallery.overlay(), selected.overlay(), pack.getId());
     }
 

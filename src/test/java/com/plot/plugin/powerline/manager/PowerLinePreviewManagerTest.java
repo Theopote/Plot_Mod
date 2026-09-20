@@ -55,10 +55,12 @@ class PowerLinePreviewManagerTest {
 
             @Override
             public void addGhostBlock(String ownerId, BlockPos position, String blockType) {
+                IGhostBlockService.super.addGhostBlock(ownerId, position, blockType);
             }
 
             @Override
             public void addGhostBlock(String ownerId, Vec2d position, double height, String blockType) {
+                IGhostBlockService.super.addGhostBlock(ownerId, position, height, blockType);
             }
 
             @Override
