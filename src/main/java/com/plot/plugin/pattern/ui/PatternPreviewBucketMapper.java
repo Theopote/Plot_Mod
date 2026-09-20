@@ -24,8 +24,8 @@ final class PatternPreviewBucketMapper {
         float worldDepth = Math.max(1f, bounds.depth());
         for (BlockRecord record : records.values()) {
             BlockPos pos = record.pos;
-            int pixelX = toBucketCoordinate(pos.getX(), bounds.minX, worldWidth, bucketWidth);
-            int pixelY = toBucketCoordinate(pos.getZ(), bounds.minZ, worldDepth, bucketHeight);
+            int pixelX = toBucketCoordinate(pos.getX(), bounds.minX(), worldWidth, bucketWidth);
+            int pixelY = toBucketCoordinate(pos.getZ(), bounds.minZ(), worldDepth, bucketHeight);
             buckets.add(pixelX, pixelY, BlockColorRegistry.colorFor(record.newBlockId));
         }
         return buckets;

@@ -23,8 +23,7 @@ import com.plot.plugin.powerline.placement.TowerFoundationPlan;
 import com.plot.plugin.powerline.placement.TowerFoundationResolver;
 import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.ConductorAttachmentPresets;
-import com.plot.plugin.powerline.engineering.selection.TowerSelectionContext;
-import com.plot.plugin.powerline.engineering.validation.ValidationLimits;
+import com.plot.plugin.powerline.design.family.VisualTowerResolver;
 import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelope;
 import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelopeResolver;
 import com.plot.plugin.powerline.design.parametric.TowerLineBuildEnvelope;
@@ -180,14 +179,12 @@ public class PowerLineGenerator {
         Vec2d tangent = computePoleTangentFromSites(sites, index, footprint.isClosedLoop());
         PoleFrame frame = PoleFrame.fromPole(planPoint, tangent, buildBaseY);
 
-        TowerSelectionContext selectionContext = buildSelectionContext(
-            site,
+        double maxAdjacentSpan = VisualTowerResolver.maxAdjacentSpanBlocks(
             sites,
             index,
-            footprint,
-            designResolver);
+            footprint.isClosedLoop());
         PoleDesignAssignmentResolver.AssignmentResult assignment =
-            assignmentResolver.resolve(site, footprint, selectionContext);
+            assignmentResolver.resolve(site, footprint, maxAdjacentSpan);
         result.warnings.addAll(assignment.warnings());
         PoleDesign design = assignment.design();
         TowerBuildEnvelope parametricEnvelope = lineEnvelope.constraintEnvelope();
@@ -350,37 +347,6 @@ public class PowerLineGenerator {
             resolvedDesignId,
             site.getStationing(),
             false);
-    }
-
-    private static TowerSelectionContext buildSelectionContext(
-            PowerPoleSite site,
-            List<PowerPoleSite> sites,
-            int index,
-            PowerLineFootprint footprint,
-            PoleDesignResolver designResolver) {
-        TowerSelectionContext context = new TowerSelectionContext();
-        context.setSite(site);
-        context.setDeflectionAngle(site.getDeflectionAngle());
-        if (footprint.isClosedLoop()) {
-            int previousIndex = (index - 1 + sites.size()) % sites.size();
-            int nextIndex = (index + 1) % sites.size();
-            context.setIncomingSpan(PowerPoleLayoutUtils.worldSpanBlocks(
-                sites.get(previousIndex), site));
-            context.setOutgoingSpan(PowerPoleLayoutUtils.worldSpanBlocks(
-                site, sites.get(nextIndex)));
-        } else {
-            if (index > 0) {
-                context.setIncomingSpan(PowerPoleLayoutUtils.worldSpanBlocks(sites.get(index - 1), site));
-            }
-            if (index < sites.size() - 1) {
-                context.setOutgoingSpan(PowerPoleLayoutUtils.worldSpanBlocks(site, sites.get(index + 1)));
-            }
-        }
-        if (footprint.hasTowerFamily()) {
-            context.setFamily(new TowerFamilyResolver().find(footprint.getTowerFamilyId()));
-        }
-        context.setRequiredGroundClearance(ValidationLimits.DEFAULT_MIN_GROUND_CLEARANCE);
-        return context;
     }
 
     private static TowerStation resolveBaseStation(PoleDesign design) {

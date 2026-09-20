@@ -53,8 +53,7 @@ public final class PatternPreviewRenderer {
                 plotY0,
                 plotX1,
                 plotY1,
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.pattern.preview_area_empty"));
+                    PlotI18n.tr("plugin.pattern.preview_area_empty"));
             ImGui.dummy(contentWidth, contentHeight);
             ImGui.endChild();
             ImGui.popStyleVar();
@@ -123,55 +122,43 @@ public final class PatternPreviewRenderer {
             float y0,
             float x1,
             float y1,
-            int color,
             String text) {
         ImVec2 textSize = ImGui.calcTextSize(text);
         float textX = x0 + Math.max(0f, (x1 - x0 - textSize.x) * 0.5f);
         float textY = y0 + Math.max(0f, (y1 - y0 - textSize.y) * 0.5f);
-        drawList.addText(textX, textY, color, text);
+        drawList.addText(textX, textY, PluginUiColors.HINT_GRAY, text);
     }
 
-    static final class Bounds {
-        final int minX;
-        final int maxX;
-        final int minZ;
-        final int maxZ;
-
-        Bounds(int minX, int maxX, int minZ, int maxZ) {
-            this.minX = minX;
-            this.maxX = maxX;
-            this.minZ = minZ;
-            this.maxZ = maxZ;
-        }
+    record Bounds(int minX, int maxX, int minZ, int maxZ) {
 
         static Bounds from(Map<BlockPos, BlockRecord> records) {
-            int minX = Integer.MAX_VALUE;
-            int maxX = Integer.MIN_VALUE;
-            int minZ = Integer.MAX_VALUE;
-            int maxZ = Integer.MIN_VALUE;
-            for (BlockPos pos : records.keySet()) {
-                minX = Math.min(minX, pos.getX());
-                maxX = Math.max(maxX, pos.getX());
-                minZ = Math.min(minZ, pos.getZ());
-                maxZ = Math.max(maxZ, pos.getZ());
+                int minX = Integer.MAX_VALUE;
+                int maxX = Integer.MIN_VALUE;
+                int minZ = Integer.MAX_VALUE;
+                int maxZ = Integer.MIN_VALUE;
+                for (BlockPos pos : records.keySet()) {
+                    minX = Math.min(minX, pos.getX());
+                    maxX = Math.max(maxX, pos.getX());
+                    minZ = Math.min(minZ, pos.getZ());
+                    maxZ = Math.max(maxZ, pos.getZ());
+                }
+                return new Bounds(minX, maxX, minZ, maxZ);
             }
-            return new Bounds(minX, maxX, minZ, maxZ);
-        }
 
-        int worldWidth() {
-            return maxX - minX + 1;
-        }
+            int worldWidth() {
+                return maxX - minX + 1;
+            }
 
-        int worldDepth() {
-            return maxZ - minZ + 1;
-        }
+            int worldDepth() {
+                return maxZ - minZ + 1;
+            }
 
-        float width() {
-            return worldWidth();
-        }
+            float width() {
+                return worldWidth();
+            }
 
-        float depth() {
-            return worldDepth();
+            float depth() {
+                return worldDepth();
+            }
         }
-    }
 }

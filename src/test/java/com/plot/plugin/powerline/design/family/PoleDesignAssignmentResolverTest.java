@@ -52,6 +52,33 @@ class PoleDesignAssignmentResolverTest {
     }
 
     @Test
+    void gradedSuspensionUsesSpanForVisualSize() {
+        PowerLineFootprint footprint = lineWithFamily();
+        footprint.setTowerFamilyId(TowerFamily.GRADED_LATTICE_3_PHASE_ID);
+        PowerPoleSite site = site(TowerRole.SUSPENSION);
+
+        assertEquals(
+            TowerFamilyDesignPresets.LATTICE_SUSPENSION_SMALL_ID,
+            resolver.resolve(site, footprint, 20.0).resolvedDesignId());
+        assertEquals(
+            TowerFamilyDesignPresets.LATTICE_SUSPENSION_MEDIUM_ID,
+            resolver.resolve(site, footprint, 40.0).resolvedDesignId());
+        assertEquals(
+            TowerFamilyDesignPresets.LATTICE_SUSPENSION_TALL_ID,
+            resolver.resolve(site, footprint, 60.0).resolvedDesignId());
+    }
+
+    @Test
+    void standardFamilyIgnoresSpanForRoleMapping() {
+        PowerLineFootprint footprint = lineWithFamily();
+        PowerPoleSite site = site(TowerRole.ANGLE);
+
+        assertEquals(
+            TowerFamilyDesignPresets.LATTICE_ANGLE_ID,
+            resolver.resolve(site, footprint, 80.0).resolvedDesignId());
+    }
+
+    @Test
     void defaultPoleUsedWhenNothingConfigured() {
         PowerLineFootprint footprint = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
         PowerPoleSite site = site(TowerRole.SUSPENSION);

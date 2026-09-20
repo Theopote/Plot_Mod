@@ -225,11 +225,10 @@ class PowerLineEngineeringTest {
     }
 
     @Test
-    void manualPoleDesignOverrideWinsOverAutoSelection() {
+    void manualPoleDesignOverrideWinsOverSpanGrading() {
         PowerLineFootprint line = horizontalLine(80);
         line.setMaxPoleSpacing(40);
         line.setTowerFamilyId(TowerFamily.GRADED_LATTICE_3_PHASE_ID);
-        line.setAutomaticTowerSelectionEnabled(true);
         com.plot.plugin.powerline.model.PoleOverride override = new com.plot.plugin.powerline.model.PoleOverride(40);
         override.setPoleDesignOverrideId(TowerFamilyDesignPresets.LATTICE_SUSPENSION_SMALL_ID);
         line.addPoleOverride(override);
@@ -240,13 +239,7 @@ class PowerLineEngineeringTest {
         PoleDesignAssignmentResolver assignmentResolver = new PoleDesignAssignmentResolver(
             new PoleDesignResolver(new PowerLineDesignProject()),
             new com.plot.plugin.powerline.design.family.TowerFamilyResolver());
-        TowerSelectionContext context = new TowerSelectionContext();
-        context.setSite(middle);
-        context.setFamily(TowerFamilyCatalog.gradedLattice3Phase());
-        context.setRequiredAttachmentHeight(22);
-        context.setIncomingSpan(40);
-        context.setOutgoingSpan(40);
-        var assignment = assignmentResolver.resolve(middle, line, context);
+        var assignment = assignmentResolver.resolve(middle, line, 60.0);
         assertEquals(TowerFamilyDesignPresets.LATTICE_SUSPENSION_SMALL_ID, assignment.resolvedDesignId());
     }
 

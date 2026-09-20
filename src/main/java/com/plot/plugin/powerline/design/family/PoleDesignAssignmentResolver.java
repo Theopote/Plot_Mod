@@ -2,10 +2,6 @@ package com.plot.plugin.powerline.design.family;
 
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
-import com.plot.plugin.powerline.engineering.PowerLineValidationI18n;
-import com.plot.plugin.powerline.engineering.selection.AutomaticTowerSelector;
-import com.plot.plugin.powerline.engineering.selection.TowerSelectionContext;
-import com.plot.plugin.powerline.engineering.selection.TowerSelectionResult;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 import com.plot.plugin.powerline.PowerLineGenerationI18n;
@@ -35,13 +31,13 @@ public final class PoleDesignAssignmentResolver {
     }
 
     public AssignmentResult resolve(PowerPoleSite site, PowerLineFootprint footprint) {
-        return resolve(site, footprint, null);
+        return resolve(site, footprint, 0.0);
     }
 
     public AssignmentResult resolve(
             PowerPoleSite site,
             PowerLineFootprint footprint,
-            TowerSelectionContext selectionContext) {
+            double maxAdjacentSpanBlocks) {
         List<String> warnings = new ArrayList<>();
         if (site == null || footprint == null) {
             return AssignmentResult.empty();
@@ -57,21 +53,17 @@ public final class PoleDesignAssignmentResolver {
             }
         }
 
-        if (footprint.isAutomaticTowerSelectionEnabled()
-                && selectionContext != null
-                && footprint.hasTowerFamily()) {
-            AssignmentResult auto = resolveAutomatic(site, selectionContext, warnings);
-            if (auto.design != null) {
-                return auto;
-            }
-        }
-
         if (footprint.hasTowerFamily()) {
             TowerFamily family = familyResolver.find(footprint.getTowerFamilyId());
             if (family == null) {
                 warnings.add(PowerLineGenerationI18n.towerFamilyNotFound(footprint.getTowerFamilyId()));
             } else {
-                AssignmentResult fromFamily = resolveFromFamily(site, family, footprint, warnings);
+                AssignmentResult fromFamily = resolveFromFamily(
+                    site,
+                    family,
+                    footprint,
+                    maxAdjacentSpanBlocks,
+                    warnings);
                 if (fromFamily.design != null) {
                     return fromFamily;
                 }
@@ -91,33 +83,14 @@ public final class PoleDesignAssignmentResolver {
         return AssignmentResult.empty();
     }
 
-    private AssignmentResult resolveAutomatic(
-            PowerPoleSite site,
-            TowerSelectionContext selectionContext,
-            List<String> warnings) {
-        AutomaticTowerSelector selector = new AutomaticTowerSelector(designResolver);
-        TowerSelectionResult selection = selector.select(selectionContext);
-        for (String reason : selection.getReasons()) {
-            warnings.add(PowerLineValidationI18n.selectionReasonToken(reason));
-        }
-        if (!selection.hasSelection()) {
-            return AssignmentResult.empty();
-        }
-        PoleDesign design = designResolver.find(selection.getSelectedDesignId());
-        if (design == null) {
-            warnings.add(PowerLineGenerationI18n.autoSelectedDesignNotFound(selection.getSelectedDesignId()));
-            return new AssignmentResult(null, selection.getSelectedDesignId(), warnings);
-        }
-        return new AssignmentResult(design, selection.getSelectedDesignId(), warnings);
-    }
-
     private AssignmentResult resolveFromFamily(
             PowerPoleSite site,
             TowerFamily family,
             PowerLineFootprint footprint,
+            double maxAdjacentSpanBlocks,
             List<String> warnings) {
         TowerRole role = site.getRole();
-        String designId = family.getDesignId(role);
+        String designId = VisualTowerResolver.resolveDesignId(site, family, maxAdjacentSpanBlocks);
         if (designId == null || designId.isBlank()) {
             warnings.add(PowerLineGenerationI18n.noDesignForRole(role, family.getId()));
             designId = family.getDesignId(TowerRole.SUSPENSION);

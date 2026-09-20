@@ -310,12 +310,6 @@ public final class PowerLineUiWidgets {
                 ctx.state().getValidationState().setOverlayEnabled(!overlay);
             }
         }
-        boolean autoSelect = line.isAutomaticTowerSelectionEnabled();
-        if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.engineering.auto_select"), autoSelect)) {
-            ctx.pushEditSnapshot();
-            line.setAutomaticTowerSelectionEnabled(!autoSelect);
-            ctx.invalidatePreview();
-        }
         renderEffectiveCheckConditions(line);
         textColored(
             PluginUiColors.HINT_GRAY,
