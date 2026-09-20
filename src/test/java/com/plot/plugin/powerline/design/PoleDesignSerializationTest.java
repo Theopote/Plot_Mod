@@ -2,10 +2,7 @@ package com.plot.plugin.powerline.design;
 
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
-import com.plot.plugin.powerline.model.TowerRole;
 import org.junit.jupiter.api.Test;
-
-import java.util.EnumSet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -33,27 +30,7 @@ class PoleDesignSerializationTest {
     }
 
     @Test
-    void planningMetadataRoundTrip() {
-        PoleDesign design = new PoleDesign("mega-custom", "Mega Custom");
-        design.setLayers(PoleDesignCatalog.simpleWoodPole().getLayers());
-        TowerPlanningMetadata metadata = new TowerPlanningMetadata();
-        metadata.setNominalHeight(80.0);
-        metadata.setMaxRecommendedSpan(240.0);
-        metadata.setMaxRecommendedDeflectionAngle(35.0);
-        metadata.setSupportedRoles(EnumSet.of(TowerRole.SUSPENSION, TowerRole.ANGLE));
-        design.setPlanningMetadata(metadata);
-
-        PoleDesign restored = PoleDesign.fromJson(design.toJson());
-        assertNotNull(restored);
-        assertNotNull(restored.getPlanningMetadata());
-        assertEquals(metadata, restored.getPlanningMetadata());
-        assertTrue(design.toJson().contains("\"planningMetadata\""));
-        assertFalse(design.toJson().contains("\"engineeringMetadata\""));
-        assertTrue(design.toJson().contains("\"maxRecommendedSpan\""));
-    }
-
-    @Test
-    void legacyEngineeringMetadataJsonStillLoads() {
+    void legacyPlanningMetadataJsonLoadsWithoutPersisting() {
         String json = """
             {
               "id": "legacy",
@@ -70,33 +47,9 @@ class PoleDesignSerializationTest {
             """;
         PoleDesign restored = PoleDesign.fromJson(json);
         assertNotNull(restored);
-        assertNotNull(restored.getPlanningMetadata());
-        assertEquals(24.0, restored.getPlanningMetadata().getNominalHeight(), 1e-6);
-        assertEquals(80.0, restored.getPlanningMetadata().getMaxRecommendedSpan(), 1e-6);
-    }
-
-    @Test
-    void saveAsStyleCopyPreservesPlanningMetadata() {
-        PoleDesign draft = TowerStructurePresets.taperedLatticePoleDesign("src", "Source");
-        TowerPlanningMetadata metadata = new TowerPlanningMetadata();
-        metadata.setNominalHeight(42.0);
-        metadata.setMaxRecommendedSpan(120.0);
-        metadata.setMaxRecommendedDeflectionAngle(15.0);
-        metadata.setSupportedRoles(EnumSet.of(TowerRole.SUSPENSION, TowerRole.DEAD_END));
-        draft.setPlanningMetadata(metadata);
-
-        // Mirrors PoleDesignerPanel.saveDraft(forceNewId=true) construction.
-        PoleDesign saved = new PoleDesign(draft.getName());
-        saved.setLayers(draft.getLayers());
-        saved.setAttachments(draft.getAttachments());
-        saved.setTowerStructure(draft.getTowerStructure());
-        saved.setPlanningMetadata(draft.getPlanningMetadata());
-
-        assertEquals(metadata, saved.getPlanningMetadata());
-        PoleDesign restored = PoleDesign.fromJson(saved.toJson());
-        if (restored != null) {
-            assertEquals(metadata, restored.getPlanningMetadata());
-        }
+        assertFalse(restored.toJson().contains("engineeringMetadata"));
+        assertFalse(restored.toJson().contains("planningMetadata"));
+        assertFalse(restored.toJson().contains("maxRecommendedSpan"));
     }
 
     @Test

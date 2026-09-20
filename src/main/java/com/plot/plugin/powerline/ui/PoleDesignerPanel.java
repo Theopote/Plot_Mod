@@ -542,7 +542,6 @@ public final class PoleDesignerPanel {
         saved.setLayers(draft.getLayers());
         saved.setAttachments(draft.getAttachments());
         saved.setTowerStructure(draft.getTowerStructure());
-        saved.setPlanningMetadata(draft.getPlanningMetadata());
         saved.setGeneratorConfig(draft.getGeneratorConfig());
         ctx.actions().savePoleDesign(saved);
         ctx.state().notifyStyleGalleryOpenCustomTemplates();
@@ -558,7 +557,6 @@ public final class PoleDesignerPanel {
             saved.setLayers(draft.getLayers());
             saved.setAttachments(draft.getAttachments());
             saved.setTowerStructure(draft.getTowerStructure());
-            saved.setPlanningMetadata(draft.getPlanningMetadata());
             saved.setGeneratorConfig(draft.getGeneratorConfig());
             ctx.actions().savePoleDesign(saved);
             ctx.state().setPoleDesignerEditingId(saved.getId());

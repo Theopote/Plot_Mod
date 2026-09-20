@@ -84,7 +84,6 @@ public final class LinePoleDesignOverrides {
         copy.setLayers(source.getLayers());
         copy.setAttachments(source.getAttachments());
         copy.setTowerStructure(source.getTowerStructure());
-        copy.setPlanningMetadata(source.getPlanningMetadata());
         copy.setGeneratorConfig(source.getGeneratorConfig());
         return copy;
     }

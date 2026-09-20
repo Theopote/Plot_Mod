@@ -62,7 +62,6 @@ public final class PoleDesignResolver {
         fork.setLayers(current.getLayers());
         fork.setAttachments(current.getAttachments());
         fork.setTowerStructure(current.getTowerStructure());
-        fork.setPlanningMetadata(current.getPlanningMetadata());
         fork.setGeneratorConfig(current.getGeneratorConfig());
         return fork;
     }

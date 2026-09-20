@@ -8,10 +8,7 @@ import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import com.plot.plugin.powerline.equipment.InsulatorAssemblyCatalog;
 import com.plot.plugin.powerline.equipment.InsulatorType;
-import com.plot.plugin.powerline.design.TowerPlanningMetadata;
-import com.plot.plugin.powerline.model.TowerRole;
 
-import java.util.EnumSet;
 
 /** 塔型族内各角色的 PoleDesign 预设。 */
 public final class TowerFamilyDesignPresets {
@@ -63,8 +60,7 @@ public final class TowerFamilyDesignPresets {
             5,
             32,
             InsulatorType.SUSPENSION,
-            3,
-            metadata(TowerRole.SUSPENSION, 32, 60, 5));
+            3);
     }
 
     public static PoleDesign latticeSuspensionSmall() {
@@ -74,8 +70,7 @@ public final class TowerFamilyDesignPresets {
             4,
             18,
             InsulatorType.SUSPENSION,
-            2,
-            metadata(TowerRole.SUSPENSION, 20, 35, 5));
+            2);
     }
 
     public static PoleDesign latticeSuspensionMedium() {
@@ -85,8 +80,7 @@ public final class TowerFamilyDesignPresets {
             5,
             30,
             InsulatorType.SUSPENSION,
-            3,
-            metadata(TowerRole.SUSPENSION, 30, 55, 5));
+            3);
     }
 
     public static PoleDesign latticeSuspensionTall() {
@@ -97,8 +91,7 @@ public final class TowerFamilyDesignPresets {
             ConductorArrangement.doubleCircuitThreeDeck(),
             36,
             InsulatorType.SUSPENSION,
-            3,
-            metadata(TowerRole.SUSPENSION, 48, 80, 5));
+            3);
     }
 
     public static PoleDesign latticeAngle() {
@@ -108,8 +101,7 @@ public final class TowerFamilyDesignPresets {
             6,
             32,
             InsulatorType.STRAIN,
-            4,
-            metadata(TowerRole.ANGLE, 34, 55, 60));
+            4);
     }
 
     public static PoleDesign latticeDeadEnd() {
@@ -119,8 +111,7 @@ public final class TowerFamilyDesignPresets {
             6,
             32,
             InsulatorType.STRAIN,
-            4,
-            metadata(TowerRole.DEAD_END, 34, 55, 90));
+            4);
     }
 
     public static PoleDesign latticeTerminal() {
@@ -130,8 +121,7 @@ public final class TowerFamilyDesignPresets {
             5,
             30,
             InsulatorType.STRAIN,
-            3,
-            metadata(TowerRole.TERMINAL, 32, 50, 90));
+            3);
     }
 
     public static PoleDesign hvTransmissionSuspension() {
@@ -140,8 +130,7 @@ public final class TowerFamilyDesignPresets {
             "HV Transmission Suspension",
             30,
             InsulatorType.SUSPENSION,
-            3,
-            metadata(TowerRole.SUSPENSION, 30, 65, 5));
+            3);
     }
 
     public static PoleDesign hvTransmissionAngle() {
@@ -150,8 +139,7 @@ public final class TowerFamilyDesignPresets {
             "HV Transmission Angle",
             30,
             InsulatorType.STRAIN,
-            4,
-            metadata(TowerRole.ANGLE, 32, 60, 60));
+            4);
     }
 
     public static PoleDesign hvTransmissionDeadEnd() {
@@ -160,8 +148,7 @@ public final class TowerFamilyDesignPresets {
             "HV Transmission Dead-End",
             30,
             InsulatorType.STRAIN,
-            4,
-            metadata(TowerRole.DEAD_END, 32, 60, 90));
+            4);
     }
 
     public static PoleDesign hvTransmissionTerminal() {
@@ -170,8 +157,7 @@ public final class TowerFamilyDesignPresets {
             "HV Transmission Terminal",
             30,
             InsulatorType.STRAIN,
-            3,
-            metadata(TowerRole.TERMINAL, 30, 55, 90));
+            3);
     }
 
     public static PoleDesign megaLatticeSuspension() {
@@ -182,8 +168,7 @@ public final class TowerFamilyDesignPresets {
             ConductorArrangement.megaThreeDeck(),
             38,
             InsulatorType.SUSPENSION,
-            4,
-            metadata(TowerRole.SUSPENSION, 52, 90, 5));
+            4);
     }
 
     public static PoleDesign megaLatticeAngle() {
@@ -194,8 +179,7 @@ public final class TowerFamilyDesignPresets {
             ConductorArrangement.megaThreeDeck(),
             38,
             InsulatorType.STRAIN,
-            5,
-            metadata(TowerRole.ANGLE, 54, 85, 60));
+            5);
     }
 
     public static PoleDesign megaLatticeDeadEnd() {
@@ -206,8 +190,7 @@ public final class TowerFamilyDesignPresets {
             ConductorArrangement.megaThreeDeck(),
             38,
             InsulatorType.STRAIN,
-            5,
-            metadata(TowerRole.DEAD_END, 56, 85, 90));
+            5);
     }
 
     public static PoleDesign megaLatticeTerminal() {
@@ -218,8 +201,7 @@ public final class TowerFamilyDesignPresets {
             ConductorArrangement.megaThreeDeck(),
             38,
             InsulatorType.STRAIN,
-            4,
-            metadata(TowerRole.TERMINAL, 52, 80, 90));
+            4);
     }
 
     public static PoleDesign heavyDoubleCircuitSuspension() {
@@ -230,8 +212,7 @@ public final class TowerFamilyDesignPresets {
             ConductorArrangement.doubleCircuitDrum(),
             44,
             InsulatorType.SUSPENSION,
-            4,
-            metadata(TowerRole.SUSPENSION, 54, 100, 5));
+            4);
     }
 
     public static PoleDesign heavyDoubleCircuitAngle() {
@@ -242,8 +223,7 @@ public final class TowerFamilyDesignPresets {
             ConductorArrangement.doubleCircuitDrum(),
             44,
             InsulatorType.STRAIN,
-            5,
-            metadata(TowerRole.ANGLE, 56, 95, 60));
+            5);
     }
 
     public static PoleDesign heavyDoubleCircuitDeadEnd() {
@@ -254,8 +234,7 @@ public final class TowerFamilyDesignPresets {
             ConductorArrangement.doubleCircuitDrum(),
             44,
             InsulatorType.STRAIN,
-            5,
-            metadata(TowerRole.DEAD_END, 58, 95, 90));
+            5);
     }
 
     public static PoleDesign heavyDoubleCircuitTerminal() {
@@ -266,8 +245,7 @@ public final class TowerFamilyDesignPresets {
             ConductorArrangement.doubleCircuitDrum(),
             44,
             InsulatorType.STRAIN,
-            4,
-            metadata(TowerRole.TERMINAL, 54, 90, 90));
+            4);
     }
 
     public static PoleDesign industrialPortalSuspension() {
@@ -278,8 +256,7 @@ public final class TowerFamilyDesignPresets {
             ConductorArrangement.heavyDoubleCircuit(),
             26,
             InsulatorType.SUSPENSION,
-            4,
-            metadata(TowerRole.SUSPENSION, 50, 110, 5));
+            4);
     }
 
     public static PoleDesign industrialPortalAngle() {
@@ -290,8 +267,7 @@ public final class TowerFamilyDesignPresets {
             ConductorArrangement.heavyDoubleCircuit(),
             26,
             InsulatorType.STRAIN,
-            5,
-            metadata(TowerRole.ANGLE, 52, 105, 60));
+            5);
     }
 
     public static PoleDesign industrialPortalDeadEnd() {
@@ -302,8 +278,7 @@ public final class TowerFamilyDesignPresets {
             ConductorArrangement.heavyDoubleCircuit(),
             26,
             InsulatorType.STRAIN,
-            5,
-            metadata(TowerRole.DEAD_END, 54, 105, 90));
+            5);
     }
 
     public static PoleDesign industrialPortalTerminal() {
@@ -314,8 +289,7 @@ public final class TowerFamilyDesignPresets {
             ConductorArrangement.heavyDoubleCircuit(),
             26,
             InsulatorType.STRAIN,
-            4,
-            metadata(TowerRole.TERMINAL, 50, 100, 90));
+            4);
     }
 
     public static PoleDesign monsterPylonSuspension() {
@@ -326,8 +300,7 @@ public final class TowerFamilyDesignPresets {
             ConductorArrangement.uhvThreeDeck(),
             56,
             InsulatorType.SUSPENSION,
-            5,
-            metadata(TowerRole.SUSPENSION, 80, 140, 5));
+            5);
     }
 
     public static PoleDesign monsterPylonAngle() {
@@ -338,8 +311,7 @@ public final class TowerFamilyDesignPresets {
             ConductorArrangement.uhvThreeDeck(),
             56,
             InsulatorType.STRAIN,
-            6,
-            metadata(TowerRole.ANGLE, 86, 130, 60));
+            6);
     }
 
     public static PoleDesign monsterPylonDeadEnd() {
@@ -350,8 +322,7 @@ public final class TowerFamilyDesignPresets {
             ConductorArrangement.uhvThreeDeck(),
             56,
             InsulatorType.STRAIN,
-            6,
-            metadata(TowerRole.DEAD_END, 84, 130, 90));
+            6);
     }
 
     public static PoleDesign monsterPylonTerminal() {
@@ -362,8 +333,7 @@ public final class TowerFamilyDesignPresets {
             ConductorArrangement.uhvThreeDeck(),
             56,
             InsulatorType.STRAIN,
-            5,
-            metadata(TowerRole.TERMINAL, 82, 120, 90));
+            5);
     }
 
     public static PoleDesign tripleArmSuspension() {
@@ -374,8 +344,7 @@ public final class TowerFamilyDesignPresets {
             ConductorArrangement.doubleCircuitThreeDeck(),
             36,
             InsulatorType.SUSPENSION,
-            3,
-            metadata(TowerRole.SUSPENSION, 48, 95, 5));
+            3);
     }
 
     public static PoleDesign tripleArmAngle() {
@@ -386,8 +355,7 @@ public final class TowerFamilyDesignPresets {
             ConductorArrangement.doubleCircuitThreeDeck(),
             36,
             InsulatorType.STRAIN,
-            4,
-            metadata(TowerRole.ANGLE, 50, 90, 60));
+            4);
     }
 
     public static PoleDesign tripleArmDeadEnd() {
@@ -398,8 +366,7 @@ public final class TowerFamilyDesignPresets {
             ConductorArrangement.doubleCircuitThreeDeck(),
             36,
             InsulatorType.STRAIN,
-            4,
-            metadata(TowerRole.DEAD_END, 50, 90, 90));
+            4);
     }
 
     public static PoleDesign tripleArmTerminal() {
@@ -410,8 +377,7 @@ public final class TowerFamilyDesignPresets {
             ConductorArrangement.doubleCircuitThreeDeck(),
             36,
             InsulatorType.STRAIN,
-            3,
-            metadata(TowerRole.TERMINAL, 48, 85, 90));
+            3);
     }
 
     public static PoleDesign cupTowerSuspension() {
@@ -420,8 +386,7 @@ public final class TowerFamilyDesignPresets {
             "Cup Tower Suspension",
             32,
             InsulatorType.SUSPENSION,
-            3,
-            metadata(TowerRole.SUSPENSION, 38, 75, 5));
+            3);
     }
 
     public static PoleDesign cupTowerAngle() {
@@ -430,8 +395,7 @@ public final class TowerFamilyDesignPresets {
             "Cup Tower Angle",
             32,
             InsulatorType.STRAIN,
-            4,
-            metadata(TowerRole.ANGLE, 40, 70, 60));
+            4);
     }
 
     public static PoleDesign cupTowerDeadEnd() {
@@ -440,8 +404,7 @@ public final class TowerFamilyDesignPresets {
             "Cup Tower Dead-End",
             32,
             InsulatorType.STRAIN,
-            4,
-            metadata(TowerRole.DEAD_END, 40, 70, 90));
+            4);
     }
 
     public static PoleDesign cupTowerTerminal() {
@@ -450,22 +413,9 @@ public final class TowerFamilyDesignPresets {
             "Cup Tower Terminal",
             32,
             InsulatorType.STRAIN,
-            3,
-            metadata(TowerRole.TERMINAL, 38, 65, 90));
+            3);
     }
 
-    private static TowerPlanningMetadata metadata(
-            TowerRole role,
-            double height,
-            double maxSpan,
-            double maxAngle) {
-        TowerPlanningMetadata metadata = new TowerPlanningMetadata();
-        metadata.setNominalHeight(height);
-        metadata.setMaxRecommendedSpan(maxSpan);
-        metadata.setMaxRecommendedDeflectionAngle(maxAngle);
-        metadata.setSupportedRoles(EnumSet.of(role));
-        return metadata;
-    }
 
     private static PoleDesign buildClassicLatticeRoleDesign(
             String id,
@@ -473,8 +423,7 @@ public final class TowerFamilyDesignPresets {
             double baseWidth,
             double attachmentHeight,
             InsulatorType insulatorType,
-            int insulatorLength,
-            TowerPlanningMetadata metadata) {
+            int insulatorLength) {
         PoleDesign design = new PoleDesign(id, name);
         TowerStructureDesign structure = TowerStructurePresets.classicDoubleArmTower().copy();
         scaleStationFootprint(structure, baseWidth, TowerStructurePresets.CLASSIC_BASE_HALF_WIDTH);
@@ -482,7 +431,6 @@ public final class TowerFamilyDesignPresets {
         design.setAttachments(TowerConductorArrangement.classicLattice().createAttachments(
             attachmentHeight, insulatorType, insulatorLength));
         InsulatorAssemblyCatalog.applyStandardDefaults(design);
-        design.setPlanningMetadata(metadata);
         return design;
     }
 
@@ -492,8 +440,7 @@ public final class TowerFamilyDesignPresets {
             double baseWidth,
             double attachmentHeight,
             InsulatorType insulatorType,
-            int insulatorLength,
-            TowerPlanningMetadata metadata) {
+            int insulatorLength) {
         PoleDesign design = new PoleDesign(id, name);
         TowerStructureDesign structure = TowerStructurePresets.smallLatticeTower().copy();
         scaleStationFootprint(structure, baseWidth, TowerStructurePresets.SMALL_BASE_HALF_WIDTH);
@@ -501,7 +448,6 @@ public final class TowerFamilyDesignPresets {
         design.setAttachments(TowerConductorArrangement.classicLattice().createAttachments(
             attachmentHeight, insulatorType, insulatorLength));
         InsulatorAssemblyCatalog.applyStandardDefaults(design);
-        design.setPlanningMetadata(metadata);
         return design;
     }
 
@@ -510,14 +456,12 @@ public final class TowerFamilyDesignPresets {
             String name,
             double attachmentHeight,
             InsulatorType insulatorType,
-            int insulatorLength,
-            TowerPlanningMetadata metadata) {
+            int insulatorLength) {
         PoleDesign design = new PoleDesign(id, name);
         design.setTowerStructure(TowerStructurePresets.heavyTransmissionTower().copy());
         design.setAttachments(TowerConductorArrangement.heavyTransmission().createAttachments(
             attachmentHeight, insulatorType, insulatorLength));
         InsulatorAssemblyCatalog.applyMegaDefaults(design, insulatorType);
-        design.setPlanningMetadata(metadata);
         return design;
     }
 
@@ -526,14 +470,12 @@ public final class TowerFamilyDesignPresets {
             String name,
             double attachmentHeight,
             InsulatorType insulatorType,
-            int insulatorLength,
-            TowerPlanningMetadata metadata) {
+            int insulatorLength) {
         PoleDesign design = new PoleDesign(id, name);
         design.setTowerStructure(TowerStructurePresets.cupTower().copy());
         design.setAttachments(TowerConductorArrangement.heavyTransmission().createAttachments(
             attachmentHeight, insulatorType, insulatorLength));
         InsulatorAssemblyCatalog.applyStandardDefaults(design);
-        design.setPlanningMetadata(metadata);
         return design;
     }
 
@@ -562,8 +504,7 @@ public final class TowerFamilyDesignPresets {
             ConductorArrangement arrangement,
             double attachmentHeight,
             InsulatorType insulatorType,
-            int insulatorLength,
-            TowerPlanningMetadata metadata) {
+            int insulatorLength) {
         PoleDesign design = new PoleDesign(id, name);
         design.setTowerStructure(structure.copy());
         design.setAttachments(arrangement.toAttachments(attachmentHeight, insulatorType, insulatorLength));
@@ -572,7 +513,6 @@ public final class TowerFamilyDesignPresets {
         } else {
             InsulatorAssemblyCatalog.applyMegaDefaults(design, insulatorType);
         }
-        design.setPlanningMetadata(metadata);
         return design;
     }
 }

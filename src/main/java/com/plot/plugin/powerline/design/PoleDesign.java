@@ -2,7 +2,6 @@ package com.plot.plugin.powerline.design;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.annotations.SerializedName;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
 import com.plot.plugin.powerline.design.parametric.StructureDensity;
@@ -11,11 +10,8 @@ import com.plot.plugin.powerline.design.parametric.TowerGeneratorMode;
 import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.equipment.InsulatorType;
-import com.plot.plugin.powerline.model.TowerRole;
-
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -32,7 +28,6 @@ public class PoleDesign {
     private List<PoleLayer> layers = new ArrayList<>();
     private List<ConductorAttachment> attachments = new ArrayList<>();
     private TowerStructureDesign towerStructure;
-    private TowerPlanningMetadata planningMetadata;
     private TowerGeneratorConfig generatorConfig;
 
     public PoleDesign(String name) {
@@ -178,16 +173,6 @@ public class PoleDesign {
         return towerStructure != null && towerStructure.hasStations();
     }
 
-    public TowerPlanningMetadata getPlanningMetadata() {
-        return planningMetadata;
-    }
-
-    public void setPlanningMetadata(TowerPlanningMetadata planningMetadata) {
-        this.planningMetadata = planningMetadata != null
-            ? planningMetadata.copy()
-            : null;
-    }
-
     public void clearTowerStructure() {
         this.towerStructure = null;
     }
@@ -249,7 +234,6 @@ public class PoleDesign {
         copy.setLayers(layers);
         copy.setAttachments(attachments);
         copy.setTowerStructure(towerStructure);
-        copy.setPlanningMetadata(planningMetadata);
         copy.setGeneratorConfig(generatorConfig);
         return copy;
     }
@@ -296,69 +280,12 @@ public class PoleDesign {
         MaterialMix material;
     }
 
-    static class PlanningMetadataData {
-        double nominalHeight;
-        double maxRecommendedSpan;
-        double maxRecommendedDeflectionAngle;
-        List<String> supportedRoles = new ArrayList<>();
-
-        static PlanningMetadataData from(TowerPlanningMetadata metadata) {
-            if (metadata == null) {
-                return null;
-            }
-            PlanningMetadataData data = new PlanningMetadataData();
-            data.nominalHeight = metadata.getNominalHeight();
-            data.maxRecommendedSpan = metadata.getMaxRecommendedSpan();
-            data.maxRecommendedDeflectionAngle = metadata.getMaxRecommendedDeflectionAngle();
-            for (TowerRole role : metadata.getSupportedRoles()) {
-                if (role != null) {
-                    data.supportedRoles.add(role.name());
-                }
-            }
-            return data;
-        }
-
-        TowerPlanningMetadata toMetadata() {
-            TowerPlanningMetadata metadata = new TowerPlanningMetadata();
-            metadata.setNominalHeight(nominalHeight);
-            metadata.setMaxRecommendedSpan(maxRecommendedSpan);
-            metadata.setMaxRecommendedDeflectionAngle(maxRecommendedDeflectionAngle);
-            EnumSet<TowerRole> roles = EnumSet.noneOf(TowerRole.class);
-            if (supportedRoles != null) {
-                for (String raw : supportedRoles) {
-                    TowerRole role = parseTowerRole(raw);
-                    if (role != null) {
-                        roles.add(role);
-                    }
-                }
-            }
-            if (supportedRoles != null) {
-                metadata.setSupportedRoles(roles);
-            }
-            return metadata;
-        }
-
-        private static TowerRole parseTowerRole(String raw) {
-            if (raw == null || raw.isBlank()) {
-                return null;
-            }
-            try {
-                return TowerRole.valueOf(raw.trim());
-            } catch (IllegalArgumentException ignored) {
-                return null;
-            }
-        }
-    }
-
     static class DesignData {
         String id;
         String name;
         List<LayerData> layers = new ArrayList<>();
         List<AttachmentData> attachments = new ArrayList<>();
         String towerStructureJson;
-        PlanningMetadataData planningMetadata;
-        @SerializedName("engineeringMetadata")
-        PlanningMetadataData legacyEngineeringMetadata;
         GeneratorConfigData generatorConfig;
 
         static DesignData from(PoleDesign design) {
@@ -407,7 +334,6 @@ public class PoleDesign {
             if (design.towerStructure != null) {
                 data.towerStructureJson = design.towerStructure.toJson();
             }
-            data.planningMetadata = PlanningMetadataData.from(design.planningMetadata);
             data.generatorConfig = GeneratorConfigData.from(design.generatorConfig);
             return data;
         }
@@ -479,12 +405,6 @@ public class PoleDesign {
             design.setAttachments(restoredAttachments);
             if (towerStructureJson != null && !towerStructureJson.isBlank()) {
                 design.setTowerStructure(TowerStructureDesign.fromJson(towerStructureJson));
-            }
-            PlanningMetadataData metadataData = planningMetadata != null
-                ? planningMetadata
-                : legacyEngineeringMetadata;
-            if (metadataData != null) {
-                design.setPlanningMetadata(metadataData.toMetadata());
             }
             if (generatorConfig != null) {
                 design.setGeneratorConfig(generatorConfig.toConfig());
