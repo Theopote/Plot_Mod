@@ -44,7 +44,7 @@ class PowerLineStyleDefinitionTest {
     void instanceTracksBasePresetAndOverrides() {
         PowerLineFootprint line = line();
         PowerLineStylePresetCatalog.japaneseStreet().apply(line);
-        line.setWireMaterial(MaterialMix.single("minecraft:chain"));
+        line.setWireMaterial(MaterialMix.single("minecraft:iron_bars"));
         PowerLineStyleEditor.afterStyleEdit(line);
 
         PowerLineStyleInstance instance = line.styleInstance();

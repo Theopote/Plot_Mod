@@ -42,7 +42,7 @@ class PowerLineLegacyCompatibilityTest {
         PoleDesign pole = PoleDesignCatalog.simpleWoodPole();
         int wireY = 64 + (int) pole.getAttachments().getFirst().getVerticalOffset();
         for (BlockRecord record : result.placementRecords.values()) {
-            if (record.pos.getY() == wireY && "minecraft:iron_bars".equals(record.newBlockId)) {
+            if (record.pos.getY() == wireY && "minecraft:chain".equals(record.newBlockId)) {
                 wireZs.add(record.pos.getZ());
             }
         }

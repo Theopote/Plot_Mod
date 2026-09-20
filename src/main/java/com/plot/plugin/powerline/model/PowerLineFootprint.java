@@ -21,7 +21,7 @@ import java.util.UUID;
  */
 public class PowerLineFootprint {
     public static final String DEFAULT_POLE_MATERIAL = "minecraft:oak_fence";
-    public static final String DEFAULT_WIRE_MATERIAL = "minecraft:iron_bars";
+    public static final String DEFAULT_WIRE_MATERIAL = "minecraft:chain";
     public static final double DEFAULT_SAG_RATIO = 0.15;
     /** 最大档距滑块的下限（格）。 */
     public static final double MIN_CONFIGURABLE_SPACING = 5.0;

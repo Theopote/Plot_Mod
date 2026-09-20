@@ -23,7 +23,7 @@ class PowerLineStylePresetTest {
     void classicWoodAppliesFullBundle() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
         line.setTowerFamilyId(TowerFamily.STANDARD_LATTICE_3_PHASE_ID);
-        line.setWireMaterial(MaterialMix.single("minecraft:chain"));
+        line.setWireMaterial(MaterialMix.single("minecraft:iron_bars"));
 
         PowerLineStylePreset preset = PowerLineStylePresetCatalog.classicWood();
         preset.apply(line);
@@ -32,7 +32,7 @@ class PowerLineStylePresetTest {
         assertEquals(PoleDesignCatalog.SIMPLE_WOOD_POLE_ID, line.getPoleDesignId());
         assertNull(line.getTowerFamilyId());
         assertEquals("minecraft:oak_fence", line.getPoleMaterial().getPrimaryMaterial());
-        assertEquals("minecraft:iron_bars", line.getWireMaterial().getPrimaryMaterial());
+        assertEquals("minecraft:chain", line.getWireMaterial().getPrimaryMaterial());
         assertEquals(0.15, line.getSagRatio(), 0.001);
         assertEquals(1, preset.conductorCount());
         assertTrue(preset.matchesBundle(line));
@@ -42,7 +42,7 @@ class PowerLineStylePresetTest {
     void partialMatchDoesNotCountAsBundle() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
         PowerLineStylePresetCatalog.classicWood().apply(line);
-        line.setWireMaterial(MaterialMix.single("minecraft:chain"));
+        line.setWireMaterial(MaterialMix.single("minecraft:iron_bars"));
 
         assertFalse(PowerLineStylePresetCatalog.classicWood().matchesBundle(line));
     }
@@ -70,7 +70,7 @@ class PowerLineStylePresetTest {
     void wireMaterialDriftKeepsBasePresetAndMarksModified() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
         PowerLineStylePresetCatalog.japaneseStreet().apply(line);
-        line.setWireMaterial(MaterialMix.single("minecraft:chain"));
+        line.setWireMaterial(MaterialMix.single("minecraft:iron_bars"));
 
         PowerLineStyleEditor.afterStyleEdit(line);
 
@@ -84,7 +84,7 @@ class PowerLineStylePresetTest {
     void activePresetReturnsBaseEvenWhenBundleDrifts() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
         PowerLineStylePresetCatalog.classicWood().apply(line);
-        line.setWireMaterial(MaterialMix.single("minecraft:chain"));
+        line.setWireMaterial(MaterialMix.single("minecraft:iron_bars"));
 
         PowerLineStylePreset active = PowerLineStylePresetCatalog.activePreset(line);
         assertNotNull(active);
@@ -119,7 +119,7 @@ class PowerLineStylePresetTest {
     void resetToBasePresetRestoresDefaults() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
         PowerLineStylePresetCatalog.japaneseStreet().apply(line);
-        line.setWireMaterial(MaterialMix.single("minecraft:chain"));
+        line.setWireMaterial(MaterialMix.single("minecraft:iron_bars"));
         PowerLineUiPresets.applySag(line, PowerLineUiPresets.WireSag.LOOSE);
         line.setMaxSagDepth(40.0);
         line.setMaxPoleSpacing(72);

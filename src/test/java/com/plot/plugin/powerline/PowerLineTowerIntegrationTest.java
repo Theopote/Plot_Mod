@@ -136,7 +136,7 @@ class PowerLineTowerIntegrationTest {
     private static Set<Integer> wireZValues(PowerLineGenerationResult result, int wireY) {
         Set<Integer> zs = new HashSet<>();
         for (BlockRecord record : result.placementRecords.values()) {
-            if (record.pos.getY() == wireY && "minecraft:iron_bars".equals(record.baseBlockId())) {
+            if (record.pos.getY() == wireY && "minecraft:chain".equals(record.baseBlockId())) {
                 zs.add(record.pos.getZ());
             }
         }

@@ -70,7 +70,7 @@ class PowerLineProjectSchemaDTest {
         com.plot.plugin.powerline.style.PowerLineStyleEditor.selectPreset(
             line,
             com.plot.plugin.powerline.style.PowerLineStylePresetCatalog.classicWood());
-        line.setWireMaterial(MaterialMix.single("minecraft:chain"));
+        line.setWireMaterial(MaterialMix.single("minecraft:iron_bars"));
         line.setSagRatio(0.35);
         com.plot.plugin.powerline.style.PowerLineStyleEditor.afterStyleEdit(line);
         line.setMaxPoleSpacing(48.0);
@@ -83,7 +83,7 @@ class PowerLineProjectSchemaDTest {
         PowerLineProject restored = PowerLineProject.fromJson(json);
         PowerLineFootprint restoredLine = restored.getLine(line.getId());
         assertNotNull(restoredLine);
-        assertEquals("minecraft:chain", restoredLine.getWireMaterial().getPrimaryMaterial());
+        assertEquals("minecraft:iron_bars", restoredLine.getWireMaterial().getPrimaryMaterial());
         assertEquals(0.35, restoredLine.getSagRatio(), 1e-6);
         assertTrue(com.plot.plugin.powerline.style.PowerLineStyleEditor.isSpacingCustomized(restoredLine));
         assertEquals(48.0, restoredLine.getMaxPoleSpacing(), 1e-6);
