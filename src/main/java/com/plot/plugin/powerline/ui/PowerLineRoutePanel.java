@@ -230,7 +230,7 @@ public final class PowerLineRoutePanel {
             return true;
         }
         if (mode == PoleSpacingMode.TOWER_COUNT) {
-            return !line.getLayoutConstraints().isEmpty();
+            return !line.effectiveLayoutConstraints().isEmpty();
         }
         return false;
     }
@@ -275,7 +275,7 @@ public final class PowerLineRoutePanel {
     }
 
     private void renderPausedAutoCorrectionPoles(PowerLineFootprint line) {
-        int count = line.getLayoutConstraints().size();
+        int count = line.getDerivedLayout().autoLayoutConstraints().size();
         if (count <= 0) {
             return;
         }
@@ -283,14 +283,13 @@ public final class PowerLineRoutePanel {
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.route.auto_poles.paused_endpoints", count));
         if (ImGui.button(PlotI18n.tr("plugin.powerline.route.auto_poles.clear_all"), 0, 0)) {
-            ctx.pushEditSnapshot();
-            line.clearLayoutConstraints();
+            line.getDerivedLayout().clearAutoLayoutConstraints();
             ctx.invalidatePreview();
         }
     }
 
     private void renderAutoCorrectionPoles(PowerLineFootprint line) {
-        var constraints = line.getLayoutConstraints();
+        var constraints = line.getDerivedLayout().autoLayoutConstraints();
         if (constraints.isEmpty()) {
             return;
         }
@@ -306,16 +305,14 @@ public final class PowerLineRoutePanel {
                 PowerLineAutoPoleLabels.friendlyReason(constraint)));
             ImGui.sameLine();
             if (ImGui.button(PlotI18n.tr("plugin.powerline.route.auto_poles.remove"), 0, 0)) {
-                ctx.pushEditSnapshot();
-                line.removeLayoutConstraint(i);
+                line.getDerivedLayout().removeAutoLayoutConstraint(i);
                 ctx.invalidatePreview();
             }
             ImGui.popID();
             ImGui.spacing();
         }
         if (ImGui.button(PlotI18n.tr("plugin.powerline.route.auto_poles.clear_all"), 0, 0)) {
-            ctx.pushEditSnapshot();
-            line.clearLayoutConstraints();
+            line.getDerivedLayout().clearAutoLayoutConstraints();
             ctx.invalidatePreview();
         }
     }

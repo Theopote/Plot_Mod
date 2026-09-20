@@ -103,7 +103,8 @@ class PowerLineActionsHotPathTest {
         assertEquals(before, project.toJson());
 
         assertTrue(TerrainTestFixtures.applyTerrainFix(line, terrain, 1));
-        assertNotEquals(project.toJson(), before);
+        assertEquals(before, project.toJson());
+        assertFalse(line.getDerivedLayout().isEmpty());
     }
 
     private static PowerLineProject projectWith(PowerLineFootprint line) {

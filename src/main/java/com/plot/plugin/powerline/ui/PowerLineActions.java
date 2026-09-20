@@ -285,13 +285,19 @@ public final class PowerLineActions {
     }
 
     public boolean calculatePreview(PowerLineFootprint line, boolean enableAutoRefresh) {
+        boolean ok = runPreviewPipeline(line);
+        if (ok && enableAutoRefresh) {
+            state.setPreviewAutoRefreshEnabled(true);
+        }
+        return ok;
+    }
+
+    private boolean runPreviewPipeline(PowerLineFootprint line) {
+        line.clearDerivedLayout();
         if (!calculatePreviewCore(line)) {
             return false;
         }
         applyTerrainFit(line);
-        if (enableAutoRefresh) {
-            state.setPreviewAutoRefreshEnabled(true);
-        }
         return state.getLastGenerationResult() != null;
     }
 
@@ -360,7 +366,6 @@ public final class PowerLineActions {
         if (!TerrainFitService.hasVisualConflict(result.toGeometryModel(), terrain)) {
             return;
         }
-        pushWorkspaceSnapshot();
         TerrainFitService.FitResult fit = TerrainFitService.fit(
             line,
             result,
@@ -413,10 +418,7 @@ public final class PowerLineActions {
     }
 
     private boolean refreshPreviewQuietly(PowerLineFootprint line) {
-        if (!calculatePreviewCore(line)) {
-            return false;
-        }
-        return state.getLastGenerationResult() != null;
+        return runPreviewPipeline(line);
     }
 
     public boolean isPreviewValidFor(PowerLineFootprint line) {

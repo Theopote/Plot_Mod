@@ -52,7 +52,11 @@ class TerrainFitClosedLoopTest {
 
         assertTrue(TerrainFitService.applyOneFix(
             line, report, result, IdentityCoordinateService.INSTANCE));
-        assertEquals(1, line.getLayoutConstraints().size());
-        assertEquals(192.5, line.getLayoutConstraints().getFirst().getRequiredStationing(), 1.0);
+        assertTrue(line.getLayoutConstraints().isEmpty());
+        assertEquals(1, line.getDerivedLayout().autoLayoutConstraints().size());
+        assertEquals(
+            192.5,
+            line.getDerivedLayout().autoLayoutConstraints().getFirst().getRequiredStationing(),
+            1.0);
     }
 }

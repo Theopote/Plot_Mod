@@ -42,6 +42,8 @@ public class PowerLineFootprint {
     private double poleHeight = 10.0;
     private final List<PoleOverride> poleOverrides = new ArrayList<>();
     private final List<PoleLayoutConstraint> layoutConstraints = new ArrayList<>();
+    /** 预览/TerrainFit 派生布局，不持久化。 */
+    private transient PowerLineDerivedLayout derivedLayout = new PowerLineDerivedLayout();
     /** 杆塔布置模式；默认按固定档距自动插杆。 */
     private PoleSpacingMode poleSpacingMode = PoleSpacingMode.AUTO_SPACING;
     /** {@link PoleSpacingMode#TOWER_COUNT} 时沿路径等距分布的杆塔数量。 */
@@ -363,6 +365,36 @@ public class PowerLineFootprint {
         if (index >= 0 && index < layoutConstraints.size()) {
             layoutConstraints.remove(index);
         }
+    }
+
+    public PowerLineDerivedLayout getDerivedLayout() {
+        if (derivedLayout == null) {
+            derivedLayout = new PowerLineDerivedLayout();
+        }
+        return derivedLayout;
+    }
+
+    public void clearDerivedLayout() {
+        getDerivedLayout().clear();
+    }
+
+    public List<PoleLayoutConstraint> effectiveLayoutConstraints() {
+        List<PoleLayoutConstraint> merged = new ArrayList<>(layoutConstraints);
+        merged.addAll(getDerivedLayout().autoLayoutConstraints());
+        return List.copyOf(merged);
+    }
+
+    public List<PoleOverride> effectivePoleOverrides() {
+        List<PoleOverride> merged = new ArrayList<>(poleOverrides);
+        for (PoleOverride override : getDerivedLayout().autoPoleOverrides()) {
+            merged.add(override.copy());
+        }
+        return List.copyOf(merged);
+    }
+
+    public double effectivePoleHeight() {
+        Double override = getDerivedLayout().poleHeightOverride();
+        return override != null ? override : getPoleHeight();
     }
 
     public PoleSpacingMode getPoleSpacingMode() {

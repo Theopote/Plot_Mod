@@ -125,7 +125,10 @@ public final class TerrainFitService {
         if (nextDesignId == null || nextDesignId.equals(currentDesignId)) {
             return false;
         }
-        PowerLineOverrideUtils.setDesignOverride(line, site.getStationing(), nextDesignId);
+        PowerLineOverrideUtils.setDerivedDesignOverride(
+            line.getDerivedLayout(),
+            site.getStationing(),
+            nextDesignId);
         return true;
     }
 
@@ -133,11 +136,12 @@ public final class TerrainFitService {
         if (line.hasTowerFamily() || line.hasPoleDesign()) {
             return false;
         }
-        double next = Math.min(64.0, line.getPoleHeight() + 2.0);
-        if (next <= line.getPoleHeight()) {
+        double current = line.effectivePoleHeight();
+        double next = Math.min(64.0, current + 2.0);
+        if (next <= current) {
             return false;
         }
-        line.setPoleHeight(next);
+        line.getDerivedLayout().setPoleHeightOverride(next);
         return true;
     }
 
@@ -154,7 +158,7 @@ public final class TerrainFitService {
         if (stationing < 0 || hasNearbyConstraint(line, stationing, coordinates)) {
             return false;
         }
-        line.addLayoutConstraint(new PoleLayoutConstraint(
+        line.getDerivedLayout().addAutoLayoutConstraint(new PoleLayoutConstraint(
             stationing,
             "plugin.powerline.route.auto_pole.reason.terrain"));
         return true;
@@ -287,7 +291,7 @@ public final class TerrainFitService {
         double perimeter = closedLoop
             ? line.resolveSourcePath().worldLength(coordinates)
             : 0.0;
-        for (PoleLayoutConstraint constraint : line.getLayoutConstraints()) {
+        for (PoleLayoutConstraint constraint : line.effectiveLayoutConstraints()) {
             double distance = ClosedPathStationMath.nearestDistance(
                 stationing,
                 constraint.getRequiredStationing(),

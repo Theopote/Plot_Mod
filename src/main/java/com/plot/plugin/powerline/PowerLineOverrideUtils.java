@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline;
 
 import com.plot.plugin.powerline.model.PoleOverride;
+import com.plot.plugin.powerline.model.PowerLineDerivedLayout;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.TowerRole;
 
@@ -53,8 +54,31 @@ public final class PowerLineOverrideUtils {
         footprint.setPoleOverrides(overrides);
     }
 
+    public static void setDerivedDesignOverride(
+            PowerLineDerivedLayout derived,
+            double stationing,
+            String designIdOrNull) {
+        if (derived == null) {
+            return;
+        }
+        List<PoleOverride> overrides = new ArrayList<>(derived.autoPoleOverrides());
+        applyDesignOverride(overrides, stationing, designIdOrNull);
+        derived.clearAutoPoleOverrides();
+        for (PoleOverride override : overrides) {
+            derived.addAutoPoleOverride(override);
+        }
+    }
+
     public static void setDesignOverride(PowerLineFootprint footprint, double stationing, String designIdOrNull) {
         List<PoleOverride> overrides = new ArrayList<>(footprint.getPoleOverrides());
+        applyDesignOverride(overrides, stationing, designIdOrNull);
+        footprint.setPoleOverrides(overrides);
+    }
+
+    private static void applyDesignOverride(
+            List<PoleOverride> overrides,
+            double stationing,
+            String designIdOrNull) {
         PoleOverride existing = findOverride(overrides, stationing);
         if (designIdOrNull == null || designIdOrNull.isBlank()) {
             if (existing != null) {
@@ -72,7 +96,6 @@ public final class PowerLineOverrideUtils {
             override.setPoleDesignOverrideId(designIdOrNull);
             overrides.add(override);
         }
-        footprint.setPoleOverrides(overrides);
     }
 
     public static String roleShortCode(TowerRole role) {

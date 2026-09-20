@@ -246,7 +246,7 @@ public class PowerLineGenerator {
                 planPoint,
                 placementBase,
                 design,
-                footprint.getPoleHeight(),
+                footprint.effectivePoleHeight(),
                 tangent,
                 terrain,
                 result,
@@ -297,10 +297,10 @@ public class PowerLineGenerator {
                 LineEquipmentGenerator.place(attachment, frame, footprint, result, projectionHandler);
             }
         } else {
-            legacyWireHangY = buildBaseY + (int) Math.round(footprint.getPoleHeight());
+            legacyWireHangY = buildBaseY + (int) Math.round(footprint.effectivePoleHeight());
             generateDefaultPole(planPoint, placementBase, legacyWireHangY, footprint, result);
             PoleDesign synthetic = new PoleDesign("_default_pole", "Default");
-            synthetic.setAttachments(ConductorAttachmentPresets.singleConductor(footprint.getPoleHeight()));
+            synthetic.setAttachments(ConductorAttachmentPresets.singleConductor(footprint.effectivePoleHeight()));
             attachments = attachmentResolver.resolve(synthetic, frame);
             usesAttachmentConductors = !attachments.isEmpty();
         }

@@ -57,7 +57,8 @@ class TerrainFitServiceIntegrationTest {
         int polesBefore = PowerPoleLayoutUtils.computePoleSites(line, IdentityCoordinateService.INSTANCE).size();
 
         assertTrue(TerrainTestFixtures.applyTerrainFix(line, terrain, 1));
-        assertFalse(line.getLayoutConstraints().isEmpty());
+        assertTrue(line.getLayoutConstraints().isEmpty());
+        assertFalse(line.getDerivedLayout().autoLayoutConstraints().isEmpty());
         assertTrue(PowerPoleLayoutUtils.computePoleSites(line, IdentityCoordinateService.INSTANCE).size() > polesBefore);
     }
 
@@ -70,6 +71,7 @@ class TerrainFitServiceIntegrationTest {
 
         assertTrue(TerrainTestFixtures.applyTerrainFix(line, TerrainTestFixtures.flatTerrain(64), 2));
         assertTrue(line.getLayoutConstraints().isEmpty());
+        assertTrue(line.getDerivedLayout().isEmpty());
     }
 
     @Test

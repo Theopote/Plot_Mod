@@ -293,12 +293,12 @@ public final class PowerPoleLayoutUtils {
             insertLayoutConstraints(
                 sites,
                 resolvedPath,
-                footprint.getLayoutConstraints(),
+                footprint.effectiveLayoutConstraints(),
                 footprint.getCornerAngleThreshold(),
                 perimeter,
                 coords);
         }
-        applyOverrides(sites, footprint.getPoleOverrides(), perimeter);
+        applyOverrides(sites, footprint.effectivePoleOverrides(), perimeter);
         return sites;
     }
 

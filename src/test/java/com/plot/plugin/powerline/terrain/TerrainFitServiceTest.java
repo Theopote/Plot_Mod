@@ -84,7 +84,8 @@ class TerrainFitServiceTest {
 
         assertTrue(TerrainFitService.applyOneFix(
             line, report, null, IdentityCoordinateService.INSTANCE));
-        assertTrue(line.getPoleHeight() > 10.0);
+        assertEquals(10.0, line.getPoleHeight(), 0.001);
+        assertTrue(line.effectivePoleHeight() > 10.0);
         assertTrue(line.getLayoutConstraints().isEmpty());
     }
 
@@ -110,7 +111,8 @@ class TerrainFitServiceTest {
         assertTrue(TerrainFitService.applyOneFix(
             line, report, result, IdentityCoordinateService.INSTANCE));
         assertEquals(10.0, line.getPoleHeight(), 0.001);
-        assertFalse(line.getLayoutConstraints().isEmpty());
+        assertTrue(line.getLayoutConstraints().isEmpty());
+        assertFalse(line.getDerivedLayout().autoLayoutConstraints().isEmpty());
         assertTrue(PowerPoleLayoutUtils.computePoleSites(line, IdentityCoordinateService.INSTANCE).size() > 2);
     }
 
