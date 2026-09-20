@@ -7,7 +7,9 @@ import com.plot.api.world.PlacementReadiness;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
 import com.plot.plugin.powerline.design.structure.TowerSilhouette;
+import com.plot.plugin.powerline.design.structure.TowerStationDensifier;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
+import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
@@ -43,6 +45,16 @@ class TowerVisualFidelityTest {
         assertEquals(TowerSilhouette.TAPERED_LATTICE, smallDesign().getSilhouette());
         assertEquals(TowerSilhouette.DOUBLE_ARM, mediumDesign().getSilhouette());
         assertEquals(TowerSilhouette.TRIPLE_ARM, largeDesign().getSilhouette());
+    }
+
+    @Test
+    void densifiedLegStationsIncreaseStructureMassWithoutChangingMacroStationCount() {
+        TowerStructureDesign structure = TowerStructurePresets.classicDoubleArmTower();
+        int macroCount = structure.sortedStations().size();
+        PowerLineGenerationResult result = generateStructureOnly(structure);
+
+        assertTrue(macroCount < TowerStationDensifier.densifyForLegs(structure.sortedStations()).size());
+        assertTrue(result.structureBlockCount > 0);
     }
 
     @Test

@@ -39,6 +39,18 @@ class TowerStructureGeneratorTest {
     }
 
     @Test
+    void densifiedStationsAddIntermediateHorizontalRings() {
+        TowerStructureDesign structure = TowerStructurePresets.classicDoubleArmTower();
+        structure.findOrCreateBay("s0", "s1").setHorizontalRing(false);
+        structure.findOrCreateBay("s1", "s2").setHorizontalRing(false);
+        structure.findOrCreateBay("s2", "s3").setHorizontalRing(false);
+
+        PowerLineGenerationResult result = generateStructure(structure);
+        int ringNearSix = countBraceBlocksNearHeight(result, 64 + 6);
+        assertTrue(ringNearSix >= 2, "dense interior station should add a horizontal ring near y=70");
+    }
+
+    @Test
     void taperedStationsProduceSlopedLegs() {
         TowerStructureDesign structure = taperedTower();
         PowerLineGenerationResult result = generateStructure(structure);

@@ -15,6 +15,7 @@ import com.plot.plugin.powerline.design.structure.TowerBay;
 import com.plot.plugin.powerline.design.structure.TowerDecoration;
 import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
+import com.plot.plugin.powerline.design.structure.TowerStationDensifier;
 import com.plot.plugin.powerline.design.structure.TowerStructureGeometry;
 import com.plot.plugin.powerline.design.structure.TowerStructureValidator;
 import com.plot.plugin.powerline.design.structure.TowerValidationIssue;
@@ -66,14 +67,29 @@ public final class TowerStructureGenerator {
 
         TowerStructureTransform transform = new TowerStructureTransform(frame, coordinates);
         GenerationCounters counters = new GenerationCounters();
-        List<TowerStation> stations = structure.sortedStations();
-        if (stations.size() < 2) {
+        List<TowerStation> macroStations = structure.sortedStations();
+        if (macroStations.size() < 2) {
             return frame.groundY() + (int) Math.round(structure.maxHeight());
         }
 
-        for (int i = 1; i < stations.size(); i++) {
-            TowerStation lower = stations.get(i - 1);
-            TowerStation upper = stations.get(i);
+        List<TowerStation> legStations = TowerStationDensifier.densifyForLegs(macroStations);
+        java.util.Set<Long> macroHeightKeys = macroStationHeightKeys(macroStations);
+
+        for (int i = 1; i < legStations.size(); i++) {
+            TowerStation lower = legStations.get(i - 1);
+            TowerStation upper = legStations.get(i);
+            generateLegs(lower, upper, structure, transform, footprint, result, projection, counters, structureScratch);
+            if (!isBaseStation(upper)) {
+                long upperKey = stationHeightKey(upper.getHeight());
+                if (!macroHeightKeys.contains(upperKey)) {
+                    generateHorizontalRing(upper, structure, transform, footprint, result, projection, counters, structureScratch);
+                }
+            }
+        }
+
+        for (int i = 1; i < macroStations.size(); i++) {
+            TowerStation lower = macroStations.get(i - 1);
+            TowerStation upper = macroStations.get(i);
             TowerBay bay = structure.findBay(lower.getId(), upper.getId());
             if (bay == null) {
                 bay = new TowerBay(lower.getId(), upper.getId());
@@ -82,7 +98,6 @@ public final class TowerStructureGenerator {
                 bay.setHorizontalRing(true);
             }
 
-            generateLegs(lower, upper, structure, transform, footprint, result, projection, counters, structureScratch);
             generateFaceBracing(
                 lower,
                 upper,
@@ -122,7 +137,7 @@ public final class TowerStructureGenerator {
             generateArm(
                 arm,
                 structure,
-                stations,
+                macroStations,
                 transform,
                 footprint,
                 result,
@@ -139,7 +154,7 @@ public final class TowerStructureGenerator {
         result.structureBlockCount += counters.total();
         result.braceBlockCount += counters.braceBlocks;
         result.armBlockCount += counters.armBlocks;
-        return frame.groundY() + (int) Math.round(stations.getLast().getHeight());
+        return frame.groundY() + (int) Math.round(macroStations.getLast().getHeight());
     }
 
     private static com.plot.plugin.powerline.design.PoleDesign wrapForValidation(
@@ -148,6 +163,22 @@ public final class TowerStructureGenerator {
             new com.plot.plugin.powerline.design.PoleDesign("validation");
         design.setTowerStructure(structure);
         return design;
+    }
+
+    private static java.util.Set<Long> macroStationHeightKeys(List<TowerStation> macroStations) {
+        java.util.Set<Long> keys = new HashSet<>();
+        for (TowerStation station : macroStations) {
+            keys.add(stationHeightKey(station.getHeight()));
+        }
+        return keys;
+    }
+
+    private static long stationHeightKey(double height) {
+        return Math.round(height * 1000.0);
+    }
+
+    private static boolean isBaseStation(TowerStation station) {
+        return station != null && station.getHeight() <= 1e-6;
     }
 
     private static void generateLegs(
