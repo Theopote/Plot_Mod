@@ -15,7 +15,7 @@ import imgui.type.ImInt;
 
 import java.nio.file.Path;
 
-/** 图案设计 Tab：区域 → 来源 → 预设 → 参数 → 边框。 */
+/** 图案设计 Tab：区域 → 来源 → 预设（仅程序化）→ 参数 → 边框。 */
 public final class PatternDesignPanel {
     private final PatternUiContext ctx;
     private final PatternPresetPanel presetPanel;
@@ -41,12 +41,13 @@ public final class PatternDesignPanel {
         renderSourceSection(footprint);
         ImGui.separator();
 
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.pattern.preset_section"), ImGuiTreeNodeFlags.DefaultOpen)) {
-            presetPanel.renderSection(footprint.getSource());
-            ImGui.spacing();
+        if (footprint.getSource() != PatternSource.IMAGE) {
+            if (ImGui.collapsingHeader(PlotI18n.tr("plugin.pattern.preset_section"), ImGuiTreeNodeFlags.DefaultOpen)) {
+                presetPanel.renderSection(footprint.getSource());
+                ImGui.spacing();
+            }
+            ImGui.separator();
         }
-
-        ImGui.separator();
         Runnable beforeEdit = () -> ctx.pushProjectHistory();
         Runnable invalidate = () -> ctx.actions().invalidatePreview();
 
@@ -298,10 +299,6 @@ public final class PatternDesignPanel {
                 PlotI18n.tr("plugin.pattern.image_missing"));
         }
 
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.pattern.image_advanced"))) {
-            renderAdvancedImageImport(footprint);
-        }
-
         ImGui.spacing();
         String[] matchModeLabels = {
             PlotI18n.tr("plugin.pattern.image_match_auto"),
@@ -354,22 +351,6 @@ public final class PatternDesignPanel {
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.pattern.image_palette_auto"));
         }
-    }
-
-    private void renderAdvancedImageImport(PatternFootprint footprint) {
-        float loadWidth = 96f;
-        ImGui.setNextItemWidth(Math.max(
-            120f,
-            ImGui.getContentRegionAvailX() - loadWidth - ImGui.getStyle().getItemSpacingX()));
-        ImGui.inputText(
-            PlotI18n.tr("plugin.pattern.import_image_path_label") + "##pattern_import_image_path",
-            ctx.imageImportPathBuffer());
-        if (ImGui.button(PlotI18n.tr("plugin.pattern.import_from_path"), loadWidth, 0)) {
-            ctx.importImageFromPath(footprint.getId(), ctx.imageImportPathBuffer().get());
-        }
-        PatternUiWidgets.textColoredWrapped(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.pattern.import_image_path_hint"));
     }
 
     private static String imageDisplayName(ImagePatternConfig imagePattern) {
