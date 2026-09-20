@@ -52,19 +52,23 @@ public final class VisualTowerResolver {
     }
 
     public static boolean hasGradedSuspensionVariants(TowerFamily family) {
-        String small = family.getDesignId(TowerRole.SUSPENSION);
-        String medium = family.getDesignId(TowerRole.SPECIAL);
-        String tall = family.getDesignId(TowerRole.DEAD_END);
-        return small != null
-            && medium != null
-            && tall != null
-            && !small.equals(medium)
-            && !medium.equals(tall);
+        if (family == null) {
+            return false;
+        }
+        if (family.hasSuspensionVariants()) {
+            return true;
+        }
+        return hasLegacyGradedSuspensionVariants(family);
     }
 
     public static String nextLargerGradedDesign(TowerFamily family, String currentDesignId) {
-        if (!hasGradedSuspensionVariants(family) || currentDesignId == null) {
+        if (family == null || currentDesignId == null || !hasGradedSuspensionVariants(family)) {
             return null;
+        }
+        if (family.hasSuspensionVariants()) {
+            SuspensionVariant current = family.suspensionVariantForDesignId(currentDesignId);
+            SuspensionVariant next = current != null ? current.nextLarger() : null;
+            return next != null ? family.getSuspensionVariantDesignId(next) : null;
         }
         String small = family.getDesignId(TowerRole.SUSPENSION);
         String medium = family.getDesignId(TowerRole.SPECIAL);
@@ -79,15 +83,43 @@ public final class VisualTowerResolver {
     }
 
     private static String resolveGradedSuspension(TowerFamily family, double maxAdjacentSpanBlocks) {
+        if (family.hasSuspensionVariants()) {
+            return family.getSuspensionVariantDesignId(resolveSuspensionVariant(maxAdjacentSpanBlocks));
+        }
+        return resolveLegacyGradedSuspension(family, maxAdjacentSpanBlocks);
+    }
+
+    static SuspensionVariant resolveSuspensionVariant(double maxAdjacentSpanBlocks) {
+        if (maxAdjacentSpanBlocks > TALL_SPAN_THRESHOLD_BLOCKS) {
+            return SuspensionVariant.LARGE;
+        }
+        if (maxAdjacentSpanBlocks > MEDIUM_SPAN_THRESHOLD_BLOCKS) {
+            return SuspensionVariant.MEDIUM;
+        }
+        return SuspensionVariant.SMALL;
+    }
+
+    private static String resolveLegacyGradedSuspension(TowerFamily family, double maxAdjacentSpanBlocks) {
+        SuspensionVariant variant = resolveSuspensionVariant(maxAdjacentSpanBlocks);
+        return switch (variant) {
+            case SMALL -> family.getDesignId(TowerRole.SUSPENSION);
+            case MEDIUM -> family.getDesignId(TowerRole.SPECIAL);
+            case LARGE -> family.getDesignId(TowerRole.DEAD_END);
+        };
+    }
+
+    /**
+     * 旧数据：SUSPENSION / SPECIAL / DEAD_END 三角色映射三档悬垂尺寸。
+     * 新族应使用 {@link TowerFamily#setSuspensionVariantDesignId}。
+     */
+    private static boolean hasLegacyGradedSuspensionVariants(TowerFamily family) {
         String small = family.getDesignId(TowerRole.SUSPENSION);
         String medium = family.getDesignId(TowerRole.SPECIAL);
         String tall = family.getDesignId(TowerRole.DEAD_END);
-        if (maxAdjacentSpanBlocks > TALL_SPAN_THRESHOLD_BLOCKS) {
-            return tall;
-        }
-        if (maxAdjacentSpanBlocks > MEDIUM_SPAN_THRESHOLD_BLOCKS) {
-            return medium;
-        }
-        return small;
+        return small != null
+            && medium != null
+            && tall != null
+            && !small.equals(medium)
+            && !medium.equals(tall);
     }
 }

@@ -44,6 +44,26 @@ class TowerFamilyTest {
     }
 
     @Test
+    void gradedFamilyExposesSuspensionVariants() {
+        TowerFamily family = TowerFamilyCatalog.gradedLattice3Phase();
+        assertEquals(
+            TowerFamilyDesignPresets.LATTICE_SUSPENSION_SMALL_ID,
+            family.getSuspensionVariantDesignId(SuspensionVariant.SMALL));
+        assertEquals(
+            TowerFamilyDesignPresets.LATTICE_SUSPENSION_MEDIUM_ID,
+            family.getSuspensionVariantDesignId(SuspensionVariant.MEDIUM));
+        assertEquals(
+            TowerFamilyDesignPresets.LATTICE_SUSPENSION_TALL_ID,
+            family.getSuspensionVariantDesignId(SuspensionVariant.LARGE));
+        assertEquals(
+            TowerFamilyDesignPresets.LATTICE_DEAD_END_ID,
+            family.getDesignId(TowerRole.DEAD_END));
+        assertNotEquals(
+            family.getSuspensionVariantDesignId(SuspensionVariant.LARGE),
+            family.getDesignId(TowerRole.DEAD_END));
+    }
+
+    @Test
     void familySerializationRoundTrip() {
         TowerFamily family = TowerFamilyCatalog.standardLattice3Phase();
         TowerFamily copy = family.copy();

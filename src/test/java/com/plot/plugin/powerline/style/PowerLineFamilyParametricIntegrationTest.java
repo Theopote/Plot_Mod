@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.family.PoleDesignAssignmentResolver;
+import com.plot.plugin.powerline.design.family.SuspensionVariant;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
 import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
@@ -67,17 +68,17 @@ class PowerLineFamilyParametricIntegrationTest {
         PowerLineStylePresetCatalog.smartTowers().apply(line);
         TowerGeneratorConfig styleConfig = line.getParametricTowerConfig();
 
-        PoleDesign small = resolveRole(
+        PoleDesign small = resolveSuspensionVariant(
             line,
-            TowerRole.SUSPENSION,
+            SuspensionVariant.SMALL,
             TowerFamilyDesignPresets.LATTICE_SUSPENSION_SMALL_ID);
-        PoleDesign medium = resolveRole(
+        PoleDesign medium = resolveSuspensionVariant(
             line,
-            TowerRole.SPECIAL,
+            SuspensionVariant.MEDIUM,
             TowerFamilyDesignPresets.LATTICE_SUSPENSION_MEDIUM_ID);
-        PoleDesign tall = resolveRole(
+        PoleDesign tall = resolveSuspensionVariant(
             line,
-            TowerRole.DEAD_END,
+            SuspensionVariant.LARGE,
             TowerFamilyDesignPresets.LATTICE_SUSPENSION_TALL_ID);
 
         double smallHeight = small.getTowerStructure().maxHeight();
@@ -136,13 +137,13 @@ class PowerLineFamilyParametricIntegrationTest {
             PowerLineQuickTunePolicy.PoleHeightBand.TALL);
 
         TowerGeneratorConfig tuned = line.getParametricTowerConfig();
-        PoleDesign small = resolveRole(
+        PoleDesign small = resolveSuspensionVariant(
             line,
-            TowerRole.SUSPENSION,
+            SuspensionVariant.SMALL,
             TowerFamilyDesignPresets.LATTICE_SUSPENSION_SMALL_ID);
-        PoleDesign tall = resolveRole(
+        PoleDesign tall = resolveSuspensionVariant(
             line,
-            TowerRole.DEAD_END,
+            SuspensionVariant.LARGE,
             TowerFamilyDesignPresets.LATTICE_SUSPENSION_TALL_ID);
 
         double smallBaseline = small.getTowerStructure().maxHeight();
@@ -156,6 +157,22 @@ class PowerLineFamilyParametricIntegrationTest {
         assertTrue(
             appliedSmall.getTowerStructure().maxHeight() < appliedTall.getTowerStructure().maxHeight(),
             "tuned graded roles should stay ordered by height");
+    }
+
+    private PoleDesign resolveSuspensionVariant(
+            PowerLineFootprint line,
+            SuspensionVariant variant,
+            String expectedDesignId) {
+        TowerFamily family = new TowerFamilyResolver().find(line.getTowerFamilyId());
+        assertNotNull(family, "missing tower family");
+        String designId = family.getSuspensionVariantDesignId(variant);
+        assertNotNull(designId, "missing suspension variant " + variant);
+        if (expectedDesignId != null) {
+            assertEquals(expectedDesignId, designId);
+        }
+        PoleDesign design = designResolver.find(designId);
+        assertNotNull(design, "missing design for variant " + variant);
+        return design;
     }
 
     private PoleDesign resolveRole(PowerLineFootprint line, TowerRole role, String expectedDesignId) {

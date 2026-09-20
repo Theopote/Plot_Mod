@@ -69,6 +69,17 @@ class PoleDesignAssignmentResolverTest {
     }
 
     @Test
+    void gradedFamilyDeadEndUsesTerminalRoleDesignNotSuspensionSize() {
+        PowerLineFootprint footprint = lineWithFamily();
+        footprint.setTowerFamilyId(TowerFamily.GRADED_LATTICE_3_PHASE_ID);
+        PowerPoleSite site = site(TowerRole.DEAD_END);
+
+        assertEquals(
+            TowerFamilyDesignPresets.LATTICE_DEAD_END_ID,
+            resolver.resolve(site, footprint, 80.0).resolvedDesignId());
+    }
+
+    @Test
     void standardFamilyIgnoresSpanForRoleMapping() {
         PowerLineFootprint footprint = lineWithFamily();
         PowerPoleSite site = site(TowerRole.ANGLE);

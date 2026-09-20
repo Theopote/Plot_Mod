@@ -135,11 +135,20 @@ public final class TowerFamilyCatalog {
         TowerFamily family = new TowerFamily(
             TowerFamily.GRADED_LATTICE_3_PHASE_ID,
             "Graded Lattice 3-Phase");
+        family.setSuspensionVariantDesignId(
+            SuspensionVariant.SMALL,
+            TowerFamilyDesignPresets.LATTICE_SUSPENSION_SMALL_ID);
+        family.setSuspensionVariantDesignId(
+            SuspensionVariant.MEDIUM,
+            TowerFamilyDesignPresets.LATTICE_SUSPENSION_MEDIUM_ID);
+        family.setSuspensionVariantDesignId(
+            SuspensionVariant.LARGE,
+            TowerFamilyDesignPresets.LATTICE_SUSPENSION_TALL_ID);
         family.setDesignId(TowerRole.SUSPENSION, TowerFamilyDesignPresets.LATTICE_SUSPENSION_SMALL_ID);
-        family.setDesignId(TowerRole.SPECIAL, TowerFamilyDesignPresets.LATTICE_SUSPENSION_MEDIUM_ID);
-        family.setDesignId(TowerRole.DEAD_END, TowerFamilyDesignPresets.LATTICE_SUSPENSION_TALL_ID);
         family.setDesignId(TowerRole.ANGLE, TowerFamilyDesignPresets.LATTICE_ANGLE_ID);
+        family.setDesignId(TowerRole.DEAD_END, TowerFamilyDesignPresets.LATTICE_DEAD_END_ID);
         family.setDesignId(TowerRole.TERMINAL, TowerFamilyDesignPresets.LATTICE_TERMINAL_ID);
+        family.setDesignId(TowerRole.SPECIAL, TowerFamilyDesignPresets.LATTICE_SUSPENSION_SMALL_ID);
         return family;
     }
 

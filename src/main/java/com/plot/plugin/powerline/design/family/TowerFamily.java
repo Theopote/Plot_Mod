@@ -21,6 +21,7 @@ public class TowerFamily {
     private final String id;
     private String name;
     private final Map<TowerRole, String> designByRole = new EnumMap<>(TowerRole.class);
+    private final Map<SuspensionVariant, String> suspensionVariants = new EnumMap<>(SuspensionVariant.class);
 
     public TowerFamily(String id, String name) {
         this.id = id != null && !id.isBlank() ? id : STANDARD_LATTICE_3_PHASE_ID;
@@ -61,9 +62,56 @@ public class TowerFamily {
         return Map.copyOf(designByRole);
     }
 
+    public String getSuspensionVariantDesignId(SuspensionVariant variant) {
+        if (variant == null) {
+            return null;
+        }
+        return suspensionVariants.get(variant);
+    }
+
+    public void setSuspensionVariantDesignId(SuspensionVariant variant, String designId) {
+        if (variant == null) {
+            return;
+        }
+        if (designId == null || designId.isBlank()) {
+            suspensionVariants.remove(variant);
+        } else {
+            suspensionVariants.put(variant, designId);
+        }
+    }
+
+    public Map<SuspensionVariant, String> getSuspensionVariants() {
+        return Map.copyOf(suspensionVariants);
+    }
+
+    /** 三档悬垂变体均已配置且互不相同。 */
+    public boolean hasSuspensionVariants() {
+        String small = getSuspensionVariantDesignId(SuspensionVariant.SMALL);
+        String medium = getSuspensionVariantDesignId(SuspensionVariant.MEDIUM);
+        String large = getSuspensionVariantDesignId(SuspensionVariant.LARGE);
+        return small != null
+            && medium != null
+            && large != null
+            && !small.equals(medium)
+            && !medium.equals(large);
+    }
+
+    public SuspensionVariant suspensionVariantForDesignId(String designId) {
+        if (designId == null || designId.isBlank()) {
+            return null;
+        }
+        for (SuspensionVariant variant : SuspensionVariant.values()) {
+            if (designId.equals(getSuspensionVariantDesignId(variant))) {
+                return variant;
+            }
+        }
+        return null;
+    }
+
     public TowerFamily copy() {
         TowerFamily copy = new TowerFamily(id, name);
         copy.designByRole.putAll(designByRole);
+        copy.suspensionVariants.putAll(suspensionVariants);
         return copy;
     }
 
@@ -74,11 +122,12 @@ public class TowerFamily {
         }
         return Objects.equals(id, other.id)
             && Objects.equals(name, other.name)
-            && Objects.equals(designByRole, other.designByRole);
+            && Objects.equals(designByRole, other.designByRole)
+            && Objects.equals(suspensionVariants, other.suspensionVariants);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, name, designByRole);
+        return Objects.hash(id, name, designByRole, suspensionVariants);
     }
 }
