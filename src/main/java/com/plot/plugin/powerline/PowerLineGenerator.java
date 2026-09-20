@@ -236,7 +236,7 @@ public class PowerLineGenerator {
                 foundationPlan,
                 baseStation,
                 frame,
-                footprint.getPoleMaterial(),
+                design.getTowerStructure().getPrimaryMaterial(),
                 footprint.getId(),
                 result,
                 projectionHandler,

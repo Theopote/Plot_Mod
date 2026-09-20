@@ -278,7 +278,7 @@ public final class PowerLineStylePresetCatalog {
             TowerFamily.STANDARD_LATTICE_3_PHASE_ID,
             null,
             defaultWireMaterial(),
-            MaterialMix.single("minecraft:iron_bars"),
+            MaterialMix.single("minecraft:iron_block"),
             MaterialMix.single("minecraft:chain"),
             PowerLineUiPresets.WireSag.NATURAL,
             PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL,
