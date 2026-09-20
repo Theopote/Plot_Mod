@@ -297,15 +297,15 @@ public class PowerLineFootprint {
     }
 
     public TowerGeneratorConfig getParametricTowerConfig() {
-        return styleState.parametricConfig();
+        return styleState.resolveParametricConfig(styleDefinition());
     }
 
     public void setParametricTowerConfig(TowerGeneratorConfig parametricTowerConfig) {
-        styleState.setParametricConfig(parametricTowerConfig);
+        styleState.setParametricTowerConfig(parametricTowerConfig, styleDefinition());
     }
 
     public boolean hasParametricTowerConfig() {
-        return styleState.hasParametricConfig();
+        return styleState.hasParametricConfig(styleDefinition());
     }
 
     public MaterialMix getTopWireMaterial() {

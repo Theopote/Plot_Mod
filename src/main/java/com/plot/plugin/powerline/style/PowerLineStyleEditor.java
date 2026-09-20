@@ -1,7 +1,6 @@
 package com.plot.plugin.powerline.style;
 
 import com.plot.plugin.powerline.design.PoleDesign;
-import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 
@@ -137,10 +136,6 @@ public final class PowerLineStyleEditor {
             syncSpacingOverrides(line);
             return;
         }
-        PowerLineStyleDefinition definition = preset.getDefinition();
-        overrides.setParametricTowerConfig(overrideParametric(
-            line.getParametricTowerConfig(),
-            definition.getParametricConfig()));
         syncSpacingOverrides(line);
         if (overrides.isEmpty()) {
             overrides.clear();
@@ -161,14 +156,5 @@ public final class PowerLineStyleEditor {
         if (Math.abs(line.getMaxPoleSpacing() - preferred) > SPACING_TOLERANCE) {
             overrides.setPreferredSpacing(line.getMaxPoleSpacing());
         }
-    }
-
-    private static TowerGeneratorConfig overrideParametric(
-            TowerGeneratorConfig actual,
-            TowerGeneratorConfig expected) {
-        if (PowerLineStyleParametricCatalog.parametersMatch(expected, actual)) {
-            return null;
-        }
-        return actual != null ? actual.copy() : null;
     }
 }

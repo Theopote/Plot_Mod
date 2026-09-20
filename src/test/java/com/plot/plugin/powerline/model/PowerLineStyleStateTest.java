@@ -2,6 +2,7 @@ package com.plot.plugin.powerline.model;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.style.PowerLineStyleDefinition;
 import com.plot.plugin.powerline.style.PowerLineStyleEditor;
@@ -11,6 +12,8 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -114,6 +117,51 @@ class PowerLineStyleStateTest {
             line.getMaxSagDepth(),
             1e-6);
         assertTrue(line.getStyleOverrides().isEmpty());
+    }
+
+    @Test
+    void resolveParametricFromPresetDefinitionWhenUnmodified() {
+        PowerLineFootprint line = line();
+        PowerLineStyleEditor.selectPreset(line, PowerLineStylePresetCatalog.classicLattice());
+        PowerLineStyleDefinition definition = line.styleInstance().definition();
+
+        assertTrue(line.hasParametricTowerConfig());
+        assertEquals(
+            definition.getParametricConfig().profileId(),
+            line.getParametricTowerConfig().profileId());
+        assertNull(line.getStyleOverrides().getParametricTowerConfig());
+        assertFalse(line.getStyleOverrides().isParametricSuppressed());
+    }
+
+    @Test
+    void parametricEditStoresOverrideAndResolvesEffectiveValue() {
+        PowerLineFootprint line = line();
+        PowerLineStyleEditor.selectPreset(line, PowerLineStylePresetCatalog.tripleArmTower());
+        TowerGeneratorConfig tuned = line.getParametricTowerConfig().withParameters(
+            new com.plot.plugin.powerline.design.parametric.TowerParameterSet(
+                52.0,
+                16.0,
+                29.0,
+                1.1,
+                0.95,
+                java.util.List.of(1.05, 1.0),
+                com.plot.plugin.powerline.design.parametric.TowerParameterSet.tripleArmDefaults().density()));
+        line.setParametricTowerConfig(tuned);
+        PowerLineStyleEditor.afterStyleEdit(line);
+
+        assertEquals(52.0, line.getParametricTowerConfig().parameters().height(), 0.01);
+        assertNotNull(line.getStyleOverrides().getParametricTowerConfig());
+        assertEquals(52.0, line.getStyleOverrides().getParametricTowerConfig().parameters().height(), 0.01);
+    }
+
+    @Test
+    void clearParametricConfigSuppressesPresetDefinition() {
+        PowerLineFootprint line = line();
+        PowerLineStyleEditor.selectPreset(line, PowerLineStylePresetCatalog.classicLattice());
+        line.setParametricTowerConfig(null);
+
+        assertFalse(line.hasParametricTowerConfig());
+        assertTrue(line.getStyleOverrides().isParametricSuppressed());
     }
 
     private static PowerLineFootprint line() {

@@ -2,6 +2,7 @@ package com.plot.plugin.powerline.style;
 
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
+import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 
 import java.util.Objects;
 
@@ -21,6 +22,7 @@ public class StyleOverrides {
     private String poleDesignId;
     private String towerFamilyId;
     private TowerGeneratorConfig parametricTowerConfig;
+    private Boolean parametricSuppressed;
 
     public Double getSagRatio() {
         return sagRatio;
@@ -94,6 +96,14 @@ public class StyleOverrides {
         this.parametricTowerConfig = parametricTowerConfig != null ? parametricTowerConfig.copy() : null;
     }
 
+    public boolean isParametricSuppressed() {
+        return Boolean.TRUE.equals(parametricSuppressed);
+    }
+
+    public void setParametricSuppressed(boolean parametricSuppressed) {
+        this.parametricSuppressed = parametricSuppressed ? Boolean.TRUE : null;
+    }
+
     public boolean isEmpty() {
         return sagRatio == null
             && maxSagDepth == null
@@ -103,7 +113,8 @@ public class StyleOverrides {
             && preferredSpacing == null
             && poleDesignId == null
             && towerFamilyId == null
-            && parametricTowerConfig == null;
+            && parametricTowerConfig == null
+            && !isParametricSuppressed();
     }
 
     public int overrideCount() {
@@ -117,6 +128,7 @@ public class StyleOverrides {
         if (poleDesignId != null) count++;
         if (towerFamilyId != null) count++;
         if (parametricTowerConfig != null) count++;
+        if (isParametricSuppressed()) count++;
         return count;
     }
 
@@ -137,10 +149,33 @@ public class StyleOverrides {
         return hash;
     }
 
+    public void clearParametric() {
+        parametricTowerConfig = null;
+        parametricSuppressed = null;
+    }
+
     public int styleValueFingerprint() {
         int hash = materialAndTowerFingerprint();
         hash = 31 * hash + Objects.hashCode(sagRatio);
         hash = 31 * hash + Objects.hashCode(maxSagDepth);
+        hash = 31 * hash + parametricOverrideFingerprint();
+        return hash;
+    }
+
+    private int parametricOverrideFingerprint() {
+        int hash = Objects.hashCode(parametricSuppressed);
+        if (parametricTowerConfig == null || !parametricTowerConfig.isParametric()) {
+            return hash;
+        }
+        TowerParameterSet parameters = parametricTowerConfig.parameters();
+        hash = 31 * hash + Objects.hashCode(parametricTowerConfig.profileId());
+        hash = 31 * hash + Double.hashCode(parameters.height());
+        hash = 31 * hash + Double.hashCode(parameters.baseWidth());
+        hash = 31 * hash + Double.hashCode(parameters.armSpan());
+        hash = 31 * hash + Double.hashCode(parameters.depthScale());
+        hash = 31 * hash + Double.hashCode(parameters.waistRatio());
+        hash = 31 * hash + Objects.hashCode(parameters.density());
+        hash = 31 * hash + Objects.hashCode(parameters.armLevelScales());
         return hash;
     }
 
@@ -154,6 +189,7 @@ public class StyleOverrides {
         poleDesignId = null;
         towerFamilyId = null;
         parametricTowerConfig = null;
+        parametricSuppressed = null;
     }
 
     private static int materialFingerprint(MaterialMix mix) {
@@ -177,6 +213,7 @@ public class StyleOverrides {
         copy.poleDesignId = poleDesignId;
         copy.towerFamilyId = towerFamilyId;
         copy.parametricTowerConfig = parametricTowerConfig != null ? parametricTowerConfig.copy() : null;
+        copy.parametricSuppressed = parametricSuppressed;
         return copy;
     }
 

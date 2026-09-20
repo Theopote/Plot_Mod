@@ -5,6 +5,7 @@ import com.plot.plugin.powerline.PowerLineSagUtils;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 import com.plot.plugin.powerline.style.PowerLineStyleDefinition;
+import com.plot.plugin.powerline.style.PowerLineStyleParametricCatalog;
 import com.plot.plugin.powerline.style.StyleOverrides;
 
 import java.util.Objects;
@@ -12,7 +13,7 @@ import java.util.Objects;
 /**
  * 线路风格实例状态：base preset、参数化塔配置、风格偏离项与 resolve 层。
  * <p>
- * 生效材质、塔型与垂度由 {@code preset + overrides → resolve} 得出，不再在 Footprint 上重复存储。
+ * 生效材质、塔型、垂度与参数化塔配置由 {@code preset + overrides → resolve} 得出，不再在 Footprint 上重复存储。
  */
 public final class PowerLineStyleState {
     private static final double SAG_TOLERANCE = 0.01;
@@ -22,7 +23,6 @@ public final class PowerLineStyleState {
     private static final double UNLIMITED_MAX_SAG_SENTINEL = -1.0;
 
     private String presetId;
-    private TowerGeneratorConfig parametricTowerConfig;
     private PowerLineStyleDefinition appliedDefinition;
     private StyleOverrides overrides = new StyleOverrides();
 
@@ -32,18 +32,6 @@ public final class PowerLineStyleState {
 
     public void setPresetId(String presetId) {
         this.presetId = presetId != null && presetId.isBlank() ? null : presetId;
-    }
-
-    public TowerGeneratorConfig parametricConfig() {
-        return parametricTowerConfig != null ? parametricTowerConfig.copy() : null;
-    }
-
-    public void setParametricConfig(TowerGeneratorConfig parametricTowerConfig) {
-        this.parametricTowerConfig = parametricTowerConfig != null ? parametricTowerConfig.copy() : null;
-    }
-
-    public boolean hasParametricConfig() {
-        return parametricTowerConfig != null && parametricTowerConfig.isParametric();
     }
 
     public void setAppliedDefinition(PowerLineStyleDefinition appliedDefinition) {
@@ -150,6 +138,26 @@ public final class PowerLineStyleState {
         return false;
     }
 
+    public TowerGeneratorConfig resolveParametricConfig(PowerLineStyleDefinition definition) {
+        if (overrides().isParametricSuppressed()) {
+            return null;
+        }
+        TowerGeneratorConfig override = overrides().getParametricTowerConfig();
+        if (override != null) {
+            return override.copy();
+        }
+        PowerLineStyleDefinition resolvedDefinition = definition != null ? definition : appliedDefinition;
+        if (resolvedDefinition != null && resolvedDefinition.hasParametricConfig()) {
+            return resolvedDefinition.getParametricConfig();
+        }
+        return null;
+    }
+
+    public boolean hasParametricConfig(PowerLineStyleDefinition definition) {
+        TowerGeneratorConfig resolved = resolveParametricConfig(definition);
+        return resolved != null && resolved.isParametric();
+    }
+
     public void setWireMaterial(MaterialMix actual, PowerLineStyleDefinition definition) {
         MaterialMix normalized = actual != null
             ? actual.copy()
@@ -213,6 +221,24 @@ public final class PowerLineStyleState {
         overrides().setMaxSagDepth(overrideMaxSagDepth(normalized, resolvedDefinition));
     }
 
+    public void setParametricTowerConfig(TowerGeneratorConfig actual, PowerLineStyleDefinition definition) {
+        PowerLineStyleDefinition resolvedDefinition = definition != null ? definition : appliedDefinition;
+        if (actual == null || !actual.isParametric()) {
+            if (resolvedDefinition != null && resolvedDefinition.hasParametricConfig()) {
+                overrides().setParametricSuppressed(true);
+            } else {
+                overrides().setParametricSuppressed(false);
+            }
+            overrides().setParametricTowerConfig(null);
+            return;
+        }
+        overrides().setParametricSuppressed(false);
+        TowerGeneratorConfig expected = resolvedDefinition != null
+            ? resolvedDefinition.getParametricConfig()
+            : null;
+        overrides().setParametricTowerConfig(overrideParametric(actual, expected));
+    }
+
     public void clearMaterialAndTowerOverrides() {
         overrides().clearMaterialAndTower();
     }
@@ -222,15 +248,21 @@ public final class PowerLineStyleState {
         overrides().setMaxSagDepth(null);
     }
 
+    public void clearParametricOverrides() {
+        overrides().setParametricSuppressed(false);
+        overrides().setParametricTowerConfig(null);
+    }
+
     public void clearPresetStyleOverrides() {
         clearMaterialAndTowerOverrides();
         clearSagOverrides();
+        clearParametricOverrides();
     }
 
-    /** 风格层指纹（preset + 参数化塔 + 风格偏离项）。 */
+    /** 风格层指纹（preset + 生效参数化塔 + 风格偏离项）。 */
     public int generationFingerprint() {
         int hash = Objects.hashCode(presetId);
-        hash = 31 * hash + parametricConfigFingerprint(parametricTowerConfig);
+        hash = 31 * hash + parametricConfigFingerprint(resolveParametricConfig(resolveDefinition()));
         hash = 31 * hash + overrides().styleValueFingerprint();
         return hash;
     }
@@ -277,6 +309,15 @@ public final class PowerLineStyleState {
 
     private static Double overrideUnlimitedMaxSagDepth(PowerLineStyleDefinition definition) {
         return UNLIMITED_MAX_SAG_SENTINEL;
+    }
+
+    private static TowerGeneratorConfig overrideParametric(
+            TowerGeneratorConfig actual,
+            TowerGeneratorConfig expected) {
+        if (PowerLineStyleParametricCatalog.parametersMatch(expected, actual)) {
+            return null;
+        }
+        return actual.copy();
     }
 
     private static MaterialMix overrideMaterial(
