@@ -7,7 +7,6 @@ import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerArmShape;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.preview.BlockPreviewColors;
-import com.plot.plugin.powerline.preview.TowerStructuralElevationRenderer;
 import org.junit.jupiter.api.Test;
 
 import java.util.Comparator;
@@ -163,24 +162,6 @@ class PowerLineStylePreviewModeTest {
         assertTrue(
             structuralWidthHeightRatio(portal) > structuralWidthHeightRatio(classic),
             "portal should read wider relative to height");
-    }
-
-    @Test
-    void structuralLayoutPreservesFullAspectRatio() {
-        PoleDesign design = PowerLineStylePreviewBinding.previewDesign(PowerLineStylePresetCatalog.megaLattice());
-        TowerStructureDesign structure = design.getTowerStructure();
-        float cardW = 116f;
-        float cardH = 92f;
-        TowerStructuralElevationRenderer.StructuralLayout layout =
-            TowerStructuralElevationRenderer.computeLayout(structure, 0, 0, cardW, cardH);
-        assertNotNull(layout);
-        double modelAspect = maxModelHalfWidth(structure) * 2.0 / structure.maxHeight();
-        double screenAspect = cardW / cardH;
-        double fittedAspect = modelAspect <= screenAspect
-            ? modelAspect
-            : screenAspect * (modelAspect / (maxModelHalfWidth(structure) * 2.0 / structure.maxHeight()));
-        assertTrue(layout.scale() > 0);
-        assertEquals(modelAspect, fittedAspect, 0.05, "layout should not crop or stretch tower head");
     }
 
     @Test

@@ -6,15 +6,12 @@ import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.preview.PoleVoxelElevationRenderer;
 import com.plot.plugin.powerline.preview.PowerLinePreviewOverlayRenderer;
-import com.plot.plugin.powerline.preview.StylePreviewLayout;
-import com.plot.plugin.powerline.preview.TowerStructuralElevationRenderer;
 import com.plot.plugin.powerline.style.EffectiveStylePreview;
 import com.plot.plugin.powerline.style.EffectiveStylePreviewResolver;
 import com.plot.plugin.powerline.style.PowerLineStyleEditor;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.plugin.powerline.style.PowerLineStylePreviewBinding;
 import com.plot.plugin.powerline.style.UserPoleDesignTemplateCatalog;
-import com.plot.plugin.powerline.style.PreviewRepresentation;
 import com.plot.plugin.powerline.style.StyleCardPreviewBinding;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -457,21 +454,8 @@ public final class PowerLineStyleCardRenderer {
             float x1,
             float y1) {
         PoleDesign design = binding != null ? binding.design() : null;
-        PreviewRepresentation representation = binding != null
-            ? binding.representation()
-            : PreviewRepresentation.VOXEL_FRONT;
-        TowerStructuralElevationRenderer.LayoutFit layoutFit =
-            StylePreviewLayout.fitForBounds(x0, y0, x1, y1);
-        boolean drawn = false;
-        if (design != null) {
-            if (representation == PreviewRepresentation.STRUCTURAL_FRONT) {
-                drawn = TowerStructuralElevationRenderer.drawFront(
-                    drawList, design, x0, y0, x1, y1, layoutFit);
-            }
-            if (!drawn) {
-                drawn = PoleVoxelElevationRenderer.drawFront(drawList, design, x0, y0, x1, y1);
-            }
-        }
+        boolean drawn = design != null
+            && PoleVoxelElevationRenderer.drawFront(drawList, design, x0, y0, x1, y1);
         if (!drawn) {
             drawMissingPreviewPlaceholder(drawList, x0, y0, x1, y1);
             return;
@@ -479,12 +463,10 @@ public final class PowerLineStyleCardRenderer {
         PowerLinePreviewOverlayRenderer.draw(
             drawList,
             design,
-            representation,
             binding.overlay(),
             adaptiveHeightMarker,
             wireMaterial,
             topWireMaterial,
-            layoutFit,
             x0,
             y0,
             x1,

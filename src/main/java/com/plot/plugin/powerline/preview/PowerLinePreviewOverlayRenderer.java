@@ -7,7 +7,6 @@ import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.TowerArmAttachmentBinding;
 import com.plot.plugin.powerline.design.PoleLayer;
 import com.plot.plugin.powerline.style.PreviewOverlay;
-import com.plot.plugin.powerline.style.PreviewRepresentation;
 import imgui.ImDrawList;
 import imgui.ImGui;
 
@@ -105,52 +104,22 @@ public final class PowerLinePreviewOverlayRenderer {
     public static void draw(
             ImDrawList drawList,
             PoleDesign design,
-            PreviewRepresentation representation,
             PreviewOverlay overlay,
             boolean adaptiveHeightMarker,
             float x0,
             float y0,
             float x1,
             float y1) {
-        draw(drawList, design, representation, overlay, adaptiveHeightMarker, null, null, x0, y0, x1, y1);
+        draw(drawList, design, overlay, adaptiveHeightMarker, null, null, x0, y0, x1, y1);
     }
 
     public static void draw(
             ImDrawList drawList,
             PoleDesign design,
-            PreviewRepresentation representation,
             PreviewOverlay overlay,
             boolean adaptiveHeightMarker,
             MaterialMix wireMaterial,
             MaterialMix topWireMaterial,
-            float x0,
-            float y0,
-            float x1,
-            float y1) {
-        draw(
-            drawList,
-            design,
-            representation,
-            overlay,
-            adaptiveHeightMarker,
-            wireMaterial,
-            topWireMaterial,
-            TowerStructuralElevationRenderer.LayoutFit.BALANCED,
-            x0,
-            y0,
-            x1,
-            y1);
-    }
-
-    public static void draw(
-            ImDrawList drawList,
-            PoleDesign design,
-            PreviewRepresentation representation,
-            PreviewOverlay overlay,
-            boolean adaptiveHeightMarker,
-            MaterialMix wireMaterial,
-            MaterialMix topWireMaterial,
-            TowerStructuralElevationRenderer.LayoutFit layoutFit,
             float x0,
             float y0,
             float x1,
@@ -162,9 +131,7 @@ public final class PowerLinePreviewOverlayRenderer {
         int topWireColor = BlockPreviewColors.previewColor(topWireMaterial, COLOR_TOP_WIRE);
         if (overlay != null && overlay != PreviewOverlay.NONE) {
             switch (overlay) {
-                case ATTACHMENTS -> drawAttachments(
-                    drawList, design, representation, wireColor, topWireColor, layoutFit, x0, y0, x1, y1);
-                case DECORATIVE_CONDUCTORS -> drawDecorativeConductors(
+                case ATTACHMENTS, DECORATIVE_CONDUCTORS -> drawDecorativeConductors(
                     drawList, design, wireColor, topWireColor, x0, y0, x1, y1);
                 case WIND_ROTOR -> drawWindRotorOverlay(drawList, design, x0, y0, x1, y1);
                 case ADAPTIVE_MARKER -> drawAdaptiveHeightMarker(drawList, x0, y0, x1, y1);
@@ -174,65 +141,6 @@ public final class PowerLinePreviewOverlayRenderer {
         if (adaptiveHeightMarker && overlay != PreviewOverlay.ADAPTIVE_MARKER) {
             drawAdaptiveHeightMarker(drawList, x0, y0, x1, y1);
         }
-    }
-
-    private static void drawAttachments(
-            ImDrawList drawList,
-            PoleDesign design,
-            PreviewRepresentation representation,
-            int wireColor,
-            int topWireColor,
-            TowerStructuralElevationRenderer.LayoutFit layoutFit,
-            float x0,
-            float y0,
-            float x1,
-            float y1) {
-        if (representation == PreviewRepresentation.STRUCTURAL_FRONT && design.hasTowerStructure()) {
-            TowerStructuralElevationRenderer.StructuralLayout layout =
-                TowerStructuralElevationRenderer.computeLayout(
-                    design,
-                    TowerStructuralElevationRenderer.StructuralView.FRONT,
-                    x0,
-                    y0,
-                    x1,
-                    y1,
-                    layoutFit);
-            if (layout == null) {
-                return;
-            }
-            for (ConductorAttachment attachment : design.getAttachments()) {
-                drawStructuralAttachment(drawList, design, attachment, layout, wireColor, topWireColor);
-            }
-            return;
-        }
-        drawDecorativeConductors(drawList, design, wireColor, topWireColor, x0, y0, x1, y1);
-    }
-
-    private static void drawStructuralAttachment(
-            ImDrawList drawList,
-            PoleDesign design,
-            ConductorAttachment attachment,
-            TowerStructuralElevationRenderer.StructuralLayout layout,
-            int wireColor,
-            int topWireColor) {
-        if (attachment == null || !attachment.isEnabled()) {
-            return;
-        }
-        TowerArmAttachmentBinding.ResolvedLocalOffsets local =
-            TowerArmAttachmentBinding.resolveLocalOffsets(attachment, design.getTowerStructure());
-        drawFrontAttachmentOverlay(
-            drawList,
-            attachment,
-            layout.mapX(local.lateral()),
-            layout.mapY(local.vertical()),
-            layout.scale(),
-            COMPACT_INSULATOR_MAX_PX,
-            COLOR_WIRE,
-            COLOR_WIRE,
-            wireColor,
-            topWireColor,
-            ATTACHMENT_DOT_RADIUS,
-            null);
     }
 
     private static void drawDecorativeConductors(
