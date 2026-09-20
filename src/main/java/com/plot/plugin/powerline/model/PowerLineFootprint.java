@@ -8,6 +8,7 @@ import com.plot.plugin.powerline.path.PowerLineSourceDescriptor;
 import com.plot.plugin.powerline.path.PowerLineSourcePath;
 import com.plot.plugin.powerline.path.PolylineSourcePath;
 import com.plot.core.model.Shape;
+import com.plot.plugin.powerline.style.PowerLineStyleDefinition;
 import com.plot.plugin.powerline.style.PowerLineStyleInstance;
 import com.plot.plugin.powerline.style.StyleOverrides;
 
@@ -43,12 +44,6 @@ public class PowerLineFootprint {
     private double sagRatio = 0.15;
     /** 单跨最大下垂深度（格），{@code <= 0} 表示不限制。 */
     private double maxSagDepth = PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH;
-    private MaterialMix wireMaterial = MaterialMix.single(DEFAULT_WIRE_MATERIAL);
-    private MaterialMix poleMaterial = MaterialMix.single(DEFAULT_POLE_MATERIAL);
-    private String poleDesignId;
-    private String towerFamilyId;
-    /** 塔顶架空装饰线材质（视觉层次），非电气接地系统。 */
-    private MaterialMix topWireMaterial = MaterialMix.single("minecraft:chain");
     private final List<PoleOverride> poleOverrides = new ArrayList<>();
     private final List<PoleLayoutConstraint> layoutConstraints = new ArrayList<>();
     /** 杆塔布置模式；默认按固定档距自动插杆。 */
@@ -251,46 +246,44 @@ public class PowerLineFootprint {
     }
 
     public MaterialMix getWireMaterial() {
-        return wireMaterial;
+        return styleState.resolveWireMaterial(styleDefinition());
     }
 
     public void setWireMaterial(MaterialMix wireMaterial) {
-        this.wireMaterial = wireMaterial != null
-            ? wireMaterial.copy()
-            : MaterialMix.single(DEFAULT_WIRE_MATERIAL);
+        styleState.setWireMaterial(wireMaterial, styleDefinition());
     }
 
     public MaterialMix getPoleMaterial() {
-        return poleMaterial;
+        return styleState.resolvePoleMaterial(styleDefinition());
     }
 
     public void setPoleMaterial(MaterialMix poleMaterial) {
-        this.poleMaterial = poleMaterial != null
-            ? poleMaterial.copy()
-            : MaterialMix.single(DEFAULT_POLE_MATERIAL);
+        styleState.setPoleMaterial(poleMaterial, styleDefinition());
     }
 
     public String getPoleDesignId() {
-        return poleDesignId;
+        return styleState.resolvePoleDesignId(styleDefinition());
     }
 
     public void setPoleDesignId(String poleDesignId) {
-        this.poleDesignId = poleDesignId != null && poleDesignId.isBlank() ? null : poleDesignId;
+        styleState.setPoleDesignId(poleDesignId, styleDefinition());
     }
 
     public boolean hasPoleDesign() {
+        String poleDesignId = getPoleDesignId();
         return poleDesignId != null && !poleDesignId.isBlank();
     }
 
     public String getTowerFamilyId() {
-        return towerFamilyId;
+        return styleState.resolveTowerFamilyId(styleDefinition());
     }
 
     public void setTowerFamilyId(String towerFamilyId) {
-        this.towerFamilyId = towerFamilyId != null && towerFamilyId.isBlank() ? null : towerFamilyId;
+        styleState.setTowerFamilyId(towerFamilyId, styleDefinition());
     }
 
     public boolean hasTowerFamily() {
+        String towerFamilyId = getTowerFamilyId();
         return towerFamilyId != null && !towerFamilyId.isBlank();
     }
 
@@ -319,13 +312,11 @@ public class PowerLineFootprint {
     }
 
     public MaterialMix getTopWireMaterial() {
-        return topWireMaterial;
+        return styleState.resolveTopWireMaterial(styleDefinition());
     }
 
     public void setTopWireMaterial(MaterialMix topWireMaterial) {
-        this.topWireMaterial = topWireMaterial != null
-            ? topWireMaterial.copy()
-            : MaterialMix.single("minecraft:chain");
+        styleState.setTopWireMaterial(topWireMaterial, styleDefinition());
     }
 
     public List<PoleOverride> getPoleOverrides() {
@@ -465,13 +456,17 @@ public class PowerLineFootprint {
         }
         hash = 31 * hash + Double.hashCode(sagRatio);
         hash = 31 * hash + Double.hashCode(maxSagDepth);
-        hash = 31 * hash + materialFingerprint(wireMaterial);
-        hash = 31 * hash + materialFingerprint(poleMaterial);
-        hash = 31 * hash + Objects.hashCode(poleDesignId);
-        hash = 31 * hash + Objects.hashCode(towerFamilyId);
-        hash = 31 * hash + materialFingerprint(topWireMaterial);
+        hash = 31 * hash + materialFingerprint(getWireMaterial());
+        hash = 31 * hash + materialFingerprint(getPoleMaterial());
+        hash = 31 * hash + Objects.hashCode(getPoleDesignId());
+        hash = 31 * hash + Objects.hashCode(getTowerFamilyId());
+        hash = 31 * hash + materialFingerprint(getTopWireMaterial());
         hash = 31 * hash + styleState.generationFingerprint();
         return hash;
+    }
+
+    private PowerLineStyleDefinition styleDefinition() {
+        return styleState.resolveDefinition();
     }
 
     /** 影响塔/线几何的指纹（预览缓存用，不含纯分析开关）。 */

@@ -14,7 +14,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
-
 /**
  * 电力线路项目（管理已认领的线路）。
  */
@@ -174,15 +173,30 @@ public class PowerLineProject {
             if (overrides == null) {
                 return;
             }
-            overrides.clear();
-            overrides.setSagRatio(sagRatio);
-            overrides.setMaxSagDepth(maxSagDepth);
-            overrides.setWireMaterial(wireMaterial);
-            overrides.setPoleMaterial(poleMaterial);
-            overrides.setTopWireMaterial(topWireMaterial);
-            overrides.setPreferredSpacing(preferredSpacing);
-            overrides.setPoleDesignId(poleDesignId);
-            overrides.setTowerFamilyId(towerFamilyId);
+            if (sagRatio != null) {
+                overrides.setSagRatio(sagRatio);
+            }
+            if (maxSagDepth != null) {
+                overrides.setMaxSagDepth(maxSagDepth);
+            }
+            if (wireMaterial != null) {
+                overrides.setWireMaterial(wireMaterial);
+            }
+            if (poleMaterial != null) {
+                overrides.setPoleMaterial(poleMaterial);
+            }
+            if (topWireMaterial != null) {
+                overrides.setTopWireMaterial(topWireMaterial);
+            }
+            if (preferredSpacing != null) {
+                overrides.setPreferredSpacing(preferredSpacing);
+            }
+            if (poleDesignId != null) {
+                overrides.setPoleDesignId(poleDesignId);
+            }
+            if (towerFamilyId != null) {
+                overrides.setTowerFamilyId(towerFamilyId);
+            }
         }
     }
 
@@ -229,10 +243,7 @@ public class PowerLineProject {
         double sourceArcEndAngle;
 
         static double resolveCloseSpacingWarningThreshold(LineData lineData) {
-            if (lineData.minPoleSpacing != null) {
-                return lineData.minPoleSpacing;
-            }
-            return lineData.closeSpacingWarningThreshold;
+            return Objects.requireNonNullElseGet(lineData.minPoleSpacing, () -> lineData.closeSpacingWarningThreshold);
         }
     }
 
@@ -333,6 +344,13 @@ public class PowerLineProject {
                 footprint.setPoleHeight(lineData.poleHeight);
                 footprint.setSagRatio(lineData.sagRatio);
                 footprint.setMaxSagDepth(lineData.maxSagDepth);
+                footprint.setStylePresetId(lineData.stylePresetId);
+                footprint.styleState().setAppliedDefinition(
+                    com.plot.plugin.powerline.style.PowerLineStylePresetCatalog.definitionForPresetId(
+                        lineData.stylePresetId));
+                if (lineData.parametricTowerConfig != null) {
+                    footprint.setParametricTowerConfig(lineData.parametricTowerConfig.toConfig());
+                }
                 if (lineData.wireMaterial != null) {
                     footprint.setWireMaterial(lineData.wireMaterial);
                 }
@@ -341,7 +359,6 @@ public class PowerLineProject {
                 }
                 footprint.setPoleDesignId(lineData.poleDesignId);
                 footprint.setTowerFamilyId(lineData.towerFamilyId);
-                footprint.setStylePresetId(lineData.stylePresetId);
                 if (lineData.topWireMaterial != null) {
                     footprint.setTopWireMaterial(lineData.topWireMaterial);
                 }
@@ -381,9 +398,6 @@ public class PowerLineProject {
                 }
                 footprint.setTargetTowerCount(lineData.targetTowerCount);
                 footprint.setClosedPath(lineData.pathClosed);
-                if (lineData.parametricTowerConfig != null) {
-                    footprint.setParametricTowerConfig(lineData.parametricTowerConfig.toConfig());
-                }
                 if (lineData.sourceKind != null && !lineData.sourceKind.isBlank()) {
                     try {
                         PowerLineSourceDescriptor.Kind kind =

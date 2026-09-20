@@ -3,6 +3,8 @@ package com.plot.plugin.powerline.style;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 
+import java.util.Objects;
+
 /**
  * 相对 base {@link PowerLineStyleDefinition} 的用户覆盖；
  * {@code null} 字段表示沿用预设默认值。
@@ -118,6 +120,23 @@ public class StyleOverrides {
         return count;
     }
 
+    public void clearMaterialAndTower() {
+        wireMaterial = null;
+        poleMaterial = null;
+        topWireMaterial = null;
+        poleDesignId = null;
+        towerFamilyId = null;
+    }
+
+    public int materialAndTowerFingerprint() {
+        int hash = materialFingerprint(wireMaterial);
+        hash = 31 * hash + materialFingerprint(poleMaterial);
+        hash = 31 * hash + materialFingerprint(topWireMaterial);
+        hash = 31 * hash + Objects.hashCode(poleDesignId);
+        hash = 31 * hash + Objects.hashCode(towerFamilyId);
+        return hash;
+    }
+
     public void clear() {
         sagRatio = null;
         maxSagDepth = null;
@@ -128,6 +147,16 @@ public class StyleOverrides {
         poleDesignId = null;
         towerFamilyId = null;
         parametricTowerConfig = null;
+    }
+
+    private static int materialFingerprint(MaterialMix mix) {
+        if (mix == null) {
+            return 0;
+        }
+        int hash = Objects.hashCode(mix.getPrimaryMaterial());
+        hash = 31 * hash + Objects.hashCode(mix.getAccentMaterial());
+        hash = 31 * hash + Float.hashCode(mix.getAccentRatio());
+        return hash;
     }
 
     public StyleOverrides copy() {

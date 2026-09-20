@@ -1,12 +1,10 @@
 package com.plot.plugin.powerline.style;
 
-import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 
-import java.util.Objects;
 
 /**
  * Base Preset + Overrides 状态机（footprint 存生效值，overrides 记录偏离项）。
@@ -138,21 +136,12 @@ public final class PowerLineStyleEditor {
         PowerLineStylePreset preset = basePreset(line);
         StyleOverrides overrides = line.getStyleOverrides();
         if (preset == null) {
-            Double spacingOverride = overrides.getPreferredSpacing();
-            overrides.clear();
-            if (spacingOverride != null) {
-                overrides.setPreferredSpacing(line.getMaxPoleSpacing());
-            }
+            syncSpacingOverrides(line);
             return;
         }
         PowerLineStyleDefinition definition = preset.getDefinition();
         overrides.setSagRatio(overrideSag(line.getSagRatio(), definition));
         overrides.setMaxSagDepth(overrideMaxSagDepth(line, definition));
-        overrides.setWireMaterial(overrideMaterial(line.getWireMaterial(), definition.getWireMaterial()));
-        overrides.setPoleMaterial(overrideMaterial(line.getPoleMaterial(), definition.getPoleMaterial()));
-        overrides.setTopWireMaterial(overrideMaterial(line.getTopWireMaterial(), definition.getTopWireMaterial()));
-        overrides.setPoleDesignId(overrideId(line.getPoleDesignId(), definition.getPoleDesignId()));
-        overrides.setTowerFamilyId(overrideId(line.getTowerFamilyId(), definition.getTowerFamilyId()));
         overrides.setParametricTowerConfig(overrideParametric(
             line.getParametricTowerConfig(),
             definition.getParametricConfig()));
@@ -189,28 +178,6 @@ public final class PowerLineStyleEditor {
         }
         double expected = definition.getMaxSagDepth();
         return Math.abs(line.getMaxSagDepth() - expected) <= MAX_SAG_TOLERANCE ? null : line.getMaxSagDepth();
-    }
-
-    private static MaterialMix overrideMaterial(MaterialMix actual, MaterialMix expected) {
-        if (actual == null || expected == null) {
-            return null;
-        }
-        if (Objects.equals(actual.getPrimaryMaterial(), expected.getPrimaryMaterial())
-                && Objects.equals(blankToNull(actual.getAccentMaterial()), blankToNull(expected.getAccentMaterial()))
-                && Float.compare(actual.getAccentRatio(), expected.getAccentRatio()) == 0) {
-            return null;
-        }
-        return actual.copy();
-    }
-
-    private static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value;
-    }
-
-    private static String overrideId(String actual, String expected) {
-        String normalizedActual = actual == null || actual.isBlank() ? null : actual;
-        String normalizedExpected = expected == null || expected.isBlank() ? null : expected;
-        return Objects.equals(normalizedActual, normalizedExpected) ? null : normalizedActual;
     }
 
     private static TowerGeneratorConfig overrideParametric(

@@ -138,6 +138,20 @@ public final class PowerLineStylePresetCatalog {
         return indexById().get(id);
     }
 
+    /** 解析 preset 对应的定义；用户模板 preset 无工程上下文时用占位设计重建。 */
+    public static PowerLineStyleDefinition definitionForPresetId(String presetId) {
+        PowerLineStylePreset preset = find(presetId);
+        if (preset != null) {
+            return preset.getDefinition();
+        }
+        String designId = UserPoleDesignTemplateCatalog.designIdFromPresetId(presetId);
+        if (designId == null) {
+            return null;
+        }
+        return UserPoleDesignTemplateCatalog.toPreset(new com.plot.plugin.powerline.design.PoleDesign(designId, designId), null)
+            .getDefinition();
+    }
+
     public static PowerLineStylePreset detect(PowerLineFootprint line) {
         if (line == null) {
             return null;

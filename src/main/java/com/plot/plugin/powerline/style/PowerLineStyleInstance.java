@@ -1,11 +1,13 @@
 package com.plot.plugin.powerline.style;
 
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.model.PowerLineStyleState;
 
 /**
  * 线路上的风格实例：Base Preset + User Overrides。
  * <p>
- * footprint 存生效值；{@link StyleOverrides} 记录相对 base {@link PowerLineStyleDefinition} 的偏离项
+ * 材质/塔型生效值由 {@link PowerLineStyleState} resolve 层解析；
+ * {@link StyleOverrides} 记录相对 base {@link PowerLineStyleDefinition} 的偏离项
  * （{@code null} 字段 = 沿用预设默认）。
  */
 public final class PowerLineStyleInstance {
