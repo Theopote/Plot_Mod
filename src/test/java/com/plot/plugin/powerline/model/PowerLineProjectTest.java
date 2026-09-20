@@ -58,6 +58,7 @@ class PowerLineProjectTest {
         String json = project.toJson();
         assertTrue(json.contains("\"closeSpacingWarningThreshold\""));
         assertFalse(json.contains("\"minPoleSpacing\""));
+        assertFalse(json.contains("\"spacingCustomized\""));
     }
 
     @Test
@@ -78,6 +79,25 @@ class PowerLineProjectTest {
         assertNotNull(restoredLine);
         assertEquals(9.0, restoredLine.getCloseSpacingWarningThreshold(), 1e-6);
         assertEquals(18.0, restoredLine.getMaxPoleSpacing(), 1e-6);
+    }
+
+    @Test
+    void legacySpacingCustomizedJsonLoadsPreferredSpacingFromMaxPoleSpacing() {
+        String json = """
+            {
+              "lines": [{
+                "id": "legacy-spacing",
+                "pathPoints": [{"x": 0.0, "y": 0.0}, {"x": 40.0, "y": 0.0}],
+                "spacingCustomized": true,
+                "maxPoleSpacing": 22.0
+              }]
+            }
+            """;
+
+        PowerLineProject restored = PowerLineProject.fromJson(json);
+        PowerLineFootprint restoredLine = restored.getLine("legacy-spacing");
+        assertNotNull(restoredLine);
+        assertEquals(22.0, restoredLine.getStyleOverrides().getPreferredSpacing(), 1e-6);
     }
 
     @Test

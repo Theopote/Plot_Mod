@@ -2,6 +2,7 @@ package com.plot.plugin.powerline.model;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.annotations.SerializedName;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
@@ -206,9 +207,9 @@ public class PowerLineProject {
         List<Vec2dData> pathPoints = new ArrayList<>();
         String roadId;
         double closeSpacingWarningThreshold = 15.0;
-        /** 旧版 JSON 字段，读取后映射为 {@link #closeSpacingWarningThreshold} */
-        @Deprecated
-        Double minPoleSpacing;
+        /** 旧版 JSON 字段 {@code minPoleSpacing}，读取后映射为 {@link #closeSpacingWarningThreshold}。 */
+        @SerializedName("minPoleSpacing")
+        Double legacyMinPoleSpacing;
         double maxPoleSpacing = 30.0;
         double cornerAngleThreshold = 5.0;
         double poleHeight = 10.0;
@@ -222,9 +223,9 @@ public class PowerLineProject {
         MaterialMix topWireMaterial;
         List<PoleOverrideData> poleOverrides = new ArrayList<>();
         List<LayoutConstraintData> layoutConstraints = new ArrayList<>();
-        /** 旧档字段：间距自定义已迁移至 styleOverrides.preferredSpacing。 */
-        @Deprecated
-        boolean spacingCustomized;
+        /** 旧档 JSON 字段 {@code spacingCustomized}，读取后映射为 styleOverrides.preferredSpacing。 */
+        @SerializedName("spacingCustomized")
+        Boolean legacySpacingCustomized;
         String poleSpacingMode;
         int targetTowerCount = 2;
         StyleOverridesData styleOverrides;
@@ -243,7 +244,7 @@ public class PowerLineProject {
         double sourceArcEndAngle;
 
         static double resolveCloseSpacingWarningThreshold(LineData lineData) {
-            return Objects.requireNonNullElseGet(lineData.minPoleSpacing, () -> lineData.closeSpacingWarningThreshold);
+            return Objects.requireNonNullElseGet(lineData.legacyMinPoleSpacing, () -> lineData.closeSpacingWarningThreshold);
         }
     }
 
@@ -384,7 +385,7 @@ public class PowerLineProject {
                     ? lineData.styleOverrides
                     : new StyleOverridesData();
                 overridesData.applyTo(footprint.getStyleOverrides());
-                if (lineData.spacingCustomized
+                if (Boolean.TRUE.equals(lineData.legacySpacingCustomized)
                         && footprint.getStyleOverrides().getPreferredSpacing() == null) {
                     footprint.getStyleOverrides().setPreferredSpacing(lineData.maxPoleSpacing);
                 }
