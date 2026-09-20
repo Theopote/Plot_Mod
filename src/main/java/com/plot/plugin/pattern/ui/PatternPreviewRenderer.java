@@ -7,6 +7,7 @@ import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
+import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
 import net.minecraft.util.math.BlockPos;
 
@@ -14,55 +15,65 @@ import java.util.Map;
 
 /** 生成 Tab 内的俯视图案预览。 */
 public final class PatternPreviewRenderer {
-    private static final float PREVIEW_HEIGHT = 220f;
-    private static final float PADDING = 10f;
+    private static final float PLOT_INSET = 1f;
     private static final int COLOR_BACKGROUND = 0xFF20252A;
-    private static final int COLOR_BORDER = 0xFF56616B;
-    private static final int COLOR_LABEL = 0xFFD5D9DC;
+    private static final int PREVIEW_CANVAS_FLAGS =
+        ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
 
     private PatternPreviewRenderer() {
     }
 
     public static void render(PatternGenerationResult result) {
         float width = Math.max(160f, ImGui.getContentRegionAvailX());
+        float previewHeight = PatternOverviewRenderer.mapHeightForWidth(width);
+
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0f, 0f);
         ImGui.beginChild(
             "##pattern_preview_area",
             width,
-            PREVIEW_HEIGHT,
+            previewHeight,
             true,
-            ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
+            PREVIEW_CANVAS_FLAGS);
 
         ImVec2 origin = ImGui.getCursorScreenPos();
         float contentWidth = ImGui.getContentRegionAvail().x;
         float contentHeight = ImGui.getContentRegionAvail().y;
         ImDrawList drawList = ImGui.getWindowDrawList();
-        float x0 = origin.x + PADDING;
-        float y0 = origin.y + PADDING;
-        float x1 = origin.x + contentWidth - PADDING;
-        float y1 = origin.y + contentHeight - PADDING;
+        float plotX0 = origin.x + PLOT_INSET;
+        float plotY0 = origin.y + PLOT_INSET;
+        float plotX1 = origin.x + contentWidth - PLOT_INSET;
+        float plotY1 = origin.y + contentHeight - PLOT_INSET;
 
-        drawList.addRectFilled(x0, y0, x1, y1, COLOR_BACKGROUND);
-        drawList.addRect(x0, y0, x1, y1, COLOR_BORDER);
-        drawList.addText(x0 + 6f, y0 + 5f, COLOR_LABEL, PlotI18n.tr("plugin.pattern.preview_area"));
+        drawList.addRectFilled(plotX0, plotY0, plotX1, plotY1, COLOR_BACKGROUND);
 
         if (result == null || result.placementRecords.isEmpty()) {
-            drawList.addText(
-                x0 + 6f,
-                y0 + 28f,
+            drawCenteredText(
+                drawList,
+                plotX0,
+                plotY0,
+                plotX1,
+                plotY1,
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.pattern.preview_area_empty"));
-            ImGui.dummy(width, PREVIEW_HEIGHT);
+            ImGui.dummy(contentWidth, contentHeight);
             ImGui.endChild();
+            ImGui.popStyleVar();
             return;
         }
 
         Bounds bounds = Bounds.from(result.placementRecords);
-        float plotX0 = x0 + 6f;
-        float plotY0 = y0 + 24f;
-        float plotX1 = x1 - 6f;
-        float plotY1 = y1 - 6f;
-        int screenW = Math.max(1, (int) Math.floor(plotX1 - plotX0));
-        int screenH = Math.max(1, (int) Math.floor(plotY1 - plotY0));
+        float[] fitted = fitAspectRect(
+            plotX0,
+            plotY0,
+            plotX1,
+            plotY1,
+            bounds.worldWidth() / (float) Math.max(1, bounds.worldDepth()));
+        float drawX0 = fitted[0];
+        float drawY0 = fitted[1];
+        float drawX1 = fitted[2];
+        float drawY1 = fitted[3];
+        int screenW = Math.max(1, (int) Math.floor(drawX1 - drawX0));
+        int screenH = Math.max(1, (int) Math.floor(drawY1 - drawY0));
         int worldW = bounds.worldWidth();
         int worldD = bounds.worldDepth();
         int bucketWidth = PatternPreviewRasterDraw.bucketWidth(screenW, worldW);
@@ -73,10 +84,51 @@ public final class PatternPreviewRenderer {
             bucketWidth,
             bucketHeight);
 
-        PatternPreviewRasterDraw.drawBuckets(drawList, buckets, plotX0, plotY0, plotX1, plotY1);
+        PatternPreviewRasterDraw.drawBuckets(drawList, buckets, drawX0, drawY0, drawX1, drawY1);
 
-        ImGui.dummy(width, PREVIEW_HEIGHT);
+        ImGui.dummy(contentWidth, contentHeight);
         ImGui.endChild();
+        ImGui.popStyleVar();
+    }
+
+    private static float[] fitAspectRect(
+            float x0,
+            float y0,
+            float x1,
+            float y1,
+            float contentAspect) {
+        float boxW = x1 - x0;
+        float boxH = y1 - y0;
+        if (boxW <= 0f || boxH <= 0f || contentAspect <= 0f) {
+            return new float[] {x0, y0, x1, y1};
+        }
+        float boxAspect = boxW / boxH;
+        float drawW;
+        float drawH;
+        if (contentAspect > boxAspect) {
+            drawW = boxW;
+            drawH = boxW / contentAspect;
+        } else {
+            drawH = boxH;
+            drawW = boxH * contentAspect;
+        }
+        float insetX = (boxW - drawW) * 0.5f;
+        float insetY = (boxH - drawH) * 0.5f;
+        return new float[] {x0 + insetX, y0 + insetY, x0 + insetX + drawW, y0 + insetY + drawH};
+    }
+
+    private static void drawCenteredText(
+            ImDrawList drawList,
+            float x0,
+            float y0,
+            float x1,
+            float y1,
+            int color,
+            String text) {
+        ImVec2 textSize = ImGui.calcTextSize(text);
+        float textX = x0 + Math.max(0f, (x1 - x0 - textSize.x) * 0.5f);
+        float textY = y0 + Math.max(0f, (y1 - y0 - textSize.y) * 0.5f);
+        drawList.addText(textX, textY, color, text);
     }
 
     static final class Bounds {
