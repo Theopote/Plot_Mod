@@ -7,7 +7,6 @@ import com.plot.plugin.powerline.PowerLinePathSelectionAnalysis;
 import com.plot.plugin.powerline.PowerLineGenerator;
 import com.plot.plugin.powerline.PowerLineSelectionSet;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
-import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerLineProject;
@@ -161,24 +160,12 @@ public final class PowerLineUiContext {
         return actions.autoAdjustTerrain(line);
     }
 
-    public PowerLineValidationReport cachedEngineeringReport(PowerLineFootprint line) {
-        return actions.cachedEngineeringReport(line);
-    }
-
-    public PowerLineValidationReport cachedTerrainReport(PowerLineFootprint line) {
-        return actions.cachedTerrainReport(line);
-    }
-
     public void clearPreview() {
         actions.clearPreview();
     }
 
     public void invalidatePreview() {
         actions.invalidatePreview();
-    }
-
-    public void clearAnalysisReports() {
-        actions.clearAnalysisReports();
     }
 
     public boolean hasValidPreview(PowerLineFootprint line) {

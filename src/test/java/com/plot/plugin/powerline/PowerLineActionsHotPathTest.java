@@ -5,7 +5,7 @@ import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.engineering.TerrainAvoidance;
-import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
+import com.plot.plugin.powerline.engineering.TerrainCollisionAnalysis;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerLineProject;
@@ -59,13 +59,13 @@ class PowerLineActionsHotPathTest {
         flatLine.setMaxPoleSpacing(80.0);
         flatLine.setSagRatio(0.03);
         PowerLineGenerationResult flatResult = TerrainTestFixtures.generate(flatLine, flat);
-        PowerLineValidationReport flatReport = TerrainTestFixtures.analyze(flatResult, flat);
+        TerrainCollisionAnalysis flatReport = TerrainTestFixtures.analyze(flatResult, flat);
         assertFalse(TerrainAvoidance.hasTerrainIssues(flatReport));
 
         TerrainSampler rolling = TerrainTestFixtures.rollingHill(64, 74, 30.0, 8.0);
         PowerLineFootprint hillLine = TerrainTestFixtures.rollingHillLine();
         PowerLineGenerationResult hillResult = TerrainTestFixtures.generate(hillLine, rolling);
-        PowerLineValidationReport hillReport = TerrainTestFixtures.analyze(hillResult, rolling);
+        TerrainCollisionAnalysis hillReport = TerrainTestFixtures.analyze(hillResult, rolling);
         assertTrue(TerrainAvoidance.hasTerrainIssues(hillReport));
     }
 
@@ -102,13 +102,13 @@ class PowerLineActionsHotPathTest {
         PoleDesignResolver resolver = new PoleDesignResolver(new PowerLineDesignProject());
         PowerLineGenerationResult result = PowerLineGeneratorWireTest.createGenerator()
             .generate(line, terrain, resolver);
-        PowerLineValidationReport report = TerrainTestFixtures.analyze(result, terrain);
+        TerrainCollisionAnalysis report = TerrainTestFixtures.analyze(result, terrain);
         assertTrue(TerrainAvoidance.hasTerrainIssues(report));
 
         assertEquals(before, project.toJson());
 
         assertTrue(TerrainAvoidance.applyOneFix(
-            line, report, result, resolver, IdentityCoordinateService.INSTANCE));
+            line, report, result, IdentityCoordinateService.INSTANCE));
         assertFalse(project.toJson().equals(before));
     }
 

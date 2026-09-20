@@ -67,7 +67,6 @@ public final class PowerLinePreviewManager {
     private void clearLineCachedMetadata() {
         state.setLastGenerationResult(null);
         state.setPreviewKey(null);
-        state.getValidationState().clearAnalysisReports();
     }
 
     private void projectGhosts(PowerLineGenerationResult result) {

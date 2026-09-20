@@ -5,24 +5,15 @@ import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.PowerLineOverrideUtils;
 import com.plot.plugin.powerline.PowerPoleLayoutUtils;
-import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
-import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
+import com.plot.plugin.powerline.design.family.VisualTowerResolver;
 import com.plot.plugin.powerline.engineering.analysis.SpanAnalysis;
-import com.plot.plugin.powerline.engineering.clearance.ClearanceAnalysis;
-import com.plot.plugin.powerline.engineering.clearance.ClearanceChecker;
-import com.plot.plugin.powerline.engineering.optimization.LineOptimizationEngine;
-import com.plot.plugin.powerline.engineering.optimization.OptimizationAction;
-import com.plot.plugin.powerline.engineering.optimization.OptimizationActionType;
-import com.plot.plugin.powerline.engineering.optimization.OptimizationResult;
-import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
 import com.plot.plugin.powerline.geometry.PowerLineGeometryModel;
 import com.plot.plugin.powerline.model.PoleLayoutConstraint;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.core.terrain.TerrainSampler;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /** 装饰性地形避让：检测导线碰地/穿山，并尝试自动修正。 */
@@ -33,12 +24,10 @@ public final class TerrainAvoidance {
     private TerrainAvoidance() {
     }
 
-    /** 只检测导线与地形表面的碰撞（不含完整工程规则）。 */
-    public static PowerLineValidationReport analyzeCollisions(
+    public static TerrainCollisionAnalysis analyzeCollisions(
             PowerLineGeometryModel geometry,
             TerrainSampler terrain) {
-        return com.plot.plugin.powerline.engineering.validation.TerrainCollisionCheck
-            .analyzeTerrainOnly(geometry, terrain);
+        return TerrainCollisionAnalysis.analyze(geometry, terrain);
     }
 
     /**
@@ -48,39 +37,28 @@ public final class TerrainAvoidance {
      */
     public static boolean applyOneFix(
             PowerLineFootprint line,
-            PowerLineValidationReport report,
+            TerrainCollisionAnalysis analysis,
             PowerLineGenerationResult result,
-            PoleDesignResolver designResolver,
             ICoordinateService coordinates) {
-        if (line == null || report == null || !hasTerrainIssues(report)) {
+        if (line == null || analysis == null || !analysis.hasIssues()) {
             return false;
         }
         java.util.Objects.requireNonNull(coordinates, "coordinates");
-        if (tryTallerTower(line, report, result, designResolver)) {
+        if (tryTallerTower(line, analysis, result)) {
             return true;
         }
         if (tryRaisePoleHeight(line)) {
             return true;
         }
-        return tryInsertPole(line, report, result, coordinates);
+        return tryInsertPole(line, analysis, result, coordinates);
     }
 
-    public static boolean hasTerrainIssues(PowerLineValidationReport report) {
-        return countTerrainIssues(report) > 0;
+    public static boolean hasTerrainIssues(TerrainCollisionAnalysis analysis) {
+        return analysis != null && analysis.hasIssues();
     }
 
-    /** 地形碰撞 / 净空问题数量。 */
-    public static int countTerrainIssues(PowerLineValidationReport report) {
-        if (report == null) {
-            return 0;
-        }
-        int count = 0;
-        for (PowerLineIssue issue : report.getIssues()) {
-            if (EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM.equals(issue.ruleId())) {
-                count++;
-            }
-        }
-        return count;
+    public static int countTerrainIssues(TerrainCollisionAnalysis analysis) {
+        return analysis != null ? analysis.issueCount() : 0;
     }
 
     /**
@@ -105,40 +83,30 @@ public final class TerrainAvoidance {
 
     private static boolean tryTallerTower(
             PowerLineFootprint line,
-            PowerLineValidationReport report,
-            PowerLineGenerationResult result,
-            PoleDesignResolver designResolver) {
-        if (!line.hasTowerFamily() || designResolver == null || result == null) {
+            TerrainCollisionAnalysis analysis,
+            PowerLineGenerationResult result) {
+        if (!line.hasTowerFamily() || result == null) {
             return false;
         }
         TowerFamily family = new TowerFamilyResolver().find(line.getTowerFamilyId());
-        if (family == null) {
+        if (family == null || !VisualTowerResolver.hasGradedSuspensionVariants(family)) {
             return false;
         }
-        List<String> resolvedIds = new ArrayList<>();
-        for (var placement : result.polePlacements) {
-            resolvedIds.add(placement.resolvedDesignId());
+        SpanAnalysis targetSpan = analysis.firstIssueSpan();
+        if (targetSpan == null) {
+            return false;
         }
-        LineOptimizationEngine.PowerLineGeometrySites sites =
-            new LineOptimizationEngine.PowerLineGeometrySites(result.poleSites, resolvedIds);
-        OptimizationResult optimization = LineOptimizationEngine.propose(
-            report,
-            sites,
-            line,
-            SAFETY_MARGIN_BLOCKS,
-            com.plot.plugin.powerline.engineering.validation.ValidationLimits.TOWER_PREFERRED_HEIGHT_MARGIN,
-            designResolver);
-        for (OptimizationAction action : optimization.getActions()) {
-            if (action.getType() == OptimizationActionType.SELECT_TALLER_TOWER
-                    && action.getProposedDesignId() != null) {
-                PowerLineOverrideUtils.setDesignOverride(
-                    line,
-                    action.getStationing(),
-                    action.getProposedDesignId());
-                return true;
-            }
+        com.plot.plugin.powerline.model.PowerPoleSite site = nearestSiteForSpan(result, targetSpan);
+        if (site == null || site.getPoleDesignOverrideId() != null) {
+            return false;
         }
-        return false;
+        String currentDesignId = currentDesignId(result, site);
+        String nextDesignId = VisualTowerResolver.nextLargerGradedDesign(family, currentDesignId);
+        if (nextDesignId == null || nextDesignId.equals(currentDesignId)) {
+            return false;
+        }
+        PowerLineOverrideUtils.setDesignOverride(line, site.getStationing(), nextDesignId);
+        return true;
     }
 
     private static boolean tryRaisePoleHeight(PowerLineFootprint line) {
@@ -155,10 +123,10 @@ public final class TerrainAvoidance {
 
     private static boolean tryInsertPole(
             PowerLineFootprint line,
-            PowerLineValidationReport report,
+            TerrainCollisionAnalysis analysis,
             PowerLineGenerationResult result,
             ICoordinateService coordinates) {
-        SpanAnalysis targetSpan = firstTerrainSpan(report);
+        SpanAnalysis targetSpan = analysis.firstIssueSpan();
         if (targetSpan == null) {
             return false;
         }
@@ -172,12 +140,55 @@ public final class TerrainAvoidance {
         return true;
     }
 
-    private static SpanAnalysis firstTerrainSpan(PowerLineValidationReport report) {
-        for (SpanAnalysis span : report.getSpans()) {
-            for (PowerLineIssue issue : span.getIssues()) {
-                if (EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM.equals(issue.ruleId())) {
-                    return span;
-                }
+    private static com.plot.plugin.powerline.model.PowerPoleSite nearestSiteForSpan(
+            PowerLineGenerationResult result,
+            SpanAnalysis span) {
+        if (result == null || span == null) {
+            return null;
+        }
+        com.plot.plugin.powerline.model.PowerPoleSite start = findSiteById(result, span.getStartPoleSiteId());
+        com.plot.plugin.powerline.model.PowerPoleSite end = findSiteById(result, span.getEndPoleSiteId());
+        if (start == null || end == null) {
+            return null;
+        }
+        double midpoint = (start.getStationing() + end.getStationing()) * 0.5;
+        com.plot.plugin.powerline.model.PowerPoleSite best = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (var site : result.poleSites) {
+            double distance = Math.abs(site.getStationing() - midpoint);
+            if (distance < bestDistance) {
+                best = site;
+                bestDistance = distance;
+            }
+        }
+        return best;
+    }
+
+    private static com.plot.plugin.powerline.model.PowerPoleSite findSiteById(
+            PowerLineGenerationResult result,
+            String siteId) {
+        if (result == null || siteId == null || siteId.isBlank()) {
+            return null;
+        }
+        for (var site : result.poleSites) {
+            if (siteId.equals(site.getId())) {
+                return site;
+            }
+        }
+        return null;
+    }
+
+    private static String currentDesignId(
+            PowerLineGenerationResult result,
+            com.plot.plugin.powerline.model.PowerPoleSite site) {
+        if (site.getPoleDesignOverrideId() != null) {
+            return site.getPoleDesignOverrideId();
+        }
+        for (int i = 0; i < result.poleSites.size(); i++) {
+            if (result.poleSites.get(i).getId().equals(site.getId())) {
+                return i < result.polePlacements.size()
+                    ? result.polePlacements.get(i).resolvedDesignId()
+                    : null;
             }
         }
         return null;
@@ -191,16 +202,10 @@ public final class TerrainAvoidance {
         if (result != null
                 && span.getStartPoleSiteId() != null
                 && span.getEndPoleSiteId() != null) {
-            com.plot.plugin.powerline.model.PowerPoleSite start = null;
-            com.plot.plugin.powerline.model.PowerPoleSite end = null;
-            for (var site : result.poleSites) {
-                if (span.getStartPoleSiteId().equals(site.getId())) {
-                    start = site;
-                }
-                if (span.getEndPoleSiteId().equals(site.getId())) {
-                    end = site;
-                }
-            }
+            com.plot.plugin.powerline.model.PowerPoleSite start =
+                findSiteById(result, span.getStartPoleSiteId());
+            com.plot.plugin.powerline.model.PowerPoleSite end =
+                findSiteById(result, span.getEndPoleSiteId());
             if (start != null && end != null) {
                 return (start.getStationing() + end.getStationing()) * 0.5;
             }

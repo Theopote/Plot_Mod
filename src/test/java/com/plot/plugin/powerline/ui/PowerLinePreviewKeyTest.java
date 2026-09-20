@@ -71,17 +71,13 @@ class PowerLinePreviewKeyTest {
     }
 
     @Test
-    void matchesWhenOnlyAnalysisTogglesChange() {
+    void mismatchesWhenTerrainAvoidanceToggleChanges() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
         PowerLineDesignProject designs = new PowerLineDesignProject();
         PowerLinePreviewKey key = PowerLinePreviewKey.capture(line, designs);
 
-        line.setLineChecksEnabled(false);
-        assertTrue(key.matches(line, designs));
-        assertNotEquals(line.geometryFingerprint(), line.generationFingerprint());
-
         line.setTerrainAvoidanceEnabled(false);
-        assertTrue(key.matches(line, designs));
+        assertFalse(key.matches(line, designs));
     }
 
     @Test

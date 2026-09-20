@@ -9,8 +9,7 @@ import com.plot.core.model.Shape;
 import com.plot.core.persistence.ProjectPathResolver;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
-import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
-import com.plot.plugin.powerline.engineering.optimization.OptimizationResult;
+import com.plot.plugin.powerline.engineering.TerrainCollisionAnalysis;
 import com.plot.api.world.PluginProjectionContext;
 import com.plot.api.world.WorldProjectionUnavailableException;
 import com.plot.plugin.powerline.PowerLinePathPickSession;
@@ -291,7 +290,6 @@ public final class PowerLineActions {
         if (!calculatePreviewCore(line)) {
             return false;
         }
-        syncPreviewAnalysis(line);
         if (enableAutoRefresh) {
             state.setPreviewAutoRefreshEnabled(true);
         }
@@ -322,17 +320,14 @@ public final class PowerLineActions {
         }
         World world = getClientWorld();
         TerrainSampler terrain = MinecraftTerrainSampler.of(world, host.coordinates());
-        PowerLineValidationReport peekReport = com.plot.plugin.powerline.engineering.TerrainAvoidance
+        TerrainCollisionAnalysis peekReport = com.plot.plugin.powerline.engineering.TerrainAvoidance
             .analyzeCollisions(peek.toGeometryModel(), terrain);
-        storeTerrainReport(line, peekReport);
         if (!com.plot.plugin.powerline.engineering.TerrainAvoidance.hasTerrainIssues(peekReport)) {
             applyTerrainFixStatus(0, 0);
-            syncPreviewAnalysis(line);
             return true;
         }
         pushWorkspaceSnapshot();
         runTerrainAvoidance(line);
-        syncPreviewAnalysis(line);
         return state.getLastGenerationResult() != null;
     }
 
@@ -388,120 +383,6 @@ public final class PowerLineActions {
         return true;
     }
 
-    public PowerLineValidationReport analyzeTerrainCollisions(PowerLineFootprint line) {
-        if (line == null || !line.isTerrainAvoidanceEnabled()) {
-            clearTerrainReport();
-            return null;
-        }
-        World world = getClientWorld();
-        if (world == null) {
-            return null;
-        }
-        if (!hasValidPreview(line) && !calculatePreviewCore(line)) {
-            return null;
-        }
-        PowerLineValidationReport report = computeTerrainReport(line, world);
-        storeTerrainReport(line, report);
-        return report;
-    }
-
-    public PowerLineValidationReport cachedTerrainReport(PowerLineFootprint line) {
-        return validatedReport(
-            line,
-            state.getValidationState().getLastTerrainReport(),
-            state.getValidationState().getTerrainReportKey());
-    }
-
-    public PowerLineValidationReport cachedEngineeringReport(PowerLineFootprint line) {
-        return validatedReport(
-            line,
-            state.getValidationState().getLastEngineeringReport(),
-            state.getValidationState().getEngineeringReportKey());
-    }
-
-    private void syncPreviewAnalysis(PowerLineFootprint line) {
-        if (!hasValidPreview(line)) {
-            clearAnalysisReports();
-            return;
-        }
-        World world = getClientWorld();
-        if (world == null) {
-            clearAnalysisReports();
-            return;
-        }
-        if (line.isTerrainAvoidanceEnabled()) {
-            storeTerrainReport(line, computeTerrainReport(line, world));
-        } else {
-            clearTerrainReport();
-        }
-        if (line.isLineChecksEnabled()) {
-            storeEngineeringReport(line, computeEngineeringReport(line, world));
-        } else {
-            clearEngineeringReport();
-        }
-    }
-
-    private PowerLineValidationReport computeTerrainReport(PowerLineFootprint line, World world) {
-        PowerLineGenerationResult result = state.getLastGenerationResult();
-        if (result == null) {
-            return null;
-        }
-        TerrainSampler terrain = MinecraftTerrainSampler.of(world, host.coordinates());
-        return com.plot.plugin.powerline.engineering.TerrainAvoidance
-            .analyzeCollisions(result.toGeometryModel(), terrain);
-    }
-
-    private PowerLineValidationReport computeEngineeringReport(PowerLineFootprint line, World world) {
-        PowerLineGenerationResult result = state.getLastGenerationResult();
-        if (result == null) {
-            return null;
-        }
-        TerrainSampler terrain = MinecraftTerrainSampler.of(world, host.coordinates());
-        return com.plot.plugin.powerline.engineering.validation.PowerLineValidator
-            .validate(result.toGeometryModel(), terrain, line);
-    }
-
-    private void storeTerrainReport(PowerLineFootprint line, PowerLineValidationReport report) {
-        state.getValidationState().setLastTerrainReport(report);
-        state.getValidationState().setTerrainReportKey(
-            PowerLineAnalysisKey.capture(state.getPreviewKey(), line));
-    }
-
-    private void storeEngineeringReport(PowerLineFootprint line, PowerLineValidationReport report) {
-        state.getValidationState().setLastEngineeringReport(report);
-        state.getValidationState().setEngineeringReportKey(
-            PowerLineAnalysisKey.capture(state.getPreviewKey(), line));
-    }
-
-    private PowerLineValidationReport validatedReport(
-            PowerLineFootprint line,
-            PowerLineValidationReport report,
-            PowerLineAnalysisKey analysisKey) {
-        if (report == null || analysisKey == null || !hasValidPreview(line)) {
-            return null;
-        }
-        PowerLinePreviewKey previewKey = state.getPreviewKey();
-        if (previewKey == null
-                || !analysisKey.matches(line, state.getDesignProject(), previewKey)) {
-            return null;
-        }
-        return report;
-    }
-
-    public void clearAnalysisReports() {
-        state.getValidationState().clearAnalysisReports();
-    }
-
-    private void clearTerrainReport() {
-        state.getValidationState().setLastTerrainReport(null);
-        state.getValidationState().setTerrainReportKey(null);
-    }
-
-    private void clearEngineeringReport() {
-        state.getValidationState().setLastEngineeringReport(null);
-        state.getValidationState().setEngineeringReportKey(null);
-    }
-
     private void runTerrainAvoidance(PowerLineFootprint line) {
         if (line == null || !line.isTerrainAvoidanceEnabled()) {
             return;
@@ -517,15 +398,14 @@ public final class PowerLineActions {
             if (result == null) {
                 break;
             }
-            PowerLineValidationReport report = com.plot.plugin.powerline.engineering.TerrainAvoidance
+            TerrainCollisionAnalysis report = com.plot.plugin.powerline.engineering.TerrainAvoidance
                 .analyzeCollisions(result.toGeometryModel(), terrain);
-            storeTerrainReport(line, report);
             if (!com.plot.plugin.powerline.engineering.TerrainAvoidance.hasTerrainIssues(report)) {
                 applyTerrainFixStatus(fixesApplied, 0);
                 return;
             }
             if (!com.plot.plugin.powerline.engineering.TerrainAvoidance.applyOneFix(
-                    line, report, result, designResolver(), host.coordinates())) {
+                    line, report, result, host.coordinates())) {
                 applyTerrainFixStatus(
                     fixesApplied,
                     com.plot.plugin.powerline.engineering.TerrainAvoidance.countTerrainIssues(report));
@@ -540,9 +420,8 @@ public final class PowerLineActions {
         if (finalResult == null) {
             return;
         }
-        PowerLineValidationReport finalReport = com.plot.plugin.powerline.engineering.TerrainAvoidance
+        TerrainCollisionAnalysis finalReport = com.plot.plugin.powerline.engineering.TerrainAvoidance
             .analyzeCollisions(finalResult.toGeometryModel(), terrain);
-        storeTerrainReport(line, finalReport);
         applyTerrainFixStatus(
             fixesApplied,
             com.plot.plugin.powerline.engineering.TerrainAvoidance.countTerrainIssues(finalReport));
@@ -596,7 +475,6 @@ public final class PowerLineActions {
         if (!calculatePreviewCore(line)) {
             return false;
         }
-        syncPreviewAnalysis(line);
         return state.getLastGenerationResult() != null;
     }
 
@@ -1238,126 +1116,9 @@ public final class PowerLineActions {
         }
     }
 
-    public PowerLineValidationReport analyzeEngineering(PowerLineFootprint line) {
-        if (line == null) {
-            return null;
-        }
-        if (!line.isLineChecksEnabled()) {
-            clearEngineeringReport();
-            return null;
-        }
-        World world = getClientWorld();
-        if (world == null) {
-            state.setProjectStatus(PlotI18n.tr("plugin.powerline.generate_world_unavailable"), ProjectStatusSeverity.ERROR);
-            return null;
-        }
-        if (!hasValidPreview(line) && !calculatePreviewCore(line)) {
-            return null;
-        }
-        PowerLineValidationReport report = computeEngineeringReport(line, world);
-        storeEngineeringReport(line, report);
-        return report;
-    }
-
-    public OptimizationResult proposeAutoTowerSelection(PowerLineFootprint line) {
-        if (line == null) {
-            return null;
-        }
-        if (!hasValidPreview(line) && !calculatePreview(line)) {
-            return null;
-        }
-        PowerLineGenerationResult result = state.getLastGenerationResult();
-        if (result == null) {
-            return null;
-        }
-        boolean assumeAutomaticEnabled = state.getValidationState().isPendingEnableAutomaticTowers();
-        OptimizationResult optimization = com.plot.plugin.powerline.engineering.optimization.AutoTowerOptimizationProposer
-            .propose(result, line, designResolver(), assumeAutomaticEnabled);
-        state.getValidationState().setPendingOptimization(optimization);
-        return optimization;
-    }
-
-    public OptimizationResult proposeClearanceFix(PowerLineFootprint line) {
-        PowerLineValidationReport report = cachedEngineeringReport(line);
-        if (report == null) {
-            report = analyzeEngineering(line);
-        }
-        if (report == null || line == null) {
-            return null;
-        }
-        PowerLineGenerationResult result = state.getLastGenerationResult();
-        com.plot.plugin.powerline.engineering.optimization.LineOptimizationEngine.PowerLineGeometrySites sites;
-        if (result != null) {
-            java.util.List<String> resolvedIds = new java.util.ArrayList<>();
-            for (var placement : result.polePlacements) {
-                resolvedIds.add(placement.resolvedDesignId());
-            }
-            sites = new com.plot.plugin.powerline.engineering.optimization.LineOptimizationEngine.PowerLineGeometrySites(
-                result.poleSites,
-                resolvedIds);
-        } else {
-            sites = new com.plot.plugin.powerline.engineering.optimization.LineOptimizationEngine.PowerLineGeometrySites(
-                com.plot.plugin.powerline.PowerPoleLayoutUtils.computePoleSites(line, host.coordinates()));
-        }
-        OptimizationResult optimization = com.plot.plugin.powerline.engineering.optimization.LineOptimizationEngine
-            .propose(
-                report,
-                sites,
-                line,
-                com.plot.plugin.powerline.engineering.validation.ValidationLimits.DEFAULT_MIN_GROUND_CLEARANCE,
-                com.plot.plugin.powerline.engineering.validation.ValidationLimits.TOWER_PREFERRED_HEIGHT_MARGIN,
-                designResolver());
-        state.getValidationState().setPendingOptimization(optimization);
-        return optimization;
-    }
-
-    public void applyPendingOptimization(PowerLineFootprint line) {
-        OptimizationResult optimization = state.getValidationState().getPendingOptimization();
-        if (optimization == null || line == null) {
-            state.getValidationState().clearOptimization();
-            return;
-        }
-        if (!optimization.hasApplicableActions()) {
-            state.getValidationState().clearOptimization();
-            return;
-        }
-        pushWorkspaceSnapshot();
-        if (state.getValidationState().isPendingEnableAutomaticTowers()) {
-            line.setAutomaticTowerSelectionEnabled(true);
-        }
-        for (com.plot.plugin.powerline.engineering.optimization.OptimizationAction action : optimization.getActions()) {
-            switch (action.getType()) {
-                case SELECT_TALLER_TOWER -> com.plot.plugin.powerline.PowerLineOverrideUtils.setDesignOverride(
-                    line,
-                    action.getStationing(),
-                    action.getProposedDesignId());
-                case INSERT_POLE -> line.addLayoutConstraint(
-                    new com.plot.plugin.powerline.model.PoleLayoutConstraint(
-                        action.getStationing(),
-                        layoutConstraintReason(action)));
-                default -> { }
-            }
-        }
-        state.getValidationState().clearOptimization();
-        invalidatePreview();
-        state.setProjectStatus(
-            PlotI18n.tr("plugin.powerline.engineering.applied"),
-            ProjectStatusSeverity.SUCCESS);
-    }
-
     private World getClientWorld() {
         MinecraftClient client = MinecraftClient.getInstance();
         return client != null ? client.world : null;
     }
 
-    private static String layoutConstraintReason(
-            com.plot.plugin.powerline.engineering.optimization.OptimizationAction action) {
-        if (action.getMessageKey() != null && !action.getMessageKey().isBlank()) {
-            return action.getMessageKey();
-        }
-        if (action.getMessage() != null && !action.getMessage().isBlank()) {
-            return action.getMessage();
-        }
-        return "plugin.powerline.route.auto_pole.reason.engineering";
-    }
 }

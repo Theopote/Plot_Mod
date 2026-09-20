@@ -8,7 +8,7 @@ import com.plot.api.world.WorldViewBounds;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.engineering.TerrainAvoidance;
 import com.plot.test.world.IdentityCoordinateService;
-import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
+import com.plot.plugin.powerline.engineering.TerrainCollisionAnalysis;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
@@ -167,12 +167,12 @@ public final class TerrainTestFixtures {
             new PoleDesignResolver(new PowerLineDesignProject()));
     }
 
-    public static PowerLineValidationReport analyze(PowerLineGenerationResult result, TerrainSampler terrain) {
+    public static TerrainCollisionAnalysis analyze(PowerLineGenerationResult result, TerrainSampler terrain) {
         return TerrainAvoidance.analyzeCollisions(result.toGeometryModel(), terrain);
     }
 
     public static double minimumClearance(PowerLineGenerationResult result, TerrainSampler terrain) {
-        PowerLineValidationReport report = analyze(result, terrain);
+        TerrainCollisionAnalysis report = analyze(result, terrain);
         return report.getSpans().stream()
             .mapToDouble(span -> span.getMinimumGroundClearance())
             .filter(value -> !Double.isInfinite(value) && !Double.isNaN(value))
@@ -190,12 +190,12 @@ public final class TerrainTestFixtures {
         PowerLineGenerator generator = PowerLineGeneratorWireTest.createGenerator();
         for (int attempt = 0; attempt < maxAttempts; attempt++) {
             PowerLineGenerationResult result = generator.generate(line, terrain, resolver);
-            PowerLineValidationReport report = TerrainAvoidance.analyzeCollisions(result.toGeometryModel(), terrain);
+            TerrainCollisionAnalysis report = TerrainAvoidance.analyzeCollisions(result.toGeometryModel(), terrain);
             if (!TerrainAvoidance.hasTerrainIssues(report)) {
                 return true;
             }
             if (!TerrainAvoidance.applyOneFix(
-                    line, report, result, resolver, IdentityCoordinateService.INSTANCE)) {
+                    line, report, result, IdentityCoordinateService.INSTANCE)) {
                 return false;
             }
         }

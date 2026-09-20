@@ -51,7 +51,7 @@ public final class VisualTowerResolver {
         return Math.max(incoming, outgoing);
     }
 
-    static boolean hasGradedSuspensionVariants(TowerFamily family) {
+    public static boolean hasGradedSuspensionVariants(TowerFamily family) {
         String small = family.getDesignId(TowerRole.SUSPENSION);
         String medium = family.getDesignId(TowerRole.SPECIAL);
         String tall = family.getDesignId(TowerRole.DEAD_END);
@@ -60,6 +60,22 @@ public final class VisualTowerResolver {
             && tall != null
             && !small.equals(medium)
             && !medium.equals(tall);
+    }
+
+    public static String nextLargerGradedDesign(TowerFamily family, String currentDesignId) {
+        if (!hasGradedSuspensionVariants(family) || currentDesignId == null) {
+            return null;
+        }
+        String small = family.getDesignId(TowerRole.SUSPENSION);
+        String medium = family.getDesignId(TowerRole.SPECIAL);
+        String tall = family.getDesignId(TowerRole.DEAD_END);
+        if (currentDesignId.equals(small)) {
+            return medium;
+        }
+        if (currentDesignId.equals(medium)) {
+            return tall;
+        }
+        return null;
     }
 
     private static String resolveGradedSuspension(TowerFamily family, double maxAdjacentSpanBlocks) {

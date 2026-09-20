@@ -7,9 +7,7 @@ import com.plot.core.command.BlockRecord;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.context.PluginContext;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
-import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
-import com.plot.plugin.powerline.ui.PowerLineAnalysisKey;
 import com.plot.plugin.powerline.ui.PowerLinePluginState;
 import com.plot.plugin.powerline.ui.PowerLinePreviewKey;
 import net.minecraft.util.math.BlockPos;
@@ -89,26 +87,6 @@ class PowerLinePreviewManagerTest {
 
         assertEquals(PowerLinePreviewManager.Mode.LINE_CACHED, manager.getMode());
         assertEquals(1, ghostBatches.size());
-    }
-
-    @Test
-    void clearLineCachedPreviewClearsAnalysisReports() {
-        PowerLineFootprint line = sampleLine();
-        PowerLinePreviewKey previewKey = PowerLinePreviewKey.capture(line, state.getDesignProject());
-        state.setPreviewKey(previewKey);
-        state.setLastGenerationResult(sampleResult(line));
-        state.getValidationState().setLastTerrainReport(new PowerLineValidationReport());
-        state.getValidationState().setLastEngineeringReport(new PowerLineValidationReport());
-        state.getValidationState().setTerrainReportKey(PowerLineAnalysisKey.capture(previewKey, line));
-        state.getValidationState().setEngineeringReportKey(PowerLineAnalysisKey.capture(previewKey, line));
-
-        manager.showLinePreview(state.getLastGenerationResult());
-        manager.clearLineCachedPreview();
-
-        assertNull(state.getValidationState().getLastTerrainReport());
-        assertNull(state.getValidationState().getLastEngineeringReport());
-        assertNull(state.getValidationState().getTerrainReportKey());
-        assertNull(state.getValidationState().getEngineeringReportKey());
     }
 
     @Test

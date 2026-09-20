@@ -56,9 +56,7 @@ public class PowerLineFootprint {
     private MaterialMix topWireMaterial = MaterialMix.single("minecraft:chain");
     private final List<PoleOverride> poleOverrides = new ArrayList<>();
     private final List<PoleLayoutConstraint> layoutConstraints = new ArrayList<>();
-    private boolean lineChecksEnabled = true;
     private boolean terrainAvoidanceEnabled = true;
-    private boolean automaticTowerSelectionEnabled;
     /** 玩家曾在 Route 高级区手工调整间距；切换风格时不自动覆盖。 */
     private boolean spacingCustomized;
     /** 杆塔布置模式；默认按固定档距自动插杆。 */
@@ -394,45 +392,12 @@ public class PowerLineFootprint {
         }
     }
 
-    public boolean isLineChecksEnabled() {
-        return lineChecksEnabled;
-    }
-
-    public void setLineChecksEnabled(boolean lineChecksEnabled) {
-        this.lineChecksEnabled = lineChecksEnabled;
-    }
-
-    /** 是否启用任意视觉/常识性检查（线路检查或地形净空）。 */
-    public boolean isVisualChecksEnabled() {
-        return lineChecksEnabled || terrainAvoidanceEnabled;
-    }
-
-    /** @deprecated use {@link #isLineChecksEnabled()} */
-    @Deprecated
-    public boolean isEngineeringAnalysisEnabled() {
-        return isLineChecksEnabled();
-    }
-
-    /** @deprecated use {@link #setLineChecksEnabled(boolean)} */
-    @Deprecated
-    public void setEngineeringAnalysisEnabled(boolean engineeringAnalysisEnabled) {
-        setLineChecksEnabled(engineeringAnalysisEnabled);
-    }
-
     public boolean isTerrainAvoidanceEnabled() {
         return terrainAvoidanceEnabled;
     }
 
     public void setTerrainAvoidanceEnabled(boolean terrainAvoidanceEnabled) {
         this.terrainAvoidanceEnabled = terrainAvoidanceEnabled;
-    }
-
-    public boolean isAutomaticTowerSelectionEnabled() {
-        return automaticTowerSelectionEnabled;
-    }
-
-    public void setAutomaticTowerSelectionEnabled(boolean automaticTowerSelectionEnabled) {
-        this.automaticTowerSelectionEnabled = automaticTowerSelectionEnabled;
     }
 
     public boolean isSpacingCustomized() {
@@ -521,26 +486,11 @@ public class PowerLineFootprint {
         hash = 31 * hash + materialFingerprint(topWireMaterial);
         hash = 31 * hash + poleOverrides.hashCode();
         hash = 31 * hash + layoutConstraints.hashCode();
-        hash = 31 * hash + Boolean.hashCode(automaticTowerSelectionEnabled);
+        hash = 31 * hash + Boolean.hashCode(terrainAvoidanceEnabled);
         hash = 31 * hash + Boolean.hashCode(spacingCustomized);
         hash = 31 * hash + Objects.hashCode(poleSpacingMode);
         hash = 31 * hash + targetTowerCount;
         return hash;
-    }
-
-    /** 仅影响检查/分析行为的指纹（不改变生成几何）。 */
-    public int analysisFingerprint() {
-        int hash = 1;
-        hash = 31 * hash + Boolean.hashCode(lineChecksEnabled);
-        hash = 31 * hash + Boolean.hashCode(terrainAvoidanceEnabled);
-        return hash;
-    }
-
-    /**
-     * 影响生成结果的完整参数指纹（几何 + 分析）。
-     */
-    public int generationFingerprint() {
-        return 31 * geometryFingerprint() + analysisFingerprint();
     }
 
     private static int parametricConfigFingerprint(TowerGeneratorConfig config) {

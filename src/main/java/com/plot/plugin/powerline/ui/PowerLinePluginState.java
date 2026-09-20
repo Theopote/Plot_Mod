@@ -49,7 +49,6 @@ public final class PowerLinePluginState {
 
     private boolean poleDesignerOpen = false;
     private String poleDesignerEditingId = "";
-    private final PowerLineValidationUiState validationState = new PowerLineValidationUiState();
     /** 画廊中临时强制展开的 preset 分类（选中新 preset 后一帧）。 */
     private StyleCategory styleGalleryOpenCategory;
     private boolean styleGalleryOpenCustomTemplates;
@@ -277,10 +276,6 @@ public final class PowerLinePluginState {
 
     public ContentFingerprint.Tracker getContentFingerprint() {
         return contentFingerprint;
-    }
-
-    public PowerLineValidationUiState getValidationState() {
-        return validationState;
     }
 
     public void notifyStyleGalleryCategory(StyleCategory category) {

@@ -35,19 +35,17 @@ class PowerLineProjectSchemaDTest {
     }
 
     @Test
-    void lineChecksEnabledJsonRoundTrip() {
+    void terrainAvoidanceEnabledJsonRoundTrip() {
         PowerLineProject project = new PowerLineProject();
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
-        line.setLineChecksEnabled(true);
         line.setTerrainAvoidanceEnabled(true);
         project.addLine(line);
 
         PowerLineProject restored = PowerLineProject.fromJson(project.toJson());
         PowerLineFootprint restoredLine = restored.getLine(line.getId());
         assertNotNull(restoredLine);
-        assertTrue(restoredLine.isLineChecksEnabled());
         assertTrue(restoredLine.isTerrainAvoidanceEnabled());
-        assertTrue(project.toJson().contains("\"lineChecksEnabled\""));
+        assertTrue(project.toJson().contains("\"terrainAvoidanceEnabled\""));
     }
 
     @Test
