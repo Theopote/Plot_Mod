@@ -73,7 +73,8 @@ public final class BezierSourcePath implements PowerLineSourcePath {
             Vec2d incoming = previous.tangentAt(1.0);
             Vec2d outgoing = current.tangentAt(0.0);
             double deflection = TowerRoleClassifier.computeDeflectionAngle(incoming, outgoing);
-            if (deflection > cornerAngleThresholdDeg) {
+            if (com.plot.plugin.powerline.PowerPoleLayoutUtils.isDeflectionCorner(
+                    deflection, cornerAngleThresholdDeg)) {
                 stations.add(stationAtPoint(previous.anchor2(), coords));
             }
         }

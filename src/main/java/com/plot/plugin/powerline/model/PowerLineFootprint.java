@@ -197,7 +197,9 @@ public class PowerLineFootprint {
     }
 
     public void setCornerAngleThreshold(double cornerAngleThreshold) {
-        this.cornerAngleThreshold = Math.max(0.0, Math.min(180.0, cornerAngleThreshold));
+        this.cornerAngleThreshold = Math.max(
+            com.plot.plugin.powerline.PowerPoleLayoutUtils.MIN_CORNER_ANGLE_THRESHOLD_DEGREES,
+            Math.min(180.0, cornerAngleThreshold));
     }
 
     public double getPoleHeight() {

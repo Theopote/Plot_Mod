@@ -242,7 +242,7 @@ public final class PowerLineRoutePanel {
             "corner_angle",
             "plugin.powerline.corner_angle",
             cornerAngle,
-            0f,
+            (float) com.plot.plugin.powerline.PowerPoleLayoutUtils.MIN_CORNER_ANGLE_THRESHOLD_DEGREES,
             90f,
             PowerLineUiFormat.SLIDER,
             line::setCornerAngleThreshold);

@@ -177,10 +177,14 @@ public class PowerLineGenerator {
         Vec2d tangent = computePoleTangentFromSites(sites, index, footprint.isClosedLoop());
         PoleFrame frame = PoleFrame.fromPole(planPoint, tangent, buildBaseY);
 
+        double pathPerimeterBlocks = footprint.isClosedLoop()
+            ? footprint.resolveSourcePath().worldLength(coordinateTransformer)
+            : 0.0;
         double maxAdjacentSpan = VisualTowerResolver.maxAdjacentSpanBlocks(
             sites,
             index,
-            footprint.isClosedLoop());
+            footprint.isClosedLoop(),
+            pathPerimeterBlocks);
         PoleDesignAssignmentResolver.AssignmentResult assignment =
             assignmentResolver.resolve(site, footprint, maxAdjacentSpan);
         result.warnings.addAll(assignment.warnings());

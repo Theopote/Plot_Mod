@@ -8,6 +8,7 @@ import com.plot.plugin.powerline.model.PoleLayoutConstraint;
 import com.plot.plugin.powerline.model.PoleOverride;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.path.ClosedPathGeometry;
+import com.plot.plugin.powerline.path.ClosedPathStationMath;
 import com.plot.plugin.powerline.path.ClosedPathLayout;
 import com.plot.plugin.powerline.path.PowerLinePathLayout;
 import com.plot.plugin.powerline.path.PowerLineSourcePath;
@@ -24,6 +25,9 @@ import java.util.Objects;
  * 必须通过 {@link ICoordinateService#projectedDistance} 解析画布路径。
  */
 public final class PowerPoleLayoutUtils {
+    /** 转角识别阈值下限（°）；0° 在视觉上无意义且会导致直线误判为转角。 */
+    public static final double MIN_CORNER_ANGLE_THRESHOLD_DEGREES = 0.5;
+
     /** Override 里程匹配容差（blocks）。 */
     private static final double OVERRIDE_STATION_TOLERANCE_BLOCKS = 2.0;
     /** 重复顶点/杆位合并容差（blocks），与 UI 杆位命中判定一致。 */
@@ -472,12 +476,36 @@ public final class PowerPoleLayoutUtils {
         return bestStationing;
     }
 
-    /** 相邻杆塔世界档距（blocks），来自 world stationing。 */
+    /** 相邻杆塔世界档距（blocks），来自 world stationing（开放线路）。 */
     public static double worldSpanBlocks(PowerPoleSite from, PowerPoleSite to) {
+        return worldSpanBlocks(from, to, 0.0, false);
+    }
+
+    /**
+     * 相邻杆塔世界档距（blocks）。
+     * 闭合线路取两里程间最短弧长。
+     */
+    public static double worldSpanBlocks(
+            PowerPoleSite from,
+            PowerPoleSite to,
+            double perimeterBlocks,
+            boolean closedLoop) {
         if (from == null || to == null) {
             return 0.0;
         }
+        if (closedLoop) {
+            return ClosedPathStationMath.forwardDistance(
+                from.getStationing(),
+                to.getStationing(),
+                perimeterBlocks);
+        }
         return Math.abs(to.getStationing() - from.getStationing());
+    }
+
+    /** 偏转角是否达到转角塔阈值（与布塔/Bezier 判定一致：严格大于有效阈值）。 */
+    public static boolean isDeflectionCorner(double deflectionAngleDegrees, double thresholdDegrees) {
+        double effectiveThreshold = Math.max(MIN_CORNER_ANGLE_THRESHOLD_DEGREES, thresholdDegrees);
+        return deflectionAngleDegrees > effectiveThreshold;
     }
 
     /** 必须立杆的路径点：起点、转角顶点、终点。 */
@@ -527,7 +555,7 @@ public final class PowerPoleLayoutUtils {
         }
         double dot = in.normalize().dot(out.normalize());
         double angleDeg = Math.toDegrees(Math.acos(Math.max(-1.0, Math.min(1.0, dot))));
-        return angleDeg > cornerAngleThreshold;
+        return isDeflectionCorner(angleDeg, cornerAngleThreshold);
     }
 
     private static List<Vec2d> computeEndpointsOnly(

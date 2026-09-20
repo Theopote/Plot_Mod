@@ -19,14 +19,7 @@ public final class ClosedPathGeometry {
         if (path == null || !path.isClosed() || perimeterBlocks <= 1e-12) {
             return Math.max(0.0, Math.min(perimeterBlocks, worldStationBlocks));
         }
-        double normalized = worldStationBlocks % perimeterBlocks;
-        if (normalized < 0.0) {
-            normalized += perimeterBlocks;
-        }
-        if (normalized >= perimeterBlocks - 1e-9) {
-            normalized = 0.0;
-        }
-        return normalized;
+        return ClosedPathStationMath.normalize(worldStationBlocks, perimeterBlocks);
     }
 
     public static double signedArea(List<Vec2d> points) {
@@ -51,11 +44,7 @@ public final class ClosedPathGeometry {
 
     /** 沿闭合路径的最短世界里程距离（blocks）；开放路径退化为 {@code |a-b|}。 */
     public static double stationDistance(double stationA, double stationB, double perimeterBlocks) {
-        double direct = Math.abs(stationA - stationB);
-        if (perimeterBlocks <= 1e-12) {
-            return direct;
-        }
-        return Math.min(direct, Math.max(0.0, perimeterBlocks - direct));
+        return ClosedPathStationMath.distance(stationA, stationB, perimeterBlocks, true);
     }
 
     public static boolean stationsWithinTolerance(

@@ -29,6 +29,14 @@ public final class VisualTowerResolver {
     }
 
     public static double maxAdjacentSpanBlocks(List<PowerPoleSite> sites, int index, boolean closedLoop) {
+        return maxAdjacentSpanBlocks(sites, index, closedLoop, 0.0);
+    }
+
+    public static double maxAdjacentSpanBlocks(
+            List<PowerPoleSite> sites,
+            int index,
+            boolean closedLoop,
+            double perimeterBlocks) {
         if (sites == null || sites.isEmpty() || index < 0 || index >= sites.size()) {
             return 0.0;
         }
@@ -38,8 +46,16 @@ public final class VisualTowerResolver {
             int count = sites.size();
             int previousIndex = (index - 1 + count) % count;
             int nextIndex = (index + 1) % count;
-            incoming = PowerPoleLayoutUtils.worldSpanBlocks(sites.get(previousIndex), sites.get(index));
-            outgoing = PowerPoleLayoutUtils.worldSpanBlocks(sites.get(index), sites.get(nextIndex));
+            incoming = PowerPoleLayoutUtils.worldSpanBlocks(
+                sites.get(previousIndex),
+                sites.get(index),
+                perimeterBlocks,
+                true);
+            outgoing = PowerPoleLayoutUtils.worldSpanBlocks(
+                sites.get(index),
+                sites.get(nextIndex),
+                perimeterBlocks,
+                true);
         } else {
             if (index > 0) {
                 incoming = PowerPoleLayoutUtils.worldSpanBlocks(sites.get(index - 1), sites.get(index));

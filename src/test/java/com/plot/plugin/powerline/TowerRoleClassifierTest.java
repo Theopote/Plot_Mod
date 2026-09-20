@@ -109,6 +109,15 @@ class TowerRoleClassifierTest {
     }
 
     @Test
+    void zeroThresholdStraightLineStaysSuspension() {
+        List<PowerPoleSite> sites = sitesAlongLine(0, 0, 100, 0, 5);
+        TowerRoleClassifier.classifySites(sites, 0.0);
+        for (int i = 1; i < sites.size() - 1; i++) {
+            assertEquals(TowerRole.SUSPENSION, sites.get(i).getRole());
+        }
+    }
+
+    @Test
     void deflectionAngleRightTurnIsNinety() {
         Vec2d incoming = new Vec2d(10, 0);
         Vec2d outgoing = new Vec2d(0, 10);

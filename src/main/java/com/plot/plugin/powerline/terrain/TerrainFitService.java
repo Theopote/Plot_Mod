@@ -12,6 +12,7 @@ import com.plot.plugin.powerline.geometry.SpanAnalysis;
 import com.plot.plugin.powerline.geometry.PowerLineGeometryModel;
 import com.plot.plugin.powerline.model.PoleLayoutConstraint;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.path.ClosedPathStationMath;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.utils.PlotI18n;
 
@@ -90,7 +91,7 @@ public final class TerrainFitService {
         if (line == null || analysis == null || !analysis.hasVisualConflicts()) {
             return false;
         }
-        if (tryTallerTower(line, analysis, result)) {
+        if (tryTallerTower(line, analysis, result, coordinates)) {
             return true;
         }
         if (tryRaisePoleHeight(line)) {
@@ -102,7 +103,8 @@ public final class TerrainFitService {
     private static boolean tryTallerTower(
             PowerLineFootprint line,
             TerrainCollisionAnalysis analysis,
-            PowerLineGenerationResult result) {
+            PowerLineGenerationResult result,
+            ICoordinateService coordinates) {
         if (!line.hasTowerFamily() || result == null) {
             return false;
         }
@@ -114,7 +116,7 @@ public final class TerrainFitService {
         if (targetSpan == null) {
             return false;
         }
-        com.plot.plugin.powerline.model.PowerPoleSite site = nearestSiteForSpan(result, targetSpan);
+        com.plot.plugin.powerline.model.PowerPoleSite site = nearestSiteForSpan(line, result, targetSpan, coordinates);
         if (site == null || site.getPoleDesignOverrideId() != null) {
             return false;
         }
@@ -149,7 +151,7 @@ public final class TerrainFitService {
             return false;
         }
         double stationing = stationingForSpan(line, targetSpan, result, coordinates);
-        if (stationing < 0 || hasNearbyConstraint(line, stationing)) {
+        if (stationing < 0 || hasNearbyConstraint(line, stationing, coordinates)) {
             return false;
         }
         line.addLayoutConstraint(new PoleLayoutConstraint(
@@ -159,8 +161,10 @@ public final class TerrainFitService {
     }
 
     private static com.plot.plugin.powerline.model.PowerPoleSite nearestSiteForSpan(
+            PowerLineFootprint line,
             PowerLineGenerationResult result,
-            SpanAnalysis span) {
+            SpanAnalysis span,
+            ICoordinateService coordinates) {
         if (result == null || span == null) {
             return null;
         }
@@ -169,11 +173,23 @@ public final class TerrainFitService {
         if (start == null || end == null) {
             return null;
         }
-        double midpoint = (start.getStationing() + end.getStationing()) * 0.5;
+        boolean closedLoop = line != null && line.isClosedLoop();
+        double perimeter = closedLoop && line != null
+            ? line.resolveSourcePath().worldLength(coordinates)
+            : 0.0;
+        double midpoint = ClosedPathStationMath.midpoint(
+            start.getStationing(),
+            end.getStationing(),
+            perimeter,
+            closedLoop);
         com.plot.plugin.powerline.model.PowerPoleSite best = null;
         double bestDistance = Double.MAX_VALUE;
         for (var site : result.poleSites) {
-            double distance = Math.abs(site.getStationing() - midpoint);
+            double distance = ClosedPathStationMath.nearestDistance(
+                site.getStationing(),
+                midpoint,
+                perimeter,
+                closedLoop);
             if (distance < bestDistance) {
                 best = site;
                 bestDistance = distance;
@@ -225,7 +241,15 @@ public final class TerrainFitService {
             com.plot.plugin.powerline.model.PowerPoleSite end =
                 findSiteById(result, span.getEndPoleSiteId());
             if (start != null && end != null) {
-                return (start.getStationing() + end.getStationing()) * 0.5;
+                boolean closedLoop = line.isClosedLoop();
+                double perimeter = closedLoop
+                    ? line.resolveSourcePath().worldLength(coordinates)
+                    : 0.0;
+                return ClosedPathStationMath.midpoint(
+                    start.getStationing(),
+                    end.getStationing(),
+                    perimeter,
+                    closedLoop);
             }
         }
         Vec2d midpoint = midpointAlongPath(line.getPathPoints(), coordinates);
@@ -255,9 +279,21 @@ public final class TerrainFitService {
         return pathPoints.getLast().copy();
     }
 
-    private static boolean hasNearbyConstraint(PowerLineFootprint line, double stationing) {
+    private static boolean hasNearbyConstraint(
+            PowerLineFootprint line,
+            double stationing,
+            ICoordinateService coordinates) {
+        boolean closedLoop = line.isClosedLoop();
+        double perimeter = closedLoop
+            ? line.resolveSourcePath().worldLength(coordinates)
+            : 0.0;
         for (PoleLayoutConstraint constraint : line.getLayoutConstraints()) {
-            if (Math.abs(constraint.getRequiredStationing() - stationing) < 4.0) {
+            double distance = ClosedPathStationMath.nearestDistance(
+                stationing,
+                constraint.getRequiredStationing(),
+                perimeter,
+                closedLoop);
+            if (distance < 4.0) {
                 return true;
             }
         }

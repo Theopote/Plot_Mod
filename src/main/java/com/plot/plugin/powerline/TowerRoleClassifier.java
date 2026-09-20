@@ -38,7 +38,6 @@ public final class TowerRoleClassifier {
         if (sites == null || sites.isEmpty()) {
             return;
         }
-        double threshold = Math.max(0.0, angleThresholdDegrees);
         int size = sites.size();
         if (size == 1) {
             PowerPoleSite site = sites.getFirst();
@@ -68,7 +67,9 @@ public final class TowerRoleClassifier {
                 .subtract(sites.get(i).getPlanPosition());
             double deflection = computeDeflectionAngle(incoming, outgoing);
             site.setDeflectionAngle(deflection);
-            site.setRole(deflection >= threshold ? TowerRole.ANGLE : TowerRole.SUSPENSION);
+            site.setRole(PowerPoleLayoutUtils.isDeflectionCorner(deflection, angleThresholdDegrees)
+                ? TowerRole.ANGLE
+                : TowerRole.SUSPENSION);
         }
     }
 }
