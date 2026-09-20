@@ -224,7 +224,6 @@ public class PowerLineProject {
         MaterialMix topWireMaterial;
         List<PoleOverrideData> poleOverrides = new ArrayList<>();
         List<LayoutConstraintData> layoutConstraints = new ArrayList<>();
-        boolean terrainAvoidanceEnabled = true;
         boolean spacingCustomized;
         String poleSpacingMode;
         int targetTowerCount = 2;
@@ -282,7 +281,6 @@ public class PowerLineProject {
                 for (PoleLayoutConstraint constraint : line.getLayoutConstraints()) {
                     lineData.layoutConstraints.add(LayoutConstraintData.from(constraint));
                 }
-                lineData.terrainAvoidanceEnabled = line.isTerrainAvoidanceEnabled();
                 lineData.spacingCustomized = line.isSpacingCustomized();
                 lineData.poleSpacingMode = line.getPoleSpacingMode().name();
                 lineData.targetTowerCount = line.getTargetTowerCount();
@@ -382,7 +380,6 @@ public class PowerLineProject {
                     }
                     footprint.setLayoutConstraints(constraints);
                 }
-                footprint.setTerrainAvoidanceEnabled(lineData.terrainAvoidanceEnabled);
                 footprint.setSpacingCustomized(lineData.spacingCustomized);
                 if (lineData.poleSpacingMode != null && !lineData.poleSpacingMode.isBlank()) {
                     try {

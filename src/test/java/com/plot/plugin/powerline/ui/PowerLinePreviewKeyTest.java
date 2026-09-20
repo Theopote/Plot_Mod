@@ -71,16 +71,6 @@ class PowerLinePreviewKeyTest {
     }
 
     @Test
-    void mismatchesWhenTerrainAvoidanceToggleChanges() {
-        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
-        PowerLineDesignProject designs = new PowerLineDesignProject();
-        PowerLinePreviewKey key = PowerLinePreviewKey.capture(line, designs);
-
-        line.setTerrainAvoidanceEnabled(false);
-        assertFalse(key.matches(line, designs));
-    }
-
-    @Test
     void mismatchesWhenAttachmentChanges() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
         line.setPoleDesignId(PoleDesignCatalog.SIMPLE_WOOD_POLE_ID);

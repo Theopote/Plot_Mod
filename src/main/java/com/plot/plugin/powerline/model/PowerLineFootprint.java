@@ -56,7 +56,6 @@ public class PowerLineFootprint {
     private MaterialMix topWireMaterial = MaterialMix.single("minecraft:chain");
     private final List<PoleOverride> poleOverrides = new ArrayList<>();
     private final List<PoleLayoutConstraint> layoutConstraints = new ArrayList<>();
-    private boolean terrainAvoidanceEnabled = true;
     /** 玩家曾在 Route 高级区手工调整间距；切换风格时不自动覆盖。 */
     private boolean spacingCustomized;
     /** 杆塔布置模式；默认按固定档距自动插杆。 */
@@ -392,14 +391,6 @@ public class PowerLineFootprint {
         }
     }
 
-    public boolean isTerrainAvoidanceEnabled() {
-        return terrainAvoidanceEnabled;
-    }
-
-    public void setTerrainAvoidanceEnabled(boolean terrainAvoidanceEnabled) {
-        this.terrainAvoidanceEnabled = terrainAvoidanceEnabled;
-    }
-
     public boolean isSpacingCustomized() {
         return spacingCustomized;
     }
@@ -486,7 +477,6 @@ public class PowerLineFootprint {
         hash = 31 * hash + materialFingerprint(topWireMaterial);
         hash = 31 * hash + poleOverrides.hashCode();
         hash = 31 * hash + layoutConstraints.hashCode();
-        hash = 31 * hash + Boolean.hashCode(terrainAvoidanceEnabled);
         hash = 31 * hash + Boolean.hashCode(spacingCustomized);
         hash = 31 * hash + Objects.hashCode(poleSpacingMode);
         hash = 31 * hash + targetTowerCount;

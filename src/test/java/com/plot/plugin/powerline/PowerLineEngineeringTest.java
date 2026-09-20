@@ -45,7 +45,6 @@ class PowerLineEngineeringTest {
         line.setPoleHeight(8.0);
         line.setPoleDesignId(com.plot.plugin.powerline.design.PoleDesignCatalog.SIMPLE_WOOD_POLE_ID);
         line.setMaxPoleSpacing(80);
-        line.setTerrainAvoidanceEnabled(true);
         TerrainSampler terrain = flatTerrain(64);
         PowerLineGenerationResult result = generate(line, terrain);
         TerrainCollisionAnalysis report = analyzeTerrain(result, terrain);
@@ -178,8 +177,8 @@ class PowerLineEngineeringTest {
     private static TerrainCollisionAnalysis analyzeTerrain(
             PowerLineGenerationResult result,
             TerrainSampler terrain) {
-        return com.plot.plugin.powerline.engineering.TerrainAvoidance
-            .analyzeCollisions(result.toGeometryModel(), terrain);
+        return com.plot.plugin.powerline.engineering.TerrainFitService
+            .analyze(result.toGeometryModel(), terrain);
     }
 
     private static PowerLineFootprint horizontalLine(double length) {

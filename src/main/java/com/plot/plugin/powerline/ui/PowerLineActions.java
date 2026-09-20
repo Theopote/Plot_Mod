@@ -9,7 +9,7 @@ import com.plot.core.model.Shape;
 import com.plot.core.persistence.ProjectPathResolver;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
-import com.plot.plugin.powerline.engineering.TerrainCollisionAnalysis;
+import com.plot.plugin.powerline.engineering.TerrainFitService;
 import com.plot.api.world.PluginProjectionContext;
 import com.plot.api.world.WorldProjectionUnavailableException;
 import com.plot.plugin.powerline.PowerLinePathPickSession;
@@ -290,44 +290,10 @@ public final class PowerLineActions {
         if (!calculatePreviewCore(line)) {
             return false;
         }
+        applyTerrainFit(line);
         if (enableAutoRefresh) {
             state.setPreviewAutoRefreshEnabled(true);
         }
-        return state.getLastGenerationResult() != null;
-    }
-
-    /**
-     * 地形自动调整：修改线路参数后重新生成预览。仅在确实有地形问题时 push 撤销快照。
-     *
-     * @return 调整后是否仍有有效预览
-     */
-    public boolean autoAdjustTerrain(PowerLineFootprint line) {
-        if (line == null || !line.isTerrainAvoidanceEnabled()) {
-            return false;
-        }
-        if (getClientWorld() == null || generator == null) {
-            state.setProjectStatus(
-                PlotI18n.tr("plugin.powerline.generate_world_unavailable"),
-                ProjectStatusSeverity.ERROR);
-            return false;
-        }
-        if (!hasValidPreview(line) && !calculatePreviewCore(line)) {
-            return false;
-        }
-        PowerLineGenerationResult peek = state.getLastGenerationResult();
-        if (peek == null) {
-            return false;
-        }
-        World world = getClientWorld();
-        TerrainSampler terrain = MinecraftTerrainSampler.of(world, host.coordinates());
-        TerrainCollisionAnalysis peekReport = com.plot.plugin.powerline.engineering.TerrainAvoidance
-            .analyzeCollisions(peek.toGeometryModel(), terrain);
-        if (!com.plot.plugin.powerline.engineering.TerrainAvoidance.hasTerrainIssues(peekReport)) {
-            applyTerrainFixStatus(0, 0);
-            return true;
-        }
-        pushWorkspaceSnapshot();
-        runTerrainAvoidance(line);
         return state.getLastGenerationResult() != null;
     }
 
@@ -383,58 +349,35 @@ public final class PowerLineActions {
         return true;
     }
 
-    private void runTerrainAvoidance(PowerLineFootprint line) {
-        if (line == null || !line.isTerrainAvoidanceEnabled()) {
+    private void applyTerrainFit(PowerLineFootprint line) {
+        if (line == null) {
             return;
         }
         World world = getClientWorld();
-        if (world == null) {
+        PowerLineGenerationResult result = state.getLastGenerationResult();
+        if (world == null || result == null) {
             return;
         }
         TerrainSampler terrain = MinecraftTerrainSampler.of(world, host.coordinates());
-        int fixesApplied = 0;
-        for (int attempt = 0; attempt < 4; attempt++) {
-            PowerLineGenerationResult result = state.getLastGenerationResult();
-            if (result == null) {
-                break;
-            }
-            TerrainCollisionAnalysis report = com.plot.plugin.powerline.engineering.TerrainAvoidance
-                .analyzeCollisions(result.toGeometryModel(), terrain);
-            if (!com.plot.plugin.powerline.engineering.TerrainAvoidance.hasTerrainIssues(report)) {
-                applyTerrainFixStatus(fixesApplied, 0);
-                return;
-            }
-            if (!com.plot.plugin.powerline.engineering.TerrainAvoidance.applyOneFix(
-                    line, report, result, host.coordinates())) {
-                applyTerrainFixStatus(
-                    fixesApplied,
-                    com.plot.plugin.powerline.engineering.TerrainAvoidance.countTerrainIssues(report));
-                return;
-            }
-            fixesApplied++;
-            if (!calculatePreviewCore(line)) {
-                return;
-            }
-        }
-        PowerLineGenerationResult finalResult = state.getLastGenerationResult();
-        if (finalResult == null) {
+        if (!TerrainFitService.hasTerrainIssues(result.toGeometryModel(), terrain)) {
             return;
         }
-        TerrainCollisionAnalysis finalReport = com.plot.plugin.powerline.engineering.TerrainAvoidance
-            .analyzeCollisions(finalResult.toGeometryModel(), terrain);
-        applyTerrainFixStatus(
-            fixesApplied,
-            com.plot.plugin.powerline.engineering.TerrainAvoidance.countTerrainIssues(finalReport));
-    }
-
-    private void applyTerrainFixStatus(int fixesApplied, int remainingIssues) {
-        String message = com.plot.plugin.powerline.engineering.TerrainAvoidance
-            .resolveStatusMessage(fixesApplied, remainingIssues);
-        if (message != null) {
-            ProjectStatusSeverity severity = remainingIssues > 0
-                ? (ProjectStatusSeverity.WARNING)
-                : (fixesApplied > 0 ? ProjectStatusSeverity.SUCCESS : ProjectStatusSeverity.INFO);
-            state.setProjectStatus(message, severity);
+        pushWorkspaceSnapshot();
+        TerrainFitService.FitResult fit = TerrainFitService.fit(
+            line,
+            result,
+            terrain,
+            host.coordinates(),
+            () -> {
+                if (!calculatePreviewCore(line)) {
+                    return null;
+                }
+                return state.getLastGenerationResult();
+            });
+        if (fit.hasRemainingIssues()) {
+            state.setProjectStatus(
+                TerrainFitService.remainingIssuesHint(),
+                ProjectStatusSeverity.WARNING);
         }
     }
 

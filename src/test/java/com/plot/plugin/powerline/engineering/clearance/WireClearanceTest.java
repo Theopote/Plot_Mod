@@ -3,7 +3,7 @@ package com.plot.plugin.powerline.engineering.clearance;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.powerline.geometry.ConductorSample;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
-import com.plot.plugin.powerline.engineering.TerrainAvoidance;
+import com.plot.plugin.powerline.engineering.TerrainFitService;
 import com.plot.plugin.powerline.engineering.TerrainCollisionAnalysis;
 import com.plot.plugin.powerline.geometry.PowerLineGeometryModel;
 import com.plot.plugin.powerline.TerrainTestFixtures;
@@ -23,7 +23,7 @@ class WireClearanceTest {
         var analysis = ClearanceChecker.analyzeSpan(
             span,
             TerrainTestFixtures.groundWithOverheadObstruction(64, 70));
-        assertTrue(analysis.getMinimumClearance() < TerrainAvoidance.SAFETY_MARGIN_BLOCKS);
+        assertTrue(analysis.getMinimumClearance() < TerrainFitService.SAFETY_MARGIN_BLOCKS);
     }
 
     @Test
@@ -31,40 +31,40 @@ class WireClearanceTest {
         ConductorSpanGeometry span = new ConductorSpanGeometry();
         span.setSpanId("test");
         double obstructionTop = 70 + 1;
-        span.addSample(new ConductorSample(10, obstructionTop + TerrainAvoidance.SAFETY_MARGIN_BLOCKS, 0, new Vec2d(10, 0)));
+        span.addSample(new ConductorSample(10, obstructionTop + TerrainFitService.SAFETY_MARGIN_BLOCKS, 0, new Vec2d(10, 0)));
 
         var analysis = ClearanceChecker.analyzeSpan(
             span,
             TerrainTestFixtures.groundWithOverheadObstruction(64, 70));
-        assertTrue(analysis.getMinimumClearance() >= TerrainAvoidance.SAFETY_MARGIN_BLOCKS);
+        assertTrue(analysis.getMinimumClearance() >= TerrainFitService.SAFETY_MARGIN_BLOCKS);
     }
 
     @Test
-    void terrainAvoidanceUsesObstructionAwareClearance() {
+    void terrainFitUsesObstructionAwareClearance() {
         ConductorSpanGeometry span = new ConductorSpanGeometry();
         span.setSpanId("a->b:legacy");
         span.addSample(new ConductorSample(10, 70, 0, new Vec2d(10, 0)));
         PowerLineGeometryModel geometry = new PowerLineGeometryModel();
         geometry.addConductorSpan(span);
 
-        TerrainCollisionAnalysis report = TerrainAvoidance.analyzeCollisions(
+        TerrainCollisionAnalysis report = TerrainFitService.analyze(
             geometry,
             TerrainTestFixtures.groundWithOverheadObstruction(64, 70));
-        assertTrue(TerrainAvoidance.hasTerrainIssues(report));
+        assertTrue(report.hasIssues());
 
         span = new ConductorSpanGeometry();
         span.setSpanId("a->b:legacy");
         double obstructionTop = 70 + 1;
         span.addSample(new ConductorSample(
             10,
-            obstructionTop + TerrainAvoidance.SAFETY_MARGIN_BLOCKS,
+            obstructionTop + TerrainFitService.SAFETY_MARGIN_BLOCKS,
             0,
             new Vec2d(10, 0)));
         geometry = new PowerLineGeometryModel();
         geometry.addConductorSpan(span);
-        report = TerrainAvoidance.analyzeCollisions(
+        report = TerrainFitService.analyze(
             geometry,
             TerrainTestFixtures.groundWithOverheadObstruction(64, 70));
-        assertFalse(TerrainAvoidance.hasTerrainIssues(report));
+        assertFalse(report.hasIssues());
     }
 }

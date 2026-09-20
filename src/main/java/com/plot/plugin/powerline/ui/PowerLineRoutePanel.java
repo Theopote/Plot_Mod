@@ -85,7 +85,6 @@ public final class PowerLineRoutePanel {
                 PlotI18n.tr("plugin.powerline.route.placement_mode_hint.ENDPOINTS_WITH_CORNERS"));
         }
         renderCornerBehaviorHint(line);
-        renderTerrainAvoidance(line);
     }
 
     private void renderCornerBehaviorHint(PowerLineFootprint line) {
@@ -196,16 +195,6 @@ public final class PowerLineRoutePanel {
         PowerLineUiWidgets.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.route.tower_count_hint"));
-    }
-
-    private void renderTerrainAvoidance(PowerLineFootprint line) {
-        boolean enabled = line.isTerrainAvoidanceEnabled();
-        if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.route.avoid_terrain"), enabled)) {
-            ctx.pushEditSnapshot();
-            line.setTerrainAvoidanceEnabled(!enabled);
-            ctx.invalidatePreview();
-        }
-        PowerLineUiWidgets.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.route.avoid_terrain_hint"));
     }
 
     private void renderAdvancedSpacing(PowerLineFootprint line) {

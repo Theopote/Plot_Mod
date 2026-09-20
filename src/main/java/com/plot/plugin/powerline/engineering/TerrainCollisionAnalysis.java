@@ -32,7 +32,7 @@ public final class TerrainCollisionAnalysis {
             spanAnalysis.setMinimumGroundClearance(clearance.getMinimumClearance());
             PowerLineIssue issue = ClearanceChecker.toIssue(
                 clearance,
-                TerrainAvoidance.SAFETY_MARGIN_BLOCKS,
+                TerrainFitService.SAFETY_MARGIN_BLOCKS,
                 PowerLineIssueSeverity.ERROR);
             if (issue != null) {
                 spanAnalysis.addIssue(issue);

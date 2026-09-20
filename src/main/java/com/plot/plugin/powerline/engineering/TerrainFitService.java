@@ -13,28 +13,75 @@ import com.plot.plugin.powerline.geometry.PowerLineGeometryModel;
 import com.plot.plugin.powerline.model.PoleLayoutConstraint;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.core.terrain.TerrainSampler;
+import com.plot.utils.PlotI18n;
 
 import java.util.List;
 
-/** 装饰性地形避让：检测导线碰地/穿山，并尝试自动修正。 */
-public final class TerrainAvoidance {
+/** 自动地形适配：塔基贴地、防导线穿地，必要时抬塔或补塔。 */
+public final class TerrainFitService {
     public static final double SAFETY_MARGIN_BLOCKS = 1.5;
-    public static final String PROFILE_ID = "terrain/decorative";
+    private static final int MAX_FIX_ATTEMPTS = 4;
 
-    private TerrainAvoidance() {
+    private TerrainFitService() {
     }
 
-    public static TerrainCollisionAnalysis analyzeCollisions(
-            PowerLineGeometryModel geometry,
-            TerrainSampler terrain) {
+    public record FitResult(boolean lineModified, boolean hasRemainingIssues) {
+    }
+
+    public interface PreviewRegenerator {
+        PowerLineGenerationResult regenerate();
+    }
+
+    public static boolean hasTerrainIssues(PowerLineGeometryModel geometry, TerrainSampler terrain) {
+        return analyze(geometry, terrain).hasIssues();
+    }
+
+    public static TerrainCollisionAnalysis analyze(PowerLineGeometryModel geometry, TerrainSampler terrain) {
         return TerrainCollisionAnalysis.analyze(geometry, terrain);
     }
 
     /**
-     * 尝试一次自动修正：更高杆塔 → 加高电杆 → 插入中间杆塔。
+     * 检测并在可能时自动修正地形冲突。
      *
-     * @return 是否修改了线路参数
+     * @param regenerator 每次修改线路参数后重新生成预览
      */
+    public static FitResult fit(
+            PowerLineFootprint line,
+            PowerLineGenerationResult result,
+            TerrainSampler terrain,
+            ICoordinateService coordinates,
+            PreviewRegenerator regenerator) {
+        if (line == null || result == null || terrain == null || coordinates == null || regenerator == null) {
+            return new FitResult(false, false);
+        }
+        TerrainCollisionAnalysis analysis = analyze(result.toGeometryModel(), terrain);
+        if (!analysis.hasIssues()) {
+            return new FitResult(false, false);
+        }
+        boolean modified = false;
+        PowerLineGenerationResult current = result;
+        for (int attempt = 0; attempt < MAX_FIX_ATTEMPTS; attempt++) {
+            analysis = analyze(current.toGeometryModel(), terrain);
+            if (!analysis.hasIssues()) {
+                return new FitResult(modified, false);
+            }
+            if (!applyOneFix(line, analysis, current, coordinates)) {
+                return new FitResult(modified, true);
+            }
+            modified = true;
+            current = regenerator.regenerate();
+            if (current == null) {
+                return new FitResult(modified, true);
+            }
+        }
+        boolean remaining = analyze(current.toGeometryModel(), terrain).hasIssues();
+        return new FitResult(modified, remaining);
+    }
+
+    public static String remainingIssuesHint() {
+        return PlotI18n.tr("plugin.powerline.terrain.near_terrain_hint");
+    }
+
     public static boolean applyOneFix(
             PowerLineFootprint line,
             TerrainCollisionAnalysis analysis,
@@ -43,7 +90,6 @@ public final class TerrainAvoidance {
         if (line == null || analysis == null || !analysis.hasIssues()) {
             return false;
         }
-        java.util.Objects.requireNonNull(coordinates, "coordinates");
         if (tryTallerTower(line, analysis, result)) {
             return true;
         }
@@ -51,34 +97,6 @@ public final class TerrainAvoidance {
             return true;
         }
         return tryInsertPole(line, analysis, result, coordinates);
-    }
-
-    public static boolean hasTerrainIssues(TerrainCollisionAnalysis analysis) {
-        return analysis != null && analysis.hasIssues();
-    }
-
-    public static int countTerrainIssues(TerrainCollisionAnalysis analysis) {
-        return analysis != null ? analysis.issueCount() : 0;
-    }
-
-    /**
-     * 自动修正结束后的状态文案：完全修复 / 部分修复 / 需手动。
-     *
-     * @return i18n 状态字符串；未做任何修正且无问题时返回 {@code null}
-     */
-    public static String resolveStatusMessage(int fixesApplied, int remainingIssues) {
-        if (remainingIssues <= 0) {
-            return fixesApplied > 0
-                ? com.plot.utils.PlotI18n.tr("plugin.powerline.terrain.auto_fixed")
-                : null;
-        }
-        if (fixesApplied > 0) {
-            return com.plot.utils.PlotI18n.tr(
-                "plugin.powerline.terrain.partially_fixed",
-                fixesApplied,
-                remainingIssues);
-        }
-        return com.plot.utils.PlotI18n.tr("plugin.powerline.terrain.manual_needed");
     }
 
     private static boolean tryTallerTower(

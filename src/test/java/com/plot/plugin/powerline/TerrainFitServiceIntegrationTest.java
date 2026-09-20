@@ -1,6 +1,6 @@
 package com.plot.plugin.powerline;
 
-import com.plot.plugin.powerline.engineering.TerrainAvoidance;
+import com.plot.plugin.powerline.engineering.TerrainFitService;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.test.world.IdentityCoordinateService;
 import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
@@ -10,8 +10,8 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Terrain Avoidance 端到端：生成 + 碰撞检测 + 自动修正。 */
-class TerrainAvoidanceIntegrationTest {
+/** TerrainFitService 端到端：生成 + 碰撞检测 + 自动修正。 */
+class TerrainFitServiceIntegrationTest {
 
     @Test
     void classicWoodLineDetectsCollisionOverRollingHill() {
@@ -19,8 +19,8 @@ class TerrainAvoidanceIntegrationTest {
         TerrainSampler terrain = TerrainTestFixtures.rollingHill(64, 74, 30.0, 8.0);
         PowerLineGenerationResult result = TerrainTestFixtures.generate(line, terrain);
 
-        assertTrue(TerrainAvoidance.hasTerrainIssues(TerrainTestFixtures.analyze(result, terrain)));
-        assertTrue(TerrainTestFixtures.minimumClearance(result, terrain) < TerrainAvoidance.SAFETY_MARGIN_BLOCKS);
+        assertTrue(TerrainTestFixtures.analyze(result, terrain).hasIssues());
+        assertTrue(TerrainTestFixtures.minimumClearance(result, terrain) < TerrainFitService.SAFETY_MARGIN_BLOCKS);
     }
 
     @Test
@@ -33,7 +33,7 @@ class TerrainAvoidanceIntegrationTest {
         TerrainSampler terrain = TerrainTestFixtures.valley(72, 66, 30.0, 18.0);
         PowerLineGenerationResult result = TerrainTestFixtures.generate(line, terrain);
 
-        assertTrue(TerrainAvoidance.hasTerrainIssues(TerrainTestFixtures.analyze(result, terrain)));
+        assertTrue(TerrainTestFixtures.analyze(result, terrain).hasIssues());
     }
 
     @Test
@@ -47,8 +47,7 @@ class TerrainAvoidanceIntegrationTest {
             line,
             TerrainTestFixtures.flatTerrain(64));
 
-        assertFalse(TerrainAvoidance.hasTerrainIssues(
-            TerrainTestFixtures.analyze(result, TerrainTestFixtures.flatTerrain(64))));
+        assertFalse(TerrainTestFixtures.analyze(result, TerrainTestFixtures.flatTerrain(64)).hasIssues());
     }
 
     @Test
@@ -95,6 +94,6 @@ class TerrainAvoidanceIntegrationTest {
         TerrainSampler terrain = TerrainTestFixtures.cliff(64, 82, 20.0);
         PowerLineGenerationResult result = TerrainTestFixtures.generate(line, terrain);
 
-        assertTrue(TerrainAvoidance.hasTerrainIssues(TerrainTestFixtures.analyze(result, terrain)));
+        assertTrue(TerrainTestFixtures.analyze(result, terrain).hasIssues());
     }
 }

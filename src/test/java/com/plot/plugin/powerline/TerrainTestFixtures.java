@@ -6,7 +6,7 @@ import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.PlacementReadiness;
 import com.plot.api.world.WorldViewBounds;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
-import com.plot.plugin.powerline.engineering.TerrainAvoidance;
+import com.plot.plugin.powerline.engineering.TerrainFitService;
 import com.plot.test.world.IdentityCoordinateService;
 import com.plot.plugin.powerline.engineering.TerrainCollisionAnalysis;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
@@ -168,7 +168,7 @@ public final class TerrainTestFixtures {
     }
 
     public static TerrainCollisionAnalysis analyze(PowerLineGenerationResult result, TerrainSampler terrain) {
-        return TerrainAvoidance.analyzeCollisions(result.toGeometryModel(), terrain);
+        return TerrainFitService.analyze(result.toGeometryModel(), terrain);
     }
 
     public static double minimumClearance(PowerLineGenerationResult result, TerrainSampler terrain) {
@@ -181,7 +181,7 @@ public final class TerrainTestFixtures {
     }
 
     /**
-     * 模拟 UI {@code autoAdjustTerrain} 的修正循环。
+     * 模拟预览时 {@link TerrainFitService#fit} 的修正循环。
      *
      * @return 是否在尝试次数内消除地形碰撞
      */
@@ -190,17 +190,16 @@ public final class TerrainTestFixtures {
         PowerLineGenerator generator = PowerLineGeneratorWireTest.createGenerator();
         for (int attempt = 0; attempt < maxAttempts; attempt++) {
             PowerLineGenerationResult result = generator.generate(line, terrain, resolver);
-            TerrainCollisionAnalysis report = TerrainAvoidance.analyzeCollisions(result.toGeometryModel(), terrain);
-            if (!TerrainAvoidance.hasTerrainIssues(report)) {
+            TerrainCollisionAnalysis report = TerrainFitService.analyze(result.toGeometryModel(), terrain);
+            if (!report.hasIssues()) {
                 return true;
             }
-            if (!TerrainAvoidance.applyOneFix(
+            if (!TerrainFitService.applyOneFix(
                     line, report, result, IdentityCoordinateService.INSTANCE)) {
                 return false;
             }
         }
-        return !TerrainAvoidance.hasTerrainIssues(
-            analyze(generator.generate(line, terrain, resolver), terrain));
+        return !analyze(generator.generate(line, terrain, resolver), terrain).hasIssues();
     }
 
     public static PowerLineGenerationResult mockTwoPoleResult(
