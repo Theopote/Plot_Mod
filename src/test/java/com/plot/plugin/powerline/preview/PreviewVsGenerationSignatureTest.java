@@ -4,7 +4,10 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.family.PoleDesignAssignmentResolver;
+import com.plot.plugin.powerline.design.family.TowerFamily;
+import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
 import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
+import com.plot.plugin.powerline.design.family.VisualTowerResolver;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
@@ -63,7 +66,16 @@ class PreviewVsGenerationSignatureTest {
         PowerPoleSite site = new PowerPoleSite(new Vec2d(10, 0));
         site.setRole(role);
         site.setRoleAutoAssigned(false);
-        PoleDesignAssignmentResolver.AssignmentResult result = assignmentResolver.resolve(site, line);
+        if (TowerFamily.GRADED_LATTICE_3_PHASE_ID.equals(line.getTowerFamilyId())) {
+            PoleDesign tall = designResolver.find(TowerFamilyDesignPresets.LATTICE_SUSPENSION_TALL_ID);
+            assertNotNull(tall, "missing graded tall suspension design");
+            return tall;
+        }
+        List<PowerPoleSite> sites = List.of(
+            new PowerPoleSite(line.getPathPoints().getFirst()),
+            new PowerPoleSite(line.getPathPoints().getLast()));
+        double spanHint = VisualTowerResolver.maxAdjacentSpanBlocks(sites, 0, line.isClosedLoop());
+        PoleDesignAssignmentResolver.AssignmentResult result = assignmentResolver.resolve(site, line, spanHint);
         assertNotNull(result.design(), "missing design for role " + role + " on " + line.getTowerFamilyId());
         return result.design();
     }

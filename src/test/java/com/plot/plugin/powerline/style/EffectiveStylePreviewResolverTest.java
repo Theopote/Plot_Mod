@@ -117,12 +117,8 @@ class EffectiveStylePreviewResolverTest {
             new PoleDesignResolver(new PowerLineDesignProject()));
 
         assertNotNull(preview);
-        assertEquals(TowerFamilyDesignPresets.LATTICE_SUSPENSION_SMALL_ID, preview.previewDesign().getId());
-        double compiledClassicHeight = PowerLineStyleParametricCatalog.compileRepresentative(
-            line.getParametricTowerConfig()).getTowerStructure().maxHeight();
-        assertTrue(
-            preview.previewDesign().getTowerStructure().maxHeight() < compiledClassicHeight - 1.0,
-            "preview should show graded small representative, not line-level classic compile");
+        assertEquals(TowerFamilyDesignPresets.LATTICE_SUSPENSION_TALL_ID, preview.previewDesign().getId());
+        assertTrue(preview.previewDesign().getTowerStructure().maxHalfWidth() >= 7.0);
     }
 
     @Test

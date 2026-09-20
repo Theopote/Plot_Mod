@@ -14,6 +14,7 @@ import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.PoleLayer;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
+import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.design.parametric.TowerProfileParameterMatrix;
 import com.plot.plugin.powerline.design.structure.TowerArmShape;
@@ -291,16 +292,19 @@ final class PresetMinecraftRealizabilitySupport {
                 effectiveDesign.getGeneratorConfig().profileId());
 
             if (TowerFamily.GRADED_LATTICE_3_PHASE_ID.equals(line.getTowerFamilyId())) {
-                TowerFamily family = TowerFamilyCatalog.findBuiltin(line.getTowerFamilyId());
-                assertNotNull(family, preset.getId() + " graded family");
                 assertEquals(
-                    preset.getId() + " suspension role",
-                    family.getDesignId(TowerRole.SUSPENSION),
+                    preset.getId() + " graded tall representative",
+                    TowerFamilyDesignPresets.LATTICE_SUSPENSION_TALL_ID,
                     effectiveDesign.getId());
-                assertTrue(
-                    effectiveDesign.getTowerStructure().maxHeight()
-                        < gallery.getTowerStructure().maxHeight() - 1.0,
-                    preset.getId() + " effective should keep graded role height below family parametric compile");
+                assertEqualsClose(
+                    preset.getId() + " height",
+                    gallery.getTowerStructure().maxHeight(),
+                    effectiveDesign.getTowerStructure().maxHeight(),
+                    1.5);
+                assertEquals(
+                    preset.getId() + " arm count",
+                    gallery.getTowerStructure().getArms().size(),
+                    effectiveDesign.getTowerStructure().getArms().size());
                 return;
             }
 

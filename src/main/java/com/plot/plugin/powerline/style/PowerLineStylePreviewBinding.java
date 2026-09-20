@@ -5,6 +5,8 @@ import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
 import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
+import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
+import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 
 /**
  * 风格预览与预设配置的绑定关系（画廊卡片、tooltip、Quick Tune 大图、建造摘要共用）。
@@ -57,7 +59,7 @@ public final class PowerLineStylePreviewBinding {
         };
     }
 
-    /** 智能铁塔使用中型代表塔，避免与 Compact Lattice 缩略图雷同。 */
+    /** 智能铁塔使用高档代表塔，与 Smart Towers 大档距落地一致。 */
     public static boolean usesAdaptiveHeightMarker(PowerLineStylePreset preset) {
         return preset != null && preset.getPreviewKind() == PowerLineStylePreset.StylePreviewKind.ADAPTIVE;
     }
@@ -69,6 +71,10 @@ public final class PowerLineStylePreviewBinding {
         }
         PowerLineStyleDefinition definition = preset.getDefinition();
         if (definition != null && definition.hasParametricConfig()) {
+            PoleDesign familyRepresentative = gradedFamilyPreviewDesign(definition);
+            if (familyRepresentative != null) {
+                return familyRepresentative;
+            }
             PoleDesign parametric = PowerLineStyleParametricCatalog.compileRepresentative(
                 definition.getParametricConfig());
             if (parametric != null) {
@@ -114,7 +120,7 @@ public final class PowerLineStylePreviewBinding {
             case HEAVY_DOUBLE_CIRCUIT -> TowerFamilyDesignPresets.HEAVY_DOUBLE_CIRCUIT_SUSPENSION_ID;
             case INDUSTRIAL_PORTAL -> TowerFamilyDesignPresets.INDUSTRIAL_PORTAL_SUSPENSION_ID;
             case MONSTER_PYLON -> TowerFamilyDesignPresets.MONSTER_PYLON_SUSPENSION_ID;
-            case ADAPTIVE -> TowerFamilyDesignPresets.LATTICE_SUSPENSION_MEDIUM_ID;
+            case ADAPTIVE -> TowerFamilyDesignPresets.LATTICE_SUSPENSION_TALL_ID;
             case TAPERED -> PoleDesignCatalog.TAPERED_LATTICE_TOWER_ID;
             case COPPER -> PoleDesignCatalog.FANTASY_COPPER_POLE_ID;
             case JAPANESE -> PoleDesignCatalog.JAPANESE_STREET_POLE_ID;
@@ -126,6 +132,23 @@ public final class PowerLineStylePreviewBinding {
             case ABANDONED -> PoleDesignCatalog.ABANDONED_POLE_ID;
             case RUSTIC -> PoleDesignCatalog.RUSTIC_WOOD_POLE_ID;
         };
+    }
+
+    /**
+     * 分档格构族：卡片/Quick Tune 用高档代表塔（与 Smart Towers 大档距一致），
+     * 不用族级 classic 参数化默认（否则预览偏宽、落地偏瘦）。
+     */
+    private static PoleDesign gradedFamilyPreviewDesign(PowerLineStyleDefinition definition) {
+        if (definition == null
+                || !TowerFamily.GRADED_LATTICE_3_PHASE_ID.equals(definition.getTowerFamilyId())) {
+            return null;
+        }
+        PoleDesign compiled = PowerLineStyleParametricCatalog.compileRepresentative(
+            TowerGeneratorConfig.parametricTripleArm(TowerParameterSet.tripleArmDefaults()));
+        if (compiled != null) {
+            return compiled;
+        }
+        return resolvePreviewDesign(TowerFamilyDesignPresets.LATTICE_SUSPENSION_TALL_ID);
     }
 
     public static boolean previewAlignsWithApply(PowerLineStylePreset preset) {
@@ -141,6 +164,7 @@ public final class PowerLineStylePreviewBinding {
             return family.getDesignId(com.plot.plugin.powerline.model.TowerRole.SUSPENSION).equals(previewId)
                 || TowerFamilyDesignPresets.LATTICE_SUSPENSION_SMALL_ID.equals(previewId)
                 || TowerFamilyDesignPresets.LATTICE_SUSPENSION_MEDIUM_ID.equals(previewId)
+                || TowerFamilyDesignPresets.LATTICE_SUSPENSION_TALL_ID.equals(previewId)
                 || TowerFamilyDesignPresets.HV_TRANSMISSION_SUSPENSION_ID.equals(previewId)
                 || TowerFamilyDesignPresets.TRIPLE_ARM_SUSPENSION_ID.equals(previewId)
                 || TowerFamilyDesignPresets.CUP_TOWER_SUSPENSION_ID.equals(previewId)

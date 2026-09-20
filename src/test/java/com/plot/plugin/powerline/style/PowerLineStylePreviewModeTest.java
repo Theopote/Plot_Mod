@@ -146,9 +146,12 @@ class PowerLineStylePreviewModeTest {
     }
 
     @Test
-    void smartTowersUseMediumRepresentativeAndAdaptiveMarker() {
+    void smartTowersUseTallRepresentativeAndAdaptiveMarker() {
         PowerLineStylePreset smart = PowerLineStylePresetCatalog.smartTowers();
         assertTrue(PowerLineStylePreviewBinding.usesAdaptiveHeightMarker(smart));
+        PoleDesign design = PowerLineStylePreviewBinding.previewDesign(smart);
+        assertEquals(3, armCount(design));
+        assertTrue(design.getTowerStructure().maxHalfWidth() >= 7.0);
     }
 
     @Test

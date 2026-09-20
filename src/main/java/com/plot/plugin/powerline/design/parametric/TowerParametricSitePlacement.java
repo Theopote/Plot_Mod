@@ -81,7 +81,7 @@ public final class TowerParametricSitePlacement {
     }
 
     private static TowerParameterSet replaceHeight(TowerParameterSet parameters, double height) {
-        return new TowerParameterSet(
+        TowerParameterSet updated = new TowerParameterSet(
             height,
             parameters.baseWidth(),
             parameters.armSpan(),
@@ -89,5 +89,6 @@ public final class TowerParametricSitePlacement {
             parameters.waistRatio(),
             parameters.armLevelScales(),
             parameters.density());
+        return TowerStabilityParameters.enforceStableBaseWidth(updated, parameters);
     }
 }

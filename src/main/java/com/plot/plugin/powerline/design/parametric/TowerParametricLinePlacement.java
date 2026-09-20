@@ -34,6 +34,7 @@ public final class TowerParametricLinePlacement {
         List<String> warnings = new ArrayList<>();
         if (parameters.height() > maxHeight + 1e-6) {
             warnings.add("parametric.height_clamped_for_line:" + (int) Math.floor(maxHeight));
+            TowerParameterSet beforeClamp = parameters;
             parameters = new TowerParameterSet(
                 maxHeight,
                 parameters.baseWidth(),
@@ -42,6 +43,7 @@ public final class TowerParametricLinePlacement {
                 parameters.waistRatio(),
                 parameters.armLevelScales(),
                 parameters.density());
+            parameters = TowerStabilityParameters.enforceStableBaseWidth(parameters, beforeClamp);
             design.setGeneratorConfig(config.withParameters(parameters));
         }
 

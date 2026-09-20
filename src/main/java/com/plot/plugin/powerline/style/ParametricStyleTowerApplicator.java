@@ -53,15 +53,38 @@ public final class ParametricStyleTowerApplicator {
             return applyToGenericDesign(source, styleConfig, envelope);
         }
         if (PowerLineStyleParametricCatalog.parametersMatch(familyDefault, styleConfig)) {
-            PoleDesign design = source.copy();
-            design.setGeneratorConfig(styleConfig.copy());
-            return design;
+            return applyFamilyRoleProfile(source, styleConfig, envelope, familyDefault, roleSeed);
         }
 
         TowerParameterSet merged = TowerFamilyRoleParametricCatalog.mergeTunedParameters(
             roleSeed.parameters(),
             familyDefault.parameters(),
             styleConfig.parameters());
+        return applyFamilyRoleProfile(source, styleConfig, envelope, familyDefault, roleSeed, merged);
+    }
+
+    private static PoleDesign applyFamilyRoleProfile(
+            PoleDesign source,
+            TowerGeneratorConfig styleConfig,
+            TowerBuildEnvelope envelope,
+            TowerGeneratorConfig familyDefault,
+            TowerGeneratorConfig roleSeed) {
+        return applyFamilyRoleProfile(source, styleConfig, envelope, familyDefault, roleSeed, null);
+    }
+
+    private static PoleDesign applyFamilyRoleProfile(
+            PoleDesign source,
+            TowerGeneratorConfig styleConfig,
+            TowerBuildEnvelope envelope,
+            TowerGeneratorConfig familyDefault,
+            TowerGeneratorConfig roleSeed,
+            TowerParameterSet premerged) {
+        TowerParameterSet merged = premerged != null
+            ? premerged
+            : TowerFamilyRoleParametricCatalog.mergeTunedParameters(
+                roleSeed.parameters(),
+                familyDefault.parameters(),
+                styleConfig.parameters());
         TowerGeneratorConfig mergedConfig = new TowerGeneratorConfig(
             roleSeed.profileId(),
             roleSeed.mode(),

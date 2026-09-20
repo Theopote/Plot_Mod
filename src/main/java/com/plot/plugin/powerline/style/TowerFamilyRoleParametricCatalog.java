@@ -9,6 +9,7 @@ import com.plot.plugin.powerline.design.parametric.TowerParameterProfile;
 import com.plot.plugin.powerline.design.parametric.TowerParameterProfiles;
 import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
+import com.plot.plugin.powerline.design.parametric.TowerStabilityParameters;
 import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 
@@ -48,7 +49,7 @@ public final class TowerFamilyRoleParametricCatalog {
         if (roleBaseline == null || familyDefault == null || tuned == null) {
             return tuned != null ? tuned : roleBaseline;
         }
-        return new TowerParameterSet(
+        TowerParameterSet merged = new TowerParameterSet(
             scale(roleBaseline.height(), familyDefault.height(), tuned.height()),
             scale(roleBaseline.baseWidth(), familyDefault.baseWidth(), tuned.baseWidth()),
             scale(roleBaseline.armSpan(), familyDefault.armSpan(), tuned.armSpan()),
@@ -56,6 +57,7 @@ public final class TowerFamilyRoleParametricCatalog {
             tuned.waistRatio(),
             tuned.armLevelScales(),
             tuned.density());
+        return TowerStabilityParameters.enforceStableBaseWidth(merged, roleBaseline);
     }
 
     static String profileIdForDesignId(String designId) {

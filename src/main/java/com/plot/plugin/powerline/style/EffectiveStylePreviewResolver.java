@@ -5,9 +5,14 @@ import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.PoleLayer;
+import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.powerline.design.family.PoleDesignAssignmentResolver;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
+import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
+import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.model.PowerPoleSite;
 import com.plot.plugin.powerline.model.TowerRole;
 
 /**
@@ -47,7 +52,7 @@ public final class EffectiveStylePreviewResolver {
             PowerLineStylePreset base,
             PoleDesignResolver resolver) {
         if (line.hasTowerFamily()) {
-            PoleDesign fromFamily = resolveFamilyRepresentative(line.getTowerFamilyId(), resolver);
+            PoleDesign fromFamily = resolveFamilyBuildRepresentative(line, resolver);
             if (fromFamily != null) {
                 return applyLineParametric(line, fromFamily);
             }
@@ -87,6 +92,31 @@ public final class EffectiveStylePreviewResolver {
             line.getParametricTowerConfig(),
             null,
             line);
+    }
+
+    /**
+     * 与落地生成一致：按线路档距选择分档悬垂塔型，而非族内默认小号代表塔。
+     */
+    private static PoleDesign resolveFamilyBuildRepresentative(
+            PowerLineFootprint line,
+            PoleDesignResolver resolver) {
+        if (TowerFamily.GRADED_LATTICE_3_PHASE_ID.equals(line.getTowerFamilyId())) {
+            PoleDesign tall = findDesign(TowerFamilyDesignPresets.LATTICE_SUSPENSION_TALL_ID, resolver);
+            if (tall != null) {
+                return tall;
+            }
+        }
+        Vec2d anchor = line.getPathPoints().isEmpty()
+            ? new Vec2d(0, 0)
+            : line.getPathPoints().getFirst();
+        PowerPoleSite site = new PowerPoleSite(anchor);
+        site.setRole(TowerRole.SUSPENSION);
+        double spanHint = Math.max(1.0, line.getMaxPoleSpacing());
+        PoleDesignAssignmentResolver assignments = new PoleDesignAssignmentResolver(
+            resolver,
+            new TowerFamilyResolver());
+        PoleDesignAssignmentResolver.AssignmentResult result = assignments.resolve(site, line, spanHint);
+        return result.design();
     }
 
     private static PoleDesign resolveFamilyRepresentative(String familyId, PoleDesignResolver resolver) {
