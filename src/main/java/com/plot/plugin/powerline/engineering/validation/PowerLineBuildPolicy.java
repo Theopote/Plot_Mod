@@ -2,7 +2,12 @@ package com.plot.plugin.powerline.engineering.validation;
 
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 
-/** 落地前工程检查阻断策略。 */
+/**
+ * 落地前工程检查阻断策略。
+ *
+ * @deprecated 造型插件不再以工程/地形报告阻断建造；待 engineering 层清理后删除。
+ */
+@Deprecated
 public final class PowerLineBuildPolicy {
     private PowerLineBuildPolicy() {
     }

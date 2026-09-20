@@ -1,8 +1,6 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.PowerLineGenerationResult;
-import com.plot.plugin.powerline.engineering.validation.PowerLineBuildPolicy;
-import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -59,20 +57,11 @@ final class PowerLineBuildActions {
             PowerLineUiWidgets.textColored(PluginUiColors.ERROR_SOFT, readiness.message());
         }
 
-        PowerLineValidationReport engineering = ctx.actions().cachedEngineeringReport(line);
-        PowerLineValidationReport terrain = ctx.actions().cachedTerrainReport(line);
-        boolean blockingValidation = PowerLineBuildPolicy.hasBlockingIssues(line, engineering, terrain);
         boolean parametricBlocked = ctx.actions().hasParametricBuildBlocking(line);
         boolean buildDisabled = !readiness.ready()
             || ctx.host().placement().isBusy()
             || !hasPreview
-            || blockingValidation
             || parametricBlocked;
-        if (blockingValidation) {
-            PowerLineUiWidgets.textColored(
-                PluginUiColors.ERROR_SOFT,
-                PlotI18n.tr("plugin.powerline.build_blocked_validation"));
-        }
         if (parametricBlocked) {
             PowerLineUiWidgets.textColored(
                 PluginUiColors.ERROR_SOFT,
@@ -103,43 +92,19 @@ final class PowerLineBuildActions {
             PowerLineGenerationResult result = ctx.hasValidPreview(line) ? ctx.lastGenerationResult() : null;
             int blocks = result != null ? result.blockCount() : 0;
             PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.build_confirm", blocks));
-            PowerLineValidationReport report = line != null ? ctx.actions().cachedEngineeringReport(line) : null;
-            PowerLineValidationReport terrain = line != null ? ctx.actions().cachedTerrainReport(line) : null;
-            boolean blockingValidation = PowerLineBuildPolicy.hasBlockingIssues(line, report, terrain);
             boolean parametricBlocked = ctx.actions().hasParametricBuildBlocking(line);
-            int errorCount = PowerLineBuildPolicy.blockingErrorCount(line, report, terrain);
-            int warningCount = 0;
-            if (line != null && line.isLineChecksEnabled() && report != null) {
-                warningCount += report.warningCount();
-            }
-            if (line != null && line.isTerrainAvoidanceEnabled() && terrain != null) {
-                warningCount += terrain.warningCount();
-            }
-            if (blockingValidation) {
-                PowerLineUiWidgets.textColored(
-                    PluginUiColors.ERROR_SOFT,
-                    PlotI18n.tr("plugin.powerline.build_blocked_validation"));
-                PowerLineStatusIcon.renderWarningLine(
-                    PlotI18n.tr("plugin.powerline.build_confirm_errors", errorCount));
-            } else if (parametricBlocked) {
+            if (parametricBlocked) {
                 PowerLineUiWidgets.textColored(
                     PluginUiColors.ERROR_SOFT,
                     PlotI18n.tr("plugin.powerline.build_blocked_parametric"));
-            } else if (warningCount > 0) {
-                PowerLineStatusIcon.renderWarningLine(
-                    PlotI18n.tr("plugin.powerline.build_confirm_warnings", warningCount));
             }
             boolean canBuild = result != null
                 && ctx.requestBuildConfirm(line)
-                && !blockingValidation
                 && !parametricBlocked;
             if (!canBuild) {
                 ImGui.beginDisabled();
             }
-            String confirmLabel = warningCount > 0 && !blockingValidation
-                ? PlotI18n.tr("plugin.powerline.build_anyway")
-                : PlotI18n.tr("button.plot.confirm");
-            if (ImGui.button(confirmLabel, 120, 0)) {
+            if (ImGui.button(PlotI18n.tr("button.plot.confirm"), 120, 0)) {
                 ctx.buildInWorld();
                 ImGui.closeCurrentPopup();
             }
@@ -147,12 +112,7 @@ final class PowerLineBuildActions {
                 ImGui.endDisabled();
             }
             ImGui.sameLine();
-            if (ImGui.button(
-                    warningCount > 0 || blockingValidation
-                        ? PlotI18n.tr("plugin.powerline.build_return_adjust")
-                        : PlotI18n.tr("button.plot.cancel"),
-                    120,
-                    0)) {
+            if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
                 ImGui.closeCurrentPopup();
             }
             ImGui.endPopup();

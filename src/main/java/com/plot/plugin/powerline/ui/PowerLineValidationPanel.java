@@ -15,6 +15,12 @@ import imgui.ImGui;
 
 /** 线路视觉/常识检查（Build Tab：高级检查 / 智能修正）。 */
 public final class PowerLineValidationPanel {
+    enum AdvancedReportFocus {
+        NONE,
+        TERRAIN,
+        ENGINEERING
+    }
+
     private final PowerLineUiContext ctx;
 
     public PowerLineValidationPanel(PowerLineUiContext ctx) {
@@ -59,7 +65,7 @@ public final class PowerLineValidationPanel {
 
     public void renderAdvancedChecksSection(
             PowerLineFootprint line,
-            PowerLineBuildPanel.AdvancedReportFocus focus) {
+            AdvancedReportFocus focus) {
         PowerLineUiWidgets.renderLineCheckControls(ctx, line, true);
         renderReanalyzeControl(line);
         renderReportsSection(line, focus);
@@ -72,26 +78,26 @@ public final class PowerLineValidationPanel {
 
     private void renderReportsSection(
             PowerLineFootprint line,
-            PowerLineBuildPanel.AdvancedReportFocus focus) {
+            AdvancedReportFocus focus) {
         ImGui.separator();
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.build.advanced.reports_section"));
         renderFocusedReports(line, focus);
         renderRemainingReports(line, focus);
     }
 
-    private void renderFocusedReports(PowerLineFootprint line, PowerLineBuildPanel.AdvancedReportFocus focus) {
-        if (focus == PowerLineBuildPanel.AdvancedReportFocus.TERRAIN) {
+    private void renderFocusedReports(PowerLineFootprint line, AdvancedReportFocus focus) {
+        if (focus == AdvancedReportFocus.TERRAIN) {
             renderTerrainReportSection(line);
-        } else if (focus == PowerLineBuildPanel.AdvancedReportFocus.ENGINEERING) {
+        } else if (focus == AdvancedReportFocus.ENGINEERING) {
             renderEngineeringReportSection(line);
         }
     }
 
-    private void renderRemainingReports(PowerLineFootprint line, PowerLineBuildPanel.AdvancedReportFocus focus) {
-        if (focus != PowerLineBuildPanel.AdvancedReportFocus.TERRAIN) {
+    private void renderRemainingReports(PowerLineFootprint line, AdvancedReportFocus focus) {
+        if (focus != AdvancedReportFocus.TERRAIN) {
             renderTerrainReportSection(line);
         }
-        if (focus != PowerLineBuildPanel.AdvancedReportFocus.ENGINEERING) {
+        if (focus != AdvancedReportFocus.ENGINEERING) {
             renderEngineeringReportSection(line);
         }
     }

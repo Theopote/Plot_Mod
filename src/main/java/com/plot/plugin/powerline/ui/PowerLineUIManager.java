@@ -21,8 +21,7 @@ public final class PowerLineUIManager {
         this.poleDesignerPanel = new PoleDesignerPanel(ctx);
         this.routePanel = new PowerLineRoutePanel(ctx, overviewPanel);
         this.stylePanel = new PowerLineStylePanel(ctx, poleDesignerPanel);
-        PowerLineValidationPanel validationPanel = new PowerLineValidationPanel(ctx);
-        this.buildPanel = new PowerLineBuildPanel(ctx, validationPanel);
+        this.buildPanel = new PowerLineBuildPanel(ctx);
     }
 
     public void render() {
@@ -49,7 +48,6 @@ public final class PowerLineUIManager {
     public void renderDeferredModals() {
         routePanel.renderDeleteConfirmPopup();
         buildPanel.renderBuildConfirmPopup();
-        buildPanel.renderOptimizationConfirmPopup();
         poleDesignerPanel.render();
     }
 }

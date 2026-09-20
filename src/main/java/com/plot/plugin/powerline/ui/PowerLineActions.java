@@ -9,7 +9,6 @@ import com.plot.core.model.Shape;
 import com.plot.core.persistence.ProjectPathResolver;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
-import com.plot.plugin.powerline.engineering.validation.PowerLineBuildPolicy;
 import com.plot.plugin.powerline.engineering.validation.PowerLineValidationReport;
 import com.plot.plugin.powerline.engineering.optimization.OptimizationResult;
 import com.plot.api.world.PluginProjectionContext;
@@ -708,18 +707,6 @@ public final class PowerLineActions {
             return;
         }
 
-        PowerLineValidationReport engineeringReport = line.isLineChecksEnabled()
-            ? computeEngineeringReport(line, world)
-            : null;
-        PowerLineValidationReport terrainReport = line.isTerrainAvoidanceEnabled()
-            ? computeTerrainReport(line, world)
-            : null;
-        if (PowerLineBuildPolicy.hasBlockingIssues(line, engineeringReport, terrainReport)) {
-            state.setProjectStatus(
-                PlotI18n.tr("plugin.powerline.build_blocked_validation"),
-                ProjectStatusSeverity.ERROR);
-            return;
-        }
         if (hasParametricBuildBlocking(line)) {
             state.setProjectStatus(
                 PlotI18n.tr("plugin.powerline.build_blocked_parametric"),
