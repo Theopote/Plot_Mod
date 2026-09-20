@@ -32,7 +32,7 @@ public final class StructureFoundationGenerator {
         BlockPos column = WorldCoordinateUtils.canvasToBlockXZ(planPoint, coordinates);
         fillColumn(
             column,
-            placementBase.engineeringGroundY() + 1,
+            placementBase.terrainGroundY() + 1,
             placementBase.buildBaseY(),
             poleMaterial,
             footprintId,

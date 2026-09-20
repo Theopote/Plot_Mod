@@ -6,8 +6,8 @@ import java.util.EnumSet;
 import java.util.Objects;
 import java.util.Set;
 
-/** 杆塔规划能力元数据（非结构计算结果）。间距权威来源是 {@code PoleSpacingProfile}，此处不含 preferredSpan。 */
-public class TowerEngineeringMetadata {
+/** 杆塔布局提示（角色适用性、建议跨度/转角等；非结构计算结果）。 */
+public class TowerPlanningMetadata {
     private double nominalHeight = 18.0;
     private double maxRecommendedSpan = 40.0;
     private double maxRecommendedDeflectionAngle = 5.0;
@@ -55,8 +55,8 @@ public class TowerEngineeringMetadata {
         return supportedRoles != null && supportedRoles.contains(role);
     }
 
-    public TowerEngineeringMetadata copy() {
-        TowerEngineeringMetadata copy = new TowerEngineeringMetadata();
+    public TowerPlanningMetadata copy() {
+        TowerPlanningMetadata copy = new TowerPlanningMetadata();
         copy.nominalHeight = nominalHeight;
         copy.maxRecommendedSpan = maxRecommendedSpan;
         copy.maxRecommendedDeflectionAngle = maxRecommendedDeflectionAngle;
@@ -64,8 +64,8 @@ public class TowerEngineeringMetadata {
         return copy;
     }
 
-    public static TowerEngineeringMetadata defaultsForRole(TowerRole role) {
-        TowerEngineeringMetadata metadata = new TowerEngineeringMetadata();
+    public static TowerPlanningMetadata defaultsForRole(TowerRole role) {
+        TowerPlanningMetadata metadata = new TowerPlanningMetadata();
         metadata.setSupportedRoles(EnumSet.of(role != null ? role : TowerRole.SUSPENSION));
         switch (role != null ? role : TowerRole.SUSPENSION) {
             case ANGLE -> metadata.setMaxRecommendedDeflectionAngle(60.0);
@@ -77,7 +77,7 @@ public class TowerEngineeringMetadata {
 
     @Override
     public boolean equals(Object obj) {
-        if (!(obj instanceof TowerEngineeringMetadata other)) {
+        if (!(obj instanceof TowerPlanningMetadata other)) {
             return false;
         }
         return Double.compare(nominalHeight, other.nominalHeight) == 0

@@ -6,7 +6,7 @@ import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelope;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
-import com.plot.plugin.powerline.design.TowerEngineeringMetadata;
+import com.plot.plugin.powerline.design.TowerPlanningMetadata;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 
 import java.util.ArrayList;
@@ -98,9 +98,9 @@ public final class ParametricStyleTowerApplicator {
             }
             design.setAttachments(attachments);
         }
-        TowerEngineeringMetadata metadata = source.getEngineeringMetadata();
+        TowerPlanningMetadata metadata = source.getPlanningMetadata();
         if (metadata != null) {
-            design.setEngineeringMetadata(metadata.copy());
+            design.setPlanningMetadata(metadata.copy());
         }
     }
 }

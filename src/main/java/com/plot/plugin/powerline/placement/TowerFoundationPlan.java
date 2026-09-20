@@ -3,14 +3,14 @@ package com.plot.plugin.powerline.placement;
 /** 铁塔四脚基础方案：统一建造基准面 + 各脚地面/水面高度。 */
 public record TowerFoundationPlan(
         int referenceBuildBaseY,
-        int[] engineeringGroundY,
+        int[] terrainGroundY,
         int[] buildBaseY,
         int unevenDeltaBlocks) {
 
     public static final int CORNER_COUNT = 4;
 
     public TowerFoundationPlan {
-        engineeringGroundY = copyCornerArray(engineeringGroundY);
+        terrainGroundY = copyCornerArray(terrainGroundY);
         buildBaseY = copyCornerArray(buildBaseY);
     }
 
@@ -18,7 +18,7 @@ public record TowerFoundationPlan(
         if (cornerIndex < 0 || cornerIndex >= CORNER_COUNT) {
             return false;
         }
-        return referenceBuildBaseY > engineeringGroundY[cornerIndex];
+        return referenceBuildBaseY > terrainGroundY[cornerIndex];
     }
 
     public int fillTopY(int cornerIndex) {
@@ -26,7 +26,7 @@ public record TowerFoundationPlan(
     }
 
     public int fillBottomY(int cornerIndex) {
-        return engineeringGroundY[cornerIndex] + 1;
+        return terrainGroundY[cornerIndex] + 1;
     }
 
     private static int[] copyCornerArray(int[] values) {

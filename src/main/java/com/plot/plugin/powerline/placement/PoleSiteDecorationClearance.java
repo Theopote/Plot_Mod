@@ -44,7 +44,7 @@ public final class PoleSiteDecorationClearance {
         SiteFootprint footprint = computeFootprint(design, defaultPoleHeight);
         Vec2d forward = normalizeTangent(tangent);
         Vec2d normal = WorldCoordinateUtils.leftNormal(forward);
-        int groundY = placementBase.engineeringGroundY();
+        int groundY = placementBase.terrainGroundY();
         int structureTopY = placementBase.buildBaseY() + footprint.structureHeightBlocks;
 
         for (int lateral = -footprint.lateralRadiusBlocks; lateral <= footprint.lateralRadiusBlocks; lateral++) {

@@ -6,9 +6,9 @@ import com.plot.core.terrain.TerrainSampler;
 import java.util.OptionalInt;
 
 /**
- * 单根电杆的竖向基准：工程地面（湖底/原地面）与杆体建造基准（水面或地表）。
+ * 单根电杆的竖向基准：地形地面（湖底/原地面）与杆体建造基准（水面或地表）。
  */
-public record PolePlacementBase(int engineeringGroundY, int buildBaseY) {
+public record PolePlacementBase(int terrainGroundY, int buildBaseY) {
 
     /** 杆体（含塔基）第一层方块 Y。 */
     public int poleLayerStartY() {
@@ -17,18 +17,18 @@ public record PolePlacementBase(int engineeringGroundY, int buildBaseY) {
 
     /** 水面下需用杆材补全到建造基准。 */
     public boolean requiresUnderwaterFill() {
-        return buildBaseY > engineeringGroundY;
+        return buildBaseY > terrainGroundY;
     }
 
     public static PolePlacementBase resolve(Vec2d planPoint, TerrainSampler terrain) {
-        int engineeringGroundY = terrain.sampleSurfaceY(planPoint);
+        int terrainGroundY = terrain.sampleSurfaceY(planPoint);
         OptionalInt waterSurface = terrain.findExposedWaterSurface(planPoint);
         if (waterSurface.isPresent()) {
             int waterY = waterSurface.getAsInt();
-            if (waterY > engineeringGroundY) {
-                return new PolePlacementBase(engineeringGroundY, waterY);
+            if (waterY > terrainGroundY) {
+                return new PolePlacementBase(terrainGroundY, waterY);
             }
         }
-        return new PolePlacementBase(engineeringGroundY, engineeringGroundY);
+        return new PolePlacementBase(terrainGroundY, terrainGroundY);
     }
 }

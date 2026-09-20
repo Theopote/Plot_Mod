@@ -2,6 +2,7 @@ package com.plot.plugin.powerline.design;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.annotations.SerializedName;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
 import com.plot.plugin.powerline.design.parametric.StructureDensity;
@@ -31,7 +32,7 @@ public class PoleDesign {
     private List<PoleLayer> layers = new ArrayList<>();
     private List<ConductorAttachment> attachments = new ArrayList<>();
     private TowerStructureDesign towerStructure;
-    private TowerEngineeringMetadata engineeringMetadata;
+    private TowerPlanningMetadata planningMetadata;
     private TowerGeneratorConfig generatorConfig;
 
     public PoleDesign(String name) {
@@ -177,13 +178,13 @@ public class PoleDesign {
         return towerStructure != null && towerStructure.hasStations();
     }
 
-    public TowerEngineeringMetadata getEngineeringMetadata() {
-        return engineeringMetadata;
+    public TowerPlanningMetadata getPlanningMetadata() {
+        return planningMetadata;
     }
 
-    public void setEngineeringMetadata(TowerEngineeringMetadata engineeringMetadata) {
-        this.engineeringMetadata = engineeringMetadata != null
-            ? engineeringMetadata.copy()
+    public void setPlanningMetadata(TowerPlanningMetadata planningMetadata) {
+        this.planningMetadata = planningMetadata != null
+            ? planningMetadata.copy()
             : null;
     }
 
@@ -248,7 +249,7 @@ public class PoleDesign {
         copy.setLayers(layers);
         copy.setAttachments(attachments);
         copy.setTowerStructure(towerStructure);
-        copy.setEngineeringMetadata(engineeringMetadata);
+        copy.setPlanningMetadata(planningMetadata);
         copy.setGeneratorConfig(generatorConfig);
         return copy;
     }
@@ -295,17 +296,17 @@ public class PoleDesign {
         MaterialMix material;
     }
 
-    static class EngineeringMetadataData {
+    static class PlanningMetadataData {
         double nominalHeight;
         double maxRecommendedSpan;
         double maxRecommendedDeflectionAngle;
         List<String> supportedRoles = new ArrayList<>();
 
-        static EngineeringMetadataData from(TowerEngineeringMetadata metadata) {
+        static PlanningMetadataData from(TowerPlanningMetadata metadata) {
             if (metadata == null) {
                 return null;
             }
-            EngineeringMetadataData data = new EngineeringMetadataData();
+            PlanningMetadataData data = new PlanningMetadataData();
             data.nominalHeight = metadata.getNominalHeight();
             data.maxRecommendedSpan = metadata.getMaxRecommendedSpan();
             data.maxRecommendedDeflectionAngle = metadata.getMaxRecommendedDeflectionAngle();
@@ -317,8 +318,8 @@ public class PoleDesign {
             return data;
         }
 
-        TowerEngineeringMetadata toMetadata() {
-            TowerEngineeringMetadata metadata = new TowerEngineeringMetadata();
+        TowerPlanningMetadata toMetadata() {
+            TowerPlanningMetadata metadata = new TowerPlanningMetadata();
             metadata.setNominalHeight(nominalHeight);
             metadata.setMaxRecommendedSpan(maxRecommendedSpan);
             metadata.setMaxRecommendedDeflectionAngle(maxRecommendedDeflectionAngle);
@@ -355,7 +356,9 @@ public class PoleDesign {
         List<LayerData> layers = new ArrayList<>();
         List<AttachmentData> attachments = new ArrayList<>();
         String towerStructureJson;
-        EngineeringMetadataData engineeringMetadata;
+        PlanningMetadataData planningMetadata;
+        @SerializedName("engineeringMetadata")
+        PlanningMetadataData legacyEngineeringMetadata;
         GeneratorConfigData generatorConfig;
 
         static DesignData from(PoleDesign design) {
@@ -404,7 +407,7 @@ public class PoleDesign {
             if (design.towerStructure != null) {
                 data.towerStructureJson = design.towerStructure.toJson();
             }
-            data.engineeringMetadata = EngineeringMetadataData.from(design.engineeringMetadata);
+            data.planningMetadata = PlanningMetadataData.from(design.planningMetadata);
             data.generatorConfig = GeneratorConfigData.from(design.generatorConfig);
             return data;
         }
@@ -477,8 +480,11 @@ public class PoleDesign {
             if (towerStructureJson != null && !towerStructureJson.isBlank()) {
                 design.setTowerStructure(TowerStructureDesign.fromJson(towerStructureJson));
             }
-            if (engineeringMetadata != null) {
-                design.setEngineeringMetadata(engineeringMetadata.toMetadata());
+            PlanningMetadataData metadataData = planningMetadata != null
+                ? planningMetadata
+                : legacyEngineeringMetadata;
+            if (metadataData != null) {
+                design.setPlanningMetadata(metadataData.toMetadata());
             }
             if (generatorConfig != null) {
                 design.setGeneratorConfig(generatorConfig.toConfig());

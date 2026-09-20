@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class PowerLineEngineeringTest {
+class PowerLineTerrainClearanceTest {
 
     @Test
     void flatTerrainPassesClearance() {
@@ -158,7 +158,7 @@ class PowerLineEngineeringTest {
     }
 
     @Test
-    void legacyLineGeneratesWithoutEngineeringProfile() {
+    void legacyLineGeneratesWithoutPlanningProfile() {
         PowerLineFootprint line = horizontalLine(20);
         PowerLineGenerationResult result = generate(line, flatTerrain(64));
         assertTrue(result.blockCount() > 0);

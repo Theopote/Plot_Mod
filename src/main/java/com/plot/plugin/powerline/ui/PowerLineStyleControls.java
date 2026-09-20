@@ -35,7 +35,7 @@ public final class PowerLineStyleControls {
     }
 
     /** 高级设置：仅保留逐杆角色覆盖；塔族缺口以警告形式提示。 */
-    public void renderEngineeringOverrides(PowerLineFootprint line, PoleDesignerPanel poleDesignerPanel) {
+    public void renderAdvancedStyleControls(PowerLineFootprint line, PoleDesignerPanel poleDesignerPanel) {
         renderTowerFamilyGapWarnings(line, poleDesignerPanel);
         renderPoleRoleInspector(line);
     }

@@ -33,45 +33,69 @@ class PoleDesignSerializationTest {
     }
 
     @Test
-    void engineeringMetadataRoundTrip() {
+    void planningMetadataRoundTrip() {
         PoleDesign design = new PoleDesign("mega-custom", "Mega Custom");
         design.setLayers(PoleDesignCatalog.simpleWoodPole().getLayers());
-        TowerEngineeringMetadata metadata = new TowerEngineeringMetadata();
+        TowerPlanningMetadata metadata = new TowerPlanningMetadata();
         metadata.setNominalHeight(80.0);
         metadata.setMaxRecommendedSpan(240.0);
         metadata.setMaxRecommendedDeflectionAngle(35.0);
         metadata.setSupportedRoles(EnumSet.of(TowerRole.SUSPENSION, TowerRole.ANGLE));
-        design.setEngineeringMetadata(metadata);
+        design.setPlanningMetadata(metadata);
 
         PoleDesign restored = PoleDesign.fromJson(design.toJson());
         assertNotNull(restored);
-        assertNotNull(restored.getEngineeringMetadata());
-        assertEquals(metadata, restored.getEngineeringMetadata());
-        assertTrue(design.toJson().contains("\"engineeringMetadata\""));
+        assertNotNull(restored.getPlanningMetadata());
+        assertEquals(metadata, restored.getPlanningMetadata());
+        assertTrue(design.toJson().contains("\"planningMetadata\""));
+        assertFalse(design.toJson().contains("\"engineeringMetadata\""));
         assertTrue(design.toJson().contains("\"maxRecommendedSpan\""));
     }
 
     @Test
-    void saveAsStyleCopyPreservesEngineeringMetadata() {
+    void legacyEngineeringMetadataJsonStillLoads() {
+        String json = """
+            {
+              "id": "legacy",
+              "name": "Legacy",
+              "layers": [],
+              "attachments": [],
+              "engineeringMetadata": {
+                "nominalHeight": 24.0,
+                "maxRecommendedSpan": 80.0,
+                "maxRecommendedDeflectionAngle": 12.0,
+                "supportedRoles": ["SUSPENSION"]
+              }
+            }
+            """;
+        PoleDesign restored = PoleDesign.fromJson(json);
+        assertNotNull(restored);
+        assertNotNull(restored.getPlanningMetadata());
+        assertEquals(24.0, restored.getPlanningMetadata().getNominalHeight(), 1e-6);
+        assertEquals(80.0, restored.getPlanningMetadata().getMaxRecommendedSpan(), 1e-6);
+    }
+
+    @Test
+    void saveAsStyleCopyPreservesPlanningMetadata() {
         PoleDesign draft = TowerStructurePresets.taperedLatticePoleDesign("src", "Source");
-        TowerEngineeringMetadata metadata = new TowerEngineeringMetadata();
+        TowerPlanningMetadata metadata = new TowerPlanningMetadata();
         metadata.setNominalHeight(42.0);
         metadata.setMaxRecommendedSpan(120.0);
         metadata.setMaxRecommendedDeflectionAngle(15.0);
         metadata.setSupportedRoles(EnumSet.of(TowerRole.SUSPENSION, TowerRole.DEAD_END));
-        draft.setEngineeringMetadata(metadata);
+        draft.setPlanningMetadata(metadata);
 
         // Mirrors PoleDesignerPanel.saveDraft(forceNewId=true) construction.
         PoleDesign saved = new PoleDesign(draft.getName());
         saved.setLayers(draft.getLayers());
         saved.setAttachments(draft.getAttachments());
         saved.setTowerStructure(draft.getTowerStructure());
-        saved.setEngineeringMetadata(draft.getEngineeringMetadata());
+        saved.setPlanningMetadata(draft.getPlanningMetadata());
 
-        assertEquals(metadata, saved.getEngineeringMetadata());
+        assertEquals(metadata, saved.getPlanningMetadata());
         PoleDesign restored = PoleDesign.fromJson(saved.toJson());
         if (restored != null) {
-            assertEquals(metadata, restored.getEngineeringMetadata());
+            assertEquals(metadata, restored.getPlanningMetadata());
         }
     }
 

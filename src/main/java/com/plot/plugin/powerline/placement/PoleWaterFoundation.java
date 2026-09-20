@@ -27,7 +27,7 @@ public final class PoleWaterFoundation {
             return;
         }
         BlockPos column = WorldCoordinateUtils.canvasToBlockXZ(planPoint, coordinates);
-        for (int y = base.engineeringGroundY() + 1; y <= base.buildBaseY(); y++) {
+        for (int y = base.terrainGroundY() + 1; y <= base.buildBaseY(); y++) {
             BlockPos pos = new BlockPos(column.getX(), y, column.getZ());
             String blockId = MaterialMixResolver.resolve(poleMaterial, pos, footprintId);
             recordBlock(result, projection, pos, blockId);

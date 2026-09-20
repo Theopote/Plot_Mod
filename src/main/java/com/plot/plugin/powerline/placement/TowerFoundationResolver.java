@@ -23,23 +23,23 @@ public final class TowerFoundationResolver {
             int fallback = frame != null ? frame.groundY() : 0;
             return uniformPlan(fallback);
         }
-        int[] engineering = new int[TowerFoundationPlan.CORNER_COUNT];
+        int[] terrainGround = new int[TowerFoundationPlan.CORNER_COUNT];
         int[] buildBase = new int[TowerFoundationPlan.CORNER_COUNT];
-        int minEngineering = Integer.MAX_VALUE;
-        int maxEngineering = Integer.MIN_VALUE;
+        int minTerrainGround = Integer.MAX_VALUE;
+        int maxTerrainGround = Integer.MIN_VALUE;
         int reference = frame.groundY();
         for (int corner = 0; corner < TowerFoundationPlan.CORNER_COUNT; corner++) {
             TowerLocalPoint cornerPoint = TowerStructureGeometry.cornerPoint(baseStation, corner);
             Vec2d planPoint = frame.toPlanPoint(cornerPoint.lateral(), cornerPoint.longitudinal());
             PolePlacementBase placement = PolePlacementBase.resolve(planPoint, terrain);
-            engineering[corner] = placement.engineeringGroundY();
+            terrainGround[corner] = placement.terrainGroundY();
             buildBase[corner] = placement.buildBaseY();
-            minEngineering = Math.min(minEngineering, engineering[corner]);
-            maxEngineering = Math.max(maxEngineering, engineering[corner]);
+            minTerrainGround = Math.min(minTerrainGround, terrainGround[corner]);
+            maxTerrainGround = Math.max(maxTerrainGround, terrainGround[corner]);
             reference = Math.max(reference, buildBase[corner]);
         }
-        int uneven = maxEngineering == Integer.MIN_VALUE ? 0 : maxEngineering - minEngineering;
-        return new TowerFoundationPlan(reference, engineering, buildBase, uneven);
+        int uneven = maxTerrainGround == Integer.MIN_VALUE ? 0 : maxTerrainGround - minTerrainGround;
+        return new TowerFoundationPlan(reference, terrainGround, buildBase, uneven);
     }
 
     public static boolean exceedsUnevenWarningThreshold(TowerFoundationPlan plan) {

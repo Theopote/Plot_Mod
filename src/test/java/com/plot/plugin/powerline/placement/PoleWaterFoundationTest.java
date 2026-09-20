@@ -28,7 +28,7 @@ class PoleWaterFoundationTest {
     void placementBaseUsesWaterSurfaceWhenAboveEngineeringGround() {
         TerrainSampler terrain = waterTerrain(60, 70);
         PolePlacementBase base = PolePlacementBase.resolve(new Vec2d(0, 0), terrain);
-        assertEquals(60, base.engineeringGroundY());
+        assertEquals(60, base.terrainGroundY());
         assertEquals(70, base.buildBaseY());
         assertEquals(71, base.poleLayerStartY());
         assertTrue(base.requiresUnderwaterFill());
@@ -55,11 +55,11 @@ class PoleWaterFoundationTest {
         assertTrue(result.placementRecords.containsKey(new BlockPos(0, 76, 0)), "pole top at water+6");
     }
 
-    private static TerrainSampler waterTerrain(int engineeringGroundY, int waterSurfaceY) {
+    private static TerrainSampler waterTerrain(int terrainGroundY, int waterSurfaceY) {
         return new TerrainSampler() {
             @Override
             public int sampleSurfaceY(Vec2d planPoint) {
-                return engineeringGroundY;
+                return terrainGroundY;
             }
 
             @Override
@@ -69,7 +69,7 @@ class PoleWaterFoundationTest {
 
             @Override
             public boolean isSolidBlock(int worldX, int y, int worldZ) {
-                return y <= engineeringGroundY;
+                return y <= terrainGroundY;
             }
         };
     }

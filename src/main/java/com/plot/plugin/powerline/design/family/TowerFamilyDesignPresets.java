@@ -8,7 +8,7 @@ import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import com.plot.plugin.powerline.equipment.InsulatorAssemblyCatalog;
 import com.plot.plugin.powerline.equipment.InsulatorType;
-import com.plot.plugin.powerline.design.TowerEngineeringMetadata;
+import com.plot.plugin.powerline.design.TowerPlanningMetadata;
 import com.plot.plugin.powerline.model.TowerRole;
 
 import java.util.EnumSet;
@@ -454,12 +454,12 @@ public final class TowerFamilyDesignPresets {
             metadata(TowerRole.TERMINAL, 38, 65, 90));
     }
 
-    private static TowerEngineeringMetadata metadata(
+    private static TowerPlanningMetadata metadata(
             TowerRole role,
             double height,
             double maxSpan,
             double maxAngle) {
-        TowerEngineeringMetadata metadata = new TowerEngineeringMetadata();
+        TowerPlanningMetadata metadata = new TowerPlanningMetadata();
         metadata.setNominalHeight(height);
         metadata.setMaxRecommendedSpan(maxSpan);
         metadata.setMaxRecommendedDeflectionAngle(maxAngle);
@@ -474,7 +474,7 @@ public final class TowerFamilyDesignPresets {
             double attachmentHeight,
             InsulatorType insulatorType,
             int insulatorLength,
-            TowerEngineeringMetadata metadata) {
+            TowerPlanningMetadata metadata) {
         PoleDesign design = new PoleDesign(id, name);
         TowerStructureDesign structure = TowerStructurePresets.classicDoubleArmTower().copy();
         scaleStationFootprint(structure, baseWidth, TowerStructurePresets.CLASSIC_BASE_HALF_WIDTH);
@@ -482,7 +482,7 @@ public final class TowerFamilyDesignPresets {
         design.setAttachments(TowerConductorArrangement.classicLattice().createAttachments(
             attachmentHeight, insulatorType, insulatorLength));
         InsulatorAssemblyCatalog.applyStandardDefaults(design);
-        design.setEngineeringMetadata(metadata);
+        design.setPlanningMetadata(metadata);
         return design;
     }
 
@@ -493,7 +493,7 @@ public final class TowerFamilyDesignPresets {
             double attachmentHeight,
             InsulatorType insulatorType,
             int insulatorLength,
-            TowerEngineeringMetadata metadata) {
+            TowerPlanningMetadata metadata) {
         PoleDesign design = new PoleDesign(id, name);
         TowerStructureDesign structure = TowerStructurePresets.smallLatticeTower().copy();
         scaleStationFootprint(structure, baseWidth, TowerStructurePresets.SMALL_BASE_HALF_WIDTH);
@@ -501,7 +501,7 @@ public final class TowerFamilyDesignPresets {
         design.setAttachments(TowerConductorArrangement.classicLattice().createAttachments(
             attachmentHeight, insulatorType, insulatorLength));
         InsulatorAssemblyCatalog.applyStandardDefaults(design);
-        design.setEngineeringMetadata(metadata);
+        design.setPlanningMetadata(metadata);
         return design;
     }
 
@@ -511,13 +511,13 @@ public final class TowerFamilyDesignPresets {
             double attachmentHeight,
             InsulatorType insulatorType,
             int insulatorLength,
-            TowerEngineeringMetadata metadata) {
+            TowerPlanningMetadata metadata) {
         PoleDesign design = new PoleDesign(id, name);
         design.setTowerStructure(TowerStructurePresets.heavyTransmissionTower().copy());
         design.setAttachments(TowerConductorArrangement.heavyTransmission().createAttachments(
             attachmentHeight, insulatorType, insulatorLength));
         InsulatorAssemblyCatalog.applyMegaDefaults(design, insulatorType);
-        design.setEngineeringMetadata(metadata);
+        design.setPlanningMetadata(metadata);
         return design;
     }
 
@@ -527,13 +527,13 @@ public final class TowerFamilyDesignPresets {
             double attachmentHeight,
             InsulatorType insulatorType,
             int insulatorLength,
-            TowerEngineeringMetadata metadata) {
+            TowerPlanningMetadata metadata) {
         PoleDesign design = new PoleDesign(id, name);
         design.setTowerStructure(TowerStructurePresets.cupTower().copy());
         design.setAttachments(TowerConductorArrangement.heavyTransmission().createAttachments(
             attachmentHeight, insulatorType, insulatorLength));
         InsulatorAssemblyCatalog.applyStandardDefaults(design);
-        design.setEngineeringMetadata(metadata);
+        design.setPlanningMetadata(metadata);
         return design;
     }
 
@@ -563,7 +563,7 @@ public final class TowerFamilyDesignPresets {
             double attachmentHeight,
             InsulatorType insulatorType,
             int insulatorLength,
-            TowerEngineeringMetadata metadata) {
+            TowerPlanningMetadata metadata) {
         PoleDesign design = new PoleDesign(id, name);
         design.setTowerStructure(structure.copy());
         design.setAttachments(arrangement.toAttachments(attachmentHeight, insulatorType, insulatorLength));
@@ -572,7 +572,7 @@ public final class TowerFamilyDesignPresets {
         } else {
             InsulatorAssemblyCatalog.applyMegaDefaults(design, insulatorType);
         }
-        design.setEngineeringMetadata(metadata);
+        design.setPlanningMetadata(metadata);
         return design;
     }
 }

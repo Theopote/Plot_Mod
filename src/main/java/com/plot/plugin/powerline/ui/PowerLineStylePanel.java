@@ -220,6 +220,6 @@ public final class PowerLineStylePanel {
         PowerLineUiWidgets.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.style.advanced_hint"));
-        styleControls.renderEngineeringOverrides(line, poleDesignerPanel);
+        styleControls.renderAdvancedStyleControls(line, poleDesignerPanel);
     }
 }
