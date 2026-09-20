@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.style;
 
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.design.ConductorArrangement;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -53,14 +54,16 @@ class PowerLineStylePresetTest {
 
         PowerLineStylePreset detected = PowerLineStylePresetCatalog.detect(line);
         assertEquals(PowerLineStylePreset.RUSTIC_ID, detected.getId());
-        assertEquals(PowerLineStylePreset.ConductorLayout.SINGLE, detected.getConductorLayout());
+        assertEquals(ConductorArrangement.CATALOG_SINGLE, detected.getConductorArrangement().getCatalogId());
     }
 
     @Test
     void latticePresetUsesBundledTransmissionConductors() {
         PowerLineStylePreset preset = PowerLineStylePresetCatalog.classicLattice();
         assertEquals(3, preset.expectedConductorCount());
-        assertEquals(PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL, preset.getConductorLayout());
+        assertEquals(
+            ConductorArrangement.CATALOG_THREE_HORIZONTAL,
+            preset.getConductorArrangement().getCatalogId());
     }
 
     @Test
