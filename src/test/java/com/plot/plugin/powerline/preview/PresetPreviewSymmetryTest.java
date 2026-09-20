@@ -42,10 +42,10 @@ class PresetPreviewSymmetryTest {
     }
 
     @Test
-    void steampunkGalleryUsesStructuralRepresentation() {
+    void steampunkGalleryUsesVoxelRepresentation() {
         var preset = PowerLineStylePresetCatalog.steampunkBrass();
         assertEquals(
-            com.plot.plugin.powerline.style.PreviewRepresentation.STRUCTURAL_FRONT,
+            com.plot.plugin.powerline.style.PreviewRepresentation.VOXEL_FRONT,
             com.plot.plugin.powerline.style.PowerLineStylePreviewBinding.previewRepresentation(preset));
     }
 

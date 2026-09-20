@@ -498,10 +498,6 @@ public final class PowerLineStyleCardRenderer {
             float y0,
             float x1,
             float y1) {
-        if (design.hasTowerStructure()
-                && TowerStructuralElevationRenderer.drawSide(drawList, design, x0, y0, x1, y1)) {
-            return;
-        }
         PoleVoxelElevationRenderer.drawSide(drawList, design, x0, y0, x1, y1);
     }
 

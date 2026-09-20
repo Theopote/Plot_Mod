@@ -65,7 +65,11 @@ public final class PowerLineSpacingPolicy {
             return;
         }
         line.setMaxPoleSpacing(maxSpacing);
-        line.setSpacingCustomized(customized);
+        if (customized) {
+            line.getStyleOverrides().setPreferredSpacing(maxSpacing);
+        } else {
+            line.getStyleOverrides().setPreferredSpacing(null);
+        }
     }
 
     public static void applyStyleDefaultSpacing(PowerLineFootprint line, PoleSpacingProfile profile) {
@@ -74,7 +78,7 @@ public final class PowerLineSpacingPolicy {
         }
         line.setCloseSpacingWarningThreshold(profile.defaultCloseSpacingWarningThreshold());
         line.setMaxPoleSpacing(profile.preferred());
-        line.setSpacingCustomized(false);
+        line.getStyleOverrides().setPreferredSpacing(null);
     }
 
     public static boolean differsFromStyleRecommendation(PowerLineFootprint line, PowerLineStylePreset preset) {

@@ -127,7 +127,7 @@ public final class PowerLineRoutePanel {
             if (density != PowerLineUiPresets.SpacingDensity.values()[0]) {
                 ImGui.sameLine();
             }
-            boolean selected = !line.isSpacingCustomized() && density == detected;
+            boolean selected = !PowerLineStyleEditor.isSpacingCustomized(line) && density == detected;
             String label = PlotI18n.tr("plugin.powerline.route.spacing." + density.name().toLowerCase());
             if (selected) {
                 ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, PluginUiColors.ACCENT_BLUE);
@@ -272,7 +272,7 @@ public final class PowerLineRoutePanel {
 
     private void renderSpacingRecommendation(PowerLineFootprint line) {
         PowerLineStylePreset preset = PowerLineStylePresetCatalog.activePreset(line);
-        if (preset == null || !line.isSpacingCustomized()) {
+        if (preset == null || !PowerLineStyleEditor.isSpacingCustomized(line)) {
             return;
         }
         if (!PowerLineSpacingPolicy.differsFromStyleRecommendation(line, preset)) {

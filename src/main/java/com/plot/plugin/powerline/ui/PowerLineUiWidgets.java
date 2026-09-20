@@ -2,7 +2,6 @@ package com.plot.plugin.powerline.ui;
 
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
-import com.plot.plugin.powerline.PowerLineSagPolicy;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.plugin.ui.PluginUiColors;
@@ -271,7 +270,7 @@ public final class PowerLineUiWidgets {
             current,
             defaultMix,
             onChange::accept,
-            () -> ctx.pushEditSnapshot(),
+                ctx::pushEditSnapshot,
             (activated, changed, deactivatedAfterEdit) -> ctx.trackPendingEdit(
                 id + "_accent",
                 activated,

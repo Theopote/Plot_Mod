@@ -197,13 +197,13 @@ public final class PowerLineStyleDefinition {
         line.setTopWireMaterial(topWireMaterial);
         PowerLineUiPresets.applySag(line, sagPreset);
         line.setMaxSagDepth(maxSagDepth);
-        if (!line.isSpacingCustomized()) {
+        if (!PowerLineStyleEditor.isSpacingCustomized(line)) {
             PowerLineSpacingPolicy.applyStyleDefaultSpacing(line, spacingProfile);
         }
         line.setParametricTowerConfig(getParametricConfig());
     }
 
-    /** footprint 生效值是否仍与本定义默认 bundle 一致（不含 spacingCustomized）。 */
+    /** footprint 生效值是否仍与本定义默认 bundle 一致（不含间距 override）。 */
     public boolean matches(PowerLineFootprint line) {
         if (line == null) {
             return false;

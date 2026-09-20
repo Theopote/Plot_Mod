@@ -31,18 +31,18 @@ class PowerLineStylePreviewModeTest {
     }
 
     @Test
-    void classicLatticeUsesStructuralPreview() {
+    void classicLatticeUsesVoxelPreview() {
         assertEquals(
-            PreviewRepresentation.STRUCTURAL_FRONT,
+            PreviewRepresentation.VOXEL_FRONT,
             PowerLineStylePreviewBinding.previewRepresentation(PowerLineStylePresetCatalog.classicLattice()));
     }
 
     @Test
-    void parametricDecorativeTowersUseStructuralPreview() {
+    void parametricDecorativeTowersUseVoxelPreview() {
         PowerLineStylePreset steampunk = PowerLineStylePresetCatalog.steampunkBrass();
         PowerLineStylePreset modernHv = PowerLineStylePresetCatalog.modernHvGlass();
-        assertEquals(PreviewRepresentation.STRUCTURAL_FRONT, PowerLineStylePreviewBinding.previewRepresentation(steampunk));
-        assertEquals(PreviewRepresentation.STRUCTURAL_FRONT, PowerLineStylePreviewBinding.previewRepresentation(modernHv));
+        assertEquals(PreviewRepresentation.VOXEL_FRONT, PowerLineStylePreviewBinding.previewRepresentation(steampunk));
+        assertEquals(PreviewRepresentation.VOXEL_FRONT, PowerLineStylePreviewBinding.previewRepresentation(modernHv));
         assertEquals(PreviewOverlay.ATTACHMENTS, PowerLineStylePreviewBinding.previewOverlay(steampunk));
         assertEquals(PreviewOverlay.ATTACHMENTS, PowerLineStylePreviewBinding.previewOverlay(modernHv));
         assertTrue(PowerLineStylePreviewBinding.previewDesign(steampunk).hasTowerStructure());
@@ -50,9 +50,9 @@ class PowerLineStylePreviewModeTest {
     }
 
     @Test
-    void megaUsesStructuralPreview() {
+    void megaUsesVoxelPreview() {
         assertEquals(
-            PreviewRepresentation.STRUCTURAL_FRONT,
+            PreviewRepresentation.VOXEL_FRONT,
             PowerLineStylePreviewBinding.previewRepresentation(PowerLineStylePresetCatalog.megaLattice()));
     }
 
@@ -190,7 +190,7 @@ class PowerLineStylePreviewModeTest {
         PowerLineStylePreset smart = PowerLineStylePresetCatalog.smartTowers();
         assertTrue(PowerLineStylePreviewBinding.usesAdaptiveHeightMarker(smart));
         assertEquals(
-            PreviewRepresentation.STRUCTURAL_FRONT,
+            PreviewRepresentation.VOXEL_FRONT,
             PowerLineStylePreviewBinding.previewRepresentation(smart));
     }
 
@@ -202,11 +202,11 @@ class PowerLineStylePreviewModeTest {
     }
 
     @Test
-    void bindingForLatticeDesignStaysStructural() {
+    void bindingForLatticeDesignUsesVoxel() {
         PoleDesign design = PowerLineStylePreviewBinding.previewDesign(PowerLineStylePresetCatalog.classicLattice());
         StyleCardPreviewBinding binding = PowerLineStylePreviewBinding.bindingForDesign(
             design, PowerLineStylePresetCatalog.classicLattice());
-        assertEquals(PreviewRepresentation.STRUCTURAL_FRONT, binding.representation());
+        assertEquals(PreviewRepresentation.VOXEL_FRONT, binding.representation());
         assertEquals(PreviewOverlay.ATTACHMENTS, binding.overlay());
     }
 

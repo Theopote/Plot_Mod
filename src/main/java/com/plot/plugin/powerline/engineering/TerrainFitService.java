@@ -252,7 +252,7 @@ public final class TerrainFitService {
             }
             walked += segment;
         }
-        return pathPoints.get(pathPoints.size() - 1).copy();
+        return pathPoints.getLast().copy();
     }
 
     private static boolean hasNearbyConstraint(PowerLineFootprint line, double stationing) {

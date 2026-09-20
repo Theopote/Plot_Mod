@@ -37,7 +37,7 @@ class PowerLineSpacingPolicyTest {
 
         assertEquals(15.0, line.getCloseSpacingWarningThreshold(), 0.01);
         assertEquals(30.0, line.getMaxPoleSpacing(), 0.01);
-        assertFalse(line.isSpacingCustomized());
+        assertFalse(PowerLineStyleEditor.isSpacingCustomized(line));
         assertEquals(PowerLineUiPresets.SpacingDensity.NORMAL, PowerLineUiPresets.detectSpacing(line));
     }
 
@@ -45,12 +45,12 @@ class PowerLineSpacingPolicyTest {
     void styleApplyPreservesCustomizedSpacing() {
         PowerLineFootprint line = sampleLine();
         line.setMaxPoleSpacing(72.0);
-        line.setSpacingCustomized(true);
+        PowerLineStyleEditor.afterSpacingEdit(line);
 
         PowerLineStylePresetCatalog.simpleSteel().apply(line);
 
         assertEquals(72.0, line.getMaxPoleSpacing(), 0.01);
-        assertTrue(line.isSpacingCustomized());
+        assertTrue(PowerLineStyleEditor.isSpacingCustomized(line));
         assertTrue(PowerLineSpacingPolicy.differsFromStyleRecommendation(line,
             PowerLineStylePresetCatalog.simpleSteel()));
     }
@@ -66,7 +66,7 @@ class PowerLineSpacingPolicyTest {
             PowerLineStylePresetCatalog.classicLattice().getSpacingProfile().sparseMaxSpacing(),
             line.getMaxPoleSpacing(),
             1.0);
-        assertFalse(line.isSpacingCustomized());
+        assertFalse(PowerLineStyleEditor.isSpacingCustomized(line));
         assertEquals(PowerLineUiPresets.SpacingDensity.SPARSE, PowerLineUiPresets.detectSpacing(line));
     }
 
@@ -75,7 +75,7 @@ class PowerLineSpacingPolicyTest {
         PowerLineFootprint line = sampleLine();
         PowerLineStylePresetCatalog.classicWood().apply(line);
         line.setMaxPoleSpacing(55.0);
-        line.setSpacingCustomized(true);
+        PowerLineStyleEditor.afterSpacingEdit(line);
 
         assertNull(PowerLineUiPresets.detectSpacing(line));
     }
@@ -95,7 +95,7 @@ class PowerLineSpacingPolicyTest {
 
         line.setCloseSpacingWarningThreshold(12.0);
 
-        assertFalse(line.isSpacingCustomized());
+        assertFalse(PowerLineStyleEditor.isSpacingCustomized(line));
         assertFalse(PowerLineSpacingPolicy.differsFromStyleRecommendation(line, preset));
     }
 
@@ -109,7 +109,7 @@ class PowerLineSpacingPolicyTest {
         assertFalse(PowerLineSpacingPolicy.differsFromStyleRecommendation(line, preset));
 
         line.setMaxPoleSpacing(55.0);
-        line.setSpacingCustomized(true);
+        PowerLineStyleEditor.afterSpacingEdit(line);
         assertTrue(PowerLineSpacingPolicy.differsFromStyleRecommendation(line, preset));
     }
 

@@ -17,11 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * UI 热路径回归：预览不改 footprint、地形修正才入撤销栈、换绑失败回滚、清预览清报告。
@@ -107,7 +103,7 @@ class PowerLineActionsHotPathTest {
         assertEquals(before, project.toJson());
 
         assertTrue(TerrainTestFixtures.applyTerrainFix(line, terrain, 1));
-        assertFalse(project.toJson().equals(before));
+        assertNotEquals(project.toJson(), before);
     }
 
     private static PowerLineProject projectWith(PowerLineFootprint line) {

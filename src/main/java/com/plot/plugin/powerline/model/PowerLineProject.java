@@ -170,22 +170,6 @@ public class PowerLineProject {
         String poleDesignId;
         String towerFamilyId;
 
-        static StyleOverridesData from(StyleOverrides overrides) {
-            StyleOverridesData data = new StyleOverridesData();
-            if (overrides == null || overrides.isEmpty()) {
-                return data;
-            }
-            data.sagRatio = overrides.getSagRatio();
-            data.maxSagDepth = overrides.getMaxSagDepth();
-            data.wireMaterial = overrides.getWireMaterial();
-            data.poleMaterial = overrides.getPoleMaterial();
-            data.topWireMaterial = overrides.getTopWireMaterial();
-            data.preferredSpacing = overrides.getPreferredSpacing();
-            data.poleDesignId = overrides.getPoleDesignId();
-            data.towerFamilyId = overrides.getTowerFamilyId();
-            return data;
-        }
-
         void applyTo(StyleOverrides overrides) {
             if (overrides == null) {
                 return;
@@ -224,6 +208,8 @@ public class PowerLineProject {
         MaterialMix topWireMaterial;
         List<PoleOverrideData> poleOverrides = new ArrayList<>();
         List<LayoutConstraintData> layoutConstraints = new ArrayList<>();
+        /** 旧档字段：间距自定义已迁移至 styleOverrides.preferredSpacing。 */
+        @Deprecated
         boolean spacingCustomized;
         String poleSpacingMode;
         int targetTowerCount = 2;
@@ -281,11 +267,8 @@ public class PowerLineProject {
                 for (PoleLayoutConstraint constraint : line.getLayoutConstraints()) {
                     lineData.layoutConstraints.add(LayoutConstraintData.from(constraint));
                 }
-                lineData.spacingCustomized = line.isSpacingCustomized();
                 lineData.poleSpacingMode = line.getPoleSpacingMode().name();
                 lineData.targetTowerCount = line.getTargetTowerCount();
-                com.plot.plugin.powerline.style.PowerLineStyleEditor.syncOverridesFromFootprint(line);
-                lineData.styleOverrides = StyleOverridesData.from(line.getStyleOverrides());
                 lineData.parametricTowerConfig = TowerGeneratorConfigData.from(line.getParametricTowerConfig());
                 lineData.pathClosed = line.isClosedLoop();
                 PowerLineSourceDescriptor source = line.getSourceDescriptor();
@@ -380,7 +363,15 @@ public class PowerLineProject {
                     }
                     footprint.setLayoutConstraints(constraints);
                 }
-                footprint.setSpacingCustomized(lineData.spacingCustomized);
+                StyleOverridesData overridesData = lineData.styleOverrides != null
+                    ? lineData.styleOverrides
+                    : new StyleOverridesData();
+                overridesData.applyTo(footprint.getStyleOverrides());
+                if (lineData.spacingCustomized
+                        && footprint.getStyleOverrides().getPreferredSpacing() == null) {
+                    footprint.getStyleOverrides().setPreferredSpacing(lineData.maxPoleSpacing);
+                }
+                com.plot.plugin.powerline.style.PowerLineStyleEditor.syncOverridesFromFootprint(footprint);
                 if (lineData.poleSpacingMode != null && !lineData.poleSpacingMode.isBlank()) {
                     try {
                         footprint.setPoleSpacingMode(PoleSpacingMode.valueOf(lineData.poleSpacingMode));
@@ -390,10 +381,6 @@ public class PowerLineProject {
                 }
                 footprint.setTargetTowerCount(lineData.targetTowerCount);
                 footprint.setClosedPath(lineData.pathClosed);
-                StyleOverridesData overridesData = lineData.styleOverrides != null
-                    ? lineData.styleOverrides
-                    : new StyleOverridesData();
-                overridesData.applyTo(footprint.getStyleOverrides());
                 if (lineData.parametricTowerConfig != null) {
                     footprint.setParametricTowerConfig(lineData.parametricTowerConfig.toConfig());
                 }

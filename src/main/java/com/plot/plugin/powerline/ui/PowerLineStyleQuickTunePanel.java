@@ -86,7 +86,7 @@ public final class PowerLineStyleQuickTunePanel {
     private void renderPlacementContext(PowerLineFootprint line, PowerLineStylePreset base) {
         PowerLineUiPresets.SpacingDensity density = PowerLineSpacingPolicy.effectiveDensity(line);
         String densityLabel = PlotI18n.tr("plugin.powerline.route.spacing." + density.name().toLowerCase());
-        double spacing = line.isSpacingCustomized()
+        double spacing = PowerLineStyleEditor.isSpacingCustomized(line)
             ? line.getMaxPoleSpacing()
             : PowerLineSpacingPolicy.spacingForDensity(line, density);
         PowerLineUiWidgets.textColored(
@@ -95,7 +95,7 @@ public final class PowerLineStyleQuickTunePanel {
                 "plugin.powerline.style.placement_context",
                 densityLabel,
                 spacing));
-        if (line.isSpacingCustomized()) {
+        if (PowerLineStyleEditor.isSpacingCustomized(line)) {
             ImGui.sameLine();
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,

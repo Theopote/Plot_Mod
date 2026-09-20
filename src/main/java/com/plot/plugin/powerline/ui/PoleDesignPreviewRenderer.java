@@ -10,7 +10,6 @@ import com.plot.plugin.powerline.preview.PoleVoxelElevationRenderer;
 import com.plot.plugin.powerline.preview.PoleVoxelPreviewModel;
 import com.plot.plugin.powerline.preview.PoleVoxelizer;
 import com.plot.plugin.powerline.preview.PowerLinePreviewOverlayRenderer;
-import com.plot.plugin.powerline.preview.TowerStructuralElevationRenderer;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -18,7 +17,7 @@ import imgui.ImVec2;
 import imgui.flag.ImGuiWindowFlags;
 
 /**
- * 杆塔设计器预览：分层杆使用体素立面，参数化塔使用结构立面 + 设计辅助 overlay。
+ * 杆塔设计器预览：分层杆与塔体均使用 {@link PoleVoxelizer} 体素立面（与落地建造同形）。
  */
 public final class PoleDesignPreviewRenderer {
     static final float MIN_PANE_HEIGHT = 192f;
@@ -81,9 +80,7 @@ public final class PoleDesignPreviewRenderer {
         float eachPaneHeight = Math.max(28f, (contentHeight - PANE_GAP) * 0.5f);
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
-        PoleVoxelPreviewModel model = design.hasTowerStructure()
-            ? null
-            : PoleVoxelizer.voxelize(design);
+        PoleVoxelPreviewModel model = PoleVoxelizer.voxelize(design);
 
         float frontY0 = origin.y;
         float frontY1 = frontY0 + eachPaneHeight;
@@ -144,21 +141,6 @@ public final class PoleDesignPreviewRenderer {
 
         float innerY0 = y0 + ImGui.getFontSize() + PANE_LABEL_GAP;
         drawList.pushClipRect(x0, innerY0, x1, y1);
-        if (design.hasTowerStructure()) {
-            TowerStructuralElevationRenderer.StructuralView structuralView = view == PoleVoxelElevationRenderer.ElevationView.FRONT
-                ? TowerStructuralElevationRenderer.StructuralView.FRONT
-                : TowerStructuralElevationRenderer.StructuralView.SIDE;
-            boolean drawn = structuralView == TowerStructuralElevationRenderer.StructuralView.FRONT
-                ? TowerStructuralElevationRenderer.drawFront(drawList, design, x0, innerY0, x1, y1)
-                : TowerStructuralElevationRenderer.drawSide(drawList, design, x0, innerY0, x1, y1);
-            TowerStructuralElevationRenderer.StructuralLayout layout = TowerStructuralElevationRenderer.computeLayout(
-                design, structuralView, x0, innerY0, x1, y1);
-            if (drawn && layout != null) {
-                renderStructuralDesignerOverlay(drawList, design, view, layout, x0, x1);
-            }
-            drawList.popClipRect();
-            return;
-        }
         if (model != null && !model.isEmpty()) {
             PoleVoxelElevationRenderer.draw(drawList, model, view, x0, innerY0, x1, y1);
             PoleVoxelElevationRenderer.ElevationLayout layout = PoleVoxelElevationRenderer.computeLayout(
@@ -168,50 +150,6 @@ public final class PoleDesignPreviewRenderer {
             }
         }
         drawList.popClipRect();
-    }
-
-    private static void renderStructuralDesignerOverlay(
-            ImDrawList drawList,
-            PoleDesign design,
-            PoleVoxelElevationRenderer.ElevationView view,
-            TowerStructuralElevationRenderer.StructuralLayout layout,
-            float x0,
-            float x1) {
-        TowerStructureDesign structure = design.getTowerStructure();
-        for (TowerStation station : structure.sortedStations()) {
-            float y = layout.mapY(station.getHeight());
-            drawList.addLine(x0 + 2f, y, x1 - 2f, y, COLOR_STATION_GUIDE, 1f);
-        }
-        for (TowerArm arm : structure.getArms()) {
-            float y = layout.mapY(arm.getBaseHeight());
-            double halfSpan = view == PoleVoxelElevationRenderer.ElevationView.FRONT
-                ? arm.getLateralReach()
-                : arm.getLongitudinalHalfWidth();
-            drawList.addLine(layout.mapX(-halfSpan), y, layout.mapX(halfSpan), y, COLOR_ARM_GUIDE, 1.5f);
-        }
-        if (view != PoleVoxelElevationRenderer.ElevationView.FRONT) {
-            return;
-        }
-        for (ConductorAttachment attachment : design.getAttachments()) {
-            if (!attachment.isEnabled()) {
-                continue;
-            }
-            TowerArmAttachmentBinding.ResolvedLocalOffsets local =
-                TowerArmAttachmentBinding.resolveLocalOffsets(attachment, design.getTowerStructure());
-            PowerLinePreviewOverlayRenderer.drawFrontAttachmentOverlay(
-                drawList,
-                attachment,
-                layout.mapX(local.lateral()),
-                layout.mapY(local.vertical()),
-                layout.scale(),
-                PowerLinePreviewOverlayRenderer.PROPORTIONAL_INSULATOR_MAX_PX,
-                COLOR_ATTACHMENT,
-                COLOR_ATTACHMENT_RING,
-                COLOR_WIRE,
-                COLOR_TOP_WIRE,
-                4f,
-                null);
-        }
     }
 
     private static void renderDesignerOverlay(

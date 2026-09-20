@@ -44,11 +44,11 @@ class SteelPoleGroupPreviewTest {
     }
 
     @Test
-    void latticeSteelPresetsUseStructuralPreviewWithAttachments() {
+    void latticeSteelPresetsUseVoxelPreviewWithAttachments() {
         for (PowerLineStylePreset preset : List.of(
             PowerLineStylePresetCatalog.compactLattice(),
             PowerLineStylePresetCatalog.taperedTower())) {
-            assertEquals(PreviewRepresentation.STRUCTURAL_FRONT, PowerLineStylePreviewBinding.previewRepresentation(preset), preset.getId());
+            assertEquals(PreviewRepresentation.VOXEL_FRONT, PowerLineStylePreviewBinding.previewRepresentation(preset), preset.getId());
             assertEquals(PreviewOverlay.ATTACHMENTS, PowerLineStylePreviewBinding.previewOverlay(preset), preset.getId());
             assertTrue(PowerLineStylePreviewBinding.previewDesign(preset).hasTowerStructure(), preset.getId());
         }

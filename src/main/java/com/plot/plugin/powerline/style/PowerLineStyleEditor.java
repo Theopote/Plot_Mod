@@ -30,6 +30,10 @@ public final class PowerLineStyleEditor {
         return style != null ? style.basePreset() : null;
     }
 
+    public static boolean isSpacingCustomized(PowerLineFootprint line) {
+        return line != null && line.getStyleOverrides().getPreferredSpacing() != null;
+    }
+
     /** 解析当前 base preset（内置目录 + 用户造型模板）。 */
     public static PowerLineStylePreset resolveBasePreset(
             PowerLineFootprint line,
@@ -53,18 +57,24 @@ public final class PowerLineStyleEditor {
             LinePoleDesignOverrides.removeLineInstance(line, designProject);
         }
         line.clearStyleOverrides();
-        line.setSpacingCustomized(false);
         UserPoleDesignTemplateCatalog.toPreset(design, line).apply(line);
         syncOverridesFromFootprint(line);
     }
 
-    /** 风格卡片：切换到新的 base preset（保留 spacingCustomized）。 */
+    /** 风格卡片：切换到新的 base preset（保留间距 override）。 */
     public static void selectPreset(PowerLineFootprint line, PowerLineStylePreset preset) {
         if (line == null || preset == null) {
             return;
         }
+        Double spacingOverride = isSpacingCustomized(line)
+            ? line.getStyleOverrides().getPreferredSpacing()
+            : null;
         line.clearStyleOverrides();
         preset.apply(line);
+        if (spacingOverride != null) {
+            line.setMaxPoleSpacing(spacingOverride);
+            line.getStyleOverrides().setPreferredSpacing(spacingOverride);
+        }
         syncOverridesFromFootprint(line);
     }
 
@@ -75,7 +85,6 @@ public final class PowerLineStyleEditor {
             return;
         }
         line.clearStyleOverrides();
-        line.setSpacingCustomized(false);
         preset.apply(line);
         syncOverridesFromFootprint(line);
     }
@@ -99,16 +108,17 @@ public final class PowerLineStyleEditor {
         if (line == null) {
             return;
         }
-        line.setSpacingCustomized(true);
-        syncSpacingOverrides(line);
+        line.getStyleOverrides().setPreferredSpacing(line.getMaxPoleSpacing());
+        syncOverridesFromFootprint(line);
     }
 
     public static void afterSpacingAdopted(PowerLineFootprint line) {
         if (line == null) {
             return;
         }
-        line.setSpacingCustomized(false);
+        line.getStyleOverrides().setPreferredSpacing(null);
         syncSpacingOverrides(line);
+        syncOverridesFromFootprint(line);
     }
 
     public static boolean isModified(PowerLineFootprint line) {
@@ -128,7 +138,11 @@ public final class PowerLineStyleEditor {
         PowerLineStylePreset preset = basePreset(line);
         StyleOverrides overrides = line.getStyleOverrides();
         if (preset == null) {
+            Double spacingOverride = overrides.getPreferredSpacing();
             overrides.clear();
+            if (spacingOverride != null) {
+                overrides.setPreferredSpacing(line.getMaxPoleSpacing());
+            }
             return;
         }
         PowerLineStyleDefinition definition = preset.getDefinition();
@@ -143,20 +157,25 @@ public final class PowerLineStyleEditor {
             line.getParametricTowerConfig(),
             definition.getParametricConfig()));
         syncSpacingOverrides(line);
-        if (overrides.isEmpty() && !line.isSpacingCustomized()) {
+        if (overrides.isEmpty()) {
             overrides.clear();
         }
     }
 
     private static void syncSpacingOverrides(PowerLineFootprint line) {
         StyleOverrides overrides = line.getStyleOverrides();
-        PowerLineStylePreset preset = basePreset(line);
-        if (preset == null || !line.isSpacingCustomized()) {
-            overrides.setPreferredSpacing(null);
+        if (overrides.getPreferredSpacing() != null) {
+            overrides.setPreferredSpacing(line.getMaxPoleSpacing());
             return;
         }
-        PoleSpacingProfile profile = preset.getSpacingProfile();
-        overrides.setPreferredSpacing(overrideSpacing(line.getMaxPoleSpacing(), profile.preferred()));
+        PowerLineStylePreset preset = basePreset(line);
+        if (preset == null || PowerLineSpacingPolicy.detectDensity(line) != null) {
+            return;
+        }
+        double preferred = preset.getSpacingProfile().preferred();
+        if (Math.abs(line.getMaxPoleSpacing() - preferred) > SPACING_TOLERANCE) {
+            overrides.setPreferredSpacing(line.getMaxPoleSpacing());
+        }
     }
 
     private static Double overrideSag(double actual, PowerLineStyleDefinition definition) {
@@ -192,10 +211,6 @@ public final class PowerLineStyleEditor {
         String normalizedActual = actual == null || actual.isBlank() ? null : actual;
         String normalizedExpected = expected == null || expected.isBlank() ? null : expected;
         return Objects.equals(normalizedActual, normalizedExpected) ? null : normalizedActual;
-    }
-
-    private static Double overrideSpacing(double actual, double expected) {
-        return Math.abs(actual - expected) <= SPACING_TOLERANCE ? null : actual;
     }
 
     private static TowerGeneratorConfig overrideParametric(

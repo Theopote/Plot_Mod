@@ -44,11 +44,8 @@ public final class PowerLineStyleInstance {
         return basePreset() != null;
     }
 
-    /** 是否存在相对 base 定义的偏离（含 Route 间距自定义）。 */
+    /** 是否存在相对 base 定义的偏离（含 Route 间距 override）。 */
     public boolean isModified() {
-        if (footprint.isSpacingCustomized()) {
-            return true;
-        }
         return !overrides().isEmpty();
     }
 
@@ -58,17 +55,13 @@ public final class PowerLineStyleInstance {
         if (definition == null) {
             return false;
         }
-        if (footprint.isSpacingCustomized()) {
+        if (PowerLineStyleEditor.isSpacingCustomized(footprint)) {
             return false;
         }
         return definition.matches(footprint);
     }
 
     public int modifiedSettingCount() {
-        int count = overrides().overrideCount();
-        if (footprint.isSpacingCustomized()) {
-            count++;
-        }
-        return count;
+        return overrides().overrideCount();
     }
 }

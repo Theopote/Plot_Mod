@@ -8,7 +8,9 @@ import com.plot.core.command.BlockRecord;
 import com.plot.plugin.powerline.PoleFrame;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.TowerStructureGenerator;
+import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
+import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import com.plot.plugin.powerline.design.structure.BracingPattern;
 import com.plot.plugin.powerline.design.structure.TowerBay;
 import com.plot.plugin.powerline.design.structure.TowerDecorationCatalog;
@@ -49,6 +51,17 @@ class TowerStructurePreviewBuildConsistencyTest {
     }
 
     @Test
+    void poleVoxelizerMatchesBuildForDesignerTowerDesign() {
+        PoleDesign design = TowerStructurePresets.taperedLatticePoleDesign("designer", "Designer");
+        PowerLineFootprint footprint = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
+        String seed = footprint.getId();
+        Map<String, String> uiPreview = voxelShape(PoleVoxelizer.voxelize(design, seed));
+        Map<String, String> build = buildShape(design.getTowerStructure(), footprint);
+        assertFalse(uiPreview.isEmpty(), "designer voxel preview should place blocks");
+        assertEquals(build, uiPreview);
+    }
+
+    @Test
     void previewMatchesBuildWithDecorations() {
         TowerStructureDesign structure = asymmetricTwoStationTower();
         structure.addDecoration(TowerDecorationCatalog.beaconAtTop(8));
@@ -63,6 +76,14 @@ class TowerStructurePreviewBuildConsistencyTest {
         Map<String, String> build = buildShape(structure, footprint);
         assertFalse(preview.isEmpty(), "preview should place blocks");
         assertEquals(preview, build);
+    }
+
+    private static Map<String, String> voxelShape(PoleVoxelPreviewModel model) {
+        Map<String, String> shape = new HashMap<>();
+        for (PreviewVoxel voxel : model.voxels()) {
+            shape.put(relativeKey(voxel.x(), voxel.y(), voxel.z()), voxel.blockId());
+        }
+        return shape;
     }
 
     private static Map<String, String> previewShape(TowerStructureDesign structure, String seed) {

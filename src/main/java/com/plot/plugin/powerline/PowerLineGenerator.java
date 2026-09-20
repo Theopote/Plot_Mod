@@ -45,9 +45,7 @@ import net.minecraft.util.math.BlockPos;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.Set;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * 电力线路生成器：立杆 + 多挂点导线。
@@ -221,7 +219,7 @@ public class PowerLineGenerator {
         }
 
         boolean hasTowerStructure = design != null && design.hasTowerStructure();
-        TowerFoundationPlan foundationPlan = null;
+        TowerFoundationPlan foundationPlan;
         if (hasTowerStructure) {
             TowerStation baseStation = resolveBaseStation(design);
             foundationPlan = TowerFoundationResolver.resolve(baseStation, frame, terrain);

@@ -119,8 +119,8 @@ class PowerLineStylePresetTest {
         line.setWireMaterial(MaterialMix.single("minecraft:chain"));
         PowerLineUiPresets.applySag(line, PowerLineUiPresets.WireSag.LOOSE);
         line.setMaxSagDepth(40.0);
-        line.setSpacingCustomized(true);
         line.setMaxPoleSpacing(72);
+        PowerLineStyleEditor.afterSpacingEdit(line);
         PowerLineStyleEditor.afterStyleEdit(line);
 
         assertTrue(PowerLineStyleEditor.isModified(line));

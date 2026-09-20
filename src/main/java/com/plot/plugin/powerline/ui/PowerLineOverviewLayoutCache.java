@@ -25,7 +25,7 @@ final class PowerLineOverviewLayoutCache {
         if (line == null || coordinates == null) {
             return List.of();
         }
-        int fingerprint = line.geometryFingerprint();
+        int fingerprint = line.layoutFingerprint();
         Entry cached = CACHE.get(line.getId());
         if (cached != null && cached.fingerprint == fingerprint) {
             return cached.sites;

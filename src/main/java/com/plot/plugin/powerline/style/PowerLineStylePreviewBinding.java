@@ -26,7 +26,7 @@ public final class PowerLineStylePreviewBinding {
 
     /**
      * 当前生效设计的预览绑定（Quick Tune / 建造摘要 / tooltip）。
-     * 有塔体结构时走结构线框，避免选中后大图退回体素实心块。
+     * 塔体与落地建造共用 {@link com.plot.plugin.powerline.preview.PoleVoxelizer} 体素路径。
      */
     public static StyleCardPreviewBinding bindingForDesign(PoleDesign design, PowerLineStylePreset base) {
         PreviewRepresentation representation = previewRepresentationForDesign(design, base);
@@ -36,14 +36,10 @@ public final class PowerLineStylePreviewBinding {
 
     static PreviewRepresentation previewRepresentationForDesign(PoleDesign design, PowerLineStylePreset base) {
         if (design != null && design.hasTowerStructure()) {
-            return PreviewRepresentation.STRUCTURAL_FRONT;
+            return PreviewRepresentation.VOXEL_FRONT;
         }
         if (base != null) {
-            PreviewRepresentation fromBase = previewRepresentation(base);
-            if (fromBase == PreviewRepresentation.STRUCTURAL_FRONT) {
-                return PreviewRepresentation.VOXEL_FRONT;
-            }
-            return fromBase;
+            return previewRepresentation(base);
         }
         return PreviewRepresentation.VOXEL_FRONT;
     }
@@ -69,7 +65,7 @@ public final class PowerLineStylePreviewBinding {
         return switch (preset.getPreviewKind()) {
             case LATTICE, HEAVY_LATTICE, TRIPLE_ARM, CUP_TOWER, LATTICE_POLE, TAPERED,
                  MEGA_LATTICE, HEAVY_DOUBLE_CIRCUIT, INDUSTRIAL_PORTAL, MONSTER_PYLON,
-                 ADAPTIVE, STEAMPUNK, MODERN_HV_GLASS -> PreviewRepresentation.STRUCTURAL_FRONT;
+                 ADAPTIVE, STEAMPUNK, MODERN_HV_GLASS -> PreviewRepresentation.VOXEL_FRONT;
             default -> PreviewRepresentation.VOXEL_FRONT;
         };
     }

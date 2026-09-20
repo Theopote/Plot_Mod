@@ -4,9 +4,9 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.PlacementReadiness;
-import com.plot.api.world.WorldViewBounds;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.engineering.TerrainFitService;
+import com.plot.plugin.powerline.engineering.analysis.SpanAnalysis;
 import com.plot.test.world.IdentityCoordinateService;
 import com.plot.plugin.powerline.engineering.TerrainCollisionAnalysis;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
@@ -174,7 +174,7 @@ public final class TerrainTestFixtures {
     public static double minimumClearance(PowerLineGenerationResult result, TerrainSampler terrain) {
         TerrainCollisionAnalysis report = analyze(result, terrain);
         return report.getSpans().stream()
-            .mapToDouble(span -> span.getMinimumGroundClearance())
+            .mapToDouble(SpanAnalysis::getMinimumGroundClearance)
             .filter(value -> !Double.isInfinite(value) && !Double.isNaN(value))
             .min()
             .orElse(Double.MAX_VALUE);

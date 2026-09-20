@@ -8,7 +8,6 @@ import com.plot.plugin.powerline.path.PowerLineSourceDescriptor;
 import com.plot.plugin.powerline.path.PowerLineSourcePath;
 import com.plot.plugin.powerline.path.PolylineSourcePath;
 import com.plot.core.model.Shape;
-import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 import com.plot.plugin.powerline.style.PowerLineStyleInstance;
 import com.plot.plugin.powerline.style.StyleOverrides;
 
@@ -48,22 +47,16 @@ public class PowerLineFootprint {
     private MaterialMix poleMaterial = MaterialMix.single(DEFAULT_POLE_MATERIAL);
     private String poleDesignId;
     private String towerFamilyId;
-    /** 当前选中的风格预设 id。 */
-    private String stylePresetId;
-    /** Style 级参数化塔配置（覆盖解析到的 legacy 杆塔几何）。 */
-    private TowerGeneratorConfig parametricTowerConfig;
     /** 塔顶架空装饰线材质（视觉层次），非电气接地系统。 */
     private MaterialMix topWireMaterial = MaterialMix.single("minecraft:chain");
     private final List<PoleOverride> poleOverrides = new ArrayList<>();
     private final List<PoleLayoutConstraint> layoutConstraints = new ArrayList<>();
-    /** 玩家曾在 Route 高级区手工调整间距；切换风格时不自动覆盖。 */
-    private boolean spacingCustomized;
     /** 杆塔布置模式；默认按固定档距自动插杆。 */
     private PoleSpacingMode poleSpacingMode = PoleSpacingMode.AUTO_SPACING;
     /** {@link PoleSpacingMode#TOWER_COUNT} 时沿路径等距分布的杆塔数量。 */
     private int targetTowerCount = 2;
-    /** 相对 base {@link com.plot.plugin.powerline.style.PowerLineStyleDefinition} 的偏离项；见 {@link #styleInstance()}。 */
-    private final StyleOverrides styleOverrides = new StyleOverrides();
+    /** Base preset + 运行时推导的 overrides；见 {@link #styleInstance()}。 */
+    private final PowerLineStyleState styleState = new PowerLineStyleState();
 
     public PowerLineFootprint(List<Vec2d> pathPoints) {
         this.id = UUID.randomUUID().toString();
@@ -302,35 +295,27 @@ public class PowerLineFootprint {
     }
 
     public String getStylePresetId() {
-        return stylePresetId;
+        return styleState.presetId();
     }
 
     public void setStylePresetId(String stylePresetId) {
-        this.stylePresetId = stylePresetId != null && stylePresetId.isBlank() ? null : stylePresetId;
+        styleState.setPresetId(stylePresetId);
+    }
+
+    public PowerLineStyleState styleState() {
+        return styleState;
     }
 
     public TowerGeneratorConfig getParametricTowerConfig() {
-        return parametricTowerConfig != null ? parametricTowerConfig.copy() : null;
+        return styleState.parametricConfig();
     }
 
     public void setParametricTowerConfig(TowerGeneratorConfig parametricTowerConfig) {
-        this.parametricTowerConfig = parametricTowerConfig != null ? parametricTowerConfig.copy() : null;
+        styleState.setParametricConfig(parametricTowerConfig);
     }
 
     public boolean hasParametricTowerConfig() {
-        return parametricTowerConfig != null && parametricTowerConfig.isParametric();
-    }
-
-    /** @deprecated use {@link #getStylePresetId()} */
-    @Deprecated
-    public String getStylePackId() {
-        return getStylePresetId();
-    }
-
-    /** @deprecated use {@link #setStylePresetId(String)} */
-    @Deprecated
-    public void setStylePackId(String stylePackId) {
-        setStylePresetId(stylePackId);
+        return styleState.hasParametricConfig();
     }
 
     public MaterialMix getTopWireMaterial() {
@@ -401,14 +386,6 @@ public class PowerLineFootprint {
         }
     }
 
-    public boolean isSpacingCustomized() {
-        return spacingCustomized;
-    }
-
-    public void setSpacingCustomized(boolean spacingCustomized) {
-        this.spacingCustomized = spacingCustomized;
-    }
-
     public PoleSpacingMode getPoleSpacingMode() {
         return poleSpacingMode != null ? poleSpacingMode : PoleSpacingMode.AUTO_SPACING;
     }
@@ -428,11 +405,11 @@ public class PowerLineFootprint {
     }
 
     public StyleOverrides getStyleOverrides() {
-        return styleOverrides;
+        return styleState.overrides();
     }
 
     public void clearStyleOverrides() {
-        styleOverrides.clear();
+        styleState.clearOverrides();
     }
 
     /** Base preset + overrides 风格实例视图。 */
@@ -459,8 +436,8 @@ public class PowerLineFootprint {
         return com.plot.plugin.powerline.PowerPoleLayoutUtils.computePoleSites(this, coordinates).size();
     }
 
-    /** 影响塔/线几何的指纹（预览缓存用，不含纯分析开关）。 */
-    public int geometryFingerprint() {
+    /** 影响杆塔布局的指纹（路径、档距、布置模式等）。 */
+    public int layoutFingerprint() {
         int hash = 1;
         if (sourceDescriptor != null) {
             hash = 31 * hash + sourceDescriptor.fingerprint();
@@ -473,6 +450,16 @@ public class PowerLineFootprint {
         hash = 31 * hash + Double.hashCode(closeSpacingWarningThreshold);
         hash = 31 * hash + Double.hashCode(maxPoleSpacing);
         hash = 31 * hash + Double.hashCode(cornerAngleThreshold);
+        hash = 31 * hash + poleOverrides.hashCode();
+        hash = 31 * hash + layoutConstraints.hashCode();
+        hash = 31 * hash + Objects.hashCode(poleSpacingMode);
+        hash = 31 * hash + targetTowerCount;
+        return hash;
+    }
+
+    /** 影响视觉/导线/塔型的风格指纹（生效值 + 风格状态）。 */
+    public int styleFingerprint() {
+        int hash = 1;
         if (!hasPoleDesign()) {
             hash = 31 * hash + Double.hashCode(poleHeight);
         }
@@ -482,31 +469,14 @@ public class PowerLineFootprint {
         hash = 31 * hash + materialFingerprint(poleMaterial);
         hash = 31 * hash + Objects.hashCode(poleDesignId);
         hash = 31 * hash + Objects.hashCode(towerFamilyId);
-        hash = 31 * hash + Objects.hashCode(stylePresetId);
-        hash = 31 * hash + parametricConfigFingerprint(parametricTowerConfig);
         hash = 31 * hash + materialFingerprint(topWireMaterial);
-        hash = 31 * hash + poleOverrides.hashCode();
-        hash = 31 * hash + layoutConstraints.hashCode();
-        hash = 31 * hash + Boolean.hashCode(spacingCustomized);
-        hash = 31 * hash + Objects.hashCode(poleSpacingMode);
-        hash = 31 * hash + targetTowerCount;
+        hash = 31 * hash + styleState.generationFingerprint();
         return hash;
     }
 
-    private static int parametricConfigFingerprint(TowerGeneratorConfig config) {
-        if (config == null || !config.isParametric()) {
-            return 0;
-        }
-        TowerParameterSet parameters = config.parameters();
-        int hash = Objects.hashCode(config.profileId());
-        hash = 31 * hash + Double.hashCode(parameters.height());
-        hash = 31 * hash + Double.hashCode(parameters.baseWidth());
-        hash = 31 * hash + Double.hashCode(parameters.armSpan());
-        hash = 31 * hash + Double.hashCode(parameters.depthScale());
-        hash = 31 * hash + Double.hashCode(parameters.waistRatio());
-        hash = 31 * hash + Objects.hashCode(parameters.density());
-        hash = 31 * hash + Objects.hashCode(parameters.armLevelScales());
-        return hash;
+    /** 影响塔/线几何的指纹（预览缓存用，不含纯分析开关）。 */
+    public int geometryFingerprint() {
+        return 31 * layoutFingerprint() + styleFingerprint();
     }
 
     private static int materialFingerprint(MaterialMix mix) {
