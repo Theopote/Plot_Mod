@@ -4,9 +4,10 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.powerline.PoleFrame;
 import com.plot.plugin.powerline.TowerLocalPoint;
-import com.plot.plugin.powerline.TowerStructureTransform;
 import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureGeometry;
+
+import java.util.Arrays;
 
 /** 解析铁塔四脚处的地面/水面高度，并给出统一建造基准面。 */
 public final class TowerFoundationResolver {
@@ -48,9 +49,7 @@ public final class TowerFoundationResolver {
 
     private static TowerFoundationPlan uniformPlan(int y) {
         int[] values = new int[TowerFoundationPlan.CORNER_COUNT];
-        for (int i = 0; i < values.length; i++) {
-            values[i] = y;
-        }
+        Arrays.fill(values, y);
         return new TowerFoundationPlan(y, values, values, 0);
     }
 }

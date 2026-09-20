@@ -95,16 +95,6 @@ public final class PowerLineStylePresetCatalog {
         return presets;
     }
 
-    /** @deprecated use {@link #transmissionPresets()} */
-    @Deprecated
-    public static List<PowerLineStylePreset> engineeringPresets() {
-        return transmissionPresets().stream()
-            .filter(p -> PowerLineStylePreset.SMART_TOWERS_ID.equals(p.getId())
-                || PowerLineStylePreset.TAPERED_TOWER_ID.equals(p.getId())
-                || PowerLineStylePreset.MODERN_HV_GLASS_ID.equals(p.getId()))
-            .toList();
-    }
-
     /** @deprecated use {@link #industrialPresets()} */
     @Deprecated
     public static List<PowerLineStylePreset> industrialMegaPresets() {

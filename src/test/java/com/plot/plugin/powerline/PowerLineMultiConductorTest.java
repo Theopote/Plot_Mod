@@ -4,7 +4,6 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.PlacementReadiness;
-import com.plot.api.world.WorldViewBounds;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.ConductorAttachmentPresets;

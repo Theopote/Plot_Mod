@@ -4,7 +4,6 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.PlacementReadiness;
-import com.plot.api.world.WorldViewBounds;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.structure.BracingPattern;
@@ -118,8 +117,8 @@ class TowerStructureGeneratorTest {
         kStructure.findOrCreateBay("s0", "s1").setSideBracing(BracingPattern.NONE);
         kStructure.findOrCreateBay("s0", "s1").setHorizontalRing(false);
 
-        assertTrue(blocksWithMaterial(generateStructure(xStructure), "minecraft:gold_block").size() > 0);
-        assertTrue(blocksWithMaterial(generateStructure(kStructure), "minecraft:gold_block").size() > 0);
+        assertFalse(blocksWithMaterial(generateStructure(xStructure), "minecraft:gold_block").isEmpty());
+        assertFalse(blocksWithMaterial(generateStructure(kStructure), "minecraft:gold_block").isEmpty());
         assertTrue(generateStructure(xStructure).structureBlockCount > legsCount);
         assertTrue(generateStructure(kStructure).structureBlockCount > legsCount);
     }

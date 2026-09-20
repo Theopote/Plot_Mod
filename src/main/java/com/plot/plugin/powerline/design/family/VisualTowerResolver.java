@@ -62,7 +62,7 @@ public final class VisualTowerResolver {
     }
 
     public static String nextLargerGradedDesign(TowerFamily family, String currentDesignId) {
-        if (family == null || currentDesignId == null || !hasGradedSuspensionVariants(family)) {
+        if (currentDesignId == null || !hasGradedSuspensionVariants(family)) {
             return null;
         }
         if (family.hasSuspensionVariants()) {
