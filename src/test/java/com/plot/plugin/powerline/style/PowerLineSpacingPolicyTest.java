@@ -35,7 +35,6 @@ class PowerLineSpacingPolicyTest {
         PowerLineFootprint line = sampleLine();
         PowerLineStylePresetCatalog.classicWood().apply(line);
 
-        assertEquals(15.0, line.getCloseSpacingWarningThreshold(), 0.01);
         assertEquals(30.0, line.getMaxPoleSpacing(), 0.01);
         assertFalse(PowerLineStyleEditor.isSpacingCustomized(line));
         assertEquals(PowerLineUiPresets.SpacingDensity.NORMAL, PowerLineUiPresets.detectSpacing(line));
@@ -61,7 +60,6 @@ class PowerLineSpacingPolicyTest {
         PowerLineStylePresetCatalog.classicLattice().apply(line);
         PowerLineUiPresets.applySpacing(line, PowerLineUiPresets.SpacingDensity.SPARSE);
 
-        assertEquals(100.0, line.getCloseSpacingWarningThreshold(), 0.01);
         assertEquals(
             PowerLineStylePresetCatalog.classicLattice().getSpacingProfile().sparseMaxSpacing(),
             line.getMaxPoleSpacing(),
@@ -81,30 +79,10 @@ class PowerLineSpacingPolicyTest {
     }
 
     @Test
-    void minConfigurableFloorIsFive() {
-        PowerLineFootprint line = sampleLine();
-        line.setCloseSpacingWarningThreshold(2.0);
-        assertEquals(PowerLineFootprint.MIN_CONFIGURABLE_SPACING, line.getCloseSpacingWarningThreshold(), 0.01);
-    }
-
-    @Test
-    void closeWarningThresholdDoesNotCustomizeStyleSpacing() {
+    void differsFromStyleRecommendationUsesMaxSpacingOnly() {
         PowerLineFootprint line = sampleLine();
         PowerLineStylePreset preset = PowerLineStylePresetCatalog.classicWood();
         preset.apply(line);
-
-        line.setCloseSpacingWarningThreshold(12.0);
-
-        assertFalse(PowerLineStyleEditor.isSpacingCustomized(line));
-        assertFalse(PowerLineSpacingPolicy.differsFromStyleRecommendation(line, preset));
-    }
-
-    @Test
-    void differsFromStyleRecommendationIgnoresCloseWarningThreshold() {
-        PowerLineFootprint line = sampleLine();
-        PowerLineStylePreset preset = PowerLineStylePresetCatalog.classicWood();
-        preset.apply(line);
-        line.setCloseSpacingWarningThreshold(10.0);
 
         assertFalse(PowerLineSpacingPolicy.differsFromStyleRecommendation(line, preset));
 
@@ -114,23 +92,12 @@ class PowerLineSpacingPolicyTest {
     }
 
     @Test
-    void densityDetectionIgnoresCloseWarningThreshold() {
+    void applyDensityUpdatesMaxSpacing() {
         PowerLineFootprint line = sampleLine();
         PowerLineStylePresetCatalog.classicWood().apply(line);
-        line.setCloseSpacingWarningThreshold(10.0);
-
-        assertEquals(PowerLineUiPresets.SpacingDensity.NORMAL, PowerLineUiPresets.detectSpacing(line));
-    }
-
-    @Test
-    void applyDensityPreservesCloseWarningThreshold() {
-        PowerLineFootprint line = sampleLine();
-        PowerLineStylePresetCatalog.classicWood().apply(line);
-        line.setCloseSpacingWarningThreshold(10.0);
 
         PowerLineUiPresets.applySpacing(line, PowerLineUiPresets.SpacingDensity.DENSE);
 
-        assertEquals(10.0, line.getCloseSpacingWarningThreshold(), 0.01);
         assertEquals(
             PowerLineStylePresetCatalog.classicWood().getSpacingProfile().denseMaxSpacing(),
             line.getMaxPoleSpacing(),

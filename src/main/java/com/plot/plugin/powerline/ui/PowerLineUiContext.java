@@ -196,10 +196,6 @@ public final class PowerLineUiContext {
         actions.buildInWorld();
     }
 
-    public boolean hasMinSpacingWarning(PowerLineFootprint line) {
-        return actions.hasMinSpacingWarning(line);
-    }
-
     public void deleteLines(List<String> ids) {
         actions.deleteLines(ids);
     }

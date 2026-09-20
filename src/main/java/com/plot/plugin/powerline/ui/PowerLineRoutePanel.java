@@ -164,7 +164,7 @@ public final class PowerLineRoutePanel {
             PoleSpacingProfile profile = PowerLineSpacingPolicy.profileFor(line);
             ImGui.setTooltip(PlotI18n.tr(
                 "plugin.powerline.route.pole_spacing_style_tooltip",
-                PowerLineUiFormat.format(profile.defaultCloseSpacingWarningThreshold()),
+                PowerLineUiFormat.format(profile.denseFloor()),
                 PowerLineUiFormat.format(profile.recommendedMax()),
                 PowerLineUiFormat.format(profile.preferred())));
         }
@@ -216,11 +216,7 @@ public final class PowerLineRoutePanel {
 
         if (mode == PoleSpacingMode.AUTO_SPACING) {
             renderCornerAngleThreshold(line);
-            renderCloseSpacingWarningThreshold(line);
             renderSpacingRecommendation(line);
-            ctx.actions().closestMandatorySpacingViolation(line).ifPresent(distance -> PowerLineUiWidgets.textColored(
-                PluginUiColors.WARNING,
-                PlotI18n.tr("plugin.powerline.min_spacing_warning", PowerLineUiFormat.format(distance))));
         } else if (mode == PoleSpacingMode.ENDPOINTS_WITH_CORNERS) {
             renderCornerAngleThreshold(line);
         }
@@ -237,21 +233,6 @@ public final class PowerLineRoutePanel {
             return !line.getLayoutConstraints().isEmpty();
         }
         return false;
-    }
-
-    private void renderCloseSpacingWarningThreshold(PowerLineFootprint line) {
-        float sliderMin = (float) PowerLineFootprint.MIN_CONFIGURABLE_SPACING;
-        float sliderMax = (float) PowerLineSpacingPolicy.sliderMax(line);
-        float[] threshold = {(float) line.getCloseSpacingWarningThreshold()};
-        PowerLineUiWidgets.sliderFloatStableLineEdit(
-            ctx,
-            "close_spacing_warning_threshold",
-            "plugin.powerline.close_spacing_warning_threshold",
-            threshold,
-            sliderMin,
-            sliderMax,
-            PowerLineUiFormat.SLIDER,
-            line::setCloseSpacingWarningThreshold);
     }
 
     private void renderCornerAngleThreshold(PowerLineFootprint line) {

@@ -18,7 +18,6 @@ import com.plot.plugin.powerline.PowerLinePathSelectionAnalysis;
 import com.plot.plugin.powerline.manager.PowerLinePreviewManager;
 import com.plot.plugin.powerline.PowerLineGenerator;
 import com.plot.plugin.powerline.PowerLinePathUtils;
-import com.plot.plugin.powerline.PowerPoleLayoutUtils;
 import com.plot.plugin.powerline.path.ClosedLoopLayoutException;
 import com.plot.plugin.powerline.path.PowerLinePathLayout;
 import com.plot.plugin.powerline.design.PoleDesign;
@@ -590,44 +589,6 @@ public final class PowerLineActions {
 
     public boolean requestBuildConfirm(PowerLineFootprint line) {
         return ensurePreviewReadyForBuild(line);
-    }
-
-    public boolean hasMinSpacingWarning(PowerLineFootprint line) {
-        return closestMandatorySpacingViolation(line).isPresent();
-    }
-
-    /**
-     * 相邻必需杆塔间距小于美观建议时，返回最短那段距离（格）。
-     * 转角等硬规则杆位不会被删除，仅用于提示。
-     */
-    public java.util.OptionalDouble closestMandatorySpacingViolation(PowerLineFootprint line) {
-        if (line == null) {
-            return java.util.OptionalDouble.empty();
-        }
-        List<Vec2d> mandatory = collectMandatoryPoles(line);
-        double closest = Double.MAX_VALUE;
-        for (int i = 1; i < mandatory.size(); i++) {
-            double span = host.coordinates().projectedDistance(mandatory.get(i - 1), mandatory.get(i));
-            if (span < line.getCloseSpacingWarningThreshold()) {
-                closest = Math.min(closest, span);
-            }
-        }
-        return closest < Double.MAX_VALUE
-            ? java.util.OptionalDouble.of(closest)
-            : java.util.OptionalDouble.empty();
-    }
-
-    private List<Vec2d> collectMandatoryPoles(PowerLineFootprint line) {
-        List<Vec2d> path = line.getPathPoints();
-        List<Vec2d> mandatory = new ArrayList<>();
-        mandatory.add(path.getFirst());
-        for (int i = 1; i < path.size() - 1; i++) {
-            if (PowerPoleLayoutUtils.isCorner(path, i, line.getCornerAngleThreshold())) {
-                mandatory.add(path.get(i));
-            }
-        }
-        mandatory.add(path.getLast());
-        return mandatory;
     }
 
     public void deleteLines(List<String> ids) {

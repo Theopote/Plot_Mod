@@ -31,7 +31,6 @@ class PowerLineProjectTest {
             new Vec2d(40, 0),
             new Vec2d(40, 20)));
         line.setName("Main Feeder");
-        line.setCloseSpacingWarningThreshold(8.0);
         line.setMaxPoleSpacing(18.0);
         line.setCornerAngleThreshold(10.0);
         line.setPoleHeight(12.0);
@@ -46,7 +45,6 @@ class PowerLineProjectTest {
         assertNotNull(restoredLine);
         assertEquals("Main Feeder", restoredLine.getName());
         assertEquals(3, restoredLine.getPathPoints().size());
-        assertEquals(8.0, restoredLine.getCloseSpacingWarningThreshold(), 1e-6);
         assertEquals(18.0, restoredLine.getMaxPoleSpacing(), 1e-6);
         assertEquals(10.0, restoredLine.getCornerAngleThreshold(), 1e-6);
         assertEquals(12.0, restoredLine.getPoleHeight(), 1e-6);
@@ -56,19 +54,20 @@ class PowerLineProjectTest {
         assertEquals("design-1", restoredLine.getPoleDesignId());
         assertEquals(line.getRoadId(), restoredLine.getRoadId());
         String json = project.toJson();
-        assertTrue(json.contains("\"closeSpacingWarningThreshold\""));
+        assertFalse(json.contains("\"closeSpacingWarningThreshold\""));
         assertFalse(json.contains("\"minPoleSpacing\""));
         assertFalse(json.contains("\"spacingCustomized\""));
     }
 
     @Test
-    void legacyMinPoleSpacingJsonLoadsAsCloseSpacingWarningThreshold() {
+    void legacyCloseSpacingFieldsAreIgnoredOnLoad() {
         String json = """
             {
               "lines": [{
                 "id": "legacy-line",
                 "pathPoints": [{"x": 0.0, "y": 0.0}, {"x": 40.0, "y": 0.0}],
                 "minPoleSpacing": 9.0,
+                "closeSpacingWarningThreshold": 11.0,
                 "maxPoleSpacing": 18.0
               }]
             }
@@ -77,7 +76,6 @@ class PowerLineProjectTest {
         PowerLineProject restored = PowerLineProject.fromJson(json);
         PowerLineFootprint restoredLine = restored.getLine("legacy-line");
         assertNotNull(restoredLine);
-        assertEquals(9.0, restoredLine.getCloseSpacingWarningThreshold(), 1e-6);
         assertEquals(18.0, restoredLine.getMaxPoleSpacing(), 1e-6);
     }
 

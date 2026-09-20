@@ -72,7 +72,6 @@ class PowerLineProjectSchemaDTest {
             com.plot.plugin.powerline.style.PowerLineStylePresetCatalog.classicWood());
         line.setWireMaterial(MaterialMix.single("minecraft:chain"));
         line.setSagRatio(0.35);
-        line.setCloseSpacingWarningThreshold(12.0);
         com.plot.plugin.powerline.style.PowerLineStyleEditor.afterStyleEdit(line);
         line.setMaxPoleSpacing(48.0);
         com.plot.plugin.powerline.style.PowerLineStyleEditor.afterSpacingEdit(line);

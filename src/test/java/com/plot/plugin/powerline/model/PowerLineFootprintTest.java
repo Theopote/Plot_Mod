@@ -13,48 +13,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PowerLineFootprintTest {
 
     @Test
-    void closeWarningThresholdDoesNotChangeMaxSpacing() {
-        PowerLineFootprint footprint = new PowerLineFootprint(
-            java.util.List.of(
-                new com.plot.api.geometry.Vec2d(0, 0),
-                new com.plot.api.geometry.Vec2d(10, 0)));
-        footprint.setMaxPoleSpacing(12.0);
-        footprint.setCloseSpacingWarningThreshold(20.0);
-
-        assertEquals(20.0, footprint.getCloseSpacingWarningThreshold(), 1e-6);
-        assertEquals(12.0, footprint.getMaxPoleSpacing(), 1e-6);
-    }
-
-    @Test
-    void minSpacingCannotGoBelowConfigurableFloor() {
+    void maxSpacingCannotGoBelowConfigurableFloor() {
         PowerLineFootprint footprint = new PowerLineFootprint(
             List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
-        footprint.setCloseSpacingWarningThreshold(2.0);
-        assertEquals(PowerLineFootprint.MIN_CONFIGURABLE_SPACING, footprint.getCloseSpacingWarningThreshold(), 1e-6);
-    }
-
-    @Test
-    void maxSpacingClampsIndependentlyOfWarningThreshold() {
-        PowerLineFootprint footprint = new PowerLineFootprint(
-            java.util.List.of(
-                new com.plot.api.geometry.Vec2d(0, 0),
-                new com.plot.api.geometry.Vec2d(10, 0)));
-        footprint.setCloseSpacingWarningThreshold(8.0);
-        footprint.setMaxPoleSpacing(5.0);
-
-        assertEquals(8.0, footprint.getCloseSpacingWarningThreshold(), 1e-6);
+        footprint.setMaxPoleSpacing(2.0);
         assertEquals(PowerLineFootprint.MIN_CONFIGURABLE_SPACING, footprint.getMaxPoleSpacing(), 1e-6);
     }
 
     @Test
-    void warningThresholdMayExceedMaxSpacing() {
+    void maxSpacingClampsToAbsoluteMaximum() {
         PowerLineFootprint footprint = new PowerLineFootprint(
             List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
-        footprint.setMaxPoleSpacing(30.0);
-        footprint.setCloseSpacingWarningThreshold(40.0);
-
-        assertEquals(40.0, footprint.getCloseSpacingWarningThreshold(), 1e-6);
-        assertEquals(30.0, footprint.getMaxPoleSpacing(), 1e-6);
+        footprint.setMaxPoleSpacing(500.0);
+        assertEquals(PowerLineFootprint.ABSOLUTE_MAX_POLE_SPACING, footprint.getMaxPoleSpacing(), 1e-6);
     }
 
     @Test

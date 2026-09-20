@@ -9,9 +9,9 @@ class PowerLineUiWidgetsTest {
     @Test
     void stableLabelKeepsHiddenIdSuffix() {
         String label = PowerLineUiWidgets.stableLabel(
-            "plugin.powerline.close_spacing_warning_threshold",
-            "close_spacing_warning_threshold");
-        assertTrue(label.endsWith("##close_spacing_warning_threshold"));
+            "plugin.powerline.corner_angle",
+            "corner_angle");
+        assertTrue(label.endsWith("##corner_angle"));
         assertTrue(label.contains("##"));
     }
 

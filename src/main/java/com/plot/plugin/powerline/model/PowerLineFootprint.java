@@ -23,7 +23,7 @@ public class PowerLineFootprint {
     public static final String DEFAULT_POLE_MATERIAL = "minecraft:oak_fence";
     public static final String DEFAULT_WIRE_MATERIAL = "minecraft:iron_bars";
     public static final double DEFAULT_SAG_RATIO = 0.15;
-    /** 过近警告阈值与最大档距滑块的下限（格）。 */
+    /** 最大档距滑块的下限（格）。 */
     public static final double MIN_CONFIGURABLE_SPACING = 5.0;
     /** 高级滑块绝对上限（格）。 */
     public static final double ABSOLUTE_MAX_POLE_SPACING = 300.0;
@@ -37,7 +37,6 @@ public class PowerLineFootprint {
     /** 快照路径是否为闭合环路（无 sourceDescriptor 时由认领写入）。 */
     private boolean closedPath;
     private String roadId;
-    private double closeSpacingWarningThreshold = 15.0;
     private double maxPoleSpacing = 30.0;
     private double cornerAngleThreshold = 5.0;
     private double poleHeight = 10.0;
@@ -181,16 +180,6 @@ public class PowerLineFootprint {
 
     public void setRoadId(String roadId) {
         this.roadId = roadId;
-    }
-
-    public double getCloseSpacingWarningThreshold() {
-        return closeSpacingWarningThreshold;
-    }
-
-    public void setCloseSpacingWarningThreshold(double closeSpacingWarningThreshold) {
-        this.closeSpacingWarningThreshold = Math.max(
-            MIN_CONFIGURABLE_SPACING,
-            closeSpacingWarningThreshold);
     }
 
     public double getMaxPoleSpacing() {
@@ -435,7 +424,6 @@ public class PowerLineFootprint {
                 hash = 31 * hash + Double.hashCode(point.y);
             }
         }
-        hash = 31 * hash + Double.hashCode(closeSpacingWarningThreshold);
         hash = 31 * hash + Double.hashCode(maxPoleSpacing);
         hash = 31 * hash + Double.hashCode(cornerAngleThreshold);
         hash = 31 * hash + poleOverrides.hashCode();

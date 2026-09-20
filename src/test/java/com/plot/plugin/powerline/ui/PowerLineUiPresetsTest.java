@@ -18,7 +18,6 @@ class PowerLineUiPresetsTest {
         PowerLineStylePresetCatalog.classicWood().apply(line);
         PowerLineUiPresets.applySpacing(line, PowerLineUiPresets.SpacingDensity.SPARSE);
         assertEquals(PoleSpacingProfile.streetWood().sparseMaxSpacing(), line.getMaxPoleSpacing(), 1.0);
-        assertEquals(15.0, line.getCloseSpacingWarningThreshold());
         assertEquals(PowerLineUiPresets.SpacingDensity.SPARSE, PowerLineUiPresets.detectSpacing(line));
     }
 
