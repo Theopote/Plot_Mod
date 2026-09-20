@@ -56,7 +56,7 @@ public final class TerrainCollisionAnalysis {
         return Collections.unmodifiableList(issues);
     }
 
-    public boolean hasIssues() {
+    public boolean hasVisualConflicts() {
         return !getIssues().isEmpty();
     }
 

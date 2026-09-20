@@ -19,7 +19,7 @@ class TerrainFitServiceIntegrationTest {
         TerrainSampler terrain = TerrainTestFixtures.rollingHill(64, 74, 30.0, 8.0);
         PowerLineGenerationResult result = TerrainTestFixtures.generate(line, terrain);
 
-        assertTrue(TerrainTestFixtures.analyze(result, terrain).hasIssues());
+        assertTrue(TerrainTestFixtures.analyze(result, terrain).hasVisualConflicts());
         assertTrue(TerrainTestFixtures.minimumClearance(result, terrain) < TerrainFitService.SAFETY_MARGIN_BLOCKS);
     }
 
@@ -33,7 +33,7 @@ class TerrainFitServiceIntegrationTest {
         TerrainSampler terrain = TerrainTestFixtures.valley(72, 66, 30.0, 18.0);
         PowerLineGenerationResult result = TerrainTestFixtures.generate(line, terrain);
 
-        assertTrue(TerrainTestFixtures.analyze(result, terrain).hasIssues());
+        assertTrue(TerrainTestFixtures.analyze(result, terrain).hasVisualConflicts());
     }
 
     @Test
@@ -47,7 +47,7 @@ class TerrainFitServiceIntegrationTest {
             line,
             TerrainTestFixtures.flatTerrain(64));
 
-        assertFalse(TerrainTestFixtures.analyze(result, TerrainTestFixtures.flatTerrain(64)).hasIssues());
+        assertFalse(TerrainTestFixtures.analyze(result, TerrainTestFixtures.flatTerrain(64)).hasVisualConflicts());
     }
 
     @Test
@@ -94,6 +94,6 @@ class TerrainFitServiceIntegrationTest {
         TerrainSampler terrain = TerrainTestFixtures.cliff(64, 82, 20.0);
         PowerLineGenerationResult result = TerrainTestFixtures.generate(line, terrain);
 
-        assertTrue(TerrainTestFixtures.analyze(result, terrain).hasIssues());
+        assertTrue(TerrainTestFixtures.analyze(result, terrain).hasVisualConflicts());
     }
 }

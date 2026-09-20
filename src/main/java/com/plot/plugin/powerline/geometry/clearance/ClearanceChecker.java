@@ -2,7 +2,7 @@ package com.plot.plugin.powerline.geometry.clearance;
 
 import com.plot.plugin.powerline.geometry.PowerLineIssue;
 import com.plot.plugin.powerline.geometry.PowerLineIssueLocation;
-import com.plot.plugin.powerline.geometry.EngineeringRuleIds;
+import com.plot.plugin.powerline.geometry.ClearanceRuleIds;
 import com.plot.plugin.powerline.geometry.PowerLineIssueSeverity;
 import com.plot.plugin.powerline.geometry.SimplePowerLineIssue;
 import com.plot.plugin.powerline.geometry.ConductorSample;
@@ -55,9 +55,9 @@ public final class ClearanceChecker {
             return null;
         }
         return new SimplePowerLineIssue(
-            EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM,
+            ClearanceRuleIds.CLEARANCE_GROUND_MINIMUM,
             severity,
-            EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM,
+            ClearanceRuleIds.CLEARANCE_GROUND_MINIMUM,
             PowerLineIssueLocation.at(
                 analysis.getCriticalLocation(),
                 0.0),

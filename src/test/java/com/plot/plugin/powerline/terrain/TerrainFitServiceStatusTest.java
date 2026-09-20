@@ -7,9 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class TerrainFitServiceStatusTest {
 
     @Test
-    void remainingIssuesHintIsNonBlockingMessage() {
+    void visualConflictHintIsNonBlockingMessage() {
         assertEquals(
             com.plot.utils.PlotI18n.tr("plugin.powerline.terrain.near_terrain_hint"),
-            TerrainFitService.remainingIssuesHint());
+            TerrainFitService.visualConflictHint());
     }
 }

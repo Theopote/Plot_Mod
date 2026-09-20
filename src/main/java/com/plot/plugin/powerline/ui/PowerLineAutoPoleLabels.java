@@ -6,6 +6,8 @@ import com.plot.utils.PlotI18n;
 /** 将内部布局约束翻译为玩家可见文案。 */
 public final class PowerLineAutoPoleLabels {
     private static final String LEGACY_TERRAIN = "terrain avoidance";
+    private static final String LEGACY_ENGINEERING_INSERT_POLE =
+        "plugin.powerline.engineering.reason.insert_pole";
     private static final String REASON_TERRAIN = "plugin.powerline.route.auto_pole.reason.terrain";
     private static final String REASON_SPAN = "plugin.powerline.route.auto_pole.reason.span";
     private static final String REASON_GENERIC = "plugin.powerline.route.auto_pole.reason.generic";
@@ -25,7 +27,7 @@ public final class PowerLineAutoPoleLabels {
             if (REASON_TERRAIN.equals(reason)) {
                 return PlotI18n.tr(REASON_TERRAIN);
             }
-            if ("plugin.powerline.engineering.reason.insert_pole".equals(reason)) {
+            if (LEGACY_ENGINEERING_INSERT_POLE.equals(reason)) {
                 return PlotI18n.tr(REASON_SPAN);
             }
             return PlotI18n.tr(reason, constraint.getRequiredStationing());

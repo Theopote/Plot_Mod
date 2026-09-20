@@ -55,13 +55,13 @@ class PowerLineActionsHotPathTest {
         flatLine.setSagRatio(0.03);
         PowerLineGenerationResult flatResult = TerrainTestFixtures.generate(flatLine, flat);
         TerrainCollisionAnalysis flatReport = TerrainTestFixtures.analyze(flatResult, flat);
-        assertFalse(flatReport.hasIssues());
+        assertFalse(flatReport.hasVisualConflicts());
 
         TerrainSampler rolling = TerrainTestFixtures.rollingHill(64, 74, 30.0, 8.0);
         PowerLineFootprint hillLine = TerrainTestFixtures.rollingHillLine();
         PowerLineGenerationResult hillResult = TerrainTestFixtures.generate(hillLine, rolling);
         TerrainCollisionAnalysis hillReport = TerrainTestFixtures.analyze(hillResult, rolling);
-        assertTrue(hillReport.hasIssues());
+        assertTrue(hillReport.hasVisualConflicts());
     }
 
     @Test
@@ -98,7 +98,7 @@ class PowerLineActionsHotPathTest {
         PowerLineGenerationResult result = PowerLineGeneratorWireTest.createGenerator()
             .generate(line, terrain, resolver);
         TerrainCollisionAnalysis report = TerrainTestFixtures.analyze(result, terrain);
-        assertTrue(report.hasIssues());
+        assertTrue(report.hasVisualConflicts());
 
         assertEquals(before, project.toJson());
 

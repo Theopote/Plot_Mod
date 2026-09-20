@@ -50,7 +50,7 @@ class WireClearanceTest {
         TerrainCollisionAnalysis report = TerrainFitService.analyze(
             geometry,
             TerrainTestFixtures.groundWithOverheadObstruction(64, 70));
-        assertTrue(report.hasIssues());
+        assertTrue(report.hasVisualConflicts());
 
         span = new ConductorSpanGeometry();
         span.setSpanId("a->b:legacy");
@@ -65,6 +65,6 @@ class WireClearanceTest {
         report = TerrainFitService.analyze(
             geometry,
             TerrainTestFixtures.groundWithOverheadObstruction(64, 70));
-        assertFalse(report.hasIssues());
+        assertFalse(report.hasVisualConflicts());
     }
 }

@@ -357,7 +357,7 @@ public final class PowerLineActions {
             return;
         }
         TerrainSampler terrain = MinecraftTerrainSampler.of(world, host.coordinates());
-        if (!TerrainFitService.hasTerrainIssues(result.toGeometryModel(), terrain)) {
+        if (!TerrainFitService.hasVisualConflict(result.toGeometryModel(), terrain)) {
             return;
         }
         pushWorkspaceSnapshot();
@@ -372,9 +372,9 @@ public final class PowerLineActions {
                 }
                 return state.getLastGenerationResult();
             });
-        if (fit.hasRemainingIssues()) {
+        if (fit.hasVisualConflict()) {
             state.setProjectStatus(
-                TerrainFitService.remainingIssuesHint(),
+                TerrainFitService.visualConflictHint(),
                 ProjectStatusSeverity.WARNING);
         }
     }

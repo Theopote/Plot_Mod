@@ -5,7 +5,7 @@ import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.family.PoleDesignAssignmentResolver;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
-import com.plot.plugin.powerline.geometry.EngineeringRuleIds;
+import com.plot.plugin.powerline.geometry.ClearanceRuleIds;
 import com.plot.plugin.powerline.terrain.TerrainCollisionAnalysis;
 import com.plot.plugin.powerline.geometry.clearance.ClearanceChecker;
 import com.plot.plugin.powerline.geometry.ConductorSample;
@@ -34,7 +34,7 @@ class PowerLineEngineeringTest {
         PowerLineGenerationResult result = generate(line, flatTerrain(64));
         TerrainCollisionAnalysis report = analyzeTerrain(result, flatTerrain(64));
         assertTrue(report.getIssues().stream()
-            .noneMatch(i -> EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM.equals(i.ruleId())));
+            .noneMatch(i -> ClearanceRuleIds.CLEARANCE_GROUND_MINIMUM.equals(i.ruleId())));
     }
 
     @Test
@@ -49,7 +49,7 @@ class PowerLineEngineeringTest {
         PowerLineGenerationResult result = generate(line, terrain);
         TerrainCollisionAnalysis report = analyzeTerrain(result, terrain);
         assertTrue(report.getIssues().stream()
-            .anyMatch(i -> EngineeringRuleIds.CLEARANCE_GROUND_MINIMUM.equals(i.ruleId())));
+            .anyMatch(i -> ClearanceRuleIds.CLEARANCE_GROUND_MINIMUM.equals(i.ruleId())));
     }
 
     @Test

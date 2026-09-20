@@ -25,15 +25,15 @@ public final class TerrainFitService {
     private TerrainFitService() {
     }
 
-    public record FitResult(boolean lineModified, boolean hasRemainingIssues) {
+    public record FitResult(boolean lineModified, boolean hasVisualConflict) {
     }
 
     public interface PreviewRegenerator {
         PowerLineGenerationResult regenerate();
     }
 
-    public static boolean hasTerrainIssues(PowerLineGeometryModel geometry, TerrainSampler terrain) {
-        return analyze(geometry, terrain).hasIssues();
+    public static boolean hasVisualConflict(PowerLineGeometryModel geometry, TerrainSampler terrain) {
+        return analyze(geometry, terrain).hasVisualConflicts();
     }
 
     public static TerrainCollisionAnalysis analyze(PowerLineGeometryModel geometry, TerrainSampler terrain) {
@@ -55,14 +55,14 @@ public final class TerrainFitService {
             return new FitResult(false, false);
         }
         TerrainCollisionAnalysis analysis = analyze(result.toGeometryModel(), terrain);
-        if (!analysis.hasIssues()) {
+        if (!analysis.hasVisualConflicts()) {
             return new FitResult(false, false);
         }
         boolean modified = false;
         PowerLineGenerationResult current = result;
         for (int attempt = 0; attempt < MAX_FIX_ATTEMPTS; attempt++) {
             analysis = analyze(current.toGeometryModel(), terrain);
-            if (!analysis.hasIssues()) {
+            if (!analysis.hasVisualConflicts()) {
                 return new FitResult(modified, false);
             }
             if (!applyOneFix(line, analysis, current, coordinates)) {
@@ -74,11 +74,11 @@ public final class TerrainFitService {
                 return new FitResult(modified, true);
             }
         }
-        boolean remaining = analyze(current.toGeometryModel(), terrain).hasIssues();
+        boolean remaining = analyze(current.toGeometryModel(), terrain).hasVisualConflicts();
         return new FitResult(modified, remaining);
     }
 
-    public static String remainingIssuesHint() {
+    public static String visualConflictHint() {
         return PlotI18n.tr("plugin.powerline.terrain.near_terrain_hint");
     }
 
@@ -87,7 +87,7 @@ public final class TerrainFitService {
             TerrainCollisionAnalysis analysis,
             PowerLineGenerationResult result,
             ICoordinateService coordinates) {
-        if (line == null || analysis == null || !analysis.hasIssues()) {
+        if (line == null || analysis == null || !analysis.hasVisualConflicts()) {
             return false;
         }
         if (tryTallerTower(line, analysis, result)) {

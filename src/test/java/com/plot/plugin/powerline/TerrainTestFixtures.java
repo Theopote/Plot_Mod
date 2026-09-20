@@ -191,7 +191,7 @@ public final class TerrainTestFixtures {
         for (int attempt = 0; attempt < maxAttempts; attempt++) {
             PowerLineGenerationResult result = generator.generate(line, terrain, resolver);
             TerrainCollisionAnalysis report = TerrainFitService.analyze(result.toGeometryModel(), terrain);
-            if (!report.hasIssues()) {
+            if (!report.hasVisualConflicts()) {
                 return true;
             }
             if (!TerrainFitService.applyOneFix(
@@ -199,7 +199,7 @@ public final class TerrainTestFixtures {
                 return false;
             }
         }
-        return !analyze(generator.generate(line, terrain, resolver), terrain).hasIssues();
+        return !analyze(generator.generate(line, terrain, resolver), terrain).hasVisualConflicts();
     }
 
     public static PowerLineGenerationResult mockTwoPoleResult(

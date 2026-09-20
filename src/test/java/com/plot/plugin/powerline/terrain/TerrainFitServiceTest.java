@@ -27,7 +27,7 @@ class TerrainFitServiceTest {
         TerrainCollisionAnalysis report = TerrainFitService.analyze(
             geometry(span),
             TerrainTestFixtures.flatTerrain(68));
-        assertTrue(report.hasIssues());
+        assertTrue(report.hasVisualConflicts());
     }
 
     @Test
@@ -36,7 +36,7 @@ class TerrainFitServiceTest {
         TerrainCollisionAnalysis report = TerrainFitService.analyze(
             geometry(span),
             TerrainTestFixtures.flatTerrain(64));
-        assertTrue(report.hasIssues());
+        assertTrue(report.hasVisualConflicts());
     }
 
     @Test
@@ -46,7 +46,7 @@ class TerrainFitServiceTest {
         TerrainCollisionAnalysis report = TerrainFitService.analyze(
             geometry(span),
             TerrainTestFixtures.flatTerrain(64));
-        assertFalse(report.hasIssues());
+        assertFalse(report.hasVisualConflicts());
     }
 
     @Test
@@ -55,7 +55,7 @@ class TerrainFitServiceTest {
         TerrainCollisionAnalysis report = TerrainFitService.analyze(
             geometry(span),
             TerrainTestFixtures.groundWithOverheadObstruction(64, 70));
-        assertTrue(report.hasIssues());
+        assertTrue(report.hasVisualConflicts());
     }
 
     @Test
@@ -70,7 +70,7 @@ class TerrainFitServiceTest {
         TerrainSampler terrain = TerrainTestFixtures.rollingHill(64, 74, 30.0, 8.0);
         TerrainCollisionAnalysis report = TerrainFitService.analyze(geometry(span), terrain);
 
-        assertTrue(report.hasIssues());
+        assertTrue(report.hasVisualConflicts());
     }
 
     @Test
@@ -142,7 +142,7 @@ class TerrainFitServiceTest {
         TerrainCollisionAnalysis report = TerrainFitService.analyze(
             geometry(spanSample(new Vec2d(10, 0), 72.0)),
             TerrainTestFixtures.flatTerrain(64));
-        assertFalse(report.hasIssues());
+        assertFalse(report.hasVisualConflicts());
     }
 
     private static ConductorSpanGeometry spanSample(Vec2d planPoint, double worldY) {
