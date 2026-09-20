@@ -72,6 +72,16 @@ public class PowerLineFootprint {
         this.name = "";
     }
 
+    /** UI 预览等场景：用稳定 seed 绑定材质解析，无真实线路上下文。 */
+    public static PowerLineFootprint forPreviewSeed(String materialSeedKey) {
+        String seed = materialSeedKey != null && !materialSeedKey.isBlank()
+            ? materialSeedKey
+            : "powerline_preview";
+        PowerLineFootprint footprint = new PowerLineFootprint(seed, seed);
+        footprint.setPathPoints(List.of(new Vec2d(0, 0), new Vec2d(1, 0)));
+        return footprint;
+    }
+
     PowerLineFootprint(String id, String roadId) {
         this.id = id;
         this.roadId = roadId;
