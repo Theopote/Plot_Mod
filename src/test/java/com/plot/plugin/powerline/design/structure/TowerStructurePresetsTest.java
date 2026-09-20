@@ -129,6 +129,13 @@ class TowerStructurePresetsTest {
     }
 
     @Test
+    void smallLatticeUsesIronBlockLegsAndIronBarBracing() {
+        TowerStructureDesign structure = TowerStructurePresets.smallLatticeTower();
+        assertEquals("minecraft:iron_block", structure.getPrimaryMaterial().getPrimaryMaterial());
+        assertEquals("minecraft:iron_bars", structure.getBraceMaterial().getPrimaryMaterial());
+    }
+
+    @Test
     void smallLatticeLimitsPlanDiagonalBracing() {
         long planBays = TowerStructurePresets.smallLatticeTower().getBays().stream()
             .filter(TowerBay::isPlanDiagonalBracing)

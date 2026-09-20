@@ -88,6 +88,27 @@ class DirectionalBlockSpecsTest {
     }
 
     @Test
+    void ironBarsAlongMemberUsesConnectionAxis() {
+        assertEquals(
+            "minecraft:iron_bars[up=true]",
+            DirectionalBlockSpecs.ironBarsAlongMember(0.0, 3.0, 0.0).toSetBlockArgument());
+        assertEquals(
+            "minecraft:iron_bars[east=true]",
+            DirectionalBlockSpecs.ironBarsAlongMember(4.0, 0.0, 0.0).toSetBlockArgument());
+        assertEquals(
+            "minecraft:iron_bars[south=true]",
+            DirectionalBlockSpecs.ironBarsAlongMember(0.0, 0.0, 5.0).toSetBlockArgument());
+    }
+
+    @Test
+    void resolveMemberPlacementDefaultsIronBarsToVertical() {
+        assertEquals(
+            "minecraft:iron_bars[up=true]",
+            DirectionalBlockSpecs.resolveMemberPlacement("minecraft:iron_bars", null, null, null)
+                .toSetBlockArgument());
+    }
+
+    @Test
     void poleTopLanternIsNotHanging() {
         assertEquals(
             "minecraft:lantern[hanging=false]",

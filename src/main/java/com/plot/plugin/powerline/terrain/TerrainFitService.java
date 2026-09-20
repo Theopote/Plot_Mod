@@ -107,7 +107,7 @@ public final class TerrainFitService {
             return false;
         }
         TowerFamily family = new TowerFamilyResolver().find(line.getTowerFamilyId());
-        if (family == null || !VisualTowerResolver.hasGradedSuspensionVariants(family)) {
+        if (!VisualTowerResolver.hasGradedSuspensionVariants(family)) {
             return false;
         }
         SpanAnalysis targetSpan = analysis.firstIssueSpan();

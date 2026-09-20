@@ -150,7 +150,7 @@ class TowerArmGeneratorTest {
 
     private static boolean hasArmBlockAtY(PowerLineGenerationResult result, int y) {
         for (BlockRecord record : result.placementRecords.values()) {
-            if (record.pos.getY() == y && "minecraft:iron_bars".equals(record.newBlockId)) {
+            if (record.pos.getY() == y && "minecraft:iron_bars".equals(record.baseBlockId())) {
                 return true;
             }
         }
@@ -170,7 +170,7 @@ class TowerArmGeneratorTest {
     private static Set<BlockPos> armBlocks(PowerLineGenerationResult result) {
         Set<BlockPos> blocks = new HashSet<>();
         for (BlockRecord record : result.placementRecords.values()) {
-            if ("minecraft:iron_bars".equals(record.newBlockId)
+            if ("minecraft:iron_bars".equals(record.baseBlockId())
                     && record.pos.getY() >= 64 + 9
                     && record.pos.getY() <= 64 + 12) {
                 blocks.add(record.pos);

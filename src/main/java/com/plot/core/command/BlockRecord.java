@@ -25,4 +25,8 @@ public class BlockRecord {
     public BlockSpec newBlockSpec() {
         return BlockSpec.parse(newBlockId);
     }
+
+    public String baseBlockId() {
+        return newBlockSpec().blockId();
+    }
 }

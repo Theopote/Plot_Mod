@@ -15,7 +15,6 @@ public final class TowerStructurePresets {
 
     private static final MaterialMix LATTICE_LEG = MaterialMix.single("minecraft:iron_block");
     private static final MaterialMix LATTICE_BRACE = MaterialMix.single("minecraft:iron_bars");
-    private static final MaterialMix SMALL_LATTICE_LEG = MaterialMix.single("minecraft:iron_bars");
     private static final MaterialMix ARM_MATERIAL = MaterialMix.single("minecraft:iron_bars");
 
     /** 参考底宽（用于族预设缩放）。 */
@@ -38,8 +37,8 @@ public final class TowerStructurePresets {
     public static TowerStructureDesign smallLatticeTower() {
         TowerStructureDesign structure = latticeShell(
             TowerSilhouette.TAPERED_LATTICE,
-            SMALL_LATTICE_LEG,
-            SMALL_LATTICE_LEG);
+            LATTICE_LEG,
+            LATTICE_BRACE);
         // 底宽:深 ≈ 1 : 0.67，紧凑子输电剪影
         addStations(structure,
             new double[] {0, 8, 16, 24},

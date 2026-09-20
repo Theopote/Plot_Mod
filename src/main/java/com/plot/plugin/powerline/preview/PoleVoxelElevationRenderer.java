@@ -113,7 +113,7 @@ public final class PoleVoxelElevationRenderer {
                 if (layout.lod() == PreviewLod.DETAILED) {
                     drawDetailedBlock(drawList, bx, by, layout.blockSize(), BlockPreviewColors.colorFor(blockId));
                 } else {
-                    drawFilledBlock(drawList, bx, by, layout.blockSize(), BlockPreviewColors.colorFor(blockId));
+                    drawFilledBlock(drawList, bx, by, layout.blockSize(), BlockPreviewColors.colorFor(blockId), blockId);
                 }
             }
         }
@@ -181,6 +181,7 @@ public final class PoleVoxelElevationRenderer {
         int startCol = effCol * groupSize;
         int startRow = effRow * groupSize;
         String chosen = null;
+        int bestPriority = -1;
         for (int dr = 0; dr < groupSize; dr++) {
             int row = startRow + dr;
             if (row >= model.heightY()) {
@@ -195,7 +196,12 @@ public final class PoleVoxelElevationRenderer {
                 String blockId = view == ElevationView.FRONT
                     ? model.blockAtFront(model.minX() + col, y)
                     : model.blockAtSide(model.minZ() + col, y);
-                if (blockId != null) {
+                if (blockId == null) {
+                    continue;
+                }
+                int priority = previewBlockPriority(blockId);
+                if (priority > bestPriority) {
+                    bestPriority = priority;
                     chosen = blockId;
                 }
             }
@@ -203,8 +209,26 @@ public final class PoleVoxelElevationRenderer {
         return chosen;
     }
 
-    private static void drawFilledBlock(ImDrawList drawList, float x, float y, float size, int color) {
+    private static int previewBlockPriority(String blockId) {
+        String baseId = BlockPreviewColors.baseBlockId(blockId);
+        if ("minecraft:iron_bars".equals(baseId)) {
+            return 3;
+        }
+        if ("minecraft:iron_block".equals(baseId) || "minecraft:lightning_rod".equals(baseId)) {
+            return 2;
+        }
+        return 1;
+    }
+
+    private static void drawFilledBlock(ImDrawList drawList, float x, float y, float size, int color, String blockId) {
         drawList.addRectFilled(x, y, x + size, y + size, color);
+        if ("minecraft:iron_bars".equals(BlockPreviewColors.baseBlockId(blockId)) && size >= 2f) {
+            int lineColor = BlockPreviewColors.shadow(color);
+            float x1 = x + size;
+            float y1 = y + size;
+            drawList.addLine(x, y, x1, y1, lineColor, 1f);
+            drawList.addLine(x1, y, x, y1, lineColor, 1f);
+        }
     }
 
     private static void drawDetailedBlock(ImDrawList drawList, float x, float y, float size, int color) {

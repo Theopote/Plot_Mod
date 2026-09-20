@@ -34,11 +34,21 @@ public final class TowerMemberVoxelRasterizer {
         int[] axes = crossSectionAxes(deltaX, deltaY, deltaZ);
         Set<BlockPos> expanded = new LinkedHashSet<>(blocks);
         for (BlockPos pos : blocks) {
-            BlockPos first = offset(pos, axes[0]);
-            BlockPos second = offset(pos, axes[1]);
-            expanded.add(first);
-            expanded.add(second);
-            expanded.add(offset(first, axes[1]));
+            for (int sign0 : new int[] {-1, 0, 1}) {
+                for (int sign1 : new int[] {-1, 0, 1}) {
+                    if (sign0 == 0 && sign1 == 0) {
+                        continue;
+                    }
+                    BlockPos expandedPos = pos;
+                    if (sign0 != 0) {
+                        expandedPos = offsetSigned(expandedPos, axes[0], sign0);
+                    }
+                    if (sign1 != 0) {
+                        expandedPos = offsetSigned(expandedPos, axes[1], sign1);
+                    }
+                    expanded.add(expandedPos);
+                }
+            }
         }
         blocks.clear();
         blocks.addAll(expanded);
@@ -50,19 +60,19 @@ public final class TowerMemberVoxelRasterizer {
         double absY = Math.abs(deltaY);
         double absZ = Math.abs(deltaZ);
         if (absX >= absY && absX >= absZ) {
-            return new int[] {1, 2};
+            return new int[] {0, 2};
         }
         if (absY >= absZ) {
-            return new int[] {0, 2};
+            return new int[] {1, 2};
         }
         return new int[] {0, 1};
     }
 
-    private static BlockPos offset(BlockPos pos, int axis) {
+    private static BlockPos offsetSigned(BlockPos pos, int axis, int sign) {
         return switch (axis) {
-            case 0 -> pos.up();
-            case 1 -> pos.east();
-            case 2 -> pos.south();
+            case 0 -> sign >= 0 ? pos.up() : pos.down();
+            case 1 -> sign >= 0 ? pos.east() : pos.west();
+            case 2 -> sign >= 0 ? pos.south() : pos.north();
             default -> pos;
         };
     }

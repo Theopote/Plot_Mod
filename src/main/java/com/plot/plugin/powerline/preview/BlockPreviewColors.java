@@ -1,5 +1,6 @@
 package com.plot.plugin.powerline.preview;
 
+import com.plot.core.block.BlockSpec;
 import com.plot.core.material.MaterialMix;
 
 import java.util.HashMap;
@@ -66,11 +67,18 @@ public final class BlockPreviewColors {
         return colorFor(blockId);
     }
 
+    public static String baseBlockId(String blockId) {
+        if (blockId == null || blockId.isBlank()) {
+            return blockId;
+        }
+        return BlockSpec.parse(blockId).blockId();
+    }
+
     public static int colorFor(String blockId) {
         if (blockId == null || blockId.isBlank()) {
             return 0xFF808080;
         }
-        Integer known = KNOWN.get(blockId);
+        Integer known = KNOWN.get(baseBlockId(blockId));
         if (known != null) {
             return known;
         }

@@ -3,9 +3,7 @@ package com.plot.plugin.powerline.design.family;
 import com.plot.plugin.powerline.model.TowerRole;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 class TowerFamilyTest {
 
@@ -30,7 +28,7 @@ class TowerFamilyTest {
     void missingRoleUsesFallback() {
         TowerFamily family = new TowerFamily("family/test", "Test");
         family.setDesignId(TowerRole.SUSPENSION, TowerFamilyDesignPresets.LATTICE_SUSPENSION_ID);
-        assertEquals(null, family.getDesignId(TowerRole.ANGLE));
+        assertNull(family.getDesignId(TowerRole.ANGLE));
         assertNotNull(family.getDesignId(TowerRole.SUSPENSION));
     }
 

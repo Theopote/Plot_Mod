@@ -124,7 +124,6 @@ public final class TowerParameterProfiles {
 
     private static final MaterialMix LATTICE_LEG = MaterialMix.single("minecraft:iron_block");
     private static final MaterialMix LATTICE_BRACE = MaterialMix.single("minecraft:iron_bars");
-    private static final MaterialMix SMALL_LATTICE_MEMBER = MaterialMix.single("minecraft:iron_bars");
     private static final MaterialMix ARM_MATERIAL = MaterialMix.single("minecraft:iron_bars");
     private static final MaterialMix STEAMPUNK_LEG = MaterialMix.single("minecraft:copper_block");
     private static final MaterialMix STEAMPUNK_BRACE = MaterialMix.single("minecraft:cut_copper");
@@ -262,8 +261,8 @@ public final class TowerParameterProfiles {
                 StructureDensity.LOW, smallLowBays(),
                 StructureDensity.MEDIUM, smallMediumBays(),
                 StructureDensity.HIGH, smallHighBays()),
-            SMALL_LATTICE_MEMBER,
-            SMALL_LATTICE_MEMBER,
+            LATTICE_LEG,
+            LATTICE_BRACE,
             ARM_MATERIAL,
             TowerAttachmentTopology.classicLattice());
     }

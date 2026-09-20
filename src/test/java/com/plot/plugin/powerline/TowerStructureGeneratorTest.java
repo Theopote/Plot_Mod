@@ -40,7 +40,7 @@ class TowerStructureGeneratorTest {
         PowerLineGenerationResult result = generateStructure(structure);
         Set<Integer> legYs = new HashSet<>();
         for (BlockRecord record : result.placementRecords.values()) {
-            if ("minecraft:iron_bars".equals(record.newBlockId)) {
+            if ("minecraft:iron_bars".equals(record.baseBlockId())) {
                 legYs.add(record.pos.getX());
             }
         }
@@ -76,7 +76,7 @@ class TowerStructureGeneratorTest {
         TowerStructureDesign structure = taperedTower();
         PowerLineGenerationResult result = generateStructure(structure);
         for (BlockRecord record : result.placementRecords.values()) {
-            if (!"minecraft:iron_bars".equals(record.newBlockId)) {
+            if (!"minecraft:iron_bars".equals(record.baseBlockId())) {
                 continue;
             }
             BlockPos pos = record.pos;
@@ -199,7 +199,7 @@ class TowerStructureGeneratorTest {
         boolean hasMidHeightBrace = false;
         for (BlockRecord record : result.placementRecords.values()) {
             int y = record.pos.getY();
-            if (y > 64 && y < 64 + 8 && "minecraft:iron_bars".equals(record.newBlockId)) {
+            if (y > 64 && y < 64 + 8 && "minecraft:iron_bars".equals(record.baseBlockId())) {
                 hasMidHeightBrace = true;
                 break;
             }
@@ -209,14 +209,14 @@ class TowerStructureGeneratorTest {
 
     private static boolean hasNeighbor(PowerLineGenerationResult result, BlockPos neighbor) {
         BlockRecord record = result.placementRecords.get(neighbor);
-        return record != null && "minecraft:iron_bars".equals(record.newBlockId)
-            || record != null && "minecraft:gold_block".equals(record.newBlockId);
+        return record != null && "minecraft:iron_bars".equals(record.baseBlockId())
+            || record != null && "minecraft:gold_block".equals(record.baseBlockId());
     }
 
     private static Set<BlockPos> blocksWithMaterial(PowerLineGenerationResult result, String material) {
         Set<BlockPos> blocks = new HashSet<>();
         for (BlockRecord record : result.placementRecords.values()) {
-            if (material.equals(record.newBlockId)) {
+            if (material.equals(record.baseBlockId())) {
                 blocks.add(record.pos);
             }
         }

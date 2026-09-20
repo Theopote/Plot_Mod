@@ -309,7 +309,7 @@ class PowerLineMultiConductorTest {
         Set<Integer> zs = new HashSet<>();
         for (BlockRecord record : result.placementRecords.values()) {
             if (record.pos.getY() == wireY && Math.abs(record.pos.getX() - midX) <= 2) {
-                if ("minecraft:iron_bars".equals(record.newBlockId)) {
+                if ("minecraft:iron_bars".equals(record.baseBlockId())) {
                     zs.add(record.pos.getZ());
                 }
             }
@@ -321,7 +321,7 @@ class PowerLineMultiConductorTest {
         Set<Integer> zs = new HashSet<>();
         for (BlockRecord record : result.placementRecords.values()) {
             if (record.pos.getY() == wireY
-                    && "minecraft:iron_bars".equals(record.newBlockId)) {
+                    && "minecraft:iron_bars".equals(record.baseBlockId())) {
                 zs.add(record.pos.getZ());
             }
         }

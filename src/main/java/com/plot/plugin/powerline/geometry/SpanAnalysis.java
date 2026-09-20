@@ -1,7 +1,5 @@
 package com.plot.plugin.powerline.geometry;
 
-import com.plot.plugin.powerline.geometry.PowerLineIssue;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

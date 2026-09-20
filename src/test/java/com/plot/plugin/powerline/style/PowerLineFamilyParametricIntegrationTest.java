@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.style;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.powerline.design.ConductorAttachment;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.family.PoleDesignAssignmentResolver;
@@ -11,7 +12,6 @@ import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.equipment.InsulatorType;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
-import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 import com.plot.plugin.powerline.model.TowerRole;
@@ -121,8 +121,8 @@ class PowerLineFamilyParametricIntegrationTest {
         assertEquals(InsulatorType.SUSPENSION, primaryInsulator(appliedSuspension));
         assertEquals(InsulatorType.STRAIN, primaryInsulator(appliedAngle));
         assertNotEquals(
-            appliedSuspension.getTowerStructure().maxHeight(),
-            0.0,
+                0.0,
+                appliedSuspension.getTowerStructure().maxHeight(),
             0.01);
     }
 
@@ -197,8 +197,8 @@ class PowerLineFamilyParametricIntegrationTest {
 
     private static InsulatorType primaryInsulator(PoleDesign design) {
         return design.getAttachments().stream()
-            .filter(attachment -> attachment.isEnabled())
-            .map(attachment -> attachment.getInsulatorType())
+            .filter(ConductorAttachment::isEnabled)
+            .map(ConductorAttachment::getInsulatorType)
             .findFirst()
             .orElseThrow();
     }

@@ -105,7 +105,7 @@ class PowerLineTowerIntegrationTest {
         Set<Integer> xs = new HashSet<>();
         Set<Integer> zs = new HashSet<>();
         for (BlockRecord record : result.placementRecords.values()) {
-            if ("minecraft:iron_bars".equals(record.newBlockId) && record.pos.getY() > 64) {
+            if ("minecraft:iron_bars".equals(record.baseBlockId()) && record.pos.getY() > 64) {
                 xs.add(record.pos.getX());
                 zs.add(record.pos.getZ());
             }
@@ -136,7 +136,7 @@ class PowerLineTowerIntegrationTest {
     private static Set<Integer> wireZValues(PowerLineGenerationResult result, int wireY) {
         Set<Integer> zs = new HashSet<>();
         for (BlockRecord record : result.placementRecords.values()) {
-            if (record.pos.getY() == wireY && "minecraft:iron_bars".equals(record.newBlockId)) {
+            if (record.pos.getY() == wireY && "minecraft:iron_bars".equals(record.baseBlockId())) {
                 zs.add(record.pos.getZ());
             }
         }

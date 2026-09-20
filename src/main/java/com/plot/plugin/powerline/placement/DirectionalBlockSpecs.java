@@ -12,6 +12,7 @@ import java.util.Map;
  */
 public final class DirectionalBlockSpecs {
     private static final String LIGHTNING_ROD = "minecraft:lightning_rod";
+    private static final String IRON_BARS = "minecraft:iron_bars";
     private static final String CHAIN = "minecraft:chain";
     private static final String SOUL_LANTERN = "minecraft:soul_lantern";
     private static final String LANTERN = "minecraft:lantern";
@@ -43,6 +44,25 @@ public final class DirectionalBlockSpecs {
             return BlockSpec.with(LIGHTNING_ROD, "facing", deltaX >= 0.0 ? "east" : "west");
         }
         return BlockSpec.with(LIGHTNING_ROD, "facing", deltaZ >= 0.0 ? "south" : "north");
+    }
+
+    /** 竖向铁栏杆（塔腿/斜撑默认朝上连接）。 */
+    public static BlockSpec verticalIronBars() {
+        return BlockSpec.with(IRON_BARS, "up", "true");
+    }
+
+    /** 塔体成员方向：世界坐标 delta → iron_bars 连接轴。 */
+    public static BlockSpec ironBarsAlongMember(double deltaX, double deltaY, double deltaZ) {
+        double absX = Math.abs(deltaX);
+        double absY = Math.abs(deltaY);
+        double absZ = Math.abs(deltaZ);
+        if (absY >= absX && absY >= absZ) {
+            return BlockSpec.with(IRON_BARS, deltaY >= 0.0 ? "up" : "down", "true");
+        }
+        if (absX >= absZ) {
+            return BlockSpec.with(IRON_BARS, deltaX >= 0.0 ? "east" : "west", "true");
+        }
+        return BlockSpec.with(IRON_BARS, deltaZ >= 0.0 ? "south" : "north", "true");
     }
 
     /** 竖向锁链（灯头下垂等）。 */
@@ -101,6 +121,12 @@ public final class DirectionalBlockSpecs {
                 return lightningRodAlongMember(deltaX, deltaY, deltaZ);
             }
             return verticalLightningRod();
+        }
+        if ("minecraft:iron_bars".equals(blockId)) {
+            if (deltaX != null && deltaY != null && deltaZ != null) {
+                return ironBarsAlongMember(deltaX, deltaY, deltaZ);
+            }
+            return verticalIronBars();
         }
         if ("minecraft:chain".equals(blockId) && deltaX != null && deltaY != null && deltaZ != null) {
             return chainAlongMember(deltaX, deltaY, deltaZ);
