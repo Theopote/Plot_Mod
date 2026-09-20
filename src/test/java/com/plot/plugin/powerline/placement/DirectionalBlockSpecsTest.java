@@ -115,6 +115,26 @@ class DirectionalBlockSpecsTest {
     }
 
     @Test
+    void mergeIronBarsPlacementsCombinesConnectionAxes() {
+        String merged = DirectionalBlockSpecs.mergeIronBarsPlacements(
+            "minecraft:iron_bars[east=true]",
+            "minecraft:iron_bars[north=true,up=true]");
+        BlockSpec spec = BlockSpec.parse(merged);
+        assertEquals("true", spec.property("east"));
+        assertEquals("true", spec.property("north"));
+        assertEquals("true", spec.property("up"));
+    }
+
+    @Test
+    void mergeIronBarsIgnoresDifferentBlockTypes() {
+        assertEquals(
+            "minecraft:iron_block",
+            DirectionalBlockSpecs.mergeIronBarsPlacements(
+                "minecraft:iron_bars[east=true]",
+                "minecraft:iron_block"));
+    }
+
+    @Test
     void ironBarsAlongMemberUsesConnectionAxis() {
         assertEquals(
             "minecraft:iron_bars[up=true]",

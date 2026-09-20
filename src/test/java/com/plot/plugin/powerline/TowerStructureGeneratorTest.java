@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.PlacementReadiness;
+import com.plot.core.block.BlockSpec;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.structure.BracingPattern;
@@ -36,6 +37,35 @@ class TowerStructureGeneratorTest {
 
         Set<BlockPos> ironBars = blocksWithMaterial(result, "minecraft:iron_bars");
         assertTrue(ironBars.size() >= 4, "expected leg blocks, got " + ironBars.size());
+    }
+
+    @Test
+    void horizontalRingCornerMergesIronBarConnections() {
+        TowerStructureDesign structure = twoStationTower();
+        structure.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.NONE);
+        structure.findOrCreateBay("s0", "s1").setSideBracing(BracingPattern.NONE);
+        structure.findOrCreateBay("s0", "s1").setHorizontalRing(true);
+
+        PowerLineGenerationResult result = generateStructure(structure);
+        int ringY = 64 + 8;
+        boolean foundMergedCorner = false;
+        for (BlockRecord record : result.placementRecords.values()) {
+            if (record.pos.getY() != ringY || !"minecraft:iron_bars".equals(record.baseBlockId())) {
+                continue;
+            }
+            BlockSpec spec = record.newBlockSpec();
+            int connections = 0;
+            for (String axis : List.of("north", "south", "east", "west", "up", "down")) {
+                if ("true".equals(spec.property(axis))) {
+                    connections++;
+                }
+            }
+            if (connections >= 2) {
+                foundMergedCorner = true;
+                break;
+            }
+        }
+        assertTrue(foundMergedCorner, "ring corner should merge iron_bars connections from two segments");
     }
 
     @Test

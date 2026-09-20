@@ -65,10 +65,18 @@ public final class PlacementWriter {
         String previous = existing != null
             ? existing.previousBlockId
             : (projection != null ? projection.getBlockIdAt(pos) : "minecraft:air");
-        result.placementRecords.put(pos, new BlockRecord(pos, previous, blockId));
+        String resolvedBlockId = mergeIronBarsIfNeeded(existing, blockId);
+        result.placementRecords.put(pos, new BlockRecord(pos, previous, resolvedBlockId));
         result.placementCategories.put(pos, category);
         if (structureScratch != null && category.priority() >= PlacementCategory.STRUCTURE.priority()) {
             structureScratch.add(pos.toImmutable());
         }
+    }
+
+    private static String mergeIronBarsIfNeeded(BlockRecord existing, String incomingBlockId) {
+        if (existing == null || incomingBlockId == null || incomingBlockId.isBlank()) {
+            return incomingBlockId;
+        }
+        return DirectionalBlockSpecs.mergeIronBarsPlacements(existing.newBlockId, incomingBlockId);
     }
 }

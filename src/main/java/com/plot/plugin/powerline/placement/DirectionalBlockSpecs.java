@@ -16,6 +16,8 @@ import java.util.Map;
 public final class DirectionalBlockSpecs {
     private static final String LIGHTNING_ROD = "minecraft:lightning_rod";
     private static final String IRON_BARS = "minecraft:iron_bars";
+    private static final List<String> IRON_BAR_CONNECTION_AXES = List.of(
+        "north", "south", "east", "west", "up", "down");
     private static final String CHAIN = "minecraft:chain";
     private static final String SOUL_LANTERN = "minecraft:soul_lantern";
     private static final String LANTERN = "minecraft:lantern";
@@ -52,6 +54,32 @@ public final class DirectionalBlockSpecs {
     /** 竖向铁栏杆（塔腿/斜撑默认朝上连接）。 */
     public static BlockSpec verticalIronBars() {
         return BlockSpec.with(IRON_BARS, "up", "true");
+    }
+
+    /**
+     * 合并同一 voxel 上两根（或多根）iron_bars 的连接轴。
+     * 非 iron_bars 或与现有方块类型不同则返回 {@code incomingPlacement}。
+     */
+    public static String mergeIronBarsPlacements(String existingPlacement, String incomingPlacement) {
+        BlockSpec existing = BlockSpec.parse(existingPlacement);
+        BlockSpec incoming = BlockSpec.parse(incomingPlacement);
+        if (!IRON_BARS.equals(existing.blockId()) || !IRON_BARS.equals(incoming.blockId())) {
+            return incomingPlacement;
+        }
+        Map<String, String> merged = new LinkedHashMap<>();
+        for (String axis : IRON_BAR_CONNECTION_AXES) {
+            if (isIronBarConnection(existing.property(axis)) || isIronBarConnection(incoming.property(axis))) {
+                merged.put(axis, "true");
+            }
+        }
+        if (merged.isEmpty()) {
+            return incomingPlacement;
+        }
+        return BlockSpec.with(IRON_BARS, merged).toSetBlockArgument();
+    }
+
+    private static boolean isIronBarConnection(String value) {
+        return "true".equalsIgnoreCase(value);
     }
 
     /** 塔体成员方向：世界坐标 delta → iron_bars 连接轴（仅用于无体素路径时的回退）。 */

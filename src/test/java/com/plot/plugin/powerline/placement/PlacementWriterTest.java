@@ -2,6 +2,7 @@ package com.plot.plugin.powerline.placement;
 
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.PlacementReadiness;
+import com.plot.core.block.BlockSpec;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -32,6 +33,22 @@ class PlacementWriterTest {
 
         PlacementWriter.put(result, projection, pos, "minecraft:air", PlacementCategory.CLEARANCE);
         assertEquals("minecraft:stone", result.placementRecords.get(pos).newBlockId);
+    }
+
+    @Test
+    void overlappingIronBarsMergeConnectionAxes() {
+        PowerLineGenerationResult result = new PowerLineGenerationResult(
+            new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0))));
+        BlockPos pos = new BlockPos(2, 64, 2);
+        IBlockProjectionService projection = projectionFor(new LinkedHashMap<>());
+
+        PlacementWriter.put(result, projection, pos, "minecraft:iron_bars[east=true]", PlacementCategory.STRUCTURE);
+        PlacementWriter.put(result, projection, pos, "minecraft:iron_bars[north=true]", PlacementCategory.STRUCTURE);
+
+        BlockSpec merged = result.placementRecords.get(pos).newBlockSpec();
+        assertEquals("minecraft:iron_bars", merged.blockId());
+        assertEquals("true", merged.property("east"));
+        assertEquals("true", merged.property("north"));
     }
 
     @Test
