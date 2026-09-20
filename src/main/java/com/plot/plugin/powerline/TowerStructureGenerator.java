@@ -2,6 +2,7 @@ package com.plot.plugin.powerline;
 
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
+import com.plot.core.block.BlockSpec;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.powerline.placement.DirectionalBlockSpecs;
@@ -670,41 +671,68 @@ public final class TowerStructureGenerator {
             Set<BlockPos> structureScratch) {
         double[] worldStart = transform.toWorld(start);
         double[] worldEnd = transform.toWorld(end);
-        Set<BlockPos> blocks = TowerMemberVoxelRasterizer.rasterizeMember(
+        MemberVoxelRaster raster = TowerMemberVoxelRasterizer.rasterizeMemberDetailed(
             worldStart[0], worldStart[1], worldStart[2],
             worldEnd[0], worldEnd[1], worldEnd[2],
             thickness);
 
-        if (blocks.isEmpty()) {
+        if (raster.allBlocks().isEmpty()) {
             return;
         }
         PlacementCategory category = kind == MemberKind.ARM
             ? PlacementCategory.ARM
             : PlacementCategory.STRUCTURE;
-        for (BlockPos pos : blocks) {
+        List<BlockPos> centerline = raster.centerline();
+        for (int i = 0; i < centerline.size(); i++) {
+            BlockPos pos = centerline.get(i);
             String blockId = MaterialMixResolver.resolve(material, pos, footprint.getId());
             recordBlock(
                 result,
                 pos,
-                memberPlacementId(blockId, start, end, transform),
+                memberPlacementId(blockId, raster.centerline(), i, pos, null, start, end, transform),
                 projection,
                 category,
                 structureScratch);
         }
+        for (var entry : raster.thicknessAnchors().entrySet()) {
+            BlockPos pos = entry.getKey();
+            String blockId = MaterialMixResolver.resolve(material, pos, footprint.getId());
+            recordBlock(
+                result,
+                pos,
+                memberPlacementId(blockId, null, -1, pos, entry.getValue(), start, end, transform),
+                projection,
+                category,
+                structureScratch);
+        }
+        int blockCount = raster.allBlocks().size();
         switch (kind) {
-            case LEG -> counters.addLeg(blocks.size());
-            case BRACE -> counters.addBrace(blocks.size());
-            case ARM -> counters.addArm(blocks.size());
-            case DECORATION -> counters.addDecoration(blocks.size());
+            case LEG -> counters.addLeg(blockCount);
+            case BRACE -> counters.addBrace(blockCount);
+            case ARM -> counters.addArm(blockCount);
+            case DECORATION -> counters.addDecoration(blockCount);
             default -> { }
         }
     }
 
     private static String memberPlacementId(
             String blockId,
+            List<BlockPos> centerline,
+            int centerIndex,
+            BlockPos pos,
+            BlockPos thicknessCore,
             TowerLocalPoint memberStart,
             TowerLocalPoint memberEnd,
             TowerStructureTransform transform) {
+        if (isIronBars(blockId)) {
+            if (centerline != null && centerIndex >= 0) {
+                return DirectionalBlockSpecs.ironBarsAlongVoxelPath(centerline, centerIndex)
+                    .toSetBlockArgument();
+            }
+            if (pos != null && thicknessCore != null) {
+                return DirectionalBlockSpecs.ironBarsTowardCore(pos, thicknessCore).toSetBlockArgument();
+            }
+        }
         if (memberStart != null && memberEnd != null && transform != null) {
             double[] worldStart = transform.toWorld(memberStart);
             double[] worldEnd = transform.toWorld(memberEnd);
@@ -715,6 +743,10 @@ public final class TowerStructureGenerator {
                 worldEnd[2] - worldStart[2]).toSetBlockArgument();
         }
         return DirectionalBlockSpecs.resolveMemberPlacement(blockId, null, null, null).toSetBlockArgument();
+    }
+
+    private static boolean isIronBars(String blockId) {
+        return blockId != null && "minecraft:iron_bars".equals(BlockSpec.parse(blockId).blockId());
     }
 
     private static void recordBlock(

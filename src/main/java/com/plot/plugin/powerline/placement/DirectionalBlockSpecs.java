@@ -2,7 +2,10 @@ package com.plot.plugin.powerline.placement;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.block.BlockSpec;
+import net.minecraft.util.math.BlockPos;
 
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -51,7 +54,7 @@ public final class DirectionalBlockSpecs {
         return BlockSpec.with(IRON_BARS, "up", "true");
     }
 
-    /** 塔体成员方向：世界坐标 delta → iron_bars 连接轴。 */
+    /** 塔体成员方向：世界坐标 delta → iron_bars 连接轴（仅用于无体素路径时的回退）。 */
     public static BlockSpec ironBarsAlongMember(double deltaX, double deltaY, double deltaZ) {
         double absX = Math.abs(deltaX);
         double absY = Math.abs(deltaY);
@@ -63,6 +66,61 @@ public final class DirectionalBlockSpecs {
             return BlockSpec.with(IRON_BARS, deltaX >= 0.0 ? "east" : "west", "true");
         }
         return BlockSpec.with(IRON_BARS, deltaZ >= 0.0 ? "south" : "north", "true");
+    }
+
+    /**
+     * 按 6-连通体素路径设置 iron_bars 连接，使斜撑在 Minecraft 中首尾相连。
+     */
+    public static BlockSpec ironBarsAlongVoxelPath(List<BlockPos> path, int index) {
+        if (path == null || path.isEmpty() || index < 0 || index >= path.size()) {
+            return verticalIronBars();
+        }
+        Map<String, String> props = new LinkedHashMap<>();
+        BlockPos current = path.get(index);
+        if (index > 0) {
+            mergeIronBarConnection(props, current, path.get(index - 1));
+        }
+        if (index < path.size() - 1) {
+            mergeIronBarConnection(props, current, path.get(index + 1));
+        }
+        if (props.isEmpty()) {
+            return verticalIronBars();
+        }
+        return BlockSpec.with(IRON_BARS, props);
+    }
+
+    /** 厚度扩展体素：朝向中心线锚点连接。 */
+    public static BlockSpec ironBarsTowardCore(BlockPos offset, BlockPos core) {
+        if (offset == null || core == null || offset.equals(core)) {
+            return verticalIronBars();
+        }
+        Map<String, String> props = new LinkedHashMap<>();
+        mergeIronBarConnection(props, offset, core);
+        if (props.isEmpty()) {
+            return verticalIronBars();
+        }
+        return BlockSpec.with(IRON_BARS, props);
+    }
+
+    private static void mergeIronBarConnection(Map<String, String> props, BlockPos from, BlockPos to) {
+        int dx = Integer.compare(to.getX(), from.getX());
+        int dy = Integer.compare(to.getY(), from.getY());
+        int dz = Integer.compare(to.getZ(), from.getZ());
+        if (dx > 0) {
+            props.put("east", "true");
+        } else if (dx < 0) {
+            props.put("west", "true");
+        }
+        if (dy > 0) {
+            props.put("up", "true");
+        } else if (dy < 0) {
+            props.put("down", "true");
+        }
+        if (dz > 0) {
+            props.put("south", "true");
+        } else if (dz < 0) {
+            props.put("north", "true");
+        }
     }
 
     /** 竖向锁链（灯头下垂等）。 */

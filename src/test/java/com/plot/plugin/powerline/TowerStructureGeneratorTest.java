@@ -236,6 +236,24 @@ class TowerStructureGeneratorTest {
     }
 
     @Test
+    void diagonalBraceUsesPerVoxelIronBarStates() {
+        TowerStructureDesign structure = asymmetricTwoStationTower();
+        structure.setBraceMaterial(MaterialMix.single("minecraft:iron_bars"));
+        structure.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.X);
+        structure.findOrCreateBay("s0", "s1").setSideBracing(BracingPattern.NONE);
+        structure.findOrCreateBay("s0", "s1").setHorizontalRing(false);
+
+        PowerLineGenerationResult result = generateStructure(structure);
+        java.util.Set<String> barStates = new java.util.HashSet<>();
+        for (BlockRecord record : result.placementRecords.values()) {
+            if ("minecraft:iron_bars".equals(record.baseBlockId())) {
+                barStates.add(record.newBlockId);
+            }
+        }
+        assertTrue(barStates.size() > 1, "diagonal braces should vary iron_bars connections along voxel path");
+    }
+
+    @Test
     void xBracingProducesDiagonalEndpoints() {
         TowerStructureDesign structure = twoStationTower();
         structure.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.X);

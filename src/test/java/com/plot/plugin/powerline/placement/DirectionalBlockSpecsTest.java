@@ -2,9 +2,14 @@ package com.plot.plugin.powerline.placement;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.block.BlockSpec;
+import com.plot.plugin.powerline.VoxelLineRasterizer;
+import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DirectionalBlockSpecsTest {
 
@@ -85,6 +90,28 @@ class DirectionalBlockSpecsTest {
             "minecraft:chain[axis=y]",
             DirectionalBlockSpecs.resolveMemberPlacement("minecraft:chain", 0.0, 1.0, 0.0)
                 .toSetBlockArgument());
+    }
+
+    @Test
+    void ironBarsAlongVoxelPathConnectsDiagonalNeighbors() {
+        List<BlockPos> path = VoxelLineRasterizer.rasterizeLine3D(0, 0, 0, 2, 2, 0);
+        boolean hasTurn = false;
+        for (int i = 1; i < path.size() - 1; i++) {
+            BlockSpec spec = DirectionalBlockSpecs.ironBarsAlongVoxelPath(path, i);
+            if (spec.properties().size() >= 2) {
+                hasTurn = true;
+                break;
+            }
+        }
+        assertTrue(hasTurn, "diagonal path should include a corner voxel with two iron_bars connections");
+    }
+
+    @Test
+    void ironBarsTowardCoreLinksThicknessOffset() {
+        BlockSpec spec = DirectionalBlockSpecs.ironBarsTowardCore(
+            new BlockPos(1, 0, 0),
+            new BlockPos(0, 0, 0));
+        assertEquals("true", spec.property("west"));
     }
 
     @Test
