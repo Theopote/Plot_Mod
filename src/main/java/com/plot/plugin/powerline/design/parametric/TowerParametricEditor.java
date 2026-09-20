@@ -102,7 +102,7 @@ public final class TowerParametricEditor {
         switchProfile(design, profileId, parameters != null ? parameters : fallback, null);
     }
 
-    private static TowerParameterSet defaultParametersForProfile(String profileId) {
+    public static TowerParameterSet defaultParametersForProfile(String profileId) {
         if (TowerParameterProfiles.CLASSIC_DOUBLE_ARM_ID.equals(profileId)) {
             return TowerParameterSet.classicDefaults();
         }

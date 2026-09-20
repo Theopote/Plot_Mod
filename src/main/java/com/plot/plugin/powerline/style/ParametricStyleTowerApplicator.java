@@ -92,8 +92,16 @@ public final class ParametricStyleTowerApplicator {
 
         PoleDesign design = source.copy();
         design.setGeneratorConfig(mergedConfig.copy());
-        TowerParametricEditor.recompile(design, envelope, roleSeed.profileId());
-        preserveRoleIdentity(source, design);
+        boolean alreadyParametricSameProfile = source.isParametricMode()
+            && source.getGeneratorConfig() != null
+            && roleSeed.profileId().equals(source.getGeneratorConfig().profileId());
+        String previousProfileId = alreadyParametricSameProfile
+            ? source.getGeneratorConfig().profileId()
+            : null;
+        TowerParametricEditor.recompile(design, envelope, previousProfileId);
+        if (alreadyParametricSameProfile || TowerFamilyRoleParametricCatalog.preservesRoleSpecificAttachments(source)) {
+            preserveRoleAttachments(source, design);
+        }
         return design;
     }
 
@@ -110,7 +118,7 @@ public final class ParametricStyleTowerApplicator {
         return design;
     }
 
-    private static void preserveRoleIdentity(PoleDesign source, PoleDesign design) {
+    private static void preserveRoleAttachments(PoleDesign source, PoleDesign design) {
         if (source.getAttachments() != null && !source.getAttachments().isEmpty()) {
             List<ConductorAttachment> attachments = new ArrayList<>(source.getAttachments().size());
             for (ConductorAttachment attachment : source.getAttachments()) {

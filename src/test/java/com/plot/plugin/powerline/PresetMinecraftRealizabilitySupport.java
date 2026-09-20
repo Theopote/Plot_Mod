@@ -300,7 +300,7 @@ final class PresetMinecraftRealizabilitySupport {
                     preset.getId() + " height",
                     gallery.getTowerStructure().maxHeight(),
                     effectiveDesign.getTowerStructure().maxHeight(),
-                    1.5);
+                    0.1);
                 assertEquals(
                     preset.getId() + " arm count",
                     gallery.getTowerStructure().getArms().size(),

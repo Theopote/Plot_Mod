@@ -143,8 +143,8 @@ public final class PowerLineStylePreviewBinding {
                 || !TowerFamily.GRADED_LATTICE_3_PHASE_ID.equals(definition.getTowerFamilyId())) {
             return null;
         }
-        PoleDesign compiled = PowerLineStyleParametricCatalog.compileRepresentative(
-            TowerGeneratorConfig.parametricTripleArm(TowerParameterSet.tripleArmDefaults()));
+        PoleDesign compiled = TowerFamilyRoleParametricCatalog.compileRoleRepresentative(
+            TowerFamilyDesignPresets.LATTICE_SUSPENSION_TALL_ID);
         if (compiled != null) {
             return compiled;
         }

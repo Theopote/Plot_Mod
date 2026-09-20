@@ -1,7 +1,9 @@
 package com.plot.plugin.powerline.style;
 
+import com.plot.plugin.powerline.design.ConductorAttachment;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
+import com.plot.plugin.powerline.equipment.InsulatorType;
 import com.plot.plugin.powerline.design.parametric.StructureDensity;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorMode;
@@ -10,6 +12,7 @@ import com.plot.plugin.powerline.design.parametric.TowerParameterProfiles;
 import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
 import com.plot.plugin.powerline.design.parametric.TowerStabilityParameters;
+import com.plot.plugin.powerline.style.PowerLineStyleParametricCatalog;
 import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 
@@ -38,8 +41,51 @@ public final class TowerFamilyRoleParametricCatalog {
         if (profile == null) {
             return null;
         }
-        TowerParameterSet parameters = inferParameters(design.getTowerStructure());
+        TowerParameterSet parameters = roleBaselineParameters(design.getId(), profileId, design.getTowerStructure());
         return new TowerGeneratorConfig(profileId, TowerGeneratorMode.PARAMETRIC, parameters);
+    }
+
+    /**
+     * 角色参数基线：默认从静态预设推断以保留 S/M/L 与转角差异；
+     * 分档高档悬垂塔使用 profile 默认参数，与画廊预览一致。
+     */
+    static TowerParameterSet roleBaselineParameters(
+            String designId,
+            String profileId,
+            TowerStructureDesign structure) {
+        if (TowerFamilyDesignPresets.LATTICE_SUSPENSION_TALL_ID.equals(designId)) {
+            return TowerParameterSet.tripleArmDefaults();
+        }
+        return inferParameters(structure);
+    }
+
+    /** 耐张/终端等角色绝缘子类型需保留，不能一律用悬垂编译结果覆盖。 */
+    public static boolean preservesRoleSpecificAttachments(PoleDesign source) {
+        if (source == null || source.getAttachments() == null) {
+            return false;
+        }
+        for (ConductorAttachment attachment : source.getAttachments()) {
+            if (attachment != null
+                    && attachment.isEnabled()
+                    && attachment.getInsulatorType() == InsulatorType.STRAIN) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 族角色在画廊/默认落地时应呈现的参数化代表塔（与 profile 默认参数一致）。 */
+    public static PoleDesign compileRoleRepresentative(String designId) {
+        String profileId = profileIdForDesignId(designId);
+        if (profileId == null) {
+            return null;
+        }
+        TowerParameterSet defaults = TowerParametricEditor.defaultParametersForProfile(profileId);
+        if (defaults == null) {
+            return null;
+        }
+        return PowerLineStyleParametricCatalog.compileRepresentative(
+            new TowerGeneratorConfig(profileId, TowerGeneratorMode.PARAMETRIC, defaults));
     }
 
     public static TowerParameterSet mergeTunedParameters(
