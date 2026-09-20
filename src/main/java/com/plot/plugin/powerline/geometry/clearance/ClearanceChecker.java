@@ -1,10 +1,10 @@
-package com.plot.plugin.powerline.engineering.clearance;
+package com.plot.plugin.powerline.geometry.clearance;
 
-import com.plot.plugin.powerline.engineering.PowerLineIssue;
-import com.plot.plugin.powerline.engineering.PowerLineIssueLocation;
-import com.plot.plugin.powerline.engineering.EngineeringRuleIds;
-import com.plot.plugin.powerline.engineering.PowerLineIssueSeverity;
-import com.plot.plugin.powerline.engineering.SimplePowerLineIssue;
+import com.plot.plugin.powerline.geometry.PowerLineIssue;
+import com.plot.plugin.powerline.geometry.PowerLineIssueLocation;
+import com.plot.plugin.powerline.geometry.EngineeringRuleIds;
+import com.plot.plugin.powerline.geometry.PowerLineIssueSeverity;
+import com.plot.plugin.powerline.geometry.SimplePowerLineIssue;
 import com.plot.plugin.powerline.geometry.ConductorSample;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
 import com.plot.core.terrain.TerrainSampler;

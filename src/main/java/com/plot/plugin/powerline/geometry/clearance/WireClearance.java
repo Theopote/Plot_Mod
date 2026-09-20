@@ -1,4 +1,4 @@
-package com.plot.plugin.powerline.engineering.clearance;
+package com.plot.plugin.powerline.geometry.clearance;
 
 import com.plot.plugin.powerline.geometry.ConductorSample;
 import com.plot.core.terrain.TerrainSampler;

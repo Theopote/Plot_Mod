@@ -1,6 +1,6 @@
 package com.plot.plugin.powerline;
 
-import com.plot.plugin.powerline.engineering.TerrainFitService;
+import com.plot.plugin.powerline.terrain.TerrainFitService;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.test.world.IdentityCoordinateService;
 import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;

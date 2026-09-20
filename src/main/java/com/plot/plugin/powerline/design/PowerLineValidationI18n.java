@@ -1,4 +1,4 @@
-package com.plot.plugin.powerline.engineering;
+package com.plot.plugin.powerline.design;
 
 import com.plot.plugin.powerline.design.structure.TowerValidationIssue;
 import com.plot.utils.PlotI18n;

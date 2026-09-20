@@ -6,7 +6,7 @@ import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelope;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
-import com.plot.plugin.powerline.engineering.TowerEngineeringMetadata;
+import com.plot.plugin.powerline.design.TowerEngineeringMetadata;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 
 import java.util.ArrayList;

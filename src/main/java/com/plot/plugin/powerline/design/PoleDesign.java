@@ -9,7 +9,7 @@ import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorMode;
 import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
-import com.plot.plugin.powerline.engineering.TowerEngineeringMetadata;
+import com.plot.plugin.powerline.design.TowerEngineeringMetadata;
 import com.plot.plugin.powerline.equipment.InsulatorType;
 import com.plot.plugin.powerline.model.TowerRole;
 

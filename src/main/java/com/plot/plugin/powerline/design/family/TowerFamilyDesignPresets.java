@@ -8,7 +8,7 @@ import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import com.plot.plugin.powerline.equipment.InsulatorAssemblyCatalog;
 import com.plot.plugin.powerline.equipment.InsulatorType;
-import com.plot.plugin.powerline.engineering.TowerEngineeringMetadata;
+import com.plot.plugin.powerline.design.TowerEngineeringMetadata;
 import com.plot.plugin.powerline.model.TowerRole;
 
 import java.util.EnumSet;

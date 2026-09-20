@@ -1,6 +1,6 @@
-package com.plot.plugin.powerline.engineering;
+package com.plot.plugin.powerline.geometry;
 
-/** 线路检查问题（净空、跨距、转角等）。 */
+/** 几何/净空检查问题记录。 */
 public interface PowerLineIssue {
     String ruleId();
 

@@ -1,4 +1,4 @@
-package com.plot.plugin.powerline.engineering;
+package com.plot.plugin.powerline.geometry;
 
 /** 稳定规则 ID 常量。 */
 public final class EngineeringRuleIds {

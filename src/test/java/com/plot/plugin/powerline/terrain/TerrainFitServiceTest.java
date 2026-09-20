@@ -1,4 +1,4 @@
-package com.plot.plugin.powerline.engineering;
+package com.plot.plugin.powerline.terrain;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.powerline.PowerLineGenerationResult;

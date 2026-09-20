@@ -1,4 +1,4 @@
-package com.plot.plugin.powerline;
+package com.plot.plugin.powerline.model;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.BezierCurveShape;

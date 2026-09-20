@@ -1,4 +1,4 @@
-package com.plot.plugin.powerline.engineering;
+package com.plot.plugin.powerline.terrain;
 
 import org.junit.jupiter.api.Test;
 

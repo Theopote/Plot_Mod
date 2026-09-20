@@ -1,6 +1,5 @@
 package com.plot.plugin.powerline.ui;
 
-import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.command.commands.PowerLineGenerateCommand;
 import com.plot.core.context.PluginContext;
@@ -9,7 +8,7 @@ import com.plot.core.model.Shape;
 import com.plot.core.persistence.ProjectPathResolver;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
-import com.plot.plugin.powerline.engineering.TerrainFitService;
+import com.plot.plugin.powerline.terrain.TerrainFitService;
 import com.plot.api.world.PluginProjectionContext;
 import com.plot.api.world.WorldProjectionUnavailableException;
 import com.plot.plugin.powerline.PowerLinePathPickSession;

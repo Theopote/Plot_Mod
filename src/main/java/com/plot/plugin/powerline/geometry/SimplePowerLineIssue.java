@@ -1,4 +1,4 @@
-package com.plot.plugin.powerline.engineering;
+package com.plot.plugin.powerline.geometry;
 
 /** 通用线路检查问题实现。 */
 public final class SimplePowerLineIssue implements PowerLineIssue {

@@ -1,4 +1,4 @@
-package com.plot.plugin.powerline.engineering;
+package com.plot.plugin.powerline.terrain;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
@@ -8,7 +8,7 @@ import com.plot.plugin.powerline.PowerPoleLayoutUtils;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
 import com.plot.plugin.powerline.design.family.VisualTowerResolver;
-import com.plot.plugin.powerline.engineering.analysis.SpanAnalysis;
+import com.plot.plugin.powerline.geometry.SpanAnalysis;
 import com.plot.plugin.powerline.geometry.PowerLineGeometryModel;
 import com.plot.plugin.powerline.model.PoleLayoutConstraint;
 import com.plot.plugin.powerline.model.PowerLineFootprint;

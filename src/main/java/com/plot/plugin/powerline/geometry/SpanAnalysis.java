@@ -1,12 +1,12 @@
-package com.plot.plugin.powerline.engineering.analysis;
+package com.plot.plugin.powerline.geometry;
 
-import com.plot.plugin.powerline.engineering.PowerLineIssue;
+import com.plot.plugin.powerline.geometry.PowerLineIssue;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/** 单跨工程分析摘要。 */
+/** 单跨几何/净空分析摘要。 */
 public class SpanAnalysis {
     private String id;
     private String startPoleSiteId;

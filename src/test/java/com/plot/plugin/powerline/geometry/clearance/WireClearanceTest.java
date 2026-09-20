@@ -1,10 +1,10 @@
-package com.plot.plugin.powerline.engineering.clearance;
+package com.plot.plugin.powerline.geometry.clearance;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.powerline.geometry.ConductorSample;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
-import com.plot.plugin.powerline.engineering.TerrainFitService;
-import com.plot.plugin.powerline.engineering.TerrainCollisionAnalysis;
+import com.plot.plugin.powerline.terrain.TerrainFitService;
+import com.plot.plugin.powerline.terrain.TerrainCollisionAnalysis;
 import com.plot.plugin.powerline.geometry.PowerLineGeometryModel;
 import com.plot.plugin.powerline.TerrainTestFixtures;
 import org.junit.jupiter.api.Test;

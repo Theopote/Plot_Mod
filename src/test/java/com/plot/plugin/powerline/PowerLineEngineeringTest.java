@@ -5,9 +5,9 @@ import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.family.PoleDesignAssignmentResolver;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
-import com.plot.plugin.powerline.engineering.EngineeringRuleIds;
-import com.plot.plugin.powerline.engineering.TerrainCollisionAnalysis;
-import com.plot.plugin.powerline.engineering.clearance.ClearanceChecker;
+import com.plot.plugin.powerline.geometry.EngineeringRuleIds;
+import com.plot.plugin.powerline.terrain.TerrainCollisionAnalysis;
+import com.plot.plugin.powerline.geometry.clearance.ClearanceChecker;
 import com.plot.plugin.powerline.geometry.ConductorSample;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
@@ -177,7 +177,7 @@ class PowerLineEngineeringTest {
     private static TerrainCollisionAnalysis analyzeTerrain(
             PowerLineGenerationResult result,
             TerrainSampler terrain) {
-        return com.plot.plugin.powerline.engineering.TerrainFitService
+        return com.plot.plugin.powerline.terrain.TerrainFitService
             .analyze(result.toGeometryModel(), terrain);
     }
 

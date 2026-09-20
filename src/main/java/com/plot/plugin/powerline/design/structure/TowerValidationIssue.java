@@ -11,6 +11,6 @@ public record TowerValidationIssue(
     }
 
     public String localizedMessage() {
-        return com.plot.plugin.powerline.engineering.PowerLineValidationI18n.towerValidationMessage(this);
+        return com.plot.plugin.powerline.design.PowerLineValidationI18n.towerValidationMessage(this);
     }
 }

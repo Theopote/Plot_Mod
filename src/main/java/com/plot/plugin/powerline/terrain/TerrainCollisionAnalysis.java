@@ -1,10 +1,12 @@
-package com.plot.plugin.powerline.engineering;
+package com.plot.plugin.powerline.terrain;
 
-import com.plot.plugin.powerline.engineering.analysis.SpanAnalysis;
-import com.plot.plugin.powerline.engineering.clearance.ClearanceAnalysis;
-import com.plot.plugin.powerline.engineering.clearance.ClearanceChecker;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
 import com.plot.plugin.powerline.geometry.PowerLineGeometryModel;
+import com.plot.plugin.powerline.geometry.PowerLineIssue;
+import com.plot.plugin.powerline.geometry.PowerLineIssueSeverity;
+import com.plot.plugin.powerline.geometry.SpanAnalysis;
+import com.plot.plugin.powerline.geometry.clearance.ClearanceAnalysis;
+import com.plot.plugin.powerline.geometry.clearance.ClearanceChecker;
 import com.plot.plugin.powerline.PolePlacement;
 import com.plot.core.terrain.TerrainSampler;
 

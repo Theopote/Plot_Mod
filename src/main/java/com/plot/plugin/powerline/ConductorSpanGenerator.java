@@ -6,7 +6,7 @@ import com.plot.api.world.ICoordinateService;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.powerline.design.BundleVisual;
-import com.plot.plugin.powerline.engineering.clearance.WireClearance;
+import com.plot.plugin.powerline.geometry.clearance.WireClearance;
 import com.plot.plugin.powerline.geometry.ConductorSample;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
 import com.plot.plugin.powerline.model.PowerLineFootprint;

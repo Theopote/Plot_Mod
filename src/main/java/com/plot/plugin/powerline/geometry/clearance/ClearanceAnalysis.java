@@ -1,4 +1,4 @@
-package com.plot.plugin.powerline.engineering.clearance;
+package com.plot.plugin.powerline.geometry.clearance;
 
 import com.plot.api.geometry.Vec2d;
 

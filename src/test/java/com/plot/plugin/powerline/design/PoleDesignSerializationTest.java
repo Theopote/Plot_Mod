@@ -2,7 +2,7 @@ package com.plot.plugin.powerline.design;
 
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
-import com.plot.plugin.powerline.engineering.TowerEngineeringMetadata;
+import com.plot.plugin.powerline.design.TowerEngineeringMetadata;
 import com.plot.plugin.powerline.model.TowerRole;
 import org.junit.jupiter.api.Test;
 
