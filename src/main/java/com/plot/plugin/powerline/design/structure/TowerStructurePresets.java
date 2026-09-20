@@ -17,9 +17,20 @@ public final class TowerStructurePresets {
     private static final MaterialMix LATTICE_BRACE = MaterialMix.single("minecraft:iron_bars");
     private static final MaterialMix ARM_MATERIAL = MaterialMix.single("minecraft:iron_bars");
 
-    /** 参考底宽（用于族预设缩放）。 */
-    public static final double CLASSIC_BASE_HALF_WIDTH = 6.5;
+    /** 参考底宽（用于族预设缩放；含稳定感加宽）。 */
+    public static final double CLASSIC_BASE_HALF_WIDTH = 7.3;
     public static final double SMALL_BASE_HALF_WIDTH = 4.5;
+
+    /** 高大格构塔塔脚加宽系数（平面）。 */
+    private static final double STABILITY_WIDTH_STANDARD = 1.12;
+    /** 高大格构塔塔脚加厚系数（纵深 / 横担厚度）。 */
+    private static final double STABILITY_DEPTH_STANDARD = 1.15;
+    private static final double STABILITY_WIDTH_LARGE = 1.15;
+    private static final double STABILITY_DEPTH_LARGE = 1.18;
+    private static final double STABILITY_WIDTH_GIANT = 1.18;
+    private static final double STABILITY_DEPTH_GIANT = 1.20;
+    private static final double STABILITY_WIDTH_HEAVY = 1.10;
+    private static final double STABILITY_DEPTH_HEAVY = 1.12;
 
     private TowerStructurePresets() {
     }
@@ -71,6 +82,7 @@ public final class TowerStructurePresets {
         addTrussArm(structure, "arm_lower", 26, 12.0, TowerArmShape.TAPERED, 4, 1.8);
         addTrussArm(structure, "arm_upper", 32, 10.0, TowerArmShape.TRUSS, 3, 1.5);
         addPeak(structure, 36);
+        applyStabilityFootprint(structure, STABILITY_WIDTH_STANDARD, STABILITY_DEPTH_STANDARD);
         return structure;
     }
 
@@ -92,6 +104,7 @@ public final class TowerStructurePresets {
         addTrussArm(structure, "arm_middle", 42, 14.5, TowerArmShape.TRUSS, 4, 2.2);
         addTrussArm(structure, "arm_upper", 48, 10.5, TowerArmShape.TRUSS, 3, 1.8);
         addPeak(structure, 50);
+        applyStabilityFootprint(structure, STABILITY_WIDTH_LARGE, STABILITY_DEPTH_LARGE);
         return structure;
     }
 
@@ -112,6 +125,7 @@ public final class TowerStructurePresets {
         addTrussArm(structure, "arm_lower", 24, 12.0, TowerArmShape.TAPERED, 4, 1.8);
         addTrussArm(structure, "arm_upper", 30, 10.0, TowerArmShape.TRUSS, 3, 1.6);
         addPeak(structure, 32);
+        applyStabilityFootprint(structure, STABILITY_WIDTH_HEAVY, STABILITY_DEPTH_HEAVY);
         return structure;
     }
 
@@ -131,6 +145,7 @@ public final class TowerStructurePresets {
             BracingPattern.NONE);
         addTrussArm(structure, "arm_cup", 32, 16.0, TowerArmShape.UPSWEEP, 3, 2.8);
         addPeak(structure, 40);
+        applyStabilityFootprint(structure, STABILITY_WIDTH_STANDARD, STABILITY_DEPTH_STANDARD);
         return structure;
     }
 
@@ -156,6 +171,7 @@ public final class TowerStructurePresets {
         addTrussArm(structure, "arm_lower", 16, 13.0, TowerArmShape.FLAT, 2, 2.0);
         addTrussArm(structure, "arm_middle", 26, 16.0, TowerArmShape.TRUSS, 3, 2.4);
         addTrussArm(structure, "arm_upper", 36, 13.0, TowerArmShape.TRUSS, 3, 2.0);
+        applyStabilityFootprint(structure, 1.0, STABILITY_DEPTH_STANDARD);
         return structure;
     }
 
@@ -177,6 +193,7 @@ public final class TowerStructurePresets {
         addTrussArm(structure, "arm_middle", 47, 15.0, TowerArmShape.TRUSS, 4, 2.5);
         addTrussArm(structure, "arm_upper", 56, 11.0, TowerArmShape.TRUSS, 3, 2.0);
         addPeak(structure, 60);
+        applyStabilityFootprint(structure, STABILITY_WIDTH_LARGE, STABILITY_DEPTH_LARGE);
         return structure;
     }
 
@@ -199,6 +216,7 @@ public final class TowerStructurePresets {
         addTrussArm(structure, "arm_middle", 44, 14.0, TowerArmShape.TRUSS, 4, 2.2);
         addTrussArm(structure, "arm_upper", 52, 11.0, TowerArmShape.TRUSS, 3, 2.0);
         addPeak(structure, 58);
+        applyStabilityFootprint(structure, STABILITY_WIDTH_LARGE, STABILITY_DEPTH_LARGE);
         return structure;
     }
 
@@ -225,6 +243,7 @@ public final class TowerStructurePresets {
         addTrussArm(structure, "arm_main", 66, 26.0, TowerArmShape.TRUSS, 5, 3.2);
         addTrussArm(structure, "arm_upper", 74, 22.0, TowerArmShape.TRUSS, 4, 2.8);
         addPeak(structure, 80);
+        applyStabilityFootprint(structure, STABILITY_WIDTH_GIANT, STABILITY_DEPTH_GIANT);
         return structure;
     }
 
@@ -347,5 +366,29 @@ public final class TowerStructurePresets {
         bay.setHorizontalRing(true);
         bay.setPlanDiagonalBracing(true);
         return bay;
+    }
+
+    /**
+     * 加宽塔脚与横担纵深，让高大格构塔落地更稳。
+     * 紧凑塔 / 单柱杆不调用。
+     */
+    private static void applyStabilityFootprint(
+            TowerStructureDesign structure,
+            double widthScale,
+            double depthScale) {
+        if (structure == null || (widthScale == 1.0 && depthScale == 1.0)) {
+            return;
+        }
+        for (TowerStation station : structure.getStations()) {
+            if (station != null) {
+                station.setHalfWidth(station.getHalfWidth() * widthScale);
+                station.setHalfDepth(station.getHalfDepth() * depthScale);
+            }
+        }
+        for (TowerArm arm : structure.getArms()) {
+            if (arm != null) {
+                arm.setLongitudinalHalfWidth(arm.getLongitudinalHalfWidth() * depthScale);
+            }
+        }
     }
 }

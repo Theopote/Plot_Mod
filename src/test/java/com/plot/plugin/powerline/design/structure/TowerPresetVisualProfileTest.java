@@ -17,8 +17,8 @@ class TowerPresetVisualProfileTest {
         TowerVisualProfile profile = TowerVisualProfile.of(TowerStructurePresets.classicDoubleArmTower());
         assertEquals(TowerSilhouette.DOUBLE_ARM, profile.silhouette());
         assertEquals(36.0, profile.height(), 0.5);
-        assertEquals(6.5, profile.baseHalfWidth(), 0.1);
-        assertEquals(1.8, profile.topHalfWidth(), 0.1);
+        assertEquals(7.3, profile.baseHalfWidth(), 0.15);
+        assertEquals(2.0, profile.topHalfWidth(), 0.15);
         assertEquals(2, profile.armCount());
         assertEquals(List.of(12.0, 10.0), profile.armReachesSorted());
         assertTrue(profile.taperRatio() >= 3.0, "classic lattice should taper noticeably");
@@ -84,6 +84,23 @@ class TowerPresetVisualProfileTest {
         assertTrue(monster.height() >= 78.0);
         assertTrue(monster.maxArmReach() >= 24.0);
         assertTrue(monster.armReachToHeightRatio() >= 0.28);
+    }
+
+    @Test
+    void tallLatticeTowersAreStablerThanCompactSmallLattice() {
+        TowerVisualProfile small = TowerVisualProfile.of(TowerStructurePresets.smallLatticeTower());
+        TowerVisualProfile classic = TowerVisualProfile.of(TowerStructurePresets.classicDoubleArmTower());
+        TowerVisualProfile monster = TowerVisualProfile.of(TowerStructurePresets.uhvGiantTower());
+
+        double smallSlenderness = small.height() / (small.baseHalfWidth() * 2.0);
+        double classicSlenderness = classic.height() / (classic.baseHalfWidth() * 2.0);
+        double monsterSlenderness = monster.height() / (monster.baseHalfWidth() * 2.0);
+
+        assertTrue(classicSlenderness < smallSlenderness + 0.15,
+            "classic lattice base should be proportionally wider than compact small lattice");
+        assertTrue(monsterSlenderness <= classicSlenderness,
+            "monster pylon should not look slimmer than classic lattice at the base");
+        assertTrue(monster.baseDepthRatio() >= classic.baseDepthRatio() - 0.02);
     }
 
     @Test

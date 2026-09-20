@@ -4,7 +4,6 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.material.MaterialMix;
-import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.powerline.ConductorMaterialPolicy;
 import com.plot.plugin.powerline.PolePlacement;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
@@ -13,14 +12,12 @@ import com.plot.plugin.powerline.ResolvedAttachment;
 import com.plot.plugin.powerline.design.AttachmentRole;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.TowerRole;
-import com.plot.plugin.powerline.placement.DirectionalBlockSpecs;
 import com.plot.plugin.powerline.placement.PlacementCategory;
-import com.plot.plugin.powerline.placement.PlacementWriter;
+import com.plot.plugin.powerline.placement.WireBlockPlacement;
 import net.minecraft.util.math.BlockPos;
 
-import java.util.LinkedHashSet;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 /** 转角塔、中间终端塔、耐张塔上的局部跳线生成。 */
 public final class JumperWireGenerator {
@@ -101,6 +98,7 @@ public final class JumperWireGenerator {
         double[] worldStart = planToWorldXz(planStart, coordinateTransformer);
         double[] worldEnd = planToWorldXz(planEnd, coordinateTransformer);
 
+        List<BlockPos> jumperPath = new ArrayList<>();
         for (int i = 0; i < segmentCount; i++) {
             double t0 = (double) i / segmentCount;
             double t1 = (double) (i + 1) / segmentCount;
@@ -110,39 +108,17 @@ public final class JumperWireGenerator {
             double z1 = lerp(worldStart[1], worldEnd[1], t1);
             double y0 = wireY - sagDepthAt(t0, sagDepth);
             double y1 = wireY - sagDepthAt(t1, sagDepth);
-            Set<BlockPos> wireBlocks = new LinkedHashSet<>(PowerLineWireRasterizer.rasterizeLine3D(
-                x0, y0, z0,
-                x1, y1, z1));
-            placeDirectedWireBlocks(
-                wireMaterial,
-                footprint,
-                result,
-                projectionHandler,
-                wireBlocks,
-                x1 - x0,
-                y1 - y0,
-                z1 - z0);
+            WireBlockPlacement.appendConnected(
+                jumperPath,
+                PowerLineWireRasterizer.rasterizeLine3D(x0, y0, z0, x1, y1, z1));
         }
-    }
-
-    private static void placeDirectedWireBlocks(
-            MaterialMix wireMaterial,
-            PowerLineFootprint footprint,
-            PowerLineGenerationResult result,
-            IBlockProjectionService projectionHandler,
-            Set<BlockPos> wireBlocks,
-            double deltaX,
-            double deltaY,
-            double deltaZ) {
-        if (wireBlocks == null || wireBlocks.isEmpty()) {
-            return;
-        }
-        for (BlockPos pos : wireBlocks) {
-            String blockId = MaterialMixResolver.resolve(wireMaterial, pos, footprint.getId());
-            String placementId = DirectionalBlockSpecs.resolveMemberPlacement(
-                blockId, deltaX, deltaY, deltaZ).toSetBlockArgument();
-            PlacementWriter.put(result, projectionHandler, pos, placementId, PlacementCategory.WIRE);
-        }
+        WireBlockPlacement.placeAlongPath(
+            wireMaterial,
+            footprint,
+            result,
+            projectionHandler,
+            jumperPath,
+            PlacementCategory.WIRE);
     }
 
     private static boolean needsJumper(TowerRole role) {

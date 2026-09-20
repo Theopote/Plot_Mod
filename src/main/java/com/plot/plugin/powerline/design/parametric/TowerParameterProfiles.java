@@ -25,12 +25,12 @@ public final class TowerParameterProfiles {
 
     /** 参考几何：{@link com.plot.plugin.powerline.design.structure.TowerStructurePresets#classicDoubleArmTower()} */
     static final double CLASSIC_REF_HEIGHT = 36.0;
-    static final double CLASSIC_REF_BASE_WIDTH = 13.0;
+    static final double CLASSIC_REF_BASE_WIDTH = 14.6;
     static final double CLASSIC_REF_BASE_HALF_WIDTH = 6.5;
     static final double CLASSIC_REF_BASE_HALF_DEPTH = 4.2;
     static final double CLASSIC_REF_ARM_SPAN = 24.0;
     static final double CLASSIC_REF_DOMINANT_REACH = 12.0;
-    static final double CLASSIC_DEPTH_RATIO = (CLASSIC_REF_BASE_HALF_DEPTH * 2.0) / CLASSIC_REF_BASE_WIDTH;
+    static final double CLASSIC_DEPTH_RATIO = (CLASSIC_REF_BASE_HALF_DEPTH * 2.0 * 1.15) / CLASSIC_REF_BASE_WIDTH;
 
     /** 参考几何：{@link com.plot.plugin.powerline.design.structure.TowerStructurePresets#smallLatticeTower()} */
     static final double SMALL_REF_HEIGHT = 24.0;
@@ -43,39 +43,39 @@ public final class TowerParameterProfiles {
 
     /** 参考几何：{@link com.plot.plugin.powerline.design.structure.TowerStructurePresets#tripleArmTower()} */
     static final double TRIPLE_REF_HEIGHT = 50.0;
-    static final double TRIPLE_REF_BASE_WIDTH = 16.0;
+    static final double TRIPLE_REF_BASE_WIDTH = 18.4;
     static final double TRIPLE_REF_BASE_HALF_WIDTH = 8.0;
     static final double TRIPLE_REF_BASE_HALF_DEPTH = 5.2;
     static final double TRIPLE_REF_ARM_SPAN = 29.0;
     static final double TRIPLE_REF_DOMINANT_REACH = 14.5;
-    static final double TRIPLE_DEPTH_RATIO = (TRIPLE_REF_BASE_HALF_DEPTH * 2.0) / TRIPLE_REF_BASE_WIDTH;
+    static final double TRIPLE_DEPTH_RATIO = (TRIPLE_REF_BASE_HALF_DEPTH * 2.0 * 1.18) / TRIPLE_REF_BASE_WIDTH;
 
     /** 参考几何：{@link com.plot.plugin.powerline.design.structure.TowerStructurePresets#cupTower()} */
     static final double CUP_REF_HEIGHT = 40.0;
-    static final double CUP_REF_BASE_WIDTH = 10.0;
+    static final double CUP_REF_BASE_WIDTH = 11.2;
     static final double CUP_REF_BASE_HALF_WIDTH = 5.0;
     static final double CUP_REF_BASE_HALF_DEPTH = 3.3;
     static final double CUP_REF_ARM_SPAN = 32.0;
     static final double CUP_REF_DOMINANT_REACH = 16.0;
-    static final double CUP_DEPTH_RATIO = (CUP_REF_BASE_HALF_DEPTH * 2.0) / CUP_REF_BASE_WIDTH;
+    static final double CUP_DEPTH_RATIO = (CUP_REF_BASE_HALF_DEPTH * 2.0 * 1.15) / CUP_REF_BASE_WIDTH;
 
     /** 参考几何：{@link com.plot.plugin.powerline.design.structure.TowerStructurePresets#heavyTransmissionTower()} */
     static final double HEAVY_REF_HEIGHT = 32.0;
-    static final double HEAVY_REF_BASE_WIDTH = 11.0;
+    static final double HEAVY_REF_BASE_WIDTH = 12.1;
     static final double HEAVY_REF_BASE_HALF_WIDTH = 5.5;
     static final double HEAVY_REF_BASE_HALF_DEPTH = 3.6;
     static final double HEAVY_REF_ARM_SPAN = 24.0;
     static final double HEAVY_REF_DOMINANT_REACH = 12.0;
-    static final double HEAVY_DEPTH_RATIO = (HEAVY_REF_BASE_HALF_DEPTH * 2.0) / HEAVY_REF_BASE_WIDTH;
+    static final double HEAVY_DEPTH_RATIO = (HEAVY_REF_BASE_HALF_DEPTH * 2.0 * 1.12) / HEAVY_REF_BASE_WIDTH;
 
     /** 参考几何：{@link com.plot.plugin.powerline.design.structure.TowerStructurePresets#megaLatticeTower()} */
     static final double MEGA_REF_HEIGHT = 60.0;
-    static final double MEGA_REF_BASE_WIDTH = 18.0;
+    static final double MEGA_REF_BASE_WIDTH = 20.7;
     static final double MEGA_REF_BASE_HALF_WIDTH = 9.0;
     static final double MEGA_REF_BASE_HALF_DEPTH = 6.0;
     static final double MEGA_REF_ARM_SPAN = 30.0;
     static final double MEGA_REF_DOMINANT_REACH = 15.0;
-    static final double MEGA_DEPTH_RATIO = (MEGA_REF_BASE_HALF_DEPTH * 2.0) / MEGA_REF_BASE_WIDTH;
+    static final double MEGA_DEPTH_RATIO = (MEGA_REF_BASE_HALF_DEPTH * 2.0 * 1.18) / MEGA_REF_BASE_WIDTH;
 
     /** 参考几何：{@link com.plot.plugin.powerline.design.structure.TowerStructurePresets#portalTower()} */
     static final double PORTAL_REF_HEIGHT = 42.0;
@@ -84,25 +84,25 @@ public final class TowerParameterProfiles {
     static final double PORTAL_REF_BASE_HALF_DEPTH = 4.5;
     static final double PORTAL_REF_ARM_SPAN = 32.0;
     static final double PORTAL_REF_DOMINANT_REACH = 16.0;
-    static final double PORTAL_DEPTH_RATIO = (PORTAL_REF_BASE_HALF_DEPTH * 2.0) / PORTAL_REF_BASE_WIDTH;
+    static final double PORTAL_DEPTH_RATIO = (PORTAL_REF_BASE_HALF_DEPTH * 2.0 * 1.15) / PORTAL_REF_BASE_WIDTH;
 
     /** 参考几何：{@link com.plot.plugin.powerline.design.structure.TowerStructurePresets#doubleCircuitDrumTower()} */
     static final double DRUM_REF_HEIGHT = 58.0;
-    static final double DRUM_REF_BASE_WIDTH = 17.0;
+    static final double DRUM_REF_BASE_WIDTH = 19.6;
     static final double DRUM_REF_BASE_HALF_WIDTH = 8.5;
     static final double DRUM_REF_BASE_HALF_DEPTH = 5.5;
     static final double DRUM_REF_ARM_SPAN = 28.0;
     static final double DRUM_REF_DOMINANT_REACH = 14.0;
-    static final double DRUM_DEPTH_RATIO = (DRUM_REF_BASE_HALF_DEPTH * 2.0) / DRUM_REF_BASE_WIDTH;
+    static final double DRUM_DEPTH_RATIO = (DRUM_REF_BASE_HALF_DEPTH * 2.0 * 1.18) / DRUM_REF_BASE_WIDTH;
 
     /** 参考几何：{@link com.plot.plugin.powerline.design.structure.TowerStructurePresets#uhvGiantTower()} */
     static final double UHV_REF_HEIGHT = 80.0;
-    static final double UHV_REF_BASE_WIDTH = 28.0;
+    static final double UHV_REF_BASE_WIDTH = 33.0;
     static final double UHV_REF_BASE_HALF_WIDTH = 14.0;
     static final double UHV_REF_BASE_HALF_DEPTH = 9.0;
     static final double UHV_REF_ARM_SPAN = 52.0;
     static final double UHV_REF_DOMINANT_REACH = 26.0;
-    static final double UHV_DEPTH_RATIO = (UHV_REF_BASE_HALF_DEPTH * 2.0) / UHV_REF_BASE_WIDTH;
+    static final double UHV_DEPTH_RATIO = (UHV_REF_BASE_HALF_DEPTH * 2.0 * 1.20) / UHV_REF_BASE_WIDTH;
 
     /** 参考几何：{@link com.plot.plugin.powerline.design.PoleDesignCatalog#steampunkBrassTower()} */
     static final double STEAMPUNK_REF_HEIGHT = 28.0;

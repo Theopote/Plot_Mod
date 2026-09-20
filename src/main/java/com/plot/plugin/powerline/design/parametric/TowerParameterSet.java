@@ -22,7 +22,7 @@ public record TowerParameterSet(
     public static final double DEFAULT_ARM_LEVEL_SCALE = 1.0;
 
     public static TowerParameterSet classicDefaults() {
-        return new TowerParameterSet(36.0, 13.0, 24.0, 1.0, DEFAULT_WAIST_RATIO, null, StructureDensity.MEDIUM);
+        return new TowerParameterSet(36.0, 14.6, 24.0, 1.0, DEFAULT_WAIST_RATIO, null, StructureDensity.MEDIUM);
     }
 
     public static TowerParameterSet smallLatticeDefaults() {
@@ -35,19 +35,19 @@ public record TowerParameterSet(
     }
 
     public static TowerParameterSet tripleArmDefaults() {
-        return new TowerParameterSet(50.0, 16.0, 29.0, 1.0, DEFAULT_WAIST_RATIO, null, StructureDensity.MEDIUM);
+        return new TowerParameterSet(50.0, 18.4, 29.0, 1.0, DEFAULT_WAIST_RATIO, null, StructureDensity.MEDIUM);
     }
 
     public static TowerParameterSet cupDefaults() {
-        return new TowerParameterSet(40.0, 10.0, 32.0, 1.0, DEFAULT_WAIST_RATIO, null, StructureDensity.MEDIUM);
+        return new TowerParameterSet(40.0, 11.2, 32.0, 1.0, DEFAULT_WAIST_RATIO, null, StructureDensity.MEDIUM);
     }
 
     public static TowerParameterSet heavyDefaults() {
-        return new TowerParameterSet(32.0, 11.0, 24.0, 1.0, DEFAULT_WAIST_RATIO, null, StructureDensity.MEDIUM);
+        return new TowerParameterSet(32.0, 12.1, 24.0, 1.0, DEFAULT_WAIST_RATIO, null, StructureDensity.MEDIUM);
     }
 
     public static TowerParameterSet megaDefaults() {
-        return new TowerParameterSet(60.0, 18.0, 30.0, 1.0, DEFAULT_WAIST_RATIO, null, StructureDensity.MEDIUM);
+        return new TowerParameterSet(60.0, 20.7, 30.0, 1.0, DEFAULT_WAIST_RATIO, null, StructureDensity.MEDIUM);
     }
 
     public static TowerParameterSet portalDefaults() {
@@ -55,11 +55,11 @@ public record TowerParameterSet(
     }
 
     public static TowerParameterSet drumDefaults() {
-        return new TowerParameterSet(58.0, 17.0, 28.0, 1.0, DEFAULT_WAIST_RATIO, null, StructureDensity.MEDIUM);
+        return new TowerParameterSet(58.0, 19.6, 28.0, 1.0, DEFAULT_WAIST_RATIO, null, StructureDensity.MEDIUM);
     }
 
     public static TowerParameterSet uhvDefaults() {
-        return new TowerParameterSet(80.0, 28.0, 52.0, 1.0, DEFAULT_WAIST_RATIO, null, StructureDensity.MEDIUM);
+        return new TowerParameterSet(80.0, 33.0, 52.0, 1.0, DEFAULT_WAIST_RATIO, null, StructureDensity.MEDIUM);
     }
 
     public static TowerParameterSet steampunkDefaults() {

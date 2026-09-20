@@ -57,7 +57,7 @@ public final class TowerFamilyDesignPresets {
         return buildClassicLatticeRoleDesign(
             LATTICE_SUSPENSION_ID,
             "Lattice Suspension Tower",
-            5,
+            TowerStructurePresets.CLASSIC_BASE_HALF_WIDTH,
             32,
             InsulatorType.SUSPENSION,
             3);
@@ -77,7 +77,7 @@ public final class TowerFamilyDesignPresets {
         return buildClassicLatticeRoleDesign(
             LATTICE_SUSPENSION_MEDIUM_ID,
             "Lattice Suspension M",
-            5,
+            TowerStructurePresets.CLASSIC_BASE_HALF_WIDTH,
             30,
             InsulatorType.SUSPENSION,
             3);
@@ -98,7 +98,7 @@ public final class TowerFamilyDesignPresets {
         return buildClassicLatticeRoleDesign(
             LATTICE_ANGLE_ID,
             "Lattice Angle Tower",
-            6,
+            TowerStructurePresets.CLASSIC_BASE_HALF_WIDTH,
             32,
             InsulatorType.STRAIN,
             4);
@@ -108,7 +108,7 @@ public final class TowerFamilyDesignPresets {
         return buildClassicLatticeRoleDesign(
             LATTICE_DEAD_END_ID,
             "Lattice Dead-End Tower",
-            6,
+            TowerStructurePresets.CLASSIC_BASE_HALF_WIDTH,
             32,
             InsulatorType.STRAIN,
             4);
@@ -118,7 +118,7 @@ public final class TowerFamilyDesignPresets {
         return buildClassicLatticeRoleDesign(
             LATTICE_TERMINAL_ID,
             "Lattice Terminal Tower",
-            5,
+            TowerStructurePresets.CLASSIC_BASE_HALF_WIDTH,
             30,
             InsulatorType.STRAIN,
             3);

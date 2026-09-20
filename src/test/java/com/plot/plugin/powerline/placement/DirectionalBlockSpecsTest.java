@@ -93,6 +93,32 @@ class DirectionalBlockSpecsTest {
     }
 
     @Test
+    void chainAlongVoxelPathFollowsStraightHorizontalRun() {
+        List<BlockPos> path = VoxelLineRasterizer.rasterizeLine3D(0, 4, 0, 5, 4, 0);
+        for (int i = 0; i < path.size(); i++) {
+            assertEquals("x", DirectionalBlockSpecs.chainAlongVoxelPath(path, i).property("axis"));
+        }
+    }
+
+    @Test
+    void chainAlongVoxelPathTurnsAtCorner() {
+        List<BlockPos> path = List.of(
+            new BlockPos(0, 0, 0),
+            new BlockPos(1, 0, 0),
+            new BlockPos(1, 0, 1));
+        assertEquals("x", DirectionalBlockSpecs.chainAlongVoxelPath(path, 0).property("axis"));
+        assertEquals("x", DirectionalBlockSpecs.chainAlongVoxelPath(path, 1).property("axis"));
+        assertEquals("z", DirectionalBlockSpecs.chainAlongVoxelPath(path, 2).property("axis"));
+    }
+
+    @Test
+    void usesAxisChainPlacementMatchesChainLikeIds() {
+        assertTrue(DirectionalBlockSpecs.usesAxisChainPlacement("minecraft:chain"));
+        assertTrue(DirectionalBlockSpecs.usesAxisChainPlacement("examplemod:gold_chain"));
+        assertTrue(!DirectionalBlockSpecs.usesAxisChainPlacement("minecraft:iron_bars"));
+    }
+
+    @Test
     void ironBarsAlongVoxelPathConnectsDiagonalNeighbors() {
         List<BlockPos> path = VoxelLineRasterizer.rasterizeLine3D(0, 0, 0, 2, 0, 2);
         boolean hasTurn = false;

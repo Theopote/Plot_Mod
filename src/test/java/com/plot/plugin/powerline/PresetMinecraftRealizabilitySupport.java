@@ -122,13 +122,13 @@ final class PresetMinecraftRealizabilitySupport {
     static List<ShapeSignature> shapeSignatures() {
         return List.of(
             familySignature("Classic Lattice", TowerFamily.STANDARD_LATTICE_3_PHASE_ID, TowerRole.SUSPENSION,
-                30, 42, 10, 30, 2, 2, null),
+                30, 42, 12, 32, 2, 2, null),
             familySignature("Triple Arm", TowerFamily.TRIPLE_ARM_3_PHASE_ID, TowerRole.SUSPENSION,
-                44, 58, 12, 34, 3, 3, null),
+                44, 58, 14, 38, 3, 3, null),
             familySignature("Cup Tower", TowerFamily.CUP_TOWER_ID, TowerRole.SUSPENSION,
-                34, 48, 14, 36, 1, 1, TowerArmShape.UPSWEEP),
+                34, 48, 15, 38, 1, 1, TowerArmShape.UPSWEEP),
             familySignature("Monster Pylon", TowerFamily.MONSTER_PYLON_ID, TowerRole.SUSPENSION,
-                68, 95, 24, 70, 3, 6, null));
+                68, 95, 28, 76, 3, 6, null));
     }
 
     static PowerLineFootprint lineForProfile(TowerProfileParameterMatrix.ProfileEntry entry) {

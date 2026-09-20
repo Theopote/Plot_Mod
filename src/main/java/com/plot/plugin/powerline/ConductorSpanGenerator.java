@@ -4,20 +4,19 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.material.MaterialMix;
-import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.powerline.design.BundleVisual;
 import com.plot.plugin.powerline.geometry.clearance.WireClearance;
 import com.plot.plugin.powerline.geometry.ConductorSample;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
-import com.plot.plugin.powerline.placement.DirectionalBlockSpecs;
 import com.plot.plugin.powerline.placement.PlacementCategory;
-import com.plot.plugin.powerline.placement.PlacementWriter;
+import com.plot.plugin.powerline.placement.WireBlockPlacement;
 import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
 
-import java.util.LinkedHashSet;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /** 相邻杆塔挂点匹配与多导线 span 生成。 */
 public final class ConductorSpanGenerator {
@@ -145,24 +144,43 @@ public final class ConductorSpanGenerator {
 
         MaterialMix wireMaterial = ConductorMaterialPolicy.materialFor(start.role(), footprint);
         BundleVisual bundleVisual = resolveBundleVisual(start, end);
+        List<List<BlockPos>> segmentPaths = new ArrayList<>(segmentCount);
+        List<BlockPos> spanPath = new ArrayList<>();
         for (int i = 0; i < segmentCount; i++) {
-            double tangentX = worldX[i + 1] - worldX[i];
-            double tangentY = worldY[i + 1] - worldY[i];
-            double tangentZ = worldZ[i + 1] - worldZ[i];
             List<BlockPos> segmentBlocks = PowerLineWireRasterizer.rasterizeLine3D(
                 worldX[i], worldY[i], worldZ[i],
                 worldX[i + 1], worldY[i + 1], worldZ[i + 1]);
-            LinkedHashSet<BlockPos> wireBlocks = new LinkedHashSet<>(
-                bundleVisual.expandAll(segmentBlocks, tangentX, tangentY, tangentZ));
-            placeDirectedWireBlocks(
+            segmentPaths.add(segmentBlocks);
+            WireBlockPlacement.appendConnected(spanPath, segmentBlocks);
+        }
+        Map<BlockPos, Integer> spanPathIndex = WireBlockPlacement.indexPath(spanPath);
+        if (bundleVisual == BundleVisual.SINGLE) {
+            WireBlockPlacement.placeAlongPath(
                 wireMaterial,
                 footprint,
                 result,
                 projectionHandler,
-                wireBlocks,
-                tangentX,
-                tangentY,
-                tangentZ);
+                spanPath,
+                PlacementCategory.WIRE);
+        } else {
+            for (int i = 0; i < segmentCount; i++) {
+                double tangentX = worldX[i + 1] - worldX[i];
+                double tangentY = worldY[i + 1] - worldY[i];
+                double tangentZ = worldZ[i + 1] - worldZ[i];
+                WireBlockPlacement.placeBundleSegment(
+                    wireMaterial,
+                    footprint,
+                    result,
+                    projectionHandler,
+                    segmentPaths.get(i),
+                    spanPathIndex,
+                    spanPath,
+                    tangentX,
+                    tangentY,
+                    tangentZ,
+                    bundleVisual,
+                    PlacementCategory.WIRE);
+            }
         }
 
         for (int i = 0; i < sampleCount; i++) {
@@ -222,23 +240,4 @@ public final class ConductorSpanGenerator {
         }
     }
 
-    private static void placeDirectedWireBlocks(
-            MaterialMix wireMaterial,
-            PowerLineFootprint footprint,
-            PowerLineGenerationResult result,
-            IBlockProjectionService projectionHandler,
-            LinkedHashSet<BlockPos> wireBlocks,
-            double deltaX,
-            double deltaY,
-            double deltaZ) {
-        if (wireBlocks == null || wireBlocks.isEmpty()) {
-            return;
-        }
-        for (BlockPos pos : wireBlocks) {
-            String blockId = MaterialMixResolver.resolve(wireMaterial, pos, footprint.getId());
-            String placementId = DirectionalBlockSpecs.resolveMemberPlacement(
-                blockId, deltaX, deltaY, deltaZ).toSetBlockArgument();
-            PlacementWriter.put(result, projectionHandler, pos, placementId, PlacementCategory.WIRE);
-        }
-    }
 }

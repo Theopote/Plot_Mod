@@ -81,7 +81,7 @@ class TowerParametricClassicTest {
 
         List<TowerStation> baseStations = baseline.getTowerStructure().sortedStations();
         List<TowerStation> wideStations = wider.getTowerStructure().sortedStations();
-        double widthRatio = 15.0 / 13.0;
+        double widthRatio = 15.0 / defaults.baseWidth();
         for (int i = 0; i < baseStations.size(); i++) {
             assertClose(baseStations.get(i).getHeight(), wideStations.get(i).getHeight());
             assertClose(baseStations.get(i).getHalfWidth() * widthRatio, wideStations.get(i).getHalfWidth());

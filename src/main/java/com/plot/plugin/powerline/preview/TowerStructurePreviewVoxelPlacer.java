@@ -2,7 +2,9 @@ package com.plot.plugin.powerline.preview;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
+import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.PlacementReadiness;
+import com.plot.api.world.SnapshotCoordinateService;
 import com.plot.core.command.BlockRecord;
 import com.plot.plugin.powerline.PoleFrame;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
@@ -20,6 +22,8 @@ public final class TowerStructurePreviewVoxelPlacer {
     private static final Vec2d PREVIEW_ORIGIN = new Vec2d(0, 0);
     private static final Vec2d PREVIEW_FORWARD = new Vec2d(1, 0);
     private static final int PREVIEW_GROUND_Y = 0;
+    /** 与测试/均匀画布投影一致：1 canvas unit = 1 block。 */
+    private static final ICoordinateService PREVIEW_COORDINATES = SnapshotCoordinateService.uniformScale(1.0);
 
     private TowerStructurePreviewVoxelPlacer() {
     }
@@ -39,7 +43,7 @@ public final class TowerStructurePreviewVoxelPlacer {
             PoleFrame.fromPole(PREVIEW_ORIGIN, PREVIEW_FORWARD, PREVIEW_GROUND_Y),
             footprint,
             result,
-            null,
+            PREVIEW_COORDINATES,
             noopProjection(),
             null);
         for (BlockRecord record : result.placementRecords.values()) {

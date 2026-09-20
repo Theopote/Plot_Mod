@@ -152,6 +152,55 @@ public final class DirectionalBlockSpecs {
         return BlockSpec.with(CHAIN, "axis", "y");
     }
 
+    /** 是否为沿 {@code axis} 属性首尾相接的链子类方块。 */
+    public static boolean usesAxisChainPlacement(String blockId) {
+        if (blockId == null || blockId.isBlank()) {
+            return false;
+        }
+        return CHAIN.equals(blockId) || blockId.endsWith(":chain") || blockId.endsWith("_chain");
+    }
+
+    /**
+     * 按 6-连通路径设置链子轴向，使相邻链子首尾相接。
+     */
+    public static BlockSpec chainAlongVoxelPath(List<BlockPos> path, int index) {
+        if (path == null || path.isEmpty() || index < 0 || index >= path.size()) {
+            return verticalChain();
+        }
+        BlockPos current = path.get(index);
+        if (index > 0 && index < path.size() - 1) {
+            BlockPos previous = path.get(index - 1);
+            BlockPos next = path.get(index + 1);
+            if (isChainTurn(previous, current, next)) {
+                return chainAlongBlockStep(previous, current);
+            }
+        }
+        if (index < path.size() - 1) {
+            return chainAlongBlockStep(current, path.get(index + 1));
+        }
+        if (index > 0) {
+            return chainAlongBlockStep(path.get(index - 1), current);
+        }
+        return verticalChain();
+    }
+
+    private static boolean isChainTurn(BlockPos previous, BlockPos current, BlockPos next) {
+        return chainAxis(previous, current) != chainAxis(current, next);
+    }
+
+    private static char chainAxis(BlockPos from, BlockPos to) {
+        int dx = Math.abs(to.getX() - from.getX());
+        int dy = Math.abs(to.getY() - from.getY());
+        int dz = Math.abs(to.getZ() - from.getZ());
+        if (dy >= dx && dy >= dz) {
+            return 'y';
+        }
+        if (dx >= dz) {
+            return 'x';
+        }
+        return 'z';
+    }
+
     /** 水平锁链：沿 plan 方向。 */
     public static BlockSpec chainAlong(Vec2d planDirection) {
         Vec2d direction = normalize(planDirection);
@@ -210,8 +259,24 @@ public final class DirectionalBlockSpecs {
             }
             return verticalIronBars();
         }
-        if ("minecraft:chain".equals(blockId) && deltaX != null && deltaY != null && deltaZ != null) {
+        if (usesAxisChainPlacement(blockId) && deltaX != null && deltaY != null && deltaZ != null) {
             return chainAlongMember(deltaX, deltaY, deltaZ);
+        }
+        return BlockSpec.of(blockId);
+    }
+
+    /**
+     * 导线/绝缘子串沿路径放置：链子、避雷针、铁栏杆等按相邻体素逐步定向。
+     */
+    public static BlockSpec resolveWirePlacementAlongPath(String blockId, List<BlockPos> path, int index) {
+        if (usesAxisChainPlacement(blockId)) {
+            return chainAlongVoxelPath(path, index);
+        }
+        if (LIGHTNING_ROD.equals(blockId)) {
+            return lightningRodAlongVoxelPath(path, index);
+        }
+        if (IRON_BARS.equals(blockId)) {
+            return ironBarsAlongVoxelPath(path, index);
         }
         return BlockSpec.of(blockId);
     }
@@ -236,6 +301,34 @@ public final class DirectionalBlockSpecs {
             return BlockSpec.with(CHAIN, "axis", "x");
         }
         return BlockSpec.with(CHAIN, "axis", "z");
+    }
+
+    private static BlockSpec chainAlongBlockStep(BlockPos from, BlockPos to) {
+        return chainAlongMember(
+            to.getX() - from.getX(),
+            to.getY() - from.getY(),
+            to.getZ() - from.getZ());
+    }
+
+    private static BlockSpec lightningRodAlongVoxelPath(List<BlockPos> path, int index) {
+        if (path == null || path.isEmpty() || index < 0 || index >= path.size()) {
+            return verticalLightningRod();
+        }
+        BlockPos current = path.get(index);
+        if (index < path.size() - 1) {
+            return lightningRodAlongBlockStep(current, path.get(index + 1));
+        }
+        if (index > 0) {
+            return lightningRodAlongBlockStep(path.get(index - 1), current);
+        }
+        return verticalLightningRod();
+    }
+
+    private static BlockSpec lightningRodAlongBlockStep(BlockPos from, BlockPos to) {
+        return lightningRodAlongMember(
+            to.getX() - from.getX(),
+            to.getY() - from.getY(),
+            to.getZ() - from.getZ());
     }
 
     private static String facingFromPlan(Vec2d planDirection) {
