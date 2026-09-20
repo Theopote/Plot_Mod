@@ -282,10 +282,6 @@ public final class PowerLineRoutePanel {
         PowerLineUiWidgets.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.route.auto_poles.paused_endpoints", count));
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.route.auto_poles.clear_all"), 0, 0)) {
-            line.getDerivedLayout().clearAutoLayoutConstraints();
-            ctx.invalidatePreview();
-        }
     }
 
     private void renderAutoCorrectionPoles(PowerLineFootprint line) {
@@ -296,6 +292,10 @@ public final class PowerLineRoutePanel {
         ImGui.separator();
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.route.auto_poles.section"));
         ImGui.spacing();
+        PowerLineUiWidgets.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.powerline.route.auto_poles.summary", constraints.size()));
+        ImGui.spacing();
         for (int i = 0; i < constraints.size(); i++) {
             var constraint = constraints.get(i);
             ImGui.pushID("powerline_auto_pole_" + i);
@@ -303,17 +303,8 @@ public final class PowerLineRoutePanel {
                 "plugin.powerline.route.auto_poles.entry",
                 PowerLineUiFormat.format(constraint.getRequiredStationing()),
                 PowerLineAutoPoleLabels.friendlyReason(constraint)));
-            ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("plugin.powerline.route.auto_poles.remove"), 0, 0)) {
-                line.getDerivedLayout().removeAutoLayoutConstraint(i);
-                ctx.invalidatePreview();
-            }
             ImGui.popID();
             ImGui.spacing();
-        }
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.route.auto_poles.clear_all"), 0, 0)) {
-            line.getDerivedLayout().clearAutoLayoutConstraints();
-            ctx.invalidatePreview();
         }
     }
 }

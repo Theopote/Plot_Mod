@@ -293,6 +293,9 @@ public final class PowerLineActions {
     }
 
     private boolean runPreviewPipeline(PowerLineFootprint line) {
+        if (line == null) {
+            return calculatePreviewCore(null);
+        }
         line.clearDerivedLayout();
         if (!calculatePreviewCore(line)) {
             return false;
@@ -386,6 +389,7 @@ public final class PowerLineActions {
 
     public void clearPreview() {
         state.setPreviewAutoRefreshEnabled(false);
+        clearDerivedLayoutForCurrentLine();
         previewManager.clearLineCachedPreview();
     }
 
@@ -400,10 +404,18 @@ public final class PowerLineActions {
             return;
         }
         state.setPreviewAutoRefreshEnabled(false);
+        clearDerivedLayoutForCurrentLine();
         previewManager.clearLineCachedPreview();
         state.setProjectStatus(
             PlotI18n.tr("plugin.powerline.preview_invalidated"),
             ProjectStatusSeverity.INFO);
+    }
+
+    private void clearDerivedLayoutForCurrentLine() {
+        PowerLineFootprint line = state.getSelection().primary(state.getProject());
+        if (line != null) {
+            line.clearDerivedLayout();
+        }
     }
 
     private boolean tryAutoRefreshPreview() {
@@ -460,10 +472,14 @@ public final class PowerLineActions {
         if (isLineSelectionFrozen()) {
             return;
         }
+        PowerLineFootprint previousLine = state.getSelection().primary(state.getProject());
         String previousPrimary = state.getSelection().primaryId();
         state.getSelection().select(lineId, multiToggle);
         String newPrimary = state.getSelection().primaryId();
         if (!newPrimary.equals(previousPrimary)) {
+            if (previousLine != null) {
+                previousLine.clearDerivedLayout();
+            }
             state.setPreviewAutoRefreshEnabled(false);
             invalidatePreview();
         }
@@ -473,9 +489,13 @@ public final class PowerLineActions {
         if (isLineSelectionFrozen()) {
             return;
         }
+        PowerLineFootprint previousLine = state.getSelection().primary(state.getProject());
         String previousPrimary = state.getSelection().primaryId();
         state.getSelection().selectAll(ids);
         if (!state.getSelection().primaryId().equals(previousPrimary)) {
+            if (previousLine != null) {
+                previousLine.clearDerivedLayout();
+            }
             state.setPreviewAutoRefreshEnabled(false);
             invalidatePreview();
         }
@@ -486,6 +506,10 @@ public final class PowerLineActions {
             return;
         }
         if (!state.getSelection().isEmpty()) {
+            PowerLineFootprint previousLine = state.getSelection().primary(state.getProject());
+            if (previousLine != null) {
+                previousLine.clearDerivedLayout();
+            }
             state.getSelection().clear();
             state.setPreviewAutoRefreshEnabled(false);
             invalidatePreview();

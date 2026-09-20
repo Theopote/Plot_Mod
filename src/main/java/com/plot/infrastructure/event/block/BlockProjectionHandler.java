@@ -2,6 +2,8 @@ package com.plot.infrastructure.event.block;
 
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.PlacementReadiness;
+import com.plot.core.block.BlockIdNormalizer;
+import com.plot.core.block.BlockNormalizationResult;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.base.Event;
 import com.plot.infrastructure.event.Events;
@@ -181,7 +183,16 @@ public class BlockProjectionHandler implements IBlockProjectionService {
         PlayerEntity player = client.player;
         World world = client.world;
 
-        String normalizedBlockId = normalizeBlockId(blockId, false);
+        BlockNormalizationResult normalized = BlockIdNormalizer.normalize(blockId, false);
+        if (!normalized.valid()) {
+            return new ProjectionResult(
+                false,
+                PlotI18n.status("status.plot.projection.unknown_block", blockId),
+                null,
+                null,
+                null);
+        }
+        String normalizedBlockId = normalized.normalized();
         int x = (int) Math.round(xInput);
         int y = (int) Math.round(yInput);
         int z = (int) Math.round(zInput);
@@ -233,14 +244,18 @@ public class BlockProjectionHandler implements IBlockProjectionService {
             return false;
         }
 
-        String normalizedBlockId = normalizeBlockId(blockId, true);
+        BlockNormalizationResult normalized = BlockIdNormalizer.normalize(blockId, true);
+        if (!normalized.valid()) {
+            LOGGER.warn("setBlockAt失败: 未知方块 {} ({})", blockId, normalized.error());
+            return false;
+        }
         String validationError = validatePlacementContext(client.player, client.world, pos);
         if (validationError != null) {
             LOGGER.warn("setBlockAt失败: {}", validationError);
             return false;
         }
 
-        return sendSetBlockCommand(client, pos, normalizedBlockId);
+        return sendSetBlockCommand(client, pos, normalized.normalized());
     }
 
     @Override
@@ -257,34 +272,6 @@ public class BlockProjectionHandler implements IBlockProjectionService {
         } catch (Exception e) {
             LOGGER.warn("读取方块ID失败: {}", pos, e);
             return "minecraft:air";
-        }
-    }
-
-    private String normalizeBlockId(String blockId, boolean allowAir) {
-        String candidate = (blockId == null || blockId.isEmpty()) ? "minecraft:white_wool" : blockId;
-        try {
-            com.plot.core.block.BlockSpec spec = com.plot.core.block.BlockSpec.parse(candidate);
-            String namespace = "minecraft";
-            String path = spec.blockId();
-            if (path.contains(":")) {
-                String[] parts = path.split(":", 2);
-                namespace = parts[0];
-                path = parts[1];
-            }
-
-            Identifier blockIdentifier = Identifier.of(namespace, path);
-            Block blockType = Registries.BLOCK.get(blockIdentifier);
-            if (blockType == Blocks.AIR) {
-                return allowAir ? "minecraft:air" : "minecraft:white_wool";
-            }
-            return com.plot.core.block.BlockStateSanitizer.sanitizeSetBlockArgument(spec.toSetBlockArgument());
-        } catch (Exception e) {
-            if (allowAir) {
-                LOGGER.warn("解析方块ID失败: {}，恢复路径回退空气", candidate, e);
-                return "minecraft:air";
-            }
-            LOGGER.warn("解析方块ID失败: {}，回退白色羊毛", candidate, e);
-            return "minecraft:white_wool";
         }
     }
 
