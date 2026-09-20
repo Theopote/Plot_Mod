@@ -5,7 +5,6 @@ import com.plot.plugin.pattern.PatternGeometryUtils;
 import com.plot.plugin.pattern.model.ImagePatternConfig;
 import com.plot.plugin.pattern.model.PatternFootprint;
 import com.plot.plugin.pattern.model.PatternSource;
-import com.plot.plugin.pattern.model.PatternFootprint;
 import com.plot.plugin.pattern.model.PatternTypeCatalog;
 import com.plot.plugin.pattern.model.ProceduralPatternConfig;
 import com.plot.plugin.ui.PluginUiColors;
@@ -22,6 +21,8 @@ import java.util.function.Consumer;
 
 /** 图案插件共享 ImGui 控件。 */
 public final class PatternUiWidgets {
+    private static final PatternPendingEdit PENDING_EDIT = new PatternPendingEdit();
+
     private PatternUiWidgets() {
     }
 
@@ -191,6 +192,52 @@ public final class PatternUiWidgets {
         return PlotI18n.tr("plugin.pattern.type." + type.name().toLowerCase());
     }
 
+    /**
+     * X/Z 双值输入：整组共享一次 Undo 快照，首次改值时 capture，X↔Z 切换不重复 push。
+     */
+    public static boolean renderVec2Input(
+            String groupId,
+            String labelX,
+            String labelZ,
+            Vec2d current,
+            float step,
+            float stepFast,
+            String format,
+            Runnable beforeChange,
+            Consumer<Vec2d> onChanged) {
+        ImFloat valueX = new ImFloat((float) current.x);
+        ImFloat valueZ = new ImFloat((float) current.y);
+
+        ImGui.pushID(groupId);
+        try {
+            boolean xChanged = ImGui.inputFloat(labelX, valueX, step, stepFast, format);
+            boolean xActivated = ImGui.isItemActivated();
+            boolean xActive = ImGui.isItemActive();
+
+            boolean zChanged = ImGui.inputFloat(labelZ, valueZ, step, stepFast, format);
+            boolean zActivated = ImGui.isItemActivated();
+            boolean zActive = ImGui.isItemActive();
+
+            PENDING_EDIT.trackVec2(
+                groupId,
+                xActivated,
+                xChanged,
+                xActive,
+                zActivated,
+                zChanged,
+                zActive,
+                beforeChange);
+
+            boolean changed = xChanged || zChanged;
+            if (changed && onChanged != null) {
+                onChanged.accept(new Vec2d(valueX.get(), valueZ.get()));
+            }
+            return changed;
+        } finally {
+            ImGui.popID();
+        }
+    }
+
     public static void renderPatternCenterControl(
             PatternFootprint footprint,
             ProceduralPatternConfig pattern,
@@ -216,29 +263,21 @@ public final class PatternUiWidgets {
                 center = footprint.computeCentroid();
                 pattern.setCenterOverride(center);
             }
-            ImFloat centerX = new ImFloat((float) center.x);
-            ImFloat centerZ = new ImFloat((float) center.y);
-            boolean centerChanged = ImGui.inputFloat(
+            renderVec2Input(
+                "pattern_center",
                 PlotI18n.tr("plugin.pattern.center_x"),
-                centerX,
-                0.5f,
-                1.0f,
-                "%.1f");
-            centerChanged |= ImGui.inputFloat(
                 PlotI18n.tr("plugin.pattern.center_z"),
-                centerZ,
+                center,
                 0.5f,
                 1.0f,
-                "%.1f");
-            if (ImGui.isItemActivated() && beforeChange != null) {
-                beforeChange.run();
-            }
-            if (centerChanged) {
-                pattern.setCenterOverride(new Vec2d(centerX.get(), centerZ.get()));
-                if (onChanged != null) {
-                    onChanged.run();
-                }
-            }
+                "%.1f",
+                beforeChange,
+                updated -> {
+                    pattern.setCenterOverride(updated);
+                    if (onChanged != null) {
+                        onChanged.run();
+                    }
+                });
             if (ImGui.button(PlotI18n.tr("plugin.pattern.center_reset"), 0, 0)) {
                 if (beforeChange != null) {
                     beforeChange.run();

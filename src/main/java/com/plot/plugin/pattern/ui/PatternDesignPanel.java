@@ -1,6 +1,5 @@
 package com.plot.plugin.pattern.ui;
 
-import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.pattern.model.ImagePatternConfig;
 import com.plot.plugin.pattern.model.PatternCapabilities;
 import com.plot.plugin.pattern.model.PatternFootprint;
@@ -223,30 +222,19 @@ public final class PatternDesignPanel {
             ProceduralPatternConfig pattern,
             Runnable beforeEdit,
             Runnable commitPattern) {
-        Vec2d offset = pattern.getOffset();
-        ImFloat offsetX = new ImFloat((float) offset.x);
-        ImFloat offsetZ = new ImFloat((float) offset.y);
-
-        boolean offsetChanged = ImGui.inputFloat(
+        PatternUiWidgets.renderVec2Input(
+            "pattern_offset",
             PlotI18n.tr("plugin.pattern.offset_x"),
-            offsetX,
-            0.1f,
-            0.5f,
-            "%.1f");
-        offsetChanged |= ImGui.inputFloat(
             PlotI18n.tr("plugin.pattern.offset_z"),
-            offsetZ,
+            pattern.getOffset(),
             0.1f,
             0.5f,
-            "%.1f");
-
-        if (ImGui.isItemActivated()) {
-            beforeEdit.run();
-        }
-        if (offsetChanged) {
-            pattern.setOffset(new Vec2d(offsetX.get(), offsetZ.get()));
-            commitPattern.run();
-        }
+            "%.1f",
+            beforeEdit,
+            updated -> {
+                pattern.setOffset(updated);
+                commitPattern.run();
+            });
     }
 
     private void renderDensityControl(
