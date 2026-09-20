@@ -32,7 +32,7 @@ class RoadDeprecatedApiInventoryTest {
         "MinecraftTerrainSampler.isNaturalDecoration",
         "Road.applyPreset",
         "RoadSystemConfig.applyPreset",
-        "getPresets("
+        "RoadSystemConfig.getPresets"
     );
 
     /** Batch B 已删除；生产代码中不应再出现这些符号。 */
