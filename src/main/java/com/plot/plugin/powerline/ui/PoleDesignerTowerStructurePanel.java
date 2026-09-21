@@ -22,31 +22,55 @@ import java.util.List;
 /** 杆塔手动结构编辑器（站、臂、装饰）。 */
 final class PoleDesignerTowerStructurePanel {
 
+    private PendingStructurePreset pendingPreset;
+    private boolean replaceConfirmPending;
+
+    void renderInspectSummary(PoleDesign draft) {
+        TowerStructureDesign structure = draft.getTowerStructure();
+        PowerLineUiWidgets.text(PlotI18n.tr(
+            "plugin.powerline.design.tower_structure_inspect_stations",
+            structure.getStations().size()));
+        PowerLineUiWidgets.text(PlotI18n.tr(
+            "plugin.powerline.design.tower_structure_inspect_arms",
+            structure.getArms().size()));
+        PowerLineUiWidgets.text(PlotI18n.tr(
+            "plugin.powerline.design.tower_structure_inspect_decorations",
+            structure.getDecorations().size()));
+    }
+
+    void renderInspectDetails(PoleDesign draft) {
+        TowerStructureDesign structure = draft.getTowerStructure();
+        List<TowerStation> stations = structure.sortedStations();
+        for (int i = 0; i < stations.size(); i++) {
+            TowerStation station = stations.get(i);
+            PowerLineUiWidgets.textColored(0xFF9E9E9E, PlotI18n.tr(
+                "plugin.powerline.design.tower_structure_inspect_station_row",
+                i + 1,
+                (int) Math.round(station.getHeight()),
+                station.getHalfWidth(),
+                station.getHalfDepth()));
+        }
+        List<TowerArm> arms = TowerArmAttachmentBinding.sortedArms(structure);
+        for (int i = 0; i < arms.size(); i++) {
+            TowerArm arm = arms.get(i);
+            PowerLineUiWidgets.textColored(0xFF9E9E9E, PlotI18n.tr(
+                "plugin.powerline.design.tower_structure_inspect_arm_row",
+                i + 1,
+                (int) Math.round(arm.getBaseHeight()),
+                arm.getLateralReach()));
+        }
+    }
+
     void render(PoleDesign draft, Runnable pushDraftSnapshot) {
         TowerStructureDesign structure = draft.getTowerStructure();
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.structure_preset_lattice"), 0, 0)) {
-            pushDraftSnapshot.run();
-            draft.setTowerStructure(TowerStructurePresets.taperedLatticeTower());
-            syncLatticePresetAttachments(draft, draft.getTowerStructure());
-        }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.structure_preset_mega"), 0, 0)) {
-            pushDraftSnapshot.run();
-            draft.setTowerStructure(TowerStructurePresets.megaLatticeTower());
-            TowerArmAttachmentBinding.inferArmBindings(draft);
-        }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.structure_preset_monster"), 0, 0)) {
-            pushDraftSnapshot.run();
-            draft.setTowerStructure(TowerStructurePresets.monsterPylonTower());
-            TowerArmAttachmentBinding.inferArmBindings(draft);
-        }
+        renderReplaceStructurePresets(draft, pushDraftSnapshot);
 
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.structure_stations"));
-        for (int i = 0; i < structure.getStations().size(); i++) {
-            TowerStation station = structure.getStations().get(i);
-            ImGui.pushID("station_" + i);
-            renderStationRow(station, structure, pushDraftSnapshot);
+        List<TowerStation> sortedStations = structure.sortedStations();
+        for (int i = 0; i < sortedStations.size(); i++) {
+            TowerStation station = sortedStations.get(i);
+            ImGui.pushID("station_" + station.getId());
+            renderStationRow(station, structure, i, sortedStations.size(), pushDraftSnapshot);
             ImGui.popID();
         }
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.structure_add_station"), 0, 0)) {
@@ -91,6 +115,78 @@ final class PoleDesignerTowerStructurePanel {
         }
 
         renderDecorationSection(draft, structure, pushDraftSnapshot);
+    }
+
+    private void renderReplaceStructurePresets(PoleDesign draft, Runnable pushDraftSnapshot) {
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.structure_replace_header"));
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.structure_preset_lattice"), 0, 0)) {
+            requestReplacePreset(PendingStructurePreset.LATTICE);
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.structure_preset_mega"), 0, 0)) {
+            requestReplacePreset(PendingStructurePreset.MEGA);
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.structure_preset_monster"), 0, 0)) {
+            requestReplacePreset(PendingStructurePreset.MONSTER);
+        }
+        renderReplaceConfirmPopup(draft, pushDraftSnapshot);
+    }
+
+    private void requestReplacePreset(PendingStructurePreset preset) {
+        pendingPreset = preset;
+        replaceConfirmPending = true;
+        ImGui.openPopup("##tower_replace_structure_confirm");
+    }
+
+    private void renderReplaceConfirmPopup(PoleDesign draft, Runnable pushDraftSnapshot) {
+        if (!PowerLineUiWidgets.beginDeferredPopupModal(
+                "##tower_replace_structure_confirm",
+                replaceConfirmPending,
+                () -> replaceConfirmPending = false)) {
+            return;
+        }
+        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.structure_replace_confirm"));
+        if (ImGui.button(PlotI18n.tr("button.plot.confirm"), 120, 0)) {
+            applyPendingPreset(draft, pushDraftSnapshot);
+            pendingPreset = null;
+            ImGui.closeCurrentPopup();
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
+            pendingPreset = null;
+            ImGui.closeCurrentPopup();
+        }
+        ImGui.endPopup();
+    }
+
+    private void applyPendingPreset(PoleDesign draft, Runnable pushDraftSnapshot) {
+        if (pendingPreset == null) {
+            return;
+        }
+        pushDraftSnapshot.run();
+        switch (pendingPreset) {
+            case LATTICE -> {
+                draft.setTowerStructure(TowerStructurePresets.taperedLatticeTower());
+                syncLatticePresetAttachments(draft, draft.getTowerStructure());
+            }
+            case MEGA -> {
+                draft.setTowerStructure(TowerStructurePresets.megaLatticeTower());
+                TowerArmAttachmentBinding.inferArmBindings(draft);
+            }
+            case MONSTER -> {
+                draft.setTowerStructure(TowerStructurePresets.monsterPylonTower());
+                TowerArmAttachmentBinding.inferArmBindings(draft);
+            }
+            default -> {
+            }
+        }
+    }
+
+    private enum PendingStructurePreset {
+        LATTICE,
+        MEGA,
+        MONSTER
     }
 
     private void renderDecorationSection(
@@ -282,13 +378,17 @@ final class PoleDesignerTowerStructurePanel {
     private void renderStationRow(
             TowerStation station,
             TowerStructureDesign structure,
+            int sortedIndex,
+            int stationCount,
             Runnable pushDraftSnapshot) {
         if (!DialogLayoutHelper.beginForm("##station_form")) {
             return;
         }
         float[] height = {(float) station.getHeight()};
+        float minHeight = stationHeightMin(structure, sortedIndex);
+        float maxHeight = stationHeightMax(structure, sortedIndex, stationCount);
         if (PoleDesignerFormRows.sliderFloat(
-                "plugin.powerline.design.station_height", "##h", height, 1f, 256f, PowerLineUiFormat.SLIDER)) {
+                "plugin.powerline.design.station_height", "##h", height, minHeight, maxHeight, PowerLineUiFormat.SLIDER)) {
             station.setHeight(height[0]);
             structure.rebuildOrReconcileBays();
         }
@@ -321,6 +421,20 @@ final class PoleDesignerTowerStructurePanel {
         }
         DialogLayoutHelper.endForm();
         DialogLayoutHelper.subsectionGap();
+    }
+
+    private static float stationHeightMin(TowerStructureDesign structure, int sortedIndex) {
+        if (sortedIndex <= 0) {
+            return 1f;
+        }
+        return (float) structure.sortedStations().get(sortedIndex - 1).getHeight() + 1f;
+    }
+
+    private static float stationHeightMax(TowerStructureDesign structure, int sortedIndex, int stationCount) {
+        if (sortedIndex >= stationCount - 1) {
+            return 256f;
+        }
+        return (float) structure.sortedStations().get(sortedIndex + 1).getHeight() - 1f;
     }
 
     private void renderArmDeckActions(PoleDesign draft, TowerArm arm, Runnable pushDraftSnapshot) {

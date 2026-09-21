@@ -5,6 +5,8 @@ import imgui.type.ImBoolean;
 /** ImGui-facing UI flags for the tower designer panels. */
 public final class TowerDesignerUiState {
     public final ImBoolean showAdvancedStructure = new ImBoolean(false);
+    public final ImBoolean expandGeneratedGeometry = new ImBoolean(false);
+    public final ImBoolean showAttachmentAdvanced = new ImBoolean(false);
     public boolean convertManualConfirmPending;
 
     public void syncFromDraft(com.plot.plugin.powerline.design.PoleDesign draft) {

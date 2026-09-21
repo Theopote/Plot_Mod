@@ -149,7 +149,7 @@ public final class TowerAdvancedParametersPanel {
             return;
         }
         ImGui.checkbox(
-            PlotI18n.tr("plugin.powerline.design.parametric_advanced_structure"),
+            PlotI18n.tr("plugin.powerline.design.parametric_inspect_generated_structure"),
             context.uiState().showAdvancedStructure);
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.parametric_convert_manual"), 0, 0)) {
             context.uiState().convertManualConfirmPending = true;

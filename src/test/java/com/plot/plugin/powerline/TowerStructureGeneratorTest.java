@@ -33,6 +33,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class TowerStructureGeneratorTest {
 
     @Test
+    void generateSkipsPlacementOnValidationError() {
+        TowerStructureDesign structure = new TowerStructureDesign();
+        structure.addStation(new TowerStation("s0", 12, 2, 2));
+        PowerLineGenerationResult result = generateStructure(structure);
+        assertFalse(result.warnings.isEmpty());
+        assertTrue(blocksWithMaterial(result, "minecraft:iron_bars").isEmpty());
+    }
+
+    @Test
     void twoStationsProduceFourLegMembers() {
         TowerStructureDesign structure = twoStationTower();
         PowerLineGenerationResult result = generateStructure(structure);

@@ -170,13 +170,20 @@ public final class PoleDesignerPanel {
                         ImGui.getContentRegionAvail().y,
                         towerSession.previewShowsLastValidStructure()),
                     () -> {
-                        renderStructureSection();
+                        TowerDesignerContext towerContext = new TowerDesignerContext(
+                            draft,
+                            towerSession,
+                            towerUiState,
+                            this::pushDraftSnapshot,
+                            editScope);
+                        renderStructureSection(towerContext);
                         if (!draft.hasTowerStructure()) {
                             ImGui.separator();
                             layerPanel.render(draft, this::pushDraftSnapshot);
                         }
                         ImGui.separator();
-                        attachmentPanel.render(draft, this::pushDraftSnapshot);
+                        attachmentPanel.render(draft, towerUiState, this::pushDraftSnapshot);
+                        towerStatusPanel.render(towerContext);
                     });
                 renderFooter();
             } finally {
@@ -366,7 +373,7 @@ public final class PoleDesignerPanel {
         towerSession.afterDraftRestored(draft);
     }
 
-    private void renderStructureSection() {
+    private void renderStructureSection(TowerDesignerContext towerContext) {
         if (editScope == PoleDesignerEditScope.LINE_INSTANCE) {
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
@@ -381,15 +388,8 @@ public final class PoleDesignerPanel {
             renderStructureModeRadios();
         }
 
-        TowerDesignerContext towerContext = new TowerDesignerContext(
-            draft,
-            towerSession,
-            towerUiState,
-            this::pushDraftSnapshot,
-            editScope);
         towerBasicPanel.render(towerContext);
         towerAdvancedPanel.render(towerContext);
-        towerStatusPanel.render(towerContext);
 
         if (!draft.hasTowerStructure()) {
             return;
@@ -409,20 +409,50 @@ public final class PoleDesignerPanel {
     }
 
     private void renderStructureModeRadios() {
-        boolean useTower = draft.hasTowerStructure();
-        if (ImGui.radioButton(PlotI18n.tr("plugin.powerline.design.structure_legacy"), !useTower)) {
-            if (useTower) {
+        StructureKind current = currentStructureKind();
+        if (ImGui.radioButton(
+                PlotI18n.tr("plugin.powerline.design.structure_layered"),
+                current == StructureKind.LAYERED)) {
+            if (current != StructureKind.LAYERED) {
                 pushDraftSnapshot();
                 towerSession.syncStructureMode(draft, false);
             }
         }
         ImGui.sameLine();
-        if (ImGui.radioButton(PlotI18n.tr("plugin.powerline.design.structure_tower"), useTower)) {
-            if (!useTower) {
+        if (ImGui.radioButton(
+                PlotI18n.tr("plugin.powerline.design.structure_parametric"),
+                current == StructureKind.PARAMETRIC)) {
+            if (current != StructureKind.PARAMETRIC) {
                 pushDraftSnapshot();
-                towerSession.syncStructureMode(draft, true);
+                towerSession.switchToParametricTower(draft);
             }
         }
+        ImGui.sameLine();
+        if (ImGui.radioButton(
+                PlotI18n.tr("plugin.powerline.design.structure_manual"),
+                current == StructureKind.MANUAL)) {
+            if (current != StructureKind.MANUAL) {
+                pushDraftSnapshot();
+                towerSession.switchToManualTower(draft);
+                towerUiState.showAdvancedStructure.set(true);
+            }
+        }
+    }
+
+    private StructureKind currentStructureKind() {
+        if (!draft.hasTowerStructure()) {
+            return StructureKind.LAYERED;
+        }
+        if (draft.isManualLegacyMode()) {
+            return StructureKind.MANUAL;
+        }
+        return StructureKind.PARAMETRIC;
+    }
+
+    private enum StructureKind {
+        LAYERED,
+        PARAMETRIC,
+        MANUAL
     }
 
     private void renderLockedStructureKind() {
@@ -449,12 +479,16 @@ public final class PoleDesignerPanel {
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.powerline.design.tower_structure_readonly_hint"));
-            ImGui.beginDisabled();
+            towerStructurePanel.renderInspectSummary(draft);
+            ImGui.checkbox(
+                PlotI18n.tr("plugin.powerline.design.tower_structure_expand_geometry"),
+                towerUiState.expandGeneratedGeometry);
+            if (towerUiState.expandGeneratedGeometry.get()) {
+                towerStructurePanel.renderInspectDetails(draft);
+            }
+            return;
         }
-        towerStructurePanel.render(draft, readOnly ? () -> { } : this::pushDraftSnapshot);
-        if (readOnly) {
-            ImGui.endDisabled();
-        }
+        towerStructurePanel.render(draft, this::pushDraftSnapshot);
     }
 
     private void applyLineParametricOverride(String designId) {

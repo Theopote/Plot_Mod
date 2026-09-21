@@ -6,6 +6,8 @@ import com.plot.core.context.PluginContext;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
 import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
+import com.plot.plugin.powerline.design.structure.TowerStation;
+import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerLineProject;
@@ -95,6 +97,29 @@ class TowerDesignerSessionTest {
         PoleDesign draft = parametricDraft("custom-tower");
         fixture.session.beginSession(draft);
         fixture.session.refreshConstraints(draft);
+        assertTrue(fixture.session.canSaveDraft(draft));
+    }
+
+    @Test
+    void canSaveDraftBlocksInvalidManualTower() {
+        SessionFixture fixture = newSessionWithLine("custom-tower");
+        PoleDesign draft = parametricDraft("custom-tower");
+        fixture.session.beginSession(draft);
+        TowerParametricEditor.convertToManual(draft);
+        TowerStructureDesign structure = new TowerStructureDesign();
+        structure.addStation(new TowerStation("s0", 12, 2, 2));
+        draft.setTowerStructure(structure);
+        assertFalse(fixture.session.canSaveDraft(draft));
+        assertTrue(fixture.session.structureValidationIssues(draft).stream()
+            .anyMatch(issue -> issue.messageKey().contains("min_stations")));
+    }
+
+    @Test
+    void canSaveDraftAllowsValidManualTower() {
+        SessionFixture fixture = newSessionWithLine("custom-tower");
+        PoleDesign draft = parametricDraft("custom-tower");
+        fixture.session.beginSession(draft);
+        TowerParametricEditor.convertToManual(draft);
         assertTrue(fixture.session.canSaveDraft(draft));
     }
 

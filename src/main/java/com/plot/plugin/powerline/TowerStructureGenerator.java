@@ -61,13 +61,18 @@ public final class TowerStructureGenerator {
         structure = structure.copy();
         TowerStationFootprintTaper.applySideDepthTaper(structure);
 
+        boolean hasBlockingErrors = false;
         for (TowerValidationIssue issue : TowerStructureValidator.validate(
                 wrapForValidation(structure))) {
             if (issue.severity() == com.plot.plugin.powerline.design.structure.TowerValidationSeverity.ERROR) {
+                hasBlockingErrors = true;
                 result.warnings.add(issue.localizedMessage());
             } else if (issue.severity() == com.plot.plugin.powerline.design.structure.TowerValidationSeverity.WARNING) {
                 result.warnings.add(issue.localizedMessage());
             }
+        }
+        if (hasBlockingErrors) {
+            return frame.groundY() + (int) Math.round(structure.maxHeight());
         }
 
         TowerStructureTransform transform = new TowerStructureTransform(frame, coordinates);

@@ -15,7 +15,10 @@ public final class TowerManualStructurePanel {
         if (!shouldShow(context)) {
             return;
         }
-        PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.tower_expert_mode"));
+        String headerKey = context.draft().isManualLegacyMode()
+            ? "plugin.powerline.design.tower_manual_structure"
+            : "plugin.powerline.design.tower_expert_mode";
+        PowerLineUiWidgets.text(PlotI18n.tr(headerKey));
         renderer.render(context);
     }
 

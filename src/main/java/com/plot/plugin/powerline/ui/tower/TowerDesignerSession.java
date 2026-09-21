@@ -4,6 +4,9 @@ import com.plot.core.terrain.MinecraftTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.TowerArmAttachmentBinding;
+import com.plot.plugin.powerline.design.structure.TowerStructureValidator;
+import com.plot.plugin.powerline.design.structure.TowerValidationIssue;
+import com.plot.plugin.powerline.design.structure.TowerValidationSeverity;
 import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelope;
 import com.plot.plugin.powerline.design.parametric.TowerBuildEnvelopeResolver;
 import com.plot.plugin.powerline.design.parametric.TowerConstraintResult;
@@ -20,6 +23,7 @@ import com.plot.plugin.powerline.style.ParametricFootprintSync;
 import com.plot.plugin.powerline.ui.PowerLineUiContext;
 import net.minecraft.client.MinecraftClient;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.UnaryOperator;
@@ -80,12 +84,21 @@ public final class TowerDesignerSession {
         if (draft == null) {
             return false;
         }
-        if (draft.hasTowerStructure()
-                && draft.isParametricMode()
-                && !draft.isManualLegacyMode()) {
-            return canBuild();
+        if (draft.hasTowerStructure()) {
+            if (draft.isParametricMode() && !draft.isManualLegacyMode() && !canBuild()) {
+                return false;
+            }
+            return structureValidationIssues(draft).stream()
+                .noneMatch(issue -> issue.severity() == TowerValidationSeverity.ERROR);
         }
         return true;
+    }
+
+    public List<TowerValidationIssue> structureValidationIssues(PoleDesign draft) {
+        if (draft == null || !draft.hasTowerStructure()) {
+            return List.of();
+        }
+        return TowerStructureValidator.validate(draft);
     }
 
     public void refreshConstraints(PoleDesign draft) {
@@ -301,6 +314,31 @@ public final class TowerDesignerSession {
         TowerParametricEditor.convertToManual(draft);
         lastConstraintResult = null;
         parametricState.reset();
+    }
+
+    public void switchToParametricTower(PoleDesign draft) {
+        if (draft == null) {
+            return;
+        }
+        if (!draft.hasTowerStructure()) {
+            syncStructureMode(draft, true);
+            return;
+        }
+        if (draft.isManualLegacyMode()) {
+            restoreParametric(draft);
+        }
+    }
+
+    public void switchToManualTower(PoleDesign draft) {
+        if (draft == null) {
+            return;
+        }
+        if (!draft.hasTowerStructure()) {
+            syncStructureMode(draft, true);
+        }
+        if (!draft.isManualLegacyMode()) {
+            onConvertToManual(draft);
+        }
     }
 
     public boolean restoreParametric(PoleDesign draft) {

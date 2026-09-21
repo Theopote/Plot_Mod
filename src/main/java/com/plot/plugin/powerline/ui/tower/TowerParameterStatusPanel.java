@@ -3,6 +3,7 @@ package com.plot.plugin.powerline.ui.tower;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.parametric.ConstraintAdjustment;
 import com.plot.plugin.powerline.design.parametric.ConstraintIssue;
+import com.plot.plugin.powerline.design.parametric.ConstraintSeverity;
 import com.plot.plugin.powerline.design.parametric.TowerConstraintResult;
 import com.plot.plugin.powerline.design.parametric.TowerConstraintSolver;
 import com.plot.plugin.powerline.design.parametric.TowerLineBuildEnvelope;
@@ -11,13 +12,16 @@ import com.plot.plugin.powerline.design.parametric.TowerParametricHeightLimits;
 import com.plot.plugin.powerline.design.parametric.TowerParameterProfile;
 import com.plot.plugin.powerline.design.parametric.TowerParameterProfiles;
 import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
+import com.plot.plugin.powerline.design.structure.TowerValidationIssue;
+import com.plot.plugin.powerline.design.structure.TowerValidationSeverity;
 import com.plot.plugin.powerline.ui.PowerLineUiWidgets;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
+import java.util.List;
 import java.util.Optional;
 
-/** Compact status summary for the parametric tower editor. */
+/** Compact validation and status summary for the tower designer. */
 public final class TowerParameterStatusPanel {
 
     public void render(TowerDesignerContext context) {
@@ -25,12 +29,20 @@ public final class TowerParameterStatusPanel {
         if (!draft.hasTowerStructure()) {
             return;
         }
-        if (!draft.isParametricMode() && !draft.isManualLegacyMode()) {
-            return;
-        }
 
         ImGui.separator();
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.tower_status_section"));
+
+        if (draft.isManualLegacyMode()) {
+            renderManualModeHeader(draft);
+            renderStructureValidationStatus(context);
+            return;
+        }
+
+        if (!draft.isParametricMode()) {
+            renderStructureValidationStatus(context);
+            return;
+        }
 
         String profileId = draft.getGeneratorConfig() != null
             ? draft.getGeneratorConfig().profileId()
@@ -38,17 +50,22 @@ public final class TowerParameterStatusPanel {
         DialogLayoutHelperStatus.row(
             PlotI18n.tr("plugin.powerline.design.tower_status_profile"),
             TowerProfileUiCatalog.labelFor(profileId));
+        DialogLayoutHelperStatus.row(
+            PlotI18n.tr("plugin.powerline.design.tower_status_mode"),
+            PlotI18n.tr("plugin.powerline.design.tower_status_mode_parametric"));
+        renderHeightStatus(context, draft);
+        renderConstraintStatus(context);
+        renderStructureValidationStatus(context);
+    }
 
-        if (draft.isManualLegacyMode()) {
+    private void renderManualModeHeader(PoleDesign draft) {
+        DialogLayoutHelperStatus.row(
+            PlotI18n.tr("plugin.powerline.design.tower_status_mode"),
+            PlotI18n.tr("plugin.powerline.design.tower_status_mode_manual_structure"));
+        if (draft.getGeneratorConfig() != null) {
             DialogLayoutHelperStatus.row(
-                PlotI18n.tr("plugin.powerline.design.tower_status_mode"),
-                PlotI18n.tr("plugin.powerline.design.tower_status_mode_manual"));
-        } else if (draft.isParametricMode()) {
-            DialogLayoutHelperStatus.row(
-                PlotI18n.tr("plugin.powerline.design.tower_status_mode"),
-                PlotI18n.tr("plugin.powerline.design.tower_status_mode_parametric"));
-            renderHeightStatus(context, draft);
-            renderConstraintStatus(context);
+                PlotI18n.tr("plugin.powerline.design.tower_status_source_profile"),
+                TowerProfileUiCatalog.labelFor(draft.getGeneratorConfig().profileId()));
         }
     }
 
@@ -76,10 +93,10 @@ public final class TowerParameterStatusPanel {
         }
 
         long errors = result.issues().stream()
-            .filter(issue -> issue.severity() == com.plot.plugin.powerline.design.parametric.ConstraintSeverity.ERROR)
+            .filter(issue -> issue.severity() == ConstraintSeverity.ERROR)
             .count();
         long warnings = result.issues().stream()
-            .filter(issue -> issue.severity() == com.plot.plugin.powerline.design.parametric.ConstraintSeverity.WARNING)
+            .filter(issue -> issue.severity() == ConstraintSeverity.WARNING)
             .count();
 
         if (errors > 0) {
@@ -88,7 +105,7 @@ public final class TowerParameterStatusPanel {
             PowerLineUiWidgets.textColored(0xFFFFB74D, PlotI18n.tr(
                 "plugin.powerline.design.tower_preview_last_valid"));
             for (ConstraintIssue issue : result.issues()) {
-                if (issue.severity() == com.plot.plugin.powerline.design.parametric.ConstraintSeverity.ERROR) {
+                if (issue.severity() == ConstraintSeverity.ERROR) {
                     PowerLineUiWidgets.textColored(0xFFE57373, friendlyIssueMessage(issue, context));
                 }
             }
@@ -96,7 +113,7 @@ public final class TowerParameterStatusPanel {
             PowerLineUiWidgets.textColored(0xFFFFB74D, PlotI18n.tr(
                 "plugin.powerline.design.tower_status_warnings_format", warnings));
             for (ConstraintIssue issue : result.issues()) {
-                if (issue.severity() == com.plot.plugin.powerline.design.parametric.ConstraintSeverity.WARNING) {
+                if (issue.severity() == ConstraintSeverity.WARNING) {
                     PowerLineUiWidgets.textColored(0xFFFFB74D, friendlyIssueMessage(issue, context));
                 }
             }
@@ -112,6 +129,50 @@ public final class TowerParameterStatusPanel {
                     "plugin.powerline.design.tower_status_adjustment",
                     friendlyParameterLabel(adjustment.parameter()),
                     adjustment.resolvedValue()));
+            }
+        }
+    }
+
+    private void renderStructureValidationStatus(TowerDesignerContext context) {
+        List<TowerValidationIssue> issues = context.session().structureValidationIssues(context.draft());
+        if (issues.isEmpty()) {
+            if (context.draft().isManualLegacyMode()
+                    || !context.draft().isParametricMode()) {
+                DialogLayoutHelperStatus.row(
+                    PlotI18n.tr("plugin.powerline.design.tower_status_structure"),
+                    PlotI18n.tr("plugin.powerline.design.tower_status_ready"));
+            }
+            return;
+        }
+
+        long errors = issues.stream()
+            .filter(issue -> issue.severity() == TowerValidationSeverity.ERROR)
+            .count();
+        long warnings = issues.stream()
+            .filter(issue -> issue.severity() == TowerValidationSeverity.WARNING)
+            .count();
+
+        if (errors > 0) {
+            PowerLineUiWidgets.textColored(0xFFE57373, PlotI18n.tr(
+                "plugin.powerline.design.tower_status_structure_errors_format", errors));
+            for (TowerValidationIssue issue : issues) {
+                if (issue.severity() == TowerValidationSeverity.ERROR) {
+                    PowerLineUiWidgets.textColored(0xFFE57373, issue.localizedMessage());
+                }
+            }
+        } else {
+            DialogLayoutHelperStatus.row(
+                PlotI18n.tr("plugin.powerline.design.tower_status_structure"),
+                PlotI18n.tr("plugin.powerline.design.tower_status_ready"));
+        }
+
+        if (warnings > 0) {
+            PowerLineUiWidgets.textColored(0xFFFFB74D, PlotI18n.tr(
+                "plugin.powerline.design.tower_status_structure_warnings_format", warnings));
+            for (TowerValidationIssue issue : issues) {
+                if (issue.severity() == TowerValidationSeverity.WARNING) {
+                    PowerLineUiWidgets.textColored(0xFFFFB74D, issue.localizedMessage());
+                }
             }
         }
     }

@@ -7,6 +7,7 @@ import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.TowerArmAttachmentBinding;
 import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
+import com.plot.plugin.powerline.ui.tower.TowerDesignerUiState;
 import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -18,10 +19,13 @@ import java.util.Map;
 /** 导线挂点编辑器。 */
 final class PoleDesignerAttachmentPanel {
 
-    void render(PoleDesign draft, Runnable pushDraftSnapshot) {
+    void render(PoleDesign draft, TowerDesignerUiState uiState, Runnable pushDraftSnapshot) {
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.attachments"));
         if (draft.hasTowerStructure()) {
-            renderTowerAttachmentDecks(draft, pushDraftSnapshot);
+            ImGui.checkbox(
+                PlotI18n.tr("plugin.powerline.design.attachment_advanced"),
+                uiState.showAttachmentAdvanced);
+            renderTowerAttachmentDecks(draft, uiState, pushDraftSnapshot);
             return;
         }
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.attachment_preset_single"), 0, 0)) {
@@ -51,7 +55,10 @@ final class PoleDesignerAttachmentPanel {
         }
     }
 
-    private void renderTowerAttachmentDecks(PoleDesign draft, Runnable pushDraftSnapshot) {
+    private void renderTowerAttachmentDecks(
+            PoleDesign draft,
+            TowerDesignerUiState uiState,
+            Runnable pushDraftSnapshot) {
         Map<String, List<ConductorAttachment>> grouped = TowerArmAttachmentBinding.groupByArm(draft);
         TowerStructureDesign structure = draft.getTowerStructure();
         List<TowerArm> arms = TowerArmAttachmentBinding.sortedArms(structure);
@@ -64,7 +71,7 @@ final class PoleDesignerAttachmentPanel {
                 deck.size()))) {
                 for (ConductorAttachment deckAttachment : deck) {
                     ImGui.pushID("att_" + deckAttachment.getId());
-                    renderAttachmentRow(draft, deckAttachment, arm, pushDraftSnapshot);
+                    renderAttachmentRow(draft, deckAttachment, uiState, pushDraftSnapshot);
                     ImGui.popID();
                 }
                 ImGui.treePop();
@@ -78,7 +85,7 @@ final class PoleDesignerAttachmentPanel {
                 unassigned.size()))) {
                 for (ConductorAttachment freeAttachment : unassigned) {
                     ImGui.pushID("free_" + freeAttachment.getId());
-                    renderAttachmentRow(draft, freeAttachment, null, pushDraftSnapshot);
+                    renderAttachmentRow(draft, freeAttachment, uiState, pushDraftSnapshot);
                     ImGui.popID();
                 }
                 ImGui.treePop();
@@ -101,14 +108,25 @@ final class PoleDesignerAttachmentPanel {
     private void renderAttachmentRow(
             PoleDesign draft,
             ConductorAttachment attachment,
-            TowerArm boundArm,
+            TowerDesignerUiState uiState,
             Runnable pushDraftSnapshot) {
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.attachment_row", attachment.getName()));
         if (!DialogLayoutHelper.beginForm("##attachment_form")) {
             return;
         }
         if (draft.hasTowerStructure()) {
-            renderAttachmentArmBindingRow(draft, attachment, boundArm, pushDraftSnapshot);
+            renderAttachmentArmBindingRow(draft, attachment, pushDraftSnapshot);
+        }
+
+        if (uiState != null && !uiState.showAttachmentAdvanced.get()) {
+            DialogLayoutHelper.formRowLabel(" ");
+            if (ImGui.button(PlotI18n.tr("plugin.powerline.design.delete_layer") + "##delete", 0, 0)) {
+                pushDraftSnapshot.run();
+                draft.removeAttachment(attachment.getId());
+            }
+            DialogLayoutHelper.endForm();
+            DialogLayoutHelper.subsectionGap();
+            return;
         }
 
         if (attachment.isBound()) {
@@ -217,15 +235,7 @@ final class PoleDesignerAttachmentPanel {
     private void renderAttachmentArmBindingRow(
             PoleDesign draft,
             ConductorAttachment attachment,
-            TowerArm boundArm,
             Runnable pushDraftSnapshot) {
-        if (boundArm != null) {
-            DialogLayoutHelper.formRowLabel(PlotI18n.tr("plugin.powerline.design.attachment_arm_bind"));
-            PowerLineUiWidgets.textColored(0xFF90CAF9, PlotI18n.tr(
-                "plugin.powerline.design.attachment_bound_arm",
-                boundArm.getId()));
-            return;
-        }
         List<TowerArm> arms = TowerArmAttachmentBinding.sortedArms(draft.getTowerStructure());
         if (arms.isEmpty()) {
             return;
