@@ -541,7 +541,7 @@ public final class PoleDesignCatalog {
         layers.add(bracedCrossarm(
             5,
             MaterialMix.single("minecraft:oak_slab"),
-            CrossarmSupport.DIAGONAL,
+            CrossarmSupport.V_BRACE,
             MaterialMix.single("minecraft:dark_oak_fence")));
         layers.add(new PoleLayer(
             PoleLayer.Shape.COLUMN,

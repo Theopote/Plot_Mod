@@ -11,6 +11,9 @@ import com.plot.plugin.powerline.design.structure.TowerArmPlacement;
 import com.plot.plugin.powerline.TowerLocalPoint;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * 将 Legacy 横担层的斜撑参数委托给 {@link TowerArmPlacement}，在体素预览与世界生成中共用。
  */
@@ -114,12 +117,8 @@ public final class BracedCrossarmVoxelPlacer {
         Vec2d endPoint = planPoint
             .add(normal.multiply(lateralEnd))
             .add(forward.multiply(longitudinal));
-        BlockPos start = mapper.toBlockPos(startPoint, y);
-        BlockPos end = mapper.toBlockPos(endPoint, y);
         BlockPos center = mapper.toBlockPos(planPoint.add(forward.multiply(longitudinal)), y);
-        for (BlockPos pos : VoxelLineRasterizer.rasterizeLine3D(
-                start.getX(), start.getY(), start.getZ(),
-                end.getX(), end.getY(), end.getZ())) {
+        for (BlockPos pos : rasterizeSymmetricPlanLine(startPoint, y, endPoint, y, mapper)) {
             String blockId = MaterialMixResolver.resolve(material, pos, materialSeedKey);
             int lateralOffset = crossarmLateralOffset(pos, center, crossarmNormal);
             BlockSpec spec = crossarmBlockSpec(blockId, crossarmNormal, lateralOffset);
@@ -137,26 +136,50 @@ public final class BracedCrossarmVoxelPlacer {
             VoxelSink sink,
             String materialSeedKey,
             PlanToBlockMapper mapper) {
-        BlockPos startPos = toBlockPos(planPoint, normal, forward, start, mapper);
-        BlockPos endPos = toBlockPos(planPoint, normal, forward, end, mapper);
-        for (BlockPos pos : VoxelLineRasterizer.rasterizeLine3D(
-                startPos.getX(), startPos.getY(), startPos.getZ(),
-                endPos.getX(), endPos.getY(), endPos.getZ())) {
+        Vec2d startPoint = toPlanPoint(planPoint, normal, forward, start);
+        Vec2d endPoint = toPlanPoint(planPoint, normal, forward, end);
+        for (BlockPos pos : rasterizeSymmetricPlanLine(
+                startPoint,
+                start.vertical(),
+                endPoint,
+                end.vertical(),
+                mapper)) {
             String blockId = MaterialMixResolver.resolve(material, pos, materialSeedKey);
             sink.put(pos.getX(), pos.getY(), pos.getZ(), blockId);
         }
     }
 
-    private static BlockPos toBlockPos(
+    private static Vec2d toPlanPoint(
             Vec2d planPoint,
             Vec2d normal,
             Vec2d forward,
-            TowerLocalPoint local,
-            PlanToBlockMapper mapper) {
-        Vec2d point = planPoint
+            TowerLocalPoint local) {
+        return planPoint
             .add(normal.multiply(local.lateral()))
             .add(forward.multiply(local.longitudinal()));
-        return mapper.toBlockPos(point, (int) Math.round(local.vertical()));
+    }
+
+    /**
+     * 在 plan 坐标系对称光栅化，再映射到方块坐标，避免 floor 取整导致左右斜撑差一格。
+     */
+    private static List<BlockPos> rasterizeSymmetricPlanLine(
+            Vec2d startPlan,
+            double startY,
+            Vec2d endPlan,
+            double endY,
+            PlanToBlockMapper mapper) {
+        List<BlockPos> localLine = VoxelLineRasterizer.rasterizeSymmetricLine3D(
+            startPlan.x,
+            startY,
+            startPlan.y,
+            endPlan.x,
+            endY,
+            endPlan.y);
+        List<BlockPos> mapped = new ArrayList<>(localLine.size());
+        for (BlockPos cell : localLine) {
+            mapped.add(mapper.toBlockPos(new Vec2d(cell.getX(), cell.getZ()), cell.getY()));
+        }
+        return mapped;
     }
 
     private static int crossarmLateralOffset(BlockPos position, BlockPos center, Vec2d normal) {
