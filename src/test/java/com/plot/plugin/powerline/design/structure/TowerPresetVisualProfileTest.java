@@ -18,10 +18,10 @@ class TowerPresetVisualProfileTest {
         assertEquals(TowerSilhouette.DOUBLE_ARM, profile.silhouette());
         assertEquals(36.0, profile.height(), 0.5);
         assertEquals(7.3, profile.baseHalfWidth(), 0.15);
-        assertEquals(2.0, profile.topHalfWidth(), 0.15);
+        assertEquals(2.5, profile.topHalfWidth(), 0.15);
         assertEquals(2, profile.armCount());
         assertEquals(List.of(12.0, 10.0), profile.armReachesSorted());
-        assertTrue(profile.taperRatio() >= 3.0, "classic lattice should taper noticeably");
+        assertTrue(profile.taperRatio() >= 2.9, "classic lattice should taper noticeably");
         assertTrue(profile.baseDepthRatio() >= 0.6 && profile.baseDepthRatio() <= 0.7);
     }
 

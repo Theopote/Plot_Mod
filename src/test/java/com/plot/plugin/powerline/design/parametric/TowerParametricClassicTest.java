@@ -14,6 +14,7 @@ import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerBay;
 import com.plot.plugin.powerline.design.structure.TowerSilhouette;
 import com.plot.plugin.powerline.design.structure.TowerStation;
+import com.plot.plugin.powerline.design.structure.TowerFootprintParity;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -84,8 +85,19 @@ class TowerParametricClassicTest {
         double widthRatio = 15.0 / defaults.baseWidth();
         for (int i = 0; i < baseStations.size(); i++) {
             assertClose(baseStations.get(i).getHeight(), wideStations.get(i).getHeight());
-            assertClose(baseStations.get(i).getHalfWidth() * widthRatio, wideStations.get(i).getHalfWidth());
-            assertClose(baseStations.get(i).getHalfDepth() * widthRatio, wideStations.get(i).getHalfDepth());
+            if (i == baseStations.size() - 1) {
+                assertClose(
+                    TowerFootprintParity.blockHalfExtent(baseStations.get(i).getHalfWidth()) * widthRatio,
+                    TowerFootprintParity.blockHalfExtent(wideStations.get(i).getHalfWidth()),
+                    1.01);
+                assertClose(
+                    TowerFootprintParity.blockHalfExtent(baseStations.get(i).getHalfDepth()) * widthRatio,
+                    TowerFootprintParity.blockHalfExtent(wideStations.get(i).getHalfDepth()),
+                    1.01);
+            } else {
+                assertClose(baseStations.get(i).getHalfWidth() * widthRatio, wideStations.get(i).getHalfWidth());
+                assertClose(baseStations.get(i).getHalfDepth() * widthRatio, wideStations.get(i).getHalfDepth());
+            }
         }
 
         List<TowerArm> baseArms = sortedArms(baseline.getTowerStructure());

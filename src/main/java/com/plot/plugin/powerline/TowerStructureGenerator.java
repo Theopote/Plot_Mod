@@ -17,6 +17,7 @@ import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.design.structure.TowerStationDensifier;
 import com.plot.plugin.powerline.design.structure.TowerStructureGeometry;
+import com.plot.plugin.powerline.design.structure.TowerStructureParityEnforcer;
 import com.plot.plugin.powerline.design.structure.TowerStructureValidator;
 import com.plot.plugin.powerline.design.structure.TowerValidationIssue;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -55,6 +56,8 @@ public final class TowerStructureGenerator {
         if (structure == null || frame == null || footprint == null || result == null) {
             return frame != null ? frame.groundY() : 0;
         }
+
+        TowerStructureParityEnforcer.enforce(structure);
 
         for (TowerValidationIssue issue : TowerStructureValidator.validate(
                 wrapForValidation(structure))) {

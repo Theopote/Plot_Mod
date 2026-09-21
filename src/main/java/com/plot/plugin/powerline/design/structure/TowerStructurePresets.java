@@ -60,7 +60,7 @@ public final class TowerStructurePresets {
             BracingPattern.V);
         addTrussArm(structure, "arm_main", 20, 8.0, TowerArmShape.TRUSS, 3, 1.3);
         addPeak(structure, 24);
-        return structure;
+        return finalizePreset(structure);
     }
 
     /** 经典双层横担输电塔：插件标志性塔型，H≈36。 */
@@ -83,7 +83,7 @@ public final class TowerStructurePresets {
         addTrussArm(structure, "arm_upper", 32, 10.0, TowerArmShape.TRUSS, 3, 1.5);
         addPeak(structure, 36);
         applyStabilityFootprint(structure, STABILITY_WIDTH_STANDARD, STABILITY_DEPTH_STANDARD);
-        return structure;
+        return finalizePreset(structure);
     }
 
     /** 三层双回路塔：H≈50。 */
@@ -105,7 +105,7 @@ public final class TowerStructurePresets {
         addTrussArm(structure, "arm_upper", 48, 10.5, TowerArmShape.TRUSS, 3, 1.8);
         addPeak(structure, 50);
         applyStabilityFootprint(structure, STABILITY_WIDTH_LARGE, STABILITY_DEPTH_LARGE);
-        return structure;
+        return finalizePreset(structure);
     }
 
     /** 重型双回路输电塔：H≈32，双层横担（非缩放小塔）。 */
@@ -126,7 +126,7 @@ public final class TowerStructurePresets {
         addTrussArm(structure, "arm_upper", 30, 10.0, TowerArmShape.TRUSS, 3, 1.6);
         addPeak(structure, 32);
         applyStabilityFootprint(structure, STABILITY_WIDTH_HEAVY, STABILITY_DEPTH_HEAVY);
-        return structure;
+        return finalizePreset(structure);
     }
 
     /** 酒杯型宽顶塔：H≈40，鼓形来自横担与塔头 station，不靠塔身假鼓包。 */
@@ -146,7 +146,7 @@ public final class TowerStructurePresets {
         addTrussArm(structure, "arm_cup", 32, 16.0, TowerArmShape.UPSWEEP, 3, 2.8);
         addPeak(structure, 40);
         applyStabilityFootprint(structure, STABILITY_WIDTH_STANDARD, STABILITY_DEPTH_STANDARD);
-        return structure;
+        return finalizePreset(structure);
     }
 
     /** 工业门架塔：宽柱 + 多层横梁。 */
@@ -171,8 +171,9 @@ public final class TowerStructurePresets {
         addTrussArm(structure, "arm_lower", 16, 13.0, TowerArmShape.FLAT, 2, 2.0);
         addTrussArm(structure, "arm_middle", 26, 16.0, TowerArmShape.TRUSS, 3, 2.4);
         addTrussArm(structure, "arm_upper", 36, 13.0, TowerArmShape.TRUSS, 3, 2.0);
+        addPeak(structure, 42);
         applyStabilityFootprint(structure, 1.0, STABILITY_DEPTH_STANDARD);
-        return structure;
+        return finalizePreset(structure);
     }
 
     /** 超大型工业格构塔：H≈60，三层横担，明显腰收。 */
@@ -194,7 +195,7 @@ public final class TowerStructurePresets {
         addTrussArm(structure, "arm_upper", 56, 11.0, TowerArmShape.TRUSS, 3, 2.0);
         addPeak(structure, 60);
         applyStabilityFootprint(structure, STABILITY_WIDTH_LARGE, STABILITY_DEPTH_LARGE);
-        return structure;
+        return finalizePreset(structure);
     }
 
     /** 重型双回路鼓形塔：独立剪影，H≈58。 */
@@ -217,7 +218,7 @@ public final class TowerStructurePresets {
         addTrussArm(structure, "arm_upper", 52, 11.0, TowerArmShape.TRUSS, 3, 2.0);
         addPeak(structure, 58);
         applyStabilityFootprint(structure, STABILITY_WIDTH_LARGE, STABILITY_DEPTH_LARGE);
-        return structure;
+        return finalizePreset(structure);
     }
 
     /** 怪物级 / UHV 巨型输电塔：H≈80，水平表现力优先。 */
@@ -244,7 +245,7 @@ public final class TowerStructurePresets {
         addTrussArm(structure, "arm_upper", 74, 22.0, TowerArmShape.TRUSS, 4, 2.8);
         addPeak(structure, 80);
         applyStabilityFootprint(structure, STABILITY_WIDTH_GIANT, STABILITY_DEPTH_GIANT);
-        return structure;
+        return finalizePreset(structure);
     }
 
     /** 带塔体 + 三相挂点的完整杆塔设计（兼容旧 API）。 */
@@ -274,6 +275,11 @@ public final class TowerStructurePresets {
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    private static TowerStructureDesign finalizePreset(TowerStructureDesign structure) {
+        TowerStructureParityEnforcer.enforce(structure);
+        return structure;
+    }
 
     private static TowerStructureDesign latticeShell(
             TowerSilhouette silhouette,
