@@ -10,7 +10,8 @@ import java.util.UUID;
  * 杆塔局部坐标系下的导线挂点（不存世界坐标）。
  */
 public class ConductorAttachment {
-    public static final String DEFAULT_INSULATOR_MATERIAL = "minecraft:iron_bars";
+    /** 绝缘子串默认材质：竖向 chain / iron_chain；主导线见 {@link com.plot.plugin.powerline.model.PowerLineFootprint#DEFAULT_WIRE_MATERIAL}。 */
+    public static final String DEFAULT_INSULATOR_MATERIAL = "minecraft:chain";
 
     private String id;
     private String name;

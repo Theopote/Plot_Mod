@@ -38,11 +38,11 @@ class PowerLineStyleStateTest {
     void materialEditStoresOverrideAndResolvesEffectiveValue() {
         PowerLineFootprint line = line();
         PowerLineStyleEditor.selectPreset(line, PowerLineStylePresetCatalog.classicWood());
-        line.setWireMaterial(MaterialMix.single("minecraft:iron_bars"));
+        line.setWireMaterial(MaterialMix.single("minecraft:chain"));
         PowerLineStyleEditor.afterStyleEdit(line);
 
-        assertEquals("minecraft:iron_bars", line.getWireMaterial().getPrimaryMaterial());
-        assertEquals("minecraft:iron_bars", line.getStyleOverrides().getWireMaterial().getPrimaryMaterial());
+        assertEquals("minecraft:chain", line.getWireMaterial().getPrimaryMaterial());
+        assertEquals("minecraft:chain", line.getStyleOverrides().getWireMaterial().getPrimaryMaterial());
     }
 
     @Test

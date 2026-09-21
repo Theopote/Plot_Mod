@@ -304,11 +304,15 @@ class PowerLineMultiConductorTest {
             new PoleDesignResolver(designs));
     }
 
+    private static boolean isWireMaterial(String blockId) {
+        return "minecraft:chain".equals(blockId) || "minecraft:iron_bars".equals(blockId);
+    }
+
     private static Set<Integer> wireZValuesNearMidSpan(PowerLineGenerationResult result, int wireY, int midX) {
         Set<Integer> zs = new HashSet<>();
         for (BlockRecord record : result.placementRecords.values()) {
             if (record.pos.getY() == wireY && Math.abs(record.pos.getX() - midX) <= 2) {
-                if ("minecraft:chain".equals(record.baseBlockId())) {
+                if (isWireMaterial(record.baseBlockId())) {
                     zs.add(record.pos.getZ());
                 }
             }
@@ -319,8 +323,7 @@ class PowerLineMultiConductorTest {
     private static Set<Integer> collectAllWireZ(PowerLineGenerationResult result, int wireY) {
         Set<Integer> zs = new HashSet<>();
         for (BlockRecord record : result.placementRecords.values()) {
-            if (record.pos.getY() == wireY
-                    && "minecraft:chain".equals(record.baseBlockId())) {
+            if (record.pos.getY() == wireY && isWireMaterial(record.baseBlockId())) {
                 zs.add(record.pos.getZ());
             }
         }

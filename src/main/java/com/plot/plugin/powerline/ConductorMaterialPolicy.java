@@ -4,7 +4,7 @@ import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.AttachmentRole;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 
-/** 按挂点角色选择导线材质。 */
+/** 按挂点角色选择导线材质。主导线默认 {@link PowerLineFootprint#DEFAULT_WIRE_MATERIAL}（iron_bars）；地线/顶线用 {@link PowerLineFootprint#getTopWireMaterial()}。 */
 public final class ConductorMaterialPolicy {
     private ConductorMaterialPolicy() {
     }
