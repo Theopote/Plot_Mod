@@ -126,7 +126,8 @@ public final class TowerParameterProfiles {
     private static final MaterialMix LATTICE_BRACE = MaterialMix.single("minecraft:iron_bars");
     private static final MaterialMix ARM_MATERIAL = MaterialMix.single("minecraft:iron_bars");
     private static final MaterialMix STEAMPUNK_LEG = MaterialMix.single("minecraft:copper_block");
-    private static final MaterialMix STEAMPUNK_BRACE = MaterialMix.single("minecraft:cut_copper");
+    /** 细杆件（链节）比 cut_copper 整块斜撑更接近画廊预览的镂空铜构美感。 */
+    private static final MaterialMix STEAMPUNK_BRACE = MaterialMix.single("minecraft:chain");
     private static final MaterialMix STEAMPUNK_ARM = MaterialMix.single("minecraft:gold_block");
     private static final MaterialMix MODERN_HV_LEG = MaterialMix.single("minecraft:iron_block");
     private static final MaterialMix MODERN_HV_BRACE = MaterialMix.single("minecraft:iron_bars");
@@ -719,7 +720,7 @@ public final class TowerParameterProfiles {
             arms,
             Map.of(
                 StructureDensity.LOW, steampunkLowBays(),
-                StructureDensity.MEDIUM, steampunkLowBays(),
+                StructureDensity.MEDIUM, steampunkMediumBays(),
                 StructureDensity.HIGH, steampunkHighBays()),
             STEAMPUNK_LEG,
             STEAMPUNK_BRACE,
@@ -878,6 +879,15 @@ public final class TowerParameterProfiles {
             new BayDensityConfig(BracingPattern.X, true, false),
             new BayDensityConfig(BracingPattern.X, true, false),
             new BayDensityConfig(BracingPattern.X, false, false));
+    }
+
+    private static List<BayDensityConfig> steampunkMediumBays() {
+        return List.of(
+            new BayDensityConfig(BracingPattern.K, true, false),
+            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.V, true, false),
+            new BayDensityConfig(BracingPattern.V, false, false));
     }
 
     private static List<BayDensityConfig> steampunkHighBays() {

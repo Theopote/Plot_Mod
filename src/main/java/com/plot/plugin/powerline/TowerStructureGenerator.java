@@ -859,12 +859,12 @@ public final class TowerStructureGenerator {
             TowerLocalPoint memberStart,
             TowerLocalPoint memberEnd,
             TowerStructureTransform transform) {
-        if (isIronBars(blockId)) {
+        if (usesPathDirectedPlacement(blockId)) {
             if (centerline != null && centerIndex >= 0) {
-                return DirectionalBlockSpecs.ironBarsAlongVoxelPath(centerline, centerIndex)
+                return DirectionalBlockSpecs.resolveWirePlacementAlongPath(blockId, centerline, centerIndex)
                     .toSetBlockArgument();
             }
-            if (pos != null && thicknessCore != null) {
+            if (isIronBars(blockId) && pos != null && thicknessCore != null) {
                 return DirectionalBlockSpecs.ironBarsTowardCore(pos, thicknessCore).toSetBlockArgument();
             }
         }
@@ -882,6 +882,16 @@ public final class TowerStructureGenerator {
 
     private static boolean isIronBars(String blockId) {
         return blockId != null && "minecraft:iron_bars".equals(BlockSpec.parse(blockId).blockId());
+    }
+
+    private static boolean usesPathDirectedPlacement(String blockId) {
+        if (blockId == null) {
+            return false;
+        }
+        String baseId = BlockSpec.parse(blockId).blockId();
+        return isIronBars(blockId)
+            || "minecraft:lightning_rod".equals(baseId)
+            || DirectionalBlockSpecs.usesAxisChainPlacement(baseId);
     }
 
     private static void recordBlock(

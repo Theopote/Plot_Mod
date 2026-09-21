@@ -77,8 +77,14 @@ public final class TowerStructureCompiler {
             arm.setVerticalDrop(resolvedArm.verticalDrop());
             arm.setLongitudinalHalfWidth(resolvedArm.longitudinalHalfWidth());
             arm.setBracing(resolvedArm.bracing());
-            arm.setMaterial(profile.armMaterial());
-            arm.setBraceMaterial(profile.braceMaterial());
+            if (TowerParameterProfiles.STEAMPUNK_ID.equals(profile.id())
+                    && "arm_rod".equals(resolvedArm.id())) {
+                arm.setMaterial(MaterialMix.single("minecraft:lightning_rod"));
+                arm.setBraceMaterial(profile.armMaterial());
+            } else {
+                arm.setMaterial(profile.armMaterial());
+                arm.setBraceMaterial(profile.braceMaterial());
+            }
             structure.addArm(arm);
         }
 

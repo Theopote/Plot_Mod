@@ -24,8 +24,13 @@ class TowerParametricDecorativeProfilesTest {
         assertEquals(TowerSilhouette.DOUBLE_ARM, compiled.getTowerStructure().getSilhouette());
         assertEquals(2, compiled.getTowerStructure().getArms().size());
         assertMaterial("minecraft:copper_block", compiled.getTowerStructure().getPrimaryMaterial());
-        assertMaterial("minecraft:cut_copper", compiled.getTowerStructure().getBraceMaterial());
+        assertMaterial("minecraft:chain", compiled.getTowerStructure().getBraceMaterial());
         assertMaterial("minecraft:gold_block", compiled.getTowerStructure().getArms().getFirst().getMaterial());
+        TowerArm upperRod = compiled.getTowerStructure().getArms().stream()
+            .filter(arm -> "arm_rod".equals(arm.getId()))
+            .findFirst()
+            .orElseThrow();
+        assertMaterial("minecraft:lightning_rod", upperRod.getMaterial());
         assertEquals(28.0, compiled.getTowerStructure().maxHeight(), 0.5);
     }
 

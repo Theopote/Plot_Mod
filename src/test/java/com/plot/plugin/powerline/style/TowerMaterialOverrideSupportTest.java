@@ -3,6 +3,7 @@ package com.plot.plugin.powerline.style;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.PoleDesign;
+import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.family.TowerFamilyDesignPresets;
 import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
@@ -77,6 +78,41 @@ class TowerMaterialOverrideSupportTest {
     }
 
     @Test
+    void syncAllPreservesSteampunkComponentMaterials() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new com.plot.api.geometry.Vec2d(0, 0), new com.plot.api.geometry.Vec2d(80, 0)));
+        PowerLineStylePresetCatalog.steampunkBrass().apply(line);
+        line.setTowerMaterialApplyMode(TowerMaterialApplyMode.SYNC_ALL);
+
+        PoleDesign catalog = PoleDesignCatalog.steampunkBrassTower();
+        PoleDesign applied = ParametricStyleTowerApplicator.apply(
+            catalog,
+            line.getParametricTowerConfig(),
+            null,
+            line);
+        PoleDesign effective = EffectivePoleDesignResolver.applyLineOverrides(applied, line);
+
+        assertEquals(
+            "minecraft:copper_block",
+            effective.getTowerStructure().getPrimaryMaterial().getPrimaryMaterial());
+        assertEquals(
+            "minecraft:chain",
+            effective.getTowerStructure().getBraceMaterial().getPrimaryMaterial());
+        TowerArm upperRod = effective.getTowerStructure().getArms().stream()
+            .filter(arm -> "arm_rod".equals(arm.getId()))
+            .findFirst()
+            .orElseThrow();
+        assertEquals("minecraft:lightning_rod", upperRod.getMaterial().getPrimaryMaterial());
+        assertEquals(
+            "minecraft:gold_block",
+            effective.getTowerStructure().getArms().stream()
+                .filter(arm -> "arm_brass".equals(arm.getId()))
+                .findFirst()
+                .orElseThrow()
+                .getMaterial()
+                .getPrimaryMaterial());
+    }
+
+    @Test
     void compiledArmsUseSeparateChordAndBraceMaterials() {
         PoleDesign compiled = PowerLineStyleParametricCatalog.compileRepresentative(
             TowerGeneratorConfig.parametricSteampunk(
@@ -84,7 +120,7 @@ class TowerMaterialOverrideSupportTest {
         assertNotNull(compiled);
         TowerArm firstArm = compiled.getTowerStructure().getArms().getFirst();
         assertEquals("minecraft:gold_block", firstArm.getMaterial().getPrimaryMaterial());
-        assertEquals("minecraft:cut_copper", firstArm.getBraceMaterial().getPrimaryMaterial());
+        assertEquals("minecraft:chain", firstArm.getBraceMaterial().getPrimaryMaterial());
     }
 
     private static PowerLineFootprint smartTowersLine() {

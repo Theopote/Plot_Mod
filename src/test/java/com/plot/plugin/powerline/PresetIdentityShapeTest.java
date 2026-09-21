@@ -61,8 +61,10 @@ class PresetIdentityShapeTest {
         PowerLineFootprint line = PresetMinecraftRealizabilitySupport.sampleLine();
         line.setPoleDesignId(PoleDesignCatalog.STEAMPUNK_BRASS_TOWER_ID);
         PowerLineGenerationResult result = PresetMinecraftRealizabilitySupport.generate(line);
-        assertTrue(countBlock(result, "minecraft:cut_copper") >= 4,
-            "steampunk should place cut_copper bracing, not legacy solid column");
+        assertTrue(countBlock(result, "minecraft:chain") >= 4,
+            "steampunk should place chain lattice bracing, not legacy solid column");
+        assertTrue(countBlock(result, "minecraft:lightning_rod") >= 4,
+            "steampunk should place lightning rod upper arms");
         assertTrue(countBlock(result, "minecraft:gold_block") >= 8,
             "steampunk should place gold arms and gear teeth");
     }

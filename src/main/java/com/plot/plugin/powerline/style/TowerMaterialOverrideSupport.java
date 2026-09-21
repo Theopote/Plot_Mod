@@ -3,6 +3,8 @@ package com.plot.plugin.powerline.style;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleLayer;
+import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
+import com.plot.plugin.powerline.design.parametric.TowerParameterProfiles;
 import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -30,6 +32,9 @@ public final class TowerMaterialOverrideSupport {
         TowerStructureDesign structure = design.getTowerStructure();
         MaterialMix poleMaterial = line.getPoleMaterial();
         TowerMaterialApplyMode mode = line.getTowerMaterialApplyMode();
+        if (preservesDecorativeComponentMaterials(design) && mode.syncsAllTowerMaterials()) {
+            mode = TowerMaterialApplyMode.LEGS_ONLY;
+        }
         if (poleMaterial != null) {
             structure.setPrimaryMaterial(poleMaterial.copy());
             if (mode.syncsAllTowerMaterials()) {
@@ -100,6 +105,23 @@ public final class TowerMaterialOverrideSupport {
             return design.getTowerStructure().getBraceMaterial();
         }
         return MaterialMix.single(TowerStructureDesign.DEFAULT_BRACE_MATERIAL);
+    }
+
+    /**
+     * 蒸汽朋克/玻璃 HV 等装饰性参数化塔：杆材「同步全部」会把金臂、链节斜撑洗成单色铜块，
+     * 与画廊预览严重偏离。
+     */
+    private static boolean preservesDecorativeComponentMaterials(PoleDesign design) {
+        if (design == null || !design.isParametricMode()) {
+            return false;
+        }
+        TowerGeneratorConfig config = design.getGeneratorConfig();
+        if (config == null || config.profileId() == null) {
+            return false;
+        }
+        String profileId = config.profileId();
+        return TowerParameterProfiles.STEAMPUNK_ID.equals(profileId)
+            || TowerParameterProfiles.MODERN_HV_GLASS_ID.equals(profileId);
     }
 
     private static void applyColumnMaterial(PoleDesign design, MaterialMix poleMaterial) {

@@ -63,7 +63,7 @@ public record TowerParameterSet(
     }
 
     public static TowerParameterSet steampunkDefaults() {
-        return new TowerParameterSet(28.0, 8.0, 14.0, 1.0, DEFAULT_WAIST_RATIO, null, StructureDensity.MEDIUM);
+        return new TowerParameterSet(28.0, 8.0, 14.0, 1.0, DEFAULT_WAIST_RATIO, null, StructureDensity.HIGH);
     }
 
     public static TowerParameterSet modernHvGlassDefaults() {

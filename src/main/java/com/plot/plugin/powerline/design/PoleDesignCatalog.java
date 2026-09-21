@@ -382,7 +382,7 @@ public final class PoleDesignCatalog {
             java.util.function.Supplier<PoleDesign> compiler) {
         PoleDesign compiled = compiler.get();
         PoleDesign design = new PoleDesign(catalogId, displayName);
-        design.setTowerStructure(compiled.getTowerStructure());
+        design.setTowerStructure(compiled.getTowerStructure().copy());
         design.setAttachments(compiled.getAttachments());
         design.setGeneratorConfig(config.copy());
         return design;
