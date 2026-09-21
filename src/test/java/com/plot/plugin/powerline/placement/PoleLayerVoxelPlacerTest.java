@@ -53,7 +53,17 @@ class PoleLayerVoxelPlacerTest {
 
     @Test
     void crossarmLightningRodUsesDirectionalFacing() {
-        var design = PoleDesignCatalog.steampunkBrassTower();
+        PoleDesign design = new PoleDesign("rod_crossarm", "Rod crossarm");
+        design.addLayer(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            1,
+            MaterialMix.single("minecraft:copper_block")));
+        PoleLayer rodArm = new PoleLayer(
+            PoleLayer.Shape.CROSSARM,
+            1,
+            MaterialMix.single("minecraft:lightning_rod"));
+        rodArm.setCrossarmLength(7);
+        design.addLayer(rodArm);
         PreviewVoxelSink sink = new PreviewVoxelSink();
         PoleLayerVoxelPlacer.placeDesignPreview(design, sink, "seed");
 

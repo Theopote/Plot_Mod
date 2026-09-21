@@ -1,6 +1,9 @@
 package com.plot.plugin.powerline.design;
 
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
+import com.plot.plugin.powerline.design.parametric.TowerParametricDesignFactory;
+import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
 
@@ -354,63 +357,34 @@ public final class PoleDesignCatalog {
         return design;
     }
 
-    /** 蒸汽朋克铜塔：铜柱 + 黄铜横担 + 齿轮顶饰。 */
+    /** 蒸汽朋克铜塔：参数化四腿铜构 + 黄铜横担 + 齿轮顶饰（与画廊预览同路径）。 */
     public static PoleDesign steampunkBrassTower() {
-        PoleDesign design = new PoleDesign(STEAMPUNK_BRASS_TOWER_ID, "Steampunk Brass Tower");
-        List<PoleLayer> layers = new ArrayList<>();
-        layers.add(new PoleLayer(
-            PoleLayer.Shape.COLUMN,
-            5,
-            MaterialMix.single("minecraft:copper_block")));
-        PoleLayer brassArm = new PoleLayer(
-            PoleLayer.Shape.CROSSARM,
-            1,
-            MaterialMix.single("minecraft:gold_block"));
-        brassArm.setCrossarmLength(6);
-        layers.add(brassArm);
-        layers.add(new PoleLayer(
-            PoleLayer.Shape.COLUMN,
-            4,
-            MaterialMix.single("minecraft:cut_copper")));
-        PoleLayer rodArm = new PoleLayer(
-            PoleLayer.Shape.CROSSARM,
-            1,
-            MaterialMix.single("minecraft:lightning_rod"));
-        rodArm.setCrossarmLength(7);
-        layers.add(rodArm);
-        layers.add(new PoleLayer(
-            PoleLayer.Shape.CAP,
-            1,
-            MaterialMix.single("minecraft:gold_block")));
-        design.setLayers(layers);
-        wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
-        return design;
+        return catalogParametricTower(
+            STEAMPUNK_BRASS_TOWER_ID,
+            "Steampunk Brass Tower",
+            TowerGeneratorConfig.parametricSteampunk(TowerParameterSet.steampunkDefaults()),
+            () -> TowerParametricDesignFactory.compileSteampunk(TowerParameterSet.steampunkDefaults()));
     }
 
-    /** 现代高压塔：钢构塔身 + 玻璃绝缘子横担。 */
+    /** 现代高压塔：参数化钢构塔身 + 玻璃横担（与画廊预览同路径）。 */
     public static PoleDesign modernHvGlassTower() {
-        PoleDesign design = new PoleDesign(MODERN_HV_GLASS_TOWER_ID, "Modern HV Glass Tower");
-        List<PoleLayer> layers = new ArrayList<>();
-        layers.add(new PoleLayer(
-            PoleLayer.Shape.COLUMN,
-            10,
-            MaterialMix.single("minecraft:iron_block")));
-        layers.add(new PoleLayer(
-            PoleLayer.Shape.COLUMN,
-            5,
-            MaterialMix.single("minecraft:iron_bars")));
-        PoleLayer glassArm = new PoleLayer(
-            PoleLayer.Shape.CROSSARM,
-            1,
-            MaterialMix.single("minecraft:sea_lantern"));
-        glassArm.setCrossarmLength(8);
-        layers.add(glassArm);
-        layers.add(new PoleLayer(
-            PoleLayer.Shape.CAP,
-            1,
-            MaterialMix.single("minecraft:light_blue_stained_glass")));
-        design.setLayers(layers);
-        wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
+        return catalogParametricTower(
+            MODERN_HV_GLASS_TOWER_ID,
+            "Modern HV Glass Tower",
+            TowerGeneratorConfig.parametricModernHvGlass(TowerParameterSet.modernHvGlassDefaults()),
+            () -> TowerParametricDesignFactory.compileModernHvGlass(TowerParameterSet.modernHvGlassDefaults()));
+    }
+
+    private static PoleDesign catalogParametricTower(
+            String catalogId,
+            String displayName,
+            TowerGeneratorConfig config,
+            java.util.function.Supplier<PoleDesign> compiler) {
+        PoleDesign compiled = compiler.get();
+        PoleDesign design = new PoleDesign(catalogId, displayName);
+        design.setTowerStructure(compiled.getTowerStructure());
+        design.setAttachments(compiled.getAttachments());
+        design.setGeneratorConfig(config.copy());
         return design;
     }
 

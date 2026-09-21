@@ -57,6 +57,17 @@ class PresetIdentityShapeTest {
     }
 
     @Test
+    void steampunkCatalogGeneratesLatticeWithoutStylePreset() {
+        PowerLineFootprint line = PresetMinecraftRealizabilitySupport.sampleLine();
+        line.setPoleDesignId(PoleDesignCatalog.STEAMPUNK_BRASS_TOWER_ID);
+        PowerLineGenerationResult result = PresetMinecraftRealizabilitySupport.generate(line);
+        assertTrue(countBlock(result, "minecraft:cut_copper") >= 4,
+            "steampunk should place cut_copper bracing, not legacy solid column");
+        assertTrue(countBlock(result, "minecraft:gold_block") >= 8,
+            "steampunk should place gold arms and gear teeth");
+    }
+
+    @Test
     void steampunkBrassHasGearTeethOnGeneratedTower() {
         PowerLineFootprint line = PresetMinecraftRealizabilitySupport.lineForPreset(
             PowerLineStylePresetCatalog.steampunkBrass());
@@ -66,13 +77,13 @@ class PresetIdentityShapeTest {
     }
 
     @Test
-    void steampunkLegacyCatalogHasGearRing() {
+    void steampunkCatalogHasGearRing() {
         PoleVoxelPreviewModel model = PoleVoxelizer.voxelize(PoleDesignCatalog.steampunkBrassTower());
         Map<Integer, Long> goldPerY = model.voxels().stream()
             .filter(voxel -> "minecraft:gold_block".equals(voxel.blockId()))
             .collect(Collectors.groupingBy(voxel -> voxel.y(), Collectors.counting()));
         boolean hasGearRing = goldPerY.values().stream().anyMatch(count -> count >= 5);
-        assertTrue(hasGearRing, "legacy steampunk cap should have center plus four gear teeth");
+        assertTrue(hasGearRing, "steampunk gear platform should have center plus four gear teeth");
     }
 
     @Test
