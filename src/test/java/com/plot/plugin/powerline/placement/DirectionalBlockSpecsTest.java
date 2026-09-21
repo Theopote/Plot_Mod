@@ -119,6 +119,25 @@ class DirectionalBlockSpecsTest {
     }
 
     @Test
+    void chainAlongVoxelPathPreservesCustomBlockId() {
+        List<BlockPos> path = VoxelLineRasterizer.rasterizeLine3D(0, 4, 0, 5, 4, 0);
+        BlockSpec spec = DirectionalBlockSpecs.chainAlongVoxelPath("examplemod:gold_chain", path, 0);
+        assertEquals("examplemod:gold_chain", spec.blockId());
+        assertEquals("x", spec.property("axis"));
+    }
+
+    @Test
+    void resolveWirePlacementAlongPathPreservesCustomChainId() {
+        List<BlockPos> path = VoxelLineRasterizer.rasterizeLine3D(0, 4, 0, 5, 4, 0);
+        BlockSpec spec = DirectionalBlockSpecs.resolveWirePlacementAlongPath(
+            "examplemod:gold_chain",
+            path,
+            0);
+        assertEquals("examplemod:gold_chain", spec.blockId());
+        assertEquals("x", spec.property("axis"));
+    }
+
+    @Test
     void ironBarsAlongVoxelPathConnectsDiagonalNeighbors() {
         List<BlockPos> path = VoxelLineRasterizer.rasterizeLine3D(0, 0, 0, 2, 0, 2);
         boolean hasTurn = false;

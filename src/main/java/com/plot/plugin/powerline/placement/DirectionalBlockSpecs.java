@@ -2,6 +2,10 @@ package com.plot.plugin.powerline.placement;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.block.BlockSpec;
+import net.minecraft.block.Block;
+import net.minecraft.block.Blocks;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.LinkedHashMap;
@@ -149,7 +153,11 @@ public final class DirectionalBlockSpecs {
 
     /** 竖向锁链（灯头下垂等）。 */
     public static BlockSpec verticalChain() {
-        return BlockSpec.with(CHAIN, "axis", "y");
+        return verticalChain(CHAIN);
+    }
+
+    public static BlockSpec verticalChain(String blockId) {
+        return BlockSpec.with(normalizeChainBlockId(blockId), "axis", "y");
     }
 
     /** 是否为沿 {@code axis} 属性首尾相接的链子类方块。 */
@@ -157,31 +165,39 @@ public final class DirectionalBlockSpecs {
         if (blockId == null || blockId.isBlank()) {
             return false;
         }
-        return CHAIN.equals(blockId) || blockId.endsWith(":chain") || blockId.endsWith("_chain");
+        String baseId = BlockSpec.parse(blockId).blockId();
+        if (CHAIN.equals(baseId) || baseId.endsWith(":chain") || baseId.endsWith("_chain")) {
+            return true;
+        }
+        return hasAxisBlockProperty(baseId);
     }
 
     /**
      * 按 6-连通路径设置链子轴向，使相邻链子首尾相接。
      */
     public static BlockSpec chainAlongVoxelPath(List<BlockPos> path, int index) {
+        return chainAlongVoxelPath(CHAIN, path, index);
+    }
+
+    public static BlockSpec chainAlongVoxelPath(String blockId, List<BlockPos> path, int index) {
         if (path == null || path.isEmpty() || index < 0 || index >= path.size()) {
-            return verticalChain();
+            return verticalChain(blockId);
         }
         BlockPos current = path.get(index);
         if (index > 0 && index < path.size() - 1) {
             BlockPos previous = path.get(index - 1);
             BlockPos next = path.get(index + 1);
             if (isChainTurn(previous, current, next)) {
-                return chainAlongBlockStep(previous, current);
+                return chainAlongBlockStep(blockId, previous, current);
             }
         }
         if (index < path.size() - 1) {
-            return chainAlongBlockStep(current, path.get(index + 1));
+            return chainAlongBlockStep(blockId, current, path.get(index + 1));
         }
         if (index > 0) {
-            return chainAlongBlockStep(path.get(index - 1), current);
+            return chainAlongBlockStep(blockId, path.get(index - 1), current);
         }
-        return verticalChain();
+        return verticalChain(blockId);
     }
 
     private static boolean isChainTurn(BlockPos previous, BlockPos current, BlockPos next) {
@@ -260,7 +276,7 @@ public final class DirectionalBlockSpecs {
             return verticalIronBars();
         }
         if (usesAxisChainPlacement(blockId) && deltaX != null && deltaY != null && deltaZ != null) {
-            return chainAlongMember(deltaX, deltaY, deltaZ);
+            return chainAlongMember(blockId, deltaX, deltaY, deltaZ);
         }
         return BlockSpec.of(blockId);
     }
@@ -270,7 +286,7 @@ public final class DirectionalBlockSpecs {
      */
     public static BlockSpec resolveWirePlacementAlongPath(String blockId, List<BlockPos> path, int index) {
         if (usesAxisChainPlacement(blockId)) {
-            return chainAlongVoxelPath(path, index);
+            return chainAlongVoxelPath(blockId, path, index);
         }
         if (LIGHTNING_ROD.equals(blockId)) {
             return lightningRodAlongVoxelPath(path, index);
@@ -290,24 +306,58 @@ public final class DirectionalBlockSpecs {
             .withProperty("open", "false");
     }
 
-    private static BlockSpec chainAlongMember(double deltaX, double deltaY, double deltaZ) {
+    private static BlockSpec chainAlongMember(String blockId, double deltaX, double deltaY, double deltaZ) {
+        String resolvedId = normalizeChainBlockId(blockId);
         double absX = Math.abs(deltaX);
         double absY = Math.abs(deltaY);
         double absZ = Math.abs(deltaZ);
         if (absY >= absX && absY >= absZ) {
-            return verticalChain();
+            return verticalChain(resolvedId);
         }
         if (absX >= absZ) {
-            return BlockSpec.with(CHAIN, "axis", "x");
+            return BlockSpec.with(resolvedId, "axis", "x");
         }
-        return BlockSpec.with(CHAIN, "axis", "z");
+        return BlockSpec.with(resolvedId, "axis", "z");
     }
 
-    private static BlockSpec chainAlongBlockStep(BlockPos from, BlockPos to) {
+    private static BlockSpec chainAlongBlockStep(String blockId, BlockPos from, BlockPos to) {
         return chainAlongMember(
+            blockId,
             to.getX() - from.getX(),
             to.getY() - from.getY(),
             to.getZ() - from.getZ());
+    }
+
+    private static String normalizeChainBlockId(String blockId) {
+        if (blockId == null || blockId.isBlank()) {
+            return CHAIN;
+        }
+        return BlockSpec.parse(blockId).blockId();
+    }
+
+    private static boolean hasAxisBlockProperty(String blockId) {
+        try {
+            Block block = resolveBlock(blockId);
+            return block != null && block.getStateManager().getProperty("axis") != null;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private static Block resolveBlock(String blockId) {
+        String namespace = "minecraft";
+        String path = blockId;
+        if (blockId.contains(":")) {
+            String[] parts = blockId.split(":", 2);
+            namespace = parts[0];
+            path = parts[1];
+        }
+        Identifier identifier = Identifier.of(namespace, path);
+        Block block = Registries.BLOCK.get(identifier);
+        if (block == Blocks.AIR && !"minecraft:air".equals(blockId)) {
+            return null;
+        }
+        return block;
     }
 
     private static BlockSpec lightningRodAlongVoxelPath(List<BlockPos> path, int index) {
