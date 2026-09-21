@@ -1,6 +1,5 @@
 package com.plot.plugin.powerline.design.parametric;
 
-import com.plot.plugin.powerline.design.ConductorAttachment;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.TowerArmAttachmentBinding;
 import com.plot.plugin.powerline.design.structure.TowerArm;
@@ -51,8 +50,8 @@ class TowerParametricSmallLatticeTest {
             assertClose(baseStations.get(i).getHalfDepth(), tallStations.get(i).getHalfDepth());
         }
 
-        TowerArm baseArm = baseline.getTowerStructure().getArms().get(0);
-        TowerArm tallArm = taller.getTowerStructure().getArms().get(0);
+        TowerArm baseArm = baseline.getTowerStructure().getArms().getFirst();
+        TowerArm tallArm = taller.getTowerStructure().getArms().getFirst();
         assertClose(baseArm.getBaseHeight() * ratio, tallArm.getBaseHeight());
         assertClose(baseArm.getLateralReach(), tallArm.getLateralReach());
     }
@@ -84,8 +83,8 @@ class TowerParametricSmallLatticeTest {
             }
         }
         assertClose(
-            baseline.getTowerStructure().getArms().get(0).getLateralReach(),
-            wider.getTowerStructure().getArms().get(0).getLateralReach());
+            baseline.getTowerStructure().getArms().getFirst().getLateralReach(),
+            wider.getTowerStructure().getArms().getFirst().getLateralReach());
     }
 
     @Test
@@ -95,8 +94,8 @@ class TowerParametricSmallLatticeTest {
         PoleDesign widerSpan = TowerParametricDesignFactory.compileSmallLattice(
             new TowerParameterSet(defaults.height(), defaults.baseWidth(), 18.0, defaults.depthScale(), defaults.waistRatio(), defaults.armLevelScales(), defaults.density()));
 
-        TowerArm baseArm = baseline.getTowerStructure().getArms().get(0);
-        TowerArm wideArm = widerSpan.getTowerStructure().getArms().get(0);
+        TowerArm baseArm = baseline.getTowerStructure().getArms().getFirst();
+        TowerArm wideArm = widerSpan.getTowerStructure().getArms().getFirst();
         assertClose(8.0, baseArm.getLateralReach());
         assertClose(9.0, wideArm.getLateralReach());
         assertEquals(baseline.getAttachments().size(), widerSpan.getAttachments().size());

@@ -214,7 +214,7 @@ class PowerLineTowerFamilyIntegrationTest {
             .filter(record -> result.placementCategories.get(record.pos) == PlacementCategory.WIRE)
             .count();
 
-        assertTrue(result.conductorSpans.size() > 0, "mega lattice should resolve conductor spans");
+        assertFalse(result.conductorSpans.isEmpty(), "mega lattice should resolve conductor spans");
         assertTrue(wireBlocks > 0, "mega lattice should place conductor voxels between towers");
         assertTrue(result.wireLength > 0.0);
     }

@@ -47,7 +47,7 @@ class TowerStructurePresetsTest {
     @Test
     void largeTowersHaveMeaningfulDepth() {
         TowerStructureDesign mega = TowerStructurePresets.megaLatticeTower();
-        TowerStation base = mega.sortedStations().get(0);
+        TowerStation base = mega.sortedStations().getFirst();
         assertTrue(base.getHalfDepth() >= base.getHalfWidth() * 0.55,
             "base depth should be a substantial fraction of width");
         assertTrue(base.getHalfDepth() < base.getHalfWidth(),

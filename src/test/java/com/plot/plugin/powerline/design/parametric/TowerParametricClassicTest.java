@@ -7,7 +7,6 @@ import com.plot.api.world.PlacementReadiness;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.PoleFrame;
 import com.plot.plugin.powerline.TowerStructureGenerator;
-import com.plot.plugin.powerline.design.ConductorAttachment;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.TowerArmAttachmentBinding;
 import com.plot.plugin.powerline.design.structure.TowerArm;
@@ -25,7 +24,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
