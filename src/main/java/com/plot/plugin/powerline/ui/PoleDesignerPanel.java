@@ -31,8 +31,6 @@ import imgui.type.ImString;
 
 /** 杆塔分层设计器独立窗口（居中弹出、可拖动、不参与 DockSpace 停靠）。 */
 public final class PoleDesignerPanel {
-    private static final float DESIGNER_WIDTH = 660f;
-    private static final float DESIGNER_HEIGHT = 760f;
     private static final int DESIGNER_WINDOW_FLAGS =
         ImGuiWindowFlags.NoDocking | ImGuiWindowFlags.NoSavedSettings;
     private static final int NAME_BUFFER_CAPACITY = 128;
@@ -62,6 +60,7 @@ public final class PoleDesignerPanel {
     public PoleDesignerPanel(PowerLineUiContext ctx) {
         this.ctx = ctx;
         this.towerSession = new TowerDesignerSession(ctx);
+        PoleDesignerLayoutPanel.restorePreviewColumnWidth(ctx.state());
     }
 
     /** 从线路插件打开：调整选中线路上的杆塔参数，不可更换塔型种类。 */
@@ -137,7 +136,17 @@ public final class PoleDesignerPanel {
         try {
             var center = ImGui.getMainViewport().getCenter();
             ImGui.setNextWindowPos(center.x, center.y, imgui.flag.ImGuiCond.Appearing, 0.5f, 0.5f);
-            ImGui.setNextWindowSize(DESIGNER_WIDTH, DESIGNER_HEIGHT, imgui.flag.ImGuiCond.Appearing);
+            float viewportWidth = ImGui.getIO().getDisplaySizeX();
+            float viewportHeight = ImGui.getIO().getDisplaySizeY();
+            ImGui.setNextWindowSize(
+                PoleDesignerWindowMetrics.initialWidth(viewportWidth),
+                PoleDesignerWindowMetrics.initialHeight(viewportHeight),
+                imgui.flag.ImGuiCond.Appearing);
+            ImGui.setNextWindowSizeConstraints(
+                PoleDesignerWindowMetrics.MIN_WIDTH,
+                PoleDesignerWindowMetrics.MIN_HEIGHT,
+                PoleDesignerWindowMetrics.maxWidth(viewportWidth),
+                PoleDesignerWindowMetrics.maxHeight(viewportHeight));
             if (focusOnNextRender) {
                 ImGui.setNextWindowFocus();
                 focusOnNextRender = false;
@@ -163,12 +172,14 @@ public final class PoleDesignerPanel {
                 float footerHeight = footerReservedHeight();
                 float bodyHeight = Math.max(0f, ImGui.getContentRegionAvail().y - footerHeight);
                 layoutPanel.render(
+                    ctx.state(),
                     bodyHeight,
                     () -> PoleDesignPreviewRenderer.renderVerticalStack(
                         draft,
                         ImGui.getContentRegionAvail().x,
                         ImGui.getContentRegionAvail().y,
-                        towerSession.previewShowsLastValidStructure()),
+                        towerSession.previewShowsLastValidStructure(),
+                        towerUiState),
                     () -> {
                         TowerDesignerContext towerContext = new TowerDesignerContext(
                             draft,

@@ -122,4 +122,22 @@ public class ConfigManager {
         }
         return defaultValue;
     }
+
+    /**
+     * 设置浮点配置
+     */
+    public void setFloat(String key, float value) {
+        configMap.put(key, value);
+    }
+
+    /**
+     * 获取浮点配置
+     */
+    public float getFloat(String key, float defaultValue) {
+        Object value = configMap.get(key);
+        if (value instanceof Number) {
+            return ((Number) value).floatValue();
+        }
+        return defaultValue;
+    }
 }

@@ -54,6 +54,7 @@ public final class PowerLinePluginState {
 
     private boolean poleDesignerOpen = false;
     private String poleDesignerEditingId = "";
+    private float poleDesignerPreviewColumnWidth = PoleDesignerLayoutPanel.DEFAULT_PREVIEW_COLUMN_WIDTH;
     /** 画廊中临时强制展开的 preset 分类（选中新 preset 后一帧）。 */
     private StyleCategory styleGalleryOpenCategory;
     private boolean styleGalleryOpenCustomTemplates;
@@ -88,6 +89,16 @@ public final class PowerLinePluginState {
 
     public void setPoleDesignerEditingId(String poleDesignerEditingId) {
         this.poleDesignerEditingId = poleDesignerEditingId != null ? poleDesignerEditingId : "";
+    }
+
+    public float getPoleDesignerPreviewColumnWidth() {
+        return poleDesignerPreviewColumnWidth;
+    }
+
+    public void setPoleDesignerPreviewColumnWidth(float poleDesignerPreviewColumnWidth) {
+        this.poleDesignerPreviewColumnWidth = Math.max(
+            PoleDesignerLayoutPanel.MIN_PREVIEW_COLUMN_WIDTH,
+            poleDesignerPreviewColumnWidth);
     }
 
     public PowerLineProject getProject() {
