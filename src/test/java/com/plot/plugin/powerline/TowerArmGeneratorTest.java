@@ -105,7 +105,9 @@ class TowerArmGeneratorTest {
         xArm.setVerticalDrop(3);
         xArm.setBracing(BracingPattern.X);
         xArm.setSide(TowerArmSide.LEFT);
-        xArm.setMaterial(MaterialMix.single("minecraft:gold_block"));
+        MaterialMix gold = MaterialMix.single("minecraft:gold_block");
+        xArm.setMaterial(gold);
+        xArm.setBraceMaterial(gold);
         xStructure.addArm(xArm);
 
         TowerStructureDesign kStructure = baseTower();
@@ -113,7 +115,8 @@ class TowerArmGeneratorTest {
         kArm.setVerticalDrop(3);
         kArm.setBracing(BracingPattern.K);
         kArm.setSide(TowerArmSide.LEFT);
-        kArm.setMaterial(MaterialMix.single("minecraft:gold_block"));
+        kArm.setMaterial(gold);
+        kArm.setBraceMaterial(gold);
         kStructure.addArm(kArm);
 
         int xCount = goldBlocks(generate(xStructure, new Vec2d(1, 0))).size();
@@ -129,7 +132,9 @@ class TowerArmGeneratorTest {
         arm.setVerticalDrop(3);
         arm.setBracing(BracingPattern.K);
         arm.setSide(TowerArmSide.LEFT);
-        arm.setMaterial(MaterialMix.single("minecraft:gold_block"));
+        MaterialMix gold = MaterialMix.single("minecraft:gold_block");
+        arm.setMaterial(gold);
+        arm.setBraceMaterial(gold);
         structure.addArm(arm);
 
         TowerStructureDesign chordsOnly = structureWithoutBracing(12, 4, 3, TowerArmSide.LEFT, "minecraft:gold_block");

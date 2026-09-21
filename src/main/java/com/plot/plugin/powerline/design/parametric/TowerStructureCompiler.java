@@ -78,6 +78,7 @@ public final class TowerStructureCompiler {
             arm.setLongitudinalHalfWidth(resolvedArm.longitudinalHalfWidth());
             arm.setBracing(resolvedArm.bracing());
             arm.setMaterial(profile.armMaterial());
+            arm.setBraceMaterial(profile.braceMaterial());
             structure.addArm(arm);
         }
 

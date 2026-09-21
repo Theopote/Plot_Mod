@@ -38,7 +38,7 @@ public final class EffectiveStylePreviewResolver {
         if (preview == null) {
             return null;
         }
-        EffectivePoleDesignResolver.applyPoleMaterialOverride(preview, line.getPoleMaterial());
+        TowerMaterialOverrideSupport.applyTo(preview, line);
         return new EffectiveStylePreview(
             preview,
             copyMix(line.getPoleMaterial()),

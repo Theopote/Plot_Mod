@@ -17,6 +17,10 @@ public class StyleOverrides {
     private Double maxSagDepth;
     private MaterialMix wireMaterial;
     private MaterialMix poleMaterial;
+    private MaterialMix braceMaterial;
+    private MaterialMix armChordMaterial;
+    private MaterialMix armBraceMaterial;
+    private TowerMaterialApplyMode towerMaterialApplyMode;
     private MaterialMix topWireMaterial;
     private Double preferredSpacing;
     private String poleDesignId;
@@ -54,6 +58,38 @@ public class StyleOverrides {
 
     public void setPoleMaterial(MaterialMix poleMaterial) {
         this.poleMaterial = poleMaterial != null ? poleMaterial.copy() : null;
+    }
+
+    public MaterialMix getBraceMaterial() {
+        return braceMaterial;
+    }
+
+    public void setBraceMaterial(MaterialMix braceMaterial) {
+        this.braceMaterial = braceMaterial != null ? braceMaterial.copy() : null;
+    }
+
+    public MaterialMix getArmChordMaterial() {
+        return armChordMaterial;
+    }
+
+    public void setArmChordMaterial(MaterialMix armChordMaterial) {
+        this.armChordMaterial = armChordMaterial != null ? armChordMaterial.copy() : null;
+    }
+
+    public MaterialMix getArmBraceMaterial() {
+        return armBraceMaterial;
+    }
+
+    public void setArmBraceMaterial(MaterialMix armBraceMaterial) {
+        this.armBraceMaterial = armBraceMaterial != null ? armBraceMaterial.copy() : null;
+    }
+
+    public TowerMaterialApplyMode getTowerMaterialApplyMode() {
+        return towerMaterialApplyMode != null ? towerMaterialApplyMode : TowerMaterialApplyMode.LEGS_ONLY;
+    }
+
+    public void setTowerMaterialApplyMode(TowerMaterialApplyMode towerMaterialApplyMode) {
+        this.towerMaterialApplyMode = towerMaterialApplyMode;
     }
 
     public MaterialMix getTopWireMaterial() {
@@ -109,6 +145,10 @@ public class StyleOverrides {
             && maxSagDepth == null
             && wireMaterial == null
             && poleMaterial == null
+            && braceMaterial == null
+            && armChordMaterial == null
+            && armBraceMaterial == null
+            && towerMaterialApplyMode == null
             && topWireMaterial == null
             && preferredSpacing == null
             && poleDesignId == null
@@ -123,6 +163,10 @@ public class StyleOverrides {
         if (maxSagDepth != null) count++;
         if (wireMaterial != null) count++;
         if (poleMaterial != null) count++;
+        if (braceMaterial != null) count++;
+        if (armChordMaterial != null) count++;
+        if (armBraceMaterial != null) count++;
+        if (towerMaterialApplyMode != null && towerMaterialApplyMode != TowerMaterialApplyMode.LEGS_ONLY) count++;
         if (topWireMaterial != null) count++;
         if (preferredSpacing != null) count++;
         if (poleDesignId != null) count++;
@@ -135,6 +179,10 @@ public class StyleOverrides {
     public void clearMaterialAndTower() {
         wireMaterial = null;
         poleMaterial = null;
+        braceMaterial = null;
+        armChordMaterial = null;
+        armBraceMaterial = null;
+        towerMaterialApplyMode = null;
         topWireMaterial = null;
         poleDesignId = null;
         towerFamilyId = null;
@@ -143,6 +191,10 @@ public class StyleOverrides {
     public int materialAndTowerFingerprint() {
         int hash = materialFingerprint(wireMaterial);
         hash = 31 * hash + materialFingerprint(poleMaterial);
+        hash = 31 * hash + materialFingerprint(braceMaterial);
+        hash = 31 * hash + materialFingerprint(armChordMaterial);
+        hash = 31 * hash + materialFingerprint(armBraceMaterial);
+        hash = 31 * hash + Objects.hashCode(towerMaterialApplyMode);
         hash = 31 * hash + materialFingerprint(topWireMaterial);
         hash = 31 * hash + Objects.hashCode(poleDesignId);
         hash = 31 * hash + Objects.hashCode(towerFamilyId);
@@ -184,6 +236,10 @@ public class StyleOverrides {
         maxSagDepth = null;
         wireMaterial = null;
         poleMaterial = null;
+        braceMaterial = null;
+        armChordMaterial = null;
+        armBraceMaterial = null;
+        towerMaterialApplyMode = null;
         topWireMaterial = null;
         preferredSpacing = null;
         poleDesignId = null;
@@ -208,6 +264,10 @@ public class StyleOverrides {
         copy.maxSagDepth = maxSagDepth;
         copy.wireMaterial = wireMaterial != null ? wireMaterial.copy() : null;
         copy.poleMaterial = poleMaterial != null ? poleMaterial.copy() : null;
+        copy.braceMaterial = braceMaterial != null ? braceMaterial.copy() : null;
+        copy.armChordMaterial = armChordMaterial != null ? armChordMaterial.copy() : null;
+        copy.armBraceMaterial = armBraceMaterial != null ? armBraceMaterial.copy() : null;
+        copy.towerMaterialApplyMode = towerMaterialApplyMode;
         copy.topWireMaterial = topWireMaterial != null ? topWireMaterial.copy() : null;
         copy.preferredSpacing = preferredSpacing;
         copy.poleDesignId = poleDesignId;

@@ -1,8 +1,6 @@
 package com.plot.plugin.powerline.style;
 
-import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.PoleDesign;
-import com.plot.plugin.powerline.design.PoleLayer;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 
 /**
@@ -23,24 +21,23 @@ public final class EffectivePoleDesignResolver {
         }
         PoleDesign effective = source.copy();
         if (line != null) {
-            applyPoleMaterialOverride(effective, line.getPoleMaterial());
+            TowerMaterialOverrideSupport.applyTo(effective, line);
         }
         return effective;
     }
 
     /** COLUMN（及塔体主材）跟随线路当前杆材 override。 */
-    public static void applyPoleMaterialOverride(PoleDesign design, MaterialMix poleMaterial) {
+    public static void applyPoleMaterialOverride(PoleDesign design, com.plot.core.material.MaterialMix poleMaterial) {
         if (design == null || poleMaterial == null) {
             return;
         }
-        MaterialMix mix = poleMaterial.copy();
-        for (PoleLayer layer : design.getLayers()) {
-            if (layer.getShape() == PoleLayer.Shape.COLUMN) {
-                layer.setMaterial(mix.copy());
-            }
-        }
         if (design.hasTowerStructure()) {
-            design.getTowerStructure().setPrimaryMaterial(mix.copy());
+            design.getTowerStructure().setPrimaryMaterial(poleMaterial.copy());
+        }
+        for (com.plot.plugin.powerline.design.PoleLayer layer : design.getLayers()) {
+            if (layer.getShape() == com.plot.plugin.powerline.design.PoleLayer.Shape.COLUMN) {
+                layer.setMaterial(poleMaterial.copy());
+            }
         }
     }
 }

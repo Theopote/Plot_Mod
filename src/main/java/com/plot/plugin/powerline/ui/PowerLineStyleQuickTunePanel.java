@@ -7,12 +7,17 @@ import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
 import com.plot.plugin.powerline.PowerLineSagUtils;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.style.EffectiveStylePreview;
+import com.plot.plugin.powerline.style.EffectiveStylePreviewResolver;
 import com.plot.plugin.powerline.style.PowerLineQuickTunePolicy;
 import com.plot.plugin.powerline.style.PowerLineSpacingPolicy;
 import com.plot.plugin.powerline.style.LinePoleDesignOverrides;
 import com.plot.plugin.powerline.style.PowerLineStyleEditor;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
+import com.plot.plugin.powerline.style.TowerMaterialApplyMode;
+import com.plot.plugin.powerline.style.TowerMaterialOverrideSupport;
 import com.plot.plugin.powerline.style.UserPoleDesignTemplateCatalog;
+import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
@@ -116,7 +121,17 @@ public final class PowerLineStyleQuickTunePanel {
         if (PowerLineQuickTunePolicy.supportsCrossarmTune(line, ctx.designResolver())) {
             renderCrossarmRow(line, base);
         }
+        PoleDesign effectiveTower = resolveEffectiveTowerDesign(line, base);
+        if (TowerMaterialOverrideSupport.supportsTowerMaterialTune(line)) {
+            renderTowerMaterialApplyModeRow(line);
+        }
         renderPoleMaterialRow(line, base);
+        if (TowerMaterialOverrideSupport.supportsTowerMaterialTune(line)
+                && line.getTowerMaterialApplyMode() == TowerMaterialApplyMode.LEGS_ONLY) {
+            renderBraceMaterialRow(line, effectiveTower);
+            renderArmChordMaterialRow(line, effectiveTower);
+            renderArmBraceMaterialRow(line, effectiveTower);
+        }
         endTuneTable();
     }
 
@@ -199,6 +214,28 @@ public final class PowerLineStyleQuickTunePanel {
             index -> applyCrossarmBand(line, base, PowerLineQuickTunePolicy.CrossarmWidthBand.values()[index]));
     }
 
+    private PoleDesign resolveEffectiveTowerDesign(PowerLineFootprint line, PowerLineStylePreset base) {
+        EffectiveStylePreview preview = EffectiveStylePreviewResolver.resolve(line, base, ctx.designResolver());
+        return preview != null ? preview.previewDesign() : null;
+    }
+
+    private void renderTowerMaterialApplyModeRow(PowerLineFootprint line) {
+        TowerMaterialApplyMode mode = line.getTowerMaterialApplyMode();
+        String[] labels = new String[] {
+            PlotI18n.tr("plugin.powerline.style.quick_tune.tower_material.legs_only"),
+            PlotI18n.tr("plugin.powerline.style.quick_tune.tower_material.sync_all")
+        };
+        int selected = mode == TowerMaterialApplyMode.SYNC_ALL ? 1 : 0;
+        renderBandRow(
+            "tower_material_mode",
+            PlotI18n.tr("plugin.powerline.style.quick_tune.tower_material.mode"),
+            labels,
+            selected,
+            index -> applyTowerMaterialApplyMode(line, index == 1
+                ? TowerMaterialApplyMode.SYNC_ALL
+                : TowerMaterialApplyMode.LEGS_ONLY));
+    }
+
     private void renderPoleMaterialRow(PowerLineFootprint line, PowerLineStylePreset base) {
         MaterialMix mix = line.getPoleMaterial();
         String value = formatMaterialLabel(mix, PowerLineFootprint.DEFAULT_POLE_MATERIAL);
@@ -208,6 +245,39 @@ public final class PowerLineStyleQuickTunePanel {
             value,
             PlotI18n.tr("plugin.powerline.style.quick_tune.change"),
             () -> openPoleMaterialPicker(line, base));
+    }
+
+    private void renderBraceMaterialRow(PowerLineFootprint line, PoleDesign effectiveTower) {
+        MaterialMix mix = TowerMaterialOverrideSupport.displayBraceMaterial(effectiveTower, line);
+        String value = formatMaterialLabel(mix, TowerStructureDesign.DEFAULT_BRACE_MATERIAL);
+        renderValueRow(
+            "brace_material",
+            PlotI18n.tr("plugin.powerline.style.quick_tune.brace_material"),
+            value,
+            PlotI18n.tr("plugin.powerline.style.quick_tune.change"),
+            () -> openBraceMaterialPicker(line, effectiveTower));
+    }
+
+    private void renderArmChordMaterialRow(PowerLineFootprint line, PoleDesign effectiveTower) {
+        MaterialMix mix = TowerMaterialOverrideSupport.displayArmChordMaterial(effectiveTower, line);
+        String value = formatMaterialLabel(mix, TowerStructureDesign.DEFAULT_ARM_MATERIAL);
+        renderValueRow(
+            "arm_chord_material",
+            PlotI18n.tr("plugin.powerline.style.quick_tune.arm_chord_material"),
+            value,
+            PlotI18n.tr("plugin.powerline.style.quick_tune.change"),
+            () -> openArmChordMaterialPicker(line, effectiveTower));
+    }
+
+    private void renderArmBraceMaterialRow(PowerLineFootprint line, PoleDesign effectiveTower) {
+        MaterialMix mix = TowerMaterialOverrideSupport.displayArmBraceMaterial(effectiveTower, line);
+        String value = formatMaterialLabel(mix, TowerStructureDesign.DEFAULT_BRACE_MATERIAL);
+        renderValueRow(
+            "arm_brace_material",
+            PlotI18n.tr("plugin.powerline.style.quick_tune.arm_brace_material"),
+            value,
+            PlotI18n.tr("plugin.powerline.style.quick_tune.change"),
+            () -> openArmBraceMaterialPicker(line, effectiveTower));
     }
 
     private void renderWireLayoutRow(PowerLineFootprint line, PowerLineStylePreset base) {
@@ -517,6 +587,13 @@ public final class PowerLineStyleQuickTunePanel {
         return PlotI18n.tr("plugin.powerline.pole_design_default");
     }
 
+    private void applyTowerMaterialApplyMode(PowerLineFootprint line, TowerMaterialApplyMode mode) {
+        beginProjectBackedStyleEdit(line);
+        line.setTowerMaterialApplyMode(mode);
+        PowerLineStyleEditor.afterStyleEdit(line);
+        completeStyleEdit(line);
+    }
+
     private void openPoleMaterialPicker(PowerLineFootprint line, PowerLineStylePreset base) {
         MaterialMix mix = line.getPoleMaterial();
         MaterialMix defaults = base != null
@@ -524,6 +601,33 @@ public final class PowerLineStyleQuickTunePanel {
             : MaterialMix.single(PowerLineFootprint.DEFAULT_POLE_MATERIAL);
         openMaterialPicker(line, mix, defaults, selected -> {
             line.setPoleMaterial(selected);
+            PowerLineStyleEditor.afterStyleEdit(line);
+            completeStyleEdit(line);
+        });
+    }
+
+    private void openBraceMaterialPicker(PowerLineFootprint line, PoleDesign effectiveTower) {
+        MaterialMix mix = TowerMaterialOverrideSupport.displayBraceMaterial(effectiveTower, line);
+        openMaterialPicker(line, mix, mix, selected -> {
+            line.setBraceMaterialOverride(selected);
+            PowerLineStyleEditor.afterStyleEdit(line);
+            completeStyleEdit(line);
+        });
+    }
+
+    private void openArmChordMaterialPicker(PowerLineFootprint line, PoleDesign effectiveTower) {
+        MaterialMix mix = TowerMaterialOverrideSupport.displayArmChordMaterial(effectiveTower, line);
+        openMaterialPicker(line, mix, mix, selected -> {
+            line.setArmChordMaterialOverride(selected);
+            PowerLineStyleEditor.afterStyleEdit(line);
+            completeStyleEdit(line);
+        });
+    }
+
+    private void openArmBraceMaterialPicker(PowerLineFootprint line, PoleDesign effectiveTower) {
+        MaterialMix mix = TowerMaterialOverrideSupport.displayArmBraceMaterial(effectiveTower, line);
+        openMaterialPicker(line, mix, mix, selected -> {
+            line.setArmBraceMaterialOverride(selected);
             PowerLineStyleEditor.afterStyleEdit(line);
             completeStyleEdit(line);
         });

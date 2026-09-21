@@ -165,6 +165,10 @@ public class PowerLineProject {
         Double maxSagDepth;
         MaterialMix wireMaterial;
         MaterialMix poleMaterial;
+        MaterialMix braceMaterial;
+        MaterialMix armChordMaterial;
+        MaterialMix armBraceMaterial;
+        String towerMaterialApplyMode;
         MaterialMix topWireMaterial;
         Double preferredSpacing;
         String poleDesignId;
@@ -185,6 +189,19 @@ public class PowerLineProject {
             }
             if (poleMaterial != null) {
                 overrides.setPoleMaterial(poleMaterial);
+            }
+            if (braceMaterial != null) {
+                overrides.setBraceMaterial(braceMaterial);
+            }
+            if (armChordMaterial != null) {
+                overrides.setArmChordMaterial(armChordMaterial);
+            }
+            if (armBraceMaterial != null) {
+                overrides.setArmBraceMaterial(armBraceMaterial);
+            }
+            if (towerMaterialApplyMode != null && !towerMaterialApplyMode.isBlank()) {
+                overrides.setTowerMaterialApplyMode(
+                    com.plot.plugin.powerline.style.TowerMaterialApplyMode.valueOf(towerMaterialApplyMode));
             }
             if (topWireMaterial != null) {
                 overrides.setTopWireMaterial(topWireMaterial);
@@ -218,6 +235,10 @@ public class PowerLineProject {
         double maxSagDepth = com.plot.plugin.powerline.PowerLineSagUtils.DEFAULT_MAX_SAG_DEPTH;
         MaterialMix wireMaterial;
         MaterialMix poleMaterial;
+        MaterialMix braceMaterial;
+        MaterialMix armChordMaterial;
+        MaterialMix armBraceMaterial;
+        String towerMaterialApplyMode;
         String poleDesignId;
         String towerFamilyId;
         String stylePresetId;
@@ -266,6 +287,13 @@ public class PowerLineProject {
                 lineData.maxSagDepth = line.getMaxSagDepth();
                 lineData.wireMaterial = line.getWireMaterial();
                 lineData.poleMaterial = line.getPoleMaterial();
+                lineData.braceMaterial = line.getBraceMaterialOverride();
+                lineData.armChordMaterial = line.getArmChordMaterialOverride();
+                lineData.armBraceMaterial = line.getArmBraceMaterialOverride();
+                if (line.getTowerMaterialApplyMode()
+                        != com.plot.plugin.powerline.style.TowerMaterialApplyMode.LEGS_ONLY) {
+                    lineData.towerMaterialApplyMode = line.getTowerMaterialApplyMode().name();
+                }
                 lineData.poleDesignId = line.getPoleDesignId();
                 lineData.towerFamilyId = line.getTowerFamilyId();
                 lineData.stylePresetId = line.getStylePresetId();
@@ -352,6 +380,20 @@ public class PowerLineProject {
                 }
                 if (lineData.poleMaterial != null) {
                     footprint.setPoleMaterial(lineData.poleMaterial);
+                }
+                if (lineData.braceMaterial != null) {
+                    footprint.setBraceMaterialOverride(lineData.braceMaterial);
+                }
+                if (lineData.armChordMaterial != null) {
+                    footprint.setArmChordMaterialOverride(lineData.armChordMaterial);
+                }
+                if (lineData.armBraceMaterial != null) {
+                    footprint.setArmBraceMaterialOverride(lineData.armBraceMaterial);
+                }
+                if (lineData.towerMaterialApplyMode != null && !lineData.towerMaterialApplyMode.isBlank()) {
+                    footprint.setTowerMaterialApplyMode(
+                        com.plot.plugin.powerline.style.TowerMaterialApplyMode.valueOf(
+                            lineData.towerMaterialApplyMode));
                 }
                 footprint.setPoleDesignId(lineData.poleDesignId);
                 footprint.setTowerFamilyId(lineData.towerFamilyId);

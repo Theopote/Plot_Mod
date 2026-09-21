@@ -16,6 +16,7 @@ public class TowerArm {
     private BracingPattern bracing = BracingPattern.NONE;
     private TowerArmShape shape = TowerArmShape.FLAT;
     private MaterialMix material;
+    private MaterialMix braceMaterial;
 
     public TowerArm() {
         this.id = UUID.randomUUID().toString();
@@ -113,6 +114,23 @@ public class TowerArm {
         this.material = material;
     }
 
+    /** 横担弦杆材质；{@link #getMaterial()} 的语义别名。 */
+    public MaterialMix getChordMaterial() {
+        return material;
+    }
+
+    public void setChordMaterial(MaterialMix chordMaterial) {
+        this.material = chordMaterial;
+    }
+
+    public MaterialMix getBraceMaterial() {
+        return braceMaterial;
+    }
+
+    public void setBraceMaterial(MaterialMix braceMaterial) {
+        this.braceMaterial = braceMaterial;
+    }
+
     public TowerArm copy() {
         TowerArm copy = new TowerArm(id, baseHeight, lateralReach);
         copy.side = side;
@@ -121,6 +139,7 @@ public class TowerArm {
         copy.bracing = bracing;
         copy.shape = shape;
         copy.material = material != null ? material.copy() : null;
+        copy.braceMaterial = braceMaterial != null ? braceMaterial.copy() : null;
         return copy;
     }
 

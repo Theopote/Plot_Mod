@@ -10,6 +10,7 @@ import com.plot.core.model.Shape;
 import com.plot.plugin.powerline.style.PowerLineStyleDefinition;
 import com.plot.plugin.powerline.style.PowerLineStyleInstance;
 import com.plot.plugin.powerline.style.StyleOverrides;
+import com.plot.plugin.powerline.style.TowerMaterialApplyMode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -249,6 +250,41 @@ public class PowerLineFootprint {
 
     public void setPoleMaterial(MaterialMix poleMaterial) {
         styleState.setPoleMaterial(poleMaterial, styleDefinition());
+    }
+
+    public TowerMaterialApplyMode getTowerMaterialApplyMode() {
+        return styleState.resolveTowerMaterialApplyMode();
+    }
+
+    public void setTowerMaterialApplyMode(TowerMaterialApplyMode mode) {
+        styleState.setTowerMaterialApplyMode(mode);
+    }
+
+    public MaterialMix getBraceMaterialOverride() {
+        MaterialMix override = styleState.overrides().getBraceMaterial();
+        return override != null ? override.copy() : null;
+    }
+
+    public void setBraceMaterialOverride(MaterialMix braceMaterial) {
+        styleState.setBraceMaterialOverride(braceMaterial);
+    }
+
+    public MaterialMix getArmChordMaterialOverride() {
+        MaterialMix override = styleState.overrides().getArmChordMaterial();
+        return override != null ? override.copy() : null;
+    }
+
+    public void setArmChordMaterialOverride(MaterialMix armChordMaterial) {
+        styleState.setArmChordMaterialOverride(armChordMaterial);
+    }
+
+    public MaterialMix getArmBraceMaterialOverride() {
+        MaterialMix override = styleState.overrides().getArmBraceMaterial();
+        return override != null ? override.copy() : null;
+    }
+
+    public void setArmBraceMaterialOverride(MaterialMix armBraceMaterial) {
+        styleState.setArmBraceMaterialOverride(armBraceMaterial);
     }
 
     public String getPoleDesignId() {

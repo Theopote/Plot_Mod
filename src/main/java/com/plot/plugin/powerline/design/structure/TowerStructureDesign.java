@@ -313,6 +313,7 @@ public class TowerStructureDesign {
         String bracing;
         String shape;
         MaterialMix material;
+        MaterialMix braceMaterial;
     }
 
     static class DecorationData {
@@ -368,6 +369,7 @@ public class TowerStructureDesign {
                 armData.bracing = arm.getBracing().name();
                 armData.shape = arm.getShape().name();
                 armData.material = arm.getMaterial();
+                armData.braceMaterial = arm.getBraceMaterial();
                 data.arms.add(armData);
             }
             for (TowerDecoration decoration : design.decorations) {
@@ -442,6 +444,9 @@ public class TowerStructureDesign {
                     arm.setShape(TowerStructureEnums.armShapeOrDefault(armData.shape, TowerArmShape.FLAT));
                     if (armData.material != null) {
                         arm.setMaterial(armData.material);
+                    }
+                    if (armData.braceMaterial != null) {
+                        arm.setBraceMaterial(armData.braceMaterial);
                     }
                     design.addArm(arm);
                 }

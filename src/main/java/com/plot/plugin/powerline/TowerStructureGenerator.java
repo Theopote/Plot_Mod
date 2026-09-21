@@ -321,8 +321,8 @@ public final class TowerStructureGenerator {
         MaterialMix chordMaterial = arm.getMaterial() != null
             ? arm.getMaterial()
             : structure.getPrimaryMaterial();
-        MaterialMix braceMaterial = arm.getMaterial() != null
-            ? arm.getMaterial()
+        MaterialMix braceMaterial = arm.getBraceMaterial() != null
+            ? arm.getBraceMaterial()
             : structure.getBraceMaterial();
         TowerArmPlacement.placeArm(
             arm,

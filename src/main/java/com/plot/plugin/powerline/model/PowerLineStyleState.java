@@ -7,6 +7,7 @@ import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 import com.plot.plugin.powerline.style.PowerLineStyleDefinition;
 import com.plot.plugin.powerline.style.PowerLineStyleParametricCatalog;
 import com.plot.plugin.powerline.style.StyleOverrides;
+import com.plot.plugin.powerline.style.TowerMaterialApplyMode;
 
 import java.util.Objects;
 
@@ -176,6 +177,28 @@ public final class PowerLineStyleState {
             normalized,
             definition != null ? definition.getPoleMaterial() : null,
             MaterialMix.single(PowerLineFootprint.DEFAULT_POLE_MATERIAL)));
+    }
+
+    public TowerMaterialApplyMode resolveTowerMaterialApplyMode() {
+        return overrides().getTowerMaterialApplyMode();
+    }
+
+    public void setTowerMaterialApplyMode(TowerMaterialApplyMode mode) {
+        TowerMaterialApplyMode normalized = mode != null ? mode : TowerMaterialApplyMode.LEGS_ONLY;
+        overrides().setTowerMaterialApplyMode(
+            normalized == TowerMaterialApplyMode.LEGS_ONLY ? null : normalized);
+    }
+
+    public void setBraceMaterialOverride(MaterialMix braceMaterial) {
+        overrides().setBraceMaterial(braceMaterial != null ? braceMaterial.copy() : null);
+    }
+
+    public void setArmChordMaterialOverride(MaterialMix armChordMaterial) {
+        overrides().setArmChordMaterial(armChordMaterial != null ? armChordMaterial.copy() : null);
+    }
+
+    public void setArmBraceMaterialOverride(MaterialMix armBraceMaterial) {
+        overrides().setArmBraceMaterial(armBraceMaterial != null ? armBraceMaterial.copy() : null);
     }
 
     public void setTopWireMaterial(MaterialMix actual, PowerLineStyleDefinition definition) {
