@@ -719,8 +719,8 @@ public final class TowerParameterProfiles {
             arms,
             Map.of(
                 StructureDensity.LOW, steampunkLowBays(),
-                StructureDensity.MEDIUM, heavyMediumBays(),
-                StructureDensity.HIGH, heavyHighBays()),
+                StructureDensity.MEDIUM, steampunkLowBays(),
+                StructureDensity.HIGH, steampunkHighBays()),
             STEAMPUNK_LEG,
             STEAMPUNK_BRACE,
             STEAMPUNK_ARM,
@@ -760,9 +760,9 @@ public final class TowerParameterProfiles {
             stations,
             arms,
             Map.of(
-                StructureDensity.LOW, smallLowBays(),
-                StructureDensity.MEDIUM, smallMediumBays(),
-                StructureDensity.HIGH, smallHighBays()),
+                StructureDensity.LOW, modernHvGlassLowBays(),
+                StructureDensity.MEDIUM, modernHvGlassLowBays(),
+                StructureDensity.HIGH, modernHvGlassHighBays()),
             MODERN_HV_LEG,
             MODERN_HV_BRACE,
             MODERN_HV_ARM,
@@ -878,6 +878,29 @@ public final class TowerParameterProfiles {
             new BayDensityConfig(BracingPattern.X, true, false),
             new BayDensityConfig(BracingPattern.X, true, false),
             new BayDensityConfig(BracingPattern.X, false, false));
+    }
+
+    private static List<BayDensityConfig> steampunkHighBays() {
+        return List.of(
+            new BayDensityConfig(BracingPattern.K, true, false),
+            new BayDensityConfig(BracingPattern.K, true, false),
+            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.V, true, false),
+            new BayDensityConfig(BracingPattern.V, false, false));
+    }
+
+    private static List<BayDensityConfig> modernHvGlassLowBays() {
+        return List.of(
+            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.X, false, false));
+    }
+
+    private static List<BayDensityConfig> modernHvGlassHighBays() {
+        return List.of(
+            new BayDensityConfig(BracingPattern.K, true, false),
+            new BayDensityConfig(BracingPattern.K, true, false),
+            new BayDensityConfig(BracingPattern.V, false, false));
     }
 
     private static List<BayDensityConfig> heavyLowBays() {

@@ -55,10 +55,10 @@ public final class StructureAwareDecorationClearance {
         Set<BlockPos> expanded = new LinkedHashSet<>();
         for (BlockPos origin : source) {
             for (int dx = -radius; dx <= radius; dx++) {
-                for (int dy = -radius; dy <= radius; dy++) {
-                    for (int dz = -radius; dz <= radius; dz++) {
-                        expanded.add(origin.add(dx, dy, dz));
-                    }
+                for (int dz = -radius; dz <= radius; dz++) {
+                    // Ground decoration clearance follows plan footprint, not 3-D Chebyshev
+                    // shells from bracing/arm voxels one block above the surface.
+                    expanded.add(origin.add(dx, 0, dz));
                 }
             }
         }
