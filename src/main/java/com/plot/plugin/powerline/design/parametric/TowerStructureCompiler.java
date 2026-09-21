@@ -77,27 +77,13 @@ public final class TowerStructureCompiler {
             arm.setVerticalDrop(resolvedArm.verticalDrop());
             arm.setLongitudinalHalfWidth(resolvedArm.longitudinalHalfWidth());
             arm.setBracing(resolvedArm.bracing());
-            if (TowerParameterProfiles.STEAMPUNK_ID.equals(profile.id())
-                    && "arm_rod".equals(resolvedArm.id())) {
-                arm.setMaterial(MaterialMix.single("minecraft:lightning_rod"));
-                arm.setBraceMaterial(profile.armMaterial());
-            } else {
-                arm.setMaterial(profile.armMaterial());
-                arm.setBraceMaterial(profile.braceMaterial());
-            }
+            arm.setMaterial(profile.armMaterial());
+            arm.setBraceMaterial(profile.braceMaterial());
             structure.addArm(arm);
         }
 
         if (TowerParameterProfiles.STEAMPUNK_ID.equals(profile.id())) {
-            TowerDecoration gear = new TowerDecoration(
-                "gear",
-                TowerDecorationKind.PLATFORM,
-                resolved.peakDecorationHeight());
-            gear.setSize(2.0);
-            gear.setMaterial(profile.armMaterial() != null
-                ? profile.armMaterial()
-                : MaterialMix.single("minecraft:gold_block"));
-            structure.addDecoration(gear);
+            addSteampunkDecorations(structure, resolved, profile);
         } else {
             TowerDecoration peak = new TowerDecoration("peak", TowerDecorationKind.ANTENNA, resolved.peakDecorationHeight());
             peak.setSize(resolved.peakDecorationSize());
@@ -105,5 +91,56 @@ public final class TowerStructureCompiler {
             structure.addDecoration(peak);
         }
         return structure;
+    }
+
+    private static void addSteampunkDecorations(
+            TowerStructureDesign structure,
+            ResolvedTowerParameters resolved,
+            TowerParameterProfile profile) {
+        double height = resolved.height();
+        double waistLow = 10.0 / TowerParameterProfiles.STEAMPUNK_REF_HEIGHT * height;
+        double waistHigh = 18.0 / TowerParameterProfiles.STEAMPUNK_REF_HEIGHT * height;
+        MaterialMix brass = profile.armMaterial() != null
+            ? profile.armMaterial()
+            : MaterialMix.single("minecraft:gold_block");
+
+        TowerDecoration waistLower = new TowerDecoration("waist_low", TowerDecorationKind.MECHANICAL_RING, waistLow);
+        waistLower.setMaterial(MaterialMix.single("minecraft:cut_copper"));
+        structure.addDecoration(waistLower);
+
+        TowerDecoration waistUpper = new TowerDecoration("waist_high", TowerDecorationKind.MECHANICAL_RING, waistHigh);
+        waistUpper.setMaterial(MaterialMix.single("minecraft:exposed_copper"));
+        structure.addDecoration(waistUpper);
+
+        TowerDecoration gear = new TowerDecoration("gear", TowerDecorationKind.GEAR_RING, resolved.peakDecorationHeight());
+        gear.setSize(3.0);
+        gear.setMaterial(brass);
+        structure.addDecoration(gear);
+
+        TowerDecoration spire = new TowerDecoration("spire", TowerDecorationKind.ANTENNA, resolved.peakDecorationHeight() + 0.5);
+        spire.setSize(2.0);
+        spire.setMaterial(MaterialMix.single("minecraft:iron_bars"));
+        structure.addDecoration(spire);
+
+        addHangingChain(structure, waistLow - 1.0, 2.5, 0.8, 3.0);
+        addHangingChain(structure, waistLow - 1.0, -2.5, 0.8, 3.0);
+        addHangingChain(structure, waistHigh - 1.0, 0.0, 2.6, 2.0);
+    }
+
+    private static void addHangingChain(
+            TowerStructureDesign structure,
+            double topHeight,
+            double lateralOffset,
+            double longitudinalOffset,
+            double dropLength) {
+        TowerDecoration chain = new TowerDecoration(
+            "chain_" + lateralOffset + "_" + longitudinalOffset,
+            TowerDecorationKind.HANGING_CHAIN,
+            topHeight);
+        chain.setLateralOffset(lateralOffset);
+        chain.setLongitudinalOffset(longitudinalOffset);
+        chain.setSize(dropLength);
+        chain.setMaterial(TowerParameterProfiles.STEAMPUNK_CHAIN);
+        structure.addDecoration(chain);
     }
 }

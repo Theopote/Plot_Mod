@@ -95,13 +95,13 @@ class TowerMaterialOverrideSupportTest {
             "minecraft:copper_block",
             effective.getTowerStructure().getPrimaryMaterial().getPrimaryMaterial());
         assertEquals(
-            "minecraft:chain",
+            "minecraft:iron_bars",
             effective.getTowerStructure().getBraceMaterial().getPrimaryMaterial());
-        TowerArm upperRod = effective.getTowerStructure().getArms().stream()
+        TowerArm upperArm = effective.getTowerStructure().getArms().stream()
             .filter(arm -> "arm_rod".equals(arm.getId()))
             .findFirst()
             .orElseThrow();
-        assertEquals("minecraft:lightning_rod", upperRod.getMaterial().getPrimaryMaterial());
+        assertEquals("minecraft:gold_block", upperArm.getMaterial().getPrimaryMaterial());
         assertEquals(
             "minecraft:gold_block",
             effective.getTowerStructure().getArms().stream()
@@ -120,7 +120,7 @@ class TowerMaterialOverrideSupportTest {
         assertNotNull(compiled);
         TowerArm firstArm = compiled.getTowerStructure().getArms().getFirst();
         assertEquals("minecraft:gold_block", firstArm.getMaterial().getPrimaryMaterial());
-        assertEquals("minecraft:chain", firstArm.getBraceMaterial().getPrimaryMaterial());
+        assertEquals("minecraft:iron_bars", firstArm.getBraceMaterial().getPrimaryMaterial());
     }
 
     private static PowerLineFootprint smartTowersLine() {

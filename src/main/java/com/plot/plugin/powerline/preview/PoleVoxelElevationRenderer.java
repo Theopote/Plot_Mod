@@ -111,7 +111,7 @@ public final class PoleVoxelElevationRenderer {
                 float bx = layout.originX() + effCol * layout.blockSize();
                 float by = layout.originY() + (layout.effectiveRows() - 1 - effRow) * layout.blockSize();
                 if (layout.lod() == PreviewLod.DETAILED) {
-                    drawDetailedBlock(drawList, bx, by, layout.blockSize(), BlockPreviewColors.colorFor(blockId));
+                    drawDetailedBlock(drawList, bx, by, layout.blockSize(), BlockPreviewColors.colorFor(blockId), blockId);
                 } else {
                     drawFilledBlock(drawList, bx, by, layout.blockSize(), BlockPreviewColors.colorFor(blockId), blockId);
                 }
@@ -214,24 +214,39 @@ public final class PoleVoxelElevationRenderer {
         if ("minecraft:iron_bars".equals(baseId)) {
             return 3;
         }
-        if ("minecraft:iron_block".equals(baseId) || "minecraft:lightning_rod".equals(baseId)) {
+        if ("minecraft:iron_block".equals(baseId) || "minecraft:copper_block".equals(baseId)
+                || "minecraft:gold_block".equals(baseId) || "minecraft:cut_copper".equals(baseId)) {
             return 2;
+        }
+        if ("minecraft:chain".equals(baseId) || "minecraft:lightning_rod".equals(baseId)) {
+            return 0;
         }
         return 1;
     }
 
     private static void drawFilledBlock(ImDrawList drawList, float x, float y, float size, int color, String blockId) {
-        drawList.addRectFilled(x, y, x + size, y + size, color);
-        if ("minecraft:iron_bars".equals(BlockPreviewColors.baseBlockId(blockId)) && size >= 2f) {
-            int lineColor = BlockPreviewColors.shadow(color);
-            float x1 = x + size;
-            float y1 = y + size;
-            drawList.addLine(x, y, x1, y1, lineColor, 1f);
-            drawList.addLine(x1, y, x, y1, lineColor, 1f);
+        String baseId = BlockPreviewColors.baseBlockId(blockId);
+        if (usesThinRodPreview(baseId)) {
+            drawThinRod(drawList, x, y, size, color);
+            return;
         }
+        if ("minecraft:iron_bars".equals(baseId)) {
+            drawBarsBlock(drawList, x, y, size, color);
+            return;
+        }
+        drawList.addRectFilled(x, y, x + size, y + size, color);
     }
 
-    private static void drawDetailedBlock(ImDrawList drawList, float x, float y, float size, int color) {
+    private static void drawDetailedBlock(ImDrawList drawList, float x, float y, float size, int color, String blockId) {
+        String baseId = BlockPreviewColors.baseBlockId(blockId);
+        if (usesThinRodPreview(baseId)) {
+            drawThinRod(drawList, x, y, size, color);
+            return;
+        }
+        if ("minecraft:iron_bars".equals(baseId)) {
+            drawBarsBlock(drawList, x, y, size, color);
+            return;
+        }
         float x1 = x + size;
         float y1 = y + size;
         drawList.addRectFilled(x, y, x1, y1, color);
@@ -242,6 +257,28 @@ public final class PoleVoxelElevationRenderer {
         drawList.addLine(x, y, x, y1, hi, edge);
         drawList.addLine(x1, y, x1, y1, sh, edge);
         drawList.addLine(x, y1, x1, y1, sh, edge);
+    }
+
+    private static boolean usesThinRodPreview(String baseId) {
+        return "minecraft:chain".equals(baseId) || "minecraft:lightning_rod".equals(baseId);
+    }
+
+    /** 链节 / 避雷针：仅占格中心 ~22% 宽度的细杆，避免预览过度“满格化”。 */
+    private static void drawThinRod(ImDrawList drawList, float x, float y, float size, int color) {
+        float rod = Math.max(1f, size * 0.22f);
+        float cx = x + size * 0.5f;
+        float cy = y + size * 0.5f;
+        drawList.addRectFilled(cx - rod * 0.5f, y, cx + rod * 0.5f, y + size, color);
+    }
+
+    private static void drawBarsBlock(ImDrawList drawList, float x, float y, float size, int color) {
+        drawList.addRectFilled(x, y, x + size, y + size, BlockPreviewColors.shadow(color));
+        int lineColor = color;
+        float x1 = x + size;
+        float y1 = y + size;
+        float inset = Math.max(1f, size * 0.18f);
+        drawList.addLine(x + inset, y + inset, x1 - inset, y1 - inset, lineColor, Math.max(1f, size * 0.12f));
+        drawList.addLine(x1 - inset, y + inset, x + inset, y1 - inset, lineColor, Math.max(1f, size * 0.12f));
     }
 
     /** 将体素水平坐标映射到屏幕 X（正视 = lateral/X，侧视 = longitudinal/Z）。 */

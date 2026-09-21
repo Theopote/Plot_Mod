@@ -512,6 +512,12 @@ public final class TowerStructureGenerator {
                 decoration, transform, footprint, result, projection, counters, structureScratch);
             case PLATFORM -> generatePlatform(
                 decoration, transform, footprint, result, projection, counters, structureScratch);
+            case GEAR_RING -> generateGearRing(
+                decoration, transform, footprint, result, projection, counters, structureScratch);
+            case MECHANICAL_RING -> generateMechanicalRing(
+                decoration, structure, transform, footprint, result, projection, counters, structureScratch);
+            case HANGING_CHAIN -> generateHangingChain(
+                decoration, transform, footprint, result, projection, counters, structureScratch);
             default -> { }
         }
     }
@@ -593,6 +599,159 @@ public final class TowerStructureGenerator {
             placeDecorationBlockAt(
                 lateralCenter, height, longitudinalCenter - step, null,
                 transform, footprint, result, projection, counters, structureScratch, material);
+        }
+    }
+
+    private static void generateGearRing(
+            TowerDecoration decoration,
+            TowerStructureTransform transform,
+            PowerLineFootprint footprint,
+            PowerLineGenerationResult result,
+            IBlockProjectionService projection,
+            GenerationCounters counters,
+            Set<BlockPos> structureScratch) {
+        MaterialMix material = decoration.getMaterial() != null
+            ? decoration.getMaterial()
+            : MaterialMix.single("minecraft:gold_block");
+        int radius = Math.max(2, (int) Math.round(decoration.getSize()));
+        double height = decoration.getBaseHeight();
+        double lateralCenter = decoration.getLateralOffset();
+        double longitudinalCenter = decoration.getLongitudinalOffset();
+        placeDecorationBlockAt(
+            lateralCenter,
+            height,
+            longitudinalCenter,
+            null,
+            transform,
+            footprint,
+            result,
+            projection,
+            counters,
+            structureScratch,
+            material);
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                if (dx == 0 && dz == 0) {
+                    continue;
+                }
+                double dist = Math.hypot(dx, dz);
+                if (dist >= radius - 0.75 && dist <= radius + 0.25) {
+                    placeDecorationBlockAt(
+                        lateralCenter + dx,
+                        height,
+                        longitudinalCenter + dz,
+                        null,
+                        transform,
+                        footprint,
+                        result,
+                        projection,
+                        counters,
+                        structureScratch,
+                        material);
+                }
+            }
+        }
+        int toothRadius = radius + 1;
+        int[][] toothOffsets = {
+            {toothRadius, 0},
+            {-toothRadius, 0},
+            {0, toothRadius},
+            {0, -toothRadius},
+            {toothRadius - 1, toothRadius - 1},
+            {toothRadius - 1, -(toothRadius - 1)},
+            {-(toothRadius - 1), toothRadius - 1},
+            {-(toothRadius - 1), -(toothRadius - 1)}
+        };
+        for (int[] offset : toothOffsets) {
+            placeDecorationBlockAt(
+                lateralCenter + offset[0],
+                height,
+                longitudinalCenter + offset[1],
+                null,
+                transform,
+                footprint,
+                result,
+                projection,
+                counters,
+                structureScratch,
+                material);
+        }
+    }
+
+    private static void generateMechanicalRing(
+            TowerDecoration decoration,
+            TowerStructureDesign structure,
+            TowerStructureTransform transform,
+            PowerLineFootprint footprint,
+            PowerLineGenerationResult result,
+            IBlockProjectionService projection,
+            GenerationCounters counters,
+            Set<BlockPos> structureScratch) {
+        if (structure == null || structure.getStations().size() < 2) {
+            return;
+        }
+        MaterialMix material = decoration.getMaterial() != null
+            ? decoration.getMaterial()
+            : MaterialMix.single("minecraft:cut_copper");
+        double height = decoration.getBaseHeight();
+        TowerStructureGeometry.Footprint ringFootprint =
+            TowerStructureGeometry.interpolatedFootprintAtHeight(structure.getStations(), height);
+        if (ringFootprint.halfWidth() < 0.5 || ringFootprint.halfDepth() < 0.5) {
+            return;
+        }
+        double halfWidth = ringFootprint.halfWidth();
+        double halfDepth = ringFootprint.halfDepth();
+        for (int corner = 0; corner < TowerStructureGeometry.CORNER_COUNT; corner++) {
+            int next = (corner + 1) % TowerStructureGeometry.CORNER_COUNT;
+            TowerLocalPoint start = TowerStructureGeometry.cornerPointAt(height, corner, halfWidth, halfDepth);
+            TowerLocalPoint end = TowerStructureGeometry.cornerPointAt(height, next, halfWidth, halfDepth);
+            placeMember(
+                start,
+                end,
+                material,
+                1,
+                transform,
+                footprint,
+                result,
+                projection,
+                counters,
+                MemberKind.DECORATION,
+                structureScratch);
+        }
+        placeDecorationBlockAt(halfWidth + 1.0, height, 0.0, null, transform, footprint, result, projection, counters, structureScratch, material);
+        placeDecorationBlockAt(-halfWidth - 1.0, height, 0.0, null, transform, footprint, result, projection, counters, structureScratch, material);
+        placeDecorationBlockAt(0.0, height, halfDepth + 1.0, null, transform, footprint, result, projection, counters, structureScratch, material);
+        placeDecorationBlockAt(0.0, height, -halfDepth - 1.0, null, transform, footprint, result, projection, counters, structureScratch, material);
+    }
+
+    private static void generateHangingChain(
+            TowerDecoration decoration,
+            TowerStructureTransform transform,
+            PowerLineFootprint footprint,
+            PowerLineGenerationResult result,
+            IBlockProjectionService projection,
+            GenerationCounters counters,
+            Set<BlockPos> structureScratch) {
+        MaterialMix material = decoration.getMaterial() != null
+            ? decoration.getMaterial()
+            : MaterialMix.single("minecraft:chain");
+        int length = Math.max(1, (int) Math.round(decoration.getSize()));
+        double top = decoration.getBaseHeight();
+        double lateral = decoration.getLateralOffset();
+        double longitudinal = decoration.getLongitudinalOffset();
+        for (int step = 0; step < length; step++) {
+            placeDecorationBlockAt(
+                lateral,
+                top - step,
+                longitudinal,
+                DirectionalBlockSpecs.verticalChain().toSetBlockArgument(),
+                transform,
+                footprint,
+                result,
+                projection,
+                counters,
+                structureScratch,
+                material);
         }
     }
 

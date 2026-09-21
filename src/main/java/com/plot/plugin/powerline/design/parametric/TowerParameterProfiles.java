@@ -126,9 +126,10 @@ public final class TowerParameterProfiles {
     private static final MaterialMix LATTICE_BRACE = MaterialMix.single("minecraft:iron_bars");
     private static final MaterialMix ARM_MATERIAL = MaterialMix.single("minecraft:iron_bars");
     private static final MaterialMix STEAMPUNK_LEG = MaterialMix.single("minecraft:copper_block");
-    /** 细杆件（链节）比 cut_copper 整块斜撑更接近画廊预览的镂空铜构美感。 */
-    private static final MaterialMix STEAMPUNK_BRACE = MaterialMix.single("minecraft:chain");
+    /** 主斜撑：远距离可读的格构杆件；chain 仅作外挂装饰。 */
+    private static final MaterialMix STEAMPUNK_BRACE = MaterialMix.single("minecraft:iron_bars");
     private static final MaterialMix STEAMPUNK_ARM = MaterialMix.single("minecraft:gold_block");
+    static final MaterialMix STEAMPUNK_CHAIN = MaterialMix.single("minecraft:chain");
     private static final MaterialMix MODERN_HV_LEG = MaterialMix.single("minecraft:iron_block");
     private static final MaterialMix MODERN_HV_BRACE = MaterialMix.single("minecraft:iron_bars");
     private static final MaterialMix MODERN_HV_ARM = MaterialMix.single("minecraft:sea_lantern");

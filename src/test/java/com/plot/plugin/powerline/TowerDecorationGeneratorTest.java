@@ -10,7 +10,9 @@ import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerBay;
+import com.plot.plugin.powerline.design.structure.TowerDecoration;
 import com.plot.plugin.powerline.design.structure.TowerDecorationCatalog;
+import com.plot.plugin.powerline.design.structure.TowerDecorationKind;
 import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -82,6 +84,27 @@ class TowerDecorationGeneratorTest {
         structure.addDecoration(TowerDecorationCatalog.platformAtTop(8));
         PowerLineGenerationResult result = generateStructure(structure);
         assertTrue(blocksWithMaterial(result, "minecraft:iron_block").size() >= 5);
+    }
+
+    @Test
+    void gearRingDecorationPlacesRingAndTeeth() {
+        TowerStructureDesign structure = simpleTower();
+        structure.addDecoration(TowerDecorationCatalog.gearRingAtTop(8));
+        PowerLineGenerationResult result = generateStructure(structure);
+        assertTrue(blocksWithMaterial(result, "minecraft:gold_block").size() >= 12);
+    }
+
+    @Test
+    void mechanicalRingDecorationPlacesCopperFrame() {
+        TowerStructureDesign structure = simpleTower();
+        TowerDecoration ring = new TowerDecoration(
+            "waist",
+            TowerDecorationKind.MECHANICAL_RING,
+            4.0);
+        ring.setMaterial(MaterialMix.single("minecraft:cut_copper"));
+        structure.addDecoration(ring);
+        PowerLineGenerationResult result = generateStructure(structure);
+        assertTrue(blocksWithMaterial(result, "minecraft:cut_copper").size() >= 4);
     }
 
     @Test

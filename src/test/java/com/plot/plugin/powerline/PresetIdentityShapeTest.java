@@ -61,12 +61,17 @@ class PresetIdentityShapeTest {
         PowerLineFootprint line = PresetMinecraftRealizabilitySupport.sampleLine();
         line.setPoleDesignId(PoleDesignCatalog.STEAMPUNK_BRASS_TOWER_ID);
         PowerLineGenerationResult result = PresetMinecraftRealizabilitySupport.generate(line);
-        assertTrue(countBlock(result, "minecraft:chain") >= 4,
-            "steampunk should place chain lattice bracing, not legacy solid column");
-        assertTrue(countBlock(result, "minecraft:lightning_rod") >= 4,
-            "steampunk should place lightning rod upper arms");
-        assertTrue(countBlock(result, "minecraft:gold_block") >= 8,
-            "steampunk should place gold arms and gear teeth");
+        assertTrue(countBlock(result, "minecraft:iron_bars") >= 8,
+            "steampunk should place visible iron_bars primary bracing");
+        assertTrue(countBlock(result, "minecraft:chain") >= 3,
+            "steampunk should place hanging chain decorations");
+        assertTrue(countBlock(result, "minecraft:cut_copper") >= 4
+                || countBlock(result, "minecraft:exposed_copper") >= 4,
+            "steampunk should place mechanical waist rings");
+        assertTrue(countBlock(result, "minecraft:lightning_rod") >= 1,
+            "steampunk spire should place lightning rod tip");
+        assertTrue(countBlock(result, "minecraft:gold_block") >= 12,
+            "steampunk should place gold arms and gear ring");
     }
 
     @Test
@@ -75,7 +80,7 @@ class PresetIdentityShapeTest {
             PowerLineStylePresetCatalog.steampunkBrass());
         PowerLineGenerationResult result = PresetMinecraftRealizabilitySupport.generate(line);
         long goldBlocks = countBlock(result, "minecraft:gold_block");
-        assertTrue(goldBlocks >= 8, "steampunk tower should include gold arms and gear teeth");
+        assertTrue(goldBlocks >= 12, "steampunk tower should include gold arms and gear ring");
     }
 
     @Test
@@ -84,8 +89,8 @@ class PresetIdentityShapeTest {
         Map<Integer, Long> goldPerY = model.voxels().stream()
             .filter(voxel -> "minecraft:gold_block".equals(voxel.blockId()))
             .collect(Collectors.groupingBy(voxel -> voxel.y(), Collectors.counting()));
-        boolean hasGearRing = goldPerY.values().stream().anyMatch(count -> count >= 5);
-        assertTrue(hasGearRing, "steampunk gear platform should have center plus four gear teeth");
+        boolean hasGearRing = goldPerY.values().stream().anyMatch(count -> count >= 12);
+        assertTrue(hasGearRing, "steampunk gear ring should have a dense gold ring at one height");
     }
 
     @Test
@@ -95,8 +100,8 @@ class PresetIdentityShapeTest {
         boolean hasGear = compiled.getTowerStructure().getDecorations().stream()
             .anyMatch(decoration ->
                 "gear".equals(decoration.getId())
-                    && decoration.getKind() == com.plot.plugin.powerline.design.structure.TowerDecorationKind.PLATFORM);
-        assertTrue(hasGear, "parametric steampunk should compile gear platform decoration");
+                    && decoration.getKind() == com.plot.plugin.powerline.design.structure.TowerDecorationKind.GEAR_RING);
+        assertTrue(hasGear, "parametric steampunk should compile gear ring decoration");
         assertEqualsProfile(TowerParameterProfiles.STEAMPUNK_ID, compiled.getGeneratorConfig().profileId());
     }
 

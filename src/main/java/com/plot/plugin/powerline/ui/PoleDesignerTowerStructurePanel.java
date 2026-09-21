@@ -164,11 +164,16 @@ final class PoleDesignerTowerStructurePanel {
         }
 
         if (decoration.getKind() == TowerDecorationKind.ANTENNA
-                || decoration.getKind() == TowerDecorationKind.PLATFORM) {
+                || decoration.getKind() == TowerDecorationKind.PLATFORM
+                || decoration.getKind() == TowerDecorationKind.GEAR_RING
+                || decoration.getKind() == TowerDecorationKind.HANGING_CHAIN) {
             float[] size = {(float) decoration.getSize()};
-            String sizeKey = decoration.getKind() == TowerDecorationKind.PLATFORM
-                ? "plugin.powerline.design.decoration_platform_radius"
-                : "plugin.powerline.design.decoration_antenna_height";
+            String sizeKey = switch (decoration.getKind()) {
+                case PLATFORM -> "plugin.powerline.design.decoration_platform_radius";
+                case GEAR_RING -> "plugin.powerline.design.decoration_gear_radius";
+                case HANGING_CHAIN -> "plugin.powerline.design.decoration_chain_drop";
+                default -> "plugin.powerline.design.decoration_antenna_height";
+            };
             if (PoleDesignerFormRows.sliderFloat(sizeKey, "##deco_size", size, 0.5f, 32f, PowerLineUiFormat.SLIDER)) {
                 decoration.setSize(size[0]);
             }
@@ -196,6 +201,7 @@ final class PoleDesignerTowerStructurePanel {
         double top = structure.maxHeight();
         return decoration.getKind() == TowerDecorationKind.ANTENNA
             || decoration.getKind() == TowerDecorationKind.PLATFORM
+            || decoration.getKind() == TowerDecorationKind.GEAR_RING
             ? top
             : top + 1;
     }

@@ -47,6 +47,16 @@ public final class TowerDecorationCatalog {
         return decoration;
     }
 
+    public static TowerDecoration gearRingAtTop(double towerTopHeight) {
+        TowerDecoration decoration = new TowerDecoration(
+            uniqueId("deco_gear_ring"),
+            TowerDecorationKind.GEAR_RING,
+            towerTopHeight);
+        decoration.setSize(3.0);
+        decoration.setMaterial(MaterialMix.single("minecraft:gold_block"));
+        return decoration;
+    }
+
     public static TowerDecoration create(
             TowerDecorationKind kind,
             double towerTopHeight) {
@@ -55,6 +65,12 @@ public final class TowerDecorationCatalog {
             case WARNING_LIGHT -> warningLightAtTop(towerTopHeight);
             case ANTENNA -> antennaAtTop(towerTopHeight);
             case PLATFORM -> platformAtTop(towerTopHeight);
+            case GEAR_RING -> gearRingAtTop(towerTopHeight);
+            case MECHANICAL_RING, HANGING_CHAIN -> {
+                TowerDecoration decoration = new TowerDecoration(uniqueId("deco_" + kind.name().toLowerCase()), kind, towerTopHeight);
+                decoration.setSize(kind == TowerDecorationKind.HANGING_CHAIN ? 3.0 : 0.0);
+                yield decoration;
+            }
         };
     }
 
