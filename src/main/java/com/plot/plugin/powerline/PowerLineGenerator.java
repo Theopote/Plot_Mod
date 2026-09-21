@@ -33,6 +33,7 @@ import com.plot.plugin.powerline.style.EffectivePoleDesignResolver;
 import com.plot.plugin.powerline.style.ParametricStyleTowerApplicator;
 import com.plot.plugin.powerline.design.structure.TowerStructureValidator;
 import com.plot.plugin.powerline.design.structure.TowerValidationIssue;
+import com.plot.plugin.powerline.design.structure.TowerValidationSeverity;
 import com.plot.plugin.powerline.equipment.JumperWireGenerator;
 import com.plot.plugin.powerline.equipment.LineEquipmentGenerator;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -221,6 +222,16 @@ public class PowerLineGenerator {
         if (design != null) {
             design = EffectivePoleDesignResolver.applyLineOverrides(design, footprint);
         }
+        if (hasBlockingStructureErrors(design, result)) {
+            result.recordRole(site.getRole());
+            return invalidPolePlacement(
+                planPoint,
+                frame,
+                design,
+                buildBaseY,
+                site,
+                assignment.resolvedDesignId());
+        }
 
         boolean hasTowerStructure = design != null && design.hasTowerStructure();
         TowerFoundationPlan foundationPlan;
@@ -288,11 +299,6 @@ public class PowerLineGenerator {
             }
             attachments = attachmentResolver.resolve(design, frame);
             usesAttachmentConductors = design.hasEnabledAttachments();
-            for (TowerValidationIssue issue : TowerStructureValidator.validate(design)) {
-                if (issue.severity() != com.plot.plugin.powerline.design.structure.TowerValidationSeverity.INFO) {
-                    result.warnings.add(issue.localizedMessage());
-                }
-            }
             for (ResolvedAttachment attachment : attachments) {
                 LineEquipmentGenerator.place(attachment, frame, footprint, result, projectionHandler);
             }
@@ -324,6 +330,22 @@ public class PowerLineGenerator {
         return design != null
             && design.isParametricMode()
             && TowerParametricEditor.hasBlockingErrors(design, envelope);
+    }
+
+    static boolean hasBlockingStructureErrors(PoleDesign design, PowerLineGenerationResult result) {
+        if (design == null || !design.hasTowerStructure()) {
+            return false;
+        }
+        boolean blocked = false;
+        for (TowerValidationIssue issue : TowerStructureValidator.validate(design)) {
+            if (issue.severity() == TowerValidationSeverity.ERROR) {
+                blocked = true;
+            }
+            if (issue.severity() != TowerValidationSeverity.INFO) {
+                result.warnings.add(issue.localizedMessage());
+            }
+        }
+        return blocked;
     }
 
     static boolean isSpanGenerable(List<PolePlacement> placements, int fromIndex, int toIndex) {
