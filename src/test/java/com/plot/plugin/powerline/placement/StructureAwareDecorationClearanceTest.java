@@ -211,9 +211,7 @@ class StructureAwareDecorationClearanceTest {
 
     private static boolean isStructureLike(PowerLineGenerationResult result, BlockPos pos) {
         PlacementCategory category = result.placementCategories.get(pos);
-        return category == PlacementCategory.STRUCTURE
-            || category == PlacementCategory.ARM
-            || category == PlacementCategory.FOUNDATION;
+        return PlacementWriter.contributesToStructureClearance(category);
     }
 
     private static boolean isClearanceAir(PowerLineGenerationResult result, BlockPos pos) {

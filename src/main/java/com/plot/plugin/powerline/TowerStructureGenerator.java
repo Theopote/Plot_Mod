@@ -671,7 +671,7 @@ public final class TowerStructureGenerator {
         String resolved = blockId != null
             ? blockId
             : MaterialMixResolver.resolve(material, pos, footprint.getId());
-        recordBlock(result, pos, resolved, projection, PlacementCategory.STRUCTURE, structureScratch);
+        recordBlock(result, pos, resolved, projection, PlacementCategory.DECORATION, structureScratch);
         counters.addDecoration(1);
     }
 
@@ -743,9 +743,12 @@ public final class TowerStructureGenerator {
         if (raster.allBlocks().isEmpty()) {
             return;
         }
-        PlacementCategory category = kind == MemberKind.ARM
-            ? PlacementCategory.ARM
-            : PlacementCategory.STRUCTURE;
+        PlacementCategory category = switch (kind) {
+            case LEG -> PlacementCategory.LEG;
+            case ARM -> PlacementCategory.ARM;
+            case BRACE -> PlacementCategory.BRACE;
+            case DECORATION -> PlacementCategory.DECORATION;
+        };
         List<BlockPos> centerline = raster.centerline();
         for (int i = 0; i < centerline.size(); i++) {
             BlockPos pos = centerline.get(i);

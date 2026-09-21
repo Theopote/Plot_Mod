@@ -52,6 +52,20 @@ class PlacementWriterTest {
     }
 
     @Test
+    void legOverridesBraceAtSharedVoxel() {
+        PowerLineGenerationResult result = new PowerLineGenerationResult(
+            new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0))));
+        BlockPos pos = new BlockPos(4, 64, 2);
+        IBlockProjectionService projection = projectionFor(new LinkedHashMap<>());
+
+        PlacementWriter.put(result, projection, pos, "minecraft:iron_block", PlacementCategory.LEG);
+        PlacementWriter.put(result, projection, pos, "minecraft:iron_bars", PlacementCategory.BRACE);
+
+        assertEquals("minecraft:iron_block", result.placementRecords.get(pos).newBlockId);
+        assertEquals(PlacementCategory.LEG, result.placementCategories.get(pos));
+    }
+
+    @Test
     void foundationOverridesStructure() {
         PowerLineGenerationResult result = new PowerLineGenerationResult(
             new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0))));

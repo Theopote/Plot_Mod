@@ -16,6 +16,7 @@ import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.placement.PlacementCategory;
 import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
@@ -422,6 +423,27 @@ class TowerStructureGeneratorTest {
         for (int z : zs) {
             assertTrue(zs.contains(-z), "missing mirrored leg Z at " + (-z) + " from " + z);
         }
+    }
+
+    @Test
+    void legsRemainContinuousWhenFaceIsXBraced() {
+        TowerStructureDesign structure = twoStationTower();
+        structure.setPrimaryMaterial(MaterialMix.single("minecraft:iron_block"));
+        structure.setBraceMaterial(MaterialMix.single("minecraft:iron_bars"));
+        structure.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.X);
+        structure.findOrCreateBay("s0", "s1").setSideBracing(BracingPattern.X);
+        structure.findOrCreateBay("s0", "s1").setHorizontalRing(false);
+
+        PowerLineGenerationResult result = generateStructure(structure);
+        for (BlockPos leg : blocksWithMaterial(result, "minecraft:iron_block")) {
+            assertEquals(
+                PlacementCategory.LEG,
+                result.placementCategories.get(leg),
+                "main leg voxel should not be replaced by bracing at " + leg);
+        }
+        assertTrue(
+            blocksWithMaterial(result, "minecraft:iron_block").size() >= 4,
+            "each corner leg should remain a continuous iron_block column");
     }
 
     @Test

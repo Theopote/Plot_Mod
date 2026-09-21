@@ -70,9 +70,18 @@ public final class PlacementWriter {
             mergeIronBarsIfNeeded(existing, blockId));
         result.placementRecords.put(pos, new BlockRecord(pos, previous, resolvedBlockId));
         result.placementCategories.put(pos, category);
-        if (structureScratch != null && category.priority() >= PlacementCategory.STRUCTURE.priority()) {
+        if (structureScratch != null && contributesToStructureClearance(category)) {
             structureScratch.add(pos.toImmutable());
         }
+    }
+
+    static boolean contributesToStructureClearance(PlacementCategory category) {
+        return category == PlacementCategory.LEG
+            || category == PlacementCategory.ARM
+            || category == PlacementCategory.BRACE
+            || category == PlacementCategory.DECORATION
+            || category == PlacementCategory.STRUCTURE
+            || category == PlacementCategory.FOUNDATION;
     }
 
     private static String mergeIronBarsIfNeeded(BlockRecord existing, String incomingBlockId) {

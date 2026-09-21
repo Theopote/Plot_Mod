@@ -18,6 +18,8 @@ import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.placement.PlacementCategory;
+import com.plot.plugin.powerline.style.PowerLineStylePresetCatalog;
 import com.plot.test.world.IdentityCoordinateService;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 import com.plot.plugin.powerline.model.PoleOverride;
@@ -198,6 +200,23 @@ class PowerLineTowerFamilyIntegrationTest {
             .count();
         assertTrue(chainBlocks > 0, "twin top wires should place chain material");
         assertTrue(barBlocks > chainBlocks, "bundled phase conductors should dominate block count");
+    }
+
+    @Test
+    void megaLatticeGeneratesInterTowerWires() {
+        PowerLineFootprint line = straightLine(60);
+        PowerLineStylePresetCatalog.megaLattice().apply(line);
+        line.setMaxPoleSpacing(80.0);
+        line.setSagRatio(0.0);
+
+        PowerLineGenerationResult result = generate(line);
+        long wireBlocks = result.placementRecords.values().stream()
+            .filter(record -> result.placementCategories.get(record.pos) == PlacementCategory.WIRE)
+            .count();
+
+        assertTrue(result.conductorSpans.size() > 0, "mega lattice should resolve conductor spans");
+        assertTrue(wireBlocks > 0, "mega lattice should place conductor voxels between towers");
+        assertTrue(result.wireLength > 0.0);
     }
 
     @Test
