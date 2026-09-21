@@ -29,6 +29,27 @@ public final class TowerStructureTransform {
         return VoxelLineRasterizer.symmetricBlockCell(world[0], world[1], world[2]);
     }
 
+    public TowerLocalPoint fromWorldBlock(BlockPos block) {
+        return fromWorld(block.getX(), block.getY(), block.getZ());
+    }
+
+    public TowerLocalPoint fromWorld(double worldX, double worldY, double worldZ) {
+        Vec2d plan = planFromWorldXZ(worldX, worldZ);
+        Vec2d rel = new Vec2d(
+            plan.x - frame.origin().x,
+            plan.y - frame.origin().y);
+        double lateral = rel.x * frame.right().x + rel.y * frame.right().y;
+        double longitudinal = rel.x * frame.forward().x + rel.y * frame.forward().y;
+        return TowerLocalPoint.of(lateral, worldY - frame.groundY(), longitudinal);
+    }
+
+    private Vec2d planFromWorldXZ(double worldX, double worldZ) {
+        if (coordinates != null) {
+            return coordinates.captureProjection().toCanvas(new Vec2d(worldX, worldZ));
+        }
+        return new Vec2d(worldX, worldZ);
+    }
+
     private double[] planToWorldXz(Vec2d planPoint) {
         if (planPoint == null) {
             return new double[] {0.0, 0.0};

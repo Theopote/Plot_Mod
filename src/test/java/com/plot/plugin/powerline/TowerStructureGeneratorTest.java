@@ -394,6 +394,28 @@ class TowerStructureGeneratorTest {
     }
 
     @Test
+    void taperedLegsAreMirrorImagesAcrossBothPlanes() {
+        TowerStructureDesign structure = taperedTower();
+        structure.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.NONE);
+        structure.findOrCreateBay("s0", "s1").setSideBracing(BracingPattern.NONE);
+        structure.findOrCreateBay("s1", "s2").setFrontBackBracing(BracingPattern.NONE);
+        structure.findOrCreateBay("s1", "s2").setSideBracing(BracingPattern.NONE);
+        structure.setPrimaryMaterial(MaterialMix.single("minecraft:iron_block"));
+
+        PowerLineGenerationResult result = generateStructure(structure);
+        Set<BlockPos> legs = blocksWithMaterial(result, "minecraft:iron_block");
+        assertFalse(legs.isEmpty());
+        for (BlockPos pos : legs) {
+            assertTrue(legs.contains(new BlockPos(-pos.getX(), pos.getY(), pos.getZ())),
+                "missing lateral mirror for " + pos);
+            assertTrue(legs.contains(new BlockPos(pos.getX(), pos.getY(), -pos.getZ())),
+                "missing longitudinal mirror for " + pos);
+            assertTrue(legs.contains(new BlockPos(-pos.getX(), pos.getY(), -pos.getZ())),
+                "missing diagonal mirror for " + pos);
+        }
+    }
+
+    @Test
     void verticalLegsSnapToMirrorCellsAboutOrigin() {
         TowerStructureDesign structure = new TowerStructureDesign();
         structure.addStation(new TowerStation("s0", 0, 7.3, 4.2));

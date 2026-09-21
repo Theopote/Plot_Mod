@@ -227,13 +227,19 @@ public final class TowerStructureGenerator {
             Set<BlockPos> structureScratch) {
         MaterialMix material = structure.getPrimaryMaterial();
         int thickness = structure.getLegProfile().getThickness();
-        for (int corner = 0; corner < TowerStructureGeometry.CORNER_COUNT; corner++) {
-            TowerLocalPoint start = TowerStructureGeometry.cornerPoint(lower, corner);
-            TowerLocalPoint end = TowerStructureGeometry.cornerPoint(upper, corner);
-            placeMember(
-                start, end, material, thickness, transform, footprint, result, projection, counters,
-                MemberKind.LEG, structureScratch);
-        }
+        TowerLocalPoint start = TowerStructureGeometry.cornerPoint(lower, 0);
+        TowerLocalPoint end = TowerStructureGeometry.cornerPoint(upper, 0);
+        placeMirroredLegMember(
+            start,
+            end,
+            material,
+            thickness,
+            transform,
+            footprint,
+            result,
+            projection,
+            counters,
+            structureScratch);
     }
 
     private static void generateFaceBracing(
@@ -687,6 +693,86 @@ public final class TowerStructureGenerator {
             counters,
             MemberKind.BRACE,
             structureScratch);
+    }
+
+    private static void placeMirroredLegMember(
+            TowerLocalPoint canonicalStart,
+            TowerLocalPoint canonicalEnd,
+            MaterialMix material,
+            int thickness,
+            TowerStructureTransform transform,
+            PowerLineFootprint footprint,
+            PowerLineGenerationResult result,
+            IBlockProjectionService projection,
+            GenerationCounters counters,
+            Set<BlockPos> structureScratch) {
+        double[] worldStart = transform.toWorld(canonicalStart);
+        double[] worldEnd = transform.toWorld(canonicalEnd);
+        MemberVoxelRaster raster = TowerMemberVoxelRasterizer.rasterizeMemberDetailed(
+            worldStart[0], worldStart[1], worldStart[2],
+            worldEnd[0], worldEnd[1], worldEnd[2],
+            thickness);
+        if (raster.allBlocks().isEmpty()) {
+            return;
+        }
+
+        Set<BlockPos> placed = new HashSet<>();
+        for (BlockPos source : raster.allBlocks()) {
+            TowerLocalPoint sourceLocal = transform.fromWorld(
+                source.getX(),
+                source.getY(),
+                source.getZ());
+            BlockPos thicknessCore = raster.thicknessAnchors().get(source);
+            TowerLocalPoint coreLocal = thicknessCore != null
+                ? transform.fromWorld(thicknessCore.getX(), thicknessCore.getY(), thicknessCore.getZ())
+                : null;
+
+            for (int latSign : MIRROR_SIGNS) {
+                for (int longSign : MIRROR_SIGNS) {
+                    TowerLocalPoint legStart = mirrorLocalPoint(canonicalStart, latSign, longSign);
+                    TowerLocalPoint legEnd = mirrorLocalPoint(canonicalEnd, latSign, longSign);
+                    TowerLocalPoint mirroredLocal = mirrorLocalPoint(sourceLocal, latSign, longSign);
+                    BlockPos mirroredPos = transform.toBlock(mirroredLocal);
+                    if (!placed.add(mirroredPos)) {
+                        continue;
+                    }
+                    String blockId = MaterialMixResolver.resolve(material, mirroredPos, footprint.getId());
+                    String placementId;
+                    if (isIronBars(blockId) && coreLocal != null) {
+                        BlockPos mirroredCore = transform.toBlock(mirrorLocalPoint(coreLocal, latSign, longSign));
+                        placementId = DirectionalBlockSpecs.ironBarsTowardCore(mirroredPos, mirroredCore)
+                            .toSetBlockArgument();
+                    } else {
+                        placementId = memberPlacementId(
+                            blockId,
+                            null,
+                            -1,
+                            mirroredPos,
+                            null,
+                            legStart,
+                            legEnd,
+                            transform);
+                    }
+                    recordBlock(
+                        result,
+                        mirroredPos,
+                        placementId,
+                        projection,
+                        PlacementCategory.LEG,
+                        structureScratch);
+                }
+            }
+        }
+        counters.addLeg(placed.size());
+    }
+
+    private static final int[] MIRROR_SIGNS = {-1, 1};
+
+    private static TowerLocalPoint mirrorLocalPoint(TowerLocalPoint point, int latSign, int longSign) {
+        return TowerLocalPoint.of(
+            latSign * Math.abs(point.lateral()),
+            point.vertical(),
+            longSign * Math.abs(point.longitudinal()));
     }
 
     private static void placeMember(
