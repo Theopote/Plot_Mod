@@ -48,6 +48,10 @@ public class CoordinateTransformer implements com.plot.api.world.ICoordinateServ
     // 【新增】坐标验证常量
     private static final double MINECRAFT_MAX_COORDINATE = 30000000.0;
     private static final double MINECRAFT_MIN_COORDINATE = -30000000.0;
+    private static final float MIN_REASONABLE_VIEW_DISTANCE = 40.0f;
+    private static final float WARN_VIEW_DISTANCE = 480.0f;
+    private static final float MAX_SUPPORTED_VIEW_DISTANCE = 800.0f;
+    private static float lastViewDistanceWarning = Float.NaN;
 
     public static synchronized CoordinateTransformer getInstance() {
         if (INSTANCE == null) {
@@ -72,9 +76,23 @@ public class CoordinateTransformer implements com.plot.api.world.ICoordinateServ
             CameraManager cameraManager = CameraManager.getInstance();
             float currentViewDistance = cameraManager.getViewDistance();
             
-            // 【新增】检查视图范围合理性
-            if (currentViewDistance < 40.0f || currentViewDistance > 480.0f) {
-                LOGGER.warn("视图范围超出合理范围: {}, 可能导致坐标转换不准确", currentViewDistance);
+            // 【新增】检查视图范围合理性（大跨度线路需要更大视野，避免每帧刷屏）
+            if (currentViewDistance < MIN_REASONABLE_VIEW_DISTANCE
+                    || currentViewDistance > MAX_SUPPORTED_VIEW_DISTANCE) {
+                if (Float.isNaN(lastViewDistanceWarning)
+                        || Math.abs(currentViewDistance - lastViewDistanceWarning) > 0.1f) {
+                    LOGGER.warn(
+                        "视图范围超出合理范围: {}, 可能导致坐标转换不准确",
+                        currentViewDistance);
+                    lastViewDistanceWarning = currentViewDistance;
+                }
+            } else if (currentViewDistance > WARN_VIEW_DISTANCE
+                    && (Float.isNaN(lastViewDistanceWarning)
+                    || Math.abs(currentViewDistance - lastViewDistanceWarning) > 0.1f)) {
+                LOGGER.debug(
+                    "视图范围较大: {}, 远距离线路坐标精度可能略有下降",
+                    currentViewDistance);
+                lastViewDistanceWarning = currentViewDistance;
             }
             
             // 【优化】缓存键包含视图范围信息

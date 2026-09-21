@@ -311,7 +311,7 @@ public class BlockProjectionHandler implements IBlockProjectionService {
                 pos.getX(),
                 pos.getY(),
                 pos.getZ(),
-                quoteSetBlockArgument(blockId));
+                blockId);
             LOGGER.info("执行命令: {}", command);
             Objects.requireNonNull(client.getNetworkHandler()).sendChatCommand(command);
             return true;
@@ -319,17 +319,6 @@ public class BlockProjectionHandler implements IBlockProjectionService {
             LOGGER.error("发送setblock命令失败", e);
             return false;
         }
-    }
-
-    /** BlockState 参数含方括号时必须加引号，否则 /setblock 会解析失败。 */
-    static String quoteSetBlockArgument(String blockId) {
-        if (blockId == null || blockId.isBlank()) {
-            return blockId;
-        }
-        if (blockId.indexOf('[') >= 0 || blockId.indexOf(' ') >= 0) {
-            return "\"" + blockId.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
-        }
-        return blockId;
     }
 
     /**

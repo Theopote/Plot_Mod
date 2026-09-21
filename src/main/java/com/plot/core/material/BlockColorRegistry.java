@@ -23,6 +23,7 @@ public final class BlockColorRegistry {
         KNOWN.put("minecraft:weathered_copper", 0xFF8FA08A);
         KNOWN.put("minecraft:lightning_rod", 0xFFE8C060);
         KNOWN.put("minecraft:chain", 0xFF8A8A8A);
+        KNOWN.put("minecraft:iron_chain", 0xFF8A8A8A);
         KNOWN.put("minecraft:vine", 0xFF4A7A3A);
         KNOWN.put("minecraft:light_blue_stained_glass", 0xFF80D8FF);
         KNOWN.put("minecraft:glowstone", 0xFFFFE082);

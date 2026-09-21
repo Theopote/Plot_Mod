@@ -184,37 +184,26 @@ public final class DirectionalBlockSpecs {
             return verticalChain(blockId);
         }
         BlockPos current = path.get(index);
-        if (index > 0 && index < path.size() - 1) {
-            BlockPos previous = path.get(index - 1);
-            BlockPos next = path.get(index + 1);
-            if (isChainTurn(previous, current, next)) {
-                return chainAlongBlockStep(blockId, previous, current);
-            }
+        BlockPos next = nextDistinct(path, index, 1);
+        if (next != null) {
+            return chainAlongBlockStep(blockId, current, next);
         }
-        if (index < path.size() - 1) {
-            return chainAlongBlockStep(blockId, current, path.get(index + 1));
-        }
-        if (index > 0) {
-            return chainAlongBlockStep(blockId, path.get(index - 1), current);
+        BlockPos previous = nextDistinct(path, index, -1);
+        if (previous != null) {
+            return chainAlongBlockStep(blockId, previous, current);
         }
         return verticalChain(blockId);
     }
 
-    private static boolean isChainTurn(BlockPos previous, BlockPos current, BlockPos next) {
-        return chainAxis(previous, current) != chainAxis(current, next);
-    }
-
-    private static char chainAxis(BlockPos from, BlockPos to) {
-        int dx = Math.abs(to.getX() - from.getX());
-        int dy = Math.abs(to.getY() - from.getY());
-        int dz = Math.abs(to.getZ() - from.getZ());
-        if (dy >= dx && dy >= dz) {
-            return 'y';
+    private static BlockPos nextDistinct(List<BlockPos> path, int index, int direction) {
+        BlockPos current = path.get(index);
+        for (int i = index + direction; i >= 0 && i < path.size(); i += direction) {
+            BlockPos candidate = path.get(i);
+            if (!candidate.equals(current)) {
+                return candidate;
+            }
         }
-        if (dx >= dz) {
-            return 'x';
-        }
-        return 'z';
+        return null;
     }
 
     /** 水平锁链：沿 plan 方向。 */
@@ -311,7 +300,10 @@ public final class DirectionalBlockSpecs {
         double absX = Math.abs(deltaX);
         double absY = Math.abs(deltaY);
         double absZ = Math.abs(deltaZ);
-        if (absY >= absX && absY >= absZ) {
+        if (absX < 1e-9 && absY < 1e-9 && absZ < 1e-9) {
+            return verticalChain(resolvedId);
+        }
+        if (absY > 0 && absY >= absX && absY >= absZ) {
             return verticalChain(resolvedId);
         }
         if (absX >= absZ) {

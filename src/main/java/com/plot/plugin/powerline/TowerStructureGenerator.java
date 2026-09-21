@@ -76,18 +76,6 @@ public final class TowerStructureGenerator {
         }
 
         List<TowerStation> legStations = TowerStationDensifier.densifyForLegs(macroStations);
-        for (int i = 1; i < legStations.size(); i++) {
-            generateLegs(
-                legStations.get(i - 1),
-                legStations.get(i),
-                structure,
-                transform,
-                footprint,
-                result,
-                projection,
-                counters,
-                structureScratch);
-        }
 
         for (int i = 1; i < macroStations.size(); i++) {
             TowerStation lower = macroStations.get(i - 1);
@@ -114,6 +102,19 @@ public final class TowerStructureGenerator {
             if (bay.isHorizontalRing()) {
                 generateHorizontalRing(upper, structure, transform, footprint, result, projection, counters, structureScratch);
             }
+        }
+
+        for (int i = 1; i < legStations.size(); i++) {
+            generateLegs(
+                legStations.get(i - 1),
+                legStations.get(i),
+                structure,
+                transform,
+                footprint,
+                result,
+                projection,
+                counters,
+                structureScratch);
         }
 
         Set<Long> armSupportRingHeights = new HashSet<>();

@@ -107,8 +107,23 @@ class DirectionalBlockSpecsTest {
             new BlockPos(1, 0, 0),
             new BlockPos(1, 0, 1));
         assertEquals("x", DirectionalBlockSpecs.chainAlongVoxelPath(path, 0).property("axis"));
-        assertEquals("x", DirectionalBlockSpecs.chainAlongVoxelPath(path, 1).property("axis"));
+        assertEquals("z", DirectionalBlockSpecs.chainAlongVoxelPath(path, 1).property("axis"));
         assertEquals("z", DirectionalBlockSpecs.chainAlongVoxelPath(path, 2).property("axis"));
+    }
+
+    @Test
+    void chainAlongVoxelPathSkipsDuplicatePointsForAxis() {
+        List<BlockPos> path = List.of(
+            new BlockPos(0, 4, 0),
+            new BlockPos(0, 4, 0),
+            new BlockPos(1, 4, 0),
+            new BlockPos(2, 4, 0));
+        for (int i = 0; i < path.size(); i++) {
+            assertEquals(
+                "x",
+                DirectionalBlockSpecs.chainAlongVoxelPath(path, i).property("axis"),
+                "duplicate path nodes should not force vertical chain axis at index " + i);
+        }
     }
 
     @Test

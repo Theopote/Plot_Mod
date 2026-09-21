@@ -17,7 +17,8 @@ public final class BlockIdNormalizer {
         String candidate = (blockId == null || blockId.isEmpty()) ? "minecraft:white_wool" : blockId.trim();
         try {
             BlockSpec spec = BlockSpec.parse(candidate);
-            Identifier blockIdentifier = toIdentifier(spec.blockId());
+            BlockSpec resolved = spec.withBlockId(resolveLegacyBlockId(spec.blockId()));
+            Identifier blockIdentifier = toIdentifier(resolved.blockId());
             if (!isRegistered(blockIdentifier)) {
                 return BlockNormalizationResult.invalid("Unknown block: " + blockIdentifier);
             }
@@ -28,10 +29,29 @@ public final class BlockIdNormalizer {
             }
 
             return BlockNormalizationResult.valid(
-                BlockStateSanitizer.sanitizeSetBlockArgument(spec.toSetBlockArgument()));
+                BlockStateSanitizer.sanitizeSetBlockArgument(resolved.toSetBlockArgument()));
         } catch (Exception e) {
             return BlockNormalizationResult.invalid("Failed to parse block: " + candidate);
         }
+    }
+
+    /** 1.21.9+ 将 {@code chain} 重命名为 {@code iron_chain}。 */
+    public static String resolveChainBlockId() {
+        try {
+            if (Registries.BLOCK.containsId(Identifier.of("minecraft", "iron_chain"))) {
+                return "minecraft:iron_chain";
+            }
+        } catch (Throwable ignored) {
+            // Registry not ready (tests/offline).
+        }
+        return "minecraft:chain";
+    }
+
+    static String resolveLegacyBlockId(String blockId) {
+        if ("minecraft:chain".equals(blockId)) {
+            return resolveChainBlockId();
+        }
+        return blockId;
     }
 
     private static boolean isRegistered(Identifier blockIdentifier) {

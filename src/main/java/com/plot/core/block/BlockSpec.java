@@ -90,6 +90,10 @@ public final class BlockSpec {
         return new BlockSpec(blockId, merged);
     }
 
+    public BlockSpec withBlockId(String newBlockId) {
+        return new BlockSpec(normalizeId(newBlockId), properties);
+    }
+
     /** /setblock 参数字符串（含 BlockState）。 */
     public String toSetBlockArgument() {
         if (properties.isEmpty()) {

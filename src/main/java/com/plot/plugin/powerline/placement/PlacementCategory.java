@@ -1,6 +1,6 @@
 package com.plot.plugin.powerline.placement;
 
-/** 方块放置优先级：数值越大越优先保留。塔体生成顺序：主柱 → 横担 → 斜撑 → 装饰。 */
+/** 方块放置优先级：数值越大越优先保留。生成顺序：斜撑 → 主柱 → 横担 → 装饰。 */
 public enum PlacementCategory {
     CLEARANCE(0),
     WIRE(20),
