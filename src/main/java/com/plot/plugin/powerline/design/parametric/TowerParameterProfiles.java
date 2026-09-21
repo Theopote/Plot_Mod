@@ -43,9 +43,9 @@ public final class TowerParameterProfiles {
 
     /** 参考几何：{@link com.plot.plugin.powerline.design.structure.TowerStructurePresets#tripleArmTower()} */
     static final double TRIPLE_REF_HEIGHT = 50.0;
-    static final double TRIPLE_REF_BASE_WIDTH = 18.4;
-    static final double TRIPLE_REF_BASE_HALF_WIDTH = 8.0;
-    static final double TRIPLE_REF_BASE_HALF_DEPTH = 5.2;
+    static final double TRIPLE_REF_BASE_WIDTH = 22.08;
+    static final double TRIPLE_REF_BASE_HALF_WIDTH = 9.6;
+    static final double TRIPLE_REF_BASE_HALF_DEPTH = 6.3;
     static final double TRIPLE_REF_ARM_SPAN = 29.0;
     static final double TRIPLE_REF_DOMINANT_REACH = 14.5;
     static final double TRIPLE_DEPTH_RATIO = (TRIPLE_REF_BASE_HALF_DEPTH * 2.0 * 1.18) / TRIPLE_REF_BASE_WIDTH;
@@ -70,9 +70,9 @@ public final class TowerParameterProfiles {
 
     /** 参考几何：{@link com.plot.plugin.powerline.design.structure.TowerStructurePresets#megaLatticeTower()} */
     static final double MEGA_REF_HEIGHT = 60.0;
-    static final double MEGA_REF_BASE_WIDTH = 20.7;
-    static final double MEGA_REF_BASE_HALF_WIDTH = 9.0;
-    static final double MEGA_REF_BASE_HALF_DEPTH = 6.0;
+    static final double MEGA_REF_BASE_WIDTH = 25.76;
+    static final double MEGA_REF_BASE_HALF_WIDTH = 11.2;
+    static final double MEGA_REF_BASE_HALF_DEPTH = 7.5;
     static final double MEGA_REF_ARM_SPAN = 30.0;
     static final double MEGA_REF_DOMINANT_REACH = 15.0;
     static final double MEGA_DEPTH_RATIO = (MEGA_REF_BASE_HALF_DEPTH * 2.0 * 1.18) / MEGA_REF_BASE_WIDTH;
@@ -88,18 +88,18 @@ public final class TowerParameterProfiles {
 
     /** 参考几何：{@link com.plot.plugin.powerline.design.structure.TowerStructurePresets#doubleCircuitDrumTower()} */
     static final double DRUM_REF_HEIGHT = 58.0;
-    static final double DRUM_REF_BASE_WIDTH = 19.6;
-    static final double DRUM_REF_BASE_HALF_WIDTH = 8.5;
-    static final double DRUM_REF_BASE_HALF_DEPTH = 5.5;
+    static final double DRUM_REF_BASE_WIDTH = 23.92;
+    static final double DRUM_REF_BASE_HALF_WIDTH = 10.4;
+    static final double DRUM_REF_BASE_HALF_DEPTH = 6.8;
     static final double DRUM_REF_ARM_SPAN = 28.0;
     static final double DRUM_REF_DOMINANT_REACH = 14.0;
     static final double DRUM_DEPTH_RATIO = (DRUM_REF_BASE_HALF_DEPTH * 2.0 * 1.18) / DRUM_REF_BASE_WIDTH;
 
     /** 参考几何：{@link com.plot.plugin.powerline.design.structure.TowerStructurePresets#uhvGiantTower()} */
     static final double UHV_REF_HEIGHT = 80.0;
-    static final double UHV_REF_BASE_WIDTH = 33.0;
-    static final double UHV_REF_BASE_HALF_WIDTH = 14.0;
-    static final double UHV_REF_BASE_HALF_DEPTH = 9.0;
+    static final double UHV_REF_BASE_WIDTH = 41.3;
+    static final double UHV_REF_BASE_HALF_WIDTH = 17.5;
+    static final double UHV_REF_BASE_HALF_DEPTH = 11.4;
     static final double UHV_REF_ARM_SPAN = 52.0;
     static final double UHV_REF_DOMINANT_REACH = 26.0;
     static final double UHV_DEPTH_RATIO = (UHV_REF_BASE_HALF_DEPTH * 2.0 * 1.20) / UHV_REF_BASE_WIDTH;
@@ -175,10 +175,10 @@ public final class TowerParameterProfiles {
     public static TowerParameterProfile classicDoubleArm() {
         List<TowerStationTemplate> stations = List.of(
             new TowerStationTemplate("s0", TowerStationRole.BASE, 0.0 / CLASSIC_REF_HEIGHT, 1.0, 1.0),
-            new TowerStationTemplate("s1", TowerStationRole.LOWER_BODY, 10.0 / CLASSIC_REF_HEIGHT, 6.0 / CLASSIC_REF_BASE_HALF_WIDTH, 3.9 / CLASSIC_REF_BASE_HALF_DEPTH),
-            new TowerStationTemplate("s2", TowerStationRole.MID_BODY, 18.0 / CLASSIC_REF_HEIGHT, 5.0 / CLASSIC_REF_BASE_HALF_WIDTH, 3.3 / CLASSIC_REF_BASE_HALF_DEPTH),
-            new TowerStationTemplate("s3", TowerStationRole.WAIST, 26.0 / CLASSIC_REF_HEIGHT, 4.0 / CLASSIC_REF_BASE_HALF_WIDTH, 2.7 / CLASSIC_REF_BASE_HALF_DEPTH),
-            new TowerStationTemplate("s4", TowerStationRole.SHOULDER, 32.0 / CLASSIC_REF_HEIGHT, 2.8 / CLASSIC_REF_BASE_HALF_WIDTH, 1.9 / CLASSIC_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s1", TowerStationRole.LOWER_BODY, 10.0 / CLASSIC_REF_HEIGHT, 5.6 / CLASSIC_REF_BASE_HALF_WIDTH, 3.6 / CLASSIC_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s2", TowerStationRole.MID_BODY, 18.0 / CLASSIC_REF_HEIGHT, 4.8 / CLASSIC_REF_BASE_HALF_WIDTH, 3.1 / CLASSIC_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s3", TowerStationRole.WAIST, 26.0 / CLASSIC_REF_HEIGHT, 3.7 / CLASSIC_REF_BASE_HALF_WIDTH, 2.4 / CLASSIC_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s4", TowerStationRole.SHOULDER, 32.0 / CLASSIC_REF_HEIGHT, 2.6 / CLASSIC_REF_BASE_HALF_WIDTH, 1.7 / CLASSIC_REF_BASE_HALF_DEPTH),
             new TowerStationTemplate("s5", TowerStationRole.TOP, 1.0, 1.8 / CLASSIC_REF_BASE_HALF_WIDTH, 1.2 / CLASSIC_REF_BASE_HALF_DEPTH));
 
         List<TowerArmTemplate> arms = List.of(
@@ -270,7 +270,7 @@ public final class TowerParameterProfiles {
     public static TowerParameterProfile tripleArm() {
         List<TowerStationTemplate> stations = List.of(
             new TowerStationTemplate("s0", TowerStationRole.BASE, 0.0 / TRIPLE_REF_HEIGHT, 1.0, 1.0),
-            new TowerStationTemplate("s1", TowerStationRole.LOWER_BODY, 12.0 / TRIPLE_REF_HEIGHT, 7.2 / TRIPLE_REF_BASE_HALF_WIDTH, 4.7 / TRIPLE_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s1", TowerStationRole.LOWER_BODY, 12.0 / TRIPLE_REF_HEIGHT, 7.6 / TRIPLE_REF_BASE_HALF_WIDTH, 5.0 / TRIPLE_REF_BASE_HALF_DEPTH),
             new TowerStationTemplate("s2", TowerStationRole.MID_BODY, 22.0 / TRIPLE_REF_HEIGHT, 6.0 / TRIPLE_REF_BASE_HALF_WIDTH, 4.0 / TRIPLE_REF_BASE_HALF_DEPTH),
             new TowerStationTemplate("s3", TowerStationRole.WAIST, 32.0 / TRIPLE_REF_HEIGHT, 4.5 / TRIPLE_REF_BASE_HALF_WIDTH, 3.0 / TRIPLE_REF_BASE_HALF_DEPTH),
             new TowerStationTemplate("s4", TowerStationRole.SHOULDER, 42.0 / TRIPLE_REF_HEIGHT, 3.0 / TRIPLE_REF_BASE_HALF_WIDTH, 2.0 / TRIPLE_REF_BASE_HALF_DEPTH),
@@ -309,7 +309,7 @@ public final class TowerParameterProfiles {
             TRIPLE_ARM_ID,
             TowerSilhouette.TRIPLE_ARM,
             new ParameterRange(40.0, 50.0, 70.0),
-            new ParameterRange(12.0, 16.0, 20.0),
+            new ParameterRange(18.0, 22.0, 28.0),
             new ParameterRange(22.0, 29.0, 38.0),
             new ParameterRange(0.75, 1.0, 1.25),
             TRIPLE_DEPTH_RATIO,
@@ -429,9 +429,9 @@ public final class TowerParameterProfiles {
     public static TowerParameterProfile mega() {
         List<TowerStationTemplate> stations = List.of(
             new TowerStationTemplate("s0", TowerStationRole.BASE, 0.0 / MEGA_REF_HEIGHT, 1.0, 1.0),
-            new TowerStationTemplate("s1", TowerStationRole.LOWER_BODY, 14.0 / MEGA_REF_HEIGHT, 8.5 / MEGA_REF_BASE_HALF_WIDTH, 5.7 / MEGA_REF_BASE_HALF_DEPTH),
-            new TowerStationTemplate("s2", TowerStationRole.MID_BODY, 26.0 / MEGA_REF_HEIGHT, 7.0 / MEGA_REF_BASE_HALF_WIDTH, 4.7 / MEGA_REF_BASE_HALF_DEPTH),
-            new TowerStationTemplate("s3", TowerStationRole.WAIST, 38.0 / MEGA_REF_HEIGHT, 4.0 / MEGA_REF_BASE_HALF_WIDTH, 2.8 / MEGA_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s1", TowerStationRole.LOWER_BODY, 14.0 / MEGA_REF_HEIGHT, 8.8 / MEGA_REF_BASE_HALF_WIDTH, 5.9 / MEGA_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s2", TowerStationRole.MID_BODY, 26.0 / MEGA_REF_HEIGHT, 6.8 / MEGA_REF_BASE_HALF_WIDTH, 4.6 / MEGA_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s3", TowerStationRole.WAIST, 38.0 / MEGA_REF_HEIGHT, 4.2 / MEGA_REF_BASE_HALF_WIDTH, 2.9 / MEGA_REF_BASE_HALF_DEPTH),
             new TowerStationTemplate("s4", TowerStationRole.SHOULDER, 50.0 / MEGA_REF_HEIGHT, 2.8 / MEGA_REF_BASE_HALF_WIDTH, 1.9 / MEGA_REF_BASE_HALF_DEPTH),
             new TowerStationTemplate("s5", TowerStationRole.TOP, 1.0, 1.8 / MEGA_REF_BASE_HALF_WIDTH, 1.2 / MEGA_REF_BASE_HALF_DEPTH));
 
@@ -468,7 +468,7 @@ public final class TowerParameterProfiles {
             MEGA_ID,
             TowerSilhouette.GIANT,
             new ParameterRange(48.0, 60.0, 80.0),
-            new ParameterRange(14.0, 18.0, 22.0),
+            new ParameterRange(20.0, 26.0, 32.0),
             new ParameterRange(24.0, 30.0, 38.0),
             new ParameterRange(0.75, 1.0, 1.25),
             MEGA_DEPTH_RATIO,
@@ -552,9 +552,9 @@ public final class TowerParameterProfiles {
     public static TowerParameterProfile drum() {
         List<TowerStationTemplate> stations = List.of(
             new TowerStationTemplate("s0", TowerStationRole.BASE, 0.0 / DRUM_REF_HEIGHT, 1.0, 1.0),
-            new TowerStationTemplate("s1", TowerStationRole.LOWER_BODY, 12.0 / DRUM_REF_HEIGHT, 7.5 / DRUM_REF_BASE_HALF_WIDTH, 4.9 / DRUM_REF_BASE_HALF_DEPTH),
-            new TowerStationTemplate("s2", TowerStationRole.MID_BODY, 22.0 / DRUM_REF_HEIGHT, 5.5 / DRUM_REF_BASE_HALF_WIDTH, 3.6 / DRUM_REF_BASE_HALF_DEPTH),
-            new TowerStationTemplate("s3", TowerStationRole.WAIST, 32.0 / DRUM_REF_HEIGHT, 3.5 / DRUM_REF_BASE_HALF_WIDTH, 2.3 / DRUM_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s1", TowerStationRole.LOWER_BODY, 12.0 / DRUM_REF_HEIGHT, 8.0 / DRUM_REF_BASE_HALF_WIDTH, 5.2 / DRUM_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s2", TowerStationRole.MID_BODY, 22.0 / DRUM_REF_HEIGHT, 5.8 / DRUM_REF_BASE_HALF_WIDTH, 3.8 / DRUM_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s3", TowerStationRole.WAIST, 32.0 / DRUM_REF_HEIGHT, 3.8 / DRUM_REF_BASE_HALF_WIDTH, 2.4 / DRUM_REF_BASE_HALF_DEPTH),
             new TowerStationTemplate("s4", TowerStationRole.SHOULDER, 42.0 / DRUM_REF_HEIGHT, 3.2 / DRUM_REF_BASE_HALF_WIDTH, 2.1 / DRUM_REF_BASE_HALF_DEPTH),
             new TowerStationTemplate("s5", TowerStationRole.HEAD, 52.0 / DRUM_REF_HEIGHT, 2.8 / DRUM_REF_BASE_HALF_WIDTH, 1.8 / DRUM_REF_BASE_HALF_DEPTH),
             new TowerStationTemplate("s6", TowerStationRole.TOP, 1.0, 2.0 / DRUM_REF_BASE_HALF_WIDTH, 1.3 / DRUM_REF_BASE_HALF_DEPTH));
@@ -592,7 +592,7 @@ public final class TowerParameterProfiles {
             DRUM_ID,
             TowerSilhouette.TRIPLE_ARM,
             new ParameterRange(46.0, 58.0, 72.0),
-            new ParameterRange(13.0, 17.0, 21.0),
+            new ParameterRange(16.0, 21.0, 30.0),
             new ParameterRange(22.0, 28.0, 36.0),
             new ParameterRange(0.75, 1.0, 1.25),
             DRUM_DEPTH_RATIO,
@@ -615,10 +615,10 @@ public final class TowerParameterProfiles {
     public static TowerParameterProfile uhv() {
         List<TowerStationTemplate> stations = List.of(
             new TowerStationTemplate("s0", TowerStationRole.BASE, 0.0 / UHV_REF_HEIGHT, 1.0, 1.0),
-            new TowerStationTemplate("s1", TowerStationRole.LOWER_BODY, 14.0 / UHV_REF_HEIGHT, 13.0 / UHV_REF_BASE_HALF_WIDTH, 8.5 / UHV_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s1", TowerStationRole.LOWER_BODY, 14.0 / UHV_REF_HEIGHT, 14.0 / UHV_REF_BASE_HALF_WIDTH, 9.1 / UHV_REF_BASE_HALF_DEPTH),
             new TowerStationTemplate("s2", TowerStationRole.MID_BODY, 28.0 / UHV_REF_HEIGHT, 11.0 / UHV_REF_BASE_HALF_WIDTH, 7.2 / UHV_REF_BASE_HALF_DEPTH),
-            new TowerStationTemplate("s3", TowerStationRole.WAIST, 42.0 / UHV_REF_HEIGHT, 8.5 / UHV_REF_BASE_HALF_WIDTH, 5.6 / UHV_REF_BASE_HALF_DEPTH),
-            new TowerStationTemplate("s4", TowerStationRole.SHOULDER, 56.0 / UHV_REF_HEIGHT, 5.5 / UHV_REF_BASE_HALF_WIDTH, 3.6 / UHV_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s3", TowerStationRole.WAIST, 42.0 / UHV_REF_HEIGHT, 8.2 / UHV_REF_BASE_HALF_WIDTH, 5.5 / UHV_REF_BASE_HALF_DEPTH),
+            new TowerStationTemplate("s4", TowerStationRole.SHOULDER, 56.0 / UHV_REF_HEIGHT, 5.4 / UHV_REF_BASE_HALF_WIDTH, 3.6 / UHV_REF_BASE_HALF_DEPTH),
             new TowerStationTemplate("s5", TowerStationRole.HEAD, 70.0 / UHV_REF_HEIGHT, 3.2 / UHV_REF_BASE_HALF_WIDTH, 2.1 / UHV_REF_BASE_HALF_DEPTH),
             new TowerStationTemplate("s6", TowerStationRole.TOP, 1.0, 2.0 / UHV_REF_BASE_HALF_WIDTH, 1.3 / UHV_REF_BASE_HALF_DEPTH));
 
@@ -655,7 +655,7 @@ public final class TowerParameterProfiles {
             UHV_ID,
             TowerSilhouette.GIANT,
             new ParameterRange(64.0, 80.0, 100.0),
-            new ParameterRange(22.0, 28.0, 34.0),
+            new ParameterRange(28.0, 36.0, 50.0),
             new ParameterRange(42.0, 52.0, 64.0),
             new ParameterRange(0.75, 1.0, 1.25),
             UHV_DEPTH_RATIO,

@@ -69,11 +69,11 @@ public final class TowerStructurePresets {
             TowerSilhouette.DOUBLE_ARM,
             LATTICE_LEG,
             LATTICE_BRACE);
-        // Base / legs (~50%), waist, head — width:depth ≈ 1:0.65
+        // Base / legs (~50%), waist, head — 第一节就收成梯形，避免下半段看起来像直筒
         addStations(structure,
             new double[] {0, 10, 18, 26, 32, 36},
-            new double[] {6.5, 6.0, 5.0, 4.0, 2.8, 1.8},
-            new double[] {4.2, 3.9, 3.3, 2.7, 1.9, 1.2});
+            new double[] {6.5, 5.6, 4.8, 3.7, 2.6, 1.8},
+            new double[] {4.2, 3.6, 3.1, 2.4, 1.7, 1.2});
         addVariedBays(structure, 3,
             BracingPattern.X, BracingPattern.X,
             BracingPattern.X, BracingPattern.K,
@@ -94,8 +94,8 @@ public final class TowerStructurePresets {
             LATTICE_BRACE);
         addStations(structure,
             new double[] {0, 12, 22, 32, 42, 50},
-            new double[] {8.0, 7.2, 6.0, 4.5, 3.0, 2.0},
-            new double[] {5.2, 4.7, 4.0, 3.0, 2.0, 1.3});
+            new double[] {9.6, 7.6, 6.0, 4.5, 3.0, 2.0},
+            new double[] {6.3, 5.0, 4.0, 3.0, 2.0, 1.3});
         addVariedBays(structure,
             BracingPattern.X, BracingPattern.X,
             BracingPattern.X, BracingPattern.K,
@@ -183,8 +183,8 @@ public final class TowerStructurePresets {
             LATTICE_BRACE);
         addStations(structure,
             new double[] {0, 14, 26, 38, 50, 60},
-            new double[] {9.0, 8.5, 7.0, 4.0, 2.8, 1.8},
-            new double[] {6.0, 5.7, 4.7, 2.8, 1.9, 1.2});
+            new double[] {11.2, 8.8, 6.8, 4.2, 2.8, 1.8},
+            new double[] {7.5, 5.9, 4.6, 2.9, 1.9, 1.2});
         addVariedBays(structure, 3,
             BracingPattern.X, BracingPattern.X,
             BracingPattern.X, BracingPattern.K,
@@ -206,8 +206,8 @@ public final class TowerStructurePresets {
         // 塔身轻收腰，鼓形剪影主要靠三层横担
         addStations(structure,
             new double[] {0, 12, 22, 32, 42, 52, 58},
-            new double[] {8.5, 7.5, 5.5, 3.5, 3.2, 2.8, 2.0},
-            new double[] {5.5, 4.9, 3.6, 2.3, 2.1, 1.8, 1.3});
+            new double[] {10.4, 8.0, 5.8, 3.8, 3.2, 2.8, 2.0},
+            new double[] {6.8, 5.2, 3.8, 2.4, 2.1, 1.8, 1.3});
         addVariedBays(structure, 3,
             BracingPattern.X, BracingPattern.X,
             BracingPattern.K, BracingPattern.K,
@@ -233,8 +233,8 @@ public final class TowerStructurePresets {
             LATTICE_BRACE);
         addStations(structure,
             new double[] {0, 14, 28, 42, 56, 70, 80},
-            new double[] {14.0, 13.0, 11.0, 8.5, 5.5, 3.2, 2.0},
-            new double[] {9.0, 8.5, 7.2, 5.6, 3.6, 2.1, 1.3});
+            new double[] {17.5, 14.0, 11.0, 8.2, 5.4, 3.2, 2.0},
+            new double[] {11.4, 9.1, 7.2, 5.5, 3.6, 2.1, 1.3});
         addVariedBays(structure, 3,
             BracingPattern.X, BracingPattern.X,
             BracingPattern.X, BracingPattern.K,

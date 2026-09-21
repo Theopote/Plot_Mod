@@ -138,7 +138,7 @@ class TowerParametricAdditionalProfilesTest {
         TowerParameterSet requested = new TowerParameterSet(100.0, 30.0, 60.0, 2.0, 2.0, null, StructureDensity.MEDIUM);
         TowerConstraintResult result = TowerParametricDesignFactory.resolveTripleArm(requested);
         assertClose(70.0, result.resolved().height());
-        assertClose(20.0, result.resolved().baseWidth());
+        assertClose(28.0, result.resolved().baseWidth());
         assertClose(38.0, result.resolved().armSpan());
         assertTrue(result.adjustments().stream().anyMatch(a -> a.kind() == ConstraintAdjustmentKind.HEIGHT_CLAMPED_TO_PROFILE));
     }
@@ -157,7 +157,7 @@ class TowerParametricAdditionalProfilesTest {
         TowerParameterSet requested = new TowerParameterSet(120.0, 40.0, 80.0, 2.0, 2.0, null, StructureDensity.MEDIUM);
         TowerConstraintResult result = TowerParametricDesignFactory.resolveUhv(requested);
         assertClose(100.0, result.resolved().height());
-        assertClose(34.0, result.resolved().baseWidth());
+        assertClose(40.0, result.resolved().baseWidth());
         assertClose(64.0, result.resolved().armSpan());
         assertTrue(result.adjustments().stream().anyMatch(a -> a.kind() == ConstraintAdjustmentKind.HEIGHT_CLAMPED_TO_PROFILE));
     }

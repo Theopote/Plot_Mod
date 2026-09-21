@@ -110,4 +110,24 @@ class TowerPresetVisualProfileTest {
         assertEquals(TowerSilhouette.TRIPLE_ARM, drum.silhouette());
         assertTrue(Math.abs(drum.height() - mega.height()) > 1.0);
     }
+
+    @Test
+    void largeTowersHaveTrapezoidalLowerHalf() {
+        for (TowerStructureDesign structure : List.of(
+            TowerStructurePresets.tripleArmTower(),
+            TowerStructurePresets.megaLatticeTower(),
+            TowerStructurePresets.uhvGiantTower())) {
+            List<TowerStation> stations = structure.sortedStations();
+            double baseHalfWidth = stations.getFirst().getHalfWidth();
+            double midHeight = structure.maxHeight() * 0.5;
+            TowerStructureGeometry.Footprint midFootprint =
+                TowerStructureGeometry.interpolatedFootprintAtHeight(stations, midHeight);
+            assertTrue(
+                midFootprint.halfWidth() <= baseHalfWidth * 0.72,
+                structure.getSilhouette() + " lower half should taper like a trapezoid");
+            assertTrue(
+                baseHalfWidth / midFootprint.halfWidth() >= 1.35,
+                structure.getSilhouette() + " base should be visibly wider than mid-body");
+        }
+    }
 }
