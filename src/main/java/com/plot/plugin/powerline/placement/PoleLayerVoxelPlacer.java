@@ -7,6 +7,7 @@ import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleLayer;
+import com.plot.plugin.powerline.VoxelLineRasterizer;
 import com.plot.api.world.ICoordinateService;
 import net.minecraft.util.math.BlockPos;
 
@@ -133,15 +134,26 @@ public final class PoleLayerVoxelPlacer {
         int left = (layer.getCrossarmLength() - 1) / 2;
         int right = layer.getCrossarmLength() / 2;
         for (int y = baseY; y < baseY + layer.getHeight(); y++) {
+            Vec2d startPoint = planPoint.add(normal.multiply(-left));
+            Vec2d endPoint = planPoint.add(normal.multiply(right));
+            BlockPos start = mapper.toBlockPos(startPoint, y);
+            BlockPos end = mapper.toBlockPos(endPoint, y);
             BlockPos center = mapper.toBlockPos(planPoint, y);
-            for (int offset = -left; offset <= right; offset++) {
-                Vec2d point = planPoint.add(normal.multiply(offset));
-                BlockPos pos = mapper.toBlockPos(point, y);
+            for (BlockPos pos : VoxelLineRasterizer.rasterizeLine3D(
+                    start.getX(), start.getY(), start.getZ(),
+                    end.getX(), end.getY(), end.getZ())) {
                 String blockId = MaterialMixResolver.resolve(layer.getMaterial(), pos, materialSeedKey);
-                BlockSpec spec = crossarmBlockSpec(blockId, normal, pos, center, offset);
+                int lateralOffset = crossarmLateralOffset(pos, center, normal);
+                BlockSpec spec = crossarmBlockSpec(blockId, normal, pos, center, lateralOffset);
                 sink.put(pos.getX(), pos.getY(), pos.getZ(), spec);
             }
         }
+    }
+
+    private static int crossarmLateralOffset(BlockPos position, BlockPos center, Vec2d normal) {
+        double deltaX = position.getX() - center.getX();
+        double deltaZ = position.getZ() - center.getZ();
+        return (int) Math.round(deltaX * normal.x + deltaZ * normal.y);
     }
 
     private static BlockSpec crossarmBlockSpec(
