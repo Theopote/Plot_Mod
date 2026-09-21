@@ -111,9 +111,6 @@ public final class TowerStructureGenerator {
             if (bay.isHorizontalRing()) {
                 generateHorizontalRing(upper, structure, transform, footprint, result, projection, counters, structureScratch);
             }
-            if (bay.isPlanDiagonalBracing()) {
-                generatePlanDiagonalBracing(upper, structure, transform, footprint, result, projection, counters, structureScratch);
-            }
         }
 
         Set<Long> armSupportRingHeights = new HashSet<>();
@@ -300,44 +297,6 @@ public final class TowerStructureGenerator {
                 start, end, material, thickness, transform, footprint, result, projection, counters,
                 MemberKind.BRACE, structureScratch);
         }
-    }
-
-    /** 水平面内对角斜撑：连接对角塔腿，保持左右/前后对称。 */
-    private static void generatePlanDiagonalBracing(
-            TowerStation station,
-            TowerStructureDesign structure,
-            TowerStructureTransform transform,
-            PowerLineFootprint footprint,
-            PowerLineGenerationResult result,
-            IBlockProjectionService projection,
-            GenerationCounters counters,
-            Set<BlockPos> structureScratch) {
-        MaterialMix material = structure.getBraceMaterial();
-        int thickness = structure.getBraceProfile().getThickness();
-        placeMember(
-            TowerStructureGeometry.cornerPoint(station, 0),
-            TowerStructureGeometry.cornerPoint(station, 2),
-            material,
-            thickness,
-            transform,
-            footprint,
-            result,
-            projection,
-            counters,
-            MemberKind.BRACE,
-            structureScratch);
-        placeMember(
-            TowerStructureGeometry.cornerPoint(station, 1),
-            TowerStructureGeometry.cornerPoint(station, 3),
-            material,
-            thickness,
-            transform,
-            footprint,
-            result,
-            projection,
-            counters,
-            MemberKind.BRACE,
-            structureScratch);
     }
 
     private static void generateArm(

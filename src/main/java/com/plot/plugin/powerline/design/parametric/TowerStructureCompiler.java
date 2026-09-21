@@ -66,7 +66,7 @@ public final class TowerStructureCompiler {
             bay.setFrontBackBracing(config.bracing());
             bay.setSideBracing(config.bracing());
             bay.setHorizontalRing(config.horizontalRing());
-            bay.setPlanDiagonalBracing(config.planDiagonal());
+            bay.setPlanDiagonalBracing(false);
             structure.addBay(bay);
         }
 

@@ -55,7 +55,7 @@ public final class TowerStructurePresets {
             new double[] {0, 8, 16, 24},
             new double[] {4.5, 3.8, 2.5, 1.5},
             new double[] {3.0, 2.5, 1.7, 1.0});
-        addVariedBays(structure, 2,
+        addVariedBays(structure,
             BracingPattern.X, BracingPattern.X,
             BracingPattern.K, BracingPattern.V);
         addTrussArm(structure, "arm_main", 20, 8.0, TowerArmShape.TRUSS, 3, 1.3);
@@ -74,7 +74,7 @@ public final class TowerStructurePresets {
             new double[] {0, 10, 18, 26, 32, 36},
             new double[] {6.5, 5.6, 4.8, 3.7, 2.6, 1.8},
             new double[] {4.2, 3.6, 3.1, 2.4, 1.7, 1.2});
-        addVariedBays(structure, 3,
+        addVariedBays(structure,
             BracingPattern.X, BracingPattern.X,
             BracingPattern.X, BracingPattern.K,
             BracingPattern.V);
@@ -139,7 +139,7 @@ public final class TowerStructurePresets {
             new double[] {0, 10, 18, 26, 32, 40},
             new double[] {5.0, 4.5, 3.2, 2.2, 7.5, 2.2},
             new double[] {3.3, 3.0, 2.2, 1.5, 5.0, 1.6});
-        addVariedBays(structure, 2,
+        addVariedBays(structure,
             BracingPattern.X, BracingPattern.X,
             BracingPattern.K, BracingPattern.V,
             BracingPattern.NONE);
@@ -165,7 +165,7 @@ public final class TowerStructurePresets {
             new double[] {0, 12, 24, 34, 42},
             new double[] {10.5, 10.5, 9.5, 6.5, 3.5},
             new double[] {4.5, 4.5, 4.0, 2.8, 1.6});
-        addVariedBays(structure, 2,
+        addVariedBays(structure,
             BracingPattern.X, BracingPattern.X,
             BracingPattern.K, BracingPattern.V);
         addTrussArm(structure, "arm_lower", 16, 13.0, TowerArmShape.FLAT, 2, 2.0);
@@ -185,7 +185,7 @@ public final class TowerStructurePresets {
             new double[] {0, 14, 26, 38, 50, 60},
             new double[] {11.2, 8.8, 6.8, 4.2, 2.8, 1.8},
             new double[] {7.5, 5.9, 4.6, 2.9, 1.9, 1.2});
-        addVariedBays(structure, 3,
+        addVariedBays(structure,
             BracingPattern.X, BracingPattern.X,
             BracingPattern.X, BracingPattern.K,
             BracingPattern.V);
@@ -208,7 +208,7 @@ public final class TowerStructurePresets {
             new double[] {0, 12, 22, 32, 42, 52, 58},
             new double[] {10.4, 8.0, 5.8, 3.8, 3.2, 2.8, 2.0},
             new double[] {6.8, 5.2, 3.8, 2.4, 2.1, 1.8, 1.3});
-        addVariedBays(structure, 3,
+        addVariedBays(structure,
             BracingPattern.X, BracingPattern.X,
             BracingPattern.K, BracingPattern.K,
             BracingPattern.V, BracingPattern.V);
@@ -235,7 +235,7 @@ public final class TowerStructurePresets {
             new double[] {0, 14, 28, 42, 56, 70, 80},
             new double[] {17.5, 14.0, 11.0, 8.2, 5.4, 3.2, 2.0},
             new double[] {11.4, 9.1, 7.2, 5.5, 3.6, 2.1, 1.3});
-        addVariedBays(structure, 3,
+        addVariedBays(structure,
             BracingPattern.X, BracingPattern.X,
             BracingPattern.X, BracingPattern.K,
             BracingPattern.V, BracingPattern.V);
@@ -304,13 +304,6 @@ public final class TowerStructurePresets {
     private static void addVariedBays(
             TowerStructureDesign structure,
             BracingPattern... legBracing) {
-        addVariedBays(structure, Integer.MAX_VALUE, legBracing);
-    }
-
-    private static void addVariedBays(
-            TowerStructureDesign structure,
-            int maxPlanDiagonalBays,
-            BracingPattern... legBracing) {
         List<TowerStation> stations = structure.sortedStations();
         structure.getBays().clear();
         for (int i = 1; i < stations.size(); i++) {
@@ -323,11 +316,8 @@ public final class TowerStructurePresets {
             bay.setSideBracing(pattern);
             boolean hasUpperRing = i < stations.size() - 1;
             bay.setHorizontalRing(hasUpperRing);
-            // 水平面对角斜撑：仅在下部关键 bay 使用，避免结构噪声
-            bay.setPlanDiagonalBracing(
-                hasUpperRing
-                    && pattern != BracingPattern.NONE
-                    && i <= maxPlanDiagonalBays);
+            // 塔内保持空心：仅四面外立面斜撑，不穿过塔身内部
+            bay.setPlanDiagonalBracing(false);
             structure.addBay(bay);
         }
     }
@@ -364,7 +354,7 @@ public final class TowerStructurePresets {
         bay.setFrontBackBracing(BracingPattern.X);
         bay.setSideBracing(BracingPattern.X);
         bay.setHorizontalRing(true);
-        bay.setPlanDiagonalBracing(true);
+        bay.setPlanDiagonalBracing(false);
         return bay;
     }
 

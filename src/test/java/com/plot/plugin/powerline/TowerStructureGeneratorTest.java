@@ -248,22 +248,19 @@ class TowerStructureGeneratorTest {
     }
 
     @Test
-    void planDiagonalBracingAddsCrossMembers() {
-        TowerStructureDesign withPlan = twoStationTower();
-        withPlan.findOrCreateBay("s0", "s1").setPlanDiagonalBracing(true);
-        withPlan.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.NONE);
-        withPlan.findOrCreateBay("s0", "s1").setSideBracing(BracingPattern.NONE);
-        withPlan.findOrCreateBay("s0", "s1").setHorizontalRing(false);
+    void towerInteriorRemainsOpenWithFaceBracing() {
+        TowerStructureDesign structure = twoStationTower();
+        structure.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.X);
+        structure.findOrCreateBay("s0", "s1").setSideBracing(BracingPattern.X);
+        structure.findOrCreateBay("s0", "s1").setHorizontalRing(true);
+        structure.findOrCreateBay("s0", "s1").setPlanDiagonalBracing(true);
 
-        TowerStructureDesign withoutPlan = twoStationTower();
-        withoutPlan.findOrCreateBay("s0", "s1").setPlanDiagonalBracing(false);
-        withoutPlan.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.NONE);
-        withoutPlan.findOrCreateBay("s0", "s1").setSideBracing(BracingPattern.NONE);
-        withoutPlan.findOrCreateBay("s0", "s1").setHorizontalRing(false);
-
-        int withCount = generateStructure(withPlan).structureBlockCount;
-        int withoutCount = generateStructure(withoutPlan).structureBlockCount;
-        assertTrue(withCount > withoutCount);
+        PowerLineGenerationResult result = generateStructure(structure);
+        int groundY = 64;
+        BlockPos center = new BlockPos(0, groundY + 4, 0);
+        assertFalse(
+            result.placementRecords.containsKey(center),
+            "tower center should stay hollow even when plan diagonal is requested");
     }
 
     @Test

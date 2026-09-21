@@ -79,15 +79,15 @@ class TowerStructurePresetsTest {
         assertEquals(26.0, arms.get(1).getLateralReach(), 0.5);
         assertEquals(22.0, arms.get(2).getLateralReach(), 0.5);
         long planBays = giant.getBays().stream().filter(TowerBay::isPlanDiagonalBracing).count();
-        assertEquals(3, planBays, "UHV plan diagonals limited to leg section");
+        assertEquals(0, planBays, "UHV interior stays open; bracing is face-only");
     }
 
     @Test
-    void megaLatticeLimitsPlanDiagonalBracing() {
+    void megaLatticeKeepsInteriorOpen() {
         long planBays = TowerStructurePresets.megaLatticeTower().getBays().stream()
             .filter(TowerBay::isPlanDiagonalBracing)
             .count();
-        assertEquals(3, planBays);
+        assertEquals(0, planBays);
     }
 
     @Test
@@ -136,11 +136,11 @@ class TowerStructurePresetsTest {
     }
 
     @Test
-    void smallLatticeLimitsPlanDiagonalBracing() {
+    void smallLatticeKeepsInteriorOpen() {
         long planBays = TowerStructurePresets.smallLatticeTower().getBays().stream()
             .filter(TowerBay::isPlanDiagonalBracing)
             .count();
-        assertEquals(2, planBays);
+        assertEquals(0, planBays);
         assertEquals(8.0, TowerStructurePresets.smallLatticeTower().getArms().getFirst().getLateralReach(), 0.5);
     }
 
@@ -165,7 +165,7 @@ class TowerStructurePresetsTest {
         long planBays = TowerStructurePresets.portalTower().getBays().stream()
             .filter(TowerBay::isPlanDiagonalBracing)
             .count();
-        assertEquals(2, planBays);
+        assertEquals(0, planBays);
     }
 
     @Test
@@ -245,11 +245,11 @@ class TowerStructurePresetsTest {
     }
 
     @Test
-    void latticePresetsEnablePlanDiagonalBracing() {
+    void latticePresetsKeepOpenInterior() {
         long planBays = TowerStructurePresets.classicDoubleArmTower().getBays().stream()
             .filter(TowerBay::isPlanDiagonalBracing)
             .count();
-        assertTrue(planBays >= 3, "major lattice towers should cross-brace the plan");
+        assertEquals(0, planBays, "lattice towers brace faces only, not the interior");
     }
 
     @Test
