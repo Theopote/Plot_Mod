@@ -73,18 +73,17 @@ public final class TowerStructureGenerator {
         }
 
         List<TowerStation> legStations = TowerStationDensifier.densifyForLegs(macroStations);
-        java.util.Set<Long> macroHeightKeys = macroStationHeightKeys(macroStations);
-
         for (int i = 1; i < legStations.size(); i++) {
-            TowerStation lower = legStations.get(i - 1);
-            TowerStation upper = legStations.get(i);
-            generateLegs(lower, upper, structure, transform, footprint, result, projection, counters, structureScratch);
-            if (!isBaseStation(upper)) {
-                long upperKey = stationHeightKey(upper.getHeight());
-                if (!macroHeightKeys.contains(upperKey)) {
-                    generateHorizontalRing(upper, structure, transform, footprint, result, projection, counters, structureScratch);
-                }
-            }
+            generateLegs(
+                legStations.get(i - 1),
+                legStations.get(i),
+                structure,
+                transform,
+                footprint,
+                result,
+                projection,
+                counters,
+                structureScratch);
         }
 
         for (int i = 1; i < macroStations.size(); i++) {
@@ -98,47 +97,10 @@ public final class TowerStructureGenerator {
                 bay.setHorizontalRing(true);
             }
 
-            generateFaceBracing(
+            generatePanelizedBayBracing(
                 lower,
                 upper,
-                bay.getFrontBackBracing(),
-                TowerStructureGeometry.frontCorners(),
-                structure,
-                transform,
-                footprint,
-                result,
-                projection,
-                counters,
-                structureScratch);
-            generateFaceBracing(
-                lower,
-                upper,
-                bay.getFrontBackBracing(),
-                TowerStructureGeometry.backCorners(),
-                structure,
-                transform,
-                footprint,
-                result,
-                projection,
-                counters,
-                structureScratch);
-            generateFaceBracing(
-                lower,
-                upper,
-                bay.getSideBracing(),
-                TowerStructureGeometry.rightCorners(),
-                structure,
-                transform,
-                footprint,
-                result,
-                projection,
-                counters,
-                structureScratch);
-            generateFaceBracing(
-                lower,
-                upper,
-                bay.getSideBracing(),
-                TowerStructureGeometry.leftCorners(),
+                bay,
                 structure,
                 transform,
                 footprint,
@@ -187,20 +149,70 @@ public final class TowerStructureGenerator {
         return design;
     }
 
-    private static java.util.Set<Long> macroStationHeightKeys(List<TowerStation> macroStations) {
-        java.util.Set<Long> keys = new HashSet<>();
-        for (TowerStation station : macroStations) {
-            keys.add(stationHeightKey(station.getHeight()));
+    private static void generatePanelizedBayBracing(
+            TowerStation lower,
+            TowerStation upper,
+            TowerBay bay,
+            TowerStructureDesign structure,
+            TowerStructureTransform transform,
+            PowerLineFootprint footprint,
+            PowerLineGenerationResult result,
+            IBlockProjectionService projection,
+            GenerationCounters counters,
+            Set<BlockPos> structureScratch) {
+        List<TowerStation> panels = TowerStationDensifier.densifyForLegs(List.of(lower, upper));
+        for (int panel = 1; panel < panels.size(); panel++) {
+            TowerStation panelLower = panels.get(panel - 1);
+            TowerStation panelUpper = panels.get(panel);
+            generateFaceBracing(
+                panelLower,
+                panelUpper,
+                bay.getFrontBackBracing(),
+                TowerStructureGeometry.frontCorners(),
+                structure,
+                transform,
+                footprint,
+                result,
+                projection,
+                counters,
+                structureScratch);
+            generateFaceBracing(
+                panelLower,
+                panelUpper,
+                bay.getFrontBackBracing(),
+                TowerStructureGeometry.backCorners(),
+                structure,
+                transform,
+                footprint,
+                result,
+                projection,
+                counters,
+                structureScratch);
+            generateFaceBracing(
+                panelLower,
+                panelUpper,
+                bay.getSideBracing(),
+                TowerStructureGeometry.rightCorners(),
+                structure,
+                transform,
+                footprint,
+                result,
+                projection,
+                counters,
+                structureScratch);
+            generateFaceBracing(
+                panelLower,
+                panelUpper,
+                bay.getSideBracing(),
+                TowerStructureGeometry.leftCorners(),
+                structure,
+                transform,
+                footprint,
+                result,
+                projection,
+                counters,
+                structureScratch);
         }
-        return keys;
-    }
-
-    private static long stationHeightKey(double height) {
-        return Math.round(height * 1000.0);
-    }
-
-    private static boolean isBaseStation(TowerStation station) {
-        return station != null && station.getHeight() <= 1e-6;
     }
 
     private static void generateLegs(

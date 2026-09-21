@@ -5,9 +5,10 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * 为塔腿生成插入更密的竖向截面，使主柱 taper 在 Minecraft 中更平滑。
+ * 为塔腿和面内斜撑插入更密的竖向截面。
  * <p>
- * 仅影响腿与中间水平环；面内斜撑仍按设计稿中的 macro station 间距生成。
+ * 腿按插值截面分段，斜撑按同一节间画短 X，避免一个 macro bay 拉出一条超长台阶。
+ * 水平环仍只放在设计稿 station / 横担高度，不在加密截面加环。
  */
 public final class TowerStationDensifier {
     /** 单段塔腿最大高度（格）；超过则插入插值 station。 */

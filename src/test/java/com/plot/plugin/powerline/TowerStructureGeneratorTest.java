@@ -69,15 +69,61 @@ class TowerStructureGeneratorTest {
     }
 
     @Test
-    void densifiedStationsAddIntermediateHorizontalRings() {
-        TowerStructureDesign structure = TowerStructurePresets.classicDoubleArmTower();
-        structure.findOrCreateBay("s0", "s1").setHorizontalRing(false);
-        structure.findOrCreateBay("s1", "s2").setHorizontalRing(false);
-        structure.findOrCreateBay("s2", "s3").setHorizontalRing(false);
+    void densifiedStationsDoNotAddInteriorRings() {
+        TowerStructureDesign structure = new TowerStructureDesign();
+        structure.addStation(new TowerStation("s0", 0, 5, 5));
+        structure.addStation(new TowerStation("s1", 12, 5, 5));
+        for (TowerBay bay : structure.getBays()) {
+            bay.setFrontBackBracing(BracingPattern.NONE);
+            bay.setSideBracing(BracingPattern.NONE);
+            bay.setHorizontalRing(false);
+            bay.setPlanDiagonalBracing(false);
+        }
+        structure.setPrimaryMaterial(MaterialMix.single("minecraft:iron_block"));
+        structure.setBraceMaterial(MaterialMix.single("minecraft:gold_block"));
 
         PowerLineGenerationResult result = generateStructure(structure);
-        int ringNearSix = countBraceBlocksNearHeight(result, 64 + 6);
-        assertTrue(ringNearSix >= 2, "dense interior station should add a horizontal ring near y=70");
+        assertEquals(0, blocksWithMaterial(result, "minecraft:gold_block").size());
+        int interior = 0;
+        for (BlockRecord record : result.placementRecords.values()) {
+            if (record.pos.getY() == 64 + 6 && "minecraft:iron_block".equals(record.baseBlockId())) {
+                interior++;
+            }
+        }
+        assertTrue(interior <= 4, "interior densified height should be four legs, not a ring; got " + interior);
+    }
+
+    @Test
+    void tallBaySplitsXBracingIntoShortPanels() {
+        TowerStructureDesign structure = new TowerStructureDesign();
+        structure.addStation(new TowerStation("s0", 0, 6, 4));
+        structure.addStation(new TowerStation("s1", 12, 6, 4));
+        for (TowerBay bay : structure.getBays()) {
+            bay.setFrontBackBracing(BracingPattern.X);
+            bay.setSideBracing(BracingPattern.NONE);
+            bay.setHorizontalRing(false);
+            bay.setPlanDiagonalBracing(false);
+        }
+        structure.setPrimaryMaterial(MaterialMix.single("minecraft:iron_block"));
+        structure.setBraceMaterial(MaterialMix.single("minecraft:gold_block"));
+
+        PowerLineGenerationResult result = generateStructure(structure);
+        boolean goldAtFrontCorners = false;
+        for (BlockRecord record : result.placementRecords.values()) {
+            if (!"minecraft:gold_block".equals(record.baseBlockId())) {
+                continue;
+            }
+            if (Math.abs(record.pos.getY() - (64 + 6)) > 1) {
+                continue;
+            }
+            if (record.pos.getX() <= -2 && Math.abs(record.pos.getZ()) >= 4) {
+                goldAtFrontCorners = true;
+                break;
+            }
+        }
+        assertTrue(
+            goldAtFrontCorners,
+            "panel joint at mid-bay should land X braces on face corners, not a single long diagonal through the center");
     }
 
     @Test
@@ -402,10 +448,13 @@ class TowerStructureGeneratorTest {
     }
 
     private static int countBraceBlocksNearHeight(PowerLineGenerationResult result, int worldY) {
+        return countBlocksNearHeight(result, worldY, "minecraft:iron_bars");
+    }
+
+    private static int countBlocksNearHeight(PowerLineGenerationResult result, int worldY, String material) {
         int count = 0;
         for (BlockRecord record : result.placementRecords.values()) {
-            if (Math.abs(record.pos.getY() - worldY) <= 1
-                    && "minecraft:iron_bars".equals(record.baseBlockId())) {
+            if (Math.abs(record.pos.getY() - worldY) <= 1 && material.equals(record.baseBlockId())) {
                 count++;
             }
         }
