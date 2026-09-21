@@ -11,7 +11,6 @@ import com.plot.plugin.powerline.design.structure.TowerArmPlacement;
 import com.plot.plugin.powerline.TowerLocalPoint;
 import net.minecraft.util.math.BlockPos;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -28,8 +27,13 @@ public final class BracedCrossarmVoxelPlacer {
             Vec2d crossarmNormal,
             VoxelSink sink,
             String materialSeedKey,
-            PlanToBlockMapper mapper) {
-        if (layer == null || !layer.getCrossarmSupport().isActive() || sink == null || mapper == null) {
+            PlanToBlockMapper blockMapper,
+            PlanToWorldMapper worldMapper) {
+        if (layer == null
+                || !layer.getCrossarmSupport().isActive()
+                || sink == null
+                || blockMapper == null
+                || worldMapper == null) {
             return;
         }
         Vec2d normal = normalize(crossarmNormal);
@@ -63,7 +67,7 @@ public final class BracedCrossarmVoxelPlacer {
                 crossarmNormal,
                 sink,
                 materialSeedKey,
-                mapper),
+                worldMapper),
             (start, end, material) -> placeBrace(
                 planPoint,
                 normal,
@@ -73,7 +77,7 @@ public final class BracedCrossarmVoxelPlacer {
                 material,
                 sink,
                 materialSeedKey,
-                mapper));
+                worldMapper));
     }
 
     private static void placeChord(
@@ -89,11 +93,15 @@ public final class BracedCrossarmVoxelPlacer {
             Vec2d crossarmNormal,
             VoxelSink sink,
             String materialSeedKey,
-            PlanToBlockMapper mapper) {
+            PlanToWorldMapper worldMapper) {
         int y = (int) Math.round(height);
-        placeChordRail(planPoint, normal, forward, y, lateralStart, lateralEnd, -longHalf, material, layer, crossarmNormal, sink, materialSeedKey, mapper);
+        placeChordRail(
+            planPoint, normal, forward, y, lateralStart, lateralEnd, -longHalf,
+            material, layer, crossarmNormal, sink, materialSeedKey, worldMapper);
         if (longHalf > 0) {
-            placeChordRail(planPoint, normal, forward, y, lateralStart, lateralEnd, longHalf, material, layer, crossarmNormal, sink, materialSeedKey, mapper);
+            placeChordRail(
+                planPoint, normal, forward, y, lateralStart, lateralEnd, longHalf,
+                material, layer, crossarmNormal, sink, materialSeedKey, worldMapper);
         }
     }
 
@@ -110,15 +118,15 @@ public final class BracedCrossarmVoxelPlacer {
             Vec2d crossarmNormal,
             VoxelSink sink,
             String materialSeedKey,
-            PlanToBlockMapper mapper) {
+            PlanToWorldMapper worldMapper) {
         Vec2d startPoint = planPoint
             .add(normal.multiply(lateralStart))
             .add(forward.multiply(longitudinal));
         Vec2d endPoint = planPoint
             .add(normal.multiply(lateralEnd))
             .add(forward.multiply(longitudinal));
-        BlockPos center = mapper.toBlockPos(planPoint.add(forward.multiply(longitudinal)), y);
-        for (BlockPos pos : rasterizeSymmetricPlanLine(startPoint, y, endPoint, y, mapper)) {
+        BlockPos center = worldCenterBlock(planPoint.add(forward.multiply(longitudinal)), y, worldMapper);
+        for (BlockPos pos : rasterizeSymmetricWorldLine(startPoint, y, endPoint, y, worldMapper)) {
             String blockId = MaterialMixResolver.resolve(material, pos, materialSeedKey);
             int lateralOffset = crossarmLateralOffset(pos, center, crossarmNormal);
             BlockSpec spec = crossarmBlockSpec(blockId, crossarmNormal, lateralOffset);
@@ -135,15 +143,15 @@ public final class BracedCrossarmVoxelPlacer {
             MaterialMix material,
             VoxelSink sink,
             String materialSeedKey,
-            PlanToBlockMapper mapper) {
+            PlanToWorldMapper worldMapper) {
         Vec2d startPoint = toPlanPoint(planPoint, normal, forward, start);
         Vec2d endPoint = toPlanPoint(planPoint, normal, forward, end);
-        for (BlockPos pos : rasterizeSymmetricPlanLine(
+        for (BlockPos pos : rasterizeSymmetricWorldLine(
                 startPoint,
                 start.vertical(),
                 endPoint,
                 end.vertical(),
-                mapper)) {
+                worldMapper)) {
             String blockId = MaterialMixResolver.resolve(material, pos, materialSeedKey);
             sink.put(pos.getX(), pos.getY(), pos.getZ(), blockId);
         }
@@ -160,26 +168,31 @@ public final class BracedCrossarmVoxelPlacer {
     }
 
     /**
-     * 在 plan 坐标系对称光栅化，再映射到方块坐标，避免 floor 取整导致左右斜撑差一格。
+     * 连续世界 XZ 对称光栅化 → 方块坐标；Y 已是方块高度。
      */
-    private static List<BlockPos> rasterizeSymmetricPlanLine(
+    private static List<BlockPos> rasterizeSymmetricWorldLine(
             Vec2d startPlan,
             double startY,
             Vec2d endPlan,
             double endY,
-            PlanToBlockMapper mapper) {
-        List<BlockPos> localLine = VoxelLineRasterizer.rasterizeSymmetricLine3D(
-            startPlan.x,
+            PlanToWorldMapper worldMapper) {
+        Vec2d worldStart = worldMapper.toWorldXZ(startPlan);
+        Vec2d worldEnd = worldMapper.toWorldXZ(endPlan);
+        return VoxelLineRasterizer.rasterizeSymmetricLine3D(
+            worldStart.x,
             startY,
-            startPlan.y,
-            endPlan.x,
+            worldStart.y,
+            worldEnd.x,
             endY,
-            endPlan.y);
-        List<BlockPos> mapped = new ArrayList<>(localLine.size());
-        for (BlockPos cell : localLine) {
-            mapped.add(mapper.toBlockPos(new Vec2d(cell.getX(), cell.getZ()), cell.getY()));
-        }
-        return mapped;
+            worldEnd.y);
+    }
+
+    private static BlockPos worldCenterBlock(Vec2d planCenter, int y, PlanToWorldMapper worldMapper) {
+        Vec2d worldCenter = worldMapper.toWorldXZ(planCenter);
+        return new BlockPos(
+            VoxelLineRasterizer.symmetricBlock(worldCenter.x),
+            y,
+            VoxelLineRasterizer.symmetricBlock(worldCenter.y));
     }
 
     private static int crossarmLateralOffset(BlockPos position, BlockPos center, Vec2d normal) {

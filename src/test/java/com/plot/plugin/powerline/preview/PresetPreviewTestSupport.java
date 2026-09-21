@@ -1,9 +1,12 @@
 package com.plot.plugin.powerline.preview;
 
+import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.PoleDesign;
+import com.plot.plugin.powerline.design.PoleLayer;
 import com.plot.plugin.powerline.design.structure.TowerArm;
 
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 /** PL-PRESET-S6：预览几何/签名断言辅助。 */
@@ -14,6 +17,46 @@ final class PresetPreviewTestSupport {
     /**
      * 正立面镜像：仅检查纵向中心切片（z=0），避免平面斜撑在 z≠0 时的体素离散误差。
      */
+    /**
+     * 仅检查杆塔分层（柱/横担/斜撑）材质在正立面 z=0 的镜像对称；
+     * 不含 {@link com.plot.plugin.powerline.placement.PoleIdentityFeaturePlacer} 侧挂设备。
+     */
+    static void assertStructuralFrontMirrorSymmetric(PoleVoxelPreviewModel model, PoleDesign design) {
+        if (model == null || model.isEmpty()) {
+            throw new AssertionError("empty voxel model cannot be checked for symmetry");
+        }
+        Set<String> structuralBlocks = structuralBlockIds(design);
+        Set<String> occupied = new HashSet<>();
+        for (PreviewVoxel voxel : model.voxels()) {
+            if (voxel.z() != 0 || !structuralBlocks.contains(baseBlockId(voxel.blockId()))) {
+                continue;
+            }
+            occupied.add(key(voxel.x(), voxel.y(), baseBlockId(voxel.blockId())));
+        }
+        if (occupied.isEmpty()) {
+            throw new AssertionError("no structural z=0 voxels to evaluate front symmetry");
+        }
+        for (PreviewVoxel voxel : model.voxels()) {
+            if (voxel.z() != 0 || voxel.x() == 0) {
+                continue;
+            }
+            String blockId = baseBlockId(voxel.blockId());
+            if (!structuralBlocks.contains(blockId)) {
+                continue;
+            }
+            String mirrorKey = key(-voxel.x(), voxel.y(), blockId);
+            if (!occupied.contains(mirrorKey)) {
+                throw new AssertionError(
+                    "missing structural front mirror voxel at x="
+                        + (-voxel.x())
+                        + " y="
+                        + voxel.y()
+                        + " block="
+                        + blockId);
+            }
+        }
+    }
+
     static void assertFrontMirrorSymmetric(PoleVoxelPreviewModel model) {
         if (model == null || model.isEmpty()) {
             throw new AssertionError("empty voxel model cannot be checked for symmetry");
@@ -90,6 +133,31 @@ final class PresetPreviewTestSupport {
             }
         }
         return count;
+    }
+
+    private static Set<String> structuralBlockIds(PoleDesign design) {
+        Set<String> ids = new LinkedHashSet<>();
+        if (design == null) {
+            return ids;
+        }
+        for (PoleLayer layer : design.getLayers()) {
+            addMaterialId(ids, layer.getMaterial());
+            if (layer.getShape() == PoleLayer.Shape.CROSSARM) {
+                addMaterialId(ids, layer.resolveCrossarmBraceMaterial());
+            }
+        }
+        return ids;
+    }
+
+    private static void addMaterialId(Set<String> ids, MaterialMix material) {
+        if (material != null && material.getPrimaryMaterial() != null && !material.getPrimaryMaterial().isBlank()) {
+            ids.add(material.getPrimaryMaterial());
+        }
+    }
+
+    private static String baseBlockId(String blockId) {
+        int brace = blockId.indexOf('[');
+        return brace >= 0 ? blockId.substring(0, brace) : blockId;
     }
 
     private static String key(int x, int y, String blockId) {

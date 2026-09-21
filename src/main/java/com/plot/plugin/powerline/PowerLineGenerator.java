@@ -392,7 +392,8 @@ public class PowerLineGenerator {
             normal,
             new GenerationVoxelSink(result, projectionHandler),
             footprint.getId(),
-            PoleLayerVoxelPlacer.worldMapper(coordinateTransformer));
+            PoleLayerVoxelPlacer.worldMapper(coordinateTransformer),
+            PoleLayerVoxelPlacer.worldWorldMapper(coordinateTransformer));
         return wireHangY;
     }
 

@@ -110,7 +110,7 @@ public class PoleLayer {
         this.crossarmBraceMaterial = crossarmBraceMaterial != null ? crossarmBraceMaterial.copy() : null;
     }
 
-    /** 斜撑材质；未指定时回退到横担点缀或深色木栅栏。 */
+    /** 斜撑材质；未指定时回退到横担点缀或实体木板（厚重木构，非栅栏）。 */
     public MaterialMix resolveCrossarmBraceMaterial() {
         if (crossarmBraceMaterial != null
                 && crossarmBraceMaterial.getPrimaryMaterial() != null
@@ -120,7 +120,7 @@ public class PoleLayer {
         if (material != null && material.hasAccent()) {
             return MaterialMix.single(material.getAccentMaterial());
         }
-        return MaterialMix.single("minecraft:dark_oak_fence");
+        return MaterialMix.single("minecraft:spruce_planks");
     }
 
     public MaterialMix getMaterial() {

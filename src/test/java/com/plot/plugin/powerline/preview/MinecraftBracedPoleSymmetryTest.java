@@ -8,15 +8,21 @@ class MinecraftBracedPoleSymmetryTest {
 
     @Test
     void bracedWoodPolePreviewIsFrontMirrorSymmetric() {
-        assertSymmetric(PoleDesignCatalog.minecraftBracedWoodPole());
+        assertFullySymmetric(PoleDesignCatalog.minecraftBracedWoodPole());
     }
 
     @Test
     void doubleDeckBracedPolePreviewIsFrontMirrorSymmetric() {
-        assertSymmetric(PoleDesignCatalog.minecraftDoubleDeckBracedPole());
+        assertFullySymmetric(PoleDesignCatalog.minecraftDoubleDeckBracedPole());
     }
 
-    private static void assertSymmetric(PoleDesign design) {
+    @Test
+    void utilityEquipmentPoleBracesAreFrontMirrorSymmetric() {
+        PoleDesign design = PoleDesignCatalog.minecraftUtilityEquipmentPole();
+        PresetPreviewTestSupport.assertStructuralFrontMirrorSymmetric(PoleVoxelizer.voxelize(design), design);
+    }
+
+    private static void assertFullySymmetric(PoleDesign design) {
         PresetPreviewTestSupport.assertFrontMirrorSymmetric(PoleVoxelizer.voxelize(design));
     }
 }

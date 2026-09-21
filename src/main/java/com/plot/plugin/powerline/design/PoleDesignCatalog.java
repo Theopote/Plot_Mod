@@ -490,7 +490,7 @@ public final class PoleDesignCatalog {
             7,
             MaterialMix.single("minecraft:spruce_slab"),
             CrossarmSupport.V_BRACE,
-            MaterialMix.single("minecraft:spruce_fence")));
+            MaterialMix.single("minecraft:spruce_planks")));
         design.setLayers(layers);
         wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
         return design;
@@ -508,7 +508,7 @@ public final class PoleDesignCatalog {
             5,
             MaterialMix.single("minecraft:spruce_slab"),
             CrossarmSupport.V_BRACE,
-            MaterialMix.single("minecraft:spruce_fence")));
+            MaterialMix.single("minecraft:spruce_planks")));
         layers.add(new PoleLayer(
             PoleLayer.Shape.COLUMN,
             4,
@@ -517,7 +517,7 @@ public final class PoleDesignCatalog {
             7,
             MaterialMix.single("minecraft:spruce_planks"),
             CrossarmSupport.K_BRACE,
-            MaterialMix.single("minecraft:dark_oak_fence")));
+            MaterialMix.single("minecraft:dark_oak_planks")));
         design.setLayers(layers);
         wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
         return design;
@@ -542,7 +542,7 @@ public final class PoleDesignCatalog {
             5,
             MaterialMix.single("minecraft:oak_slab"),
             CrossarmSupport.V_BRACE,
-            MaterialMix.single("minecraft:dark_oak_fence")));
+            MaterialMix.single("minecraft:spruce_planks")));
         layers.add(new PoleLayer(
             PoleLayer.Shape.COLUMN,
             3,
@@ -551,7 +551,7 @@ public final class PoleDesignCatalog {
             7,
             MaterialMix.single("minecraft:spruce_slab"),
             CrossarmSupport.V_BRACE,
-            MaterialMix.single("minecraft:spruce_fence")));
+            MaterialMix.single("minecraft:dark_oak_planks")));
         layers.add(new PoleLayer(
             PoleLayer.Shape.CAP,
             1,

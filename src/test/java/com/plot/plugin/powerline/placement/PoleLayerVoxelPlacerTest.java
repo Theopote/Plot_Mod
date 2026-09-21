@@ -2,6 +2,7 @@ package com.plot.plugin.powerline.placement;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
+import com.plot.api.world.SnapshotCoordinateService;
 import com.plot.core.block.BlockSpec;
 import com.plot.core.material.MaterialMix;
 import com.plot.api.geometry.Vec2d;
@@ -45,7 +46,8 @@ class PoleLayerVoxelPlacerTest {
             new Vec2d(1, 0),
             worldSink,
             "seed",
-            PoleLayerVoxelPlacer.worldMapper(identityCoordinates()));
+            PoleLayerVoxelPlacer.worldMapper(identityCoordinates()),
+            PoleLayerVoxelPlacer.worldWorldMapper(identityCoordinates()));
 
         Map<String, String> world = normalizeShape(worldSink, layerBaseY, originX, originZ);
         assertFalse(preview.isEmpty());
@@ -66,19 +68,19 @@ class PoleLayerVoxelPlacerTest {
         crossarm.setCrossarmLength(7);
         crossarm.setCrossarmSupport(CrossarmSupport.V_BRACE);
         crossarm.setCrossarmSupportDepth(3);
-        crossarm.setCrossarmBraceMaterial(MaterialMix.single("minecraft:spruce_fence"));
+        crossarm.setCrossarmBraceMaterial(MaterialMix.single("minecraft:spruce_planks"));
         design.addLayer(crossarm);
 
         PreviewVoxelSink sink = new PreviewVoxelSink();
         PoleLayerVoxelPlacer.placeDesignPreview(design, sink, "seed");
 
         long braceBlocks = sink.snapshot().stream()
-            .filter(voxel -> voxel.blockId().contains("spruce_fence"))
+            .filter(voxel -> voxel.blockId().contains("spruce_planks"))
             .count();
         long slabBlocks = sink.snapshot().stream()
             .filter(voxel -> voxel.blockId().contains("spruce_slab"))
             .count();
-        assertTrue(braceBlocks >= 2, "V brace should place fence members below the chord");
+        assertTrue(braceBlocks >= 2, "V brace should place plank members below the chord");
         assertTrue(slabBlocks >= 7, "top and bottom chords should use slab material");
     }
 
@@ -87,10 +89,42 @@ class PoleLayerVoxelPlacerTest {
         PoleDesign design = PoleDesignCatalog.minecraftBracedWoodPole();
         PoleVoxelPreviewModel model = PoleVoxelizer.voxelize(design);
         assertFalse(model.voxels().isEmpty());
-        long fenceCount = model.voxels().stream()
-            .filter(voxel -> voxel.blockId().contains("fence"))
+        long plankCount = model.voxels().stream()
+            .filter(voxel -> voxel.blockId().contains("spruce_planks"))
             .count();
-        assertTrue(fenceCount > 0, "braced wood preset should include brace fence blocks");
+        assertTrue(plankCount > 0, "braced wood preset should include plank brace blocks");
+    }
+
+    @Test
+    void bracedCrossarmScalesWithWorldProjection() {
+        PoleDesign design = PoleDesignCatalog.minecraftBracedWoodPole();
+        PreviewVoxelSink identitySink = new PreviewVoxelSink();
+        PreviewVoxelSink scaledSink = new PreviewVoxelSink();
+        Vec2d planPoint = new Vec2d(0, 0);
+        ICoordinateService fourBlocksPerUnit = SnapshotCoordinateService.uniformScale(4.0);
+
+        PoleLayerVoxelPlacer.placeDesign(
+            design,
+            planPoint,
+            0,
+            new Vec2d(1, 0),
+            identitySink,
+            "seed",
+            PoleLayerVoxelPlacer.worldMapper(identityCoordinates()),
+            PoleLayerVoxelPlacer.worldWorldMapper(identityCoordinates()));
+        PoleLayerVoxelPlacer.placeDesign(
+            design,
+            planPoint,
+            0,
+            new Vec2d(1, 0),
+            scaledSink,
+            "seed",
+            PoleLayerVoxelPlacer.worldMapper(fourBlocksPerUnit),
+            PoleLayerVoxelPlacer.worldWorldMapper(fourBlocksPerUnit));
+
+        int identityReach = maxAbsX(identitySink);
+        int scaledReach = maxAbsX(scaledSink);
+        assertTrue(scaledReach >= identityReach * 3, "4x projection should widen braced crossarm in world blocks");
     }
 
     @Test
@@ -239,6 +273,14 @@ class PoleLayerVoxelPlacerTest {
 
     private static String relativeKey(int x, int y, int z) {
         return x + "," + y + "," + z;
+    }
+
+    private static int maxAbsX(PreviewVoxelSink sink) {
+        int max = 0;
+        for (PreviewVoxel voxel : sink.snapshot()) {
+            max = Math.max(max, Math.abs(voxel.x()));
+        }
+        return max;
     }
 
     private static ICoordinateService identityCoordinates() {

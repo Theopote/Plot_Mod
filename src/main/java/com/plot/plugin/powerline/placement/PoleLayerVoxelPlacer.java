@@ -29,11 +29,32 @@ public final class PoleLayerVoxelPlacer {
         return (planPoint, worldY) -> new BlockPos(planX(planPoint), worldY, planZ(planPoint));
     }
 
+    /** 预览：plan 与方块 XZ 1:1 对应。 */
+    public static PlanToWorldMapper previewWorldMapper() {
+        return planPoint -> planPoint != null ? planPoint : new Vec2d(0, 0);
+    }
+
     /** 世界坐标系：plan → canvas 方块 XZ，Y 为绝对高度。 */
     public static PlanToBlockMapper worldMapper(ICoordinateService coordinateTransformer) {
         return (planPoint, worldY) -> {
             BlockPos column = WorldCoordinateUtils.canvasToBlockXZ(planPoint, coordinateTransformer);
             return new BlockPos(column.getX(), worldY, column.getZ());
+        };
+    }
+
+    /** 世界坐标系：plan → 连续世界 XZ（经 {@link ICoordinateService#canvasToMinecraftWorld}）。 */
+    public static PlanToWorldMapper worldWorldMapper(ICoordinateService coordinateTransformer) {
+        return planPoint -> {
+            if (planPoint == null) {
+                return new Vec2d(0, 0);
+            }
+            if (coordinateTransformer != null) {
+                Vec2d world = coordinateTransformer.canvasToMinecraftWorld(planPoint);
+                if (world != null) {
+                    return world;
+                }
+            }
+            return planPoint;
         };
     }
 
@@ -45,7 +66,8 @@ public final class PoleLayerVoxelPlacer {
             PREVIEW_CROSSARM_NORMAL,
             sink,
             materialSeedKey,
-            previewMapper());
+            previewMapper(),
+            previewWorldMapper());
     }
 
     public static void placeDesign(
@@ -56,16 +78,37 @@ public final class PoleLayerVoxelPlacer {
             VoxelSink sink,
             String materialSeedKey,
             PlanToBlockMapper mapper) {
-        if (design == null || sink == null || mapper == null) {
+        placeDesign(
+            design,
+            planPoint,
+            layerBaseY,
+            crossarmNormal,
+            sink,
+            materialSeedKey,
+            mapper,
+            worldWorldMapper(null));
+    }
+
+    public static void placeDesign(
+            PoleDesign design,
+            Vec2d planPoint,
+            int layerBaseY,
+            Vec2d crossarmNormal,
+            VoxelSink sink,
+            String materialSeedKey,
+            PlanToBlockMapper blockMapper,
+            PlanToWorldMapper worldMapper) {
+        if (design == null || sink == null || blockMapper == null || worldMapper == null) {
             return;
         }
         Vec2d normal = normalizeCrossarmNormal(crossarmNormal);
         int currentY = layerBaseY;
         for (PoleLayer layer : design.getLayers()) {
             switch (layer.getShape()) {
-                case COLUMN -> placeColumnLayer(planPoint, currentY, layer, sink, materialSeedKey, mapper);
-                case CROSSARM -> placeCrossarmLayer(planPoint, currentY, layer, normal, sink, materialSeedKey, mapper);
-                case CAP -> placeCapLayer(planPoint, currentY, layer, normal, sink, materialSeedKey, mapper);
+                case COLUMN -> placeColumnLayer(planPoint, currentY, layer, sink, materialSeedKey, blockMapper);
+                case CROSSARM -> placeCrossarmLayer(
+                    planPoint, currentY, layer, normal, sink, materialSeedKey, blockMapper, worldMapper);
+                case CAP -> placeCapLayer(planPoint, currentY, layer, normal, sink, materialSeedKey, blockMapper);
                 default -> { }
             }
             currentY += layer.getHeight();
@@ -76,7 +119,7 @@ public final class PoleLayerVoxelPlacer {
             layerBaseY,
             normal,
             sink,
-            mapper);
+            blockMapper);
     }
 
     private static void placeColumnLayer(
@@ -130,10 +173,12 @@ public final class PoleLayerVoxelPlacer {
             Vec2d normal,
             VoxelSink sink,
             String materialSeedKey,
-            PlanToBlockMapper mapper) {
+            PlanToBlockMapper blockMapper,
+            PlanToWorldMapper worldMapper) {
         if (layer.getCrossarmSupport().isActive()) {
             int topY = baseY + layer.getHeight() - 1;
-            BracedCrossarmVoxelPlacer.place(planPoint, topY, layer, normal, sink, materialSeedKey, mapper);
+            BracedCrossarmVoxelPlacer.place(
+                planPoint, topY, layer, normal, sink, materialSeedKey, blockMapper, worldMapper);
             return;
         }
         int left = (layer.getCrossarmLength() - 1) / 2;
@@ -141,9 +186,9 @@ public final class PoleLayerVoxelPlacer {
         for (int y = baseY; y < baseY + layer.getHeight(); y++) {
             Vec2d startPoint = planPoint.add(normal.multiply(-left));
             Vec2d endPoint = planPoint.add(normal.multiply(right));
-            BlockPos start = mapper.toBlockPos(startPoint, y);
-            BlockPos end = mapper.toBlockPos(endPoint, y);
-            BlockPos center = mapper.toBlockPos(planPoint, y);
+            BlockPos start = blockMapper.toBlockPos(startPoint, y);
+            BlockPos end = blockMapper.toBlockPos(endPoint, y);
+            BlockPos center = blockMapper.toBlockPos(planPoint, y);
             for (BlockPos pos : VoxelLineRasterizer.rasterizeLine3D(
                     start.getX(), start.getY(), start.getZ(),
                     end.getX(), end.getY(), end.getZ())) {
