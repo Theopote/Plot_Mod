@@ -20,8 +20,9 @@ import java.util.List;
 
 /** 自动地形适配：塔基贴地、防导线穿地，必要时抬塔或补塔。 */
 public final class TerrainFitService {
-    public static final double SAFETY_MARGIN_BLOCKS = 1.5;
-    private static final int MAX_FIX_ATTEMPTS = 4;
+    /** 触发地形修正的净空阈值（格）；略低于工程常用 1.5，减少过度补塔。 */
+    public static final double SAFETY_MARGIN_BLOCKS = 1.25;
+    private static final int MAX_FIX_ATTEMPTS = 3;
 
     private TerrainFitService() {
     }
@@ -150,18 +151,54 @@ public final class TerrainFitService {
             TerrainCollisionAnalysis analysis,
             PowerLineGenerationResult result,
             ICoordinateService coordinates) {
+        if (line.getDerivedLayout().autoLayoutConstraints().size()
+                >= TerrainFitAutoPolePolicy.MAX_AUTO_LAYOUT_CONSTRAINTS) {
+            return false;
+        }
         SpanAnalysis targetSpan = analysis.firstIssueSpan();
         if (targetSpan == null) {
             return false;
         }
+        SpanEndpoints endpoints = spanEndpoints(line, targetSpan, result);
+        if (endpoints == null) {
+            return false;
+        }
         double stationing = stationingForSpan(line, targetSpan, result, coordinates);
-        if (stationing < 0 || hasNearbyConstraint(line, stationing, coordinates)) {
+        if (stationing < 0 || !canInsertPoleAt(
+                line,
+                result,
+                stationing,
+                endpoints.startStationing(),
+                endpoints.endStationing(),
+                coordinates)) {
             return false;
         }
         line.getDerivedLayout().addAutoLayoutConstraint(new PoleLayoutConstraint(
             stationing,
             "plugin.powerline.route.auto_pole.reason.terrain"));
         return true;
+    }
+
+    private record SpanEndpoints(double startStationing, double endStationing) {
+    }
+
+    private static SpanEndpoints spanEndpoints(
+            PowerLineFootprint line,
+            SpanAnalysis span,
+            PowerLineGenerationResult result) {
+        if (result == null
+                || span.getStartPoleSiteId() == null
+                || span.getEndPoleSiteId() == null) {
+            return null;
+        }
+        com.plot.plugin.powerline.model.PowerPoleSite start =
+            findSiteById(result, span.getStartPoleSiteId());
+        com.plot.plugin.powerline.model.PowerPoleSite end =
+            findSiteById(result, span.getEndPoleSiteId());
+        if (start == null || end == null) {
+            return null;
+        }
+        return new SpanEndpoints(start.getStationing(), end.getStationing());
     }
 
     private static com.plot.plugin.powerline.model.PowerPoleSite nearestSiteForSpan(
@@ -283,24 +320,59 @@ public final class TerrainFitService {
         return pathPoints.getLast().copy();
     }
 
-    private static boolean hasNearbyConstraint(
+    private static boolean canInsertPoleAt(
             PowerLineFootprint line,
+            PowerLineGenerationResult result,
             double stationing,
+            double spanStartStationing,
+            double spanEndStationing,
             ICoordinateService coordinates) {
         boolean closedLoop = line.isClosedLoop();
         double perimeter = closedLoop
             ? line.resolveSourcePath().worldLength(coordinates)
             : 0.0;
+        double minSpacing = TerrainFitAutoPolePolicy.minimumInsertSpacing(line);
+        double spanLength = ClosedPathStationMath.distance(
+            spanStartStationing,
+            spanEndStationing,
+            perimeter,
+            closedLoop);
+        if (spanLength < minSpacing * 2.0 - 1e-3) {
+            return false;
+        }
+        double fromStart = ClosedPathStationMath.distance(
+            spanStartStationing,
+            stationing,
+            perimeter,
+            closedLoop);
+        double fromEnd = ClosedPathStationMath.distance(
+            stationing,
+            spanEndStationing,
+            perimeter,
+            closedLoop);
+        if (fromStart < minSpacing || fromEnd < minSpacing) {
+            return false;
+        }
         for (PoleLayoutConstraint constraint : line.effectiveLayoutConstraints()) {
-            double distance = ClosedPathStationMath.nearestDistance(
-                stationing,
-                constraint.getRequiredStationing(),
-                perimeter,
-                closedLoop);
-            if (distance < 4.0) {
-                return true;
+            if (ClosedPathStationMath.nearestDistance(
+                    stationing,
+                    constraint.getRequiredStationing(),
+                    perimeter,
+                    closedLoop) < minSpacing) {
+                return false;
             }
         }
-        return false;
+        if (result != null) {
+            for (var site : result.poleSites) {
+                if (ClosedPathStationMath.nearestDistance(
+                        stationing,
+                        site.getStationing(),
+                        perimeter,
+                        closedLoop) < minSpacing) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 }

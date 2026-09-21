@@ -30,7 +30,7 @@ class TerrainFitClosedLoopTest {
 
         PowerLineGenerationResult result = new PowerLineGenerationResult(line);
         PowerPoleSite start = new PowerPoleSite("start", new Vec2d(0, 50));
-        start.setStationing(185.0);
+        start.setStationing(170.0);
         PowerPoleSite end = new PowerPoleSite("end", new Vec2d(0, 0));
         end.setStationing(0.0);
         result.poleSites.add(start);
@@ -43,7 +43,7 @@ class TerrainFitClosedLoopTest {
         span.addSample(new ConductorSample(0, 60, 0, new Vec2d(0, 50)));
         span.addSample(new ConductorSample(7.5, 55, 0, new Vec2d(0, 25)));
         span.addSample(new ConductorSample(15, 60, 0, new Vec2d(0, 0)));
-        span.setSpanLength(15.0);
+        span.setSpanLength(30.0);
         result.conductorSpans.add(span);
 
         TerrainCollisionAnalysis report = TerrainFitService.analyze(
@@ -55,7 +55,7 @@ class TerrainFitClosedLoopTest {
         assertTrue(line.getLayoutConstraints().isEmpty());
         assertEquals(1, line.getDerivedLayout().autoLayoutConstraints().size());
         assertEquals(
-            192.5,
+            185.0,
             line.getDerivedLayout().autoLayoutConstraints().getFirst().getRequiredStationing(),
             1.0);
     }

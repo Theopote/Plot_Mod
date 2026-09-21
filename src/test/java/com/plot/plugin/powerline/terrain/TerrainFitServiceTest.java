@@ -10,6 +10,7 @@ import com.plot.plugin.powerline.geometry.ConductorSample;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
 import com.plot.plugin.powerline.geometry.PowerLineGeometryModel;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.model.PowerPoleSite;
 import com.plot.core.terrain.TerrainSampler;
 import org.junit.jupiter.api.Test;
 
@@ -114,6 +115,75 @@ class TerrainFitServiceTest {
         assertTrue(line.getLayoutConstraints().isEmpty());
         assertFalse(line.getDerivedLayout().autoLayoutConstraints().isEmpty());
         assertTrue(PowerPoleLayoutUtils.computePoleSites(line, IdentityCoordinateService.INSTANCE).size() > 2);
+    }
+
+    @Test
+    void rejectsAutoInsertWhenSpanAlreadyTooShort() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(18, 0)));
+        line.setPoleDesignId(PoleDesignCatalog.SIMPLE_WOOD_POLE_ID);
+        line.setMaxPoleSpacing(18.0);
+
+        PowerLineGenerationResult result = TerrainTestFixtures.mockTwoPoleResult(line, "start", "end", 18.0);
+        ConductorSpanGeometry span = new ConductorSpanGeometry();
+        span.setSpanId("a->b:legacy");
+        span.setStartPoleSiteId("start");
+        span.setEndPoleSiteId("end");
+        span.addSample(new ConductorSample(6.0, 66.0, 0.0, new Vec2d(6, 0)));
+        span.setSpanLength(18.0);
+        result.conductorSpans.add(span);
+
+        TerrainCollisionAnalysis report = TerrainFitService.analyze(
+            result.toGeometryModel(),
+            TerrainTestFixtures.flatTerrain(68));
+
+        assertFalse(TerrainFitService.applyOneFix(
+            line, report, result, IdentityCoordinateService.INSTANCE));
+        assertTrue(line.getDerivedLayout().autoLayoutConstraints().isEmpty());
+    }
+
+    @Test
+    void rejectsSecondAutoInsertTooCloseToFirst() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(60, 0)));
+        line.setPoleDesignId(PoleDesignCatalog.SIMPLE_WOOD_POLE_ID);
+        line.setMaxPoleSpacing(60.0);
+
+        PowerLineGenerationResult result = TerrainTestFixtures.mockTwoPoleResult(line, "start", "end", 60.0);
+        ConductorSpanGeometry span = new ConductorSpanGeometry();
+        span.setSpanId("a->b:legacy");
+        span.setStartPoleSiteId("start");
+        span.setEndPoleSiteId("end");
+        span.addSample(new ConductorSample(10.0, 66.0, 0.0, new Vec2d(10, 0)));
+        span.setSpanLength(60.0);
+        result.conductorSpans.add(span);
+
+        TerrainCollisionAnalysis report = TerrainFitService.analyze(
+            result.toGeometryModel(),
+            TerrainTestFixtures.flatTerrain(68));
+
+        assertTrue(TerrainFitService.applyOneFix(
+            line, report, result, IdentityCoordinateService.INSTANCE));
+        double firstStation = line.getDerivedLayout().autoLayoutConstraints().getFirst().getRequiredStationing();
+
+        PowerPoleSite mid = new PowerPoleSite("mid", new Vec2d(firstStation, 0));
+        mid.setStationing(firstStation);
+        result.poleSites.add(1, mid);
+
+        ConductorSpanGeometry leftSpan = new ConductorSpanGeometry();
+        leftSpan.setSpanId("a->mid:legacy");
+        leftSpan.setStartPoleSiteId("start");
+        leftSpan.setEndPoleSiteId("mid");
+        leftSpan.addSample(new ConductorSample(5.0, 66.0, 0.0, new Vec2d(5, 0)));
+        leftSpan.setSpanLength(firstStation);
+        result.conductorSpans.clear();
+        result.conductorSpans.add(leftSpan);
+
+        TerrainCollisionAnalysis secondReport = TerrainFitService.analyze(
+            result.toGeometryModel(),
+            TerrainTestFixtures.flatTerrain(68));
+
+        assertFalse(TerrainFitService.applyOneFix(
+            line, secondReport, result, IdentityCoordinateService.INSTANCE));
+        assertEquals(1, line.getDerivedLayout().autoLayoutConstraints().size());
     }
 
     @Test
