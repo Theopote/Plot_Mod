@@ -32,7 +32,10 @@ import imgui.type.ImString;
 /** 杆塔分层设计器独立窗口（居中弹出、可拖动、不参与 DockSpace 停靠）。 */
 public final class PoleDesignerPanel {
     private static final int DESIGNER_WINDOW_FLAGS =
-        ImGuiWindowFlags.NoDocking | ImGuiWindowFlags.NoSavedSettings;
+        ImGuiWindowFlags.NoDocking
+            | ImGuiWindowFlags.NoSavedSettings
+            | ImGuiWindowFlags.NoScrollbar
+            | ImGuiWindowFlags.NoScrollWithMouse;
     private static final int NAME_BUFFER_CAPACITY = 128;
 
     private final PowerLineUiContext ctx;

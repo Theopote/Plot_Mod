@@ -24,15 +24,17 @@ public final class PoleDesignPreviewRenderer {
     static final float MAX_PANE_HEIGHT = 660f;
     private static final float HEIGHT_PER_BLOCK = 5.2f;
     private static final float PANE_CHROME_HEIGHT = 24f;
-    private static final float PANE_GAP = 8f;
-    private static final float FRONT_PANE_RATIO = 0.65f;
-    private static final float PANE_PADDING = 2f;
-    private static final float PANE_LABEL_GAP = 4f;
+    private static final float PANE_GAP = 4f;
+    private static final float FRONT_PANE_RATIO = 0.6f;
+    private static final float PANE_PADDING = 0f;
+    private static final float PANE_LABEL_GAP = 2f;
+    private static final float PANE_LABEL_INSET = 2f;
     private static final float MIN_COLUMN_HEIGHT = 32f;
     private static final int PREVIEW_CANVAS_FLAGS =
         ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
-    private static final int COLOR_BG = 0xFF2A2A2A;
-    private static final int COLOR_BORDER = 0xFF606060;
+    private static final int COLOR_CANVAS_BG = 0xFF121212;
+    private static final int COLOR_BG = 0xFF181818;
+    private static final int COLOR_BORDER = 0xFF404040;
     private static final int COLOR_ATTACHMENT = 0xE6FFD54F;
     private static final int COLOR_ATTACHMENT_RING = 0xFFFFD54F;
     private static final int COLOR_STATION_GUIDE = 0x9978909C;
@@ -45,7 +47,7 @@ public final class PoleDesignPreviewRenderer {
     }
 
     /**
-     * 设计器左栏：正视在上、侧视在下，正视约占 65% 预览高度。
+     * 设计器左栏：正视在上、侧视在下，高度比 6:4。
      */
     public static void renderVerticalStack(PoleDesign design, float width, float columnHeight) {
         renderVerticalStack(design, width, columnHeight, false);
@@ -77,13 +79,19 @@ public final class PoleDesignPreviewRenderer {
             return;
         }
 
-        ImGui.beginChild("##pole_design_preview_canvas", width, viewportHeight, true, PREVIEW_CANVAS_FLAGS);
+        ImGui.beginChild("##pole_design_preview_canvas", width, viewportHeight, false, PREVIEW_CANVAS_FLAGS);
         float contentWidth = ImGui.getContentRegionAvail().x;
         float contentHeight = ImGui.getContentRegionAvail().y;
         float frontPaneHeight = Math.max(28f, (contentHeight - PANE_GAP) * FRONT_PANE_RATIO);
         float sidePaneHeight = Math.max(28f, contentHeight - PANE_GAP - frontPaneHeight);
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
+        drawList.addRectFilled(
+            origin.x,
+            origin.y,
+            origin.x + contentWidth,
+            origin.y + contentHeight,
+            COLOR_CANVAS_BG);
         PoleVoxelPreviewModel model = PoleVoxelizer.voxelize(design);
 
         float frontY0 = origin.y;
@@ -141,7 +149,7 @@ public final class PoleDesignPreviewRenderer {
             float y1) {
         drawList.addRectFilled(x0, y0, x1, y1, COLOR_BG);
         drawList.addRect(x0, y0, x1, y1, COLOR_BORDER);
-        drawList.addText(x0 + 4f, y0 + 3f, COLOR_LABEL, label);
+        drawList.addText(x0 + PANE_LABEL_INSET, y0 + 1f, COLOR_LABEL, label);
 
         float innerY0 = y0 + ImGui.getFontSize() + PANE_LABEL_GAP;
         drawList.pushClipRect(x0, innerY0, x1, y1);
