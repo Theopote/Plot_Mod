@@ -263,7 +263,13 @@ public final class TowerStructureGenerator {
             placeBrace(aLower, centerUpper, structure, transform, footprint, result, projection, counters, structureScratch);
             placeBrace(bLower, centerUpper, structure, transform, footprint, result, projection, counters, structureScratch);
         } else if (pattern == BracingPattern.SINGLE_DIAGONAL) {
-            placeBrace(aLower, bUpper, structure, transform, footprint, result, projection, counters, structureScratch);
+            // 相邻节间交替斜向，形成连续人字纹而不是同向平行线
+            boolean reverse = ((int) Math.round(lower.getHeight() / 4.0)) % 2 == 1;
+            if (reverse) {
+                placeBrace(bLower, aUpper, structure, transform, footprint, result, projection, counters, structureScratch);
+            } else {
+                placeBrace(aLower, bUpper, structure, transform, footprint, result, projection, counters, structureScratch);
+            }
         } else if (pattern == BracingPattern.V) {
             TowerLocalPoint centerLower = midpoint(aLower, bLower);
             placeBrace(aUpper, centerLower, structure, transform, footprint, result, projection, counters, structureScratch);

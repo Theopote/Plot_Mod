@@ -772,7 +772,7 @@ public final class TowerParameterProfiles {
     private static List<BayDensityConfig> classicLowBays() {
         return List.of(
             new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.X, true, false),
             new BayDensityConfig(BracingPattern.X, false, false));
@@ -781,8 +781,8 @@ public final class TowerParameterProfiles {
     private static List<BayDensityConfig> classicMediumBays() {
         return List.of(
             new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.K, true, false),
             new BayDensityConfig(BracingPattern.V, false, false));
     }
@@ -799,15 +799,15 @@ public final class TowerParameterProfiles {
     private static List<BayDensityConfig> smallLowBays() {
         return List.of(
             new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, false, false));
     }
 
     private static List<BayDensityConfig> smallMediumBays() {
         return List.of(
             new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.K, false, false));
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
+            new BayDensityConfig(BracingPattern.V, false, false));
     }
 
     private static List<BayDensityConfig> smallHighBays() {
@@ -820,7 +820,7 @@ public final class TowerParameterProfiles {
     private static List<BayDensityConfig> tripleLowBays() {
         return List.of(
             new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.X, true, false),
             new BayDensityConfig(BracingPattern.X, false, false));
@@ -829,8 +829,8 @@ public final class TowerParameterProfiles {
     private static List<BayDensityConfig> tripleMediumBays() {
         return List.of(
             new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.K, true, false),
             new BayDensityConfig(BracingPattern.V, false, false));
     }
@@ -847,7 +847,7 @@ public final class TowerParameterProfiles {
     private static List<BayDensityConfig> cupLowBays() {
         return List.of(
             new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.X, true, false),
             new BayDensityConfig(BracingPattern.NONE, false, false));
@@ -856,7 +856,7 @@ public final class TowerParameterProfiles {
     private static List<BayDensityConfig> cupMediumBays() {
         return List.of(
             new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.K, true, false),
             new BayDensityConfig(BracingPattern.V, true, false),
             new BayDensityConfig(BracingPattern.NONE, false, false));
@@ -883,7 +883,7 @@ public final class TowerParameterProfiles {
     private static List<BayDensityConfig> heavyLowBays() {
         return List.of(
             new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.X, true, false),
             new BayDensityConfig(BracingPattern.X, false, false));
@@ -892,7 +892,7 @@ public final class TowerParameterProfiles {
     private static List<BayDensityConfig> heavyMediumBays() {
         return List.of(
             new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.K, true, false),
             new BayDensityConfig(BracingPattern.V, true, false),
             new BayDensityConfig(BracingPattern.V, false, false));
@@ -910,7 +910,7 @@ public final class TowerParameterProfiles {
     private static List<BayDensityConfig> megaLowBays() {
         return List.of(
             new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.X, true, false),
             new BayDensityConfig(BracingPattern.X, false, false));
@@ -919,8 +919,8 @@ public final class TowerParameterProfiles {
     private static List<BayDensityConfig> megaMediumBays() {
         return List.of(
             new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.K, true, false),
             new BayDensityConfig(BracingPattern.V, false, false));
     }
@@ -937,7 +937,7 @@ public final class TowerParameterProfiles {
     private static List<BayDensityConfig> portalLowBays() {
         return List.of(
             new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.X, false, false));
     }
@@ -945,7 +945,7 @@ public final class TowerParameterProfiles {
     private static List<BayDensityConfig> portalMediumBays() {
         return List.of(
             new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.K, true, false),
             new BayDensityConfig(BracingPattern.V, false, false));
     }
@@ -961,7 +961,7 @@ public final class TowerParameterProfiles {
     private static List<BayDensityConfig> drumLowBays() {
         return List.of(
             new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.X, true, false),
             new BayDensityConfig(BracingPattern.X, true, false),
@@ -971,7 +971,7 @@ public final class TowerParameterProfiles {
     private static List<BayDensityConfig> drumMediumBays() {
         return List.of(
             new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.K, true, false),
             new BayDensityConfig(BracingPattern.K, true, false),
             new BayDensityConfig(BracingPattern.V, true, false),
@@ -991,7 +991,7 @@ public final class TowerParameterProfiles {
     private static List<BayDensityConfig> uhvLowBays() {
         return List.of(
             new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.X, true, false),
             new BayDensityConfig(BracingPattern.X, true, false),
@@ -1001,8 +1001,8 @@ public final class TowerParameterProfiles {
     private static List<BayDensityConfig> uhvMediumBays() {
         return List.of(
             new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.X, true, false),
-            new BayDensityConfig(BracingPattern.X, true, false),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
+            new BayDensityConfig(BracingPattern.SINGLE_DIAGONAL, true, false),
             new BayDensityConfig(BracingPattern.K, true, false),
             new BayDensityConfig(BracingPattern.V, true, false),
             new BayDensityConfig(BracingPattern.V, false, false));

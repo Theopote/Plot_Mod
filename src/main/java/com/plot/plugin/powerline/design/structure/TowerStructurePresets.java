@@ -56,8 +56,8 @@ public final class TowerStructurePresets {
             new double[] {4.5, 3.8, 2.5, 1.5},
             new double[] {3.0, 2.5, 1.7, 1.0});
         addVariedBays(structure,
-            BracingPattern.X, BracingPattern.X,
-            BracingPattern.K, BracingPattern.V);
+            BracingPattern.X, BracingPattern.SINGLE_DIAGONAL,
+            BracingPattern.V);
         addTrussArm(structure, "arm_main", 20, 8.0, TowerArmShape.TRUSS, 3, 1.3);
         addPeak(structure, 24);
         return structure;
@@ -75,8 +75,8 @@ public final class TowerStructurePresets {
             new double[] {6.5, 5.6, 4.8, 3.7, 2.6, 1.8},
             new double[] {4.2, 3.6, 3.1, 2.4, 1.7, 1.2});
         addVariedBays(structure,
-            BracingPattern.X, BracingPattern.X,
-            BracingPattern.X, BracingPattern.K,
+            BracingPattern.X, BracingPattern.SINGLE_DIAGONAL,
+            BracingPattern.SINGLE_DIAGONAL, BracingPattern.K,
             BracingPattern.V);
         // 下层横担更宽，上层略短 — 标准输电塔剪影
         addTrussArm(structure, "arm_lower", 26, 12.0, TowerArmShape.TAPERED, 4, 1.8);
@@ -97,8 +97,8 @@ public final class TowerStructurePresets {
             new double[] {9.6, 7.6, 6.0, 4.5, 3.0, 2.0},
             new double[] {6.3, 5.0, 4.0, 3.0, 2.0, 1.3});
         addVariedBays(structure,
-            BracingPattern.X, BracingPattern.X,
-            BracingPattern.X, BracingPattern.K,
+            BracingPattern.X, BracingPattern.SINGLE_DIAGONAL,
+            BracingPattern.SINGLE_DIAGONAL, BracingPattern.K,
             BracingPattern.V);
         addTrussArm(structure, "arm_lower", 36, 11.0, TowerArmShape.TAPERED, 4, 2.0);
         addTrussArm(structure, "arm_middle", 42, 14.5, TowerArmShape.TRUSS, 4, 2.2);
@@ -119,7 +119,7 @@ public final class TowerStructurePresets {
             new double[] {5.5, 5.0, 4.0, 3.0, 2.2, 1.6},
             new double[] {3.6, 3.3, 2.7, 2.0, 1.5, 1.1});
         addVariedBays(structure,
-            BracingPattern.X, BracingPattern.X,
+            BracingPattern.X, BracingPattern.SINGLE_DIAGONAL,
             BracingPattern.K, BracingPattern.V,
             BracingPattern.V);
         addTrussArm(structure, "arm_lower", 24, 12.0, TowerArmShape.TAPERED, 4, 1.8);
@@ -140,7 +140,7 @@ public final class TowerStructurePresets {
             new double[] {5.0, 4.5, 3.2, 2.2, 7.5, 2.2},
             new double[] {3.3, 3.0, 2.2, 1.5, 5.0, 1.6});
         addVariedBays(structure,
-            BracingPattern.X, BracingPattern.X,
+            BracingPattern.X, BracingPattern.SINGLE_DIAGONAL,
             BracingPattern.K, BracingPattern.V,
             BracingPattern.NONE);
         addTrussArm(structure, "arm_cup", 32, 16.0, TowerArmShape.UPSWEEP, 3, 2.8);
@@ -166,7 +166,7 @@ public final class TowerStructurePresets {
             new double[] {10.5, 10.5, 9.5, 6.5, 3.5},
             new double[] {4.5, 4.5, 4.0, 2.8, 1.6});
         addVariedBays(structure,
-            BracingPattern.X, BracingPattern.X,
+            BracingPattern.X, BracingPattern.SINGLE_DIAGONAL,
             BracingPattern.K, BracingPattern.V);
         addTrussArm(structure, "arm_lower", 16, 13.0, TowerArmShape.FLAT, 2, 2.0);
         addTrussArm(structure, "arm_middle", 26, 16.0, TowerArmShape.TRUSS, 3, 2.4);
@@ -186,8 +186,8 @@ public final class TowerStructurePresets {
             new double[] {11.2, 8.8, 6.8, 4.2, 2.8, 1.8},
             new double[] {7.5, 5.9, 4.6, 2.9, 1.9, 1.2});
         addVariedBays(structure,
-            BracingPattern.X, BracingPattern.X,
-            BracingPattern.X, BracingPattern.K,
+            BracingPattern.X, BracingPattern.SINGLE_DIAGONAL,
+            BracingPattern.SINGLE_DIAGONAL, BracingPattern.K,
             BracingPattern.V);
         addTrussArm(structure, "arm_lower", 38, 11.0, TowerArmShape.TAPERED, 4, 2.0);
         addTrussArm(structure, "arm_middle", 47, 15.0, TowerArmShape.TRUSS, 4, 2.5);
@@ -209,7 +209,7 @@ public final class TowerStructurePresets {
             new double[] {10.4, 8.0, 5.8, 3.8, 3.2, 2.8, 2.0},
             new double[] {6.8, 5.2, 3.8, 2.4, 2.1, 1.8, 1.3});
         addVariedBays(structure,
-            BracingPattern.X, BracingPattern.X,
+            BracingPattern.X, BracingPattern.SINGLE_DIAGONAL,
             BracingPattern.K, BracingPattern.K,
             BracingPattern.V, BracingPattern.V);
         addTrussArm(structure, "arm_lower", 36, 11.0, TowerArmShape.TAPERED, 4, 2.0);
@@ -236,8 +236,8 @@ public final class TowerStructurePresets {
             new double[] {17.5, 14.0, 11.0, 8.2, 5.4, 3.2, 2.0},
             new double[] {11.4, 9.1, 7.2, 5.5, 3.6, 2.1, 1.3});
         addVariedBays(structure,
-            BracingPattern.X, BracingPattern.X,
-            BracingPattern.X, BracingPattern.K,
+            BracingPattern.X, BracingPattern.SINGLE_DIAGONAL,
+            BracingPattern.SINGLE_DIAGONAL, BracingPattern.K,
             BracingPattern.V, BracingPattern.V);
         addTrussArm(structure, "arm_lower", 56, 20.0, TowerArmShape.TAPERED, 5, 2.8);
         addTrussArm(structure, "arm_main", 66, 26.0, TowerArmShape.TRUSS, 5, 3.2);
