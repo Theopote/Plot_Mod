@@ -10,12 +10,10 @@ import com.plot.plugin.powerline.preview.PoleVoxelElevationRenderer;
 import com.plot.plugin.powerline.preview.PoleVoxelPreviewModel;
 import com.plot.plugin.powerline.preview.PoleVoxelizer;
 import com.plot.plugin.powerline.preview.PowerLinePreviewOverlayRenderer;
-import com.plot.plugin.powerline.ui.tower.TowerDesignerUiState;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
-import imgui.flag.ImGuiTabBarFlags;
 import imgui.flag.ImGuiWindowFlags;
 
 /**
@@ -26,6 +24,8 @@ public final class PoleDesignPreviewRenderer {
     static final float MAX_PANE_HEIGHT = 660f;
     private static final float HEIGHT_PER_BLOCK = 5.2f;
     private static final float PANE_CHROME_HEIGHT = 24f;
+    private static final float PANE_GAP = 8f;
+    private static final float FRONT_PANE_RATIO = 0.65f;
     private static final float PANE_PADDING = 2f;
     private static final float PANE_LABEL_GAP = 4f;
     private static final float MIN_COLUMN_HEIGHT = 32f;
@@ -45,10 +45,10 @@ public final class PoleDesignPreviewRenderer {
     }
 
     /**
-     * 设计器左栏：正视/侧视通过 Tab 切换，单视图占满预览区高度。
+     * 设计器左栏：正视在上、侧视在下，正视约占 65% 预览高度。
      */
     public static void renderVerticalStack(PoleDesign design, float width, float columnHeight) {
-        renderVerticalStack(design, width, columnHeight, false, null);
+        renderVerticalStack(design, width, columnHeight, false);
     }
 
     public static void renderVerticalStack(
@@ -56,15 +56,6 @@ public final class PoleDesignPreviewRenderer {
             float width,
             float columnHeight,
             boolean previewShowsLastValidStructure) {
-        renderVerticalStack(design, width, columnHeight, previewShowsLastValidStructure, null);
-    }
-
-    public static void renderVerticalStack(
-            PoleDesign design,
-            float width,
-            float columnHeight,
-            boolean previewShowsLastValidStructure,
-            TowerDesignerUiState uiState) {
         if (width < 40f || design == null || columnHeight < MIN_COLUMN_HEIGHT) {
             return;
         }
@@ -75,25 +66,12 @@ public final class PoleDesignPreviewRenderer {
                 0xFFFFB74D,
                 PlotI18n.tr("plugin.powerline.design.tower_preview_last_valid"));
         }
-
-        int activeTab = uiState != null ? uiState.previewViewTab : 0;
-        if (ImGui.beginTabBar("##pole_design_preview_tabs", ImGuiTabBarFlags.FittingPolicyScroll)) {
-            if (ImGui.beginTabItem(PlotI18n.tr("plugin.powerline.design.preview_front"))) {
-                activeTab = 0;
-                ImGui.endTabItem();
-            }
-            if (ImGui.beginTabItem(PlotI18n.tr("plugin.powerline.design.preview_side"))) {
-                activeTab = 1;
-                ImGui.endTabItem();
-            }
-            ImGui.endTabBar();
-        }
-        if (uiState != null) {
-            uiState.previewViewTab = activeTab;
-        }
-
+        float titleHeight = ImGui.getTextLineHeightWithSpacing();
+        float noticeHeight = previewShowsLastValidStructure ? ImGui.getTextLineHeightWithSpacing() : 0f;
         float footerHeight = ImGui.getTextLineHeightWithSpacing();
-        float viewportHeight = Math.max(0f, ImGui.getContentRegionAvail().y - footerHeight);
+        float viewportHeight = Math.max(
+            0f,
+            columnHeight - titleHeight - noticeHeight - footerHeight);
         if (viewportHeight < 1f) {
             PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.total_height", design.totalHeight()));
             return;
@@ -102,26 +80,37 @@ public final class PoleDesignPreviewRenderer {
         ImGui.beginChild("##pole_design_preview_canvas", width, viewportHeight, true, PREVIEW_CANVAS_FLAGS);
         float contentWidth = ImGui.getContentRegionAvail().x;
         float contentHeight = ImGui.getContentRegionAvail().y;
+        float frontPaneHeight = Math.max(28f, (contentHeight - PANE_GAP) * FRONT_PANE_RATIO);
+        float sidePaneHeight = Math.max(28f, contentHeight - PANE_GAP - frontPaneHeight);
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
         PoleVoxelPreviewModel model = PoleVoxelizer.voxelize(design);
-        PoleVoxelElevationRenderer.ElevationView view = activeTab == 1
-            ? PoleVoxelElevationRenderer.ElevationView.SIDE
-            : PoleVoxelElevationRenderer.ElevationView.FRONT;
-        String label = activeTab == 1
-            ? PlotI18n.tr("plugin.powerline.design.preview_side")
-            : PlotI18n.tr("plugin.powerline.design.preview_front");
+
+        float frontY0 = origin.y;
+        float frontY1 = frontY0 + frontPaneHeight;
+        float sideY0 = frontY1 + PANE_GAP;
+        float sideY1 = sideY0 + sidePaneHeight;
 
         renderPane(
             drawList,
             design,
             model,
-            view,
-            label,
+            PoleVoxelElevationRenderer.ElevationView.FRONT,
+            PlotI18n.tr("plugin.powerline.design.preview_front"),
             origin.x + PANE_PADDING,
-            origin.y + PANE_PADDING,
+            frontY0 + PANE_PADDING,
             origin.x + contentWidth - PANE_PADDING,
-            origin.y + contentHeight - PANE_PADDING);
+            frontY1 - PANE_PADDING);
+        renderPane(
+            drawList,
+            design,
+            model,
+            PoleVoxelElevationRenderer.ElevationView.SIDE,
+            PlotI18n.tr("plugin.powerline.design.preview_side"),
+            origin.x + PANE_PADDING,
+            sideY0 + PANE_PADDING,
+            origin.x + contentWidth - PANE_PADDING,
+            sideY1 - PANE_PADDING);
 
         ImGui.dummy(contentWidth, contentHeight);
         ImGui.endChild();

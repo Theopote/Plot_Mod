@@ -7,7 +7,6 @@ public final class TowerDesignerUiState {
     public final ImBoolean showAdvancedStructure = new ImBoolean(false);
     public final ImBoolean expandGeneratedGeometry = new ImBoolean(false);
     public final ImBoolean showAttachmentAdvanced = new ImBoolean(false);
-    public int previewViewTab = 0;
     public boolean convertManualConfirmPending;
 
     public void syncFromDraft(com.plot.plugin.powerline.design.PoleDesign draft) {

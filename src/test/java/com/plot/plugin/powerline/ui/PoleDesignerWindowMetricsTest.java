@@ -10,7 +10,7 @@ class PoleDesignerWindowMetricsTest {
     @Test
     void initialSizeUsesPreferredDimensionsOnLargeViewport() {
         assertEquals(760f, PoleDesignerWindowMetrics.initialWidth(1920f), 0.01f);
-        assertEquals(820f, PoleDesignerWindowMetrics.initialHeight(1080f), 0.01f);
+        assertEquals(900f, PoleDesignerWindowMetrics.initialHeight(1080f), 0.01f);
     }
 
     @Test

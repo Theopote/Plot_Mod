@@ -3,7 +3,7 @@ package com.plot.plugin.powerline.ui;
 /** Viewport-aware initial size and resize limits for the pole designer window. */
 final class PoleDesignerWindowMetrics {
     static final float PREFERRED_WIDTH = 760f;
-    static final float PREFERRED_HEIGHT = 820f;
+    static final float PREFERRED_HEIGHT = 900f;
     static final float MIN_WIDTH = 560f;
     static final float MIN_HEIGHT = 520f;
     static final float INITIAL_VIEWPORT_RATIO = 0.85f;

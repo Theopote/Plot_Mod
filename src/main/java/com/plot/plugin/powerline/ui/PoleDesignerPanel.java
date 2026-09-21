@@ -179,8 +179,7 @@ public final class PoleDesignerPanel {
                             draft,
                             ImGui.getContentRegionAvail().x,
                             ImGui.getContentRegionAvail().y,
-                            towerSession.previewShowsLastValidStructure(),
-                            towerUiState),
+                            towerSession.previewShowsLastValidStructure()),
                         () -> {
                             TowerDesignerContext towerContext = new TowerDesignerContext(
                                 draft,
@@ -288,25 +287,25 @@ public final class PoleDesignerPanel {
     }
 
     private float footerReservedHeight() {
-        return ImGui.getFrameHeight() * 2f
-            + DialogStyleManager.SECTION_GAP
-            + DialogStyleManager.ITEM_SPACING * 3f;
+        float height = ImGui.getFrameHeight() + DialogStyleManager.ITEM_SPACING;
+        if (editScope != PoleDesignerEditScope.LINE_INSTANCE) {
+            height += ImGui.getFrameHeight() + DialogStyleManager.ITEM_SPACING;
+        }
+        return height;
     }
 
     private void renderFooter() {
         ImGui.separator();
-        DialogLayoutHelper.beginFooter();
         float width = DialogStyleManager.getContentWidth();
 
-        if (DialogLayoutHelper.beginForm("##designer_footer_form")) {
-            if (editScope != PoleDesignerEditScope.LINE_INSTANCE) {
-                DialogLayoutHelper.formRowLabel(PlotI18n.tr("plugin.powerline.design.name"));
-                if (ImGui.inputText("##design_name", designNameBuffer)) {
-                    draft.setName(designNameBuffer.get());
-                }
-                if (ImGui.isItemActivated()) {
-                    pushDraftSnapshot();
-                }
+        if (editScope != PoleDesignerEditScope.LINE_INSTANCE
+                && DialogLayoutHelper.beginForm("##designer_footer_form")) {
+            DialogLayoutHelper.formRowLabel(PlotI18n.tr("plugin.powerline.design.name"));
+            if (ImGui.inputText("##design_name", designNameBuffer)) {
+                draft.setName(designNameBuffer.get());
+            }
+            if (ImGui.isItemActivated()) {
+                pushDraftSnapshot();
             }
             DialogLayoutHelper.endForm();
         }
