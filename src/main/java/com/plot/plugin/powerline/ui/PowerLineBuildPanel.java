@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.plugin.powerline.PowerLineGenerationResult;
+import com.plot.plugin.powerline.preview.overlay.PowerLineCanvasPreviewOverlay;
 import com.plot.plugin.powerline.style.PowerLineStyleEditor;
 import com.plot.plugin.powerline.style.PowerLineStylePreset;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -77,7 +78,45 @@ public final class PowerLineBuildPanel {
             result.poleCount,
             formatBlocks(worldLength),
             formatBlockCount(result.blockCount())));
+        renderInspectionSummary(line);
         renderStyleLine(line);
+    }
+
+    private void renderInspectionSummary(PowerLineFootprint line) {
+        PowerLineCanvasPreviewOverlay overlay = ctx.state().getCanvasPreviewOverlay();
+        if (overlay == null || !line.getId().equals(overlay.lineId())) {
+            return;
+        }
+        PowerLineCanvasPreviewOverlay.PreviewStats stats = overlay.stats();
+        PowerLineUiWidgets.textColored(
+            PluginUiColors.STATUS_OK,
+            PlotI18n.tr(
+                "plugin.powerline.build.preview_inspection",
+                stats.towerCount(),
+                stats.spanCount(),
+                stats.angleTowerCount(),
+                stats.terrainInsertCount()));
+        if (stats.userOverrideCount() > 0) {
+            PowerLineUiWidgets.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr(
+                    "plugin.powerline.build.preview_user_overrides",
+                    stats.userOverrideCount()));
+        }
+        String selectedSiteId = ctx.state().getSelectedCanvasPoleSiteId();
+        if (selectedSiteId != null && !selectedSiteId.isBlank()) {
+            overlay.markers().stream()
+                .filter(marker -> selectedSiteId.equals(marker.poleSiteId()))
+                .findFirst()
+                .ifPresent(marker -> PowerLineUiWidgets.textColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr(
+                        "plugin.powerline.build.preview_selected_tower",
+                        PowerLineUiFormat.format(marker.stationing()),
+                        marker.designLabel() != null && !marker.designLabel().isBlank()
+                            ? marker.designLabel()
+                            : PlotI18n.tr("plugin.powerline.canvas_preview.design_unknown"))));
+        }
     }
 
     private void renderStyleLine(PowerLineFootprint line) {

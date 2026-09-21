@@ -5,6 +5,7 @@ import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.PowerLinePathSelectionAnalysis;
 import com.plot.plugin.powerline.PowerLineSelectionSet;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
+import com.plot.plugin.powerline.preview.overlay.PowerLineCanvasPreviewOverlay;
 import com.plot.plugin.powerline.model.PowerLineProject;
 import com.plot.plugin.powerline.model.PoleDesignDraftHistory;
 import com.plot.plugin.powerline.model.PowerLineProjectHistory;
@@ -28,6 +29,8 @@ public final class PowerLinePluginState {
     private String poleRoleInspectorOpenLineId = "";
 
     private volatile PowerLineGenerationResult lastGenerationResult;
+    private volatile PowerLineCanvasPreviewOverlay canvasPreviewOverlay;
+    private String selectedCanvasPoleSiteId = "";
     private PowerLinePreviewKey previewKey;
     private int buildRegionWorldFingerprint;
     private boolean previewAutoRefreshEnabled;
@@ -147,6 +150,22 @@ public final class PowerLinePluginState {
 
     public void setLastGenerationResult(PowerLineGenerationResult lastGenerationResult) {
         this.lastGenerationResult = lastGenerationResult;
+    }
+
+    public PowerLineCanvasPreviewOverlay getCanvasPreviewOverlay() {
+        return canvasPreviewOverlay;
+    }
+
+    public void setCanvasPreviewOverlay(PowerLineCanvasPreviewOverlay canvasPreviewOverlay) {
+        this.canvasPreviewOverlay = canvasPreviewOverlay;
+    }
+
+    public String getSelectedCanvasPoleSiteId() {
+        return selectedCanvasPoleSiteId != null ? selectedCanvasPoleSiteId : "";
+    }
+
+    public void setSelectedCanvasPoleSiteId(String selectedCanvasPoleSiteId) {
+        this.selectedCanvasPoleSiteId = selectedCanvasPoleSiteId != null ? selectedCanvasPoleSiteId : "";
     }
 
     public PowerLinePreviewKey getPreviewKey() {

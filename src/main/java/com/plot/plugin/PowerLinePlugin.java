@@ -6,10 +6,19 @@ import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
 import com.plot.plugin.powerline.PowerLineGenerator;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.preview.overlay.PowerLineCanvasPreviewOverlay;
+import com.plot.plugin.powerline.preview.overlay.PowerLineCanvasPreviewRenderer;
 import com.plot.plugin.powerline.ui.PowerLinePluginState;
 import com.plot.plugin.powerline.ui.PowerLineUiContext;
 import com.plot.plugin.powerline.ui.PowerLineUIManager;
+import com.plot.api.world.GhostBlockOwners;
+import com.plot.api.world.IGhostBlockService;
+import com.plot.api.plugin.IPlugin;
+import com.plot.core.plugin.PluginManager;
+import com.plot.ui.canvas.CanvasCamera;
+import com.plot.ui.canvas.CanvasOverlayRegistry;
 import com.plot.ui.component.ExtensionPanelIcons;
+import imgui.ImDrawList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +38,8 @@ public class PowerLinePlugin extends Plugin {
 
     private PowerLineUiContext uiContext;
     private PowerLineUIManager uiManager;
+
+    private final CanvasOverlayRegistry.Overlay canvasPreviewOverlay = this::renderCanvasPreviewOverlay;
 
     private final EventListener projectLoadedListener = event -> {
         if (event instanceof ProjectLoadedEvent loaded) {
@@ -63,9 +74,11 @@ public class PowerLinePlugin extends Plugin {
         uiContext = new PowerLineUiContext(ctx(), pluginState, projectLock);
         uiContext.setGenerator(generator);
         uiManager = new PowerLineUIManager(uiContext);
+        clearStalePowerLineGhosts();
 
         ctx().events().subscribe(this, ProjectLoadedEvent.class, projectLoadedListener);
         ctx().events().subscribe(this, ProjectSavedEvent.class, projectSavedListener);
+        CanvasOverlayRegistry.register(canvasPreviewOverlay);
         loadProjectForCurrentProject();
     }
 
@@ -79,11 +92,50 @@ public class PowerLinePlugin extends Plugin {
 
     @Override
     public void onDisable() {
+        if (uiContext != null) {
+            uiContext.clearPreview();
+        }
         persistProject();
         try {
             ctx().events().unsubscribeOwner(this);
         } catch (Exception e) {
             LOGGER.error("取消事件订阅失败: {}", e.getMessage(), e);
+        }
+        CanvasOverlayRegistry.unregister(canvasPreviewOverlay);
+    }
+
+    private void clearStalePowerLineGhosts() {
+        IGhostBlockService ghosts = ctx().ghosts();
+        if (ghosts != null) {
+            ghosts.clearGhostBlocks(GhostBlockOwners.POWER_LINE);
+        }
+    }
+
+    private void renderCanvasPreviewOverlay(ImDrawList drawList, CanvasCamera camera) {
+        if (!isEnabled() || uiContext == null) {
+            return;
+        }
+        IPlugin active = PluginManager.getInstance().getActivePlugin();
+        if (active != this) {
+            return;
+        }
+        synchronized (projectLock) {
+            PowerLineFootprint line = uiContext.selection().primary(uiContext.project());
+            PowerLineCanvasPreviewOverlay overlay = uiContext.state().getCanvasPreviewOverlay();
+            if (line == null || overlay == null || !uiContext.hasValidPreview(line)) {
+                return;
+            }
+            if (!line.getId().equals(overlay.lineId())) {
+                return;
+            }
+            PowerLineCanvasPreviewRenderer.RenderResult result = PowerLineCanvasPreviewRenderer.render(
+                drawList,
+                camera,
+                overlay,
+                uiContext.state().getSelectedCanvasPoleSiteId());
+            if (result.clickedPoleSiteId() != null && !result.clickedPoleSiteId().isBlank()) {
+                uiContext.state().setSelectedCanvasPoleSiteId(result.clickedPoleSiteId());
+            }
         }
     }
 

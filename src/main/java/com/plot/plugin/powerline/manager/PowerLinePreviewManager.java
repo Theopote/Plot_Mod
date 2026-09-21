@@ -1,21 +1,12 @@
 package com.plot.plugin.powerline.manager;
 
-import com.plot.api.world.GhostBlockOwners;
-import com.plot.api.world.IGhostBlockService;
-import com.plot.core.command.BlockRecord;
-import com.plot.core.context.PluginContext;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.ui.PowerLinePluginState;
 
-import net.minecraft.util.math.BlockPos;
-
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Objects;
 
 /**
- * 电力线路世界 Ghost 预览统一入口（对标 {@link com.plot.plugin.earthwork.manager.EarthworkPreviewManager}）。
- * 仅本类调用 {@link IGhostBlockService}。
+ * 电力线路生成预览缓存（结果保存在 {@link PowerLinePluginState}，画布/UI 展示用）。
  */
 public final class PowerLinePreviewManager {
     public enum Mode {
@@ -23,12 +14,10 @@ public final class PowerLinePreviewManager {
         LINE_CACHED
     }
 
-    private final PluginContext host;
     private final PowerLinePluginState state;
     private Mode mode = Mode.NONE;
 
-    public PowerLinePreviewManager(PluginContext host, PowerLinePluginState state) {
-        this.host = Objects.requireNonNull(host, "host");
+    public PowerLinePreviewManager(PowerLinePluginState state) {
         this.state = Objects.requireNonNull(state, "state");
     }
 
@@ -46,38 +35,13 @@ public final class PowerLinePreviewManager {
             return;
         }
         mode = Mode.LINE_CACHED;
-        projectGhosts(result);
     }
 
     public void clearLineCachedPreview() {
-        clearLineCachedMetadata();
-        if (mode == Mode.LINE_CACHED) {
-            clearGhostsOnly();
-            mode = Mode.NONE;
-        }
-    }
-
-    public void clearGhostsOnly() {
-        IGhostBlockService ghosts = host.ghosts();
-        if (ghosts != null) {
-            ghosts.clearGhostBlocks(GhostBlockOwners.POWER_LINE);
-        }
-    }
-
-    private void clearLineCachedMetadata() {
         state.setLastGenerationResult(null);
         state.setPreviewKey(null);
-    }
-
-    private void projectGhosts(PowerLineGenerationResult result) {
-        IGhostBlockService ghosts = host.ghosts();
-        if (ghosts == null || result == null) {
-            return;
-        }
-        Map<BlockPos, String> blocks = new LinkedHashMap<>();
-        for (BlockRecord record : result.placementRecords.values()) {
-            blocks.put(record.pos, record.newBlockId);
-        }
-        ghosts.replaceGhostBlocks(GhostBlockOwners.POWER_LINE, blocks);
+        state.setCanvasPreviewOverlay(null);
+        state.setSelectedCanvasPoleSiteId("");
+        mode = Mode.NONE;
     }
 }

@@ -9,8 +9,12 @@ import com.plot.core.persistence.ProjectPathResolver;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
 import com.plot.plugin.powerline.terrain.TerrainFitService;
+import com.plot.api.world.GhostBlockOwners;
+import com.plot.api.world.IGhostBlockService;
 import com.plot.api.world.PluginProjectionContext;
 import com.plot.api.world.WorldProjectionUnavailableException;
+import com.plot.plugin.powerline.preview.overlay.PowerLineCanvasPreviewOverlay;
+import com.plot.plugin.powerline.preview.overlay.PowerLineCanvasPreviewOverlayBuilder;
 import com.plot.plugin.powerline.PowerLinePathPickSession;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.PowerLinePathSelectionAnalysis;
@@ -56,7 +60,7 @@ public final class PowerLineActions {
         this.host = Objects.requireNonNull(host, "host");
         this.state = Objects.requireNonNull(state, "state");
         this.projectLock = Objects.requireNonNull(projectLock, "projectLock");
-        this.previewManager = new PowerLinePreviewManager(host, state);
+        this.previewManager = new PowerLinePreviewManager(state);
     }
 
     public PowerLinePreviewManager previewManager() {
@@ -301,7 +305,37 @@ public final class PowerLineActions {
             return false;
         }
         applyTerrainFit(line);
+        rebuildCanvasPreviewOverlay(line);
+        publishPreviewReadyStatus(line);
         return state.getLastGenerationResult() != null;
+    }
+
+    private void rebuildCanvasPreviewOverlay(PowerLineFootprint line) {
+        PowerLineGenerationResult result = state.getLastGenerationResult();
+        if (line == null || result == null) {
+            state.setCanvasPreviewOverlay(null);
+            return;
+        }
+        state.setCanvasPreviewOverlay(
+            PowerLineCanvasPreviewOverlayBuilder.build(result, line, designResolver()));
+        previewManager.showLinePreview(result);
+    }
+
+    private void publishPreviewReadyStatus(PowerLineFootprint line) {
+        PowerLineCanvasPreviewOverlay overlay = state.getCanvasPreviewOverlay();
+        PowerLineGenerationResult result = state.getLastGenerationResult();
+        if (line == null || result == null || overlay == null) {
+            return;
+        }
+        PowerLineCanvasPreviewOverlay.PreviewStats stats = overlay.stats();
+        state.setProjectStatus(
+            PlotI18n.tr(
+                "plugin.powerline.build.preview_ready",
+                stats.towerCount(),
+                stats.spanCount(),
+                stats.angleTowerCount(),
+                stats.terrainInsertCount()),
+            ProjectStatusSeverity.SUCCESS);
     }
 
     private boolean calculatePreviewCore(PowerLineFootprint line) {
@@ -352,7 +386,6 @@ public final class PowerLineActions {
             com.plot.plugin.powerline.placement.BuildRegionWorldFingerprint.capture(
                 result,
                 host.projection()));
-        previewManager.showLinePreview(result);
         return true;
     }
 
@@ -391,6 +424,14 @@ public final class PowerLineActions {
         state.setPreviewAutoRefreshEnabled(false);
         clearDerivedLayoutForCurrentLine();
         previewManager.clearLineCachedPreview();
+        clearStalePowerLineGhosts();
+    }
+
+    private void clearStalePowerLineGhosts() {
+        IGhostBlockService ghosts = host.ghosts();
+        if (ghosts != null) {
+            ghosts.clearGhostBlocks(GhostBlockOwners.POWER_LINE);
+        }
     }
 
     /**
