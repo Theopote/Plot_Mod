@@ -5,6 +5,7 @@ import com.plot.api.world.ICoordinateService;
 import com.plot.core.block.BlockSpec;
 import com.plot.core.material.MaterialMix;
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.powerline.design.CrossarmSupport;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.PoleLayer;
@@ -49,6 +50,47 @@ class PoleLayerVoxelPlacerTest {
         Map<String, String> world = normalizeShape(worldSink, layerBaseY, originX, originZ);
         assertFalse(preview.isEmpty());
         assertEquals(preview.keySet(), world.keySet());
+    }
+
+    @Test
+    void bracedCrossarmPlacesBraceBlocksBelowChord() {
+        PoleDesign design = new PoleDesign("braced_crossarm", "Braced crossarm");
+        design.addLayer(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            6,
+            MaterialMix.single("minecraft:stripped_spruce_log")));
+        PoleLayer crossarm = new PoleLayer(
+            PoleLayer.Shape.CROSSARM,
+            1,
+            MaterialMix.single("minecraft:spruce_slab"));
+        crossarm.setCrossarmLength(7);
+        crossarm.setCrossarmSupport(CrossarmSupport.V_BRACE);
+        crossarm.setCrossarmSupportDepth(3);
+        crossarm.setCrossarmBraceMaterial(MaterialMix.single("minecraft:spruce_fence"));
+        design.addLayer(crossarm);
+
+        PreviewVoxelSink sink = new PreviewVoxelSink();
+        PoleLayerVoxelPlacer.placeDesignPreview(design, sink, "seed");
+
+        long braceBlocks = sink.snapshot().stream()
+            .filter(voxel -> voxel.blockId().contains("spruce_fence"))
+            .count();
+        long slabBlocks = sink.snapshot().stream()
+            .filter(voxel -> voxel.blockId().contains("spruce_slab"))
+            .count();
+        assertTrue(braceBlocks >= 2, "V brace should place fence members below the chord");
+        assertTrue(slabBlocks >= 7, "top and bottom chords should use slab material");
+    }
+
+    @Test
+    void minecraftBracedWoodPresetVoxelizesWithSupport() {
+        PoleDesign design = PoleDesignCatalog.minecraftBracedWoodPole();
+        PoleVoxelPreviewModel model = PoleVoxelizer.voxelize(design);
+        assertFalse(model.voxels().isEmpty());
+        long fenceCount = model.voxels().stream()
+            .filter(voxel -> voxel.blockId().contains("fence"))
+            .count();
+        assertTrue(fenceCount > 0, "braced wood preset should include brace fence blocks");
     }
 
     @Test

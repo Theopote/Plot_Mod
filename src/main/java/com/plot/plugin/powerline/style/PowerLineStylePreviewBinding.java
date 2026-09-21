@@ -54,7 +54,8 @@ public final class PowerLineStylePreviewBinding {
                  INDUSTRIAL_PORTAL, MONSTER_PYLON, ADAPTIVE, LATTICE_POLE, TAPERED, STEAMPUNK, MODERN_HV_GLASS
                 -> PreviewOverlay.ATTACHMENTS;
             case WOOD, DOUBLE_WOOD, STEEL_POLE, URBAN, MODERN_UTILITY, JAPANESE, OLD_EUROPEAN, SUBURBAN_LAMP,
-                 ABANDONED, RUSTIC, COPPER, WASTELAND_WIND
+                 ABANDONED, RUSTIC, COPPER, WASTELAND_WIND, MINECRAFT_BRACED_WOOD, MINECRAFT_DOUBLE_DECK_BRACED,
+                 MINECRAFT_UTILITY_EQUIPMENT
                 -> PreviewOverlay.DECORATIVE_CONDUCTORS;
         };
     }
@@ -131,6 +132,9 @@ public final class PowerLineStylePreviewBinding {
             case SUBURBAN_LAMP -> PoleDesignCatalog.SUBURBAN_LAMP_POLE_ID;
             case ABANDONED -> PoleDesignCatalog.ABANDONED_POLE_ID;
             case RUSTIC -> PoleDesignCatalog.RUSTIC_WOOD_POLE_ID;
+            case MINECRAFT_BRACED_WOOD -> PoleDesignCatalog.MINECRAFT_BRACED_WOOD_POLE_ID;
+            case MINECRAFT_DOUBLE_DECK_BRACED -> PoleDesignCatalog.MINECRAFT_DOUBLE_DECK_BRACED_POLE_ID;
+            case MINECRAFT_UTILITY_EQUIPMENT -> PoleDesignCatalog.MINECRAFT_UTILITY_EQUIPMENT_POLE_ID;
         };
     }
 

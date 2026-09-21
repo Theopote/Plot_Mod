@@ -34,6 +34,9 @@ public final class PoleDesignCatalog {
     public static final String MODERN_UTILITY_POLE_ID = "preset/modern_utility_pole";
     public static final String ABANDONED_POLE_ID = "preset/abandoned_pole";
     public static final String RUSTIC_WOOD_POLE_ID = "preset/rustic_wood_pole";
+    public static final String MINECRAFT_BRACED_WOOD_POLE_ID = "preset/minecraft_braced_wood_pole";
+    public static final String MINECRAFT_DOUBLE_DECK_BRACED_POLE_ID = "preset/minecraft_double_deck_braced_pole";
+    public static final String MINECRAFT_UTILITY_EQUIPMENT_POLE_ID = "preset/minecraft_utility_equipment_pole";
 
     private PoleDesignCatalog() {
     }
@@ -57,6 +60,9 @@ public final class PoleDesignCatalog {
         designs.add(modernUtilityPole());
         designs.add(abandonedPole());
         designs.add(rusticWoodPole());
+        designs.add(minecraftBracedWoodPole());
+        designs.add(minecraftDoubleDeckBracedPole());
+        designs.add(minecraftUtilityEquipmentPole());
         return designs;
     }
 
@@ -470,6 +476,105 @@ public final class PoleDesignCatalog {
         design.setLayers(layers);
         wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.SINGLE);
         return design;
+    }
+
+    /** Minecraft 风木杆：宽横担 + V 型斜撑。 */
+    public static PoleDesign minecraftBracedWoodPole() {
+        PoleDesign design = new PoleDesign(MINECRAFT_BRACED_WOOD_POLE_ID, "Minecraft Braced Wood Pole");
+        List<PoleLayer> layers = new ArrayList<>();
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            9,
+            MaterialMix.single("minecraft:stripped_spruce_log")));
+        layers.add(bracedCrossarm(
+            7,
+            MaterialMix.single("minecraft:spruce_slab"),
+            CrossarmSupport.V_BRACE,
+            MaterialMix.single("minecraft:spruce_fence")));
+        design.setLayers(layers);
+        wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
+        return design;
+    }
+
+    /** Minecraft 风双层配电杆：上下两层横担各自带斜撑。 */
+    public static PoleDesign minecraftDoubleDeckBracedPole() {
+        PoleDesign design = new PoleDesign(MINECRAFT_DOUBLE_DECK_BRACED_POLE_ID, "Minecraft Double-Deck Braced Pole");
+        List<PoleLayer> layers = new ArrayList<>();
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            5,
+            MaterialMix.single("minecraft:stripped_spruce_log")));
+        layers.add(bracedCrossarm(
+            5,
+            MaterialMix.single("minecraft:spruce_slab"),
+            CrossarmSupport.V_BRACE,
+            MaterialMix.single("minecraft:spruce_fence")));
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            4,
+            MaterialMix.single("minecraft:stripped_spruce_log")));
+        layers.add(bracedCrossarm(
+            7,
+            MaterialMix.single("minecraft:spruce_planks"),
+            CrossarmSupport.K_BRACE,
+            MaterialMix.single("minecraft:dark_oak_fence")));
+        design.setLayers(layers);
+        wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
+        return design;
+    }
+
+    /**
+     * Minecraft 风设备杆：混合材质主杆 + 双层横担 + 侧挂设备。
+     * 设备体素由 {@link com.plot.plugin.powerline.placement.PoleIdentityFeaturePlacer} 放置。
+     */
+    public static PoleDesign minecraftUtilityEquipmentPole() {
+        PoleDesign design = new PoleDesign(MINECRAFT_UTILITY_EQUIPMENT_POLE_ID, "Minecraft Utility Equipment Pole");
+        List<PoleLayer> layers = new ArrayList<>();
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            2,
+            MaterialMix.single("minecraft:cobblestone")));
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            4,
+            MaterialMix.single("minecraft:stripped_oak_log")));
+        layers.add(bracedCrossarm(
+            5,
+            MaterialMix.single("minecraft:oak_slab"),
+            CrossarmSupport.DIAGONAL,
+            MaterialMix.single("minecraft:dark_oak_fence")));
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.COLUMN,
+            3,
+            MaterialMix.single("minecraft:stripped_oak_log")));
+        layers.add(bracedCrossarm(
+            7,
+            MaterialMix.single("minecraft:spruce_slab"),
+            CrossarmSupport.V_BRACE,
+            MaterialMix.single("minecraft:spruce_fence")));
+        layers.add(new PoleLayer(
+            PoleLayer.Shape.CAP,
+            1,
+            MaterialMix.single("minecraft:iron_trapdoor")));
+        design.setLayers(layers);
+        wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
+        return design;
+    }
+
+    private static PoleLayer bracedCrossarm(
+            int length,
+            MaterialMix chordMaterial,
+            CrossarmSupport support,
+            MaterialMix braceMaterial) {
+        PoleLayer crossarm = new PoleLayer(
+            PoleLayer.Shape.CROSSARM,
+            1,
+            chordMaterial);
+        crossarm.setCrossarmLength(length);
+        crossarm.setCrossarmSupport(support);
+        crossarm.setCrossarmSupportDepth(3);
+        crossarm.setCrossarmBraceMaterial(braceMaterial);
+        return crossarm;
     }
 
     public static boolean isBuiltinId(String id) {

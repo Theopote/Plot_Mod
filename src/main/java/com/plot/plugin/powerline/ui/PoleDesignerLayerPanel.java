@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.design.CrossarmSupport;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleLayer;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -87,6 +88,45 @@ final class PoleDesignerLayerPanel {
             }
             if (ImGui.isItemActivated()) {
                 pushDraftSnapshot.run();
+            }
+
+            String[] supportLabels = {
+                PlotI18n.tr("plugin.powerline.design.crossarm_support.none"),
+                PlotI18n.tr("plugin.powerline.design.crossarm_support.v_brace"),
+                PlotI18n.tr("plugin.powerline.design.crossarm_support.k_brace"),
+                PlotI18n.tr("plugin.powerline.design.crossarm_support.diagonal"),
+                PlotI18n.tr("plugin.powerline.design.crossarm_support.truss")
+            };
+            DialogLayoutHelper.formRowLabel(PlotI18n.tr("plugin.powerline.design.crossarm_support"));
+            ImInt supportIndex = new ImInt(layer.getCrossarmSupport().ordinal());
+            if (ImGui.combo("##crossarm_support", supportIndex, supportLabels)) {
+                pushDraftSnapshot.run();
+                layer.setCrossarmSupport(CrossarmSupport.values()[supportIndex.get()]);
+            }
+
+            if (layer.getCrossarmSupport().isActive()) {
+                int[] supportDepth = {layer.getCrossarmSupportDepth()};
+                if (PoleDesignerFormRows.sliderInt(
+                        "plugin.powerline.design.crossarm_support_depth",
+                        "##crossarm_support_depth",
+                        supportDepth,
+                        1,
+                        8)) {
+                    layer.setCrossarmSupportDepth(supportDepth[0]);
+                }
+                if (ImGui.isItemActivated()) {
+                    pushDraftSnapshot.run();
+                }
+
+                DialogLayoutHelper.formRowLabel(PlotI18n.tr("plugin.powerline.design.crossarm_brace_material"));
+                UIUtils.renderMaterialMixPickerControl(
+                    "brace_pick",
+                    layer.getCrossarmBraceMaterial() != null
+                        ? layer.getCrossarmBraceMaterial()
+                        : layer.resolveCrossarmBraceMaterial(),
+                    layer.resolveCrossarmBraceMaterial(),
+                    layer::setCrossarmBraceMaterial,
+                    pushDraftSnapshot);
             }
         }
 

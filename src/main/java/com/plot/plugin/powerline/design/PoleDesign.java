@@ -277,6 +277,9 @@ public class PoleDesign {
         String shape;
         int height;
         int crossarmLength;
+        String crossarmSupport;
+        Integer crossarmSupportDepth;
+        MaterialMix crossarmBraceMaterial;
         MaterialMix material;
     }
 
@@ -297,6 +300,11 @@ public class PoleDesign {
                 layerData.shape = layer.getShape().name();
                 layerData.height = layer.getHeight();
                 layerData.crossarmLength = layer.getCrossarmLength();
+                if (layer.getCrossarmSupport().isActive()) {
+                    layerData.crossarmSupport = layer.getCrossarmSupport().name();
+                    layerData.crossarmSupportDepth = layer.getCrossarmSupportDepth();
+                    layerData.crossarmBraceMaterial = layer.getCrossarmBraceMaterial();
+                }
                 layerData.material = layer.getMaterial();
                 data.layers.add(layerData);
             }
@@ -354,6 +362,16 @@ public class PoleDesign {
                     layer.setShape(shape);
                     layer.setHeight(layerData.height);
                     layer.setCrossarmLength(layerData.crossarmLength);
+                    CrossarmSupport support = CrossarmSupport.parseOrNull(layerData.crossarmSupport);
+                    if (support != null) {
+                        layer.setCrossarmSupport(support);
+                    }
+                    if (layerData.crossarmSupportDepth != null) {
+                        layer.setCrossarmSupportDepth(layerData.crossarmSupportDepth);
+                    }
+                    if (layerData.crossarmBraceMaterial != null) {
+                        layer.setCrossarmBraceMaterial(layerData.crossarmBraceMaterial);
+                    }
                     if (layerData.material != null) {
                         layer.setMaterial(layerData.material);
                     }

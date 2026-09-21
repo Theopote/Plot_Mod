@@ -32,6 +32,9 @@ public class PoleLayer {
     private Shape shape = Shape.COLUMN;
     private int height = 1;
     private int crossarmLength = 3;
+    private CrossarmSupport crossarmSupport = CrossarmSupport.NONE;
+    private int crossarmSupportDepth = 3;
+    private MaterialMix crossarmBraceMaterial;
     private MaterialMix material = MaterialMix.single(PowerLineFootprint.DEFAULT_POLE_MATERIAL);
 
     public PoleLayer() {
@@ -83,6 +86,43 @@ public class PoleLayer {
         this.crossarmLength = Math.min(15, normalized);
     }
 
+    public CrossarmSupport getCrossarmSupport() {
+        return crossarmSupport != null ? crossarmSupport : CrossarmSupport.NONE;
+    }
+
+    public void setCrossarmSupport(CrossarmSupport crossarmSupport) {
+        this.crossarmSupport = crossarmSupport != null ? crossarmSupport : CrossarmSupport.NONE;
+    }
+
+    public int getCrossarmSupportDepth() {
+        return crossarmSupportDepth;
+    }
+
+    public void setCrossarmSupportDepth(int crossarmSupportDepth) {
+        this.crossarmSupportDepth = Math.max(1, Math.min(8, crossarmSupportDepth));
+    }
+
+    public MaterialMix getCrossarmBraceMaterial() {
+        return crossarmBraceMaterial;
+    }
+
+    public void setCrossarmBraceMaterial(MaterialMix crossarmBraceMaterial) {
+        this.crossarmBraceMaterial = crossarmBraceMaterial != null ? crossarmBraceMaterial.copy() : null;
+    }
+
+    /** 斜撑材质；未指定时回退到横担点缀或深色木栅栏。 */
+    public MaterialMix resolveCrossarmBraceMaterial() {
+        if (crossarmBraceMaterial != null
+                && crossarmBraceMaterial.getPrimaryMaterial() != null
+                && !crossarmBraceMaterial.getPrimaryMaterial().isBlank()) {
+            return crossarmBraceMaterial;
+        }
+        if (material != null && material.hasAccent()) {
+            return MaterialMix.single(material.getAccentMaterial());
+        }
+        return MaterialMix.single("minecraft:dark_oak_fence");
+    }
+
     public MaterialMix getMaterial() {
         return material;
     }
@@ -96,6 +136,9 @@ public class PoleLayer {
     public PoleLayer copy() {
         PoleLayer copy = new PoleLayer(shape, height, material);
         copy.crossarmLength = crossarmLength;
+        copy.crossarmSupport = crossarmSupport;
+        copy.crossarmSupportDepth = crossarmSupportDepth;
+        copy.crossarmBraceMaterial = crossarmBraceMaterial != null ? crossarmBraceMaterial.copy() : null;
         return copy;
     }
 }

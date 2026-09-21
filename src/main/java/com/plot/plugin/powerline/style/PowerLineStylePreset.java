@@ -44,6 +44,9 @@ public final class PowerLineStylePreset {
     public static final String HEAVY_DOUBLE_CIRCUIT_ID = "pack/heavy_double_circuit";
     public static final String INDUSTRIAL_PORTAL_ID = "pack/industrial_portal";
     public static final String MONSTER_PYLON_ID = "pack/monster_pylon";
+    public static final String MINECRAFT_BRACED_WOOD_ID = "pack/minecraft_braced_wood";
+    public static final String MINECRAFT_DOUBLE_DECK_BRACED_ID = "pack/minecraft_double_deck_braced";
+    public static final String MINECRAFT_UTILITY_EQUIPMENT_ID = "pack/minecraft_utility_equipment";
 
     private final String id;
     private final String labelKey;
@@ -274,6 +277,9 @@ public final class PowerLineStylePreset {
         MEGA_LATTICE,
         HEAVY_DOUBLE_CIRCUIT,
         INDUSTRIAL_PORTAL,
-        MONSTER_PYLON
+        MONSTER_PYLON,
+        MINECRAFT_BRACED_WOOD,
+        MINECRAFT_DOUBLE_DECK_BRACED,
+        MINECRAFT_UTILITY_EQUIPMENT
     }
 }

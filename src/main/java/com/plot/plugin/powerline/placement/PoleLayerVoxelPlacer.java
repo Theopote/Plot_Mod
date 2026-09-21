@@ -131,6 +131,11 @@ public final class PoleLayerVoxelPlacer {
             VoxelSink sink,
             String materialSeedKey,
             PlanToBlockMapper mapper) {
+        if (layer.getCrossarmSupport().isActive()) {
+            int topY = baseY + layer.getHeight() - 1;
+            BracedCrossarmVoxelPlacer.place(planPoint, topY, layer, normal, sink, materialSeedKey, mapper);
+            return;
+        }
         int left = (layer.getCrossarmLength() - 1) / 2;
         int right = layer.getCrossarmLength() / 2;
         for (int y = baseY; y < baseY + layer.getHeight(); y++) {

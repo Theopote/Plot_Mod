@@ -35,6 +35,8 @@ public final class PoleIdentityFeaturePlacer {
             placeWindRotor(planPoint, layerBaseY, design, lateral, forward, sink, mapper);
         } else if (PoleDesignCatalog.MODERN_UTILITY_POLE_ID.equals(id)) {
             placeTransformerBox(planPoint, layerBaseY, design, lateral, sink, mapper);
+        } else if (PoleDesignCatalog.MINECRAFT_UTILITY_EQUIPMENT_POLE_ID.equals(id)) {
+            placeMinecraftUtilityEquipment(planPoint, layerBaseY, design, lateral, forward, sink, mapper);
         } else if (PoleDesignCatalog.SUBURBAN_LAMP_POLE_ID.equals(id)) {
             placeSuburbanLampHead(planPoint, layerBaseY, design, lateral, sink, mapper);
         } else if (PoleDesignCatalog.FANTASY_COPPER_POLE_ID.equals(id)) {
@@ -62,6 +64,63 @@ public final class PoleIdentityFeaturePlacer {
         placeBlade(planPoint, hubY, lateral.multiply(-1), ROTOR_BLADE_LENGTH, blade, sink, mapper);
         placeBlade(planPoint, hubY, forward, ROTOR_BLADE_LENGTH, blade, sink, mapper);
         placeBlade(planPoint, hubY, forward.multiply(-1), ROTOR_BLADE_LENGTH, blade, sink, mapper);
+    }
+
+    /**
+     * Minecraft 风设备杆：侧挂变压器、开关箱、小平台与护栏。
+     * 刻意不对称，贴近玩家手工搭建的剪影。
+     */
+    private static void placeMinecraftUtilityEquipment(
+            Vec2d planPoint,
+            int layerBaseY,
+            PoleDesign design,
+            Vec2d lateral,
+            Vec2d forward,
+            VoxelSink sink,
+            PlanToBlockMapper mapper) {
+        int midY = layerBaseY + Math.max(5, design.totalHeight() / 2);
+        int transformerY = midY - 1;
+        int switchY = midY + 1;
+
+        for (int dy = 0; dy < 2; dy++) {
+            for (int dSide = 0; dSide < 2; dSide++) {
+                Vec2d point = planPoint.add(lateral.multiply(2 + dSide)).add(forward.multiply(1));
+                putBlock(point, transformerY + dy, "minecraft:iron_block", sink, mapper);
+            }
+        }
+        putBlock(
+            planPoint.add(lateral.multiply(-2)).add(forward.multiply(-1)),
+            switchY,
+            "minecraft:dispenser",
+            sink,
+            mapper);
+        putBlock(
+            planPoint.add(forward.multiply(2)),
+            midY,
+            "minecraft:oak_slab",
+            sink,
+            mapper);
+        putBlock(
+            planPoint.add(forward.multiply(3)),
+            midY,
+            "minecraft:oak_slab",
+            sink,
+            mapper);
+        putBlock(planPoint.add(lateral.multiply(3)), transformerY + 2, "minecraft:iron_bars", sink, mapper);
+        putBlock(planPoint.add(lateral.multiply(3)), transformerY + 1, "minecraft:iron_bars", sink, mapper);
+        int lowerArmY = layerTopY(layerBaseY, design, PoleLayer.Shape.CROSSARM);
+        putBlock(
+            planPoint.add(lateral.multiply(-3)),
+            lowerArmY,
+            DirectionalBlockSpecs.lightningRodAlong(lateral.multiply(-1)),
+            sink,
+            mapper);
+        putBlock(
+            planPoint.add(lateral.multiply(3)),
+            lowerArmY,
+            DirectionalBlockSpecs.lightningRodAlong(lateral),
+            sink,
+            mapper);
     }
 
     /** 侧挂变压器箱：2×2 iron_block，附在杆身中段。 */

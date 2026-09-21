@@ -19,14 +19,14 @@ class PowerLineStyleCardRendererTest {
 
     @Test
     void catalogContainsTwentyFiveStylePresets() {
-        assertEquals(25, PowerLineStylePresetCatalog.defaultPresets().size());
+        assertEquals(28, PowerLineStylePresetCatalog.defaultPresets().size());
         assertEquals(4, PowerLineStylePresetCatalog.galleryCategories().size());
-        assertEquals(10, PowerLineStylePresetCatalog.utilityPresets().size());
+        assertEquals(13, PowerLineStylePresetCatalog.utilityPresets().size());
         assertEquals(8, PowerLineStylePresetCatalog.transmissionPresets().size());
         assertEquals(4, PowerLineStylePresetCatalog.industrialPresets().size());
         assertEquals(3, PowerLineStylePresetCatalog.fantasyPresets().size());
         assertEquals(
-            10,
+            13,
             PowerLineStylePresetCatalog.presetsByCategory(StyleCategory.UTILITY).size());
         assertEquals(
             8,

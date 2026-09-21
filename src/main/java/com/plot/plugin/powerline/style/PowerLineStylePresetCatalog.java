@@ -45,6 +45,9 @@ public final class PowerLineStylePresetCatalog {
         presets.add(suburbanLamp());
         presets.add(abandoned());
         presets.add(rustic());
+        presets.add(minecraftBracedWood());
+        presets.add(minecraftDoubleDeckBraced());
+        presets.add(minecraftUtilityEquipment());
         return presets;
     }
 
@@ -571,6 +574,54 @@ public final class PowerLineStylePresetCatalog {
             PowerLineUiPresets.WireSag.LOOSE,
             PowerLineStylePreset.ConductorLayout.SINGLE,
             PoleSpacingProfile.streetWood());
+    }
+
+    public static PowerLineStylePreset minecraftBracedWood() {
+        return preset(
+            StyleCategory.UTILITY,
+            PowerLineStylePreset.MINECRAFT_BRACED_WOOD_ID,
+            "plugin.powerline.style.pack.minecraft_braced_wood",
+            PowerLineStylePreset.StylePreviewKind.MINECRAFT_BRACED_WOOD,
+            null,
+            PoleDesignCatalog.MINECRAFT_BRACED_WOOD_POLE_ID,
+            defaultWireMaterial(),
+            MaterialMix.single("minecraft:stripped_spruce_log"),
+            MaterialMix.single("minecraft:lightning_rod"),
+            PowerLineUiPresets.WireSag.NATURAL,
+            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL,
+            new PoleSpacingProfile(18, 32, 48));
+    }
+
+    public static PowerLineStylePreset minecraftDoubleDeckBraced() {
+        return preset(
+            StyleCategory.UTILITY,
+            PowerLineStylePreset.MINECRAFT_DOUBLE_DECK_BRACED_ID,
+            "plugin.powerline.style.pack.minecraft_double_deck_braced",
+            PowerLineStylePreset.StylePreviewKind.MINECRAFT_DOUBLE_DECK_BRACED,
+            null,
+            PoleDesignCatalog.MINECRAFT_DOUBLE_DECK_BRACED_POLE_ID,
+            defaultWireMaterial(),
+            MaterialMix.single("minecraft:stripped_spruce_log"),
+            MaterialMix.single("minecraft:chain"),
+            PowerLineUiPresets.WireSag.NATURAL,
+            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL,
+            new PoleSpacingProfile(20, 35, 50));
+    }
+
+    public static PowerLineStylePreset minecraftUtilityEquipment() {
+        return preset(
+            StyleCategory.UTILITY,
+            PowerLineStylePreset.MINECRAFT_UTILITY_EQUIPMENT_ID,
+            "plugin.powerline.style.pack.minecraft_utility_equipment",
+            PowerLineStylePreset.StylePreviewKind.MINECRAFT_UTILITY_EQUIPMENT,
+            null,
+            PoleDesignCatalog.MINECRAFT_UTILITY_EQUIPMENT_POLE_ID,
+            defaultWireMaterial(),
+            MaterialMix.single("minecraft:stripped_oak_log"),
+            MaterialMix.single("minecraft:lightning_rod"),
+            PowerLineUiPresets.WireSag.LIGHT,
+            PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL,
+            new PoleSpacingProfile(22, 38, 55));
     }
 
     private static PowerLineStylePreset preset(

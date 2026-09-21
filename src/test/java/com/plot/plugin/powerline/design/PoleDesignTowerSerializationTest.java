@@ -23,6 +23,21 @@ class PoleDesignTowerSerializationTest {
     }
 
     @Test
+    void crossarmSupportRoundTripsThroughJson() {
+        PoleDesign design = PoleDesignCatalog.minecraftBracedWoodPole().copy();
+        String json = design.toJson();
+        assertTrue(json.contains("crossarmSupport"));
+        PoleDesign restored = PoleDesign.fromJson(json);
+        PoleLayer crossarm = restored.getLayers().stream()
+            .filter(layer -> layer.getShape() == PoleLayer.Shape.CROSSARM)
+            .findFirst()
+            .orElseThrow();
+        assertEquals(CrossarmSupport.V_BRACE, crossarm.getCrossarmSupport());
+        assertEquals(3, crossarm.getCrossarmSupportDepth());
+        assertEquals("minecraft:spruce_fence", crossarm.getCrossarmBraceMaterial().getPrimaryMaterial());
+    }
+
+    @Test
     void generation2LayersAndAttachmentsStillLoads() {
         PoleDesign design = new PoleDesign("test");
         design.setLayers(PoleDesignCatalog.simpleWoodPole().getLayers());
