@@ -17,8 +17,9 @@ public final class PowerLineCanvasPreviewRenderer {
     private static final float ORIENTATION_LENGTH = 9f;
     private static final float HIT_RADIUS = 8f;
     private static final float SPAN_PATH_THICKNESS = 1.5f;
-    private static final float DASH_ON = 6f;
-    private static final float DASH_OFF = 4f;
+    private static final float DASH_ON = 8f;
+    private static final float DASH_OFF = 5f;
+    private static final int MAX_DASH_SEGMENTS_PER_SPAN = 24;
 
     private static final int SPAN_PATH_COLOR = ImColor.rgba(77, 166, 255, 150);
     private static final int AUTO_LAYOUT_FILL = ImColor.rgba(200, 200, 200, 210);
@@ -74,13 +75,8 @@ public final class PowerLineCanvasPreviewRenderer {
             }
         }
 
-        if (hovered != null) {
-            ImGui.beginTooltip();
-            ImGui.textUnformatted(TowerPreviewMarkerTooltip.format(hovered));
-            ImGui.endTooltip();
-            if (ImGui.isMouseClicked(0)) {
-                clickedId = hovered.poleSiteId();
-            }
+        if (hovered != null && ImGui.isMouseClicked(0)) {
+            clickedId = hovered.poleSiteId();
         }
 
         return new RenderResult(hovered, clickedId);
@@ -132,6 +128,11 @@ public final class PowerLineCanvasPreviewRenderer {
         }
         float ux = dx / length;
         float uy = dy / length;
+        int estimatedSegments = (int) Math.ceil(length / (DASH_ON + DASH_OFF));
+        if (estimatedSegments > MAX_DASH_SEGMENTS_PER_SPAN) {
+            drawList.addLine(x1, y1, x2, y2, SPAN_PATH_COLOR, SPAN_PATH_THICKNESS);
+            return;
+        }
         float cursor = 0f;
         while (cursor < length) {
             float end = Math.min(cursor + DASH_ON, length);

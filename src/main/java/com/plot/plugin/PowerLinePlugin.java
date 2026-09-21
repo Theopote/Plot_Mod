@@ -8,6 +8,8 @@ import com.plot.plugin.powerline.PowerLineGenerator;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.preview.overlay.PowerLineCanvasPreviewOverlay;
 import com.plot.plugin.powerline.preview.overlay.PowerLineCanvasPreviewRenderer;
+import com.plot.plugin.powerline.preview.overlay.TowerPreviewMarker;
+import com.plot.plugin.powerline.preview.overlay.TowerPreviewMarkerTooltip;
 import com.plot.plugin.powerline.ui.PowerLinePluginState;
 import com.plot.plugin.powerline.ui.PowerLineUiContext;
 import com.plot.plugin.powerline.ui.PowerLineUIManager;
@@ -19,6 +21,7 @@ import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.canvas.CanvasOverlayRegistry;
 import com.plot.ui.component.ExtensionPanelIcons;
 import imgui.ImDrawList;
+import imgui.ImGui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -120,6 +123,7 @@ public class PowerLinePlugin extends Plugin {
             return;
         }
         synchronized (projectLock) {
+            uiContext.state().setHoveredCanvasMarker(null);
             PowerLineFootprint line = uiContext.selection().primary(uiContext.project());
             PowerLineCanvasPreviewOverlay overlay = uiContext.state().getCanvasPreviewOverlay();
             if (line == null || overlay == null || !uiContext.hasValidPreview(line)) {
@@ -133,6 +137,7 @@ public class PowerLinePlugin extends Plugin {
                 camera,
                 overlay,
                 uiContext.state().getSelectedCanvasPoleSiteId());
+            uiContext.state().setHoveredCanvasMarker(result.hoveredMarker());
             if (result.clickedPoleSiteId() != null && !result.clickedPoleSiteId().isBlank()) {
                 uiContext.state().setSelectedCanvasPoleSiteId(result.clickedPoleSiteId());
             }
@@ -144,6 +149,20 @@ public class PowerLinePlugin extends Plugin {
         if (uiManager != null) {
             uiManager.render();
         }
+        renderCanvasPreviewTooltip();
+    }
+
+    private void renderCanvasPreviewTooltip() {
+        if (uiContext == null) {
+            return;
+        }
+        TowerPreviewMarker hovered = uiContext.state().getHoveredCanvasMarker();
+        if (hovered == null) {
+            return;
+        }
+        ImGui.beginTooltip();
+        ImGui.textUnformatted(TowerPreviewMarkerTooltip.format(hovered));
+        ImGui.endTooltip();
     }
 
     @Override

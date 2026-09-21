@@ -6,6 +6,7 @@ import com.plot.plugin.powerline.PowerLinePathSelectionAnalysis;
 import com.plot.plugin.powerline.PowerLineSelectionSet;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.preview.overlay.PowerLineCanvasPreviewOverlay;
+import com.plot.plugin.powerline.preview.overlay.TowerPreviewMarker;
 import com.plot.plugin.powerline.model.PowerLineProject;
 import com.plot.plugin.powerline.model.PoleDesignDraftHistory;
 import com.plot.plugin.powerline.model.PowerLineProjectHistory;
@@ -31,6 +32,7 @@ public final class PowerLinePluginState {
     private volatile PowerLineGenerationResult lastGenerationResult;
     private volatile PowerLineCanvasPreviewOverlay canvasPreviewOverlay;
     private String selectedCanvasPoleSiteId = "";
+    private transient TowerPreviewMarker hoveredCanvasMarker;
     private PowerLinePreviewKey previewKey;
     private int buildRegionWorldFingerprint;
     private boolean previewAutoRefreshEnabled;
@@ -166,6 +168,14 @@ public final class PowerLinePluginState {
 
     public void setSelectedCanvasPoleSiteId(String selectedCanvasPoleSiteId) {
         this.selectedCanvasPoleSiteId = selectedCanvasPoleSiteId != null ? selectedCanvasPoleSiteId : "";
+    }
+
+    public TowerPreviewMarker getHoveredCanvasMarker() {
+        return hoveredCanvasMarker;
+    }
+
+    public void setHoveredCanvasMarker(TowerPreviewMarker hoveredCanvasMarker) {
+        this.hoveredCanvasMarker = hoveredCanvasMarker;
     }
 
     public PowerLinePreviewKey getPreviewKey() {

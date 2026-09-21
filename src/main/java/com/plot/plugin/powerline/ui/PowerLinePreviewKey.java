@@ -52,12 +52,19 @@ public record PowerLinePreviewKey(
     }
 
     public boolean matches(PowerLineFootprint footprint, PowerLineDesignProject designProject) {
+        return matchesParameters(footprint, designProject) && projectionFingerprint == 0;
+    }
+
+    /**
+     * 线路参数与杆塔设计是否仍与预览计算时一致（不含世界投影尺度）。
+     * 画布预览有效性应使用此方法，避免因视角/玩家移动导致每帧重算。
+     */
+    public boolean matchesParameters(PowerLineFootprint footprint, PowerLineDesignProject designProject) {
         if (footprint == null || footprintId == null || !footprintId.equals(footprint.getId())) {
             return false;
         }
         return footprintFingerprint == footprint.geometryFingerprint()
-            && designProjectFingerprint == designProjectFingerprint(designProject)
-            && projectionFingerprint == 0;
+            && designProjectFingerprint == designProjectFingerprint(designProject);
     }
 
     private static int designProjectFingerprint(PowerLineDesignProject designProject) {

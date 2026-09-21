@@ -18,28 +18,25 @@ final class PowerLineBuildActions {
     void renderPreviewActions(PowerLineFootprint line) {
         ctx.syncPreviewValidity(line);
         boolean hasPreview = ctx.hasValidPreview(line);
-        boolean showClear = hasPreview && !ctx.isPreviewAutoRefreshEnabled();
         String previewLabel = hasPreview
             ? PlotI18n.tr("plugin.powerline.build.refresh_preview")
             : PlotI18n.tr("plugin.powerline.build.generate_preview");
 
         float spacing = ImGui.getStyle().getItemSpacingX();
-        float refreshWidth = ImGui.getContentRegionAvailX();
-        if (showClear) {
-            float clearWidth = ImGui.calcTextSize(PlotI18n.tr("plugin.powerline.clear_preview")).x
-                + ImGui.getStyle().getFramePaddingX() * 2f
-                + 8f;
-            refreshWidth = Math.max(120f, refreshWidth - clearWidth - spacing);
-        }
+        float half = (ImGui.getContentRegionAvailX() - spacing) * 0.5f;
 
-        if (ImGui.button(previewLabel + "##build_preview", refreshWidth, 0)) {
+        if (ImGui.button(previewLabel + "##build_preview", half, 0)) {
             ctx.calculatePreview(line, true);
         }
-        if (showClear) {
-            ImGui.sameLine(0f, spacing);
-            if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.clear_preview") + "##build_clear_preview")) {
-                ctx.clearPreview();
-            }
+        ImGui.sameLine(0f, spacing);
+        if (!hasPreview) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.clear_preview") + "##build_clear_preview", half, 0)) {
+            ctx.clearPreview();
+        }
+        if (!hasPreview) {
+            ImGui.endDisabled();
         }
 
         if (ctx.lastGenerationResult() != null && !hasPreview) {
@@ -48,7 +45,6 @@ final class PowerLineBuildActions {
     }
 
     void renderBuildAction(PowerLineFootprint line) {
-        ctx.syncPreviewValidity(line);
         com.plot.api.world.PlacementReadiness readiness =
             ctx.host().projection().checkWorldModificationReadiness();
         boolean hasPreview = ctx.hasValidPreview(line);

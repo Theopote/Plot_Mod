@@ -59,6 +59,19 @@ class PowerLinePreviewKeyTest {
     }
 
     @Test
+    void matchesParametersIgnoresProjectionChanges() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
+        PowerLineDesignProject designs = new PowerLineDesignProject();
+        ICoordinateService nearView = projectionService(100f, 1f);
+        ICoordinateService farView = projectionService(400f, 1f);
+
+        PowerLinePreviewKey key = PowerLinePreviewKey.capture(line, designs, nearView);
+        assertTrue(key.matchesParameters(line, designs));
+        assertFalse(key.matches(line, designs, farView));
+        assertTrue(key.matchesParameters(line, designs));
+    }
+
+    @Test
     void mismatchesWhenProjectionChanges() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
         PowerLineDesignProject designs = new PowerLineDesignProject();

@@ -483,7 +483,7 @@ public final class PowerLineActions {
         if (result.footprint == null || !line.getId().equals(result.footprint.getId())) {
             return false;
         }
-        return key.matches(line, state.getDesignProject(), host.coordinates());
+        return key.matchesParameters(line, state.getDesignProject());
     }
 
     public boolean hasValidPreview(PowerLineFootprint line) {
