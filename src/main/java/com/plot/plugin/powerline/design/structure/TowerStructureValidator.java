@@ -93,51 +93,6 @@ public final class TowerStructureValidator {
             }
         }
 
-        validateCenterParity(structure, issues);
-
         return issues;
-    }
-
-    private static void validateCenterParity(
-            TowerStructureDesign structure,
-            List<TowerValidationIssue> issues) {
-        if (!TowerFootprintParity.structureNeedsCenterColumn(structure)) {
-            return;
-        }
-        Set<String> reportedStations = new HashSet<>();
-        for (TowerDecoration decoration : structure.getDecorations()) {
-            if (!TowerFootprintParity.requiresUniqueCenterColumn(decoration)) {
-                continue;
-            }
-            TowerStation station = TowerFootprintParity.stationForDecorationHeight(
-                structure,
-                decoration.getBaseHeight());
-            if (station == null || !reportedStations.add(station.getId())) {
-                continue;
-            }
-            if (!TowerFootprintParity.isOddBlockHalfExtent(station.getHalfWidth())) {
-                issues.add(TowerValidationIssue.of(
-                    TowerValidationSeverity.WARNING,
-                    "plugin.powerline.tower_validation.center_parity_half_width",
-                    station.getId(),
-                    station.getHalfWidth(),
-                    TowerFootprintParity.blockHalfExtent(station.getHalfWidth())));
-            }
-            if (!TowerFootprintParity.isOddBlockHalfExtent(station.getHalfDepth())) {
-                issues.add(TowerValidationIssue.of(
-                    TowerValidationSeverity.WARNING,
-                    "plugin.powerline.tower_validation.center_parity_half_depth",
-                    station.getId(),
-                    station.getHalfDepth(),
-                    TowerFootprintParity.blockHalfExtent(station.getHalfDepth())));
-            }
-        }
-        int legThickness = structure.getLegProfile().getThickness();
-        if (legThickness > 1 && (legThickness & 1) == 0) {
-            issues.add(TowerValidationIssue.of(
-                TowerValidationSeverity.WARNING,
-                "plugin.powerline.tower_validation.center_parity_leg_thickness",
-                legThickness));
-        }
     }
 }

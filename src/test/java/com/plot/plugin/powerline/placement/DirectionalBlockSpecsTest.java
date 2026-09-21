@@ -112,6 +112,38 @@ class DirectionalBlockSpecsTest {
     }
 
     @Test
+    void wireChainPlacementUsesIronBarsAtTurnVoxels() {
+        List<BlockPos> path = List.of(
+            new BlockPos(0, 0, 0),
+            new BlockPos(1, 0, 0),
+            new BlockPos(1, 0, 1));
+        BlockSpec corner = DirectionalBlockSpecs.resolveWirePlacementAlongPath("minecraft:chain", path, 1);
+        assertEquals("minecraft:iron_bars", corner.blockId());
+        assertEquals("true", corner.property("west"));
+        assertEquals("true", corner.property("south"));
+    }
+
+    @Test
+    void wireChainPlacementKeepsChainAxisOnStraightRuns() {
+        List<BlockPos> path = VoxelLineRasterizer.rasterizeLine3D(0, 4, 0, 5, 4, 0);
+        for (int i = 0; i < path.size(); i++) {
+            BlockSpec spec = DirectionalBlockSpecs.resolveWirePlacementAlongPath("minecraft:chain", path, i);
+            assertEquals("minecraft:chain", spec.blockId());
+            assertEquals("x", spec.property("axis"));
+        }
+    }
+
+    @Test
+    void wireChainPlacementUsesIronBarsAtHorizontalVerticalBend() {
+        List<BlockPos> path = List.of(
+            new BlockPos(0, 4, 0),
+            new BlockPos(0, 5, 0),
+            new BlockPos(1, 5, 0));
+        BlockSpec bend = DirectionalBlockSpecs.resolveWirePlacementAlongPath("minecraft:chain", path, 1);
+        assertEquals("minecraft:iron_bars", bend.blockId());
+    }
+
+    @Test
     void chainAlongVoxelPathSkipsDuplicatePointsForAxis() {
         List<BlockPos> path = List.of(
             new BlockPos(0, 4, 0),

@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.placement;
 
 import com.plot.api.world.IBlockProjectionService;
+import com.plot.core.block.BlockAliasResolver;
 import com.plot.core.block.BlockSpec;
 import com.plot.core.block.BlockStateSanitizer;
 import com.plot.core.command.BlockRecord;
@@ -67,7 +68,7 @@ public final class PlacementWriter {
             ? existing.previousBlockId
             : (projection != null ? projection.getBlockIdAt(pos) : "minecraft:air");
         String resolvedBlockId = BlockStateSanitizer.sanitizeSetBlockArgument(
-            mergeIronBarsIfNeeded(existing, blockId));
+            BlockAliasResolver.resolveSetBlockArgument(mergeIronBarsIfNeeded(existing, blockId)));
         result.placementRecords.put(pos, new BlockRecord(pos, previous, resolvedBlockId));
         result.placementCategories.put(pos, category);
         if (structureScratch != null && contributesToStructureClearance(category)) {

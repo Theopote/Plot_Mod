@@ -1,5 +1,6 @@
 package com.plot.plugin.powerline.preview;
 
+import com.plot.core.block.BlockAliasResolver;
 import com.plot.core.block.BlockSpec;
 import com.plot.core.material.MaterialMix;
 
@@ -72,7 +73,7 @@ public final class BlockPreviewColors {
         if (blockId == null || blockId.isBlank()) {
             return blockId;
         }
-        return BlockSpec.parse(blockId).blockId();
+        return BlockAliasResolver.resolveBlockId(BlockSpec.parse(blockId).blockId());
     }
 
     public static int colorFor(String blockId) {

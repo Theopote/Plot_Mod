@@ -277,7 +277,6 @@ public final class TowerStructurePresets {
     // -------------------------------------------------------------------------
 
     private static TowerStructureDesign finalizePreset(TowerStructureDesign structure) {
-        TowerStructureParityEnforcer.enforce(structure);
         return structure;
     }
 

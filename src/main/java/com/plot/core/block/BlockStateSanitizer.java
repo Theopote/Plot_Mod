@@ -38,6 +38,7 @@ public final class BlockStateSanitizer {
         if (spec == null) {
             return BlockSpec.of("minecraft:air");
         }
+        spec = BlockAliasResolver.resolve(spec);
         BlockSpec stripped = stripKnownInvalidProperties(spec);
         try {
             return sanitizeWithRegistry(stripped);

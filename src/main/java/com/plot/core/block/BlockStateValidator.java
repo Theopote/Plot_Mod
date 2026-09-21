@@ -25,6 +25,7 @@ public final class BlockStateValidator {
         if (spec == null) {
             return List.of("null BlockSpec");
         }
+        spec = BlockAliasResolver.resolve(spec);
         try {
             return validateWithRegistry(spec);
         } catch (Throwable ignored) {

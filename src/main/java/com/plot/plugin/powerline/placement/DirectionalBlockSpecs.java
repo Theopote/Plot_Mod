@@ -195,6 +195,32 @@ public final class DirectionalBlockSpecs {
         return verticalChain(blockId);
     }
 
+    /**
+     * 导线用链子：直线段保持 axis 链；转角/折线节点改用 iron_bars 多向连接（chain 无法同时表达 x+z）。
+     */
+    public static BlockSpec wireChainPlacementAlongPath(String blockId, List<BlockPos> path, int index) {
+        if (isWireTurnVoxel(path, index)) {
+            return ironBarsAlongVoxelPath(path, index);
+        }
+        return chainAlongVoxelPath(blockId, path, index);
+    }
+
+    private static boolean isWireTurnVoxel(List<BlockPos> path, int index) {
+        BlockPos current = path.get(index);
+        BlockPos previous = nextDistinct(path, index, -1);
+        BlockPos next = nextDistinct(path, index, 1);
+        if (previous == null || next == null) {
+            return false;
+        }
+        int inX = previous.getX() - current.getX();
+        int inY = previous.getY() - current.getY();
+        int inZ = previous.getZ() - current.getZ();
+        int outX = next.getX() - current.getX();
+        int outY = next.getY() - current.getY();
+        int outZ = next.getZ() - current.getZ();
+        return inX != -outX || inY != -outY || inZ != -outZ;
+    }
+
     private static BlockPos nextDistinct(List<BlockPos> path, int index, int direction) {
         BlockPos current = path.get(index);
         for (int i = index + direction; i >= 0 && i < path.size(); i += direction) {
@@ -275,7 +301,7 @@ public final class DirectionalBlockSpecs {
      */
     public static BlockSpec resolveWirePlacementAlongPath(String blockId, List<BlockPos> path, int index) {
         if (usesAxisChainPlacement(blockId)) {
-            return chainAlongVoxelPath(blockId, path, index);
+            return wireChainPlacementAlongPath(blockId, path, index);
         }
         if (LIGHTNING_ROD.equals(blockId)) {
             return lightningRodAlongVoxelPath(path, index);

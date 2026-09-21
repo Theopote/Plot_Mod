@@ -23,4 +23,10 @@ class BlockStateValidatorTest {
     void acceptsPlainIronBars() {
         assertTrue(BlockStateValidator.isValid(BlockSpec.parse("minecraft:iron_bars")));
     }
+
+    @Test
+    void acceptsLegacyChainAlias() {
+        assertTrue(BlockStateValidator.isValid(
+            BlockSpec.parse("minecraft:chain[axis=x]")));
+    }
 }

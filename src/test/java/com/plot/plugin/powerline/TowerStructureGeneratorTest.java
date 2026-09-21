@@ -13,6 +13,7 @@ import com.plot.plugin.powerline.design.structure.TowerArmShape;
 import com.plot.plugin.powerline.design.structure.TowerArmSide;
 import com.plot.plugin.powerline.design.structure.TowerBay;
 import com.plot.plugin.powerline.design.structure.TowerStation;
+import com.plot.plugin.powerline.design.structure.TowerStationDensifier;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -38,6 +39,49 @@ class TowerStructureGeneratorTest {
 
         Set<BlockPos> ironBars = blocksWithMaterial(result, "minecraft:iron_bars");
         assertTrue(ironBars.size() >= 4, "expected leg blocks, got " + ironBars.size());
+    }
+
+    @Test
+    void generateDoesNotMutateInputStructure() {
+        TowerStructureDesign structure = new TowerStructureDesign();
+        structure.addStation(new TowerStation("s0", 0, 6.0, 4.0));
+        structure.addStation(new TowerStation("s1", 24, 4.0, 2.0));
+        structure.addDecoration(com.plot.plugin.powerline.design.structure.TowerDecorationCatalog.antennaAtTop(24));
+        structure.addBay(new TowerBay("s0", "s1"));
+        TowerStructureDesign expected = structure.copy();
+
+        generateStructure(structure);
+
+        assertEquals(expected.toJson(), structure.toJson());
+    }
+
+    @Test
+    void singleDiagonalDirectionAlternatesByPanelIndex() {
+        assertFalse(TowerStructureGenerator.singleDiagonalReversed(2));
+        assertTrue(TowerStructureGenerator.singleDiagonalReversed(1));
+        assertTrue(TowerStructureGenerator.singleDiagonalReversed(3));
+    }
+
+    @Test
+    void singleDiagonalAlternatesAcrossTwelveBlockDensifiedBay() {
+        TowerStructureDesign structure = new TowerStructureDesign();
+        structure.addStation(new TowerStation("s0", 0, 4, 2));
+        structure.addStation(new TowerStation("s1", 12, 4, 2));
+        TowerBay bay = new TowerBay("s0", "s1");
+        bay.setFrontBackBracing(BracingPattern.SINGLE_DIAGONAL);
+        bay.setSideBracing(BracingPattern.NONE);
+        bay.setHorizontalRing(false);
+        structure.addBay(bay);
+
+        List<TowerStation> panels = TowerStationDensifier.densifyForLegs(
+            List.of(structure.findStation("s0"), structure.findStation("s1")));
+        assertEquals(3, panels.size());
+        assertEquals(0.0, panels.get(0).getHeight(), 1e-6);
+        assertEquals(6.0, panels.get(1).getHeight(), 1e-6);
+        assertEquals(12.0, panels.get(2).getHeight(), 1e-6);
+        // height/4 启发式在此会得到两个偶数 panel → 同向 ////；panel index 1/2 必定交替。
+        assertTrue(TowerStructureGenerator.singleDiagonalReversed(1));
+        assertFalse(TowerStructureGenerator.singleDiagonalReversed(2));
     }
 
     @Test

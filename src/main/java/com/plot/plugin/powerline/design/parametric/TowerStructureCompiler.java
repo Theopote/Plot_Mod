@@ -9,7 +9,6 @@ import com.plot.plugin.powerline.design.structure.TowerDecorationKind;
 import com.plot.plugin.powerline.design.structure.TowerMemberProfile;
 import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
-import com.plot.plugin.powerline.design.structure.TowerStructureParityEnforcer;
 import com.plot.core.material.MaterialMix;
 
 import java.util.ArrayList;
@@ -99,7 +98,6 @@ public final class TowerStructureCompiler {
             peak.setMaterial(profile.braceMaterial());
             structure.addDecoration(peak);
         }
-        TowerStructureParityEnforcer.enforce(structure);
         return structure;
     }
 }

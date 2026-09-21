@@ -17,7 +17,6 @@ import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.design.structure.TowerStationDensifier;
 import com.plot.plugin.powerline.design.structure.TowerStructureGeometry;
-import com.plot.plugin.powerline.design.structure.TowerStructureParityEnforcer;
 import com.plot.plugin.powerline.design.structure.TowerStructureValidator;
 import com.plot.plugin.powerline.design.structure.TowerValidationIssue;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
@@ -28,7 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/** 参数化塔体结构生成（与导线拓扑独立）。 */
+/** 参数化塔体结构生成（与导线拓扑独立）。生成阶段只读输入，不修改调用方持有的 {@link TowerStructureDesign}。 */
 public final class TowerStructureGenerator {
     private TowerStructureGenerator() {
     }
@@ -57,7 +56,8 @@ public final class TowerStructureGenerator {
             return frame != null ? frame.groundY() : 0;
         }
 
-        TowerStructureParityEnforcer.enforce(structure);
+        // 生成阶段只读：规范化/缺省补全在 Compiler 完成，此处仅消费副本，避免预览或 Build 改写用户模型。
+        structure = structure.copy();
 
         for (TowerValidationIssue issue : TowerStructureValidator.validate(
                 wrapForValidation(structure))) {
@@ -77,6 +77,7 @@ public final class TowerStructureGenerator {
 
         List<TowerStation> legStations = TowerStationDensifier.densifyForLegs(macroStations);
 
+        int panelIndex = 0;
         for (int i = 1; i < macroStations.size(); i++) {
             TowerStation lower = macroStations.get(i - 1);
             TowerStation upper = macroStations.get(i);
@@ -88,10 +89,11 @@ public final class TowerStructureGenerator {
                 bay.setHorizontalRing(true);
             }
 
-            generatePanelizedBayBracing(
+            panelIndex = generatePanelizedBayBracing(
                 lower,
                 upper,
                 bay,
+                panelIndex,
                 structure,
                 transform,
                 footprint,
@@ -150,10 +152,11 @@ public final class TowerStructureGenerator {
         return design;
     }
 
-    private static void generatePanelizedBayBracing(
+    private static int generatePanelizedBayBracing(
             TowerStation lower,
             TowerStation upper,
             TowerBay bay,
+            int startPanelIndex,
             TowerStructureDesign structure,
             TowerStructureTransform transform,
             PowerLineFootprint footprint,
@@ -162,7 +165,9 @@ public final class TowerStructureGenerator {
             GenerationCounters counters,
             Set<BlockPos> structureScratch) {
         List<TowerStation> panels = TowerStationDensifier.densifyForLegs(List.of(lower, upper));
+        int panelIndex = startPanelIndex;
         for (int panel = 1; panel < panels.size(); panel++) {
+            panelIndex++;
             TowerStation panelLower = panels.get(panel - 1);
             TowerStation panelUpper = panels.get(panel);
             generateFaceBracing(
@@ -170,6 +175,7 @@ public final class TowerStructureGenerator {
                 panelUpper,
                 bay.getFrontBackBracing(),
                 TowerStructureGeometry.frontCorners(),
+                panelIndex,
                 structure,
                 transform,
                 footprint,
@@ -182,6 +188,7 @@ public final class TowerStructureGenerator {
                 panelUpper,
                 bay.getFrontBackBracing(),
                 TowerStructureGeometry.backCorners(),
+                panelIndex,
                 structure,
                 transform,
                 footprint,
@@ -194,6 +201,7 @@ public final class TowerStructureGenerator {
                 panelUpper,
                 bay.getSideBracing(),
                 TowerStructureGeometry.rightCorners(),
+                panelIndex,
                 structure,
                 transform,
                 footprint,
@@ -206,6 +214,7 @@ public final class TowerStructureGenerator {
                 panelUpper,
                 bay.getSideBracing(),
                 TowerStructureGeometry.leftCorners(),
+                panelIndex,
                 structure,
                 transform,
                 footprint,
@@ -214,6 +223,7 @@ public final class TowerStructureGenerator {
                 counters,
                 structureScratch);
         }
+        return panelIndex;
     }
 
     private static void generateLegs(
@@ -248,6 +258,7 @@ public final class TowerStructureGenerator {
             TowerStation upper,
             BracingPattern pattern,
             int[] corners,
+            int panelIndex,
             TowerStructureDesign structure,
             TowerStructureTransform transform,
             PowerLineFootprint footprint,
@@ -273,8 +284,8 @@ public final class TowerStructureGenerator {
             placeBrace(aLower, centerUpper, structure, transform, footprint, result, projection, counters, structureScratch);
             placeBrace(bLower, centerUpper, structure, transform, footprint, result, projection, counters, structureScratch);
         } else if (pattern == BracingPattern.SINGLE_DIAGONAL) {
-            // 相邻节间交替斜向，形成连续人字纹而不是同向平行线
-            boolean reverse = ((int) Math.round(lower.getHeight() / 4.0)) % 2 == 1;
+            // 按 densifier panel 序号交替斜向；全塔累计 index 保证跨 macro bay 连续 /\/\/\。
+            boolean reverse = singleDiagonalReversed(panelIndex);
             if (reverse) {
                 placeBrace(bLower, aUpper, structure, transform, footprint, result, projection, counters, structureScratch);
             } else {
@@ -913,5 +924,9 @@ public final class TowerStructureGenerator {
         BRACE,
         ARM,
         DECORATION
+    }
+
+    static boolean singleDiagonalReversed(int panelIndex) {
+        return (panelIndex & 1) == 1;
     }
 }

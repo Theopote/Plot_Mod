@@ -1,5 +1,8 @@
 package com.plot.core.material;
 
+import com.plot.core.block.BlockAliasResolver;
+import com.plot.core.block.BlockSpec;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -88,7 +91,7 @@ public final class BlockColorRegistry {
         if (blockId == null || blockId.isBlank()) {
             return 0xFF808080;
         }
-        Integer known = KNOWN.get(blockId);
+        Integer known = KNOWN.get(BlockAliasResolver.resolveBlockId(BlockSpec.parse(blockId).blockId()));
         if (known != null) {
             return known;
         }
