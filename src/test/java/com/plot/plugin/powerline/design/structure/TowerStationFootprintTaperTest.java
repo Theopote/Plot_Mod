@@ -30,6 +30,22 @@ class TowerStationFootprintTaperTest {
     }
 
     @Test
+    void cupTowerPreservesSideFlare() {
+        TowerStructureDesign structure = TowerStructurePresets.cupTower().copy();
+        List<TowerStation> before = structure.sortedStations();
+        double cupShoulderDepthBefore = before.get(4).getHalfDepth();
+        double waistDepthBefore = before.get(3).getHalfDepth();
+
+        TowerStationFootprintTaper.applySideDepthTaper(structure);
+
+        List<TowerStation> after = structure.sortedStations();
+        assertTrue(after.get(4).getHalfDepth() > after.get(3).getHalfDepth() * 2.0);
+        assertTrue(after.get(4).getHalfDepth() >= 4.0);
+        assertEquals(cupShoulderDepthBefore, after.get(4).getHalfDepth(), 1e-6);
+        assertTrue(after.get(4).getHalfDepth() > waistDepthBefore * 2.0);
+    }
+
+    @Test
     void portalBottomFlatDepthIsPreserved() {
         TowerStructureDesign structure = TowerStructurePresets.portalTower().copy();
         List<TowerStation> before = structure.sortedStations();
