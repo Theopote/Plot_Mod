@@ -47,7 +47,6 @@ public final class PowerLineQuickTunePolicy {
     private static final double LEGACY_POLE_HEIGHT_MEDIUM = 10.0;
     private static final double LEGACY_POLE_HEIGHT_SMALL = 8.0;
     private static final double LEGACY_POLE_HEIGHT_TALL = 14.0;
-    private static final double BAND_MATCH_TOLERANCE = 0.08;
 
     private PowerLineQuickTunePolicy() {
     }
@@ -107,7 +106,7 @@ public final class PowerLineQuickTunePolicy {
             return PoleHeightBand.MEDIUM;
         }
         int current = sumColumnHeight(design);
-        return closestHeightBand((double) current / baseline);
+        return nearestHeightBand(baseline, current);
     }
 
     public static CrossarmWidthBand detectCrossarmWidthBand(
@@ -129,7 +128,7 @@ public final class PowerLineQuickTunePolicy {
             return CrossarmWidthBand.NORMAL;
         }
         int current = maxCrossarmLength(design);
-        return closestCrossarmBand((double) current / baseline);
+        return nearestCrossarmBand(baseline, current);
     }
 
     public static void applyPoleHeightBand(
@@ -238,30 +237,72 @@ public final class PowerLineQuickTunePolicy {
         return PoleHeightBand.MEDIUM;
     }
 
-    private static PoleHeightBand closestHeightBand(double ratio) {
+    private static PoleHeightBand nearestHeightBand(int baselineHeight, int currentHeight) {
         PoleHeightBand closest = PoleHeightBand.MEDIUM;
-        double best = Math.abs(ratio - closest.scale());
+        int bestDiff = Integer.MAX_VALUE;
         for (PoleHeightBand band : PoleHeightBand.values()) {
-            double diff = Math.abs(ratio - band.scale());
-            if (diff < best) {
-                best = diff;
+            int target = Math.max(1, (int) Math.round(baselineHeight * band.scale()));
+            int diff = Math.abs(currentHeight - target);
+            if (diff < bestDiff) {
+                bestDiff = diff;
                 closest = band;
             }
         }
-        return best <= BAND_MATCH_TOLERANCE + 0.05 ? closest : null;
+        return closest;
     }
 
-    private static CrossarmWidthBand closestCrossarmBand(double ratio) {
-        CrossarmWidthBand closest = CrossarmWidthBand.NORMAL;
-        double best = Math.abs(ratio - closest.scale());
-        for (CrossarmWidthBand band : CrossarmWidthBand.values()) {
-            double diff = Math.abs(ratio - band.scale());
-            if (diff < best) {
-                best = diff;
+    private static PoleHeightBand nearestParametricHeightBand(
+            double baselineHeight,
+            double currentHeight,
+            TowerParameterProfile profile) {
+        if (baselineHeight <= 0.0 || profile == null) {
+            return PoleHeightBand.MEDIUM;
+        }
+        PoleHeightBand closest = PoleHeightBand.MEDIUM;
+        double bestDiff = Double.MAX_VALUE;
+        for (PoleHeightBand band : PoleHeightBand.values()) {
+            double target = profile.heightRange().clamp(baselineHeight * band.scale());
+            double diff = Math.abs(currentHeight - target);
+            if (diff < bestDiff) {
+                bestDiff = diff;
                 closest = band;
             }
         }
-        return best <= BAND_MATCH_TOLERANCE + 0.05 ? closest : null;
+        return closest;
+    }
+
+    private static CrossarmWidthBand nearestCrossarmBand(int baselineLength, int currentLength) {
+        CrossarmWidthBand closest = CrossarmWidthBand.NORMAL;
+        int bestDiff = Integer.MAX_VALUE;
+        for (CrossarmWidthBand band : CrossarmWidthBand.values()) {
+            int target = normalizeCrossarmLength((int) Math.round(baselineLength * band.scale()));
+            int diff = Math.abs(currentLength - target);
+            if (diff < bestDiff) {
+                bestDiff = diff;
+                closest = band;
+            }
+        }
+        return closest;
+    }
+
+    private static CrossarmWidthBand nearestParametricCrossarmBand(
+            double baselineArmSpan,
+            double currentArmSpan,
+            TowerParameterProfile profile) {
+        if (baselineArmSpan <= 0.0 || profile == null) {
+            return CrossarmWidthBand.NORMAL;
+        }
+        CrossarmWidthBand closest = CrossarmWidthBand.NORMAL;
+        double bestDiff = Double.MAX_VALUE;
+        for (CrossarmWidthBand band : CrossarmWidthBand.values()) {
+            double target = profile.armSpanRange().clamp(baselineArmSpan * band.scale());
+            double diff = Math.abs(currentArmSpan - target);
+            if (diff < bestDiff) {
+                bestDiff = diff;
+                closest = band;
+            }
+        }
+        return closest;
     }
 
     private static int baselineColumnHeight(PowerLineStylePreset base, PoleDesign current) {
@@ -373,7 +414,11 @@ public final class PowerLineQuickTunePolicy {
         if (baseline == null || baseline.height() <= 0.0) {
             return PoleHeightBand.MEDIUM;
         }
-        return closestHeightBand(config.parameters().height() / baseline.height());
+        TowerParameterProfile profile = resolveProfile(config);
+        if (profile == null) {
+            return PoleHeightBand.MEDIUM;
+        }
+        return nearestParametricHeightBand(baseline.height(), config.parameters().height(), profile);
     }
 
     private static CrossarmWidthBand detectParametricCrossarmBand(PowerLineFootprint line, PowerLineStylePreset base) {
@@ -382,7 +427,14 @@ public final class PowerLineQuickTunePolicy {
         if (baseline == null || baseline.armSpan() <= 0.0) {
             return CrossarmWidthBand.NORMAL;
         }
-        return closestCrossarmBand(config.parameters().armSpan() / baseline.armSpan());
+        TowerParameterProfile profile = resolveProfile(config);
+        if (profile == null) {
+            return CrossarmWidthBand.NORMAL;
+        }
+        return nearestParametricCrossarmBand(
+            baseline.armSpan(),
+            config.parameters().armSpan(),
+            profile);
     }
 
     private static TowerParameterSet baselineParametricParameters(

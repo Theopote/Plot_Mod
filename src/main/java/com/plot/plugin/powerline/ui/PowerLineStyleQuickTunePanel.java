@@ -20,6 +20,8 @@ import com.plot.plugin.powerline.style.UserPoleDesignTemplateCatalog;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.UIUtils;
+import com.plot.ui.theme.ThemeManager;
+import com.plot.ui.theme.UITheme;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -513,10 +515,7 @@ public final class PowerLineStyleQuickTunePanel {
                 ImGui.sameLine(0f, spacing);
             }
             boolean active = i == selected;
-            if (active) {
-                ImGui.pushStyleColor(ImGuiCol.Button, 0xFF37474F);
-                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0xFF455A64);
-            }
+            pushSegmentButtonStyle(active);
             ImGui.pushID(id + "_" + i);
             if (ImGui.button(options[i], buttonWidth, SEGMENT_HEIGHT)) {
                 if (!active) {
@@ -524,9 +523,23 @@ public final class PowerLineStyleQuickTunePanel {
                 }
             }
             ImGui.popID();
-            if (active) {
-                ImGui.popStyleColor(2);
-            }
+            popSegmentButtonStyle(active);
+        }
+    }
+
+    private void pushSegmentButtonStyle(boolean active) {
+        if (!active) {
+            return;
+        }
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonSelected);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonSelectedHovered);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonSelectedActive);
+    }
+
+    private void popSegmentButtonStyle(boolean active) {
+        if (active) {
+            ImGui.popStyleColor(3);
         }
     }
 
@@ -544,9 +557,7 @@ public final class PowerLineStyleQuickTunePanel {
             }
             PowerLineUiPresets.WireSag sag = PowerLineUiPresets.WireSag.values()[i];
             boolean active = i == selected;
-            if (active) {
-                ImGui.pushStyleColor(ImGuiCol.Button, 0xFF37474F);
-            }
+            pushSegmentButtonStyle(active);
             ImGui.pushID("quick_sag_" + sag.name());
             if (ImGui.button(labels[i], buttonWidth, SEGMENT_HEIGHT)) {
                 beginProjectBackedStyleEdit(line);
@@ -555,9 +566,7 @@ public final class PowerLineStyleQuickTunePanel {
                 completeStyleEdit(line);
             }
             ImGui.popID();
-            if (active) {
-                ImGui.popStyleColor();
-            }
+            popSegmentButtonStyle(active);
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip(labels[i]);
             }

@@ -2,7 +2,10 @@ package com.plot.plugin.powerline.style;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
+import com.plot.plugin.powerline.design.PoleDesignResolver;
+import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.style.LinePoleDesignOverrides;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -14,14 +17,31 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PowerLineQuickTunePolicyTest {
 
     @Test
-    void detectsAndAppliesCrossarmBand() {
+    void detectsWideCrossarmBandAfterParametricClamp() {
         PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
-        PowerLineStylePresetCatalog.japaneseStreet().apply(line);
+        PowerLineStylePreset preset = PowerLineStylePresetCatalog.classicLattice();
+        preset.apply(line);
+
+        PowerLineQuickTunePolicy.applyParametricCrossarmBand(
+            line,
+            preset,
+            PowerLineQuickTunePolicy.CrossarmWidthBand.WIDE);
+
+        assertEquals(
+            PowerLineQuickTunePolicy.CrossarmWidthBand.WIDE,
+            PowerLineQuickTunePolicy.detectCrossarmWidthBand(line, preset, null));
+    }
+
+    @Test
+    void detectsCrossarmBandAfterApplyingToPoleDesign() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(40, 0)));
+        PowerLineStylePreset preset = PowerLineStylePresetCatalog.japaneseStreet();
+        preset.apply(line);
         var design = PoleDesignCatalog.japaneseStreetPole().copy();
 
         PowerLineQuickTunePolicy.applyCrossarmWidthBand(
             design,
-            PowerLineStylePresetCatalog.japaneseStreet(),
+            preset,
             PowerLineQuickTunePolicy.CrossarmWidthBand.WIDE);
 
         assertTrue(PoleDesignCatalog.japaneseStreetPole().getLayers().stream()
@@ -33,6 +53,14 @@ class PowerLineQuickTunePolicyTest {
             .mapToInt(com.plot.plugin.powerline.design.PoleLayer::getCrossarmLength)
             .max()
             .orElse(0));
+
+        PowerLineDesignProject project = new PowerLineDesignProject();
+        LinePoleDesignOverrides.saveLineInstance(line, design, project);
+        PoleDesignResolver resolver = new PoleDesignResolver(project);
+
+        assertEquals(
+            PowerLineQuickTunePolicy.CrossarmWidthBand.WIDE,
+            PowerLineQuickTunePolicy.detectCrossarmWidthBand(line, preset, resolver));
     }
 
     @Test
