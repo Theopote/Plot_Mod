@@ -230,6 +230,14 @@ public final class PoleVoxelElevationRenderer {
             drawThinRod(drawList, x, y, size, color);
             return;
         }
+        if (isFence(baseId)) {
+            drawFenceBlock(drawList, x, y, size, color);
+            return;
+        }
+        if (isSlab(baseId)) {
+            drawMediumBlock(drawList, x, y, size, color);
+            return;
+        }
         if ("minecraft:iron_bars".equals(baseId)) {
             drawBarsBlock(drawList, x, y, size, color);
             return;
@@ -241,6 +249,14 @@ public final class PoleVoxelElevationRenderer {
         String baseId = BlockPreviewColors.baseBlockId(blockId);
         if (usesThinRodPreview(baseId)) {
             drawThinRod(drawList, x, y, size, color);
+            return;
+        }
+        if (isFence(baseId)) {
+            drawFenceBlock(drawList, x, y, size, color);
+            return;
+        }
+        if (isSlab(baseId)) {
+            drawMediumBlock(drawList, x, y, size, color);
             return;
         }
         if ("minecraft:iron_bars".equals(baseId)) {
@@ -261,6 +277,26 @@ public final class PoleVoxelElevationRenderer {
 
     private static boolean usesThinRodPreview(String baseId) {
         return "minecraft:chain".equals(baseId) || "minecraft:lightning_rod".equals(baseId);
+    }
+
+    private static boolean isFence(String baseId) {
+        return baseId != null && baseId.endsWith("_fence");
+    }
+
+    private static boolean isSlab(String baseId) {
+        return baseId != null && baseId.endsWith("_slab");
+    }
+
+    /** 栅栏斜撑：窄条绘制，避免小卡片里看起来像实心块。 */
+    private static void drawFenceBlock(ImDrawList drawList, float x, float y, float size, int color) {
+        float inset = size * 0.28f;
+        drawList.addRectFilled(x + inset, y, x + size - inset, y + size, color);
+    }
+
+    /** 台阶横担：略窄于满格，与主杆/斜撑分层。 */
+    private static void drawMediumBlock(ImDrawList drawList, float x, float y, float size, int color) {
+        float inset = size * 0.14f;
+        drawList.addRectFilled(x + inset, y + inset * 0.5f, x + size - inset, y + size - inset * 0.5f, color);
     }
 
     /** 链节 / 避雷针：仅占格中心 ~22% 宽度的细杆，避免预览过度“满格化”。 */

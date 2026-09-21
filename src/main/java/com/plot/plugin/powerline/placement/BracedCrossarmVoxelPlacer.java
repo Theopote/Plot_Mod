@@ -5,6 +5,7 @@ import com.plot.core.block.BlockSpec;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.powerline.VoxelLineRasterizer;
+import com.plot.plugin.powerline.design.CrossarmSupport;
 import com.plot.plugin.powerline.design.PoleLayer;
 import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerArmPlacement;
@@ -14,9 +15,12 @@ import net.minecraft.util.math.BlockPos;
 import java.util.List;
 
 /**
- * 将 Legacy 横担层的斜撑参数委托给 {@link TowerArmPlacement}，在体素预览与世界生成中共用。
+ * Legacy 横担斜撑放置：V/K/单斜撑为轻量支撑骨架（仅顶弦 + 斜线），桁架才使用完整上下弦。
  */
 public final class BracedCrossarmVoxelPlacer {
+    /** 斜撑锚点内缩比例，避免从最外缘起撑。 */
+    private static final double BRACE_ANCHOR_RATIO = 0.72;
+
     private BracedCrossarmVoxelPlacer() {
     }
 
@@ -40,69 +44,153 @@ public final class BracedCrossarmVoxelPlacer {
         Vec2d forward = perpendicular(normal);
         double reach = (layer.getCrossarmLength() - 1) / 2.0;
         int supportDepth = layer.getCrossarmSupportDepth();
-
-        TowerArm arm = new TowerArm("layer_crossarm", topY, reach);
-        arm.setShape(layer.getCrossarmSupport().armShape());
-        arm.setBracing(layer.getCrossarmSupport().bracingPattern());
-        arm.setVerticalDrop(supportDepth);
-        arm.setLongitudinalHalfWidth(0);
+        double topHeight = topY;
+        double bottomHeight = topY - supportDepth;
+        double anchorReach = reach * BRACE_ANCHOR_RATIO;
 
         MaterialMix chordMaterial = layer.getMaterial();
         MaterialMix braceMaterial = layer.resolveCrossarmBraceMaterial();
 
-        TowerArmPlacement.placeArm(
-            arm,
-            chordMaterial,
-            braceMaterial,
-            (lateralStart, lateralEnd, height, longHalf, material) -> placeChord(
-                planPoint,
-                normal,
-                forward,
-                height,
-                lateralStart,
-                lateralEnd,
-                longHalf,
-                material,
-                layer,
-                crossarmNormal,
-                sink,
-                materialSeedKey,
-                worldMapper),
-            (start, end, material) -> placeBrace(
-                planPoint,
-                normal,
-                forward,
-                start,
-                end,
-                material,
-                sink,
-                materialSeedKey,
-                worldMapper));
+        if (layer.getCrossarmSupport() == CrossarmSupport.TRUSS) {
+            placeTruss(
+                planPoint, normal, forward, topY, layer, crossarmNormal,
+                reach, supportDepth, chordMaterial, braceMaterial,
+                sink, materialSeedKey, worldMapper);
+            return;
+        }
+
+        placeTopChord(
+            planPoint, normal, forward, topHeight, -reach, reach,
+            chordMaterial, layer, crossarmNormal, sink, materialSeedKey, worldMapper);
+
+        switch (layer.getCrossarmSupport()) {
+            case V_BRACE -> placeVBrace(
+                planPoint, normal, forward, anchorReach, topHeight, bottomHeight,
+                braceMaterial, sink, materialSeedKey, worldMapper);
+            case K_BRACE -> placeKBrace(
+                planPoint, normal, forward, anchorReach, topHeight, bottomHeight,
+                braceMaterial, sink, materialSeedKey, worldMapper);
+            case DIAGONAL -> placeDiagonalBrace(
+                planPoint, normal, forward, reach, topHeight, bottomHeight,
+                braceMaterial, sink, materialSeedKey, worldMapper);
+            default -> { }
+        }
     }
 
-    private static void placeChord(
+    private static void placeTopChord(
             Vec2d planPoint,
             Vec2d normal,
             Vec2d forward,
-            double height,
+            double topHeight,
             double lateralStart,
             double lateralEnd,
-            double longHalf,
             MaterialMix material,
             PoleLayer layer,
             Vec2d crossarmNormal,
             VoxelSink sink,
             String materialSeedKey,
             PlanToWorldMapper worldMapper) {
-        int y = (int) Math.round(height);
+        int y = (int) Math.round(topHeight);
         placeChordRail(
-            planPoint, normal, forward, y, lateralStart, lateralEnd, -longHalf,
+            planPoint, normal, forward, y, lateralStart, lateralEnd, 0.0,
             material, layer, crossarmNormal, sink, materialSeedKey, worldMapper);
-        if (longHalf > 0) {
-            placeChordRail(
-                planPoint, normal, forward, y, lateralStart, lateralEnd, longHalf,
-                material, layer, crossarmNormal, sink, materialSeedKey, worldMapper);
-        }
+    }
+
+    /** 左右各一条斜线汇于下弦中点，不生成底弦。 */
+    private static void placeVBrace(
+            Vec2d planPoint,
+            Vec2d normal,
+            Vec2d forward,
+            double anchorReach,
+            double topHeight,
+            double bottomHeight,
+            MaterialMix braceMaterial,
+            VoxelSink sink,
+            String materialSeedKey,
+            PlanToWorldMapper worldMapper) {
+        placeSupportLine(
+            planPoint, normal, forward,
+            -anchorReach, topHeight, 0.0, bottomHeight,
+            braceMaterial, sink, materialSeedKey, worldMapper);
+        placeSupportLine(
+            planPoint, normal, forward,
+            anchorReach, topHeight, 0.0, bottomHeight,
+            braceMaterial, sink, materialSeedKey, worldMapper);
+    }
+
+    /** 轻量 K：底角汇于顶弦中点，无底弦。 */
+    private static void placeKBrace(
+            Vec2d planPoint,
+            Vec2d normal,
+            Vec2d forward,
+            double anchorReach,
+            double topHeight,
+            double bottomHeight,
+            MaterialMix braceMaterial,
+            VoxelSink sink,
+            String materialSeedKey,
+            PlanToWorldMapper worldMapper) {
+        placeSupportLine(
+            planPoint, normal, forward,
+            -anchorReach, bottomHeight, 0.0, topHeight,
+            braceMaterial, sink, materialSeedKey, worldMapper);
+        placeSupportLine(
+            planPoint, normal, forward,
+            anchorReach, bottomHeight, 0.0, topHeight,
+            braceMaterial, sink, materialSeedKey, worldMapper);
+    }
+
+    /** 单侧斜撑（故意不对称）。 */
+    private static void placeDiagonalBrace(
+            Vec2d planPoint,
+            Vec2d normal,
+            Vec2d forward,
+            double reach,
+            double topHeight,
+            double bottomHeight,
+            MaterialMix braceMaterial,
+            VoxelSink sink,
+            String materialSeedKey,
+            PlanToWorldMapper worldMapper) {
+        placeSupportLine(
+            planPoint, normal, forward,
+            -reach, bottomHeight, reach, topHeight,
+            braceMaterial, sink, materialSeedKey, worldMapper);
+    }
+
+    /** 完整桁架：上下弦 + X 撑（复用塔横担语义）。 */
+    private static void placeTruss(
+            Vec2d planPoint,
+            Vec2d normal,
+            Vec2d forward,
+            int topY,
+            PoleLayer layer,
+            Vec2d crossarmNormal,
+            double reach,
+            int supportDepth,
+            MaterialMix chordMaterial,
+            MaterialMix braceMaterial,
+            VoxelSink sink,
+            String materialSeedKey,
+            PlanToWorldMapper worldMapper) {
+        TowerArm arm = new TowerArm("layer_crossarm", topY, reach);
+        arm.setShape(layer.getCrossarmSupport().armShape());
+        arm.setBracing(layer.getCrossarmSupport().bracingPattern());
+        arm.setVerticalDrop(supportDepth);
+        arm.setLongitudinalHalfWidth(0);
+
+        TowerArmPlacement.placeArm(
+            arm,
+            chordMaterial,
+            braceMaterial,
+            (lateralStart, lateralEnd, height, longHalf, material) -> placeChordRail(
+                planPoint, normal, forward, (int) Math.round(height),
+                lateralStart, lateralEnd, longHalf,
+                material, layer, crossarmNormal, sink, materialSeedKey, worldMapper),
+            (start, end, material) -> placeSupportLine(
+                planPoint, normal, forward,
+                start.lateral(), start.vertical(), end.lateral(), end.vertical(),
+                material, sink, materialSeedKey, worldMapper));
     }
 
     private static void placeChordRail(
@@ -134,24 +222,22 @@ public final class BracedCrossarmVoxelPlacer {
         }
     }
 
-    private static void placeBrace(
+    private static void placeSupportLine(
             Vec2d planPoint,
             Vec2d normal,
             Vec2d forward,
-            TowerLocalPoint start,
-            TowerLocalPoint end,
+            double startLateral,
+            double startVertical,
+            double endLateral,
+            double endVertical,
             MaterialMix material,
             VoxelSink sink,
             String materialSeedKey,
             PlanToWorldMapper worldMapper) {
-        Vec2d startPoint = toPlanPoint(planPoint, normal, forward, start);
-        Vec2d endPoint = toPlanPoint(planPoint, normal, forward, end);
+        Vec2d startPoint = toPlanPoint(planPoint, normal, forward, startLateral, 0.0);
+        Vec2d endPoint = toPlanPoint(planPoint, normal, forward, endLateral, 0.0);
         for (BlockPos pos : rasterizeSymmetricWorldLine(
-                startPoint,
-                start.vertical(),
-                endPoint,
-                end.vertical(),
-                worldMapper)) {
+                startPoint, startVertical, endPoint, endVertical, worldMapper)) {
             String blockId = MaterialMixResolver.resolve(material, pos, materialSeedKey);
             sink.put(pos.getX(), pos.getY(), pos.getZ(), blockId);
         }
@@ -161,15 +247,13 @@ public final class BracedCrossarmVoxelPlacer {
             Vec2d planPoint,
             Vec2d normal,
             Vec2d forward,
-            TowerLocalPoint local) {
+            double lateral,
+            double longitudinal) {
         return planPoint
-            .add(normal.multiply(local.lateral()))
-            .add(forward.multiply(local.longitudinal()));
+            .add(normal.multiply(lateral))
+            .add(forward.multiply(longitudinal));
     }
 
-    /**
-     * 连续世界 XZ 对称光栅化 → 方块坐标；Y 已是方块高度。
-     */
     private static List<BlockPos> rasterizeSymmetricWorldLine(
             Vec2d startPlan,
             double startY,

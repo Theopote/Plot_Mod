@@ -34,7 +34,7 @@ class PoleDesignTowerSerializationTest {
             .orElseThrow();
         assertEquals(CrossarmSupport.V_BRACE, crossarm.getCrossarmSupport());
         assertEquals(3, crossarm.getCrossarmSupportDepth());
-        assertEquals("minecraft:spruce_planks", crossarm.getCrossarmBraceMaterial().getPrimaryMaterial());
+        assertEquals("minecraft:spruce_fence", crossarm.getCrossarmBraceMaterial().getPrimaryMaterial());
     }
 
     @Test

@@ -490,7 +490,8 @@ public final class PoleDesignCatalog {
             7,
             MaterialMix.single("minecraft:spruce_slab"),
             CrossarmSupport.V_BRACE,
-            MaterialMix.single("minecraft:spruce_planks")));
+            3,
+            MaterialMix.single("minecraft:spruce_fence")));
         design.setLayers(layers);
         wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
         return design;
@@ -508,7 +509,8 @@ public final class PoleDesignCatalog {
             5,
             MaterialMix.single("minecraft:spruce_slab"),
             CrossarmSupport.V_BRACE,
-            MaterialMix.single("minecraft:spruce_planks")));
+            2,
+            MaterialMix.single("minecraft:spruce_fence")));
         layers.add(new PoleLayer(
             PoleLayer.Shape.COLUMN,
             4,
@@ -516,8 +518,9 @@ public final class PoleDesignCatalog {
         layers.add(bracedCrossarm(
             7,
             MaterialMix.single("minecraft:spruce_planks"),
-            CrossarmSupport.K_BRACE,
-            MaterialMix.single("minecraft:dark_oak_planks")));
+            CrossarmSupport.V_BRACE,
+            3,
+            MaterialMix.single("minecraft:dark_oak_fence")));
         design.setLayers(layers);
         wireConductorLayout(design, PowerLineStylePreset.ConductorLayout.THREE_PHASE_HORIZONTAL);
         return design;
@@ -542,7 +545,8 @@ public final class PoleDesignCatalog {
             5,
             MaterialMix.single("minecraft:oak_slab"),
             CrossarmSupport.V_BRACE,
-            MaterialMix.single("minecraft:spruce_planks")));
+            2,
+            MaterialMix.single("minecraft:spruce_fence")));
         layers.add(new PoleLayer(
             PoleLayer.Shape.COLUMN,
             3,
@@ -551,7 +555,8 @@ public final class PoleDesignCatalog {
             7,
             MaterialMix.single("minecraft:spruce_slab"),
             CrossarmSupport.V_BRACE,
-            MaterialMix.single("minecraft:dark_oak_planks")));
+            3,
+            MaterialMix.single("minecraft:dark_oak_fence")));
         layers.add(new PoleLayer(
             PoleLayer.Shape.CAP,
             1,
@@ -565,6 +570,7 @@ public final class PoleDesignCatalog {
             int length,
             MaterialMix chordMaterial,
             CrossarmSupport support,
+            int supportDepth,
             MaterialMix braceMaterial) {
         PoleLayer crossarm = new PoleLayer(
             PoleLayer.Shape.CROSSARM,
@@ -572,7 +578,7 @@ public final class PoleDesignCatalog {
             chordMaterial);
         crossarm.setCrossarmLength(length);
         crossarm.setCrossarmSupport(support);
-        crossarm.setCrossarmSupportDepth(3);
+        crossarm.setCrossarmSupportDepth(supportDepth);
         crossarm.setCrossarmBraceMaterial(braceMaterial);
         return crossarm;
     }

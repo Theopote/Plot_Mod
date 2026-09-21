@@ -68,20 +68,20 @@ class PoleLayerVoxelPlacerTest {
         crossarm.setCrossarmLength(7);
         crossarm.setCrossarmSupport(CrossarmSupport.V_BRACE);
         crossarm.setCrossarmSupportDepth(3);
-        crossarm.setCrossarmBraceMaterial(MaterialMix.single("minecraft:spruce_planks"));
+        crossarm.setCrossarmBraceMaterial(MaterialMix.single("minecraft:spruce_fence"));
         design.addLayer(crossarm);
 
         PreviewVoxelSink sink = new PreviewVoxelSink();
         PoleLayerVoxelPlacer.placeDesignPreview(design, sink, "seed");
 
         long braceBlocks = sink.snapshot().stream()
-            .filter(voxel -> voxel.blockId().contains("spruce_planks"))
+            .filter(voxel -> voxel.blockId().contains("spruce_fence"))
             .count();
         long slabBlocks = sink.snapshot().stream()
             .filter(voxel -> voxel.blockId().contains("spruce_slab"))
             .count();
-        assertTrue(braceBlocks >= 2, "V brace should place plank members below the chord");
-        assertTrue(slabBlocks >= 7, "top and bottom chords should use slab material");
+        assertTrue(braceBlocks >= 2, "V brace should place fence brace members below the chord");
+        assertTrue(slabBlocks >= 5 && slabBlocks <= 9, "only top chord should use slab material, got " + slabBlocks);
     }
 
     @Test
@@ -89,10 +89,25 @@ class PoleLayerVoxelPlacerTest {
         PoleDesign design = PoleDesignCatalog.minecraftBracedWoodPole();
         PoleVoxelPreviewModel model = PoleVoxelizer.voxelize(design);
         assertFalse(model.voxels().isEmpty());
-        long plankCount = model.voxels().stream()
-            .filter(voxel -> voxel.blockId().contains("spruce_planks"))
+        long fenceCount = model.voxels().stream()
+            .filter(voxel -> voxel.blockId().contains("spruce_fence"))
             .count();
-        assertTrue(plankCount > 0, "braced wood preset should include plank brace blocks");
+        assertTrue(fenceCount > 0, "braced wood preset should include fence brace blocks");
+    }
+
+    @Test
+    void vBraceDoesNotPlaceFullBottomChord() {
+        PoleDesign design = PoleDesignCatalog.minecraftBracedWoodPole();
+        PreviewVoxelSink sink = new PreviewVoxelSink();
+        PoleLayerVoxelPlacer.placeDesignPreview(design, sink, "seed");
+
+        int topY = 9;
+        int bottomY = topY - 3;
+        long offCenterSlabAtBottom = sink.snapshot().stream()
+            .filter(voxel -> voxel.y() == bottomY && Math.abs(voxel.x()) > 0)
+            .filter(voxel -> voxel.blockId().contains("slab"))
+            .count();
+        assertEquals(0, offCenterSlabAtBottom, "V brace should not place a bottom chord under the crossarm");
     }
 
     @Test

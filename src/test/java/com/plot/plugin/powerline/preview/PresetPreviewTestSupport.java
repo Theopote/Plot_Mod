@@ -21,6 +21,50 @@ final class PresetPreviewTestSupport {
      * 仅检查杆塔分层（柱/横担/斜撑）材质在正立面 z=0 的镜像对称；
      * 不含 {@link com.plot.plugin.powerline.placement.PoleIdentityFeaturePlacer} 侧挂设备。
      */
+    /** 仅检查斜撑材质在 z=0 切片的左右镜像（设备杆等可整体不对称）。 */
+    static void assertBraceMirrorSymmetric(PoleVoxelPreviewModel model, PoleDesign design) {
+        if (model == null || model.isEmpty()) {
+            throw new AssertionError("empty voxel model cannot be checked for brace symmetry");
+        }
+        Set<String> braceBlocks = braceBlockIds(design);
+        if (braceBlocks.isEmpty()) {
+            throw new AssertionError("design has no brace materials to evaluate");
+        }
+        Set<String> occupied = new HashSet<>();
+        for (PreviewVoxel voxel : model.voxels()) {
+            if (voxel.z() != 0) {
+                continue;
+            }
+            String blockId = baseBlockId(voxel.blockId());
+            if (!braceBlocks.contains(blockId)) {
+                continue;
+            }
+            occupied.add(key(voxel.x(), voxel.y(), blockId));
+        }
+        if (occupied.isEmpty()) {
+            throw new AssertionError("no brace voxels on z=0 slice");
+        }
+        for (PreviewVoxel voxel : model.voxels()) {
+            if (voxel.z() != 0 || voxel.x() == 0) {
+                continue;
+            }
+            String blockId = baseBlockId(voxel.blockId());
+            if (!braceBlocks.contains(blockId)) {
+                continue;
+            }
+            String mirrorKey = key(-voxel.x(), voxel.y(), blockId);
+            if (!occupied.contains(mirrorKey)) {
+                throw new AssertionError(
+                    "missing brace mirror voxel at x="
+                        + (-voxel.x())
+                        + " y="
+                        + voxel.y()
+                        + " block="
+                        + blockId);
+            }
+        }
+    }
+
     static void assertStructuralFrontMirrorSymmetric(PoleVoxelPreviewModel model, PoleDesign design) {
         if (model == null || model.isEmpty()) {
             throw new AssertionError("empty voxel model cannot be checked for symmetry");
@@ -133,6 +177,19 @@ final class PresetPreviewTestSupport {
             }
         }
         return count;
+    }
+
+    private static Set<String> braceBlockIds(PoleDesign design) {
+        Set<String> ids = new LinkedHashSet<>();
+        if (design == null) {
+            return ids;
+        }
+        for (PoleLayer layer : design.getLayers()) {
+            if (layer.getShape() == PoleLayer.Shape.CROSSARM && layer.getCrossarmSupport().isActive()) {
+                addMaterialId(ids, layer.resolveCrossarmBraceMaterial());
+            }
+        }
+        return ids;
     }
 
     private static Set<String> structuralBlockIds(PoleDesign design) {
