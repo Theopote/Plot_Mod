@@ -24,6 +24,39 @@ public final class VoxelLineRasterizer {
             blockCell(x1, y1, z1));
     }
 
+    /**
+     * 塔体构件进格：先把端点按关于 0 奇对称取整，再走 6-连通折线。
+     * 导线仍用 {@link #rasterizeLine3D}（floor，表示「点落在哪一格」）。
+     */
+    public static List<BlockPos> rasterizeSymmetricLine3D(
+            double x0,
+            double y0,
+            double z0,
+            double x1,
+            double y1,
+            double z1) {
+        return rasterizeBlockLine3D(
+            symmetricBlockCell(x0, y0, z0),
+            symmetricBlockCell(x1, y1, z1));
+    }
+
+    /**
+     * Round half away from zero，使 {@code f(-x) = -f(x)}。
+     * {@code floor(+7.3)=7} 而 {@code floor(-7.3)=-8}，左右腿会差一格。
+     */
+    public static int symmetricBlock(double value) {
+        if (!Double.isFinite(value)) {
+            return 0;
+        }
+        return value >= 0.0
+            ? (int) Math.floor(value + 0.5)
+            : (int) Math.ceil(value - 0.5);
+    }
+
+    public static BlockPos symmetricBlockCell(double x, double y, double z) {
+        return new BlockPos(symmetricBlock(x), symmetricBlock(y), symmetricBlock(z));
+    }
+
     static List<BlockPos> rasterizeBlockLine3D(BlockPos from, BlockPos to) {
         if (from.equals(to)) {
             return List.of(from);

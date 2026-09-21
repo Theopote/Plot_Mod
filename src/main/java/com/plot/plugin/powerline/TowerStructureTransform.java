@@ -26,10 +26,7 @@ public final class TowerStructureTransform {
 
     public BlockPos toBlock(TowerLocalPoint point) {
         double[] world = toWorld(point);
-        return new BlockPos(
-            (int) Math.floor(world[0]),
-            (int) Math.floor(world[1]),
-            (int) Math.floor(world[2]));
+        return VoxelLineRasterizer.symmetricBlockCell(world[0], world[1], world[2]);
     }
 
     private double[] planToWorldXz(Vec2d planPoint) {

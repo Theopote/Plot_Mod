@@ -44,7 +44,7 @@ public final class MemberVoxelRaster {
             double endY,
             double endZ,
             int thickness) {
-        List<BlockPos> centerline = VoxelLineRasterizer.rasterizeLine3D(
+        List<BlockPos> centerline = VoxelLineRasterizer.rasterizeSymmetricLine3D(
             startX, startY, startZ, endX, endY, endZ);
         if (centerline.isEmpty()) {
             return empty();

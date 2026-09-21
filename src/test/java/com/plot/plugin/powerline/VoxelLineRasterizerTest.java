@@ -68,6 +68,27 @@ class VoxelLineRasterizerTest {
         assertEquals(List.of(pos), blocks);
     }
 
+    @Test
+    void symmetricBlockIsOddAroundOrigin() {
+        assertEquals(7, VoxelLineRasterizer.symmetricBlock(7.3));
+        assertEquals(-7, VoxelLineRasterizer.symmetricBlock(-7.3));
+        assertEquals(7, VoxelLineRasterizer.symmetricBlock(6.5));
+        assertEquals(-7, VoxelLineRasterizer.symmetricBlock(-6.5));
+        assertEquals(0, VoxelLineRasterizer.symmetricBlock(0.0));
+        assertEquals(0, VoxelLineRasterizer.symmetricBlock(0.4));
+        assertEquals(0, VoxelLineRasterizer.symmetricBlock(-0.4));
+        assertEquals(1, VoxelLineRasterizer.symmetricBlock(0.5));
+        assertEquals(-1, VoxelLineRasterizer.symmetricBlock(-0.5));
+    }
+
+    @Test
+    void symmetricLineEndpointsMirrorAboutOrigin() {
+        List<BlockPos> positive = VoxelLineRasterizer.rasterizeSymmetricLine3D(7.3, 0, 4.2, 1.8, 10, 1.2);
+        List<BlockPos> negative = VoxelLineRasterizer.rasterizeSymmetricLine3D(-7.3, 0, -4.2, -1.8, 10, -1.2);
+        assertEquals(positive.getFirst(), negateXz(negative.getFirst()));
+        assertEquals(positive.getLast(), negateXz(negative.getLast()));
+    }
+
     private static void assertSixConnected(List<BlockPos> blocks) {
         assertFalse(blocks.isEmpty());
         for (int i = 1; i < blocks.size(); i++) {
@@ -127,5 +148,9 @@ class VoxelLineRasterizerTest {
             }
         }
         return axes.size() >= 2;
+    }
+
+    private static BlockPos negateXz(BlockPos pos) {
+        return new BlockPos(-pos.getX(), pos.getY(), -pos.getZ());
     }
 }

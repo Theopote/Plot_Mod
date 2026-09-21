@@ -3,6 +3,7 @@ package com.plot.plugin.powerline;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureGeometry;
+import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -61,5 +62,16 @@ class TowerStructureTransformTest {
         assertEquals(left[1], right[1], 1e-6);
         double lateralDistance = Math.hypot(right[0] - left[0], right[2] - left[2]);
         assertEquals(6.0, lateralDistance, 1e-3);
+    }
+
+    @Test
+    void toBlockSnapsOppositeOffsetsToMirrorCells() {
+        PoleFrame frame = PoleFrame.fromPole(new Vec2d(0, 0), new Vec2d(1, 0), 64);
+        TowerStructureTransform transform = new TowerStructureTransform(frame, null);
+        BlockPos left = transform.toBlock(TowerLocalPoint.of(-7.3, 0, 0));
+        BlockPos right = transform.toBlock(TowerLocalPoint.of(7.3, 0, 0));
+        assertEquals(-right.getZ(), left.getZ());
+        assertEquals(right.getX(), left.getX());
+        assertEquals(right.getY(), left.getY());
     }
 }

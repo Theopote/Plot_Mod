@@ -109,7 +109,18 @@ public final class TowerStructureGenerator {
                 result,
                 projection,
                 counters,
-                true,
+                structureScratch);
+            generateFaceBracing(
+                lower,
+                upper,
+                bay.getFrontBackBracing(),
+                TowerStructureGeometry.backCorners(),
+                structure,
+                transform,
+                footprint,
+                result,
+                projection,
+                counters,
                 structureScratch);
             generateFaceBracing(
                 lower,
@@ -122,7 +133,18 @@ public final class TowerStructureGenerator {
                 result,
                 projection,
                 counters,
-                false,
+                structureScratch);
+            generateFaceBracing(
+                lower,
+                upper,
+                bay.getSideBracing(),
+                TowerStructureGeometry.leftCorners(),
+                structure,
+                transform,
+                footprint,
+                result,
+                projection,
+                counters,
                 structureScratch);
             if (bay.isHorizontalRing()) {
                 generateHorizontalRing(upper, structure, transform, footprint, result, projection, counters, structureScratch);
@@ -213,7 +235,6 @@ public final class TowerStructureGenerator {
             PowerLineGenerationResult result,
             IBlockProjectionService projection,
             GenerationCounters counters,
-            boolean frontBack,
             Set<BlockPos> structureScratch) {
         if (pattern == BracingPattern.NONE || corners.length < 2) {
             return;

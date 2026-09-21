@@ -296,6 +296,89 @@ class TowerStructureGeneratorTest {
     }
 
     @Test
+    void frontBackBracingCoversBothFrontAndBackFaces() {
+        TowerStructureDesign structure = twoStationTower();
+        structure.setPrimaryMaterial(MaterialMix.single("minecraft:iron_block"));
+        structure.setBraceMaterial(MaterialMix.single("minecraft:gold_block"));
+        structure.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.X);
+        structure.findOrCreateBay("s0", "s1").setSideBracing(BracingPattern.NONE);
+        structure.findOrCreateBay("s0", "s1").setHorizontalRing(false);
+
+        PowerLineGenerationResult result = generateStructure(structure);
+        boolean front = false;
+        boolean back = false;
+        for (BlockRecord record : result.placementRecords.values()) {
+            if (!"minecraft:gold_block".equals(record.baseBlockId())) {
+                continue;
+            }
+            if (record.pos.getX() <= -1) {
+                front = true;
+            }
+            if (record.pos.getX() >= 1) {
+                back = true;
+            }
+        }
+        assertTrue(front, "front face (negative forward) should have bracing");
+        assertTrue(back, "back face (positive forward) should have bracing");
+    }
+
+    @Test
+    void sideBracingCoversBothLeftAndRightFaces() {
+        TowerStructureDesign structure = twoStationTower();
+        structure.setPrimaryMaterial(MaterialMix.single("minecraft:iron_block"));
+        structure.setBraceMaterial(MaterialMix.single("minecraft:gold_block"));
+        structure.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.NONE);
+        structure.findOrCreateBay("s0", "s1").setSideBracing(BracingPattern.X);
+        structure.findOrCreateBay("s0", "s1").setHorizontalRing(false);
+
+        PowerLineGenerationResult result = generateStructure(structure);
+        boolean left = false;
+        boolean right = false;
+        for (BlockRecord record : result.placementRecords.values()) {
+            if (!"minecraft:gold_block".equals(record.baseBlockId())) {
+                continue;
+            }
+            if (record.pos.getZ() <= -1) {
+                left = true;
+            }
+            if (record.pos.getZ() >= 1) {
+                right = true;
+            }
+        }
+        assertTrue(left, "left face (negative lateral) should have bracing");
+        assertTrue(right, "right face (positive lateral) should have bracing");
+    }
+
+    @Test
+    void verticalLegsSnapToMirrorCellsAboutOrigin() {
+        TowerStructureDesign structure = new TowerStructureDesign();
+        structure.addStation(new TowerStation("s0", 0, 7.3, 4.2));
+        structure.addStation(new TowerStation("s1", 8, 7.3, 4.2));
+        structure.addBay(new TowerBay("s0", "s1"));
+        structure.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.NONE);
+        structure.findOrCreateBay("s0", "s1").setSideBracing(BracingPattern.NONE);
+        structure.findOrCreateBay("s0", "s1").setHorizontalRing(false);
+        structure.setPrimaryMaterial(MaterialMix.single("minecraft:iron_block"));
+
+        PowerLineGenerationResult result = generateStructure(structure);
+        Set<Integer> xs = new HashSet<>();
+        Set<Integer> zs = new HashSet<>();
+        for (BlockRecord record : result.placementRecords.values()) {
+            if (!"minecraft:iron_block".equals(record.baseBlockId())) {
+                continue;
+            }
+            xs.add(record.pos.getX());
+            zs.add(record.pos.getZ());
+        }
+        for (int x : xs) {
+            assertTrue(xs.contains(-x), "missing mirrored leg X at " + (-x) + " from " + x);
+        }
+        for (int z : zs) {
+            assertTrue(zs.contains(-z), "missing mirrored leg Z at " + (-z) + " from " + z);
+        }
+    }
+
+    @Test
     void xBracingProducesDiagonalEndpoints() {
         TowerStructureDesign structure = twoStationTower();
         structure.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.X);
