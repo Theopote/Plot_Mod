@@ -16,6 +16,7 @@ import com.plot.plugin.powerline.design.structure.TowerDecoration;
 import com.plot.plugin.powerline.design.structure.TowerStation;
 import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.design.structure.TowerStationDensifier;
+import com.plot.plugin.powerline.design.structure.TowerStationFootprintTaper;
 import com.plot.plugin.powerline.design.structure.TowerStructureGeometry;
 import com.plot.plugin.powerline.design.structure.TowerStructureValidator;
 import com.plot.plugin.powerline.design.structure.TowerValidationIssue;
@@ -58,6 +59,7 @@ public final class TowerStructureGenerator {
 
         // 生成阶段只读：规范化/缺省补全在 Compiler 完成，此处仅消费副本，避免预览或 Build 改写用户模型。
         structure = structure.copy();
+        TowerStationFootprintTaper.applySideDepthTaper(structure);
 
         for (TowerValidationIssue issue : TowerStructureValidator.validate(
                 wrapForValidation(structure))) {
