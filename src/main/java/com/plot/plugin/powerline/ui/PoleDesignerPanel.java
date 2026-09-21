@@ -170,32 +170,34 @@ public final class PoleDesignerPanel {
                     () -> applyDraftFromHistory(ctx.state().getDesignDraftHistory().undo(draft)),
                     () -> applyDraftFromHistory(ctx.state().getDesignDraftHistory().redo(draft)));
                 float footerHeight = footerReservedHeight();
-                float bodyHeight = Math.max(0f, ImGui.getContentRegionAvail().y - footerHeight);
-                layoutPanel.render(
-                    ctx.state(),
-                    bodyHeight,
-                    () -> PoleDesignPreviewRenderer.renderVerticalStack(
-                        draft,
-                        ImGui.getContentRegionAvail().x,
-                        ImGui.getContentRegionAvail().y,
-                        towerSession.previewShowsLastValidStructure(),
-                        towerUiState),
-                    () -> {
-                        TowerDesignerContext towerContext = new TowerDesignerContext(
+                float bodyHeight = ImGui.getContentRegionAvail().y - footerHeight;
+                if (bodyHeight >= 1f) {
+                    layoutPanel.render(
+                        ctx.state(),
+                        bodyHeight,
+                        () -> PoleDesignPreviewRenderer.renderVerticalStack(
                             draft,
-                            towerSession,
-                            towerUiState,
-                            this::pushDraftSnapshot,
-                            editScope);
-                        renderStructureSection(towerContext);
-                        if (!draft.hasTowerStructure()) {
+                            ImGui.getContentRegionAvail().x,
+                            ImGui.getContentRegionAvail().y,
+                            towerSession.previewShowsLastValidStructure(),
+                            towerUiState),
+                        () -> {
+                            TowerDesignerContext towerContext = new TowerDesignerContext(
+                                draft,
+                                towerSession,
+                                towerUiState,
+                                this::pushDraftSnapshot,
+                                editScope);
+                            renderStructureSection(towerContext);
+                            if (!draft.hasTowerStructure()) {
+                                ImGui.separator();
+                                layerPanel.render(draft, this::pushDraftSnapshot);
+                            }
                             ImGui.separator();
-                            layerPanel.render(draft, this::pushDraftSnapshot);
-                        }
-                        ImGui.separator();
-                        attachmentPanel.render(draft, towerUiState, this::pushDraftSnapshot);
-                        towerStatusPanel.render(towerContext);
-                    });
+                            attachmentPanel.render(draft, towerUiState, this::pushDraftSnapshot);
+                            towerStatusPanel.render(towerContext);
+                        });
+                }
                 renderFooter();
             } finally {
                 ImGui.end();

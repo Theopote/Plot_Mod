@@ -31,6 +31,10 @@ final class PoleDesignerLayoutPanel {
             Runnable renderPreview,
             Runnable renderParams) {
         float totalWidth = ImGui.getContentRegionAvail().x;
+        if (totalWidth < 1f || bodyHeight < 1f) {
+            return;
+        }
+
         float previewColumnWidth = state.getPoleDesignerPreviewColumnWidth();
         float maxPreviewWidth = Math.max(
             MIN_PREVIEW_COLUMN_WIDTH,
@@ -38,25 +42,27 @@ final class PoleDesignerLayoutPanel {
         previewColumnWidth = Math.min(maxPreviewWidth, Math.max(MIN_PREVIEW_COLUMN_WIDTH, previewColumnWidth));
         state.setPoleDesignerPreviewColumnWidth(previewColumnWidth);
 
-        if (ImGui.beginChild("##designer_preview_column", previewColumnWidth, bodyHeight, false, PREVIEW_COLUMN_FLAGS)) {
+        float safeHeight = Math.max(1f, bodyHeight);
+        if (ImGui.beginChild("##designer_preview_column", previewColumnWidth, safeHeight, false, PREVIEW_COLUMN_FLAGS)) {
             renderPreview.run();
         }
         ImGui.endChild();
 
         ImGui.sameLine(0, 0);
-        renderColumnSplitter(state, bodyHeight, totalWidth);
+        renderColumnSplitter(state, safeHeight, totalWidth);
 
         ImGui.sameLine(0, 0);
-        float paramsWidth = Math.max(0f, totalWidth - previewColumnWidth - SPLITTER_WIDTH);
-        if (ImGui.beginChild("##designer_params_column", paramsWidth, bodyHeight, false)) {
+        float paramsWidth = Math.max(1f, totalWidth - previewColumnWidth - SPLITTER_WIDTH);
+        if (ImGui.beginChild("##designer_params_column", paramsWidth, safeHeight, false)) {
             renderParams.run();
         }
         ImGui.endChild();
     }
 
     private void renderColumnSplitter(PowerLinePluginState state, float height, float totalWidth) {
+        float safeHeight = Math.max(1f, height);
         ImGui.pushID("designer_column_splitter");
-        ImGui.invisibleButton("##grab", SPLITTER_WIDTH, height);
+        ImGui.invisibleButton("##grab", SPLITTER_WIDTH, safeHeight);
         if (ImGui.isItemActive()) {
             float previewColumnWidth = state.getPoleDesignerPreviewColumnWidth();
             previewColumnWidth += ImGui.getIO().getMouseDeltaX();
