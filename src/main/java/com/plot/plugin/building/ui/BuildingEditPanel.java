@@ -79,10 +79,10 @@ public final class BuildingEditPanel {
                 ImGuiTreeNodeFlags.DefaultOpen)) {
             renderMassingSection(building);
         }
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.section.roof"), ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.section.roof"))) {
             renderRoofSection(building);
         }
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.section.materials"), ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.section.materials"))) {
             renderMaterialsSection(building);
         }
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.section.floor_plate"))) {

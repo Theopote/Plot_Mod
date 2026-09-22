@@ -31,6 +31,7 @@ public final class BuildingPluginState {
     private volatile BuildingGenerationResult lastGenerationResult;
     private volatile DistrictGenerationResult lastDistrictResult;
     private volatile DistrictBuildReport lastDistrictBuildReport;
+    private BuildingPreviewIdentity previewIdentity;
 
     private String buildingNameEditingId = "";
     private String buildingNameBeforeRename = "";
@@ -123,6 +124,14 @@ public final class BuildingPluginState {
 
     public void setLastDistrictResult(DistrictGenerationResult lastDistrictResult) {
         this.lastDistrictResult = lastDistrictResult;
+    }
+
+    public BuildingPreviewIdentity getPreviewIdentity() {
+        return previewIdentity;
+    }
+
+    public void setPreviewIdentity(BuildingPreviewIdentity previewIdentity) {
+        this.previewIdentity = previewIdentity;
     }
 
     public DistrictBuildReport getLastDistrictBuildReport() {

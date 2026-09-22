@@ -78,6 +78,10 @@ public final class BuildingDistrictMassingWidgets {
                 useAll)) {
             ctx.setBatchScopeAll(true);
         }
+        int targetCount = ctx.resolveBatchTargets().size();
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+            useAll ? "plugin.building.batch_target_all" : "plugin.building.batch_target_selected",
+            targetCount));
     }
 
     static void renderHeightDistribution(BuildingUiContext ctx, DistrictMassingTarget target) {
@@ -204,9 +208,9 @@ public final class BuildingDistrictMassingWidgets {
     private static void renderBatchApply(BuildingUiContext ctx, BuildingFootprint primary) {
         List<BuildingFootprint> targets = ctx.resolveBatchTargets();
         int count = targets.size();
-        ImGui.text(PlotI18n.tr("plugin.building.section.batch_properties"));
+        ImGui.text(PlotI18n.tr("plugin.building.section.copy_from_reference"));
         ImGui.textColored(PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.building.batch_edit_hint", count, primary.getName()));
+            PlotI18n.tr("plugin.building.batch_copy_hint", primary.getName(), count));
 
         ImBoolean floors = new ImBoolean(ctx.batchFieldMask().floors);
         ImBoolean floorHeight = new ImBoolean(ctx.batchFieldMask().floorHeight);

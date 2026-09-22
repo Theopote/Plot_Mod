@@ -65,6 +65,7 @@ public final class BuildingGeneratePanel {
 
     private void renderPreviewSection(List<BuildingFootprint> targets) {
         ImGui.text(PlotI18n.tr("plugin.building.generate.preview_section"));
+        BuildingPreviewIdentity.Validity validity = ctx.previewValidity(targets);
         boolean previewBusy = ctx.isDistrictPreviewBusy();
         if (previewBusy) {
             ImGui.beginDisabled();
@@ -80,18 +81,24 @@ public final class BuildingGeneratePanel {
             ImGui.endDisabled();
         }
 
-        boolean hasPreview = hasActivePreview();
-        if (!hasPreview && !previewBusy) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.generate.preview_idle"));
-            return;
-        }
         if (previewBusy) {
             ImGui.textColored(PluginUiColors.STATUS_INFO, PlotI18n.tr("plugin.building.generate.preview_running"));
-        } else {
-            ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.building.generate.preview_ready"));
+            return;
         }
 
-        if (!hasPreview) {
+        switch (validity) {
+            case NONE -> ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.building.generate.preview_idle"));
+            case STALE -> ImGui.textColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr("plugin.building.generate.preview_stale"));
+            case VALID -> ImGui.textColored(
+                PluginUiColors.STATUS_OK,
+                PlotI18n.tr("plugin.building.generate.preview_ready"));
+        }
+
+        if (!ctx.hasPreviewResult()) {
             return;
         }
         if (ImGui.button(PlotI18n.tr("plugin.building.clear_preview"), 0, 0)) {
@@ -101,9 +108,12 @@ public final class BuildingGeneratePanel {
 
     private void renderResultSection(List<BuildingFootprint> targets) {
         ImGui.text(PlotI18n.tr("plugin.building.generate.result_section"));
-        if (!hasActivePreview()) {
+        if (!ctx.hasPreviewResult()) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.generate.result_idle"));
             return;
+        }
+        if (ctx.previewValidity(targets) == BuildingPreviewIdentity.Validity.STALE) {
+            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.building.generate.result_stale"));
         }
 
         if (isDistrictPreview()) {
@@ -132,17 +142,20 @@ public final class BuildingGeneratePanel {
 
     private void renderBuildSection(List<BuildingFootprint> targets) {
         ImGui.text(PlotI18n.tr("plugin.building.generate.minecraft_section"));
+        BuildingPreviewIdentity.Validity validity = ctx.previewValidity(targets);
         com.plot.api.world.PlacementReadiness readiness =
             ctx.host().projection().checkWorldModificationReadiness();
         if (!readiness.ready()) {
             ImGui.textColored(PluginUiColors.ERROR_SOFT, readiness.message());
-        } else if (hasActivePreview()) {
+        } else if (validity == BuildingPreviewIdentity.Validity.VALID) {
             ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.building.generate.build_ready"));
+        } else if (validity == BuildingPreviewIdentity.Validity.STALE) {
+            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.building.generate.build_stale"));
         } else {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.generate.build_needs_preview"));
         }
 
-        boolean buildDisabled = !hasActivePreview()
+        boolean buildDisabled = validity != BuildingPreviewIdentity.Validity.VALID
             || !readiness.ready()
             || ctx.host().placement().isBusy()
             || ctx.isDistrictPreviewBusy();
@@ -150,28 +163,14 @@ public final class BuildingGeneratePanel {
             ImGui.beginDisabled();
         }
         if (ImGui.button(
-                PlotI18n.tr("plugin.building.generate.build_count", targets.size()),
+                PlotI18n.tr("plugin.building.generate.build_this_preview", targets.size()),
                 ImGui.getContentRegionAvailX(),
                 0)) {
-            if (targets.size() > 1) {
-                ctx.calculateDistrictPreview(targets, true, true);
-            } else {
-                if (ctx.calculatePreview(targets.getFirst())) {
-                    ctx.setBuildConfirmPending(true);
-                }
-            }
+            ctx.requestBuildFromCurrentPreview(targets);
         }
         if (buildDisabled) {
             ImGui.endDisabled();
         }
-    }
-
-    private boolean hasActivePreview() {
-        if (ctx.lastDistrictResult() != null && ctx.lastDistrictResult().buildingsAttempted() > 0) {
-            return ctx.lastDistrictResult().hasPlacements();
-        }
-        return ctx.lastGenerationResult() != null
-            && !ctx.lastGenerationResult().placementRecords.isEmpty();
     }
 
     private boolean isDistrictPreview() {
@@ -207,13 +206,15 @@ public final class BuildingGeneratePanel {
             "plugin.building.generate.result_buildings",
             district.buildingsGenerated(),
             district.buildingsAttempted()));
-        ImGui.text(PlotI18n.tr("plugin.building.block_count_result", district.totalBlocks()));
+        ImGui.text(PlotI18n.tr("plugin.building.estimated_build_blocks", district.totalBlocks()));
         ImGui.text(PlotI18n.tr("plugin.building.cut_volume_result", district.totalCutVolume()));
         ImGui.text(PlotI18n.tr("plugin.building.fill_volume_result", district.totalFillVolume()));
     }
 
     private void renderSingleResultSummary() {
-        ImGui.text(PlotI18n.tr("plugin.building.block_count_result", ctx.lastGenerationResult().blockCount));
+        ImGui.text(PlotI18n.tr(
+            "plugin.building.estimated_build_blocks",
+            ctx.lastGenerationResult().blockCount));
         ImGui.text(PlotI18n.tr("plugin.building.cut_volume_result", ctx.lastGenerationResult().cutVolume));
         ImGui.text(PlotI18n.tr("plugin.building.fill_volume_result", ctx.lastGenerationResult().fillVolume));
     }

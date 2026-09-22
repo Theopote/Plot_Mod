@@ -129,11 +129,12 @@ public final class BuildingActions {
             LOGGER.error("片区预览生成失败: {}", e.getMessage(), e);
             state.setLastDistrictResult(null);
             state.setLastGenerationResult(null);
+            state.setPreviewIdentity(null);
             state.setProjectStatus(PlotI18n.tr("plugin.building.generate_empty_result"));
             return false;
         }
 
-        return applyDistrictPreviewResult(district, autoProjectGhosts, buildConfirmOnComplete);
+        return applyDistrictPreviewResult(buildings, district, autoProjectGhosts, buildConfirmOnComplete);
     }
 
     private void startDistrictPreviewJob(
@@ -192,7 +193,36 @@ public final class BuildingActions {
         state.setDistrictPreviewBuildConfirmPending(false);
         state.setLastDistrictResult(null);
         state.setLastGenerationResult(null);
+        state.setPreviewIdentity(null);
         state.setProjectStatus(PlotI18n.tr("plugin.building.generate_world_unavailable"));
+    }
+
+    public BuildingPreviewIdentity.Validity previewValidity(List<BuildingFootprint> targets) {
+        BuildingPreviewIdentity identity = state.getPreviewIdentity();
+        boolean hasResult = hasPreviewResult();
+        if (identity == null) {
+            return hasResult
+                ? BuildingPreviewIdentity.Validity.STALE
+                : BuildingPreviewIdentity.Validity.NONE;
+        }
+        return identity.validityAgainst(targets, hasResult);
+    }
+
+    public boolean hasPreviewResult() {
+        DistrictGenerationResult district = state.getLastDistrictResult();
+        if (district != null && district.buildingsAttempted() > 0) {
+            return district.hasPlacements();
+        }
+        BuildingGenerationResult generation = state.getLastGenerationResult();
+        return generation != null && !generation.placementRecords.isEmpty();
+    }
+
+    public void requestBuildFromCurrentPreview(List<BuildingFootprint> targets) {
+        if (previewValidity(targets) != BuildingPreviewIdentity.Validity.VALID) {
+            state.setProjectStatus(PlotI18n.tr("plugin.building.generate.preview_stale"));
+            return;
+        }
+        state.setBuildConfirmPending(true);
     }
 
     void completeDistrictPreviewJob(
@@ -205,22 +235,30 @@ public final class BuildingActions {
         }
         state.setDistrictPreviewJob(null);
         state.setDistrictPreviewBuildConfirmPending(false);
-        boolean ready = applyDistrictPreviewResult(district, autoProjectGhosts, buildConfirmOnComplete);
+        boolean ready = applyDistrictPreviewResult(
+            job.buildings(),
+            district,
+            autoProjectGhosts,
+            buildConfirmOnComplete);
         if (buildConfirmOnComplete && ready) {
             state.setBuildConfirmPending(true);
         }
     }
 
     private boolean applyDistrictPreviewResult(
+            List<BuildingFootprint> previewTargets,
             DistrictGenerationResult district,
             boolean autoProjectGhosts,
             boolean buildConfirmOnComplete) {
         state.setLastDistrictResult(district);
         state.setLastGenerationResult(district.toMergedResult());
         if (!district.hasPlacements()) {
+            state.setPreviewIdentity(null);
             state.setProjectStatus(PlotI18n.tr("plugin.building.generate_empty_result"));
             return false;
         }
+
+        state.setPreviewIdentity(BuildingPreviewIdentity.capture(previewTargets));
 
         if (autoProjectGhosts) {
             projectPreview();
@@ -277,6 +315,7 @@ public final class BuildingActions {
         }
         state.setLastGenerationResult(null);
         state.setLastDistrictResult(null);
+        state.setPreviewIdentity(null);
     }
 
     public void invalidatePreview() {

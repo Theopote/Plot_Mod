@@ -376,6 +376,18 @@ public final class BuildingUiContext {
         actions.invalidatePreview();
     }
 
+    public BuildingPreviewIdentity.Validity previewValidity(List<BuildingFootprint> targets) {
+        return actions.previewValidity(targets);
+    }
+
+    public boolean hasPreviewResult() {
+        return actions.hasPreviewResult();
+    }
+
+    public void requestBuildFromCurrentPreview(List<BuildingFootprint> targets) {
+        actions.requestBuildFromCurrentPreview(targets);
+    }
+
     public void buildInWorld() {
         actions.buildInWorld();
     }
