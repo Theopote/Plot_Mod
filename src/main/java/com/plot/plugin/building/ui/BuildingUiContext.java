@@ -222,6 +222,36 @@ public final class BuildingUiContext {
         state.setBuildConfirmPending(pending);
     }
 
+    public boolean generateScopeAll() {
+        return state.isGenerateScopeAll();
+    }
+
+    public void setGenerateScopeAll(boolean all) {
+        state.setGenerateScopeAll(all);
+    }
+
+    public boolean batchScopeAll() {
+        return state.isBatchScopeAll();
+    }
+
+    public void setBatchScopeAll(boolean all) {
+        state.setBatchScopeAll(all);
+    }
+
+    public List<BuildingFootprint> resolveGenerateTargets() {
+        if (state.isGenerateScopeAll()) {
+            return new java.util.ArrayList<>(project().getBuildings().values());
+        }
+        return selection().resolve(project());
+    }
+
+    public List<BuildingFootprint> resolveBatchTargets() {
+        if (state.isBatchScopeAll()) {
+            return new java.util.ArrayList<>(project().getBuildings().values());
+        }
+        return selection().resolve(project());
+    }
+
     public String currentProjectFile() {
         return state.getCurrentProjectFile();
     }

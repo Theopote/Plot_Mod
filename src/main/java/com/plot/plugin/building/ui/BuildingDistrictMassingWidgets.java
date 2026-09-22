@@ -34,38 +34,49 @@ public final class BuildingDistrictMassingWidgets {
         SELECTED_ONLY
     }
 
-    /** Overview Tab 片区体量首页。 */
-    public static void renderOverviewHome(BuildingUiContext ctx) {
-        int count = ctx.project().getBuildingCount();
-        if (count == 0) {
-            return;
-        }
-
-        ImGui.pushID("overview");
+    /** Edit Tab 批量模式：高度分布、预设、批量套用。 */
+    public static void renderBatchMode(BuildingUiContext ctx) {
+        ImGui.pushID("batch");
         try {
-            ImGui.separator();
-            ImGui.text(PlotI18n.tr("plugin.building.district_massing_home"));
-            ImGui.textColored(PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.building.district_massing_home_hint"));
-
-            renderHeightDistribution(ctx, DistrictMassingTarget.ALL);
+            renderBatchScope(ctx);
             ImGui.spacing();
-            renderPreviewGenerateAll(ctx, count);
+            renderHeightDistribution(ctx, batchTarget(ctx));
+            ImGui.spacing();
+            BuildingFootprint reference = ctx.selection().primary(ctx.project());
+            if (reference != null) {
+                renderPresetSelector(ctx, reference);
+                ImGui.spacing();
+                renderBatchApply(ctx, reference);
+            }
+            ImGui.spacing();
+            if (ImGui.button(PlotI18n.tr("plugin.building.clear_selection"), 0, 0)) {
+                ctx.selection().clear();
+            }
         } finally {
             ImGui.popID();
         }
     }
 
-    /** Edit Tab 片区多选工具（Preset / Batch / Height Distribution）。 */
-    public static void renderEditDistrictTools(BuildingUiContext ctx, BuildingFootprint primary) {
-        ImGui.pushID("edit");
-        try {
-            renderPresetSelector(ctx, primary);
-            ImGui.spacing();
-            renderBatchApply(ctx, primary);
-            renderHeightDistribution(ctx, DistrictMassingTarget.SELECTED_ONLY);
-        } finally {
-            ImGui.popID();
+    private static DistrictMassingTarget batchTarget(BuildingUiContext ctx) {
+        return ctx.batchScopeAll()
+            ? DistrictMassingTarget.ALL
+            : DistrictMassingTarget.SELECTED_ONLY;
+    }
+
+    private static void renderBatchScope(BuildingUiContext ctx) {
+        ImGui.text(PlotI18n.tr("plugin.building.batch_scope"));
+        int selectedCount = ctx.selection().size();
+        int allCount = ctx.project().getBuildingCount();
+        boolean useAll = ctx.batchScopeAll();
+        if (ImGui.radioButton(
+                PlotI18n.tr("plugin.building.batch_scope_selected", selectedCount),
+                !useAll)) {
+            ctx.setBatchScopeAll(false);
+        }
+        if (ImGui.radioButton(
+                PlotI18n.tr("plugin.building.batch_scope_all", allCount),
+                useAll)) {
+            ctx.setBatchScopeAll(true);
         }
     }
 
@@ -190,33 +201,10 @@ public final class BuildingDistrictMassingWidgets {
         }
     }
 
-    private static void renderPreviewGenerateAll(BuildingUiContext ctx, int count) {
-        var readiness = ctx.host().projection().checkWorldModificationReadiness();
-        boolean generateDisabled = !readiness.ready()
-            || ctx.host().placement().isBusy()
-            || ctx.isDistrictPreviewBusy();
-
-        float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
-        if (generateDisabled) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(PlotI18n.tr("plugin.building.preview_all", count), half, 0)) {
-            ctx.actions().previewEntireDistrict();
-        }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.building.generate_all", count), half, 0)) {
-            ctx.actions().prepareGenerateEntireDistrict();
-        }
-        if (generateDisabled) {
-            ImGui.endDisabled();
-        }
-        if (!readiness.ready()) {
-            ImGui.textColored(PluginUiColors.ERROR_SOFT, readiness.message());
-        }
-    }
-
     private static void renderBatchApply(BuildingUiContext ctx, BuildingFootprint primary) {
-        int count = ctx.selection().size();
+        List<BuildingFootprint> targets = ctx.resolveBatchTargets();
+        int count = targets.size();
+        ImGui.text(PlotI18n.tr("plugin.building.section.batch_properties"));
         ImGui.textColored(PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.building.batch_edit_hint", count, primary.getName()));
 
@@ -254,12 +242,10 @@ public final class BuildingDistrictMassingWidgets {
             ImGui.beginDisabled();
         }
         if (ImGui.button(
-                PlotI18n.tr("plugin.building.apply_to_selected", count),
+                PlotI18n.tr("plugin.building.apply_to_batch", count),
                 ImGui.getContentRegionAvailX(),
                 0)) {
-            ctx.actions().applyMassingToSelected(
-                primary,
-                ctx.selection().resolve(ctx.project()));
+            ctx.actions().applyMassingToSelected(primary, targets);
         }
         if (applyDisabled) {
             ImGui.endDisabled();
@@ -297,30 +283,15 @@ public final class BuildingDistrictMassingWidgets {
                 PlotI18n.tr("plugin.building.preset_active", PlotI18n.tr("preset.building." + currentPreset)));
         }
 
-        int selectedCount = ctx.selection().size();
-        float buttonWidth = selectedCount > 1
-            ? (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f
-            : ImGui.getContentRegionAvailX();
-
-        if (ImGui.button(PlotI18n.tr("plugin.building.apply_preset"), buttonWidth, 0)) {
+        List<BuildingFootprint> targets = ctx.resolveBatchTargets();
+        int targetCount = targets.size();
+        if (ImGui.button(
+                PlotI18n.tr("plugin.building.apply_preset_to_batch", targetCount),
+                ImGui.getContentRegionAvailX(),
+                0)) {
             int picked = presetIndex.get();
             if (picked >= 0 && picked < ids.length) {
-                ctx.actions().applyPresetToBuilding(ids[picked], building);
-            }
-        }
-
-        if (selectedCount > 1) {
-            ImGui.sameLine();
-            if (ImGui.button(
-                    PlotI18n.tr("plugin.building.apply_preset_to_selected", selectedCount),
-                    buttonWidth,
-                    0)) {
-                int picked = presetIndex.get();
-                if (picked >= 0 && picked < ids.length) {
-                    ctx.actions().applyPresetToSelected(
-                        ids[picked],
-                        ctx.selection().resolve(ctx.project()));
-                }
+                ctx.actions().applyPresetToSelected(ids[picked], targets);
             }
         }
     }

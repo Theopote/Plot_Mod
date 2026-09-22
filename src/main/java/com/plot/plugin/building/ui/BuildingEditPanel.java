@@ -24,15 +24,40 @@ public final class BuildingEditPanel {
 
     public void render() {
         ctx.selection().retainExisting(ctx.project());
+        int selectedCount = ctx.selection().size();
+        if (selectedCount == 0) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.select_building_hint"));
+            return;
+        }
+        if (selectedCount > 1) {
+            renderBatchMode();
+            return;
+        }
         BuildingFootprint building = ctx.selection().primary(ctx.project());
         if (building == null) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.select_building_hint"));
-            BuildingUiWidgets.renderBuildingSelector(ctx);
             return;
         }
+        renderSingleMode(building);
+    }
 
-        BuildingUiWidgets.renderSelectionSummary(ctx);
-        BuildingUiWidgets.renderBuildingSelector(ctx);
+    private void renderBatchMode() {
+        ImGui.text(PlotI18n.tr("plugin.building.edit_batch_title", ctx.selection().size()));
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.edit_batch_hint"));
+        ImGui.separator();
+        BuildingDistrictMassingWidgets.renderBatchMode(ctx);
+    }
+
+    private void renderSingleMode(BuildingFootprint building) {
+        ImGui.text(PlotI18n.tr("plugin.building.edit_single_title", building.getName()));
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+            "plugin.building.edit_single_meta",
+            String.format("%.1f", building.computeArea()),
+            building.getFloors()));
+        if (ImGui.button(PlotI18n.tr("plugin.building.locate"), 0, 0)) {
+            ctx.locateBuilding(building);
+        }
+        ImGui.separator();
 
         if (!building.getId().equals(ctx.buildingNameEditingId())) {
             ctx.buildingNameBuffer().set(building.getName());
@@ -45,33 +70,32 @@ public final class BuildingEditPanel {
             ctx.projectHistory().push(ctx.project());
         }
 
-        if (ctx.selection().size() > 1) {
-            renderDistrictMassingPanel(building);
-        }
-
-        ImGui.separator();
         if (ImGui.collapsingHeader(
-                PlotI18n.tr("plugin.building.basic_massing"),
+                PlotI18n.tr("plugin.building.section.massing"),
                 ImGuiTreeNodeFlags.DefaultOpen)) {
-            renderBasicMassing(building);
+            renderMassingSection(building);
         }
-
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.advanced_details"))) {
-            renderAdvancedDetails(building);
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.section.roof"), ImGuiTreeNodeFlags.DefaultOpen)) {
+            renderRoofSection(building);
+        }
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.section.materials"), ImGuiTreeNodeFlags.DefaultOpen)) {
+            renderMaterialsSection(building);
+        }
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.section.floor_plate"))) {
+            renderFloorPlateSettings(building);
+        }
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.section.openings"))) {
+            renderOpeningsSection(building);
+        }
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.section.accessories"))) {
+            renderAdvancedAccessories(building);
+        }
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.section.site"))) {
+            renderSiteSection(building);
         }
     }
 
-    /** 片区多选：高度分布、预设、批量套用。 */
-    private void renderDistrictMassingPanel(BuildingFootprint primary) {
-        if (!ImGui.collapsingHeader(
-                PlotI18n.tr("plugin.building.district_tools"),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
-            return;
-        }
-        BuildingDistrictMassingWidgets.renderEditDistrictTools(ctx, primary);
-    }
-
-    private void renderBasicMassing(BuildingFootprint building) {
+    private void renderMassingSection(BuildingFootprint building) {
         int[] floors = {building.getFloors()};
         boolean floorsChanged = ImGui.sliderInt(
             "##floors", floors, 1, 32, PlotI18n.tr("plugin.building.floors", floors[0]));
@@ -118,13 +142,9 @@ public final class BuildingEditPanel {
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.wall_thickness");
 
-        BuildingUiWidgets.renderMaterialMixButton(ctx, PlotI18n.tr("plugin.building.wall_material"), building.getWallMaterial(),
-            mix -> {
-                ctx.projectHistory().push(ctx.project());
-                building.setWallMaterial(mix);
-                ctx.invalidatePreview();
-            });
+    }
 
+    private void renderRoofSection(BuildingFootprint building) {
         renderRoofTypeSelector(building);
         if (building.getRoofType() != BuildingFootprint.RoofType.FLAT) {
             int[] pitch = {building.getRoofPitchRatio()};
@@ -139,7 +159,44 @@ public final class BuildingEditPanel {
             }
             UIUtils.renderEngineeringTooltip("hint.plot.building.roof_pitch");
         }
+    }
 
+    private void renderMaterialsSection(BuildingFootprint building) {
+        BuildingUiWidgets.renderMaterialMixButton(ctx, PlotI18n.tr("plugin.building.wall_material"), building.getWallMaterial(),
+            mix -> {
+                ctx.projectHistory().push(ctx.project());
+                building.setWallMaterial(mix);
+                ctx.invalidatePreview();
+            });
+        BuildingUiWidgets.renderMaterialMixButton(ctx, PlotI18n.tr("plugin.building.floor_material"), building.getFloorMaterial(),
+            mix -> {
+                ctx.projectHistory().push(ctx.project());
+                building.setFloorMaterial(mix);
+                ctx.invalidatePreview();
+            });
+        BuildingUiWidgets.renderMaterialButton(ctx, PlotI18n.tr("plugin.building.roof_material"), building.getRoofMaterial(),
+            blockId -> {
+                ctx.projectHistory().push(ctx.project());
+                building.setRoofMaterial(blockId);
+                ctx.invalidatePreview();
+            });
+        BuildingUiWidgets.renderMaterialButton(ctx, PlotI18n.tr("plugin.building.foundation_material"),
+            building.getFoundationFillMaterial(),
+            blockId -> {
+                ctx.projectHistory().push(ctx.project());
+                building.setFoundationFillMaterial(blockId);
+                ctx.invalidatePreview();
+            });
+        UIUtils.renderEngineeringTooltip("hint.plot.building.foundation_material");
+    }
+
+    private void renderOpeningsSection(BuildingFootprint building) {
+        renderWindowSettings(building);
+        ImGui.spacing();
+        renderDoorEditor(building);
+    }
+
+    private void renderSiteSection(BuildingFootprint building) {
         ctx.manualElevationRef().set(building.getManualBaseElevation() != null);
         if (ImGui.checkbox(PlotI18n.tr("plugin.building.manual_elevation"), ctx.manualElevationRef())) {
             ctx.projectHistory().push(ctx.project());
@@ -167,31 +224,7 @@ public final class BuildingEditPanel {
         renderEarthworkPadElevationHint(building);
     }
 
-    private void renderAdvancedDetails(BuildingFootprint building) {
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.window_settings"))) {
-            renderWindowSettings(building);
-        }
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.door_settings"))) {
-            renderDoorEditor(building);
-        }
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.facade_materials"))) {
-            renderFacadeMaterials(building);
-        }
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.floor_plate"))) {
-            renderFloorPlateSettings(building);
-        }
-        renderAdvancedAccessories(building);
-    }
-
     private void renderFloorPlateSettings(BuildingFootprint building) {
-        BuildingUiWidgets.renderMaterialMixButton(ctx, PlotI18n.tr("plugin.building.floor_material"), building.getFloorMaterial(),
-            mix -> {
-                ctx.projectHistory().push(ctx.project());
-                building.setFloorMaterial(mix);
-                ctx.invalidatePreview();
-            });
-        UIUtils.renderEngineeringTooltip("hint.plot.building.floor_material");
-
         if (building.getFloors() < 2) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.floor_plate_setback_requires_floors"));
             return;
@@ -255,23 +288,6 @@ public final class BuildingEditPanel {
             BuildingFloorPlateUi.applySimpleTower(building, towerStart[0], inset[0], canvasScale(building));
             ctx.invalidatePreview();
         }
-    }
-
-    private void renderFacadeMaterials(BuildingFootprint building) {
-        BuildingUiWidgets.renderMaterialButton(ctx, PlotI18n.tr("plugin.building.roof_material"), building.getRoofMaterial(),
-            blockId -> {
-                ctx.projectHistory().push(ctx.project());
-                building.setRoofMaterial(blockId);
-                ctx.invalidatePreview();
-            });
-        BuildingUiWidgets.renderMaterialButton(ctx, PlotI18n.tr("plugin.building.foundation_material"),
-            building.getFoundationFillMaterial(),
-            blockId -> {
-                ctx.projectHistory().push(ctx.project());
-                building.setFoundationFillMaterial(blockId);
-                ctx.invalidatePreview();
-            });
-        UIUtils.renderEngineeringTooltip("hint.plot.building.foundation_material");
     }
 
     private void renderWindowSettings(BuildingFootprint building) {

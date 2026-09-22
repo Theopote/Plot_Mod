@@ -9,10 +9,9 @@ import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 
-import java.util.ArrayList;
 import java.util.List;
 
-/** 建筑生成 Tab：预览、片区统计与落地确认。 */
+/** 建筑生成 Tab：范围 → 预览 → 结果 → 建造。 */
 public final class BuildingGeneratePanel {
     private final BuildingUiContext ctx;
 
@@ -22,186 +21,220 @@ public final class BuildingGeneratePanel {
 
     public void render() {
         ctx.selection().retainExisting(ctx.project());
-        BuildingFootprint building = ctx.selection().primary(ctx.project());
-        float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
-        boolean hasBuilding = building != null;
-
-        if (!hasBuilding) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.select_building_hint"));
-            BuildingUiWidgets.renderBuildingSelector(ctx);
-            if (ctx.lastDistrictBuildReport() != null) {
-                renderDistrictBuildReport();
-            }
+        if (ctx.project().getBuildingCount() == 0) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.no_buildings"));
             return;
         }
 
-        BuildingUiWidgets.renderSelectionSummary(ctx);
-        BuildingUiWidgets.renderBuildingSelector(ctx);
-        ImGui.spacing();
-        BuildingEditPanel.renderEarthworkPadElevationHint(building);
-
-        int selectedCount = ctx.selection().size();
-        com.plot.api.world.PlacementReadiness buildReadiness =
-            ctx.host().projection().checkWorldModificationReadiness();
-
-        if (selectedCount > 1) {
-            renderDistrictGenerateActions(selectedCount, half, buildReadiness);
-        } else {
-            if (ImGui.button(PlotI18n.tr("plugin.building.calc_preview"), half, 0)) {
-                ctx.calculatePreview(building);
-            }
-            ImGui.sameLine();
-            boolean hasPreview = ctx.lastGenerationResult() != null;
-            if (!hasPreview) {
-                ImGui.beginDisabled();
-            }
-            if (ImGui.button(PlotI18n.tr("plugin.building.clear_preview"), half, 0)) {
-                ctx.clearPreview();
-            }
-            if (!hasPreview) {
-                ImGui.endDisabled();
-            }
-
-            if (ImGui.button(PlotI18n.tr("plugin.building.build_direct"), ImGui.getContentRegionAvailX(), 0)) {
-                if (ctx.calculatePreview(building)) {
-                    ctx.setBuildConfirmPending(true);
-                }
-            }
+        List<BuildingFootprint> targets = ctx.resolveGenerateTargets();
+        if (targets.isEmpty()) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.generate_select_hint"));
+            renderScopeSection();
+            return;
         }
 
-        if (!buildReadiness.ready()) {
-            ImGui.textColored(PluginUiColors.ERROR_SOFT, buildReadiness.message());
-        }
-
-        if (ctx.lastDistrictResult() != null && ctx.lastDistrictResult().buildingsAttempted() > 1) {
-            renderDistrictPreviewStats(half, buildReadiness);
-        } else if (ctx.lastGenerationResult() != null) {
-            renderSinglePreviewStats(half, buildReadiness);
-        }
+        renderScopeSection();
+        ImGui.separator();
+        renderPreviewSection(targets);
+        ImGui.separator();
+        renderResultSection(targets);
+        ImGui.separator();
+        renderBuildSection(targets);
 
         if (ctx.lastDistrictBuildReport() != null) {
             renderDistrictBuildReport();
         }
     }
-    private void renderDistrictGenerateActions(
-            int selectedCount,
-            float half,
-            com.plot.api.world.PlacementReadiness buildReadiness) {
+
+    private void renderScopeSection() {
+        ImGui.text(PlotI18n.tr("plugin.building.generate.scope_section"));
+        int selectedCount = ctx.selection().size();
+        int allCount = ctx.project().getBuildingCount();
+        boolean useAll = ctx.generateScopeAll();
+        if (ImGui.radioButton(
+                PlotI18n.tr("plugin.building.generate.scope_selected", selectedCount),
+                !useAll)) {
+            ctx.setGenerateScopeAll(false);
+        }
+        if (ImGui.radioButton(
+                PlotI18n.tr("plugin.building.generate.scope_all", allCount),
+                useAll)) {
+            ctx.setGenerateScopeAll(true);
+        }
+    }
+
+    private void renderPreviewSection(List<BuildingFootprint> targets) {
+        ImGui.text(PlotI18n.tr("plugin.building.generate.preview_section"));
         boolean previewBusy = ctx.isDistrictPreviewBusy();
-        boolean canClearPreview = ctx.lastGenerationResult() != null || previewBusy;
         if (previewBusy) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(
-                PlotI18n.tr("plugin.building.preview_selected", selectedCount),
-                half,
-                0)) {
-            ctx.calculateDistrictPreview(ctx.selection().resolve(ctx.project()), true);
+        if (ImGui.button(PlotI18n.tr("plugin.building.generate_preview"), ImGui.getContentRegionAvailX(), 0)) {
+            if (targets.size() == 1) {
+                ctx.calculatePreview(targets.getFirst());
+            } else {
+                ctx.calculateDistrictPreview(targets, true);
+            }
         }
-        ImGui.sameLine();
-        if (!canClearPreview) {
-            ImGui.beginDisabled();
+        if (previewBusy) {
+            ImGui.endDisabled();
         }
-        if (ImGui.button(PlotI18n.tr("plugin.building.clear_preview"), half, 0)) {
+
+        boolean hasPreview = hasActivePreview();
+        if (!hasPreview && !previewBusy) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.generate.preview_idle"));
+            return;
+        }
+        if (previewBusy) {
+            ImGui.textColored(PluginUiColors.STATUS_INFO, PlotI18n.tr("plugin.building.generate.preview_running"));
+        } else {
+            ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.building.generate.preview_ready"));
+        }
+
+        if (!hasPreview) {
+            return;
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.building.clear_preview"), 0, 0)) {
             ctx.clearPreview();
         }
-        if (!canClearPreview) {
-            ImGui.endDisabled();
+    }
+
+    private void renderResultSection(List<BuildingFootprint> targets) {
+        ImGui.text(PlotI18n.tr("plugin.building.generate.result_section"));
+        if (!hasActivePreview()) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.generate.result_idle"));
+            return;
         }
 
-        if (ImGui.button(
-                PlotI18n.tr("plugin.building.preview_all", ctx.project().getBuildingCount()),
-                ImGui.getContentRegionAvailX(),
-                0)) {
-            ctx.calculateDistrictPreview(new ArrayList<>(ctx.project().getBuildings().values()), true);
-        }
-        if (previewBusy) {
-            ImGui.endDisabled();
+        if (isDistrictPreview()) {
+            renderDistrictResultSummary(ctx.lastDistrictResult());
+        } else if (ctx.lastGenerationResult() != null) {
+            renderSingleResultSummary();
         }
 
-        ImGui.spacing();
-        ImGui.text(PlotI18n.tr("plugin.building.district_generate_section"));
+        int issueCount = countPreviewIssues();
+        if (issueCount > 0) {
+            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.building.generate.issue_count", issueCount));
+            if (ImGui.button(PlotI18n.tr("plugin.building.generate.show_issues"), 0, 0)) {
+                ImGui.openPopup("##building_preview_issues");
+            }
+            renderIssuesPopup();
+        }
 
-        boolean generateDisabled = !buildReadiness.ready()
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.generate.detailed_stats"))) {
+            if (isDistrictPreview()) {
+                renderDistrictDetailedStats(ctx.lastDistrictResult());
+            } else if (ctx.lastGenerationResult() != null) {
+                renderSingleDetailedStats();
+            }
+        }
+    }
+
+    private void renderBuildSection(List<BuildingFootprint> targets) {
+        ImGui.text(PlotI18n.tr("plugin.building.generate.minecraft_section"));
+        com.plot.api.world.PlacementReadiness readiness =
+            ctx.host().projection().checkWorldModificationReadiness();
+        if (!readiness.ready()) {
+            ImGui.textColored(PluginUiColors.ERROR_SOFT, readiness.message());
+        } else if (hasActivePreview()) {
+            ImGui.textColored(PluginUiColors.STATUS_OK, PlotI18n.tr("plugin.building.generate.build_ready"));
+        } else {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.generate.build_needs_preview"));
+        }
+
+        boolean buildDisabled = !hasActivePreview()
+            || !readiness.ready()
             || ctx.host().placement().isBusy()
-            || previewBusy;
-        if (generateDisabled) {
+            || ctx.isDistrictPreviewBusy();
+        if (buildDisabled) {
             ImGui.beginDisabled();
         }
         if (ImGui.button(
-                PlotI18n.tr("plugin.building.generate_selected", selectedCount),
-                half,
+                PlotI18n.tr("plugin.building.generate.build_count", targets.size()),
+                ImGui.getContentRegionAvailX(),
                 0)) {
-            requestDistrictGenerate(ctx.selection().resolve(ctx.project()));
+            if (targets.size() > 1) {
+                ctx.calculateDistrictPreview(targets, true, true);
+            } else {
+                if (ctx.calculatePreview(targets.getFirst())) {
+                    ctx.setBuildConfirmPending(true);
+                }
+            }
         }
-        ImGui.sameLine();
-        if (ImGui.button(
-                PlotI18n.tr("plugin.building.generate_all", ctx.project().getBuildingCount()),
-                half,
-                0)) {
-            requestDistrictGenerate(new ArrayList<>(ctx.project().getBuildings().values()));
-        }
-        if (generateDisabled) {
+        if (buildDisabled) {
             ImGui.endDisabled();
         }
     }
-    private void requestDistrictGenerate(List<BuildingFootprint> buildings) {
-        ctx.calculateDistrictPreview(buildings, true, true);
+
+    private boolean hasActivePreview() {
+        if (ctx.lastDistrictResult() != null && ctx.lastDistrictResult().buildingsAttempted() > 0) {
+            return ctx.lastDistrictResult().hasPlacements();
+        }
+        return ctx.lastGenerationResult() != null
+            && !ctx.lastGenerationResult().placementRecords.isEmpty();
     }
-    private void renderDistrictPreviewStats(
-            float half,
-            com.plot.api.world.PlacementReadiness buildReadiness) {
-        DistrictGenerationResult district = ctx.lastDistrictResult();
-        ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.building.district_preview_results"));
+
+    private boolean isDistrictPreview() {
+        return ctx.lastDistrictResult() != null && ctx.lastDistrictResult().buildingsAttempted() > 1;
+    }
+
+    private int countPreviewIssues() {
+        int issues = 0;
+        if (isDistrictPreview()) {
+            DistrictGenerationResult district = ctx.lastDistrictResult();
+            issues += district.buildingsSkipped();
+            if (district.hasBuildingOverlap()) {
+                issues++;
+            }
+            if (district.waterSiteCount() > 0) {
+                issues++;
+            }
+            if (district.steepSiteCount() > 0) {
+                issues++;
+            }
+            if (district.structureConflictBuildingCount() > 0) {
+                issues++;
+            }
+            issues += district.skippedOutcomes().size();
+        } else if (ctx.lastGenerationResult() != null) {
+            issues += ctx.lastGenerationResult().warnings.size();
+        }
+        return issues;
+    }
+
+    private void renderDistrictResultSummary(DistrictGenerationResult district) {
         ImGui.text(PlotI18n.tr(
-            "plugin.building.district_buildings_result",
+            "plugin.building.generate.result_buildings",
             district.buildingsGenerated(),
             district.buildingsAttempted()));
-        if (district.buildingsSkipped() > 0) {
-            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
-                "plugin.building.district_skipped_result",
-                district.buildingsSkipped()));
-        }
+        ImGui.text(PlotI18n.tr("plugin.building.block_count_result", district.totalBlocks()));
+        ImGui.text(PlotI18n.tr("plugin.building.cut_volume_result", district.totalCutVolume()));
+        ImGui.text(PlotI18n.tr("plugin.building.fill_volume_result", district.totalFillVolume()));
+    }
+
+    private void renderSingleResultSummary() {
+        ImGui.text(PlotI18n.tr("plugin.building.block_count_result", ctx.lastGenerationResult().blockCount));
+        ImGui.text(PlotI18n.tr("plugin.building.cut_volume_result", ctx.lastGenerationResult().cutVolume));
+        ImGui.text(PlotI18n.tr("plugin.building.fill_volume_result", ctx.lastGenerationResult().fillVolume));
+    }
+
+    private void renderDistrictDetailedStats(DistrictGenerationResult district) {
         ImGui.text(PlotI18n.tr(
             "plugin.building.district_area_result",
             String.format("%.1f", district.totalArea())));
         ImGui.text(PlotI18n.tr(
             "plugin.building.district_volume_result",
             String.format("%.0f", district.totalVolume())));
-        ImGui.text(PlotI18n.tr("plugin.building.cut_volume_result", district.totalCutVolume()));
-        ImGui.text(PlotI18n.tr("plugin.building.fill_volume_result", district.totalFillVolume()));
-        ImGui.text(PlotI18n.tr("plugin.building.block_count_result", district.totalBlocks()));
-
-        if (district.buildingsSkipped() > 0) {
-            renderDistrictFailSoftSummary(
-                district.buildingsGenerated(),
-                district.buildingsSkipped());
-        }
-
-        if (district.hasBuildingOverlap()) {
-            renderDistrictOverlapNotice(
-                district.overlappingBuildingCount(),
-                district.conflictingBlockCount(),
-                district.overlappingBuildingPairs());
-        }
-
         if (district.hasSiteConditionSummary()) {
             ImGui.text(PlotI18n.tr("plugin.building.district_site_conditions"));
             if (district.waterSiteCount() > 0) {
-                ImGui.text(PlotI18n.tr(
-                    "plugin.building.district_site_water",
-                    district.waterSiteCount()));
+                ImGui.text(PlotI18n.tr("plugin.building.district_site_water", district.waterSiteCount()));
             }
             if (district.partialWaterSiteCount() > 0) {
-                ImGui.text(PlotI18n.tr(
-                    "plugin.building.district_site_partial_water",
-                    district.partialWaterSiteCount()));
+                ImGui.text(PlotI18n.tr("plugin.building.district_site_partial_water", district.partialWaterSiteCount()));
             }
             if (district.steepSiteCount() > 0) {
-                ImGui.text(PlotI18n.tr(
-                    "plugin.building.district_site_steep",
-                    district.steepSiteCount()));
+                ImGui.text(PlotI18n.tr("plugin.building.district_site_steep", district.steepSiteCount()));
             }
             if (district.structureConflictBuildingCount() > 0) {
                 ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
@@ -214,15 +247,6 @@ public final class BuildingGeneratePanel {
                     district.heavyEarthworkSiteCount()));
             }
         }
-
-        for (String warningKey : district.warnings()) {
-            if ("plugin.building.warn.district_overlap".equals(warningKey)
-                    || "plugin.building.warn.district_partial".equals(warningKey)) {
-                continue;
-            }
-            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(warningKey));
-        }
-
         for (DistrictGenerationResult.BuildingOutcome skipped : district.skippedOutcomes()) {
             String reason = skipped.skipReason() != null
                 ? PlotI18n.tr(skipped.skipReason().i18nKey())
@@ -232,36 +256,60 @@ public final class BuildingGeneratePanel {
                 skipped.buildingName(),
                 reason));
         }
+    }
 
-        boolean hasPlacements = district.hasPlacements();
-        if (!hasPlacements) {
-            ImGui.textColored(PluginUiColors.WARNING_LIGHT, PlotI18n.tr("plugin.building.generate_empty_result"));
+    private void renderSingleDetailedStats() {
+        if (ctx.lastGenerationResult().sitePreview != null) {
+            var site = ctx.lastGenerationResult().sitePreview;
+            ImGui.text(PlotI18n.tr(
+                "plugin.building.site_foundation_elevation",
+                site.foundationElevation()));
+            ImGui.text(PlotI18n.tr(
+                "plugin.building.site_terrain_range",
+                site.minGroundElevation(),
+                site.maxGroundElevation()));
         }
-
-        if (!hasPlacements) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(PlotI18n.tr("plugin.building.projection_ref"), half, 0)) {
-            ctx.projectPreview();
-        }
-        if (!hasPlacements) {
-            ImGui.endDisabled();
-        }
-
-        ImGui.sameLine();
-        boolean buildDisabled = !hasPlacements
-            || !buildReadiness.ready()
-            || ctx.host().placement().isBusy();
-        if (buildDisabled) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(PlotI18n.tr("plugin.building.generate_from_preview"), half, 0)) {
-            ctx.setBuildConfirmPending(true);
-        }
-        if (buildDisabled) {
-            ImGui.endDisabled();
+        ImGui.text(PlotI18n.tr("plugin.building.roof_type_result",
+            PlotI18n.tr("plugin.building.roof_" + ctx.lastGenerationResult().effectiveRoofType.name().toLowerCase())));
+        for (String warningKey : ctx.lastGenerationResult().warnings) {
+            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(warningKey));
         }
     }
+
+    private void renderIssuesPopup() {
+        if (!ImGui.beginPopup("##building_preview_issues")) {
+            return;
+        }
+        if (isDistrictPreview()) {
+            DistrictGenerationResult district = ctx.lastDistrictResult();
+            if (district.buildingsSkipped() > 0) {
+                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
+                    "plugin.building.district_skipped_result",
+                    district.buildingsSkipped()));
+            }
+            if (district.hasBuildingOverlap()) {
+                renderDistrictOverlapNotice(
+                    district.overlappingBuildingCount(),
+                    district.conflictingBlockCount(),
+                    district.overlappingBuildingPairs());
+            }
+            for (DistrictGenerationResult.BuildingOutcome skipped : district.skippedOutcomes()) {
+                String reason = skipped.skipReason() != null
+                    ? PlotI18n.tr(skipped.skipReason().i18nKey())
+                    : "";
+                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
+                    "plugin.building.district_skip_item",
+                    skipped.buildingName(),
+                    reason));
+            }
+        } else if (ctx.lastGenerationResult() != null) {
+            for (String warningKey : ctx.lastGenerationResult().warnings) {
+                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(warningKey));
+            }
+        }
+        ImGui.endPopup();
+    }
+
     public void renderDistrictBuildReport() {
         DistrictBuildReport report = ctx.lastDistrictBuildReport();
         if (report == null || !report.isDistrict()) {
@@ -273,148 +321,11 @@ public final class BuildingGeneratePanel {
             "plugin.building.district_buildings_result",
             report.buildingsGenerated(),
             report.buildingsAttempted()));
-        if (report.buildingsSkipped() > 0) {
-            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
-                "plugin.building.district_skipped_result",
-                report.buildingsSkipped()));
-        }
-        ImGui.text(PlotI18n.tr(
-            "plugin.building.district_area_result",
-            String.format("%.1f", report.totalArea())));
-        ImGui.text(PlotI18n.tr(
-            "plugin.building.district_volume_result",
-            String.format("%.0f", report.totalVolume())));
-        ImGui.text(PlotI18n.tr(
-            "plugin.building.district_placed_result",
-            report.placedBlocks(),
-            report.plannedBlocks()));
-        if (report.buildingsSkipped() > 0) {
-            renderDistrictFailSoftSummary(
-                report.buildingsGenerated(),
-                report.buildingsSkipped());
-        }
-        if (report.overlappingBuildingCount() > 0 || report.conflictingBlockCount() > 0) {
-            renderDistrictOverlapNotice(
-                report.overlappingBuildingCount(),
-                report.conflictingBlockCount(),
-                List.of());
-        }
-        if (report.hasSiteConditionSummary()) {
-            ImGui.text(PlotI18n.tr("plugin.building.district_site_conditions"));
-            if (report.waterSiteCount() > 0) {
-                ImGui.text(PlotI18n.tr(
-                    "plugin.building.district_site_water",
-                    report.waterSiteCount()));
-            }
-            if (report.partialWaterSiteCount() > 0) {
-                ImGui.text(PlotI18n.tr(
-                    "plugin.building.district_site_partial_water",
-                    report.partialWaterSiteCount()));
-            }
-            if (report.steepSiteCount() > 0) {
-                ImGui.text(PlotI18n.tr(
-                    "plugin.building.district_site_steep",
-                    report.steepSiteCount()));
-            }
-            if (report.structureConflictBuildingCount() > 0) {
-                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
-                    "plugin.building.district_site_structure_conflict",
-                    report.structureConflictBuildingCount()));
-            }
-            if (report.heavyEarthworkSiteCount() > 0) {
-                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
-                    "plugin.building.district_site_heavy_earthwork",
-                    report.heavyEarthworkSiteCount()));
-            }
-        }
-        if (report.failedBlocks() > 0) {
-            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
-                "plugin.building.district_failed_blocks",
-                report.failedBlocks()));
-        }
-        if (report.cancelled()) {
-            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.building.district_build_cancelled"));
-        }
-
-        for (DistrictBuildReport.SkipItem skipped : report.skipped()) {
-            String reason = skipped.reasonKey().isBlank() ? "" : PlotI18n.tr(skipped.reasonKey());
-            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
-                "plugin.building.district_skip_item",
-                skipped.buildingName(),
-                reason));
-        }
-
         if (ImGui.button(PlotI18n.tr("plugin.building.clear_build_report"), 0, 0)) {
             ctx.state().setLastDistrictBuildReport(null);
         }
     }
-    private void renderSinglePreviewStats(
-            float half,
-            com.plot.api.world.PlacementReadiness buildReadiness) {
-        ImGui.separator();
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.preview_projection_hint"));
-        ImGui.text(PlotI18n.tr("plugin.building.calc_results"));
-        if (ctx.lastGenerationResult().sitePreview != null) {
-            var site = ctx.lastGenerationResult().sitePreview;
-            ImGui.text(PlotI18n.tr(
-                "plugin.building.site_foundation_elevation",
-                site.foundationElevation()));
-            ImGui.text(PlotI18n.tr(
-                "plugin.building.site_foundation_source",
-                PlotI18n.tr("plugin.building.site_source_" + site.source().name().toLowerCase())));
-            ImGui.text(PlotI18n.tr(
-                "plugin.building.site_terrain_range",
-                site.minGroundElevation(),
-                site.maxGroundElevation()));
-            if (site.waterCoverageRatio() > 0) {
-                ImGui.text(PlotI18n.tr(
-                    "plugin.building.site_water_coverage",
-                    String.format("%.0f", site.waterCoverageRatio() * 100)));
-            }
-            ImGui.text(PlotI18n.tr(
-                "plugin.building.site_cut_fill",
-                site.estimatedCut(),
-                site.estimatedFill()));
-        }
-        ImGui.text(PlotI18n.tr("plugin.building.cut_volume_result", ctx.lastGenerationResult().cutVolume));
-        ImGui.text(PlotI18n.tr("plugin.building.fill_volume_result", ctx.lastGenerationResult().fillVolume));
-        ImGui.text(PlotI18n.tr("plugin.building.block_count_result", ctx.lastGenerationResult().blockCount));
-        ImGui.text(PlotI18n.tr("plugin.building.roof_type_result",
-            PlotI18n.tr("plugin.building.roof_" + ctx.lastGenerationResult().effectiveRoofType.name().toLowerCase())));
 
-        for (String warningKey : ctx.lastGenerationResult().warnings) {
-            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(warningKey));
-        }
-
-        boolean hasPlacements = !ctx.lastGenerationResult().placementRecords.isEmpty();
-        if (!hasPlacements) {
-            ImGui.textColored(PluginUiColors.WARNING_LIGHT, PlotI18n.tr("plugin.building.generate_empty_result"));
-        }
-
-        if (!hasPlacements) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(PlotI18n.tr("plugin.building.projection_ref"), half, 0)) {
-            ctx.projectPreview();
-        }
-        if (!hasPlacements) {
-            ImGui.endDisabled();
-        }
-
-        ImGui.sameLine();
-        boolean buildDisabled = !hasPlacements
-            || !buildReadiness.ready()
-            || ctx.host().placement().isBusy();
-        if (buildDisabled) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(PlotI18n.tr("plugin.building.build"), half, 0)) {
-            ctx.setBuildConfirmPending(true);
-        }
-        if (buildDisabled) {
-            ImGui.endDisabled();
-        }
-    }
     public void renderBuildConfirmPopup() {
         if (ctx.buildConfirmPending()) {
             ImGui.openPopup("##building_build_confirm");
@@ -458,15 +369,6 @@ public final class BuildingGeneratePanel {
         }
     }
 
-    private static void renderDistrictFailSoftSummary(int generated, int skipped) {
-        ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
-            "plugin.building.district_fail_soft_summary",
-            generated,
-            skipped));
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-            "plugin.building.district_fail_soft_policy"));
-    }
-
     private static void renderDistrictOverlapNotice(
             int overlappingBuildingCount,
             int conflictingBlockCount,
@@ -484,26 +386,6 @@ public final class BuildingGeneratePanel {
             ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
                 "plugin.building.district_overlap_voxels",
                 conflictingBlockCount));
-        }
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-            "plugin.building.district_overlap_later_wins"));
-
-        if (pairs == null || pairs.isEmpty()) {
-            return;
-        }
-        int shown = 0;
-        for (DistrictOverlapAnalyzer.OverlapPair pair : pairs) {
-            if (shown >= 5) {
-                ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-                    "plugin.building.district_overlap_more",
-                    pairs.size() - shown));
-                break;
-            }
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-                "plugin.building.district_overlap_pair",
-                pair.buildingNameA(),
-                pair.buildingNameB()));
-            shown++;
         }
     }
 }

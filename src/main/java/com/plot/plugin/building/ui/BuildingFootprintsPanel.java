@@ -9,14 +9,17 @@ import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiPopupFlags;
+import imgui.flag.ImGuiSelectableFlags;
 import imgui.flag.ImGuiWindowFlags;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** 建筑轮廓 Tab：画布拾取、认领与已认领建筑总览（合并原认领 + 概览）。 */
+/** 建筑轮廓 Tab：仅回答「哪些轮廓属于建筑」。 */
 public final class BuildingFootprintsPanel {
     private final BuildingUiContext ctx;
+    private String renameBuildingId = "";
 
     public BuildingFootprintsPanel(BuildingUiContext ctx) {
         this.ctx = ctx;
@@ -30,9 +33,11 @@ public final class BuildingFootprintsPanel {
         renderCanvasSection();
         ImGui.separator();
         renderAdoptedSection();
+        renderRenamePopup();
     }
 
     private void renderCanvasSection() {
+        ImGui.text(PlotI18n.tr("plugin.building.footprints.canvas_section"));
         if (ctx.pickSession().isActive()) {
             renderPickSessionState();
             renderCanvasPreview(ctx.canvasSelectionAnalysis());
@@ -43,8 +48,6 @@ public final class BuildingFootprintsPanel {
         if (ImGui.button(PlotI18n.tr("plugin.building.pick_footprint"), 0, 0)) {
             ctx.startPickSession();
         }
-        ImGui.spacing();
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.draw_footprint_hint"));
     }
 
     private void renderPickSessionState() {
@@ -59,41 +62,34 @@ public final class BuildingFootprintsPanel {
                 PlotI18n.tr("plugin.building.footprints.picking_active"));
         }
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.footprints.right_click_finish"));
-        ImGui.spacing();
     }
 
     private void renderCanvasPreview(BuildingFootprintSelectionAnalysis canvas) {
         if (!canvas.hasCanvasSelection()) {
             return;
         }
-
         if (!canvas.invalid().isEmpty()) {
             ImGui.textColored(
                 PluginUiColors.WARNING,
                 PlotI18n.tr("plugin.building.footprints.invalid_selection", canvas.invalid().size()));
         }
-        if (!canvas.alreadyAdopted().isEmpty()) {
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.building.footprints.already_adopted", canvas.alreadyAdopted().size()));
-        }
-
         List<Shape> previewShapes = previewShapes(canvas);
         if (previewShapes.isEmpty()) {
             return;
         }
-
         ImGui.text(PlotI18n.tr(
             "plugin.building.footprints.canvas_preview_title",
             previewShapes.size(),
             String.format("%.1f", computePreviewArea(previewShapes))));
-
-        ImGui.beginChild("building_canvas_preview_list", 0, 120, true);
-        int index = 0;
-        for (Shape shape : previewShapes) {
-            renderCanvasCandidateRow(shape, index++, canvas);
+        for (int i = 0; i < previewShapes.size(); i++) {
+            Shape shape = previewShapes.get(i);
+            List<Vec2d> points = BuildingGeometryUtils.extractFootprintPoints(shape);
+            double area = points.isEmpty() ? 0.0 : Math.abs(BuildingFootprint.signedArea(points));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                "plugin.building.footprints.canvas_item_ready",
+                i + 1,
+                String.format("%.1f", area)));
         }
-        ImGui.endChild();
     }
 
     private static List<Shape> previewShapes(BuildingFootprintSelectionAnalysis canvas) {
@@ -101,39 +97,6 @@ public final class BuildingFootprintsPanel {
         shapes.addAll(canvas.alreadyAdopted());
         shapes.addAll(canvas.invalid());
         return shapes;
-    }
-
-    private void renderCanvasCandidateRow(Shape shape, int index, BuildingFootprintSelectionAnalysis canvas) {
-        ImGui.pushID(shape.getId());
-        List<Vec2d> points = BuildingGeometryUtils.extractFootprintPoints(shape);
-        boolean invalid = containsShape(canvas.invalid(), shape);
-        boolean adopted = containsShape(canvas.alreadyAdopted(), shape);
-        boolean selected = containsShape(ctx.selectedFootprints(), shape);
-
-        BuildingOverviewRenderer.renderFootprintThumbnail(points, selected || adopted, index);
-        ImGui.sameLine();
-        double area = points.isEmpty() ? 0.0 : Math.abs(BuildingFootprint.signedArea(points));
-        String statusKey = invalid
-            ? "plugin.building.footprints.canvas_item_invalid"
-            : adopted
-                ? "plugin.building.footprints.canvas_item_adopted"
-                : "plugin.building.footprints.canvas_item_ready";
-        ImGui.textColored(
-            invalid ? PluginUiColors.WARNING : PluginUiColors.HINT_GRAY,
-            PlotI18n.tr(statusKey, index + 1, String.format("%.1f", area)));
-        ImGui.popID();
-    }
-
-    private static boolean containsShape(List<Shape> shapes, Shape shape) {
-        if (shape == null || shapes == null) {
-            return false;
-        }
-        for (Shape candidate : shapes) {
-            if (candidate != null && candidate.getId().equals(shape.getId())) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static double computePreviewArea(List<Shape> shapes) {
@@ -146,7 +109,8 @@ public final class BuildingFootprintsPanel {
     }
 
     private void renderAdoptedSection() {
-        ImGui.text(PlotI18n.tr("plugin.building.project_stats",
+        ImGui.text(PlotI18n.tr("plugin.building.footprints.project_section"));
+        ImGui.text(PlotI18n.tr("plugin.building.footprints.project_stats",
             ctx.project().getBuildingCount(),
             String.format("%.1f", ctx.project().getTotalArea())));
 
@@ -156,7 +120,6 @@ public final class BuildingFootprintsPanel {
         }
 
         ctx.selection().retainExisting(ctx.project());
-        BuildingUiWidgets.renderSelectionSummary(ctx);
 
         float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX() * 2) / 3.0f;
         if (ImGui.button(PlotI18n.tr("plugin.building.select_all"), buttonWidth, 0)) {
@@ -187,63 +150,78 @@ public final class BuildingFootprintsPanel {
             ImGui.endDisabled();
         }
 
-        BuildingDistrictMassingWidgets.renderOverviewHome(ctx);
+        ImGui.spacing();
+        ImGui.text(PlotI18n.tr("plugin.building.footprints.list_section"));
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.footprints.list_hint"));
 
-        BuildingOverviewRenderer.renderProjectMap(
-            ctx.project(),
-            ctx.selection().ids(),
-            id -> ctx.selection().select(id, ImGui.getIO().getKeyCtrl()));
-
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.multi_select_hint"));
-
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.beginCombo("##building_sort", ctx.buildingSortMode().label())) {
-            for (BuildingListHelper.SortMode mode : BuildingListHelper.SortMode.values()) {
-                boolean selected = mode == ctx.buildingSortMode();
-                if (ImGui.selectable(mode.label(), selected)) {
-                    ctx.setBuildingSortMode(mode);
-                }
-            }
-            ImGui.endCombo();
-        }
-
-        ImGui.beginChild("building_footprints_list", 0, 220, true);
-        int index = 0;
+        ImGui.beginChild("building_footprints_list", 0, 0, true);
         for (BuildingFootprint building : BuildingListHelper.sorted(ctx.project(), ctx.buildingSortMode())) {
-            renderAdoptedBuildingRow(building, index++);
+            renderAdoptedBuildingRow(building);
         }
         ImGui.endChild();
     }
 
-    private void renderAdoptedBuildingRow(BuildingFootprint building, int index) {
+    private void renderAdoptedBuildingRow(BuildingFootprint building) {
         ImGui.pushID(building.getId());
         boolean selected = ctx.selection().contains(building.getId());
-        if (BuildingOverviewRenderer.renderFootprintThumbnail(building.getOuterPoints(), selected, index)) {
-            ctx.selection().select(building.getId(), ImGui.getIO().getKeyCtrl());
-        }
-        ImGui.sameLine();
-        ImGui.beginGroup();
-        if (ImGui.selectable(building.getName() + "##row", selected)) {
-            ctx.selection().select(building.getId(), ImGui.getIO().getKeyCtrl());
-        }
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-            "plugin.building.overview_item",
-            String.format("%.1f", building.computeArea()),
+        String label = PlotI18n.tr(
+            "plugin.building.footprints.list_item",
+            building.getName(),
             building.getFloors(),
-            building.isSlopedRoofEligible()
-                ? PlotI18n.tr("plugin.building.shape_rect")
-                : PlotI18n.tr("plugin.building.shape_polygon")));
-        if (ImGui.button(PlotI18n.tr("plugin.building.locate"), 60, 0)) {
+            String.format("%.1f", building.computeArea()));
+        if (ImGui.selectable(label + "##row", selected, ImGuiSelectableFlags.SpanAllColumns)) {
+            ctx.selection().select(building.getId(), ImGui.getIO().getKeyCtrl());
+        }
+        if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
             ctx.locateBuilding(building);
         }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.building.delete"), 60, 0)) {
-            ctx.pendingDeleteBuildingIds().clear();
-            ctx.pendingDeleteBuildingIds().add(building.getId());
-            ctx.setDeleteConfirmPending(true);
+        if (ImGui.beginPopupContextItem("building_row_ctx", ImGuiPopupFlags.MouseButtonRight)) {
+            if (ImGui.menuItem(PlotI18n.tr("plugin.building.locate"))) {
+                ctx.locateBuilding(building);
+            }
+            if (ImGui.menuItem(PlotI18n.tr("plugin.building.rename"))) {
+                renameBuildingId = building.getId();
+                ctx.buildingNameBuffer().set(building.getName());
+                ImGui.openPopup("##building_rename_popup");
+            }
+            if (ImGui.menuItem(PlotI18n.tr("plugin.building.delete"))) {
+                ctx.pendingDeleteBuildingIds().clear();
+                ctx.pendingDeleteBuildingIds().add(building.getId());
+                ctx.setDeleteConfirmPending(true);
+            }
+            ImGui.endPopup();
         }
-        ImGui.endGroup();
         ImGui.popID();
+    }
+
+    private void renderRenamePopup() {
+        if (ImGui.beginPopupModal("##building_rename_popup", ImGuiWindowFlags.AlwaysAutoResize)) {
+            BuildingFootprint building = ctx.project().getBuilding(renameBuildingId);
+            if (building == null) {
+                renameBuildingId = "";
+                ImGui.closeCurrentPopup();
+                ImGui.endPopup();
+                return;
+            }
+            ImGui.text(PlotI18n.tr("plugin.building.rename_prompt", building.getName()));
+            if (ImGui.inputText("##rename", ctx.buildingNameBuffer())) {
+                building.setName(ctx.buildingNameBuffer().get());
+            }
+            if (ImGui.isItemActivated()) {
+                ctx.projectHistory().push(ctx.project());
+            }
+            ImGui.separator();
+            if (ImGui.button(PlotI18n.tr("button.plot.confirm"), 100, 0)) {
+                renameBuildingId = "";
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.sameLine();
+            if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 100, 0)) {
+                renameBuildingId = "";
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.endPopup();
+        }
     }
 
     public void renderDeleteConfirmPopup() {

@@ -49,6 +49,8 @@ public final class BuildingPluginState {
     private final List<String> pendingDeleteBuildingIds = new ArrayList<>();
     private boolean deleteConfirmPending = false;
     private boolean buildConfirmPending = false;
+    private boolean generateScopeAll = false;
+    private boolean batchScopeAll = false;
 
     private volatile DistrictPreviewJob districtPreviewJob;
     private boolean districtPreviewBuildConfirmPending;
@@ -226,6 +228,22 @@ public final class BuildingPluginState {
 
     public void setBuildConfirmPending(boolean buildConfirmPending) {
         this.buildConfirmPending = buildConfirmPending;
+    }
+
+    public boolean isGenerateScopeAll() {
+        return generateScopeAll;
+    }
+
+    public void setGenerateScopeAll(boolean generateScopeAll) {
+        this.generateScopeAll = generateScopeAll;
+    }
+
+    public boolean isBatchScopeAll() {
+        return batchScopeAll;
+    }
+
+    public void setBatchScopeAll(boolean batchScopeAll) {
+        this.batchScopeAll = batchScopeAll;
     }
 
     public DistrictPreviewJob getDistrictPreviewJob() {
