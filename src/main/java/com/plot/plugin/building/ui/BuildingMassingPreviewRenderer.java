@@ -10,19 +10,22 @@ import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiWindowFlags;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
 
-/** Generate Tab 体量鸟瞰预览：Footprint + 层数编码 + 问题高亮。 */
+/** Generate Tab 轴测体量预览：Footprint 挤出 + 真实层高比例 + 问题高亮。 */
 public final class BuildingMassingPreviewRenderer {
-    private static final float MIN_MAP_HEIGHT = 140f;
-    private static final float PADDING = 10f;
-    private static final float EXTRUSION_SCALE = 1.4f;
+    private static final float MIN_MAP_HEIGHT = 180f;
+    private static final float PADDING = 12f;
+    /** 水平面 (x+y) 项相对 (x-y) 的压缩，经典 2:1 轴测。 */
+    private static final double ISO_PLANAR_Y = 0.5;
     private static final int COLOR_FILL_LOW = 0x668CB4FF;
     private static final int COLOR_FILL_HIGH = 0xCC1A4F99;
     private static final int COLOR_SKIPPED_FILL = 0x55AAAAAA;
-    private static final int COLOR_EXTRUSION = 0x88446699;
+    private static final int COLOR_SKIPPED_SIDE = 0x33888888;
 
     private BuildingMassingPreviewRenderer() {
     }
@@ -62,40 +65,48 @@ public final class BuildingMassingPreviewRenderer {
             return;
         }
 
-        Bounds bounds = computeBounds(buildings);
-        MapViewport viewport = buildViewport(bounds, origin.x, origin.y, width, height);
+        IsoViewport viewport = buildViewport(buildings, origin.x, origin.y, width, height);
         Set<String> warnings = model.warningBuildingIds() != null ? model.warningBuildingIds() : Set.of();
         Set<String> skipped = model.skippedBuildingIds() != null ? model.skippedBuildingIds() : Set.of();
         Set<String> selected = model.selectedBuildingIds() != null ? model.selectedBuildingIds() : Set.of();
         int floorSpan = Math.max(1, model.maxFloors() - model.minFloors());
 
-        for (int i = 0; i < buildings.size(); i++) {
-            BuildingFootprint building = buildings.get(i);
+        List<BuildingFootprint> drawOrder = new ArrayList<>(buildings);
+        drawOrder.sort(Comparator.comparingDouble(building -> {
+            Vec2d center = centroid(building.getOuterPoints());
+            return center.x + center.y;
+        }));
+
+        for (BuildingFootprint building : drawOrder) {
             if (building == null || building.getOuterPoints().size() < 3) {
                 continue;
             }
             boolean isWarning = warnings.contains(building.getId());
             boolean isSkipped = skipped.contains(building.getId());
             boolean isSelected = selected.contains(building.getId());
-            float extrusion = extrusionPixels(building.getFloors(), model.minFloors(), model.maxFloors());
-            if (!isSkipped && extrusion > 0.5f) {
-                drawExtrusion(drawList, building.getOuterPoints(), viewport, extrusion);
-            }
-            int fillColor = isSkipped
+            int topColor = isSkipped
                 ? COLOR_SKIPPED_FILL
                 : heightFillColor(building.getFloors(), model.minFloors(), floorSpan);
-            drawFilledFootprint(drawList, building.getOuterPoints(), viewport, fillColor);
+            int sideColor = isSkipped ? COLOR_SKIPPED_SIDE : darken(topColor, 0.62f);
+            double heightBlocks = isSkipped ? 0.5 : buildingHeightBlocks(building);
+            drawIsometricMass(
+                drawList,
+                building.getOuterPoints(),
+                heightBlocks,
+                viewport,
+                topColor,
+                sideColor);
             int borderColor = isWarning
                 ? PluginUiColors.WARNING
                 : isSelected
                     ? PluginUiColors.ACCENT_BLUE
                     : PluginUiColors.PANEL_BORDER;
             float borderThickness = isSelected || isWarning ? 2.4f : 1.4f;
-            drawFootprintOutline(drawList, building.getOuterPoints(), viewport, borderColor, borderThickness);
+            drawTopOutline(drawList, building.getOuterPoints(), heightBlocks, viewport, borderColor, borderThickness);
             if (isWarning) {
-                drawWarningBadge(drawList, building, viewport);
+                drawWarningBadge(drawList, building, heightBlocks, viewport);
             }
-            drawFloorLabel(drawList, building, viewport, viewport.scale);
+            drawFloorLabel(drawList, building, heightBlocks, viewport);
         }
 
         ImGui.invisibleButton("##massing_map_hit", width, height);
@@ -104,10 +115,8 @@ public final class BuildingMassingPreviewRenderer {
         }
         if (ImGui.isItemHovered() && ImGui.isMouseClicked(0) && onBuildingClicked != null) {
             ImVec2 mouse = ImGui.getMousePos();
-            String hit = hitTestBuilding(
-                buildings,
-                toWorldX(mouse.x, viewport),
-                toWorldY(mouse.y, viewport));
+            Vec2d world = viewport.screenToGround(mouse.x, mouse.y);
+            String hit = hitTestBuilding(buildings, world.x, world.y);
             if (hit != null) {
                 onBuildingClicked.accept(hit);
             }
@@ -116,16 +125,101 @@ public final class BuildingMassingPreviewRenderer {
         ImGui.endChild();
     }
 
-    private static float extrusionPixels(int floors, int minFloors, int maxFloors) {
-        int span = Math.max(1, maxFloors - minFloors);
-        float normalized = (floors - minFloors) / (float) span;
-        return normalized * 14f * EXTRUSION_SCALE;
+    private static double buildingHeightBlocks(BuildingFootprint building) {
+        return building.getFloors() * building.getFloorHeight();
+    }
+
+    private static void drawIsometricMass(
+            ImDrawList drawList,
+            List<Vec2d> points,
+            double heightBlocks,
+            IsoViewport viewport,
+            int topColor,
+            int sideColor) {
+        int count = points.size();
+        float[] baseX = new float[count];
+        float[] baseY = new float[count];
+        float[] topX = new float[count];
+        float[] topY = new float[count];
+        for (int i = 0; i < count; i++) {
+            Vec2d point = points.get(i);
+            baseX[i] = viewport.projectX(point.x, point.y, 0.0);
+            baseY[i] = viewport.projectY(point.x, point.y, 0.0);
+            topX[i] = viewport.projectX(point.x, point.y, heightBlocks);
+            topY[i] = viewport.projectY(point.x, point.y, heightBlocks);
+        }
+
+        for (int i = 0; i < count; i++) {
+            int next = (i + 1) % count;
+            if (!isSideVisible(points.get(i), points.get(next))) {
+                continue;
+            }
+            drawQuad(
+                drawList,
+                baseX[i], baseY[i],
+                baseX[next], baseY[next],
+                topX[next], topY[next],
+                topX[i], topY[i],
+                sideColor);
+        }
+
+        ImVec2[] topPoints = new ImVec2[count];
+        for (int i = 0; i < count; i++) {
+            topPoints[i] = new ImVec2(topX[i], topY[i]);
+        }
+        drawList.addConvexPolyFilled(topPoints, topPoints.length, topColor);
+    }
+
+    private static void drawTopOutline(
+            ImDrawList drawList,
+            List<Vec2d> points,
+            double heightBlocks,
+            IsoViewport viewport,
+            int color,
+            float thickness) {
+        int count = points.size();
+        for (int i = 0; i < count; i++) {
+            Vec2d start = points.get(i);
+            Vec2d end = points.get((i + 1) % count);
+            drawList.addLine(
+                viewport.projectX(start.x, start.y, heightBlocks),
+                viewport.projectY(start.x, start.y, heightBlocks),
+                viewport.projectX(end.x, end.y, heightBlocks),
+                viewport.projectY(end.x, end.y, heightBlocks),
+                color,
+                thickness);
+        }
+    }
+
+    /** 东南视角：外墙法线朝向观察者时绘制该侧面。 */
+    private static boolean isSideVisible(Vec2d start, Vec2d end) {
+        double dx = end.x - start.x;
+        double dy = end.y - start.y;
+        return dx > dy;
+    }
+
+    private static void drawQuad(
+            ImDrawList drawList,
+            float x0, float y0,
+            float x1, float y1,
+            float x2, float y2,
+            float x3, float y3,
+            int color) {
+        drawList.addQuadFilled(x0, y0, x1, y1, x2, y2, x3, y3, color);
     }
 
     private static int heightFillColor(int floors, int minFloors, int floorSpan) {
         float t = (floors - minFloors) / (float) Math.max(1, floorSpan);
         t = Math.clamp(t, 0f, 1f);
         return lerpColor(COLOR_FILL_LOW, COLOR_FILL_HIGH, t);
+    }
+
+    private static int darken(int color, float factor) {
+        int a = (color >> 24) & 0xFF;
+        int r = (int) (((color >> 16) & 0xFF) * factor);
+        int g = (int) (((color >> 8) & 0xFF) * factor);
+        int b = (int) ((color & 0xFF) * factor);
+        return (a << 24) | (r << 16) | (g << 8) | b;
     }
 
     private static int lerpColor(int from, int to, float t) {
@@ -144,74 +238,30 @@ public final class BuildingMassingPreviewRenderer {
         return (a << 24) | (r << 16) | (g << 8) | b;
     }
 
-    private static void drawExtrusion(
-            ImDrawList drawList,
-            List<Vec2d> points,
-            MapViewport viewport,
-            float pixels) {
-        ImVec2[] screenPoints = toScreenPoints(points, viewport);
-        ImVec2[] extruded = new ImVec2[screenPoints.length];
-        for (int i = 0; i < screenPoints.length; i++) {
-            extruded[i] = new ImVec2(screenPoints[i].x - pixels * 0.55f, screenPoints[i].y - pixels);
-        }
-        drawList.addConvexPolyFilled(extruded, extruded.length, COLOR_EXTRUSION);
-    }
-
-    private static void drawFilledFootprint(
-            ImDrawList drawList,
-            List<Vec2d> points,
-            MapViewport viewport,
-            int color) {
-        ImVec2[] screenPoints = toScreenPoints(points, viewport);
-        if (screenPoints.length < 3) {
-            return;
-        }
-        drawList.addConvexPolyFilled(screenPoints, screenPoints.length, color);
-    }
-
-    private static void drawFootprintOutline(
-            ImDrawList drawList,
-            List<Vec2d> points,
-            MapViewport viewport,
-            int color,
-            float thickness) {
-        int count = points.size();
-        for (int i = 0; i < count; i++) {
-            Vec2d start = points.get(i);
-            Vec2d end = points.get((i + 1) % count);
-            drawList.addLine(
-                toScreenX(start.x, viewport),
-                toScreenY(start.y, viewport),
-                toScreenX(end.x, viewport),
-                toScreenY(end.y, viewport),
-                color,
-                thickness);
-        }
-    }
-
     private static void drawFloorLabel(
             ImDrawList drawList,
             BuildingFootprint building,
-            MapViewport viewport,
-            double scale) {
-        if (scale < 2.5) {
+            double heightBlocks,
+            IsoViewport viewport) {
+        if (viewport.planarScale < 2.5) {
             return;
         }
         Vec2d center = centroid(building.getOuterPoints());
         String label = PlotI18n.tr("plugin.building.generate.map_floors", building.getFloors());
         ImVec2 size = ImGui.calcTextSize(label);
-        float x = toScreenX(center.x, viewport) - size.x * 0.5f;
-        float y = toScreenY(center.y, viewport) - size.y * 0.5f;
+        float x = viewport.projectX(center.x, center.y, heightBlocks) - size.x * 0.5f;
+        float y = viewport.projectY(center.x, center.y, heightBlocks) - size.y * 0.5f;
         drawList.addText(x, y, ImGui.getColorU32(ImGuiCol.Text), label);
     }
 
     private static void drawWarningBadge(
             ImDrawList drawList,
             BuildingFootprint building,
-            MapViewport viewport) {
+            double heightBlocks,
+            IsoViewport viewport) {
         Vec2d center = centroid(building.getOuterPoints());
-        float x = toScreenX(center.x, viewport);
-        float y = toScreenY(center.y, viewport) - 14f;
+        float x = viewport.projectX(center.x, center.y, heightBlocks);
+        float y = viewport.projectY(center.x, center.y, heightBlocks) - 12f;
         drawList.addText(x - 4f, y - 10f, PluginUiColors.WARNING, "!");
     }
 
@@ -224,16 +274,6 @@ public final class BuildingMassingPreviewRenderer {
         }
         int count = Math.max(1, points.size());
         return new Vec2d(x / count, y / count);
-    }
-
-    private static ImVec2[] toScreenPoints(List<Vec2d> points, MapViewport viewport) {
-        ImVec2[] screenPoints = new ImVec2[points.size()];
-        for (int i = 0; i < points.size(); i++) {
-            screenPoints[i] = new ImVec2(
-                toScreenX(points.get(i).x, viewport),
-                toScreenY(points.get(i).y, viewport));
-        }
-        return screenPoints;
     }
 
     private static String hitTestBuilding(List<BuildingFootprint> buildings, double worldX, double worldY) {
@@ -267,51 +307,43 @@ public final class BuildingMassingPreviewRenderer {
         return inside;
     }
 
-    private static Bounds computeBounds(List<BuildingFootprint> buildings) {
-        double minX = Double.POSITIVE_INFINITY;
-        double minY = Double.POSITIVE_INFINITY;
-        double maxX = Double.NEGATIVE_INFINITY;
-        double maxY = Double.NEGATIVE_INFINITY;
+    private static IsoViewport buildViewport(
+            List<BuildingFootprint> buildings,
+            float x,
+            float y,
+            float width,
+            float height) {
+        double minScreenX = Double.POSITIVE_INFINITY;
+        double minScreenY = Double.POSITIVE_INFINITY;
+        double maxScreenX = Double.NEGATIVE_INFINITY;
+        double maxScreenY = Double.NEGATIVE_INFINITY;
+
         for (BuildingFootprint building : buildings) {
+            double heightBlocks = buildingHeightBlocks(building);
             for (Vec2d point : building.getOuterPoints()) {
-                minX = Math.min(minX, point.x);
-                minY = Math.min(minY, point.y);
-                maxX = Math.max(maxX, point.x);
-                maxY = Math.max(maxY, point.y);
+                for (double z : new double[] {0.0, heightBlocks}) {
+                    double sx = point.x - point.y;
+                    double sy = (point.x + point.y) * ISO_PLANAR_Y - z;
+                    minScreenX = Math.min(minScreenX, sx);
+                    maxScreenX = Math.max(maxScreenX, sx);
+                    minScreenY = Math.min(minScreenY, sy);
+                    maxScreenY = Math.max(maxScreenY, sy);
+                }
             }
         }
-        return new Bounds(minX, minY, maxX, maxY);
-    }
 
-    private static MapViewport buildViewport(Bounds bounds, float x, float y, float width, float height) {
-        double spanX = Math.max(bounds.maxX - bounds.minX, 1.0);
-        double spanY = Math.max(bounds.maxY - bounds.minY, 1.0);
+        double spanX = Math.max(maxScreenX - minScreenX, 1.0);
+        double spanY = Math.max(maxScreenY - minScreenY, 1.0);
         float innerWidth = Math.max(1f, width - PADDING * 2f);
         float innerHeight = Math.max(1f, height - PADDING * 2f);
         double scale = Math.min(innerWidth / spanX, innerHeight / spanY);
-        float offsetX = x + PADDING + (float) ((innerWidth - spanX * scale) * 0.5);
-        float offsetY = y + PADDING + (float) ((innerHeight - spanY * scale) * 0.5);
-        return new MapViewport(bounds.minX, bounds.minY, scale, offsetX, offsetY);
+        float offsetX = x + PADDING + (float) ((innerWidth - spanX * scale) * 0.5) - (float) (minScreenX * scale);
+        float offsetY = y + PADDING + (float) ((innerHeight - spanY * scale) * 0.5) - (float) (minScreenY * scale);
+        return new IsoViewport(scale, scale, offsetX, offsetY);
     }
 
     private static float mapHeightForWidth(float width) {
-        return Math.max(MIN_MAP_HEIGHT, width * 0.55f);
-    }
-
-    private static float toScreenX(double worldX, MapViewport viewport) {
-        return (float) (viewport.offsetX + (worldX - viewport.minX) * viewport.scale);
-    }
-
-    private static float toScreenY(double worldY, MapViewport viewport) {
-        return (float) (viewport.offsetY + (worldY - viewport.minY) * viewport.scale);
-    }
-
-    private static double toWorldX(float screenX, MapViewport viewport) {
-        return viewport.minX + (screenX - viewport.offsetX) / viewport.scale;
-    }
-
-    private static double toWorldY(float screenY, MapViewport viewport) {
-        return viewport.minY + (screenY - viewport.offsetY) / viewport.scale;
+        return Math.max(MIN_MAP_HEIGHT, width * 0.62f);
     }
 
     private static void drawCenteredHint(
@@ -329,9 +361,19 @@ public final class BuildingMassingPreviewRenderer {
             text);
     }
 
-    private record Bounds(double minX, double minY, double maxX, double maxY) {
-    }
+    private record IsoViewport(double planarScale, double verticalScale, float offsetX, float offsetY) {
+        float projectX(double worldX, double worldY, double worldZ) {
+            return (float) (offsetX + (worldX - worldY) * planarScale);
+        }
 
-    private record MapViewport(double minX, double minY, double scale, float offsetX, float offsetY) {
+        float projectY(double worldX, double worldY, double worldZ) {
+            return (float) (offsetY + (worldX + worldY) * ISO_PLANAR_Y * planarScale - worldZ * verticalScale);
+        }
+
+        Vec2d screenToGround(float screenX, float screenY) {
+            double nx = (screenX - offsetX) / planarScale;
+            double ny = (screenY - offsetY) / (planarScale * ISO_PLANAR_Y);
+            return new Vec2d((nx + ny) * 0.5, (ny - nx) * 0.5);
+        }
     }
 }
