@@ -326,7 +326,7 @@ public final class BuildingOverviewRenderer {
         double scale = Math.min(innerWidth / spanX, innerHeight / spanY);
         float offsetX = x + PADDING + (float) ((innerWidth - spanX * scale) * 0.5);
         float offsetY = y + PADDING + (float) ((innerHeight - spanY * scale) * 0.5);
-        return new MapViewport(bounds.minX, bounds.minY, bounds.maxY, scale, offsetX, offsetY);
+        return new MapViewport(bounds.minX, bounds.minY, scale, offsetX, offsetY);
     }
 
     private static float mapHeightForWidth(float width) {
@@ -352,8 +352,11 @@ public final class BuildingOverviewRenderer {
         return (float) (viewport.offsetX + (worldX - viewport.minX) * viewport.scale);
     }
 
+    /**
+     * 与 Plot 画布一致：画布 Y 向下增大，不把世界 Y 做上下翻转。
+     */
     private static float toScreenY(double worldY, MapViewport viewport) {
-        return (float) (viewport.offsetY + (viewport.maxY - worldY) * viewport.scale);
+        return (float) (viewport.offsetY + (worldY - viewport.minY) * viewport.scale);
     }
 
     private static double toWorldX(float screenX, MapViewport viewport) {
@@ -361,7 +364,7 @@ public final class BuildingOverviewRenderer {
     }
 
     private static double toWorldY(float screenY, MapViewport viewport) {
-        return viewport.maxY - (screenY - viewport.offsetY) / viewport.scale;
+        return viewport.minY + (screenY - viewport.offsetY) / viewport.scale;
     }
 
     private static int footprintColor(int index) {
@@ -386,6 +389,6 @@ public final class BuildingOverviewRenderer {
     private record Bounds(double minX, double minY, double maxX, double maxY) {
     }
 
-    private record MapViewport(double minX, double minY, double maxY, double scale, float offsetX, float offsetY) {
+    private record MapViewport(double minX, double minY, double scale, float offsetX, float offsetY) {
     }
 }
