@@ -1,7 +1,9 @@
 package com.plot.plugin.building.ui;
 
 import com.plot.plugin.building.BuildingHeightDistribution;
+import com.plot.plugin.building.BuildingSelectionSet;
 import com.plot.plugin.building.model.BuildingFootprint;
+import com.plot.plugin.building.model.BuildingProject;
 import com.plot.plugin.building.preset.BuildingPresetCatalog;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.UIUtils;
@@ -12,6 +14,7 @@ import imgui.type.ImInt;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 
 /** 片区 Massing 共享控件（Overview / Edit）。 */
@@ -20,15 +23,15 @@ public final class BuildingDistrictMassingWidgets {
     }
 
     /**
-     * 片区工具作用范围。
+     * 片区 Massing 工具作用范围（显式语义，不受列表选中状态影响）。
      * <ul>
-     *   <li>{@link #SELECTED_ONLY} — Edit 片区工具：仅当前选中</li>
-     *   <li>{@link #ALL_WHEN_EMPTY} — Overview 首页：无选中时整片</li>
+     *   <li>{@link #ALL} — Overview：始终作用于项目内全部建筑</li>
+     *   <li>{@link #SELECTED_ONLY} — Edit：仅作用于当前选中</li>
      * </ul>
      */
     public enum DistrictMassingTarget {
-        SELECTED_ONLY,
-        ALL_WHEN_EMPTY
+        ALL,
+        SELECTED_ONLY
     }
 
     /** Overview Tab 片区体量首页。 */
@@ -45,7 +48,7 @@ public final class BuildingDistrictMassingWidgets {
             ImGui.textColored(PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.building.district_massing_home_hint"));
 
-            renderHeightDistribution(ctx, DistrictMassingTarget.ALL_WHEN_EMPTY);
+            renderHeightDistribution(ctx, DistrictMassingTarget.ALL);
             ImGui.spacing();
             renderPreviewGenerateAll(ctx, count);
         } finally {
@@ -71,7 +74,7 @@ public final class BuildingDistrictMassingWidgets {
         int count = targets.size();
 
         ImGui.text(PlotI18n.tr("plugin.building.height_distribution"));
-        if (target == DistrictMassingTarget.ALL_WHEN_EMPTY) {
+        if (target == DistrictMassingTarget.ALL) {
             ImGui.textColored(PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.building.height_distribution_overview_hint", count));
         } else {
@@ -143,8 +146,11 @@ public final class BuildingDistrictMassingWidgets {
         if (applyDisabled) {
             ImGui.beginDisabled();
         }
+        String applyLabel = target == DistrictMassingTarget.ALL
+            ? PlotI18n.tr("plugin.building.apply_height_distribution_all", count)
+            : PlotI18n.tr("plugin.building.apply_height_distribution_selected", count);
         if (ImGui.button(
-                PlotI18n.tr("plugin.building.apply_height_distribution", count),
+                applyLabel,
                 ImGui.getContentRegionAvailX(),
                 0)) {
             ctx.actions().applyHeightDistribution(targets);
@@ -322,13 +328,19 @@ public final class BuildingDistrictMassingWidgets {
     static List<BuildingFootprint> resolveTargets(
             BuildingUiContext ctx,
             DistrictMassingTarget target) {
-        List<BuildingFootprint> selected = ctx.selection().resolve(ctx.project());
-        if (!selected.isEmpty()) {
-            return selected;
+        return resolveTargets(ctx.project(), ctx.selection(), target);
+    }
+
+    static List<BuildingFootprint> resolveTargets(
+            BuildingProject project,
+            BuildingSelectionSet selection,
+            DistrictMassingTarget target) {
+        Objects.requireNonNull(project, "project");
+        Objects.requireNonNull(selection, "selection");
+        Objects.requireNonNull(target, "target");
+        if (target == DistrictMassingTarget.ALL) {
+            return new ArrayList<>(project.getBuildings().values());
         }
-        if (target == DistrictMassingTarget.ALL_WHEN_EMPTY) {
-            return new ArrayList<>(ctx.project().getBuildings().values());
-        }
-        return selected;
+        return selection.resolve(project);
     }
 }

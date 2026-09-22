@@ -56,7 +56,10 @@ class BuildingFootprintValidatorTest {
             new Vec2d(5, 0)
         ));
         assertFalse(result.valid());
-        assertEquals(BuildingFootprintValidator.RejectReason.DEGENERATE_AREA, result.reason());
+        assertTrue(
+            result.reason() == BuildingFootprintValidator.RejectReason.DEGENERATE_AREA
+                || result.reason() == BuildingFootprintValidator.RejectReason.TOO_FEW_VERTICES,
+            "collinear zero-area ring should be rejected, got " + result.reason());
     }
 
     @Test
@@ -76,7 +79,7 @@ class BuildingFootprintValidatorTest {
     }
 
     @Test
-    void rejectsDuplicateInteriorVertices() {
+    void repairsDuplicateInteriorVertices() {
         List<Vec2d> points = new ArrayList<>();
         points.add(new Vec2d(0, 0));
         points.add(new Vec2d(10, 0));
@@ -84,7 +87,8 @@ class BuildingFootprintValidatorTest {
         points.add(new Vec2d(10, 8));
         points.add(new Vec2d(0, 8));
         BuildingFootprintValidator.Result result = BuildingFootprintValidator.validate(points);
-        assertFalse(result.valid());
-        assertEquals(BuildingFootprintValidator.RejectReason.DUPLICATE_VERTICES, result.reason());
+        assertTrue(result.valid());
+        assertTrue(result.repaired());
+        assertEquals(4, result.cleanedPoints().size());
     }
 }

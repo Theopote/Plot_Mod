@@ -66,6 +66,21 @@
 
 ---
 
+## Footprint Repair（包 B）
+
+认领与片区生成前统一走 `BuildingFootprintRepair` → `BuildingFootprintValidator`：
+
+| 自动修复 | 仍硬拒绝 |
+|----------|----------|
+| 连续重复点、首尾闭合重复 | 自交 |
+| 共线冗余点 | 零面积 / 退化 |
+| 极短边（&lt; 1e-3 画布单位） | 顶点不足 |
+| 绕序统一为 CCW | 非有限坐标（修复后仍失败） |
+
+**测试**：`BuildingFootprintRepairTest`、`BuildingFootprintValidatorTest`
+
+---
+
 ## 不做
 
 - 精确 block hash 全量保存（除 Golden Snapshot 指标）

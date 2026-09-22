@@ -557,6 +557,7 @@ public final class BuildingActions {
         state.getProjectHistory().push(state.getProject());
         int adopted = 0;
         int skipped = 0;
+        int repaired = 0;
         List<String> adoptedIds = new ArrayList<>();
         List<String> rejectHints = new ArrayList<>();
         for (Shape shape : state.getSelectedFootprints()) {
@@ -568,6 +569,9 @@ public final class BuildingActions {
                     rejectHints.add(PlotI18n.tr(validation.reason().i18nKey()));
                 }
                 continue;
+            }
+            if (validation.repaired()) {
+                repaired++;
             }
             boolean rectangular = BuildingGeometryUtils.detectRectangular(validation.cleanedPoints());
             BuildingFootprint footprint = new BuildingFootprint(validation.cleanedPoints(), rectangular);
@@ -591,10 +595,20 @@ public final class BuildingActions {
             if (!rejectHints.isEmpty()) {
                 state.setProjectStatus(state.getProjectStatus() + " — " + String.join("; ", rejectHints));
             }
+            appendRepairHint(state, repaired);
         } else if (adopted > 1) {
             state.setProjectStatus(PlotI18n.tr("plugin.building.adopt_success_batch", adopted));
+            appendRepairHint(state, repaired);
         } else {
             state.setProjectStatus(PlotI18n.tr("plugin.building.adopt_success"));
+            appendRepairHint(state, repaired);
+        }
+    }
+
+    private static void appendRepairHint(BuildingPluginState state, int repaired) {
+        if (repaired > 0) {
+            state.setProjectStatus(state.getProjectStatus()
+                + " " + PlotI18n.tr("plugin.building.adopt_repaired_hint", repaired));
         }
     }
 

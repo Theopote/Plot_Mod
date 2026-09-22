@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 建筑轮廓认领前校验：复用 {@link PolygonValidator}，并容忍闭合环首尾重合点。
+ * 建筑轮廓认领前校验：先 {@link BuildingFootprintRepair}，再复用 {@link PolygonValidator}。
  */
 public final class BuildingFootprintValidator {
     private BuildingFootprintValidator() {
@@ -48,28 +48,36 @@ public final class BuildingFootprintValidator {
         }
     }
 
-    public record Result(boolean valid, RejectReason reason, List<Vec2d> cleanedPoints) {
+    public record Result(boolean valid, RejectReason reason, List<Vec2d> cleanedPoints, boolean repaired) {
         public static Result ok(List<Vec2d> cleanedPoints) {
-            return new Result(true, null, List.copyOf(cleanedPoints));
+            return ok(cleanedPoints, false);
+        }
+
+        public static Result ok(List<Vec2d> cleanedPoints, boolean repaired) {
+            return new Result(true, null, List.copyOf(cleanedPoints), repaired);
         }
 
         public static Result reject(RejectReason reason) {
-            return new Result(false, reason, List.of());
+            return new Result(false, reason, List.of(), false);
         }
     }
 
     /**
-     * 校验并返回清洗后的轮廓点（去掉闭合重复端点）。
+     * 修复（若可安全修复）并校验，返回清洗后的轮廓点（无闭合重复端点）。
      */
     public static Result validate(List<Vec2d> points) {
         if (points == null || points.isEmpty()) {
             return Result.reject(RejectReason.EMPTY);
         }
-        List<Vec2d> cleaned = stripClosingDuplicate(points);
+        BuildingFootprintRepair.RepairResult repair = BuildingFootprintRepair.repair(points);
+        List<Vec2d> cleaned = repair.points();
+        if (cleaned.size() < 3) {
+            return Result.reject(RejectReason.TOO_FEW_VERTICES);
+        }
         PolygonValidator.ValidationResult validation =
             PolygonValidator.validateSimplePolygon(cleaned);
         if (validation.valid()) {
-            return Result.ok(cleaned);
+            return Result.ok(cleaned, repair.repaired());
         }
         String firstIssue = validation.issues().isEmpty()
             ? "empty"
