@@ -11,6 +11,7 @@ public final class BuildingUIManager {
     private final BuildingFootprintsPanel footprintsPanel;
     private final BuildingEditPanel editPanel;
     private final BuildingGeneratePanel generatePanel;
+    private boolean footprintsTabOpenLastFrame;
 
     public BuildingUIManager(BuildingUiContext ctx) {
         this.ctx = ctx;
@@ -22,6 +23,7 @@ public final class BuildingUIManager {
 
     public void render() {
         ctx.tickDistrictPreviewJob();
+        ctx.buildingRename().tickFrame();
 
         if (ctx.pickSession().isActive()) {
             footprintsPanel.tickPickSession();
@@ -29,19 +31,27 @@ public final class BuildingUIManager {
 
         toolbarPanel.render();
 
+        boolean footprintsTabOpen = false;
         if (ImGui.beginTabBar("##building_tabs", ImGuiTabBarFlags.None)) {
-            renderTab("plugin.building.tab.footprints", footprintsPanel::render);
+            footprintsTabOpen = renderTab("plugin.building.tab.footprints", footprintsPanel::render);
             renderTab("plugin.building.tab.edit", editPanel::render);
             renderTab("plugin.building.tab.generate", generatePanel::render);
             ImGui.endTabBar();
         }
+
+        if (footprintsTabOpenLastFrame && !footprintsTabOpen) {
+            ctx.buildingRename().cancelActive();
+        }
+        footprintsTabOpenLastFrame = footprintsTabOpen;
     }
 
-    private static void renderTab(String labelKey, Runnable body) {
+    private static boolean renderTab(String labelKey, Runnable body) {
         if (ImGui.beginTabItem(PlotI18n.tr(labelKey))) {
             body.run();
             ImGui.endTabItem();
+            return true;
         }
+        return false;
     }
 
     public void renderDeferredModals() {

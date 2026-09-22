@@ -1,6 +1,7 @@
 package com.plot.plugin.building.ui;
 
 import com.plot.plugin.building.model.BuildingFootprint;
+import com.plot.ui.utils.ImStringUtf8;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
@@ -9,6 +10,8 @@ import imgui.flag.ImGuiKey;
 /** 建筑轮廓列表内联重命名：双击进入、Enter/失焦提交、Esc 取消。 */
 public final class BuildingFootprintRenameController {
     private final BuildingUiContext ctx;
+    /** 输入框已成功获得焦点后才允许“失焦提交”，避免刚进入编辑态就被误判为结束。 */
+    private String editorActivatedBuildingId = "";
 
     public BuildingFootprintRenameController(BuildingUiContext ctx) {
         this.ctx = ctx;
@@ -16,6 +19,9 @@ public final class BuildingFootprintRenameController {
 
     public void tickFrame() {
         ctx.tickBuildingNameRenameCooldown();
+        if (ctx.buildingNameEditingId().isBlank()) {
+            editorActivatedBuildingId = "";
+        }
     }
 
     public boolean isRenaming(String buildingId) {
@@ -24,6 +30,7 @@ public final class BuildingFootprintRenameController {
 
     public void beginRename(BuildingFootprint building) {
         ctx.beginBuildingNameRename(building);
+        editorActivatedBuildingId = "";
     }
 
     public void cancelActive() {
@@ -33,19 +40,22 @@ public final class BuildingFootprintRenameController {
         BuildingFootprint primary = ctx.selection().primary(ctx.project());
         if (primary != null && primary.getId().equals(ctx.buildingNameEditingId())) {
             ctx.cancelBuildingNameRename(primary);
+            editorActivatedBuildingId = "";
             return;
         }
         for (BuildingFootprint candidate : ctx.project().getBuildings().values()) {
             if (candidate.getId().equals(ctx.buildingNameEditingId())) {
                 ctx.cancelBuildingNameRename(candidate);
+                editorActivatedBuildingId = "";
                 return;
             }
         }
         ctx.setBuildingNameEditingId("");
+        editorActivatedBuildingId = "";
     }
 
     /**
-     * @return {@code true} 时该行处于重命名编辑态（缩略图/操作按钮应隐藏）
+     * @return {@code true} 时该行处于重命名编辑态（缩略图/副信息应隐藏）
      */
     public boolean renderNameField(
             BuildingFootprint building,
@@ -88,16 +98,32 @@ public final class BuildingFootprintRenameController {
             ctx.buildingNameBuffer(),
             ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll);
 
+        if (ImGui.isItemActivated()) {
+            editorActivatedBuildingId = building.getId();
+        }
+
         if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
             ctx.cancelBuildingNameRename(building);
+            editorActivatedBuildingId = "";
             return;
         }
-        if (enterPressed || shouldCommitOnDeactivate()) {
+        if (enterPressed || shouldCommitOnDeactivate(building.getId())) {
             ctx.commitBuildingNameRename(building);
+            editorActivatedBuildingId = "";
+            return;
+        }
+        if (!building.getId().equals(editorActivatedBuildingId)
+                && ctx.isBuildingNameOutsideClickReady()
+                && ImGui.isMouseClicked(0)
+                && !ImGui.isItemHovered()) {
+            ctx.cancelBuildingNameRename(building);
+            editorActivatedBuildingId = "";
         }
     }
 
-    private boolean shouldCommitOnDeactivate() {
-        return ctx.isBuildingNameOutsideClickReady() && ImGui.isItemDeactivated();
+    private boolean shouldCommitOnDeactivate(String buildingId) {
+        return buildingId.equals(editorActivatedBuildingId)
+            && ctx.isBuildingNameOutsideClickReady()
+            && ImGui.isItemDeactivated();
     }
 }

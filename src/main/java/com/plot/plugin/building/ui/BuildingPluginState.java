@@ -192,7 +192,7 @@ public final class BuildingPluginState {
         buildingNameBuffer.set(buildingNameBeforeRename);
         buildingNameEditingId = buildingId != null ? buildingId : "";
         buildingNameFocusPending = !buildingNameEditingId.isEmpty();
-        buildingNameIgnoreOutsideClickFrames = 2;
+        buildingNameIgnoreOutsideClickFrames = 3;
     }
 
     public void endBuildingNameRename() {
@@ -200,6 +200,7 @@ public final class BuildingPluginState {
         buildingNameBeforeRename = "";
         buildingNameFocusPending = false;
         buildingNameIgnoreOutsideClickFrames = 0;
+        buildingNameBuffer.set("");
     }
 
     public void tickBuildingNameRenameCooldown() {

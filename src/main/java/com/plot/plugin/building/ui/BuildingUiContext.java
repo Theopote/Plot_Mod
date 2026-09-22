@@ -16,6 +16,7 @@ import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.WorldProjectionSnapshot;
 import com.plot.core.context.PluginContext;
 import com.plot.core.model.Shape;
+import com.plot.ui.utils.ImStringUtf8;
 import imgui.ImGui;
 
 import java.nio.file.Path;
@@ -151,6 +152,15 @@ public final class BuildingUiContext {
         if (building == null) {
             return;
         }
+        String editingId = state.getBuildingNameEditingId();
+        if (!editingId.isBlank() && !editingId.equals(building.getId())) {
+            BuildingFootprint previous = project().getBuilding(editingId);
+            if (previous != null) {
+                cancelBuildingNameRename(previous);
+            } else {
+                state.endBuildingNameRename();
+            }
+        }
         state.beginBuildingNameRename(building.getId(), building.getName());
         selection().select(building.getId(), false);
     }
@@ -172,7 +182,7 @@ public final class BuildingUiContext {
             state.endBuildingNameRename();
             return;
         }
-        String trimmed = state.getBuildingNameBuffer().get().trim();
+        String trimmed = ImStringUtf8.read(state.getBuildingNameBuffer()).trim();
         if (!trimmed.isEmpty() && !trimmed.equals(building.getName())) {
             projectHistory().push(project());
             building.setName(trimmed);

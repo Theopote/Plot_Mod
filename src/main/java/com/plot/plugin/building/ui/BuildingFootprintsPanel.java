@@ -29,7 +29,6 @@ public final class BuildingFootprintsPanel {
     }
 
     public void render() {
-        ctx.buildingRename().tickFrame();
         renderCanvasSection();
         ImGui.separator();
         renderAdoptedSection();
@@ -205,9 +204,9 @@ public final class BuildingFootprintsPanel {
             WorldProjectionSnapshot projection) {
         ImGui.pushID(building.getId());
         boolean selected = ctx.selection().contains(building.getId());
-        boolean renaming = ctx.buildingRename().isRenaming(building.getId());
         float columnWidth = Math.max(120f, ImGui.getContentRegionAvailX() - 68f);
 
+        boolean renaming = ctx.buildingRename().isRenaming(building.getId());
         if (BuildingOverviewRenderer.renderFootprintThumbnail(
                 building.getOuterPoints(),
                 selected,
