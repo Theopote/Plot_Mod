@@ -17,7 +17,7 @@ public final class ConductorAttachmentPresets {
     }
 
     public static List<ConductorAttachment> threePhaseHorizontal(double verticalOffset) {
-        return threePhaseHorizontal(verticalOffset, -3.0, 0.0, 3.0);
+        return threePhaseHorizontal(verticalOffset, -3, 0, 3);
     }
 
     public static List<ConductorAttachment> threePhaseHorizontal(
@@ -34,9 +34,9 @@ public final class ConductorAttachmentPresets {
 
     public static List<ConductorAttachment> threePhaseVertical(double verticalOffset) {
         List<ConductorAttachment> attachments = new ArrayList<>(3);
-        attachments.add(createPhase(PHASE_A_ID, "A", AttachmentRole.PHASE_A, 0.0, verticalOffset - 1.0, true));
-        attachments.add(createPhase(PHASE_B_ID, "B", AttachmentRole.PHASE_B, 0.0, verticalOffset, false));
-        attachments.add(createPhase(PHASE_C_ID, "C", AttachmentRole.PHASE_C, 0.0, verticalOffset + 1.0, true));
+        attachments.add(createPhase(PHASE_A_ID, "A", AttachmentRole.PHASE_A, 0, verticalOffset - 1, true));
+        attachments.add(createPhase(PHASE_B_ID, "B", AttachmentRole.PHASE_B, 0, verticalOffset, false));
+        attachments.add(createPhase(PHASE_C_ID, "C", AttachmentRole.PHASE_C, 0, verticalOffset + 1, true));
         return attachments;
     }
 
@@ -51,7 +51,7 @@ public final class ConductorAttachmentPresets {
         ConductorAttachment attachment = new ConductorAttachment(id, name);
         attachment.setRole(roleForLetter(letter));
         if (design != null && design.totalHeight() > 0) {
-            attachment.setVerticalOffset(Math.max(1.0, design.totalHeight() - 1.0));
+            attachment.setVerticalOffset(Math.max(1, design.totalHeight() - 1));
         }
         return attachment;
     }
@@ -60,7 +60,7 @@ public final class ConductorAttachmentPresets {
         List<ConductorAttachment> attachments = new ArrayList<>(1);
         ConductorAttachment attachment = new ConductorAttachment("phase_a", "A");
         attachment.setRole(AttachmentRole.PHASE_A);
-        attachment.setLateralOffset(0.0);
+        attachment.setLateralOffset(0);
         attachment.setVerticalOffset(verticalOffset);
         attachments.add(attachment);
         return attachments;
@@ -110,7 +110,7 @@ public final class ConductorAttachmentPresets {
         attachments.add(createPhase("right_phase_a", "RA", AttachmentRole.PHASE_A, rightA, verticalOffset, true));
         attachments.add(createPhase("right_phase_b", "RB", AttachmentRole.PHASE_B, rightB, verticalOffset, true));
         attachments.add(createPhase("right_phase_c", "RC", AttachmentRole.PHASE_C, rightC, verticalOffset, true));
-        attachments.addAll(twinTopWires(verticalOffset + 6, 2.5));
+        attachments.addAll(twinTopWires(verticalOffset + 6, 3));
         return attachments;
     }
 
@@ -139,7 +139,7 @@ public final class ConductorAttachmentPresets {
         attachments.add(createPhase("ur_phase_a", "URA", AttachmentRole.PHASE_A, rightA, upperDeckOffset, true));
         attachments.add(createPhase("ur_phase_b", "URB", AttachmentRole.PHASE_B, rightB, upperDeckOffset, true));
         attachments.add(createPhase("ur_phase_c", "URC", AttachmentRole.PHASE_C, rightC, upperDeckOffset, true));
-        attachments.addAll(twinTopWires(upperDeckOffset + 8, 3.0));
+        attachments.addAll(twinTopWires(upperDeckOffset + 8, 3));
         return attachments;
     }
 

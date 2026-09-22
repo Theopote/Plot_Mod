@@ -145,7 +145,7 @@ public final class TowerDesignerSession {
                 : TowerParameterProfiles.CLASSIC_DOUBLE_ARM_ID;
             switchProfile(draft, profileId);
         } else {
-            TowerArmAttachmentBinding.ensureV2Bindings(draft);
+            TowerArmAttachmentBinding.promoteArmLinkedAttachmentsToBound(draft);
             parametricState.captureFromDesign(draft);
         }
         syncParametricConfigToSelectedLine(draft);

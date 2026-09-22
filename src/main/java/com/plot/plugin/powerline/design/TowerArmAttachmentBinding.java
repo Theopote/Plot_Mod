@@ -65,12 +65,6 @@ public final class TowerArmAttachmentBinding {
         }
     }
 
-    /** @deprecated 使用 {@link #promoteArmLinkedAttachmentsToBound(PoleDesign)} */
-    @Deprecated
-    public static void ensureV2Bindings(PoleDesign design) {
-        promoteArmLinkedAttachmentsToBound(design);
-    }
-
     public static void bindToArm(TowerArm arm, ConductorAttachment attachment) {
         bindToArm(arm, attachment, null);
     }
@@ -210,7 +204,7 @@ public final class TowerArmAttachmentBinding {
     }
 
     /**
-     * 切到 Legacy 分层前：把 BOUND 挂点烘焙为 FREE 局部偏移，避免结构清空后预览/编辑错位。
+     * 切到分层模式前：把 BOUND 挂点烘焙为 FREE 局部偏移，避免结构清空后预览/编辑错位。
      */
     public static void releaseBoundAttachmentsForLegacyLayers(PoleDesign design) {
         if (design == null || design.getTowerStructure() == null) {
@@ -232,7 +226,7 @@ public final class TowerArmAttachmentBinding {
         }
     }
 
-    /** 按横担高度推断未绑定的挂点（打开设计器时补全 legacy 设计）。 */
+    /** 按横担高度推断未绑定 arm 的挂点。 */
     public static void inferArmBindings(PoleDesign design) {
         if (design == null || !design.hasTowerStructure()) {
             return;
@@ -252,7 +246,7 @@ public final class TowerArmAttachmentBinding {
                 attachment.setArmId(nearest.getId());
             }
         }
-        ensureV2Bindings(design);
+        promoteArmLinkedAttachmentsToBound(design);
     }
 
     public static Map<String, List<ConductorAttachment>> groupByArm(PoleDesign design) {
@@ -357,34 +351,24 @@ public final class TowerArmAttachmentBinding {
 
     private static ResolvedLocalOffsets resolveBoundOffsets(ConductorAttachment attachment, TowerArm arm) {
         double lateral = ConductorAttachment.snapBlockOffset(
-            arm.getLateralReach() * DEFAULT_LATERAL_SCALE * attachment.getNormalizedPosition());
+            blockEffectiveReach(arm) * attachment.getNormalizedPosition());
         double vertical = ConductorAttachment.snapBlockOffset(
             conductorHangHeight(arm) + attachment.getVerticalAnchorOffset());
         return new ResolvedLocalOffsets(lateral, vertical, attachment.getLongitudinalOffset());
     }
 
-    private static void migrateLegacyToBound(ConductorAttachment attachment, TowerArm arm) {
-        double reach = arm.getLateralReach() * DEFAULT_LATERAL_SCALE;
-        double lateral = attachment.getLateralOffset();
-        double normalized = reach > 1e-6 ? lateral / reach : 0.0;
-        double outerReach = ConductorAttachment.snapBlockOffset(reach);
-        if (outerReach > 0 && Math.abs(Math.abs(lateral) - outerReach) < 1e-6) {
-            normalized = lateral < 0 ? -1.0 : 1.0;
+    private static void promoteToBound(ConductorAttachment attachment, TowerArm arm) {
+        if (attachment.isBound() && arm.getId().equals(attachment.getArmId())) {
+            cacheResolvedOffsets(attachment, arm);
+            return;
         }
-        double originalLateral = lateral;
-        double originalVertical = attachment.getVerticalOffset();
+        double reach = blockEffectiveReach(arm);
+        double normalized = reach > 1e-6 ? attachment.getLateralOffset() / reach : 0.0;
         attachment.setBindingMode(AttachmentBindingMode.BOUND);
         attachment.setArmId(arm.getId());
         attachment.setNormalizedPosition(normalized);
-        attachment.setVerticalAnchorOffset(originalVertical - conductorHangHeight(arm));
-        // If the normalized position was clamped, preserve the original offsets
-        // to avoid permanently moving legacy attachments inward.
-        if (Math.abs(normalized) > 1.0) {
-            attachment.setLateralOffset(originalLateral);
-            attachment.setVerticalOffset(originalVertical);
-        } else {
-            cacheResolvedOffsets(attachment, arm);
-        }
+        attachment.setVerticalAnchorOffset(attachment.getVerticalOffset() - conductorHangHeight(arm));
+        cacheResolvedOffsets(attachment, arm);
     }
 
     private static void cacheResolvedOffsets(ConductorAttachment attachment, TowerArm arm) {
@@ -417,12 +401,24 @@ public final class TowerArmAttachmentBinding {
     }
 
     private static void applyThreePhaseSpread(TowerArm arm, List<ConductorAttachment> bound) {
-        double reach = arm.getLateralReach() * DEFAULT_LATERAL_SCALE;
+        double reach = blockEffectiveReach(arm);
         if (bound.size() == 3) {
             bound.get(0).setLateralOffset(-reach);
             bound.get(1).setLateralOffset(0);
             bound.get(2).setLateralOffset(reach);
         }
+    }
+
+    private static ConductorAttachment boundBundledPhase(
+            String idPrefix,
+            String name,
+            AttachmentRole role,
+            double normalizedPosition,
+            TowerArm arm,
+            int bundleCount) {
+        ConductorAttachment attachment = boundPhase(idPrefix, name, role, normalizedPosition, arm);
+        attachment.setBundleVisual(BundleVisual.forSubconductorCount(bundleCount));
+        return attachment;
     }
 
     private static ConductorAttachment boundPhase(

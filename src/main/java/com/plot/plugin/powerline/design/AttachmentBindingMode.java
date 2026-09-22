@@ -1,6 +1,6 @@
 package com.plot.plugin.powerline.design;
 
-/** 导线挂点绑定模式（v2）。 */
+/** 导线挂点绑定模式。 */
 public enum AttachmentBindingMode {
     /** 相对横担归一化位置，横担几何变化时自动跟随。 */
     BOUND,

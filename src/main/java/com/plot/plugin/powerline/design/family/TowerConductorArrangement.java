@@ -27,17 +27,17 @@ public record TowerConductorArrangement(
 
     /** 经典格构塔：分裂导线 + 双顶线（标准相间距）。 */
     public static TowerConductorArrangement classicLattice() {
-        return new TowerConductorArrangement(2, 0.6, -6, 0, 6, TopWireMode.TWIN, 4, 1.5);
+        return new TowerConductorArrangement(2, 1, -6, 0, 6, TopWireMode.TWIN, 4, 2);
     }
 
     /** 重型输电塔：更宽相间距 + 分裂导线 + 双顶线。 */
     public static TowerConductorArrangement heavyTransmission() {
-        return new TowerConductorArrangement(2, 0.8, -9, 0, 9, TopWireMode.TWIN, 5, 2.0);
+        return new TowerConductorArrangement(2, 1, -9, 0, 9, TopWireMode.TWIN, 5, 2);
     }
 
     /** 超大型工业格构塔：更宽塔身 + 分裂导线 + 双顶线。 */
     public static TowerConductorArrangement megaIndustrial() {
-        return new TowerConductorArrangement(2, 0.9, -12, 0, 12, TopWireMode.TWIN, 6, 2.5);
+        return new TowerConductorArrangement(2, 1, -12, 0, 12, TopWireMode.TWIN, 6, 3);
     }
 
     public List<ConductorAttachment> createAttachments(

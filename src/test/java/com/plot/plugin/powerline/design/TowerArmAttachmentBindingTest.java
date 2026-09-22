@@ -32,7 +32,7 @@ class TowerArmAttachmentBindingTest {
         TowerArmAttachmentBinding.ResolvedLocalOffsets right =
             TowerArmAttachmentBinding.resolveLocalOffsets(deck.get(2), structure);
         assertEquals(40.0, left.vertical(), 0.01);
-        assertEquals(-8.0, left.lateral(), 0.01);
+        assertEquals(-9.0, left.lateral(), 0.01);
         assertEquals(9.0, right.lateral(), 0.01);
     }
 
@@ -112,7 +112,7 @@ class TowerArmAttachmentBindingTest {
 
         assertFalse(stored.isBound());
         assertEquals(40.0, stored.getVerticalOffset(), 0.01);
-        assertEquals(-8.0, stored.getLateralOffset(), 0.01);
+        assertEquals(-9.0, stored.getLateralOffset(), 0.01);
     }
 
     @Test

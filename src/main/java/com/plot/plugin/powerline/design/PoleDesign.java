@@ -248,7 +248,7 @@ public class PoleDesign {
             return null;
         }
         PoleDesign design = data.toDesign();
-        TowerArmAttachmentBinding.ensureV2Bindings(design);
+        TowerArmAttachmentBinding.promoteArmLinkedAttachmentsToBound(design);
         design.ensureDefaultConductorAttachments();
         return design;
     }

@@ -55,12 +55,12 @@ class ConductorAttachmentBindingV2Test {
             TowerArmAttachmentBinding.resolveLocalOffsets(
                 TowerArmAttachmentBinding.createThreePhaseDeck(arm).get(0),
                 structure);
-        assertEquals(-8.0, left.lateral(), 0.01);
+        assertEquals(-9.0, left.lateral(), 0.01);
         assertEquals(40.0, left.vertical(), 0.01);
     }
 
     @Test
-    void legacyArmIdMigratesToBoundOnEnsureV2Bindings() {
+    void freeAttachmentWithArmIdPromotesToBound() {
         TowerStructureDesign structure = TowerStructurePresets.classicDoubleArmTower();
         PoleDesign design = new PoleDesign("legacy", "Legacy");
         design.setTowerStructure(structure);
@@ -71,7 +71,7 @@ class ConductorAttachmentBindingV2Test {
         attachment.setVerticalOffset(26.0);
         design.addAttachment(attachment);
 
-        TowerArmAttachmentBinding.ensureV2Bindings(design);
+        TowerArmAttachmentBinding.promoteArmLinkedAttachmentsToBound(design);
         ConductorAttachment stored = design.getAttachments().getFirst();
         assertTrue(stored.isBound());
         assertEquals(-1.0, stored.getNormalizedPosition(), 0.01);
