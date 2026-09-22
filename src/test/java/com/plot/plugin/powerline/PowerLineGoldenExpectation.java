@@ -20,33 +20,42 @@ final class PowerLineGoldenExpectation {
     private final IntRange bboxSpanZ;
     private final boolean requireStructuralFrontSymmetry;
 
-    PowerLineGoldenExpectation(
-            IntRange poleCount,
-            IntRange towerGapCount,
-            IntRange conductorSpanCount,
-            IntRange attachmentCount,
-            IntRange blockCount,
-            IntRange structureBlockCount,
-            IntRange invalidPoleCount,
-            IntRange warningCount,
-            Map<TowerRole, IntRange> roleCounts,
-            IntRange bboxSpanX,
-            IntRange bboxSpanY,
-            IntRange bboxSpanZ,
-            boolean requireStructuralFrontSymmetry) {
-        this.poleCount = poleCount;
-        this.towerGapCount = towerGapCount;
-        this.conductorSpanCount = conductorSpanCount;
-        this.attachmentCount = attachmentCount;
-        this.blockCount = blockCount;
-        this.structureBlockCount = structureBlockCount;
-        this.invalidPoleCount = invalidPoleCount;
-        this.warningCount = warningCount;
-        this.roleCounts = roleCounts;
-        this.bboxSpanX = bboxSpanX;
-        this.bboxSpanY = bboxSpanY;
-        this.bboxSpanZ = bboxSpanZ;
-        this.requireStructuralFrontSymmetry = requireStructuralFrontSymmetry;
+    private PowerLineGoldenExpectation(Builder builder) {
+        this.poleCount = builder.poleCount;
+        this.towerGapCount = builder.towerGapCount;
+        this.conductorSpanCount = builder.conductorSpanCount;
+        this.attachmentCount = builder.attachmentCount;
+        this.blockCount = builder.blockCount;
+        this.structureBlockCount = builder.structureBlockCount;
+        this.invalidPoleCount = builder.invalidPoleCount;
+        this.warningCount = builder.warningCount;
+        this.roleCounts = builder.roleCounts;
+        this.bboxSpanX = builder.bboxSpanX;
+        this.bboxSpanY = builder.bboxSpanY;
+        this.bboxSpanZ = builder.bboxSpanZ;
+        this.requireStructuralFrontSymmetry = builder.requireStructuralFrontSymmetry;
+    }
+
+    static Builder builder() {
+        return new Builder();
+    }
+
+    PowerLineGoldenExpectation withWarnings(IntRange warningCount) {
+        return builder()
+            .poleCount(poleCount)
+            .towerGapCount(towerGapCount)
+            .conductorSpanCount(conductorSpanCount)
+            .attachmentCount(attachmentCount)
+            .blockCount(blockCount)
+            .structureBlockCount(structureBlockCount)
+            .invalidPoleCount(invalidPoleCount)
+            .warningCount(warningCount)
+            .roleCounts(roleCounts)
+            .bboxSpanX(bboxSpanX)
+            .bboxSpanY(bboxSpanY)
+            .bboxSpanZ(bboxSpanZ)
+            .requireStructuralFrontSymmetry(requireStructuralFrontSymmetry)
+            .build();
     }
 
     void assertMatches(String scenarioId, PowerLineGoldenMetrics metrics) {
@@ -73,6 +82,91 @@ final class PowerLineGoldenExpectation {
 
         if (requireStructuralFrontSymmetry && !metrics.structuralFrontSymmetry()) {
             throw new AssertionError(scenarioId + " expected structural front symmetry on z=0 mirror");
+        }
+    }
+
+    static final class Builder {
+        private IntRange poleCount;
+        private IntRange towerGapCount;
+        private IntRange conductorSpanCount;
+        private IntRange attachmentCount;
+        private IntRange blockCount;
+        private IntRange structureBlockCount;
+        private IntRange invalidPoleCount;
+        private IntRange warningCount;
+        private Map<TowerRole, IntRange> roleCounts;
+        private IntRange bboxSpanX;
+        private IntRange bboxSpanY;
+        private IntRange bboxSpanZ;
+        private boolean requireStructuralFrontSymmetry;
+
+        Builder poleCount(IntRange poleCount) {
+            this.poleCount = poleCount;
+            return this;
+        }
+
+        Builder towerGapCount(IntRange towerGapCount) {
+            this.towerGapCount = towerGapCount;
+            return this;
+        }
+
+        Builder conductorSpanCount(IntRange conductorSpanCount) {
+            this.conductorSpanCount = conductorSpanCount;
+            return this;
+        }
+
+        Builder attachmentCount(IntRange attachmentCount) {
+            this.attachmentCount = attachmentCount;
+            return this;
+        }
+
+        Builder blockCount(IntRange blockCount) {
+            this.blockCount = blockCount;
+            return this;
+        }
+
+        Builder structureBlockCount(IntRange structureBlockCount) {
+            this.structureBlockCount = structureBlockCount;
+            return this;
+        }
+
+        Builder invalidPoleCount(IntRange invalidPoleCount) {
+            this.invalidPoleCount = invalidPoleCount;
+            return this;
+        }
+
+        Builder warningCount(IntRange warningCount) {
+            this.warningCount = warningCount;
+            return this;
+        }
+
+        Builder roleCounts(Map<TowerRole, IntRange> roleCounts) {
+            this.roleCounts = roleCounts;
+            return this;
+        }
+
+        Builder bboxSpanX(IntRange bboxSpanX) {
+            this.bboxSpanX = bboxSpanX;
+            return this;
+        }
+
+        Builder bboxSpanY(IntRange bboxSpanY) {
+            this.bboxSpanY = bboxSpanY;
+            return this;
+        }
+
+        Builder bboxSpanZ(IntRange bboxSpanZ) {
+            this.bboxSpanZ = bboxSpanZ;
+            return this;
+        }
+
+        Builder requireStructuralFrontSymmetry(boolean requireStructuralFrontSymmetry) {
+            this.requireStructuralFrontSymmetry = requireStructuralFrontSymmetry;
+            return this;
+        }
+
+        PowerLineGoldenExpectation build() {
+            return new PowerLineGoldenExpectation(this);
         }
     }
 

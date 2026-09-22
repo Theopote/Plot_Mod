@@ -68,7 +68,7 @@ public final class PowerLineGoldenMetrics {
         Map<TowerRole, Integer> roles = new EnumMap<>(TowerRole.class);
         roles.putAll(result.towersByRole);
 
-        int towerGapCount = Math.max(0, result.poleCount - 1);
+        int towerGapCount = resolveTowerGapCount(result);
         return new PowerLineGoldenMetrics(
             result.poleCount,
             towerGapCount,
@@ -125,6 +125,17 @@ public final class PowerLineGoldenMetrics {
 
     public boolean structuralFrontSymmetry() {
         return structuralFrontSymmetry;
+    }
+
+    private static int resolveTowerGapCount(PowerLineGenerationResult result) {
+        int poleCount = result.poleCount;
+        if (poleCount <= 1) {
+            return 0;
+        }
+        if (result.footprint != null && result.footprint.isClosedLoop()) {
+            return poleCount;
+        }
+        return poleCount - 1;
     }
 
     private static boolean checkStructuralFrontSymmetry(PowerLineGenerationResult result) {
