@@ -112,7 +112,8 @@ public class BuildingPlugin extends Plugin {
         if (active != this) {
             return;
         }
-        if (!pluginState.getShowFootprintOverlay().get()) {
+        boolean pickActive = uiContext.pickSession().isActive();
+        if (!pluginState.getShowFootprintOverlay().get() && !pickActive) {
             return;
         }
         synchronized (projectLock) {
@@ -121,7 +122,7 @@ public class BuildingPlugin extends Plugin {
                 uiContext.project(),
                 uiContext.selection(),
                 canvasShapes,
-                uiContext.pickSession().isActive(),
+                pickActive,
                 true);
             BuildingOverlayRenderer.render(drawList, camera, entries);
         }

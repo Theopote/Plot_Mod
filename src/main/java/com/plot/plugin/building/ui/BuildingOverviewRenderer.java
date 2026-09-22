@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 
 /** 建筑轮廓缩略图与项目总览图。 */
 public final class BuildingOverviewRenderer {
@@ -32,7 +33,74 @@ public final class BuildingOverviewRenderer {
         0xFFFF8080,
     };
 
+    /** 单条轮廓预览项（画布拾取 / 候选态）。 */
+    public record FootprintMapItem(
+            List<Vec2d> points,
+            boolean selected,
+            int color,
+            int hitIndex) {
+    }
+
     private BuildingOverviewRenderer() {
+    }
+
+    /**
+     * 在面板内绘制多条轮廓预览总览图（对齐电力线路 Route Tab 项目地图）。
+     */
+    public static void renderFootprintPreviewMap(
+            String childId,
+            List<FootprintMapItem> items,
+            String emptyHint,
+            IntConsumer onItemClicked) {
+        float mapWidth = ImGui.getContentRegionAvail().x;
+        float mapHeight = mapHeightForWidth(mapWidth);
+        ImGui.beginChild(childId, 0, mapHeight, true);
+
+        float width = ImGui.getContentRegionAvail().x;
+        float height = ImGui.getContentRegionAvail().y;
+        if (width < 1f || height < 1f) {
+            ImGui.endChild();
+            return;
+        }
+
+        ImVec2 origin = ImGui.getCursorScreenPos();
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        drawList.addRectFilled(origin.x, origin.y, origin.x + width, origin.y + height, PluginUiColors.MAP_BG);
+        drawList.addRect(origin.x, origin.y, origin.x + width, origin.y + height, PluginUiColors.PANEL_BORDER);
+
+        if (items == null || items.isEmpty()) {
+            renderCenteredHint(drawList, origin.x, origin.y, width, height, emptyHint);
+            ImGui.dummy(width, height);
+            ImGui.endChild();
+            return;
+        }
+
+        Bounds bounds = computeBoundsFromItems(items);
+        MapViewport viewport = buildViewport(bounds, origin.x, origin.y, width, height);
+        for (FootprintMapItem item : items) {
+            if (item.points() == null || item.points().size() < 3) {
+                continue;
+            }
+            int color = item.selected() ? PluginUiColors.ACCENT_BLUE : item.color();
+            drawFootprint(drawList, item.points(), viewport, color, item.selected());
+        }
+
+        ImGui.invisibleButton("##footprint_map_hit", width, height);
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.building.overview_map_hint"));
+        }
+        if (ImGui.isItemHovered() && ImGui.isMouseClicked(0) && onItemClicked != null) {
+            ImVec2 mouse = ImGui.getMousePos();
+            int hit = hitTestItems(
+                items,
+                toWorldX(mouse.x, viewport),
+                toWorldY(mouse.y, viewport));
+            if (hit >= 0) {
+                onItemClicked.accept(hit);
+            }
+        }
+
+        ImGui.endChild();
     }
 
     public static void renderProjectMap(
@@ -181,6 +249,40 @@ public final class BuildingOverviewRenderer {
             }
         }
         return inside;
+    }
+
+    private static Bounds computeBoundsFromItems(List<FootprintMapItem> items) {
+        double minX = Double.POSITIVE_INFINITY;
+        double minY = Double.POSITIVE_INFINITY;
+        double maxX = Double.NEGATIVE_INFINITY;
+        double maxY = Double.NEGATIVE_INFINITY;
+        for (FootprintMapItem item : items) {
+            Bounds pointBounds = computeBoundsFromPoints(item.points());
+            minX = Math.min(minX, pointBounds.minX);
+            minY = Math.min(minY, pointBounds.minY);
+            maxX = Math.max(maxX, pointBounds.maxX);
+            maxY = Math.max(maxY, pointBounds.maxY);
+        }
+        return new Bounds(minX, minY, maxX, maxY);
+    }
+
+    private static int hitTestItems(List<FootprintMapItem> items, double worldX, double worldY) {
+        int best = -1;
+        double bestArea = Double.MAX_VALUE;
+        for (FootprintMapItem item : items) {
+            if (item.points() == null || item.points().size() < 3) {
+                continue;
+            }
+            if (!containsPoint(item.points(), worldX, worldY)) {
+                continue;
+            }
+            double area = Math.abs(BuildingFootprint.signedArea(item.points()));
+            if (area < bestArea) {
+                bestArea = area;
+                best = item.hitIndex();
+            }
+        }
+        return best;
     }
 
     private static Bounds computeBounds(List<BuildingFootprint> buildings) {

@@ -4115,6 +4115,7 @@
   "plugin.building.footprints.picking_count": "拾取中：已选 %d 个轮廓，右键确认认领",
   "plugin.building.footprints.right_click_finish": "右键确认认领；Esc 取消",
   "plugin.building.footprints.canvas_preview_title": "画布选中：%d 个轮廓 | 总面积 %s m²",
+  "plugin.building.footprints.preview_waiting": "在画布上点选闭合轮廓，预览将显示在此处",
   "plugin.building.footprints.invalid_selection": "%d 个轮廓无效，无法认领",
   "plugin.building.footprints.already_adopted": "%d 个轮廓已认领",
   "plugin.building.footprints.canvas_item_ready": "候选 %d | 面积 %s m²",

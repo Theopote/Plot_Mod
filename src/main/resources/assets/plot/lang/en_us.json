@@ -4115,6 +4115,7 @@
   "plugin.building.footprints.picking_count": "Picking: %d outline(s) selected, right-click to adopt",
   "plugin.building.footprints.right_click_finish": "Right-click to adopt; Esc to cancel",
   "plugin.building.footprints.canvas_preview_title": "Canvas selection: %d outline(s) | total area %s m²",
+  "plugin.building.footprints.preview_waiting": "Select closed outlines on the canvas to preview them here",
   "plugin.building.footprints.invalid_selection": "%d invalid outline(s) cannot be adopted",
   "plugin.building.footprints.already_adopted": "%d outline(s) already adopted",
   "plugin.building.footprints.canvas_item_ready": "Candidate %d | area %s m²",

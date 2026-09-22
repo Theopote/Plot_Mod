@@ -66,6 +66,7 @@ public final class BuildingFootprintsPanel {
 
     private void renderCanvasPreview(BuildingFootprintSelectionAnalysis canvas) {
         if (!canvas.hasCanvasSelection()) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.footprints.preview_waiting"));
             return;
         }
         if (!canvas.invalid().isEmpty()) {
@@ -73,39 +74,65 @@ public final class BuildingFootprintsPanel {
                 PluginUiColors.WARNING,
                 PlotI18n.tr("plugin.building.footprints.invalid_selection", canvas.invalid().size()));
         }
-        List<Shape> previewShapes = previewShapes(canvas);
+        if (!canvas.alreadyAdopted().isEmpty()) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.building.footprints.already_adopted", canvas.alreadyAdopted().size()));
+        }
+
+        List<Shape> previewShapes = BuildingFootprintPreviewItems.previewShapes(canvas);
         if (previewShapes.isEmpty()) {
             return;
         }
+
         ImGui.text(PlotI18n.tr(
             "plugin.building.footprints.canvas_preview_title",
             previewShapes.size(),
-            String.format("%.1f", computePreviewArea(previewShapes))));
+            String.format("%.1f", BuildingFootprintPreviewItems.totalArea(previewShapes))));
+
+        List<BuildingOverviewRenderer.FootprintMapItem> mapItems =
+            BuildingFootprintPreviewItems.fromCanvasAnalysis(canvas);
+        BuildingOverviewRenderer.renderFootprintPreviewMap(
+            "building_canvas_pick_map",
+            mapItems,
+            PlotI18n.tr("plugin.building.footprints.preview_waiting"),
+            hitIndex -> focusCanvasShape(BuildingFootprintPreviewItems.shapeAt(previewShapes, hitIndex)));
+
+        ImGui.beginChild("building_canvas_pick_thumbs", 0, 132, true);
         for (int i = 0; i < previewShapes.size(); i++) {
-            Shape shape = previewShapes.get(i);
-            List<Vec2d> points = BuildingGeometryUtils.extractFootprintPoints(shape);
-            double area = points.isEmpty() ? 0.0 : Math.abs(BuildingFootprint.signedArea(points));
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-                "plugin.building.footprints.canvas_item_ready",
-                i + 1,
-                String.format("%.1f", area)));
+            renderCanvasCandidateThumbnail(previewShapes.get(i), i, canvas);
+        }
+        ImGui.endChild();
+    }
+
+    private void focusCanvasShape(Shape shape) {
+        if (shape == null) {
+            return;
+        }
+        List<Shape> selected = new ArrayList<>(ctx.host().appState().getSelectedShapes());
+        if (!selected.contains(shape)) {
+            selected.add(shape);
+            ctx.host().appState().setSelectedShapes(selected);
         }
     }
 
-    private static List<Shape> previewShapes(BuildingFootprintSelectionAnalysis canvas) {
-        List<Shape> shapes = new ArrayList<>(canvas.adoptable());
-        shapes.addAll(canvas.alreadyAdopted());
-        shapes.addAll(canvas.invalid());
-        return shapes;
-    }
-
-    private static double computePreviewArea(List<Shape> shapes) {
-        double area = 0.0;
-        for (Shape shape : shapes) {
-            List<Vec2d> points = BuildingGeometryUtils.extractFootprintPoints(shape);
-            area += Math.abs(BuildingFootprint.signedArea(points));
-        }
-        return area;
+    private void renderCanvasCandidateThumbnail(Shape shape, int index, BuildingFootprintSelectionAnalysis canvas) {
+        ImGui.pushID(shape.getId());
+        List<Vec2d> points = BuildingGeometryUtils.extractFootprintPoints(shape);
+        boolean invalid = canvas.invalid().stream().anyMatch(s -> s.getId().equals(shape.getId()));
+        boolean adopted = canvas.alreadyAdopted().stream().anyMatch(s -> s.getId().equals(shape.getId()));
+        BuildingOverviewRenderer.renderFootprintThumbnail(points, !invalid, index);
+        ImGui.sameLine();
+        double area = points.isEmpty() ? 0.0 : Math.abs(BuildingFootprint.signedArea(points));
+        String statusKey = invalid
+            ? "plugin.building.footprints.canvas_item_invalid"
+            : adopted
+                ? "plugin.building.footprints.canvas_item_adopted"
+                : "plugin.building.footprints.canvas_item_ready";
+        ImGui.textColored(
+            invalid ? PluginUiColors.WARNING : PluginUiColors.HINT_GRAY,
+            PlotI18n.tr(statusKey, index + 1, String.format("%.1f", area)));
+        ImGui.popID();
     }
 
     private void renderAdoptedSection() {
@@ -149,6 +176,11 @@ public final class BuildingFootprintsPanel {
         if (deleteDisabled) {
             ImGui.endDisabled();
         }
+
+        BuildingOverviewRenderer.renderProjectMap(
+            ctx.project(),
+            ctx.selection().ids(),
+            id -> ctx.selection().select(id, ImGui.getIO().getKeyCtrl()));
 
         ImGui.spacing();
         ImGui.text(PlotI18n.tr("plugin.building.footprints.list_section"));
