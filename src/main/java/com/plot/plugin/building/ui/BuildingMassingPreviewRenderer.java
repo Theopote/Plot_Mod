@@ -13,6 +13,7 @@ import imgui.flag.ImGuiWindowFlags;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -22,6 +23,12 @@ public final class BuildingMassingPreviewRenderer {
     private static final float PADDING = 12f;
     /** 水平面 (x+y) 项相对 (x-y) 的压缩，经典 2:1 轴测。 */
     private static final double ISO_PLANAR_Y = 0.5;
+    /** 地面 footprint 占画布高度比例。 */
+    private static final double GROUND_VIEW_FRACTION = 0.58;
+    /** 最高建筑至少占画布高度的比例（自动垂直放大）。 */
+    private static final double MIN_HEIGHT_VIEW_FRACTION = 0.32;
+    /** 垂直放大上限，避免比例失真过大。 */
+    private static final double MAX_VERTICAL_EXAGGERATION = 4.5;
     private static final int COLOR_FILL_LOW = 0x668CB4FF;
     private static final int COLOR_FILL_HIGH = 0xCC1A4F99;
     private static final int COLOR_SKIPPED_FILL = 0x55AAAAAA;
@@ -32,11 +39,12 @@ public final class BuildingMassingPreviewRenderer {
 
     public record Model(
             List<BuildingFootprint> buildings,
+            Map<String, Double> previewHeightBlocks,
             Set<String> warningBuildingIds,
             Set<String> skippedBuildingIds,
             Set<String> selectedBuildingIds,
-            int minFloors,
-            int maxFloors,
+            double minHeightBlocks,
+            double maxHeightBlocks,
             String emptyHint) {
     }
 
@@ -65,11 +73,18 @@ public final class BuildingMassingPreviewRenderer {
             return;
         }
 
-        IsoViewport viewport = buildViewport(buildings, origin.x, origin.y, width, height);
+        Map<String, Double> previewHeights = model.previewHeightBlocks();
+        IsoViewport viewport = buildViewport(
+            buildings,
+            previewHeights,
+            origin.x,
+            origin.y,
+            width,
+            height);
         Set<String> warnings = model.warningBuildingIds() != null ? model.warningBuildingIds() : Set.of();
         Set<String> skipped = model.skippedBuildingIds() != null ? model.skippedBuildingIds() : Set.of();
         Set<String> selected = model.selectedBuildingIds() != null ? model.selectedBuildingIds() : Set.of();
-        int floorSpan = Math.max(1, model.maxFloors() - model.minFloors());
+        double heightSpan = Math.max(1.0, model.maxHeightBlocks() - model.minHeightBlocks());
 
         List<BuildingFootprint> drawOrder = new ArrayList<>(buildings);
         drawOrder.sort(Comparator.comparingDouble(building -> {
@@ -84,11 +99,13 @@ public final class BuildingMassingPreviewRenderer {
             boolean isWarning = warnings.contains(building.getId());
             boolean isSkipped = skipped.contains(building.getId());
             boolean isSelected = selected.contains(building.getId());
+            double heightBlocks = isSkipped
+                ? 0.5
+                : BuildingMassingPreviewHeights.forBuilding(building, previewHeights);
             int topColor = isSkipped
                 ? COLOR_SKIPPED_FILL
-                : heightFillColor(building.getFloors(), model.minFloors(), floorSpan);
+                : heightFillColor(heightBlocks, model.minHeightBlocks(), heightSpan);
             int sideColor = isSkipped ? COLOR_SKIPPED_SIDE : darken(topColor, 0.62f);
-            double heightBlocks = isSkipped ? 0.5 : buildingHeightBlocks(building);
             drawIsometricMass(
                 drawList,
                 building.getOuterPoints(),
@@ -125,10 +142,6 @@ public final class BuildingMassingPreviewRenderer {
         ImGui.endChild();
     }
 
-    private static double buildingHeightBlocks(BuildingFootprint building) {
-        return building.getFloors() * building.getFloorHeight();
-    }
-
     private static void drawIsometricMass(
             ImDrawList drawList,
             List<Vec2d> points,
@@ -141,6 +154,7 @@ public final class BuildingMassingPreviewRenderer {
         float[] baseY = new float[count];
         float[] topX = new float[count];
         float[] topY = new float[count];
+        boolean ccw = isPolygonCcw(points);
         for (int i = 0; i < count; i++) {
             Vec2d point = points.get(i);
             baseX[i] = viewport.projectX(point.x, point.y, 0.0);
@@ -149,18 +163,25 @@ public final class BuildingMassingPreviewRenderer {
             topY[i] = viewport.projectY(point.x, point.y, heightBlocks);
         }
 
+        Vec2d center = centroid(points);
+        double depthSplit = center.x + center.y;
+        List<Integer> backEdges = new ArrayList<>();
+        List<Integer> frontEdges = new ArrayList<>();
         for (int i = 0; i < count; i++) {
             int next = (i + 1) % count;
-            if (!isSideVisible(points.get(i), points.get(next))) {
+            if (!isSideVisible(points.get(i), points.get(next), ccw)) {
                 continue;
             }
-            drawQuad(
-                drawList,
-                baseX[i], baseY[i],
-                baseX[next], baseY[next],
-                topX[next], topY[next],
-                topX[i], topY[i],
-                sideColor);
+            double edgeDepth = points.get(i).x + points.get(i).y + points.get(next).x + points.get(next).y;
+            if (edgeDepth < depthSplit * 2.0) {
+                backEdges.add(i);
+            } else {
+                frontEdges.add(i);
+            }
+        }
+
+        for (int i : backEdges) {
+            drawSideQuad(drawList, i, count, baseX, baseY, topX, topY, sideColor);
         }
 
         ImVec2[] topPoints = new ImVec2[count];
@@ -168,6 +189,29 @@ public final class BuildingMassingPreviewRenderer {
             topPoints[i] = new ImVec2(topX[i], topY[i]);
         }
         drawList.addConvexPolyFilled(topPoints, topPoints.length, topColor);
+
+        for (int i : frontEdges) {
+            drawSideQuad(drawList, i, count, baseX, baseY, topX, topY, sideColor);
+        }
+    }
+
+    private static void drawSideQuad(
+            ImDrawList drawList,
+            int edgeIndex,
+            int count,
+            float[] baseX,
+            float[] baseY,
+            float[] topX,
+            float[] topY,
+            int sideColor) {
+        int next = (edgeIndex + 1) % count;
+        drawQuad(
+            drawList,
+            baseX[edgeIndex], baseY[edgeIndex],
+            baseX[next], baseY[next],
+            topX[next], topY[next],
+            topX[edgeIndex], topY[edgeIndex],
+            sideColor);
     }
 
     private static void drawTopOutline(
@@ -191,11 +235,26 @@ public final class BuildingMassingPreviewRenderer {
         }
     }
 
-    /** 东南视角：外墙法线朝向观察者时绘制该侧面。 */
-    private static boolean isSideVisible(Vec2d start, Vec2d end) {
+    /**
+     * 东南视角：外墙法线朝向观察者时绘制该侧面。
+     * CCW 轮廓的外法线约为 (dy, -dx)，与相机方向 (1, 1) 点积为 dy - dx。
+     */
+    private static boolean isSideVisible(Vec2d start, Vec2d end, boolean ccw) {
         double dx = end.x - start.x;
         double dy = end.y - start.y;
-        return dx > dy;
+        double facing = ccw ? (dy - dx) : (dx - dy);
+        return facing > 0.0;
+    }
+
+    private static boolean isPolygonCcw(List<Vec2d> points) {
+        double area = 0.0;
+        int count = points.size();
+        for (int i = 0; i < count; i++) {
+            Vec2d current = points.get(i);
+            Vec2d next = points.get((i + 1) % count);
+            area += current.x * next.y - next.x * current.y;
+        }
+        return area > 0.0;
     }
 
     private static void drawQuad(
@@ -208,8 +267,8 @@ public final class BuildingMassingPreviewRenderer {
         drawList.addQuadFilled(x0, y0, x1, y1, x2, y2, x3, y3, color);
     }
 
-    private static int heightFillColor(int floors, int minFloors, int floorSpan) {
-        float t = (floors - minFloors) / (float) Math.max(1, floorSpan);
+    private static int heightFillColor(double heightBlocks, double minHeightBlocks, double heightSpan) {
+        float t = (float) ((heightBlocks - minHeightBlocks) / Math.max(1.0, heightSpan));
         t = Math.clamp(t, 0f, 1f);
         return lerpColor(COLOR_FILL_LOW, COLOR_FILL_HIGH, t);
     }
@@ -309,37 +368,75 @@ public final class BuildingMassingPreviewRenderer {
 
     private static IsoViewport buildViewport(
             List<BuildingFootprint> buildings,
+            Map<String, Double> previewHeights,
             float x,
             float y,
             float width,
             float height) {
+        double minGroundX = Double.POSITIVE_INFINITY;
+        double minGroundY = Double.POSITIVE_INFINITY;
+        double maxGroundX = Double.NEGATIVE_INFINITY;
+        double maxGroundY = Double.NEGATIVE_INFINITY;
+        double maxHeightBlocks = 0.0;
+
+        for (BuildingFootprint building : buildings) {
+            if (building == null) {
+                continue;
+            }
+            double heightBlocks = BuildingMassingPreviewHeights.forBuilding(building, previewHeights);
+            maxHeightBlocks = Math.max(maxHeightBlocks, heightBlocks);
+            for (Vec2d point : building.getOuterPoints()) {
+                double sx = point.x - point.y;
+                double sy = (point.x + point.y) * ISO_PLANAR_Y;
+                minGroundX = Math.min(minGroundX, sx);
+                maxGroundX = Math.max(maxGroundX, sx);
+                minGroundY = Math.min(minGroundY, sy);
+                maxGroundY = Math.max(maxGroundY, sy);
+            }
+        }
+
+        double spanX = Math.max(maxGroundX - minGroundX, 1.0);
+        double spanYGround = Math.max(maxGroundY - minGroundY, 1.0);
+        float innerWidth = Math.max(1f, width - PADDING * 2f);
+        float innerHeight = Math.max(1f, height - PADDING * 2f);
+
+        double planarScale = Math.min(
+            innerWidth / spanX,
+            (innerHeight * GROUND_VIEW_FRACTION) / spanYGround);
+
+        double verticalScale = planarScale;
+        if (maxHeightBlocks > 0.0) {
+            double minVerticalScale = (innerHeight * MIN_HEIGHT_VIEW_FRACTION) / maxHeightBlocks;
+            verticalScale = Math.max(planarScale, minVerticalScale);
+            verticalScale = Math.min(verticalScale, planarScale * MAX_VERTICAL_EXAGGERATION);
+        }
+
         double minScreenX = Double.POSITIVE_INFINITY;
         double minScreenY = Double.POSITIVE_INFINITY;
         double maxScreenX = Double.NEGATIVE_INFINITY;
         double maxScreenY = Double.NEGATIVE_INFINITY;
-
         for (BuildingFootprint building : buildings) {
-            double heightBlocks = buildingHeightBlocks(building);
+            if (building == null) {
+                continue;
+            }
+            double heightBlocks = BuildingMassingPreviewHeights.forBuilding(building, previewHeights);
             for (Vec2d point : building.getOuterPoints()) {
                 for (double z : new double[] {0.0, heightBlocks}) {
                     double sx = point.x - point.y;
                     double sy = (point.x + point.y) * ISO_PLANAR_Y - z;
-                    minScreenX = Math.min(minScreenX, sx);
-                    maxScreenX = Math.max(maxScreenX, sx);
-                    minScreenY = Math.min(minScreenY, sy);
-                    maxScreenY = Math.max(maxScreenY, sy);
+                    minScreenX = Math.min(minScreenX, sx * planarScale);
+                    maxScreenX = Math.max(maxScreenX, sx * planarScale);
+                    minScreenY = Math.min(minScreenY, sy * planarScale - z * verticalScale);
+                    maxScreenY = Math.max(maxScreenY, sy * planarScale - z * verticalScale);
                 }
             }
         }
 
-        double spanX = Math.max(maxScreenX - minScreenX, 1.0);
-        double spanY = Math.max(maxScreenY - minScreenY, 1.0);
-        float innerWidth = Math.max(1f, width - PADDING * 2f);
-        float innerHeight = Math.max(1f, height - PADDING * 2f);
-        double scale = Math.min(innerWidth / spanX, innerHeight / spanY);
-        float offsetX = x + PADDING + (float) ((innerWidth - spanX * scale) * 0.5) - (float) (minScreenX * scale);
-        float offsetY = y + PADDING + (float) ((innerHeight - spanY * scale) * 0.5) - (float) (minScreenY * scale);
-        return new IsoViewport(scale, scale, offsetX, offsetY);
+        double fittedSpanX = Math.max(maxScreenX - minScreenX, 1.0);
+        double fittedSpanY = Math.max(maxScreenY - minScreenY, 1.0);
+        float offsetX = x + PADDING + (float) ((innerWidth - fittedSpanX) * 0.5) - (float) minScreenX;
+        float offsetY = y + PADDING + (float) ((innerHeight - fittedSpanY) * 0.5) - (float) minScreenY;
+        return new IsoViewport(planarScale, verticalScale, offsetX, offsetY);
     }
 
     private static float mapHeightForWidth(float width) {

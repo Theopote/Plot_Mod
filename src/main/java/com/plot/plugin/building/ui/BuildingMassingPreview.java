@@ -7,6 +7,7 @@ import imgui.ImGui;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /** Generate Tab 体量预览主体 + 预览操作按钮。 */
@@ -21,15 +22,9 @@ public final class BuildingMassingPreview {
             : Set.of();
         Set<String> skippedIds = skippedBuildingIds(ctx);
 
-        int minFloors = Integer.MAX_VALUE;
-        int maxFloors = 0;
-        for (BuildingFootprint building : targets) {
-            minFloors = Math.min(minFloors, building.getFloors());
-            maxFloors = Math.max(maxFloors, building.getFloors());
-        }
-        if (minFloors == Integer.MAX_VALUE) {
-            minFloors = 0;
-        }
+        Map<String, Double> previewHeights = BuildingMassingPreviewHeights.resolve(ctx, targets);
+        BuildingMassingPreviewHeights.HeightRange heightRange =
+            BuildingMassingPreviewHeights.range(targets, previewHeights);
 
         String emptyHint = validity == BuildingPreviewIdentity.Validity.STALE
             ? PlotI18n.tr("plugin.building.generate.massing_preview_stale")
@@ -39,11 +34,12 @@ public final class BuildingMassingPreview {
             "##building_generate_massing_preview",
             new BuildingMassingPreviewRenderer.Model(
                 targets,
+                previewHeights,
                 warningIds,
                 skippedIds,
                 new HashSet<>(ctx.selection().ids()),
-                minFloors,
-                maxFloors,
+                heightRange.min(),
+                heightRange.max(),
                 emptyHint),
             id -> ctx.selection().select(id, ImGui.getIO().getKeyCtrl()));
 
