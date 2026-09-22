@@ -60,9 +60,12 @@
 
 **Fixtures**：`RealisticDistrictFixtures.mixedDistrict100()` — 55 矩形 + 8 L + 6 凹 + 8 椭圆 + 4 圆 + 4 窄走廊 + 4 厚墙小面 + 4 重叠 + 3 invalid + 4 复杂坡顶。
 
-**Gap 报告**：`RealisticDistrictGapReport.analyze()` — CI 日志输出 skip / roof downgrade / inner offset / overlap 分桶。
+**Gap 报告**：`RealisticDistrictGapReport.analyze()` — CI 日志输出 skip / roof downgrade / inner offset / overlap 分桶。  
+**CI 门禁**：`MixedDistrictRegressionGateTest.ciGateMixedDistrict100_D_B19`（building-suite 独立 step）。
 
 **性能对照**：D-B10/D-B11 与 [BuildingBenchmarkBaseline.md](BuildingBenchmarkBaseline.md) D01/D03 同 harness。
+
+**下一步 P1**：[BuildingFootprintOverlay_开发任务书](task-assignments/BuildingFootprintOverlay_开发任务书.md) — 画布 Footprint Overlay，与 Ghost Preview 分离。
 
 ---
 

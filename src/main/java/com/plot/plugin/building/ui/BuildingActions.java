@@ -11,6 +11,7 @@ import com.plot.core.persistence.ProjectPathResolver;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
 import com.plot.plugin.building.BuildingFootprintPickSession;
+import com.plot.plugin.building.BuildingFootprintSelectionAnalysis;
 import com.plot.plugin.building.BuildingFootprintValidator;
 import com.plot.plugin.building.BuildingGenerator;
 import com.plot.plugin.building.BuildingGeometryUtils;
@@ -525,9 +526,25 @@ public final class BuildingActions {
     }
 
     public void updateSelectedFootprints() {
+        refreshCanvasFootprintSelection();
+    }
+
+    public BuildingFootprintSelectionAnalysis canvasSelectionAnalysis() {
+        List<Shape> shapes;
+        if (state.getPickSession().isActive()) {
+            shapes = state.getPickSession().getAccumulatedFootprints();
+            if (shapes.isEmpty()) {
+                shapes = host.appState().getSelectedShapes();
+            }
+        } else {
+            shapes = host.appState().getSelectedShapes();
+        }
+        return BuildingFootprintSelectionAnalysis.analyze(shapes, state.getProject());
+    }
+
+    public void refreshCanvasFootprintSelection() {
         state.getSelectedFootprints().clear();
-        state.getSelectedFootprints().addAll(
-            BuildingGeometryUtils.findAdoptableFootprints(host.appState().getSelectedShapes()));
+        state.getSelectedFootprints().addAll(canvasSelectionAnalysis().adoptable());
     }
 
     public void selectAllClosedShapesOnCanvas() {

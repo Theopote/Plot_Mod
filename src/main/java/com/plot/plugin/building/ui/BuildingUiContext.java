@@ -1,6 +1,7 @@
 package com.plot.plugin.building.ui;
 
 import com.plot.plugin.building.BuildingBatchEditor;
+import com.plot.plugin.building.BuildingFootprintSelectionAnalysis;
 import com.plot.plugin.building.BuildingHeightDistribution;
 import com.plot.plugin.building.BuildingListHelper;
 import com.plot.plugin.building.BuildingSelectionSet;
@@ -193,6 +194,10 @@ public final class BuildingUiContext {
         return state.getManualElevationRef();
     }
 
+    public imgui.type.ImBoolean showFootprintOverlay() {
+        return state.getShowFootprintOverlay();
+    }
+
     public imgui.type.ImString buildingNameBuffer() {
         return state.getBuildingNameBuffer();
     }
@@ -296,6 +301,14 @@ public final class BuildingUiContext {
 
     public void updateSelectedFootprints() {
         actions.updateSelectedFootprints();
+    }
+
+    public BuildingFootprintSelectionAnalysis canvasSelectionAnalysis() {
+        return actions.canvasSelectionAnalysis();
+    }
+
+    public void refreshCanvasFootprintSelection() {
+        actions.refreshCanvasFootprintSelection();
     }
 
     public void selectAllClosedShapesOnCanvas() {

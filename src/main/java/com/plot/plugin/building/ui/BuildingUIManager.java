@@ -8,16 +8,14 @@ import imgui.flag.ImGuiTabBarFlags;
 public final class BuildingUIManager {
     private final BuildingUiContext ctx;
     private final BuildingToolbarPanel toolbarPanel;
-    private final BuildingOverviewPanel overviewPanel;
-    private final BuildingAdoptPanel adoptPanel;
+    private final BuildingFootprintsPanel footprintsPanel;
     private final BuildingEditPanel editPanel;
     private final BuildingGeneratePanel generatePanel;
 
     public BuildingUIManager(BuildingUiContext ctx) {
         this.ctx = ctx;
         this.toolbarPanel = new BuildingToolbarPanel(ctx);
-        this.overviewPanel = new BuildingOverviewPanel(ctx);
-        this.adoptPanel = new BuildingAdoptPanel(ctx);
+        this.footprintsPanel = new BuildingFootprintsPanel(ctx);
         this.editPanel = new BuildingEditPanel(ctx);
         this.generatePanel = new BuildingGeneratePanel(ctx);
     }
@@ -26,14 +24,15 @@ public final class BuildingUIManager {
         ctx.tickDistrictPreviewJob();
 
         if (ctx.pickSession().isActive()) {
-            adoptPanel.tickPickSession();
+            footprintsPanel.tickPickSession();
+        } else {
+            ctx.refreshCanvasFootprintSelection();
         }
 
         toolbarPanel.render();
 
         if (ImGui.beginTabBar("##building_tabs", ImGuiTabBarFlags.None)) {
-            renderTab("plugin.building.tab.overview", overviewPanel::render);
-            renderTab("plugin.building.tab.adopt", adoptPanel::render);
+            renderTab("plugin.building.tab.footprints", footprintsPanel::render);
             renderTab("plugin.building.tab.edit", editPanel::render);
             renderTab("plugin.building.tab.generate", generatePanel::render);
             ImGui.endTabBar();
@@ -48,7 +47,7 @@ public final class BuildingUIManager {
     }
 
     public void renderDeferredModals() {
-        overviewPanel.renderDeleteConfirmPopup();
+        footprintsPanel.renderDeleteConfirmPopup();
         generatePanel.renderBuildConfirmPopup();
     }
 }

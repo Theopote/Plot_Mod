@@ -43,6 +43,7 @@ public final class BuildingPluginState {
     private final ImString heightDistSeedBuffer = new ImString(24);
 
     private final ImBoolean manualElevationRef = new ImBoolean(false);
+    private final ImBoolean showFootprintOverlay = new ImBoolean(true);
     private final ImString buildingNameBuffer = new ImString(64);
 
     private final List<String> pendingDeleteBuildingIds = new ArrayList<>();
@@ -197,6 +198,10 @@ public final class BuildingPluginState {
 
     public ImBoolean getManualElevationRef() {
         return manualElevationRef;
+    }
+
+    public ImBoolean getShowFootprintOverlay() {
+        return showFootprintOverlay;
     }
 
     public ImString getBuildingNameBuffer() {

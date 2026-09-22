@@ -18,6 +18,14 @@
 | 轮廓体块生成器 | 简化 BIM 编辑器 |
 | 片区批量 Massing（高度分布、预设、later-wins 合并） | 单栋失败即整片 abort |
 | 2D footprint → 3D blockout | 默认暴露门窗 / 立面细部 |
+| **画布 Footprint Overlay**（编辑态轮廓反馈，对齐电力线路） | 把 Overlay 与 Ghost Block 预览混为一谈 |
+
+## 下一阶段 P1（2026-09）
+
+**建筑轮廓画布叠加层** — 见 [BuildingFootprintOverlay_开发任务书](task-assignments/BuildingFootprintOverlay_开发任务书.md)。
+
+三层可视化：`Footprint Overlay`（常驻）→ `Selection Highlight` → `Massing/Ghost Preview`（按需）。  
+优先于 District Variation 与更复杂的生成算法。
 
 ---
 

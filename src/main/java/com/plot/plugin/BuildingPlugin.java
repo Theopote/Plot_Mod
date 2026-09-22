@@ -1,15 +1,24 @@
 package com.plot.plugin;
 
 import com.plot.core.model.Project;
+import com.plot.core.model.Shape;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
+import com.plot.api.plugin.IPlugin;
+import com.plot.core.plugin.PluginManager;
 import com.plot.plugin.building.BuildingGenerator;
 import com.plot.plugin.building.model.BuildingFootprint;
+import com.plot.plugin.building.overlay.BuildingOverlayController;
+import com.plot.plugin.building.overlay.BuildingOverlayEntry;
+import com.plot.plugin.building.overlay.BuildingOverlayRenderer;
 import com.plot.plugin.building.ui.BuildingPluginState;
 import com.plot.plugin.building.ui.BuildingUiContext;
 import com.plot.plugin.building.ui.BuildingUIManager;
+import com.plot.ui.canvas.CanvasCamera;
+import com.plot.ui.canvas.CanvasOverlayRegistry;
 import com.plot.ui.component.ExtensionPanelIcons;
+import imgui.ImDrawList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +38,8 @@ public class BuildingPlugin extends Plugin {
 
     private BuildingUiContext uiContext;
     private BuildingUIManager uiManager;
+
+    private final CanvasOverlayRegistry.Overlay footprintOverlay = this::renderFootprintOverlay;
 
     private final EventListener projectLoadedListener = event -> {
         if (event instanceof ProjectLoadedEvent loaded) {
@@ -66,6 +77,7 @@ public class BuildingPlugin extends Plugin {
 
         ctx().events().subscribe(this, ProjectLoadedEvent.class, projectLoadedListener);
         ctx().events().subscribe(this, ProjectSavedEvent.class, projectSavedListener);
+        CanvasOverlayRegistry.register(footprintOverlay);
         loadProjectForCurrentProject();
     }
 
@@ -89,6 +101,40 @@ public class BuildingPlugin extends Plugin {
         } catch (Exception e) {
             LOGGER.error("取消事件订阅失败: {}", e.getMessage(), e);
         }
+        CanvasOverlayRegistry.unregister(footprintOverlay);
+    }
+
+    private void renderFootprintOverlay(ImDrawList drawList, CanvasCamera camera) {
+        if (!isEnabled() || uiContext == null) {
+            return;
+        }
+        IPlugin active = PluginManager.getInstance().getActivePlugin();
+        if (active != this) {
+            return;
+        }
+        if (!pluginState.getShowFootprintOverlay().get()) {
+            return;
+        }
+        synchronized (projectLock) {
+            List<Shape> canvasShapes = resolveOverlayCanvasShapes();
+            List<BuildingOverlayEntry> entries = BuildingOverlayController.snapshot(
+                uiContext.project(),
+                uiContext.selection(),
+                canvasShapes,
+                uiContext.pickSession().isActive(),
+                true);
+            BuildingOverlayRenderer.render(drawList, camera, entries);
+        }
+    }
+
+    private List<Shape> resolveOverlayCanvasShapes() {
+        if (uiContext.pickSession().isActive()) {
+            List<Shape> accumulated = uiContext.pickSession().getAccumulatedFootprints();
+            if (!accumulated.isEmpty()) {
+                return accumulated;
+            }
+        }
+        return uiContext.host().appState().getSelectedShapes();
     }
 
     @Override

@@ -68,6 +68,10 @@ public class BuildingFootprintPickSession {
         return accumulatedFootprints.size();
     }
 
+    public List<Shape> getAccumulatedFootprints() {
+        return List.copyOf(accumulatedFootprints.values());
+    }
+
     public void begin() {
         active = true;
         accumulatedFootprints.clear();
