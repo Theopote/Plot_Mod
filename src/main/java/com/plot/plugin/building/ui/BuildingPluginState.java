@@ -32,6 +32,8 @@ public final class BuildingPluginState {
     private volatile DistrictGenerationResult lastDistrictResult;
     private volatile DistrictBuildReport lastDistrictBuildReport;
     private BuildingPreviewIdentity previewIdentity;
+    private java.util.Set<String> overlayPreviewedBuildingIds = java.util.Set.of();
+    private java.util.Set<String> overlayWarningBuildingIds = java.util.Set.of();
 
     private String buildingNameEditingId = "";
     private String buildingNameBeforeRename = "";
@@ -132,6 +134,26 @@ public final class BuildingPluginState {
 
     public void setPreviewIdentity(BuildingPreviewIdentity previewIdentity) {
         this.previewIdentity = previewIdentity;
+    }
+
+    public java.util.Set<String> getOverlayPreviewedBuildingIds() {
+        return overlayPreviewedBuildingIds;
+    }
+
+    public void setOverlayPreviewedBuildingIds(java.util.Set<String> overlayPreviewedBuildingIds) {
+        this.overlayPreviewedBuildingIds = overlayPreviewedBuildingIds != null
+            ? java.util.Set.copyOf(overlayPreviewedBuildingIds)
+            : java.util.Set.of();
+    }
+
+    public java.util.Set<String> getOverlayWarningBuildingIds() {
+        return overlayWarningBuildingIds;
+    }
+
+    public void setOverlayWarningBuildingIds(java.util.Set<String> overlayWarningBuildingIds) {
+        this.overlayWarningBuildingIds = overlayWarningBuildingIds != null
+            ? java.util.Set.copyOf(overlayWarningBuildingIds)
+            : java.util.Set.of();
     }
 
     public DistrictBuildReport getLastDistrictBuildReport() {

@@ -129,7 +129,7 @@ public final class BuildingActions {
             LOGGER.error("片区预览生成失败: {}", e.getMessage(), e);
             state.setLastDistrictResult(null);
             state.setLastGenerationResult(null);
-            state.setPreviewIdentity(null);
+            clearPreviewDiagnostics();
             state.setProjectStatus(PlotI18n.tr("plugin.building.generate_empty_result"));
             return false;
         }
@@ -193,7 +193,7 @@ public final class BuildingActions {
         state.setDistrictPreviewBuildConfirmPending(false);
         state.setLastDistrictResult(null);
         state.setLastGenerationResult(null);
-        state.setPreviewIdentity(null);
+        clearPreviewDiagnostics();
         state.setProjectStatus(PlotI18n.tr("plugin.building.generate_world_unavailable"));
     }
 
@@ -253,12 +253,13 @@ public final class BuildingActions {
         state.setLastDistrictResult(district);
         state.setLastGenerationResult(district.toMergedResult());
         if (!district.hasPlacements()) {
-            state.setPreviewIdentity(null);
+            clearPreviewDiagnostics();
             state.setProjectStatus(PlotI18n.tr("plugin.building.generate_empty_result"));
             return false;
         }
 
         state.setPreviewIdentity(BuildingPreviewIdentity.capture(previewTargets));
+        updateOverlayDiagnostics(previewTargets, district);
 
         if (autoProjectGhosts) {
             projectPreview();
@@ -315,7 +316,31 @@ public final class BuildingActions {
         }
         state.setLastGenerationResult(null);
         state.setLastDistrictResult(null);
+        clearPreviewDiagnostics();
+    }
+
+    private void clearPreviewDiagnostics() {
         state.setPreviewIdentity(null);
+        state.setOverlayPreviewedBuildingIds(java.util.Set.of());
+        state.setOverlayWarningBuildingIds(java.util.Set.of());
+    }
+
+    private void updateOverlayDiagnostics(
+            List<BuildingFootprint> previewTargets,
+            DistrictGenerationResult district) {
+        boolean districtMode = district.buildingsAttempted() > 1;
+        String singleId = !districtMode && previewTargets.size() == 1
+            ? previewTargets.getFirst().getId()
+            : "";
+        List<BuildingGenerationIssues.Issue> issues = BuildingGenerationIssues.collect(
+            state.getProject(),
+            district,
+            state.getLastGenerationResult(),
+            state.getPreviewIdentity(),
+            districtMode);
+        state.setOverlayPreviewedBuildingIds(
+            BuildingGenerationIssues.previewedBuildingIds(district, singleId));
+        state.setOverlayWarningBuildingIds(BuildingGenerationIssues.warningBuildingIds(issues));
     }
 
     public void invalidatePreview() {
@@ -532,6 +557,55 @@ public final class BuildingActions {
             state.getSelection().select(building.getId(), false);
             state.setProjectStatus(PlotI18n.tr("plugin.building.locate_success", building.getName()));
         }
+    }
+
+    public void locateBuildingById(String buildingId) {
+        BuildingFootprint building = state.getProject().getBuilding(buildingId);
+        if (building != null) {
+            locateBuilding(building);
+        }
+    }
+
+    public void selectBuildingById(String buildingId, boolean append) {
+        if (buildingId == null || buildingId.isBlank()) {
+            return;
+        }
+        state.getSelection().select(buildingId, append);
+    }
+
+    public void selectBuildingPair(String buildingIdA, String buildingIdB) {
+        state.getSelection().clear();
+        if (buildingIdA != null && !buildingIdA.isBlank()) {
+            state.getSelection().select(buildingIdA, false);
+        }
+        if (buildingIdB != null && !buildingIdB.isBlank()) {
+            state.getSelection().select(buildingIdB, true);
+        }
+    }
+
+    public com.plot.plugin.building.overlay.BuildingOverlayDiagnostics overlayDiagnostics(
+            List<BuildingFootprint> generateTargets) {
+        if (previewValidity(generateTargets) != BuildingPreviewIdentity.Validity.VALID) {
+            return com.plot.plugin.building.overlay.BuildingOverlayDiagnostics.EMPTY;
+        }
+        return com.plot.plugin.building.overlay.BuildingOverlayDiagnostics.of(
+            state.getOverlayPreviewedBuildingIds(),
+            state.getOverlayWarningBuildingIds());
+    }
+
+    public List<BuildingGenerationIssues.Issue> collectPreviewIssues(List<BuildingFootprint> generateTargets) {
+        DistrictGenerationResult district = state.getLastDistrictResult();
+        BuildingGenerationResult single = state.getLastGenerationResult();
+        if (!hasPreviewResult()) {
+            return List.of();
+        }
+        boolean districtMode = district != null && district.buildingsAttempted() > 1;
+        return BuildingGenerationIssues.collect(
+            state.getProject(),
+            district,
+            single,
+            state.getPreviewIdentity(),
+            districtMode);
     }
 
     public void startPickSession() {

@@ -23,11 +23,13 @@ public final class BuildingOverlayController {
             BuildingSelectionSet selection,
             List<Shape> canvasShapes,
             boolean pickSessionActive,
-            boolean overlayEnabled) {
+            boolean overlayEnabled,
+            BuildingOverlayDiagnostics diagnostics) {
         if (!overlayEnabled || project == null) {
             return List.of();
         }
         BuildingSelectionSet activeSelection = selection != null ? selection : new BuildingSelectionSet();
+        BuildingOverlayDiagnostics activeDiagnostics = diagnostics != null ? diagnostics : BuildingOverlayDiagnostics.EMPTY;
         BuildingFootprintSelectionAnalysis canvas = BuildingFootprintSelectionAnalysis.analyze(
             canvasShapes != null ? canvasShapes : List.of(),
             project);
@@ -45,7 +47,10 @@ public final class BuildingOverlayController {
                 building.getName(),
                 List.copyOf(points),
                 building.getFloors(),
-                resolveState(building.getId(), activeSelection)));
+                resolveState(
+                    building.getId(),
+                    activeSelection,
+                    activeDiagnostics)));
         }
         appendCanvasEntries(entries, canvas, pickSessionActive);
         entries.sort(Comparator.comparingInt(entry -> entry.state().renderPriority()));
@@ -81,16 +86,30 @@ public final class BuildingOverlayController {
         }
     }
 
-    static BuildingOverlayState resolveState(String buildingId, BuildingSelectionSet selection) {
-        if (buildingId == null || buildingId.isBlank() || selection == null || selection.isEmpty()) {
-            return BuildingOverlayState.REGISTERED;
+    static BuildingOverlayState resolveState(
+            String buildingId,
+            BuildingSelectionSet selection,
+            BuildingOverlayDiagnostics diagnostics) {
+        if (buildingId != null && !buildingId.isBlank() && selection != null && !selection.isEmpty()) {
+            if (buildingId.equals(selection.primaryId())) {
+                return BuildingOverlayState.PRIMARY;
+            }
+            if (selection.contains(buildingId)) {
+                return BuildingOverlayState.SELECTED;
+            }
         }
-        if (buildingId.equals(selection.primaryId())) {
-            return BuildingOverlayState.PRIMARY;
-        }
-        if (selection.contains(buildingId)) {
-            return BuildingOverlayState.SELECTED;
+        if (diagnostics != null) {
+            if (diagnostics.warningBuildingIds().contains(buildingId)) {
+                return BuildingOverlayState.WARNING;
+            }
+            if (diagnostics.previewedBuildingIds().contains(buildingId)) {
+                return BuildingOverlayState.PREVIEWED;
+            }
         }
         return BuildingOverlayState.REGISTERED;
+    }
+
+    static BuildingOverlayState resolveState(String buildingId, BuildingSelectionSet selection) {
+        return resolveState(buildingId, selection, BuildingOverlayDiagnostics.EMPTY);
     }
 }

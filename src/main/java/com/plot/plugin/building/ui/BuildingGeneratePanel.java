@@ -128,7 +128,7 @@ public final class BuildingGeneratePanel {
             if (ImGui.button(PlotI18n.tr("plugin.building.generate.show_issues"), 0, 0)) {
                 ImGui.openPopup("##building_preview_issues");
             }
-            renderIssuesPopup();
+            renderIssuesPopup(targets);
         }
 
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.generate.detailed_stats"))) {
@@ -277,38 +277,60 @@ public final class BuildingGeneratePanel {
         }
     }
 
-    private void renderIssuesPopup() {
+    private void renderIssuesPopup(List<BuildingFootprint> targets) {
         if (!ImGui.beginPopup("##building_preview_issues")) {
             return;
         }
-        if (isDistrictPreview()) {
-            DistrictGenerationResult district = ctx.lastDistrictResult();
-            if (district.buildingsSkipped() > 0) {
-                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
-                    "plugin.building.district_skipped_result",
-                    district.buildingsSkipped()));
-            }
-            if (district.hasBuildingOverlap()) {
-                renderDistrictOverlapNotice(
-                    district.overlappingBuildingCount(),
-                    district.conflictingBlockCount(),
-                    district.overlappingBuildingPairs());
-            }
-            for (DistrictGenerationResult.BuildingOutcome skipped : district.skippedOutcomes()) {
-                String reason = skipped.skipReason() != null
-                    ? PlotI18n.tr(skipped.skipReason().i18nKey())
-                    : "";
-                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
-                    "plugin.building.district_skip_item",
-                    skipped.buildingName(),
-                    reason));
-            }
-        } else if (ctx.lastGenerationResult() != null) {
-            for (String warningKey : ctx.lastGenerationResult().warnings) {
-                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(warningKey));
-            }
+        for (BuildingGenerationIssues.Issue issue : ctx.collectPreviewIssues(targets)) {
+            renderIssueRow(issue);
+            ImGui.separator();
         }
         ImGui.endPopup();
+    }
+
+    private void renderIssueRow(BuildingGenerationIssues.Issue issue) {
+        ImGui.pushID(issue.primaryBuildingId() + issue.secondaryBuildingId() + issue.detailKey());
+        String summary = formatIssueSummary(issue);
+        ImGui.textColored(PluginUiColors.WARNING, summary);
+        if (issue.kind() == BuildingGenerationIssues.Kind.OVERLAP) {
+            if (ImGui.button(PlotI18n.tr("plugin.building.issue.select_pair"), 0, 0)) {
+                ctx.selectBuildingPair(issue.primaryBuildingId(), issue.secondaryBuildingId());
+                ImGui.closeCurrentPopup();
+            }
+        } else {
+            if (ImGui.button(PlotI18n.tr("plugin.building.locate"), 0, 0)) {
+                ctx.locateBuildingById(issue.primaryBuildingId());
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.sameLine();
+            if (ImGui.button(PlotI18n.tr("plugin.building.issue.select"), 0, 0)) {
+                ctx.selectBuildingById(issue.primaryBuildingId(), false);
+                ImGui.closeCurrentPopup();
+            }
+        }
+        ImGui.popID();
+    }
+
+    private static String formatIssueSummary(BuildingGenerationIssues.Issue issue) {
+        return switch (issue.kind()) {
+            case SKIPPED -> {
+                String reason = issue.detailKey() != null && !issue.detailKey().isBlank()
+                    ? PlotI18n.tr(issue.detailKey())
+                    : "";
+                yield PlotI18n.tr(
+                    "plugin.building.issue.skipped",
+                    issue.primaryBuildingName(),
+                    reason);
+            }
+            case OVERLAP -> PlotI18n.tr(
+                "plugin.building.issue.overlap",
+                issue.primaryBuildingName(),
+                issue.secondaryBuildingName());
+            case BUILDING_WARNING -> PlotI18n.tr(
+                "plugin.building.issue.warning",
+                issue.primaryBuildingName(),
+                PlotI18n.tr(issue.detailKey()));
+        };
     }
 
     public void renderDistrictBuildReport() {

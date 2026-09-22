@@ -388,6 +388,27 @@ public final class BuildingUiContext {
         actions.requestBuildFromCurrentPreview(targets);
     }
 
+    public void locateBuildingById(String buildingId) {
+        actions.locateBuildingById(buildingId);
+    }
+
+    public void selectBuildingById(String buildingId, boolean append) {
+        actions.selectBuildingById(buildingId, append);
+    }
+
+    public void selectBuildingPair(String buildingIdA, String buildingIdB) {
+        actions.selectBuildingPair(buildingIdA, buildingIdB);
+    }
+
+    public com.plot.plugin.building.overlay.BuildingOverlayDiagnostics overlayDiagnostics(
+            List<BuildingFootprint> generateTargets) {
+        return actions.overlayDiagnostics(generateTargets);
+    }
+
+    public List<BuildingGenerationIssues.Issue> collectPreviewIssues(List<BuildingFootprint> generateTargets) {
+        return actions.collectPreviewIssues(generateTargets);
+    }
+
     public void buildInWorld() {
         actions.buildInWorld();
     }

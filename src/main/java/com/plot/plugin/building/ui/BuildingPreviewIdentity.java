@@ -27,6 +27,10 @@ public final class BuildingPreviewIdentity {
         return new BuildingPreviewIdentity(ids, computeContentFingerprint(targets));
     }
 
+    public List<String> targetIds() {
+        return targetIds;
+    }
+
     public Validity validityAgainst(List<BuildingFootprint> currentTargets, boolean hasResult) {
         if (!hasResult) {
             return Validity.NONE;

@@ -123,7 +123,8 @@ public class BuildingPlugin extends Plugin {
                 uiContext.selection(),
                 canvasShapes,
                 pickActive,
-                true);
+                true,
+                uiContext.overlayDiagnostics(uiContext.resolveGenerateTargets()));
             BuildingOverlayRenderer.render(drawList, camera, entries);
         }
     }
