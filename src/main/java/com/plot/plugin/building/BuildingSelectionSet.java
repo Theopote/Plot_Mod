@@ -162,4 +162,10 @@ public final class BuildingSelectionSet {
         }
         return area;
     }
+
+    public int totalBlockCount(
+            BuildingProject project,
+            com.plot.api.world.WorldProjectionSnapshot projection) {
+        return BuildingBlockCountCache.totalBlockCount(resolve(project), projection);
+    }
 }

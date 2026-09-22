@@ -1,7 +1,9 @@
 package com.plot.plugin.building.ui;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.WorldProjectionSnapshot;
 import com.plot.core.model.Shape;
+import com.plot.plugin.building.BuildingBlockCountCache;
 import com.plot.plugin.building.BuildingFootprintSelectionAnalysis;
 import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.building.BuildingListHelper;
@@ -10,7 +12,6 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiPopupFlags;
-import imgui.flag.ImGuiSelectableFlags;
 import imgui.flag.ImGuiWindowFlags;
 
 import java.util.ArrayList;
@@ -85,10 +86,11 @@ public final class BuildingFootprintsPanel {
             return;
         }
 
+        WorldProjectionSnapshot projection = ctx.currentProjection();
         ImGui.text(PlotI18n.tr(
             "plugin.building.footprints.canvas_preview_title",
             previewShapes.size(),
-            String.format("%.1f", BuildingFootprintPreviewItems.totalArea(previewShapes))));
+            BuildingFootprintPreviewItems.totalBlockCount(previewShapes, projection)));
 
         List<BuildingOverviewRenderer.FootprintMapItem> mapItems =
             BuildingFootprintPreviewItems.fromCanvasAnalysis(canvas);
@@ -100,7 +102,7 @@ public final class BuildingFootprintsPanel {
 
         ImGui.beginChild("building_canvas_pick_thumbs", 0, 132, true);
         for (int i = 0; i < previewShapes.size(); i++) {
-            renderCanvasCandidateThumbnail(previewShapes.get(i), i, canvas);
+            renderCanvasCandidateThumbnail(previewShapes.get(i), i, canvas, projection);
         }
         ImGui.endChild();
     }
@@ -116,14 +118,18 @@ public final class BuildingFootprintsPanel {
         }
     }
 
-    private void renderCanvasCandidateThumbnail(Shape shape, int index, BuildingFootprintSelectionAnalysis canvas) {
+    private void renderCanvasCandidateThumbnail(
+            Shape shape,
+            int index,
+            BuildingFootprintSelectionAnalysis canvas,
+            WorldProjectionSnapshot projection) {
         ImGui.pushID(shape.getId());
         List<Vec2d> points = BuildingGeometryUtils.extractFootprintPoints(shape);
         boolean invalid = canvas.invalid().stream().anyMatch(s -> s.getId().equals(shape.getId()));
         boolean adopted = canvas.alreadyAdopted().stream().anyMatch(s -> s.getId().equals(shape.getId()));
         BuildingOverviewRenderer.renderFootprintThumbnail(points, !invalid, index);
         ImGui.sameLine();
-        double area = points.isEmpty() ? 0.0 : Math.abs(BuildingFootprint.signedArea(points));
+        int blocks = BuildingBlockCountCache.blockCount(points, projection);
         String statusKey = invalid
             ? "plugin.building.footprints.canvas_item_invalid"
             : adopted
@@ -131,15 +137,16 @@ public final class BuildingFootprintsPanel {
                 : "plugin.building.footprints.canvas_item_ready";
         ImGui.textColored(
             invalid ? PluginUiColors.WARNING : PluginUiColors.HINT_GRAY,
-            PlotI18n.tr(statusKey, index + 1, String.format("%.1f", area)));
+            PlotI18n.tr(statusKey, index + 1, blocks));
         ImGui.popID();
     }
 
     private void renderAdoptedSection() {
+        WorldProjectionSnapshot projection = ctx.currentProjection();
         ImGui.text(PlotI18n.tr("plugin.building.footprints.project_section"));
         ImGui.text(PlotI18n.tr("plugin.building.footprints.project_stats",
             ctx.project().getBuildingCount(),
-            String.format("%.1f", ctx.project().getTotalArea())));
+            BuildingBlockCountCache.totalBlockCount(ctx.project().getBuildings().values(), projection)));
 
         if (ctx.project().getBuildingCount() == 0) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.no_buildings"));
@@ -147,6 +154,7 @@ public final class BuildingFootprintsPanel {
         }
 
         ctx.selection().retainExisting(ctx.project());
+        BuildingBlockCountCache.retainOnly(ctx.project().getBuildings().keySet());
 
         float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX() * 2) / 3.0f;
         if (ImGui.button(PlotI18n.tr("plugin.building.select_all"), buttonWidth, 0)) {
@@ -187,21 +195,37 @@ public final class BuildingFootprintsPanel {
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.footprints.list_hint"));
 
         ImGui.beginChild("building_footprints_list", 0, 0, true);
-        for (BuildingFootprint building : BuildingListHelper.sorted(ctx.project(), ctx.buildingSortMode())) {
-            renderAdoptedBuildingRow(building);
+        List<BuildingFootprint> buildings = BuildingListHelper.sorted(
+            ctx.project(),
+            ctx.buildingSortMode(),
+            projection);
+        for (int i = 0; i < buildings.size(); i++) {
+            renderAdoptedBuildingRow(buildings.get(i), i, projection);
         }
         ImGui.endChild();
     }
 
-    private void renderAdoptedBuildingRow(BuildingFootprint building) {
+    private void renderAdoptedBuildingRow(
+            BuildingFootprint building,
+            int colorIndex,
+            WorldProjectionSnapshot projection) {
         ImGui.pushID(building.getId());
         boolean selected = ctx.selection().contains(building.getId());
-        String label = PlotI18n.tr(
-            "plugin.building.footprints.list_item",
-            building.getName(),
-            building.getFloors(),
-            String.format("%.1f", building.computeArea()));
-        if (ImGui.selectable(label + "##row", selected, ImGuiSelectableFlags.SpanAllColumns)) {
+        float columnWidth = Math.max(120f, ImGui.getContentRegionAvailX() - 68f);
+
+        if (BuildingOverviewRenderer.renderFootprintThumbnail(
+                building.getOuterPoints(),
+                selected,
+                colorIndex)) {
+            ctx.selection().select(building.getId(), ImGui.getIO().getKeyCtrl());
+        }
+        ImGui.sameLine();
+
+        ImGui.beginGroup();
+        ImGui.setNextItemWidth(columnWidth);
+        if (ImGui.selectable(
+                BuildingUiWidgets.stableSelectableLabel(building.getName(), building.getId()),
+                selected)) {
             ctx.selection().select(building.getId(), ImGui.getIO().getKeyCtrl());
         }
         if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
@@ -223,6 +247,11 @@ public final class BuildingFootprintsPanel {
             }
             ImGui.endPopup();
         }
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+            "plugin.building.footprints.overview_item",
+            building.getFloors(),
+            BuildingBlockCountCache.blockCount(building, projection)));
+        ImGui.endGroup();
         ImGui.popID();
     }
 

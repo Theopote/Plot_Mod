@@ -484,6 +484,23 @@ public class BuildingFootprint {
         return Math.abs(signedArea(outerPoints));
     }
 
+    public int geometryFingerprint() {
+        int hash = outerPoints.size();
+        for (Vec2d point : outerPoints) {
+            hash = 31 * hash + pointFingerprint(point);
+        }
+        return hash;
+    }
+
+    private static int pointFingerprint(Vec2d point) {
+        if (point == null) {
+            return 0;
+        }
+        long bitsX = Double.doubleToLongBits(point.x);
+        long bitsY = Double.doubleToLongBits(point.y);
+        return (int) (bitsX ^ (bitsX >>> 32) ^ bitsY ^ (bitsY >>> 32));
+    }
+
     /**
      * 转为分层 {@link com.plot.plugin.building.model.spec.BuildingDefinition}。
      */

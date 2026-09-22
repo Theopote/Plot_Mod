@@ -17,6 +17,10 @@ public final class BuildingUiWidgets {
     private BuildingUiWidgets() {
     }
 
+    public static String stableSelectableLabel(String visibleLabel, String idSuffix) {
+        return visibleLabel + "##" + idSuffix;
+    }
+
     public static void renderSelectionSummary(BuildingUiContext ctx) {
         if (ctx.selection().isEmpty()) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.selection_empty"));
@@ -25,7 +29,7 @@ public final class BuildingUiWidgets {
         ImGui.text(PlotI18n.tr(
             "plugin.building.selection_summary",
             ctx.selection().size(),
-            String.format("%.1f", ctx.selection().totalArea(ctx.project()))));
+            ctx.selection().totalBlockCount(ctx.project(), ctx.currentProjection())));
         BuildingFootprint primary = ctx.selection().primary(ctx.project());
         if (primary != null && ctx.selection().size() > 1) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(

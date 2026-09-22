@@ -11,8 +11,11 @@ import com.plot.plugin.building.generation.DistrictGenerationResult;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.BuildingProject;
 import com.plot.plugin.building.model.BuildingProjectHistory;
+import com.plot.api.world.ICoordinateService;
+import com.plot.api.world.WorldProjectionSnapshot;
 import com.plot.core.context.PluginContext;
 import com.plot.core.model.Shape;
+import imgui.ImGui;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -26,6 +29,8 @@ public final class BuildingUiContext {
     private final BuildingPluginState state;
     private final Object projectLock;
     private final BuildingActions actions;
+    private int projectionCaptureFrame = -1;
+    private WorldProjectionSnapshot projectionSnapshot = WorldProjectionSnapshot.UNKNOWN;
 
     public BuildingUiContext(
             PluginContext host,
@@ -47,6 +52,24 @@ public final class BuildingUiContext {
 
     public PluginContext host() {
         return host;
+    }
+
+    public ICoordinateService coordinates() {
+        return host.coordinates();
+    }
+
+    /** 每帧捕获一次视图投影，供轮廓 Tab 方块数统计复用。 */
+    public WorldProjectionSnapshot currentProjection() {
+        int frame = ImGui.getFrameCount();
+        if (frame != projectionCaptureFrame) {
+            projectionCaptureFrame = frame;
+            try {
+                projectionSnapshot = host.coordinates().captureProjection();
+            } catch (RuntimeException ignored) {
+                projectionSnapshot = WorldProjectionSnapshot.UNKNOWN;
+            }
+        }
+        return projectionSnapshot;
     }
 
     public BuildingPluginState state() {
@@ -345,8 +368,8 @@ public final class BuildingUiContext {
         actions.selectAllClosedShapesOnCanvas();
     }
 
-    public double computeSelectedFootprintArea() {
-        return actions.computeSelectedFootprintArea();
+    public int computeSelectedFootprintBlockCount() {
+        return actions.computeSelectedFootprintBlockCount();
     }
 
     public void adoptSelectedFootprints() {

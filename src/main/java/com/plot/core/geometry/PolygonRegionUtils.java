@@ -1,9 +1,10 @@
 package com.plot.core.geometry;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.ICoordinateService;
+import com.plot.api.world.WorldProjectionSnapshot;
 import com.plot.core.geometry.polygon.PolygonNormalizer;
 import com.plot.core.geometry.shapes.Polygon;
-import com.plot.api.world.ICoordinateService;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -194,6 +195,98 @@ public final class PolygonRegionUtils {
             }
         }
         return count;
+    }
+
+    /**
+     * 统计区域投影到 Minecraft 平面上的方块列数（随当前视图投影变化）。
+     */
+    public static int countProjectedWorldBlocks(
+            List<Vec2d> outerPoints,
+            List<List<Vec2d>> holes,
+            ICoordinateService coordinates) {
+        if (coordinates == null) {
+            return countFootprintCells(outerPoints, holes);
+        }
+        try {
+            return countProjectedWorldBlocks(outerPoints, holes, coordinates.captureProjection());
+        } catch (RuntimeException ignored) {
+            return countFootprintCells(outerPoints, holes);
+        }
+    }
+
+    public static int countProjectedWorldBlocks(
+            List<Vec2d> outerPoints,
+            List<List<Vec2d>> holes,
+            WorldProjectionSnapshot projection) {
+        if (outerPoints == null || outerPoints.size() < 3) {
+            return 0;
+        }
+        if (projection == null || !projection.isValid()) {
+            return countFootprintCells(outerPoints, holes);
+        }
+        try {
+            Polygon outer = toPolygon(outerPoints);
+            List<Polygon> holePolygons = new ArrayList<>();
+            if (holes != null) {
+                for (List<Vec2d> hole : holes) {
+                    if (hole != null && hole.size() >= 3) {
+                        holePolygons.add(toPolygon(hole));
+                    }
+                }
+            }
+
+            double minWx = Double.POSITIVE_INFINITY;
+            double minWz = Double.POSITIVE_INFINITY;
+            double maxWx = Double.NEGATIVE_INFINITY;
+            double maxWz = Double.NEGATIVE_INFINITY;
+            for (Vec2d point : outerPoints) {
+                if (point == null) {
+                    continue;
+                }
+                Vec2d world = projection.toWorld(point);
+                minWx = Math.min(minWx, world.x);
+                minWz = Math.min(minWz, world.y);
+                maxWx = Math.max(maxWx, world.x);
+                maxWz = Math.max(maxWz, world.y);
+            }
+
+            int minX = (int) Math.floor(minWx);
+            int maxX = (int) Math.ceil(maxWx);
+            int minZ = (int) Math.floor(minWz);
+            int maxZ = (int) Math.ceil(maxWz);
+            long spanX = (long) maxX - minX + 1L;
+            long spanZ = (long) maxZ - minZ + 1L;
+            if (spanX <= 0 || spanZ <= 0) {
+                return 0;
+            }
+            long cells = spanX * spanZ;
+            if (cells > 2_000_000L) {
+                return countFootprintCells(outerPoints, holes);
+            }
+
+            int count = 0;
+            for (int wx = minX; wx <= maxX; wx++) {
+                for (int wz = minZ; wz <= maxZ; wz++) {
+                    Vec2d canvas = projection.toCanvas(new Vec2d(wx + 0.5, wz + 0.5));
+                    if (!outer.contains(canvas)) {
+                        continue;
+                    }
+                    boolean inHole = false;
+                    for (Polygon holePolygon : holePolygons) {
+                        if (holePolygon.contains(canvas)) {
+                            inHole = true;
+                            break;
+                        }
+                    }
+                    if (!inHole) {
+                        count++;
+                    }
+                }
+            }
+            return count;
+        } catch (RuntimeException ignored) {
+            return countFootprintCells(outerPoints, holes);
+        }
     }
 
     public static List<Vec2d> collectFootprintCellCenters(List<Vec2d> points) {

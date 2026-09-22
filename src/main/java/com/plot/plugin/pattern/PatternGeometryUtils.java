@@ -316,89 +316,14 @@ public final class PatternGeometryUtils {
             List<Vec2d> outerPoints,
             List<List<Vec2d>> holes,
             ICoordinateService coordinates) {
-        if (coordinates == null) {
-            return PolygonRegionUtils.countFootprintCells(outerPoints, holes);
-        }
-        try {
-            return countProjectedWorldBlocks(outerPoints, holes, coordinates.captureProjection());
-        } catch (RuntimeException ignored) {
-            return PolygonRegionUtils.countFootprintCells(outerPoints, holes);
-        }
+        return PolygonRegionUtils.countProjectedWorldBlocks(outerPoints, holes, coordinates);
     }
 
     public static int countProjectedWorldBlocks(
             List<Vec2d> outerPoints,
             List<List<Vec2d>> holes,
             WorldProjectionSnapshot projection) {
-        if (outerPoints == null || outerPoints.size() < 3) {
-            return 0;
-        }
-        if (projection == null || !projection.isValid()) {
-            return PolygonRegionUtils.countFootprintCells(outerPoints, holes);
-        }
-        try {
-            Polygon outer = PolygonRegionUtils.toPolygon(outerPoints);
-            List<Polygon> holePolygons = new ArrayList<>();
-            if (holes != null) {
-                for (List<Vec2d> hole : holes) {
-                    if (hole != null && hole.size() >= 3) {
-                        holePolygons.add(PolygonRegionUtils.toPolygon(hole));
-                    }
-                }
-            }
-
-            double minWx = Double.POSITIVE_INFINITY;
-            double minWz = Double.POSITIVE_INFINITY;
-            double maxWx = Double.NEGATIVE_INFINITY;
-            double maxWz = Double.NEGATIVE_INFINITY;
-            for (Vec2d point : outerPoints) {
-                if (point == null) {
-                    continue;
-                }
-                Vec2d world = projection.toWorld(point);
-                minWx = Math.min(minWx, world.x);
-                minWz = Math.min(minWz, world.y);
-                maxWx = Math.max(maxWx, world.x);
-                maxWz = Math.max(maxWz, world.y);
-            }
-
-            int minX = (int) Math.floor(minWx);
-            int maxX = (int) Math.ceil(maxWx);
-            int minZ = (int) Math.floor(minWz);
-            int maxZ = (int) Math.ceil(maxWz);
-            long spanX = (long) maxX - minX + 1L;
-            long spanZ = (long) maxZ - minZ + 1L;
-            if (spanX <= 0 || spanZ <= 0) {
-                return 0;
-            }
-            long cells = spanX * spanZ;
-            if (cells > 2_000_000L) {
-                return PolygonRegionUtils.countFootprintCells(outerPoints, holes);
-            }
-
-            int count = 0;
-            for (int wx = minX; wx <= maxX; wx++) {
-                for (int wz = minZ; wz <= maxZ; wz++) {
-                    Vec2d canvas = projection.toCanvas(new Vec2d(wx + 0.5, wz + 0.5));
-                    if (!outer.contains(canvas)) {
-                        continue;
-                    }
-                    boolean inHole = false;
-                    for (Polygon holePolygon : holePolygons) {
-                        if (holePolygon.contains(canvas)) {
-                            inHole = true;
-                            break;
-                        }
-                    }
-                    if (!inHole) {
-                        count++;
-                    }
-                }
-            }
-            return count;
-        } catch (RuntimeException ignored) {
-            return PolygonRegionUtils.countFootprintCells(outerPoints, holes);
-        }
+        return PolygonRegionUtils.countProjectedWorldBlocks(outerPoints, holes, projection);
     }
 
     public static int countProjectedWorldBlocksForShapes(

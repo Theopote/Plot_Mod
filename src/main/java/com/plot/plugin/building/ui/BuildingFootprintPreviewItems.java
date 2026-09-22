@@ -1,10 +1,11 @@
 package com.plot.plugin.building.ui;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.WorldProjectionSnapshot;
 import com.plot.core.model.Shape;
+import com.plot.plugin.building.BuildingBlockCountCache;
 import com.plot.plugin.building.BuildingFootprintSelectionAnalysis;
 import com.plot.plugin.building.BuildingGeometryUtils;
-import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.ui.PluginUiColors;
 import imgui.ImColor;
 
@@ -71,12 +72,12 @@ public final class BuildingFootprintPreviewItems {
         return shapes;
     }
 
-    public static double totalArea(List<Shape> shapes) {
-        double area = 0.0;
+    public static int totalBlockCount(List<Shape> shapes, WorldProjectionSnapshot projection) {
+        int count = 0;
         for (Shape shape : shapes) {
             List<Vec2d> points = BuildingGeometryUtils.extractFootprintPoints(shape);
-            area += Math.abs(BuildingFootprint.signedArea(points));
+            count += BuildingBlockCountCache.blockCount(points, projection);
         }
-        return area;
+        return count;
     }
 }

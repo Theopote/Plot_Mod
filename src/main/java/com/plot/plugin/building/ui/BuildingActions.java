@@ -10,6 +10,7 @@ import com.plot.core.model.Shape;
 import com.plot.core.persistence.ProjectPathResolver;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
+import com.plot.plugin.building.BuildingBlockCountCache;
 import com.plot.plugin.building.BuildingFootprintPickSession;
 import com.plot.plugin.building.BuildingFootprintSelectionAnalysis;
 import com.plot.plugin.building.BuildingFootprintValidator;
@@ -556,13 +557,19 @@ public final class BuildingActions {
             : PlotI18n.tr("plugin.building.select_all_closed_success", adoptable.size()));
     }
 
-    public double computeSelectedFootprintArea() {
-        double area = 0.0;
+    public int computeSelectedFootprintBlockCount() {
+        com.plot.api.world.WorldProjectionSnapshot projection;
+        try {
+            projection = host.coordinates().captureProjection();
+        } catch (RuntimeException ignored) {
+            projection = com.plot.api.world.WorldProjectionSnapshot.UNKNOWN;
+        }
+        int count = 0;
         for (Shape shape : state.getSelectedFootprints()) {
             List<Vec2d> points = BuildingGeometryUtils.extractFootprintPoints(shape);
-            area += Math.abs(BuildingFootprint.signedArea(points));
+            count += BuildingBlockCountCache.blockCount(points, projection);
         }
-        return area;
+        return count;
     }
 
     public void adoptSelectedFootprints() {

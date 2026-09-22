@@ -1,5 +1,6 @@
 package com.plot.plugin.building;
 
+import com.plot.api.world.WorldProjectionSnapshot;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.BuildingProject;
 import com.plot.utils.PlotI18n;
@@ -36,6 +37,13 @@ public final class BuildingListHelper {
     }
 
     public static List<BuildingFootprint> sorted(BuildingProject project, SortMode mode) {
+        return sorted(project, mode, WorldProjectionSnapshot.UNKNOWN);
+    }
+
+    public static List<BuildingFootprint> sorted(
+            BuildingProject project,
+            SortMode mode,
+            WorldProjectionSnapshot projection) {
         if (project == null || mode == null) {
             return List.of();
         }
@@ -43,9 +51,14 @@ public final class BuildingListHelper {
         if (mode == SortMode.INSERTION) {
             return buildings;
         }
+        WorldProjectionSnapshot effectiveProjection = projection != null
+            ? projection
+            : WorldProjectionSnapshot.UNKNOWN;
         Comparator<BuildingFootprint> comparator = switch (mode) {
-            case AREA_ASC -> Comparator.comparingDouble(BuildingFootprint::computeArea);
-            case AREA_DESC -> Comparator.comparingDouble(BuildingFootprint::computeArea).reversed();
+            case AREA_ASC -> Comparator.comparingInt(
+                building -> BuildingBlockCountCache.blockCount(building, effectiveProjection));
+            case AREA_DESC -> Comparator.<BuildingFootprint>comparingInt(
+                building -> BuildingBlockCountCache.blockCount(building, effectiveProjection)).reversed();
             case FLOORS_ASC -> Comparator.comparingInt(BuildingFootprint::getFloors);
             case FLOORS_DESC -> Comparator.comparingInt(BuildingFootprint::getFloors).reversed();
             case NAME -> Comparator.comparing(
