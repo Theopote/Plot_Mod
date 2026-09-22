@@ -23,6 +23,7 @@ public final class BuildingUIManager {
 
     public void render() {
         ctx.tickDistrictPreviewJob();
+        ctx.tickGhostProjection();
         ctx.buildingRename().tickFrame();
 
         if (ctx.pickSession().isActive()) {

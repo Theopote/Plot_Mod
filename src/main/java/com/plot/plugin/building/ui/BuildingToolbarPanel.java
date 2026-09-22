@@ -51,7 +51,9 @@ public final class BuildingToolbarPanel {
 
         if (!ctx.projectStatus().isEmpty()) {
             ImGui.textColored(
-                ctx.isDistrictPreviewBusy() ? PluginUiColors.STATUS_INFO : PluginUiColors.STATUS_OK,
+                ctx.isDistrictPreviewBusy() || ctx.isGhostProjectionBusy()
+                    ? PluginUiColors.STATUS_INFO
+                    : PluginUiColors.STATUS_OK,
                 ctx.projectStatus());
         }
         renderDistrictPreviewControls();

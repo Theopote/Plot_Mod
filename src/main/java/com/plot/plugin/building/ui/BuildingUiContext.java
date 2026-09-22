@@ -371,8 +371,24 @@ public final class BuildingUiContext {
         actions.tickDistrictPreviewJob();
     }
 
+    public void tickGhostProjection() {
+        actions.tickGhostProjection();
+    }
+
     public boolean isDistrictPreviewBusy() {
         return actions.isDistrictPreviewBusy();
+    }
+
+    public boolean isGhostProjectionBusy() {
+        return actions.isGhostProjectionBusy();
+    }
+
+    public int ghostProjectionProcessed() {
+        return actions.ghostProjectionProcessed();
+    }
+
+    public int ghostProjectionTotal() {
+        return actions.ghostProjectionTotal();
     }
 
     public void cancelDistrictPreviewJob() {

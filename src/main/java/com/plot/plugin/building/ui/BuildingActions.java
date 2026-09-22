@@ -33,10 +33,14 @@ import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.minecraft.util.math.BlockPos;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -46,11 +50,17 @@ import java.util.Objects;
  */
 public final class BuildingActions {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/BuildingActions");
+    /** 每帧上传的 ghost 方块数，避免预览完成后单帧卡死。 */
+    private static final int GHOST_BLOCKS_PER_TICK = 6_000;
 
     private final PluginContext host;
     private final BuildingPluginState state;
     private final Object projectLock;
     private BuildingGenerator buildingGenerator;
+    private List<Map.Entry<BlockPos, String>> pendingGhostUpload;
+    private int pendingGhostUploadIndex;
+    private int pendingGhostUploadTotal;
+    private boolean pendingGhostClear = true;
 
     public BuildingActions(
             PluginContext host,
@@ -84,7 +94,7 @@ public final class BuildingActions {
     }
 
     public boolean calculatePreview(BuildingFootprint building) {
-        return calculateDistrictPreview(List.of(building), false, false);
+        return calculateDistrictPreview(List.of(building), true, false);
     }
 
     public boolean calculateDistrictPreview(
@@ -110,31 +120,8 @@ public final class BuildingActions {
             state.setProjectStatus(PlotI18n.tr("plugin.building.select_building_hint"));
             return false;
         }
-        if (buildings.size() > 1) {
-            startDistrictPreviewJob(buildings, autoProjectGhosts, buildConfirmOnComplete);
-            return false;
-        }
-        return calculateDistrictPreviewSync(buildings, autoProjectGhosts, buildConfirmOnComplete);
-    }
-
-    private boolean calculateDistrictPreviewSync(
-            List<BuildingFootprint> buildings,
-            boolean autoProjectGhosts,
-            boolean buildConfirmOnComplete) {
-        World world = getClientWorld();
-        DistrictGenerationResult district;
-        try {
-            district = buildingGenerator.generateDistrict(buildings, world);
-        } catch (Exception e) {
-            LOGGER.error("片区预览生成失败: {}", e.getMessage(), e);
-            state.setLastDistrictResult(null);
-            state.setLastGenerationResult(null);
-            clearPreviewDiagnostics();
-            state.setProjectStatus(PlotI18n.tr("plugin.building.generate_empty_result"));
-            return false;
-        }
-
-        return applyDistrictPreviewResult(buildings, district, autoProjectGhosts, buildConfirmOnComplete);
+        startDistrictPreviewJob(buildings, autoProjectGhosts, buildConfirmOnComplete);
+        return false;
     }
 
     private void startDistrictPreviewJob(
@@ -142,8 +129,10 @@ public final class BuildingActions {
             boolean autoProjectGhosts,
             boolean buildConfirmOnComplete) {
         cancelDistrictPreviewJob();
+        cancelGhostProjection();
         state.setLastDistrictResult(null);
         state.setLastGenerationResult(null);
+        BuildingMassingPreviewHeights.clearCache(state);
         state.setDistrictPreviewBuildConfirmPending(buildConfirmOnComplete);
         DistrictPreviewJob job = new DistrictPreviewJob(
             buildings,
@@ -161,9 +150,59 @@ public final class BuildingActions {
         }
     }
 
+    public void tickGhostProjection() {
+        if (pendingGhostUpload == null) {
+            return;
+        }
+        com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
+        if (ghostBlockManager == null) {
+            cancelGhostProjection();
+            return;
+        }
+        if (pendingGhostClear) {
+            ghostBlockManager.clearGhostBlocks(GhostBlockOwners.BUILDING);
+            pendingGhostClear = false;
+        }
+        int end = Math.min(pendingGhostUploadIndex + GHOST_BLOCKS_PER_TICK, pendingGhostUpload.size());
+        if (end > pendingGhostUploadIndex) {
+            Map<BlockPos, String> batch = new LinkedHashMap<>(end - pendingGhostUploadIndex);
+            for (int i = pendingGhostUploadIndex; i < end; i++) {
+                Map.Entry<BlockPos, String> entry = pendingGhostUpload.get(i);
+                batch.put(entry.getKey(), entry.getValue());
+            }
+            ghostBlockManager.addGhostBlocks(GhostBlockOwners.BUILDING, batch);
+            pendingGhostUploadIndex = end;
+        }
+        if (pendingGhostUploadIndex >= pendingGhostUpload.size()) {
+            pendingGhostUpload = null;
+            pendingGhostUploadIndex = 0;
+            pendingGhostUploadTotal = 0;
+            if (state.getLastGenerationResult() != null) {
+                state.setProjectStatus(PlotI18n.tr("plugin.building.generate_preview_ready"));
+            }
+        } else {
+            state.setProjectStatus(PlotI18n.tr(
+                "plugin.building.generate.ghost_uploading",
+                pendingGhostUploadIndex,
+                pendingGhostUploadTotal));
+        }
+    }
+
+    public int ghostProjectionProcessed() {
+        return pendingGhostUploadIndex;
+    }
+
+    public int ghostProjectionTotal() {
+        return pendingGhostUploadTotal;
+    }
+
     public boolean isDistrictPreviewBusy() {
         DistrictPreviewJob job = state.getDistrictPreviewJob();
         return job != null && job.isRunning();
+    }
+
+    public boolean isGhostProjectionBusy() {
+        return pendingGhostUpload != null;
     }
 
     public void cancelDistrictPreviewJob() {
@@ -259,6 +298,11 @@ public final class BuildingActions {
         }
 
         state.setPreviewIdentity(BuildingPreviewIdentity.capture(previewTargets));
+        BuildingMassingPreviewHeights.rebuildCache(
+            state,
+            district,
+            state.getLastGenerationResult(),
+            previewTargets);
         updateOverlayDiagnostics(previewTargets, district);
 
         if (autoProjectGhosts) {
@@ -293,23 +337,31 @@ public final class BuildingActions {
 
     public void projectPreview() {
         BuildingGenerationResult lastGenerationResult = state.getLastGenerationResult();
-        if (lastGenerationResult == null) {
+        if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
             return;
         }
-        com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
-        if (ghostBlockManager == null) {
+        if (host.ghosts() == null) {
             return;
         }
-        java.util.LinkedHashMap<net.minecraft.util.math.BlockPos, String> ghosts =
-            new java.util.LinkedHashMap<>(lastGenerationResult.placementRecords.size());
+        cancelGhostProjection();
+        pendingGhostUpload = new ArrayList<>(lastGenerationResult.placementRecords.size());
         for (BlockRecord record : lastGenerationResult.placementRecords.values()) {
-            ghosts.put(record.pos, record.newBlockId);
+            pendingGhostUpload.add(Map.entry(record.pos, record.newBlockId));
         }
-        ghostBlockManager.replaceGhostBlocks(GhostBlockOwners.BUILDING, ghosts);
+        pendingGhostUploadIndex = 0;
+        pendingGhostUploadTotal = pendingGhostUpload.size();
+        pendingGhostClear = true;
+        if (pendingGhostUploadTotal > 0) {
+            state.setProjectStatus(PlotI18n.tr(
+                "plugin.building.generate.ghost_uploading",
+                0,
+                pendingGhostUploadTotal));
+        }
     }
 
     public void clearPreview() {
         cancelDistrictPreviewJob();
+        cancelGhostProjection();
         com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearGhostBlocks(GhostBlockOwners.BUILDING);
@@ -319,10 +371,18 @@ public final class BuildingActions {
         clearPreviewDiagnostics();
     }
 
+    private void cancelGhostProjection() {
+        pendingGhostUpload = null;
+        pendingGhostUploadIndex = 0;
+        pendingGhostUploadTotal = 0;
+        pendingGhostClear = true;
+    }
+
     private void clearPreviewDiagnostics() {
         state.setPreviewIdentity(null);
         state.setOverlayPreviewedBuildingIds(java.util.Set.of());
         state.setOverlayWarningBuildingIds(java.util.Set.of());
+        BuildingMassingPreviewHeights.clearCache(state);
     }
 
     private void updateOverlayDiagnostics(
@@ -355,6 +415,7 @@ public final class BuildingActions {
         state.setPreviewIdentity(null);
         state.setOverlayPreviewedBuildingIds(java.util.Set.of());
         state.setOverlayWarningBuildingIds(java.util.Set.of());
+        cancelGhostProjection();
         com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearGhostBlocks(GhostBlockOwners.BUILDING);

@@ -36,6 +36,8 @@ public final class BuildingPluginState {
     private BuildingPreviewIdentity previewIdentity;
     private java.util.Set<String> overlayPreviewedBuildingIds = java.util.Set.of();
     private java.util.Set<String> overlayWarningBuildingIds = java.util.Set.of();
+    /** 预览完成后缓存的体量图高度（方块），避免每帧扫描 placement。 */
+    private Map<String, Double> massingPreviewHeightBlocks = Map.of();
 
     private String buildingNameEditingId = "";
     private String buildingNameBeforeRename = "";
@@ -161,6 +163,16 @@ public final class BuildingPluginState {
         this.overlayWarningBuildingIds = overlayWarningBuildingIds != null
             ? java.util.Set.copyOf(overlayWarningBuildingIds)
             : java.util.Set.of();
+    }
+
+    public Map<String, Double> getMassingPreviewHeightBlocks() {
+        return massingPreviewHeightBlocks;
+    }
+
+    public void setMassingPreviewHeightBlocks(Map<String, Double> massingPreviewHeightBlocks) {
+        this.massingPreviewHeightBlocks = massingPreviewHeightBlocks != null
+            ? Map.copyOf(massingPreviewHeightBlocks)
+            : Map.of();
     }
 
     public DistrictBuildReport getLastDistrictBuildReport() {

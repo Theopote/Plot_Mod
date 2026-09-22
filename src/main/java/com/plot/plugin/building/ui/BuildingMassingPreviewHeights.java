@@ -15,9 +15,23 @@ public final class BuildingMassingPreviewHeights {
     private BuildingMassingPreviewHeights() {
     }
 
-    public static Map<String, Double> resolve(BuildingUiContext ctx, List<BuildingFootprint> targets) {
+    public static void rebuildCache(
+            BuildingPluginState state,
+            DistrictGenerationResult district,
+            BuildingGenerationResult single,
+            List<BuildingFootprint> targets) {
+        state.setMassingPreviewHeightBlocks(compute(district, single, targets));
+    }
+
+    public static void clearCache(BuildingPluginState state) {
+        state.setMassingPreviewHeightBlocks(Map.of());
+    }
+
+    public static Map<String, Double> compute(
+            DistrictGenerationResult district,
+            BuildingGenerationResult single,
+            List<BuildingFootprint> targets) {
         Map<String, Double> heights = new HashMap<>();
-        DistrictGenerationResult district = ctx.lastDistrictResult();
         if (district != null && district.buildingsAttempted() > 0) {
             for (DistrictGenerationResult.BuildingOutcome outcome : district.outcomes()) {
                 if (!outcome.success() || outcome.result() == null) {
@@ -31,8 +45,7 @@ public final class BuildingMassingPreviewHeights {
             return heights;
         }
 
-        BuildingGenerationResult single = ctx.lastGenerationResult();
-        if (single != null && targets.size() == 1) {
+        if (single != null && targets != null && targets.size() == 1) {
             double height = heightFromPlacement(single.placementRecords);
             if (height > 0.0) {
                 heights.put(targets.getFirst().getId(), height);

@@ -15,8 +15,8 @@ import java.util.List;
  * World 采样必须在主线程，故不使用后台线程；由 {@link BuildingUIManager} 每帧 {@link #tick()}。
  */
 public final class DistrictPreviewJob {
-    /** 每帧处理的建筑数（5–20 合理区间，默认 8）。 */
-    public static final int BUILDINGS_PER_TICK = 8;
+    /** 每帧处理的建筑数（较小值可减少单帧卡顿）。 */
+    public static final int BUILDINGS_PER_TICK = 2;
 
     private final List<BuildingFootprint> buildings;
     private final boolean autoProjectGhosts;

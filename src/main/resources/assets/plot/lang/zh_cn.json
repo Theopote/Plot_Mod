@@ -4161,6 +4161,7 @@
   "plugin.building.generate.summary_blocks": "%d 预计方块",
   "plugin.building.generate.ghost_visible": "Minecraft 预览 · 已显示",
   "plugin.building.generate.ghost_hidden": "Minecraft 预览 · 未显示",
+  "plugin.building.generate.ghost_uploading": "正在上传 Minecraft 预览… %,d / %,d 方块",
   "plugin.building.generate.map_floors": "%d层",
   "plugin.building.generate.massing_map_hint": "点击建筑以选择",
   "plugin.building.generate.scope_section": "范围",

@@ -4161,6 +4161,7 @@
   "plugin.building.generate.summary_blocks": "%d estimated blocks",
   "plugin.building.generate.ghost_visible": "Minecraft preview · shown",
   "plugin.building.generate.ghost_hidden": "Minecraft preview · hidden",
+  "plugin.building.generate.ghost_uploading": "Uploading Minecraft preview… %,d / %,d blocks",
   "plugin.building.generate.map_floors": "%dF",
   "plugin.building.generate.massing_map_hint": "Click a building to select",
   "plugin.building.generate.scope_section": "Scope",

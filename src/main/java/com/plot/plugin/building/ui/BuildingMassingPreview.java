@@ -22,7 +22,7 @@ public final class BuildingMassingPreview {
             : Set.of();
         Set<String> skippedIds = skippedBuildingIds(ctx);
 
-        Map<String, Double> previewHeights = BuildingMassingPreviewHeights.resolve(ctx, targets);
+        Map<String, Double> previewHeights = ctx.state().getMassingPreviewHeightBlocks();
         BuildingMassingPreviewHeights.HeightRange heightRange =
             BuildingMassingPreviewHeights.range(targets, previewHeights);
 
@@ -62,18 +62,14 @@ public final class BuildingMassingPreview {
             BuildingUiContext ctx,
             List<BuildingFootprint> targets,
             BuildingPreviewIdentity.Validity validity) {
-        boolean previewBusy = ctx.isDistrictPreviewBusy();
+        boolean previewBusy = ctx.isDistrictPreviewBusy() || ctx.isGhostProjectionBusy();
         float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) * 0.5f;
 
         if (previewBusy) {
             ImGui.beginDisabled();
         }
         if (ImGui.button(PlotI18n.tr("plugin.building.generate.update_preview"), half, 0)) {
-            if (targets.size() == 1) {
-                ctx.calculatePreview(targets.getFirst());
-            } else {
-                ctx.calculateDistrictPreview(targets, true);
-            }
+            ctx.calculateDistrictPreview(targets, true);
         }
         if (previewBusy) {
             ImGui.endDisabled();
@@ -91,10 +87,29 @@ public final class BuildingMassingPreview {
             ImGui.endDisabled();
         }
 
-        if (previewBusy) {
+        if (ctx.isDistrictPreviewBusy()) {
+            DistrictPreviewJob job = ctx.state().getDistrictPreviewJob();
+            if (job != null) {
+                ImGui.textColored(
+                    com.plot.plugin.ui.PluginUiColors.STATUS_INFO,
+                    PlotI18n.tr(
+                        "plugin.building.district_preview_progress",
+                        job.processedCount(),
+                        job.totalCount()));
+            } else {
+                ImGui.textColored(
+                    com.plot.plugin.ui.PluginUiColors.STATUS_INFO,
+                    PlotI18n.tr("plugin.building.generate.preview_running"));
+            }
+            return;
+        }
+        if (ctx.isGhostProjectionBusy()) {
             ImGui.textColored(
                 com.plot.plugin.ui.PluginUiColors.STATUS_INFO,
-                PlotI18n.tr("plugin.building.generate.preview_running"));
+                PlotI18n.tr(
+                    "plugin.building.generate.ghost_uploading",
+                    ctx.ghostProjectionProcessed(),
+                    ctx.ghostProjectionTotal()));
             return;
         }
 
