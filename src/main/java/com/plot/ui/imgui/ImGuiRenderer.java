@@ -248,12 +248,14 @@ public class ImGuiRenderer {
         ImFontConfig cjkConfig = null;
         ImFontConfig symbolConfig = null;
         try {
-            keptLatinGlyphRanges = appendGlyphRange(io.getFonts().getGlyphRangesDefault(), (short) 0x2264, (short) 0x2265);
+            keptLatinGlyphRanges = concatGlyphRanges(
+                appendGlyphRange(io.getFonts().getGlyphRangesDefault(), (short) 0x2264, (short) 0x2265),
+                UI_SYMBOL_GLYPH_RANGES);
             keptCjkGlyphRanges = CJK_ONLY_GLYPH_RANGES;
             keptSymbolGlyphRanges = UI_SYMBOL_GLYPH_RANGES;
             io.getFonts().setTexDesiredWidth(4096);
 
-            // 1) 西文主字体：字母间距正常，字号略大
+            // 1) 西文主字体：字母间距正常，字号略大（含 UI 符号区段）
             latinConfig = new ImFontConfig();
             latinConfig.setSizePixels(LATIN_FONT_SIZE);
             latinConfig.setPixelSnapH(true);
@@ -275,16 +277,17 @@ public class ImGuiRenderer {
             cjkConfig.setGlyphRanges(keptCjkGlyphRanges);
             if (!loadCjkMergeFont(io, cjkConfig)) {
                 LOGGER.warn("CJK font not found; Chinese UI text may show as '?'");
-            } else {
-                symbolConfig = new ImFontConfig();
-                symbolConfig.setMergeMode(true);
-                symbolConfig.setSizePixels(CJK_FONT_SIZE);
-                symbolConfig.setPixelSnapH(true);
-                symbolConfig.setOversampleH(1);
-                symbolConfig.setOversampleV(1);
-                symbolConfig.setGlyphRanges(keptSymbolGlyphRanges);
-                loadCjkMergeFont(io, symbolConfig);
             }
+
+            // 3) 补充 UI 符号（✓ ⚠ ▾ 等）：必须与主字体同字号，否则 ImGui 仍显示 '?'
+            symbolConfig = new ImFontConfig();
+            symbolConfig.setMergeMode(true);
+            symbolConfig.setSizePixels(LATIN_FONT_SIZE);
+            symbolConfig.setPixelSnapH(true);
+            symbolConfig.setOversampleH(1);
+            symbolConfig.setOversampleV(1);
+            symbolConfig.setGlyphRanges(keptSymbolGlyphRanges);
+            mergeUiSymbolFont(io, symbolConfig);
 
             if (!io.getFonts().build()) {
                 LOGGER.error("Font atlas build failed; falling back to default font");
@@ -311,19 +314,58 @@ public class ImGuiRenderer {
     }
 
     private boolean loadLatinUiFont(ImGuiIO io, ImFontConfig config) {
-        // 优先比例西文字体，单词内字母间距比黑体自带的拉丁字形更自然
-        String[] latinFontPaths = {
+        return addFontFromPaths(io, config, LATIN_FONT_SIZE, latinUiFontPaths(), false);
+    }
+
+    private void mergeUiSymbolFont(ImGuiIO io, ImFontConfig config) {
+        if (addFontFromPaths(io, config, LATIN_FONT_SIZE, symbolUiFontPaths(), true)) {
+            return;
+        }
+        if (addFontFromPaths(io, config, LATIN_FONT_SIZE, latinUiFontPaths(), true)) {
+            return;
+        }
+        if (keptFontData == null) {
+            keptFontData = loadBundledFontBytes();
+        }
+        if (keptFontData != null) {
+            config.setFontNo(0);
+            config.setFontDataOwnedByAtlas(false);
+            io.getFonts().addFontFromMemoryTTF(keptFontData, LATIN_FONT_SIZE, config);
+            LOGGER.info("Merged UI symbol glyphs from bundled CJK @ {}px", LATIN_FONT_SIZE);
+        }
+    }
+
+    private static String[] latinUiFontPaths() {
+        return new String[] {
             "C:/Windows/Fonts/segoeui.ttf",
             "C:/Windows/Fonts/tahoma.ttf",
             "C:/Windows/Fonts/arial.ttf",
             "C:/Windows/Fonts/calibri.ttf"
         };
-        for (String fontPath : latinFontPaths) {
+    }
+
+    /** Segoe UI Symbol 等对 ✓ ⚠ ▾ 覆盖更完整。 */
+    private static String[] symbolUiFontPaths() {
+        return new String[] {
+            "C:/Windows/Fonts/seguisym.ttf",
+            "C:/Windows/Fonts/segoeuisymbol.ttf",
+            "C:/Windows/Fonts/msyh.ttf",
+            "C:/Windows/Fonts/simhei.ttf"
+        };
+    }
+
+    private boolean addFontFromPaths(
+            ImGuiIO io,
+            ImFontConfig config,
+            float sizePixels,
+            String[] fontPaths,
+            boolean merge) {
+        for (String fontPath : fontPaths) {
             if (new File(fontPath).exists()) {
                 config.setFontNo(0);
                 config.setFontDataOwnedByAtlas(true);
-                io.getFonts().addFontFromFileTTF(fontPath, LATIN_FONT_SIZE, config);
-                LOGGER.info("Loaded Latin UI font from {} @ {}px", fontPath, LATIN_FONT_SIZE);
+                io.getFonts().addFontFromFileTTF(fontPath, sizePixels, config);
+                LOGGER.info("{} UI font from {} @ {}px", merge ? "Merged" : "Loaded", fontPath, sizePixels);
                 return true;
             }
         }
@@ -376,15 +418,23 @@ public class ImGuiRenderer {
     }
 
     private byte[] loadBundledFontBytes() {
-        try (InputStream in = ImGuiRenderer.class.getResourceAsStream(BUNDLED_CJK_FONT)) {
-            if (in == null) {
-                return null;
+        String[] bundledPaths = {
+            BUNDLED_CJK_FONT,
+            "/assets/plot/fonts/Source Han Sans CN Regular.otf",
+            "/assets/plot/fonts/source_han_sans_cn.otf"
+        };
+        for (String path : bundledPaths) {
+            try (InputStream in = ImGuiRenderer.class.getResourceAsStream(path)) {
+                if (in == null) {
+                    continue;
+                }
+                LOGGER.info("Using bundled CJK font {}", path);
+                return in.readAllBytes();
+            } catch (IOException e) {
+                LOGGER.warn("Failed to read bundled font {}", path, e);
             }
-            return in.readAllBytes();
-        } catch (IOException e) {
-            LOGGER.warn("Failed to read bundled font {}", BUNDLED_CJK_FONT, e);
-            return null;
         }
+        return null;
     }
 
     /** 在 ImGui 字形范围数组末尾（终止 0 之前）追加一段 codepoint 区间。 */
@@ -398,6 +448,20 @@ public class ImGuiRenderer {
         extended[ranges.length] = to;
         extended[ranges.length + 1] = 0;
         return extended;
+    }
+
+    /** 合并两段 ImGui glyph range 数组（各以 0 结尾）。 */
+    private static short[] concatGlyphRanges(short[] first, short[] second) {
+        if (first == null || first.length == 0) {
+            return second;
+        }
+        if (second == null || second.length == 0) {
+            return first;
+        }
+        short[] merged = new short[first.length + second.length - 1];
+        System.arraycopy(first, 0, merged, 0, first.length - 1);
+        System.arraycopy(second, 0, merged, first.length - 1, second.length);
+        return merged;
     }
 
     /**
