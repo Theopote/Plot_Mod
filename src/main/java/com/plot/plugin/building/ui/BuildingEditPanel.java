@@ -1,6 +1,5 @@
 package com.plot.plugin.building.ui;
 
-import com.plot.plugin.building.BuildingBlockCountCache;
 import com.plot.plugin.building.generation.BuildingCanvasScale;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.spec.OpeningSpec;
@@ -56,7 +55,7 @@ public final class BuildingEditPanel {
         ImGui.text(PlotI18n.tr("plugin.building.edit_single_title", building.getName()));
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
             "plugin.building.edit_single_meta",
-            BuildingBlockCountCache.blockCount(building, ctx.currentProjection()),
+            ctx.blockCountCache().blockCount(building, ctx.currentProjection()),
             building.getFloors()));
         if (ImGui.button(PlotI18n.tr("plugin.building.locate"), 0, 0)) {
             ctx.locateBuilding(building);

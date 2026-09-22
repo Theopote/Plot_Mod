@@ -165,7 +165,11 @@ public final class BuildingSelectionSet {
 
     public int totalBlockCount(
             BuildingProject project,
-            com.plot.api.world.WorldProjectionSnapshot projection) {
-        return BuildingBlockCountCache.totalBlockCount(resolve(project), projection);
+            com.plot.api.world.WorldProjectionSnapshot projection,
+            BuildingBlockCountCache cache) {
+        if (cache == null) {
+            return 0;
+        }
+        return cache.totalBlockCount(resolve(project), projection);
     }
 }

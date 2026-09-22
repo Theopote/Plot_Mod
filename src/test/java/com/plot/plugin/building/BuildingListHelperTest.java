@@ -56,19 +56,19 @@ class BuildingListHelperTest {
     }
 
     @Test
-    void sortByAreaAscending() {
+    void sortByFootprintBlocksAscending() {
         BuildingProject project = sampleProject();
         assertEquals(
             List.of("building-small", "building-medium", "building-large"),
-            ids(project, BuildingListHelper.SortMode.AREA_ASC));
+            ids(project, BuildingListHelper.SortMode.FOOTPRINT_BLOCKS_ASC));
     }
 
     @Test
-    void sortByAreaDescending() {
+    void sortByFootprintBlocksDescending() {
         BuildingProject project = sampleProject();
         assertEquals(
             List.of("building-large", "building-medium", "building-small"),
-            ids(project, BuildingListHelper.SortMode.AREA_DESC));
+            ids(project, BuildingListHelper.SortMode.FOOTPRINT_BLOCKS_DESC));
     }
 
     @Test

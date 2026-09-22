@@ -144,7 +144,7 @@ public final class BuildingFootprintsPanel {
         ImGui.text(PlotI18n.tr("plugin.building.footprints.project_section"));
         ImGui.text(PlotI18n.tr("plugin.building.footprints.project_stats",
             ctx.project().getBuildingCount(),
-            BuildingBlockCountCache.totalBlockCount(ctx.project().getBuildings().values(), projection)));
+            ctx.blockCountCache().totalBlockCount(ctx.project().getBuildings().values(), projection)));
 
         if (ctx.project().getBuildingCount() == 0) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.no_buildings"));
@@ -152,7 +152,7 @@ public final class BuildingFootprintsPanel {
         }
 
         ctx.selection().retainExisting(ctx.project());
-        BuildingBlockCountCache.retainOnly(ctx.project().getBuildings().keySet());
+        ctx.blockCountCache().retainOnly(ctx.project().getBuildings().keySet());
 
         float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX() * 2) / 3.0f;
         if (ImGui.button(PlotI18n.tr("plugin.building.select_all"), buttonWidth, 0)) {
@@ -192,7 +192,8 @@ public final class BuildingFootprintsPanel {
         List<BuildingFootprint> buildings = BuildingListHelper.sorted(
             ctx.project(),
             ctx.buildingSortMode(),
-            projection);
+            projection,
+            ctx.blockCountCache());
         for (int i = 0; i < buildings.size(); i++) {
             renderAdoptedBuildingRow(buildings.get(i), i, projection);
         }
@@ -241,7 +242,7 @@ public final class BuildingFootprintsPanel {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
                 "plugin.building.footprints.overview_item",
                 building.getFloors(),
-                BuildingBlockCountCache.blockCount(building, projection)));
+                ctx.blockCountCache().blockCount(building, projection)));
         }
         ImGui.endGroup();
         ImGui.popID();

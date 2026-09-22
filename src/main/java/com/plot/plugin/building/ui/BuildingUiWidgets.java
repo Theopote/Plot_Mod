@@ -29,7 +29,10 @@ public final class BuildingUiWidgets {
         ImGui.text(PlotI18n.tr(
             "plugin.building.selection_summary",
             ctx.selection().size(),
-            ctx.selection().totalBlockCount(ctx.project(), ctx.currentProjection())));
+            ctx.selection().totalBlockCount(
+                ctx.project(),
+                ctx.currentProjection(),
+                ctx.blockCountCache())));
         BuildingFootprint primary = ctx.selection().primary(ctx.project());
         if (primary != null && ctx.selection().size() > 1) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
@@ -41,7 +44,11 @@ public final class BuildingUiWidgets {
         if (ctx.project().getBuildingCount() == 0) {
             return;
         }
-        List<BuildingFootprint> buildings = BuildingListHelper.sorted(ctx.project(), ctx.buildingSortMode());
+        List<BuildingFootprint> buildings = BuildingListHelper.sorted(
+            ctx.project(),
+            ctx.buildingSortMode(),
+            ctx.currentProjection(),
+            ctx.blockCountCache());
         String[] labels = buildings.stream()
             .map(BuildingFootprint::getName)
             .toArray(String[]::new);

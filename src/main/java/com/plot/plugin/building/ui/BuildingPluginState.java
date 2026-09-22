@@ -3,6 +3,7 @@ package com.plot.plugin.building.ui;
 import com.plot.core.model.Shape;
 import com.plot.core.persistence.ContentFingerprint;
 import com.plot.plugin.building.BuildingBatchEditor;
+import com.plot.plugin.building.BuildingBlockCountCache;
 import com.plot.plugin.building.BuildingFootprintPickSession;
 import com.plot.plugin.building.BuildingHeightDistribution;
 import com.plot.plugin.building.BuildingListHelper;
@@ -25,6 +26,7 @@ public final class BuildingPluginState {
     private BuildingProject project = new BuildingProject();
     private final BuildingProjectHistory projectHistory = new BuildingProjectHistory();
     private final BuildingSelectionSet selection = new BuildingSelectionSet();
+    private final BuildingBlockCountCache blockCountCache = new BuildingBlockCountCache();
     private final BuildingFootprintPickSession pickSession = new BuildingFootprintPickSession();
     private final List<Shape> selectedFootprints = new ArrayList<>();
 
@@ -94,6 +96,11 @@ public final class BuildingPluginState {
 
     public void setProject(BuildingProject project) {
         this.project = project != null ? project : new BuildingProject();
+        blockCountCache.retainOnly(this.project.getBuildings().keySet());
+    }
+
+    public BuildingBlockCountCache getBlockCountCache() {
+        return blockCountCache;
     }
 
     public BuildingProjectHistory getProjectHistory() {

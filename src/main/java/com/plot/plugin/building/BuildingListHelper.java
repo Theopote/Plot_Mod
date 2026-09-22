@@ -16,8 +16,8 @@ public final class BuildingListHelper {
 
     public enum SortMode {
         INSERTION("plugin.building.sort.insertion"),
-        AREA_ASC("plugin.building.sort.area_asc"),
-        AREA_DESC("plugin.building.sort.area_desc"),
+        FOOTPRINT_BLOCKS_ASC("plugin.building.sort.footprint_blocks_asc"),
+        FOOTPRINT_BLOCKS_DESC("plugin.building.sort.footprint_blocks_desc"),
         FLOORS_ASC("plugin.building.sort.floors_asc"),
         FLOORS_DESC("plugin.building.sort.floors_desc"),
         NAME("plugin.building.sort.name");
@@ -37,13 +37,21 @@ public final class BuildingListHelper {
     }
 
     public static List<BuildingFootprint> sorted(BuildingProject project, SortMode mode) {
-        return sorted(project, mode, WorldProjectionSnapshot.UNKNOWN);
+        return sorted(project, mode, WorldProjectionSnapshot.UNKNOWN, new BuildingBlockCountCache());
     }
 
     public static List<BuildingFootprint> sorted(
             BuildingProject project,
             SortMode mode,
             WorldProjectionSnapshot projection) {
+        return sorted(project, mode, projection, new BuildingBlockCountCache());
+    }
+
+    public static List<BuildingFootprint> sorted(
+            BuildingProject project,
+            SortMode mode,
+            WorldProjectionSnapshot projection,
+            BuildingBlockCountCache blockCountCache) {
         if (project == null || mode == null) {
             return List.of();
         }
@@ -54,11 +62,14 @@ public final class BuildingListHelper {
         WorldProjectionSnapshot effectiveProjection = projection != null
             ? projection
             : WorldProjectionSnapshot.UNKNOWN;
+        BuildingBlockCountCache cache = blockCountCache != null
+            ? blockCountCache
+            : new BuildingBlockCountCache();
         Comparator<BuildingFootprint> comparator = switch (mode) {
-            case AREA_ASC -> Comparator.comparingInt(
-                building -> BuildingBlockCountCache.blockCount(building, effectiveProjection));
-            case AREA_DESC -> Comparator.<BuildingFootprint>comparingInt(
-                building -> BuildingBlockCountCache.blockCount(building, effectiveProjection)).reversed();
+            case FOOTPRINT_BLOCKS_ASC -> Comparator.comparingInt(
+                building -> cache.blockCount(building, effectiveProjection));
+            case FOOTPRINT_BLOCKS_DESC -> Comparator.<BuildingFootprint>comparingInt(
+                building -> cache.blockCount(building, effectiveProjection)).reversed();
             case FLOORS_ASC -> Comparator.comparingInt(BuildingFootprint::getFloors);
             case FLOORS_DESC -> Comparator.comparingInt(BuildingFootprint::getFloors).reversed();
             case NAME -> Comparator.comparing(

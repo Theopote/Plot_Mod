@@ -6,22 +6,19 @@ import com.plot.api.world.WorldProjectionSnapshot;
 import com.plot.core.geometry.PolygonRegionUtils;
 import com.plot.plugin.building.model.BuildingFootprint;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
-/** 建筑轮廓方块数缓存（几何 + 当前视图投影）。 */
+/** 建筑轮廓方块数缓存（几何 + 当前视图投影），按插件会话实例隔离。 */
 public final class BuildingBlockCountCache {
-    private static final Map<String, Entry> CACHE = new ConcurrentHashMap<>();
+    private final Map<String, Entry> cache = new HashMap<>();
 
     private record Entry(int geometryFingerprint, int projectionFingerprint, int blockCount) {
     }
 
-    private BuildingBlockCountCache() {
-    }
-
-    public static int blockCount(BuildingFootprint footprint, WorldProjectionSnapshot projection) {
+    public int blockCount(BuildingFootprint footprint, WorldProjectionSnapshot projection) {
         if (footprint == null) {
             return 0;
         }
@@ -29,7 +26,7 @@ public final class BuildingBlockCountCache {
         int projectionFingerprint = projection != null && projection.isValid()
             ? projection.uiFingerprint()
             : 0;
-        Entry cached = CACHE.get(footprint.getId());
+        Entry cached = cache.get(footprint.getId());
         if (cached != null
                 && cached.geometryFingerprint == geometryFingerprint
                 && cached.projectionFingerprint == projectionFingerprint) {
@@ -39,13 +36,13 @@ public final class BuildingBlockCountCache {
             footprint.getOuterPoints(),
             List.of(),
             projection);
-        CACHE.put(
+        cache.put(
             footprint.getId(),
             new Entry(geometryFingerprint, projectionFingerprint, blockCount));
         return blockCount;
     }
 
-    public static int blockCount(BuildingFootprint footprint, ICoordinateService coordinates) {
+    public int blockCount(BuildingFootprint footprint, ICoordinateService coordinates) {
         if (coordinates == null) {
             return blockCount(footprint, WorldProjectionSnapshot.UNKNOWN);
         }
@@ -60,21 +57,24 @@ public final class BuildingBlockCountCache {
         return PolygonRegionUtils.countProjectedWorldBlocks(outerPoints, List.of(), projection);
     }
 
-    public static int totalBlockCount(
+    public int totalBlockCount(
             Iterable<BuildingFootprint> footprints,
             WorldProjectionSnapshot projection) {
         int count = 0;
+        if (footprints == null) {
+            return 0;
+        }
         for (BuildingFootprint footprint : footprints) {
             count += blockCount(footprint, projection);
         }
         return count;
     }
 
-    public static void retainOnly(Set<String> buildingIds) {
+    public void retainOnly(Set<String> buildingIds) {
         if (buildingIds == null || buildingIds.isEmpty()) {
-            CACHE.clear();
+            cache.clear();
             return;
         }
-        CACHE.entrySet().removeIf(entry -> !buildingIds.contains(entry.getKey()));
+        cache.entrySet().removeIf(entry -> !buildingIds.contains(entry.getKey()));
     }
 }

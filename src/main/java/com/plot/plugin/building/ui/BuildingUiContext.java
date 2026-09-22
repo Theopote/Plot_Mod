@@ -1,6 +1,7 @@
 package com.plot.plugin.building.ui;
 
 import com.plot.plugin.building.BuildingBatchEditor;
+import com.plot.plugin.building.BuildingBlockCountCache;
 import com.plot.plugin.building.BuildingFootprintSelectionAnalysis;
 import com.plot.plugin.building.BuildingHeightDistribution;
 import com.plot.plugin.building.BuildingListHelper;
@@ -104,6 +105,10 @@ public final class BuildingUiContext {
 
     public BuildingSelectionSet selection() {
         return state.getSelection();
+    }
+
+    public BuildingBlockCountCache blockCountCache() {
+        return state.getBlockCountCache();
     }
 
     public com.plot.plugin.building.BuildingFootprintPickSession pickSession() {
