@@ -49,8 +49,6 @@ public final class BuildingToolbarPanel {
             ImGui.endDisabled();
         }
 
-        ImGui.checkbox(PlotI18n.tr("plugin.building.overlay.show_footprints"), ctx.showFootprintOverlay());
-
         if (!ctx.projectStatus().isEmpty()) {
             ImGui.textColored(
                 ctx.isDistrictPreviewBusy() ? PluginUiColors.STATUS_INFO : PluginUiColors.STATUS_OK,

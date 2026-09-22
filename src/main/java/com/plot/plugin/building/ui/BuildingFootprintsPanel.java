@@ -47,6 +47,8 @@ public final class BuildingFootprintsPanel {
         if (ImGui.button(PlotI18n.tr("plugin.building.pick_footprint"), 0, 0)) {
             ctx.startPickSession();
         }
+        ImGui.sameLine();
+        ImGui.checkbox(PlotI18n.tr("plugin.building.overlay.show_footprints"), ctx.showFootprintOverlay());
     }
 
     private void renderPickSessionState() {
@@ -189,10 +191,6 @@ public final class BuildingFootprintsPanel {
             id -> ctx.selection().select(id, ImGui.getIO().getKeyCtrl()));
 
         ImGui.spacing();
-        ImGui.text(PlotI18n.tr("plugin.building.footprints.list_section"));
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.footprints.list_hint"));
-
-        ImGui.beginChild("building_footprints_list", 0, 0, true);
         List<BuildingFootprint> buildings = BuildingListHelper.sorted(
             ctx.project(),
             ctx.buildingSortMode(),
@@ -200,7 +198,6 @@ public final class BuildingFootprintsPanel {
         for (int i = 0; i < buildings.size(); i++) {
             renderAdoptedBuildingRow(buildings.get(i), i, projection);
         }
-        ImGui.endChild();
     }
 
     private void renderAdoptedBuildingRow(
