@@ -170,7 +170,7 @@ public final class TowerArmAttachmentBinding {
     }
 
     /**
-     * 删除横担前：将 BOUND 挂点烘焙为当前解析位置下的 FREE 偏移，避免跳回旧缓存。
+     * 删除横担前：将 BOUND 挂点烘焙为当前解析位置下的 FREE 偏移。
      */
     public static void releaseAttachmentsFromArm(
             TowerStructureDesign structure,
@@ -206,7 +206,7 @@ public final class TowerArmAttachmentBinding {
     /**
      * 切到分层模式前：把 BOUND 挂点烘焙为 FREE 局部偏移，避免结构清空后预览/编辑错位。
      */
-    public static void releaseBoundAttachmentsForLegacyLayers(PoleDesign design) {
+    public static void releaseBoundAttachmentsForLayerMode(PoleDesign design) {
         if (design == null || design.getTowerStructure() == null) {
             return;
         }
@@ -299,15 +299,15 @@ public final class TowerArmAttachmentBinding {
         }
     }
 
-    /** Legacy 分层：横担悬挂高度（相对塔腿地面，与 {@link PoleDesign#wireHangHeightFromGround(int)} 同局部坐标）。 */
-    public static double legacyCrossarmHangHeight(PoleDesign design) {
+    /** 分层模式：横担悬挂高度（相对塔腿地面，与 {@link PoleDesign#wireHangHeightFromGround(int)} 同局部坐标）。 */
+    public static double layerModeCrossarmHangHeight(PoleDesign design) {
         if (design == null || design.hasTowerStructure()) {
             return 0.0;
         }
         return design.wireHangHeightFromGround(0);
     }
 
-    /** Legacy 分层体素高度变化后，保持 FREE 挂点相对最高横担的竖向偏移。 */
+    /** 分层模式体素高度变化后，保持 FREE 挂点相对最高横担的竖向偏移。 */
     public static void shiftFreeAttachmentHeights(PoleDesign design, double deltaY) {
         if (design == null || Math.abs(deltaY) < 1e-6) {
             return;

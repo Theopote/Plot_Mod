@@ -3,7 +3,6 @@ package com.plot.plugin.powerline.design;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AttachmentRoleTest {
 
@@ -13,12 +12,8 @@ class AttachmentRoleTest {
     }
 
     @Test
-    void parseRoleMigratesLegacyGroundWire() {
-        assertEquals(AttachmentRole.TOP_WIRE, AttachmentRole.parseRole("GROUND_WIRE"));
-    }
-
-    @Test
     void parseRoleFallsBackForUnknownValues() {
         assertEquals(AttachmentRole.AUXILIARY, AttachmentRole.parseRole("NOT_A_REAL_ROLE"));
+        assertEquals(AttachmentRole.AUXILIARY, AttachmentRole.parseRole("GROUND_WIRE"));
     }
 }

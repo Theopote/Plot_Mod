@@ -16,7 +16,7 @@ import imgui.type.ImInt;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Legacy 杆塔分层编辑器。 */
+/** 杆塔分层模式编辑器。 */
 final class PoleDesignerLayerPanel {
     private final List<LayerAction> pendingLayerActions = new ArrayList<>();
 
@@ -62,7 +62,7 @@ final class PoleDesignerLayerPanel {
 
         int maxHeight = PoleLayer.maxHeightForShape(layer.getShape());
         int[] height = {layer.getHeight()};
-        double crossarmHangBefore = TowerArmAttachmentBinding.legacyCrossarmHangHeight(draft);
+        double crossarmHangBefore = TowerArmAttachmentBinding.layerModeCrossarmHangHeight(draft);
         if (PoleDesignerFormRows.sliderInt(
                 "plugin.powerline.design.layer_height",
                 "##height",
@@ -70,7 +70,7 @@ final class PoleDesignerLayerPanel {
                 1,
                 maxHeight)) {
             layer.setHeight(height[0]);
-            double crossarmHangAfter = TowerArmAttachmentBinding.legacyCrossarmHangHeight(draft);
+            double crossarmHangAfter = TowerArmAttachmentBinding.layerModeCrossarmHangHeight(draft);
             TowerArmAttachmentBinding.shiftFreeAttachmentHeights(
                 draft,
                 crossarmHangAfter - crossarmHangBefore);

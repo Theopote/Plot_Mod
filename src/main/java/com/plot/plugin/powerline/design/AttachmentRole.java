@@ -14,13 +14,10 @@ public enum AttachmentRole {
     TOP_WIRE,
     AUXILIARY;
 
-    /** 解析 JSON / 旧数据中的角色名；兼容 {@code GROUND_WIRE}。 */
+    /** 解析 JSON 中的角色名。 */
     public static AttachmentRole parseRole(String raw) {
         if (raw == null || raw.isBlank()) {
             return PHASE_A;
-        }
-        if ("GROUND_WIRE".equals(raw)) {
-            return TOP_WIRE;
         }
         try {
             return valueOf(raw);

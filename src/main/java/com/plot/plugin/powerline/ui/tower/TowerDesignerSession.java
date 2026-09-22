@@ -121,7 +121,7 @@ public final class TowerDesignerSession {
             return;
         }
         if (!towerStructureMode) {
-            TowerArmAttachmentBinding.releaseBoundAttachmentsForLegacyLayers(draft);
+            TowerArmAttachmentBinding.releaseBoundAttachmentsForLayerMode(draft);
             draft.clearTowerStructure();
             lastConstraintResult = null;
             invalidateConstraintCache();

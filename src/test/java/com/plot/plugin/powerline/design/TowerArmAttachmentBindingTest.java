@@ -97,18 +97,18 @@ class TowerArmAttachmentBindingTest {
     }
 
     @Test
-    void releaseBoundAttachmentsForLegacyLayersBakesOffsetsAndUnbinds() {
+    void releaseBoundAttachmentsForLayerModeBakesOffsetsAndUnbinds() {
         TowerStructureDesign structure = new TowerStructureDesign();
         structure.addArm(new TowerArm("arm_main", 40, 10));
         TowerArm arm = structure.getArms().getFirst();
         ConductorAttachment attachment = TowerArmAttachmentBinding.createThreePhaseDeck(arm).get(0);
 
-        PoleDesign design = new PoleDesign("legacy", "Legacy");
+        PoleDesign design = new PoleDesign("layer-mode", "Layer Mode");
         design.setTowerStructure(structure);
         design.setAttachments(List.of(attachment));
         ConductorAttachment stored = design.getAttachments().getFirst();
 
-        TowerArmAttachmentBinding.releaseBoundAttachmentsForLegacyLayers(design);
+        TowerArmAttachmentBinding.releaseBoundAttachmentsForLayerMode(design);
 
         assertFalse(stored.isBound());
         assertEquals(40.0, stored.getVerticalOffset(), 0.01);
@@ -182,23 +182,23 @@ class TowerArmAttachmentBindingTest {
     }
 
     @Test
-    void shiftFreeAttachmentHeightsFollowsLegacyCrossarmMove() {
-        PoleDesign design = new PoleDesign("legacy", "Legacy");
+    void shiftFreeAttachmentHeightsFollowsLayerModeCrossarmMove() {
+        PoleDesign design = new PoleDesign("layer-mode", "Layer Mode");
         design.addLayer(new PoleLayer(PoleLayer.Shape.COLUMN, 6, null));
         design.addLayer(new PoleLayer(PoleLayer.Shape.CROSSARM, 1, null));
         design.setAttachments(ConductorAttachmentPresets.threePhaseHorizontal(
-            TowerArmAttachmentBinding.legacyCrossarmHangHeight(design)));
+            TowerArmAttachmentBinding.layerModeCrossarmHangHeight(design)));
 
         PoleLayer column = design.getLayers().getFirst();
-        double hangBefore = TowerArmAttachmentBinding.legacyCrossarmHangHeight(design);
+        double hangBefore = TowerArmAttachmentBinding.layerModeCrossarmHangHeight(design);
         double phaseBefore = design.getAttachments().getFirst().getVerticalOffset();
 
         column.setHeight(10);
         TowerArmAttachmentBinding.shiftFreeAttachmentHeights(
             design,
-            TowerArmAttachmentBinding.legacyCrossarmHangHeight(design) - hangBefore);
+            TowerArmAttachmentBinding.layerModeCrossarmHangHeight(design) - hangBefore);
 
-        double hangAfter = TowerArmAttachmentBinding.legacyCrossarmHangHeight(design);
+        double hangAfter = TowerArmAttachmentBinding.layerModeCrossarmHangHeight(design);
         assertEquals(hangBefore + 4, hangAfter, 0.01);
         assertEquals(phaseBefore + 4, design.getAttachments().getFirst().getVerticalOffset(), 0.01);
     }

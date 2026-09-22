@@ -141,10 +141,10 @@ public final class InsulatorAssemblyCatalog {
         if (attachment.isOuterPhaseInsulator()) {
             return true;
         }
-        return inferLegacyOuterPhaseInsulator(attachment.getId());
+        return inferOuterPhaseFromId(attachment.getId());
     }
 
-    private static boolean inferLegacyOuterPhaseInsulator(String id) {
+    private static boolean inferOuterPhaseFromId(String id) {
         return id != null && (id.endsWith("_a") || id.endsWith("_c")
             || id.contains("phase_a") || id.contains("phase_c")
             || id.startsWith("left_") || id.startsWith("right_")

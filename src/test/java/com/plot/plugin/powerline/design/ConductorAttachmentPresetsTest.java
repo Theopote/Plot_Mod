@@ -85,33 +85,33 @@ class ConductorAttachmentPresetsTest {
     }
 
     @Test
-    void createNextLegacyAssignsSequentialPhaseLetters() {
+    void createNextLayerModeAttachmentAssignsSequentialPhaseLetters() {
         PoleDesign design = new PoleDesign("test");
         design.setAttachments(ConductorAttachmentPresets.threePhaseHorizontal(12.0));
 
-        ConductorAttachment next = ConductorAttachmentPresets.createNextLegacy(design);
+        ConductorAttachment next = ConductorAttachmentPresets.createNextLayerModeAttachment(design);
         assertEquals("D", next.getName());
         assertEquals("phase_d", next.getId());
         assertEquals(AttachmentRole.AUXILIARY, next.getRole());
     }
 
     @Test
-    void createNextLegacyStartsAtAOnEmptyDesign() {
+    void createNextLayerModeAttachmentStartsAtAOnEmptyDesign() {
         PoleDesign design = new PoleDesign("empty");
         design.addLayer(new PoleLayer(PoleLayer.Shape.COLUMN, 8, null));
 
-        ConductorAttachment first = ConductorAttachmentPresets.createNextLegacy(design);
+        ConductorAttachment first = ConductorAttachmentPresets.createNextLayerModeAttachment(design);
         assertEquals("A", first.getName());
         assertEquals("phase_a", first.getId());
         assertEquals(AttachmentRole.PHASE_A, first.getRole());
     }
 
     @Test
-    void createNextLegacySkipsDefaultAttachmentPlaceholderName() {
+    void createNextLayerModeAttachmentSkipsDefaultAttachmentPlaceholderName() {
         PoleDesign design = new PoleDesign("test");
         design.addAttachment(new ConductorAttachment());
 
-        ConductorAttachment next = ConductorAttachmentPresets.createNextLegacy(design);
+        ConductorAttachment next = ConductorAttachmentPresets.createNextLayerModeAttachment(design);
         assertEquals("A", next.getName());
     }
 }

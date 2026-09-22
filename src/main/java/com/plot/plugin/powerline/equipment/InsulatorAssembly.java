@@ -6,7 +6,7 @@ import com.plot.plugin.powerline.design.ConductorAttachment;
 import java.util.Objects;
 import java.util.UUID;
 
-/** 绝缘子串定义（可选，优先于 attachment 上的 legacy 字段）。 */
+/** 绝缘子串定义（可选，优先于 attachment 上的分散字段）。 */
 public class InsulatorAssembly {
     private String id;
     private InsulatorType type = InsulatorType.SUSPENSION;

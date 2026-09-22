@@ -41,9 +41,9 @@ public final class ConductorAttachmentPresets {
     }
 
     /**
-     * Legacy 分层设计器「+ 添加挂点」：按 A→B→C… 分配未占用的单字母名称与 {@code phase_*} id。
+     * 分层设计器「+ 添加挂点」：按 A→B→C… 分配未占用的单字母名称与 {@code phase_*} id。
      */
-    public static ConductorAttachment createNextLegacy(PoleDesign design) {
+    public static ConductorAttachment createNextLayerModeAttachment(PoleDesign design) {
         Set<Character> usedLetters = usedPhaseLetters(design);
         char letter = nextAvailableLetter(usedLetters);
         String name = String.valueOf(letter);

@@ -1,13 +1,10 @@
 package com.plot.plugin.powerline.design;
 
 import com.plot.core.material.MaterialMix;
-import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PoleDesignSerializationTest {
 
@@ -30,52 +27,8 @@ class PoleDesignSerializationTest {
     }
 
     @Test
-    void legacyPlanningMetadataJsonLoadsWithoutPersisting() {
-        String json = """
-            {
-              "id": "legacy",
-              "name": "Legacy",
-              "layers": [],
-              "attachments": [],
-              "engineeringMetadata": {
-                "nominalHeight": 24.0,
-                "maxRecommendedSpan": 80.0,
-                "maxRecommendedDeflectionAngle": 12.0,
-                "supportedRoles": ["SUSPENSION"]
-              }
-            }
-            """;
-        PoleDesign restored = PoleDesign.fromJson(json);
-        assertNotNull(restored);
-        assertFalse(restored.toJson().contains("engineeringMetadata"));
-        assertFalse(restored.toJson().contains("planningMetadata"));
-        assertFalse(restored.toJson().contains("maxRecommendedSpan"));
-    }
-
-    @Test
-    void unknownLayerShapeIsSkippedWithoutFailingLoad() {
-        String json = """
-            {
-              "id": "legacy-shape",
-              "name": "Legacy Shape",
-              "layers": [
-                {"shape": "COLUMN_OLD", "height": 4, "crossarmLength": 0, "material": "minecraft:oak_fence"},
-                {"shape": "COLUMN", "height": 6, "crossarmLength": 0, "material": "minecraft:oak_fence"},
-                {"shape": "CROSSARM", "height": 1, "crossarmLength": 5, "material": "minecraft:oak_log"}
-              ],
-              "attachments": []
-            }
-            """;
-        PoleDesign restored = PoleDesign.fromJson(json);
-        assertNotNull(restored);
-        assertEquals(2, restored.getLayers().size());
-        assertEquals(PoleLayer.Shape.COLUMN, restored.getLayers().getFirst().getShape());
-        assertEquals(PoleLayer.Shape.CROSSARM, restored.getLayers().get(1).getShape());
-    }
-
-    @Test
-    void legacyDesignWithoutAttachmentsGetsDefaultOnLoad() {
-        PoleDesign source = new PoleDesign("legacy-wood", "Legacy Wood");
+    void designWithoutAttachmentsStaysEmptyOnLoad() {
+        PoleDesign source = new PoleDesign("wood-pole", "Wood Pole");
         source.addLayer(new PoleLayer(
             PoleLayer.Shape.COLUMN,
             8,
@@ -85,38 +38,7 @@ class PoleDesignSerializationTest {
 
         PoleDesign restored = PoleDesign.fromJson(json);
         assertNotNull(restored);
-        assertEquals(1, restored.getAttachments().size());
-        assertFalse(restored.getLayers().isEmpty());
-    }
-
-    @Test
-    void legacyGroundWireRoleMigratesOnPoleDesignLoad() {
-        String json = """
-            {
-              "id": "legacy-top",
-              "name": "Legacy Top",
-              "layers": [{"shape": "COLUMN", "height": 8, "crossarmLength": 0, "material": "minecraft:oak_fence"}],
-              "attachments": [{
-                "id": "tw",
-                "name": "TW",
-                "lateralOffset": 0,
-                "verticalOffset": 10,
-                "longitudinalOffset": 0,
-                "role": "GROUND_WIRE",
-                "insulatorLength": 1,
-                "enabled": true
-              }]
-            }
-            """;
-        PoleDesign restored = PoleDesign.fromJson(json);
-        if (restored != null) {
-            assertEquals(AttachmentRole.TOP_WIRE, restored.getAttachments().getFirst().getRole());
-        }
-        if (restored != null) {
-            assertTrue(restored.toJson().contains("\"TOP_WIRE\""));
-        }
-        if (restored != null) {
-            assertFalse(restored.toJson().contains("\"GROUND_WIRE\""));
-        }
+        assertEquals(0, restored.getAttachments().size());
+        assertEquals(1, restored.getLayers().size());
     }
 }

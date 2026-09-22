@@ -149,7 +149,7 @@ public class PoleDesign {
         return false;
     }
 
-    /** 为无挂点的旧设计/自定义杆型补上单导线挂点。 */
+    /** 为无挂点的杆型补上单导线挂点（生成器兜底）。 */
     public void ensureDefaultConductorAttachments() {
         if (attachments != null && !attachments.isEmpty()) {
             return;
@@ -202,7 +202,7 @@ public class PoleDesign {
 
     /**
      * 自下而上遍历层栈时，最后一个 {@link PoleLayer.Shape#CROSSARM} 为导线悬挂层
-     * （即物理位置最高的横担）。Legacy fallback 专用。
+     * （即物理位置最高的横担）。分层模式专用。
      */
     public int conductorCrossarmLayerIndex() {
         int index = -1;
@@ -249,7 +249,6 @@ public class PoleDesign {
         }
         PoleDesign design = data.toDesign();
         TowerArmAttachmentBinding.promoteArmLinkedAttachmentsToBound(design);
-        design.ensureDefaultConductorAttachments();
         return design;
     }
 
