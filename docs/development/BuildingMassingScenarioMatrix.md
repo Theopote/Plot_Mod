@@ -43,6 +43,25 @@
 | **D-B13** | invalid 混合 fail-soft | `BuildingDistrictScenarioTest.districtInvalidMixedFailSoft` | 97+3 模式（10 中 3 invalid） |
 | **D-B14** | 混合标高 district | `BuildingDistrictScenarioTest.districtMixedElevationSources` | 手动标高 + 默认混合，全部 generated |
 
+---
+
+## 真实生成链（包 A：D-B15–D-B22）
+
+| ID | 场景 | 测试入口 | Semantic 要点 |
+|----|------|----------|---------------|
+| **D-B15** | L 形/凹形坡顶 + 窄走廊降级 | `BuildingRealisticGenerationChainTest.dB15_...` | L→HIP、凹→GABLE 保留；窄走廊 inner offset + roof downgrade |
+| **D-B16** | 椭圆/圆离散 + 多层 | `BuildingRealisticGenerationChainTest.dB16_...` | sampled site 下 ellipse(5F)/circle(4F) 全生成 |
+| **D-B17** | 重叠 footprint + sampled 地形 | `BuildingRealisticGenerationChainTest.dB17_...` | later-wins + overlap 检测 |
+| **D-B18** | 小 footprint 厚墙 inner offset | `BuildingRealisticGenerationChainTest.dB18_...` | fail-soft 降级，仍有墙体量 |
+| **D-B19** | **100 栋混合片区 gap 报告** | `BuildingRealisticGenerationChainTest.dB19_...` | 97 generated / 3 invalid；按 `RealisticFootprintKind` 分桶 |
+| **D-B20** | 坡顶 eligibility 与几何一致 | `BuildingRealisticGenerationChainTest.dB20_...` | `RoofGenerationStage.resolveRoofType` 对齐 `isSlopedRoofEligible` |
+| **D-B21** | site analysis skip 条件 | `BuildingRealisticGenerationChainTest.dB21_...` | failed bundle + 无 manual/pad → must skip |
+| **D-B22** | 陡坡采样预警 | `BuildingRealisticGenerationChainTest.dB22_...` | 列采样高差 ≥ `SEVERE_STEEP_THRESHOLD` |
+
+**Fixtures**：`RealisticDistrictFixtures.mixedDistrict100()` — 55 矩形 + 8 L + 6 凹 + 8 椭圆 + 4 圆 + 4 窄走廊 + 4 厚墙小面 + 4 重叠 + 3 invalid + 4 复杂坡顶。
+
+**Gap 报告**：`RealisticDistrictGapReport.analyze()` — CI 日志输出 skip / roof downgrade / inner offset / overlap 分桶。
+
 **性能对照**：D-B10/D-B11 与 [BuildingBenchmarkBaseline.md](BuildingBenchmarkBaseline.md) D01/D03 同 harness。
 
 ---
