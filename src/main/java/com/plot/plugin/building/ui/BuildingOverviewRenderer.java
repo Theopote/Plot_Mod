@@ -4,6 +4,8 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.BuildingProject;
 import com.plot.plugin.ui.PluginUiColors;
+import com.plot.ui.canvas.Canvas;
+import com.plot.ui.canvas.CanvasAccess;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -18,6 +20,8 @@ import java.util.function.IntConsumer;
 /** 建筑轮廓缩略图与项目总览图。 */
 public final class BuildingOverviewRenderer {
     private static final float MIN_MAP_HEIGHT = 80f;
+    private static final float DEFAULT_CANVAS_WIDTH = 800f;
+    private static final float DEFAULT_CANVAS_HEIGHT = 600f;
     private static final float PADDING = 8f;
     private static final float THUMBNAIL_WIDTH = 104f;
     private static final float THUMBNAIL_HEIGHT = 68f;
@@ -326,7 +330,22 @@ public final class BuildingOverviewRenderer {
     }
 
     private static float mapHeightForWidth(float width) {
-        return Math.max(MIN_MAP_HEIGHT, width * 0.35f);
+        if (width < 1f) {
+            return MIN_MAP_HEIGHT;
+        }
+        return Math.max(MIN_MAP_HEIGHT, width / canvasAspectRatio());
+    }
+
+    private static float canvasAspectRatio() {
+        Canvas canvas = CanvasAccess.get();
+        if (canvas != null) {
+            int canvasWidth = canvas.getWidth();
+            int canvasHeight = canvas.getHeight();
+            if (canvasWidth > 0 && canvasHeight > 0) {
+                return (float) canvasWidth / canvasHeight;
+            }
+        }
+        return DEFAULT_CANVAS_WIDTH / DEFAULT_CANVAS_HEIGHT;
     }
 
     private static float toScreenX(double worldX, MapViewport viewport) {

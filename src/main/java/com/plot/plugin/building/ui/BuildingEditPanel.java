@@ -12,12 +12,15 @@ import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
+import imgui.type.ImString;
 
 import java.util.List;
 
 /** 建筑编辑 Tab：单体/批量参数、预设与附属构件。 */
 public final class BuildingEditPanel {
     private final BuildingUiContext ctx;
+    private String editNameSyncBuildingId = "";
+    private final ImString editNameBuffer = new ImString(64);
 
     public BuildingEditPanel(BuildingUiContext ctx) {
         this.ctx = ctx;
@@ -60,12 +63,12 @@ public final class BuildingEditPanel {
         }
         ImGui.separator();
 
-        if (!building.getId().equals(ctx.buildingNameEditingId())) {
-            ctx.buildingNameBuffer().set(building.getName());
-            ctx.setBuildingNameEditingId(building.getId());
+        if (!building.getId().equals(editNameSyncBuildingId)) {
+            editNameBuffer.set(building.getName());
+            editNameSyncBuildingId = building.getId();
         }
-        if (ImGui.inputText(PlotI18n.tr("plugin.building.building_name"), ctx.buildingNameBuffer())) {
-            building.setName(ctx.buildingNameBuffer().get());
+        if (ImGui.inputText(PlotI18n.tr("plugin.building.building_name"), editNameBuffer)) {
+            building.setName(editNameBuffer.get());
         }
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());

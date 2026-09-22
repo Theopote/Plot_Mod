@@ -33,6 +33,9 @@ public final class BuildingPluginState {
     private volatile DistrictBuildReport lastDistrictBuildReport;
 
     private String buildingNameEditingId = "";
+    private String buildingNameBeforeRename = "";
+    private boolean buildingNameFocusPending = false;
+    private int buildingNameIgnoreOutsideClickFrames = 0;
     private BuildingListHelper.SortMode buildingSortMode = BuildingListHelper.SortMode.INSERTION;
     private final BuildingBatchEditor.FieldMask batchFieldMask = BuildingBatchEditor.FieldMask.allMassing();
     private BuildingHeightDistribution.Mode heightDistMode = BuildingHeightDistribution.Mode.RANDOM;
@@ -135,7 +138,48 @@ public final class BuildingPluginState {
     }
 
     public void setBuildingNameEditingId(String buildingNameEditingId) {
-        this.buildingNameEditingId = buildingNameEditingId != null ? buildingNameEditingId : "";
+        if (buildingNameEditingId == null || buildingNameEditingId.isBlank()) {
+            endBuildingNameRename();
+            return;
+        }
+        this.buildingNameEditingId = buildingNameEditingId;
+    }
+
+    public String getBuildingNameBeforeRename() {
+        return buildingNameBeforeRename;
+    }
+
+    public void beginBuildingNameRename(String buildingId, String currentName) {
+        buildingNameBeforeRename = currentName != null ? currentName : "";
+        buildingNameBuffer.set(buildingNameBeforeRename);
+        buildingNameEditingId = buildingId != null ? buildingId : "";
+        buildingNameFocusPending = !buildingNameEditingId.isEmpty();
+        buildingNameIgnoreOutsideClickFrames = 2;
+    }
+
+    public void endBuildingNameRename() {
+        buildingNameEditingId = "";
+        buildingNameBeforeRename = "";
+        buildingNameFocusPending = false;
+        buildingNameIgnoreOutsideClickFrames = 0;
+    }
+
+    public void tickBuildingNameRenameCooldown() {
+        if (buildingNameIgnoreOutsideClickFrames > 0) {
+            buildingNameIgnoreOutsideClickFrames--;
+        }
+    }
+
+    public boolean isBuildingNameOutsideClickReady() {
+        return buildingNameIgnoreOutsideClickFrames == 0;
+    }
+
+    public boolean consumeBuildingNameFocusPending() {
+        if (!buildingNameFocusPending) {
+            return false;
+        }
+        buildingNameFocusPending = false;
+        return true;
     }
 
     public BuildingListHelper.SortMode getBuildingSortMode() {

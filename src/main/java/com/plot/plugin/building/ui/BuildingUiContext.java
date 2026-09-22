@@ -29,6 +29,7 @@ public final class BuildingUiContext {
     private final BuildingPluginState state;
     private final Object projectLock;
     private final BuildingActions actions;
+    private final BuildingFootprintRenameController buildingRename;
     private int projectionCaptureFrame = -1;
     private WorldProjectionSnapshot projectionSnapshot = WorldProjectionSnapshot.UNKNOWN;
 
@@ -40,6 +41,11 @@ public final class BuildingUiContext {
         this.state = Objects.requireNonNull(state, "state");
         this.projectLock = Objects.requireNonNull(projectLock, "projectLock");
         this.actions = new BuildingActions(host, state, projectLock);
+        this.buildingRename = new BuildingFootprintRenameController(this);
+    }
+
+    public BuildingFootprintRenameController buildingRename() {
+        return buildingRename;
     }
 
     public void setBuildingGenerator(com.plot.plugin.building.BuildingGenerator buildingGenerator) {
@@ -134,6 +140,46 @@ public final class BuildingUiContext {
 
     public void setBuildingNameEditingId(String buildingNameEditingId) {
         state.setBuildingNameEditingId(buildingNameEditingId);
+    }
+
+    public void beginBuildingNameRename(BuildingFootprint building) {
+        if (building == null) {
+            return;
+        }
+        state.beginBuildingNameRename(building.getId(), building.getName());
+        selection().select(building.getId(), false);
+    }
+
+    public boolean consumeBuildingNameFocusPending() {
+        return state.consumeBuildingNameFocusPending();
+    }
+
+    public void tickBuildingNameRenameCooldown() {
+        state.tickBuildingNameRenameCooldown();
+    }
+
+    public boolean isBuildingNameOutsideClickReady() {
+        return state.isBuildingNameOutsideClickReady();
+    }
+
+    public void commitBuildingNameRename(BuildingFootprint building) {
+        if (building == null || !building.getId().equals(state.getBuildingNameEditingId())) {
+            state.endBuildingNameRename();
+            return;
+        }
+        String trimmed = state.getBuildingNameBuffer().get().trim();
+        if (!trimmed.isEmpty() && !trimmed.equals(building.getName())) {
+            projectHistory().push(project());
+            building.setName(trimmed);
+        }
+        state.endBuildingNameRename();
+    }
+
+    public void cancelBuildingNameRename(BuildingFootprint building) {
+        if (building != null && building.getId().equals(state.getBuildingNameEditingId())) {
+            state.getBuildingNameBuffer().set(state.getBuildingNameBeforeRename());
+        }
+        state.endBuildingNameRename();
     }
 
     public BuildingListHelper.SortMode buildingSortMode() {
