@@ -4,6 +4,8 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.PolygonRegionUtils;
 import com.plot.core.geometry.polygon.PolygonOffset;
 import com.plot.core.geometry.polygon.StraightSkeleton;
+import com.plot.core.geometry.shapes.CircleShape;
+import com.plot.core.geometry.shapes.EllipseShape;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.core.geometry.shapes.RectangleShape;
 import com.plot.core.model.Shape;
@@ -37,21 +39,29 @@ public final class BuildingGeometryUtils {
     }
 
     public static boolean isAdoptableFootprint(Shape shape) {
-        if (shape instanceof Polygon polygon) {
-            return polygon.getPoints().size() >= 3;
-        }
-        return shape instanceof RectangleShape;
+        return BuildingFootprintValidator.isAdoptable(extractFootprintPoints(shape));
     }
 
     public static List<Vec2d> extractFootprintPoints(Shape shape) {
         if (shape == null) {
             return List.of();
         }
-        List<Vec2d> points = shape.getPoints();
-        if (points == null || points.size() < 3) {
+        return PolygonRegionUtils.normalizeRegionOutline(extractRawBoundaryPoints(shape));
+    }
+
+    static List<Vec2d> extractRawBoundaryPoints(Shape shape) {
+        if (shape == null) {
             return List.of();
         }
-        return copyPoints(points);
+        if (shape instanceof Polygon polygon) {
+            return PolygonRegionUtils.copyPoints(polygon.getPoints());
+        }
+        if (shape instanceof RectangleShape
+                || shape instanceof CircleShape
+                || shape instanceof EllipseShape) {
+            return PolygonRegionUtils.copyPoints(shape.getPoints());
+        }
+        return List.of();
     }
 
     public static boolean detectRectangular(List<Vec2d> points) {

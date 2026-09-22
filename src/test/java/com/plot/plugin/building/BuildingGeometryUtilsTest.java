@@ -2,7 +2,11 @@ package com.plot.plugin.building;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.polygon.StraightSkeleton;
+import com.plot.core.geometry.shapes.CircleShape;
+import com.plot.core.geometry.shapes.EllipseShape;
 import com.plot.core.geometry.shapes.Polygon;
+import com.plot.core.geometry.shapes.RectangleShape;
+import com.plot.core.model.Shape;
 import com.plot.plugin.building.generation.BuildingCanvasScale;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.test.building.BuildingCanvasScales;
@@ -19,6 +23,32 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BuildingGeometryUtilsTest {
+
+    @Test
+    void adoptableShapesIncludePolygonRectangleCircleAndEllipse() {
+        List<Shape> shapes = List.of(
+            new Polygon(List.of(new Vec2d(0, 0), new Vec2d(4, 0), new Vec2d(4, 4))),
+            new RectangleShape(new Vec2d(0, 0), 6, 4, 0),
+            new CircleShape(new Vec2d(5, 5), 3),
+            new EllipseShape(new Vec2d(8, 8), 4, 2, 0)
+        );
+
+        assertEquals(4, BuildingGeometryUtils.findAdoptableFootprints(shapes).size());
+    }
+
+    @Test
+    void extractFootprintPointsPreservesCircleAndEllipseOutline() {
+        CircleShape circle = new CircleShape(new Vec2d(12, 12), 5);
+        List<Vec2d> circlePoints = BuildingGeometryUtils.extractFootprintPoints(circle);
+        assertTrue(circlePoints.size() >= 3);
+        assertTrue(BuildingFootprintValidator.validate(circlePoints).valid());
+
+        EllipseShape ellipse = new EllipseShape(new Vec2d(20, 20), 6, 3, 0);
+        List<Vec2d> ellipsePoints = BuildingGeometryUtils.extractFootprintPoints(ellipse);
+        assertTrue(ellipsePoints.size() >= 3);
+        assertTrue(BuildingFootprintValidator.validate(ellipsePoints).valid());
+        assertFalse(BuildingGeometryUtils.detectRectangular(ellipsePoints));
+    }
 
     private static final BuildingCanvasScale IDENTITY = BuildingCanvasScales.capture(
         List.of(new Vec2d(0, 0), new Vec2d(1, 0), new Vec2d(0, 1)));
