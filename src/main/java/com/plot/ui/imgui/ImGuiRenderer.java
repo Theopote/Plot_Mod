@@ -216,12 +216,14 @@ public class ImGuiRenderer {
         0
     };
 
-    /** 界面常用符号区段（箭头、破折号、比较符等） */
+    /** 界面常用符号区段（箭头、破折号、比较符、状态图标等） */
     private static final short[] UI_SYMBOL_GLYPH_RANGES = new short[] {
-        (short) 0x2190, (short) 0x21FF,
-        (short) 0x2010, (short) 0x2017,
+        (short) 0x2190, (short) 0x21FF, // 箭头
+        (short) 0x2010, (short) 0x2027, // 破折号、省略号 … (2026)
         (short) 0x2264, (short) 0x2265, // ≤ ≥
-        (short) 0x2715, (short) 0x2717,
+        (short) 0x25A0, (short) 0x25FF, // 几何图形 ▾ (25BE) 等
+        (short) 0x2600, (short) 0x26FF, // 杂项符号 ⚠ (26A0) 等
+        (short) 0x2700, (short) 0x27BF, // 装饰符号 ✓ (2713)、✕ (2715) 等
         0
     };
 
