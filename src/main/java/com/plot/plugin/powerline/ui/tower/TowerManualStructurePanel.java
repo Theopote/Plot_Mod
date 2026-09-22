@@ -15,7 +15,7 @@ public final class TowerManualStructurePanel {
         if (!shouldShow(context)) {
             return;
         }
-        String headerKey = context.draft().isManualLegacyMode()
+        String headerKey = context.draft().isManualStructureMode()
             ? "plugin.powerline.design.tower_manual_structure"
             : "plugin.powerline.design.tower_expert_mode";
         PowerLineUiWidgets.text(PlotI18n.tr(headerKey));
@@ -24,7 +24,7 @@ public final class TowerManualStructurePanel {
 
     private boolean shouldShow(TowerDesignerContext context) {
         var draft = context.draft();
-        if (draft.isManualLegacyMode()) {
+        if (draft.isManualStructureMode()) {
             return draft.hasTowerStructure();
         }
         if (draft.isParametricMode()) {

@@ -406,11 +406,11 @@ public final class PoleDesignerPanel {
         towerBasicPanel.render(towerContext);
         towerAdvancedPanel.render(towerContext);
 
-        if (!draft.hasTowerStructure()) {
+        if (draft.isLayerMode()) {
             return;
         }
 
-        boolean structureReadOnly = draft.isParametricMode() && !draft.isManualLegacyMode();
+        boolean structureReadOnly = draft.isParametricMode() && !draft.isManualStructureMode();
         towerManualPanel.renderIfVisible(
             towerContext,
             ignored -> renderTowerStructureEditor(structureReadOnly));
@@ -426,9 +426,9 @@ public final class PoleDesignerPanel {
     private void renderStructureModeRadios() {
         StructureKind current = currentStructureKind();
         if (ImGui.radioButton(
-                PlotI18n.tr("plugin.powerline.design.structure_layered"),
-                current == StructureKind.LAYERED)) {
-            if (current != StructureKind.LAYERED) {
+                PlotI18n.tr("plugin.powerline.design.structure_layer_mode"),
+                current == StructureKind.LAYER_MODE)) {
+            if (current != StructureKind.LAYER_MODE) {
                 pushDraftSnapshot();
                 towerSession.syncStructureMode(draft, false);
             }
@@ -455,28 +455,28 @@ public final class PoleDesignerPanel {
     }
 
     private StructureKind currentStructureKind() {
-        if (!draft.hasTowerStructure()) {
-            return StructureKind.LAYERED;
+        if (draft.isLayerMode()) {
+            return StructureKind.LAYER_MODE;
         }
-        if (draft.isManualLegacyMode()) {
+        if (draft.isManualStructureMode()) {
             return StructureKind.MANUAL;
         }
         return StructureKind.PARAMETRIC;
     }
 
     private enum StructureKind {
-        LAYERED,
+        LAYER_MODE,
         PARAMETRIC,
         MANUAL
     }
 
     private void renderLockedStructureKind() {
-        if (!draft.hasTowerStructure()) {
-            PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.structure_kind_legacy_layers"));
+        if (draft.isLayerMode()) {
+            PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.structure_kind_layer_mode"));
             return;
         }
-        if (draft.isManualLegacyMode()) {
-            PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.structure_kind_manual_legacy"));
+        if (draft.isManualStructureMode()) {
+            PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.structure_kind_manual_structure"));
             return;
         }
         if (draft.isParametricMode() && draft.getGeneratorConfig() != null) {

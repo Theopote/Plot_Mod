@@ -85,7 +85,7 @@ public final class TowerDesignerSession {
             return false;
         }
         if (draft.hasTowerStructure()) {
-            if (draft.isParametricMode() && !draft.isManualLegacyMode() && !canBuild()) {
+            if (draft.isParametricMode() && !draft.isManualStructureMode() && !canBuild()) {
                 return false;
             }
             return structureValidationIssues(draft).stream()
@@ -111,10 +111,7 @@ public final class TowerDesignerSession {
     }
 
     /**
-     * Legacy 分层 / 参数化塔体单选切换时同步结构与预览状态。
-     * <p>
-     * Legacy：仅保留分层体素与 FREE 挂点；参数化配置可保留以便切回，但不会在此处 recompile。
-     * 参数化塔体：启用或恢复参数化生成，并从当前参数编译结构。
+     * 分层模式 / 参数化塔体单选切换时同步结构与预览状态。
      */
     public void syncStructureMode(PoleDesign draft, boolean towerStructureMode) {
         if (draft == null) {
@@ -129,7 +126,7 @@ public final class TowerDesignerSession {
             clearParametricConfigFromSelectedLine(draft);
             return;
         }
-        if (draft.isManualLegacyMode()) {
+        if (draft.isManualStructureMode()) {
             restoreParametric(draft);
             return;
         }
@@ -324,7 +321,7 @@ public final class TowerDesignerSession {
             syncStructureMode(draft, true);
             return;
         }
-        if (draft.isManualLegacyMode()) {
+        if (draft.isManualStructureMode()) {
             restoreParametric(draft);
         }
     }
@@ -336,7 +333,7 @@ public final class TowerDesignerSession {
         if (!draft.hasTowerStructure()) {
             syncStructureMode(draft, true);
         }
-        if (!draft.isManualLegacyMode()) {
+        if (!draft.isManualStructureMode()) {
             onConvertToManual(draft);
         }
     }
@@ -366,8 +363,8 @@ public final class TowerDesignerSession {
         return draft != null && draft.isParametricMode();
     }
 
-    public boolean isManualLegacy(PoleDesign draft) {
-        return draft != null && draft.isManualLegacyMode();
+    public boolean isManualStructure(PoleDesign draft) {
+        return draft != null && draft.isManualStructureMode();
     }
 
     public TowerGeneratorMode mode(PoleDesign draft) {

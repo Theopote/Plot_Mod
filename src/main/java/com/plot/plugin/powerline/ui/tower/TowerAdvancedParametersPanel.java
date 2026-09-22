@@ -22,8 +22,8 @@ public final class TowerAdvancedParametersPanel {
 
     public void render(TowerDesignerContext context) {
         PoleDesign draft = context.draft();
-        if (draft.isManualLegacyMode()) {
-            renderManualLegacyHeader(context);
+        if (draft.isManualStructureMode()) {
+            renderManualStructureHeader(context);
             return;
         }
         if (!draft.hasTowerStructure() || !draft.isParametricMode()) {
@@ -35,7 +35,7 @@ public final class TowerAdvancedParametersPanel {
         renderConvertManualPopup(context);
     }
 
-    private void renderManualLegacyHeader(TowerDesignerContext context) {
+    private void renderManualStructureHeader(TowerDesignerContext context) {
         if (context.locksStructureKind()) {
             PowerLineUiWidgets.textColored(
                 PluginUiColors.HINT_GRAY,

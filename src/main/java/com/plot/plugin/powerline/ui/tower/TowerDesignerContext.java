@@ -19,7 +19,7 @@ public record TowerDesignerContext(
         this(draft, session, uiState, pushDraftSnapshot, PoleDesignerEditScope.DESIGN_TEMPLATE);
     }
 
-    /** 线路实例调参：不可切换 Legacy/参数化或塔型 Profile。 */
+    /** 线路实例调参：不可切换分层模式/参数化或塔型 Profile。 */
     public boolean locksStructureKind() {
         return editScope == PoleDesignerEditScope.LINE_INSTANCE;
     }

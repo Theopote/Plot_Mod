@@ -301,7 +301,7 @@ public final class TowerArmAttachmentBinding {
 
     /** 分层模式：横担悬挂高度（相对塔腿地面，与 {@link PoleDesign#wireHangHeightFromGround(int)} 同局部坐标）。 */
     public static double layerModeCrossarmHangHeight(PoleDesign design) {
-        if (design == null || design.hasTowerStructure()) {
+        if (design == null || !design.isLayerMode()) {
             return 0.0;
         }
         return design.wireHangHeightFromGround(0);

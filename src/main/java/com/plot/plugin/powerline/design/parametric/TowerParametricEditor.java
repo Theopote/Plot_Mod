@@ -202,7 +202,7 @@ public final class TowerParametricEditor {
         TowerGeneratorConfig current = design.getGeneratorConfig();
         design.setGeneratorConfig(new TowerGeneratorConfig(
             current.profileId(),
-            TowerGeneratorMode.MANUAL_LEGACY,
+            TowerGeneratorMode.MANUAL_STRUCTURE,
             current.parameters()));
     }
 
@@ -211,7 +211,7 @@ public final class TowerParametricEditor {
             return false;
         }
         TowerGeneratorConfig current = design.getGeneratorConfig();
-        if (current.mode() != TowerGeneratorMode.MANUAL_LEGACY) {
+        if (current.mode() != TowerGeneratorMode.MANUAL_STRUCTURE) {
             return false;
         }
         design.setGeneratorConfig(new TowerGeneratorConfig(

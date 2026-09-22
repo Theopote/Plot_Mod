@@ -185,12 +185,18 @@ public class PoleDesign {
         this.generatorConfig = generatorConfig != null ? generatorConfig.copy() : null;
     }
 
-    public boolean isParametricMode() {
-        return generatorConfig != null && generatorConfig.isParametric();
+    /** 分层电杆模式：无 {@link TowerStructureDesign}，仅层栈体素。 */
+    public boolean isLayerMode() {
+        return !hasTowerStructure();
     }
 
-    public boolean isManualLegacyMode() {
-        return generatorConfig != null && generatorConfig.mode() == TowerGeneratorMode.MANUAL_LEGACY;
+    /** 手工塔体结构模式：自参数化转换而来，可恢复参数化编译。 */
+    public boolean isManualStructureMode() {
+        return generatorConfig != null && generatorConfig.mode() == TowerGeneratorMode.MANUAL_STRUCTURE;
+    }
+
+    public boolean isParametricMode() {
+        return generatorConfig != null && generatorConfig.isParametric();
     }
 
     public int totalHeight() {

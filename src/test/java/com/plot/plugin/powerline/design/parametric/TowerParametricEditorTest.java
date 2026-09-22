@@ -56,13 +56,13 @@ class TowerParametricEditorTest {
     }
 
     @Test
-    void convertToManualPreservesStructureAndMarksManualLegacy() {
+    void convertToManualPreservesStructureAndMarksManualStructureMode() {
         PoleDesign design = new PoleDesign("manual", "Manual");
         TowerParametricEditor.enableParametricClassic(design, TowerParameterSet.classicDefaults());
         TowerParametricEditor.convertToManual(design);
         assertFalse(design.isParametricMode());
-        assertTrue(design.isManualLegacyMode());
-        assertEquals(TowerGeneratorMode.MANUAL_LEGACY, design.getGeneratorConfig().mode());
+        assertTrue(design.isManualStructureMode());
+        assertEquals(TowerGeneratorMode.MANUAL_STRUCTURE, design.getGeneratorConfig().mode());
         assertNotNull(design.getTowerStructure());
     }
 
@@ -73,7 +73,7 @@ class TowerParametricEditorTest {
         TowerParametricEditor.convertToManual(design);
         assertTrue(TowerParametricEditor.restoreParametric(design, null));
         assertTrue(design.isParametricMode());
-        assertFalse(design.isManualLegacyMode());
+        assertFalse(design.isManualStructureMode());
     }
 
     @Test

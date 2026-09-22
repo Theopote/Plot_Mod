@@ -33,7 +33,7 @@ public final class TowerParameterStatusPanel {
         ImGui.separator();
         PowerLineUiWidgets.text(PlotI18n.tr("plugin.powerline.design.tower_status_section"));
 
-        if (draft.isManualLegacyMode()) {
+        if (draft.isManualStructureMode()) {
             renderManualModeHeader(draft);
             renderStructureValidationStatus(context);
             return;
@@ -136,7 +136,7 @@ public final class TowerParameterStatusPanel {
     private void renderStructureValidationStatus(TowerDesignerContext context) {
         List<TowerValidationIssue> issues = context.session().structureValidationIssues(context.draft());
         if (issues.isEmpty()) {
-            if (context.draft().isManualLegacyMode()
+            if (context.draft().isManualStructureMode()
                     || !context.draft().isParametricMode()) {
                 DialogLayoutHelperStatus.row(
                     PlotI18n.tr("plugin.powerline.design.tower_status_structure"),

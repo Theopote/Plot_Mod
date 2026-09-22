@@ -61,7 +61,7 @@ public final class TowerAttachmentCompiler {
             return 12.0;
         }
         TowerArm anchor = topology.anchor() == TowerAttachmentTopology.AttachmentAnchor.UPPER_ARM
-            ? arms.get(arms.size() - 1)
+            ? arms.getLast()
             : arms.getFirst();
         return TowerArmAttachmentBinding.conductorHangHeight(anchor);
     }

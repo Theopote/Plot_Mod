@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class TowerDesignerSessionTest {
 
     @Test
-    void switchingToLegacyClearsLineParametricOverride() {
+    void switchingToLayerModeClearsLineParametricOverride() {
         SessionFixture fixture = newSessionWithLine("custom-tower");
         PoleDesign draft = parametricDraft("custom-tower");
 

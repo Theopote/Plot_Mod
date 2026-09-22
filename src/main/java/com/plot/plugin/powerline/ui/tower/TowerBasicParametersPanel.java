@@ -24,7 +24,7 @@ public final class TowerBasicParametersPanel {
 
     public void render(TowerDesignerContext context) {
         PoleDesign draft = context.draft();
-        if (draft.isManualLegacyMode()) {
+        if (draft.isManualStructureMode()) {
             return;
         }
 

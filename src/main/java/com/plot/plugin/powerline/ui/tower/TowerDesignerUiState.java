@@ -10,7 +10,7 @@ public final class TowerDesignerUiState {
     public boolean convertManualConfirmPending;
 
     public void syncFromDraft(com.plot.plugin.powerline.design.PoleDesign draft) {
-        if (draft != null && draft.isManualLegacyMode()) {
+        if (draft != null && draft.isManualStructureMode()) {
             showAdvancedStructure.set(true);
         }
     }
