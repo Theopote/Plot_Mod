@@ -8,9 +8,11 @@ import com.plot.plugin.building.model.spec.FloorPlateSpec;
 import com.plot.plugin.building.model.spec.OpeningKind;
 import com.plot.plugin.building.model.spec.OpeningSpec;
 import com.plot.plugin.building.model.spec.WallFacadeSpec;
+import com.plot.plugin.building.model.spec.WindowPatternSpec;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -488,6 +490,129 @@ public class BuildingFootprint {
         int hash = outerPoints.size();
         for (Vec2d point : outerPoints) {
             hash = 31 * hash + pointFingerprint(point);
+        }
+        return hash;
+    }
+
+    /** 影响生成结果的参数指纹（供 Preview Identity 等契约校验使用）。 */
+    public int generationFingerprint() {
+        int hash = geometryFingerprint();
+        hash = 31 * hash + floors;
+        hash = 31 * hash + floorHeight;
+        hash = 31 * hash + wallThickness;
+        hash = 31 * hash + materialMixFingerprint(wallMaterial);
+        hash = 31 * hash + materialMixFingerprint(floorMaterial);
+        hash = 31 * hash + Objects.hashCode(roofMaterial);
+        hash = 31 * hash + Objects.hashCode(foundationFillMaterial);
+        hash = 31 * hash + Objects.hashCode(roofType);
+        hash = 31 * hash + roofPitchRatio;
+        hash = 31 * hash + Objects.hashCode(manualBaseElevation);
+        hash = 31 * hash + windowSpacing;
+        hash = 31 * hash + windowWidth;
+        hash = 31 * hash + windowHeight;
+        hash = 31 * hash + windowSillHeight;
+        hash = 31 * hash + Objects.hashCode(facadeEdgeScope);
+        hash = 31 * hash + (parapetEnabled ? 1 : 0);
+        hash = 31 * hash + parapetHeight;
+        hash = 31 * hash + Objects.hashCode(parapetMaterial);
+        hash = 31 * hash + Objects.hashCode(presetId);
+        hash = 31 * hash + (isRectangular ? 1 : 0);
+        hash = 31 * hash + floorPlatesFingerprint(floorPlates);
+        hash = 31 * hash + wallFacadesFingerprint(wallFacades);
+        hash = 31 * hash + openingsFingerprint(openings);
+        hash = 31 * hash + canopiesFingerprint(canopies);
+        hash = 31 * hash + balconiesFingerprint(balconies);
+        return hash;
+    }
+
+    private static int materialMixFingerprint(MaterialMix mix) {
+        if (mix == null) {
+            return 0;
+        }
+        int hash = Objects.hashCode(mix.getPrimaryMaterial());
+        hash = 31 * hash + Objects.hashCode(mix.getAccentMaterial());
+        hash = 31 * hash + Float.floatToIntBits(mix.getAccentRatio());
+        return hash;
+    }
+
+    private static int floorPlatesFingerprint(List<FloorPlateSpec> plates) {
+        if (plates == null || plates.isEmpty()) {
+            return 0;
+        }
+        int hash = plates.size();
+        for (FloorPlateSpec plate : plates) {
+            hash = 31 * hash + plate.floorStart();
+            hash = 31 * hash + plate.floorEnd();
+            for (Vec2d point : plate.outerPoints()) {
+                hash = 31 * hash + pointFingerprint(point);
+            }
+        }
+        return hash;
+    }
+
+    private static int wallFacadesFingerprint(List<WallFacadeSpec> facades) {
+        if (facades == null || facades.isEmpty()) {
+            return 0;
+        }
+        int hash = facades.size();
+        for (WallFacadeSpec facade : facades) {
+            hash = 31 * hash + facade.wallSegmentIndex();
+            WindowPatternSpec pattern = facade.windowPattern();
+            hash = 31 * hash + pattern.spacing();
+            hash = 31 * hash + pattern.width();
+            hash = 31 * hash + pattern.height();
+            hash = 31 * hash + pattern.sillHeight();
+        }
+        return hash;
+    }
+
+    private static int openingsFingerprint(List<OpeningSpec> specs) {
+        if (specs == null || specs.isEmpty()) {
+            return 0;
+        }
+        int hash = specs.size();
+        for (OpeningSpec opening : specs) {
+            hash = 31 * hash + Objects.hashCode(opening.kind());
+            hash = 31 * hash + opening.wallSegmentIndex();
+            hash = 31 * hash + Long.hashCode(Double.doubleToLongBits(opening.positionRatio()));
+            hash = 31 * hash + opening.floor();
+            hash = 31 * hash + opening.width();
+            hash = 31 * hash + opening.height();
+            hash = 31 * hash + opening.bottomOffset();
+        }
+        return hash;
+    }
+
+    private static int canopiesFingerprint(List<Canopy> items) {
+        if (items == null || items.isEmpty()) {
+            return 0;
+        }
+        int hash = items.size();
+        for (Canopy canopy : items) {
+            hash = 31 * hash + canopy.wallSegmentIndex;
+            hash = 31 * hash + Long.hashCode(Double.doubleToLongBits(canopy.positionRatio));
+            hash = 31 * hash + canopy.floor;
+            hash = 31 * hash + canopy.width;
+            hash = 31 * hash + canopy.depth;
+            hash = 31 * hash + canopy.clearance;
+            hash = 31 * hash + Objects.hashCode(canopy.material);
+        }
+        return hash;
+    }
+
+    private static int balconiesFingerprint(List<Balcony> items) {
+        if (items == null || items.isEmpty()) {
+            return 0;
+        }
+        int hash = items.size();
+        for (Balcony balcony : items) {
+            hash = 31 * hash + balcony.wallSegmentIndex;
+            hash = 31 * hash + Long.hashCode(Double.doubleToLongBits(balcony.positionRatio));
+            hash = 31 * hash + balcony.floor;
+            hash = 31 * hash + balcony.width;
+            hash = 31 * hash + balcony.depth;
+            hash = 31 * hash + Objects.hashCode(balcony.slabMaterial);
+            hash = 31 * hash + Objects.hashCode(balcony.railingMaterial);
         }
         return hash;
     }

@@ -28,7 +28,7 @@ public final class BuildingToolbarPanel {
             ctx.setProject(ctx.projectHistory().undo(ctx.project()));
             ctx.syncSelectedBuildingAfterHistory();
             ctx.setBuildingNameEditingId("");
-            ctx.clearPreview();
+            ctx.invalidatePreview();
         }
         if (undoDisabled) {
             ImGui.endDisabled();
@@ -43,7 +43,7 @@ public final class BuildingToolbarPanel {
             ctx.setProject(ctx.projectHistory().redo(ctx.project()));
             ctx.syncSelectedBuildingAfterHistory();
             ctx.setBuildingNameEditingId("");
-            ctx.clearPreview();
+            ctx.invalidatePreview();
         }
         if (redoDisabled) {
             ImGui.endDisabled();

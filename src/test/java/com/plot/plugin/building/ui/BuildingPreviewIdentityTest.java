@@ -46,11 +46,44 @@ class BuildingPreviewIdentityTest {
     }
 
     @Test
+    void staleWhenTargetOrderChanges() {
+        BuildingFootprint a = square("a", 10);
+        BuildingFootprint b = square("b", 20);
+        BuildingPreviewIdentity identity = BuildingPreviewIdentity.capture(List.of(a, b));
+
+        assertEquals(
+            BuildingPreviewIdentity.Validity.STALE,
+            identity.validityAgainst(List.of(b, a), true));
+    }
+
+    @Test
     void staleWhenBuildingParametersChange() {
         BuildingFootprint a = square("a", 10);
         BuildingPreviewIdentity identity = BuildingPreviewIdentity.capture(List.of(a));
 
         a.setFloors(12);
+        assertEquals(
+            BuildingPreviewIdentity.Validity.STALE,
+            identity.validityAgainst(List.of(a), true));
+    }
+
+    @Test
+    void staleWhenMaterialChanges() {
+        BuildingFootprint a = square("a", 10);
+        BuildingPreviewIdentity identity = BuildingPreviewIdentity.capture(List.of(a));
+
+        a.setWallMaterial("minecraft:bricks");
+        assertEquals(
+            BuildingPreviewIdentity.Validity.STALE,
+            identity.validityAgainst(List.of(a), true));
+    }
+
+    @Test
+    void staleWhenRoofPitchChanges() {
+        BuildingFootprint a = square("a", 10);
+        BuildingPreviewIdentity identity = BuildingPreviewIdentity.capture(List.of(a));
+
+        a.setRoofPitchRatio(3);
         assertEquals(
             BuildingPreviewIdentity.Validity.STALE,
             identity.validityAgainst(List.of(a), true));

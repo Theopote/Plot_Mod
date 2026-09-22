@@ -2,9 +2,7 @@ package com.plot.plugin.building.ui;
 
 import com.plot.plugin.building.model.BuildingFootprint;
 
-import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 
 /** 记录一次 Preview 对应的目标建筑与参数指纹，用于判断 Preview 是否仍对当前 Scope 有效。 */
 public final class BuildingPreviewIdentity {
@@ -23,8 +21,10 @@ public final class BuildingPreviewIdentity {
     }
 
     public static BuildingPreviewIdentity capture(List<BuildingFootprint> targets) {
-        List<String> ids = sortedIds(targets);
-        return new BuildingPreviewIdentity(ids, computeContentFingerprint(targets));
+        if (targets == null || targets.isEmpty()) {
+            return new BuildingPreviewIdentity(List.of(), 0);
+        }
+        return new BuildingPreviewIdentity(orderedIds(targets), computeContentFingerprint(targets));
     }
 
     public List<String> targetIds() {
@@ -38,7 +38,7 @@ public final class BuildingPreviewIdentity {
         if (currentTargets == null || currentTargets.isEmpty()) {
             return Validity.STALE;
         }
-        if (!targetIds.equals(sortedIds(currentTargets))) {
+        if (!targetIds.equals(orderedIds(currentTargets))) {
             return Validity.STALE;
         }
         if (contentFingerprint != computeContentFingerprint(currentTargets)) {
@@ -47,26 +47,17 @@ public final class BuildingPreviewIdentity {
         return Validity.VALID;
     }
 
-    private static List<String> sortedIds(List<BuildingFootprint> targets) {
+    /** 生成顺序（District later-wins 与 selection 顺序相关，不做排序）。 */
+    private static List<String> orderedIds(List<BuildingFootprint> targets) {
         return targets.stream()
             .map(BuildingFootprint::getId)
-            .sorted()
             .toList();
     }
 
     private static int computeContentFingerprint(List<BuildingFootprint> targets) {
         int hash = targets.size();
-        List<BuildingFootprint> sorted = targets.stream()
-            .sorted(Comparator.comparing(BuildingFootprint::getId))
-            .toList();
-        for (BuildingFootprint building : sorted) {
-            hash = 31 * hash + building.geometryFingerprint();
-            hash = 31 * hash + building.getFloors();
-            hash = 31 * hash + building.getFloorHeight();
-            hash = 31 * hash + building.getWallThickness();
-            hash = 31 * hash + Objects.hashCode(building.getRoofType());
-            hash = 31 * hash + building.getRoofPitchRatio();
-            hash = 31 * hash + Objects.hashCode(building.getPresetId());
+        for (BuildingFootprint building : targets) {
+            hash = 31 * hash + building.generationFingerprint();
         }
         return hash;
     }

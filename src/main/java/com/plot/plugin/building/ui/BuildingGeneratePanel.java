@@ -122,7 +122,7 @@ public final class BuildingGeneratePanel {
             renderSingleResultSummary();
         }
 
-        int issueCount = countPreviewIssues();
+        int issueCount = ctx.collectPreviewIssues(targets).size();
         if (issueCount > 0) {
             ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.building.generate.issue_count", issueCount));
             if (ImGui.button(PlotI18n.tr("plugin.building.generate.show_issues"), 0, 0)) {
@@ -175,30 +175,6 @@ public final class BuildingGeneratePanel {
 
     private boolean isDistrictPreview() {
         return ctx.lastDistrictResult() != null && ctx.lastDistrictResult().buildingsAttempted() > 1;
-    }
-
-    private int countPreviewIssues() {
-        int issues = 0;
-        if (isDistrictPreview()) {
-            DistrictGenerationResult district = ctx.lastDistrictResult();
-            issues += district.buildingsSkipped();
-            if (district.hasBuildingOverlap()) {
-                issues++;
-            }
-            if (district.waterSiteCount() > 0) {
-                issues++;
-            }
-            if (district.steepSiteCount() > 0) {
-                issues++;
-            }
-            if (district.structureConflictBuildingCount() > 0) {
-                issues++;
-            }
-            issues += district.skippedOutcomes().size();
-        } else if (ctx.lastGenerationResult() != null) {
-            issues += ctx.lastGenerationResult().warnings.size();
-        }
-        return issues;
     }
 
     private void renderDistrictResultSummary(DistrictGenerationResult district) {

@@ -344,10 +344,28 @@ public final class BuildingActions {
     }
 
     public void invalidatePreview() {
-        if (state.getLastGenerationResult() != null) {
-            clearPreview();
-            state.setProjectStatus(PlotI18n.tr("plugin.building.preview_invalidated"));
+        if (!hasPreviewResult()) {
+            return;
         }
+        markPreviewStale();
+        state.setProjectStatus(PlotI18n.tr("plugin.building.preview_invalidated"));
+    }
+
+    private void markPreviewStale() {
+        state.setPreviewIdentity(null);
+        state.setOverlayPreviewedBuildingIds(java.util.Set.of());
+        state.setOverlayWarningBuildingIds(java.util.Set.of());
+        com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
+        if (ghostBlockManager != null) {
+            ghostBlockManager.clearGhostBlocks(GhostBlockOwners.BUILDING);
+        }
+    }
+
+    private List<BuildingFootprint> resolveGenerateTargets() {
+        if (state.isGenerateScopeAll()) {
+            return new ArrayList<>(state.getProject().getBuildings().values());
+        }
+        return state.getSelection().resolve(state.getProject());
     }
 
     public void applyHeightDistribution(List<BuildingFootprint> targets) {
@@ -431,6 +449,11 @@ public final class BuildingActions {
         final BuildingGenerationResult resultSnapshot;
         final DistrictGenerationResult districtSnapshot;
         synchronized (projectLock) {
+            List<BuildingFootprint> targets = resolveGenerateTargets();
+            if (previewValidity(targets) != BuildingPreviewIdentity.Validity.VALID) {
+                state.setProjectStatus(PlotI18n.tr("plugin.building.generate.build_stale"));
+                return;
+            }
             BuildingGenerationResult lastGenerationResult = state.getLastGenerationResult();
             if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
                 state.setProjectStatus(PlotI18n.tr("plugin.building.build_no_blocks"));
