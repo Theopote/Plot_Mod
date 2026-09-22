@@ -42,7 +42,8 @@ public final class TowerArmAttachmentBinding {
             attachment.getLongitudinalOffset());
     }
 
-    public static void ensureV2Bindings(PoleDesign design) {
+    /** 将已关联横担但仍为 FREE 的挂点提升为 BOUND。 */
+    public static void promoteArmLinkedAttachmentsToBound(PoleDesign design) {
         if (design == null || !design.hasTowerStructure()) {
             return;
         }
@@ -57,11 +58,17 @@ public final class TowerArmAttachmentBinding {
             }
             TowerArm arm = findArm(arms, attachment.getArmId());
             if (arm != null) {
-                migrateLegacyToBound(attachment, arm);
+                promoteToBound(attachment, arm);
             } else {
                 attachment.setBindingMode(AttachmentBindingMode.FREE);
             }
         }
+    }
+
+    /** @deprecated 使用 {@link #promoteArmLinkedAttachmentsToBound(PoleDesign)} */
+    @Deprecated
+    public static void ensureV2Bindings(PoleDesign design) {
+        promoteArmLinkedAttachmentsToBound(design);
     }
 
     public static void bindToArm(TowerArm arm, ConductorAttachment attachment) {
@@ -79,7 +86,15 @@ public final class TowerArmAttachmentBinding {
         attachment.setLateralOffset(local.lateral());
         attachment.setVerticalOffset(local.vertical());
         attachment.setLongitudinalOffset(local.longitudinal());
-        migrateLegacyToBound(attachment, arm);
+        promoteToBound(attachment, arm);
+    }
+
+    /** 横担有效挂线伸出（格），为 {@link #DEFAULT_LATERAL_SCALE} 作用后再取整。 */
+    public static double blockEffectiveReach(TowerArm arm) {
+        if (arm == null) {
+            return 0.0;
+        }
+        return ConductorAttachment.snapBlockOffset(arm.getLateralReach() * DEFAULT_LATERAL_SCALE);
     }
 
     public static void syncBoundVerticalOffsets(TowerArm arm, Iterable<ConductorAttachment> attachments) {
@@ -114,7 +129,7 @@ public final class TowerArmAttachmentBinding {
         if (bound.isEmpty()) {
             return;
         }
-        double targetReach = arm.getLateralReach() * DEFAULT_LATERAL_SCALE;
+        double targetReach = blockEffectiveReach(arm);
         if (targetReach < 1e-6) {
             return;
         }
@@ -148,20 +163,11 @@ public final class TowerArmAttachmentBinding {
         if (arm == null) {
             return List.of();
         }
-        double reach = arm.getLateralReach() * DEFAULT_LATERAL_SCALE;
-        double hang = conductorHangHeight(arm);
         String prefix = arm.getId() + "_";
-        List<ConductorAttachment> deck = ConductorAttachmentPresets.bundledThreePhaseHorizontal(
-            hang,
-            -reach,
-            0,
-            reach,
-            bundleCount,
-            0.7);
-        for (ConductorAttachment attachment : deck) {
-            attachment.setId(prefix + attachment.getId());
-            migrateLegacyToBound(attachment, arm);
-        }
+        List<ConductorAttachment> deck = new ArrayList<>(3);
+        deck.add(boundBundledPhase(prefix, "A", AttachmentRole.PHASE_A, -1.0, arm, bundleCount));
+        deck.add(boundBundledPhase(prefix, "B", AttachmentRole.PHASE_B, 0.0, arm, bundleCount));
+        deck.add(boundBundledPhase(prefix, "C", AttachmentRole.PHASE_C, 1.0, arm, bundleCount));
         return deck;
     }
 
@@ -350,17 +356,22 @@ public final class TowerArmAttachmentBinding {
     }
 
     private static ResolvedLocalOffsets resolveBoundOffsets(ConductorAttachment attachment, TowerArm arm) {
-        double lateral = arm.getLateralReach() * DEFAULT_LATERAL_SCALE * attachment.getNormalizedPosition();
-        double vertical = conductorHangHeight(arm) + attachment.getVerticalAnchorOffset();
+        double lateral = ConductorAttachment.snapBlockOffset(
+            arm.getLateralReach() * DEFAULT_LATERAL_SCALE * attachment.getNormalizedPosition());
+        double vertical = ConductorAttachment.snapBlockOffset(
+            conductorHangHeight(arm) + attachment.getVerticalAnchorOffset());
         return new ResolvedLocalOffsets(lateral, vertical, attachment.getLongitudinalOffset());
     }
 
     private static void migrateLegacyToBound(ConductorAttachment attachment, TowerArm arm) {
         double reach = arm.getLateralReach() * DEFAULT_LATERAL_SCALE;
-        double normalized = reach > 1e-6
-            ? attachment.getLateralOffset() / reach
-            : 0.0;
-        double originalLateral = attachment.getLateralOffset();
+        double lateral = attachment.getLateralOffset();
+        double normalized = reach > 1e-6 ? lateral / reach : 0.0;
+        double outerReach = ConductorAttachment.snapBlockOffset(reach);
+        if (outerReach > 0 && Math.abs(Math.abs(lateral) - outerReach) < 1e-6) {
+            normalized = lateral < 0 ? -1.0 : 1.0;
+        }
+        double originalLateral = lateral;
         double originalVertical = attachment.getVerticalOffset();
         attachment.setBindingMode(AttachmentBindingMode.BOUND);
         attachment.setArmId(arm.getId());

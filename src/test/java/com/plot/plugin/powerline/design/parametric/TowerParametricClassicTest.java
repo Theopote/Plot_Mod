@@ -305,7 +305,7 @@ class TowerParametricClassicTest {
             .mapToDouble(com.plot.plugin.powerline.design.ConductorAttachment::getVerticalOffset)
             .findFirst()
             .orElseThrow();
-        assertClose(baseDeckY * ratio, tallDeckY);
+        assertClose(Math.round(baseDeckY * ratio), tallDeckY);
     }
 
     private static void assertClose(double expected, double actual) {

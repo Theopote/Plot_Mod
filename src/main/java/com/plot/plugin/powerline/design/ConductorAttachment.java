@@ -70,7 +70,7 @@ public class ConductorAttachment {
     }
 
     public void setLateralOffset(double lateralOffset) {
-        this.lateralOffset = clamp(lateralOffset, -32.0, 32.0);
+        this.lateralOffset = snapBlockOffset(clamp(lateralOffset, -32.0, 32.0));
     }
 
     public double getVerticalOffset() {
@@ -78,7 +78,7 @@ public class ConductorAttachment {
     }
 
     public void setVerticalOffset(double verticalOffset) {
-        this.verticalOffset = clamp(verticalOffset, 1.0, 128.0);
+        this.verticalOffset = snapBlockOffset(clamp(verticalOffset, 1.0, 128.0));
     }
 
     public double getLongitudinalOffset() {
@@ -86,7 +86,7 @@ public class ConductorAttachment {
     }
 
     public void setLongitudinalOffset(double longitudinalOffset) {
-        this.longitudinalOffset = clamp(longitudinalOffset, -16.0, 16.0);
+        this.longitudinalOffset = snapBlockOffset(clamp(longitudinalOffset, -16.0, 16.0));
     }
 
     public AttachmentRole getRole() {
@@ -174,7 +174,7 @@ public class ConductorAttachment {
     }
 
     public void setVerticalAnchorOffset(double verticalAnchorOffset) {
-        this.verticalAnchorOffset = clamp(verticalAnchorOffset, -32.0, 32.0);
+        this.verticalAnchorOffset = snapBlockOffset(clamp(verticalAnchorOffset, -32.0, 32.0));
     }
 
     public boolean isEnabled() {
@@ -278,5 +278,13 @@ public class ConductorAttachment {
 
     private static double clamp(double value, double min, double max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    /** 局部挂点偏移按 Minecraft 方块格取整。 */
+    static double snapBlockOffset(double value) {
+        if (!Double.isFinite(value)) {
+            return 0.0;
+        }
+        return Math.round(value);
     }
 }

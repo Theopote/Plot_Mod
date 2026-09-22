@@ -55,6 +55,20 @@ class ConductorAttachmentTest {
     }
 
     @Test
+    void blockOffsetsSnapToWholeBlocks() {
+        ConductorAttachment attachment = new ConductorAttachment("phase_a", "A");
+        attachment.setLateralOffset(-3.6);
+        attachment.setVerticalOffset(26.4);
+        attachment.setLongitudinalOffset(1.2);
+        attachment.setVerticalAnchorOffset(-1.7);
+
+        assertEquals(-4.0, attachment.getLateralOffset(), 1e-6);
+        assertEquals(26.0, attachment.getVerticalOffset(), 1e-6);
+        assertEquals(1.0, attachment.getLongitudinalOffset(), 1e-6);
+        assertEquals(-2.0, attachment.getVerticalAnchorOffset(), 1e-6);
+    }
+
+    @Test
     void disabledAttachmentCanBeStored() {
         ConductorAttachment attachment = new ConductorAttachment("phase_a", "A");
         attachment.setEnabled(false);

@@ -23,7 +23,14 @@ class TowerParametricStabilizationTest {
 
         assertEquals(phaseAttachmentCount(reference), phaseAttachmentCount(compiled));
         assertEquals(reference.getAttachments().size(), compiled.getAttachments().size());
-        assertFalse(compiled.getAttachments().stream().anyMatch(a -> a.getArmId() != null && !a.getArmId().isBlank()));
+        // 单组 lattice deck：三相挂点绑定到同一横担，而非每根横担各一组 ABC。
+        long phaseArmCount = compiled.getAttachments().stream()
+            .filter(TowerParametricStabilizationTest::isPhaseAttachment)
+            .map(com.plot.plugin.powerline.design.ConductorAttachment::getArmId)
+            .filter(id -> id != null && !id.isBlank())
+            .distinct()
+            .count();
+        assertEquals(1, phaseArmCount);
     }
 
     @Test

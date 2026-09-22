@@ -145,14 +145,13 @@ final class PoleDesignerAttachmentPanel {
                 pushDraftSnapshot.run();
             }
 
-            float[] anchor = {(float) attachment.getVerticalAnchorOffset()};
-            if (PoleDesignerFormRows.sliderFloat(
+            int[] anchor = {(int) Math.round(attachment.getVerticalAnchorOffset())};
+            if (PoleDesignerFormRows.sliderInt(
                     "plugin.powerline.design.attachment_vertical_anchor",
                     "anchor",
                     anchor,
-                    -8f,
-                    8f,
-                    PowerLineUiFormat.SLIDER)) {
+                    -8,
+                    8)) {
                 attachment.setVerticalAnchorOffset(anchor[0]);
                 TowerArmAttachmentBinding.refreshBoundCache(attachment, draft.getTowerStructure());
             }
@@ -164,31 +163,29 @@ final class PoleDesignerAttachmentPanel {
                 TowerArmAttachmentBinding.resolveLocalOffsets(attachment, draft.getTowerStructure());
             PowerLineUiWidgets.textColored(0xFF9E9E9E, PlotI18n.tr(
                 "plugin.powerline.design.attachment_resolved_offsets",
-                resolved.lateral(),
-                resolved.vertical()));
+                (int) Math.round(resolved.lateral()),
+                (int) Math.round(resolved.vertical())));
         } else {
-            float[] lateral = {(float) attachment.getLateralOffset()};
-            if (PoleDesignerFormRows.sliderFloat(
+            int[] lateral = {(int) Math.round(attachment.getLateralOffset())};
+            if (PoleDesignerFormRows.sliderInt(
                     "plugin.powerline.design.attachment_lateral",
                     "lateral",
                     lateral,
-                    -8f,
-                    8f,
-                    PowerLineUiFormat.SLIDER)) {
+                    -32,
+                    32)) {
                 attachment.setLateralOffset(lateral[0]);
             }
             if (ImGui.isItemActivated()) {
                 pushDraftSnapshot.run();
             }
 
-            float[] vertical = {(float) attachment.getVerticalOffset()};
-            if (PoleDesignerFormRows.sliderFloat(
+            int[] vertical = {(int) Math.round(attachment.getVerticalOffset())};
+            if (PoleDesignerFormRows.sliderInt(
                     "plugin.powerline.design.attachment_vertical",
                     "vertical",
                     vertical,
-                    1f,
-                    64f,
-                    PowerLineUiFormat.SLIDER)) {
+                    1,
+                    128)) {
                 attachment.setVerticalOffset(vertical[0]);
             }
             if (ImGui.isItemActivated()) {
@@ -196,14 +193,13 @@ final class PoleDesignerAttachmentPanel {
             }
         }
 
-        float[] longitudinal = {(float) attachment.getLongitudinalOffset()};
-        if (PoleDesignerFormRows.sliderFloat(
+        int[] longitudinal = {(int) Math.round(attachment.getLongitudinalOffset())};
+        if (PoleDesignerFormRows.sliderInt(
                 "plugin.powerline.design.attachment_longitudinal",
                 "longitudinal",
                 longitudinal,
-                -4f,
-                4f,
-                PowerLineUiFormat.SLIDER)) {
+                -16,
+                16)) {
             attachment.setLongitudinalOffset(longitudinal[0]);
         }
         if (ImGui.isItemActivated()) {

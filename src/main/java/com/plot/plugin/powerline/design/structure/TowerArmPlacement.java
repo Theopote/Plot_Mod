@@ -95,13 +95,13 @@ public final class TowerArmPlacement {
 
         switch (shape) {
             case TAPERED -> placeTaperedSpan(
-                lateralStart, lateralEnd, topHeight, bottomHeight, longHalf, bracing,
+                lateralStart, lateralEnd, topHeight, bottomHeight, longHalf, shape, bracing,
                 chordMaterial, braceMaterial, chordPlacer, bracePlacer);
             case UPSWEEP -> placeUpsweepSpan(
-                lateralStart, lateralEnd, topHeight, bottomHeight, longHalf, bracing,
+                lateralStart, lateralEnd, topHeight, bottomHeight, longHalf, shape, bracing,
                 chordMaterial, braceMaterial, chordPlacer, bracePlacer);
             default -> placeFlatSpan(
-                lateralStart, lateralEnd, topHeight, bottomHeight, longHalf, bracing,
+                lateralStart, lateralEnd, topHeight, bottomHeight, longHalf, shape, bracing,
                 chordMaterial, braceMaterial, chordPlacer, bracePlacer);
         }
     }
@@ -112,18 +112,25 @@ public final class TowerArmPlacement {
             double topHeight,
             double bottomHeight,
             double longHalf,
+            TowerArmShape shape,
             BracingPattern bracing,
             MaterialMix chordMaterial,
             MaterialMix braceMaterial,
             ChordPlacer chordPlacer,
             BracePlacer bracePlacer) {
-        chordPlacer.place(lateralStart, lateralEnd, topHeight, longHalf, chordMaterial);
-        if (bottomHeight + 1e-6 < topHeight) {
-            chordPlacer.place(lateralStart, lateralEnd, bottomHeight, longHalf, chordMaterial);
-            placeBracing(
-                lateralStart, lateralEnd, topHeight, bottomHeight, longHalf, bracing,
-                braceMaterial, bracePlacer);
+        if (usesFullTrussFrame(shape)) {
+            chordPlacer.place(lateralStart, lateralEnd, topHeight, longHalf, chordMaterial);
+            if (bottomHeight + 1e-6 < topHeight) {
+                chordPlacer.place(lateralStart, lateralEnd, bottomHeight, longHalf, chordMaterial);
+                placeBracing(
+                    lateralStart, lateralEnd, topHeight, bottomHeight, longHalf, bracing,
+                    braceMaterial, bracePlacer, false);
+            }
+            return;
         }
+        placeLightweightSpan(
+            lateralStart, lateralEnd, topHeight, bottomHeight, longHalf, bracing,
+            chordMaterial, braceMaterial, chordPlacer, bracePlacer);
     }
 
     private static void placeTaperedSpan(
@@ -132,21 +139,54 @@ public final class TowerArmPlacement {
             double topHeight,
             double bottomHeight,
             double longHalf,
+            TowerArmShape shape,
             BracingPattern bracing,
             MaterialMix chordMaterial,
             MaterialMix braceMaterial,
             ChordPlacer chordPlacer,
             BracePlacer bracePlacer) {
-        double center = (lateralStart + lateralEnd) / 2.0;
-        double halfSpan = Math.abs(lateralEnd - lateralStart) / 2.0;
-        double innerHalf = halfSpan * TAPERED_INNER_SCALE;
+        if (usesFullTrussFrame(shape)) {
+            double center = (lateralStart + lateralEnd) / 2.0;
+            double halfSpan = Math.abs(lateralEnd - lateralStart) / 2.0;
+            double innerHalf = halfSpan * TAPERED_INNER_SCALE;
+            chordPlacer.place(lateralStart, lateralEnd, topHeight, longHalf, chordMaterial);
+            chordPlacer.place(center - innerHalf, center + innerHalf, bottomHeight, longHalf, chordMaterial);
+            if (bracePlacer != null && bracing != BracingPattern.NONE) {
+                placeBracing(
+                    lateralStart, lateralEnd, topHeight, bottomHeight, longHalf, bracing,
+                    braceMaterial, bracePlacer, false);
+            }
+            return;
+        }
+        placeLightweightSpan(
+            lateralStart, lateralEnd, topHeight, bottomHeight, longHalf, bracing,
+            chordMaterial, braceMaterial, chordPlacer, bracePlacer);
+    }
+
+    /** 轻量横担斜撑：仅顶弦 + 单平面斜线，不生成底弦。 */
+    private static void placeLightweightSpan(
+            double lateralStart,
+            double lateralEnd,
+            double topHeight,
+            double bottomHeight,
+            double longHalf,
+            BracingPattern bracing,
+            MaterialMix chordMaterial,
+            MaterialMix braceMaterial,
+            ChordPlacer chordPlacer,
+            BracePlacer bracePlacer) {
         chordPlacer.place(lateralStart, lateralEnd, topHeight, longHalf, chordMaterial);
-        chordPlacer.place(center - innerHalf, center + innerHalf, bottomHeight, longHalf, chordMaterial);
-        if (bracePlacer != null && bracing != BracingPattern.NONE) {
+        if (bracePlacer != null
+                && bracing != BracingPattern.NONE
+                && bottomHeight + 1e-6 < topHeight) {
             placeBracing(
                 lateralStart, lateralEnd, topHeight, bottomHeight, longHalf, bracing,
-                braceMaterial, bracePlacer);
+                braceMaterial, bracePlacer, true);
         }
+    }
+
+    private static boolean usesFullTrussFrame(TowerArmShape shape) {
+        return shape == TowerArmShape.TRUSS;
     }
 
     private static void placeUpsweepSpan(
@@ -155,6 +195,7 @@ public final class TowerArmPlacement {
             double topHeight,
             double bottomHeight,
             double longHalf,
+            TowerArmShape shape,
             BracingPattern bracing,
             MaterialMix chordMaterial,
             MaterialMix braceMaterial,
@@ -165,10 +206,16 @@ public final class TowerArmPlacement {
         placeUpsweepChord(lateralStart, center, endHeight, topHeight, longHalf, chordMaterial, chordPlacer);
         placeUpsweepChord(center, lateralEnd, topHeight, endHeight, longHalf, chordMaterial, chordPlacer);
         if (bottomHeight + 1e-6 < topHeight) {
-            chordPlacer.place(lateralStart, lateralEnd, bottomHeight, longHalf, chordMaterial);
-            placeBracing(
-                lateralStart, lateralEnd, topHeight, bottomHeight, longHalf, bracing,
-                braceMaterial, bracePlacer);
+            if (usesFullTrussFrame(shape)) {
+                chordPlacer.place(lateralStart, lateralEnd, bottomHeight, longHalf, chordMaterial);
+                placeBracing(
+                    lateralStart, lateralEnd, topHeight, bottomHeight, longHalf, bracing,
+                    braceMaterial, bracePlacer, false);
+            } else if (bracePlacer != null && bracing != BracingPattern.NONE) {
+                placeBracing(
+                    lateralStart, lateralEnd, topHeight, bottomHeight, longHalf, bracing,
+                    braceMaterial, bracePlacer, true);
+            }
         }
     }
 
@@ -198,11 +245,14 @@ public final class TowerArmPlacement {
             double longHalf,
             BracingPattern pattern,
             MaterialMix braceMaterial,
-            BracePlacer bracePlacer) {
+            BracePlacer bracePlacer,
+            boolean lightweight) {
         if (pattern == BracingPattern.NONE || bracePlacer == null || braceMaterial == null) {
             return;
         }
-        double[] longitudes = longHalf <= 0 ? new double[] {0.0} : new double[] {-longHalf, longHalf};
+        double[] longitudes = lightweight || longHalf <= 0
+            ? new double[] {0.0}
+            : new double[] {-longHalf, longHalf};
         for (double longitudinal : longitudes) {
             TowerLocalPoint topLeft = TowerLocalPoint.of(lateralStart, topHeight, longitudinal);
             TowerLocalPoint topRight = TowerLocalPoint.of(lateralEnd, topHeight, longitudinal);

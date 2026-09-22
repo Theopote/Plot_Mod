@@ -85,7 +85,7 @@ class PoleDesignTest {
 
         assertEquals("phase_a", restoredAttachment.getId());
         assertEquals(AttachmentRole.PHASE_A, restoredAttachment.getRole());
-        assertEquals(-4.5, restoredAttachment.getLateralOffset());
+        assertEquals(-4.0, restoredAttachment.getLateralOffset());
         assertEquals(42.0, restoredAttachment.getVerticalOffset());
         assertEquals(1.0, restoredAttachment.getLongitudinalOffset());
         assertEquals("minecraft:chain", restoredAttachment.getInsulatorMaterial().getPrimaryMaterial());

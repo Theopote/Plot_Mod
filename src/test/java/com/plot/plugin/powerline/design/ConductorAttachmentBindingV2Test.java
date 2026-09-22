@@ -31,13 +31,13 @@ class ConductorAttachmentBindingV2Test {
 
         TowerArmAttachmentBinding.ResolvedLocalOffsets local =
             TowerArmAttachmentBinding.resolveLocalOffsets(attachment, structure);
-        assertEquals(-10.2, local.lateral(), 0.01);
+        assertEquals(-10.0, local.lateral(), 0.01);
         assertEquals(36.0, local.vertical(), 0.01);
 
         arm.setLateralReach(14.0);
         TowerArmAttachmentBinding.ResolvedLocalOffsets wider =
             TowerArmAttachmentBinding.resolveLocalOffsets(attachment, structure);
-        assertEquals(-11.9, wider.lateral(), 0.01);
+        assertEquals(-12.0, wider.lateral(), 0.01);
     }
 
     @Test
@@ -55,7 +55,7 @@ class ConductorAttachmentBindingV2Test {
             TowerArmAttachmentBinding.resolveLocalOffsets(
                 TowerArmAttachmentBinding.createThreePhaseDeck(arm).get(0),
                 structure);
-        assertEquals(-8.5, left.lateral(), 0.01);
+        assertEquals(-8.0, left.lateral(), 0.01);
         assertEquals(40.0, left.vertical(), 0.01);
     }
 
@@ -67,7 +67,7 @@ class ConductorAttachmentBindingV2Test {
 
         ConductorAttachment attachment = new ConductorAttachment("phase_a", "A");
         attachment.setArmId("arm_lower");
-        attachment.setLateralOffset(-10.2);
+        attachment.setLateralOffset(-10.0);
         attachment.setVerticalOffset(26.0);
         design.addAttachment(attachment);
 
@@ -123,7 +123,7 @@ class ConductorAttachmentBindingV2Test {
         ConductorAttachment stored = design.getAttachments().getFirst();
         TowerArmAttachmentBinding.ResolvedLocalOffsets local =
             TowerArmAttachmentBinding.resolveLocalOffsets(stored, structure);
-        assertEquals(-10.2, local.lateral(), 0.01);
+        assertEquals(-10.0, local.lateral(), 0.01);
         assertEquals(84.0, resolver.resolve(design, frame).getFirst().conductorWorldY(), 0.01);
     }
 
@@ -167,7 +167,7 @@ class ConductorAttachmentBindingV2Test {
 
         TowerArmAttachmentBinding.ResolvedLocalOffsets resolvedAfter =
             TowerArmAttachmentBinding.resolveLocalOffsets(after, design.getTowerStructure());
-        assertEquals(armAfter.getBaseHeight() + anchorBefore, resolvedAfter.vertical(), 0.01);
+        assertEquals(Math.round(armAfter.getBaseHeight() + anchorBefore), resolvedAfter.vertical(), 0.01);
         assertEquals(resolvedBefore.lateral(), resolvedAfter.lateral(), 0.01);
     }
 }
