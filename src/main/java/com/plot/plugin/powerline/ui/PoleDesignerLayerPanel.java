@@ -4,6 +4,7 @@ import com.plot.core.material.MaterialMix;
 import com.plot.plugin.powerline.design.CrossarmSupport;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleLayer;
+import com.plot.plugin.powerline.design.TowerArmAttachmentBinding;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.ui.component.UIUtils;
 import com.plot.ui.dialog.DialogLayoutHelper;
@@ -61,6 +62,7 @@ final class PoleDesignerLayerPanel {
 
         int maxHeight = PoleLayer.maxHeightForShape(layer.getShape());
         int[] height = {layer.getHeight()};
+        double crossarmHangBefore = TowerArmAttachmentBinding.legacyCrossarmHangHeight(draft);
         if (PoleDesignerFormRows.sliderInt(
                 "plugin.powerline.design.layer_height",
                 "##height",
@@ -68,6 +70,10 @@ final class PoleDesignerLayerPanel {
                 1,
                 maxHeight)) {
             layer.setHeight(height[0]);
+            double crossarmHangAfter = TowerArmAttachmentBinding.legacyCrossarmHangHeight(draft);
+            TowerArmAttachmentBinding.shiftFreeAttachmentHeights(
+                draft,
+                crossarmHangAfter - crossarmHangBefore);
         }
         if (ImGui.isItemActivated()) {
             pushDraftSnapshot.run();

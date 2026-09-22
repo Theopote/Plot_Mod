@@ -163,16 +163,16 @@ public final class TowerParametricEditor {
         design.setGeneratorConfig(config.withParameters(toParameterSet(result.resolved())));
 
         List<ConductorAttachment> previousAttachments = new ArrayList<>(design.getAttachments());
-        boolean sameProfile = previousProfileId != null
-            && Objects.equals(previousProfileId, config.profileId());
+        boolean profileChanged = previousProfileId != null
+            && !Objects.equals(previousProfileId, config.profileId());
         PoleDesign compiled = TowerStructureCompiler.compile(profile, result.resolved());
         design.setTowerStructure(compiled.getTowerStructure());
-        if (previousAttachments.isEmpty() || !sameProfile) {
+        if (previousAttachments.isEmpty() || profileChanged) {
             design.setAttachments(compiled.getAttachments());
         } else {
-            TowerArmAttachmentBinding.ensureV2Bindings(design);
             design.setAttachments(previousAttachments);
         }
+        TowerArmAttachmentBinding.syncAfterStructureChange(design);
         return result;
     }
 

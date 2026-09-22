@@ -116,6 +116,94 @@ class TowerArmAttachmentBindingTest {
     }
 
     @Test
+    void syncAttachmentsForArmPreservesBoundRelativeVerticalWhenArmHeightChanges() {
+        TowerStructureDesign structure = new TowerStructureDesign();
+        structure.addArm(new TowerArm("arm_main", 40, 10));
+        TowerArm arm = structure.getArms().getFirst();
+        ConductorAttachment attachment = TowerArmAttachmentBinding.createThreePhaseDeck(arm).get(0);
+        attachment.setVerticalAnchorOffset(-1.5);
+
+        arm.setBaseHeight(52.0);
+        TowerArmAttachmentBinding.syncAttachmentsForArm(arm, List.of(attachment), structure);
+
+        assertEquals(-1.5, attachment.getVerticalAnchorOffset(), 0.01);
+        TowerArmAttachmentBinding.ResolvedLocalOffsets local =
+            TowerArmAttachmentBinding.resolveLocalOffsets(attachment, structure);
+        assertEquals(50.5, local.vertical(), 0.01);
+        assertEquals(50.5, attachment.getVerticalOffset(), 0.01);
+    }
+
+    @Test
+    void syncAttachmentsForArmRefreshesBoundLateralWhenReachChanges() {
+        TowerStructureDesign structure = new TowerStructureDesign();
+        structure.addArm(new TowerArm("arm_main", 40, 10));
+        TowerArm arm = structure.getArms().getFirst();
+        ConductorAttachment attachment = TowerArmAttachmentBinding.createThreePhaseDeck(arm).get(0);
+
+        arm.setLateralReach(12.0);
+        TowerArmAttachmentBinding.syncAttachmentsForArm(arm, List.of(attachment), structure);
+
+        assertEquals(-1.0, attachment.getNormalizedPosition(), 0.01);
+        assertEquals(-10.2, attachment.getLateralOffset(), 0.01);
+        TowerArmAttachmentBinding.ResolvedLocalOffsets local =
+            TowerArmAttachmentBinding.resolveLocalOffsets(attachment, structure);
+        assertEquals(-10.2, local.lateral(), 0.01);
+    }
+
+    @Test
+    void syncAfterStructureChangeKeepsBoundRelativeVerticalWhenArmHeightChanges() {
+        TowerStructureDesign structure = TowerStructurePresets.classicDoubleArmTower();
+        PoleDesign design = new PoleDesign("sync", "Sync");
+        design.setTowerStructure(structure);
+
+        ConductorAttachment attachment = new ConductorAttachment("phase_a", "A");
+        attachment.setArmId("arm_lower");
+        attachment.setLateralOffset(-10.2);
+        attachment.setVerticalOffset(26.0);
+        design.addAttachment(attachment);
+
+        TowerArmAttachmentBinding.syncAfterStructureChange(design);
+        ConductorAttachment stored = design.getAttachments().getFirst();
+        assertTrue(stored.isBound());
+        assertEquals(0.0, stored.getVerticalAnchorOffset(), 0.01);
+
+        TowerArm lowerArm = design.getTowerStructure().getArms().stream()
+            .filter(arm -> "arm_lower".equals(arm.getId()))
+            .findFirst()
+            .orElseThrow();
+        lowerArm.setBaseHeight(lowerArm.getBaseHeight() + 6.0);
+
+        TowerArmAttachmentBinding.syncAfterStructureChange(design);
+
+        assertEquals(0.0, stored.getVerticalAnchorOffset(), 0.01);
+        TowerArmAttachmentBinding.ResolvedLocalOffsets local =
+            TowerArmAttachmentBinding.resolveLocalOffsets(stored, design.getTowerStructure());
+        assertEquals(lowerArm.getBaseHeight(), local.vertical(), 0.01);
+    }
+
+    @Test
+    void shiftFreeAttachmentHeightsFollowsLegacyCrossarmMove() {
+        PoleDesign design = new PoleDesign("legacy", "Legacy");
+        design.addLayer(new PoleLayer(PoleLayer.Shape.COLUMN, 6, null));
+        design.addLayer(new PoleLayer(PoleLayer.Shape.CROSSARM, 1, null));
+        design.setAttachments(ConductorAttachmentPresets.threePhaseHorizontal(
+            TowerArmAttachmentBinding.legacyCrossarmHangHeight(design)));
+
+        PoleLayer column = design.getLayers().getFirst();
+        double hangBefore = TowerArmAttachmentBinding.legacyCrossarmHangHeight(design);
+        double phaseBefore = design.getAttachments().getFirst().getVerticalOffset();
+
+        column.setHeight(10);
+        TowerArmAttachmentBinding.shiftFreeAttachmentHeights(
+            design,
+            TowerArmAttachmentBinding.legacyCrossarmHangHeight(design) - hangBefore);
+
+        double hangAfter = TowerArmAttachmentBinding.legacyCrossarmHangHeight(design);
+        assertEquals(hangBefore + 4, hangAfter, 0.01);
+        assertEquals(phaseBefore + 4, design.getAttachments().getFirst().getVerticalOffset(), 0.01);
+    }
+
+    @Test
     void megaLatticeStructureHasMultipleArms() {
         PoleDesign design = new PoleDesign("test", "test");
         design.setTowerStructure(TowerStructurePresets.megaLatticeTower());

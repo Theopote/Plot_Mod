@@ -285,6 +285,61 @@ public final class TowerArmAttachmentBinding {
         }
     }
 
+    /**
+     * 塔体几何变化后同步挂点：补全 arm 绑定、迁移 BOUND，并按横担刷新相对位置缓存。
+     */
+    public static void syncAfterStructureChange(PoleDesign design) {
+        if (design == null || !design.hasTowerStructure()) {
+            return;
+        }
+        inferArmBindings(design);
+        TowerStructureDesign structure = design.getTowerStructure();
+        for (TowerArm arm : sortedArms(structure)) {
+            syncAttachmentsForArm(arm, design.getAttachments(), structure);
+        }
+    }
+
+    /** Legacy 分层：横担悬挂高度（相对塔腿地面，与 {@link PoleDesign#wireHangHeightFromGround(int)} 同局部坐标）。 */
+    public static double legacyCrossarmHangHeight(PoleDesign design) {
+        if (design == null || design.hasTowerStructure()) {
+            return 0.0;
+        }
+        return design.wireHangHeightFromGround(0);
+    }
+
+    /** Legacy 分层体素高度变化后，保持 FREE 挂点相对最高横担的竖向偏移。 */
+    public static void shiftFreeAttachmentHeights(PoleDesign design, double deltaY) {
+        if (design == null || Math.abs(deltaY) < 1e-6) {
+            return;
+        }
+        for (ConductorAttachment attachment : design.getAttachments()) {
+            if (attachment.isBound()) {
+                continue;
+            }
+            attachment.setVerticalOffset(attachment.getVerticalOffset() + deltaY);
+        }
+    }
+
+    /** 单根横担高度/伸出变化后，刷新其 deck 挂点的相对解析位置。 */
+    public static void syncAttachmentsForArm(
+            TowerArm arm,
+            Iterable<ConductorAttachment> attachments,
+            TowerStructureDesign structure) {
+        if (arm == null || attachments == null) {
+            return;
+        }
+        for (ConductorAttachment attachment : attachments) {
+            if (!arm.getId().equals(attachment.getArmId())) {
+                continue;
+            }
+            if (attachment.isBound()) {
+                refreshBoundCache(attachment, structure);
+            } else {
+                attachment.setVerticalOffset(conductorHangHeight(arm));
+            }
+        }
+    }
+
     public static List<TowerArm> sortedArms(TowerStructureDesign structure) {
         if (structure == null) {
             return List.of();

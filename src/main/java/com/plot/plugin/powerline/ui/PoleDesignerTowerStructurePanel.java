@@ -319,7 +319,7 @@ final class PoleDesignerTowerStructurePanel {
                 256f,
                 PowerLineUiFormat.SLIDER)) {
             arm.setBaseHeight(baseHeight[0]);
-            TowerArmAttachmentBinding.syncBoundVerticalOffsets(arm, draft.getAttachments());
+            TowerArmAttachmentBinding.syncAttachmentsForArm(arm, draft.getAttachments(), structure);
         }
         if (ImGui.isItemActivated()) {
             pushDraftSnapshot.run();
@@ -334,6 +334,7 @@ final class PoleDesignerTowerStructurePanel {
                 32f,
                 PowerLineUiFormat.SLIDER)) {
             arm.setLateralReach(reach[0]);
+            TowerArmAttachmentBinding.syncAttachmentsForArm(arm, draft.getAttachments(), structure);
         }
         if (ImGui.isItemActivated()) {
             pushDraftSnapshot.run();
@@ -356,7 +357,7 @@ final class PoleDesignerTowerStructurePanel {
         DialogLayoutHelper.formRowLabel(" ");
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.arm_sync_height") + "##sync_h", 0, 0)) {
             pushDraftSnapshot.run();
-            TowerArmAttachmentBinding.syncBoundVerticalOffsets(arm, draft.getAttachments());
+            TowerArmAttachmentBinding.syncAttachmentsForArm(arm, draft.getAttachments(), structure);
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.arm_sync_spread") + "##sync_s", 0, 0)) {

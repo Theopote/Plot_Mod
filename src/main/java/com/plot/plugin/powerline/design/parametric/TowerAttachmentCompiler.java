@@ -40,6 +40,7 @@ public final class TowerAttachmentCompiler {
         } else {
             InsulatorAssemblyCatalog.applyStandardDefaults(scratch);
         }
+        TowerArmAttachmentBinding.syncAfterStructureChange(scratch);
         return scratch.getAttachments();
     }
 

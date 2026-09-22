@@ -12,6 +12,7 @@ import com.plot.api.geometry.Vec2d;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ConductorAttachmentBindingV2Test {
@@ -132,6 +133,17 @@ class ConductorAttachmentBindingV2Test {
         TowerParametricEditor.enableParametricClassic(design, TowerParameterSet.classicDefaults());
         int attachmentCount = design.getAttachments().size();
         String firstId = design.getAttachments().getFirst().getId();
+        ConductorAttachment before = design.getAttachments().getFirst();
+        assertTrue(before.isBound());
+        String armId = before.getArmId();
+        double anchorBefore = before.getVerticalAnchorOffset();
+        double normalizedBefore = before.getNormalizedPosition();
+        TowerArm armBefore = design.getTowerStructure().getArms().stream()
+            .filter(candidate -> candidate.getId().equals(armId))
+            .findFirst()
+            .orElseThrow();
+        TowerArmAttachmentBinding.ResolvedLocalOffsets resolvedBefore =
+            TowerArmAttachmentBinding.resolveLocalOffsets(before, design.getTowerStructure());
 
         design.setGeneratorConfig(design.getGeneratorConfig().withParameters(
             new TowerParameterSet(48.0, 13.0, 24.0, 1.0, 1.0, null, design.getGeneratorConfig().parameters().density())));
@@ -140,5 +152,22 @@ class ConductorAttachmentBindingV2Test {
         assertEquals(attachmentCount, design.getAttachments().size());
         assertEquals(firstId, design.getAttachments().getFirst().getId());
         assertEquals(48.0, design.getTowerStructure().maxHeight(), 0.5);
+
+        ConductorAttachment after = design.getAttachments().getFirst();
+        assertTrue(after.isBound());
+        assertEquals(armId, after.getArmId());
+        assertEquals(anchorBefore, after.getVerticalAnchorOffset(), 0.01);
+        assertEquals(normalizedBefore, after.getNormalizedPosition(), 0.01);
+
+        TowerArm armAfter = design.getTowerStructure().getArms().stream()
+            .filter(candidate -> candidate.getId().equals(armId))
+            .findFirst()
+            .orElseThrow();
+        assertNotEquals(armBefore.getBaseHeight(), armAfter.getBaseHeight(), 0.01);
+
+        TowerArmAttachmentBinding.ResolvedLocalOffsets resolvedAfter =
+            TowerArmAttachmentBinding.resolveLocalOffsets(after, design.getTowerStructure());
+        assertEquals(armAfter.getBaseHeight() + anchorBefore, resolvedAfter.vertical(), 0.01);
+        assertEquals(resolvedBefore.lateral(), resolvedAfter.lateral(), 0.01);
     }
 }
