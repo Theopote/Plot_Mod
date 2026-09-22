@@ -94,7 +94,7 @@ public final class BuildingActions {
     }
 
     public boolean calculatePreview(BuildingFootprint building) {
-        return calculateDistrictPreview(List.of(building), true, false);
+        return calculateDistrictPreview(List.of(building), false, false);
     }
 
     public boolean calculateDistrictPreview(
@@ -129,7 +129,7 @@ public final class BuildingActions {
             boolean autoProjectGhosts,
             boolean buildConfirmOnComplete) {
         cancelDistrictPreviewJob();
-        cancelGhostProjection();
+        clearBuildingGhosts();
         state.setLastDistrictResult(null);
         state.setLastGenerationResult(null);
         BuildingMassingPreviewHeights.clearCache(state);
@@ -307,6 +307,8 @@ public final class BuildingActions {
 
         if (autoProjectGhosts) {
             projectPreview();
+        } else {
+            clearBuildingGhosts();
         }
 
         if (district.buildingsAttempted() > 1) {
@@ -361,14 +363,18 @@ public final class BuildingActions {
 
     public void clearPreview() {
         cancelDistrictPreviewJob();
+        clearBuildingGhosts();
+        state.setLastGenerationResult(null);
+        state.setLastDistrictResult(null);
+        clearPreviewDiagnostics();
+    }
+
+    private void clearBuildingGhosts() {
         cancelGhostProjection();
         com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearGhostBlocks(GhostBlockOwners.BUILDING);
         }
-        state.setLastGenerationResult(null);
-        state.setLastDistrictResult(null);
-        clearPreviewDiagnostics();
     }
 
     private void cancelGhostProjection() {
@@ -415,11 +421,7 @@ public final class BuildingActions {
         state.setPreviewIdentity(null);
         state.setOverlayPreviewedBuildingIds(java.util.Set.of());
         state.setOverlayWarningBuildingIds(java.util.Set.of());
-        cancelGhostProjection();
-        com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
-        if (ghostBlockManager != null) {
-            ghostBlockManager.clearGhostBlocks(GhostBlockOwners.BUILDING);
-        }
+        clearBuildingGhosts();
     }
 
     private List<BuildingFootprint> resolveGenerateTargets() {
@@ -462,12 +464,12 @@ public final class BuildingActions {
 
     public void previewEntireDistrict() {
         state.getSelection().selectAll(state.getProject().getBuildings().keySet());
-        calculateDistrictPreview(new ArrayList<>(state.getProject().getBuildings().values()), true, false);
+        calculateDistrictPreview(new ArrayList<>(state.getProject().getBuildings().values()), false, false);
     }
 
     public void prepareGenerateEntireDistrict() {
         state.getSelection().selectAll(state.getProject().getBuildings().keySet());
-        calculateDistrictPreview(new ArrayList<>(state.getProject().getBuildings().values()), true, true);
+        calculateDistrictPreview(new ArrayList<>(state.getProject().getBuildings().values()), false, true);
     }
 
     public void applyMassingToSelected(BuildingFootprint primary, List<BuildingFootprint> targets) {

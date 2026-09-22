@@ -7,7 +7,7 @@ import imgui.ImGui;
 
 import java.util.List;
 
-/** Generate Tab 建造区：Ghost 状态 + 建造按钮。 */
+/** Generate Tab 建造区：就绪检查 + 落地按钮。 */
 public final class BuildingBuildAction {
     private BuildingBuildAction() {
     }
@@ -15,25 +15,6 @@ public final class BuildingBuildAction {
     public static void render(BuildingUiContext ctx, List<BuildingFootprint> targets) {
         ImGui.separator();
         BuildingPreviewIdentity.Validity validity = ctx.previewValidity(targets);
-        boolean ghostUploading = ctx.isGhostProjectionBusy();
-        boolean ghostVisible = ctx.hasPreviewResult()
-            && validity == BuildingPreviewIdentity.Validity.VALID
-            && !ghostUploading;
-        if (ghostUploading) {
-            ImGui.textColored(
-                PluginUiColors.STATUS_INFO,
-                PlotI18n.tr(
-                    "plugin.building.generate.ghost_uploading",
-                    ctx.ghostProjectionProcessed(),
-                    ctx.ghostProjectionTotal()));
-        } else {
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                ghostVisible
-                    ? PlotI18n.tr("plugin.building.generate.ghost_visible")
-                    : PlotI18n.tr("plugin.building.generate.ghost_hidden"));
-        }
-
         com.plot.api.world.PlacementReadiness readiness =
             ctx.host().projection().checkWorldModificationReadiness();
         if (!readiness.ready()) {
@@ -49,8 +30,7 @@ public final class BuildingBuildAction {
         boolean buildDisabled = validity != BuildingPreviewIdentity.Validity.VALID
             || !readiness.ready()
             || ctx.host().placement().isBusy()
-            || ctx.isDistrictPreviewBusy()
-            || ctx.isGhostProjectionBusy();
+            || ctx.isDistrictPreviewBusy();
         if (buildDisabled) {
             ImGui.beginDisabled();
         }

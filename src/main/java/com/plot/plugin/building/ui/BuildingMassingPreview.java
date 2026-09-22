@@ -62,14 +62,14 @@ public final class BuildingMassingPreview {
             BuildingUiContext ctx,
             List<BuildingFootprint> targets,
             BuildingPreviewIdentity.Validity validity) {
-        boolean previewBusy = ctx.isDistrictPreviewBusy() || ctx.isGhostProjectionBusy();
+        boolean previewBusy = ctx.isDistrictPreviewBusy();
         float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) * 0.5f;
 
         if (previewBusy) {
             ImGui.beginDisabled();
         }
         if (ImGui.button(PlotI18n.tr("plugin.building.generate.update_preview"), half, 0)) {
-            ctx.calculateDistrictPreview(targets, true);
+            ctx.calculateDistrictPreview(targets, false);
         }
         if (previewBusy) {
             ImGui.endDisabled();
@@ -103,16 +103,6 @@ public final class BuildingMassingPreview {
             }
             return;
         }
-        if (ctx.isGhostProjectionBusy()) {
-            ImGui.textColored(
-                com.plot.plugin.ui.PluginUiColors.STATUS_INFO,
-                PlotI18n.tr(
-                    "plugin.building.generate.ghost_uploading",
-                    ctx.ghostProjectionProcessed(),
-                    ctx.ghostProjectionTotal()));
-            return;
-        }
-
         switch (validity) {
             case NONE -> { }
             case STALE -> ImGui.textColored(
