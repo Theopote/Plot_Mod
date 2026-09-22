@@ -33,17 +33,18 @@ public final class BuildingFootprintsPanel {
     }
 
     private void renderCanvasSection() {
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.footprints.canvas_hint"));
-
         if (ctx.pickSession().isActive()) {
             renderPickSessionState();
-        } else {
-            ctx.refreshCanvasFootprintSelection();
+            renderCanvasPreview(ctx.canvasSelectionAnalysis());
+            return;
         }
 
-        BuildingFootprintSelectionAnalysis canvas = ctx.canvasSelectionAnalysis();
-        renderCanvasPickControls(canvas);
-        renderCanvasPreview(canvas);
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.footprints.canvas_hint"));
+        if (ImGui.button(PlotI18n.tr("plugin.building.pick_footprint"), 0, 0)) {
+            ctx.startPickSession();
+        }
+        ImGui.spacing();
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.draw_footprint_hint"));
     }
 
     private void renderPickSessionState() {
@@ -58,42 +59,11 @@ public final class BuildingFootprintsPanel {
                 PlotI18n.tr("plugin.building.footprints.picking_active"));
         }
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.footprints.right_click_finish"));
-        if (ImGui.button(PlotI18n.tr("plugin.building.footprints.cancel_pick"), 0, 0)) {
-            ctx.pickSession().cancel();
-            ctx.setProjectStatus(PlotI18n.tr("plugin.building.pick_cancelled"));
-        }
-        ImGui.spacing();
-    }
-
-    private void renderCanvasPickControls(BuildingFootprintSelectionAnalysis canvas) {
-        if (ImGui.button(PlotI18n.tr("plugin.building.select_all_closed"), 0, 0)) {
-            ctx.selectAllClosedShapesOnCanvas();
-        }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.building.pick_footprint"), 0, 0)) {
-            ctx.startPickSession();
-        }
-        ImGui.sameLine();
-        boolean adoptDisabled = !canvas.canAdopt() && ctx.selectedFootprints().isEmpty();
-        if (adoptDisabled) {
-            ImGui.beginDisabled();
-        }
-        int adoptCount = Math.max(canvas.adoptable().size(), ctx.selectedFootprints().size());
-        String adoptLabel = adoptCount > 1
-            ? PlotI18n.tr("plugin.building.adopt_footprint_batch", adoptCount)
-            : PlotI18n.tr("plugin.building.adopt_footprint");
-        if (ImGui.button(adoptLabel, 0, 0)) {
-            ctx.adoptSelectedFootprints();
-        }
-        if (adoptDisabled) {
-            ImGui.endDisabled();
-        }
         ImGui.spacing();
     }
 
     private void renderCanvasPreview(BuildingFootprintSelectionAnalysis canvas) {
-        if (!canvas.hasCanvasSelection() && !ctx.pickSession().isActive()) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.draw_footprint_hint"));
+        if (!canvas.hasCanvasSelection()) {
             return;
         }
 
@@ -140,11 +110,7 @@ public final class BuildingFootprintsPanel {
         boolean adopted = containsShape(canvas.alreadyAdopted(), shape);
         boolean selected = containsShape(ctx.selectedFootprints(), shape);
 
-        if (BuildingOverviewRenderer.renderFootprintThumbnail(points, selected || adopted, index)) {
-            if (!invalid && !adopted) {
-                toggleCanvasShapeSelection(shape);
-            }
-        }
+        BuildingOverviewRenderer.renderFootprintThumbnail(points, selected || adopted, index);
         ImGui.sameLine();
         double area = points.isEmpty() ? 0.0 : Math.abs(BuildingFootprint.signedArea(points));
         String statusKey = invalid
@@ -168,17 +134,6 @@ public final class BuildingFootprintsPanel {
             }
         }
         return false;
-    }
-
-    private void toggleCanvasShapeSelection(Shape shape) {
-        List<Shape> selected = new ArrayList<>(ctx.host().appState().getSelectedShapes());
-        if (selected.contains(shape)) {
-            selected.remove(shape);
-        } else {
-            selected.add(shape);
-        }
-        ctx.host().appState().setSelectedShapes(selected);
-        ctx.refreshCanvasFootprintSelection();
     }
 
     private static double computePreviewArea(List<Shape> shapes) {

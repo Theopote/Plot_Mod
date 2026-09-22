@@ -513,7 +513,7 @@ public final class BuildingActions {
             case SUCCESS -> {
                 state.getSelectedFootprints().clear();
                 state.getSelectedFootprints().addAll(outcome.getFootprints());
-                state.setProjectStatus(PlotI18n.tr("plugin.building.pick_success", state.getSelectedFootprints().size()));
+                adoptSelectedFootprints();
             }
             case NEED_SELECTION -> state.setProjectStatus(PlotI18n.tr("plugin.building.pick_need_selection"));
             case NO_VALID -> state.setProjectStatus(PlotI18n.tr("plugin.building.pick_no_valid"));

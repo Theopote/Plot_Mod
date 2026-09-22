@@ -128,11 +128,12 @@ public class BuildingPlugin extends Plugin {
     }
 
     private List<Shape> resolveOverlayCanvasShapes() {
-        if (uiContext.pickSession().isActive()) {
-            List<Shape> accumulated = uiContext.pickSession().getAccumulatedFootprints();
-            if (!accumulated.isEmpty()) {
-                return accumulated;
-            }
+        if (!uiContext.pickSession().isActive()) {
+            return List.of();
+        }
+        List<Shape> accumulated = uiContext.pickSession().getAccumulatedFootprints();
+        if (!accumulated.isEmpty()) {
+            return accumulated;
         }
         return uiContext.host().appState().getSelectedShapes();
     }

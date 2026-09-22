@@ -25,8 +25,6 @@ public final class BuildingUIManager {
 
         if (ctx.pickSession().isActive()) {
             footprintsPanel.tickPickSession();
-        } else {
-            ctx.refreshCanvasFootprintSelection();
         }
 
         toolbarPanel.render();
