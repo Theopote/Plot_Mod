@@ -117,32 +117,7 @@ class BuildingRealisticGenerationChainTest {
         RealisticDistrictGapReport.Summary report = RealisticDistrictGapReport.analyze(district, catalog);
         LOGGER.info(report.format());
         System.out.println("[RealisticDistrictGap] " + report.format().replace("\n", " | "));
-
-        assertEquals(100, report.attempted());
-        assertEquals(97, report.generated(), () -> report.format());
-        assertEquals(3, report.skipped(), () -> report.format());
-        assertEquals(3, report.skipByReason().get(DistrictGenerationResult.SkipReason.INVALID));
-        assertTrue(district.totalBlocks() > 0);
-        assertTrue(district.hasPlacements());
-        assertTrue(district.hasBuildingOverlap(), "overlap pairs should be detected");
-
-        RealisticDistrictGapReport.CategoryRow ellipseRow =
-            report.byKind().get(RealisticFootprintKind.ELLIPSE);
-        assertTrue(ellipseRow.generated() == ellipseRow.attempted());
-        assertTrue(ellipseRow.generated() >= 8);
-
-        RealisticDistrictGapReport.CategoryRow narrowRow =
-            report.byKind().get(RealisticFootprintKind.NARROW_INNER_OFFSET);
-        assertEquals(4, narrowRow.attempted());
-        assertEquals(4, narrowRow.generated());
-        assertTrue(narrowRow.innerOffsetWarnings() >= 4);
-        assertTrue(narrowRow.roofDowngrades() >= 4);
-
-        RealisticDistrictGapReport.CategoryRow invalidRow =
-            report.byKind().get(RealisticFootprintKind.INVALID);
-        assertEquals(3, invalidRow.attempted());
-        assertEquals(0, invalidRow.generated());
-        assertEquals(3, invalidRow.skipped());
+        MixedDistrictRegressionAssertions.assertBaseline(district, report);
     }
 
     @Test

@@ -53,7 +53,7 @@
 | **D-B16** | 椭圆/圆离散 + 多层 | `BuildingRealisticGenerationChainTest.dB16_...` | sampled site 下 ellipse(5F)/circle(4F) 全生成 |
 | **D-B17** | 重叠 footprint + sampled 地形 | `BuildingRealisticGenerationChainTest.dB17_...` | later-wins + overlap 检测 |
 | **D-B18** | 小 footprint 厚墙 inner offset | `BuildingRealisticGenerationChainTest.dB18_...` | fail-soft 降级，仍有墙体量 |
-| **D-B19** | **100 栋混合片区 gap 报告** | `BuildingRealisticGenerationChainTest.dB19_...` | 97 generated / 3 invalid；按 `RealisticFootprintKind` 分桶 |
+| **D-B19** | **100 栋混合片区 gap 报告** | `MixedDistrictRegressionGateTest.ciGateMixedDistrict100_D_B19`（**CI 门禁**）；场景复测 `BuildingRealisticGenerationChainTest.dB19_...` | 97 generated / 3 invalid；按 `RealisticFootprintKind` 分桶 |
 | **D-B20** | 坡顶 eligibility 与几何一致 | `BuildingRealisticGenerationChainTest.dB20_...` | `RoofGenerationStage.resolveRoofType` 对齐 `isSlopedRoofEligible` |
 | **D-B21** | site analysis skip 条件 | `BuildingRealisticGenerationChainTest.dB21_...` | failed bundle + 无 manual/pad → must skip |
 | **D-B22** | 陡坡采样预警 | `BuildingRealisticGenerationChainTest.dB22_...` | 列采样高差 ≥ `SEVERE_STEEP_THRESHOLD` |

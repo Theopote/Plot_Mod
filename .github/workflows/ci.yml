@@ -60,6 +60,13 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Mixed district regression gate (D-B19)
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2G"
+        run: >
+          ./gradlew test --no-daemon --stacktrace
+          --tests "com.plot.plugin.building.realistic.MixedDistrictRegressionGateTest.ciGateMixedDistrict100_D_B19"
+
       - name: Building + geometry + roof stress
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2G"

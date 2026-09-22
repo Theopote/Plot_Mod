@@ -12,12 +12,14 @@
 |------|---------|--------|
 | **D01–D02** | ✅ `ciGateDistrictScales` | — |
 | **D06–D07**（sampled-site） | ✅ `ciGateSampledSiteDistrictScales` | D06-full / D07-full @ 500 |
+| **D-B19**（mixed-district） | ✅ `MixedDistrictRegressionGateTest.ciGateMixedDistrict100_D_B19` | — |
 | **Overlap500** | ✅ `overlapFootprintPairBenchmarkAt500` | — |
 | **D03–D05** | — | `-Dplot.district.benchmark=full` |
 
 ```bash
-# CI 档位（D01–D02 + D06–D07 + Overlap500）
+# CI 档位（D01–D02 + D06–D07 + D-B19 + Overlap500）
 ./gradlew test --tests "com.plot.plugin.building.benchmark.DistrictBenchmarkTest"
+./gradlew test --tests "com.plot.plugin.building.realistic.MixedDistrictRegressionGateTest.ciGateMixedDistrict100_D_B19"
 
 # 含 D03(100) / D04(250) / D05(500) / D06-full(100) / D07-full(500)
 ./gradlew test --tests "com.plot.plugin.building.benchmark.DistrictBenchmarkTest.fullSuiteWhenPropertyEnabled" -Dplot.district.benchmark=full
