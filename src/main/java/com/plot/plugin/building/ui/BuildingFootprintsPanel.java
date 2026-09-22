@@ -36,14 +36,12 @@ public final class BuildingFootprintsPanel {
     }
 
     private void renderCanvasSection() {
-        ImGui.text(PlotI18n.tr("plugin.building.footprints.canvas_section"));
         if (ctx.pickSession().isActive()) {
             renderPickSessionState();
             renderCanvasPreview(ctx.canvasSelectionAnalysis());
             return;
         }
 
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.footprints.canvas_hint"));
         if (ImGui.button(PlotI18n.tr("plugin.building.pick_footprint"), 0, 0)) {
             ctx.startPickSession();
         }
