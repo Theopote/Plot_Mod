@@ -118,7 +118,7 @@ public class CanvasCore implements ICanvas {
         this.eventBus = ApplicationContext.getInstance().getEventBus();
         this.camera = new CanvasCamera();
         this.coordinateTransform = new CoordinateTransform(camera);
-        this.opacity = UITheme.Canvas.DEFAULT_OPACITY;
+        this.opacity = appState.getOpacity();
         
         // 直接使用AppState中的LayerManager，确保一致性
         this.layerManager = appState.getLayerManager();

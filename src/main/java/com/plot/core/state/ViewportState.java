@@ -1,5 +1,7 @@
 package com.plot.core.state;
 
+import com.plot.ui.theme.UITheme;
+
 /**
  * 视口相关应用态（画布透明度等）。缩放由 CanvasCamera 负责，不在此重复。
  */
@@ -8,7 +10,7 @@ public final class ViewportState {
     private final Object opacityLock = new Object();
 
     public ViewportState() {
-        this.opacity = 0.0f;
+        this.opacity = UITheme.Canvas.DEFAULT_OPACITY;
     }
 
     public void setOpacity(float opacity) {

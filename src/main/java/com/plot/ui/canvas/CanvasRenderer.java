@@ -7,7 +7,6 @@ import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.model.Shape;
 import com.plot.core.model.ShapeLists;
 import com.plot.core.context.ApplicationContext;
-import com.plot.core.state.AppState;
 import com.plot.core.tool.BaseTool;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.base.Event;
@@ -548,6 +547,7 @@ public class CanvasRenderer implements EventListener {
         DrawContext context = new DrawContext();
         context.setDrawList(drawList);
         context.setCamera(core.getCamera());
+        context.setOpacity(core.getOpacity());
 
         // 设置绘制上下文偏移：使用相机 offset（由渲染器同步）
         Vec2d off = core.getCamera() != null ? core.getCamera().getOffset() : new Vec2d(0, 0);
@@ -627,7 +627,7 @@ public class CanvasRenderer implements EventListener {
         // 创建绘制上下文（复用以减少对象创建）
         DrawContext context = new DrawContext();
         context.setCamera(camera);
-        context.setOpacity(1.0f);
+        context.setOpacity(core.getOpacity());
         context.setDrawList(drawList);
         
         // 设置绘制上下文偏移：使用相机 offset（由渲染器同步）
