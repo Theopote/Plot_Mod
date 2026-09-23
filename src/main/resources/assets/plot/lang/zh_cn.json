@@ -4350,7 +4350,6 @@
   "plugin.building.window_settings": "开窗参数",
   "plugin.building.windows_enabled": "自动开窗",
   "plugin.building.window_pier_width": "窗间墙宽：%d 格",
-  "plugin.building.window_rhythm_preview": "立面节奏：%s",
   "plugin.building.window_spacing": "开窗间距：%d 格（0=不开窗）",
   "plugin.building.window_width": "窗宽：%d 格",
   "plugin.building.window_height": "窗高：%d 格",

@@ -341,9 +341,6 @@ public final class BuildingEditPanel {
             ctx.invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.window_pier_width");
-        ImGui.textColored(PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.building.window_rhythm_preview",
-                renderWindowRhythmPreview(building.getWindowWidth(), building.getWindowPierWidth())));
         int[] windowHeight = {building.getWindowHeight()};
         boolean windowHeightChanged = ImGui.sliderInt("##window_height", windowHeight, 1, floorHeight,
             PlotI18n.tr("plugin.building.window_height", windowHeight[0]));
@@ -368,23 +365,6 @@ public final class BuildingEditPanel {
             ctx.invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.window_sill");
-    }
-
-    private static String renderWindowRhythmPreview(int windowWidth, int pierWidth) {
-        StringBuilder preview = new StringBuilder();
-        int guard = 0;
-        while (preview.length() < 16 && guard++ < 32) {
-            for (int w = 0; w < windowWidth && preview.length() < 16; w++) {
-                preview.append('W');
-            }
-            for (int p = 0; p < pierWidth && preview.length() < 16; p++) {
-                preview.append('.');
-            }
-            if (pierWidth == 0 && windowWidth == 0) {
-                break;
-            }
-        }
-        return preview.toString();
     }
 
     static void renderEarthworkPadElevationHint(BuildingFootprint building) {

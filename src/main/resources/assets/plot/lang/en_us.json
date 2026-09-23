@@ -4350,7 +4350,6 @@
   "plugin.building.window_settings": "Window settings",
   "plugin.building.windows_enabled": "Auto windows",
   "plugin.building.window_pier_width": "Pier width: %d blocks",
-  "plugin.building.window_rhythm_preview": "Facade rhythm: %s",
   "plugin.building.window_spacing": "Window spacing: %d blocks (0 = none)",
   "plugin.building.window_width": "Window width: %d blocks",
   "plugin.building.window_height": "Window height: %d blocks",
