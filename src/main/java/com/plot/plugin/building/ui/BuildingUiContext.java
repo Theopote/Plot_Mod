@@ -371,6 +371,10 @@ public final class BuildingUiContext {
         actions.tickDistrictPreviewJob();
     }
 
+    public void dismissDistrictPreviewJobUi() {
+        actions.dismissDistrictPreviewJobUi();
+    }
+
     public void tickGhostProjection() {
         actions.tickGhostProjection();
     }

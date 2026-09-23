@@ -57,33 +57,6 @@ public final class BuildingToolbarPanel {
                     : PluginUiColors.STATUS_OK,
                 ctx.projectStatus());
         }
-        renderDistrictPreviewControls();
-        ImGui.separator();
-    }
-
-    private void renderDistrictPreviewControls() {
-        if (!ctx.isDistrictPreviewBusy()) {
-            return;
-        }
-        DistrictPreviewJob job = ctx.state().getDistrictPreviewJob();
-        String status = job != null
-            ? PlotI18n.tr(
-                "plugin.building.district_preview_progress",
-                job.processedCount(),
-                job.totalCount())
-            : PlotI18n.tr("plugin.building.generate.preview_running");
-        int processed = job != null ? job.processedCount() : 0;
-        int total = job != null ? job.totalCount() : 0;
-        PluginJobProgressUi.renderJobProgress(
-            status,
-            processed,
-            total,
-            ImGui.getContentRegionAvailX(),
-            "plugin.building.cancel_district_preview",
-            () -> {
-                ctx.cancelDistrictPreviewJob();
-                ctx.setProjectStatus(PlotI18n.tr("plugin.building.district_preview_cancelled"));
-            });
         ImGui.separator();
     }
 

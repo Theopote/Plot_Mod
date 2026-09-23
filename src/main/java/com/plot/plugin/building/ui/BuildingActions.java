@@ -147,6 +147,13 @@ public final class BuildingActions {
         }
     }
 
+    public void dismissDistrictPreviewJobUi() {
+        DistrictPreviewJob job = state.getDistrictPreviewJob();
+        if (job != null && job.shouldDismissFromState()) {
+            state.setDistrictPreviewJob(null);
+        }
+    }
+
     public void tickGhostProjection() {
         if (pendingGhostUpload == null) {
             return;
@@ -192,7 +199,7 @@ public final class BuildingActions {
 
     public boolean isDistrictPreviewBusy() {
         DistrictPreviewJob job = state.getDistrictPreviewJob();
-        return job != null && job.isRunning();
+        return job != null && job.isVisibleInUi();
     }
 
     public boolean isGhostProjectionBusy() {
@@ -256,7 +263,6 @@ public final class BuildingActions {
         if (state.getDistrictPreviewJob() != job) {
             return;
         }
-        state.setDistrictPreviewJob(null);
         state.setDistrictPreviewBuildConfirmPending(false);
         boolean ready = applyDistrictPreviewResult(
             job.buildings(),

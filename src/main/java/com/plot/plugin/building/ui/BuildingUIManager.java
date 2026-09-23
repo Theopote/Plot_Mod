@@ -22,7 +22,6 @@ public final class BuildingUIManager {
     }
 
     public void render() {
-        ctx.tickDistrictPreviewJob();
         ctx.tickGhostProjection();
         ctx.buildingRename().tickFrame();
 
@@ -53,6 +52,9 @@ public final class BuildingUIManager {
             ctx.buildingRename().cancelActive();
         }
         footprintsTabOpenLastFrame = footprintsTabOpen;
+
+        ctx.tickDistrictPreviewJob();
+        ctx.dismissDistrictPreviewJobUi();
     }
 
     public void renderDeferredModals() {

@@ -87,6 +87,7 @@ public final class BuildingMassingPreview {
         }
 
         if (ctx.isDistrictPreviewBusy()) {
+            BuildingDistrictPreviewProgress.render(ctx);
             return;
         }
         switch (validity) {
