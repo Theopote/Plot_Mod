@@ -107,7 +107,7 @@ public final class BuildingMassingPreview {
             case NONE -> { }
             case STALE -> ImGui.textColored(
                 com.plot.plugin.ui.PluginUiColors.WARNING,
-                PlotI18n.tr("plugin.building.generate.preview_stale"));
+                PlotI18n.tr("plugin.building.generate.parameters_changed"));
             case VALID -> ImGui.textColored(
                 com.plot.plugin.ui.PluginUiColors.STATUS_OK,
                 PlotI18n.tr("plugin.building.generate.preview_ready"));

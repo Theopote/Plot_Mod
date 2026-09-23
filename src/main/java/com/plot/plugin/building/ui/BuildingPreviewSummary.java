@@ -21,44 +21,43 @@ public final class BuildingPreviewSummary {
             return;
         }
         if (ctx.previewValidity(targets) == BuildingPreviewIdentity.Validity.STALE) {
-            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.building.generate.result_stale"));
+            ImGui.textColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr("plugin.building.generate.parameters_changed"));
         }
 
-        int generated = generatedCount(ctx);
-        int attempted = attemptedCount(ctx, targets.size());
-        int blocks = blockCount(ctx);
+        List<BuildingGenerationIssues.Issue> issues = ctx.collectPreviewIssues(targets);
+        BuildingGenerationIssues.Summary summary = BuildingGenerationIssues.summarize(
+            ctx.lastDistrictResult(),
+            issues,
+            targets.size());
 
         ImGui.textColored(
             PluginUiColors.STATUS_OK,
-            PlotI18n.tr("plugin.building.generate.summary_ready", generated, attempted));
-        ImGui.text(PlotI18n.tr("plugin.building.generate.summary_blocks", blocks));
-
-        int issueCount = ctx.collectPreviewIssues(targets).size();
-        if (issueCount > 0) {
+            PlotI18n.tr("plugin.building.generate.summary_ready", summary.generated(), summary.attempted()));
+        if (summary.skipped() > 0) {
             ImGui.textColored(
                 PluginUiColors.WARNING,
-                PlotI18n.tr("plugin.building.generate.issue_count", issueCount));
+                PlotI18n.tr("plugin.building.generate.summary_skipped", summary.skipped()));
+        }
+        if (summary.warningCount() > 0) {
+            ImGui.textColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr("plugin.building.generate.summary_warnings", summary.warningCount()));
+        }
+        if (summary.infoCount() > 0) {
+            ImGui.textColored(
+                PluginUiColors.STATUS_INFO,
+                PlotI18n.tr("plugin.building.generate.summary_info", summary.infoCount()));
+        }
+        ImGui.text(PlotI18n.tr("plugin.building.generate.summary_blocks", blockCount(ctx)));
+
+        if (summary.hasIssues()) {
             ImGui.sameLine();
             if (ImGui.smallButton(PlotI18n.tr("plugin.building.generate.show_issues"))) {
                 openIssuesPopup.run();
             }
         }
-    }
-
-    private static int generatedCount(BuildingUiContext ctx) {
-        DistrictGenerationResult district = ctx.lastDistrictResult();
-        if (district != null && district.buildingsAttempted() > 0) {
-            return district.buildingsGenerated();
-        }
-        return ctx.hasPreviewResult() ? 1 : 0;
-    }
-
-    private static int attemptedCount(BuildingUiContext ctx, int targetCount) {
-        DistrictGenerationResult district = ctx.lastDistrictResult();
-        if (district != null && district.buildingsAttempted() > 0) {
-            return district.buildingsAttempted();
-        }
-        return targetCount;
     }
 
     private static int blockCount(BuildingUiContext ctx) {
