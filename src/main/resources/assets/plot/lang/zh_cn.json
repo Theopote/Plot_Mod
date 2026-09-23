@@ -4338,6 +4338,7 @@
   "plugin.building.wall_thickness": "墙厚：%d 格",
   "plugin.building.wall_material": "墙体材质",
   "plugin.building.floor_material": "楼板材质",
+  "plugin.building.window_material": "窗户材质",
   "plugin.building.roof_material": "屋顶材质",
   "plugin.building.foundation_material": "地基填方材质",
   "plugin.building.roof_type": "屋顶类型",

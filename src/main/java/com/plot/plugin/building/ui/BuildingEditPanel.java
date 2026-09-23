@@ -179,6 +179,12 @@ public final class BuildingEditPanel {
                 building.setFloorMaterial(mix);
                 ctx.invalidatePreview();
             });
+        BuildingUiWidgets.renderMaterialButton(ctx, PlotI18n.tr("plugin.building.window_material"), building.getWindowMaterial(),
+            blockId -> {
+                ctx.projectHistory().push(ctx.project());
+                building.setWindowMaterial(blockId);
+                ctx.invalidatePreview();
+            });
         BuildingUiWidgets.renderMaterialButton(ctx, PlotI18n.tr("plugin.building.roof_material"), building.getRoofMaterial(),
             blockId -> {
                 ctx.projectHistory().push(ctx.project());

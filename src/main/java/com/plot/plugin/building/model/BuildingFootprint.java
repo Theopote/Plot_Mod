@@ -32,6 +32,7 @@ public class BuildingFootprint {
     public static final String DEFAULT_FLOOR_MATERIAL = "minecraft:oak_planks";
     public static final String DEFAULT_ROOF_MATERIAL = "minecraft:stone_bricks";
     public static final String DEFAULT_FOUNDATION_FILL = "minecraft:stone";
+    public static final String DEFAULT_WINDOW_MATERIAL = "minecraft:glass_pane";
 
     public enum RoofType {
         FLAT, GABLE, HIP
@@ -119,6 +120,7 @@ public class BuildingFootprint {
     private MaterialMix floorMaterial = MaterialMix.single(DEFAULT_FLOOR_MATERIAL);
     private String roofMaterial = DEFAULT_ROOF_MATERIAL;
     private String foundationFillMaterial = DEFAULT_FOUNDATION_FILL;
+    private String windowMaterial = DEFAULT_WINDOW_MATERIAL;
 
     private RoofType roofType = RoofType.FLAT;
     private int roofPitchRatio = 1;
@@ -266,6 +268,15 @@ public class BuildingFootprint {
     public void setFoundationFillMaterial(String foundationFillMaterial) {
         this.foundationFillMaterial = foundationFillMaterial != null && !foundationFillMaterial.isBlank()
             ? foundationFillMaterial.trim() : DEFAULT_FOUNDATION_FILL;
+    }
+
+    public String getWindowMaterial() {
+        return windowMaterial;
+    }
+
+    public void setWindowMaterial(String windowMaterial) {
+        this.windowMaterial = windowMaterial != null && !windowMaterial.isBlank()
+            ? windowMaterial.trim() : DEFAULT_WINDOW_MATERIAL;
     }
 
     public RoofType getRoofType() {
@@ -532,6 +543,7 @@ public class BuildingFootprint {
         hash = 31 * hash + materialMixFingerprint(floorMaterial);
         hash = 31 * hash + Objects.hashCode(roofMaterial);
         hash = 31 * hash + Objects.hashCode(foundationFillMaterial);
+        hash = 31 * hash + Objects.hashCode(windowMaterial);
         hash = 31 * hash + Objects.hashCode(roofType);
         hash = 31 * hash + roofPitchRatio;
         hash = 31 * hash + roofEaves;

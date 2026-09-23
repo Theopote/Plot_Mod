@@ -15,6 +15,7 @@ import com.plot.plugin.building.model.spec.EnvelopeSpec;
 import com.plot.plugin.building.model.spec.FacadeEdgeScope;
 import com.plot.plugin.building.model.spec.FacadeSpec;
 import com.plot.plugin.building.model.spec.MassingSpec;
+import com.plot.plugin.building.model.spec.OpeningKind;
 import com.plot.plugin.building.model.spec.OpeningSpec;
 import com.plot.plugin.building.model.spec.WindowPatternSpec;
 import net.minecraft.util.math.BlockPos;
@@ -54,6 +55,7 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
         List<Vec2d> basePoints = massing.baseOuterPoints();
         FacadeEdgeScope scope = facade.edgeScope();
         BuildingCanvasScale canvasScale = context.getCanvasScale();
+        String windowBlockId = BuildingGeometryUtils.resolveBlockId(facade.windowMaterial());
 
         for (int floor = 0; floor < massing.floors(); floor++) {
             List<Vec2d> outerPoints = massing.plateForFloor(floor).outerPoints();
@@ -93,6 +95,7 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
                         windowHeight,
                         floorBaseY + sill,
                         envelope.wallThickness(),
+                        windowBlockId,
                         projectionHandler
                     );
                 }
@@ -111,6 +114,7 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
         List<Vec2d> basePoints = massing.baseOuterPoints();
         FacadeEdgeScope scope = facade.edgeScope();
         BuildingCanvasScale canvasScale = context.getCanvasScale();
+        String windowBlockId = BuildingGeometryUtils.resolveBlockId(facade.windowMaterial());
 
         for (OpeningSpec opening : facade.openings()) {
             if (opening.floor() < 0 || opening.floor() >= massing.floors()) {
@@ -124,6 +128,9 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
             if (resolved == null) {
                 continue;
             }
+            String fillBlockId = opening.kind() == OpeningKind.DOOR || opening.kind() == OpeningKind.ARCH
+                ? "minecraft:air"
+                : windowBlockId;
             carveOpening(
                 context,
                 canvasScale,
@@ -135,6 +142,7 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
                 resolved.height(),
                 resolved.startY(),
                 envelope.wallThickness(),
+                fillBlockId,
                 projectionHandler
             );
         }
@@ -151,6 +159,7 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
             int height,
             int startY,
             int wallThickness,
+            String fillBlockId,
             IBlockProjectionService projectionHandler) {
         Set<BlockPos> carved = new LinkedHashSet<>();
         for (int w = 0; w < width; w++) {
@@ -165,7 +174,7 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
                 for (int h = 0; h < height; h++) {
                     BlockPos pos = new BlockPos(column.getX(), startY + h, column.getZ());
                     if (carved.add(pos)) {
-                        BuildingBlockWriter.recordBlock(result, pos, "minecraft:air", projectionHandler);
+                        BuildingBlockWriter.recordBlock(result, pos, fillBlockId, projectionHandler);
                     }
                 }
             }

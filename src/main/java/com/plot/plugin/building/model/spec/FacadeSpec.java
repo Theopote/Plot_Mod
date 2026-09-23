@@ -16,12 +16,13 @@ public final class FacadeSpec {
     private final List<WallFacadeSpec> wallFacades;
     private final List<OpeningSpec> openings;
     private final FacadeEdgeScope edgeScope;
+    private final String windowMaterial;
 
     public FacadeSpec(
             WindowPatternSpec defaultWindowPattern,
             List<WallFacadeSpec> wallFacades,
             List<OpeningSpec> openings) {
-        this(defaultWindowPattern, wallFacades, openings, FacadeEdgeScope.BASE_FOOTPRINT);
+        this(defaultWindowPattern, wallFacades, openings, FacadeEdgeScope.BASE_FOOTPRINT, null);
     }
 
     public FacadeSpec(
@@ -29,6 +30,15 @@ public final class FacadeSpec {
             List<WallFacadeSpec> wallFacades,
             List<OpeningSpec> openings,
             FacadeEdgeScope edgeScope) {
+        this(defaultWindowPattern, wallFacades, openings, edgeScope, null);
+    }
+
+    public FacadeSpec(
+            WindowPatternSpec defaultWindowPattern,
+            List<WallFacadeSpec> wallFacades,
+            List<OpeningSpec> openings,
+            FacadeEdgeScope edgeScope,
+            String windowMaterial) {
         this.defaultWindowPattern = defaultWindowPattern != null
             ? defaultWindowPattern
             : new WindowPatternSpec(4, 1, 2, 1);
@@ -39,6 +49,7 @@ public final class FacadeSpec {
             ? List.copyOf(openings)
             : List.of();
         this.edgeScope = edgeScope != null ? edgeScope : FacadeEdgeScope.BASE_FOOTPRINT;
+        this.windowMaterial = normalizeWindowMaterial(windowMaterial);
     }
 
     public static FacadeSpec from(BuildingFootprint footprint) {
@@ -46,7 +57,8 @@ public final class FacadeSpec {
             WindowPatternSpec.from(footprint),
             footprint.getWallFacades(),
             footprint.getOpenings(),
-            footprint.getFacadeEdgeScope()
+            footprint.getFacadeEdgeScope(),
+            footprint.getWindowMaterial()
         );
     }
 
@@ -64,6 +76,10 @@ public final class FacadeSpec {
 
     public FacadeEdgeScope edgeScope() {
         return edgeScope;
+    }
+
+    public String windowMaterial() {
+        return windowMaterial;
     }
 
     /** 显式门洞（{@link OpeningKind#DOOR}）。 */
@@ -92,5 +108,12 @@ public final class FacadeSpec {
             }
         }
         return defaultWindowPattern;
+    }
+
+    private static String normalizeWindowMaterial(String material) {
+        if (material != null && !material.isBlank()) {
+            return material.trim();
+        }
+        return BuildingFootprint.DEFAULT_WINDOW_MATERIAL;
     }
 }

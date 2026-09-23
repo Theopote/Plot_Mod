@@ -84,6 +84,7 @@ public final class BuildingBatchEditor {
             target.setFloorMaterial(floor != null ? floor.copy() : null);
             target.setRoofMaterial(source.getRoofMaterial());
             target.setFoundationFillMaterial(source.getFoundationFillMaterial());
+            target.setWindowMaterial(source.getWindowMaterial());
         }
         if (mask.roof) {
             target.setRoofType(source.getRoofType());

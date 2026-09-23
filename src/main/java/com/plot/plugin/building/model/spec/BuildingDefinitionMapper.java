@@ -53,6 +53,7 @@ public final class BuildingDefinitionMapper {
         footprint.setWallFacades(facade.wallFacades());
         footprint.setOpenings(facade.openings());
         footprint.setFacadeEdgeScope(facade.edgeScope());
+        footprint.setWindowMaterial(facade.windowMaterial());
 
         RoofSpec roof = definition.roof();
         footprint.setRoofType(roof.type());

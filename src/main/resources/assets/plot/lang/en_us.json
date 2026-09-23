@@ -4338,6 +4338,7 @@
   "plugin.building.wall_thickness": "Wall thickness: %d blocks",
   "plugin.building.wall_material": "Wall material",
   "plugin.building.floor_material": "Floor material",
+  "plugin.building.window_material": "Window material",
   "plugin.building.roof_material": "Roof material",
   "plugin.building.foundation_material": "Foundation fill",
   "plugin.building.roof_type": "Roof type",

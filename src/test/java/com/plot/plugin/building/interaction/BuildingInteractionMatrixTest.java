@@ -140,7 +140,8 @@ class BuildingInteractionMatrixTest {
 
         BuildingGenerationResult result = generate(fp);
         assertTrue(result.placementRecords.size() > 0);
-        assertTrue(countAir(result) > 0, "pattern windows should carve air");
+        assertTrue(countBlock(result, "minecraft:glass_pane") > 0,
+            "pattern windows should fill with default glass pane");
     }
 
     /** Case E: Narrow footprint（inner offset 失败）+ thick-wall 意图 + opening */
@@ -185,6 +186,16 @@ class BuildingInteractionMatrixTest {
         for (var record : result.placementRecords.values()) {
             String id = record.newBlockId;
             if (id != null && id.contains("air")) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    private static int countBlock(BuildingGenerationResult result, String blockId) {
+        int n = 0;
+        for (var record : result.placementRecords.values()) {
+            if (blockId.equals(record.newBlockId)) {
                 n++;
             }
         }

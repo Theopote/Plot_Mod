@@ -180,6 +180,7 @@ public class BuildingProject {
         MaterialMix floorMaterial;
         String roofMaterial;
         String foundationFillMaterial;
+        String windowMaterial;
         String roofType;
         int roofPitchRatio;
         int roofEaves;
@@ -242,6 +243,7 @@ public class BuildingProject {
                 buildingData.floorMaterial = building.getFloorMaterial();
                 buildingData.roofMaterial = building.getRoofMaterial();
                 buildingData.foundationFillMaterial = building.getFoundationFillMaterial();
+                buildingData.windowMaterial = building.getWindowMaterial();
                 buildingData.roofType = building.getRoofType().name();
                 buildingData.roofPitchRatio = building.getRoofPitchRatio();
                 buildingData.roofEaves = building.getRoofEaves();
@@ -368,6 +370,9 @@ public class BuildingProject {
                 }
                 if (buildingData.foundationFillMaterial != null) {
                     footprint.setFoundationFillMaterial(buildingData.foundationFillMaterial);
+                }
+                if (buildingData.windowMaterial != null) {
+                    footprint.setWindowMaterial(buildingData.windowMaterial);
                 }
                 if (buildingData.roofType != null) {
                     try {
