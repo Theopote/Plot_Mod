@@ -3,7 +3,6 @@ package com.plot.plugin.building.ui;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.building.BuildingListHelper;
 import com.plot.plugin.building.model.BuildingFootprint;
-import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -19,29 +18,6 @@ public final class BuildingUiWidgets {
 
     public static String stableSelectableLabel(String visibleLabel, String idSuffix) {
         return visibleLabel + "##" + idSuffix;
-    }
-
-    public static void renderSelectionSummary(BuildingUiContext ctx) {
-        if (ctx.selection().isEmpty()) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.selection_empty"));
-            return;
-        }
-        ImGui.text(PlotI18n.tr(
-            "plugin.building.selection_summary",
-            ctx.selection().size(),
-            ctx.selection().totalBlockCount(
-                ctx.project(),
-                ctx.currentProjection(),
-                ctx.blockCountCache())));
-        BuildingFootprint primary = ctx.selection().primary(ctx.project());
-        if (primary != null && ctx.selection().size() > 1) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-                "plugin.building.selection_primary", primary.getName()));
-        }
-    }
-
-    public static void renderBuildingSelector(BuildingUiContext ctx) {
-        renderBuildingSelector(ctx, "plugin.building.select_building");
     }
 
     public static void renderBuildingSelector(BuildingUiContext ctx, String labelKey) {
