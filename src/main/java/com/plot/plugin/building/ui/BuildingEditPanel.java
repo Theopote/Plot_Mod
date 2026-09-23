@@ -17,7 +17,9 @@ import java.util.List;
 /** 建筑编辑 Tab：单体/批量参数与预设。 */
 public final class BuildingEditPanel {
     private final BuildingUiContext ctx;
-    private String slopedEligibilityWarmBuildingId = "";
+    private int canvasScaleFrame = -1;
+    private String canvasScaleBuildingId = "";
+    private BuildingCanvasScale cachedCanvasScale;
 
     public BuildingEditPanel(BuildingUiContext ctx) {
         this.ctx = ctx;
@@ -65,7 +67,6 @@ public final class BuildingEditPanel {
         if (building == null) {
             return;
         }
-        warmSlopedRoofEligibility(building);
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
             "plugin.building.edit_single_meta",
             ctx.blockCountCache().blockCount(building, ctx.currentProjection()),
@@ -446,28 +447,29 @@ public final class BuildingEditPanel {
             if (index >= 0 && index < roofTypes.length) {
                 ctx.projectHistory().push(ctx.project());
                 building.setRoofType(roofTypes[index]);
+                if (building.getRoofType() != BuildingFootprint.RoofType.FLAT) {
+                    building.refreshSlopedRoofEligibility();
+                }
                 ctx.invalidatePreview();
             }
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.roof_type");
+        Boolean slopedEligible = building.peekSlopedRoofEligibility();
         if (building.getRoofType() != BuildingFootprint.RoofType.FLAT
-                && !building.isSlopedRoofEligible()) {
+                && slopedEligible != null
+                && !slopedEligible) {
             ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.building.roof_rect_hint"));
         }
     }
-
-    /**
-     * Straight Skeleton eligibility 首次计算较重；进入编辑面板时预热，
-     * 避免首次切换坡顶类型或展开「屋顶」区块时卡顿。
-     */
-    private void warmSlopedRoofEligibility(BuildingFootprint building) {
-        if (building.getId().equals(slopedEligibilityWarmBuildingId)) {
-            return;
-        }
-        slopedEligibilityWarmBuildingId = building.getId();
-        building.refreshSlopedRoofEligibility();
-    }
     private BuildingCanvasScale canvasScale(BuildingFootprint building) {
-        return BuildingCanvasScale.capture(ctx.host().coordinates(), building.getOuterPoints());
+        int frame = ImGui.getFrameCount();
+        String buildingId = building.getId();
+        if (frame == canvasScaleFrame && buildingId.equals(canvasScaleBuildingId) && cachedCanvasScale != null) {
+            return cachedCanvasScale;
+        }
+        cachedCanvasScale = BuildingCanvasScale.capture(ctx.host().coordinates(), building.getOuterPoints());
+        canvasScaleBuildingId = buildingId;
+        canvasScaleFrame = frame;
+        return cachedCanvasScale;
     }
 }
