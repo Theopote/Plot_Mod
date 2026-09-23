@@ -17,6 +17,7 @@ import java.util.List;
 /** 建筑编辑 Tab：单体/批量参数与预设。 */
 public final class BuildingEditPanel {
     private final BuildingUiContext ctx;
+    private String slopedEligibilityWarmBuildingId = "";
 
     public BuildingEditPanel(BuildingUiContext ctx) {
         this.ctx = ctx;
@@ -64,6 +65,7 @@ public final class BuildingEditPanel {
         if (building == null) {
             return;
         }
+        warmSlopedRoofEligibility(building);
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
             "plugin.building.edit_single_meta",
             ctx.blockCountCache().blockCount(building, ctx.currentProjection()),
@@ -442,8 +444,22 @@ public final class BuildingEditPanel {
             }
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.roof_type");
-        if (!building.isSlopedRoofEligible()) {
+        if (building.getRoofType() != BuildingFootprint.RoofType.FLAT
+                && !building.isSlopedRoofEligible()) {
             ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.building.roof_rect_hint"));
+        }
+    }
+
+    /**
+     * Straight Skeleton  eligibility 首次计算较重；在展开「屋顶」区块前预热，避免点击折叠头卡顿。
+     */
+    private void warmSlopedRoofEligibility(BuildingFootprint building) {
+        if (building.getId().equals(slopedEligibilityWarmBuildingId)) {
+            return;
+        }
+        slopedEligibilityWarmBuildingId = building.getId();
+        if (building.getRoofType() != BuildingFootprint.RoofType.FLAT) {
+            building.isSlopedRoofEligible();
         }
     }
     private BuildingCanvasScale canvasScale(BuildingFootprint building) {

@@ -49,8 +49,13 @@ public final class BuildingUiWidgets {
         }
     }
 
-    /** 重置编辑面板表单列宽（每帧在渲染控件前调用一次）。 */
+    /** 重置编辑面板表单列宽（内容区宽度变化时才重算）。 */
     public static void beginFormPanel() {
+        float contentWidth = ImGui.getWindowContentRegionMaxX() - ImGui.getWindowContentRegionMinX();
+        if (formRightLabelWidth >= 0f && Math.abs(contentWidth - cachedContentRegionWidth) <= 0.5f) {
+            return;
+        }
+        cachedContentRegionWidth = contentWidth;
         formRightLabelWidth = -1f;
     }
 
@@ -69,6 +74,7 @@ public final class BuildingUiWidgets {
     }
 
     private static float formRightLabelWidth = -1f;
+    private static float cachedContentRegionWidth = -1f;
 
     private static final String[] FORM_RIGHT_LABEL_KEYS = {
         "plugin.building.building_name",
