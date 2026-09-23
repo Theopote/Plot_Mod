@@ -3,6 +3,7 @@ package com.plot.plugin.building.generation.stage;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.plugin.building.BuildingGeometryUtils;
+import com.plot.plugin.building.BuildingGeometryUtils.WallSample;
 import com.plot.plugin.building.generation.BuildingBlockWriter;
 import com.plot.plugin.building.generation.BuildingCanvasScale;
 import com.plot.plugin.building.generation.BuildingGenerationContext;
@@ -10,6 +11,8 @@ import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.generation.facade.FacadeEdgeResolver;
 import com.plot.plugin.building.generation.opening.OpeningPlacementResolver;
 import com.plot.plugin.building.generation.opening.OpeningPlacementResolver.ResolvedOpening;
+import com.plot.plugin.building.generation.opening.WindowLayoutResolver;
+import com.plot.plugin.building.generation.opening.WindowLayoutResolver.PlannedWindow;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
 import com.plot.plugin.building.model.spec.EnvelopeSpec;
 import com.plot.plugin.building.model.spec.FacadeEdgeScope;
@@ -17,7 +20,6 @@ import com.plot.plugin.building.model.spec.FacadeSpec;
 import com.plot.plugin.building.model.spec.MassingSpec;
 import com.plot.plugin.building.model.spec.OpeningKind;
 import com.plot.plugin.building.model.spec.OpeningSpec;
-import com.plot.plugin.building.model.spec.WindowPatternSpec;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.LinkedHashSet;
@@ -27,7 +29,7 @@ import java.util.Set;
 /**
  * 门窗开洞：在墙体上镂空，覆盖先前写入的墙体记录。
  * <p>
- * 窗型阵列由 {@link FacadeSpec#windowPatternForSegment} 控制；显式开洞由 {@link OpeningSpec} 描述。
+ * 窗型阵列由 {@link WindowLayoutResolver} 沿外轮廓连续排布；显式开洞由 {@link OpeningSpec} 描述。
  * 默认 {@link FacadeEdgeScope#BASE_FOOTPRINT}：边索引相对基础轮廓，经方向继承映射到当前层。
  * inner offset 失败时仍沿外轮廓开洞，见 {@link com.plot.plugin.building.generation.massing.InnerOffsetDegradation}。
  */
@@ -59,46 +61,30 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
 
         for (int floor = 0; floor < massing.floors(); floor++) {
             List<Vec2d> outerPoints = massing.plateForFloor(floor).outerPoints();
-            int segmentCount = outerPoints.size();
             int floorBaseY = baseElevation + floor * massing.floorHeight();
 
-            for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++) {
-                int patternIndex = FacadeEdgeResolver.patternSourceIndex(
-                    scope, segmentIndex, basePoints, outerPoints);
-                int patternCount = scope == FacadeEdgeScope.FLOOR_LOCAL
-                    ? segmentCount
-                    : basePoints.size();
-                WindowPatternSpec windows = facade.windowPatternForSegment(patternIndex, patternCount);
-                if (!windows.enabled()) {
-                    continue;
-                }
-                int sill = Math.min(windows.sillHeight(), massing.floorHeight());
-                int maxWindowHeight = Math.max(1, massing.floorHeight() - sill);
-                int windowHeight = Math.min(Math.max(1, windows.height()), maxWindowHeight);
-                Vec2d segmentStart = outerPoints.get(segmentIndex);
-                Vec2d segmentEnd = outerPoints.get((segmentIndex + 1) % segmentCount);
-                Vec2d segmentMid = segmentStart.lerp(segmentEnd, 0.5);
-                Vec2d segmentDirection = segmentEnd.subtract(segmentStart);
-                double canvasSpacing = canvasScale.blocksToCanvas(
-                    windows.spacing(), segmentMid, segmentDirection);
-                List<BuildingGeometryUtils.WallSample> samples = BuildingGeometryUtils.sampleAlongWallSegment(
-                    outerPoints, segmentIndex, canvasSpacing);
-                for (BuildingGeometryUtils.WallSample sample : samples) {
-                    carveOpening(
-                        context,
-                        canvasScale,
-                        result,
-                        sample.point(),
-                        sample.tangent(),
-                        sample.inwardNormal(),
-                        windows.width(),
-                        windowHeight,
-                        floorBaseY + sill,
-                        envelope.wallThickness(),
-                        windowBlockId,
-                        projectionHandler
-                    );
-                }
+            List<PlannedWindow> windows = WindowLayoutResolver.layout(
+                outerPoints,
+                facade,
+                basePoints,
+                scope,
+                canvasScale,
+                massing.floorHeight());
+
+            for (PlannedWindow window : windows) {
+                carveOpeningAlongPath(
+                    context,
+                    canvasScale,
+                    result,
+                    outerPoints,
+                    window.centerArcCanvas(),
+                    window.widthBlocks(),
+                    window.heightBlocks(),
+                    floorBaseY + window.sillBlocks(),
+                    envelope.wallThickness(),
+                    windowBlockId,
+                    projectionHandler
+                );
             }
         }
     }
@@ -148,6 +134,45 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
         }
     }
 
+    /**
+     * 沿闭合外轮廓弧长开洞：每个横向格点使用该处切线，避免转角处伸出建筑外轮廓。
+     */
+    static void carveOpeningAlongPath(
+            BuildingGenerationContext context,
+            BuildingCanvasScale canvasScale,
+            BuildingGenerationResult result,
+            List<Vec2d> outerPoints,
+            double centerArcCanvas,
+            int width,
+            int height,
+            int startY,
+            int wallThickness,
+            String fillBlockId,
+            IBlockProjectionService projectionHandler) {
+        if (width <= 0 || height <= 0 || outerPoints == null || outerPoints.size() < 3) {
+            return;
+        }
+        WallSample centerSample = BuildingGeometryUtils.wallSampleAtClosedDistance(outerPoints, centerArcCanvas);
+        if (centerSample == null) {
+            return;
+        }
+
+        Set<BlockPos> carved = new LinkedHashSet<>();
+        for (int w = 0; w < width; w++) {
+            double lateralBlocks = w - (width - 1) / 2.0;
+            double offsetCanvas = canvasScale.blocksToCanvas(
+                lateralBlocks, centerSample.point(), centerSample.tangent());
+            double arcCanvas = centerArcCanvas + offsetCanvas;
+            WallSample sample = BuildingGeometryUtils.wallSampleAtClosedDistance(outerPoints, arcCanvas);
+            if (sample == null) {
+                continue;
+            }
+            carveColumn(
+                context, canvasScale, result, sample, height, startY, wallThickness, fillBlockId,
+                projectionHandler, carved);
+        }
+    }
+
     private void carveOpening(
             BuildingGenerationContext context,
             BuildingCanvasScale canvasScale,
@@ -161,21 +186,38 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
             int wallThickness,
             String fillBlockId,
             IBlockProjectionService projectionHandler) {
+        WallSample sample = new WallSample(0, centerPoint, tangent, inwardNormal);
         Set<BlockPos> carved = new LinkedHashSet<>();
         for (int w = 0; w < width; w++) {
             double lateralBlocks = w - (width - 1) / 2.0;
             double lateralCanvas = canvasScale.blocksToCanvas(lateralBlocks, centerPoint, tangent);
-            for (int depth = 0; depth < wallThickness; depth++) {
-                double depthCanvas = canvasScale.blocksToCanvas(depth + 0.5, centerPoint, inwardNormal);
-                Vec2d sample = centerPoint
-                    .add(tangent.multiply(lateralCanvas))
-                    .add(inwardNormal.multiply(depthCanvas));
-                BlockPos column = context.canvasToColumn(sample);
-                for (int h = 0; h < height; h++) {
-                    BlockPos pos = new BlockPos(column.getX(), startY + h, column.getZ());
-                    if (carved.add(pos)) {
-                        BuildingBlockWriter.recordBlock(result, pos, fillBlockId, projectionHandler);
-                    }
+            Vec2d columnPoint = centerPoint.add(tangent.multiply(lateralCanvas));
+            WallSample columnSample = new WallSample(0, columnPoint, tangent, inwardNormal);
+            carveColumn(
+                context, canvasScale, result, columnSample, height, startY, wallThickness, fillBlockId,
+                projectionHandler, carved);
+        }
+    }
+
+    private static void carveColumn(
+            BuildingGenerationContext context,
+            BuildingCanvasScale canvasScale,
+            BuildingGenerationResult result,
+            WallSample sample,
+            int height,
+            int startY,
+            int wallThickness,
+            String fillBlockId,
+            IBlockProjectionService projectionHandler,
+            Set<BlockPos> carved) {
+        for (int depth = 0; depth < wallThickness; depth++) {
+            double depthCanvas = canvasScale.blocksToCanvas(depth + 0.5, sample.point(), sample.inwardNormal());
+            Vec2d point = sample.point().add(sample.inwardNormal().multiply(depthCanvas));
+            BlockPos column = context.canvasToColumn(point);
+            for (int h = 0; h < height; h++) {
+                BlockPos pos = new BlockPos(column.getX(), startY + h, column.getZ());
+                if (carved.add(pos)) {
+                    BuildingBlockWriter.recordBlock(result, pos, fillBlockId, projectionHandler);
                 }
             }
         }

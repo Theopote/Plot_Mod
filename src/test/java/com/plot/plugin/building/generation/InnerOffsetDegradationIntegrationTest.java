@@ -5,6 +5,7 @@ import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.PlacementReadiness;
 import com.plot.api.world.WorldViewBounds;
+import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.building.generation.massing.FloorPlateGeometryResolver;
 import com.plot.plugin.building.generation.stage.FloorGenerationStage;
 import com.plot.plugin.building.generation.stage.OpeningGenerationStage;
@@ -106,11 +107,12 @@ class InnerOffsetDegradationIntegrationTest {
             new OpeningGenerationStage()
         )).generate(context);
 
-        long airBlocks = result.placementRecords.values().stream()
-            .filter(record -> "minecraft:air".equals(record.newBlockId))
+        String windowMaterial = BuildingGeometryUtils.resolveBlockId(footprint.getWindowMaterial());
+        long windowBlocks = result.placementRecords.values().stream()
+            .filter(record -> windowMaterial.equals(record.newBlockId))
             .count();
-        assertTrue(airBlocks > 0, "pattern windows should carve solid wall mass");
-        assertTrue(result.placementRecords.size() > airBlocks, "walls must exist before openings");
+        assertTrue(windowBlocks > 0, "pattern windows should carve solid wall mass");
+        assertTrue(result.placementRecords.size() > windowBlocks, "walls must exist before openings");
     }
 
     private static ICoordinateService stubCoordinates() {

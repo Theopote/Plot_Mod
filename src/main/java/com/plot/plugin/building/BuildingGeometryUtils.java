@@ -210,12 +210,22 @@ public final class BuildingGeometryUtils {
     }
 
     public static Vec2d pointAtClosedDistance(List<Vec2d> points, double targetDistance) {
-        if (points == null || points.isEmpty()) {
+        WallSample sample = wallSampleAtClosedDistance(points, targetDistance);
+        return sample != null ? sample.point() : null;
+    }
+
+    /**
+     * 沿闭合外轮廓弧长取墙采样点（含切线与内法向）。{@code targetDistance} 为画布单位，可超出周长并自动取模。
+     */
+    public static WallSample wallSampleAtClosedDistance(List<Vec2d> points, double targetDistance) {
+        if (points == null || points.size() < 3) {
             return null;
         }
-        if (targetDistance <= 0) {
-            return points.getFirst().copy();
+        double totalLength = calculateClosedPathLength(points);
+        if (totalLength < 1e-9) {
+            return null;
         }
+        double distance = normalizeClosedDistance(targetDistance, totalLength);
 
         double accumulated = 0.0;
         int n = points.size();
@@ -226,13 +236,53 @@ public final class BuildingGeometryUtils {
             if (segmentLength < 1e-9) {
                 continue;
             }
-            if (accumulated + segmentLength >= targetDistance) {
-                double t = (targetDistance - accumulated) / segmentLength;
-                return start.lerp(end, t);
+            if (accumulated + segmentLength >= distance) {
+                double t = (distance - accumulated) / segmentLength;
+                Vec2d point = start.lerp(end, t);
+                Vec2d tangent = end.subtract(start).normalize();
+                Vec2d inwardNormal = outwardNormal(points, i).multiply(-1);
+                return new WallSample(i, point, tangent, inwardNormal);
             }
             accumulated += segmentLength;
         }
-        return points.getFirst().copy();
+        return new WallSample(
+            0,
+            points.getFirst().copy(),
+            wallSegmentTangent(points, 0),
+            outwardNormal(points, 0).multiply(-1));
+    }
+
+    /** 各顶点在闭合路径上的弧长（画布单位），长度 = 顶点数。 */
+    public static List<Double> cornerArcPositions(List<Vec2d> points) {
+        if (points == null || points.size() < 3) {
+            return List.of();
+        }
+        List<Double> corners = new ArrayList<>(points.size());
+        double accumulated = 0.0;
+        int n = points.size();
+        for (int i = 0; i < n; i++) {
+            corners.add(accumulated);
+            Vec2d start = points.get(i);
+            Vec2d end = points.get((i + 1) % n);
+            accumulated += start.distance(end);
+        }
+        return corners;
+    }
+
+    public static double normalizeClosedDistance(double distance, double totalLength) {
+        if (totalLength < 1e-9) {
+            return 0.0;
+        }
+        double normalized = distance % totalLength;
+        if (normalized < 0) {
+            normalized += totalLength;
+        }
+        return normalized;
+    }
+
+    public static int segmentIndexAtClosedDistance(List<Vec2d> points, double targetDistance) {
+        WallSample sample = wallSampleAtClosedDistance(points, targetDistance);
+        return sample != null ? sample.segmentIndex() : 0;
     }
 
     public static Vec2d pointOnWallSegment(List<Vec2d> points, int segmentIndex, double positionRatio) {
