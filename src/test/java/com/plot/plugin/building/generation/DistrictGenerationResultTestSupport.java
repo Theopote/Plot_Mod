@@ -3,6 +3,7 @@ package com.plot.plugin.building.generation;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.building.model.BuildingFootprint;
 
+import java.util.Arrays;
 import java.util.List;
 
 /** 测试用 DistrictGenerationResult 构造辅助（同包可访问 package-private API）。 */
@@ -24,9 +25,7 @@ public final class DistrictGenerationResultTestSupport {
     public static BuildingGenerationResult resultWithWarnings(String... warnings) {
         BuildingGenerationResult result = new BuildingGenerationResult();
         result.blockCount = 1;
-        for (String warning : warnings) {
-            result.warnings.add(warning);
-        }
+        result.warnings.addAll(Arrays.asList(warnings));
         return result;
     }
 

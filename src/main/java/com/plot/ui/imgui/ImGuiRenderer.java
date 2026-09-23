@@ -218,6 +218,7 @@ public class ImGuiRenderer {
 
     /** 界面常用符号区段（箭头、破折号、比较符、状态图标等） */
     private static final short[] UI_SYMBOL_GLYPH_RANGES = new short[] {
+        (short) 0x2130, (short) 0x213F, // 字母式符号 ℹ (2139) 等
         (short) 0x2190, (short) 0x21FF, // 箭头
         (short) 0x2010, (short) 0x2027, // 破折号、省略号 … (2026)
         (short) 0x2264, (short) 0x2265, // ≤ ≥
