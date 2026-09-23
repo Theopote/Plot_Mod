@@ -48,8 +48,7 @@ public final class ParapetGenerator {
             if (!InnerOffsetDegradation.isWallMassCell(outerPolygon, innerPolygon, cell.center())) {
                 continue;
             }
-            BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(
-                cell.center(), context.getCoordinateService());
+            BlockPos column = context.canvasToColumn(cell.center());
             for (int layer = 0; layer < spec.height(); layer++) {
                 BlockPos pos = new BlockPos(column.getX(), topWallY + layer, column.getZ());
                 BuildingBlockWriter.recordBlock(result, pos, blockId, projectionService);

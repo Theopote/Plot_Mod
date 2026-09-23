@@ -323,13 +323,16 @@ public final class BuildingGenerationContext {
         if (canvasPos == null) {
             return BlockPos.ORIGIN;
         }
-        long key = packCanvasCell(canvasPos.x, canvasPos.y);
+        Vec2d aligned = outerPoints != null && outerPoints.size() >= 3
+            ? BuildingGridAlignment.snapToBlockCellCenter(canvasPos, canvasScale, outerPoints)
+            : canvasPos;
+        long key = packCanvasCell(aligned.x, aligned.y);
         BlockPos cached = columnCache.get(key);
         if (cached != null) {
             return cached;
         }
         BlockPos column = com.plot.plugin.building.BuildingGeometryUtils.canvasToBlockXZ(
-            canvasPos, canvasScale.resolveCoordinates(coordinateService));
+            aligned, canvasScale.resolveCoordinates(coordinateService));
         columnCache.put(key, column);
         return column;
     }

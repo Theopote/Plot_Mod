@@ -48,8 +48,8 @@ public final class FloorPlateGeometryResolver {
         Polygon innerPolygon = innerPoints.size() >= 3
             ? BuildingGeometryUtils.toPolygon(innerPoints)
             : null;
-        // 格网步长 = 1 世界方块对应的画布距离（可 >1 canvas unit），避免粗采样把墙环加厚。
-        double wallCellSize = scale.uniformBlocksToCanvas(1.0, outerPoints);
+        double wallCellSize = com.plot.plugin.building.generation.BuildingGridAlignment
+            .blockCellSizeCanvas(scale, outerPoints);
         List<BuildingGenerationContext.GridCell> outerCells = BuildingGenerationContext.collectFootprintCells(
             outerPoints, outerPolygon, wallCellSize);
         return new ResolvedFloorPlate(

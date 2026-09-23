@@ -51,8 +51,10 @@ public final class FloorGenerationStage implements BuildingGenerationStage {
                 continue;
             }
             int floorY = baseElevation + floor * massing.floorHeight();
+            double blockCellSize = context.getCanvasScale().uniformBlocksToCanvas(
+                1.0, plate.outerPoints());
             List<BuildingGenerationContext.GridCell> innerCells = BuildingGenerationContext.collectFootprintCells(
-                plate.innerPoints(), innerPolygon);
+                plate.innerPoints(), innerPolygon, blockCellSize);
             for (BuildingGenerationContext.GridCell cell : innerCells) {
                 if (!InnerOffsetDegradation.isInteriorCell(innerPolygon, cell.center())) {
                     continue;
@@ -82,8 +84,10 @@ public final class FloorGenerationStage implements BuildingGenerationStage {
         String roofBlockId = context.getRoofBlockId();
         IBlockProjectionService projectionHandler = context.getProjectionService();
 
+        double blockCellSize = context.getCanvasScale().uniformBlocksToCanvas(
+            1.0, topPlate.outerPoints());
         List<BuildingGenerationContext.GridCell> innerCells = BuildingGenerationContext.collectFootprintCells(
-            topPlate.innerPoints(), innerPolygon);
+            topPlate.innerPoints(), innerPolygon, blockCellSize);
         for (BuildingGenerationContext.GridCell cell : innerCells) {
             if (!InnerOffsetDegradation.isInteriorCell(innerPolygon, cell.center())) {
                 continue;

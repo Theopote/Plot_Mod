@@ -152,7 +152,8 @@ public final class BuildingGenerationContextFactory {
         Map<Long, BuildingSiteColumnSample> columnSamples = new HashMap<>();
         List<BuildingSiteColumnSample> samples = new ArrayList<>();
         for (BuildingGenerationContext.GridCell cell : massing.footprintCells()) {
-            BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(cell.center(), coordinateService);
+            BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(
+                cell.center(), canvasScale.resolveCoordinates(coordinateService));
             long key = BuildingSiteAnalyzer.packColumn(column.getX(), column.getZ());
             BuildingSiteColumnSample sample = columnSamples.computeIfAbsent(
                 key,

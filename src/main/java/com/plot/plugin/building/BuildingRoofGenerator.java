@@ -53,7 +53,8 @@ public final class BuildingRoofGenerator {
             : null;
         boolean ridgeAlongX = bounds != null && bounds.width() >= bounds.depth();
 
-        for (Vec2d center : BuildingGeometryUtils.collectFootprintCellCenters(outerPoints)) {
+        double blockCellSize = scale.uniformBlocksToCanvas(1.0, outerPoints);
+        for (Vec2d center : BuildingGeometryUtils.collectFootprintCellCenters(outerPoints, blockCellSize)) {
             if (!roofPolygon.contains(center)) {
                 continue;
             }
