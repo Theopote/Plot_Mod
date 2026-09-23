@@ -5,7 +5,6 @@ import com.plot.plugin.building.generation.DistrictGenerationResult;
 import com.plot.plugin.building.generation.DistrictMassingGenerator;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.ui.PluginJobProgressUi;
-import imgui.ImGui;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
@@ -18,7 +17,12 @@ import java.util.List;
  */
 public final class DistrictPreviewJob {
     /** 每帧处理的建筑数（较小值可减少单帧卡顿）。 */
-    public static final int BUILDINGS_PER_TICK = 2;
+    public static final int BUILDINGS_PER_TICK = 1;
+
+    private enum Phase {
+        GENERATING,
+        FINALIZING
+    }
 
     private final List<BuildingFootprint> buildings;
     private final boolean autoProjectGhosts;
@@ -26,11 +30,10 @@ public final class DistrictPreviewJob {
     private final BuildingActions actions;
 
     private final DistrictGenerationResult district = new DistrictGenerationResult();
-    private final int createdFrame;
     private int nextIndex;
+    private Phase phase = Phase.GENERATING;
     private volatile boolean running = true;
     private volatile boolean cancelled;
-    private int completedFrame = -1;
 
     public DistrictPreviewJob(
             List<BuildingFootprint> buildings,
@@ -41,25 +44,19 @@ public final class DistrictPreviewJob {
         this.autoProjectGhosts = autoProjectGhosts;
         this.buildConfirmOnComplete = buildConfirmOnComplete;
         this.actions = actions;
-        this.createdFrame = ImGui.getFrameCount();
-    }
-
-    public boolean shouldDeferTick() {
-        return ImGui.getFrameCount() <= createdFrame;
-    }
-
-    public boolean isVisibleInUi() {
-        return isRunning() || completedFrame >= 0;
-    }
-
-    public boolean shouldDismissFromState() {
-        return completedFrame >= 0 && ImGui.getFrameCount() > completedFrame;
     }
 
     public void tick() {
-        if (!running || cancelled || buildings.isEmpty() || shouldDeferTick()) {
+        if (!running || cancelled || buildings.isEmpty()) {
             return;
         }
+
+        if (phase == Phase.FINALIZING) {
+            actions.completeDistrictPreviewJob(this, district, autoProjectGhosts, buildConfirmOnComplete);
+            running = false;
+            return;
+        }
+
         World world = actions.getClientWorld();
         BuildingGenerator generator = actions.buildingGenerator();
         if (world == null || generator == null) {
@@ -74,12 +71,12 @@ public final class DistrictPreviewJob {
             DistrictMassingGenerator.processOne(buildings.get(i), generateFn, district);
         }
         nextIndex = end;
+        actions.updateDistrictPreviewJobProgress(this);
 
         if (nextIndex >= buildings.size()) {
             DistrictMassingGenerator.finalizeResult(district);
-            running = false;
-            completedFrame = ImGui.getFrameCount();
-            actions.completeDistrictPreviewJob(this, district, autoProjectGhosts, buildConfirmOnComplete);
+            phase = Phase.FINALIZING;
+            actions.updateDistrictPreviewJobProgress(this);
         }
     }
 

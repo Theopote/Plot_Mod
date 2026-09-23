@@ -19,15 +19,20 @@ public final class BuildingDistrictPreviewProgress {
         String status = job != null
             ? PlotI18n.tr("plugin.building.generate.check_progress", processed, total)
             : PlotI18n.tr("plugin.building.generate.preview_running");
-        PluginJobProgressUi.renderJobProgress(
-            status,
-            processed,
-            total,
-            ImGui.getContentRegionAvailX(),
-            "plugin.building.cancel_check",
-            () -> {
-                ctx.cancelDistrictPreviewJob();
-                ctx.setProjectStatus(PlotI18n.tr("plugin.building.generate.check_cancelled"));
-            });
+        ImGui.pushID("building_district_preview_progress");
+        try {
+            PluginJobProgressUi.renderJobProgress(
+                status,
+                processed,
+                total,
+                ImGui.getContentRegionAvailX(),
+                "plugin.building.cancel_check",
+                () -> {
+                    ctx.cancelDistrictPreviewJob();
+                    ctx.setProjectStatus(PlotI18n.tr("plugin.building.generate.check_cancelled"));
+                });
+        } finally {
+            ImGui.popID();
+        }
     }
 }

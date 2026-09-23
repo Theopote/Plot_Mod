@@ -55,7 +55,10 @@ public final class PluginJobProgressUi {
             ImGui.textColored(PluginUiColors.STATUS_INFO, statusText);
         }
         if (total > 0) {
-            ImGui.progressBar(fraction(processed, total), barWidth, 0);
+            float width = barWidth > 0f ? barWidth : ImGui.getContentRegionAvailX();
+            ImGui.pushID("job_progress_bar");
+            ImGui.progressBar(fraction(processed, total), width, 0);
+            ImGui.popID();
             ImGui.text(PlotI18n.tr("plugin.ui.job_progress_percent", percent(processed, total)));
             ImGui.sameLine();
             ImGui.textDisabled(formatCounts(processed, total));

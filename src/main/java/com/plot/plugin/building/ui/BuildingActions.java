@@ -138,6 +138,17 @@ public final class BuildingActions {
             buildConfirmOnComplete,
             this);
         state.setDistrictPreviewJob(job);
+        updateDistrictPreviewJobProgress(job);
+    }
+
+    void updateDistrictPreviewJobProgress(DistrictPreviewJob job) {
+        if (job == null) {
+            return;
+        }
+        state.setProjectStatus(PlotI18n.tr(
+            "plugin.building.generate.check_progress",
+            job.processedCount(),
+            job.totalCount()));
     }
 
     public void tickDistrictPreviewJob() {
@@ -148,10 +159,7 @@ public final class BuildingActions {
     }
 
     public void dismissDistrictPreviewJobUi() {
-        DistrictPreviewJob job = state.getDistrictPreviewJob();
-        if (job != null && job.shouldDismissFromState()) {
-            state.setDistrictPreviewJob(null);
-        }
+        // Job 在 complete / fail / cancel 时即清除；保留方法供 UI 编排扩展。
     }
 
     public void tickGhostProjection() {
@@ -195,7 +203,7 @@ public final class BuildingActions {
 
     public boolean isDistrictPreviewBusy() {
         DistrictPreviewJob job = state.getDistrictPreviewJob();
-        return job != null && job.isVisibleInUi();
+        return job != null && job.isRunning();
     }
 
     public boolean isGhostProjectionBusy() {
@@ -268,6 +276,7 @@ public final class BuildingActions {
         if (buildConfirmOnComplete && ready) {
             state.setBuildConfirmPending(true);
         }
+        state.setDistrictPreviewJob(null);
     }
 
     private boolean applyDistrictPreviewResult(

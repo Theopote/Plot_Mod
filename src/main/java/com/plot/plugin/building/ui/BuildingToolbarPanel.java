@@ -50,22 +50,12 @@ public final class BuildingToolbarPanel {
             ImGui.endDisabled();
         }
 
-        if (!ctx.projectStatus().isEmpty()) {
+        if (!ctx.projectStatus().isEmpty() && !ctx.isDistrictPreviewBusy()) {
             ImGui.textColored(
-                ctx.isDistrictPreviewBusy() || ctx.isGhostProjectionBusy()
-                    ? PluginUiColors.STATUS_INFO
-                    : PluginUiColors.STATUS_OK,
+                ctx.isGhostProjectionBusy() ? PluginUiColors.STATUS_INFO : PluginUiColors.STATUS_OK,
                 ctx.projectStatus());
         }
-        renderDistrictPreviewControls();
         ImGui.separator();
-    }
-
-    private void renderDistrictPreviewControls() {
-        if (!ctx.isDistrictPreviewBusy()) {
-            return;
-        }
-        BuildingDistrictPreviewProgress.render(ctx);
     }
 
     private void renderActivePlacementControls() {

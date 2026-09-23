@@ -3,6 +3,7 @@ package com.plot.plugin.building.ui;
 import com.plot.plugin.ui.PluginTabScrollUi;
 import imgui.ImGui;
 import imgui.flag.ImGuiTabBarFlags;
+import imgui.flag.ImGuiWindowFlags;
 
 /** 建筑 ImGui 界面编排。 */
 public final class BuildingUIManager {
@@ -24,31 +25,42 @@ public final class BuildingUIManager {
     public void render() {
         ctx.tickGhostProjection();
         ctx.buildingRename().tickFrame();
-        ctx.tickDistrictPreviewJob();
-        ctx.dismissDistrictPreviewJobUi();
 
         if (ctx.pickSession().isActive()) {
             footprintsPanel.tickPickSession();
         }
 
+        ctx.tickDistrictPreviewJob();
+
         toolbarPanel.render();
 
-        boolean footprintsTabOpen = false;
-        if (ImGui.beginTabBar("##building_tabs", ImGuiTabBarFlags.None)) {
-            footprintsTabOpen = PluginTabScrollUi.renderTab(
-                "plugin.building.tab.footprints",
-                "##building_tab_footprints",
-                footprintsPanel::render);
-            PluginTabScrollUi.renderTab(
-                "plugin.building.tab.edit",
-                "##building_tab_edit",
-                editPanel::render);
-            PluginTabScrollUi.renderTab(
-                "plugin.building.tab.generate",
-                "##building_tab_generate",
-                generatePanel::render);
-            ImGui.endTabBar();
+        if (ctx.isDistrictPreviewBusy()) {
+            BuildingDistrictPreviewProgress.render(ctx);
+            ImGui.separator();
         }
+
+        float tabHeight = Math.max(80f, ImGui.getContentRegionAvailY());
+        boolean footprintsTabOpen = false;
+        if (ImGui.beginChild("##building_tab_area", 0, tabHeight, false, ImGuiWindowFlags.NoScrollbar)) {
+            if (ImGui.beginTabBar("##building_tabs", ImGuiTabBarFlags.None)) {
+                footprintsTabOpen = PluginTabScrollUi.renderTab(
+                    "plugin.building.tab.footprints",
+                    "##building_tab_footprints",
+                    footprintsPanel::render);
+                PluginTabScrollUi.renderTab(
+                    "plugin.building.tab.edit",
+                    "##building_tab_edit",
+                    editPanel::render);
+                PluginTabScrollUi.renderTab(
+                    "plugin.building.tab.generate",
+                    "##building_tab_generate",
+                    generatePanel::render);
+                ImGui.endTabBar();
+            }
+            ImGui.endChild();
+        }
+
+        ctx.dismissDistrictPreviewJobUi();
 
         if (footprintsTabOpenLastFrame && !footprintsTabOpen) {
             ctx.buildingRename().cancelActive();

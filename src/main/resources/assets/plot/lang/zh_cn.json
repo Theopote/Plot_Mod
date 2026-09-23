@@ -4158,6 +4158,7 @@
   "plugin.building.generate.check_not_run": "尚未检查能否在世界中生成",
   "plugin.building.generate.check_progress": "检查可生成 %d / %d",
   "plugin.building.generate.check_cancelled": "已取消检查",
+  "plugin.building.generate.check_ready": "✓ 已检查，可以建造",
   "plugin.building.cancel_check": "取消检查",
   "plugin.building.generate.massing_preview_idle": "更新预览以查看体量地图",
   "plugin.building.generate.massing_preview_stale": "预览已过期，请更新以刷新地图",

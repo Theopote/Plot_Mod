@@ -4158,6 +4158,7 @@
   "plugin.building.generate.check_not_run": "Buildability not checked yet",
   "plugin.building.generate.check_progress": "Checking buildability %d / %d",
   "plugin.building.generate.check_cancelled": "Buildability check cancelled",
+  "plugin.building.generate.check_ready": "✓ Checked — ready to build",
   "plugin.building.cancel_check": "Cancel check",
   "plugin.building.generate.massing_preview_idle": "Update preview to see massing map",
   "plugin.building.generate.massing_preview_stale": "Preview is stale — update to refresh map",
