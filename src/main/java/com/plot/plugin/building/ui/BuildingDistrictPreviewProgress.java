@@ -14,26 +14,20 @@ public final class BuildingDistrictPreviewProgress {
             return;
         }
         DistrictPreviewJob job = ctx.state().getDistrictPreviewJob();
-        String status = job != null
-            ? PlotI18n.tr(
-                "plugin.building.district_preview_progress",
-                job.processedCount(),
-                job.totalCount())
-            : PlotI18n.tr("plugin.building.generate.preview_running");
         int processed = job != null ? job.processedCount() : 0;
         int total = job != null ? job.totalCount() : 0;
-        int displayProcessed = job != null && job.isRunning() && processed < total
-            ? processed + 1
-            : processed;
+        String status = job != null
+            ? PlotI18n.tr("plugin.building.generate.check_progress", processed, total)
+            : PlotI18n.tr("plugin.building.generate.preview_running");
         PluginJobProgressUi.renderJobProgress(
             status,
-            displayProcessed,
+            processed,
             total,
             ImGui.getContentRegionAvailX(),
-            "plugin.building.cancel_district_preview",
+            "plugin.building.cancel_check",
             () -> {
                 ctx.cancelDistrictPreviewJob();
-                ctx.setProjectStatus(PlotI18n.tr("plugin.building.district_preview_cancelled"));
+                ctx.setProjectStatus(PlotI18n.tr("plugin.building.generate.check_cancelled"));
             });
     }
 }
