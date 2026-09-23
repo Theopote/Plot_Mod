@@ -69,7 +69,7 @@ class InnerOffsetDegradationIntegrationTest {
                 FloorPlateSpec.of(2, 3, tinyUpper))),
             new EnvelopeSpec(3, null, null),
             new FacadeSpec(new WindowPatternSpec(0, 1, 2, 1), List.of(), List.of()),
-            new RoofSpec(BuildingFootprint.RoofType.FLAT, 1, null),
+            new RoofSpec(BuildingFootprint.RoofType.FLAT, 1, 0, null),
             new FoundationSpec(null, 64),
             AccessorySpec.none());
 

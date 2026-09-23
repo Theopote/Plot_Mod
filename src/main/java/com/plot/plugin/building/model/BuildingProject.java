@@ -182,6 +182,7 @@ public class BuildingProject {
         String foundationFillMaterial;
         String roofType;
         int roofPitchRatio;
+        int roofEaves;
         Integer manualBaseElevation;
         int windowSpacing;
         int windowWidth;
@@ -243,6 +244,7 @@ public class BuildingProject {
                 buildingData.foundationFillMaterial = building.getFoundationFillMaterial();
                 buildingData.roofType = building.getRoofType().name();
                 buildingData.roofPitchRatio = building.getRoofPitchRatio();
+                buildingData.roofEaves = building.getRoofEaves();
                 buildingData.manualBaseElevation = building.getManualBaseElevation();
                 buildingData.windowSpacing = building.getWindowSpacing();
                 buildingData.windowWidth = building.getWindowWidth();
@@ -375,6 +377,7 @@ public class BuildingProject {
                     }
                 }
                 footprint.setRoofPitchRatio(buildingData.roofPitchRatio);
+                footprint.setRoofEaves(buildingData.roofEaves);
                 footprint.setManualBaseElevation(buildingData.manualBaseElevation);
                 footprint.setWindowSpacing(buildingData.windowSpacing);
                 footprint.setWindowWidth(buildingData.windowWidth);

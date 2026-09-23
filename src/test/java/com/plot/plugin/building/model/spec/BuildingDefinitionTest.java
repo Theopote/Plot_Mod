@@ -39,6 +39,7 @@ class BuildingDefinitionTest {
 
         assertEquals(BuildingFootprint.RoofType.GABLE, definition.roof().type());
         assertEquals(2, definition.roof().pitchRatio());
+        assertEquals(0, definition.roof().eaves());
         assertEquals("minecraft:dark_oak_planks", definition.roof().material());
 
         assertEquals("minecraft:cobblestone", definition.foundation().fillMaterial());
@@ -64,6 +65,7 @@ class BuildingDefinitionTest {
         assertEquals(original.getWindowSpacing(), target.getWindowSpacing());
         assertEquals(original.getRoofType(), target.getRoofType());
         assertEquals(original.getRoofPitchRatio(), target.getRoofPitchRatio());
+        assertEquals(original.getRoofEaves(), target.getRoofEaves());
         assertEquals(original.getFoundationFillMaterial(), target.getFoundationFillMaterial());
         assertEquals(original.getManualBaseElevation(), target.getManualBaseElevation());
         assertEquals(1, target.doorOpenings().size());

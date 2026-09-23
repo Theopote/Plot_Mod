@@ -88,6 +88,7 @@ public final class BuildingBatchEditor {
         if (mask.roof) {
             target.setRoofType(source.getRoofType());
             target.setRoofPitchRatio(source.getRoofPitchRatio());
+            target.setRoofEaves(source.getRoofEaves());
         }
         if (mask.windows) {
             target.setWindowSpacing(source.getWindowSpacing());

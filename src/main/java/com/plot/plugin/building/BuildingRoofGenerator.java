@@ -16,6 +16,8 @@ import java.util.Objects;
 
 /**
  * 坡屋顶生成器：矩形走精确公式，一般简单多边形走 Straight Skeleton 高度场。
+ * <p>
+ * 坡顶从「屋檐」水平带内侧起坡：距外轮廓 {@code eaves} 格以内为平檐（1 层），再按坡度抬升。
  */
 public final class BuildingRoofGenerator {
     private static final double TOLERANCE = 1e-3;
@@ -30,6 +32,7 @@ public final class BuildingRoofGenerator {
             String roofBlockId,
             BuildingFootprint.RoofType roofType,
             int roofPitchRatio,
+            int roofEaves,
             BuildingCanvasScale canvasScale,
             ICoordinateService coordinateService,
             IBlockProjectionService projectionHandler) {
@@ -43,6 +46,7 @@ public final class BuildingRoofGenerator {
 
         Polygon roofPolygon = BuildingGeometryUtils.toPolygon(outerPoints);
         int pitch = Math.max(1, roofPitchRatio);
+        int eaves = Math.max(0, roofEaves);
         boolean axisAlignedRectangle = BuildingGeometryUtils.isAxisAlignedRectangle(outerPoints, TOLERANCE);
         BuildingGeometryUtils.RectBounds bounds = axisAlignedRectangle
             ? BuildingGeometryUtils.normalizedRectBounds(outerPoints)
@@ -54,22 +58,38 @@ public final class BuildingRoofGenerator {
                 continue;
             }
 
-            int rise = switch (roofType) {
-                case GABLE -> computeGableRise(center, outerPoints, skeleton, bounds, ridgeAlongX, pitch, scale);
-                case HIP -> computeHipRise(center, skeleton, bounds, pitch, scale);
-                default -> 0;
+            double eaveDistance = switch (roofType) {
+                case GABLE -> computeGableEaveDistance(
+                    center, outerPoints, skeleton, bounds, ridgeAlongX, scale);
+                case HIP -> computeHipEaveDistance(center, skeleton, bounds, scale);
+                default -> 0.0;
             };
-
-            if (rise <= 0) {
+            int layers = roofLayerCount(eaveDistance, pitch, eaves);
+            if (layers <= 0) {
                 continue;
             }
 
             BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(center, coords);
-            for (int layer = 1; layer <= rise; layer++) {
+            for (int layer = 1; layer <= layers; layer++) {
                 BlockPos pos = new BlockPos(column.getX(), topFloorY + layer, column.getZ());
                 BuildingBlockWriter.recordBlock(result, pos, roofBlockId, projectionHandler);
             }
         }
+    }
+
+    static int roofLayerCount(double distToEaveBlocks, int pitch, int eavesBlocks) {
+        int pitchValue = Math.max(1, pitch);
+        int eaves = Math.max(0, eavesBlocks);
+        if (distToEaveBlocks <= 0.0) {
+            return 0;
+        }
+        if (eaves > 0 && distToEaveBlocks <= eaves) {
+            return 1;
+        }
+        if (eaves > 0) {
+            return 1 + (int) Math.floor((distToEaveBlocks - eaves) / pitchValue);
+        }
+        return (int) Math.floor(distToEaveBlocks / pitchValue);
     }
 
     static int computeGableRise(
@@ -90,14 +110,38 @@ public final class BuildingRoofGenerator {
             boolean ridgeAlongX,
             int pitch,
             BuildingCanvasScale canvasScale) {
+        return computeGableRise(point, outerPoints, skeleton, bounds, ridgeAlongX, pitch, canvasScale, 0);
+    }
+
+    static int computeGableRise(
+            Vec2d point,
+            List<Vec2d> outerPoints,
+            StraightSkeleton.Result skeleton,
+            BuildingGeometryUtils.RectBounds bounds,
+            boolean ridgeAlongX,
+            int pitch,
+            BuildingCanvasScale canvasScale,
+            int eavesBlocks) {
+        return roofLayerCount(
+            computeGableEaveDistance(point, outerPoints, skeleton, bounds, ridgeAlongX, canvasScale),
+            pitch,
+            eavesBlocks);
+    }
+
+    static double computeGableEaveDistance(
+            Vec2d point,
+            List<Vec2d> outerPoints,
+            StraightSkeleton.Result skeleton,
+            BuildingGeometryUtils.RectBounds bounds,
+            boolean ridgeAlongX,
+            BuildingCanvasScale canvasScale) {
         if (bounds != null) {
-            return computeGableRise(point.x, point.y, bounds, ridgeAlongX, pitch, canvasScale);
+            return computeGableEaveDistance(point.x, point.y, bounds, ridgeAlongX, canvasScale);
         }
         BuildingCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         Vec2d ridgeDirection = skeleton.primaryRidgeDirection();
         double canvasDistance = skeleton.gableEaveDistance(point, ridgeDirection);
-        double worldDistance = scale.canvasToBlocks(canvasDistance, point, ridgeDirection);
-        return riseFromEaveDistance(worldDistance, pitch);
+        return scale.canvasToBlocks(canvasDistance, point, ridgeDirection);
     }
 
     static int computeHipRise(
@@ -114,14 +158,34 @@ public final class BuildingRoofGenerator {
             BuildingGeometryUtils.RectBounds bounds,
             int pitch,
             BuildingCanvasScale canvasScale) {
+        return computeHipRise(point, skeleton, bounds, pitch, canvasScale, 0);
+    }
+
+    static int computeHipRise(
+            Vec2d point,
+            StraightSkeleton.Result skeleton,
+            BuildingGeometryUtils.RectBounds bounds,
+            int pitch,
+            BuildingCanvasScale canvasScale,
+            int eavesBlocks) {
+        return roofLayerCount(
+            computeHipEaveDistance(point, skeleton, bounds, canvasScale),
+            pitch,
+            eavesBlocks);
+    }
+
+    static double computeHipEaveDistance(
+            Vec2d point,
+            StraightSkeleton.Result skeleton,
+            BuildingGeometryUtils.RectBounds bounds,
+            BuildingCanvasScale canvasScale) {
         if (bounds != null) {
-            return computeHipRise(point.x, point.y, bounds, pitch, canvasScale);
+            return computeHipEaveDistance(point.x, point.y, bounds, canvasScale);
         }
         BuildingCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         double canvasDistance = skeleton.skeletalTime(point);
         Vec2d direction = inwardFromNearestEdge(point, skeleton);
-        double worldDistance = scale.canvasToBlocks(canvasDistance, point, direction);
-        return riseFromEaveDistance(worldDistance, pitch);
+        return scale.canvasToBlocks(canvasDistance, point, direction);
     }
 
     /**
@@ -143,14 +207,36 @@ public final class BuildingRoofGenerator {
             boolean ridgeAlongX,
             int pitch,
             BuildingCanvasScale canvasScale) {
+        return computeGableRise(x, z, bounds, ridgeAlongX, pitch, canvasScale, 0);
+    }
+
+    public static int computeGableRise(
+            double x,
+            double z,
+            BuildingGeometryUtils.RectBounds bounds,
+            boolean ridgeAlongX,
+            int pitch,
+            BuildingCanvasScale canvasScale,
+            int eavesBlocks) {
+        return roofLayerCount(
+            computeGableEaveDistance(x, z, bounds, ridgeAlongX, canvasScale),
+            pitch,
+            eavesBlocks);
+    }
+
+    static double computeGableEaveDistance(
+            double x,
+            double z,
+            BuildingGeometryUtils.RectBounds bounds,
+            boolean ridgeAlongX,
+            BuildingCanvasScale canvasScale) {
         BuildingCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         Vec2d point = new Vec2d(x, z);
         double canvasDistance = ridgeAlongX
             ? Math.min(z - bounds.minZ(), bounds.maxZ() - z)
             : Math.min(x - bounds.minX(), bounds.maxX() - x);
         Vec2d direction = ridgeAlongX ? new Vec2d(0, 1) : new Vec2d(1, 0);
-        double worldDistance = scale.canvasToBlocks(canvasDistance, point, direction);
-        return riseFromEaveDistance(worldDistance, pitch);
+        return scale.canvasToBlocks(canvasDistance, point, direction);
     }
 
     /**
@@ -170,21 +256,39 @@ public final class BuildingRoofGenerator {
             BuildingGeometryUtils.RectBounds bounds,
             int pitch,
             BuildingCanvasScale canvasScale) {
+        return computeHipRise(x, z, bounds, pitch, canvasScale, 0);
+    }
+
+    static int computeHipRise(
+            double x,
+            double z,
+            BuildingGeometryUtils.RectBounds bounds,
+            int pitch,
+            BuildingCanvasScale canvasScale,
+            int eavesBlocks) {
+        return roofLayerCount(
+            computeHipEaveDistance(x, z, bounds, canvasScale),
+            pitch,
+            eavesBlocks);
+    }
+
+    static double computeHipEaveDistance(
+            double x,
+            double z,
+            BuildingGeometryUtils.RectBounds bounds,
+            BuildingCanvasScale canvasScale) {
         BuildingCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         Vec2d point = new Vec2d(x, z);
         double dx = Math.min(x - bounds.minX(), bounds.maxX() - x);
         double dz = Math.min(z - bounds.minZ(), bounds.maxZ() - z);
         double canvasDistance = Math.min(dx, dz);
         Vec2d direction = dx <= dz ? new Vec2d(1, 0) : new Vec2d(0, 1);
-        double worldDistance = scale.canvasToBlocks(canvasDistance, point, direction);
-        return riseFromEaveDistance(worldDistance, pitch);
+        return scale.canvasToBlocks(canvasDistance, point, direction);
     }
 
+    /** @deprecated use {@link #roofLayerCount} */
     static int riseFromEaveDistance(double distToEaveBlocks, int pitch) {
-        if (distToEaveBlocks <= 0.0) {
-            return 0;
-        }
-        return (int) Math.floor(distToEaveBlocks / pitch);
+        return roofLayerCount(distToEaveBlocks, pitch, 0);
     }
 
     private static Vec2d inwardFromNearestEdge(Vec2d point, StraightSkeleton.Result skeleton) {

@@ -145,6 +145,18 @@ public final class BuildingEditPanel {
                 ctx.invalidatePreview();
             }
             UIUtils.renderEngineeringTooltip("hint.plot.building.roof_pitch");
+
+            int[] eaves = {building.getRoofEaves()};
+            boolean eavesChanged = ImGui.sliderInt("##roof_eaves", eaves, 0, 5,
+                PlotI18n.tr("plugin.building.roof_eaves", eaves[0]));
+            if (ImGui.isItemActivated()) {
+                ctx.projectHistory().push(ctx.project());
+            }
+            if (eavesChanged) {
+                building.setRoofEaves(eaves[0]);
+                ctx.invalidatePreview();
+            }
+            UIUtils.renderEngineeringTooltip("hint.plot.building.roof_eaves");
         }
     }
 

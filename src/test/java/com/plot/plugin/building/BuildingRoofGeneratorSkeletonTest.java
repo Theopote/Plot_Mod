@@ -150,7 +150,7 @@ class BuildingRoofGeneratorSkeletonTest {
             MassingSpec.create(1, 3, footprint, List.of()),
             new EnvelopeSpec(1, null, null),
             new FacadeSpec(new WindowPatternSpec(0, 1, 2, 1), List.of(), List.of()),
-            new RoofSpec(roofType, pitch, "minecraft:stone_bricks"),
+            new RoofSpec(roofType, pitch, 0, "minecraft:stone_bricks"),
             new FoundationSpec(null, 64),
             AccessorySpec.none()
         );

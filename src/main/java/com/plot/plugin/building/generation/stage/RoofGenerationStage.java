@@ -42,6 +42,7 @@ public final class RoofGenerationStage implements BuildingGenerationStage {
                 context.getRoofBlockId(),
                 roofType,
                 roof.pitchRatio(),
+                roof.eaves(),
                 context.getCanvasScale(),
                 context.getCoordinateService(),
                 context.getProjectionService());
@@ -57,7 +58,7 @@ public final class RoofGenerationStage implements BuildingGenerationStage {
         if (requested == BuildingFootprint.RoofType.FLAT) {
             return BuildingFootprint.RoofType.FLAT;
         }
-        if (BuildingGeometryUtils.isSlopedRoofEligible(outerPoints, roof.pitchRatio())) {
+        if (BuildingGeometryUtils.isSlopedRoofEligible(outerPoints, roof.pitchRatio(), roof.eaves())) {
             return requested;
         }
         result.warnings.add("plugin.building.warn.roof_downgrade");

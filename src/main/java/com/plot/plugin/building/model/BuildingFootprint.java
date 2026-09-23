@@ -121,6 +121,7 @@ public class BuildingFootprint {
 
     private RoofType roofType = RoofType.FLAT;
     private int roofPitchRatio = 1;
+    private int roofEaves = 0;
 
     private Integer manualBaseElevation;
     private int windowSpacing = 4;
@@ -175,7 +176,8 @@ public class BuildingFootprint {
 
     public boolean isSlopedRoofEligible() {
         if (slopedRoofEligible == null) {
-            slopedRoofEligible = BuildingGeometryUtils.isSlopedRoofEligible(outerPoints);
+            slopedRoofEligible = BuildingGeometryUtils.isSlopedRoofEligible(
+                outerPoints, roofPitchRatio, roofEaves);
         }
         return slopedRoofEligible;
     }
@@ -278,6 +280,16 @@ public class BuildingFootprint {
 
     public void setRoofPitchRatio(int roofPitchRatio) {
         this.roofPitchRatio = Math.max(1, Math.min(16, roofPitchRatio));
+        this.slopedRoofEligible = null;
+    }
+
+    public int getRoofEaves() {
+        return roofEaves;
+    }
+
+    public void setRoofEaves(int roofEaves) {
+        this.roofEaves = Math.max(0, Math.min(5, roofEaves));
+        this.slopedRoofEligible = null;
     }
 
     public Integer getManualBaseElevation() {
@@ -509,6 +521,7 @@ public class BuildingFootprint {
         hash = 31 * hash + Objects.hashCode(foundationFillMaterial);
         hash = 31 * hash + Objects.hashCode(roofType);
         hash = 31 * hash + roofPitchRatio;
+        hash = 31 * hash + roofEaves;
         hash = 31 * hash + Objects.hashCode(manualBaseElevation);
         hash = 31 * hash + windowSpacing;
         hash = 31 * hash + windowWidth;

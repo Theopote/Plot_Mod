@@ -3,16 +3,18 @@ package com.plot.plugin.building.model.spec;
 import com.plot.plugin.building.model.BuildingFootprint;
 
 /**
- * 屋顶类型、坡度与材质。
+ * 屋顶类型、坡度、屋檐与材质。
  */
 public final class RoofSpec {
     private final BuildingFootprint.RoofType type;
     private final int pitchRatio;
+    private final int eaves;
     private final String material;
 
-    public RoofSpec(BuildingFootprint.RoofType type, int pitchRatio, String material) {
+    public RoofSpec(BuildingFootprint.RoofType type, int pitchRatio, int eaves, String material) {
         this.type = type != null ? type : BuildingFootprint.RoofType.FLAT;
         this.pitchRatio = clamp(pitchRatio, 1, 16);
+        this.eaves = clamp(eaves, 0, 5);
         this.material = normalizeMaterial(material);
     }
 
@@ -20,6 +22,7 @@ public final class RoofSpec {
         return new RoofSpec(
             footprint.getRoofType(),
             footprint.getRoofPitchRatio(),
+            footprint.getRoofEaves(),
             footprint.getRoofMaterial()
         );
     }
@@ -30,6 +33,10 @@ public final class RoofSpec {
 
     public int pitchRatio() {
         return pitchRatio;
+    }
+
+    public int eaves() {
+        return eaves;
     }
 
     public String material() {

@@ -72,16 +72,21 @@ public final class BuildingGeometryUtils {
      * 是否满足坡屋顶生成前提：简单多边形且骨架波前在内部存在足够抬升空间。
      */
     public static boolean isSlopedRoofEligible(List<Vec2d> points) {
-        return isSlopedRoofEligible(points, 2);
+        return isSlopedRoofEligible(points, 2, 0);
     }
 
     /**
-     * 是否满足坡屋顶生成前提：简单多边形且骨架在指定坡度下存在至少 1 格抬升空间。
+     * 是否满足坡屋顶生成前提：简单多边形且骨架在指定坡度与屋檐下存在至少 1 格抬升空间。
      */
     public static boolean isSlopedRoofEligible(List<Vec2d> points, int pitchRatio) {
+        return isSlopedRoofEligible(points, pitchRatio, 0);
+    }
+
+    public static boolean isSlopedRoofEligible(List<Vec2d> points, int pitchRatio, int eavesBlocks) {
         StraightSkeleton.Result skeleton = StraightSkeleton.compute(points);
         int pitch = Math.max(1, pitchRatio);
-        return skeleton.success() && skeleton.maxSkeletalTime() >= pitch;
+        int eaves = Math.max(0, eavesBlocks);
+        return skeleton.success() && skeleton.maxSkeletalTime() >= eaves + pitch;
     }
 
     public static boolean isAxisAlignedRectangle(List<Vec2d> points, double tolerance) {

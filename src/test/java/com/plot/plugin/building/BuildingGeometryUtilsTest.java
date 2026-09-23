@@ -156,6 +156,17 @@ class BuildingGeometryUtilsTest {
     }
 
     @Test
+    void gableEavesDelaysSlopeUntilInsideEavesBand() {
+        BuildingGeometryUtils.RectBounds bounds = new BuildingGeometryUtils.RectBounds(0, 20, 0, 10);
+        int withoutEaves = BuildingRoofGenerator.computeGableRise(10, 2, bounds, true, 2, IDENTITY, 0);
+        int inEavesBand = BuildingRoofGenerator.computeGableRise(10, 2, bounds, true, 2, IDENTITY, 3);
+        int afterEaves = BuildingRoofGenerator.computeGableRise(10, 5, bounds, true, 2, IDENTITY, 3);
+        assertEquals(1, withoutEaves);
+        assertEquals(1, inEavesBand);
+        assertEquals(2, afterEaves);
+    }
+
+    @Test
     void hipCenterHigherThanCorners() {
         BuildingGeometryUtils.RectBounds bounds = new BuildingGeometryUtils.RectBounds(0, 20, 0, 10);
         int center = BuildingRoofGenerator.computeHipRise(10, 5, bounds, 2, IDENTITY);

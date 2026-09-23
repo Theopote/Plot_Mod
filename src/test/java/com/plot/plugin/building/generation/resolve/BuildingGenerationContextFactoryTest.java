@@ -97,7 +97,7 @@ class BuildingGenerationContextFactoryTest {
             new com.plot.plugin.building.model.spec.EnvelopeSpec(1, null, null),
             new com.plot.plugin.building.model.spec.FacadeSpec(null, List.of(), List.of()),
             new com.plot.plugin.building.model.spec.RoofSpec(
-                BuildingFootprint.RoofType.FLAT, 1, null),
+                BuildingFootprint.RoofType.FLAT, 1, 0, null),
             new com.plot.plugin.building.model.spec.FoundationSpec(null, null),
             com.plot.plugin.building.model.spec.AccessorySpec.none()
         );

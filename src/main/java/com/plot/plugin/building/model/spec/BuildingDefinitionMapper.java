@@ -57,6 +57,7 @@ public final class BuildingDefinitionMapper {
         RoofSpec roof = definition.roof();
         footprint.setRoofType(roof.type());
         footprint.setRoofPitchRatio(roof.pitchRatio());
+        footprint.setRoofEaves(roof.eaves());
         footprint.setRoofMaterial(roof.material());
 
         FoundationSpec foundation = definition.foundation();
