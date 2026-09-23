@@ -2,6 +2,7 @@ package com.plot.plugin.building.ui;
 
 import com.plot.plugin.building.generation.DistrictGenerationResult;
 import com.plot.plugin.building.model.BuildingFootprint;
+import com.plot.plugin.ui.PluginJobProgressUi;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
@@ -57,6 +58,25 @@ public final class BuildingMassingPreview {
         return ids;
     }
 
+    private static void renderPreviewProgress(BuildingUiContext ctx) {
+        DistrictPreviewJob job = ctx.state().getDistrictPreviewJob();
+        String status = job != null
+            ? PlotI18n.tr(
+                "plugin.building.district_preview_progress",
+                job.processedCount(),
+                job.totalCount())
+            : PlotI18n.tr("plugin.building.generate.preview_running");
+        int processed = job != null ? job.processedCount() : 0;
+        int total = job != null ? job.totalCount() : 0;
+        PluginJobProgressUi.renderJobProgress(
+            status,
+            processed,
+            total,
+            ImGui.getContentRegionAvailX(),
+            "plugin.building.cancel_district_preview",
+            ctx::cancelDistrictPreviewJob);
+    }
+
     private static void renderPreviewControls(
             BuildingUiContext ctx,
             List<BuildingFootprint> targets,
@@ -87,19 +107,7 @@ public final class BuildingMassingPreview {
         }
 
         if (ctx.isDistrictPreviewBusy()) {
-            DistrictPreviewJob job = ctx.state().getDistrictPreviewJob();
-            if (job != null) {
-                ImGui.textColored(
-                    com.plot.plugin.ui.PluginUiColors.STATUS_INFO,
-                    PlotI18n.tr(
-                        "plugin.building.district_preview_progress",
-                        job.processedCount(),
-                        job.totalCount()));
-            } else {
-                ImGui.textColored(
-                    com.plot.plugin.ui.PluginUiColors.STATUS_INFO,
-                    PlotI18n.tr("plugin.building.generate.preview_running"));
-            }
+            renderPreviewProgress(ctx);
             return;
         }
         switch (validity) {

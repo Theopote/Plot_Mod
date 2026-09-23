@@ -13,6 +13,7 @@
   "button.plot.reset": "Reset to Default",
   "button.plot.reset_all_snap_colors": "Reset All Snap Colors",
   "button.plot.reset_size": "Reset Size",
+  "plugin.ui.job_progress_percent": "%d%%",
   "category.plot.general": "Plot",
   "group.plot.annotation_tools": "Annotation Tools",
   "group.plot.basic_tools": "Basic Tools",

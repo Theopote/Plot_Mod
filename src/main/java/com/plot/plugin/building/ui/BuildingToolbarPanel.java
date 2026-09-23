@@ -1,5 +1,6 @@
 package com.plot.plugin.building.ui;
 
+import com.plot.plugin.ui.PluginJobProgressUi;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -64,29 +65,36 @@ public final class BuildingToolbarPanel {
         if (!ctx.isDistrictPreviewBusy()) {
             return;
         }
-        if (ImGui.button(PlotI18n.tr("plugin.building.cancel_district_preview"), 0, 0)) {
-            ctx.cancelDistrictPreviewJob();
-            ctx.setProjectStatus(PlotI18n.tr("plugin.building.district_preview_cancelled"));
-        }
+        DistrictPreviewJob job = ctx.state().getDistrictPreviewJob();
+        String status = job != null
+            ? PlotI18n.tr(
+                "plugin.building.district_preview_progress",
+                job.processedCount(),
+                job.totalCount())
+            : PlotI18n.tr("plugin.building.generate.preview_running");
+        int processed = job != null ? job.processedCount() : 0;
+        int total = job != null ? job.totalCount() : 0;
+        PluginJobProgressUi.renderJobProgress(
+            status,
+            processed,
+            total,
+            ImGui.getContentRegionAvailX(),
+            "plugin.building.cancel_district_preview",
+            () -> {
+                ctx.cancelDistrictPreviewJob();
+                ctx.setProjectStatus(PlotI18n.tr("plugin.building.district_preview_cancelled"));
+            });
+        ImGui.separator();
     }
 
     private void renderActivePlacementControls() {
-        com.plot.api.world.IBlockPlacementService scheduler = ctx.host().placement();
-        if (!scheduler.isBusy()) {
-            return;
+        PluginJobProgressUi.renderPlacementProgress(
+            ctx.host().placement(),
+            "plugin.building.placement_progress",
+            "plugin.building.build_in_progress_hint",
+            "plugin.building.cancel_placement");
+        if (ctx.host().placement().isBusy()) {
+            ImGui.separator();
         }
-
-        com.plot.api.world.IBlockPlacementService.ProgressSnapshot progress = scheduler.getProgressSnapshot();
-        if (progress != null) {
-            ImGui.textColored(PluginUiColors.STATUS_INFO,
-                PlotI18n.tr("plugin.building.placement_progress", progress.processed(), progress.total()));
-        } else {
-            ImGui.textColored(PluginUiColors.STATUS_INFO, PlotI18n.tr("plugin.building.build_in_progress_hint"));
-        }
-
-        if (ImGui.button(PlotI18n.tr("plugin.building.cancel_placement"), 0, 0)) {
-            scheduler.cancelAll();
-        }
-        ImGui.separator();
     }
 }

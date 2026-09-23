@@ -13,6 +13,7 @@
   "button.plot.reset": "重置为默认",
   "button.plot.reset_all_snap_colors": "重置全部吸附颜色",
   "button.plot.reset_size": "重置大小",
+  "plugin.ui.job_progress_percent": "%d%%",
   "category.plot.general": "Plot",
   "group.plot.annotation_tools": "标注工具",
   "group.plot.basic_tools": "基础工具",

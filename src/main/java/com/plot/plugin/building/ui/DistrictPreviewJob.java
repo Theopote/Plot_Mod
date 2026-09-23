@@ -4,6 +4,7 @@ import com.plot.plugin.building.BuildingGenerator;
 import com.plot.plugin.building.generation.DistrictGenerationResult;
 import com.plot.plugin.building.generation.DistrictMassingGenerator;
 import com.plot.plugin.building.model.BuildingFootprint;
+import com.plot.plugin.ui.PluginJobProgressUi;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
@@ -57,7 +58,6 @@ public final class DistrictPreviewJob {
             DistrictMassingGenerator.processOne(buildings.get(i), generateFn, district);
         }
         nextIndex = end;
-        actions.updateDistrictPreviewProgress(this);
 
         if (nextIndex >= buildings.size()) {
             DistrictMassingGenerator.finalizeResult(district);
@@ -81,6 +81,14 @@ public final class DistrictPreviewJob {
 
     public int totalCount() {
         return buildings.size();
+    }
+
+    public float progressFraction() {
+        return PluginJobProgressUi.fraction(processedCount(), totalCount());
+    }
+
+    public int progressPercent() {
+        return PluginJobProgressUi.percent(processedCount(), totalCount());
     }
 
     /** 防御性拷贝供测试断言。 */

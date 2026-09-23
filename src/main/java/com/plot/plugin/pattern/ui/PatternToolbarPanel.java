@@ -1,5 +1,7 @@
 package com.plot.plugin.pattern.ui;
 
+import com.plot.plugin.ui.PluginJobProgressUi;
+import com.plot.plugin.ui.PluginJobProgressUi;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -61,26 +63,28 @@ public final class PatternToolbarPanel {
         if (!ctx.isPreviewBusy()) {
             return;
         }
-        if (ImGui.button(PlotI18n.tr("plugin.pattern.cancel_preview"), 0, 0)) {
+        PatternPreviewJob job = ctx.previewJob();
+        if (job != null) {
+            PluginJobProgressUi.renderJobProgress(
+                PlotI18n.tr(job.phaseTranslationKey()),
+                job.processedCount(),
+                job.totalCount(),
+                ImGui.getContentRegionAvailX(),
+                "plugin.pattern.cancel_preview",
+                ctx::cancelPreviewJob);
+        } else if (ImGui.button(PlotI18n.tr("plugin.pattern.cancel_preview"), 0, 0)) {
             ctx.cancelPreviewJob();
         }
     }
 
     private void renderActivePlacementControls() {
-        com.plot.api.world.IBlockPlacementService scheduler = ctx.host().placement();
-        if (!scheduler.isBusy()) {
-            return;
+        PluginJobProgressUi.renderPlacementProgress(
+            ctx.host().placement(),
+            "plugin.pattern.placement_progress",
+            "plugin.pattern.build_in_progress_hint",
+            "plugin.pattern.cancel_placement");
+        if (ctx.host().placement().isBusy()) {
+            ImGui.separator();
         }
-        com.plot.api.world.IBlockPlacementService.ProgressSnapshot progress = scheduler.getProgressSnapshot();
-        if (progress != null) {
-            ImGui.textColored(PluginUiColors.STATUS_INFO,
-                PlotI18n.tr("plugin.pattern.placement_progress", progress.processed(), progress.total()));
-        } else {
-            ImGui.textColored(PluginUiColors.STATUS_INFO, PlotI18n.tr("plugin.pattern.build_in_progress_hint"));
-        }
-        if (ImGui.button(PlotI18n.tr("plugin.pattern.cancel_placement"), 0, 0)) {
-            scheduler.cancelAll();
-        }
-        ImGui.separator();
     }
 }

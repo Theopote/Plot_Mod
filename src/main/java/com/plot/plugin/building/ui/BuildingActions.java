@@ -138,7 +138,6 @@ public final class BuildingActions {
             buildConfirmOnComplete,
             this);
         state.setDistrictPreviewJob(job);
-        updateDistrictPreviewProgress(job);
     }
 
     public void tickDistrictPreviewJob() {
@@ -207,16 +206,6 @@ public final class BuildingActions {
         }
         state.setDistrictPreviewJob(null);
         state.setDistrictPreviewBuildConfirmPending(false);
-    }
-
-    void updateDistrictPreviewProgress(DistrictPreviewJob job) {
-        if (job == null) {
-            return;
-        }
-        state.setProjectStatus(PlotI18n.tr(
-            "plugin.building.district_preview_progress",
-            job.processedCount(),
-            job.totalCount()));
     }
 
     void failDistrictPreviewJob(DistrictPreviewJob job) {

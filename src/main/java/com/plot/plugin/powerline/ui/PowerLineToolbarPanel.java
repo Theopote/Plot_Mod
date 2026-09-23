@@ -4,6 +4,7 @@ import com.plot.core.command.Command;
 import com.plot.core.command.CommandService;
 import com.plot.plugin.powerline.placement.PowerLineWorldCommandSync;
 import com.plot.plugin.powerline.placement.PowerLineWorldCommands;
+import com.plot.plugin.ui.PluginJobProgressUi;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -113,25 +114,11 @@ public final class PowerLineToolbarPanel {
     }
 
     private void renderActivePlacementControls() {
-        com.plot.api.world.IBlockPlacementService scheduler = ctx.host().placement();
-        if (!scheduler.isBusy()) {
-            return;
-        }
-
-        com.plot.api.world.IBlockPlacementService.ProgressSnapshot progress = scheduler.getProgressSnapshot();
-        if (progress != null) {
-            PowerLineUiWidgets.textColored(
-                PluginUiColors.STATUS_INFO,
-                PlotI18n.tr("plugin.powerline.placement_progress", progress.processed(), progress.total()));
-        } else {
-            PowerLineUiWidgets.textColored(
-                PluginUiColors.STATUS_INFO,
-                PlotI18n.tr("plugin.powerline.build_in_progress_wait"));
-        }
-
-        if (ImGui.button(PlotI18n.tr("plugin.powerline.cancel_placement"), 0, 0)) {
-            scheduler.cancelAll();
-        }
+        PluginJobProgressUi.renderPlacementProgress(
+            ctx.host().placement(),
+            "plugin.powerline.placement_progress",
+            "plugin.powerline.build_in_progress_wait",
+            "plugin.powerline.cancel_placement");
     }
 
     private static Command peekRedoCommand(CommandService commands) {

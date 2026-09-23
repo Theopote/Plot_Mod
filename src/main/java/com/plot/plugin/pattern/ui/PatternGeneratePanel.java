@@ -1,12 +1,11 @@
 package com.plot.plugin.pattern.ui;
 
 import com.plot.plugin.pattern.model.PatternFootprint;
+import com.plot.plugin.ui.PluginJobProgressUi;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
-
-import java.text.NumberFormat;
 
 /** 图案生成 Tab。 */
 public final class PatternGeneratePanel {
@@ -114,20 +113,13 @@ public final class PatternGeneratePanel {
             return;
         }
 
-        ImGui.textColored(PluginUiColors.STATUS_INFO, PlotI18n.tr(job.phaseTranslationKey()));
-        ImGui.progressBar(job.progressFraction(), ImGui.getContentRegionAvailX(), 0);
-        if (job.totalCount() > 0) {
-            ImGui.text(PlotI18n.tr("plugin.pattern.preview_progress_percent", job.progressPercent()));
-            ImGui.text(formatSampleCounts(job.processedCount(), job.totalCount()));
-        }
-        if (ImGui.button(PlotI18n.tr("plugin.pattern.cancel_preview"), 0, 0)) {
-            ctx.cancelPreviewJob();
-        }
-    }
-
-    private static String formatSampleCounts(int processed, int total) {
-        NumberFormat formatter = NumberFormat.getIntegerInstance();
-        return formatter.format(processed) + " / " + formatter.format(total);
+        PluginJobProgressUi.renderJobProgress(
+            PlotI18n.tr(job.phaseTranslationKey()),
+            job.processedCount(),
+            job.totalCount(),
+            ImGui.getContentRegionAvailX(),
+            "plugin.pattern.cancel_preview",
+            ctx::cancelPreviewJob);
     }
 
     private void renderPreviewControls(int selectedCount, PatternFootprint footprint, float halfWidth) {
