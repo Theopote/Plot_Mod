@@ -25,7 +25,6 @@ import com.plot.plugin.building.generation.DistrictGenerationResult;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.persistence.BuildingProjectLoadResult;
 import com.plot.plugin.building.model.persistence.BuildingProjectPersistence;
-import com.plot.ui.canvas.Canvas;
 import com.plot.utils.PlotI18n;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.world.World;
@@ -557,23 +556,6 @@ public final class BuildingActions {
             result.success(),
             result.total(),
             result.failed()));
-    }
-
-    public void locateBuilding(BuildingFootprint building) {
-        Vec2d centroid = BuildingGeometryUtils.computeCentroid(building.getOuterPoints());
-        Canvas canvas = com.plot.ui.canvas.CanvasAccess.get();
-        if (canvas != null && canvas.getCamera() != null) {
-            canvas.getCamera().setOffset(centroid);
-            state.getSelection().select(building.getId(), false);
-            state.setProjectStatus(PlotI18n.tr("plugin.building.locate_success", building.getName()));
-        }
-    }
-
-    public void locateBuildingById(String buildingId) {
-        BuildingFootprint building = state.getProject().getBuilding(buildingId);
-        if (building != null) {
-            locateBuilding(building);
-        }
     }
 
     public void selectBuildingById(String buildingId, boolean append) {

@@ -223,9 +223,6 @@ public final class BuildingFootprintsPanel {
             selected,
             BuildingUiWidgets.stableSelectableLabel(building.getName(), building.getId()));
         if (!renaming && ImGui.beginPopupContextItem("building_row_ctx", ImGuiPopupFlags.MouseButtonRight)) {
-            if (ImGui.menuItem(PlotI18n.tr("plugin.building.locate"))) {
-                ctx.locateBuilding(building);
-            }
             if (ImGui.menuItem(PlotI18n.tr("plugin.building.rename"))) {
                 ctx.buildingRename().beginRename(building);
             }

@@ -430,10 +430,6 @@ public final class BuildingUiContext {
         actions.requestBuildFromCurrentPreview(targets);
     }
 
-    public void locateBuildingById(String buildingId) {
-        actions.locateBuildingById(buildingId);
-    }
-
     public void selectBuildingById(String buildingId, boolean append) {
         actions.selectBuildingById(buildingId, append);
     }
@@ -459,10 +455,6 @@ public final class BuildingUiContext {
             com.plot.core.command.commands.BuildingGenerateCommand.ExecutionResult result,
             DistrictGenerationResult district) {
         actions.applyBuildResultStatus(result, district);
-    }
-
-    public void locateBuilding(BuildingFootprint building) {
-        actions.locateBuilding(building);
     }
 
     public void startPickSession() {

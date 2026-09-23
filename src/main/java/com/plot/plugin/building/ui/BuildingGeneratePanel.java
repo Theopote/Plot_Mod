@@ -84,11 +84,6 @@ public final class BuildingGeneratePanel {
                 ImGui.closeCurrentPopup();
             }
         } else {
-            if (ImGui.button(PlotI18n.tr("plugin.building.locate"), 0, 0)) {
-                ctx.locateBuildingById(issue.primaryBuildingId());
-                ImGui.closeCurrentPopup();
-            }
-            ImGui.sameLine();
             if (ImGui.button(PlotI18n.tr("plugin.building.issue.select"), 0, 0)) {
                 ctx.selectBuildingById(issue.primaryBuildingId(), false);
                 ImGui.closeCurrentPopup();
