@@ -4,7 +4,6 @@ import com.plot.plugin.building.BuildingHeightDistribution;
 import com.plot.plugin.building.BuildingSelectionSet;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.BuildingProject;
-import com.plot.plugin.building.preset.BuildingPresetCatalog;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
@@ -34,7 +33,7 @@ public final class BuildingDistrictMassingWidgets {
         SELECTED_ONLY
     }
 
-    /** Edit Tab 批量模式：高度分布、预设、批量套用。 */
+    /** Edit Tab 批量模式：高度分布、从主建筑批量套用。 */
     public static void renderBatchMode(BuildingUiContext ctx) {
         ImGui.pushID("batch");
         try {
@@ -44,8 +43,6 @@ public final class BuildingDistrictMassingWidgets {
             ImGui.spacing();
             BuildingFootprint reference = ctx.selection().primary(ctx.project());
             if (reference != null) {
-                renderPresetSelector(ctx, reference);
-                ImGui.spacing();
                 renderBatchApply(ctx, reference);
             }
             ImGui.spacing();
@@ -120,8 +117,8 @@ public final class BuildingDistrictMassingWidgets {
             if (ImGui.sliderInt(
                     "##height_dist_uniform",
                     floors,
-                    1,
-                    32,
+                    BuildingFootprint.MIN_FLOORS,
+                    BuildingFootprint.MAX_FLOORS,
                     PlotI18n.tr("plugin.building.floors", floors[0]))) {
                 ctx.setHeightDistMinFloors(floors[0]);
                 ctx.setHeightDistMaxFloors(floors[0]);
@@ -132,8 +129,8 @@ public final class BuildingDistrictMassingWidgets {
             if (ImGui.sliderInt(
                     "##height_dist_min",
                     minFloors,
-                    1,
-                    32,
+                    BuildingFootprint.MIN_FLOORS,
+                    BuildingFootprint.MAX_FLOORS,
                     PlotI18n.tr("plugin.building.height_min_floors", minFloors[0]))) {
                 ctx.setHeightDistMinFloors(minFloors[0]);
                 if (ctx.heightDistMaxFloors() < ctx.heightDistMinFloors()) {
@@ -143,8 +140,8 @@ public final class BuildingDistrictMassingWidgets {
             if (ImGui.sliderInt(
                     "##height_dist_max",
                     maxFloors,
-                    1,
-                    32,
+                    BuildingFootprint.MIN_FLOORS,
+                    BuildingFootprint.MAX_FLOORS,
                     PlotI18n.tr("plugin.building.height_max_floors", maxFloors[0]))) {
                 ctx.setHeightDistMaxFloors(maxFloors[0]);
                 if (ctx.heightDistMinFloors() > ctx.heightDistMaxFloors()) {
@@ -253,50 +250,6 @@ public final class BuildingDistrictMassingWidgets {
         }
         if (applyDisabled) {
             ImGui.endDisabled();
-        }
-    }
-
-    private static void renderPresetSelector(BuildingUiContext ctx, BuildingFootprint building) {
-        List<BuildingPresetCatalog.BuildingPreset> presets = BuildingPresetCatalog.all();
-        String[] labels = presets.stream()
-            .map(p -> PlotI18n.tr("preset.building." + p.id()))
-            .toArray(String[]::new);
-        String[] ids = presets.stream()
-            .map(BuildingPresetCatalog.BuildingPreset::id)
-            .toArray(String[]::new);
-
-        int currentIndex = 0;
-        String currentPreset = building.getPresetId();
-        for (int i = 0; i < ids.length; i++) {
-            if (ids[i].equals(currentPreset)) {
-                currentIndex = i;
-                break;
-            }
-        }
-
-        ImGui.text(PlotI18n.tr("plugin.building.preset_section"));
-        ImInt presetIndex = new ImInt(currentIndex);
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.combo("##building_preset", presetIndex, labels)) {
-            // selection only; apply on button
-        }
-        UIUtils.renderEngineeringTooltip("hint.plot.building.preset");
-
-        if (!currentPreset.isBlank()) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.building.preset_active", PlotI18n.tr("preset.building." + currentPreset)));
-        }
-
-        List<BuildingFootprint> targets = ctx.resolveBatchTargets();
-        int targetCount = targets.size();
-        if (ImGui.button(
-                PlotI18n.tr("plugin.building.apply_preset_to_batch", targetCount),
-                ImGui.getContentRegionAvailX(),
-                0)) {
-            int picked = presetIndex.get();
-            if (picked >= 0 && picked < ids.length) {
-                ctx.actions().applyPresetToSelected(ids[picked], targets);
-            }
         }
     }
 

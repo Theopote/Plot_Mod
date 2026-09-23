@@ -15,7 +15,7 @@ import imgui.type.ImString;
 
 import java.util.List;
 
-/** 建筑编辑 Tab：单体/批量参数、预设与附属构件。 */
+/** 建筑编辑 Tab：单体/批量参数与预设。 */
 public final class BuildingEditPanel {
     private final BuildingUiContext ctx;
     private String editNameSyncBuildingId = "";
@@ -90,9 +90,6 @@ public final class BuildingEditPanel {
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.section.openings"))) {
             renderOpeningsSection(building);
         }
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.section.accessories"))) {
-            renderAdvancedAccessories(building);
-        }
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.section.site"))) {
             renderSiteSection(building);
         }
@@ -101,7 +98,8 @@ public final class BuildingEditPanel {
     private void renderMassingSection(BuildingFootprint building) {
         int[] floors = {building.getFloors()};
         boolean floorsChanged = ImGui.sliderInt(
-            "##floors", floors, 1, 32, PlotI18n.tr("plugin.building.floors", floors[0]));
+            "##floors", floors, BuildingFootprint.MIN_FLOORS, BuildingFootprint.MAX_FLOORS,
+            PlotI18n.tr("plugin.building.floors", floors[0]));
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
         }
@@ -357,111 +355,6 @@ public final class BuildingEditPanel {
         }
         if (height != building.getWindowHeight()) {
             building.setWindowHeight(height);
-        }
-    }
-
-    private void renderAdvancedAccessories(BuildingFootprint building) {
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.parapet_enabled"))) {
-            renderParapetSettings(building);
-        }
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.balcony_enabled"))) {
-            renderBalconySettings(building);
-        }
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.building.canopy_enabled"))) {
-            renderCanopySettings(building);
-        }
-    }
-    private void renderParapetSettings(BuildingFootprint building) {
-        ImBoolean parapetRef = new ImBoolean(building.isParapetEnabled());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.building.parapet_enabled"), parapetRef)) {
-            ctx.projectHistory().push(ctx.project());
-            building.setParapetEnabled(parapetRef.get());
-            ctx.invalidatePreview();
-        }
-        UIUtils.renderEngineeringTooltip("hint.plot.building.parapet");
-        if (parapetRef.get()) {
-            int[] parapetHeight = {building.getParapetHeight()};
-            boolean parapetHeightChanged = ImGui.sliderInt("##parapet_height", parapetHeight, 1, 8,
-                PlotI18n.tr("plugin.building.parapet_height", parapetHeight[0]));
-            if (ImGui.isItemActivated()) {
-                ctx.projectHistory().push(ctx.project());
-            }
-            if (parapetHeightChanged) {
-                building.setParapetHeight(parapetHeight[0]);
-                ctx.invalidatePreview();
-            }
-        }
-    }
-
-    private void renderBalconySettings(BuildingFootprint building) {
-        boolean hasBalcony = !building.getBalconies().isEmpty();
-        ImBoolean balconyRef = new ImBoolean(hasBalcony);
-        if (ImGui.checkbox(PlotI18n.tr("plugin.building.balcony_enabled"), balconyRef)) {
-            ctx.projectHistory().push(ctx.project());
-            if (balconyRef.get() && !hasBalcony) {
-                building.addBalcony(new BuildingFootprint.Balcony(1, 0.5, 1, 3, 2, null, null));
-            } else if (!balconyRef.get()) {
-                building.setBalconies(List.of());
-            }
-            ctx.invalidatePreview();
-        }
-        if (!balconyRef.get() || building.getBalconies().isEmpty()) {
-            return;
-        }
-        BuildingFootprint.Balcony balcony = building.getBalconies().getFirst();
-        int segmentCount = building.getOuterPoints().size();
-        int[] wallSegment = {balcony.wallSegmentIndex};
-        float[] positionRatio = {(float) balcony.positionRatio};
-        int[] floor = {balcony.floor};
-        int[] width = {balcony.width};
-        int[] depth = {balcony.depth};
-        boolean wallChanged = ImGui.sliderInt(
-            PlotI18n.tr("plugin.building.door_wall"), wallSegment, 0, Math.max(0, segmentCount - 1));
-        if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
-        }
-        boolean posChanged = ImGui.sliderFloat(
-            PlotI18n.tr("plugin.building.door_position"), positionRatio, 0.0f, 1.0f);
-        if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
-        }
-        boolean floorChanged = ImGui.sliderInt(
-            PlotI18n.tr("plugin.building.door_floor"), floor, 0, Math.max(0, building.getFloors() - 1));
-        if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
-        }
-        boolean widthChanged = ImGui.sliderInt(
-            PlotI18n.tr("plugin.building.balcony_width"), width, 1, 8);
-        if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
-        }
-        boolean depthChanged = ImGui.sliderInt(
-            PlotI18n.tr("plugin.building.balcony_depth"), depth, 1, 4);
-        if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
-        }
-        if (wallChanged || posChanged || floorChanged || widthChanged || depthChanged) {
-            building.setBalconies(List.of(new BuildingFootprint.Balcony(
-                wallSegment[0], positionRatio[0], floor[0], width[0], depth[0],
-                balcony.slabMaterial, balcony.railingMaterial)));
-            ctx.invalidatePreview();
-        }
-    }
-
-    private void renderCanopySettings(BuildingFootprint building) {
-        boolean hasCanopy = !building.getCanopies().isEmpty();
-        ImBoolean canopyRef = new ImBoolean(hasCanopy);
-        if (ImGui.checkbox(PlotI18n.tr("plugin.building.canopy_enabled"), canopyRef)) {
-            ctx.projectHistory().push(ctx.project());
-            if (canopyRef.get() && !hasCanopy) {
-                List<OpeningSpec> doors = building.doorOpenings();
-                int wall = doors.isEmpty() ? 0 : doors.getFirst().wallSegmentIndex();
-                double ratio = doors.isEmpty() ? 0.5 : doors.getFirst().positionRatio();
-                building.addCanopy(new BuildingFootprint.Canopy(wall, ratio, 0, 3, 2, 3, null));
-            } else if (!canopyRef.get()) {
-                building.setCanopies(List.of());
-            }
-            ctx.invalidatePreview();
         }
     }
 

@@ -2,15 +2,13 @@ package com.plot.plugin.building;
 
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.building.model.BuildingFootprint;
-import com.plot.plugin.building.preset.BuildingPresetApplier;
-
 import java.util.Collection;
 import java.util.Objects;
 
 /**
  * District Massing Phase B：将主建筑的体量/样式参数批量应用到选中建筑。
  * <p>
- * 不改轮廓几何；Preset 走 {@link BuildingPresetApplier}（保留各栋 footprint）。
+ * 不改轮廓几何。
  */
 public final class BuildingBatchEditor {
 
@@ -64,26 +62,6 @@ public final class BuildingBatchEditor {
                 continue;
             }
             copyFields(source, target, mask);
-            updated++;
-        }
-        return new ApplyResult(updated, skipped);
-    }
-
-    /**
-     * 对选中建筑逐栋应用 Preset（各保留自身轮廓）。
-     */
-    public static ApplyResult applyPreset(String presetId, Collection<BuildingFootprint> targets) {
-        if (presetId == null || presetId.isBlank() || targets == null || targets.isEmpty()) {
-            return new ApplyResult(0, targets == null ? 0 : targets.size());
-        }
-        int updated = 0;
-        int skipped = 0;
-        for (BuildingFootprint target : targets) {
-            if (target == null) {
-                skipped++;
-                continue;
-            }
-            BuildingPresetApplier.apply(presetId, target);
             updated++;
         }
         return new ApplyResult(updated, skipped);

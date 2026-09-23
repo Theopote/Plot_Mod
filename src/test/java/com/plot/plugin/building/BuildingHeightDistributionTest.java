@@ -152,7 +152,7 @@ class BuildingHeightDistributionTest {
     @Test
     void clampsFloorsToValidRange() {
         assertEquals(1, BuildingHeightDistribution.clampFloors(0));
-        assertEquals(32, BuildingHeightDistribution.clampFloors(100));
+        assertEquals(64, BuildingHeightDistribution.clampFloors(100));
         assertEquals(5, BuildingHeightDistribution.lerpFloors(1, 9, 0.5));
     }
 }

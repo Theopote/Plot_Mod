@@ -24,6 +24,9 @@ import java.util.UUID;
  * 短期为兼容仍可经 Mapper 回写 Footprint，但不要把新模型做成旧 God Object 的包装。
  */
 public class BuildingFootprint {
+    public static final int MIN_FLOORS = 1;
+    public static final int MAX_FLOORS = 64;
+
     public static final String DEFAULT_WALL_MATERIAL = "minecraft:stone_bricks";
     public static final String DEFAULT_FLOOR_MATERIAL = "minecraft:oak_planks";
     public static final String DEFAULT_ROOF_MATERIAL = "minecraft:stone_bricks";
@@ -190,7 +193,7 @@ public class BuildingFootprint {
     }
 
     public void setFloors(int floors) {
-        this.floors = Math.max(1, Math.min(64, floors));
+        this.floors = Math.max(MIN_FLOORS, Math.min(MAX_FLOORS, floors));
     }
 
     public int getFloorHeight() {

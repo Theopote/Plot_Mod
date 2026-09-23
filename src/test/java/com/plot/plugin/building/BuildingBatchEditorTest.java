@@ -96,23 +96,6 @@ class BuildingBatchEditorTest {
     }
 
     @Test
-    void applyPresetUpdatesAllTargets() {
-        BuildingFootprint a = building("a");
-        BuildingFootprint b = building("b");
-        a.setFloors(1);
-        b.setFloors(1);
-
-        BuildingBatchEditor.ApplyResult result =
-            BuildingBatchEditor.applyPreset("warehouse", List.of(a, b));
-
-        assertEquals(2, result.updated());
-        assertEquals("warehouse", a.getPresetId());
-        assertEquals("warehouse", b.getPresetId());
-        assertEquals(a.getFloors(), b.getFloors());
-        assertEquals(a.getFloorHeight(), b.getFloorHeight());
-    }
-
-    @Test
     void emptyMaskDoesNothing() {
         BuildingFootprint source = building("source");
         source.setFloors(9);

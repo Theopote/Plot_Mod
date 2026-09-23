@@ -34,8 +34,8 @@ public final class BuildingHeightDistribution {
             Objects.requireNonNull(mode, "mode");
             int lo = Math.max(1, Math.min(minFloors, maxFloors));
             int hi = Math.max(1, Math.max(minFloors, maxFloors));
-            minFloors = Math.min(32, lo);
-            maxFloors = Math.min(32, Math.max(lo, hi));
+            minFloors = Math.min(BuildingFootprint.MAX_FLOORS, lo);
+            maxFloors = Math.min(BuildingFootprint.MAX_FLOORS, Math.max(lo, hi));
         }
 
         public static Settings uniform(int floors) {
@@ -237,6 +237,6 @@ public final class BuildingHeightDistribution {
     }
 
     static int clampFloors(int floors) {
-        return Math.max(1, Math.min(32, floors));
+        return Math.max(BuildingFootprint.MIN_FLOORS, Math.min(BuildingFootprint.MAX_FLOORS, floors));
     }
 }
