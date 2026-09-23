@@ -7,13 +7,12 @@ import imgui.ImGui;
 
 import java.util.List;
 
-/** Generate Tab 目标摘要与范围切换。 */
+/** Generate Tab 目标范围下拉与摘要。 */
 public final class BuildingGenerateScopeBar {
     private BuildingGenerateScopeBar() {
     }
 
     public static void render(BuildingUiContext ctx, List<BuildingFootprint> targets) {
-        int count = targets.size();
         int minFloors = Integer.MAX_VALUE;
         int maxFloors = 0;
         int footprintBlocks = 0;
@@ -27,7 +26,28 @@ public final class BuildingGenerateScopeBar {
             minFloors = 0;
         }
 
-        ImGui.text(PlotI18n.tr("plugin.building.generate.target_summary", count));
+        int selectedCount = ctx.selection().size();
+        int allCount = ctx.project().getBuildingCount();
+        boolean useAll = ctx.generateScopeAll();
+        String preview = useAll
+            ? PlotI18n.tr("plugin.building.generate.scope_all", allCount)
+            : PlotI18n.tr("plugin.building.generate.scope_selected", selectedCount);
+
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.beginCombo("##building_generate_scope", preview)) {
+            if (ImGui.selectable(
+                    PlotI18n.tr("plugin.building.generate.scope_selected", selectedCount),
+                    !useAll)) {
+                ctx.setGenerateScopeAll(false);
+            }
+            if (ImGui.selectable(
+                    PlotI18n.tr("plugin.building.generate.scope_all", allCount),
+                    useAll)) {
+                ctx.setGenerateScopeAll(true);
+            }
+            ImGui.endCombo();
+        }
+
         ImGui.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr(
@@ -35,33 +55,5 @@ public final class BuildingGenerateScopeBar {
                 footprintBlocks,
                 minFloors,
                 maxFloors));
-
-        ImGui.sameLine(ImGui.getContentRegionAvailX() - 72f);
-        if (ImGui.button(PlotI18n.tr("plugin.building.generate.change_scope"), 0, 0)) {
-            ImGui.openPopup("##building_generate_scope");
-        }
-        renderScopePopup(ctx);
-    }
-
-    private static void renderScopePopup(BuildingUiContext ctx) {
-        if (!ImGui.beginPopup("##building_generate_scope")) {
-            return;
-        }
-        int selectedCount = ctx.selection().size();
-        int allCount = ctx.project().getBuildingCount();
-        boolean useAll = ctx.generateScopeAll();
-        if (ImGui.selectable(
-                PlotI18n.tr("plugin.building.generate.scope_selected", selectedCount),
-                !useAll)) {
-            ctx.setGenerateScopeAll(false);
-            ImGui.closeCurrentPopup();
-        }
-        if (ImGui.selectable(
-                PlotI18n.tr("plugin.building.generate.scope_all", allCount),
-                useAll)) {
-            ctx.setGenerateScopeAll(true);
-            ImGui.closeCurrentPopup();
-        }
-        ImGui.endPopup();
     }
 }
