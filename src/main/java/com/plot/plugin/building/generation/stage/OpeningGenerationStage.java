@@ -70,9 +70,9 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
                 if (!windows.enabled()) {
                     continue;
                 }
-                int sill = windows.sillHeight();
-                int maxWindowHeight = Math.max(1, massing.floorHeight() - sill - 1);
-                int windowHeight = Math.min(windows.height(), maxWindowHeight);
+                int sill = Math.min(windows.sillHeight(), massing.floorHeight());
+                int maxWindowHeight = Math.max(1, massing.floorHeight() - sill);
+                int windowHeight = Math.min(Math.max(1, windows.height()), maxWindowHeight);
                 Vec2d segmentStart = outerPoints.get(segmentIndex);
                 Vec2d segmentEnd = outerPoints.get((segmentIndex + 1) % segmentCount);
                 Vec2d segmentMid = segmentStart.lerp(segmentEnd, 0.5);

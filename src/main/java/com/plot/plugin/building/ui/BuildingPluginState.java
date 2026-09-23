@@ -17,7 +17,6 @@ import imgui.type.ImBoolean;
 import imgui.type.ImString;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -68,29 +67,6 @@ public final class BuildingPluginState {
     private volatile String projectStatus = "";
     private String currentProjectFile = "default.json";
     private final ContentFingerprint.Tracker contentFingerprint = new ContentFingerprint.Tracker();
-
-    /** 加门编辑器 draft，按 building id 跨帧保持（P1-1）。 */
-    private final Map<String, DoorEditorDraft> doorEditorDrafts = new HashMap<>();
-
-    public static final class DoorEditorDraft {
-        public int wallSegment = 0;
-        public float positionRatio = 0.5f;
-        public int floor = 0;
-    }
-
-    public DoorEditorDraft doorEditorDraftFor(String buildingId) {
-        if (buildingId == null || buildingId.isBlank()) {
-            return new DoorEditorDraft();
-        }
-        return doorEditorDrafts.computeIfAbsent(buildingId, id -> new DoorEditorDraft());
-    }
-
-    public void clampDoorEditorDraft(String buildingId, int maxWallSegment, int maxFloor) {
-        DoorEditorDraft draft = doorEditorDraftFor(buildingId);
-        draft.wallSegment = Math.clamp(draft.wallSegment, 0, Math.max(0, maxWallSegment));
-        draft.positionRatio = Math.clamp(draft.positionRatio, 0.0f, 1.0f);
-        draft.floor = Math.clamp(draft.floor, 0, Math.max(0, maxFloor));
-    }
 
     public BuildingProject getProject() {
         return project;

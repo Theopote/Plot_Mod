@@ -26,6 +26,7 @@ import java.util.UUID;
 public class BuildingFootprint {
     public static final int MIN_FLOORS = 1;
     public static final int MAX_FLOORS = 64;
+    public static final int MAX_WINDOW_WIDTH = 10;
 
     public static final String DEFAULT_WALL_MATERIAL = "minecraft:stone_bricks";
     public static final String DEFAULT_FLOOR_MATERIAL = "minecraft:oak_planks";
@@ -204,6 +205,7 @@ public class BuildingFootprint {
 
     public void setFloorHeight(int floorHeight) {
         this.floorHeight = Math.max(2, Math.min(16, floorHeight));
+        clampWindowToFloorHeight();
     }
 
     public int getWallThickness() {
@@ -313,7 +315,7 @@ public class BuildingFootprint {
     }
 
     public void setWindowWidth(int windowWidth) {
-        this.windowWidth = Math.max(1, Math.min(4, windowWidth));
+        this.windowWidth = Math.max(1, Math.min(MAX_WINDOW_WIDTH, windowWidth));
     }
 
     public int getWindowHeight() {
@@ -321,7 +323,7 @@ public class BuildingFootprint {
     }
 
     public void setWindowHeight(int windowHeight) {
-        this.windowHeight = Math.max(1, Math.min(6, windowHeight));
+        this.windowHeight = Math.max(1, Math.min(16, windowHeight));
     }
 
     public int getWindowSillHeight() {
@@ -329,7 +331,18 @@ public class BuildingFootprint {
     }
 
     public void setWindowSillHeight(int windowSillHeight) {
-        this.windowSillHeight = Math.max(0, Math.min(8, windowSillHeight));
+        this.windowSillHeight = Math.max(0, Math.min(16, windowSillHeight));
+    }
+
+    /** 窗宽/窗高/窗台与当前层高校验一致（生成阶段使用相同规则）。 */
+    public void clampWindowToFloorHeight() {
+        int fh = getFloorHeight();
+        windowWidth = Math.max(1, Math.min(MAX_WINDOW_WIDTH, windowWidth));
+        windowSillHeight = Math.max(0, Math.min(fh, windowSillHeight));
+        windowHeight = Math.max(1, Math.min(fh, windowHeight));
+        if (windowSillHeight + windowHeight > fh) {
+            windowHeight = Math.max(1, fh - windowSillHeight);
+        }
     }
 
     /** 显式门洞（{@link OpeningKind#DOOR}）。 */

@@ -13,9 +13,9 @@ public final class WindowPatternSpec {
 
     public WindowPatternSpec(int spacing, int width, int height, int sillHeight) {
         this.spacing = clamp(spacing, 0, 32);
-        this.width = clamp(width, 1, 4);
-        this.height = clamp(height, 1, 6);
-        this.sillHeight = clamp(sillHeight, 0, 8);
+        this.width = clamp(width, 1, BuildingFootprint.MAX_WINDOW_WIDTH);
+        this.height = clamp(height, 1, 16);
+        this.sillHeight = clamp(sillHeight, 0, 16);
     }
 
     public static WindowPatternSpec from(BuildingFootprint footprint) {

@@ -3,7 +3,6 @@ package com.plot.plugin.building.ui;
 import com.plot.plugin.building.BuildingListHelper;
 import com.plot.plugin.building.generation.BuildingCanvasScale;
 import com.plot.plugin.building.model.BuildingFootprint;
-import com.plot.plugin.building.model.spec.OpeningSpec;
 import com.plot.plugin.building.site.BuildingSiteElevationResolver;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.UIUtils;
@@ -106,7 +105,7 @@ public final class BuildingEditPanel {
                     tower.insetDistance(),
                     canvasScale(building));
             }
-            clampWindowSettings(building);
+            building.clampWindowToFloorHeight();
             ctx.invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.floors");
@@ -119,7 +118,7 @@ public final class BuildingEditPanel {
         }
         if (floorHeightChanged) {
             building.setFloorHeight(floorHeight[0]);
-            clampWindowSettings(building);
+            building.clampWindowToFloorHeight();
             ctx.invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.floor_height");
@@ -198,8 +197,6 @@ public final class BuildingEditPanel {
 
     private void renderOpeningsSection(BuildingFootprint building) {
         renderWindowSettings(building);
-        ImGui.spacing();
-        renderDoorEditor(building);
     }
 
     private void renderSiteSection(BuildingFootprint building) {
@@ -297,10 +294,8 @@ public final class BuildingEditPanel {
     }
 
     private void renderWindowSettings(BuildingFootprint building) {
-        clampWindowSettings(building);
+        building.clampWindowToFloorHeight();
         int floorHeight = building.getFloorHeight();
-        int maxSill = Math.max(0, floorHeight - building.getWindowHeight() - 1);
-        int maxWindowHeight = Math.max(1, floorHeight - building.getWindowSillHeight() - 1);
 
         int[] windowSpacing = {building.getWindowSpacing()};
         boolean windowSpacingChanged = ImGui.sliderInt("##window_spacing", windowSpacing, 0, 32,
@@ -314,7 +309,8 @@ public final class BuildingEditPanel {
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.window_spacing");
         int[] windowWidth = {building.getWindowWidth()};
-        boolean windowWidthChanged = ImGui.sliderInt("##window_width", windowWidth, 1, 4,
+        boolean windowWidthChanged = ImGui.sliderInt("##window_width", windowWidth, 1,
+            BuildingFootprint.MAX_WINDOW_WIDTH,
             PlotI18n.tr("plugin.building.window_width", windowWidth[0]));
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
@@ -325,42 +321,29 @@ public final class BuildingEditPanel {
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.window_width");
         int[] windowHeight = {building.getWindowHeight()};
-        boolean windowHeightChanged = ImGui.sliderInt("##window_height", windowHeight, 1, maxWindowHeight,
+        boolean windowHeightChanged = ImGui.sliderInt("##window_height", windowHeight, 1, floorHeight,
             PlotI18n.tr("plugin.building.window_height", windowHeight[0]));
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
         }
         if (windowHeightChanged) {
             building.setWindowHeight(windowHeight[0]);
+            building.clampWindowToFloorHeight();
             ctx.invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.window_height");
         int[] windowSill = {building.getWindowSillHeight()};
-        boolean windowSillChanged = ImGui.sliderInt("##window_sill", windowSill, 0, maxSill,
+        boolean windowSillChanged = ImGui.sliderInt("##window_sill", windowSill, 0, floorHeight,
             PlotI18n.tr("plugin.building.window_sill", windowSill[0]));
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
         }
         if (windowSillChanged) {
             building.setWindowSillHeight(windowSill[0]);
-            clampWindowSettings(building);
+            building.clampWindowToFloorHeight();
             ctx.invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.window_sill");
-    }
-
-    /** 与 {@link com.plot.plugin.building.generation.stage.OpeningGenerationStage} 窗高 clamp 一致。 */
-    static void clampWindowSettings(BuildingFootprint building) {
-        int floorHeight = building.getFloorHeight();
-        int sill = Math.min(building.getWindowSillHeight(), Math.max(0, floorHeight - 2));
-        int maxWindowHeight = Math.max(1, floorHeight - sill - 1);
-        int height = Math.min(building.getWindowHeight(), maxWindowHeight);
-        if (sill != building.getWindowSillHeight()) {
-            building.setWindowSillHeight(sill);
-        }
-        if (height != building.getWindowHeight()) {
-            building.setWindowHeight(height);
-        }
     }
 
     static void renderEarthworkPadElevationHint(BuildingFootprint building) {
@@ -419,50 +402,6 @@ public final class BuildingEditPanel {
             ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.building.roof_rect_hint"));
         }
     }
-    private void renderDoorEditor(BuildingFootprint building) {
-        List<OpeningSpec> doors = building.doorOpenings();
-        for (int i = 0; i < doors.size(); i++) {
-            OpeningSpec door = doors.get(i);
-            ImGui.pushID("door_" + i);
-            ImGui.text(String.format(PlotI18n.tr("plugin.building.door_item"),
-                door.wallSegmentIndex(), door.positionRatio(), door.floor() + 1));
-            if (ImGui.button(PlotI18n.tr("plugin.building.remove_door"))) {
-                ctx.projectHistory().push(ctx.project());
-                building.removeDoorOpening(i);
-                ctx.invalidatePreview();
-            }
-            ImGui.popID();
-        }
-
-        int segmentCount = building.getOuterPoints().size();
-        int maxWallSegment = Math.max(0, segmentCount - 1);
-        int maxFloor = Math.max(0, building.getFloors() - 1);
-        ctx.clampDoorEditorDraft(building);
-        BuildingPluginState.DoorEditorDraft draft = ctx.doorEditorDraft(building);
-
-        int[] wallSegment = {draft.wallSegment};
-        float[] positionRatio = {draft.positionRatio};
-        int[] floor = {draft.floor};
-        if (ImGui.sliderInt(PlotI18n.tr("plugin.building.door_wall"), wallSegment, 0, maxWallSegment)) {
-            draft.wallSegment = wallSegment[0];
-        }
-        UIUtils.renderEngineeringTooltip("hint.plot.building.door_wall");
-        if (ImGui.sliderFloat(PlotI18n.tr("plugin.building.door_position"), positionRatio, 0.0f, 1.0f)) {
-            draft.positionRatio = positionRatio[0];
-        }
-        UIUtils.renderEngineeringTooltip("hint.plot.building.door_position");
-        if (ImGui.sliderInt(PlotI18n.tr("plugin.building.door_floor"), floor, 0, maxFloor)) {
-            draft.floor = floor[0];
-        }
-        UIUtils.renderEngineeringTooltip("hint.plot.building.door_floor");
-        if (ImGui.button(PlotI18n.tr("plugin.building.add_door"))) {
-            ctx.projectHistory().push(ctx.project());
-            building.addOpening(OpeningSpec.door(
-                draft.wallSegment, draft.positionRatio, draft.floor, 1, 2));
-            ctx.invalidatePreview();
-        }
-    }
-
     private BuildingCanvasScale canvasScale(BuildingFootprint building) {
         return BuildingCanvasScale.capture(ctx.host().coordinates(), building.getOuterPoints());
     }
