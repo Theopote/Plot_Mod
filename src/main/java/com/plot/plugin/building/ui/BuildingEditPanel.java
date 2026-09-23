@@ -284,20 +284,23 @@ public final class BuildingEditPanel {
             ctx.projectHistory().push(ctx.project());
         }
 
-        int insetBlocks = (int) Math.round(state.insetDistance());
-        int[] inset = {Math.max(1, insetBlocks)};
+        BuildingCanvasScale canvasScale = canvasScale(building);
+        int maxInset = BuildingFloorPlateUi.sliderMaxInset(canvasScale, building.getOuterPoints());
+        int insetBlocks = (int) Math.round(
+            BuildingFloorPlateUi.clampInsetBlocks(canvasScale, building.getOuterPoints(), state.insetDistance()));
+        int[] inset = {Math.max(1, Math.min(insetBlocks, maxInset))};
         boolean insetChanged = ImGui.sliderInt(
             "##floor_plate_inset",
             inset,
             1,
-            (int) BuildingFloorPlateUi.MAX_INSET,
+            maxInset,
             PlotI18n.tr("plugin.building.floor_plate_inset", inset[0]));
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
         }
 
         if (towerStartChanged || insetChanged) {
-            BuildingFloorPlateUi.applySimpleTower(building, towerStart[0], inset[0], canvasScale(building));
+            BuildingFloorPlateUi.applySimpleTower(building, towerStart[0], inset[0], canvasScale);
             ctx.invalidatePreview();
         }
     }

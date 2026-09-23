@@ -72,12 +72,53 @@ public final class BuildingFloorPlateUi {
         BuildingCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
         int floors = building.getFloors();
         int start = Math.clamp(towerStartFloor, 1, floors - 1);
-        double inset = Math.clamp(insetBlocks, MIN_INSET, MAX_INSET);
         List<Vec2d> base = building.getOuterPoints();
-        building.setFloorPlates(List.of(
-            FloorPlateSpec.of(0, start - 1, base),
-            scale.insetFloorPlate(start, floors - 1, base, inset)
-        ));
+        double inset = clampInsetBlocks(scale, base, insetBlocks);
+        if (inset < MIN_INSET) {
+            building.setFloorPlates(List.of(FloorPlateSpec.of(0, floors - 1, base)));
+            return;
+        }
+        try {
+            building.setFloorPlates(List.of(
+                FloorPlateSpec.of(0, start - 1, base),
+                scale.insetFloorPlate(start, floors - 1, base, inset)
+            ));
+        } catch (IllegalArgumentException ignored) {
+            building.setFloorPlates(List.of(FloorPlateSpec.of(0, floors - 1, base)));
+        }
+    }
+
+    /** 当前轮廓在投影下允许的最大退台距离（方块数）；小于 {@link #MIN_INSET} 表示无法退台。 */
+    public static double maxValidInsetBlocks(BuildingCanvasScale canvasScale, List<Vec2d> baseFootprint) {
+        if (baseFootprint == null || baseFootprint.size() < 3) {
+            return 0.0;
+        }
+        BuildingCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
+        double lastValid = 0.0;
+        for (double inset = MIN_INSET; inset <= MAX_INSET + 1e-6; inset += INSET_STEP) {
+            try {
+                scale.insetFloorPlate(0, 0, baseFootprint, inset);
+                lastValid = inset;
+            } catch (IllegalArgumentException ignored) {
+                break;
+            }
+        }
+        return lastValid;
+    }
+
+    public static double clampInsetBlocks(
+            BuildingCanvasScale canvasScale,
+            List<Vec2d> baseFootprint,
+            double insetBlocks) {
+        double maxValid = maxValidInsetBlocks(canvasScale, baseFootprint);
+        if (maxValid < MIN_INSET) {
+            return 0.0;
+        }
+        return Math.clamp(insetBlocks, MIN_INSET, Math.min(MAX_INSET, maxValid));
+    }
+
+    public static int sliderMaxInset(BuildingCanvasScale canvasScale, List<Vec2d> baseFootprint) {
+        return Math.max(1, (int) Math.floor(Math.min(MAX_INSET, maxValidInsetBlocks(canvasScale, baseFootprint))));
     }
 
     public static SimpleTowerPattern detectSimpleTower(

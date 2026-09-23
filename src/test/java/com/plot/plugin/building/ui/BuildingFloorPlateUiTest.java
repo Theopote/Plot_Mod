@@ -57,6 +57,20 @@ class BuildingFloorPlateUiTest {
     }
 
     @Test
+    void applySimpleTowerClampsExcessiveInset() {
+        BuildingFootprint building = footprint(4);
+
+        BuildingFloorPlateUi.applySimpleTower(building, 2, 99.0, BuildingCanvasScales.capture(RECT));
+
+        assertEquals(2, building.getFloorPlates().size());
+        BuildingFloorPlateUi.SimpleTowerState state =
+            BuildingFloorPlateUi.readState(building, BuildingCanvasScales.capture(RECT));
+        assertTrue(state.enabled());
+        assertFalse(state.custom());
+        assertTrue(state.insetDistance() <= BuildingFloorPlateUi.MAX_INSET);
+    }
+
+    @Test
     void clearFloorPlatesRemovesDefinitions() {
         BuildingFootprint building = footprint(4);
         BuildingFloorPlateUi.applySimpleTower(building, 2, 1.0, BuildingCanvasScales.capture(RECT));
