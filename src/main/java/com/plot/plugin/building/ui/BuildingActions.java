@@ -160,10 +160,6 @@ public final class BuildingActions {
             return;
         }
         com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
-        if (ghostBlockManager == null) {
-            cancelGhostProjection();
-            return;
-        }
         if (pendingGhostClear) {
             ghostBlockManager.clearGhostBlocks(GhostBlockOwners.BUILDING);
             pendingGhostClear = false;
@@ -310,9 +306,6 @@ public final class BuildingActions {
         if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
             return;
         }
-        if (host.ghosts() == null) {
-            return;
-        }
         cancelGhostProjection();
         pendingGhostUpload = new ArrayList<>(lastGenerationResult.placementRecords.size());
         for (BlockRecord record : lastGenerationResult.placementRecords.values()) {
@@ -340,9 +333,7 @@ public final class BuildingActions {
     private void clearBuildingGhosts() {
         cancelGhostProjection();
         com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
-        if (ghostBlockManager != null) {
-            ghostBlockManager.clearGhostBlocks(GhostBlockOwners.BUILDING);
-        }
+        ghostBlockManager.clearGhostBlocks(GhostBlockOwners.BUILDING);
     }
 
     private void cancelGhostProjection() {
