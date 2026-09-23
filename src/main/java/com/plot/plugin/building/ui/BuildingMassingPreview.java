@@ -26,10 +26,6 @@ public final class BuildingMassingPreview {
         BuildingMassingPreviewHeights.HeightRange heightRange =
             BuildingMassingPreviewHeights.range(targets, previewHeights);
 
-        String emptyHint = validity == BuildingPreviewIdentity.Validity.STALE
-            ? PlotI18n.tr("plugin.building.generate.massing_preview_stale")
-            : PlotI18n.tr("plugin.building.generate.massing_preview_idle");
-
         BuildingMassingPreviewRenderer.render(
             "##building_generate_massing_preview",
             new BuildingMassingPreviewRenderer.Model(
@@ -40,9 +36,12 @@ public final class BuildingMassingPreview {
                 new HashSet<>(ctx.selection().ids()),
                 heightRange.min(),
                 heightRange.max(),
-                emptyHint),
+                ""),
             id -> ctx.selection().select(id, ImGui.getIO().getKeyCtrl()));
 
+        ImGui.textColored(
+            com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.building.generate.massing_live_hint"));
         renderPreviewControls(ctx, targets, validity);
     }
 
@@ -104,13 +103,15 @@ public final class BuildingMassingPreview {
             return;
         }
         switch (validity) {
-            case NONE -> { }
+            case NONE -> ImGui.textColored(
+                com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.building.generate.check_not_run"));
             case STALE -> ImGui.textColored(
                 com.plot.plugin.ui.PluginUiColors.WARNING,
                 PlotI18n.tr("plugin.building.generate.parameters_changed"));
             case VALID -> ImGui.textColored(
                 com.plot.plugin.ui.PluginUiColors.STATUS_OK,
-                PlotI18n.tr("plugin.building.generate.preview_ready"));
+                PlotI18n.tr("plugin.building.generate.check_ready"));
         }
     }
 }
