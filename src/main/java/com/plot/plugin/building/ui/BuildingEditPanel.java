@@ -375,10 +375,10 @@ public final class BuildingEditPanel {
         int guard = 0;
         while (preview.length() < 16 && guard++ < 32) {
             for (int w = 0; w < windowWidth && preview.length() < 16; w++) {
-                preview.append('\u2588');
+                preview.append('W');
             }
             for (int p = 0; p < pierWidth && preview.length() < 16; p++) {
-                preview.append('\u2591');
+                preview.append('.');
             }
             if (pierWidth == 0 && windowWidth == 0) {
                 break;

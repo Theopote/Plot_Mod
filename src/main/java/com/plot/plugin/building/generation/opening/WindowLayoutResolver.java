@@ -49,8 +49,8 @@ public final class WindowLayoutResolver {
             return List.of();
         }
 
-        int marginColumns = Math.max(1, (int) Math.round(
-            canvasScale.uniformBlocksToCanvas(1.0, outerPoints)));
+        // 柱列列表每格 = 1 世界方块；转角留白按方块列计数，不能用画布缩放值
+        int marginColumns = 1;
         List<PlannedWindow> windows = new ArrayList<>();
         int segmentCount = outerPoints.size();
 
