@@ -11,6 +11,7 @@ import com.plot.plugin.building.model.spec.OpeningKind;
 import com.plot.plugin.building.model.spec.OpeningSpec;
 import com.plot.plugin.building.model.spec.WallFacadeSpec;
 import com.plot.plugin.building.model.spec.WindowPatternSpec;
+import com.plot.plugin.building.BuildingNameHelper;
 import com.plot.plugin.building.model.persistence.BuildingProjectLoadResult;
 import com.plot.plugin.building.model.persistence.BuildingProjectLoadResult.BuildingLoadDiagnostic;
 
@@ -349,7 +350,8 @@ public class BuildingProject {
                     : UUID.randomUUID().toString();
                 BuildingFootprint footprint = new BuildingFootprint(
                     id, points, buildingData.isRectangular);
-                footprint.setName(buildingData.name);
+                footprint.setName(BuildingNameHelper.resolveUniqueName(
+                    project, buildingData.name, footprint.getId()));
                 footprint.setFloors(buildingData.floors);
                 footprint.setFloorHeight(buildingData.floorHeight);
                 footprint.setWallThickness(buildingData.wallThickness);

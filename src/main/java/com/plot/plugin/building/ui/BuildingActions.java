@@ -11,6 +11,7 @@ import com.plot.core.persistence.ProjectPathResolver;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
 import com.plot.plugin.building.BuildingBlockCountCache;
+import com.plot.plugin.building.BuildingNameHelper;
 import com.plot.plugin.building.BuildingFootprintPickSession;
 import com.plot.plugin.building.BuildingFootprintSelectionAnalysis;
 import com.plot.plugin.building.BuildingFootprintValidator;
@@ -730,7 +731,7 @@ public final class BuildingActions {
             }
             boolean rectangular = BuildingGeometryUtils.detectRectangular(validation.cleanedPoints());
             BuildingFootprint footprint = new BuildingFootprint(validation.cleanedPoints(), rectangular);
-            footprint.setName(PlotI18n.tr("plugin.building.default_name", adopted + 1));
+            footprint.setName(BuildingNameHelper.nextDefaultName(state.getProject()));
             state.getProject().addBuilding(footprint);
             adoptedIds.add(footprint.getId());
             adopted++;

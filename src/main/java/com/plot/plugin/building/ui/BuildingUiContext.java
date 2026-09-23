@@ -9,6 +9,7 @@ import com.plot.plugin.building.BuildingSelectionSet;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.generation.DistrictBuildReport;
 import com.plot.plugin.building.generation.DistrictGenerationResult;
+import com.plot.plugin.building.BuildingNameHelper;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.BuildingProject;
 import com.plot.plugin.building.model.BuildingProjectHistory;
@@ -17,6 +18,7 @@ import com.plot.api.world.WorldProjectionSnapshot;
 import com.plot.core.context.PluginContext;
 import com.plot.core.model.Shape;
 import com.plot.ui.utils.ImStringUtf8;
+import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
 import java.nio.file.Path;
@@ -184,6 +186,11 @@ public final class BuildingUiContext {
         }
         String trimmed = ImStringUtf8.read(state.getBuildingNameBuffer()).trim();
         if (!trimmed.isEmpty() && !trimmed.equals(building.getName())) {
+            if (BuildingNameHelper.nameExists(project(), trimmed, building.getId())) {
+                setProjectStatus(PlotI18n.tr("plugin.building.name_exists"));
+                cancelBuildingNameRename(building);
+                return;
+            }
             projectHistory().push(project());
             building.setName(trimmed);
         }
