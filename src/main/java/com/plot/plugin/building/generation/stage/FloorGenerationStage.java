@@ -7,7 +7,6 @@ import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.building.generation.BuildingBlockWriter;
 import com.plot.plugin.building.generation.BuildingGenerationContext;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
-import com.plot.plugin.building.generation.massing.FloorPlateGeometryResolver;
 import com.plot.plugin.building.generation.massing.FloorPlateGeometryResolver.ResolvedFloorPlate;
 import com.plot.plugin.building.generation.massing.InnerOffsetDegradation;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
@@ -73,25 +72,17 @@ public final class FloorGenerationStage implements BuildingGenerationStage {
         BuildingGenerationResult result = context.getResult();
         BuildingDefinition definition = context.getDefinition();
         MassingSpec massing = definition.massing();
-        EnvelopeSpec envelope = definition.envelope();
-        ResolvedFloorPlate topPlate = FloorPlateGeometryResolver.resolve(
-            massing.topOccupiedPlate(), envelope.wallThickness(), context.getCanvasScale());
-        Polygon innerPolygon = topPlate.innerPolygon();
-        if (!InnerOffsetDegradation.hasInteriorSpace(innerPolygon)) {
+        int topPlateFloor = Math.max(0, massing.floors() - 1);
+        ResolvedFloorPlate topPlate = context.resolvedFloorPlate(topPlateFloor);
+        if (topPlate.outerCells().isEmpty()) {
             return;
         }
         int topFloorY = context.getTopFloorY();
         String roofBlockId = context.getRoofBlockId();
         IBlockProjectionService projectionHandler = context.getProjectionService();
 
-        double blockCellSize = context.getCanvasScale().uniformBlocksToCanvas(
-            1.0, topPlate.outerPoints());
-        List<BuildingGenerationContext.GridCell> innerCells = BuildingGenerationContext.collectFootprintCells(
-            topPlate.innerPoints(), innerPolygon, blockCellSize);
-        for (BuildingGenerationContext.GridCell cell : innerCells) {
-            if (!InnerOffsetDegradation.isInteriorCell(innerPolygon, cell.center())) {
-                continue;
-            }
+        // 平顶覆盖整个外轮廓（含外墙环带），与墙体顶面齐平
+        for (BuildingGenerationContext.GridCell cell : topPlate.outerCells()) {
             BlockPos column = context.canvasToColumn(cell.center());
             BlockPos pos = new BlockPos(column.getX(), topFloorY, column.getZ());
             BuildingBlockWriter.recordBlock(result, pos, roofBlockId, projectionHandler);

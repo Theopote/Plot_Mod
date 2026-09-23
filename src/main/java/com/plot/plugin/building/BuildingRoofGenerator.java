@@ -8,6 +8,7 @@ import com.plot.core.geometry.shapes.Polygon;
 import com.plot.plugin.building.generation.BuildingBlockWriter;
 import com.plot.plugin.building.generation.BuildingCanvasScale;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
+import com.plot.plugin.building.generation.BuildingGridAlignment;
 import com.plot.plugin.building.model.BuildingFootprint;
 import net.minecraft.util.math.BlockPos;
 
@@ -70,7 +71,8 @@ public final class BuildingRoofGenerator {
                 continue;
             }
 
-            BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(center, coords);
+            Vec2d aligned = BuildingGridAlignment.snapToBlockCellCenter(center, scale, outerPoints);
+            BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(aligned, coords);
             for (int layer = 1; layer <= layers; layer++) {
                 BlockPos pos = new BlockPos(column.getX(), topFloorY + layer, column.getZ());
                 BuildingBlockWriter.recordBlock(result, pos, roofBlockId, projectionHandler);
@@ -90,7 +92,8 @@ public final class BuildingRoofGenerator {
         if (eaves > 0) {
             return 1 + (int) Math.floor((distToEaveBlocks - eaves) / pitchValue);
         }
-        return (int) Math.floor(distToEaveBlocks / pitchValue);
+        // 外轮廓最外圈格心距檐口可能不足 1 格，仍应铺 1 层屋面
+        return Math.max(1, (int) Math.floor(distToEaveBlocks / pitchValue));
     }
 
     static int computeGableRise(
