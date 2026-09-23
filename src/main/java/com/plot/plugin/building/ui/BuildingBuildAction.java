@@ -1,7 +1,6 @@
 package com.plot.plugin.building.ui;
 
 import com.plot.plugin.building.model.BuildingFootprint;
-import com.plot.plugin.ui.PluginJobProgressUi;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -43,15 +42,6 @@ public final class BuildingBuildAction {
         }
         if (buildDisabled) {
             ImGui.endDisabled();
-        }
-
-        if (ctx.host().placement().isBusy()) {
-            ImGui.spacing();
-            PluginJobProgressUi.renderPlacementProgress(
-                ctx.host().placement(),
-                "plugin.building.placement_progress",
-                "plugin.building.build_in_progress_hint",
-                "plugin.building.cancel_placement");
         }
     }
 }

@@ -1,4 +1,5 @@
 package com.plot.plugin.road.ui;
+import com.plot.plugin.ui.PluginJobProgressUi;
 import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.core.command.Command;
@@ -76,22 +77,13 @@ public final class RoadToolbarPanel {
     }
 
     private void renderActivePlacementControls() {
-        com.plot.api.world.IBlockPlacementService scheduler = ctx.host().placement();
-        if (!scheduler.isBusy()) {
-            return;
+        PluginJobProgressUi.renderPlacementProgress(
+            ctx.host().placement(),
+            "plugin.road.placement_progress",
+            "plugin.road.build_in_progress_hint",
+            "plugin.road.cancel_placement");
+        if (ctx.host().placement().isBusy()) {
+            ImGui.separator();
         }
-
-        com.plot.api.world.IBlockPlacementService.ProgressSnapshot progress = scheduler.getProgressSnapshot();
-        if (progress != null) {
-            RoadUiWidgets.textWrappedColored(PluginUiColors.STATUS_INFO,
-                PlotI18n.tr("plugin.road.placement_progress", progress.processed(), progress.total()));
-        } else {
-            RoadUiWidgets.textWrappedColored(PluginUiColors.STATUS_INFO, PlotI18n.tr("plugin.road.build_in_progress_hint"));
-        }
-
-        if (ImGui.button(PlotI18n.tr("plugin.road.cancel_placement"), 0, 0)) {
-            scheduler.cancelAll();
-        }
-        ImGui.separator();
     }
 }

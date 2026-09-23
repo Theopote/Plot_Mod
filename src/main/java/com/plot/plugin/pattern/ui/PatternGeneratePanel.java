@@ -1,7 +1,6 @@
 package com.plot.plugin.pattern.ui;
 
 import com.plot.plugin.pattern.model.PatternFootprint;
-import com.plot.plugin.ui.PluginJobProgressUi;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -36,7 +35,6 @@ public final class PatternGeneratePanel {
             ctx.host().projection().checkWorldModificationReadiness();
 
         renderPreviewControls(selectedCount, footprint, half);
-        renderPreviewProgress();
         ImGui.spacing();
 
         PatternPreviewRenderer.render(resolvePreviewResult());
@@ -83,7 +81,7 @@ public final class PatternGeneratePanel {
         if (!canBuild) {
             ImGui.endDisabled();
         }
-        if (fallbackBlocked && preview != null) {
+        if (fallbackBlocked) {
             ImGui.textColored(
                 PluginUiColors.ERROR_SOFT,
                 PlotI18n.tr(
@@ -102,24 +100,6 @@ public final class PatternGeneratePanel {
             return null;
         }
         return ctx.lastGenerationResult();
-    }
-
-    private void renderPreviewProgress() {
-        if (!ctx.isPreviewBusy()) {
-            return;
-        }
-        PatternPreviewJob job = ctx.previewJob();
-        if (job == null) {
-            return;
-        }
-
-        PluginJobProgressUi.renderJobProgress(
-            PlotI18n.tr(job.phaseTranslationKey()),
-            job.processedCount(),
-            job.totalCount(),
-            ImGui.getContentRegionAvailX(),
-            "plugin.pattern.cancel_preview",
-            ctx::cancelPreviewJob);
     }
 
     private void renderPreviewControls(int selectedCount, PatternFootprint footprint, float halfWidth) {

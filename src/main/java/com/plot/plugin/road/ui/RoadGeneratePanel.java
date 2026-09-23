@@ -1,7 +1,6 @@
 package com.plot.plugin.road.ui;
 import com.plot.plugin.ui.PluginUiColors;
 
-import com.plot.api.world.IBlockProjectionService;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadLongitudinalProfileRenderer;
 import com.plot.plugin.road.RoadNetworkValidationReport;
@@ -283,9 +282,6 @@ public final class RoadGeneratePanel {
                 ctx.host().projection().checkWorldModificationReadiness();
             if (!readiness.ready()) {
                 RoadUiWidgets.textWrappedColored(PluginUiColors.ERROR, readiness.message());
-            }
-            if (ctx.host().placement().isBusy()) {
-                RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.road.build_in_progress_wait"));
             }
             RoadUiWidgets.renderRoadVisibilityWarning(ctx);
             RoadNetworkValidationPanel.renderConfirmWarnings(validationReport);

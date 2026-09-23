@@ -1,7 +1,6 @@
 package com.plot.plugin.pattern.ui;
 
 import com.plot.plugin.ui.PluginJobProgressUi;
-import com.plot.plugin.ui.PluginJobProgressUi;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;

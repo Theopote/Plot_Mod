@@ -10,6 +10,9 @@ import java.text.NumberFormat;
  * 插件任务进度条（预览分帧、方块落地等）的统一 ImGui 呈现。
  * <p>
  * 图案 / 电力 / 建筑等插件应优先使用本类，避免各插件重复实现进度条样式。
+ * <p>
+ * <strong>展示约定：</strong>进度条只在各插件顶部工具栏渲染一次；生成页 / 弹窗内仅禁用相关按钮，
+ * 不要再重复绘制进度条或同类进度文案。
  */
 public final class PluginJobProgressUi {
     private PluginJobProgressUi() {
