@@ -345,14 +345,15 @@ public class BuildingFootprint {
         this.windowSillHeight = Math.max(0, Math.min(16, windowSillHeight));
     }
 
-    /** 窗宽/窗高/窗台与当前层高校验一致（生成阶段使用相同规则）。 */
+    /** 窗宽/窗高/窗台与当前层高校验一致（窗台自楼板上表面起算，与生成阶段相同）。 */
     public void clampWindowToFloorHeight() {
         int fh = getFloorHeight();
+        int maxSpan = Math.max(0, fh - 1);
         windowWidth = Math.max(1, Math.min(MAX_WINDOW_WIDTH, windowWidth));
-        windowSillHeight = Math.max(0, Math.min(fh, windowSillHeight));
+        windowSillHeight = Math.max(0, Math.min(maxSpan, windowSillHeight));
         windowHeight = Math.max(1, Math.min(fh, windowHeight));
-        if (windowSillHeight + windowHeight > fh) {
-            windowHeight = Math.max(1, fh - windowSillHeight);
+        if (windowSillHeight + windowHeight > maxSpan) {
+            windowHeight = Math.max(1, maxSpan - windowSillHeight);
         }
     }
 

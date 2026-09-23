@@ -4473,7 +4473,7 @@
   "hint.plot.building.window_spacing": "Spacing between windows along each exterior wall (blocks). 0 means no windows on that wall.",
   "hint.plot.building.window_width": "Horizontal width of each window opening (blocks), range 1–10.",
   "hint.plot.building.window_height": "Vertical height of each window opening (blocks), range 1 to current floor height.",
-  "hint.plot.building.window_sill": "Height of the window sill above the floor slab (blocks), range 0 to floor height; sill + height must fit within the floor.",
+  "hint.plot.building.window_sill": "Height above the top of the floor slab (blocks). 0 places the window on the slab top; sill + window height must fit within the clear height above the slab.",
   "hint.plot.building.height_dist_seed": "Random seed for RANDOM mode. Same selection and seed yield the same floor distribution; default is derived from project and selected building ids.",
   "hint.plot.building.foundation_material": "Foundation fill material: used only when the foundation sits below existing terrain and fill is needed; not used in cut-only scenarios.",
   "hint.plot.powerline.recommended_min_spacing": "Recommended minimum spacing: advisory only. Required poles at corners are never removed automatically; the Build tab warns if poles are closer than this.",

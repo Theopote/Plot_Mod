@@ -11,6 +11,7 @@ import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.generation.facade.FacadeEdgeResolver;
 import com.plot.plugin.building.generation.opening.OpeningPlacementResolver;
 import com.plot.plugin.building.generation.opening.OpeningPlacementResolver.ResolvedOpening;
+import com.plot.plugin.building.generation.opening.OpeningVerticalLayout;
 import com.plot.plugin.building.generation.opening.WindowLayoutResolver;
 import com.plot.plugin.building.generation.opening.WindowLayoutResolver.PlannedWindow;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
@@ -61,7 +62,8 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
 
         for (int floor = 0; floor < massing.floors(); floor++) {
             List<Vec2d> outerPoints = massing.plateForFloor(floor).outerPoints();
-            int floorBaseY = baseElevation + floor * massing.floorHeight();
+            int floorSlabY = OpeningVerticalLayout.floorSlabY(
+                baseElevation, floor, massing.floorHeight());
 
             List<PlannedWindow> windows = WindowLayoutResolver.layout(
                 outerPoints,
@@ -80,7 +82,7 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
                     window.centerArcCanvas(),
                     window.widthBlocks(),
                     window.heightBlocks(),
-                    floorBaseY + window.sillBlocks(),
+                    OpeningVerticalLayout.windowStartY(floorSlabY, window.sillBlocks()),
                     envelope.wallThickness(),
                     windowBlockId,
                     projectionHandler

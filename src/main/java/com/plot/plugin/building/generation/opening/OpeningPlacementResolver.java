@@ -61,13 +61,18 @@ public final class OpeningPlacementResolver {
         Vec2d tangent = end.subtract(start).normalize();
         Vec2d inwardNormal = BuildingGeometryUtils.outwardNormal(outerPoints, segmentIndex).multiply(-1);
 
-        int floorBaseY = baseElevation + opening.floor() * floorHeight;
+        int floorSlabY = OpeningVerticalLayout.floorSlabY(baseElevation, opening.floor(), floorHeight);
         int bottom = opening.bottomOffset();
         int maxHeight = maxOpeningHeight(opening.kind(), floorHeight, bottom);
         int height = Math.min(opening.height(), maxHeight);
         if (height <= 0) {
             return null;
         }
+
+        int startY = switch (opening.kind()) {
+            case WINDOW -> OpeningVerticalLayout.windowStartY(floorSlabY, bottom);
+            case DOOR, ARCH -> OpeningVerticalLayout.doorStartY(floorSlabY, bottom);
+        };
 
         return new ResolvedOpening(
             opening,
@@ -76,13 +81,13 @@ public final class OpeningPlacementResolver {
             inwardNormal,
             opening.width(),
             height,
-            floorBaseY + bottom
+            startY
         );
     }
 
     private static int maxOpeningHeight(OpeningKind kind, int floorHeight, int bottomOffset) {
         return switch (kind) {
-            case WINDOW -> Math.max(1, floorHeight - bottomOffset - 1);
+            case WINDOW -> OpeningVerticalLayout.maxWindowHeight(floorHeight, bottomOffset);
             case DOOR, ARCH -> Math.max(1, floorHeight - bottomOffset - 1);
         };
     }

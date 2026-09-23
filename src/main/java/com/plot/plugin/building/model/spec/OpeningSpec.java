@@ -10,7 +10,7 @@ public final class OpeningSpec {
     private final int floor;
     private final int width;
     private final int height;
-    /** 洞底相对楼层地面的竖向偏移（格）。门/拱通常为 0，窗为窗台高度。 */
+    /** 门/拱：相对楼板方块的底边偏移；窗：相对楼板上表面的窗台高度（0 = 贴在楼板顶面）。 */
     private final int bottomOffset;
 
     public OpeningSpec(

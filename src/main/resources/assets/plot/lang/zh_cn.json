@@ -4473,7 +4473,7 @@
   "hint.plot.building.window_spacing": "沿外墙均匀开窗的间距（方块数）。数值为 0 时表示这面墙不开窗。",
   "hint.plot.building.window_width": "单个窗洞在墙上的水平宽度（方块数），范围 1–10。",
   "hint.plot.building.window_height": "窗洞开口的垂直高度（方块数），范围 1 至当前层高。",
-  "hint.plot.building.window_sill": "窗台距该层楼板面的高度（方块数），范围 0 至当前层高；窗台 + 窗高不可超过层高。",
+  "hint.plot.building.window_sill": "窗台距楼板上表面的高度（方块数）；0 表示窗底贴在楼板顶面。窗台 + 窗高不可超过楼板上方的净层高。",
   "hint.plot.building.height_dist_seed": "RANDOM 模式的随机种子。相同选中集与相同 seed 会得到相同层数分布；默认由项目与选中建筑 id 推导。",
   "hint.plot.building.foundation_material": "地基填方材质：仅在地基低于原地形、需要填方时用到；纯挖方场景下不会用到这个材质。",
   "hint.plot.powerline.recommended_min_spacing": "建议最小间距：仅作美观提示。转角等必需杆塔不会被自动删除，过近时会在建造页显示警告。",

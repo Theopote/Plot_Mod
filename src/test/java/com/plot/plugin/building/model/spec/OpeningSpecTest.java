@@ -55,7 +55,7 @@ class OpeningSpecTest {
         OpeningSpec window = OpeningSpec.window(0, 0.5, 0, 1, 2, 1);
         ResolvedOpening resolved = OpeningPlacementResolver.resolve(window, BASE, 64, 4);
         assertNotNull(resolved);
-        assertEquals(65, resolved.startY());
+        assertEquals(66, resolved.startY());
         assertEquals(2, resolved.height());
     }
 

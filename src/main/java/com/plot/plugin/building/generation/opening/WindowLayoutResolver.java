@@ -71,8 +71,8 @@ public final class WindowLayoutResolver {
                 continue;
             }
 
-            int sill = Math.min(pattern.sillHeight(), floorHeight);
-            int maxWindowHeight = Math.max(1, floorHeight - sill);
+            int sill = Math.min(pattern.sillHeight(), OpeningVerticalLayout.maxWindowSpan(floorHeight));
+            int maxWindowHeight = OpeningVerticalLayout.maxWindowHeight(floorHeight, sill);
             int windowHeight = Math.min(Math.max(1, pattern.height()), maxWindowHeight);
             double spacingCanvas = canvasScale.uniformBlocksToCanvas(pattern.spacing(), outerPoints);
 
