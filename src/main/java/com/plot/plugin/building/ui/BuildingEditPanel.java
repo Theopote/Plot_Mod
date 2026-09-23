@@ -162,6 +162,9 @@ public final class BuildingEditPanel {
             }
             if (pitchChanged) {
                 building.setRoofPitchRatio(pitch[0]);
+            }
+            if (ImGui.isItemDeactivatedAfterEdit()) {
+                building.refreshSlopedRoofEligibility();
                 ctx.invalidatePreview();
             }
             UIUtils.renderEngineeringTooltip("hint.plot.building.roof_pitch");
@@ -176,6 +179,9 @@ public final class BuildingEditPanel {
             }
             if (eavesChanged) {
                 building.setRoofEaves(eaves[0]);
+            }
+            if (ImGui.isItemDeactivatedAfterEdit()) {
+                building.refreshSlopedRoofEligibility();
                 ctx.invalidatePreview();
             }
             UIUtils.renderEngineeringTooltip("hint.plot.building.roof_eaves");
@@ -451,16 +457,15 @@ public final class BuildingEditPanel {
     }
 
     /**
-     * Straight Skeleton  eligibility 首次计算较重；在展开「屋顶」区块前预热，避免点击折叠头卡顿。
+     * Straight Skeleton eligibility 首次计算较重；进入编辑面板时预热，
+     * 避免首次切换坡顶类型或展开「屋顶」区块时卡顿。
      */
     private void warmSlopedRoofEligibility(BuildingFootprint building) {
         if (building.getId().equals(slopedEligibilityWarmBuildingId)) {
             return;
         }
         slopedEligibilityWarmBuildingId = building.getId();
-        if (building.getRoofType() != BuildingFootprint.RoofType.FLAT) {
-            building.isSlopedRoofEligible();
-        }
+        building.refreshSlopedRoofEligibility();
     }
     private BuildingCanvasScale canvasScale(BuildingFootprint building) {
         return BuildingCanvasScale.capture(ctx.host().coordinates(), building.getOuterPoints());

@@ -180,8 +180,7 @@ public class BuildingFootprint {
 
     public boolean isSlopedRoofEligible() {
         if (slopedRoofEligible == null) {
-            slopedRoofEligible = BuildingGeometryUtils.isSlopedRoofEligible(
-                outerPoints, roofPitchRatio, roofEaves);
+            refreshSlopedRoofEligibility();
         }
         return slopedRoofEligible;
     }
@@ -294,7 +293,6 @@ public class BuildingFootprint {
 
     public void setRoofPitchRatio(int roofPitchRatio) {
         this.roofPitchRatio = Math.max(1, Math.min(16, roofPitchRatio));
-        this.slopedRoofEligible = null;
     }
 
     public int getRoofEaves() {
@@ -303,7 +301,12 @@ public class BuildingFootprint {
 
     public void setRoofEaves(int roofEaves) {
         this.roofEaves = Math.max(0, Math.min(5, roofEaves));
-        this.slopedRoofEligible = null;
+    }
+
+    /** 按当前坡度/屋檐重算坡顶 eligibility（Straight Skeleton，较重，勿在拖动时每帧调用）。 */
+    public void refreshSlopedRoofEligibility() {
+        slopedRoofEligible = BuildingGeometryUtils.isSlopedRoofEligible(
+            outerPoints, roofPitchRatio, roofEaves);
     }
 
     public Integer getManualBaseElevation() {
@@ -394,19 +397,6 @@ public class BuildingFootprint {
             .toList();
     }
 
-    /** 按门洞列表顺序移除第 {@code index} 个门。 */
-    public void removeDoorOpening(int index) {
-        int doorIndex = 0;
-        for (int i = 0; i < openings.size(); i++) {
-            if (openings.get(i).kind() == OpeningKind.DOOR) {
-                if (doorIndex == index) {
-                    openings.remove(i);
-                    return;
-                }
-                doorIndex++;
-            }
-        }
-    }
 
     /**
      * 显式立面开洞（门、拱、单窗等）。窗型阵列 pattern 仍由全局/分立面窗型参数控制。
