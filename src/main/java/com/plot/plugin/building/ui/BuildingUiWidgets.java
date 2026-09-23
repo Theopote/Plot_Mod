@@ -115,7 +115,8 @@ public final class BuildingUiWidgets {
             Consumer<String> onSelected) {
         ImGui.text(label);
         ImGui.sameLine();
-        if (ImGui.button(currentBlockId + "##" + label, 0, 0)) {
+        String display = UIUtils.getBlockDisplayName(currentBlockId);
+        if (ImGui.button(display + "##" + label, 0, 0)) {
             openBlockPicker(currentBlockId, onSelected);
         }
     }

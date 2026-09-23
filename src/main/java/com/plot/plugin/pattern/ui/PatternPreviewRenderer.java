@@ -28,6 +28,14 @@ public final class PatternPreviewRenderer {
         float previewHeight = PatternOverviewRenderer.mapHeightForWidth(width);
 
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0f, 0f);
+        try {
+            renderPreviewChild(result, width, previewHeight);
+        } finally {
+            ImGui.popStyleVar();
+        }
+    }
+
+    private static void renderPreviewChild(PatternGenerationResult result, float width, float previewHeight) {
         ImGui.beginChild(
             "##pattern_preview_area",
             width,
@@ -56,7 +64,6 @@ public final class PatternPreviewRenderer {
                     PlotI18n.tr("plugin.pattern.preview_area_empty"));
             ImGui.dummy(contentWidth, contentHeight);
             ImGui.endChild();
-            ImGui.popStyleVar();
             return;
         }
 
@@ -87,7 +94,6 @@ public final class PatternPreviewRenderer {
 
         ImGui.dummy(contentWidth, contentHeight);
         ImGui.endChild();
-        ImGui.popStyleVar();
     }
 
     private static float[] fitAspectRect(

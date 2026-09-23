@@ -40,6 +40,9 @@ public final class BuildingEditPanel {
                 ctx.buildingSortMode(),
                 ctx.currentProjection(),
                 ctx.blockCountCache());
+            if (buildings.isEmpty()) {
+                return;
+            }
             building = buildings.getFirst();
             ctx.selection().select(building.getId(), false);
         }

@@ -62,10 +62,9 @@ public class ExtensionPanel implements UIComponent {
             return;
         }
 
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarSize, 14.0f);
         try {
-            UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
-            ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarSize, 14.0f);
-            
             // 插件图标列表
             ImGui.text(PlotI18n.tr("panel.plot.extension_installed"));
             renderPluginIcons(theme);
@@ -143,11 +142,10 @@ public class ExtensionPanel implements UIComponent {
                 ImGui.popStyleColor();
                 ImGui.textWrapped(PlotI18n.tr("panel.plot.extension_select_hint"));
             }
-            
-            ImGui.popStyleVar();
-            
         } catch (Exception e) {
             PlotMod.LOGGER.error("ExtensionPanel渲染失败: {}", e.getMessage(), e);
+        } finally {
+            ImGui.popStyleVar();
         }
     }
 
