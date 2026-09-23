@@ -50,6 +50,7 @@ public final class BuildingEditPanel {
     }
 
     private void renderBatchMode() {
+        BuildingUiWidgets.beginFormPanel();
         ImGui.text(PlotI18n.tr("plugin.building.edit_batch_title", ctx.selection().size()));
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.edit_batch_hint"));
         ImGui.separator();
@@ -57,6 +58,7 @@ public final class BuildingEditPanel {
     }
 
     private void renderSingleMode() {
+        BuildingUiWidgets.beginFormPanel();
         BuildingUiWidgets.renderBuildingSelector(ctx, "plugin.building.building_name");
         BuildingFootprint building = ctx.selection().primary(ctx.project());
         if (building == null) {
@@ -431,7 +433,7 @@ public final class BuildingEditPanel {
             PlotI18n.tr("plugin.building.roof_hip")
         };
         ImInt roofTypeIndex = new ImInt(building.getRoofType().ordinal());
-        if (ImGui.combo(PlotI18n.tr("plugin.building.roof_type"), roofTypeIndex, labels)) {
+        if (BuildingUiWidgets.comboWithRightLabel("##roof_type", "plugin.building.roof_type", roofTypeIndex, labels)) {
             int index = roofTypeIndex.get();
             if (index >= 0 && index < roofTypes.length) {
                 ctx.projectHistory().push(ctx.project());

@@ -68,9 +68,73 @@ public final class BuildingUiWidgets {
             }
         }
         ImInt buildingIndex = new ImInt(current);
-        if (ImGui.combo(PlotI18n.tr(labelKey), buildingIndex, labels)) {
+        if (comboWithRightLabel("##building_selector", labelKey, buildingIndex, labels)) {
             ctx.selection().select(ids[buildingIndex.get()], false);
         }
+    }
+
+    /** 重置编辑面板表单列宽（每帧在渲染控件前调用一次）。 */
+    public static void beginFormPanel() {
+        formRightLabelWidth = -1f;
+    }
+
+    public static boolean comboWithRightLabel(String id, String labelKey, ImInt index, String[] items) {
+        ensureFormColumns();
+        setNextFormInputWidth();
+        boolean changed = ImGui.combo(id, index, items);
+        ImGui.sameLine(formRightLabelStartX());
+        ImGui.alignTextToFramePadding();
+        ImGui.text(PlotI18n.tr(labelKey));
+        return changed;
+    }
+
+    public static void setNextFormInputWidth() {
+        ImGui.setNextItemWidth(formInputWidth());
+    }
+
+    private static float formRightLabelWidth = -1f;
+
+    private static final String[] FORM_RIGHT_LABEL_KEYS = {
+        "plugin.building.building_name",
+        "plugin.building.roof_type",
+        "plugin.building.label.floors",
+        "plugin.building.label.floor_height",
+        "plugin.building.label.wall_thickness",
+        "plugin.building.label.roof_pitch",
+        "plugin.building.label.roof_eaves",
+        "plugin.building.label.base_elevation",
+        "plugin.building.label.floor_plate_tower_start",
+        "plugin.building.label.floor_plate_inset",
+        "plugin.building.label.window_width",
+        "plugin.building.label.window_pier_width",
+        "plugin.building.label.window_height",
+        "plugin.building.label.window_sill",
+        "plugin.building.label.height_min_floors",
+        "plugin.building.label.height_max_floors",
+    };
+
+    private static void ensureFormColumns() {
+        if (formRightLabelWidth >= 0f) {
+            return;
+        }
+        float spacing = ImGui.getStyle().getItemInnerSpacingX();
+        formRightLabelWidth = spacing * 2f;
+        for (String key : FORM_RIGHT_LABEL_KEYS) {
+            formRightLabelWidth = Math.max(
+                formRightLabelWidth,
+                ImGui.calcTextSize(PlotI18n.tr(key)).x + spacing * 2f);
+        }
+    }
+
+    private static float formInputWidth() {
+        ensureFormColumns();
+        float inputEndX = ImGui.getWindowContentRegionMaxX() - formRightLabelWidth;
+        return Math.max(80f, inputEndX - ImGui.getCursorStartPosX());
+    }
+
+    private static float formRightLabelStartX() {
+        ensureFormColumns();
+        return formInputWidth() + ImGui.getStyle().getItemInnerSpacingX();
     }
 
     public static void renderMaterialMixButton(
@@ -157,10 +221,10 @@ public final class BuildingUiWidgets {
             String labelKey,
             SliderValueFormat valueFormat) {
         String label = PlotI18n.tr(labelKey);
-        float labelWidth = ImGui.calcTextSize(label).x + ImGui.getStyle().getItemInnerSpacingX() * 2f;
-        ImGui.setNextItemWidth(Math.max(80f, ImGui.getContentRegionAvailX() - labelWidth));
+        ensureFormColumns();
+        setNextFormInputWidth();
         boolean changed = ImGui.sliderInt(id, value, min, max, sliderValueFormat(valueFormat));
-        ImGui.sameLine(0, ImGui.getStyle().getItemInnerSpacingX());
+        ImGui.sameLine(formRightLabelStartX());
         ImGui.alignTextToFramePadding();
         ImGui.text(label);
         return changed;

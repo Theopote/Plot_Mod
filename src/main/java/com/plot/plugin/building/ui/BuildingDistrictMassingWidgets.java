@@ -104,7 +104,7 @@ public final class BuildingDistrictMassingWidgets {
             }
         }
         ImInt modeIndex = new ImInt(current);
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        BuildingUiWidgets.setNextFormInputWidth();
         if (ImGui.combo("##height_dist_mode", modeIndex, labels)) {
             int picked = modeIndex.get();
             if (picked >= 0 && picked < modes.length) {
