@@ -8,7 +8,7 @@ import com.plot.plugin.earthwork.ui.EarthworkOverviewPanel;
 import com.plot.plugin.earthwork.ui.EarthworkQuickPanel;
 import com.plot.plugin.earthwork.ui.EarthworkToolbarPanel;
 import com.plot.plugin.earthwork.ui.EarthworkUiContext;
-import com.plot.utils.PlotI18n;
+import com.plot.plugin.ui.PluginTabScrollUi;
 import imgui.ImGui;
 import imgui.flag.ImGuiTabBarFlags;
 
@@ -53,7 +53,7 @@ public final class EarthworkUIManager {
         }
 
         if (ctx.config().getWorkMode() == EarthworkWorkMode.QUICK) {
-            quickPanel.render();
+            PluginTabScrollUi.renderScrollBody("##earthwork_quick", quickPanel::render);
             return;
         }
 
@@ -64,18 +64,23 @@ public final class EarthworkUIManager {
         if (!ImGui.beginTabBar("##earthwork_tabs", ImGuiTabBarFlags.None)) {
             return;
         }
-        renderTab("plugin.earthwork.tab.overview", overviewPanel::render);
-        renderTab("plugin.earthwork.tab.adopt", adoptPanel::render);
-        renderTab("plugin.earthwork.tab.edit", editPanel::render);
-        renderTab("plugin.earthwork.tab.generate", generatePanel::render);
+        PluginTabScrollUi.renderTab(
+            "plugin.earthwork.tab.overview",
+            "##earthwork_tab_overview",
+            overviewPanel::render);
+        PluginTabScrollUi.renderTab(
+            "plugin.earthwork.tab.adopt",
+            "##earthwork_tab_adopt",
+            adoptPanel::render);
+        PluginTabScrollUi.renderTab(
+            "plugin.earthwork.tab.edit",
+            "##earthwork_tab_edit",
+            editPanel::render);
+        PluginTabScrollUi.renderTab(
+            "plugin.earthwork.tab.generate",
+            "##earthwork_tab_generate",
+            generatePanel::render);
         ImGui.endTabBar();
-    }
-
-    private static void renderTab(String labelKey, Runnable body) {
-        if (ImGui.beginTabItem(PlotI18n.tr(labelKey))) {
-            body.run();
-            ImGui.endTabItem();
-        }
     }
 
     public void renderDeferredModals() {

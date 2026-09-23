@@ -1,6 +1,6 @@
 package com.plot.plugin.powerline.ui;
 
-import com.plot.utils.PlotI18n;
+import com.plot.plugin.ui.PluginTabScrollUi;
 import imgui.ImGui;
 import imgui.flag.ImGuiTabBarFlags;
 
@@ -31,17 +31,19 @@ public final class PowerLineUIManager {
         }
         toolbarPanel.render();
         if (ImGui.beginTabBar("##powerline_tabs", ImGuiTabBarFlags.None)) {
-            renderTab("plugin.powerline.tab.route", routePanel::render);
-            renderTab("plugin.powerline.tab.style", stylePanel::render);
-            renderTab("plugin.powerline.tab.build", buildPanel::render);
+            PluginTabScrollUi.renderTab(
+                "plugin.powerline.tab.route",
+                "##powerline_tab_route",
+                routePanel::render);
+            PluginTabScrollUi.renderTab(
+                "plugin.powerline.tab.style",
+                "##powerline_tab_style",
+                stylePanel::render);
+            PluginTabScrollUi.renderTab(
+                "plugin.powerline.tab.build",
+                "##powerline_tab_build",
+                buildPanel::render);
             ImGui.endTabBar();
-        }
-    }
-
-    private static void renderTab(String labelKey, Runnable body) {
-        if (ImGui.beginTabItem(PlotI18n.tr(labelKey))) {
-            body.run();
-            ImGui.endTabItem();
         }
     }
 

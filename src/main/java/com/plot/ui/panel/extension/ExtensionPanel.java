@@ -119,7 +119,7 @@ public class ExtensionPanel implements UIComponent {
                         0,
                         0,
                         false,
-                        ImGuiWindowFlags.AlwaysVerticalScrollbar)) {
+                        ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)) {
                     try {
                         if (currentActivePlugin.isEnabled()) {
                             currentActivePlugin.render();

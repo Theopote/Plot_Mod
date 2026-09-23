@@ -13,7 +13,7 @@ import com.plot.plugin.road.ui.RoadToolbarPanel;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.RoadUiTab;
 import com.plot.plugin.road.model.RoadNode;
-import com.plot.utils.PlotI18n;
+import com.plot.plugin.ui.PluginTabScrollUi;
 import imgui.ImGui;
 import imgui.flag.ImGuiTabBarFlags;
 import imgui.flag.ImGuiTabItemFlags;
@@ -81,10 +81,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
 
     private void renderTab(RoadUiTab tab, String labelKey, RoadUiTab pendingTab, Runnable body) {
         int flags = pendingTab == tab ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
-        if (ImGui.beginTabItem(PlotI18n.tr(labelKey), flags)) {
-            body.run();
-            ImGui.endTabItem();
-        }
+        PluginTabScrollUi.renderTab(labelKey, flags, "##road_tab_" + tab.name().toLowerCase(), body);
     }
 
     private void renderGenerateTab() {

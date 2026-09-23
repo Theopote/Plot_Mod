@@ -1,6 +1,6 @@
 package com.plot.plugin.building.ui;
 
-import com.plot.utils.PlotI18n;
+import com.plot.plugin.ui.PluginTabScrollUi;
 import imgui.ImGui;
 import imgui.flag.ImGuiTabBarFlags;
 
@@ -34,9 +34,18 @@ public final class BuildingUIManager {
 
         boolean footprintsTabOpen = false;
         if (ImGui.beginTabBar("##building_tabs", ImGuiTabBarFlags.None)) {
-            footprintsTabOpen = renderTab("plugin.building.tab.footprints", footprintsPanel::render);
-            renderTab("plugin.building.tab.edit", editPanel::render);
-            renderTab("plugin.building.tab.generate", generatePanel::render);
+            footprintsTabOpen = PluginTabScrollUi.renderTab(
+                "plugin.building.tab.footprints",
+                "##building_tab_footprints",
+                footprintsPanel::render);
+            PluginTabScrollUi.renderTab(
+                "plugin.building.tab.edit",
+                "##building_tab_edit",
+                editPanel::render);
+            PluginTabScrollUi.renderTab(
+                "plugin.building.tab.generate",
+                "##building_tab_generate",
+                generatePanel::render);
             ImGui.endTabBar();
         }
 
@@ -44,15 +53,6 @@ public final class BuildingUIManager {
             ctx.buildingRename().cancelActive();
         }
         footprintsTabOpenLastFrame = footprintsTabOpen;
-    }
-
-    private static boolean renderTab(String labelKey, Runnable body) {
-        if (ImGui.beginTabItem(PlotI18n.tr(labelKey))) {
-            body.run();
-            ImGui.endTabItem();
-            return true;
-        }
-        return false;
     }
 
     public void renderDeferredModals() {

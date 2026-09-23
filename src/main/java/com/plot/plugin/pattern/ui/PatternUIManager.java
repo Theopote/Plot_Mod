@@ -1,6 +1,6 @@
 package com.plot.plugin.pattern.ui;
 
-import com.plot.utils.PlotI18n;
+import com.plot.plugin.ui.PluginTabScrollUi;
 import imgui.ImGui;
 import imgui.flag.ImGuiTabBarFlags;
 
@@ -35,17 +35,19 @@ public final class PatternUIManager {
         toolbarPanel.render();
 
         if (ImGui.beginTabBar("##pattern_tabs", ImGuiTabBarFlags.None)) {
-            renderTab("plugin.pattern.tab.region", regionPanel::render);
-            renderTab("plugin.pattern.tab.design", designPanel::render);
-            renderTab("plugin.pattern.tab.generate", generatePanel::render);
+            PluginTabScrollUi.renderTab(
+                "plugin.pattern.tab.region",
+                "##pattern_tab_region",
+                regionPanel::render);
+            PluginTabScrollUi.renderTab(
+                "plugin.pattern.tab.design",
+                "##pattern_tab_design",
+                designPanel::render);
+            PluginTabScrollUi.renderTab(
+                "plugin.pattern.tab.generate",
+                "##pattern_tab_generate",
+                generatePanel::render);
             ImGui.endTabBar();
-        }
-    }
-
-    private static void renderTab(String labelKey, Runnable body) {
-        if (ImGui.beginTabItem(PlotI18n.tr(labelKey))) {
-            body.run();
-            ImGui.endTabItem();
         }
     }
 
