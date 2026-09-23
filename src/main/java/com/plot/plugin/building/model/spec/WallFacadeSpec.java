@@ -24,9 +24,9 @@ public final class WallFacadeSpec {
         return new WallFacadeSpec(wallSegmentIndex, windowPattern);
     }
 
-    /** 该墙段不开窗（spacing=0）。 */
+    /** 该墙段不开窗。 */
     public static WallFacadeSpec noWindows(int wallSegmentIndex) {
-        return new WallFacadeSpec(wallSegmentIndex, new WindowPatternSpec(0, 1, 2, 1));
+        return new WallFacadeSpec(wallSegmentIndex, WindowPatternSpec.disabled());
     }
 
     public int wallSegmentIndex() {

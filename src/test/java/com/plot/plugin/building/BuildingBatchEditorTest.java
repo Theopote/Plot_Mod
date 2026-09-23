@@ -40,8 +40,9 @@ class BuildingBatchEditorTest {
         source.setFoundationFillMaterial("minecraft:dirt");
         source.setRoofType(BuildingFootprint.RoofType.GABLE);
         source.setRoofPitchRatio(3);
-        source.setWindowSpacing(4);
+        source.setWindowsEnabled(true);
         source.setWindowWidth(2);
+        source.setWindowPierWidth(2);
         source.setWindowHeight(2);
         source.setWindowSillHeight(1);
 

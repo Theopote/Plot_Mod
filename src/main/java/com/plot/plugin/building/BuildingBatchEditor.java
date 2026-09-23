@@ -92,8 +92,9 @@ public final class BuildingBatchEditor {
             target.setRoofEaves(source.getRoofEaves());
         }
         if (mask.windows) {
-            target.setWindowSpacing(source.getWindowSpacing());
+            target.setWindowsEnabled(source.isWindowsEnabled());
             target.setWindowWidth(source.getWindowWidth());
+            target.setWindowPierWidth(source.getWindowPierWidth());
             target.setWindowHeight(source.getWindowHeight());
             target.setWindowSillHeight(source.getWindowSillHeight());
         }

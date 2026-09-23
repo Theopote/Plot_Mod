@@ -127,7 +127,8 @@ public class BuildingFootprint {
     private int roofEaves = 0;
 
     private Integer manualBaseElevation;
-    private int windowSpacing = 4;
+    private boolean windowsEnabled = true;
+    private int windowPierWidth = 3;
     private int windowWidth = 1;
     private int windowHeight = 2;
     private int windowSillHeight = 1;
@@ -313,12 +314,40 @@ public class BuildingFootprint {
         this.manualBaseElevation = manualBaseElevation;
     }
 
-    public int getWindowSpacing() {
-        return windowSpacing;
+    public boolean isWindowsEnabled() {
+        return windowsEnabled;
     }
 
+    public void setWindowsEnabled(boolean windowsEnabled) {
+        this.windowsEnabled = windowsEnabled;
+    }
+
+    /** 窗间墙宽度（格）。 */
+    public int getWindowPierWidth() {
+        return windowPierWidth;
+    }
+
+    public void setWindowPierWidth(int windowPierWidth) {
+        this.windowPierWidth = Math.max(0, Math.min(32, windowPierWidth));
+    }
+
+    /**
+     * 兼容旧 API：相邻窗起始列间距 = 窗宽 + 窗间墙宽；未启用时返回 0。
+     */
+    public int getWindowSpacing() {
+        return windowsEnabled ? windowWidth + windowPierWidth : 0;
+    }
+
+    /**
+     * 兼容旧 API：{@code spacing <= 0} 表示不开窗，否则按 pier = spacing - width 迁移。
+     */
     public void setWindowSpacing(int windowSpacing) {
-        this.windowSpacing = Math.max(0, Math.min(32, windowSpacing));
+        if (windowSpacing <= 0) {
+            windowsEnabled = false;
+            return;
+        }
+        windowsEnabled = true;
+        windowPierWidth = Math.max(0, Math.min(32, windowSpacing - windowWidth));
     }
 
     public int getWindowWidth() {
@@ -549,7 +578,8 @@ public class BuildingFootprint {
         hash = 31 * hash + roofPitchRatio;
         hash = 31 * hash + roofEaves;
         hash = 31 * hash + Objects.hashCode(manualBaseElevation);
-        hash = 31 * hash + windowSpacing;
+        hash = 31 * hash + (windowsEnabled ? 1 : 0);
+        hash = 31 * hash + windowPierWidth;
         hash = 31 * hash + windowWidth;
         hash = 31 * hash + windowHeight;
         hash = 31 * hash + windowSillHeight;

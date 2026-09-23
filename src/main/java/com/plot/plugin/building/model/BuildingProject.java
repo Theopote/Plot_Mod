@@ -187,6 +187,8 @@ public class BuildingProject {
         int roofEaves;
         Integer manualBaseElevation;
         int windowSpacing;
+        Boolean windowsEnabled;
+        Integer windowPierWidth;
         int windowWidth;
         int windowHeight;
         int windowSillHeight;
@@ -249,6 +251,8 @@ public class BuildingProject {
                 buildingData.roofPitchRatio = building.getRoofPitchRatio();
                 buildingData.roofEaves = building.getRoofEaves();
                 buildingData.manualBaseElevation = building.getManualBaseElevation();
+                buildingData.windowsEnabled = building.isWindowsEnabled();
+                buildingData.windowPierWidth = building.getWindowPierWidth();
                 buildingData.windowSpacing = building.getWindowSpacing();
                 buildingData.windowWidth = building.getWindowWidth();
                 buildingData.windowHeight = building.getWindowHeight();
@@ -385,10 +389,19 @@ public class BuildingProject {
                 footprint.setRoofPitchRatio(buildingData.roofPitchRatio);
                 footprint.setRoofEaves(buildingData.roofEaves);
                 footprint.setManualBaseElevation(buildingData.manualBaseElevation);
-                footprint.setWindowSpacing(buildingData.windowSpacing);
                 footprint.setWindowWidth(buildingData.windowWidth);
                 footprint.setWindowHeight(buildingData.windowHeight);
                 footprint.setWindowSillHeight(buildingData.windowSillHeight);
+                if (buildingData.windowsEnabled != null) {
+                    footprint.setWindowsEnabled(buildingData.windowsEnabled);
+                }
+                if (buildingData.windowPierWidth != null) {
+                    footprint.setWindowPierWidth(buildingData.windowPierWidth);
+                } else if (buildingData.windowSpacing > 0) {
+                    footprint.setWindowSpacing(buildingData.windowSpacing);
+                } else {
+                    footprint.setWindowsEnabled(false);
+                }
                 if (buildingData.openings != null && !buildingData.openings.isEmpty()) {
                     List<OpeningSpec> openings = new ArrayList<>();
                     for (OpeningData openingData : buildingData.openings) {

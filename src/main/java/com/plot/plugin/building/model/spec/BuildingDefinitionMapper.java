@@ -46,8 +46,9 @@ public final class BuildingDefinitionMapper {
 
         FacadeSpec facade = definition.facade();
         WindowPatternSpec windows = facade.defaultWindowPattern();
-        footprint.setWindowSpacing(windows.spacing());
+        footprint.setWindowsEnabled(windows.enabled());
         footprint.setWindowWidth(windows.width());
+        footprint.setWindowPierWidth(windows.pierWidth());
         footprint.setWindowHeight(windows.height());
         footprint.setWindowSillHeight(windows.sillHeight());
         footprint.setWallFacades(facade.wallFacades());

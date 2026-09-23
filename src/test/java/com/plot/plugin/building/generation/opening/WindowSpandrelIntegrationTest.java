@@ -26,8 +26,9 @@ class WindowSpandrelIntegrationTest {
     @Test
     void southFaceKeepsWallBlocksBetweenWindows() {
         BuildingFootprint footprint = GoldenBuildingCaseFactory.rectangle(10, 6, 1, 3, 1);
-        footprint.setWindowSpacing(4);
+        footprint.setWindowsEnabled(true);
         footprint.setWindowWidth(1);
+        footprint.setWindowPierWidth(3);
 
         BuildingGenerationResult result = generate(footprint);
         String wallId = GoldenBuildingCaseFactory.GOLDEN_WALL;

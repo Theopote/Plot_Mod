@@ -39,8 +39,8 @@ class BuildingProjectTest {
         footprint.setRoofType(BuildingFootprint.RoofType.GABLE);
         footprint.setRoofPitchRatio(2);
         footprint.setManualBaseElevation(72);
-        footprint.setWindowSpacing(5);
         footprint.setWindowWidth(2);
+        footprint.setWindowPierWidth(3);
         footprint.setWindowHeight(3);
         footprint.setWindowSillHeight(1);
         footprint.addOpening(OpeningSpec.door(1, 0.5, 0, 2, 3));
@@ -61,7 +61,9 @@ class BuildingProjectTest {
         assertEquals(2, restoredFootprint.getRoofPitchRatio());
         assertEquals(72, restoredFootprint.getManualBaseElevation());
         assertEquals(5, restoredFootprint.getWindowSpacing());
+        assertEquals(3, restoredFootprint.getWindowPierWidth());
         assertEquals(2, restoredFootprint.getWindowWidth());
+        assertTrue(restoredFootprint.isWindowsEnabled());
         assertEquals(3, restoredFootprint.getWindowHeight());
         assertEquals(1, restoredFootprint.getWindowSillHeight());
         assertEquals(1, restoredFootprint.doorOpenings().size());

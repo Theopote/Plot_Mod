@@ -2,7 +2,6 @@ package com.plot.plugin.building.generation.opening;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.Polygon;
-import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.building.generation.BuildingCanvasScale;
 import com.plot.plugin.building.generation.BuildingGenerationContext.GridCell;
 import com.plot.plugin.building.generation.facade.FacadeEdgeResolver;
@@ -14,10 +13,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 沿外墙环带柱列排窗：窗-窗间墙-窗-窗间墙……
+ * 按<strong>墙段</strong>独立排窗：窗-窗间墙-窗-窗间墙……
  * <p>
- * {@code spacing} 为相邻窗<strong>起始柱列</strong>间距（中心距）；窗间墙宽度 = {@code spacing - width}。
- * 柱列与 {@link com.plot.plugin.building.generation.stage.WallGenerationStage} 使用同一格网。
+ * 每段两端各留 {@code margin} 柱列作转角/边墙；窗宽 {@code width}、窗间墙 {@code pierWidth}，
+ * 步距 {@code width + pierWidth}。窗列不得跨越墙段或转角。
  */
 public final class WindowLayoutResolver {
     private WindowLayoutResolver() {
@@ -43,59 +42,81 @@ public final class WindowLayoutResolver {
         if (outerPoints == null || outerPoints.size() < 3 || facade == null || canvasScale == null) {
             return List.of();
         }
-        if (!facade.defaultWindowPattern().enabled()) {
-            return List.of();
-        }
 
-        List<WallColumnRing.WallColumn> ring = WallColumnRing.build(
+        List<List<WallColumnRing.WallColumn>> segments = WallColumnRing.buildPerSegment(
             outerPoints, outerPolygon, innerPolygon, outerCells);
-        if (ring.isEmpty()) {
+        if (segments.isEmpty()) {
             return List.of();
         }
 
         int marginColumns = Math.max(1, (int) Math.round(
             canvasScale.uniformBlocksToCanvas(1.0, outerPoints)));
         List<PlannedWindow> windows = new ArrayList<>();
-        int ringSize = ring.size();
-        if (ringSize <= 2 * marginColumns) {
-            return List.of();
-        }
+        int segmentCount = outerPoints.size();
 
-        int startIdx = marginColumns;
-        int guard = 0;
-        while (startIdx < ringSize - marginColumns && guard++ < 512) {
-            WallColumnRing.WallColumn anchor = ring.get(startIdx);
+        for (int seg = 0; seg < segmentCount; seg++) {
+            List<WallColumnRing.WallColumn> columns = segments.get(seg);
+            if (columns == null || columns.isEmpty()) {
+                continue;
+            }
+
             WindowPatternSpec pattern = resolvePattern(
-                facade, scope, anchor.segmentIndex(), outerPoints, basePoints);
+                facade, scope, seg, outerPoints, basePoints);
             if (!pattern.enabled()) {
-                startIdx += Math.max(1, pattern.spacing());
                 continue;
             }
 
             int width = pattern.width();
-            int spacing = Math.max(1, pattern.spacing());
+            int pierWidth = pattern.pierWidth();
+            int step = width + pierWidth;
+            if (step < width) {
+                continue;
+            }
+
             int sill = Math.min(pattern.sillHeight(), OpeningVerticalLayout.maxWindowSpan(floorHeight));
             int maxWindowHeight = OpeningVerticalLayout.maxWindowHeight(floorHeight, sill);
             int windowHeight = Math.min(Math.max(1, pattern.height()), maxWindowHeight);
 
-            if (startIdx + width > ringSize - marginColumns) {
-                break;
+            int segSize = columns.size();
+            if (segSize <= 2 * marginColumns) {
+                continue;
             }
 
-            List<Vec2d> columns = new ArrayList<>(width);
-            for (int w = 0; w < width; w++) {
-                columns.add(ring.get(startIdx + w).center());
+            int startIdx = marginColumns;
+            int guard = 0;
+            while (startIdx + width <= segSize - marginColumns && guard++ < 512) {
+                if (!fitsOnSegment(columns, startIdx, width, seg)) {
+                    break;
+                }
+
+                List<Vec2d> centers = new ArrayList<>(width);
+                for (int w = 0; w < width; w++) {
+                    centers.add(columns.get(startIdx + w).center());
+                }
+
+                windows.add(new PlannedWindow(
+                    List.copyOf(centers),
+                    windowHeight,
+                    sill,
+                    seg));
+
+                startIdx += step;
             }
-
-            windows.add(new PlannedWindow(
-                List.copyOf(columns),
-                windowHeight,
-                sill,
-                anchor.segmentIndex()));
-
-            startIdx += spacing;
         }
         return windows;
+    }
+
+    private static boolean fitsOnSegment(
+            List<WallColumnRing.WallColumn> columns,
+            int startIdx,
+            int width,
+            int segmentIndex) {
+        for (int w = 0; w < width; w++) {
+            if (columns.get(startIdx + w).segmentIndex() != segmentIndex) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static WindowPatternSpec resolvePattern(

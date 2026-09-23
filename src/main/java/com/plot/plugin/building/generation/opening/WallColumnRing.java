@@ -58,6 +58,38 @@ public final class WallColumnRing {
         return ring;
     }
 
+    /**
+     * 按墙段分组的外墙柱列；每段内按弧长升序，供分墙段独立排窗使用。
+     */
+    public static List<List<WallColumn>> buildPerSegment(
+            List<Vec2d> outerPoints,
+            Polygon outerPolygon,
+            Polygon innerPolygon,
+            List<GridCell> outerCells) {
+        if (outerPoints == null || outerPoints.size() < 3) {
+            return List.of();
+        }
+        List<WallColumn> ring = build(outerPoints, outerPolygon, innerPolygon, outerCells);
+        if (ring.isEmpty()) {
+            return List.of();
+        }
+        int segmentCount = outerPoints.size();
+        List<List<WallColumn>> segments = new ArrayList<>(segmentCount);
+        for (int i = 0; i < segmentCount; i++) {
+            segments.add(new ArrayList<>());
+        }
+        for (WallColumn column : ring) {
+            int segment = column.segmentIndex();
+            if (segment >= 0 && segment < segmentCount) {
+                segments.get(segment).add(column);
+            }
+        }
+        for (List<WallColumn> segment : segments) {
+            segment.sort(Comparator.comparingInt(WallColumn::arcIndex));
+        }
+        return segments;
+    }
+
     /** 画布格心 → 弧长步长索引（与墙格网 center 对齐）。 */
     static int arcIndexOf(List<Vec2d> outerPoints, Vec2d center) {
         double arc = arcLengthAtPoint(outerPoints, center);

@@ -306,17 +306,18 @@ public final class BuildingEditPanel {
         building.clampWindowToFloorHeight();
         int floorHeight = building.getFloorHeight();
 
-        int[] windowSpacing = {building.getWindowSpacing()};
-        boolean windowSpacingChanged = ImGui.sliderInt("##window_spacing", windowSpacing, 0, 32,
-            PlotI18n.tr("plugin.building.window_spacing", windowSpacing[0]));
-        if (ImGui.isItemActivated()) {
+        ImBoolean windowsEnabled = new ImBoolean(building.isWindowsEnabled());
+        if (ImGui.checkbox(PlotI18n.tr("plugin.building.windows_enabled"), windowsEnabled)) {
             ctx.projectHistory().push(ctx.project());
-        }
-        if (windowSpacingChanged) {
-            building.setWindowSpacing(windowSpacing[0]);
+            building.setWindowsEnabled(windowsEnabled.get());
             ctx.invalidatePreview();
         }
-        UIUtils.renderEngineeringTooltip("hint.plot.building.window_spacing");
+        UIUtils.renderEngineeringTooltip("hint.plot.building.windows_enabled");
+
+        if (!building.isWindowsEnabled()) {
+            return;
+        }
+
         int[] windowWidth = {building.getWindowWidth()};
         boolean windowWidthChanged = ImGui.sliderInt("##window_width", windowWidth, 1,
             BuildingFootprint.MAX_WINDOW_WIDTH,
@@ -329,6 +330,20 @@ public final class BuildingEditPanel {
             ctx.invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.window_width");
+        int[] windowPier = {building.getWindowPierWidth()};
+        boolean windowPierChanged = ImGui.sliderInt("##window_pier", windowPier, 0, 32,
+            PlotI18n.tr("plugin.building.window_pier_width", windowPier[0]));
+        if (ImGui.isItemActivated()) {
+            ctx.projectHistory().push(ctx.project());
+        }
+        if (windowPierChanged) {
+            building.setWindowPierWidth(windowPier[0]);
+            ctx.invalidatePreview();
+        }
+        UIUtils.renderEngineeringTooltip("hint.plot.building.window_pier_width");
+        ImGui.textColored(PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.building.window_rhythm_preview",
+                renderWindowRhythmPreview(building.getWindowWidth(), building.getWindowPierWidth())));
         int[] windowHeight = {building.getWindowHeight()};
         boolean windowHeightChanged = ImGui.sliderInt("##window_height", windowHeight, 1, floorHeight,
             PlotI18n.tr("plugin.building.window_height", windowHeight[0]));
@@ -353,6 +368,23 @@ public final class BuildingEditPanel {
             ctx.invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.window_sill");
+    }
+
+    private static String renderWindowRhythmPreview(int windowWidth, int pierWidth) {
+        StringBuilder preview = new StringBuilder();
+        int guard = 0;
+        while (preview.length() < 16 && guard++ < 32) {
+            for (int w = 0; w < windowWidth && preview.length() < 16; w++) {
+                preview.append('\u2588');
+            }
+            for (int p = 0; p < pierWidth && preview.length() < 16; p++) {
+                preview.append('\u2591');
+            }
+            if (pierWidth == 0 && windowWidth == 0) {
+                break;
+            }
+        }
+        return preview.toString();
     }
 
     static void renderEarthworkPadElevationHint(BuildingFootprint building) {
