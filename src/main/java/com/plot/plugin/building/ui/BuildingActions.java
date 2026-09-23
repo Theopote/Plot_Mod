@@ -142,13 +142,7 @@ public final class BuildingActions {
     }
 
     void updateDistrictPreviewJobProgress(DistrictPreviewJob job) {
-        if (job == null) {
-            return;
-        }
-        state.setProjectStatus(PlotI18n.tr(
-            "plugin.building.generate.check_progress",
-            job.displayProcessedCount(),
-            job.totalCount()));
+        // 进度仅在生成 Tab 内展示（BuildingDistrictPreviewProgress），不写工具栏状态。
     }
 
     public void tickDistrictPreviewJob() {
@@ -277,6 +271,9 @@ public final class BuildingActions {
             state.setBuildConfirmPending(true);
         }
         state.setDistrictPreviewJob(null);
+        if (ready && !autoProjectGhosts && !isGhostProjectionBusy()) {
+            state.setProjectStatus("");
+        }
     }
 
     private boolean applyDistrictPreviewResult(
