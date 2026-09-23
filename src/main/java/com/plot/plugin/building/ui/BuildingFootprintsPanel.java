@@ -241,6 +241,11 @@ public final class BuildingFootprintsPanel {
                 "plugin.building.footprints.overview_item",
                 building.getFloors(),
                 ctx.blockCountCache().blockCount(building, projection)));
+            if (ImGui.button(PlotI18n.tr("plugin.building.delete") + "##delete", 0, 0)) {
+                ctx.pendingDeleteBuildingIds().clear();
+                ctx.pendingDeleteBuildingIds().add(building.getId());
+                ctx.setDeleteConfirmPending(true);
+            }
         }
         ImGui.endGroup();
         ImGui.popID();
