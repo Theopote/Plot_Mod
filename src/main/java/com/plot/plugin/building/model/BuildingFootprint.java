@@ -178,13 +178,6 @@ public class BuildingFootprint {
         this.slopedRoofEligible = null;
     }
 
-    public boolean isSlopedRoofEligible() {
-        if (slopedRoofEligible == null) {
-            refreshSlopedRoofEligibility();
-        }
-        return slopedRoofEligible;
-    }
-
     /** 已缓存的坡顶 eligibility；未计算时返回 {@code null}（UI 渲染路径勿强制触发计算）。 */
     public Boolean peekSlopedRoofEligibility() {
         return slopedRoofEligible;

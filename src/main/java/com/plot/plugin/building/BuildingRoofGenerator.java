@@ -96,42 +96,6 @@ public final class BuildingRoofGenerator {
         return Math.max(1, (int) Math.floor(distToEaveBlocks / pitchValue));
     }
 
-    static int computeGableRise(
-            Vec2d point,
-            List<Vec2d> outerPoints,
-            StraightSkeleton.Result skeleton,
-            BuildingGeometryUtils.RectBounds bounds,
-            boolean ridgeAlongX,
-            int pitch) {
-        return computeGableRise(point, outerPoints, skeleton, bounds, ridgeAlongX, pitch, null);
-    }
-
-    static int computeGableRise(
-            Vec2d point,
-            List<Vec2d> outerPoints,
-            StraightSkeleton.Result skeleton,
-            BuildingGeometryUtils.RectBounds bounds,
-            boolean ridgeAlongX,
-            int pitch,
-            BuildingCanvasScale canvasScale) {
-        return computeGableRise(point, outerPoints, skeleton, bounds, ridgeAlongX, pitch, canvasScale, 0);
-    }
-
-    static int computeGableRise(
-            Vec2d point,
-            List<Vec2d> outerPoints,
-            StraightSkeleton.Result skeleton,
-            BuildingGeometryUtils.RectBounds bounds,
-            boolean ridgeAlongX,
-            int pitch,
-            BuildingCanvasScale canvasScale,
-            int eavesBlocks) {
-        return roofLayerCount(
-            computeGableEaveDistance(point, outerPoints, skeleton, bounds, ridgeAlongX, canvasScale),
-            pitch,
-            eavesBlocks);
-    }
-
     static double computeGableEaveDistance(
             Vec2d point,
             List<Vec2d> outerPoints,
@@ -146,14 +110,6 @@ public final class BuildingRoofGenerator {
         Vec2d ridgeDirection = skeleton.primaryRidgeDirection();
         double canvasDistance = skeleton.gableEaveDistance(point, ridgeDirection);
         return scale.canvasToBlocks(canvasDistance, point, ridgeDirection);
-    }
-
-    static int computeHipRise(
-            Vec2d point,
-            StraightSkeleton.Result skeleton,
-            BuildingGeometryUtils.RectBounds bounds,
-            int pitch) {
-        return computeHipRise(point, skeleton, bounds, pitch, null);
     }
 
     static int computeHipRise(
@@ -190,18 +146,6 @@ public final class BuildingRoofGenerator {
         double canvasDistance = skeleton.skeletalTime(point);
         Vec2d direction = inwardFromNearestEdge(point, skeleton);
         return scale.canvasToBlocks(canvasDistance, point, direction);
-    }
-
-    /**
-     * 双坡顶：檐口 rise=0，屋脊 rise 最大。坡度按垂直于屋脊方向的檐口距离计算。
-     */
-    static int computeGableRise(
-            double x,
-            double z,
-            BuildingGeometryUtils.RectBounds bounds,
-            boolean ridgeAlongX,
-            int pitch) {
-        return computeGableRise(x, z, bounds, ridgeAlongX, pitch, null);
     }
 
     public static int computeGableRise(
@@ -243,16 +187,6 @@ public final class BuildingRoofGenerator {
         return scale.canvasToBlocks(canvasDistance, point, direction);
     }
 
-    /**
-     * 四坡顶：四角檐口 rise=0，中心屋脊/屋脊线 rise 最大。取到四条边最近距离控制坡度。
-     */
-    static int computeHipRise(
-            double x,
-            double z,
-            BuildingGeometryUtils.RectBounds bounds,
-            int pitch) {
-        return computeHipRise(x, z, bounds, pitch, null);
-    }
 
     static int computeHipRise(
             double x,
