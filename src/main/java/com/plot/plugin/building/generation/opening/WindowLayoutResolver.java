@@ -1,9 +1,10 @@
 package com.plot.plugin.building.generation.opening;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.geometry.shapes.Polygon;
 import com.plot.plugin.building.BuildingGeometryUtils;
-import com.plot.plugin.building.BuildingGeometryUtils.WallSample;
 import com.plot.plugin.building.generation.BuildingCanvasScale;
+import com.plot.plugin.building.generation.BuildingGenerationContext.GridCell;
 import com.plot.plugin.building.generation.facade.FacadeEdgeResolver;
 import com.plot.plugin.building.model.spec.FacadeEdgeScope;
 import com.plot.plugin.building.model.spec.FacadeSpec;
@@ -13,18 +14,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 沿建筑外轮廓连续排窗：优先保留窗间墙，放不下时转角续排，仍不行则缩窗宽。
- * 窗户不超出外轮廓路径范围。
+ * 沿外墙环带柱列排窗：窗-窗间墙-窗-窗间墙……
+ * <p>
+ * {@code spacing} 为相邻窗<strong>起始柱列</strong>间距（中心距）；窗间墙宽度 = {@code spacing - width}。
+ * 柱列与 {@link com.plot.plugin.building.generation.stage.WallGenerationStage} 使用同一格网。
  */
 public final class WindowLayoutResolver {
-    private static final double ARC_EPSILON = 1e-6;
-
     private WindowLayoutResolver() {
     }
 
     public record PlannedWindow(
-            double centerArcCanvas,
-            int widthBlocks,
+            List<Vec2d> columnCenters,
             int heightBlocks,
             int sillBlocks,
             int segmentIndex) {
@@ -32,6 +32,9 @@ public final class WindowLayoutResolver {
 
     public static List<PlannedWindow> layout(
             List<Vec2d> outerPoints,
+            Polygon outerPolygon,
+            Polygon innerPolygon,
+            List<GridCell> outerCells,
             FacadeSpec facade,
             List<Vec2d> basePoints,
             FacadeEdgeScope scope,
@@ -40,70 +43,57 @@ public final class WindowLayoutResolver {
         if (outerPoints == null || outerPoints.size() < 3 || facade == null || canvasScale == null) {
             return List.of();
         }
-        WindowPatternSpec defaultPattern = facade.defaultWindowPattern();
-        if (!defaultPattern.enabled()) {
+        if (!facade.defaultWindowPattern().enabled()) {
             return List.of();
         }
 
-        double totalArc = BuildingGeometryUtils.calculateClosedPathLength(outerPoints);
-        if (totalArc < 1e-9) {
+        List<WallColumnRing.WallColumn> ring = WallColumnRing.build(
+            outerPoints, outerPolygon, innerPolygon, outerCells);
+        if (ring.isEmpty()) {
             return List.of();
         }
 
-        double cornerMarginCanvas = canvasScale.uniformBlocksToCanvas(1.0, outerPoints);
-        List<Double> cornerArcs = BuildingGeometryUtils.cornerArcPositions(outerPoints);
-        double usableStart = cornerMarginCanvas;
-        double usableEnd = totalArc - cornerMarginCanvas;
-        if (usableEnd <= usableStart) {
-            return List.of();
-        }
-
+        int marginColumns = Math.max(1, (int) Math.round(
+            canvasScale.uniformBlocksToCanvas(1.0, outerPoints)));
         List<PlannedWindow> windows = new ArrayList<>();
-        double targetCenter = usableStart;
+        int ringSize = ring.size();
+        if (ringSize <= 2 * marginColumns) {
+            return List.of();
+        }
+
+        int startIdx = marginColumns;
         int guard = 0;
-        while (targetCenter <= usableEnd && guard++ < 512) {
-            int segmentIndex = BuildingGeometryUtils.segmentIndexAtClosedDistance(outerPoints, targetCenter);
+        while (startIdx < ringSize - marginColumns && guard++ < 512) {
+            WallColumnRing.WallColumn anchor = ring.get(startIdx);
             WindowPatternSpec pattern = resolvePattern(
-                facade, scope, segmentIndex, outerPoints, basePoints);
+                facade, scope, anchor.segmentIndex(), outerPoints, basePoints);
             if (!pattern.enabled()) {
-                targetCenter += canvasScale.uniformBlocksToCanvas(
-                    Math.max(1, pattern.spacing()), outerPoints);
+                startIdx += Math.max(1, pattern.spacing());
                 continue;
             }
 
+            int width = pattern.width();
+            int spacing = Math.max(1, pattern.spacing());
             int sill = Math.min(pattern.sillHeight(), OpeningVerticalLayout.maxWindowSpan(floorHeight));
             int maxWindowHeight = OpeningVerticalLayout.maxWindowHeight(floorHeight, sill);
             int windowHeight = Math.min(Math.max(1, pattern.height()), maxWindowHeight);
-            double spacingCanvas = canvasScale.uniformBlocksToCanvas(pattern.spacing(), outerPoints);
 
-            Placement placement = resolvePlacement(
-                outerPoints,
-                canvasScale,
-                cornerArcs,
-                cornerMarginCanvas,
-                usableStart,
-                usableEnd,
-                targetCenter,
-                pattern.width());
+            if (startIdx + width > ringSize - marginColumns) {
+                break;
+            }
 
-            if (placement == null) {
-                double nextCorner = nextCornerAfter(targetCenter, cornerArcs, usableEnd);
-                if (nextCorner >= usableEnd) {
-                    break;
-                }
-                targetCenter = nextCorner + cornerMarginCanvas;
-                continue;
+            List<Vec2d> columns = new ArrayList<>(width);
+            for (int w = 0; w < width; w++) {
+                columns.add(ring.get(startIdx + w).center());
             }
 
             windows.add(new PlannedWindow(
-                placement.centerArcCanvas(),
-                placement.widthBlocks(),
+                List.copyOf(columns),
                 windowHeight,
                 sill,
-                BuildingGeometryUtils.segmentIndexAtClosedDistance(
-                    outerPoints, placement.centerArcCanvas())));
+                anchor.segmentIndex()));
 
-            targetCenter = placement.centerArcCanvas() + spacingCanvas;
+            startIdx += spacing;
         }
         return windows;
     }
@@ -120,136 +110,5 @@ public final class WindowLayoutResolver {
             ? outerPoints.size()
             : basePoints != null ? basePoints.size() : outerPoints.size();
         return facade.windowPatternForSegment(patternIndex, patternCount);
-    }
-
-    private record Placement(double centerArcCanvas, int widthBlocks) {
-    }
-
-    private static Placement resolvePlacement(
-            List<Vec2d> outerPoints,
-            BuildingCanvasScale canvasScale,
-            List<Double> cornerArcs,
-            double cornerMarginCanvas,
-            double usableStart,
-            double usableEnd,
-            double targetCenter,
-            int targetWidth) {
-        Placement direct = tryPlace(
-            outerPoints, canvasScale, cornerArcs, cornerMarginCanvas,
-            usableStart, usableEnd, targetCenter, targetWidth);
-        if (direct != null) {
-            return direct;
-        }
-
-        double cornerCenter = nextCornerAfter(targetCenter - ARC_EPSILON, cornerArcs, usableEnd);
-        if (cornerCenter <= usableEnd) {
-            Placement atCorner = tryPlace(
-                outerPoints, canvasScale, cornerArcs, cornerMarginCanvas,
-                usableStart, usableEnd, cornerCenter, targetWidth);
-            if (atCorner != null) {
-                return atCorner;
-            }
-        }
-
-        for (int width = targetWidth - 1; width >= 1; width--) {
-            Placement shrunk = tryPlace(
-                outerPoints, canvasScale, cornerArcs, cornerMarginCanvas,
-                usableStart, usableEnd, targetCenter, width);
-            if (shrunk != null) {
-                return shrunk;
-            }
-            if (cornerCenter <= usableEnd) {
-                shrunk = tryPlace(
-                    outerPoints, canvasScale, cornerArcs, cornerMarginCanvas,
-                    usableStart, usableEnd, cornerCenter, width);
-                if (shrunk != null) {
-                    return shrunk;
-                }
-            }
-        }
-        return null;
-    }
-
-    private static Placement tryPlace(
-            List<Vec2d> outerPoints,
-            BuildingCanvasScale canvasScale,
-            List<Double> cornerArcs,
-            double cornerMarginCanvas,
-            double usableStart,
-            double usableEnd,
-            double centerArc,
-            int widthBlocks) {
-        if (widthBlocks <= 0 || centerArc < usableStart || centerArc > usableEnd) {
-            return null;
-        }
-        ArcSpan span = arcSpanForWidth(outerPoints, canvasScale, centerArc, widthBlocks);
-        if (span == null) {
-            return null;
-        }
-        if (span.startArc() < usableStart - ARC_EPSILON || span.endArc() > usableEnd + ARC_EPSILON) {
-            return null;
-        }
-        if (!respectsCornerMargins(span.startArc(), span.endArc(), cornerArcs, cornerMarginCanvas, usableEnd)) {
-            return null;
-        }
-        return new Placement(centerArc, widthBlocks);
-    }
-
-    private static ArcSpan arcSpanForWidth(
-            List<Vec2d> outerPoints,
-            BuildingCanvasScale canvasScale,
-            double centerArcCanvas,
-            int widthBlocks) {
-        WallSample center = BuildingGeometryUtils.wallSampleAtClosedDistance(outerPoints, centerArcCanvas);
-        if (center == null) {
-            return null;
-        }
-        double startArc = centerArcCanvas;
-        double endArc = centerArcCanvas;
-        for (int w = 0; w < widthBlocks; w++) {
-            double lateralBlocks = w - (widthBlocks - 1) / 2.0;
-            double offsetCanvas = canvasScale.blocksToCanvas(
-                lateralBlocks, center.point(), center.tangent());
-            double arc = centerArcCanvas + offsetCanvas;
-            startArc = Math.min(startArc, arc);
-            endArc = Math.max(endArc, arc);
-        }
-        return new ArcSpan(startArc, endArc);
-    }
-
-    private record ArcSpan(double startArc, double endArc) {
-    }
-
-    private static boolean respectsCornerMargins(
-            double startArc,
-            double endArc,
-            List<Double> cornerArcs,
-            double margin,
-            double usableEnd) {
-        for (double corner : cornerArcs) {
-            if (corner < margin || corner > usableEnd - margin) {
-                continue;
-            }
-            if (startArc <= corner && corner <= endArc) {
-                continue;
-            }
-            if (endArc < corner && corner - endArc < margin - ARC_EPSILON) {
-                return false;
-            }
-            if (startArc > corner && startArc - corner < margin - ARC_EPSILON) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static double nextCornerAfter(double arc, List<Double> cornerArcs, double usableEnd) {
-        double best = usableEnd;
-        for (double corner : cornerArcs) {
-            if (corner > arc + ARC_EPSILON && corner < best) {
-                best = corner;
-            }
-        }
-        return best;
     }
 }

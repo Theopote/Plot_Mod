@@ -7,11 +7,13 @@ import com.plot.plugin.building.BuildingGeometryUtils.WallSample;
 import com.plot.plugin.building.generation.BuildingBlockWriter;
 import com.plot.plugin.building.generation.BuildingCanvasScale;
 import com.plot.plugin.building.generation.BuildingGenerationContext;
+import com.plot.plugin.building.generation.BuildingGridAlignment;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.generation.facade.FacadeEdgeResolver;
 import com.plot.plugin.building.generation.opening.OpeningPlacementResolver;
 import com.plot.plugin.building.generation.opening.OpeningPlacementResolver.ResolvedOpening;
 import com.plot.plugin.building.generation.opening.OpeningVerticalLayout;
+import com.plot.plugin.building.generation.massing.FloorPlateGeometryResolver.ResolvedFloorPlate;
 import com.plot.plugin.building.generation.opening.WindowLayoutResolver;
 import com.plot.plugin.building.generation.opening.WindowLayoutResolver.PlannedWindow;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
@@ -61,12 +63,16 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
         String windowBlockId = BuildingGeometryUtils.resolveBlockId(facade.windowMaterial());
 
         for (int floor = 0; floor < massing.floors(); floor++) {
-            List<Vec2d> outerPoints = massing.plateForFloor(floor).outerPoints();
+            ResolvedFloorPlate plate = context.resolvedFloorPlate(floor);
+            List<Vec2d> outerPoints = plate.outerPoints();
             int floorSlabY = OpeningVerticalLayout.floorSlabY(
                 baseElevation, floor, massing.floorHeight());
 
             List<PlannedWindow> windows = WindowLayoutResolver.layout(
                 outerPoints,
+                plate.outerPolygon(),
+                plate.innerPolygon(),
+                plate.outerCells(),
                 facade,
                 basePoints,
                 scope,
@@ -74,13 +80,12 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
                 massing.floorHeight());
 
             for (PlannedWindow window : windows) {
-                carveOpeningAlongPath(
+                carveOpeningAtWallCells(
                     context,
                     canvasScale,
                     result,
                     outerPoints,
-                    window.centerArcCanvas(),
-                    window.widthBlocks(),
+                    window.columnCenters(),
                     window.heightBlocks(),
                     OpeningVerticalLayout.windowStartY(floorSlabY, window.sillBlocks()),
                     envelope.wallThickness(),
@@ -137,41 +142,45 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
     }
 
     /**
-     * 沿闭合外轮廓弧长开洞：每个横向格点使用该处切线，避免转角处伸出建筑外轮廓。
+     * 在墙体格网柱列上开洞（与 {@link com.plot.plugin.building.generation.stage.WallGenerationStage} 同列）。
      */
-    static void carveOpeningAlongPath(
+    static void carveOpeningAtWallCells(
             BuildingGenerationContext context,
             BuildingCanvasScale canvasScale,
             BuildingGenerationResult result,
             List<Vec2d> outerPoints,
-            double centerArcCanvas,
-            int width,
+            List<Vec2d> columnCenters,
             int height,
             int startY,
             int wallThickness,
             String fillBlockId,
             IBlockProjectionService projectionHandler) {
-        if (width <= 0 || height <= 0 || outerPoints == null || outerPoints.size() < 3) {
-            return;
-        }
-        WallSample centerSample = BuildingGeometryUtils.wallSampleAtClosedDistance(outerPoints, centerArcCanvas);
-        if (centerSample == null) {
+        if (height <= 0 || columnCenters == null || columnCenters.isEmpty()
+                || outerPoints == null || outerPoints.size() < 3) {
             return;
         }
 
+        double cellSize = BuildingGridAlignment.blockCellSizeCanvas(canvasScale, outerPoints);
         Set<BlockPos> carved = new LinkedHashSet<>();
-        for (int w = 0; w < width; w++) {
-            double lateralBlocks = w - (width - 1) / 2.0;
-            double offsetCanvas = canvasScale.blocksToCanvas(
-                lateralBlocks, centerSample.point(), centerSample.tangent());
-            double arcCanvas = centerArcCanvas + offsetCanvas;
-            WallSample sample = BuildingGeometryUtils.wallSampleAtClosedDistance(outerPoints, arcCanvas);
-            if (sample == null) {
-                continue;
+        for (Vec2d center : columnCenters) {
+            int segmentIndex = BuildingGeometryUtils.segmentIndexAtClosedDistance(
+                outerPoints,
+                com.plot.plugin.building.generation.opening.WallColumnRing.arcLengthAtPoint(
+                    outerPoints, center));
+            Vec2d inward = BuildingGeometryUtils.outwardNormal(outerPoints, segmentIndex).multiply(-1);
+            for (int depth = 0; depth < wallThickness; depth++) {
+                Vec2d point = depth == 0
+                    ? center
+                    : BuildingGridAlignment.snapToBlockCellCenter(
+                        center.add(inward.multiply(depth * cellSize)), canvasScale, outerPoints);
+                BlockPos column = context.canvasToColumn(point);
+                for (int h = 0; h < height; h++) {
+                    BlockPos pos = new BlockPos(column.getX(), startY + h, column.getZ());
+                    if (carved.add(pos)) {
+                        BuildingBlockWriter.recordBlock(result, pos, fillBlockId, projectionHandler);
+                    }
+                }
             }
-            carveColumn(
-                context, canvasScale, result, sample, height, startY, wallThickness, fillBlockId,
-                projectionHandler, carved);
         }
     }
 
