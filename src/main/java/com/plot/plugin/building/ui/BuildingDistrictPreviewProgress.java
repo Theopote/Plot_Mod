@@ -22,9 +22,12 @@ public final class BuildingDistrictPreviewProgress {
             : PlotI18n.tr("plugin.building.generate.preview_running");
         int processed = job != null ? job.processedCount() : 0;
         int total = job != null ? job.totalCount() : 0;
+        int displayProcessed = job != null && job.isRunning() && processed < total
+            ? processed + 1
+            : processed;
         PluginJobProgressUi.renderJobProgress(
             status,
-            processed,
+            displayProcessed,
             total,
             ImGui.getContentRegionAvailX(),
             "plugin.building.cancel_district_preview",

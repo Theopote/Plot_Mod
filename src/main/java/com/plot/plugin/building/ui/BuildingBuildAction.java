@@ -35,7 +35,7 @@ public final class BuildingBuildAction {
             ImGui.beginDisabled();
         }
         if (ImGui.button(
-                PlotI18n.tr("plugin.building.generate.build_this_preview", targets.size()),
+                PlotI18n.tr("plugin.building.generate.build_this_preview"),
                 ImGui.getContentRegionAvailX(),
                 0)) {
             ctx.requestBuildFromCurrentPreview(targets);

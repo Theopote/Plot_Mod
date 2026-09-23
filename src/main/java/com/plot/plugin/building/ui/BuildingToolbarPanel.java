@@ -57,7 +57,15 @@ public final class BuildingToolbarPanel {
                     : PluginUiColors.STATUS_OK,
                 ctx.projectStatus());
         }
+        renderDistrictPreviewControls();
         ImGui.separator();
+    }
+
+    private void renderDistrictPreviewControls() {
+        if (!ctx.isDistrictPreviewBusy()) {
+            return;
+        }
+        BuildingDistrictPreviewProgress.render(ctx);
     }
 
     private void renderActivePlacementControls() {
