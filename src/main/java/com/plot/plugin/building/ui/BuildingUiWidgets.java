@@ -124,4 +124,45 @@ public final class BuildingUiWidgets {
     public static void openBlockPicker(String currentBlockId, Consumer<String> onSelected) {
         UIUtils.openBlockPicker(currentBlockId, onSelected);
     }
+
+    /** ImGui 滑条数值格式（勿经 {@link PlotI18n}，避免 % 占位符被 MC 翻译层消费）。 */
+    public enum SliderValueFormat {
+        INT,
+        GRID,
+        ROOF_PITCH,
+        ELEVATION_Y
+    }
+
+    static String sliderValueFormat(SliderValueFormat format) {
+        return switch (format) {
+            case INT -> "%d";
+            case GRID -> "%d " + escapePrintfLiteral(PlotI18n.tr("plugin.building.unit.grid"));
+            case ROOF_PITCH -> "%d:1";
+            case ELEVATION_Y -> "Y=%d";
+        };
+    }
+
+    private static String escapePrintfLiteral(String text) {
+        return text.replace("%", "%%");
+    }
+
+    /**
+     * 整数滑条：数值与单位显示在滑条上，参数名称在滑条右侧。
+     */
+    public static boolean sliderIntWithRightLabel(
+            String id,
+            int[] value,
+            int min,
+            int max,
+            String labelKey,
+            SliderValueFormat valueFormat) {
+        String label = PlotI18n.tr(labelKey);
+        float labelWidth = ImGui.calcTextSize(label).x + ImGui.getStyle().getItemInnerSpacingX() * 2f;
+        ImGui.setNextItemWidth(Math.max(80f, ImGui.getContentRegionAvailX() - labelWidth));
+        boolean changed = ImGui.sliderInt(id, value, min, max, sliderValueFormat(valueFormat));
+        ImGui.sameLine(0, ImGui.getStyle().getItemInnerSpacingX());
+        ImGui.alignTextToFramePadding();
+        ImGui.text(label);
+        return changed;
+    }
 }

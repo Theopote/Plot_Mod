@@ -114,35 +114,38 @@ public final class BuildingDistrictMassingWidgets {
 
         if (ctx.heightDistMode() == BuildingHeightDistribution.Mode.UNIFORM) {
             int[] floors = {ctx.heightDistMaxFloors()};
-            if (ImGui.sliderInt(
+            if (BuildingUiWidgets.sliderIntWithRightLabel(
                     "##height_dist_uniform",
                     floors,
                     BuildingFootprint.MIN_FLOORS,
                     BuildingFootprint.MAX_FLOORS,
-                    PlotI18n.tr("plugin.building.floors", floors[0]))) {
+                    "plugin.building.label.floors",
+                    BuildingUiWidgets.SliderValueFormat.INT)) {
                 ctx.setHeightDistMinFloors(floors[0]);
                 ctx.setHeightDistMaxFloors(floors[0]);
             }
         } else {
             int[] minFloors = {ctx.heightDistMinFloors()};
             int[] maxFloors = {ctx.heightDistMaxFloors()};
-            if (ImGui.sliderInt(
+            if (BuildingUiWidgets.sliderIntWithRightLabel(
                     "##height_dist_min",
                     minFloors,
                     BuildingFootprint.MIN_FLOORS,
                     BuildingFootprint.MAX_FLOORS,
-                    PlotI18n.tr("plugin.building.height_min_floors", minFloors[0]))) {
+                    "plugin.building.label.height_min_floors",
+                    BuildingUiWidgets.SliderValueFormat.INT)) {
                 ctx.setHeightDistMinFloors(minFloors[0]);
                 if (ctx.heightDistMaxFloors() < ctx.heightDistMinFloors()) {
                     ctx.setHeightDistMaxFloors(ctx.heightDistMinFloors());
                 }
             }
-            if (ImGui.sliderInt(
+            if (BuildingUiWidgets.sliderIntWithRightLabel(
                     "##height_dist_max",
                     maxFloors,
                     BuildingFootprint.MIN_FLOORS,
                     BuildingFootprint.MAX_FLOORS,
-                    PlotI18n.tr("plugin.building.height_max_floors", maxFloors[0]))) {
+                    "plugin.building.label.height_max_floors",
+                    BuildingUiWidgets.SliderValueFormat.INT)) {
                 ctx.setHeightDistMaxFloors(maxFloors[0]);
                 if (ctx.heightDistMinFloors() > ctx.heightDistMaxFloors()) {
                     ctx.setHeightDistMinFloors(ctx.heightDistMaxFloors());

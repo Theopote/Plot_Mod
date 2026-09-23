@@ -92,9 +92,10 @@ public final class BuildingEditPanel {
 
     private void renderMassingSection(BuildingFootprint building) {
         int[] floors = {building.getFloors()};
-        boolean floorsChanged = ImGui.sliderInt(
+        boolean floorsChanged = BuildingUiWidgets.sliderIntWithRightLabel(
             "##floors", floors, BuildingFootprint.MIN_FLOORS, BuildingFootprint.MAX_FLOORS,
-            PlotI18n.tr("plugin.building.floors", floors[0]));
+            "plugin.building.label.floors",
+            BuildingUiWidgets.SliderValueFormat.INT);
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
         }
@@ -114,8 +115,10 @@ public final class BuildingEditPanel {
         UIUtils.renderEngineeringTooltip("hint.plot.building.floors");
 
         int[] floorHeight = {building.getFloorHeight()};
-        boolean floorHeightChanged = ImGui.sliderInt("##floor_height", floorHeight, 2, 16,
-            PlotI18n.tr("plugin.building.floor_height", floorHeight[0]));
+        boolean floorHeightChanged = BuildingUiWidgets.sliderIntWithRightLabel(
+            "##floor_height", floorHeight, 2, 16,
+            "plugin.building.label.floor_height",
+            BuildingUiWidgets.SliderValueFormat.GRID);
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
         }
@@ -127,8 +130,10 @@ public final class BuildingEditPanel {
         UIUtils.renderEngineeringTooltip("hint.plot.building.floor_height");
 
         int[] wallThickness = {building.getWallThickness()};
-        boolean wallThicknessChanged = ImGui.sliderInt("##wall_thickness", wallThickness, 1, 8,
-            PlotI18n.tr("plugin.building.wall_thickness", wallThickness[0]));
+        boolean wallThicknessChanged = BuildingUiWidgets.sliderIntWithRightLabel(
+            "##wall_thickness", wallThickness, 1, 8,
+            "plugin.building.label.wall_thickness",
+            BuildingUiWidgets.SliderValueFormat.GRID);
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
         }
@@ -144,8 +149,10 @@ public final class BuildingEditPanel {
         renderRoofTypeSelector(building);
         if (building.getRoofType() != BuildingFootprint.RoofType.FLAT) {
             int[] pitch = {building.getRoofPitchRatio()};
-            boolean pitchChanged = ImGui.sliderInt("##roof_pitch", pitch, 1, 16,
-                PlotI18n.tr("plugin.building.roof_pitch", pitch[0]));
+            boolean pitchChanged = BuildingUiWidgets.sliderIntWithRightLabel(
+                "##roof_pitch", pitch, 1, 16,
+                "plugin.building.label.roof_pitch",
+                BuildingUiWidgets.SliderValueFormat.ROOF_PITCH);
             if (ImGui.isItemActivated()) {
                 ctx.projectHistory().push(ctx.project());
             }
@@ -156,8 +163,10 @@ public final class BuildingEditPanel {
             UIUtils.renderEngineeringTooltip("hint.plot.building.roof_pitch");
 
             int[] eaves = {building.getRoofEaves()};
-            boolean eavesChanged = ImGui.sliderInt("##roof_eaves", eaves, 0, 5,
-                PlotI18n.tr("plugin.building.roof_eaves", eaves[0]));
+            boolean eavesChanged = BuildingUiWidgets.sliderIntWithRightLabel(
+                "##roof_eaves", eaves, 0, 5,
+                "plugin.building.label.roof_eaves",
+                BuildingUiWidgets.SliderValueFormat.GRID);
             if (ImGui.isItemActivated()) {
                 ctx.projectHistory().push(ctx.project());
             }
@@ -223,7 +232,10 @@ public final class BuildingEditPanel {
         if (ctx.manualElevationRef().get()) {
             int initial = building.getManualBaseElevation() != null ? building.getManualBaseElevation() : 64;
             int[] elevation = {initial};
-            boolean elevationChanged = ImGui.sliderInt("##base_elevation", elevation, -64, 320, "Y=%d");
+            boolean elevationChanged = BuildingUiWidgets.sliderIntWithRightLabel(
+                "##base_elevation", elevation, -64, 320,
+                "plugin.building.label.base_elevation",
+                BuildingUiWidgets.SliderValueFormat.ELEVATION_Y);
             if (ImGui.isItemActivated()) {
                 ctx.projectHistory().push(ctx.project());
             }
@@ -272,12 +284,13 @@ public final class BuildingEditPanel {
         }
 
         int[] towerStart = {state.towerStartFloor()};
-        boolean towerStartChanged = ImGui.sliderInt(
+        boolean towerStartChanged = BuildingUiWidgets.sliderIntWithRightLabel(
             "##floor_plate_tower_start",
             towerStart,
             1,
             Math.max(1, building.getFloors() - 1),
-            PlotI18n.tr("plugin.building.floor_plate_tower_start", towerStart[0]));
+            "plugin.building.label.floor_plate_tower_start",
+            BuildingUiWidgets.SliderValueFormat.INT);
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
         }
@@ -286,12 +299,13 @@ public final class BuildingEditPanel {
         int insetBlocks = (int) Math.round(
             BuildingFloorPlateUi.clampInsetBlocks(canvasScale, building.getOuterPoints(), state.insetDistance()));
         int[] inset = {Math.max(1, Math.min(insetBlocks, maxInset))};
-        boolean insetChanged = ImGui.sliderInt(
+        boolean insetChanged = BuildingUiWidgets.sliderIntWithRightLabel(
             "##floor_plate_inset",
             inset,
             1,
             maxInset,
-            PlotI18n.tr("plugin.building.floor_plate_inset", inset[0]));
+            "plugin.building.label.floor_plate_inset",
+            BuildingUiWidgets.SliderValueFormat.GRID);
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
         }
@@ -319,9 +333,10 @@ public final class BuildingEditPanel {
         }
 
         int[] windowWidth = {building.getWindowWidth()};
-        boolean windowWidthChanged = ImGui.sliderInt("##window_width", windowWidth, 1,
-            BuildingFootprint.MAX_WINDOW_WIDTH,
-            PlotI18n.tr("plugin.building.window_width", windowWidth[0]));
+        boolean windowWidthChanged = BuildingUiWidgets.sliderIntWithRightLabel(
+            "##window_width", windowWidth, 1, BuildingFootprint.MAX_WINDOW_WIDTH,
+            "plugin.building.label.window_width",
+            BuildingUiWidgets.SliderValueFormat.GRID);
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
         }
@@ -331,8 +346,10 @@ public final class BuildingEditPanel {
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.window_width");
         int[] windowPier = {building.getWindowPierWidth()};
-        boolean windowPierChanged = ImGui.sliderInt("##window_pier", windowPier, 0, 32,
-            PlotI18n.tr("plugin.building.window_pier_width", windowPier[0]));
+        boolean windowPierChanged = BuildingUiWidgets.sliderIntWithRightLabel(
+            "##window_pier", windowPier, 0, 32,
+            "plugin.building.label.window_pier_width",
+            BuildingUiWidgets.SliderValueFormat.GRID);
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
         }
@@ -342,8 +359,10 @@ public final class BuildingEditPanel {
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.window_pier_width");
         int[] windowHeight = {building.getWindowHeight()};
-        boolean windowHeightChanged = ImGui.sliderInt("##window_height", windowHeight, 1, floorHeight,
-            PlotI18n.tr("plugin.building.window_height", windowHeight[0]));
+        boolean windowHeightChanged = BuildingUiWidgets.sliderIntWithRightLabel(
+            "##window_height", windowHeight, 1, floorHeight,
+            "plugin.building.label.window_height",
+            BuildingUiWidgets.SliderValueFormat.GRID);
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
         }
@@ -354,8 +373,10 @@ public final class BuildingEditPanel {
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.window_height");
         int[] windowSill = {building.getWindowSillHeight()};
-        boolean windowSillChanged = ImGui.sliderInt("##window_sill", windowSill, 0, floorHeight,
-            PlotI18n.tr("plugin.building.window_sill", windowSill[0]));
+        boolean windowSillChanged = BuildingUiWidgets.sliderIntWithRightLabel(
+            "##window_sill", windowSill, 0, floorHeight,
+            "plugin.building.label.window_sill",
+            BuildingUiWidgets.SliderValueFormat.GRID);
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
         }
