@@ -14,7 +14,7 @@ public final class BuildingDistrictPreviewProgress {
             return;
         }
         DistrictPreviewJob job = ctx.state().getDistrictPreviewJob();
-        int processed = job != null ? job.processedCount() : 0;
+        int processed = job != null ? job.displayProcessedCount() : 0;
         int total = job != null ? job.totalCount() : 0;
         String status = job != null
             ? PlotI18n.tr("plugin.building.generate.check_progress", processed, total)

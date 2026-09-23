@@ -2,14 +2,19 @@ package com.plot.plugin.building.ui;
 
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.generation.DistrictGenerationResult;
+import com.plot.plugin.building.model.BuildingFootprint;
+import com.plot.plugin.building.model.BuildingProject;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static com.plot.plugin.building.generation.DistrictGenerationResultTestSupport.building;
+import static com.plot.plugin.building.generation.DistrictGenerationResultTestSupport.districtWithClosePair;
 import static com.plot.plugin.building.generation.DistrictGenerationResultTestSupport.districtWithOverlapPair;
 import static com.plot.plugin.building.generation.DistrictGenerationResultTestSupport.districtWithSkippedAndWarning;
+import static com.plot.plugin.building.generation.DistrictGenerationResultTestSupport.offsetBuilding;
 import static com.plot.plugin.building.generation.DistrictGenerationResultTestSupport.resultWithWarnings;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -17,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class BuildingGenerationIssuesTest {
 
     @Test
-    void collectDistrictSkippedOverlapAndWarnings() {
+    void collectDistrictSkippedOnlyWhenTerrainAndOverlapSuppressed() {
         DistrictGenerationResult district = districtWithSkippedAndWarning();
 
         List<BuildingGenerationIssues.Issue> issues = BuildingGenerationIssues.collect(
@@ -25,23 +30,56 @@ class BuildingGenerationIssuesTest {
             district,
             null,
             null,
-            true);
+            true,
+            Map.of());
 
-        assertEquals(3, issues.size());
+        assertEquals(1, issues.size());
         assertTrue(issues.stream().anyMatch(issue ->
             issue.kind() == BuildingGenerationIssues.Kind.SKIPPED
                 && issue.severity() == BuildingGenerationIssues.Severity.ERROR
                 && issue.primaryBuildingId().equals("bad")));
-        assertTrue(issues.stream().anyMatch(issue ->
-            issue.kind() == BuildingGenerationIssues.Kind.OVERLAP
-                && issue.severity() == BuildingGenerationIssues.Severity.INFO));
-        assertTrue(issues.stream().anyMatch(issue ->
-            issue.kind() == BuildingGenerationIssues.Kind.TERRAIN_FIT
-                && issue.primaryBuildingId().equals("ok")));
     }
 
     @Test
-    void collectSingleBuildingWarnings() {
+    void collectDistrictTooCloseButNotOverlapping() {
+        BuildingProject project = new BuildingProject();
+        project.addBuilding(offsetBuilding("near", 0, 0, 10));
+        project.addBuilding(offsetBuilding("far", 11, 0, 10));
+        DistrictGenerationResult district = districtWithClosePair("near", "far", 1.0);
+
+        List<BuildingGenerationIssues.Issue> issues = BuildingGenerationIssues.collect(
+            project,
+            district,
+            null,
+            null,
+            true,
+            Map.of());
+
+        assertEquals(1, issues.size());
+        assertEquals(BuildingGenerationIssues.Kind.TOO_CLOSE, issues.getFirst().kind());
+        assertEquals(BuildingGenerationIssues.Severity.WARNING, issues.getFirst().severity());
+    }
+
+    @Test
+    void overlappingBuildingsAreNotFlaggedAsTooClose() {
+        BuildingProject project = new BuildingProject();
+        project.addBuilding(offsetBuilding("a", 0, 0, 10));
+        project.addBuilding(offsetBuilding("b", 5, 0, 10));
+        DistrictGenerationResult district = districtWithOverlapPair("a", "b");
+
+        List<BuildingGenerationIssues.Issue> issues = BuildingGenerationIssues.collect(
+            project,
+            district,
+            null,
+            null,
+            true,
+            Map.of());
+
+        assertTrue(issues.stream().noneMatch(issue -> issue.kind() == BuildingGenerationIssues.Kind.TOO_CLOSE));
+    }
+
+    @Test
+    void collectSingleBuildingSuppressesTerrainWarnings() {
         BuildingGenerationResult single = resultWithWarnings("plugin.building.warn.steep_site");
         BuildingPreviewIdentity identity = BuildingPreviewIdentity.capture(List.of(building("tower", 12)));
 
@@ -50,45 +88,52 @@ class BuildingGenerationIssuesTest {
             null,
             single,
             identity,
-            false);
+            false,
+            Map.of());
 
-        assertEquals(1, issues.size());
-        assertEquals(BuildingGenerationIssues.Kind.TERRAIN_FIT, issues.getFirst().kind());
-        assertEquals("tower", issues.getFirst().primaryBuildingId());
+        assertEquals(0, issues.size());
+    }
+
+    @Test
+    void collectSingleBuildingFlagsExcessiveHeightAndArea() {
+        BuildingProject project = new BuildingProject();
+        BuildingFootprint huge = offsetBuilding("huge", 0, 0, 200);
+        huge.setFloors(30);
+        huge.setFloorHeight(10);
+        project.addBuilding(huge);
+
+        BuildingGenerationResult single = resultWithWarnings();
+        BuildingPreviewIdentity identity = BuildingPreviewIdentity.capture(List.of(huge));
+
+        List<BuildingGenerationIssues.Issue> issues = BuildingGenerationIssues.collect(
+            project,
+            null,
+            single,
+            identity,
+            false,
+            Map.of());
+
+        assertEquals(2, issues.size());
+        assertTrue(issues.stream().anyMatch(issue ->
+            issue.kind() == BuildingGenerationIssues.Kind.EXCESSIVE_HEIGHT));
+        assertTrue(issues.stream().anyMatch(issue ->
+            issue.kind() == BuildingGenerationIssues.Kind.EXCESSIVE_AREA));
     }
 
     @Test
     void previewedAndWarningBuildingIds() {
-        DistrictGenerationResult district = districtWithSkippedAndWarning();
-        DistrictGenerationResult overlapDistrict = districtWithOverlapPair("a", "c");
+        BuildingProject project = new BuildingProject();
+        project.addBuilding(offsetBuilding("ok", 0, 0, 10));
+        project.addBuilding(offsetBuilding("overlap", 11, 0, 10));
+        DistrictGenerationResult district = districtWithClosePair("ok", "overlap", 1.0);
         List<BuildingGenerationIssues.Issue> districtIssues = BuildingGenerationIssues.collect(
-            null, district, null, null, true);
+            project, district, null, null, true, Map.of());
 
         assertEquals(
             Set.of("ok", "overlap"),
             BuildingGenerationIssues.previewedBuildingIds(district, ""));
-        assertEquals(Set.of("ok"), BuildingGenerationIssues.warningBuildingIds(districtIssues));
         assertEquals(
-            Set.of(),
-            BuildingGenerationIssues.warningBuildingIds(
-                BuildingGenerationIssues.collect(null, overlapDistrict, null, null, true)));
-    }
-
-    @Test
-    void consolidatesMultipleTerrainWarningsPerBuilding() {
-        BuildingGenerationResult single = resultWithWarnings(
-            "plugin.building.warn.water_site",
-            "plugin.building.warn.steep_site");
-        BuildingPreviewIdentity identity = BuildingPreviewIdentity.capture(List.of(building("tower", 12)));
-
-        List<BuildingGenerationIssues.Issue> issues = BuildingGenerationIssues.collect(
-            null,
-            null,
-            single,
-            identity,
-            false);
-
-        assertEquals(1, issues.size());
-        assertEquals(BuildingGenerationIssues.Kind.TERRAIN_FIT, issues.getFirst().kind());
+            Set.of("ok", "overlap"),
+            BuildingGenerationIssues.warningBuildingIds(districtIssues));
     }
 }

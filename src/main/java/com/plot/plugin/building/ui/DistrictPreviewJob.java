@@ -31,6 +31,7 @@ public final class DistrictPreviewJob {
 
     private final DistrictGenerationResult district = new DistrictGenerationResult();
     private int nextIndex;
+    private int activeBuildingIndex;
     private Phase phase = Phase.GENERATING;
     private volatile boolean running = true;
     private volatile boolean cancelled;
@@ -54,6 +55,7 @@ public final class DistrictPreviewJob {
         if (phase == Phase.FINALIZING) {
             actions.completeDistrictPreviewJob(this, district, autoProjectGhosts, buildConfirmOnComplete);
             running = false;
+            activeBuildingIndex = 0;
             return;
         }
 
@@ -68,9 +70,12 @@ public final class DistrictPreviewJob {
         DistrictMassingGenerator.BuildingGenerateFn generateFn =
             footprint -> generator.generate(footprint, world);
         for (int i = nextIndex; i < end; i++) {
+            activeBuildingIndex = i + 1;
+            actions.updateDistrictPreviewJobProgress(this);
             DistrictMassingGenerator.processOne(buildings.get(i), generateFn, district);
         }
         nextIndex = end;
+        activeBuildingIndex = 0;
         actions.updateDistrictPreviewJobProgress(this);
 
         if (nextIndex >= buildings.size()) {
@@ -83,13 +88,26 @@ public final class DistrictPreviewJob {
     public void cancel() {
         cancelled = true;
         running = false;
+        activeBuildingIndex = 0;
     }
 
     public boolean isRunning() {
         return running && !cancelled;
     }
 
+    /** 已完成栋数。 */
     public int processedCount() {
+        return nextIndex;
+    }
+
+    /** 进度条展示用：含当前正在检查的栋（若有）。 */
+    public int displayProcessedCount() {
+        if (phase == Phase.FINALIZING) {
+            return buildings.size();
+        }
+        if (activeBuildingIndex > 0) {
+            return activeBuildingIndex;
+        }
         return nextIndex;
     }
 
@@ -98,11 +116,11 @@ public final class DistrictPreviewJob {
     }
 
     public float progressFraction() {
-        return PluginJobProgressUi.fraction(processedCount(), totalCount());
+        return PluginJobProgressUi.fraction(displayProcessedCount(), totalCount());
     }
 
     public int progressPercent() {
-        return PluginJobProgressUi.percent(processedCount(), totalCount());
+        return PluginJobProgressUi.percent(displayProcessedCount(), totalCount());
     }
 
     /** 防御性拷贝供测试断言。 */

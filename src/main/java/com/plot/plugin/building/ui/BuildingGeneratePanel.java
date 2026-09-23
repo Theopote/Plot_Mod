@@ -78,7 +78,7 @@ public final class BuildingGeneratePanel {
         ImGui.pushID(issue.primaryBuildingId() + issue.secondaryBuildingId() + issue.messageKey());
         int color = issueColor(issue.severity());
         ImGui.textColored(color, formatIssueSummary(issue));
-        if (issue.kind() == BuildingGenerationIssues.Kind.OVERLAP) {
+        if (issue.kind() == BuildingGenerationIssues.Kind.TOO_CLOSE) {
             if (ImGui.button(PlotI18n.tr("plugin.building.issue.select_pair"), 0, 0)) {
                 ctx.selectBuildingPair(issue.primaryBuildingId(), issue.secondaryBuildingId());
                 ImGui.closeCurrentPopup();
@@ -106,13 +106,19 @@ public final class BuildingGeneratePanel {
                 "plugin.building.issue.skipped",
                 issue.primaryBuildingName(),
                 PlotI18n.tr(issue.messageKey()));
-            case OVERLAP -> PlotI18n.tr(
-                "plugin.building.issue.overlap_info",
+            case TOO_CLOSE -> PlotI18n.tr(
+                "plugin.building.issue.too_close",
                 issue.primaryBuildingName(),
-                issue.secondaryBuildingName());
-            case TERRAIN_FIT -> PlotI18n.tr(
-                "plugin.building.issue.terrain_fit_item",
-                issue.primaryBuildingName());
+                issue.secondaryBuildingName(),
+                issue.messageArg());
+            case EXCESSIVE_HEIGHT -> PlotI18n.tr(
+                "plugin.building.issue.excessive_height",
+                issue.primaryBuildingName(),
+                issue.messageArg());
+            case EXCESSIVE_AREA -> PlotI18n.tr(
+                "plugin.building.issue.excessive_area",
+                issue.primaryBuildingName(),
+                issue.messageArg());
             case BUILDING_WARNING -> PlotI18n.tr(
                 "plugin.building.issue.warning",
                 issue.primaryBuildingName(),

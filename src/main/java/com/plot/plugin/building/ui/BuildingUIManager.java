@@ -30,14 +30,10 @@ public final class BuildingUIManager {
             footprintsPanel.tickPickSession();
         }
 
+        // 延续中的检查任务：先推进一帧，生成 Tab 内进度条才能读到最新完成数。
         ctx.tickDistrictPreviewJob();
 
         toolbarPanel.render();
-
-        if (ctx.isDistrictPreviewBusy()) {
-            BuildingDistrictPreviewProgress.render(ctx);
-            ImGui.separator();
-        }
 
         float tabHeight = Math.max(80f, ImGui.getContentRegionAvailY());
         boolean footprintsTabOpen = false;
@@ -59,6 +55,9 @@ public final class BuildingUIManager {
             }
             ImGui.endChild();
         }
+
+        // 本帧在 Tab 内新启动的检查任务，在 Tab 渲染后再推进一帧。
+        ctx.tickDistrictPreviewJob();
 
         ctx.dismissDistrictPreviewJobUi();
 

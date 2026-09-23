@@ -42,6 +42,12 @@ public final class BuildingMassingPreview {
         ImGui.textColored(
             com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.building.generate.massing_live_hint"));
+
+        if (ctx.isDistrictPreviewBusy()) {
+            BuildingDistrictPreviewProgress.render(ctx);
+            ImGui.spacing();
+        }
+
         renderPreviewControls(ctx, targets, validity);
     }
 
@@ -86,7 +92,7 @@ public final class BuildingMassingPreview {
             ImGui.endDisabled();
         }
 
-        if (ctx.isDistrictPreviewBusy()) {
+        if (previewBusy) {
             return;
         }
         switch (validity) {

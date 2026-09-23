@@ -1,6 +1,7 @@
 package com.plot.plugin.building.generation;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.geometry.GeometryUtils;
 import com.plot.core.geometry.polygon.PolygonBoolean;
 import com.plot.plugin.building.model.BuildingFootprint;
 import net.minecraft.util.math.BlockPos;
@@ -26,6 +27,14 @@ public final class DistrictOverlapAnalyzer {
             String buildingNameA,
             String buildingIdB,
             String buildingNameB) {
+    }
+
+    public record ClosePair(
+            String buildingIdA,
+            String buildingNameA,
+            String buildingIdB,
+            String buildingNameB,
+            double gapBlocks) {
     }
 
     public record OverlapReport(
@@ -69,6 +78,64 @@ public final class DistrictOverlapAnalyzer {
             }
         }
         return pairs;
+    }
+
+    /**
+     * 检测轮廓未相交但间距过近的建筑对（重叠不算问题）。
+     */
+    public static List<ClosePair> findTooClosePairs(Collection<BuildingFootprint> buildings, double maxGapBlocks) {
+        List<BuildingFootprint> list = new ArrayList<>();
+        if (buildings != null) {
+            for (BuildingFootprint building : buildings) {
+                if (building != null
+                        && building.getOuterPoints() != null
+                        && building.getOuterPoints().size() >= 3) {
+                    list.add(building);
+                }
+            }
+        }
+        List<ClosePair> pairs = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            BuildingFootprint a = list.get(i);
+            List<Vec2d> aPts = a.getOuterPoints();
+            for (int j = i + 1; j < list.size(); j++) {
+                BuildingFootprint b = list.get(j);
+                List<Vec2d> bPts = b.getOuterPoints();
+                if (PolygonBoolean.intersects(aPts, bPts)) {
+                    continue;
+                }
+                double gap = minDistanceBetweenPolygons(aPts, bPts);
+                if (gap <= maxGapBlocks) {
+                    pairs.add(new ClosePair(
+                        a.getId(), a.getName(),
+                        b.getId(), b.getName(),
+                        gap));
+                }
+            }
+        }
+        return pairs;
+    }
+
+    private static double minDistanceBetweenPolygons(List<Vec2d> a, List<Vec2d> b) {
+        double min = Double.MAX_VALUE;
+        for (Vec2d point : a) {
+            min = Math.min(min, minDistancePointToPolygon(point, b));
+        }
+        for (Vec2d point : b) {
+            min = Math.min(min, minDistancePointToPolygon(point, a));
+        }
+        return min;
+    }
+
+    private static double minDistancePointToPolygon(Vec2d point, List<Vec2d> polygon) {
+        double min = Double.MAX_VALUE;
+        int n = polygon.size();
+        for (int i = 0; i < n; i++) {
+            Vec2d start = polygon.get(i);
+            Vec2d end = polygon.get((i + 1) % n);
+            min = Math.min(min, GeometryUtils.pointToSegmentDistance(point, start, end));
+        }
+        return min;
     }
 
     /**

@@ -7,9 +7,9 @@ import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.BuildingProject;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /** 从 Preview 结果提取用户可操作的生成问题（已做产品层收敛）。 */
@@ -23,9 +23,10 @@ public final class BuildingGenerationIssues {
 
     public enum Kind {
         SKIPPED,
-        TERRAIN_FIT,
-        BUILDING_WARNING,
-        OVERLAP
+        TOO_CLOSE,
+        EXCESSIVE_HEIGHT,
+        EXCESSIVE_AREA,
+        BUILDING_WARNING
     }
 
     public record Issue(
@@ -52,7 +53,19 @@ public final class BuildingGenerationIssues {
         }
     }
 
-    private static final Set<String> TERRAIN_WARNING_KEYS = Set.of(
+    static final double MAX_TOO_CLOSE_GAP_BLOCKS = 2.0;
+    static final int MAX_WARNING_HEIGHT_BLOCKS = 240;
+    static final int MAX_WARNING_AREA_BLOCKS = 36000;
+
+    private static final Set<String> SUPPRESSED_WARNING_KEYS = Set.of(
+        "plugin.building.warn.district_partial",
+        "plugin.building.warn.district_overlap",
+        "plugin.building.warn.floor_plate_coverage_gap",
+        "plugin.building.warn.using_earthwork_pad_elevation",
+        "plugin.building.warn.earthwork_pad_unresolved_using_terrain",
+        "plugin.building.warn.site_analysis_failed",
+        "plugin.building.warn.site_analysis_unavailable_skip",
+        "plugin.building.warn.tree_clear_limit",
         "plugin.building.warn.water_site",
         "plugin.building.warn.partial_water_site",
         "plugin.building.warn.steep_site",
@@ -64,16 +77,6 @@ public final class BuildingGenerationIssues {
         "plugin.building.warn.earthwork_pad_below_water",
         "plugin.building.warn.foundation_raised_above_water");
 
-    private static final Set<String> SUPPRESSED_WARNING_KEYS = Set.of(
-        "plugin.building.warn.district_partial",
-        "plugin.building.warn.district_overlap",
-        "plugin.building.warn.floor_plate_coverage_gap",
-        "plugin.building.warn.using_earthwork_pad_elevation",
-        "plugin.building.warn.earthwork_pad_unresolved_using_terrain",
-        "plugin.building.warn.site_analysis_failed",
-        "plugin.building.warn.site_analysis_unavailable_skip",
-        "plugin.building.warn.tree_clear_limit");
-
     private BuildingGenerationIssues() {
     }
 
@@ -82,12 +85,13 @@ public final class BuildingGenerationIssues {
             DistrictGenerationResult district,
             BuildingGenerationResult single,
             BuildingPreviewIdentity previewIdentity,
-            boolean districtMode) {
+            boolean districtMode,
+            Map<String, Double> previewHeights) {
         if (districtMode && district != null) {
-            return collectDistrict(district);
+            return collectDistrict(project, district, previewHeights);
         }
         if (single != null && previewIdentity != null && !previewIdentity.targetIds().isEmpty()) {
-            return collectSingle(project, single, previewIdentity.targetIds().getFirst());
+            return collectSingle(project, single, previewIdentity.targetIds().getFirst(), previewHeights);
         }
         return List.of();
     }
@@ -127,7 +131,10 @@ public final class BuildingGenerationIssues {
         return count;
     }
 
-    private static List<Issue> collectDistrict(DistrictGenerationResult district) {
+    private static List<Issue> collectDistrict(
+            BuildingProject project,
+            DistrictGenerationResult district,
+            Map<String, Double> previewHeights) {
         List<Issue> issues = new ArrayList<>();
         for (DistrictGenerationResult.BuildingOutcome skipped : district.skippedOutcomes()) {
             issues.add(new Issue(
@@ -140,40 +147,30 @@ public final class BuildingGenerationIssues {
                 skipMessageKey(skipped.skipReason()),
                 skipped.errorDetail() != null ? skipped.errorDetail() : ""));
         }
-        for (DistrictOverlapAnalyzer.OverlapPair pair : district.overlappingBuildingPairs()) {
+        List<BuildingFootprint> previewed = previewedBuildings(project, district);
+        for (DistrictOverlapAnalyzer.ClosePair pair : DistrictOverlapAnalyzer.findTooClosePairs(
+                previewed, MAX_TOO_CLOSE_GAP_BLOCKS)) {
             issues.add(new Issue(
-                Kind.OVERLAP,
-                Severity.INFO,
+                Kind.TOO_CLOSE,
+                Severity.WARNING,
                 pair.buildingIdA(),
                 pair.buildingNameA(),
                 pair.buildingIdB(),
                 pair.buildingNameB(),
-                "plugin.building.issue.overlap_info",
-                ""));
+                "plugin.building.issue.too_close",
+                formatGapBlocks(pair.gapBlocks())));
         }
-        Set<String> terrainNoted = new HashSet<>();
         for (DistrictGenerationResult.BuildingOutcome outcome : district.outcomes()) {
-            if (!outcome.success() || outcome.result() == null) {
+            if (!outcome.success()) {
                 continue;
             }
-            boolean terrainAdded = false;
+            BuildingFootprint building = project != null ? project.getBuilding(outcome.buildingId()) : null;
+            collectSizeWarnings(issues, building, outcome.buildingId(), outcome.buildingName(), previewHeights);
+            if (outcome.result() == null) {
+                continue;
+            }
             for (String warningKey : outcome.result().warnings) {
                 if (warningKey == null || warningKey.isBlank() || SUPPRESSED_WARNING_KEYS.contains(warningKey)) {
-                    continue;
-                }
-                if (TERRAIN_WARNING_KEYS.contains(warningKey)) {
-                    if (!terrainAdded && terrainNoted.add(outcome.buildingId())) {
-                        terrainAdded = true;
-                        issues.add(new Issue(
-                            Kind.TERRAIN_FIT,
-                            Severity.WARNING,
-                            outcome.buildingId(),
-                            outcome.buildingName(),
-                            "",
-                            "",
-                            "plugin.building.issue.terrain_fit",
-                            ""));
-                    }
                     continue;
                 }
                 issues.add(new Issue(
@@ -193,28 +190,14 @@ public final class BuildingGenerationIssues {
     private static List<Issue> collectSingle(
             BuildingProject project,
             BuildingGenerationResult single,
-            String buildingId) {
+            String buildingId,
+            Map<String, Double> previewHeights) {
         BuildingFootprint building = project != null ? project.getBuilding(buildingId) : null;
         String name = building != null ? building.getName() : buildingId;
         List<Issue> issues = new ArrayList<>();
-        boolean terrainAdded = false;
+        collectSizeWarnings(issues, building, buildingId, name, previewHeights);
         for (String warningKey : single.warnings) {
             if (warningKey == null || warningKey.isBlank() || SUPPRESSED_WARNING_KEYS.contains(warningKey)) {
-                continue;
-            }
-            if (TERRAIN_WARNING_KEYS.contains(warningKey)) {
-                if (!terrainAdded) {
-                    terrainAdded = true;
-                    issues.add(new Issue(
-                        Kind.TERRAIN_FIT,
-                        Severity.WARNING,
-                        buildingId,
-                        name,
-                        "",
-                        "",
-                        "plugin.building.issue.terrain_fit",
-                        ""));
-                }
                 continue;
             }
             issues.add(new Issue(
@@ -228,6 +211,70 @@ public final class BuildingGenerationIssues {
                 ""));
         }
         return issues;
+    }
+
+    private static void collectSizeWarnings(
+            List<Issue> issues,
+            BuildingFootprint building,
+            String buildingId,
+            String buildingName,
+            Map<String, Double> previewHeights) {
+        if (building == null) {
+            return;
+        }
+        double height = BuildingMassingPreviewHeights.forBuilding(building, previewHeights);
+        if (height > MAX_WARNING_HEIGHT_BLOCKS) {
+            issues.add(new Issue(
+                Kind.EXCESSIVE_HEIGHT,
+                Severity.WARNING,
+                buildingId,
+                buildingName,
+                "",
+                "",
+                "plugin.building.issue.excessive_height",
+                Integer.toString((int) Math.ceil(height))));
+        }
+        double area = building.computeArea();
+        if (area > MAX_WARNING_AREA_BLOCKS) {
+            issues.add(new Issue(
+                Kind.EXCESSIVE_AREA,
+                Severity.WARNING,
+                buildingId,
+                buildingName,
+                "",
+                "",
+                "plugin.building.issue.excessive_area",
+                Integer.toString((int) Math.ceil(area))));
+        }
+    }
+
+    private static List<BuildingFootprint> previewedBuildings(
+            BuildingProject project,
+            DistrictGenerationResult district) {
+        List<BuildingFootprint> buildings = new ArrayList<>();
+        if (project == null || district == null) {
+            return buildings;
+        }
+        for (DistrictGenerationResult.BuildingOutcome outcome : district.outcomes()) {
+            if (!outcome.success()) {
+                continue;
+            }
+            BuildingFootprint building = project.getBuilding(outcome.buildingId());
+            if (building != null) {
+                buildings.add(building);
+            }
+        }
+        return buildings;
+    }
+
+    private static String formatGapBlocks(double gapBlocks) {
+        if (gapBlocks < 0.05) {
+            return "0";
+        }
+        if (Math.abs(gapBlocks - Math.round(gapBlocks)) < 0.05) {
+            return Integer.toString((int) Math.round(gapBlocks));
+        }
+        return String.format("%.1f", gapBlocks);
     }
 
     private static String skipMessageKey(DistrictGenerationResult.SkipReason reason) {
@@ -258,7 +305,7 @@ public final class BuildingGenerationIssues {
         return ids;
     }
 
-    /** 地图高亮：仅 WARNING（跳过与重叠不在此标黄）。 */
+    /** 地图高亮：仅 WARNING（跳过不在此标黄）。 */
     public static Set<String> warningBuildingIds(List<Issue> issues) {
         Set<String> ids = new LinkedHashSet<>();
         for (Issue issue : issues) {
@@ -267,6 +314,11 @@ public final class BuildingGenerationIssues {
             }
             if (issue.primaryBuildingId() != null && !issue.primaryBuildingId().isBlank()) {
                 ids.add(issue.primaryBuildingId());
+            }
+            if (issue.kind() == Kind.TOO_CLOSE
+                    && issue.secondaryBuildingId() != null
+                    && !issue.secondaryBuildingId().isBlank()) {
+                ids.add(issue.secondaryBuildingId());
             }
         }
         return ids;

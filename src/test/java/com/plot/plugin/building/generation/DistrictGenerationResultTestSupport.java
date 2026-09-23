@@ -46,4 +46,23 @@ public final class DistrictGenerationResultTestSupport {
         district.finalizeOverlaps();
         return district;
     }
+
+    public static BuildingFootprint offsetBuilding(String id, double x, double z, double size) {
+        BuildingFootprint footprint = new BuildingFootprint(id, List.of(
+            new Vec2d(x, z),
+            new Vec2d(x + size, z),
+            new Vec2d(x + size, z + size),
+            new Vec2d(x, z + size)
+        ), true);
+        footprint.setName(id);
+        return footprint;
+    }
+
+    public static DistrictGenerationResult districtWithClosePair(String idA, String idB, double gap) {
+        DistrictGenerationResult district = new DistrictGenerationResult();
+        district.addSuccess(offsetBuilding(idA, 0, 0, 10), resultWithWarnings());
+        district.addSuccess(offsetBuilding(idB, 10 + gap, 0, 10), resultWithWarnings());
+        district.finalizeOverlaps();
+        return district;
+    }
 }

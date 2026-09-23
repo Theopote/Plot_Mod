@@ -147,7 +147,7 @@ public final class BuildingActions {
         }
         state.setProjectStatus(PlotI18n.tr(
             "plugin.building.generate.check_progress",
-            job.processedCount(),
+            job.displayProcessedCount(),
             job.totalCount()));
     }
 
@@ -370,7 +370,8 @@ public final class BuildingActions {
             district,
             state.getLastGenerationResult(),
             state.getPreviewIdentity(),
-            districtMode);
+            districtMode,
+            state.getMassingPreviewHeightBlocks());
         state.setOverlayPreviewedBuildingIds(
             BuildingGenerationIssues.previewedBuildingIds(district, singleId));
         state.setOverlayWarningBuildingIds(BuildingGenerationIssues.warningBuildingIds(issues));
@@ -606,7 +607,8 @@ public final class BuildingActions {
             district,
             single,
             state.getPreviewIdentity(),
-            districtMode);
+            districtMode,
+            state.getMassingPreviewHeightBlocks());
     }
 
     public void startPickSession() {
