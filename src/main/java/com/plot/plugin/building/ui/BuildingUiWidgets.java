@@ -41,6 +41,10 @@ public final class BuildingUiWidgets {
     }
 
     public static void renderBuildingSelector(BuildingUiContext ctx) {
+        renderBuildingSelector(ctx, "plugin.building.select_building");
+    }
+
+    public static void renderBuildingSelector(BuildingUiContext ctx, String labelKey) {
         if (ctx.project().getBuildingCount() == 0) {
             return;
         }
@@ -64,7 +68,7 @@ public final class BuildingUiWidgets {
             }
         }
         ImInt buildingIndex = new ImInt(current);
-        if (ImGui.combo(PlotI18n.tr("plugin.building.select_building"), buildingIndex, labels)) {
+        if (ImGui.combo(PlotI18n.tr(labelKey), buildingIndex, labels)) {
             ctx.selection().select(ids[buildingIndex.get()], false);
         }
     }

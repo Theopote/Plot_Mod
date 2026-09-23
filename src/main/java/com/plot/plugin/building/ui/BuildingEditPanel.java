@@ -1,5 +1,6 @@
 package com.plot.plugin.building.ui;
 
+import com.plot.plugin.building.BuildingListHelper;
 import com.plot.plugin.building.generation.BuildingCanvasScale;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.spec.OpeningSpec;
@@ -24,21 +25,26 @@ public final class BuildingEditPanel {
 
     public void render() {
         ctx.selection().retainExisting(ctx.project());
-        int selectedCount = ctx.selection().size();
-        if (selectedCount == 0) {
+        if (ctx.project().getBuildingCount() == 0) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.select_building_hint"));
             return;
         }
+        int selectedCount = ctx.selection().size();
         if (selectedCount > 1) {
             renderBatchMode();
             return;
         }
         BuildingFootprint building = ctx.selection().primary(ctx.project());
         if (building == null) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.select_building_hint"));
-            return;
+            List<BuildingFootprint> buildings = BuildingListHelper.sorted(
+                ctx.project(),
+                ctx.buildingSortMode(),
+                ctx.currentProjection(),
+                ctx.blockCountCache());
+            building = buildings.getFirst();
+            ctx.selection().select(building.getId(), false);
         }
-        renderSingleMode(building);
+        renderSingleMode();
     }
 
     private void renderBatchMode() {
@@ -48,15 +54,16 @@ public final class BuildingEditPanel {
         BuildingDistrictMassingWidgets.renderBatchMode(ctx);
     }
 
-    private void renderSingleMode(BuildingFootprint building) {
-        ImGui.text(PlotI18n.tr("plugin.building.edit_single_title", building.getName()));
+    private void renderSingleMode() {
+        BuildingUiWidgets.renderBuildingSelector(ctx, "plugin.building.building_name");
+        BuildingFootprint building = ctx.selection().primary(ctx.project());
+        if (building == null) {
+            return;
+        }
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
             "plugin.building.edit_single_meta",
             ctx.blockCountCache().blockCount(building, ctx.currentProjection()),
             building.getFloors()));
-        if (ImGui.button(PlotI18n.tr("plugin.building.locate"), 0, 0)) {
-            ctx.locateBuilding(building);
-        }
         ImGui.separator();
 
         if (ImGui.collapsingHeader(
