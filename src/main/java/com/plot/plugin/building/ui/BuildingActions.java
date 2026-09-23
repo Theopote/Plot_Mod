@@ -177,9 +177,6 @@ public final class BuildingActions {
             pendingGhostUpload = null;
             pendingGhostUploadIndex = 0;
             pendingGhostUploadTotal = 0;
-            if (state.getLastGenerationResult() != null) {
-                state.setProjectStatus(PlotI18n.tr("plugin.building.generate_preview_ready"));
-            }
         } else {
             state.setProjectStatus(PlotI18n.tr(
                 "plugin.building.generate.ghost_uploading",
@@ -311,29 +308,6 @@ public final class BuildingActions {
             clearBuildingGhosts();
         }
 
-        if (district.buildingsAttempted() > 1) {
-            if (district.buildingsSkipped() > 0) {
-                state.setProjectStatus(PlotI18n.tr(
-                    "plugin.building.district_preview_partial",
-                    district.buildingsGenerated(),
-                    district.buildingsAttempted(),
-                    district.totalBlocks()));
-            } else {
-                state.setProjectStatus(PlotI18n.tr(
-                    "plugin.building.district_preview_ready",
-                    district.buildingsGenerated(),
-                    district.totalBlocks()));
-            }
-        } else {
-            BuildingGenerationResult merged = state.getLastGenerationResult();
-            if (merged != null && !merged.warnings.isEmpty()) {
-                state.setProjectStatus(PlotI18n.tr("plugin.building.generate_preview_ready")
-                    + " — "
-                    + PlotI18n.tr(merged.warnings.getFirst()));
-            } else {
-                state.setProjectStatus(PlotI18n.tr("plugin.building.generate_preview_ready"));
-            }
-        }
         return true;
     }
 

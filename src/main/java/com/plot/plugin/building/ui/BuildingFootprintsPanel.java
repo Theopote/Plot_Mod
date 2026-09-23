@@ -140,7 +140,6 @@ public final class BuildingFootprintsPanel {
 
     private void renderAdoptedSection() {
         WorldProjectionSnapshot projection = ctx.currentProjection();
-        ImGui.text(PlotI18n.tr("plugin.building.footprints.project_section"));
         ImGui.text(PlotI18n.tr("plugin.building.footprints.project_stats",
             ctx.project().getBuildingCount(),
             ctx.blockCountCache().totalBlockCount(ctx.project().getBuildings().values(), projection)));
