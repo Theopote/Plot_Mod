@@ -18,7 +18,6 @@ public final class BuildingFloorPlateUi {
 
     public record SimpleTowerState(
             boolean enabled,
-            boolean custom,
             int towerStartFloor,
             double insetDistance) {
     }
@@ -33,19 +32,17 @@ public final class BuildingFloorPlateUi {
 
     public static SimpleTowerState readState(BuildingFootprint building, BuildingCanvasScale canvasScale) {
         if (building == null || building.getFloors() < 2) {
-            return new SimpleTowerState(false, false, 1, 1.0);
+            return new SimpleTowerState(false, 1, 1.0);
         }
+        sanitizeFloorPlates(building);
         List<FloorPlateSpec> plates = building.getFloorPlates();
         if (plates.isEmpty()) {
-            return new SimpleTowerState(false, false, defaultTowerStart(building.getFloors()), 1.0);
-        }
-        if (plates.size() != 2) {
-            return new SimpleTowerState(true, true, defaultTowerStart(building.getFloors()), 1.0);
+            return new SimpleTowerState(false, defaultTowerStart(building.getFloors()), 1.0);
         }
 
         SimpleTowerPattern pattern = detectSimpleTower(building.getOuterPoints(), plates, building.getFloors());
         if (pattern == null) {
-            return new SimpleTowerState(true, true, defaultTowerStart(building.getFloors()), 1.0);
+            return new SimpleTowerState(false, defaultTowerStart(building.getFloors()), 1.0);
         }
 
         BuildingCanvasScale scale = Objects.requireNonNull(canvasScale, "canvasScale");
@@ -56,9 +53,27 @@ public final class BuildingFloorPlateUi {
             pattern.upper().floorEnd(),
             scale);
         if (inset < 0) {
-            return new SimpleTowerState(true, true, pattern.towerStartFloor(), 1.0);
+            inset = 1.0;
         }
-        return new SimpleTowerState(true, false, pattern.towerStartFloor(), inset);
+        return new SimpleTowerState(true, pattern.towerStartFloor(), inset);
+    }
+
+    /**
+     * 丢弃非简单退台（裙房+塔楼两块）的 floor plate 定义。
+     */
+    public static void sanitizeFloorPlates(BuildingFootprint building) {
+        if (building == null || building.getFloors() < 2) {
+            clearFloorPlates(building);
+            return;
+        }
+        List<FloorPlateSpec> plates = building.getFloorPlates();
+        if (plates.isEmpty()) {
+            return;
+        }
+        if (plates.size() != 2
+            || detectSimpleTower(building.getOuterPoints(), plates, building.getFloors()) == null) {
+            clearFloorPlates(building);
+        }
     }
 
     public static void applySimpleTower(
@@ -75,7 +90,7 @@ public final class BuildingFloorPlateUi {
         List<Vec2d> base = building.getOuterPoints();
         double inset = clampInsetBlocks(scale, base, insetBlocks);
         if (inset < MIN_INSET) {
-            building.setFloorPlates(List.of(FloorPlateSpec.of(0, floors - 1, base)));
+            clearFloorPlates(building);
             return;
         }
         try {
@@ -84,8 +99,12 @@ public final class BuildingFloorPlateUi {
                 scale.insetFloorPlate(start, floors - 1, base, inset)
             ));
         } catch (IllegalArgumentException ignored) {
-            building.setFloorPlates(List.of(FloorPlateSpec.of(0, floors - 1, base)));
+            clearFloorPlates(building);
         }
+    }
+
+    public static boolean canSetback(BuildingCanvasScale canvasScale, List<Vec2d> baseFootprint) {
+        return maxValidInsetBlocks(canvasScale, baseFootprint) >= MIN_INSET;
     }
 
     /** 当前轮廓在投影下允许的最大退台距离（方块数）；小于 {@link #MIN_INSET} 表示无法退台。 */
@@ -118,7 +137,11 @@ public final class BuildingFloorPlateUi {
     }
 
     public static int sliderMaxInset(BuildingCanvasScale canvasScale, List<Vec2d> baseFootprint) {
-        return Math.max(1, (int) Math.floor(Math.min(MAX_INSET, maxValidInsetBlocks(canvasScale, baseFootprint))));
+        double maxValid = maxValidInsetBlocks(canvasScale, baseFootprint);
+        if (maxValid < MIN_INSET) {
+            return 1;
+        }
+        return Math.max(1, (int) Math.floor(Math.min(MAX_INSET, maxValid)));
     }
 
     public static SimpleTowerPattern detectSimpleTower(

@@ -101,7 +101,7 @@ public final class BuildingEditPanel {
         if (floorsChanged) {
             building.setFloors(floors[0]);
             BuildingFloorPlateUi.SimpleTowerState tower = BuildingFloorPlateUi.readState(building, canvasScale(building));
-            if (tower.enabled() && !tower.custom()) {
+            if (tower.enabled()) {
                 BuildingFloorPlateUi.applySimpleTower(
                     building,
                     Math.min(tower.towerStartFloor(), Math.max(1, building.getFloors() - 1)),
@@ -242,15 +242,13 @@ public final class BuildingEditPanel {
             return;
         }
 
-        BuildingFloorPlateUi.SimpleTowerState state = BuildingFloorPlateUi.readState(building, canvasScale(building));
-        ImBoolean setbackEnabled = new ImBoolean(state.enabled() && !state.custom());
-        if (state.custom()) {
-            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.building.floor_plate_custom_hint"));
-            if (ImGui.button(PlotI18n.tr("plugin.building.floor_plate_reset_uniform"))) {
-                ctx.projectHistory().push(ctx.project());
-                BuildingFloorPlateUi.clearFloorPlates(building);
-                ctx.invalidatePreview();
-            }
+        BuildingCanvasScale canvasScale = canvasScale(building);
+        BuildingFloorPlateUi.SimpleTowerState state = BuildingFloorPlateUi.readState(building, canvasScale);
+        boolean canSetback = BuildingFloorPlateUi.canSetback(canvasScale, building.getOuterPoints());
+        ImBoolean setbackEnabled = new ImBoolean(state.enabled());
+
+        if (!canSetback) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.floor_plate_cannot_setback"));
             return;
         }
 
@@ -261,7 +259,7 @@ public final class BuildingEditPanel {
                     building,
                     state.towerStartFloor(),
                     state.insetDistance(),
-                    canvasScale(building));
+                    canvasScale);
             } else {
                 BuildingFloorPlateUi.clearFloorPlates(building);
             }
@@ -284,7 +282,6 @@ public final class BuildingEditPanel {
             ctx.projectHistory().push(ctx.project());
         }
 
-        BuildingCanvasScale canvasScale = canvasScale(building);
         int maxInset = BuildingFloorPlateUi.sliderMaxInset(canvasScale, building.getOuterPoints());
         int insetBlocks = (int) Math.round(
             BuildingFloorPlateUi.clampInsetBlocks(canvasScale, building.getOuterPoints(), state.insetDistance()));

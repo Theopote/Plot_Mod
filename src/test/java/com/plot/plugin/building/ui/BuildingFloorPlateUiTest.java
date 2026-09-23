@@ -27,7 +27,6 @@ class BuildingFloorPlateUiTest {
         BuildingFloorPlateUi.SimpleTowerState state =
             BuildingFloorPlateUi.readState(building, BuildingCanvasScales.capture(RECT));
         assertFalse(state.enabled());
-        assertFalse(state.custom());
     }
 
     @Test
@@ -38,22 +37,36 @@ class BuildingFloorPlateUiTest {
         BuildingFloorPlateUi.SimpleTowerState state =
             BuildingFloorPlateUi.readState(building, BuildingCanvasScales.capture(RECT));
         assertTrue(state.enabled());
-        assertFalse(state.custom());
         assertEquals(2, state.towerStartFloor());
         assertEquals(1.0, state.insetDistance(), 1e-6);
         assertEquals(2, building.getFloorPlates().size());
     }
 
     @Test
-    void customPlateCountIsMarkedCustom() {
+    void sanitizeClearsUnsupportedPlates() {
         BuildingFootprint building = footprint(4);
         building.setFloorPlates(List.of(
-            FloorPlateSpec.of(0, 3, RECT)
+            FloorPlateSpec.of(0, 1, RECT),
+            FloorPlateSpec.of(2, 2, RECT),
+            FloorPlateSpec.of(3, 3, RECT)
         ));
 
+        BuildingFloorPlateUi.sanitizeFloorPlates(building);
+
+        assertTrue(building.getFloorPlates().isEmpty());
         BuildingFloorPlateUi.SimpleTowerState state =
             BuildingFloorPlateUi.readState(building, BuildingCanvasScales.capture(RECT));
-        assertTrue(state.custom());
+        assertFalse(state.enabled());
+    }
+
+    @Test
+    void sanitizeClearsRedundantSingleUniformPlate() {
+        BuildingFootprint building = footprint(4);
+        building.setFloorPlates(List.of(FloorPlateSpec.of(0, 3, RECT)));
+
+        BuildingFloorPlateUi.sanitizeFloorPlates(building);
+
+        assertTrue(building.getFloorPlates().isEmpty());
     }
 
     @Test
@@ -66,7 +79,6 @@ class BuildingFloorPlateUiTest {
         BuildingFloorPlateUi.SimpleTowerState state =
             BuildingFloorPlateUi.readState(building, BuildingCanvasScales.capture(RECT));
         assertTrue(state.enabled());
-        assertFalse(state.custom());
         assertTrue(state.insetDistance() <= BuildingFloorPlateUi.MAX_INSET);
     }
 

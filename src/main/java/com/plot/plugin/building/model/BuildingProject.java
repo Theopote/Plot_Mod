@@ -12,6 +12,7 @@ import com.plot.plugin.building.model.spec.OpeningSpec;
 import com.plot.plugin.building.model.spec.WallFacadeSpec;
 import com.plot.plugin.building.model.spec.WindowPatternSpec;
 import com.plot.plugin.building.BuildingNameHelper;
+import com.plot.plugin.building.ui.BuildingFloorPlateUi;
 import com.plot.plugin.building.model.persistence.BuildingProjectLoadResult;
 import com.plot.plugin.building.model.persistence.BuildingProjectLoadResult.BuildingLoadDiagnostic;
 
@@ -437,6 +438,7 @@ public class BuildingProject {
                         }
                     }
                     footprint.setFloorPlates(plates);
+                    BuildingFloorPlateUi.sanitizeFloorPlates(footprint);
                 }
                 if (buildingData.wallFacades != null && !buildingData.wallFacades.isEmpty()) {
                     List<WallFacadeSpec> facades = new ArrayList<>();
