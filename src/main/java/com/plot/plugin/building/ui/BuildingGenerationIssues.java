@@ -1,5 +1,7 @@
 package com.plot.plugin.building.ui;
 
+import com.plot.api.world.WorldProjectionSnapshot;
+import com.plot.plugin.building.BuildingBlockCountCache;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.generation.DistrictGenerationResult;
 import com.plot.plugin.building.generation.DistrictOverlapAnalyzer;
@@ -86,12 +88,20 @@ public final class BuildingGenerationIssues {
             BuildingGenerationResult single,
             BuildingPreviewIdentity previewIdentity,
             boolean districtMode,
-            Map<String, Double> previewHeights) {
+            Map<String, Double> previewHeights,
+            BuildingBlockCountCache blockCountCache,
+            WorldProjectionSnapshot projection) {
         if (districtMode && district != null) {
-            return collectDistrict(project, district, previewHeights);
+            return collectDistrict(project, district, previewHeights, blockCountCache, projection);
         }
         if (single != null && previewIdentity != null && !previewIdentity.targetIds().isEmpty()) {
-            return collectSingle(project, single, previewIdentity.targetIds().getFirst(), previewHeights);
+            return collectSingle(
+                project,
+                single,
+                previewIdentity.targetIds().getFirst(),
+                previewHeights,
+                blockCountCache,
+                projection);
         }
         return List.of();
     }
@@ -134,7 +144,9 @@ public final class BuildingGenerationIssues {
     private static List<Issue> collectDistrict(
             BuildingProject project,
             DistrictGenerationResult district,
-            Map<String, Double> previewHeights) {
+            Map<String, Double> previewHeights,
+            BuildingBlockCountCache blockCountCache,
+            WorldProjectionSnapshot projection) {
         List<Issue> issues = new ArrayList<>();
         for (DistrictGenerationResult.BuildingOutcome skipped : district.skippedOutcomes()) {
             issues.add(new Issue(
@@ -165,7 +177,14 @@ public final class BuildingGenerationIssues {
                 continue;
             }
             BuildingFootprint building = project != null ? project.getBuilding(outcome.buildingId()) : null;
-            collectSizeWarnings(issues, building, outcome.buildingId(), outcome.buildingName(), previewHeights);
+            collectSizeWarnings(
+                issues,
+                building,
+                outcome.buildingId(),
+                outcome.buildingName(),
+                previewHeights,
+                blockCountCache,
+                projection);
             if (outcome.result() == null) {
                 continue;
             }
@@ -191,11 +210,13 @@ public final class BuildingGenerationIssues {
             BuildingProject project,
             BuildingGenerationResult single,
             String buildingId,
-            Map<String, Double> previewHeights) {
+            Map<String, Double> previewHeights,
+            BuildingBlockCountCache blockCountCache,
+            WorldProjectionSnapshot projection) {
         BuildingFootprint building = project != null ? project.getBuilding(buildingId) : null;
         String name = building != null ? building.getName() : buildingId;
         List<Issue> issues = new ArrayList<>();
-        collectSizeWarnings(issues, building, buildingId, name, previewHeights);
+        collectSizeWarnings(issues, building, buildingId, name, previewHeights, blockCountCache, projection);
         for (String warningKey : single.warnings) {
             if (warningKey == null || warningKey.isBlank() || SUPPRESSED_WARNING_KEYS.contains(warningKey)) {
                 continue;
@@ -218,7 +239,9 @@ public final class BuildingGenerationIssues {
             BuildingFootprint building,
             String buildingId,
             String buildingName,
-            Map<String, Double> previewHeights) {
+            Map<String, Double> previewHeights,
+            BuildingBlockCountCache blockCountCache,
+            WorldProjectionSnapshot projection) {
         if (building == null) {
             return;
         }
@@ -234,8 +257,8 @@ public final class BuildingGenerationIssues {
                 "plugin.building.issue.excessive_height",
                 Integer.toString((int) Math.ceil(height))));
         }
-        double area = building.computeArea();
-        if (area > MAX_WARNING_AREA_BLOCKS) {
+        int footprintBlocks = footprintBlockCount(building, blockCountCache, projection);
+        if (footprintBlocks > MAX_WARNING_AREA_BLOCKS) {
             issues.add(new Issue(
                 Kind.EXCESSIVE_AREA,
                 Severity.WARNING,
@@ -244,8 +267,22 @@ public final class BuildingGenerationIssues {
                 "",
                 "",
                 "plugin.building.issue.excessive_area",
-                Integer.toString((int) Math.ceil(area))));
+                Integer.toString(footprintBlocks)));
         }
+    }
+
+    /** 与轮廓面板「占地 N 格」一致：平面投影上的方块列数。 */
+    private static int footprintBlockCount(
+            BuildingFootprint building,
+            BuildingBlockCountCache blockCountCache,
+            WorldProjectionSnapshot projection) {
+        WorldProjectionSnapshot effectiveProjection = projection != null
+            ? projection
+            : WorldProjectionSnapshot.UNKNOWN;
+        if (blockCountCache != null) {
+            return blockCountCache.blockCount(building, effectiveProjection);
+        }
+        return BuildingBlockCountCache.blockCount(building.getOuterPoints(), effectiveProjection);
     }
 
     private static List<BuildingFootprint> previewedBuildings(

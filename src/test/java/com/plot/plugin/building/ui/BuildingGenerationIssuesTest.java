@@ -1,5 +1,7 @@
 package com.plot.plugin.building.ui;
 
+import com.plot.api.world.WorldProjectionSnapshot;
+import com.plot.plugin.building.BuildingBlockCountCache;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.generation.DistrictGenerationResult;
 import com.plot.plugin.building.model.BuildingFootprint;
@@ -20,6 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BuildingGenerationIssuesTest {
+    private static final BuildingBlockCountCache BLOCK_COUNT_CACHE = new BuildingBlockCountCache();
+    private static final WorldProjectionSnapshot PROJECTION = WorldProjectionSnapshot.UNKNOWN;
 
     @Test
     void collectDistrictSkippedOnlyWhenTerrainAndOverlapSuppressed() {
@@ -31,7 +35,9 @@ class BuildingGenerationIssuesTest {
             null,
             null,
             true,
-            Map.of());
+            Map.of(),
+            BLOCK_COUNT_CACHE,
+            PROJECTION);
 
         assertEquals(1, issues.size());
         assertTrue(issues.stream().anyMatch(issue ->
@@ -53,7 +59,9 @@ class BuildingGenerationIssuesTest {
             null,
             null,
             true,
-            Map.of());
+            Map.of(),
+            BLOCK_COUNT_CACHE,
+            PROJECTION);
 
         assertEquals(1, issues.size());
         assertEquals(BuildingGenerationIssues.Kind.TOO_CLOSE, issues.getFirst().kind());
@@ -73,7 +81,9 @@ class BuildingGenerationIssuesTest {
             null,
             null,
             true,
-            Map.of());
+            Map.of(),
+            BLOCK_COUNT_CACHE,
+            PROJECTION);
 
         assertTrue(issues.stream().noneMatch(issue -> issue.kind() == BuildingGenerationIssues.Kind.TOO_CLOSE));
     }
@@ -89,7 +99,9 @@ class BuildingGenerationIssuesTest {
             single,
             identity,
             false,
-            Map.of());
+            Map.of(),
+            BLOCK_COUNT_CACHE,
+            PROJECTION);
 
         assertEquals(0, issues.size());
     }
@@ -104,6 +116,7 @@ class BuildingGenerationIssuesTest {
 
         BuildingGenerationResult single = resultWithWarnings();
         BuildingPreviewIdentity identity = BuildingPreviewIdentity.capture(List.of(huge));
+        int footprintBlocks = BLOCK_COUNT_CACHE.blockCount(huge, PROJECTION);
 
         List<BuildingGenerationIssues.Issue> issues = BuildingGenerationIssues.collect(
             project,
@@ -111,13 +124,17 @@ class BuildingGenerationIssuesTest {
             single,
             identity,
             false,
-            Map.of());
+            Map.of(),
+            BLOCK_COUNT_CACHE,
+            PROJECTION);
 
         assertEquals(2, issues.size());
         assertTrue(issues.stream().anyMatch(issue ->
             issue.kind() == BuildingGenerationIssues.Kind.EXCESSIVE_HEIGHT));
         assertTrue(issues.stream().anyMatch(issue ->
-            issue.kind() == BuildingGenerationIssues.Kind.EXCESSIVE_AREA));
+            issue.kind() == BuildingGenerationIssues.Kind.EXCESSIVE_AREA
+                && issue.messageArg().equals(Integer.toString(footprintBlocks))));
+        assertTrue(footprintBlocks > BuildingGenerationIssues.MAX_WARNING_AREA_BLOCKS);
     }
 
     @Test
@@ -127,7 +144,7 @@ class BuildingGenerationIssuesTest {
         project.addBuilding(offsetBuilding("overlap", 11, 0, 10));
         DistrictGenerationResult district = districtWithClosePair("ok", "overlap", 1.0);
         List<BuildingGenerationIssues.Issue> districtIssues = BuildingGenerationIssues.collect(
-            project, district, null, null, true, Map.of());
+            project, district, null, null, true, Map.of(), BLOCK_COUNT_CACHE, PROJECTION);
 
         assertEquals(
             Set.of("ok", "overlap"),

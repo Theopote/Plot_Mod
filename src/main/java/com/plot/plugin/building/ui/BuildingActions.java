@@ -371,7 +371,9 @@ public final class BuildingActions {
             state.getLastGenerationResult(),
             state.getPreviewIdentity(),
             districtMode,
-            state.getMassingPreviewHeightBlocks());
+            state.getMassingPreviewHeightBlocks(),
+            state.getBlockCountCache(),
+            captureProjection());
         state.setOverlayPreviewedBuildingIds(
             BuildingGenerationIssues.previewedBuildingIds(district, singleId));
         state.setOverlayWarningBuildingIds(BuildingGenerationIssues.warningBuildingIds(issues));
@@ -608,7 +610,17 @@ public final class BuildingActions {
             single,
             state.getPreviewIdentity(),
             districtMode,
-            state.getMassingPreviewHeightBlocks());
+            state.getMassingPreviewHeightBlocks(),
+            state.getBlockCountCache(),
+            captureProjection());
+    }
+
+    private com.plot.api.world.WorldProjectionSnapshot captureProjection() {
+        try {
+            return host.coordinates().captureProjection();
+        } catch (RuntimeException ignored) {
+            return com.plot.api.world.WorldProjectionSnapshot.UNKNOWN;
+        }
     }
 
     public void startPickSession() {
