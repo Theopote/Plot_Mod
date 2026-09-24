@@ -4,6 +4,7 @@ import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.core.command.Command;
 import com.plot.core.command.commands.GenerateRoadCommand;
+import com.plot.plugin.road.manager.RoadNetworkPreviewJob;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
@@ -68,7 +69,24 @@ public final class RoadToolbarPanel {
         if (!ctx.status().isEmpty()) {
             RoadStatusUi.render(ctx.status().getStatus());
         }
+        renderPreviewJobControls();
         ImGui.separator();
+    }
+
+    private void renderPreviewJobControls() {
+        if (!ctx.previewManager().isPreviewJobRunning()) {
+            return;
+        }
+        RoadNetworkPreviewJob job = ctx.previewManager().previewJob();
+        if (job != null) {
+            PluginJobProgressUi.renderJobProgress(
+                PlotI18n.tr(job.phaseTranslationKey()),
+                job.processedWorkUnits(),
+                job.totalWorkUnits(),
+                ImGui.getContentRegionAvailX(),
+                "plugin.road.cancel_preview",
+                ctx::cancelPreviewJob);
+        }
     }
 
     private boolean canUndoWorldPlacement() {

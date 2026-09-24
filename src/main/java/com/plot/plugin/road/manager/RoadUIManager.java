@@ -61,6 +61,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         if (ctx.toolManager().getPathPickSession().isActive()) {
             ctx.toolManager().tick();
         }
+        ctx.previewManager().tickPreviewJob();
 
         toolbarPanel.render();
 

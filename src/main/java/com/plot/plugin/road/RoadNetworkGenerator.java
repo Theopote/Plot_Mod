@@ -134,6 +134,11 @@ public class RoadNetworkGenerator {
         }
     }
 
+    /** 分帧预览：每帧生成的道路边数量。 */
+    public static final int PREVIEW_EDGES_PER_TICK = 8;
+    /** 分帧预览：每帧生成的路口数量。 */
+    public static final int PREVIEW_JUNCTIONS_PER_TICK = 4;
+
     private final RoadGenerator roadGenerator;
     private final RoadJunctionGenerator junctionGenerator;
 
@@ -153,12 +158,53 @@ public class RoadNetworkGenerator {
      * 在路网快照上生成，避免预览/落地修改 live 派生 {@code centerlinePoints}。
      */
     public NetworkGenerationResult generateAll(RoadNetwork network, TerrainSampler terrain) {
-        NetworkGenerationResult networkResult = new NetworkGenerationResult();
-        if (network == null || terrain == null || network.getEdges().isEmpty()) {
-            return networkResult;
+        RoadNetworkPreviewSession session = beginPreviewSession(network, terrain);
+        if (!session.isValid()) {
+            return new NetworkGenerationResult();
         }
+        preparePreviewSession(session);
+        while (session.hasMoreEdges()) {
+            tickPreviewSessionEdges(session, Integer.MAX_VALUE);
+        }
+        while (session.hasMoreJunctions()) {
+            tickPreviewSessionJunctions(session, Integer.MAX_VALUE);
+        }
+        logGenerationSummary(session.networkResult(), session.nodeElevations());
+        return session.networkResult();
+    }
 
+    /**
+     * 开启分帧预览会话（快照 + 队列）；{@link #preparePreviewSession} 完成地形采样与标高决议。
+     */
+    public RoadNetworkPreviewSession beginPreviewSession(RoadNetwork network, TerrainSampler terrain) {
+        if (network == null || terrain == null || network.getEdges().isEmpty()) {
+            return RoadNetworkPreviewSession.empty(network);
+        }
         RoadNetwork generationNetwork = network.snapshot();
+        List<RoadEdge> edges = new ArrayList<>(generationNetwork.getEdges().values());
+        List<RoadNode> junctionNodes = RoadNetworkPreviewSession.collectJunctionNodes(generationNetwork);
+        return new RoadNetworkPreviewSession(
+            network,
+            generationNetwork,
+            new NetworkGenerationResult(),
+            terrain,
+            edges,
+            junctionNodes);
+    }
+
+    public RoadNetworkPreviewSession beginPreviewSession(RoadNetwork network, World world) {
+        if (network == null || world == null) {
+            return RoadNetworkPreviewSession.empty(network);
+        }
+        return beginPreviewSession(network, roadGenerator.createTerrainSampler(world));
+    }
+
+    /** 准备阶段：同步派生中心线并决议节点标高。 */
+    public void preparePreviewSession(RoadNetworkPreviewSession session) {
+        if (session == null || !session.isValid() || session.isPrepared()) {
+            return;
+        }
+        RoadNetwork generationNetwork = session.generationNetwork();
         int synchronizedRoads = DerivedCenterlineSynchronizer.synchronizeAll(
             generationNetwork,
             roadGenerator.getConfig().getPathSampleDistance());
@@ -166,22 +212,48 @@ public class RoadNetworkGenerator {
             LOGGER.debug("生成前已在快照上同步 {} 条道路的设计平面线形到派生中心线", synchronizedRoads);
         }
         Map<String, Integer> nodeElevations =
-            roadGenerator.resolveNetworkNodeElevations(generationNetwork, terrain);
-        networkResult.setNodeElevations(nodeElevations);
+            roadGenerator.resolveNetworkNodeElevations(generationNetwork, session.terrain());
+        session.networkResult().setNodeElevations(nodeElevations);
+        session.markPrepared();
+    }
 
-        for (RoadEdge edge : generationNetwork.getEdges().values()) {
+    /** @return 本帧处理的边数 */
+    public int tickPreviewSessionEdges(RoadNetworkPreviewSession session, int maxEdges) {
+        if (session == null || !session.isPrepared() || maxEdges <= 0) {
+            return 0;
+        }
+        List<RoadEdge> batch = session.edgeBatch(maxEdges);
+        if (batch.isEmpty()) {
+            return 0;
+        }
+        Map<String, Integer> nodeElevations = session.nodeElevations();
+        RoadNetwork generationNetwork = session.generationNetwork();
+        NetworkGenerationResult networkResult = session.networkResult();
+        for (RoadEdge edge : batch) {
             RoadNode start = generationNetwork.getNode(edge.getStartNodeId());
             RoadNode end = generationNetwork.getNode(edge.getEndNodeId());
             EdgeGenerationResult edgeOutcome = roadGenerator.generateEdgeOutcome(
-                generationNetwork, edge, start, end, terrain, nodeElevations);
+                generationNetwork, edge, start, end, session.terrain(), nodeElevations);
             networkResult.recordEdgeOutcome(edge.getId(), edgeOutcome);
         }
+        session.advanceEdges(batch.size());
+        return batch.size();
+    }
 
-        Set<String> failedEdgeIds = networkResult.getFailedEdgeIds();
-        for (RoadNode node : generationNetwork.getNodes().values()) {
-            if (node.getDegree() < 3) {
-                continue;
-            }
+    /** @return 本帧处理的路口数 */
+    public int tickPreviewSessionJunctions(RoadNetworkPreviewSession session, int maxJunctions) {
+        if (session == null || !session.isPrepared() || maxJunctions <= 0) {
+            return 0;
+        }
+        List<RoadNode> batch = session.junctionBatch(maxJunctions);
+        if (batch.isEmpty()) {
+            return 0;
+        }
+        Set<String> failedEdgeIds = session.networkResult().getFailedEdgeIds();
+        Map<String, Integer> nodeElevations = session.nodeElevations();
+        RoadNetwork generationNetwork = session.generationNetwork();
+        NetworkGenerationResult networkResult = session.networkResult();
+        for (RoadNode node : batch) {
             if (!shouldGenerateJunction(node, failedEdgeIds)) {
                 networkResult.recordSkippedJunction(
                     node.getId(),
@@ -189,22 +261,39 @@ public class RoadNetworkGenerator {
                 continue;
             }
             RoadJunctionGenerator.JunctionBlocks junctionBlocks =
-                junctionGenerator.generateJunction(node, generationNetwork, terrain, nodeElevations);
+                junctionGenerator.generateJunction(
+                    node, generationNetwork, session.terrain(), nodeElevations);
             if (!junctionBlocks.isEmpty()) {
                 networkResult.junctionResults.put(node.getId(), junctionBlocks);
             }
         }
+        session.advanceJunctions(batch.size());
+        return batch.size();
+    }
 
+    public PreviewResult completePreviewSession(RoadNetworkPreviewSession session) {
+        if (session == null || !session.isValid()) {
+            return emptyPreviewResult();
+        }
+        logGenerationSummary(session.networkResult(), session.nodeElevations());
+        RoadGenerationResult aggregate = aggregateNetworkResult(session.sourceNetwork(), session.networkResult());
+        return new PreviewResult(
+            aggregate,
+            session.networkResult().getEdgeResults(),
+            session.networkResult().getNodeElevations(),
+            session.networkResult());
+    }
+
+    private void logGenerationSummary(NetworkGenerationResult networkResult, Map<String, Integer> nodeElevations) {
         LOGGER.info(
             "路网生成完成: {} 条边成功 / {} 总计, {} 失败, {} 跳过; {} 个路口, {} 个路口跳过（统一标高节点 {} 个）",
             networkResult.successEdgeCount(),
             networkResult.totalEdgeCount(),
             networkResult.getFailedEdgeIds().size(),
             networkResult.getSkippedEdgeIds().size(),
-            networkResult.junctionResults.size(),
+            networkResult.getJunctionResults().size(),
             networkResult.getSkippedJunctionIds().size(),
             nodeElevations.size());
-        return networkResult;
     }
 
     /**

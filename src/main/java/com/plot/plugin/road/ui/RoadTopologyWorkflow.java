@@ -57,8 +57,7 @@ public final class RoadTopologyWorkflow {
     }
 
     private static void refreshPreview(RoadUiContext ctx) {
-        if (ctx.previewManager().calculateNetworkPreview(ctx.networkManager().getNetwork())) {
-            ctx.previewManager().projectRoadPreview();
+        if (ctx.previewManager().startNetworkPreview(ctx.networkManager().getNetwork())) {
             ctx.status().info(PlotI18n.tr("plugin.road.preview_refreshed_after_reconcile"));
         }
     }

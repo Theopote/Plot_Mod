@@ -4,7 +4,6 @@ import com.plot.api.world.GhostBlockOwners;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.command.commands.GenerateRoadCommand;
 import com.plot.core.context.PluginContext;
-import com.plot.api.world.IBlockProjectionService;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadNetworkEngineeringValidator;
@@ -38,6 +37,7 @@ public final class RoadPreviewManager {
     private Map<String, Integer> lastNodeElevations = Collections.emptyMap();
     private RoadNetworkGenerator.NetworkGenerationResult lastNetworkGenerationResult;
     private long terrainRevision = 0L;
+    private RoadNetworkPreviewJob previewJob;
 
     public RoadPreviewManager(RoadProjectStatus status, PluginContext host) {
         this.status = status;
@@ -87,7 +87,139 @@ public final class RoadPreviewManager {
         return lastEdgeResults.get(edgeId);
     }
 
+    public boolean isPreviewJobRunning() {
+        return previewJob != null && previewJob.isRunning();
+    }
+
+    public RoadNetworkPreviewJob previewJob() {
+        return previewJob;
+    }
+
+    /**
+     * 启动分帧路网预览（UI 入口）。完成时可选自动投影虚影。
+     *
+     * @return 是否成功启动 job
+     */
+    public boolean startNetworkPreview(RoadNetwork network) {
+        return startNetworkPreview(network, true);
+    }
+
+    public boolean startNetworkPreview(RoadNetwork network, boolean autoProjectGhosts) {
+        if (network.getEdges().isEmpty()) {
+            status.warning(PlotI18n.tr("plugin.road.no_edges"));
+            return false;
+        }
+
+        RoadNetworkValidationReport preflight =
+            RoadNetworkEngineeringValidator.analyzePreGeneration(network);
+        if (preflight.blocksBuild()) {
+            invalidatePreview();
+            status.error(PlotI18n.tr("plugin.road.preview_blocked_validation"));
+            return false;
+        }
+
+        World world = RoadNetworkGenerator.getClientWorld();
+        if (world == null || networkGenerator == null) {
+            LOGGER.warn("世界或生成器未就绪");
+            status.error(PlotI18n.tr("plugin.road.generate_world_unavailable"));
+            return false;
+        }
+
+        cancelPreviewJobSilently();
+        previewJob = new RoadNetworkPreviewJob(network, autoProjectGhosts, networkGenerator, this);
+        updatePreviewJobProgress(previewJob);
+        return true;
+    }
+
+    public void tickPreviewJob() {
+        if (previewJob != null && previewJob.isRunning()) {
+            previewJob.tick();
+        }
+    }
+
+    public void cancelPreviewJob() {
+        if (previewJob == null) {
+            return;
+        }
+        previewJob.cancel();
+        if (previewJob.isRunning()) {
+            previewJob.tick();
+        } else {
+            previewJob = null;
+        }
+        status.info(PlotI18n.tr("plugin.road.preview_cancelled"));
+    }
+
+    void updatePreviewJobProgress(RoadNetworkPreviewJob job) {
+        if (job == null) {
+            return;
+        }
+        String message = PlotI18n.tr(job.phaseTranslationKey());
+        if (job.totalWorkUnits() > 0) {
+            message += " — " + PlotI18n.tr(
+                "plugin.road.preview_progress_detail",
+                job.processedWorkUnits(),
+                job.totalWorkUnits());
+        }
+        status.progress(message);
+    }
+
+    void completePreviewJob(
+            RoadNetworkPreviewJob job,
+            RoadNetworkGenerator.PreviewResult previewResult,
+            boolean autoProjectGhosts) {
+        if (previewJob != job) {
+            return;
+        }
+        previewJob = null;
+        applyPreviewResult(job.sourceNetwork(), previewResult, autoProjectGhosts);
+    }
+
+    void failPreviewJob(RoadNetworkPreviewJob job) {
+        failPreviewJob(job, null);
+    }
+
+    void failPreviewJob(RoadNetworkPreviewJob job, RuntimeException error) {
+        if (previewJob == job) {
+            previewJob = null;
+        }
+        lastGenerationResult = null;
+        previewNetwork = null;
+        lastEdgeResults = Collections.emptyMap();
+        lastNodeElevations = Collections.emptyMap();
+        lastNetworkGenerationResult = null;
+        status.error(PlotI18n.tr("plugin.road.generate_preview_failed"));
+        if (error != null) {
+            LOGGER.error("计算路网预览失败: {}", error.getMessage(), error);
+        }
+    }
+
+    void finishCancelledPreviewJob(RoadNetworkPreviewJob job) {
+        if (previewJob == job) {
+            previewJob = null;
+        }
+    }
+
+    private void cancelPreviewJobSilently() {
+        if (previewJob == null) {
+            return;
+        }
+        previewJob.cancel();
+        if (previewJob.isRunning()) {
+            previewJob.tick();
+        } else {
+            previewJob = null;
+        }
+    }
+
+    /**
+     * 同步计算路网预览（基准 / 测试 / 无 tick 循环时使用）。
+     */
     public boolean calculateNetworkPreview(RoadNetwork network) {
+        return calculateNetworkPreview(network, true);
+    }
+
+    public boolean calculateNetworkPreview(RoadNetwork network, boolean autoProjectGhosts) {
         if (network.getEdges().isEmpty()) {
             status.warning(PlotI18n.tr("plugin.road.no_edges"));
             return false;
@@ -110,12 +242,8 @@ public final class RoadPreviewManager {
 
         try {
             RoadNetworkGenerator.PreviewResult previewResult = networkGenerator.generatePreview(network, world);
-            lastGenerationResult = previewResult.aggregate();
-            previewNetwork = network;
-            lastEdgeResults = new LinkedHashMap<>(previewResult.edgeResults());
-            lastNodeElevations = new LinkedHashMap<>(previewResult.nodeElevations());
-            lastNetworkGenerationResult = previewResult.networkResult();
-            bumpTerrainRevision();
+            applyPreviewResult(network, previewResult, autoProjectGhosts);
+            return lastGenerationResult != null && !lastGenerationResult.placementRecords.isEmpty();
         } catch (RuntimeException e) {
             lastGenerationResult = null;
             previewNetwork = null;
@@ -126,11 +254,23 @@ public final class RoadPreviewManager {
             LOGGER.error("计算路网预览失败: {}", e.getMessage(), e);
             return false;
         }
+    }
+
+    private void applyPreviewResult(
+            RoadNetwork network,
+            RoadNetworkGenerator.PreviewResult previewResult,
+            boolean autoProjectGhosts) {
+        lastGenerationResult = previewResult.aggregate();
+        previewNetwork = network;
+        lastEdgeResults = new LinkedHashMap<>(previewResult.edgeResults());
+        lastNodeElevations = new LinkedHashMap<>(previewResult.nodeElevations());
+        lastNetworkGenerationResult = previewResult.networkResult();
+        bumpTerrainRevision();
 
         if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
             status.warning(PlotI18n.tr("plugin.road.generate_empty_result"));
             LOGGER.warn("路网预览未产生可投影方块");
-            return false;
+            return;
         }
 
         if (lastGenerationResult.droppedSolidCount > 0) {
@@ -144,7 +284,9 @@ public final class RoadPreviewManager {
             lastGenerationResult.streetlightCount,
             lastGenerationResult.droppedSolidCount);
         applyPreviewReadyStatus();
-        return true;
+        if (autoProjectGhosts) {
+            projectRoadPreview();
+        }
     }
 
     private void applyPreviewReadyStatus() {
@@ -202,6 +344,7 @@ public final class RoadPreviewManager {
     }
 
     public void clearPreview() {
+        cancelPreviewJobSilently();
         com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearGhostBlocks(GhostBlockOwners.ROAD);
@@ -225,6 +368,7 @@ public final class RoadPreviewManager {
      * 同时清除虚影，避免界面上仍显示与当前路网不一致的投影。
      */
     public void invalidatePreview() {
+        cancelPreviewJobSilently();
         boolean hadPreview = lastGenerationResult != null || !lastEdgeResults.isEmpty();
         lastEdgeResults = Collections.emptyMap();
         lastNodeElevations = Collections.emptyMap();
@@ -278,7 +422,6 @@ public final class RoadPreviewManager {
         status.progress(PlotI18n.tr("plugin.road.build_in_progress", records.size()));
         command.executeScheduled(() -> {
             GenerateRoadCommand.ExecutionResult result = command.getLastExecutionResult();
-            // 仅当有实际写入时入历史；Undo 只回滚 appliedRecords
             if (result != null && result.cancelled()) {
                 if (command.hasAppliedRecords()) {
                     host.commands().pushExecuted(command);

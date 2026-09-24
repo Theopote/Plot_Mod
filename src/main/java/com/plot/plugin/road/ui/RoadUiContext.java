@@ -230,6 +230,16 @@ public final class RoadUiContext {
         networkManager.mutateNetwork(mutation);
     }
 
+    public boolean isPreviewJobRunning() {
+        return previewManager != null && previewManager.isPreviewJobRunning();
+    }
+
+    public void cancelPreviewJob() {
+        if (previewManager != null) {
+            previewManager.cancelPreviewJob();
+        }
+    }
+
     /**
      * 全局配置（桥/隧阈值、采样、默认横断面等）变更后调用：使预览失效，避免按过期参数落地。
      */

@@ -225,7 +225,7 @@ public final class RoadEditPanel {
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.vertical_alignment_profile_preview_required"));
             if (ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_calculate_profile"))) {
-                ctx.previewManager().calculateNetworkPreview(network);
+                ctx.previewManager().startNetworkPreview(network, false);
             }
             return;
         }

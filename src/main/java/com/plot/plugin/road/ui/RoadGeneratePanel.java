@@ -58,7 +58,7 @@ public final class RoadGeneratePanel {
             RoadNetworkValidationPanel.render(preflight, ctx);
         }
 
-        boolean previewBlocked = !hasNetwork || preflight.blocksBuild();
+        boolean previewBlocked = !hasNetwork || preflight.blocksBuild() || ctx.previewManager().isPreviewJobRunning();
         if (!hasNetwork) {
             RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_edges"));
         }
@@ -66,10 +66,7 @@ public final class RoadGeneratePanel {
             ImGui.beginDisabled();
         }
         if (ImGui.button(PlotI18n.tr("plugin.road.calc_preview"), half, 0)) {
-            if (ctx.previewManager().calculateNetworkPreview(network)) {
-                syncProfileEdgeSelection(network);
-                ctx.previewManager().projectRoadPreview();
-            }
+            ctx.previewManager().startNetworkPreview(network);
         }
         if (previewBlocked) {
             ImGui.endDisabled();
@@ -77,7 +74,7 @@ public final class RoadGeneratePanel {
 
         ImGui.sameLine();
         boolean hasPreview = ctx.previewManager().hasValidPreview();
-        if (!hasPreview) {
+        if (!hasPreview || ctx.previewManager().isPreviewJobRunning()) {
             ImGui.beginDisabled();
         }
         if (ImGui.button(PlotI18n.tr("plugin.road.clear_preview"), half, 0)) {
@@ -143,6 +140,7 @@ public final class RoadGeneratePanel {
             boolean buildDisabled = !hasPlacements
                 || !buildReadiness.ready()
                 || ctx.host().placement().isBusy()
+                || ctx.previewManager().isPreviewJobRunning()
                 || validationReport.blocksBuild()
                 || partialFailure;
             if (buildDisabled) {
@@ -172,8 +170,7 @@ public final class RoadGeneratePanel {
         if (edgeIds.isEmpty()) {
             return;
         }
-
-        ensureProfileEdgeSelection(network, edgeIds);
+        syncProfileEdgeSelection(network);
         int headerFlags = profileSectionForceOpen ? imgui.flag.ImGuiTreeNodeFlags.DefaultOpen : 0;
         if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.longitudinal_profile"), headerFlags)) {
             return;
@@ -315,6 +312,7 @@ public final class RoadGeneratePanel {
             ImGui.separator();
             boolean canBuild = readiness.ready()
                 && !ctx.host().placement().isBusy()
+                && !ctx.previewManager().isPreviewJobRunning()
                 && !validationReport.blocksBuild()
                 && !partialFailure;
             if (!canBuild) {
