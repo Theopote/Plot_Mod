@@ -233,7 +233,19 @@ public final class BuildingActions {
                 ? BuildingPreviewIdentity.Validity.STALE
                 : BuildingPreviewIdentity.Validity.NONE;
         }
-        return identity.validityAgainst(targets, hasResult);
+        return identity.validityAgainst(targets, hasResult, state.isFrameOnlyGenerate());
+    }
+
+    public boolean isFrameOnlyGenerate() {
+        return state.isFrameOnlyGenerate();
+    }
+
+    public void setFrameOnlyGenerate(boolean frameOnly) {
+        if (state.isFrameOnlyGenerate() == frameOnly) {
+            return;
+        }
+        state.setFrameOnlyGenerate(frameOnly);
+        invalidatePreview();
     }
 
     public boolean hasPreviewResult() {
@@ -289,7 +301,8 @@ public final class BuildingActions {
             return false;
         }
 
-        state.setPreviewIdentity(BuildingPreviewIdentity.capture(previewTargets));
+        state.setPreviewIdentity(BuildingPreviewIdentity.capture(
+            previewTargets, state.isFrameOnlyGenerate()));
         BuildingMassingPreviewHeights.rebuildCache(
             state,
             district,

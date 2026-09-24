@@ -60,6 +60,7 @@ public final class BuildingPluginState {
     private boolean buildConfirmPending = false;
     private boolean generateScopeAll = false;
     private boolean batchScopeAll = false;
+    private boolean frameOnlyGenerate = false;
 
     private volatile DistrictPreviewJob districtPreviewJob;
     private boolean districtPreviewBuildConfirmPending;
@@ -315,6 +316,14 @@ public final class BuildingPluginState {
 
     public void setBatchScopeAll(boolean batchScopeAll) {
         this.batchScopeAll = batchScopeAll;
+    }
+
+    public boolean isFrameOnlyGenerate() {
+        return frameOnlyGenerate;
+    }
+
+    public void setFrameOnlyGenerate(boolean frameOnlyGenerate) {
+        this.frameOnlyGenerate = frameOnlyGenerate;
     }
 
     public DistrictPreviewJob getDistrictPreviewJob() {

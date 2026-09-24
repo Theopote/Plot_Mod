@@ -4,6 +4,7 @@ import com.plot.plugin.building.generation.stage.AccessoryGenerationStage;
 import com.plot.plugin.building.generation.stage.BuildingGenerationStage;
 import com.plot.plugin.building.generation.stage.FloorGenerationStage;
 import com.plot.plugin.building.generation.stage.FoundationGenerationStage;
+import com.plot.plugin.building.generation.stage.FrameGenerationStage;
 import com.plot.plugin.building.generation.stage.OpeningGenerationStage;
 import com.plot.plugin.building.generation.stage.RoofGenerationStage;
 import com.plot.plugin.building.generation.stage.SitePreparationStage;
@@ -43,6 +44,17 @@ public final class BuildingGenerationPipeline {
             new RoofGenerationStage(),
             new AccessoryGenerationStage(),
             new OpeningGenerationStage()
+        ));
+    }
+
+    /**
+     * 框架管线：场地清理 → 地基找平 → 结构线（地基平面、转角柱、外圈梁、顶轮廓）。
+     */
+    public static BuildingGenerationPipeline createFrameOnly() {
+        return new BuildingGenerationPipeline(List.of(
+            new SitePreparationStage(),
+            new FoundationGenerationStage(),
+            new FrameGenerationStage()
         ));
     }
 

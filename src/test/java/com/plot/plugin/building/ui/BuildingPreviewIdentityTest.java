@@ -88,4 +88,17 @@ class BuildingPreviewIdentityTest {
             BuildingPreviewIdentity.Validity.STALE,
             identity.validityAgainst(List.of(a), true));
     }
+
+    @Test
+    void staleWhenFrameOnlyModeChanges() {
+        BuildingFootprint a = square("a", 10);
+        BuildingPreviewIdentity identity = BuildingPreviewIdentity.capture(List.of(a), false);
+
+        assertEquals(
+            BuildingPreviewIdentity.Validity.VALID,
+            identity.validityAgainst(List.of(a), true, false));
+        assertEquals(
+            BuildingPreviewIdentity.Validity.STALE,
+            identity.validityAgainst(List.of(a), true, true));
+    }
 }

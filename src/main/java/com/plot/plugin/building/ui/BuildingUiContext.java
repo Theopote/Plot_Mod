@@ -317,6 +317,14 @@ public final class BuildingUiContext {
         state.setBatchScopeAll(all);
     }
 
+    public boolean frameOnlyGenerate() {
+        return state.isFrameOnlyGenerate();
+    }
+
+    public void setFrameOnlyGenerate(boolean frameOnly) {
+        actions.setFrameOnlyGenerate(frameOnly);
+    }
+
     public List<BuildingFootprint> resolveGenerateTargets() {
         if (state.isGenerateScopeAll()) {
             return new java.util.ArrayList<>(project().getBuildings().values());

@@ -14,17 +14,24 @@ public final class BuildingPreviewIdentity {
 
     private final List<String> targetIds;
     private final int contentFingerprint;
+    private final boolean frameOnly;
 
-    private BuildingPreviewIdentity(List<String> targetIds, int contentFingerprint) {
+    private BuildingPreviewIdentity(List<String> targetIds, int contentFingerprint, boolean frameOnly) {
         this.targetIds = targetIds;
         this.contentFingerprint = contentFingerprint;
+        this.frameOnly = frameOnly;
     }
 
     public static BuildingPreviewIdentity capture(List<BuildingFootprint> targets) {
+        return capture(targets, false);
+    }
+
+    public static BuildingPreviewIdentity capture(List<BuildingFootprint> targets, boolean frameOnly) {
         if (targets == null || targets.isEmpty()) {
-            return new BuildingPreviewIdentity(List.of(), 0);
+            return new BuildingPreviewIdentity(List.of(), 0, frameOnly);
         }
-        return new BuildingPreviewIdentity(orderedIds(targets), computeContentFingerprint(targets));
+        return new BuildingPreviewIdentity(
+            orderedIds(targets), computeContentFingerprint(targets), frameOnly);
     }
 
     public List<String> targetIds() {
@@ -32,6 +39,13 @@ public final class BuildingPreviewIdentity {
     }
 
     public Validity validityAgainst(List<BuildingFootprint> currentTargets, boolean hasResult) {
+        return validityAgainst(currentTargets, hasResult, false);
+    }
+
+    public Validity validityAgainst(
+            List<BuildingFootprint> currentTargets,
+            boolean hasResult,
+            boolean frameOnly) {
         if (!hasResult) {
             return Validity.NONE;
         }
@@ -42,6 +56,9 @@ public final class BuildingPreviewIdentity {
             return Validity.STALE;
         }
         if (contentFingerprint != computeContentFingerprint(currentTargets)) {
+            return Validity.STALE;
+        }
+        if (this.frameOnly != frameOnly) {
             return Validity.STALE;
         }
         return Validity.VALID;

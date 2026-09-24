@@ -3,7 +3,9 @@ package com.plot.plugin.building.ui;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
+import com.plot.ui.component.UIUtils;
 import imgui.ImGui;
+import imgui.type.ImBoolean;
 
 import java.util.List;
 
@@ -26,6 +28,12 @@ public final class BuildingBuildAction {
         } else {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.generate.build_needs_preview"));
         }
+
+        ImBoolean frameOnly = new ImBoolean(ctx.frameOnlyGenerate());
+        if (ImGui.checkbox(PlotI18n.tr("plugin.building.generate.frame_only"), frameOnly)) {
+            ctx.setFrameOnlyGenerate(frameOnly.get());
+        }
+        UIUtils.renderEngineeringTooltip("hint.plot.building.generate.frame_only");
 
         boolean buildDisabled = validity != BuildingPreviewIdentity.Validity.VALID
             || !readiness.ready()

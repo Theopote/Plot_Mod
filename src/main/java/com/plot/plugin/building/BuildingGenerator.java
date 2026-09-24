@@ -20,7 +20,8 @@ import java.util.Collection;
 public class BuildingGenerator {
     private final ICoordinateService coordinateTransformer;
     private final IBlockProjectionService projectionHandler;
-    private final BuildingGenerationPipeline pipeline;
+    private final BuildingGenerationPipeline defaultPipeline;
+    private final BuildingGenerationPipeline framePipeline;
 
     public BuildingGenerator(
             ICoordinateService coordinateTransformer,
@@ -29,12 +30,18 @@ public class BuildingGenerator {
             coordinateTransformer, "coordinateTransformer");
         this.projectionHandler = java.util.Objects.requireNonNull(
             projectionHandler, "projectionHandler");
-        this.pipeline = BuildingGenerationPipeline.createDefault();
+        this.defaultPipeline = BuildingGenerationPipeline.createDefault();
+        this.framePipeline = BuildingGenerationPipeline.createFrameOnly();
     }
 
     public BuildingGenerationResult generate(BuildingFootprint footprint, World world) {
+        return generate(footprint, world, false);
+    }
+
+    public BuildingGenerationResult generate(BuildingFootprint footprint, World world, boolean frameOnly) {
         BuildingGenerationContext context = BuildingGenerationContext.create(
             footprint, world, coordinateTransformer, projectionHandler);
+        BuildingGenerationPipeline pipeline = frameOnly ? framePipeline : defaultPipeline;
         return pipeline.generate(context);
     }
 

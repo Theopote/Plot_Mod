@@ -67,8 +67,9 @@ public final class DistrictPreviewJob {
         }
 
         int end = Math.min(nextIndex + BUILDINGS_PER_TICK, buildings.size());
+        boolean frameOnly = actions.isFrameOnlyGenerate();
         DistrictMassingGenerator.BuildingGenerateFn generateFn =
-            footprint -> generator.generate(footprint, world);
+            footprint -> generator.generate(footprint, world, frameOnly);
         for (int i = nextIndex; i < end; i++) {
             activeBuildingIndex = i + 1;
             actions.updateDistrictPreviewJobProgress(this);
