@@ -66,21 +66,7 @@ public final class DistrictMassingGenerator {
         }
         try {
             BuildingGenerationResult result = generateFn.generate(building);
-            if (result != null && result.skippedDueToSiteAnalysis) {
-                district.addSkipped(
-                    building,
-                    DistrictGenerationResult.SkipReason.SITE_ANALYSIS_FAILED,
-                    null);
-                return;
-            }
-            if (result == null || result.placementRecords.isEmpty()) {
-                district.addSkipped(
-                    building,
-                    DistrictGenerationResult.SkipReason.EMPTY,
-                    null);
-                return;
-            }
-            district.addSuccess(building, result);
+            recordGenerationOutcome(building, result, district);
         } catch (Exception e) {
             LOGGER.warn(
                 "District massing skipped building {} ({}): {}",
@@ -99,5 +85,42 @@ public final class DistrictMassingGenerator {
         if (district != null) {
             district.finalizeOverlaps();
         }
+    }
+
+    public static void recordGenerationOutcome(
+            BuildingFootprint building,
+            BuildingGenerationResult result,
+            DistrictGenerationResult district) {
+        Objects.requireNonNull(district, "district");
+        if (building == null) {
+            return;
+        }
+        if (result != null && result.skippedDueToSiteAnalysis) {
+            district.addSkipped(
+                building,
+                DistrictGenerationResult.SkipReason.SITE_ANALYSIS_FAILED,
+                null);
+            return;
+        }
+        if (result == null || result.placementRecords.isEmpty()) {
+            district.addSkipped(
+                building,
+                DistrictGenerationResult.SkipReason.EMPTY,
+                null);
+            return;
+        }
+        district.addSuccess(building, result);
+    }
+
+    public static void recordSkipped(
+            BuildingFootprint building,
+            DistrictGenerationResult.SkipReason reason,
+            String detail,
+            DistrictGenerationResult district) {
+        Objects.requireNonNull(district, "district");
+        if (building == null) {
+            return;
+        }
+        district.addSkipped(building, reason, detail);
     }
 }

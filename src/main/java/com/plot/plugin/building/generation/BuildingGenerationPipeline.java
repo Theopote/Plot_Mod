@@ -65,13 +65,30 @@ public final class BuildingGenerationPipeline {
         if (!context.isValid()) {
             return context.getResult();
         }
-        for (BuildingGenerationStage stage : stages) {
-            stage.generate(context);
+        for (int i = 0; i < stages.size(); i++) {
+            runStage(context, i);
         }
+        finalizeGeneration(context);
+        return context.getResult();
+    }
+
+    public int stageCount() {
+        return stages.size();
+    }
+
+    public void runStage(BuildingGenerationContext context, int stageIndex) {
+        Objects.requireNonNull(context, "context");
+        if (!context.isValid() || stageIndex < 0 || stageIndex >= stages.size()) {
+            return;
+        }
+        stages.get(stageIndex).generate(context);
+    }
+
+    public void finalizeGeneration(BuildingGenerationContext context) {
+        Objects.requireNonNull(context, "context");
         BuildingGenerationResult result = context.getResult();
         result.footprintWorldColumns = collectFootprintWorldColumns(context);
         result.blockCount = result.placementRecords.size();
-        return result;
     }
 
     private static Set<Long> collectFootprintWorldColumns(BuildingGenerationContext context) {

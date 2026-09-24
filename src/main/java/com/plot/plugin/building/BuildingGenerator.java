@@ -39,10 +39,18 @@ public class BuildingGenerator {
     }
 
     public BuildingGenerationResult generate(BuildingFootprint footprint, World world, boolean frameOnly) {
-        BuildingGenerationContext context = BuildingGenerationContext.create(
-            footprint, world, coordinateTransformer, projectionHandler);
-        BuildingGenerationPipeline pipeline = frameOnly ? framePipeline : defaultPipeline;
+        BuildingGenerationContext context = beginGenerate(footprint, world);
+        BuildingGenerationPipeline pipeline = pipelineFor(frameOnly);
         return pipeline.generate(context);
+    }
+
+    public BuildingGenerationContext beginGenerate(BuildingFootprint footprint, World world) {
+        return BuildingGenerationContext.create(
+            footprint, world, coordinateTransformer, projectionHandler);
+    }
+
+    public BuildingGenerationPipeline pipelineFor(boolean frameOnly) {
+        return frameOnly ? framePipeline : defaultPipeline;
     }
 
     /**

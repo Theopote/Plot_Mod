@@ -4157,6 +4157,7 @@
   "plugin.building.generate.massing_live_hint": "轴测图随轮廓参数实时更新",
   "plugin.building.generate.check_not_run": "尚未检查能否在世界中生成",
   "plugin.building.generate.check_progress": "检查可生成 %d / %d",
+  "plugin.building.generate.check_progress_building": "正在检查：%s（第 %d / %d 栋）",
   "plugin.building.generate.check_cancelled": "已取消检查",
   "plugin.building.generate.check_ready": "✓ 已检查，可以建造",
   "plugin.building.cancel_check": "取消检查",

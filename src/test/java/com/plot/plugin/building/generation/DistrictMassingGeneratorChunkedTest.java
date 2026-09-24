@@ -46,7 +46,7 @@ class DistrictMassingGeneratorChunkedTest {
         };
 
         DistrictGenerationResult chunked = new DistrictGenerationResult();
-        int chunk = DistrictPreviewJobBuildingsPerTick.CHUNK;
+        int chunk = 1;
         for (int i = 0; i < buildings.size(); i += chunk) {
             int end = Math.min(i + chunk, buildings.size());
             for (int j = i; j < end; j++) {
@@ -74,14 +74,5 @@ class DistrictMassingGeneratorChunkedTest {
         footprint.setWindowSpacing(0);
         footprint.setRoofType(BuildingFootprint.RoofType.FLAT);
         return footprint;
-    }
-
-    /** 测试包可见：与 {@link com.plot.plugin.building.ui.DistrictPreviewJob#BUILDINGS_PER_TICK} 对齐。 */
-    static final class DistrictPreviewJobBuildingsPerTick {
-        static final int CHUNK =
-            com.plot.plugin.building.ui.DistrictPreviewJob.BUILDINGS_PER_TICK;
-
-        private DistrictPreviewJobBuildingsPerTick() {
-        }
     }
 }

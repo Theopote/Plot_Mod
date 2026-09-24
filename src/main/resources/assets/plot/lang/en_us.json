@@ -4157,6 +4157,7 @@
   "plugin.building.generate.massing_live_hint": "Massing map updates live from footprint settings",
   "plugin.building.generate.check_not_run": "Buildability not checked yet",
   "plugin.building.generate.check_progress": "Checking buildability %d / %d",
+  "plugin.building.generate.check_progress_building": "Checking: %s (building %d / %d)",
   "plugin.building.generate.check_cancelled": "Buildability check cancelled",
   "plugin.building.generate.check_ready": "✓ Checked — ready to build",
   "plugin.building.cancel_check": "Cancel check",
