@@ -185,7 +185,34 @@ tasks.test {
 	// Phase F：片区基准 D03–D05 可选开启
 	systemProperty "plot.district.benchmark", System.getProperty("plot.district.benchmark", "")
 	// Road Stabilization：N04–N05 可选开启
-	systemProperty "plot.road.benchmark", System.getProperty("plot.road.benchmark", "")
+	def envRoadBenchmark = System.getenv("PLOT_ROAD_BENCHMARK")
+	if (envRoadBenchmark != null && !envRoadBenchmark.isBlank()) {
+		systemProperty "plot.road.benchmark", envRoadBenchmark
+	} else {
+		systemProperty "plot.road.benchmark", System.getProperty("plot.road.benchmark", "")
+	}
+}
+
+tasks.register("roadBenchmarkBaseline", JavaExec) {
+	description = "Run N01–N05 / J01–J05 benchmarks; writes build/road-benchmark-baseline.txt"
+	group = "plot"
+	dependsOn compileTestJava, classes
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = "com.plot.plugin.road.benchmark.RoadBenchmarkBaselineRunner"
+	workingDir = layout.projectDirectory.asFile
+}
+
+tasks.register("roadGoldenAcceptance", Test) {
+	description = "Run road golden regression, semantic, and workflow acceptance tests"
+	group = "plot"
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform()
+	filter {
+		includeTestsMatching "com.plot.plugin.road.golden.*"
+		includeTestsMatching "com.plot.plugin.road.RoadWorkflowTest"
+		includeTestsMatching "com.plot.plugin.road.model.RoadPhase2WorkflowTest"
+	}
 }
 
 tasks.register("exportBuildingSmokeProject", Test) {

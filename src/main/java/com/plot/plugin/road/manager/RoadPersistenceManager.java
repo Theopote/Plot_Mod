@@ -85,6 +85,11 @@ public final class RoadPersistenceManager {
         status.success(PlotI18n.tr("plugin.road.network.saved", filePath));
     }
 
+    /**
+     * 插件 {@code onDisable} 时持久化路网。
+     * <p>工程保存走 {@link #onProjectSaved(String)} + {@link #saveNetworkFile}；
+     * 切换 Tab（{@code onDeactivate}）不调用此方法。
+     */
     public void saveOnDisable(RoadNetwork network) {
         saveNetworkFile(getCurrentNetworkPath(), network);
     }

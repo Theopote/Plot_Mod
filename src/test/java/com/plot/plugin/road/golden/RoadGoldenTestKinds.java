@@ -10,6 +10,9 @@ package com.plot.plugin.road.golden;
  * <h2>B. Semantic Acceptance</h2>
  * 用途：行为是不是正确。断言必须手写，不能由 Snapshot 自动生成。
  * 入口 {@link RoadSemanticAcceptanceTest}；规则 {@link RoadSemanticAcceptanceAssertions}。
+ *
+ * <h2>C. Workflow Acceptance</h2>
+ * 用途：Undo/Redo、持久化、可变横断面等工作流。入口 {@link RoadGoldenWorkflowAcceptanceTest}。
  */
 public final class RoadGoldenTestKinds {
     private RoadGoldenTestKinds() {

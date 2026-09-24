@@ -99,6 +99,16 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         editPanel.renderUniformElevationConfirmPopup();
     }
 
+    /**
+     * 离开道路插件 Tab 时清理瞬时 UI 状态（不持久化路网）。
+     */
+    public void onDeactivate() {
+        ctx.toolManager().cancel();
+        ctx.cancelPreviewJobSilently();
+        ctx.clearTransientUiState();
+        com.plot.plugin.road.ui.RoadAutoRepairUi.invalidateCache();
+    }
+
     @Override
     public boolean hasJunctionPropertyContent() {
         return ctx.networkManager().getSelectedNode() != null;

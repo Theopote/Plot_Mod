@@ -240,6 +240,23 @@ public final class RoadUiContext {
         }
     }
 
+    /** 切 Tab 时静默取消进行中的预览 job（不弹状态消息）。 */
+    public void cancelPreviewJobSilently() {
+        if (previewManager != null) {
+            previewManager.cancelPreviewJobSilently();
+        }
+    }
+
+    /** 清除待确认弹窗、Tab 跳转等瞬时 UI 状态。 */
+    public void clearTransientUiState() {
+        clearPendingTab();
+        pendingProfileEdgeId = "";
+        clearDeleteConfirmPending();
+        clearBuildConfirmPending();
+        pendingDeleteEdgeId = "";
+        pendingDeleteRoadId = "";
+    }
+
     /**
      * 全局配置（桥/隧阈值、采样、默认横断面等）变更后调用：使预览失效，避免按过期参数落地。
      */

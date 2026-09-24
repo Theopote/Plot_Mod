@@ -65,6 +65,21 @@ public final class RoadSemanticAcceptanceAssertions {
         assertTrue(run.metrics().surfaceBlocks() > 0);
     }
 
+    public static void assertEmbankmentSemantics(RoadGoldenHarness.Run run) {
+        assertTrue(run.metrics().cutVolume() > 0 || run.metrics().fillVolume() > 0,
+            "terrain-following or sloped road must produce cut or fill volume");
+    }
+
+    public static void assertVariableCrossSectionSemantics(
+            com.plot.plugin.road.model.RoadNetwork network,
+            com.plot.plugin.road.model.Road road,
+            double stationMeters,
+            int expectedWidth) {
+        var section = com.plot.plugin.road.model.section.VariableCrossSectionResolver.resolveTemplate(
+            road, stationMeters);
+        assertEquals(expectedWidth, section.getCarriageway().getWidth(), "VCS width at station");
+    }
+
     private static boolean hasContinuousSurfaceAtElevation(RoadGenerationResult result, int elevation) {
         Set<Long> columns = new HashSet<>();
         for (BlockPos pos : result.roadBlocks) {

@@ -200,7 +200,8 @@ public final class RoadPreviewManager {
         }
     }
 
-    private void cancelPreviewJobSilently() {
+    /** 静默取消预览 job（切 Tab / 失效预览时使用，不写入状态栏）。 */
+    public void cancelPreviewJobSilently() {
         if (previewJob == null) {
             return;
         }

@@ -11,15 +11,22 @@
 | 套件 | CI 默认 | 全档位 |
 |------|---------|--------|
 | **N01–N03** | ✅ `RoadNetworkPerformanceBenchmarkTest` | — |
-| **N04–N05** | — | `-Dplot.road.benchmark=full` |
-| **J01–J05** | ✅ `JunctionRasterizationBenchmarkTest` | 同上（`fullJunctionBenchmarkWhenPropertyEnabled` 汇总） |
+| **N04–N05** | — | `-Dplot.road.benchmark=full` 或 `PLOT_ROAD_BENCHMARK=full` |
+| **J01–J05** | ✅ `JunctionRasterizationBenchmarkTest` | 同上 |
 
 ```bash
 # CI 档位（N01–N03 + J01–J05）
 ./gradlew test --tests "com.plot.plugin.road.benchmark.*"
 
-# 含 N04(2500 edges) / N05(5000 edges)
+# 含 N04(2500 edges) / N05(5000 edges) — Linux/macOS
 ./gradlew test --tests "com.plot.plugin.road.benchmark.*" -Dplot.road.benchmark=full
+
+# Windows PowerShell（Gradle 对 -D 解析不稳定时可改用环境变量）
+$env:PLOT_ROAD_BENCHMARK = "full"
+./gradlew test --tests "com.plot.plugin.road.benchmark.*"
+
+# 推荐：离线跑全档位并写入 build/road-benchmark-baseline.txt（不经 JUnit，约 12 分钟）
+./gradlew roadBenchmarkBaseline
 ```
 
 日志关键字：`[RoadNetworkBenchmark]`、`[JunctionRasterBenchmark]`，或 Logger `Plot/RoadNetworkBenchmark`、`Plot/JunctionRasterBenchmark`。
@@ -30,12 +37,12 @@
 
 | 字段 | 值 |
 |------|-----|
-| **日期** | YYYY-MM-DD |
-| **Git** | `<commit>` |
-| **OS / JDK** | e.g. Windows 11 / JDK 21 |
-| **Gradle** | e.g. 9.2 |
-| **plot.road.benchmark** | `""` / `full` |
-| **备注** | 首次 baseline / 回归对比 / PR #… |
+| **日期** | 2026-09-24 |
+| **Git** | `ced58f28` |
+| **OS / JDK** | Windows 11 / JDK 22.0.2 |
+| **Gradle** | 9.2.0 |
+| **plot.road.benchmark** | `full`（`roadBenchmarkBaseline` 任务） |
+| **备注** | ROAD-FINAL-07 首版 baseline；N04/N05 validation 含 centerline 校验 |
 
 ---
 
@@ -45,11 +52,11 @@
 
 | ID | Edges | createMs | snapshotMs | jsonChars | validationMs | previewMs | junctionMs | placements | memKB |
 |----|------:|---------:|-----------:|----------:|-------------:|----------:|-----------:|-----------:|------:|
-| **N01** | 100 | — | — | — | — | — | — | — | — |
-| **N02** | 500 | — | — | — | — | — | — | — | — |
-| **N03** | 1000 | — | — | — | — | — | — | — | — |
-| **N04** | 2500 | — | — | — | — | — | — | — | — |
-| **N05** | 5000 | — | — | — | — | — | — | — | — |
+| **N01** | 100 | 52 | 68 | 71883 | 30 | 142 | 142 | 5005 | 79610 |
+| **N02** | 500 | 51 | 120 | 358283 | 114 | 1718 | 1718 | 25005 | 146668 |
+| **N03** | 1000 | 178 | 508 | 716285 | 491 | 7095 | 7095 | 50005 | 213625 |
+| **N04** | 2500 | 1026 | 3323 | 1794785 | 3401 | 50761 | 50761 | 125005 | 372577 |
+| **N05** | 5000 | 4871 | 15995 | 3592285 | 15473 | 283893 | 283893 | 250005 | 518584 |
 
 **列说明**
 
@@ -64,11 +71,17 @@
 | placements | `placementRecords` 数量 |
 | memKB | snapshot 前后堆增量近似值（`Runtime`，仅供参考） |
 
-**示例 log 行**（填入上表）：
+**原始 log 行**（`ced58f28` / 2026-09-24）：
 
 ```text
-N03 roads=1 edges=1000 nodes=1001 createMs=12 snapshotMs=45 jsonChars=842000 validationMs=8 previewMs=120 genMs=120 junctionMs=15 placements=42000 memKB=8192
+[RoadNetworkBenchmark] N01 roads=1 edges=100 nodes=101 createMs=52 snapshotMs=68 jsonChars=71883 validationMs=30 previewMs=142 genMs=142 junctionMs=142 placements=5005 memKB=79610
+[RoadNetworkBenchmark] N02 roads=1 edges=500 nodes=501 createMs=51 snapshotMs=120 jsonChars=358283 validationMs=114 previewMs=1718 genMs=1718 junctionMs=1718 placements=25005 memKB=146668
+[RoadNetworkBenchmark] N03 roads=1 edges=1000 nodes=1001 createMs=178 snapshotMs=508 jsonChars=716285 validationMs=491 previewMs=7095 genMs=7095 junctionMs=7095 placements=50005 memKB=213625
+[RoadNetworkBenchmark] N04 roads=1 edges=2500 nodes=2501 createMs=1026 snapshotMs=3323 jsonChars=1794785 validationMs=3401 previewMs=50761 genMs=50761 junctionMs=50761 placements=125005 memKB=372577
+[RoadNetworkBenchmark] N05 roads=1 edges=5000 nodes=5001 createMs=4871 snapshotMs=15995 jsonChars=3592285 validationMs=15473 previewMs=283893 genMs=283893 junctionMs=283893 placements=250005 memKB=518584
 ```
+
+> **注意**：链式单 Road 场景下 preview 流程会触发 `Intersection splitting aborted: edge count … exceeds limit 2000`（无实际路口，可忽略）。`junctionMs` 在此 harness 中与 `previewMs` 相同（整段生成计时，非单独路口累计）。
 
 ---
 
@@ -76,11 +89,11 @@ N03 roads=1 edges=1000 nodes=1001 createMs=12 snapshotMs=45 jsonChars=842000 val
 
 | ID | 拓扑 | minDegree | junctions | vertices | bboxArea | rasterMs | cells |
 |----|------|----------:|----------:|---------:|---------:|---------:|------:|
-| **J01** | T 字 | 3 | — | — | — | — | — |
-| **J02** | 十字 | 4 | — | — | — | — | — |
-| **J03** | 五岔 | 5 | — | — | — | — | — |
-| **J04** | 八岔 | 8 | — | — | — | — | — |
-| **J05** | 宽路 T | 3 | — | — | — | — | — |
+| **J01** | T 字 | 3 | 1 | 6 | 56 | 23 | 165 |
+| **J02** | 十字 | 4 | 1 | 8 | 64 | 2 | 199 |
+| **J03** | 五岔 | 5 | 1 | 10 | 80 | 2 | 253 |
+| **J04** | 八岔 | 8 | 1 | 16 | 98 | 2 | 348 |
+| **J05** | 宽路 T | 3 | 1 | 6 | 56 | 1 | 165 |
 
 **列说明**
 
@@ -92,10 +105,14 @@ N03 roads=1 edges=1000 nodes=1001 createMs=12 snapshotMs=45 jsonChars=842000 val
 | rasterMs | polygon 构建 + `generateJunction` 总耗时 |
 | cells | 路口 solid primitives 数量 |
 
-**示例 log 行**：
+**原始 log 行**（`ced58f28` / 2026-09-24）：
 
 ```text
-J02 junctions=1 vertices=24 bboxArea=1600 rasterMs=18 cells=842
+[JunctionRasterBenchmark] J01 junctions=1 vertices=6 bboxArea=56 rasterMs=23 cells=165
+[JunctionRasterBenchmark] J02 junctions=1 vertices=8 bboxArea=64 rasterMs=2 cells=199
+[JunctionRasterBenchmark] J03 junctions=1 vertices=10 bboxArea=80 rasterMs=2 cells=253
+[JunctionRasterBenchmark] J04 junctions=1 vertices=16 bboxArea=98 rasterMs=2 cells=348
+[JunctionRasterBenchmark] J05 junctions=1 vertices=6 bboxArea=56 rasterMs=1 cells=165
 ```
 
 ---
@@ -117,13 +134,15 @@ J02 junctions=1 vertices=24 bboxArea=1600 rasterMs=18 cells=842
 
 | 日期 | Git | 记录人 | 说明 |
 |------|-----|--------|------|
-| — | — | — | 首版 baseline（待填） |
+| 2026-09-24 | `ced58f28` | ROAD-FINAL-07 | 首版 baseline（N01–N05 + J01–J05）；`./gradlew roadBenchmarkBaseline` |
 
 ---
 
 ## 相关代码
 
 - `RoadBenchmarkHarness` — N 套件执行
-- `RoadNetworkPerformanceBenchmarkTest` — N01–N05
-- `JunctionRasterizationBenchmarkTest` — J01–J05
-- `RoadBenchmarkResult` / `JunctionMetrics` — 结果字段定义
+- `JunctionBenchmarkHarness` — J 套件执行
+- `RoadBenchmarkBaselineRunner` — 离线全档位采集（`roadBenchmarkBaseline` Gradle 任务）
+- `RoadNetworkPerformanceBenchmarkTest` — N01–N05（CI gate）
+- `JunctionRasterizationBenchmarkTest` — J01–J05（CI gate）
+- `RoadBenchmarkResult` / `JunctionBenchmarkHarness.JunctionMetrics` — 结果字段定义

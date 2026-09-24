@@ -47,6 +47,36 @@ class RoadSemanticAcceptanceTest {
     }
 
     @Test
+    void r05FiveWayJunctionSemantics() {
+        RoadSemanticAcceptanceAssertions.assertJunctionPresent(
+            RoadGoldenHarness.run(RoadGoldenScenarioFactory.r05FiveWay()), 5);
+    }
+
+    @Test
+    void r06SlopedEmbankmentSemantics() {
+        RoadSemanticAcceptanceAssertions.assertEmbankmentSemantics(
+            RoadGoldenHarness.run(RoadGoldenScenarioFactory.r06Sloped()));
+    }
+
+    @Test
+    void r07TerrainFitEmbankmentSemantics() {
+        RoadSemanticAcceptanceAssertions.assertEmbankmentSemantics(
+            RoadGoldenHarness.run(RoadGoldenScenarioFactory.r07TerrainFit()));
+    }
+
+    @Test
+    void r09TunnelSemantics() {
+        RoadSemanticAcceptanceAssertions.assertTunnelSemantics(
+            RoadGoldenHarness.run(RoadGoldenScenarioFactory.r09Tunnel()));
+    }
+
+    @Test
+    void r10WaterCrossingBridgeSemantics() {
+        RoadSemanticAcceptanceAssertions.assertBridgeSemantics(
+            RoadGoldenHarness.run(RoadGoldenScenarioFactory.r10WaterCrossing()));
+    }
+
+    @Test
     void r11GradeSeparatedSemantics() {
         RoadSemanticAcceptanceAssertions.assertGradeSeparated(
             RoadGoldenHarness.run(RoadGoldenScenarioFactory.r11GradeSeparated()));
