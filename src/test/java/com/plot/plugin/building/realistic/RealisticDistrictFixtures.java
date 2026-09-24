@@ -24,7 +24,7 @@ public final class RealisticDistrictFixtures {
         int index = 0;
 
         for (int i = 0; i < 55; i++) {
-            catalog.add(tag(gridRectangleAt(index++, 4, (i % 20) * 12.0, (i / 20) * 10.0),
+            catalog.add(tag(gridRectangleAt(index++, 4, (i % 20) * 12.0, ((double) i / 20) * 10.0),
                 RealisticFootprintKind.RECT_GRID, BuildingFootprint.RoofType.FLAT));
         }
         // 55 + 8 + 6 + 8 + 4 + 4 + 4 + 4 + 3 + 4 = 100
@@ -84,7 +84,7 @@ public final class RealisticDistrictFixtures {
     }
 
     public static BuildingFootprint gridRectangle(int index, int floors) {
-        return gridRectangleAt(index, floors, (index % 20) * 12.0, (index / 20) * 10.0);
+        return gridRectangleAt(index, floors, (index % 20) * 12.0, ((double) index / 20) * 10.0);
     }
 
     public static BuildingFootprint lShape(int index) {
@@ -131,7 +131,7 @@ public final class RealisticDistrictFixtures {
 
     public static BuildingFootprint ellipseFootprint(int index, double radiusX, double radiusY, double rotation) {
         double x = (index % 20) * 11.0 + 20;
-        double z = (index / 20) * 9.0 + 20;
+        double z = ((double) index / 20) * 9.0 + 20;
         EllipseShape ellipse = new EllipseShape(new Vec2d(x, z), radiusX, radiusY, rotation);
         List<Vec2d> points = BuildingGeometryUtils.extractFootprintPoints(ellipse);
         BuildingFootprint footprint = new BuildingFootprint("real-ellipse-" + index, points, false);
@@ -141,7 +141,7 @@ public final class RealisticDistrictFixtures {
 
     public static BuildingFootprint circleFootprint(int index, double radius) {
         double x = (index % 20) * 11.0 + 30;
-        double z = (index / 20) * 9.0 + 30;
+        double z = ((double) index / 20) * 9.0 + 30;
         CircleShape circle = new CircleShape(new Vec2d(x, z), radius);
         List<Vec2d> points = BuildingGeometryUtils.extractFootprintPoints(circle);
         BuildingFootprint footprint = new BuildingFootprint("real-circle-" + index, points, false);

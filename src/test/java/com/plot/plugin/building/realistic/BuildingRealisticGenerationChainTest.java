@@ -1,6 +1,5 @@
 package com.plot.plugin.building.realistic;
 
-import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.building.generation.DistrictGenerationResult;
 import com.plot.plugin.building.generation.stage.RoofGenerationStage;

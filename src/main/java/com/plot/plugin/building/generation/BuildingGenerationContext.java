@@ -177,16 +177,6 @@ public final class BuildingGenerationContext {
             footprint, world, coordinateService, projectionService);
     }
 
-    public static BuildingGenerationContext createFromDefinition(
-            BuildingDefinition definition,
-            BuildingFootprint footprint,
-            World world,
-            ICoordinateService coordinateService,
-            IBlockProjectionService projectionService) {
-        return BuildingGenerationContextFactory.createFromDefinition(
-            definition, footprint, world, coordinateService, projectionService);
-    }
-
     public static BuildingGenerationContext forTesting(
             BuildingDefinition definition,
             ICoordinateService coordinateService,
