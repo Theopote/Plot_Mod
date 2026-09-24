@@ -93,6 +93,29 @@ public final class RoadEdgeListPanel {
                         ctx.currentCoordFilter())).size()));
     }
 
+    /** 路径 Tab：每条逻辑道路一行，带预览与精简工具栏。 */
+    public void renderPathList(String childId) {
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        ImGui.inputTextWithHint(
+            "##path_road_search",
+            PlotI18n.tr("plugin.road.edge_search_hint"),
+            ctx.edgeSearchBuffer());
+        if (ImGui.smallButton(PlotI18n.tr("plugin.road.select_all_edges") + "##path")) {
+            ctx.networkManager().selectAllEdges();
+        }
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("plugin.road.clear_selection") + "##path")) {
+            ctx.networkManager().clearEdgeSelection();
+        }
+        ImGui.sameLine();
+        int selectedRoads = ctx.networkManager().getSelectedRoadIds().size();
+        int totalRoads = ctx.networkManager().getNetwork().getRoads().size();
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.selection_count", selectedRoads, totalRoads));
+        renderList(false, childId, true);
+    }
+
     public void renderList(boolean showDelete, String childId) {
         renderList(showDelete, childId, false);
     }
@@ -110,12 +133,14 @@ public final class RoadEdgeListPanel {
         if (edges.isEmpty()) {
             RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edge_list_empty"));
         } else {
-            List<RoadEdgeListHelper.DisplayRow> rows = RoadEdgeListHelper.buildDisplayRows(
-                network,
-                edges,
-                ctx.edgeSortMode(),
-                expandedSegmentGroups,
-                showDelete);
+            List<RoadEdgeListHelper.DisplayRow> rows = showThumbnails
+                ? RoadEdgeListHelper.buildPathDisplayRows(network, edges)
+                : RoadEdgeListHelper.buildDisplayRows(
+                    network,
+                    edges,
+                    ctx.edgeSortMode(),
+                    expandedSegmentGroups,
+                    showDelete);
             renderVirtualEdgeList(network, rows, showDelete, showThumbnails);
         }
         ImGui.endChild();
@@ -146,28 +171,14 @@ public final class RoadEdgeListPanel {
             boolean showDelete,
             boolean showThumbnails) {
         switch (row.kind()) {
-            case FLAT -> {
-                if (showThumbnails) {
-                    Road road = row.roadId() != null && !row.roadId().isBlank()
-                        ? network.getRoad(row.roadId()) : null;
-                    boolean hasRoadId = road != null;
-                    RoadEdgeListHelper.RoadGroup group = new RoadEdgeListHelper.RoadGroup(
-                        hasRoadId ? row.roadId() : "",
-                        RoadEdgeListHelper.formatRoadLabel(network, road),
-                        List.of(row.edge()));
-                    boolean selected = ctx.networkManager().getSelectedEdgeIds().contains(row.edge().getId());
-                    renderPathRoadRow(network, group, selected, hasRoadId);
-                } else {
-                    renderEdgeRow(
-                        network,
-                        row.edge(),
-                        showDelete,
-                        null,
-                        row.segmentIndex(),
-                        row.roadId(),
-                        false);
-                }
-            }
+            case FLAT -> renderEdgeRow(
+                network,
+                row.edge(),
+                showDelete,
+                null,
+                row.segmentIndex(),
+                row.roadId(),
+                false);
             case SINGLE_ROAD -> renderSingleSegmentRoadRow(
                 network,
                 row.group(),
@@ -181,33 +192,16 @@ public final class RoadEdgeListPanel {
                 ImGui.unindent();
             }
             case GROUP_HEADER -> renderGroupHeaderRow(
-                network, row.group(), row.hasRoadId(), showDelete, showThumbnails);
-            case GROUP_SEGMENT -> {
-                if (showThumbnails) {
-                    renderPathSegmentRow(network, row.edge(), row.segmentIndex());
-                } else {
-                    renderEdgeRow(
-                        network,
-                        row.edge(),
-                        showDelete,
-                        "  ",
-                        row.segmentIndex(),
-                        row.group().roadId(),
-                        false);
-                }
-            }
+                network, row.group(), row.hasRoadId(), showDelete, false);
+            case GROUP_SEGMENT -> renderEdgeRow(
+                network,
+                row.edge(),
+                showDelete,
+                "  ",
+                row.segmentIndex(),
+                row.group().roadId(),
+                false);
         }
-    }
-
-    private void renderPathSegmentRow(RoadNetwork network, RoadEdge edge, int segmentIndex) {
-        ImGui.indent(RoadNetworkOverviewRenderer.thumbnailWidth() * 0.35f);
-        ImGui.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr(
-                "plugin.road.path.segment_row",
-                segmentIndex + 1,
-                RoadEdgeListHelper.formatEdgeLabel(network, edge)));
-        ImGui.unindent();
     }
 
     private void renderGroupHeaderRow(
@@ -237,15 +231,11 @@ public final class RoadEdgeListPanel {
 
         boolean roadSelected = group.edges().stream()
             .allMatch(edge -> ctx.networkManager().getSelectedEdgeIds().contains(edge.getId()));
-        if (showThumbnails) {
-            renderPathRoadRow(network, group, roadSelected, hasRoadId);
-        } else {
-            String header = group.label() + " (" + PlotI18n.tr(
-                "plugin.road.segment_count", group.edges().size()) + ")";
-            if (ImGui.selectable(header + "##road_group_" + group.roadId(), roadSelected)) {
-                ctx.networkManager().selectRoad(group.roadId(), ImGui.getIO().getKeyCtrl());
-                ctx.requestOverlayRefresh();
-            }
+        String header = group.label() + " (" + PlotI18n.tr(
+            "plugin.road.segment_count", group.edges().size()) + ")";
+        if (ImGui.selectable(header + "##road_group_" + group.roadId(), roadSelected)) {
+            ctx.networkManager().selectRoad(group.roadId(), ImGui.getIO().getKeyCtrl());
+            ctx.requestOverlayRefresh();
         }
         ImGui.popID();
     }
@@ -278,6 +268,9 @@ public final class RoadEdgeListPanel {
             RoadEdgeListHelper.RoadGroup group,
             boolean selected,
             boolean hasRoadId) {
+        if (!selected && hasRoadId) {
+            selected = ctx.networkManager().getSelectedRoadIds().contains(group.roadId());
+        }
         if (renderRoadThumbnail(network, group.edges(), selected, group.roadId())) {
             if (hasRoadId) {
                 ctx.networkManager().selectRoad(group.roadId(), ImGui.getIO().getKeyCtrl());

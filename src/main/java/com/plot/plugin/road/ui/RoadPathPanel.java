@@ -69,8 +69,7 @@ public final class RoadPathPanel {
         ImGui.spacing();
 
         RoadUiSections.section("plugin.road.path.road_list");
-        edgeListPanel.renderToolbar("##path");
-        edgeListPanel.renderList(false, "path_edge_list", true);
+        edgeListPanel.renderPathList("path_edge_list");
     }
 
     private void renderAdvancedPathManagement() {

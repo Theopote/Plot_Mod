@@ -266,6 +266,46 @@ public final class RoadEdgeListHelper {
         return rows;
     }
 
+    /**
+     * 路径 Tab：每条逻辑道路一行，不因路口几何分段而展开子列表。
+     */
+    public static List<DisplayRow> buildPathDisplayRows(RoadNetwork network, List<RoadEdge> edges) {
+        List<DisplayRow> rows = new ArrayList<>();
+        java.util.LinkedHashSet<String> listedRoadIds = new java.util.LinkedHashSet<>();
+        for (RoadEdge edge : edges) {
+            String roadId = edge.getRoadId();
+            if (roadId == null || roadId.isBlank()) {
+                RoadGroup group = new RoadGroup(
+                    "",
+                    PlotI18n.tr("plugin.road.unassigned_road"),
+                    List.of(edge));
+                rows.add(DisplayRow.singleRoad(group, edge, false));
+                continue;
+            }
+            if (listedRoadIds.contains(roadId)) {
+                continue;
+            }
+            listedRoadIds.add(roadId);
+            Road road = network.getRoad(roadId);
+            if (road == null) {
+                continue;
+            }
+            List<RoadEdge> roadEdges = new ArrayList<>();
+            for (String segmentId : orderedSegmentIds(network, road)) {
+                RoadEdge segment = network.getEdge(segmentId);
+                if (segment != null) {
+                    roadEdges.add(segment);
+                }
+            }
+            if (roadEdges.isEmpty()) {
+                continue;
+            }
+            RoadGroup group = new RoadGroup(roadId, formatRoadLabel(network, road), roadEdges);
+            rows.add(DisplayRow.singleRoad(group, roadEdges.getFirst(), true));
+        }
+        return rows;
+    }
+
     private static List<DisplayRow> buildGroupedDisplayRows(
             RoadNetwork network,
             List<RoadEdge> edges,
