@@ -32,10 +32,7 @@ public final class RoadPathPanel {
     }
 
     public void render() {
-        RoadSelectionHeader.render(ctx);
-
-        ImGui.separator();
-        adoptPanel.render();
+        RoadPathHeader.render(ctx, adoptPanel);
 
         ImGui.separator();
         renderRoadList();
@@ -61,10 +58,6 @@ public final class RoadPathPanel {
         }
 
         RoadUiSections.section("plugin.road.path.overview");
-        RoadUiWidgets.textWrapped(PlotI18n.tr("plugin.road.network_stats",
-            network.getRoads().size(),
-            network.getJunctionCount(),
-            String.format("%.1f", network.getTotalLength())));
         overviewPanel.renderNetworkMap(network);
         ImGui.spacing();
 

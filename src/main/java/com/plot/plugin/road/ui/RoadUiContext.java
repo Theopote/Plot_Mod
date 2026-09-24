@@ -25,6 +25,7 @@ public final class RoadUiContext {
     private final PluginContext host;
 
     private final ImBoolean adoptIncludeSidewalkRef = new ImBoolean(false);
+    private final ImBoolean showRoadOverlay = new ImBoolean(true);
     private final ImString edgeSearchBuffer = new ImString(128);
     private RoadEdgeListHelper.SortMode edgeSortMode = RoadEdgeListHelper.SortMode.ROAD_GROUP;
     private boolean coordFilterEnabled = false;
@@ -85,6 +86,15 @@ public final class RoadUiContext {
 
     public ImBoolean adoptIncludeSidewalkRef() {
         return adoptIncludeSidewalkRef;
+    }
+
+    public ImBoolean showRoadOverlay() {
+        return showRoadOverlay;
+    }
+
+    public boolean isRoadOverlayVisible() {
+        return showRoadOverlay.get()
+            || (toolManager != null && toolManager.getPathPickSession().isActive());
     }
 
     public ImString edgeSearchBuffer() {

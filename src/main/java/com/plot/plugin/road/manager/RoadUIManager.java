@@ -150,6 +150,11 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
     }
 
     private void refreshOverlaySnapshot() {
+        if (!ctx.isRoadOverlayVisible()) {
+            overlayEntries = List.of();
+            junctionOverlayEntries = List.of();
+            return;
+        }
         RoadNetwork network = ctx.networkManager().getNetwork();
         boolean pickActive = ctx.toolManager().getPathPickSession().isActive();
         List<Shape> candidates = pickActive ? ctx.toolManager().getPickOverlayPaths() : List.of();
