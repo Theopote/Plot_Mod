@@ -1,11 +1,14 @@
 package com.plot.plugin.road.ui;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadCrossSectionPreviewRenderer;
 import com.plot.plugin.road.RoadLongitudinalProfileRenderer;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.profile.RoadProfileIntersection;
+import com.plot.plugin.road.profile.RoadProfileIntersectionResolver;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
@@ -16,7 +19,9 @@ import com.plot.plugin.road.vertical.VerticalProfileCurveFitter;
 import com.plot.plugin.road.vertical.VerticalProfileNetworkPropagator;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
+import imgui.ImDrawList;
 import imgui.ImGui;
+import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiTreeNodeFlags;
 
@@ -31,6 +36,7 @@ final class VerticalProfileEditor {
     private String cachedEditProfileEdgeId = "";
     private int selectedProfilePvi = -1;
     private int activeProfilePvi = -1;
+    private int selectedIntersectionIndex = -1;
     private final float[] selectedProfileElevation = {64f};
     private String profileAutoFixMessage = "";
 
@@ -83,9 +89,13 @@ final class VerticalProfileEditor {
         float maxGrade = road.getMaxSlope() != null
             ? road.getMaxSlope()
             : ctx.networkManager().getConfig().getMaxSlope();
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        List<RoadProfileIntersection> intersections = RoadProfileIntersectionResolver.forEdge(
+            network, road, edge, config, edgeResult);
         RoadLongitudinalProfileRenderer.ControlInteraction interaction =
             RoadLongitudinalProfileRenderer.renderInteractive(
-                edgeResult, design, points, selectedProfilePvi, activeProfilePvi, maxGrade);
+                edgeResult, design, points, selectedProfilePvi, activeProfilePvi, maxGrade,
+                intersections, selectedIntersectionIndex);
         if (interaction.dragStarted()) {
             ctx.beginNetworkEdit();
         }
@@ -118,6 +128,10 @@ final class VerticalProfileEditor {
             ctx.finishNetworkEdit();
             propagateJunctionGrades(ctx, network, road);
         }
+        if (interaction.selectedIntersectionIndex() >= 0) {
+            selectedIntersectionIndex = interaction.selectedIntersectionIndex();
+        }
+        renderIntersectionDetail(intersections, interaction, config);
         ImGui.text(PlotI18n.tr("plugin.road.vertical_alignment_control_points"));
         for (VerticalProfileControlPoints.ControlPoint point : points) {
             boolean invalid = VerticalProfileControlPoints.exceedsGradeLimit(point, maxGrade);
@@ -211,6 +225,60 @@ final class VerticalProfileEditor {
         String right = point.rightGradePercent() != null
             ? String.format("%.1f%%", point.rightGradePercent()) : "—";
         return left + " / " + right;
+    }
+
+    private void renderIntersectionDetail(
+            List<RoadProfileIntersection> intersections,
+            RoadLongitudinalProfileRenderer.ControlInteraction interaction,
+            RoadSystemConfig config) {
+        int detailIndex = interaction.hoveredIntersectionIndex() >= 0
+            ? interaction.hoveredIntersectionIndex()
+            : selectedIntersectionIndex;
+        if (detailIndex < 0 || detailIndex >= intersections.size()) {
+            return;
+        }
+        RoadProfileIntersection intersection = intersections.get(detailIndex);
+        ImGui.spacing();
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr(
+            "plugin.road.profile_intersection_title",
+            intersection.otherRoadLabel()));
+        ImGui.text(PlotI18n.tr(
+            "plugin.road.profile_intersection_current_elevation",
+            String.format("%.1f", intersection.currentRoadElevation())));
+        ImGui.text(PlotI18n.tr(
+            "plugin.road.profile_intersection_other_elevation",
+            String.format("%.1f", intersection.otherRoadElevation())));
+        if (intersection.gradeSeparated()) {
+            String relation = intersection.currentRoadElevated()
+                ? PlotI18n.tr("plugin.road.profile_intersection_current_over")
+                : PlotI18n.tr("plugin.road.profile_intersection_other_over");
+            ImGui.text(PlotI18n.tr("plugin.road.profile_intersection_relation", relation));
+            ImGui.text(PlotI18n.tr(
+                "plugin.road.profile_intersection_clearance",
+                String.format("%.1f", intersection.clearanceGap())));
+        } else {
+            ImGui.text(PlotI18n.tr("plugin.road.profile_intersection_at_grade"));
+        }
+        ImGui.text(PlotI18n.tr(
+            "plugin.road.profile_intersection_other_section",
+            intersection.otherCrossSection().laneCount,
+            Math.round(RoadCrossSectionPreviewRenderer.CrossSectionLayout
+                .fromResolved(intersection.otherCrossSection(), 0f)
+                .totalWidthBlocks())));
+        float previewWidth = Math.min(ImGui.getContentRegionAvail().x, 220f);
+        float previewHeight = 44f;
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        ImVec2 cursor = ImGui.getCursorScreenPos();
+        RoadCrossSectionPreviewRenderer.renderMini(
+            drawList,
+            RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(
+                intersection.otherCrossSection(), 0f),
+            cursor.x,
+            cursor.y,
+            previewWidth,
+            previewHeight);
+        ImGui.dummy(previewWidth, previewHeight);
     }
 
     private void propagateJunctionGrades(RoadUiContext ctx, RoadNetwork network, Road road) {
