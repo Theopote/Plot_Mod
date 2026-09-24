@@ -15,6 +15,7 @@ import com.plot.plugin.road.manager.RoadPreviewManager;
 import com.plot.plugin.road.manager.RoadProjectStatus;
 import com.plot.plugin.road.manager.RoadToolManager;
 import com.plot.plugin.road.manager.RoadUIManager;
+import com.plot.plugin.road.overlay.RoadJunctionOverlayRenderer;
 import com.plot.plugin.road.overlay.RoadOverlayRenderer;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
@@ -149,6 +150,7 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
         }
         uiManager.refreshOverlayForCanvas();
         RoadOverlayRenderer.render(drawList, camera, uiManager.overlayEntries());
+        RoadJunctionOverlayRenderer.render(drawList, camera, uiManager.junctionOverlayEntries());
     }
 
     @Override

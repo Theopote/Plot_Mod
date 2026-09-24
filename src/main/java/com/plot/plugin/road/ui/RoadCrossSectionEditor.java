@@ -35,7 +35,7 @@ public final class RoadCrossSectionEditor {
         }
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
-        float height = 56f;
+        float height = 88f;
         RoadCrossSectionPreviewRenderer.CrossSectionLayout layout;
         if (styleId != null && !styleId.isBlank()) {
             RoadStyle style = RoadStyleCatalog.findById(config, styleId);

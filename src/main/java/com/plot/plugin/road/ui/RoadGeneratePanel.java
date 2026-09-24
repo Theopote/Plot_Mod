@@ -23,6 +23,7 @@ import java.util.Map;
  */
 public final class RoadGeneratePanel {
     private final RoadUiContext ctx;
+    private final VerticalProfileEditor profileEditor = new VerticalProfileEditor();
     private String profileEdgeId = "";
     private boolean profileSectionForceOpen = false;
     private long cachedValidationKey = Long.MIN_VALUE;
@@ -59,11 +60,28 @@ public final class RoadGeneratePanel {
 
         renderPreviewActions(network, preflight, buildReadiness);
 
+        if (ctx.previewManager().hasValidPreview()) {
+            renderProfileWorkspace(network);
+        }
+
         RoadGenerationResult lastGenerationResult = ctx.previewManager().getLastGenerationResult();
         if (ctx.previewManager().hasValidPreview() && lastGenerationResult != null) {
             renderCompactPreviewSummary(lastGenerationResult);
             renderBuildAction(lastGenerationResult, buildReadiness, validationReport());
             renderPreviewDetailsCollapsible(network, lastGenerationResult);
+        }
+    }
+
+    private void renderProfileWorkspace(RoadNetwork network) {
+        ImGui.separator();
+        RoadUiSections.section("plugin.road.generate.profile_section");
+        String edgeId = ctx.networkManager().getPrimarySelectedEdgeId();
+        RoadEdge edge = edgeId != null ? network.getEdge(edgeId) : null;
+        if (edge == null && !network.getEdges().isEmpty()) {
+            edge = network.getEdge(network.getEdges().keySet().iterator().next());
+        }
+        if (edge != null) {
+            profileEditor.renderInline(ctx, network, edge);
         }
     }
 

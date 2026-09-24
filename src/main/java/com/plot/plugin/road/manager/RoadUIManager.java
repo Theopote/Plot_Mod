@@ -4,6 +4,8 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.model.Shape;
 import com.plot.core.tool.BaseTool;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.overlay.RoadJunctionOverlayController;
+import com.plot.plugin.road.overlay.RoadJunctionOverlayEntry;
 import com.plot.plugin.road.overlay.RoadOverlayCompositor;
 import com.plot.plugin.road.overlay.RoadOverlayController;
 import com.plot.plugin.road.overlay.RoadOverlayEntry;
@@ -18,8 +20,8 @@ import com.plot.plugin.road.ui.RoadGeneratePanel;
 import com.plot.plugin.road.ui.RoadJunctionPanel;
 import com.plot.plugin.road.ui.RoadNodePropertyPanel;
 import com.plot.plugin.road.ui.RoadOverviewPanel;
-import com.plot.plugin.road.ui.RoadRoutePanel;
-import com.plot.plugin.road.ui.RoadStylePanel;
+import com.plot.plugin.road.ui.RoadIntersectionListPanel;
+import com.plot.plugin.road.ui.RoadPathPanel;
 import com.plot.plugin.road.ui.RoadToolbarPanel;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.RoadUiTab;
@@ -37,19 +39,20 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 道路系统 ImGui 界面编排（路线 / 样式 / 建造）。
+ * 道路系统 ImGui 界面编排（路径 / 编辑 / 生成）。
  */
 public final class RoadUIManager implements RoadJunctionPropertyProvider {
     private final RoadUiContext ctx;
     private final RoadToolbarPanel toolbarPanel;
-    private final RoadRoutePanel routePanel;
-    private final RoadStylePanel stylePanel;
+    private final RoadPathPanel pathPanel;
+    private final RoadEditPanel editPanel;
     private final RoadBuildPanel buildPanel;
     private final RoadEdgeListPanel edgeListPanel;
     private final RoadJunctionPanel junctionPanel;
     private final RoadNodePropertyPanel nodePropertyPanel;
 
     private List<RoadOverlayEntry> overlayEntries = List.of();
+    private List<RoadJunctionOverlayEntry> junctionOverlayEntries = List.of();
 
     public RoadUIManager(
             RoadNetworkManager networkManager,
@@ -68,13 +71,14 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         this.nodePropertyPanel = new RoadNodePropertyPanel(ctx);
         RoadOverviewPanel overviewPanel = new RoadOverviewPanel(ctx);
         RoadAdoptPanel adoptPanel = new RoadAdoptPanel(ctx);
-        RoadEditPanel editPanel = new RoadEditPanel(ctx, junctionPanel, nodePropertyPanel);
+        RoadIntersectionListPanel intersectionListPanel =
+            new RoadIntersectionListPanel(ctx, nodePropertyPanel);
+        this.editPanel = new RoadEditPanel(ctx, junctionPanel, nodePropertyPanel, defaultParamsPanel);
         RoadGeneratePanel generatePanel = new RoadGeneratePanel(ctx);
 
         this.toolbarPanel = new RoadToolbarPanel(ctx);
-        this.routePanel = new RoadRoutePanel(
-            ctx, adoptPanel, defaultParamsPanel, edgeListPanel, overviewPanel);
-        this.stylePanel = new RoadStylePanel(ctx, defaultParamsPanel, editPanel);
+        this.pathPanel = new RoadPathPanel(
+            ctx, adoptPanel, defaultParamsPanel, edgeListPanel, overviewPanel, intersectionListPanel);
         this.buildPanel = new RoadBuildPanel(generatePanel);
     }
 
@@ -84,6 +88,10 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
 
     public List<RoadOverlayEntry> overlayEntries() {
         return overlayEntries;
+    }
+
+    public List<RoadJunctionOverlayEntry> junctionOverlayEntries() {
+        return junctionOverlayEntries;
     }
 
     public void render() {
@@ -102,9 +110,9 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         RoadUiTab pendingTab = ctx.pendingTab();
 
         if (ImGui.beginTabBar("##road_tabs", ImGuiTabBarFlags.None)) {
-            renderTab(RoadUiTab.ROUTE, "plugin.road.tab.route", pendingTab, routePanel::render);
-            renderTab(RoadUiTab.STYLE, "plugin.road.tab.style", pendingTab, stylePanel::render);
-            renderTab(RoadUiTab.BUILD, "plugin.road.tab.build", pendingTab, this::renderBuildTab);
+            renderTab(RoadUiTab.PATH, "plugin.road.tab.path", pendingTab, pathPanel::render);
+            renderTab(RoadUiTab.EDIT, "plugin.road.tab.edit", pendingTab, editPanel::render);
+            renderTab(RoadUiTab.GENERATE, "plugin.road.tab.generate", pendingTab, this::renderBuildTab);
             ImGui.endTabBar();
         }
 
@@ -156,6 +164,10 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             candidates,
             pickActive,
             Set.of());
+        junctionOverlayEntries = RoadJunctionOverlayController.snapshot(
+            network,
+            ctx.networkManager().getNetworkBuilder(),
+            ctx.networkManager().getSelectedNodeId());
     }
 
     private void tickOverlayCanvasSelection() {
@@ -205,7 +217,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
     public void renderDeferredModals() {
         edgeListPanel.renderDeleteConfirmPopup();
         buildPanel.renderBuildConfirmPopup();
-        stylePanel.renderUniformElevationConfirmPopup();
+        editPanel.renderUniformElevationConfirmPopup();
     }
 
     /**

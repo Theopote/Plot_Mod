@@ -310,6 +310,17 @@ public final class RoadNodePropertyPanel {
         }
     }
 
+    /** 路径 Tab 交叉点列表：高程关系编辑。 */
+    public void renderGradeSeparationForNode(RoadNode node) {
+        if (node == null) {
+            return;
+        }
+        renderGradeSeparationControlsBlock(
+            node,
+            ctx.networkManager().getNetwork(),
+            ctx.networkManager().getConfig());
+    }
+
     private void renderGradeSeparationControlsBlock(RoadNode node, RoadNetwork network, RoadSystemConfig config) {
         if (!RoadGraphQueries.isSimpleCrossing(node, network)) {
             return;

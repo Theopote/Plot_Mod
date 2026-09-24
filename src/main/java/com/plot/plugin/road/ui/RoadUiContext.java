@@ -297,7 +297,7 @@ public final class RoadUiContext {
         if (roadId != null && !roadId.isBlank()) {
             networkManager.selectRoad(roadId, false);
         }
-        requestTab(RoadUiTab.STYLE);
+        requestTab(RoadUiTab.EDIT);
     }
 
     public void requestTab(RoadUiTab tab) {
@@ -314,7 +314,7 @@ public final class RoadUiContext {
 
     /** 跳转到建造 Tab 并聚焦指定边的纵断面。 */
     public void requestViewProfile(String edgeId) {
-        pendingTab = RoadUiTab.BUILD;
+        pendingTab = RoadUiTab.GENERATE;
         pendingProfileEdgeId = edgeId != null ? edgeId : "";
     }
 

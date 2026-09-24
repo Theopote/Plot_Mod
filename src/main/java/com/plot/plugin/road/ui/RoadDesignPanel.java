@@ -33,7 +33,6 @@ final class RoadDesignPanel {
     private final RoadUiContext ctx;
     private final RoadIdentityEditor identityEditor = new RoadIdentityEditor();
     private final VerticalAlignmentEditor verticalAlignmentEditor = new VerticalAlignmentEditor();
-    private final VerticalProfileEditor verticalProfileEditor = new VerticalProfileEditor();
     private final HorizontalAlignmentSummaryEditor horizontalAlignmentEditor = new HorizontalAlignmentSummaryEditor();
     private final VariableCrossSectionEditor variableCrossSectionEditor = new VariableCrossSectionEditor();
     private final StationFacilityEditor stationFacilityEditor = new StationFacilityEditor();
@@ -119,8 +118,6 @@ final class RoadDesignPanel {
             network, road, chainageDisplay, ctx.networkManager().getConfig(),
             this::requireTerrainOrNull,
             ctx.networkManager()::pushHistory);
-        verticalProfileEditor.renderInline(ctx, network, current);
-
         RoadUiSections.group("plugin.road.design_stack.typical_section");
         RoadCrossSectionEditor.renderAdvancedCrossSection(ctx, road, ctx::pushRoadEditHistory);
 
