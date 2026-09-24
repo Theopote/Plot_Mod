@@ -1,6 +1,7 @@
 package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -106,6 +107,41 @@ public final class RoadEdgeListHelper {
             return name;
         }
         return formatAutoRoadLabel(network, road);
+    }
+
+    /** 路径列表第一行：仅道路名称。 */
+    public static String formatRoadDisplayName(RoadNetwork network, Road road) {
+        if (road == null) {
+            return PlotI18n.tr("plugin.road.unassigned_road");
+        }
+        String name = road.getName();
+        if (name != null && !name.isBlank()) {
+            return name;
+        }
+        String shortId = road.getId().substring(0, Math.min(8, road.getId().length()));
+        return PlotI18n.tr("plugin.road.road_label_fallback", shortId);
+    }
+
+    /** 路径列表第二行：车道 / 宽度 / 段数 / 长度。 */
+    public static String formatRoadPathSummary(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config) {
+        if (road == null) {
+            return "";
+        }
+        int segmentCount = road.getSegmentIds().size();
+        int lanes = road.getCrossSection().getCarriageway().getEffectiveLaneCount();
+        int width = road.getWidth() != null
+            ? road.getWidth()
+            : road.getCrossSection().resolve(config).carriagewayWidth;
+        int lengthBlocks = (int) Math.round(computeRoadLength(network, road));
+        return PlotI18n.tr(
+            "plugin.road.path.road_summary",
+            lanes,
+            width,
+            segmentCount,
+            lengthBlocks);
     }
 
     /** 无自定义名称时的列表/占位标签（基于 id 与横断面摘要）。 */
