@@ -233,4 +233,20 @@ public class Canvas implements ICanvas, UIComponent {
     public float getOpacity() { return core.getOpacity(); }
     public CanvasCamera getCamera() { return core.getCamera(); }
 
+    public float getScreenX() {
+        return core.getCanvasScreenX();
+    }
+
+    public float getScreenY() {
+        return core.getCanvasScreenY();
+    }
+
+    public float getScreenWidth() {
+        return core.getCanvasScreenW();
+    }
+
+    public float getScreenHeight() {
+        return core.getCanvasScreenH();
+    }
+
 }

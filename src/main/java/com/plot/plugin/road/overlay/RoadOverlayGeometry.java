@@ -11,6 +11,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadSegmentOrdering;
+import com.plot.plugin.road.model.section.ResolvedCrossSection;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,8 +42,24 @@ public final class RoadOverlayGeometry {
         if (centerline.size() < 2 || config == null) {
             return List.of();
         }
-        double halfWidth = Math.max(0.5, config.getRoadWidth() / 2.0);
+        double halfWidth = resolveConfigCorridorHalfWidth(config);
+        if (halfWidth <= 0.0) {
+            return List.of();
+        }
         return RoadEarthworkCorridorResolver.buildCorridorPolygon(centerline, halfWidth);
+    }
+
+    /** 认领候选路径走廊半宽（与已生成道路同一套横断面解析）。 */
+    public static double resolveConfigCorridorHalfWidth(RoadSystemConfig config) {
+        if (config == null) {
+            return 0.0;
+        }
+        ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);
+        double halfWidth = section.carriagewayHalfWidth() + section.outerBandWidth();
+        if (section.includeDrain) {
+            halfWidth += 1.0;
+        }
+        return Math.max(0.5, halfWidth);
     }
 
     public static List<Vec2d> resolveRoadCenterline(RoadNetwork network, Road road) {
@@ -66,7 +83,7 @@ public final class RoadOverlayGeometry {
                 return RoadEarthworkCorridorResolver.resolveCorridorHalfWidth(network, edge, config, 0);
             }
         }
-        return Math.max(0.5, config.getRoadWidth() / 2.0);
+        return Math.max(0.5, resolveConfigCorridorHalfWidth(config));
     }
 
     public static boolean containsPoint(List<Vec2d> polygon, double x, double y) {

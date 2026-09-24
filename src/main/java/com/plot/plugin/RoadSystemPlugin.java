@@ -157,6 +157,7 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
             return;
         }
         uiManager.render();
+        uiManager.renderDeferredOverlay();
     }
 
     @Override

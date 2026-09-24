@@ -40,19 +40,25 @@ final class RoadRouteQuickTune {
             resolved.carriagewayWidth,
             resolved.laneCount,
             (width, lanes) -> {
-                if (onHistory != null) {
-                    onHistory.run();
-                }
                 road.setWidth(width);
                 road.setLaneCount(lanes);
                 ctx.onGenerationConfigChanged();
-            });
+            },
+            onHistory);
     }
 
     private static void renderWidthLaneSliders(
             int width,
             int laneCount,
             WidthLaneConsumer onChange) {
+        renderWidthLaneSliders(width, laneCount, onChange, null);
+    }
+
+    private static void renderWidthLaneSliders(
+            int width,
+            int laneCount,
+            WidthLaneConsumer onChange,
+            Runnable onHistory) {
         int[] widthArr = {width};
         if (ImGui.sliderInt(
             PlotI18n.tr("plugin.road.road_width", widthArr[0]) + "##route_width",
@@ -60,6 +66,9 @@ final class RoadRouteQuickTune {
             RoadParameterLimits.MIN_CARRIAGEWAY_WIDTH,
             RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH,
             "%d")) {
+            if (ImGui.isItemActivated() && onHistory != null) {
+                onHistory.run();
+            }
             onChange.accept(widthArr[0], laneCount);
         }
         if (ImGui.isItemHovered()) {
@@ -73,6 +82,9 @@ final class RoadRouteQuickTune {
             RoadParameterLimits.MIN_LANE_COUNT,
             RoadParameterLimits.MAX_LANE_COUNT,
             "%d")) {
+            if (ImGui.isItemActivated() && onHistory != null) {
+                onHistory.run();
+            }
             onChange.accept(widthArr[0], laneArr[0]);
         }
     }

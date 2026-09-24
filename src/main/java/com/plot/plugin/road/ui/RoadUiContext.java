@@ -7,6 +7,7 @@ import com.plot.plugin.road.manager.RoadPreviewManager;
 import com.plot.plugin.road.manager.RoadProjectStatus;
 import com.plot.plugin.road.manager.RoadToolManager;
 import com.plot.plugin.road.RoadEdgeListHelper;
+import com.plot.ui.canvas.CanvasAccess;
 import imgui.type.ImBoolean;
 import imgui.type.ImString;
 
@@ -264,6 +265,14 @@ public final class RoadUiContext {
     public void onGenerationConfigChanged() {
         if (previewManager != null) {
             previewManager.invalidatePreview();
+        }
+        requestOverlayRefresh();
+    }
+
+    /** 横断面/默认参数变更后请求画布叠加层在当帧 UI 之后重绘。 */
+    public void requestOverlayRefresh() {
+        if (CanvasAccess.isPresent()) {
+            CanvasAccess.get().markToolPreviewDirty();
         }
     }
 

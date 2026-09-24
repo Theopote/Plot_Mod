@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.model.Shape;
 import com.plot.core.tool.BaseTool;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.overlay.RoadOverlayCompositor;
 import com.plot.plugin.road.overlay.RoadOverlayController;
 import com.plot.plugin.road.overlay.RoadOverlayEntry;
 import com.plot.plugin.road.repair.RoadRepairDiagnosisCache;
@@ -127,6 +128,18 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
     /** 画布叠加层渲染前刷新（与 ImGui 面板 render 解耦）。 */
     public void refreshOverlayForCanvas() {
         refreshOverlaySnapshot();
+    }
+
+    /**
+     * 插件 UI 渲染后补绘：画布先于插件面板绘制，宽度/横断面滑条变更需前景层覆盖。
+     */
+    public void renderDeferredOverlay() {
+        if (!CanvasAccess.isPresent()) {
+            return;
+        }
+        refreshOverlaySnapshot();
+        Canvas canvas = CanvasAccess.get();
+        RoadOverlayCompositor.renderForeground(canvas, canvas.getCamera(), overlayEntries);
     }
 
     private void refreshOverlaySnapshot() {
