@@ -9,9 +9,11 @@ import com.plot.plugin.building.generation.BuildingGenerationContext;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.generation.massing.FloorPlateGeometryResolver.ResolvedFloorPlate;
 import com.plot.plugin.building.generation.massing.InnerOffsetDegradation;
+import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
 import com.plot.plugin.building.model.spec.EnvelopeSpec;
 import com.plot.plugin.building.model.spec.MassingSpec;
+import com.plot.plugin.building.model.spec.RoofSpec;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
@@ -69,6 +71,10 @@ public final class FloorGenerationStage implements BuildingGenerationStage {
     }
 
     private void replaceTopFloorMaterial(BuildingGenerationContext context) {
+        RoofSpec roof = context.getDefinition().roof();
+        if (roof.type() == BuildingFootprint.RoofType.NONE) {
+            return;
+        }
         BuildingGenerationResult result = context.getResult();
         BuildingDefinition definition = context.getDefinition();
         MassingSpec massing = definition.massing();

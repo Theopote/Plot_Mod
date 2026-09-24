@@ -16,6 +16,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoofWallCoverageTest {
@@ -26,6 +28,29 @@ class RoofWallCoverageTest {
             GoldenBuildingCaseFactory.rectangle(8, 6, 1, 3, 1),
             BuildingFootprint.RoofType.FLAT,
             IdentityCoordinateService.INSTANCE);
+    }
+
+    @Test
+    void noneRoofSkipsTopCapBlocks() {
+        BuildingFootprint footprint = GoldenBuildingCaseFactory.rectangle(8, 6, 1, 3, 1);
+        footprint.setRoofType(BuildingFootprint.RoofType.NONE);
+
+        BuildingGenerationResult result = new BuildingGenerationResult();
+        BuildingGenerationContext context = BuildingGenerationContextFactory.forTesting(
+            footprint, IdentityCoordinateService.INSTANCE, NOOP, result);
+
+        new BuildingGenerationPipeline(List.of(
+            new WallGenerationStage(),
+            new FloorGenerationStage(),
+            new RoofGenerationStage()
+        )).generate(context);
+
+        assertEquals(BuildingFootprint.RoofType.NONE, result.effectiveRoofType);
+        String roofId = context.getRoofBlockId();
+        int topRoofY = context.getTopFloorY();
+        boolean hasRoofCap = result.placementRecords.values().stream()
+            .anyMatch(record -> record.pos.getY() == topRoofY && roofId.equals(record.newBlockId));
+        assertFalse(hasRoofCap, "roof cap should not be placed for NONE");
     }
 
     @Test

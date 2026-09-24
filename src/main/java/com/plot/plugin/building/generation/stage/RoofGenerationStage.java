@@ -33,7 +33,7 @@ public final class RoofGenerationStage implements BuildingGenerationStage {
         BuildingFootprint.RoofType roofType = resolveRoofType(definition, roofFootprint, result);
         result.effectiveRoofType = roofType;
 
-        if (roofType != BuildingFootprint.RoofType.FLAT) {
+        if (roofType.isSloped()) {
             RoofSpec roof = definition.roof();
             BuildingRoofGenerator.generate(
                 result,
@@ -55,6 +55,9 @@ public final class RoofGenerationStage implements BuildingGenerationStage {
             BuildingGenerationResult result) {
         RoofSpec roof = definition.roof();
         BuildingFootprint.RoofType requested = roof.type();
+        if (requested == BuildingFootprint.RoofType.NONE) {
+            return BuildingFootprint.RoofType.NONE;
+        }
         if (requested == BuildingFootprint.RoofType.FLAT) {
             return BuildingFootprint.RoofType.FLAT;
         }

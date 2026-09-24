@@ -141,7 +141,7 @@ public final class RealisticDistrictGapReport {
             return false;
         }
         BuildingFootprint.RoofType requested = tagged.requestedRoof();
-        return requested != BuildingFootprint.RoofType.FLAT
+        return requested.isSloped()
             && result.effectiveRoofType == BuildingFootprint.RoofType.FLAT
             && result.warnings.contains("plugin.building.warn.roof_downgrade");
     }

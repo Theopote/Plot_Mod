@@ -35,7 +35,11 @@ public class BuildingFootprint {
     public static final String DEFAULT_WINDOW_MATERIAL = "minecraft:glass_pane";
 
     public enum RoofType {
-        FLAT, GABLE, HIP
+        FLAT, GABLE, HIP, NONE;
+
+        public boolean isSloped() {
+            return this == GABLE || this == HIP;
+        }
     }
 
     public static class Canopy {

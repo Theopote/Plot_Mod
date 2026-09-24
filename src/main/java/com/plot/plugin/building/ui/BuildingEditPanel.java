@@ -152,7 +152,7 @@ public final class BuildingEditPanel {
 
     private void renderRoofSection(BuildingFootprint building) {
         renderRoofTypeSelector(building);
-        if (building.getRoofType() != BuildingFootprint.RoofType.FLAT) {
+        if (building.getRoofType().isSloped()) {
             int[] pitch = {building.getRoofPitchRatio()};
             boolean pitchChanged = BuildingUiWidgets.sliderIntWithRightLabel(
                 "##roof_pitch", pitch, 1, 16,
@@ -439,7 +439,8 @@ public final class BuildingEditPanel {
         String[] labels = {
             PlotI18n.tr("plugin.building.roof_flat"),
             PlotI18n.tr("plugin.building.roof_gable"),
-            PlotI18n.tr("plugin.building.roof_hip")
+            PlotI18n.tr("plugin.building.roof_hip"),
+            PlotI18n.tr("plugin.building.roof_none")
         };
         ImInt roofTypeIndex = new ImInt(building.getRoofType().ordinal());
         if (BuildingUiWidgets.comboWithRightLabel("##roof_type", "plugin.building.roof_type", roofTypeIndex, labels)) {
@@ -447,7 +448,7 @@ public final class BuildingEditPanel {
             if (index >= 0 && index < roofTypes.length) {
                 ctx.projectHistory().push(ctx.project());
                 building.setRoofType(roofTypes[index]);
-                if (building.getRoofType() != BuildingFootprint.RoofType.FLAT) {
+                if (building.getRoofType().isSloped()) {
                     building.refreshSlopedRoofEligibility();
                 }
                 ctx.invalidatePreview();
@@ -455,7 +456,7 @@ public final class BuildingEditPanel {
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.roof_type");
         Boolean slopedEligible = building.peekSlopedRoofEligibility();
-        if (building.getRoofType() != BuildingFootprint.RoofType.FLAT
+        if (building.getRoofType().isSloped()
                 && slopedEligible != null
                 && !slopedEligible) {
             ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.building.roof_rect_hint"));
