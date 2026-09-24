@@ -53,7 +53,8 @@ public final class RoadSelectionHeader {
                 return;
             }
             ImGui.bulletText(RoadEdgeListHelper.formatRoadLabel(network, road));
-            double length = RoadEdgeListHelper.computeRoadLength(network, road);
+            double length = RoadEdgeListHelper.computeRoadWorldLength(
+                network, road, ctx.host().coordinates());
             ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.selection.single_length", length));
@@ -75,7 +76,8 @@ public final class RoadSelectionHeader {
         for (String roadId : roadIds) {
             Road road = network.getRoad(roadId);
             if (road != null) {
-                totalLength += RoadEdgeListHelper.computeRoadLength(network, road);
+                totalLength += RoadEdgeListHelper.computeRoadWorldLength(
+                    network, road, ctx.host().coordinates());
             }
         }
         ImGui.textColored(

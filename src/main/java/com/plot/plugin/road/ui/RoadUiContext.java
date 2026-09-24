@@ -7,7 +7,9 @@ import com.plot.plugin.road.manager.RoadPreviewManager;
 import com.plot.plugin.road.manager.RoadProjectStatus;
 import com.plot.plugin.road.manager.RoadToolManager;
 import com.plot.plugin.road.RoadEdgeListHelper;
+import com.plot.plugin.road.model.Road;
 import com.plot.ui.canvas.CanvasAccess;
+import com.plot.ui.utils.ImStringUtf8;
 import imgui.type.ImBoolean;
 import imgui.type.ImString;
 
@@ -44,6 +46,13 @@ public final class RoadUiContext {
     private String pendingProfileEdgeId = "";
     private Runnable pathsAdoptedListener;
     private boolean overlayForegroundDirty;
+
+    private final RoadListRenameController roadListRename = new RoadListRenameController(this);
+    private final ImString roadNameBuffer = new ImString(128);
+    private String roadNameEditingId = "";
+    private String roadNameBeforeRename = "";
+    private boolean roadNameFocusPending;
+    private int roadNameIgnoreOutsideClickFrames;
 
     public RoadUiContext(
             RoadNetworkManager networkManager,
@@ -82,6 +91,87 @@ public final class RoadUiContext {
 
     public PluginContext host() {
         return host;
+    }
+
+    public RoadListRenameController roadListRename() {
+        return roadListRename;
+    }
+
+    public String roadNameEditingId() {
+        return roadNameEditingId;
+    }
+
+    public ImString roadNameBuffer() {
+        return roadNameBuffer;
+    }
+
+    public void beginRoadNameRename(Road road) {
+        if (road == null) {
+            return;
+        }
+        if (!roadNameEditingId.isBlank() && !roadNameEditingId.equals(road.getId())) {
+            Road previous = networkManager.getNetwork().getRoad(roadNameEditingId);
+            if (previous != null) {
+                cancelRoadNameRename(previous);
+            } else {
+                endRoadNameRename();
+            }
+        }
+        roadNameBeforeRename = road.getName() != null ? road.getName() : "";
+        roadNameBuffer.set(roadNameBeforeRename);
+        roadNameEditingId = road.getId();
+        roadNameFocusPending = true;
+        roadNameIgnoreOutsideClickFrames = 3;
+        networkManager.selectRoad(road.getId(), false);
+        requestOverlayRefresh();
+    }
+
+    public void commitRoadNameRename(Road road) {
+        if (road == null || !road.getId().equals(roadNameEditingId)) {
+            endRoadNameRename();
+            return;
+        }
+        String committed = RoadListRenameController.normalizeDraftName(
+            ImStringUtf8.read(roadNameBuffer));
+        if (!java.util.Objects.equals(road.getName(), committed)) {
+            networkManager.pushHistory();
+            road.setName(committed);
+            requestOverlayRefresh();
+        }
+        endRoadNameRename();
+    }
+
+    public void cancelRoadNameRename(Road road) {
+        if (road != null && road.getId().equals(roadNameEditingId)) {
+            roadNameBuffer.set(roadNameBeforeRename);
+        }
+        endRoadNameRename();
+    }
+
+    public void endRoadNameRename() {
+        roadNameEditingId = "";
+        roadNameBeforeRename = "";
+        roadNameFocusPending = false;
+        roadNameIgnoreOutsideClickFrames = 0;
+        roadNameBuffer.set("");
+    }
+
+    public void tickRoadNameRenameCooldown() {
+        if (roadNameIgnoreOutsideClickFrames > 0) {
+            roadNameIgnoreOutsideClickFrames--;
+        }
+    }
+
+    public boolean isRoadNameOutsideClickReady() {
+        return roadNameIgnoreOutsideClickFrames == 0;
+    }
+
+    public boolean consumeRoadNameFocusPending() {
+        if (!roadNameFocusPending) {
+            return false;
+        }
+        roadNameFocusPending = false;
+        return true;
     }
 
     public ImBoolean adoptIncludeSidewalkRef() {
@@ -262,6 +352,7 @@ public final class RoadUiContext {
 
     /** 清除待确认弹窗、Tab 跳转等瞬时 UI 状态。 */
     public void clearTransientUiState() {
+        roadListRename.cancelActive();
         clearPendingTab();
         pendingProfileEdgeId = "";
         clearDeleteConfirmPending();

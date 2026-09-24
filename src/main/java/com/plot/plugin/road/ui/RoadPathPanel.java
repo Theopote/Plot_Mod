@@ -57,7 +57,6 @@ public final class RoadPathPanel {
             return;
         }
 
-        RoadUiSections.section("plugin.road.path.overview");
         overviewPanel.renderNetworkMap(network);
         ImGui.spacing();
 

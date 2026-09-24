@@ -1,6 +1,7 @@
 package com.plot.plugin.road.ui;
 
-import com.plot.plugin.road.manager.RoadToolManager;
+import com.plot.plugin.road.RoadEdgeListHelper;
+import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -34,7 +35,7 @@ public final class RoadPathHeader {
         ImGui.sameLine();
         ImGui.checkbox(PlotI18n.tr("plugin.road.overlay.show_paths"), ctx.showRoadOverlay());
 
-        renderProjectStats(ctx.networkManager().getNetwork());
+        renderProjectStats(ctx);
         adoptPanel.renderIntersectionRepairPrompt();
     }
 
@@ -42,12 +43,16 @@ public final class RoadPathHeader {
         int count = ctx.toolManager().getPathPickSession().getAccumulatedCount();
         if (count > 0) {
             List<com.plot.core.model.Shape> overlayPaths = ctx.toolManager().getPickOverlayPaths();
+            var coordinates = ctx.host().coordinates();
             double totalLength = overlayPaths.stream()
-                .mapToDouble(RoadToolManager::calculatePathLength)
+                .mapToDouble(path -> RoadGeometryUtils.calculateWorldPathLength(coordinates, path))
                 .sum();
             ImGui.textColored(
                 PluginUiColors.STATUS_INFO,
-                PlotI18n.tr("plugin.road.path.picking_summary", count, formatLength(totalLength)));
+                PlotI18n.tr(
+                    "plugin.road.path.picking_summary",
+                    count,
+                    RoadUiFormat.format(totalLength)));
         } else {
             ImGui.textColored(
                 PluginUiColors.STATUS_INFO,
@@ -61,7 +66,8 @@ public final class RoadPathHeader {
         }
     }
 
-    private static void renderProjectStats(RoadNetwork network) {
+    private static void renderProjectStats(RoadUiContext ctx) {
+        RoadNetwork network = ctx.networkManager().getNetwork();
         ImGui.spacing();
         if (network.getEdges().isEmpty()) {
             ImGui.textColored(
@@ -72,14 +78,8 @@ public final class RoadPathHeader {
         ImGui.text(PlotI18n.tr(
             "plugin.road.path.project_stats",
             network.getRoads().size(),
-            formatLength(network.getTotalLength()),
+            RoadUiFormat.format(RoadEdgeListHelper.computeNetworkWorldLength(
+                network, ctx.host().coordinates())),
             network.getJunctionCount()));
-    }
-
-    private static String formatLength(double length) {
-        if (length >= 100.0) {
-            return String.format("%.1f", length);
-        }
-        return String.format("%.0f", length);
     }
 }

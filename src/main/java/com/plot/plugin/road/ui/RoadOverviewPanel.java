@@ -34,7 +34,8 @@ public final class RoadOverviewPanel {
         RoadUiWidgets.textWrapped(PlotI18n.tr("plugin.road.network_stats",
             network.getRoads().size(),
             network.getJunctionCount(),
-            String.format("%.1f", network.getTotalLength())));
+            RoadUiFormat.format(RoadEdgeListHelper.computeNetworkWorldLength(
+                network, ctx.host().coordinates()))));
 
         renderHealthWarnings(network);
         renderNetworkMap(network);
@@ -75,7 +76,8 @@ public final class RoadOverviewPanel {
         RoadUiWidgets.textWrapped(PlotI18n.tr("plugin.road.network_stats",
             network.getRoads().size(),
             network.getJunctionCount(),
-            String.format("%.1f", network.getTotalLength())));
+            RoadUiFormat.format(RoadEdgeListHelper.computeNetworkWorldLength(
+                network, ctx.host().coordinates()))));
     }
 
     public void renderHealthWarnings(RoadNetwork network) {
@@ -135,7 +137,8 @@ public final class RoadOverviewPanel {
         }
 
         int segmentCount = road.getSegmentIds().size();
-        double length = RoadEdgeListHelper.computeRoadLength(network, road);
+        double length = RoadEdgeListHelper.computeRoadWorldLength(
+            network, road, ctx.host().coordinates());
         ImGui.text(PlotI18n.tr(
             "plugin.road.overview_road_summary",
             RoadEdgeListHelper.formatRoadLabel(network, road),

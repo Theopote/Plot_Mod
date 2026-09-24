@@ -1,12 +1,14 @@
 package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.RoadSegmentOrdering;
+import com.plot.plugin.road.ui.RoadUiFormat;
 import com.plot.utils.PlotI18n;
 
 import java.util.ArrayList;
@@ -126,7 +128,8 @@ public final class RoadEdgeListHelper {
     public static String formatRoadPathSummary(
             RoadNetwork network,
             Road road,
-            RoadSystemConfig config) {
+            RoadSystemConfig config,
+            ICoordinateService coordinates) {
         if (road == null) {
             return "";
         }
@@ -135,7 +138,8 @@ public final class RoadEdgeListHelper {
         int width = road.getWidth() != null
             ? road.getWidth()
             : road.getCrossSection().resolve(config).carriagewayWidth;
-        int lengthBlocks = (int) Math.round(computeRoadLength(network, road));
+        String lengthBlocks = RoadUiFormat.format(
+            computeRoadWorldLength(network, road, coordinates));
         return PlotI18n.tr(
             "plugin.road.path.road_summary",
             lanes,
@@ -168,6 +172,39 @@ public final class RoadEdgeListHelper {
             }
         }
         return total;
+    }
+
+    public static double computeRoadWorldLength(
+            RoadNetwork network,
+            Road road,
+            ICoordinateService coordinates) {
+        if (network == null || road == null) {
+            return 0.0;
+        }
+        double total = 0.0;
+        for (String segmentId : orderedSegmentIds(network, road)) {
+            RoadEdge edge = network.getEdge(segmentId);
+            if (edge != null) {
+                total += computeEdgeWorldLength(edge, coordinates);
+            }
+        }
+        return total;
+    }
+
+    public static double computeEdgeWorldLength(RoadEdge edge, ICoordinateService coordinates) {
+        if (edge == null) {
+            return 0.0;
+        }
+        return RoadGeometryUtils.calculateWorldPathLength(coordinates, edge.getCenterlinePoints());
+    }
+
+    public static double computeNetworkWorldLength(RoadNetwork network, ICoordinateService coordinates) {
+        if (network == null) {
+            return 0.0;
+        }
+        return network.getEdges().values().stream()
+            .mapToDouble(edge -> computeEdgeWorldLength(edge, coordinates))
+            .sum();
     }
 
     public static List<String> orderedSegmentIds(RoadNetwork network, Road road) {

@@ -18,6 +18,7 @@ import com.plot.core.geometry.shapes.SpiralShape;
 import com.plot.core.geometry.shapes.TextShape;
 import com.plot.core.model.Shape;
 import com.plot.api.world.ICoordinateService;
+import com.plot.core.geometry.WorldProjectionMath;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -340,6 +341,15 @@ public final class RoadGeometryUtils {
             total += points.get(i).distance(points.get(i + 1));
         }
         return total;
+    }
+
+    /** 投影到 Minecraft XZ 后的路径总长度（blocks），与视图范围相关。 */
+    public static double calculateWorldPathLength(ICoordinateService coordinates, List<Vec2d> points) {
+        return WorldProjectionMath.pathWorldLength(coordinates, points);
+    }
+
+    public static double calculateWorldPathLength(ICoordinateService coordinates, Shape shape) {
+        return calculateWorldPathLength(coordinates, extractShapePoints(shape));
     }
 
     /**

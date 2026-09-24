@@ -97,7 +97,8 @@ public final class RoadGeneratePanel {
             "plugin.road.build.network_scope_summary",
             network.getRoads().size(),
             network.getJunctionCount(),
-            network.getTotalLength()));
+            RoadUiFormat.format(RoadEdgeListHelper.computeNetworkWorldLength(
+                network, ctx.host().coordinates()))));
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.build.network_scope_hint"));

@@ -20,6 +20,7 @@ import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadPathPickSession;
+import com.plot.plugin.road.ui.RoadUiFormat;
 import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -162,6 +163,10 @@ public final class RoadToolManager {
         return RoadGeometryUtils.calculatePathLength(RoadGeometryUtils.extractShapePoints(path));
     }
 
+    public double calculateWorldPathLength(Shape path) {
+        return RoadGeometryUtils.calculateWorldPathLength(host.coordinates(), path);
+    }
+
     public void activatePathDrawingTool() {
         ToolManager toolManager = host.tools();
         var polylineTool = toolManager.getTool("polyline");
@@ -204,15 +209,15 @@ public final class RoadToolManager {
                     pathsPickedHandler.accept(List.copyOf(selectedPaths));
                 } else if (selectedPaths.size() == 1) {
                     status.success(String.format(PlotI18n.tr("plugin.road.path_selected"),
-                        calculatePathLength(selectedPaths.getFirst())));
+                        RoadUiFormat.format(calculateWorldPathLength(selectedPaths.getFirst()))));
                 } else {
                     double totalLength = selectedPaths.stream()
-                        .mapToDouble(RoadToolManager::calculatePathLength)
+                        .mapToDouble(this::calculateWorldPathLength)
                         .sum();
                     status.success(String.format(
                         PlotI18n.tr("plugin.road.paths_selected"),
                         selectedPaths.size(),
-                        totalLength));
+                        RoadUiFormat.format(totalLength)));
                 }
             }
             case NEED_SELECTION -> status.warning(PlotI18n.status("status.plot.road.pick_path_need_selection"));

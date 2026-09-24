@@ -18,6 +18,10 @@ public final class RoadUiWidgets {
     private RoadUiWidgets() {
     }
 
+    public static String stableSelectableLabel(String visibleLabel, String idSuffix) {
+        return visibleLabel + "##" + idSuffix;
+    }
+
     /** 当前内容区右边界，供 {@link ImGui#pushTextWrapPos(float)} 使用。 */
     public static float wrapPos() {
         return ImGui.getCursorPosX() + ImGui.getContentRegionAvailX();
