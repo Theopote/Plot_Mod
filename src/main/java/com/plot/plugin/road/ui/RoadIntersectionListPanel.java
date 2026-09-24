@@ -56,17 +56,15 @@ public final class RoadIntersectionListPanel {
     }
 
     private void renderJunctionRow(RoadNetwork network, RoadNode node, boolean selected) {
-        ImGui.pushID(node.getId());
         RoadNetworkBuilder.JunctionType type =
             ctx.networkManager().getNetworkBuilder().classify(node);
         String title = formatJunctionTitle(network, node, type);
         int flags = selected ? ImGuiTreeNodeFlags.DefaultOpen : ImGuiTreeNodeFlags.None;
         if (!ImGui.collapsingHeader(title + "##junction_" + node.getId(), flags)) {
-            ImGui.popID();
             return;
         }
 
-        if (ImGui.button(PlotI18n.tr("plugin.road.path.focus_junction") + "##focus")) {
+        if (ImGui.button(PlotI18n.tr("plugin.road.path.focus_junction") + "##focus_" + node.getId())) {
             focusJunction(network, node);
         }
 
@@ -81,8 +79,6 @@ public final class RoadIntersectionListPanel {
                 PluginUiColors.WARNING,
                 PlotI18n.tr("plugin.road.path.complex_grade_separation_hint"));
         }
-
-        ImGui.popID();
     }
 
     private void focusJunction(RoadNetwork network, RoadNode node) {
