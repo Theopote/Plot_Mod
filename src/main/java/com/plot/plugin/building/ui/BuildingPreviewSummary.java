@@ -21,9 +21,7 @@ public final class BuildingPreviewSummary {
             return;
         }
         if (ctx.previewValidity(targets) == BuildingPreviewIdentity.Validity.STALE) {
-            ImGui.textColored(
-                PluginUiColors.WARNING,
-                PlotI18n.tr("plugin.building.generate.parameters_changed"));
+            return;
         }
 
         List<BuildingGenerationIssues.Issue> issues = ctx.collectPreviewIssues(targets);
