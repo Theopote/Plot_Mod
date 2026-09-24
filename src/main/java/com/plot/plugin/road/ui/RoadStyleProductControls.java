@@ -8,22 +8,31 @@ import imgui.ImGui;
 
 /**
  * 样式 / 建造 Tab 的产品化控件（坡度预设、地形适应预设），隐藏底层工程参数。
+ * <p>
+ * 坡度预设与 {@link RoadSystemConfig} 默认 maxSlope=10% 对齐；地形适应三档分别偏向
+ * 少填挖/默认/多填挖，并联动桥隧触发阈值。
  */
 public final class RoadStyleProductControls {
-    private static final float SLOPE_GENTLE = 6.0f;
+    /** 平缓：园区、步行友好纵坡。 */
+    private static final float SLOPE_GENTLE = 5.0f;
+    /** 标准：与全局默认一致。 */
     private static final float SLOPE_STANDARD = 10.0f;
-    private static final float SLOPE_STEEP = 15.0f;
+    /** 陡峭：山地/服务道路，仍控制在常见工程上限内。 */
+    private static final float SLOPE_STEEP = 18.0f;
     private static final float SLOPE_EPSILON = 0.05f;
 
-    private static final float TERRAIN_FOLLOW_FILL = 1.05f;
-    private static final int TERRAIN_FOLLOW_BRIDGE = 5;
-    private static final int TERRAIN_FOLLOW_TUNNEL = 6;
+    /** 贴合地形：尽量少动土方，仅大高差才桥隧。 */
+    private static final float TERRAIN_FOLLOW_FILL = 1.02f;
+    private static final int TERRAIN_FOLLOW_BRIDGE = 6;
+    private static final int TERRAIN_FOLLOW_TUNNEL = 8;
 
+    /** 平衡：与 {@link RoadSystemConfig} 出厂默认一致。 */
     private static final float TERRAIN_BALANCED_FILL = 1.1f;
     private static final int TERRAIN_BALANCED_BRIDGE = 3;
     private static final int TERRAIN_BALANCED_TUNNEL = 4;
 
-    private static final float TERRAIN_FLATTEN_FILL = 1.25f;
+    /** 尽量平整：更积极填挖，较低桥隧阈值。 */
+    private static final float TERRAIN_FLATTEN_FILL = 1.35f;
     private static final int TERRAIN_FLATTEN_BRIDGE = 2;
     private static final int TERRAIN_FLATTEN_TUNNEL = 3;
 
@@ -107,6 +116,9 @@ public final class RoadStyleProductControls {
         if (ImGui.button(PlotI18n.tr(preset.labelKey) + "##road_slope_" + preset.name())) {
             onClick.run();
         }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr(preset.hintKey, preset.slopePercent()));
+        }
         if (selected) {
             ImGui.popStyleColor();
         }
@@ -119,6 +131,13 @@ public final class RoadStyleProductControls {
         }
         if (ImGui.button(PlotI18n.tr(preset.labelKey) + "##road_terrain_" + preset.name())) {
             onClick.run();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr(
+                preset.hintKey,
+                preset.fillFactor(),
+                preset.bridgeThreshold(),
+                preset.tunnelThreshold()));
         }
         if (selected) {
             ImGui.popStyleColor();
@@ -186,28 +205,71 @@ public final class RoadStyleProductControls {
     }
 
     private enum SlopePreset {
-        GENTLE("plugin.road.slope_preset.gentle"),
-        STANDARD("plugin.road.slope_preset.standard"),
-        STEEP("plugin.road.slope_preset.steep"),
-        CUSTOM("plugin.road.slope_preset.custom");
+        GENTLE("plugin.road.slope_preset.gentle", "plugin.road.slope_preset.gentle.hint", SLOPE_GENTLE),
+        STANDARD("plugin.road.slope_preset.standard", "plugin.road.slope_preset.standard.hint", SLOPE_STANDARD),
+        STEEP("plugin.road.slope_preset.steep", "plugin.road.slope_preset.steep.hint", SLOPE_STEEP),
+        CUSTOM("plugin.road.slope_preset.custom", "plugin.road.slope_preset.custom", Float.NaN);
 
         private final String labelKey;
+        private final String hintKey;
+        private final float slopeValue;
 
-        SlopePreset(String labelKey) {
+        SlopePreset(String labelKey, String hintKey, float slopeValue) {
             this.labelKey = labelKey;
+            this.hintKey = hintKey;
+            this.slopeValue = slopeValue;
+        }
+
+        String slopePercent() {
+            return Float.isNaN(slopeValue) ? "—" : String.format("%.0f", slopeValue);
         }
     }
 
     private enum TerrainPreset {
-        FOLLOW("plugin.road.terrain_preset.follow"),
-        BALANCED("plugin.road.terrain_preset.balanced"),
-        FLATTEN("plugin.road.terrain_preset.flatten"),
-        CUSTOM("plugin.road.terrain_preset.custom");
+        FOLLOW(
+            "plugin.road.terrain_preset.follow",
+            "plugin.road.terrain_preset.follow.hint",
+            TERRAIN_FOLLOW_FILL,
+            TERRAIN_FOLLOW_BRIDGE,
+            TERRAIN_FOLLOW_TUNNEL),
+        BALANCED(
+            "plugin.road.terrain_preset.balanced",
+            "plugin.road.terrain_preset.balanced.hint",
+            TERRAIN_BALANCED_FILL,
+            TERRAIN_BALANCED_BRIDGE,
+            TERRAIN_BALANCED_TUNNEL),
+        FLATTEN(
+            "plugin.road.terrain_preset.flatten",
+            "plugin.road.terrain_preset.flatten.hint",
+            TERRAIN_FLATTEN_FILL,
+            TERRAIN_FLATTEN_BRIDGE,
+            TERRAIN_FLATTEN_TUNNEL),
+        CUSTOM("plugin.road.terrain_preset.custom", "plugin.road.terrain_preset.custom", 0f, 0, 0);
 
         private final String labelKey;
+        private final String hintKey;
+        private final float fillFactor;
+        private final int bridgeThreshold;
+        private final int tunnelThreshold;
 
-        TerrainPreset(String labelKey) {
+        TerrainPreset(String labelKey, String hintKey, float fillFactor, int bridgeThreshold, int tunnelThreshold) {
             this.labelKey = labelKey;
+            this.hintKey = hintKey;
+            this.fillFactor = fillFactor;
+            this.bridgeThreshold = bridgeThreshold;
+            this.tunnelThreshold = tunnelThreshold;
+        }
+
+        String fillFactor() {
+            return String.format("%.2f", fillFactor);
+        }
+
+        int bridgeThreshold() {
+            return bridgeThreshold;
+        }
+
+        int tunnelThreshold() {
+            return tunnelThreshold;
         }
     }
 }
