@@ -37,16 +37,7 @@ public final class RoadOverviewPanel {
             String.format("%.1f", network.getTotalLength())));
 
         renderHealthWarnings(network);
-
-        RoadNetworkOverviewRenderer.render(
-            network,
-            ctx.networkManager().getNetworkBuilder(),
-            ctx.networkManager().getConfig(),
-            ctx.networkManager().getSelectedEdgeIds(),
-            ctx.networkManager().getSelectedNodeId(),
-            edgeId -> ctx.networkManager().handleEdgeSelect(edgeId, ImGui.getIO().getKeyCtrl()),
-            ctx.networkManager()::handleNodeSelect
-        );
+        renderNetworkMap(network);
 
         ImGui.spacing();
         if (hasSelection()) {
@@ -57,6 +48,26 @@ public final class RoadOverviewPanel {
         ImGui.spacing();
         ImGui.separator();
         RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.network_map_hint"));
+    }
+
+    public void renderNetworkMap(RoadNetwork network) {
+        if (network == null || network.getEdges().isEmpty()) {
+            return;
+        }
+        RoadNetworkOverviewRenderer.render(
+            network,
+            ctx.networkManager().getNetworkBuilder(),
+            ctx.networkManager().getConfig(),
+            ctx.networkManager().getSelectedEdgeIds(),
+            ctx.networkManager().getSelectedNodeId(),
+            edgeId -> {
+                ctx.networkManager().handleEdgeSelect(edgeId, ImGui.getIO().getKeyCtrl());
+                ctx.requestOverlayRefresh();
+            },
+            nodeId -> {
+                ctx.networkManager().handleNodeSelect(nodeId);
+                ctx.requestOverlayRefresh();
+            });
     }
 
     public void renderCompactNetworkSummary() {

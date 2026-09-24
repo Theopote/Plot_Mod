@@ -47,4 +47,10 @@ class RoadNetworkOverviewRendererTest {
     void mapHeightForWidthEnforcesMinimum() {
         assertTrue(RoadNetworkOverviewRenderer.mapHeightForWidth(40f) >= 80f);
     }
+
+    @Test
+    void thumbnailMatchesBuildingFootprintSize() {
+        assertEquals(104f, RoadNetworkOverviewRenderer.thumbnailWidth(), 0.01f);
+        assertEquals(68f, RoadNetworkOverviewRenderer.thumbnailHeight(), 0.01f);
+    }
 }

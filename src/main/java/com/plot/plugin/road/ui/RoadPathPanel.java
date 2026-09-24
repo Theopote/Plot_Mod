@@ -52,15 +52,25 @@ public final class RoadPathPanel {
 
     private void renderRoadList() {
         RoadNetwork network = ctx.networkManager().getNetwork();
-        RoadUiSections.section("plugin.road.path.road_list");
         if (network.getEdges().isEmpty()) {
+            RoadUiSections.section("plugin.road.path.road_list");
             ImGui.textColored(
                 com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.path.empty_hint"));
             return;
         }
+
+        RoadUiSections.section("plugin.road.path.overview");
+        RoadUiWidgets.textWrapped(PlotI18n.tr("plugin.road.network_stats",
+            network.getRoads().size(),
+            network.getJunctionCount(),
+            String.format("%.1f", network.getTotalLength())));
+        overviewPanel.renderNetworkMap(network);
+        ImGui.spacing();
+
+        RoadUiSections.section("plugin.road.path.road_list");
         edgeListPanel.renderToolbar("##path");
-        edgeListPanel.renderList(true, "path_edge_list");
+        edgeListPanel.renderList(false, "path_edge_list", true);
     }
 
     private void renderAdvancedPathManagement() {

@@ -30,6 +30,8 @@ public final class RoadNetworkOverviewRenderer {
     private static final float DEFAULT_CANVAS_WIDTH = 800f;
     private static final float DEFAULT_CANVAS_HEIGHT = 600f;
     private static final float PADDING = 10f;
+    private static final float THUMBNAIL_WIDTH = 104f;
+    private static final float THUMBNAIL_HEIGHT = 68f;
     private static final float NODE_RADIUS = 4f;
     private static final float SELECTED_NODE_RADIUS = 6f;
     private static final float EDGE_THICKNESS = 1.5f;
@@ -48,7 +50,61 @@ public final class RoadNetworkOverviewRenderer {
     private static final int COLOR_JUNCTION_PREVIEW_FILL = 0x334DA6FF;
     private static final int COLOR_JUNCTION_PREVIEW_BORDER = 0xCC4DA6FF;
 
+    private static final int[] ROAD_THUMBNAIL_COLORS = {
+        0xFF4DA6FF,
+        0xFF66CC66,
+        0xFFFFB060,
+        0xFFCC66FF,
+        0xFF66E0E0,
+        0xFFFF8080,
+    };
+
     private RoadNetworkOverviewRenderer() {
+    }
+
+    public static float thumbnailWidth() {
+        return THUMBNAIL_WIDTH;
+    }
+
+    public static float thumbnailHeight() {
+        return THUMBNAIL_HEIGHT;
+    }
+
+    /**
+     * 绘制单条或多段道路的列表缩略图（对齐建筑轮廓 Footprints Tab 行预览）。
+     *
+     * @return 是否点击了缩略图
+     */
+    public static boolean renderRoadThumbnail(
+            RoadNetwork network,
+            List<RoadEdge> edges,
+            boolean selected,
+            int colorIndex) {
+        ImVec2 origin = ImGui.getCursorScreenPos();
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        float x = origin.x;
+        float y = origin.y;
+
+        drawList.addRectFilled(x, y, x + THUMBNAIL_WIDTH, y + THUMBNAIL_HEIGHT, COLOR_BG);
+        int borderColor = selected ? COLOR_EDGE_SELECTED : COLOR_BORDER;
+        drawList.addRect(
+            x, y, x + THUMBNAIL_WIDTH, y + THUMBNAIL_HEIGHT,
+            borderColor, 0f, 0, selected ? 2f : 1f);
+
+        if (network != null && edges != null && !edges.isEmpty()) {
+            Bounds bounds = computeBoundsForEdges(network, edges);
+            MapViewport viewport = buildViewport(bounds, x, y, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
+            int color = selected ? COLOR_EDGE_SELECTED : roadThumbnailColor(colorIndex);
+            float thickness = selected ? SELECTED_EDGE_THICKNESS : EDGE_THICKNESS;
+            drawEdgePolylines(drawList, edges, viewport, color, thickness);
+            drawThumbnailNodes(drawList, network, edges, viewport);
+        }
+
+        ImGui.invisibleButton("##road_thumb", THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.road.path.thumbnail_hint"));
+        }
+        return ImGui.isItemClicked(0);
     }
 
     public static void render(
@@ -281,6 +337,116 @@ public final class RoadNetworkOverviewRenderer {
             case CROSSROAD -> COLOR_CROSSROAD;
             case COMPLEX -> COLOR_COMPLEX;
         };
+    }
+
+    private static int roadThumbnailColor(int colorIndex) {
+        if (ROAD_THUMBNAIL_COLORS.length == 0) {
+            return COLOR_EDGE;
+        }
+        int index = Math.abs(colorIndex) % ROAD_THUMBNAIL_COLORS.length;
+        return ROAD_THUMBNAIL_COLORS[index];
+    }
+
+    private static void drawEdgePolylines(
+            ImDrawList drawList,
+            List<RoadEdge> edges,
+            MapViewport viewport,
+            int color,
+            float thickness) {
+        for (RoadEdge edge : edges) {
+            if (edge == null) {
+                continue;
+            }
+            List<Vec2d> points = edge.getCenterlinePoints();
+            for (int i = 0; i < points.size() - 1; i++) {
+                Vec2d a = points.get(i);
+                Vec2d b = points.get(i + 1);
+                drawList.addLine(
+                    toScreenX(a.x, viewport),
+                    toScreenY(a.y, viewport),
+                    toScreenX(b.x, viewport),
+                    toScreenY(b.y, viewport),
+                    color,
+                    thickness);
+            }
+        }
+    }
+
+    private static void drawThumbnailNodes(
+            ImDrawList drawList,
+            RoadNetwork network,
+            List<RoadEdge> edges,
+            MapViewport viewport) {
+        java.util.LinkedHashSet<String> nodeIds = new java.util.LinkedHashSet<>();
+        for (RoadEdge edge : edges) {
+            if (edge == null) {
+                continue;
+            }
+            nodeIds.add(edge.getStartNodeId());
+            nodeIds.add(edge.getEndNodeId());
+        }
+        for (String nodeId : nodeIds) {
+            RoadNode node = network.getNode(nodeId);
+            if (node == null) {
+                continue;
+            }
+            Vec2d pos = node.getPosition();
+            float sx = toScreenX(pos.x, viewport);
+            float sy = toScreenY(pos.y, viewport);
+            drawList.addCircleFilled(sx, sy, 2.5f, COLOR_ENDPOINT);
+        }
+    }
+
+    static Bounds computeBoundsForEdges(RoadNetwork network, List<RoadEdge> edges) {
+        double minX = Double.POSITIVE_INFINITY;
+        double minY = Double.POSITIVE_INFINITY;
+        double maxX = Double.NEGATIVE_INFINITY;
+        double maxY = Double.NEGATIVE_INFINITY;
+
+        for (RoadEdge edge : edges) {
+            if (edge == null) {
+                continue;
+            }
+            for (Vec2d point : edge.getCenterlinePoints()) {
+                minX = Math.min(minX, point.x);
+                minY = Math.min(minY, point.y);
+                maxX = Math.max(maxX, point.x);
+                maxY = Math.max(maxY, point.y);
+            }
+        }
+        if (network != null) {
+            for (RoadEdge edge : edges) {
+                if (edge == null) {
+                    continue;
+                }
+                for (String nodeId : List.of(edge.getStartNodeId(), edge.getEndNodeId())) {
+                    RoadNode node = network.getNode(nodeId);
+                    if (node == null) {
+                        continue;
+                    }
+                    Vec2d pos = node.getPosition();
+                    minX = Math.min(minX, pos.x);
+                    minY = Math.min(minY, pos.y);
+                    maxX = Math.max(maxX, pos.x);
+                    maxY = Math.max(maxY, pos.y);
+                }
+            }
+        }
+
+        double spanX = maxX - minX;
+        double spanY = maxY - minY;
+        if (!Double.isFinite(minX) || spanX < 1e-6) {
+            minX -= 0.5;
+            maxX += 0.5;
+            spanX = 1.0;
+        }
+        if (!Double.isFinite(minY) || spanY < 1e-6) {
+            minY -= 0.5;
+            maxY += 0.5;
+            spanY = 1.0;
+        }
+        double hitThreshold = Math.max(spanX, spanY) * 0.08;
+        return new Bounds(minX, minY, maxX, maxY, spanX, spanY, hitThreshold);
     }
 
     private static Bounds computeBounds(RoadNetwork network) {
