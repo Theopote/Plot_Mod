@@ -4,6 +4,7 @@ import com.plot.plugin.road.IntersectionProbeResult;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.overlay.RoadOverlayWarningCache;
 import com.plot.plugin.road.ui.RoadUiContext;
 
 import java.util.List;
@@ -27,6 +28,7 @@ public final class RoadRepairDiagnosisCache {
     public static void invalidate() {
         cachedRevision = Long.MIN_VALUE;
         cachedRoadId = "";
+        RoadOverlayWarningCache.invalidate();
     }
 
     public static List<RoadRepairIssue> diagnose(RoadUiContext ctx, RoadNetwork network, Road road) {

@@ -3,14 +3,11 @@ package com.plot.plugin.road.overlay;
 import com.plot.core.model.Shape;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGeometryUtils;
-import com.plot.plugin.road.centerline.RoadCenterlineShapeValidator;
-import com.plot.plugin.road.centerline.RoadCenterlineViolation;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -24,6 +21,7 @@ public final class RoadOverlayController {
     public static List<RoadOverlayEntry> snapshot(
             RoadNetwork network,
             RoadSystemConfig config,
+            long networkRevision,
             LinkedHashSet<String> selectedRoadIds,
             String primaryRoadId,
             List<Shape> pickCandidatePaths,
@@ -32,7 +30,7 @@ public final class RoadOverlayController {
         if (network == null || config == null) {
             return List.of();
         }
-        Set<String> warnings = warningRoadIds(network);
+        Set<String> warnings = RoadOverlayWarningCache.warnings(network, networkRevision);
         Set<String> previewed = previewedRoadIds != null ? previewedRoadIds : Set.of();
         List<RoadOverlayEntry> entries = new ArrayList<>();
 
@@ -112,16 +110,6 @@ public final class RoadOverlayController {
             return RoadOverlayState.SELECTED;
         }
         return RoadOverlayState.REGISTERED;
-    }
-
-    private static Set<String> warningRoadIds(RoadNetwork network) {
-        Set<String> warnings = new HashSet<>();
-        for (RoadCenterlineViolation violation : RoadCenterlineShapeValidator.validate(network)) {
-            if (violation.roadId() != null) {
-                warnings.add(violation.roadId());
-            }
-        }
-        return warnings;
     }
 
     /** 画布点击命中测试：返回最上层道路 id（不含 shape: 前缀候选）。 */

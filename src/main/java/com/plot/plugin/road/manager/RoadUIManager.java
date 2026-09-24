@@ -96,8 +96,6 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             ctx.toolManager().tick();
         }
         ctx.previewManager().tickPreviewJob();
-        refreshOverlaySnapshot();
-        tickOverlayCanvasSelection();
 
         toolbarPanel.render();
 
@@ -113,6 +111,9 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         if (pendingTab != null) {
             ctx.clearPendingTab();
         }
+
+        refreshOverlaySnapshot();
+        tickOverlayCanvasSelection();
     }
 
     /** 拾取完成并自动认领道路后的 UI 反馈。 */
@@ -125,9 +126,8 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         ctx.requestOverlayRefresh();
     }
 
-    /** 画布叠加层渲染前刷新（与 ImGui 面板 render 解耦）。 */
+    /** 画布叠加层渲染前：条目由上一帧插件 UI 结束时刷新，此处不重复 snapshot。 */
     public void refreshOverlayForCanvas() {
-        refreshOverlaySnapshot();
     }
 
     /**
@@ -137,7 +137,6 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         if (!ctx.consumeOverlayForegroundDirty() || !CanvasAccess.isPresent()) {
             return;
         }
-        refreshOverlaySnapshot();
         Canvas canvas = CanvasAccess.get();
         RoadOverlayCompositor.renderForeground(canvas, canvas.getCamera(), overlayEntries);
     }
@@ -151,6 +150,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         overlayEntries = RoadOverlayController.snapshot(
             network,
             ctx.networkManager().getConfig(),
+            ctx.networkManager().getNetworkRevision(),
             selectedRoadIds,
             primaryRoadId,
             candidates,

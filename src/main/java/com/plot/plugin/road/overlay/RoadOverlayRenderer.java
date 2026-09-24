@@ -14,6 +14,8 @@ public final class RoadOverlayRenderer {
     private static final float DASH_ON = 7f;
     private static final float DASH_OFF = 5f;
     private static final float DIRECTION_ARROW_SIZE = 8f;
+    /** 超长走廊跳过填充三角化，避免耳切法 O(n²) 卡死主线程。 */
+    private static final int MAX_FILL_VERTICES = 512;
 
     private RoadOverlayRenderer() {
     }
@@ -48,7 +50,7 @@ public final class RoadOverlayRenderer {
             CanvasCamera camera,
             List<Vec2d> points,
             int fillColor) {
-        if ((fillColor >>> 24) == 0) {
+        if ((fillColor >>> 24) == 0 || points.size() > MAX_FILL_VERTICES) {
             return;
         }
         PolygonTriangulator.TriangulationResult triangulation = PolygonTriangulator.triangulate(points);
