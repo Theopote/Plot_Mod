@@ -40,6 +40,7 @@ public final class RoadUiContext {
 
     private RoadUiTab pendingTab = null;
     private String pendingProfileEdgeId = "";
+    private Runnable pathsAdoptedListener;
 
     public RoadUiContext(
             RoadNetworkManager networkManager,
@@ -296,5 +297,16 @@ public final class RoadUiContext {
         String edgeId = pendingProfileEdgeId;
         pendingProfileEdgeId = "";
         return edgeId;
+    }
+
+    public void setPathsAdoptedListener(Runnable listener) {
+        this.pathsAdoptedListener = listener;
+    }
+
+    /** 路径已自动/手动认领为道路后的 UI 后续（选中、切 Tab 等）。 */
+    public void notifyPathsAdopted() {
+        if (pathsAdoptedListener != null) {
+            pathsAdoptedListener.run();
+        }
     }
 }

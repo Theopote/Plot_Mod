@@ -1,6 +1,8 @@
 package com.plot.plugin;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.plugin.IPlugin;
+import com.plot.core.plugin.PluginManager;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.earthwork.RoadEarthworkCorridorResolver;
 import com.plot.plugin.road.earthwork.RoadEarthworkSurfaceSampler;
@@ -13,10 +15,14 @@ import com.plot.plugin.road.manager.RoadPreviewManager;
 import com.plot.plugin.road.manager.RoadProjectStatus;
 import com.plot.plugin.road.manager.RoadToolManager;
 import com.plot.plugin.road.manager.RoadUIManager;
+import com.plot.plugin.road.overlay.RoadOverlayRenderer;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
+import com.plot.ui.canvas.CanvasCamera;
+import com.plot.ui.canvas.CanvasOverlayRegistry;
 import com.plot.ui.component.ExtensionPanelIcons;
+import imgui.ImDrawList;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +41,8 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
     private RoadPreviewManager previewManager;
     private RoadToolManager toolManager;
     private RoadUIManager uiManager;
+
+    private final CanvasOverlayRegistry.Overlay roadOverlay = this::renderRoadOverlay;
 
     private final EventListener projectLoadedListener = event -> {
         if (event instanceof ProjectLoadedEvent loaded) {
@@ -66,12 +74,14 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
         networkManager = new RoadNetworkManager(config, status);
         persistenceManager = new RoadPersistenceManager(getDataFolder(), status, ctx());
         previewManager = new RoadPreviewManager(status, ctx());
-        // 路网任何变更都使预览失效，避免按过期几何落地
         networkManager.setOnNetworkChanged(previewManager::invalidatePreview);
         toolManager = new RoadToolManager(status, ctx());
-        toolManager.setPathsPickedHandler(networkManager::adoptSelectedPaths);
         uiManager = new RoadUIManager(
             networkManager, previewManager, persistenceManager, toolManager, status, ctx());
+        toolManager.setPathsPickedHandler(paths -> {
+            networkManager.adoptSelectedPaths(paths);
+            uiManager.onPathsPicked();
+        });
 
         try {
             RoadGenerator roadGenerator = new RoadGenerator(config, ctx().coordinates(), ctx().projection());
@@ -84,6 +94,7 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
         try {
             ctx().events().subscribe(this, ProjectLoadedEvent.class, projectLoadedListener);
             ctx().events().subscribe(this, ProjectSavedEvent.class, projectSavedListener);
+            CanvasOverlayRegistry.register(roadOverlay);
             persistenceManager.loadForCurrentProject(
                 networkManager::setNetwork,
                 () -> {
@@ -121,10 +132,23 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
         }
 
         ctx().events().unsubscribeOwner(this);
+        CanvasOverlayRegistry.unregister(roadOverlay);
 
         if (config != null) {
             config.save();
         }
+    }
+
+    private void renderRoadOverlay(ImDrawList drawList, CanvasCamera camera) {
+        if (!isEnabled() || uiManager == null) {
+            return;
+        }
+        IPlugin active = PluginManager.getInstance().getActivePlugin();
+        if (active != this) {
+            return;
+        }
+        uiManager.refreshOverlayForCanvas();
+        RoadOverlayRenderer.render(drawList, camera, uiManager.overlayEntries());
     }
 
     @Override

@@ -71,6 +71,10 @@ public class RoadPathPickSession {
         return accumulatedPaths.size();
     }
 
+    public List<Shape> getAccumulatedPaths() {
+        return List.copyOf(accumulatedPaths.values());
+    }
+
     public void begin() {
         active = true;
         accumulatedPaths.clear();

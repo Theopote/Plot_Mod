@@ -9,7 +9,7 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
 import com.plot.plugin.road.model.RoadTopologyViolation;
-import com.plot.plugin.road.repair.RoadAutoRepair;
+import com.plot.plugin.road.repair.RoadRepairDiagnosisCache;
 import com.plot.plugin.road.station.ChainageDisplayContext;
 import com.plot.plugin.road.station.ChainageDisplayMode;
 import com.plot.plugin.road.station.RoadStationFormat;
@@ -150,12 +150,7 @@ final class RoadDesignPanel {
     }
 
     private void renderRoadTopologyHints(RoadNetwork network, Road road) {
-        if (!RoadAutoRepair.diagnose(
-                network,
-                road,
-                ctx.networkManager().getConfig(),
-                new com.plot.plugin.road.RoadNetworkBuilder().probeIntersectionCompleteness(network),
-                ctx.networkManager().isAdoptIntersectionRepairPending()).isEmpty()) {
+        if (RoadRepairDiagnosisCache.hasIssues(ctx, network, road)) {
             return;
         }
         java.util.List<RoadTopologyViolation> violations = RoadTopologyInvariantValidator.validateRoad(network, road);

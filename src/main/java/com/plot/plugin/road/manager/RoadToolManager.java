@@ -160,6 +160,17 @@ public final class RoadToolManager {
         }
     }
 
+    public List<Shape> getPickOverlayPaths() {
+        if (!pathPickSession.isActive()) {
+            return List.of();
+        }
+        List<Shape> paths = new ArrayList<>(pathPickSession.getAccumulatedPaths());
+        if (paths.isEmpty()) {
+            paths.addAll(RoadGeometryUtils.findAdoptablePaths(host.appState().getSelectedShapes()));
+        }
+        return paths;
+    }
+
     public void activatePathPickTool() {
         ToolManager toolManager = host.tools();
         var selectTool = toolManager.getTool("select");

@@ -1637,6 +1637,8 @@
   "plugin.road.adopt_hint": "Draw a path (polyline, spline, circle, ellipse, arc, rectangle, polygon, spiral, etc.). Right-click after Select path to adopt automatically; or select on canvas / from the dropdown, then click Adopt as Road.",
   "plugin.road.adopt_selection_summary": "Selected: %d paths · %.0f m",
   "plugin.road.adopt_selection_empty": "No path selected",
+  "plugin.road.adopt_existing_network": "%d road(s) in network — pick another path or click a road on canvas",
+  "plugin.road.adopt_use_plot_tools_hint": "Draw a path with Plot drawing tools (line, polyline, arc…), then pick it here.",
   "plugin.road.adopt_picking_active": "Selecting paths — right-click to adopt when ready",
   "plugin.road.adopt_params_section": "Defaults for adopted roads",
   "plugin.road.adopt_as_road": "Adopt as Road",

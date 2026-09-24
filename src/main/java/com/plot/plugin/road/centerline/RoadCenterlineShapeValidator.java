@@ -122,7 +122,7 @@ public final class RoadCenterlineShapeValidator {
         return false;
     }
 
-    static List<Vec2d> buildChainedCenterline(RoadNetwork network, Road road) {
+    public static List<Vec2d> buildChainedCenterline(RoadNetwork network, Road road) {
         List<String> segmentIds = RoadSegmentOrdering.orderedSegmentIds(network, road);
         if (segmentIds.isEmpty()) {
             return List.of();

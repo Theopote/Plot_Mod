@@ -1,7 +1,14 @@
 package com.plot.plugin.road.manager;
 
+import com.plot.api.geometry.Vec2d;
+import com.plot.core.model.Shape;
+import com.plot.core.tool.BaseTool;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.overlay.RoadOverlayController;
+import com.plot.plugin.road.overlay.RoadOverlayEntry;
+import com.plot.plugin.road.repair.RoadRepairDiagnosisCache;
 import com.plot.plugin.road.ui.RoadAdoptPanel;
+import com.plot.plugin.road.ui.RoadAutoRepairUi;
 import com.plot.plugin.road.ui.RoadDefaultParamsPanel;
 import com.plot.plugin.road.ui.RoadEdgeListPanel;
 import com.plot.plugin.road.ui.RoadEditPanel;
@@ -12,11 +19,18 @@ import com.plot.plugin.road.ui.RoadOverviewPanel;
 import com.plot.plugin.road.ui.RoadToolbarPanel;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.RoadUiTab;
+import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.ui.PluginTabScrollUi;
+import com.plot.ui.canvas.Canvas;
+import com.plot.ui.canvas.CanvasAccess;
 import imgui.ImGui;
 import imgui.flag.ImGuiTabBarFlags;
 import imgui.flag.ImGuiTabItemFlags;
+
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * 道路系统 ImGui 界面编排。
@@ -32,6 +46,8 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
     private final RoadJunctionPanel junctionPanel;
     private final RoadNodePropertyPanel nodePropertyPanel;
 
+    private List<RoadOverlayEntry> overlayEntries = List.of();
+
     public RoadUIManager(
             RoadNetworkManager networkManager,
             RoadPreviewManager previewManager,
@@ -41,6 +57,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             com.plot.core.context.PluginContext host) {
         this.ctx = new RoadUiContext(
             networkManager, previewManager, persistenceManager, toolManager, status, host);
+        this.ctx.setPathsAdoptedListener(this::onPathsPicked);
 
         this.edgeListPanel = new RoadEdgeListPanel(ctx);
         this.junctionPanel = new RoadJunctionPanel(ctx);
@@ -50,6 +67,14 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         this.adoptPanel = new RoadAdoptPanel(ctx, new RoadDefaultParamsPanel(ctx));
         this.editPanel = new RoadEditPanel(ctx, edgeListPanel, junctionPanel, nodePropertyPanel);
         this.generatePanel = new RoadGeneratePanel(ctx);
+    }
+
+    public RoadUiContext context() {
+        return ctx;
+    }
+
+    public List<RoadOverlayEntry> overlayEntries() {
+        return overlayEntries;
     }
 
     public void render() {
@@ -62,6 +87,8 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             ctx.toolManager().tick();
         }
         ctx.previewManager().tickPreviewJob();
+        refreshOverlaySnapshot();
+        tickOverlayCanvasSelection();
 
         toolbarPanel.render();
 
@@ -77,6 +104,68 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
 
         if (pendingTab != null) {
             ctx.clearPendingTab();
+        }
+    }
+
+    /** 拾取完成并自动认领道路后的 UI 反馈。 */
+    public void onPathsPicked() {
+        RoadRepairDiagnosisCache.invalidate();
+        LinkedHashSet<String> roadIds = ctx.networkManager().getSelectedRoadIds();
+        if (!roadIds.isEmpty()) {
+            ctx.networkManager().selectRoad(roadIds.getFirst(), false);
+        }
+        ctx.requestTab(RoadUiTab.EDIT);
+    }
+
+    /** 画布叠加层渲染前刷新（与 ImGui 面板 render 解耦）。 */
+    public void refreshOverlayForCanvas() {
+        refreshOverlaySnapshot();
+    }
+
+    private void refreshOverlaySnapshot() {
+        RoadNetwork network = ctx.networkManager().getNetwork();
+        boolean pickActive = ctx.toolManager().getPathPickSession().isActive();
+        List<Shape> candidates = pickActive ? ctx.toolManager().getPickOverlayPaths() : List.of();
+        LinkedHashSet<String> selectedRoadIds = ctx.networkManager().getSelectedRoadIds();
+        String primaryRoadId = selectedRoadIds.isEmpty() ? null : selectedRoadIds.getFirst();
+        overlayEntries = RoadOverlayController.snapshot(
+            network,
+            ctx.networkManager().getConfig(),
+            selectedRoadIds,
+            primaryRoadId,
+            candidates,
+            pickActive,
+            Set.of());
+    }
+
+    private void tickOverlayCanvasSelection() {
+        if (ctx.toolManager().getPathPickSession().isActive()) {
+            return;
+        }
+        if (!CanvasAccess.isPresent()) {
+            return;
+        }
+        Canvas canvas = CanvasAccess.get();
+        Vec2d mouseScreen = new Vec2d(ImGui.getMousePosX(), ImGui.getMousePosY());
+        if (!canvas.isScreenPosInsideCanvas(mouseScreen)) {
+            return;
+        }
+        if (ImGui.getIO().getWantCaptureMouse()) {
+            return;
+        }
+        if (!ImGui.isMouseClicked(0)) {
+            return;
+        }
+        BaseTool tool = ctx.host().appState().getCurrentTool();
+        if (tool == null || !"select".equals(tool.getId())) {
+            return;
+        }
+        Vec2d world = canvas.screenToWorld(mouseScreen);
+        String roadId = RoadOverlayController.hitTestRoad(overlayEntries, world.x, world.y);
+        if (roadId != null && !roadId.isBlank()) {
+            ctx.networkManager().selectRoad(roadId, false);
+            ctx.requestTab(RoadUiTab.EDIT);
+            RoadRepairDiagnosisCache.invalidate();
         }
     }
 
@@ -106,7 +195,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         ctx.toolManager().cancel();
         ctx.cancelPreviewJobSilently();
         ctx.clearTransientUiState();
-        com.plot.plugin.road.ui.RoadAutoRepairUi.invalidateCache();
+        RoadAutoRepairUi.invalidateCache();
     }
 
     @Override

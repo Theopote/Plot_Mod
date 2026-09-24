@@ -59,7 +59,7 @@ public final class RoadEarthworkCorridorResolver {
         return halfWidth + Math.max(0, extraMarginBlocks);
     }
 
-    static List<Vec2d> buildCorridorPolygon(List<Vec2d> centerline, double halfWidth) {
+    public static List<Vec2d> buildCorridorPolygon(List<Vec2d> centerline, double halfWidth) {
         List<Vec2d> left = OffsetHandler.offsetPolyline(centerline, halfWidth);
         List<Vec2d> right = OffsetHandler.offsetPolyline(centerline, -halfWidth);
         if (left.size() < 2 || right.size() < 2) {

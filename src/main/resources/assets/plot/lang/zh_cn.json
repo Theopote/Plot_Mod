@@ -1637,6 +1637,8 @@
   "plugin.road.adopt_hint": "请先画出道路走向（折线/样条/圆/椭圆/弧/矩形/多边形/螺旋等均可）。点「选择路径」后右键可自动认领；或在画布/下拉框选中图形后点「认领为新道路」。",
   "plugin.road.adopt_selection_summary": "已选：%d 条路径 · %.0f m",
   "plugin.road.adopt_selection_empty": "未选择路径",
+  "plugin.road.adopt_existing_network": "路网中已有 %d 条道路 — 可继续拾取路径，或在画布上点击道路",
+  "plugin.road.adopt_use_plot_tools_hint": "请先用 Plot 通用绘图工具（直线、折线、圆弧等）绘制路径，再在此拾取。",
   "plugin.road.adopt_picking_active": "正在选择路径 — 选好后右键可自动认领",
   "plugin.road.adopt_params_section": "认领默认参数",
   "plugin.road.adopt_as_road": "认领为新道路",
