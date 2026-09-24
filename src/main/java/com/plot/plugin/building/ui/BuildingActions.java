@@ -233,7 +233,22 @@ public final class BuildingActions {
                 ? BuildingPreviewIdentity.Validity.STALE
                 : BuildingPreviewIdentity.Validity.NONE;
         }
-        return identity.validityAgainst(targets, hasResult, state.isFrameOnlyGenerate());
+        return identity.validityAgainst(
+            targets, hasResult, state.isFrameOnlyGenerate(), currentProjectionFingerprint());
+    }
+
+    public int currentProjectionFingerprint() {
+        return captureProjection().fingerprint();
+    }
+
+    public String previewStaleMessageKey(List<BuildingFootprint> targets) {
+        BuildingPreviewIdentity identity = state.getPreviewIdentity();
+        if (identity != null
+                && identity.matchesTargetsAndContent(targets, state.isFrameOnlyGenerate())
+                && !identity.matchesProjection(currentProjectionFingerprint())) {
+            return "plugin.building.generate.projection_changed";
+        }
+        return "plugin.building.generate.parameters_changed";
     }
 
     public boolean isFrameOnlyGenerate() {
@@ -302,7 +317,7 @@ public final class BuildingActions {
         }
 
         state.setPreviewIdentity(BuildingPreviewIdentity.capture(
-            previewTargets, state.isFrameOnlyGenerate()));
+            previewTargets, state.isFrameOnlyGenerate(), captureProjection().fingerprint()));
         BuildingMassingPreviewHeights.rebuildCache(
             state,
             district,

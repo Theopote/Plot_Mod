@@ -418,6 +418,10 @@ public final class BuildingUiContext {
         return actions.previewValidity(targets);
     }
 
+    public String previewStaleMessageKey(List<BuildingFootprint> targets) {
+        return actions.previewStaleMessageKey(targets);
+    }
+
     public boolean hasPreviewResult() {
         return actions.hasPreviewResult();
     }

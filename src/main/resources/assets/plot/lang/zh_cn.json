@@ -4168,6 +4168,7 @@
   "plugin.building.generate.summary_info": "ℹ %d 条说明",
   "plugin.building.generate.summary_blocks": "约 %d 方块",
   "plugin.building.generate.parameters_changed": "建筑已修改，请更新预览",
+  "plugin.building.generate.projection_changed": "视图范围已变化，请重新检查可生成",
   "plugin.building.generate.no_issues": "没有问题",
   "plugin.building.issue.skip_empty": "未产生可放置方块",
   "plugin.building.issue.skip_invalid": "轮廓无效",

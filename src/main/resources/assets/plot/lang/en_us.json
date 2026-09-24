@@ -4168,6 +4168,7 @@
   "plugin.building.generate.summary_info": "ℹ %d note(s)",
   "plugin.building.generate.summary_blocks": "~%d blocks",
   "plugin.building.generate.parameters_changed": "Buildings changed — update preview",
+  "plugin.building.generate.projection_changed": "View range changed — check buildability again",
   "plugin.building.generate.no_issues": "No issues",
   "plugin.building.issue.skip_empty": "no blocks produced",
   "plugin.building.issue.skip_invalid": "invalid footprint",
