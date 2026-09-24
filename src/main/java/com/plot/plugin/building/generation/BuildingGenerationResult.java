@@ -7,8 +7,10 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 建筑生成结果（放置记录、土方量、警告与有效屋顶类型）。
@@ -23,6 +25,9 @@ public class BuildingGenerationResult {
 
     /** 场地分析失败且无法确定标高（无 manual / pad）时由 Factory 置位，禁止 Y=64 盲生成。 */
     public boolean skippedDueToSiteAnalysis;
+
+    /** 占地平面在世界 XZ 上的柱列键（供片区重叠合并时裁剪低建筑）。 */
+    public Set<Long> footprintWorldColumns = Set.of();
 
     /** 单栋预览用场地摘要（可选）。 */
     public SitePreviewSummary sitePreview;

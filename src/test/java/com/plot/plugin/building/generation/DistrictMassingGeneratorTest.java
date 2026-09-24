@@ -126,15 +126,18 @@ class DistrictMassingGeneratorTest {
     }
 
     @Test
-    void overlappingBlocksLaterBuildingWins() {
+    void overlappingBlocksDominantBuildingWinsForEqualHeight() {
         BuildingFootprint first = building("first", 0);
         BuildingFootprint second = building("second", 0);
 
         BlockPos shared = new BlockPos(1, 2, 3);
+        java.util.Set<Long> footprintColumns = java.util.Set.of(
+            BuildingGenerationPipeline.packWorldColumn(shared.getX(), shared.getZ()));
         DistrictGenerationResult district = DistrictMassingGenerator.generate(
             List.of(first, second),
             footprint -> {
                 BuildingGenerationResult result = new BuildingGenerationResult();
+                result.footprintWorldColumns = footprintColumns;
                 String block = "first".equals(footprint.getId())
                     ? "minecraft:stone"
                     : "minecraft:bricks";
@@ -146,6 +149,72 @@ class DistrictMassingGeneratorTest {
         assertEquals(2, district.buildingsGenerated());
         assertEquals(1, district.totalBlocks());
         assertEquals("minecraft:bricks", district.mergedPlacementRecords().get(shared).newBlockId);
+    }
+
+    @Test
+    void tallerBuildingWinsOverlappingFootprint() {
+        BuildingFootprint shortBuilding = building("short", 0);
+        shortBuilding.setFloors(2);
+        BuildingFootprint tallBuilding = building("tall", 0);
+        tallBuilding.setFloors(6);
+
+        BlockPos shared = new BlockPos(1, 2, 3);
+        java.util.Set<Long> footprintColumns = java.util.Set.of(
+            BuildingGenerationPipeline.packWorldColumn(shared.getX(), shared.getZ()));
+        DistrictGenerationResult district = DistrictMassingGenerator.generate(
+            List.of(shortBuilding, tallBuilding),
+            footprint -> {
+                BuildingGenerationResult result = new BuildingGenerationResult();
+                result.footprintWorldColumns = footprintColumns;
+                String block = "tall".equals(footprint.getId())
+                    ? "minecraft:stone"
+                    : "minecraft:bricks";
+                result.placementRecords.put(shared, new BlockRecord(shared, "minecraft:air", block));
+                result.blockCount = 1;
+                return result;
+            });
+
+        assertEquals(2, district.buildingsGenerated());
+        assertEquals(1, district.totalBlocks());
+        assertEquals("minecraft:stone", district.mergedPlacementRecords().get(shared).newBlockId);
+    }
+
+    @Test
+    void shorterBuildingSkipsBlocksInsideTallerFootprint() {
+        BuildingFootprint shortBuilding = building("short", 0);
+        shortBuilding.setFloors(2);
+        BuildingFootprint tallBuilding = building("tall", 0);
+        tallBuilding.setFloors(6);
+
+        BlockPos overlap = new BlockPos(2, 4, 2);
+        BlockPos outside = new BlockPos(9, 4, 2);
+        java.util.Set<Long> tallFootprint = java.util.Set.of(
+            BuildingGenerationPipeline.packWorldColumn(overlap.getX(), overlap.getZ()));
+
+        DistrictGenerationResult district = DistrictMassingGenerator.generate(
+            List.of(shortBuilding, tallBuilding),
+            footprint -> {
+                BuildingGenerationResult result = new BuildingGenerationResult();
+                if ("tall".equals(footprint.getId())) {
+                    result.footprintWorldColumns = tallFootprint;
+                    result.placementRecords.put(
+                        overlap, new BlockRecord(overlap, "minecraft:air", "minecraft:stone"));
+                } else {
+                    result.footprintWorldColumns = java.util.Set.of(
+                        BuildingGenerationPipeline.packWorldColumn(outside.getX(), outside.getZ()),
+                        BuildingGenerationPipeline.packWorldColumn(overlap.getX(), overlap.getZ()));
+                    result.placementRecords.put(
+                        overlap, new BlockRecord(overlap, "minecraft:air", "minecraft:bricks"));
+                    result.placementRecords.put(
+                        outside, new BlockRecord(outside, "minecraft:air", "minecraft:bricks"));
+                }
+                result.blockCount = result.placementRecords.size();
+                return result;
+            });
+
+        assertEquals("minecraft:stone", district.mergedPlacementRecords().get(overlap).newBlockId);
+        assertEquals("minecraft:bricks", district.mergedPlacementRecords().get(outside).newBlockId);
+        assertEquals(2, district.totalBlocks());
     }
 
     @Test

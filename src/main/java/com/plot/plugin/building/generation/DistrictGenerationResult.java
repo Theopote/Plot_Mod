@@ -74,6 +74,7 @@ public final class DistrictGenerationResult {
     private final Map<BlockPos, BlockRecord> mergedPlacementRecords = new LinkedHashMap<>();
     private final List<String> warnings = new ArrayList<>();
     private final List<BuildingFootprint> successfulBuildings = new ArrayList<>();
+    private final Map<String, Set<Long>> footprintWorldColumnsByBuilding = new HashMap<>();
     private final Map<BlockPos, String> blockOwners = new HashMap<>();
     private final Map<String, String> buildingNames = new HashMap<>();
     private final Set<String> voxelConflictPairKeys = new LinkedHashSet<>();
@@ -216,18 +217,53 @@ public final class DistrictGenerationResult {
             }
             accumulateSiteSummary(result.warnings);
         }
+        Map<BlockPos, BlockRecord> accepted = filterByDominantFootprints(building, result.placementRecords);
         conflictingBlockCount += DistrictOverlapAnalyzer.countConflictingBlocks(
             blockOwners,
-            result.placementRecords,
+            accepted,
             building.getId(),
             voxelConflictPairKeys,
             voxelOverlapPairs,
             buildingNames);
-        // 后写覆盖先写（同格冲突时以后栋为准）
-        for (Map.Entry<BlockPos, BlockRecord> entry : result.placementRecords.entrySet()) {
+        // 高建筑先合并；低建筑在已占优轮廓内不写入（同高时按生成顺序决胜）
+        for (Map.Entry<BlockPos, BlockRecord> entry : accepted.entrySet()) {
             mergedPlacementRecords.put(entry.getKey(), entry.getValue());
         }
+        footprintWorldColumnsByBuilding.put(
+            building.getId(),
+            result.footprintWorldColumns == null ? Set.of() : result.footprintWorldColumns);
         totalBlocks = mergedPlacementRecords.size();
+    }
+
+    private Map<BlockPos, BlockRecord> filterByDominantFootprints(
+            BuildingFootprint building,
+            Map<BlockPos, BlockRecord> placements) {
+        if (placements == null || placements.isEmpty()) {
+            return Map.of();
+        }
+        Map<BlockPos, BlockRecord> accepted = new LinkedHashMap<>();
+        for (Map.Entry<BlockPos, BlockRecord> entry : placements.entrySet()) {
+            BlockPos pos = entry.getKey();
+            if (pos == null || isSuppressedByDominantFootprint(building, pos)) {
+                continue;
+            }
+            accepted.put(pos, entry.getValue());
+        }
+        return accepted;
+    }
+
+    private boolean isSuppressedByDominantFootprint(BuildingFootprint building, BlockPos pos) {
+        long columnKey = BuildingGenerationPipeline.packWorldColumn(pos.getX(), pos.getZ());
+        for (BuildingFootprint dominant : successfulBuildings) {
+            if (!DistrictBuildingPriority.dominates(dominant, building)) {
+                continue;
+            }
+            Set<Long> columns = footprintWorldColumnsByBuilding.get(dominant.getId());
+            if (columns != null && columns.contains(columnKey)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     void addSkipped(BuildingFootprint building, SkipReason reason, String errorDetail) {

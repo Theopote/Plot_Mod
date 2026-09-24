@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -25,6 +26,11 @@ public final class DistrictMassingGenerator {
     private DistrictMassingGenerator() {
     }
 
+    public static List<BuildingFootprint> sortedBuildingsForGeneration(
+            Collection<BuildingFootprint> buildings) {
+        return DistrictBuildingPriority.sortedForGeneration(buildings);
+    }
+
     public static DistrictGenerationResult generate(
             Collection<BuildingFootprint> buildings,
             BuildingGenerateFn generateFn) {
@@ -34,10 +40,7 @@ public final class DistrictMassingGenerator {
             return district;
         }
 
-        for (BuildingFootprint building : buildings) {
-            if (building == null) {
-                continue;
-            }
+        for (BuildingFootprint building : DistrictBuildingPriority.sortedForGeneration(buildings)) {
             processOne(building, generateFn, district);
         }
         district.finalizeOverlaps();

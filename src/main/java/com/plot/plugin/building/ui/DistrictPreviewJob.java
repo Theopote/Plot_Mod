@@ -41,7 +41,9 @@ public final class DistrictPreviewJob {
             boolean autoProjectGhosts,
             boolean buildConfirmOnComplete,
             BuildingActions actions) {
-        this.buildings = buildings == null ? List.of() : List.copyOf(buildings);
+        this.buildings = buildings == null
+            ? List.of()
+            : DistrictMassingGenerator.sortedBuildingsForGeneration(buildings);
         this.autoProjectGhosts = autoProjectGhosts;
         this.buildConfirmOnComplete = buildConfirmOnComplete;
         this.actions = actions;

@@ -12,8 +12,10 @@ import com.plot.plugin.building.generation.stage.WallGenerationStage;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * 建筑生成管线。默认顺序：
@@ -67,8 +69,22 @@ public final class BuildingGenerationPipeline {
             stage.generate(context);
         }
         BuildingGenerationResult result = context.getResult();
+        result.footprintWorldColumns = collectFootprintWorldColumns(context);
         result.blockCount = result.placementRecords.size();
         return result;
+    }
+
+    private static Set<Long> collectFootprintWorldColumns(BuildingGenerationContext context) {
+        Set<Long> columns = new LinkedHashSet<>();
+        for (BuildingGenerationContext.GridCell cell : context.getFootprintCells()) {
+            var column = context.canvasToColumn(cell.center());
+            columns.add(packWorldColumn(column.getX(), column.getZ()));
+        }
+        return columns;
+    }
+
+    public static long packWorldColumn(int x, int z) {
+        return ((long) x << 32) | (z & 0xffffffffL);
     }
 
     public List<BuildingGenerationStage> getStages() {

@@ -48,15 +48,19 @@ class BuildingDistrictScenarioTest {
     }
 
     @Test
-    void districtOverlapLaterWins() {
+    void districtOverlapDominantBuildingWins() {
         BuildingFootprint first = DistrictMassingFixtures.massingFootprint(0, 4);
         BuildingFootprint second = DistrictMassingFixtures.sameGeometry(first, "d-overlap-1");
         BlockPos shared = new BlockPos(1, 2, 3);
+        java.util.Set<Long> footprintColumns = java.util.Set.of(
+            com.plot.plugin.building.generation.BuildingGenerationPipeline.packWorldColumn(
+                shared.getX(), shared.getZ()));
 
         DistrictGenerationResult district = DistrictMassingGenerator.generate(
             List.of(first, second),
             footprint -> {
                 BuildingGenerationResult result = new BuildingGenerationResult();
+                result.footprintWorldColumns = footprintColumns;
                 String block = "d-0".equals(footprint.getId())
                     ? "minecraft:stone"
                     : "minecraft:bricks";
@@ -72,7 +76,6 @@ class BuildingDistrictScenarioTest {
 
         assertEquals(2, district.buildingsGenerated());
         assertTrue(district.hasBuildingOverlap());
-        assertTrue(district.conflictingBlockCount() >= 1);
         assertEquals(2, district.overlappingBuildingCount());
         assertEquals("minecraft:bricks", district.mergedPlacementRecords().get(shared).newBlockId);
     }

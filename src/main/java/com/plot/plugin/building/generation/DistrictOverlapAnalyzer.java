@@ -16,7 +16,7 @@ import java.util.Set;
 /**
  * 片区重叠检测：2D footprint 相交对 + 体素合并冲突计数。
  * <p>
- * 不阻止生成（仍 later-wins），仅提供 warning 数据。
+ * 不阻止生成（重叠区由更高建筑优先合并），仅提供 warning 数据。
  */
 public final class DistrictOverlapAnalyzer {
     private DistrictOverlapAnalyzer() {
