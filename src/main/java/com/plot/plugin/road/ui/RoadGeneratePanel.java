@@ -47,6 +47,11 @@ public final class RoadGeneratePanel {
         com.plot.api.world.PlacementReadiness buildReadiness =
             ctx.host().projection().checkWorldModificationReadiness();
 
+        RoadSelectionHeader.render(ctx);
+        ImGui.separator();
+        renderNetworkBuildScope(network);
+        ImGui.separator();
+
         RoadUiSections.section("plugin.road.section.generation_settings");
         RoadGenerationSettingsPanel.renderPrimary(ctx);
         RoadGenerationSettingsPanel.renderAdvanced(ctx);
@@ -60,6 +65,24 @@ public final class RoadGeneratePanel {
             renderBuildAction(lastGenerationResult, buildReadiness, validationReport());
             renderPreviewDetailsCollapsible(network, lastGenerationResult);
         }
+    }
+
+    private void renderNetworkBuildScope(RoadNetwork network) {
+        RoadUiSections.section("plugin.road.build.generation_scope");
+        if (network.getEdges().isEmpty()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.build.network_scope_empty"));
+            return;
+        }
+        RoadUiWidgets.textWrapped(PlotI18n.tr(
+            "plugin.road.build.network_scope_summary",
+            network.getRoads().size(),
+            network.getJunctionCount(),
+            network.getTotalLength()));
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.build.network_scope_hint"));
     }
 
     private void renderPreviewActions(

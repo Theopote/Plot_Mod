@@ -185,7 +185,6 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         if (roadId != null && !roadId.isBlank()) {
             ctx.networkManager().selectRoad(roadId, false);
             ctx.requestOverlayRefresh();
-            ctx.requestTab(RoadUiTab.STYLE);
             RoadRepairDiagnosisCache.invalidate();
         }
     }

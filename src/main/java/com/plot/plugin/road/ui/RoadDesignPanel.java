@@ -63,12 +63,20 @@ final class RoadDesignPanel {
         renderRoadTopologyHints(network, road);
         renderCenterlineShapeHints(network, road);
 
-        ImGui.separator();
-        RoadCrossSectionEditor.renderPrimaryStyle(ctx, road, ctx::pushRoadEditHistory);
+        renderAdvancedDesignSection(network, road);
+    }
 
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.style.advanced_design"))) {
-            renderAdvancedDesign(network, road, current, chainageDisplay);
+    void renderAdvancedDesignSection(RoadNetwork network, Road road) {
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.style.advanced_design"))) {
+            return;
         }
+        String primaryId = ctx.networkManager().getPrimarySelectedEdgeId();
+        RoadEdge current = network.getEdge(primaryId);
+        if (current == null) {
+            return;
+        }
+        ChainageDisplayContext chainageDisplay = chainageContextOrNull(network, road);
+        renderAdvancedDesign(network, road, current, chainageDisplay);
     }
 
     private void renderCompactHeader(

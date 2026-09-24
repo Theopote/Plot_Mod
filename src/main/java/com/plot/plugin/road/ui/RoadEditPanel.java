@@ -36,14 +36,27 @@ public final class RoadEditPanel {
     public void render() {
         RoadNetwork network = ctx.networkManager().getNetwork();
         ctx.networkManager().ensureSelectionValid();
-
         renderSelectionDispatch(network, network.getEdges().isEmpty());
+        renderAdvancedNetworkSection();
+    }
 
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.style.advanced_network"))) {
-            networkToolsPanel.render(network);
-            ImGui.separator();
-            nodePropertyPanel.renderAllNodesCollapsibleList();
+    RoadDesignPanel designPanel() {
+        return designPanel;
+    }
+
+    void renderNodeJunctionSection() {
+        RoadUiSections.group("plugin.road.section.node_junction");
+        nodePropertyPanel.renderForSelectedNode(junctionPanel);
+    }
+
+    void renderAdvancedNetworkSection() {
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.style.advanced_network"))) {
+            return;
         }
+        RoadNetwork network = ctx.networkManager().getNetwork();
+        networkToolsPanel.render(network);
+        ImGui.separator();
+        nodePropertyPanel.renderAllNodesCollapsibleList();
     }
 
     private void renderSelectionDispatch(RoadNetwork network, boolean edgesEmpty) {
@@ -53,8 +66,7 @@ public final class RoadEditPanel {
         int selectedLogicalCount = selectedRoadCount > 0 ? selectedRoadCount : selectedEdgeCount;
 
         if (selectedNodeId != null && !selectedNodeId.isBlank()) {
-            RoadUiSections.group("plugin.road.section.node_junction");
-            nodePropertyPanel.renderForSelectedNode(junctionPanel);
+            renderNodeJunctionSection();
             return;
         }
 

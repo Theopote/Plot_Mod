@@ -18,6 +18,21 @@ public final class RoadBatchCrossSectionEditor {
     private RoadBatchCrossSectionEditor() {
     }
 
+    public static void renderStyleFields(RoadUiContext ctx, RoadNetworkManager.BatchEditDefaults draft) {
+        CrossSectionDraft sectionDraft = CrossSectionDraft.fromBatchDefaults(draft);
+        CrossSectionDraftMutator mutator = CrossSectionDraftMutator.forDraft(
+            sectionDraft,
+            () -> ctx.networkManager().updateBatchEditDraft(sectionDraft.toBatchDefaults()));
+        CrossSectionDraftEditorOptions options = CrossSectionDraftEditorOptions.styleBatch();
+        CrossSectionDraftEditor.renderMaterials(ctx, mutator, options);
+        ImGui.spacing();
+        CrossSectionDraftEditor.renderFurniture(ctx, mutator, options);
+        RoadNetworkManager.BatchEditDefaults updatedDraft = sectionDraft.toBatchDefaults();
+        if (ImGui.button(PlotI18n.tr("plugin.road.apply_batch"), ImGui.getContentRegionAvailX(), 0)) {
+            ctx.networkManager().applyBatchEdit(updatedDraft);
+        }
+    }
+
     public static void renderDraftFields(RoadUiContext ctx, RoadNetworkManager.BatchEditDefaults draft) {
         CrossSectionDraft sectionDraft = CrossSectionDraft.fromBatchDefaults(draft);
         CrossSectionDraftEditor.render(

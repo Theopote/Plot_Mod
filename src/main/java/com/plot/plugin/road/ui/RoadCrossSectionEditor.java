@@ -63,28 +63,7 @@ public final class RoadCrossSectionEditor {
     }
 
     public static void renderPresetButtons(RoadUiContext ctx, Road road, Runnable onChanged) {
-        if (road == null) {
-            return;
-        }
-        RoadSystemConfig config = ctx.networkManager().getConfig();
-        String themeId = road.getEffectiveThemeId(config);
-        float gap = ImGui.getStyle().getItemSpacingX();
-        float avail = ImGui.getContentRegionAvail().x;
-        int columns = avail >= 120f ? 2 : 1;
-        float buttonWidth = columns == 2 ? (avail - gap) * 0.5f : avail;
-        int column = 0;
-        for (RoadStyle style : config.getStyles()) {
-            if (column > 0) {
-                ImGui.sameLine(0, gap);
-            }
-            if (ImGui.button(PlotI18n.tr("preset.road." + style.id) + "##road_style_" + style.id, buttonWidth, 0)) {
-                ctx.networkManager().mutateNetwork(() -> road.applyStyle(style, themeId));
-                if (onChanged != null) {
-                    onChanged.run();
-                }
-            }
-            column = (column + 1) % columns;
-        }
+        RoadPresetCards.renderForRoad(ctx, road, onChanged);
     }
 
     public static void renderFields(RoadUiContext ctx, Road road, Runnable onHistory) {

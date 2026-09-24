@@ -1,7 +1,6 @@
 package com.plot.plugin.road.ui;
 
-import com.plot.plugin.config.RoadSystemConfig;
-import com.plot.plugin.road.RoadEdgeListHelper;
+import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.ui.PluginUiColors;
@@ -14,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 路线 Tab：当前道路、拾取路径、默认/快速参数、路网摘要、全部道路列表。
+ * 路线 Tab：选择道路、拾取路径、预设、横断面与基础参数（0 / 1 / N 选择态）。
  */
 public final class RoadRoutePanel {
     private final RoadUiContext ctx;
@@ -37,7 +36,7 @@ public final class RoadRoutePanel {
     }
 
     public void render() {
-        renderCurrentRoadHeader();
+        RoadSelectionHeader.render(ctx);
 
         ImGui.separator();
         adoptPanel.render();
@@ -49,49 +48,57 @@ public final class RoadRoutePanel {
         }
 
         ImGui.separator();
-        renderRoadParametersSection();
+        renderWorkspace();
 
         ImGui.separator();
         renderAllRoadsCollapsible();
     }
 
-    private void renderRoadParametersSection() {
-        RoadNetwork network = ctx.networkManager().getNetwork();
-        Road road = ctx.networkManager().getPrimarySelectedRoad();
-        var selectedRoadIds = ctx.networkManager().getSelectedRoadIds();
-
-        if (road != null && selectedRoadIds.size() == 1) {
-            RoadSystemConfig config = ctx.networkManager().getConfig();
-            RoadCrossSectionEditor.renderPreview(road, config);
-            ImGui.spacing();
-            RoadCrossSectionEditor.renderPresetButtons(
-                ctx, road, ctx.networkManager()::pushHistory);
-            ImGui.spacing();
-            RoadRouteQuickTune.renderForRoad(ctx, road, ctx.networkManager()::pushHistory);
-            RoadStyleProductControls.renderRoadMaxSlopePresets(
-                ctx, road, ctx.networkManager()::pushHistory);
-            return;
+    private void renderWorkspace() {
+        RoadSelectionHeader.Mode mode = RoadSelectionHeader.resolveMode(ctx);
+        switch (mode) {
+            case NONE -> renderNoSelectionWorkspace();
+            case SINGLE -> renderSingleRoadWorkspace();
+            case MULTI -> renderMultiRoadWorkspace();
         }
+    }
 
+    private void renderNoSelectionWorkspace() {
+        RoadUiSections.section("plugin.road.route.new_road_defaults");
+        RoadCrossSectionPreviewSection.render(ctx);
+        ImGui.spacing();
         defaultParamsPanel.renderRoutePrimary();
     }
 
-    private void renderCurrentRoadHeader() {
-        RoadNetwork network = ctx.networkManager().getNetwork();
-        ImGui.text(PlotI18n.tr("plugin.road.route.current_road"));
-        ImGui.sameLine();
+    private void renderSingleRoadWorkspace() {
         Road road = ctx.networkManager().getPrimarySelectedRoad();
-        if (road != null) {
-            ImGui.textColored(
-                PluginUiColors.INFO_BLUE,
-                RoadEdgeListHelper.formatRoadLabel(network, road));
-        } else if (network.getEdges().isEmpty()) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, "—");
-        } else {
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.route.current_road_empty"));
+        if (road == null) {
+            return;
         }
+        RoadCrossSectionPreviewSection.render(ctx);
+        ImGui.spacing();
+        RoadPresetCards.renderForRoad(ctx, road, ctx.networkManager()::pushHistory);
+        ImGui.spacing();
+        RoadRouteQuickTune.renderForRoad(ctx, road, ctx.networkManager()::pushHistory);
+        RoadStyleProductControls.renderRoadMaxSlopePresets(
+            ctx, road, ctx.networkManager()::pushHistory);
+
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.route.more_road_settings"))) {
+            defaultParamsPanel.renderAdvancedDefaultsCollapsible();
+        }
+    }
+
+    private void renderMultiRoadWorkspace() {
+        var selectedRoadIds = ctx.networkManager().getSelectedRoadIds();
+        RoadCrossSectionPreviewSection.render(ctx);
+        ImGui.spacing();
+        RoadPresetCards.renderForRoads(ctx, selectedRoadIds, ctx.networkManager()::pushHistory);
+        ImGui.spacing();
+        RoadNetworkManager.BatchEditDefaults synced = ctx.networkManager().loadBatchEditDefaults();
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.batch_edit_hint", selectedRoadIds.size()));
+        RoadBatchCrossSectionEditor.renderDraftFields(ctx, synced);
     }
 
     private void renderAllRoadsCollapsible() {

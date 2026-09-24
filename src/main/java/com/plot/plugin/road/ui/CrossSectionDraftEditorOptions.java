@@ -41,6 +41,11 @@ public record CrossSectionDraftEditorOptions(
         return new CrossSectionDraftEditorOptions("style_adv", false, null, true, true, true, true);
     }
 
+    /** 样式 Tab 批量编辑：材质与附属设施。 */
+    public static CrossSectionDraftEditorOptions styleBatch() {
+        return new CrossSectionDraftEditorOptions("style_batch", false, null, false, false, false, false);
+    }
+
     public static CrossSectionDraftEditorOptions stationVariable(int index) {
         return new CrossSectionDraftEditorOptions("var_xs_" + index, false, null, true, false, true, true);
     }
