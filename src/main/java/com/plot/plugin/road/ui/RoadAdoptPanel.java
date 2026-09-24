@@ -14,31 +14,21 @@ import java.util.List;
  */
 public final class RoadAdoptPanel {
     private final RoadUiContext ctx;
-    private final RoadDefaultParamsPanel defaultParamsPanel;
 
-    public RoadAdoptPanel(RoadUiContext ctx, RoadDefaultParamsPanel defaultParamsPanel) {
+    public RoadAdoptPanel(RoadUiContext ctx) {
         this.ctx = ctx;
-        this.defaultParamsPanel = defaultParamsPanel;
     }
 
     public void render() {
         ctx.toolManager().updateSelectedPaths();
 
-        RoadUiSections.step("plugin.road.section.adopt_step1_centerline");
         renderPickPathButton();
         renderSelectionStatus();
-
-        ImGui.separator();
-        defaultParamsPanel.renderRoadTypeStep();
-
-        ImGui.separator();
-        defaultParamsPanel.renderCrossSectionStep();
-
-        ImGui.separator();
         renderAdoptIntersectionRepairPrompt();
     }
 
     private void renderPickPathButton() {
+        RoadUiSections.step("plugin.road.section.adopt_step1_centerline");
         if (ImGui.button(
             PlotI18n.tr("plugin.road.pick_path"),
             ImGui.getContentRegionAvailX(),

@@ -59,7 +59,15 @@ public final class RoadOverviewPanel {
         RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.network_map_hint"));
     }
 
-    private void renderHealthWarnings(RoadNetwork network) {
+    public void renderCompactNetworkSummary() {
+        RoadNetwork network = ctx.networkManager().getNetwork();
+        RoadUiWidgets.textWrapped(PlotI18n.tr("plugin.road.network_stats",
+            network.getRoads().size(),
+            network.getJunctionCount(),
+            String.format("%.1f", network.getTotalLength())));
+    }
+
+    public void renderHealthWarnings(RoadNetwork network) {
         if (network.getEdges().isEmpty()) {
             return;
         }
@@ -105,7 +113,7 @@ public final class RoadOverviewPanel {
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.overview_multi_road_selected", roadIds.size()));
             if (ImGui.button(PlotI18n.tr("plugin.road.overview_edit_road") + "##overview_multi_edit")) {
-                ctx.requestTab(RoadUiTab.EDIT);
+                ctx.requestTab(RoadUiTab.STYLE);
             }
             return;
         }
@@ -125,7 +133,7 @@ public final class RoadOverviewPanel {
 
         float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
         if (ImGui.button(PlotI18n.tr("plugin.road.overview_edit_road") + "##overview_edit", buttonWidth, 0)) {
-            ctx.requestTab(RoadUiTab.EDIT);
+            ctx.requestTab(RoadUiTab.STYLE);
         }
         ImGui.sameLine();
         String primaryEdgeId = ctx.networkManager().getPrimarySelectedEdgeId();

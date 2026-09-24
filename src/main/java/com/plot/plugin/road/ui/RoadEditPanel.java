@@ -7,8 +7,7 @@ import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.LinkedHashSet;
 
 /**
  * 道路编辑 Tab：网络级批量操作、边列表、基于选中态的节点/边属性编辑。
@@ -18,7 +17,6 @@ import java.util.List;
  */
 public final class RoadEditPanel {
     private final RoadUiContext ctx;
-    private final RoadEdgeListPanel edgeListPanel;
     private final RoadJunctionPanel junctionPanel;
     private final RoadNodePropertyPanel nodePropertyPanel;
     private final RoadNetworkToolsPanel networkToolsPanel;
@@ -26,11 +24,9 @@ public final class RoadEditPanel {
 
     public RoadEditPanel(
             RoadUiContext ctx,
-            RoadEdgeListPanel edgeListPanel,
             RoadJunctionPanel junctionPanel,
             RoadNodePropertyPanel nodePropertyPanel) {
         this.ctx = ctx;
-        this.edgeListPanel = edgeListPanel;
         this.junctionPanel = junctionPanel;
         this.nodePropertyPanel = nodePropertyPanel;
         this.networkToolsPanel = new RoadNetworkToolsPanel(ctx);
@@ -44,18 +40,7 @@ public final class RoadEditPanel {
         networkToolsPanel.render(network);
         ImGui.separator();
 
-        RoadUiSections.section("plugin.road.section.road_list");
-        List<com.plot.plugin.road.model.RoadEdge> allEdges = new ArrayList<>(network.getEdges().values());
-        if (allEdges.isEmpty()) {
-            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_edges"));
-        } else {
-            ImGui.text(PlotI18n.tr("plugin.road.edge_list"));
-            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edge_list_hint"));
-            edgeListPanel.renderToolbar("##edit");
-            edgeListPanel.renderList(true, "edit_edge_list");
-        }
-
-        renderSelectionDispatch(network, allEdges.isEmpty());
+        renderSelectionDispatch(network, network.getEdges().isEmpty());
 
         ImGui.separator();
         nodePropertyPanel.renderAllNodesCollapsibleList();
