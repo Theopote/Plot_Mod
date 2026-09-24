@@ -85,6 +85,7 @@ public final class BuildingBatchEditor {
             target.setRoofMaterial(source.getRoofMaterial());
             target.setFoundationFillMaterial(source.getFoundationFillMaterial());
             target.setWindowMaterial(source.getWindowMaterial());
+            target.setBalconySlabMaterial(source.getBalconySlabMaterial());
         }
         if (mask.roof) {
             target.setRoofType(source.getRoofType());
@@ -97,6 +98,8 @@ public final class BuildingBatchEditor {
             target.setWindowPierWidth(source.getWindowPierWidth());
             target.setWindowHeight(source.getWindowHeight());
             target.setWindowSillHeight(source.getWindowSillHeight());
+            target.setWindowBalconyDepth(source.getWindowBalconyDepth());
+            target.setBalconySlabMaterial(source.getBalconySlabMaterial());
         }
     }
 }

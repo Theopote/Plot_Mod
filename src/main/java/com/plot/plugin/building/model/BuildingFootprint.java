@@ -136,6 +136,8 @@ public class BuildingFootprint {
     private int windowWidth = 1;
     private int windowHeight = 2;
     private int windowSillHeight = 1;
+    private int windowBalconyDepth = 0;
+    private String balconySlabMaterial = DEFAULT_FLOOR_MATERIAL;
 
     private List<FloorPlateSpec> floorPlates = new ArrayList<>();
     private List<WallFacadeSpec> wallFacades = new ArrayList<>();
@@ -391,6 +393,24 @@ public class BuildingFootprint {
         }
     }
 
+    /** 窗下阳台进深（格）；0 表示不生成。 */
+    public int getWindowBalconyDepth() {
+        return windowBalconyDepth;
+    }
+
+    public void setWindowBalconyDepth(int windowBalconyDepth) {
+        this.windowBalconyDepth = Math.max(0, Math.min(5, windowBalconyDepth));
+    }
+
+    public String getBalconySlabMaterial() {
+        return balconySlabMaterial;
+    }
+
+    public void setBalconySlabMaterial(String balconySlabMaterial) {
+        this.balconySlabMaterial = balconySlabMaterial != null && !balconySlabMaterial.isBlank()
+            ? balconySlabMaterial.trim() : DEFAULT_FLOOR_MATERIAL;
+    }
+
     /** 显式门洞（{@link OpeningKind#DOOR}）。 */
     public List<OpeningSpec> doorOpenings() {
         return openings.stream()
@@ -575,6 +595,8 @@ public class BuildingFootprint {
         hash = 31 * hash + windowWidth;
         hash = 31 * hash + windowHeight;
         hash = 31 * hash + windowSillHeight;
+        hash = 31 * hash + windowBalconyDepth;
+        hash = 31 * hash + Objects.hashCode(balconySlabMaterial);
         hash = 31 * hash + Objects.hashCode(facadeEdgeScope);
         hash = 31 * hash + (parapetEnabled ? 1 : 0);
         hash = 31 * hash + parapetHeight;

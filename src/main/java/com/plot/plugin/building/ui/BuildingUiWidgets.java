@@ -91,6 +91,7 @@ public final class BuildingUiWidgets {
         "plugin.building.label.window_pier_width",
         "plugin.building.label.window_height",
         "plugin.building.label.window_sill",
+        "plugin.building.label.window_balcony_depth",
         "plugin.building.label.height_min_floors",
         "plugin.building.label.height_max_floors",
     };

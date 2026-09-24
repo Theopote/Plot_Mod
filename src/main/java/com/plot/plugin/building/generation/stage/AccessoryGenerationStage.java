@@ -4,9 +4,11 @@ import com.plot.plugin.building.generation.BuildingGenerationContext;
 import com.plot.plugin.building.generation.component.BalconyGenerator;
 import com.plot.plugin.building.generation.component.CanopyGenerator;
 import com.plot.plugin.building.generation.component.ParapetGenerator;
+import com.plot.plugin.building.generation.component.WindowBalconyGenerator;
 import com.plot.plugin.building.model.spec.AccessorySpec;
 import com.plot.plugin.building.model.spec.BalconySpec;
 import com.plot.plugin.building.model.spec.CanopySpec;
+import com.plot.plugin.building.model.spec.FacadeSpec;
 
 /**
  * 建筑附属构件阶段：仅调度冻结集 {@link com.plot.plugin.building.model.spec.AccessoryKind}
@@ -26,6 +28,9 @@ public final class AccessoryGenerationStage implements BuildingGenerationStage {
 
     @Override
     public void generate(BuildingGenerationContext context) {
+        FacadeSpec facade = context.getDefinition().facade();
+        WindowBalconyGenerator.generate(context, facade);
+
         AccessorySpec accessory = context.getDefinition().accessory();
         if (!accessory.hasAnyEnabled()) {
             return;

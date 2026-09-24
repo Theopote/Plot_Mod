@@ -192,6 +192,8 @@ public class BuildingProject {
         int windowWidth;
         int windowHeight;
         int windowSillHeight;
+        Integer windowBalconyDepth;
+        String balconySlabMaterial;
         List<DoorData> doors = new ArrayList<>();
         List<FloorPlateData> floorPlates = new ArrayList<>();
         List<WallFacadeData> wallFacades = new ArrayList<>();
@@ -257,6 +259,8 @@ public class BuildingProject {
                 buildingData.windowWidth = building.getWindowWidth();
                 buildingData.windowHeight = building.getWindowHeight();
                 buildingData.windowSillHeight = building.getWindowSillHeight();
+                buildingData.windowBalconyDepth = building.getWindowBalconyDepth();
+                buildingData.balconySlabMaterial = building.getBalconySlabMaterial();
                 for (FloorPlateSpec plate : building.getFloorPlates()) {
                     FloorPlateData plateData = new FloorPlateData();
                     plateData.floorStart = plate.floorStart();
@@ -392,6 +396,12 @@ public class BuildingProject {
                 footprint.setWindowWidth(buildingData.windowWidth);
                 footprint.setWindowHeight(buildingData.windowHeight);
                 footprint.setWindowSillHeight(buildingData.windowSillHeight);
+                if (buildingData.windowBalconyDepth != null) {
+                    footprint.setWindowBalconyDepth(buildingData.windowBalconyDepth);
+                }
+                if (buildingData.balconySlabMaterial != null) {
+                    footprint.setBalconySlabMaterial(buildingData.balconySlabMaterial);
+                }
                 if (buildingData.windowsEnabled != null) {
                     footprint.setWindowsEnabled(buildingData.windowsEnabled);
                 }

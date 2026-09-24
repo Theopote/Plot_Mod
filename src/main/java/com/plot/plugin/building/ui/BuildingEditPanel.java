@@ -208,6 +208,13 @@ public final class BuildingEditPanel {
                 building.setWindowMaterial(blockId);
                 ctx.invalidatePreview();
             });
+        BuildingUiWidgets.renderMaterialButton(ctx, PlotI18n.tr("plugin.building.balcony_slab_material"),
+            building.getBalconySlabMaterial(),
+            blockId -> {
+                ctx.projectHistory().push(ctx.project());
+                building.setBalconySlabMaterial(blockId);
+                ctx.invalidatePreview();
+            });
         BuildingUiWidgets.renderMaterialButton(ctx, PlotI18n.tr("plugin.building.roof_material"), building.getRoofMaterial(),
             blockId -> {
                 ctx.projectHistory().push(ctx.project());
@@ -397,6 +404,20 @@ public final class BuildingEditPanel {
             ctx.invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.window_sill");
+
+        int[] balconyDepth = {building.getWindowBalconyDepth()};
+        boolean balconyDepthChanged = BuildingUiWidgets.sliderIntWithRightLabel(
+            "##window_balcony_depth", balconyDepth, 0, 5,
+            "plugin.building.label.window_balcony_depth",
+            BuildingUiWidgets.SliderValueFormat.GRID);
+        if (ImGui.isItemActivated()) {
+            ctx.projectHistory().push(ctx.project());
+        }
+        if (balconyDepthChanged) {
+            building.setWindowBalconyDepth(balconyDepth[0]);
+            ctx.invalidatePreview();
+        }
+        UIUtils.renderEngineeringTooltip("hint.plot.building.window_balcony_depth");
     }
 
     static void renderEarthworkPadElevationHint(BuildingFootprint building) {

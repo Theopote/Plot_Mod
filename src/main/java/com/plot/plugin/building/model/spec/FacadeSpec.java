@@ -17,12 +17,14 @@ public final class FacadeSpec {
     private final List<OpeningSpec> openings;
     private final FacadeEdgeScope edgeScope;
     private final String windowMaterial;
+    private final int windowBalconyDepth;
+    private final String balconySlabMaterial;
 
     public FacadeSpec(
             WindowPatternSpec defaultWindowPattern,
             List<WallFacadeSpec> wallFacades,
             List<OpeningSpec> openings) {
-        this(defaultWindowPattern, wallFacades, openings, FacadeEdgeScope.BASE_FOOTPRINT, null);
+        this(defaultWindowPattern, wallFacades, openings, FacadeEdgeScope.BASE_FOOTPRINT, null, 0, null);
     }
 
     public FacadeSpec(
@@ -30,7 +32,7 @@ public final class FacadeSpec {
             List<WallFacadeSpec> wallFacades,
             List<OpeningSpec> openings,
             FacadeEdgeScope edgeScope) {
-        this(defaultWindowPattern, wallFacades, openings, edgeScope, null);
+        this(defaultWindowPattern, wallFacades, openings, edgeScope, null, 0, null);
     }
 
     public FacadeSpec(
@@ -39,6 +41,17 @@ public final class FacadeSpec {
             List<OpeningSpec> openings,
             FacadeEdgeScope edgeScope,
             String windowMaterial) {
+        this(defaultWindowPattern, wallFacades, openings, edgeScope, windowMaterial, 0, null);
+    }
+
+    public FacadeSpec(
+            WindowPatternSpec defaultWindowPattern,
+            List<WallFacadeSpec> wallFacades,
+            List<OpeningSpec> openings,
+            FacadeEdgeScope edgeScope,
+            String windowMaterial,
+            int windowBalconyDepth,
+            String balconySlabMaterial) {
         this.defaultWindowPattern = defaultWindowPattern != null
             ? defaultWindowPattern
             : new WindowPatternSpec(4, 1, 2, 1);
@@ -50,6 +63,8 @@ public final class FacadeSpec {
             : List.of();
         this.edgeScope = edgeScope != null ? edgeScope : FacadeEdgeScope.BASE_FOOTPRINT;
         this.windowMaterial = normalizeWindowMaterial(windowMaterial);
+        this.windowBalconyDepth = Math.max(0, Math.min(5, windowBalconyDepth));
+        this.balconySlabMaterial = balconySlabMaterial;
     }
 
     public static FacadeSpec from(BuildingFootprint footprint) {
@@ -58,7 +73,9 @@ public final class FacadeSpec {
             footprint.getWallFacades(),
             footprint.getOpenings(),
             footprint.getFacadeEdgeScope(),
-            footprint.getWindowMaterial()
+            footprint.getWindowMaterial(),
+            footprint.getWindowBalconyDepth(),
+            footprint.getBalconySlabMaterial()
         );
     }
 
@@ -80,6 +97,21 @@ public final class FacadeSpec {
 
     public String windowMaterial() {
         return windowMaterial;
+    }
+
+    public int windowBalconyDepth() {
+        return windowBalconyDepth;
+    }
+
+    public String balconySlabMaterial() {
+        return balconySlabMaterial;
+    }
+
+    public String resolvedBalconySlabMaterial() {
+        if (balconySlabMaterial != null && !balconySlabMaterial.isBlank()) {
+            return balconySlabMaterial.trim();
+        }
+        return BuildingFootprint.DEFAULT_FLOOR_MATERIAL;
     }
 
     /** 显式门洞（{@link OpeningKind#DOOR}）。 */
