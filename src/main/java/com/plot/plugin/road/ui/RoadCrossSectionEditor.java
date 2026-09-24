@@ -68,7 +68,6 @@ public final class RoadCrossSectionEditor {
         }
         RoadSystemConfig config = ctx.networkManager().getConfig();
         String themeId = road.getEffectiveThemeId(config);
-        RoadUiWidgets.textWrapped(PlotI18n.tr("plugin.road.apply_preset_to_road"));
         float gap = ImGui.getStyle().getItemSpacingX();
         float avail = ImGui.getContentRegionAvail().x;
         int columns = avail >= 120f ? 2 : 1;
@@ -93,7 +92,7 @@ public final class RoadCrossSectionEditor {
     }
 
     /**
-     * 样式 Tab 主界面：预览、预设、横断面、材质与附属设施（不含工程级线形与边坡参数）。
+     * 样式 Tab 主界面：预览、外观横断面、材质与附属设施（宽度/车道/坡度在路线 Tab）。
      */
     public static void renderPrimaryStyle(RoadUiContext ctx, Road road, Runnable onHistory) {
         if (road == null) {
@@ -101,12 +100,9 @@ public final class RoadCrossSectionEditor {
         }
         RoadSystemConfig config = ctx.networkManager().getConfig();
         CrossSectionDraftMutator mutator = CrossSectionDraftMutator.forRoad(road, config, onHistory);
-        CrossSectionDraftEditorOptions options = CrossSectionDraftEditorOptions.stylePrimary();
+        CrossSectionDraftEditorOptions options = CrossSectionDraftEditorOptions.styleAppearance();
 
-        RoadThemeSelector.renderForRoad(road, config, onHistory);
-        ImGui.spacing();
         renderPreview(road, config);
-        renderPresetButtons(ctx, road, null);
         ImGui.spacing();
         CrossSectionDraftEditor.renderCrossSection(ctx, mutator, options);
 

@@ -90,38 +90,43 @@ public final class CrossSectionDraftEditor {
 
         int laneCount = draft.laneCount();
         int[] laneCountArr = {laneCount};
-        if (ImGui.sliderInt(
-            PlotI18n.tr("plugin.road.lane_count", laneCountArr[0]) + "##" + id + "_lanes",
-            laneCountArr,
-            RoadParameterLimits.MIN_LANE_COUNT,
-            RoadParameterLimits.MAX_LANE_COUNT,
-            "%d")) {
-            if (roadEdit) {
-                hooks.onItemActivated();
+        if (editor.options.showCarriagewayCore()) {
+            if (ImGui.sliderInt(
+                PlotI18n.tr("plugin.road.lane_count", laneCountArr[0]) + "##" + id + "_lanes",
+                laneCountArr,
+                RoadParameterLimits.MIN_LANE_COUNT,
+                RoadParameterLimits.MAX_LANE_COUNT,
+                "%d")) {
+                if (roadEdit) {
+                    hooks.onItemActivated();
+                }
+                mutator.setLaneCount(laneCountArr[0]);
             }
-            mutator.setLaneCount(laneCountArr[0]);
-        }
-        laneCount = draft.laneCount();
-        mutator.afterLaneCountField();
+            laneCount = draft.laneCount();
+            mutator.afterLaneCountField();
 
-        int width = draft.width();
-        int[] widthArr = {width};
-        if (ImGui.sliderInt(
-            PlotI18n.tr("plugin.road.road_width", widthArr[0]) + "##" + id + "_width",
-            widthArr,
-            RoadParameterLimits.MIN_CARRIAGEWAY_WIDTH,
-            RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH,
-            "%d")) {
-            if (ImGui.isItemActivated()) {
-                hooks.onItemActivated();
+            int width = draft.width();
+            int[] widthArr = {width};
+            if (ImGui.sliderInt(
+                PlotI18n.tr("plugin.road.road_width", widthArr[0]) + "##" + id + "_width",
+                widthArr,
+                RoadParameterLimits.MIN_CARRIAGEWAY_WIDTH,
+                RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH,
+                "%d")) {
+                if (ImGui.isItemActivated()) {
+                    hooks.onItemActivated();
+                }
+                mutator.setWidth(widthArr[0]);
             }
-            mutator.setWidth(widthArr[0]);
+            width = draft.width();
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.road.road_width"));
+            }
+            mutator.afterWidthField();
+        } else {
+            laneCount = draft.laneCount();
         }
-        width = draft.width();
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.road_width"));
-        }
-        mutator.afterWidthField();
+        int width = draft.width();
 
         if (editor.options.showLaneWidths() && laneCount > 1) {
             var resolved = draft.resolveLaneWidths();

@@ -78,9 +78,9 @@ public final class RoadStyleProductControls {
             return;
         }
         ImGui.text(PlotI18n.tr("plugin.road.build.terrain_adaptation"));
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.build.terrain_adaptation_hint"));
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.road.build.terrain_adaptation_hint"));
+        }
         TerrainPreset active = detectTerrainPreset(config);
         renderTerrainPresetButton(
             TerrainPreset.FOLLOW,

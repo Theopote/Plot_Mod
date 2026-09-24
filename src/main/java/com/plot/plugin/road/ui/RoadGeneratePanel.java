@@ -43,26 +43,37 @@ public final class RoadGeneratePanel {
 
     public void render() {
         RoadNetwork network = ctx.networkManager().getNetwork();
-        float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
-        boolean hasNetwork = !network.getEdges().isEmpty();
+        RoadNetworkValidationReport preflight = preflightReport(network);
+        com.plot.api.world.PlacementReadiness buildReadiness =
+            ctx.host().projection().checkWorldModificationReadiness();
 
         RoadUiSections.section("plugin.road.section.generation_settings");
         RoadGenerationSettingsPanel.renderPrimary(ctx);
         RoadGenerationSettingsPanel.renderAdvanced(ctx);
         ImGui.separator();
 
-        RoadUiSections.section("plugin.road.section.preview");
+        renderPreviewActions(network, preflight, buildReadiness);
 
-        RoadNetworkValidationReport preflight =
-            RoadNetworkEngineeringValidator.analyzePreGeneration(network);
+        RoadGenerationResult lastGenerationResult = ctx.previewManager().getLastGenerationResult();
+        if (ctx.previewManager().hasValidPreview() && lastGenerationResult != null) {
+            renderCompactPreviewSummary(lastGenerationResult);
+            renderBuildAction(lastGenerationResult, buildReadiness, validationReport());
+            renderPreviewDetailsCollapsible(network, lastGenerationResult);
+        }
+    }
+
+    private void renderPreviewActions(
+            RoadNetwork network,
+            RoadNetworkValidationReport preflight,
+            com.plot.api.world.PlacementReadiness buildReadiness) {
+        float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
+        boolean hasNetwork = !network.getEdges().isEmpty();
+        boolean previewBlocked = !hasNetwork || preflight.blocksBuild() || ctx.previewManager().isPreviewJobRunning();
+
         if (!preflight.items().isEmpty()) {
             RoadNetworkValidationPanel.render(preflight, ctx);
         }
 
-        boolean previewBlocked = !hasNetwork || preflight.blocksBuild() || ctx.previewManager().isPreviewJobRunning();
-        if (!hasNetwork) {
-            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_edges"));
-        }
         if (previewBlocked) {
             ImGui.beginDisabled();
         }
@@ -86,74 +97,77 @@ public final class RoadGeneratePanel {
             ImGui.endDisabled();
         }
 
-        if (!hasNetwork) {
-            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.draw_path_hint"));
-        }
-
-        com.plot.api.world.PlacementReadiness buildReadiness =
-            ctx.host().projection().checkWorldModificationReadiness();
         if (!buildReadiness.ready()) {
             RoadUiWidgets.textWrappedColored(PluginUiColors.ERROR_SOFT, buildReadiness.message());
         }
         RoadUiWidgets.renderRoadVisibilityWarning(ctx);
+    }
 
-        RoadGenerationResult lastGenerationResult = ctx.previewManager().getLastGenerationResult();
-        if (ctx.previewManager().hasValidPreview() && lastGenerationResult != null) {
-            ImGui.separator();
-            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.preview_projection_hint"));
-            ImGui.text(PlotI18n.tr("plugin.road.calc_results"));
-            ImGui.text(PlotI18n.tr("plugin.road.cut_volume_result", lastGenerationResult.cutVolume));
-            ImGui.text(PlotI18n.tr("plugin.road.fill_volume_result", lastGenerationResult.fillVolume));
-            ImGui.text(PlotI18n.tr("plugin.road.construction_length_result",
-                lastGenerationResult.normalRoadLength,
-                lastGenerationResult.bridgeLength,
-                lastGenerationResult.tunnelLength));
-            ImGui.text(PlotI18n.tr("plugin.road.bridge_count_result",
-                lastGenerationResult.bridgeCount, lastGenerationResult.bridgeBlocks.size()));
-            ImGui.text(PlotI18n.tr("plugin.road.tunnel_count_result",
-                lastGenerationResult.tunnelCount, lastGenerationResult.tunnelBlocks.size()));
-            ImGui.text(PlotI18n.tr("plugin.road.streetlight_count_result", lastGenerationResult.streetlightCount));
+    private void renderCompactPreviewSummary(RoadGenerationResult result) {
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr(
+            "plugin.road.build.compact_summary",
+            result.placementRecords.size(),
+            result.bridgeCount,
+            result.tunnelCount,
+            result.streetlightCount));
+    }
 
-            RoadUiSections.section("plugin.road.section.validation");
-            RoadNetworkValidationReport validationReport = validationReport();
-            RoadNetworkValidationPanel.render(validationReport, ctx);
-
-            RoadUiSections.section("plugin.road.section.longitudinal_profile");
-            renderLongitudinalProfile(network);
-
-            RoadUiSections.section("plugin.road.section.build");
-
-            boolean hasPlacements = !lastGenerationResult.placementRecords.isEmpty();
-            if (!hasPlacements) {
-                RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING_LIGHT, PlotI18n.tr("plugin.road.generate_empty_result"));
-            }
-
-            RoadNetworkGenerator.NetworkGenerationResult networkGenerationResult =
-                ctx.previewManager().getLastNetworkGenerationResult();
-            boolean partialFailure = networkGenerationResult != null
-                && networkGenerationResult.hasPartialFailure();
-            if (partialFailure) {
-                RoadUiWidgets.textWrappedColored(
-                    PluginUiColors.ERROR_SOFT,
-                    PlotI18n.tr("plugin.road.build_blocked_partial_generation"));
-            }
-
-            boolean buildDisabled = !hasPlacements
-                || !buildReadiness.ready()
-                || ctx.host().placement().isBusy()
-                || ctx.previewManager().isPreviewJobRunning()
-                || validationReport.blocksBuild()
-                || partialFailure;
-            if (buildDisabled) {
-                ImGui.beginDisabled();
-            }
-            if (ImGui.button(PlotI18n.tr("plugin.road.build"), ImGui.getContentRegionAvailX(), 0)) {
-                ctx.requestBuildConfirm();
-            }
-            if (buildDisabled) {
-                ImGui.endDisabled();
-            }
+    private void renderBuildAction(
+            RoadGenerationResult lastGenerationResult,
+            com.plot.api.world.PlacementReadiness buildReadiness,
+            RoadNetworkValidationReport validationReport) {
+        ImGui.separator();
+        boolean hasPlacements = !lastGenerationResult.placementRecords.isEmpty();
+        RoadNetworkGenerator.NetworkGenerationResult networkGenerationResult =
+            ctx.previewManager().getLastNetworkGenerationResult();
+        boolean partialFailure = networkGenerationResult != null
+            && networkGenerationResult.hasPartialFailure();
+        if (partialFailure) {
+            ImGui.textColored(PluginUiColors.ERROR_SOFT, PlotI18n.tr("plugin.road.build_blocked_partial_generation"));
+        } else if (!hasPlacements) {
+            ImGui.textColored(PluginUiColors.WARNING_LIGHT, PlotI18n.tr("plugin.road.generate_empty_result"));
         }
+
+        boolean buildDisabled = !hasPlacements
+            || !buildReadiness.ready()
+            || ctx.host().placement().isBusy()
+            || ctx.previewManager().isPreviewJobRunning()
+            || validationReport.blocksBuild()
+            || partialFailure;
+        if (buildDisabled) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.road.build"), ImGui.getContentRegionAvailX(), 0)) {
+            ctx.requestBuildConfirm();
+        }
+        if (buildDisabled) {
+            ImGui.endDisabled();
+        }
+    }
+
+    private void renderPreviewDetailsCollapsible(RoadNetwork network, RoadGenerationResult lastGenerationResult) {
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.build.preview_details"))) {
+            return;
+        }
+        ImGui.text(PlotI18n.tr("plugin.road.cut_volume_result", lastGenerationResult.cutVolume));
+        ImGui.text(PlotI18n.tr("plugin.road.fill_volume_result", lastGenerationResult.fillVolume));
+        ImGui.text(PlotI18n.tr("plugin.road.construction_length_result",
+            lastGenerationResult.normalRoadLength,
+            lastGenerationResult.bridgeLength,
+            lastGenerationResult.tunnelLength));
+        ImGui.text(PlotI18n.tr("plugin.road.bridge_count_result",
+            lastGenerationResult.bridgeCount, lastGenerationResult.bridgeBlocks.size()));
+        ImGui.text(PlotI18n.tr("plugin.road.tunnel_count_result",
+            lastGenerationResult.tunnelCount, lastGenerationResult.tunnelBlocks.size()));
+
+        RoadNetworkValidationReport validationReport = validationReport();
+        RoadNetworkValidationPanel.render(validationReport, ctx);
+        renderLongitudinalProfile(network);
+    }
+
+    private RoadNetworkValidationReport preflightReport(RoadNetwork network) {
+        return RoadNetworkEngineeringValidator.analyzePreGeneration(network);
     }
 
     private RoadNetworkValidationReport validationReport() {

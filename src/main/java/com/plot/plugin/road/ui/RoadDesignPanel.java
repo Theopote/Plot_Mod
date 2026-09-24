@@ -65,7 +65,6 @@ final class RoadDesignPanel {
 
         ImGui.separator();
         RoadCrossSectionEditor.renderPrimaryStyle(ctx, road, ctx.networkManager()::pushHistory);
-        RoadStyleProductControls.renderRoadMaxSlopePresets(ctx, road, ctx.networkManager()::pushHistory);
 
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.style.advanced_design"))) {
             renderAdvancedDesign(network, road, current, chainageDisplay);

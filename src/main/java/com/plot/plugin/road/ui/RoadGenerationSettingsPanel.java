@@ -23,17 +23,6 @@ public final class RoadGenerationSettingsPanel {
             return;
         }
 
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.build.auto_terrain_hint"));
-        ImGui.spacing();
-
-        ImGui.text(PlotI18n.tr("plugin.road.build.bridge_mode"));
-        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.build.auto_mode"));
-        ImGui.text(PlotI18n.tr("plugin.road.build.tunnel_mode"));
-        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.build.auto_mode"));
-        ImGui.spacing();
-
         RoadStyleProductControls.renderConfigMaxSlopePresets(ctx);
         RoadStyleProductControls.renderTerrainAdaptationPresets(ctx);
 

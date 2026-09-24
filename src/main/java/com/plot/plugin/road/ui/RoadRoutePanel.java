@@ -1,18 +1,20 @@
 package com.plot.plugin.road.ui;
 
+import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiTreeNodeFlags;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 路线 Tab：当前道路、拾取路径、路网摘要、新道路默认类型、全部道路列表。
+ * 路线 Tab：当前道路、拾取路径、默认/快速参数、路网摘要、全部道路列表。
  */
 public final class RoadRoutePanel {
     private final RoadUiContext ctx;
@@ -40,15 +42,38 @@ public final class RoadRoutePanel {
         ImGui.separator();
         adoptPanel.render();
 
-        ImGui.separator();
-        overviewPanel.renderCompactNetworkSummary();
-        overviewPanel.renderHealthWarnings(ctx.networkManager().getNetwork());
+        if (!ctx.networkManager().getNetwork().getEdges().isEmpty()) {
+            ImGui.separator();
+            overviewPanel.renderCompactNetworkSummary();
+            overviewPanel.renderHealthWarnings(ctx.networkManager().getNetwork());
+        }
 
         ImGui.separator();
-        defaultParamsPanel.renderRoadTypeStep();
+        renderRoadParametersSection();
 
         ImGui.separator();
         renderAllRoadsCollapsible();
+    }
+
+    private void renderRoadParametersSection() {
+        RoadNetwork network = ctx.networkManager().getNetwork();
+        Road road = ctx.networkManager().getPrimarySelectedRoad();
+        var selectedRoadIds = ctx.networkManager().getSelectedRoadIds();
+
+        if (road != null && selectedRoadIds.size() == 1) {
+            RoadSystemConfig config = ctx.networkManager().getConfig();
+            RoadCrossSectionEditor.renderPreview(road, config);
+            ImGui.spacing();
+            RoadCrossSectionEditor.renderPresetButtons(
+                ctx, road, ctx.networkManager()::pushHistory);
+            ImGui.spacing();
+            RoadRouteQuickTune.renderForRoad(ctx, road, ctx.networkManager()::pushHistory);
+            RoadStyleProductControls.renderRoadMaxSlopePresets(
+                ctx, road, ctx.networkManager()::pushHistory);
+            return;
+        }
+
+        defaultParamsPanel.renderRoutePrimary();
     }
 
     private void renderCurrentRoadHeader() {
@@ -60,8 +85,10 @@ public final class RoadRoutePanel {
             ImGui.textColored(
                 PluginUiColors.INFO_BLUE,
                 RoadEdgeListHelper.formatRoadLabel(network, road));
+        } else if (network.getEdges().isEmpty()) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, "—");
         } else {
-            RoadUiWidgets.textWrappedColored(
+            ImGui.textColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.route.current_road_empty"));
         }
@@ -71,12 +98,13 @@ public final class RoadRoutePanel {
         RoadNetwork network = ctx.networkManager().getNetwork();
         List<com.plot.plugin.road.model.RoadEdge> allEdges =
             new ArrayList<>(network.getEdges().values());
-        int flags = ImGuiTreeNodeFlags.None;
-        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.route.all_roads"), flags)) {
+        ImGui.setNextItemOpen(false, ImGuiCond.FirstUseEver);
+        if (!ImGui.collapsingHeader(
+            PlotI18n.tr("plugin.road.route.all_roads"),
+            ImGuiTreeNodeFlags.None)) {
             return;
         }
         if (allEdges.isEmpty()) {
-            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_edges"));
             return;
         }
         edgeListPanel.renderToolbar("##route");

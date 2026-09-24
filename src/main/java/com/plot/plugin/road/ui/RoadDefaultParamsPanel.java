@@ -54,8 +54,21 @@ public final class RoadDefaultParamsPanel {
 
     /** Adopt 向导 Step 3：横断面预览与高级参数。 */
     public void renderCrossSectionStep() {
-        RoadUiSections.step("plugin.road.section.adopt_step3_cross_section");
-        renderCrossSectionDefaults();
+        renderRoutePrimary();
+    }
+
+    /** 路线 Tab：新道路默认类型、宽度/车道与坡度预设。 */
+    public void renderRoutePrimary() {
+        renderPresetCards();
+        ImGui.spacing();
+        RoadRouteQuickTune.renderConfigDefaults(ctx);
+        RoadStyleProductControls.renderConfigMaxSlopePresets(ctx);
+
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.route.advanced_defaults"))) {
+            renderThemeSelector();
+            ImGui.spacing();
+            renderAdvancedCrossSectionFields(ctx.networkManager().getConfig());
+        }
     }
 
     private void renderCrossSectionDefaults() {

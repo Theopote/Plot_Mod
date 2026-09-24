@@ -10,7 +10,7 @@ import imgui.ImGui;
 import java.util.List;
 
 /**
- * 道路认领 Tab：拾取路径即创建道路；默认参数在拾取前可选。
+ * 路线 Tab：拾取路径即创建道路。
  */
 public final class RoadAdoptPanel {
     private final RoadUiContext ctx;
@@ -28,7 +28,6 @@ public final class RoadAdoptPanel {
     }
 
     private void renderPickPathButton() {
-        RoadUiSections.step("plugin.road.section.adopt_step1_centerline");
         if (ImGui.button(
             PlotI18n.tr("plugin.road.pick_path"),
             ImGui.getContentRegionAvailX(),
@@ -53,23 +52,14 @@ public final class RoadAdoptPanel {
                     overlayPaths.size(),
                     totalLength));
             }
-            RoadUiWidgets.textWrappedColored(
+            ImGui.textColored(
                 PluginUiColors.STATUS_INFO,
                 PlotI18n.tr("plugin.road.adopt_picking_active"));
             return;
         }
 
-        int roadCount = ctx.networkManager().getNetwork().getRoads().size();
-        if (roadCount > 0) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.adopt_existing_network", roadCount));
-            return;
-        }
-
-        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.adopt_selection_empty"));
         List<Shape> availablePaths = ctx.toolManager().findAvailablePaths();
-        if (!availablePaths.isEmpty()) {
+        if (!availablePaths.isEmpty() && ctx.networkManager().getNetwork().getRoads().isEmpty()) {
             if (ImGui.beginCombo("##select_path", PlotI18n.tr("plugin.road.select_path_combo"))) {
                 for (Shape path : availablePaths) {
                     String label = String.format(
@@ -83,9 +73,6 @@ public final class RoadAdoptPanel {
                 }
                 ImGui.endCombo();
             }
-        } else {
-            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_path_found"));
-            RoadUiWidgets.textWrapped(PlotI18n.tr("plugin.road.adopt_use_plot_tools_hint"));
         }
     }
 
@@ -93,7 +80,7 @@ public final class RoadAdoptPanel {
         if (!ctx.networkManager().isAdoptIntersectionRepairPending()) {
             return;
         }
-        RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.road.adopt_intersection_repair_prompt"));
+        ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.road.adopt_intersection_repair_prompt"));
         if (ImGui.button(PlotI18n.tr("plugin.road.validation.reconcile_intersections") + "##adopt_reconcile")) {
             RoadTopologyWorkflow.reconcileIntersections(ctx, false);
         }
