@@ -25,6 +25,31 @@ public final class RoadAutoRepairUi {
     }
 
     public static void render(RoadUiContext ctx, RoadNetwork network, Road road) {
+        renderCompact(ctx, network, road);
+    }
+
+    /** 样式 Tab 主界面：仅警告横幅与一键修复。 */
+    public static void renderCompact(RoadUiContext ctx, RoadNetwork network, Road road) {
+        if (ctx == null || network == null || road == null) {
+            return;
+        }
+
+        List<RoadRepairIssue> issues = RoadRepairDiagnosisCache.diagnose(ctx, network, road);
+        if (issues.isEmpty()) {
+            return;
+        }
+
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, PluginUiColors.WARNING);
+        ImGui.text("\u26a0 " + PlotI18n.tr("plugin.road.fix_road.needs_attention"));
+        ImGui.popStyleColor();
+        if (ImGui.button(PlotI18n.tr("plugin.road.fix_road.action") + "##fix_road_" + road.getId())) {
+            executeFix(ctx, road);
+        }
+        ImGui.spacing();
+    }
+
+    /** 高级道路设计内：完整诊断列表与复检。 */
+    public static void renderDetailed(RoadUiContext ctx, RoadNetwork network, Road road) {
         if (ctx == null || network == null || road == null) {
             return;
         }

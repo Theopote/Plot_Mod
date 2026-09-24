@@ -93,6 +93,68 @@ public final class RoadCrossSectionEditor {
     }
 
     /**
+     * 样式 Tab 主界面：预览、预设、横断面、材质与附属设施（不含工程级线形与边坡参数）。
+     */
+    public static void renderPrimaryStyle(RoadUiContext ctx, Road road, Runnable onHistory) {
+        if (road == null) {
+            return;
+        }
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        CrossSectionDraftMutator mutator = CrossSectionDraftMutator.forRoad(road, config, onHistory);
+        CrossSectionDraftEditorOptions options = CrossSectionDraftEditorOptions.stylePrimary();
+
+        RoadThemeSelector.renderForRoad(road, config, onHistory);
+        ImGui.spacing();
+        renderPreview(road, config);
+        renderPresetButtons(ctx, road, null);
+        ImGui.spacing();
+        CrossSectionDraftEditor.renderCrossSection(ctx, mutator, options);
+
+        if (ImGui.collapsingHeader(
+            PlotI18n.tr("plugin.road.edit_materials"),
+            ImGuiTreeNodeFlags.DefaultOpen)) {
+            CrossSectionDraftEditor.renderMaterials(ctx, mutator, options);
+        }
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.edit_furniture"))) {
+            CrossSectionDraftEditor.renderFurniture(ctx, mutator, options);
+        }
+    }
+
+    /**
+     * 样式 Tab「高级道路设计」内的横断面工程参数（继承、分车道宽、边坡、工程坡度）。
+     */
+    public static void renderAdvancedCrossSection(RoadUiContext ctx, Road road, Runnable onHistory) {
+        if (road == null) {
+            return;
+        }
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        CrossSectionDraftMutator mutator = CrossSectionDraftMutator.forRoad(road, config, onHistory);
+        CrossSectionDraftEditorOptions options = CrossSectionDraftEditorOptions.styleAdvanced();
+
+        if (ImGui.button(PlotI18n.tr("plugin.road.inherit_all_defaults") + "##inherit_all_adv")) {
+            if (onHistory != null) {
+                onHistory.run();
+            }
+            road.inheritAllDefaults();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.inherit_all_defaults"));
+        }
+        ImGui.spacing();
+
+        if (RoadParameterInheritance.inheritsAny(road)) {
+            RoadUiWidgets.textWrappedColored(PluginUiColors.ACCENT_BLUE, PlotI18n.tr("plugin.road.inheritance_mode_active"));
+        } else {
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.explicit_params_mode"));
+        }
+        ImGui.spacing();
+
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.style.advanced_cross_section"))) {
+            CrossSectionDraftEditor.renderCrossSection(ctx, mutator, options);
+        }
+    }
+
+    /**
      * Edit Tab ROAD-LEVEL：横断面 / 材质 / 附属设施三个折叠区。
      */
     public static void renderRoadLevelCollapsibles(RoadUiContext ctx, Road road, Runnable onHistory) {

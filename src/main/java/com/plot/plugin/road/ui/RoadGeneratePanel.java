@@ -47,7 +47,8 @@ public final class RoadGeneratePanel {
         boolean hasNetwork = !network.getEdges().isEmpty();
 
         RoadUiSections.section("plugin.road.section.generation_settings");
-        RoadGenerationSettingsPanel.render(ctx, false);
+        RoadGenerationSettingsPanel.renderPrimary(ctx);
+        RoadGenerationSettingsPanel.renderAdvanced(ctx);
         ImGui.separator();
 
         RoadUiSections.section("plugin.road.section.preview");

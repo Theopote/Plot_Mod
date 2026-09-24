@@ -26,7 +26,7 @@ import net.minecraft.world.World;
 import java.util.List;
 
 /**
- * 单条逻辑道路 Design Stack（Identity → Alignment → Section → Station → Segments）。
+ * 单条逻辑道路 Design Stack（主界面产品化 + 高级道路设计折叠区）。
  */
 final class RoadDesignPanel {
 
@@ -57,20 +57,54 @@ final class RoadDesignPanel {
             return;
         }
 
-        RoadUiSections.roadHeader();
         ChainageDisplayContext chainageDisplay = chainageContextOrNull(network, road);
+        renderCompactHeader(network, road, chainageDisplay);
+        RoadAutoRepairUi.renderCompact(ctx, network, road);
+        renderRoadTopologyHints(network, road);
+        renderCenterlineShapeHints(network, road);
 
-        RoadUiSections.group("plugin.road.design_stack.identity");
-        identityEditor.render(network, road, ctx.networkManager()::pushHistory);
-        renderRoadIdentitySummary(network, road, chainageDisplay);
+        ImGui.separator();
+        RoadCrossSectionEditor.renderPrimaryStyle(ctx, road, ctx.networkManager()::pushHistory);
+        RoadStyleProductControls.renderRoadMaxSlopePresets(ctx, road, ctx.networkManager()::pushHistory);
+
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.style.advanced_design"))) {
+            renderAdvancedDesign(network, road, current, chainageDisplay);
+        }
+    }
+
+    private void renderCompactHeader(
+            RoadNetwork network,
+            Road road,
+            ChainageDisplayContext chainageDisplay) {
+        RoadUiSections.roadHeader();
+        ImGui.text(road.getName());
         RoadDirectionIndicator.render(
             network,
             road,
             () -> centerlineEditPanel.recordMessage(ctx.networkManager().reverseRoad(road)),
             centerlineEditPanel::lastMessage);
-        renderRoadAutoRepair(network, road);
-        renderRoadTopologyHints(network, road);
-        renderCenterlineShapeHints(network, road);
+        double length = RoadEdgeListHelper.computeRoadLength(network, road);
+        ImGui.text(PlotI18n.tr("plugin.road.design_stack.length", length));
+        if (chainageDisplay != null) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr(
+                    "plugin.road.chainage_range",
+                    chainageDisplay.format(0.0),
+                    chainageDisplay.format(chainageDisplay.totalLength())));
+        }
+    }
+
+    private void renderAdvancedDesign(
+            RoadNetwork network,
+            Road road,
+            RoadEdge current,
+            ChainageDisplayContext chainageDisplay) {
+        RoadAutoRepairUi.renderDetailed(ctx, network, road);
+
+        RoadUiSections.group("plugin.road.design_stack.identity");
+        identityEditor.render(network, road, ctx.networkManager()::pushHistory);
+        renderRoadIdentitySummary(network, road, chainageDisplay);
 
         RoadUiSections.group("plugin.road.design_stack.alignment");
         horizontalAlignmentEditor.render(ctx, network, road, chainageDisplay);
@@ -81,7 +115,7 @@ final class RoadDesignPanel {
         verticalProfileEditor.renderInline(ctx, network, current);
 
         RoadUiSections.group("plugin.road.design_stack.typical_section");
-        RoadCrossSectionEditor.renderRoadLevelCollapsibles(ctx, road, ctx.networkManager()::pushHistory);
+        RoadCrossSectionEditor.renderAdvancedCrossSection(ctx, road, ctx.networkManager()::pushHistory);
 
         RoadUiSections.group("plugin.road.design_stack.station_controls");
         if (chainageDisplay != null) {
@@ -108,18 +142,9 @@ final class RoadDesignPanel {
             ChainageDisplayContext chainageDisplay) {
         int segmentCount = road.getSegmentIds().size();
         double length = RoadEdgeListHelper.computeRoadLength(network, road);
-        ImGui.text(PlotI18n.tr("plugin.road.design_stack.length", length));
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.road_scope_summary", segmentCount, length));
-        if (chainageDisplay != null) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr(
-                    "plugin.road.chainage_range",
-                    chainageDisplay.format(0.0),
-                    chainageDisplay.format(chainageDisplay.totalLength())));
-        }
     }
 
     private void renderChainageDisplayToggle() {
@@ -143,10 +168,6 @@ final class RoadDesignPanel {
             RoadStationing.canonicalLength(network, road),
             chainageDisplayMode,
             RoadStationFormat.KILOMETER_PLUS);
-    }
-
-    private void renderRoadAutoRepair(RoadNetwork network, Road road) {
-        RoadAutoRepairUi.render(ctx, network, road);
     }
 
     private void renderRoadTopologyHints(RoadNetwork network, Road road) {

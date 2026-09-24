@@ -172,47 +172,49 @@ public final class CrossSectionDraftEditor {
             mutator.afterShoulderWidthField();
         }
 
-        ImGui.spacing();
-        ImGui.text(PlotI18n.tr("plugin.road.slope_batter_section"));
-        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.slope_batter_section_hint"));
-        ImBoolean slopeRef = new ImBoolean(draft.includeSlopeBatter());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_slope_batter") + "##" + id + "_slope", slopeRef)) {
-            if (roadEdit) {
-                hooks.onItemActivated();
-            }
-            mutator.setIncludeSlopeBatter(slopeRef.get());
-        }
-        mutator.afterSlopeEnabledField();
-        if (draft.includeSlopeBatter()) {
-            float[] fillSlopeArr = {draft.fillSlopeRatio()};
-            if (EngineeringSlopeInput.render(
-                id + "_fill_slope_ratio",
-                PlotI18n.tr("plugin.road.fill_slope_ratio_label"),
-                fillSlopeArr,
-                EngineeringSlopeInput.ValueKind.BATTER
-            )) {
+        if (editor.options.showSlopeBatter()) {
+            ImGui.spacing();
+            ImGui.text(PlotI18n.tr("plugin.road.slope_batter_section"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.slope_batter_section_hint"));
+            ImBoolean slopeRef = new ImBoolean(draft.includeSlopeBatter());
+            if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_slope_batter") + "##" + id + "_slope", slopeRef)) {
                 if (roadEdit) {
                     hooks.onItemActivated();
                 }
-                mutator.setFillSlopeRatio(fillSlopeArr[0]);
+                mutator.setIncludeSlopeBatter(slopeRef.get());
             }
-            RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.fill_slope_ratio");
-            mutator.afterFillSlopeField();
+            mutator.afterSlopeEnabledField();
+            if (draft.includeSlopeBatter()) {
+                float[] fillSlopeArr = {draft.fillSlopeRatio()};
+                if (EngineeringSlopeInput.render(
+                    id + "_fill_slope_ratio",
+                    PlotI18n.tr("plugin.road.fill_slope_ratio_label"),
+                    fillSlopeArr,
+                    EngineeringSlopeInput.ValueKind.BATTER
+                )) {
+                    if (roadEdit) {
+                        hooks.onItemActivated();
+                    }
+                    mutator.setFillSlopeRatio(fillSlopeArr[0]);
+                }
+                RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.fill_slope_ratio");
+                mutator.afterFillSlopeField();
 
-            float[] cutSlopeArr = {draft.cutSlopeRatio()};
-            if (EngineeringSlopeInput.render(
-                id + "_cut_slope_ratio",
-                PlotI18n.tr("plugin.road.cut_slope_ratio_label"),
-                cutSlopeArr,
-                EngineeringSlopeInput.ValueKind.BATTER
-            )) {
-                if (roadEdit) {
-                    hooks.onItemActivated();
+                float[] cutSlopeArr = {draft.cutSlopeRatio()};
+                if (EngineeringSlopeInput.render(
+                    id + "_cut_slope_ratio",
+                    PlotI18n.tr("plugin.road.cut_slope_ratio_label"),
+                    cutSlopeArr,
+                    EngineeringSlopeInput.ValueKind.BATTER
+                )) {
+                    if (roadEdit) {
+                        hooks.onItemActivated();
+                    }
+                    mutator.setCutSlopeRatio(cutSlopeArr[0]);
                 }
-                mutator.setCutSlopeRatio(cutSlopeArr[0]);
+                RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.cut_slope_ratio");
+                mutator.afterCutSlopeField();
             }
-            RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.cut_slope_ratio");
-            mutator.afterCutSlopeField();
         }
 
         ImBoolean bikeRef = new ImBoolean(draft.includeBikeLane());

@@ -10,23 +10,64 @@ import imgui.type.ImBoolean;
 
 /**
  * 全局生成参数（桥/隧阈值、采样、纵断面平衡系数、默认净空等）。
- * 供「生成」Tab 调整；变更会失效预览。
+ * 主界面为产品化预设；工程参数折叠在「高级生成设置」。
  */
 public final class RoadGenerationSettingsPanel {
     private RoadGenerationSettingsPanel() {
     }
 
-    /**
-    * @param defaultOpen 是否默认展开设置区域
-     */
-    public static void render(RoadUiContext ctx, boolean defaultOpen) {
+    /** 建造 Tab 主界面：地形适应、坡度预设、自动桥隧说明。 */
+    public static void renderPrimary(RoadUiContext ctx) {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         if (config == null) {
             return;
         }
 
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.build.auto_terrain_hint"));
+        ImGui.spacing();
+
+        ImGui.text(PlotI18n.tr("plugin.road.build.bridge_mode"));
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.build.auto_mode"));
+        ImGui.text(PlotI18n.tr("plugin.road.build.tunnel_mode"));
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.build.auto_mode"));
+        ImGui.spacing();
+
+        RoadStyleProductControls.renderConfigMaxSlopePresets(ctx);
+        RoadStyleProductControls.renderTerrainAdaptationPresets(ctx);
+
+        ImBoolean bridgePillars = new ImBoolean(config.isGenerateBridgePillars());
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.generate_bridge_pillars"), bridgePillars)) {
+            config.setGenerateBridgePillars(bridgePillars.get());
+            markChanged(ctx);
+        }
+    }
+
+    /** 建造 Tab 高级：桥隧阈值、采样、净空等工程参数。 */
+    public static void renderAdvanced(RoadUiContext ctx) {
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.build.advanced_generation"))) {
+            return;
+        }
+        renderEngineering(ctx);
+    }
+
+    /**
+     * @param defaultOpen 是否默认展开设置区域
+     * @deprecated 使用 {@link #renderPrimary} 与 {@link #renderAdvanced}
+     */
+    @Deprecated
+    public static void render(RoadUiContext ctx, boolean defaultOpen) {
         int flags = defaultOpen ? ImGuiTreeNodeFlags.DefaultOpen : 0;
         if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.generation_settings"), flags)) {
+            return;
+        }
+        renderEngineering(ctx);
+    }
+
+    private static void renderEngineering(RoadUiContext ctx) {
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        if (config == null) {
             return;
         }
 
@@ -44,13 +85,6 @@ public final class RoadGenerationSettingsPanel {
             markChanged(ctx);
         }
         RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.bridge_threshold");
-
-        ImBoolean bridgePillars = new ImBoolean(config.isGenerateBridgePillars());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.generate_bridge_pillars"), bridgePillars)) {
-            config.setGenerateBridgePillars(bridgePillars.get());
-            markChanged(ctx);
-        }
-        RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.generate_bridge_pillars");
 
         int[] tunnelThreshold = {config.getTunnelThreshold()};
         if (ImGui.sliderInt(

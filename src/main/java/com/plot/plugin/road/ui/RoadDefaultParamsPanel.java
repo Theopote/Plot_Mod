@@ -64,6 +64,9 @@ public final class RoadDefaultParamsPanel {
             PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.default_params_scope_hint"));
         RoadCrossSectionPreviewRenderer.render(config);
         ImGui.spacing();
+        renderPresetCards();
+        ImGui.spacing();
+        RoadStyleProductControls.renderConfigMaxSlopePresets(ctx);
 
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.adopt_advanced"))) {
             renderAdvancedCrossSectionFields(config);
@@ -164,6 +167,23 @@ public final class RoadDefaultParamsPanel {
             return;
         }
 
+        renderPresetCards();
+    }
+
+    private void renderPresetCards() {
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        String selectedId = config.getSelectedPreset();
+        boolean customSelected = selectedId == null || selectedId.isBlank();
+
+        ImGui.text(PlotI18n.tr("plugin.road.preset_section"));
+        if (!customSelected) {
+            ImGui.sameLine();
+            ImGui.textColored(PluginUiColors.ACCENT_BLUE, "— " + PlotI18n.tr("preset.road." + selectedId));
+        } else {
+            ImGui.sameLine();
+            ImGui.textColored(PluginUiColors.HINT_GRAY, "— " + PlotI18n.tr("plugin.road.preset_custom"));
+        }
+        ImGui.spacing();
         float gap = PRESET_CARD_PADDING_X;
         float avail = ImGui.getContentRegionAvail().x;
         int columns = avail >= PRESET_CARD_MIN_WIDTH * 2f + gap ? 2 : 1;

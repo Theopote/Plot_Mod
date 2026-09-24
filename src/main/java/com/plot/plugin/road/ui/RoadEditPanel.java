@@ -37,13 +37,13 @@ public final class RoadEditPanel {
         RoadNetwork network = ctx.networkManager().getNetwork();
         ctx.networkManager().ensureSelectionValid();
 
-        networkToolsPanel.render(network);
-        ImGui.separator();
-
         renderSelectionDispatch(network, network.getEdges().isEmpty());
 
-        ImGui.separator();
-        nodePropertyPanel.renderAllNodesCollapsibleList();
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.style.advanced_network"))) {
+            networkToolsPanel.render(network);
+            ImGui.separator();
+            nodePropertyPanel.renderAllNodesCollapsibleList();
+        }
     }
 
     private void renderSelectionDispatch(RoadNetwork network, boolean edgesEmpty) {
