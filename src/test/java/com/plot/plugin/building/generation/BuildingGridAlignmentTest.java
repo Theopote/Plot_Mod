@@ -84,8 +84,9 @@ class BuildingGridAlignmentTest {
     @Test
     void windowsShareColumnsWithWallsAtScaledProjection() {
         BuildingFootprint footprint = GoldenBuildingCaseFactory.rectangle(8, 6, 1, 3, 1);
-        footprint.setWindowSpacing(4);
+        footprint.setWindowsEnabled(true);
         footprint.setWindowWidth(1);
+        footprint.setWindowPierWidth(3);
         assertAlignedColumns(footprint, SnapshotCoordinateService.uniformScale(4.0));
     }
 
@@ -114,8 +115,9 @@ class BuildingGridAlignmentTest {
     }
 
     private static void assertAlignedColumns(BuildingFootprint footprint, com.plot.api.world.ICoordinateService coords) {
-        footprint.setWindowSpacing(4);
+        footprint.setWindowsEnabled(true);
         footprint.setWindowWidth(1);
+        footprint.setWindowPierWidth(3);
         BuildingGenerationResult result = new BuildingGenerationResult();
         BuildingGenerationContext context = BuildingGenerationContextFactory.forTesting(
             footprint, coords, NOOP, result);

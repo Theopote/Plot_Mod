@@ -153,7 +153,10 @@ public class BuildingProject {
 
     static class WallFacadeData {
         int wallSegmentIndex;
-        int windowSpacing;
+        /** 旧 spacing 语义；仅加载 fallback，新保存留 null 不写 JSON。 */
+        Integer windowSpacing;
+        Boolean windowsEnabled;
+        Integer windowPierWidth;
         int windowWidth;
         int windowHeight;
         int windowSillHeight;
@@ -274,7 +277,8 @@ public class BuildingProject {
                     WallFacadeData facadeData = new WallFacadeData();
                     facadeData.wallSegmentIndex = facade.wallSegmentIndex();
                     WindowPatternSpec pattern = facade.windowPattern();
-                    facadeData.windowSpacing = pattern.spacing();
+                    facadeData.windowsEnabled = pattern.enabled();
+                    facadeData.windowPierWidth = pattern.pierWidth();
                     facadeData.windowWidth = pattern.width();
                     facadeData.windowHeight = pattern.height();
                     facadeData.windowSillHeight = pattern.sillHeight();
@@ -468,12 +472,7 @@ public class BuildingProject {
                     for (WallFacadeData facadeData : buildingData.wallFacades) {
                         facades.add(WallFacadeSpec.of(
                             facadeData.wallSegmentIndex,
-                            new WindowPatternSpec(
-                                facadeData.windowSpacing,
-                                facadeData.windowWidth,
-                                facadeData.windowHeight,
-                                facadeData.windowSillHeight
-                            )
+                            wallFacadePatternFromData(facadeData)
                         ));
                     }
                     footprint.setWallFacades(facades);
@@ -538,6 +537,24 @@ public class BuildingProject {
             } catch (IllegalArgumentException ignored) {
                 return FacadeEdgeScope.BASE_FOOTPRINT;
             }
+        }
+
+        private static WindowPatternSpec wallFacadePatternFromData(WallFacadeData facadeData) {
+            if (facadeData.windowsEnabled != null || facadeData.windowPierWidth != null) {
+                if (Boolean.FALSE.equals(facadeData.windowsEnabled)) {
+                    return WindowPatternSpec.disabled();
+                }
+                return WindowPatternSpec.of(
+                    facadeData.windowWidth,
+                    facadeData.windowPierWidth != null ? facadeData.windowPierWidth : 0,
+                    facadeData.windowHeight,
+                    facadeData.windowSillHeight);
+            }
+            return new WindowPatternSpec(
+                facadeData.windowSpacing != null ? facadeData.windowSpacing : 0,
+                facadeData.windowWidth,
+                facadeData.windowHeight,
+                facadeData.windowSillHeight);
         }
     }
 }

@@ -125,7 +125,7 @@ public final class RealisticDistrictFixtures {
         footprint.setRoofType(source.getRoofType());
         footprint.setRoofPitchRatio(source.getRoofPitchRatio());
         footprint.setWallThickness(source.getWallThickness());
-        footprint.setWindowSpacing(0);
+        footprint.setWindowsEnabled(false);
         return footprint;
     }
 
@@ -173,7 +173,9 @@ public final class RealisticDistrictFixtures {
         copy.setFloorHeight(source.getFloorHeight());
         copy.setWallThickness(source.getWallThickness());
         copy.setRoofType(source.getRoofType());
-        copy.setWindowSpacing(source.getWindowSpacing());
+        copy.setWindowsEnabled(source.isWindowsEnabled());
+        copy.setWindowWidth(source.getWindowWidth());
+        copy.setWindowPierWidth(source.getWindowPierWidth());
         return copy;
     }
 
@@ -195,13 +197,15 @@ public final class RealisticDistrictFixtures {
         footprint.setWallThickness(source.getWallThickness());
         footprint.setRoofType(source.getRoofType());
         footprint.setRoofPitchRatio(source.getRoofPitchRatio());
-        footprint.setWindowSpacing(source.getWindowSpacing());
+        footprint.setWindowsEnabled(true);
+        footprint.setWindowWidth(source.getWindowWidth());
+        footprint.setWindowPierWidth(source.getWindowPierWidth());
         return footprint;
     }
 
     private static void applyMassingDefaults(BuildingFootprint footprint, int floors) {
         GoldenBuildingCaseFactory.applyDefaults(footprint, floors, 3, 1);
-        footprint.setWindowSpacing(0);
+        footprint.setWindowsEnabled(false);
     }
 
     private static TaggedFootprint tag(

@@ -65,7 +65,7 @@ class BuildingInteractionMatrixTest {
         ));
         fp.setRoofType(BuildingFootprint.RoofType.HIP);
         fp.setRoofPitchRatio(2);
-        fp.setWindowSpacing(0);
+        fp.setWindowsEnabled(false);
 
         BuildingGenerationResult result = generate(fp);
         assertTrue(result.placementRecords.size() > 0);
@@ -131,8 +131,9 @@ class BuildingInteractionMatrixTest {
         BuildingFootprint fp = new BuildingFootprint(RECT, true);
         fp.setFloors(2);
         fp.setFloorHeight(3);
-        fp.setWindowSpacing(3);
+        fp.setWindowsEnabled(true);
         fp.setWindowWidth(1);
+        fp.setWindowPierWidth(2);
         fp.setWindowHeight(2);
         fp.setWindowSillHeight(1);
         fp.addBalcony(new BuildingFootprint.Balcony(0, 0.5, 1, 3, 2, null, null));
@@ -158,7 +159,7 @@ class BuildingInteractionMatrixTest {
         fp.setFloors(1);
         fp.setFloorHeight(3);
         fp.setWallThickness(1);
-        fp.setWindowSpacing(0);
+        fp.setWindowsEnabled(false);
         fp.setOpenings(List.of(OpeningSpec.door(0, 0.5, 0, 2, 2)));
         fp.setRoofType(BuildingFootprint.RoofType.GABLE);
         fp.setRoofPitchRatio(4);

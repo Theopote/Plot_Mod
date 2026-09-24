@@ -105,8 +105,9 @@ class BuildingDefinitionTest {
         footprint.setRoofType(BuildingFootprint.RoofType.GABLE);
         footprint.setRoofPitchRatio(2);
         footprint.setManualBaseElevation(72);
-        footprint.setWindowSpacing(5);
+        footprint.setWindowsEnabled(true);
         footprint.setWindowWidth(2);
+        footprint.setWindowPierWidth(3);
         footprint.setWindowHeight(3);
         footprint.setWindowSillHeight(1);
         footprint.addOpening(OpeningSpec.door(1, 0.5, 0, 2, 3));

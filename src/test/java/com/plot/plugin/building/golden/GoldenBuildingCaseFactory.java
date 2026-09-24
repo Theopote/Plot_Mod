@@ -142,7 +142,9 @@ public final class GoldenBuildingCaseFactory {
 
     public static Case b11DoorsAndWindows() {
         BuildingFootprint fp = rectangle(10, 8, 2, 3, 1);
-        fp.setWindowSpacing(3);
+        fp.setWindowsEnabled(true);
+        fp.setWindowWidth(1);
+        fp.setWindowPierWidth(2);
         fp.setOpenings(List.of(
             OpeningSpec.door(0, 0.5, 0, 2, 2),
             OpeningSpec.window(2, 0.5, 1, 2, 2, 1)
@@ -178,7 +180,9 @@ public final class GoldenBuildingCaseFactory {
         fp.setFoundationFillMaterial(GOLDEN_FOUNDATION);
         fp.setRoofType(BuildingFootprint.RoofType.FLAT);
         fp.setRoofPitchRatio(2);
-        fp.setWindowSpacing(4);
+        fp.setWindowsEnabled(true);
+        fp.setWindowWidth(1);
+        fp.setWindowPierWidth(3);
         fp.setWindowWidth(1);
         fp.setWindowHeight(2);
         fp.setWindowSillHeight(1);

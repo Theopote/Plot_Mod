@@ -71,7 +71,7 @@ class DistrictMassingGeneratorChunkedTest {
         ), true);
         footprint.setFloors(2);
         footprint.setFloorHeight(3);
-        footprint.setWindowSpacing(0);
+        footprint.setWindowsEnabled(false);
         footprint.setRoofType(BuildingFootprint.RoofType.FLAT);
         return footprint;
     }

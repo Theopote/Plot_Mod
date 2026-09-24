@@ -24,7 +24,7 @@ class BuildingBatchEditorTest {
         footprint.setFloorHeight(3);
         footprint.setWallThickness(1);
         footprint.setRoofType(BuildingFootprint.RoofType.FLAT);
-        footprint.setWindowSpacing(0);
+        footprint.setWindowsEnabled(false);
         return footprint;
     }
 

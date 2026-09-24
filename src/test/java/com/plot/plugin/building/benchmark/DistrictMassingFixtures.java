@@ -24,7 +24,7 @@ public final class DistrictMassingFixtures {
         footprint.setFloors(floors);
         footprint.setFloorHeight(3);
         footprint.setWallThickness(1);
-        footprint.setWindowSpacing(0);
+        footprint.setWindowsEnabled(false);
         footprint.setRoofType(BuildingFootprint.RoofType.FLAT);
         return footprint;
     }
@@ -44,7 +44,9 @@ public final class DistrictMassingFixtures {
         copy.setFloors(source.getFloors());
         copy.setFloorHeight(source.getFloorHeight());
         copy.setWallThickness(source.getWallThickness());
-        copy.setWindowSpacing(source.getWindowSpacing());
+        copy.setWindowsEnabled(source.isWindowsEnabled());
+        copy.setWindowWidth(source.getWindowWidth());
+        copy.setWindowPierWidth(source.getWindowPierWidth());
         copy.setRoofType(source.getRoofType());
         return copy;
     }

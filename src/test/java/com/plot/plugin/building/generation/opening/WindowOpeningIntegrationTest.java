@@ -26,8 +26,9 @@ class WindowOpeningIntegrationTest {
     @Test
     void patternWindowsStayOnBuildingPerimeter() {
         BuildingFootprint footprint = GoldenBuildingCaseFactory.rectangle(8, 6, 1, 3, 1);
-        footprint.setWindowSpacing(4);
+        footprint.setWindowsEnabled(true);
         footprint.setWindowWidth(2);
+        footprint.setWindowPierWidth(2);
 
         BuildingGenerationResult result = generateWallsAndOpenings(footprint);
         Polygon outer = BuildingGeometryUtils.toPolygon(footprint.getOuterPoints());
@@ -54,8 +55,9 @@ class WindowOpeningIntegrationTest {
             new Vec2d(3, 8),
             new Vec2d(0, 8)
         ), false);
-        footprint.setWindowSpacing(4);
+        footprint.setWindowsEnabled(true);
         footprint.setWindowWidth(2);
+        footprint.setWindowPierWidth(2);
         footprint.setWindowHeight(2);
         footprint.setWindowSillHeight(1);
 

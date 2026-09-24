@@ -178,7 +178,9 @@ class BuildingRealisticGenerationChainTest {
         copy.setFloors(source.getFloors());
         copy.setFloorHeight(source.getFloorHeight());
         copy.setWallThickness(source.getWallThickness());
-        copy.setWindowSpacing(source.getWindowSpacing());
+        copy.setWindowsEnabled(source.isWindowsEnabled());
+        copy.setWindowWidth(source.getWindowWidth());
+        copy.setWindowPierWidth(source.getWindowPierWidth());
         return copy;
     }
 }

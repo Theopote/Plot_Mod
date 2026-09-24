@@ -87,7 +87,9 @@ class FacadeSpecTest {
         BuildingFootprint footprint = new BuildingFootprint(BASE, true);
         footprint.setFloors(2);
         footprint.setFloorHeight(3);
-        footprint.setWindowSpacing(4);
+        footprint.setWindowsEnabled(true);
+        footprint.setWindowWidth(2);
+        footprint.setWindowPierWidth(1);
         footprint.setWallFacades(List.of(
             WallFacadeSpec.of(0, new WindowPatternSpec(2, 1, 2, 1)),
             WallFacadeSpec.noWindows(2)
