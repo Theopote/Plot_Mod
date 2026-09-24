@@ -209,14 +209,12 @@ public final class DistrictGenerationResult {
         double area = building.computeArea();
         totalArea += area;
         totalVolume += area * building.getFloors() * building.getFloorHeight();
-        if (result.warnings != null) {
-            for (String warning : result.warnings) {
-                if (warning != null && !warning.isBlank() && !warnings.contains(warning)) {
-                    warnings.add(warning);
-                }
+        for (String warning : result.warnings) {
+            if (warning != null && !warning.isBlank() && !warnings.contains(warning)) {
+                warnings.add(warning);
             }
-            accumulateSiteSummary(result.warnings);
         }
+        accumulateSiteSummary(result.warnings);
         Map<BlockPos, BlockRecord> accepted = filterByDominantFootprints(building, result.placementRecords);
         conflictingBlockCount += DistrictOverlapAnalyzer.countConflictingBlocks(
             blockOwners,
@@ -226,9 +224,7 @@ public final class DistrictGenerationResult {
             voxelOverlapPairs,
             buildingNames);
         // 高建筑先合并；低建筑在已占优轮廓内不写入（同高时按生成顺序决胜）
-        for (Map.Entry<BlockPos, BlockRecord> entry : accepted.entrySet()) {
-            mergedPlacementRecords.put(entry.getKey(), entry.getValue());
-        }
+        mergedPlacementRecords.putAll(accepted);
         footprintWorldColumnsByBuilding.put(
             building.getId(),
             result.footprintWorldColumns == null ? Set.of() : result.footprintWorldColumns);

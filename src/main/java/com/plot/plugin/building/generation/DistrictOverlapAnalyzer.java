@@ -37,19 +37,6 @@ public final class DistrictOverlapAnalyzer {
             double gapBlocks) {
     }
 
-    public record OverlapReport(
-            List<OverlapPair> overlappingBuildingPairs,
-            int conflictingBlockCount) {
-
-        public boolean hasOverlap() {
-            return !overlappingBuildingPairs.isEmpty() || conflictingBlockCount > 0;
-        }
-
-        public int pairCount() {
-            return overlappingBuildingPairs.size();
-        }
-    }
-
     /**
      * 对成功生成的建筑做 footprint 两两相交检测（O(n²)，片区规模可接受）。
      */
@@ -143,7 +130,7 @@ public final class DistrictOverlapAnalyzer {
      */
     public static int countConflictingBlocks(
             Map<BlockPos, String> previousOwners,
-            Map<BlockPos, ? extends Object> incomingRecords,
+            Map<BlockPos, ?> incomingRecords,
             String incomingBuildingId,
             Set<String> conflictPairKeys,
             List<OverlapPair> voxelPairs,

@@ -334,10 +334,6 @@ public final class BuildingPluginState {
         this.districtPreviewJob = districtPreviewJob;
     }
 
-    public boolean isDistrictPreviewBuildConfirmPending() {
-        return districtPreviewBuildConfirmPending;
-    }
-
     public void setDistrictPreviewBuildConfirmPending(boolean districtPreviewBuildConfirmPending) {
         this.districtPreviewBuildConfirmPending = districtPreviewBuildConfirmPending;
     }
