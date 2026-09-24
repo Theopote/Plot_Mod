@@ -51,34 +51,20 @@ public final class PluginJobProgressUi {
             float barWidth,
             String cancelLabelKey,
             Runnable onCancel) {
+        if (statusText != null && !statusText.isEmpty()) {
+            ImGui.textColored(PluginUiColors.STATUS_INFO, statusText);
+        }
         if (total > 0) {
-            String percentText = PlotI18n.tr("plugin.ui.job_progress_percent", percent(processed, total));
-            if (statusText != null && !statusText.isEmpty()) {
-                float lineWidth = ImGui.getContentRegionAvailX();
-                ImGui.textColored(PluginUiColors.STATUS_INFO, statusText);
-                ImGui.sameLine(lineWidth - ImGui.calcTextSize(percentText).x);
-                ImGui.textColored(PluginUiColors.STATUS_INFO, percentText);
-            } else {
-                alignTextRight(percentText);
-                ImGui.textColored(PluginUiColors.STATUS_INFO, percentText);
-            }
             float width = barWidth > 0f ? barWidth : ImGui.getContentRegionAvailX();
             ImGui.pushID("job_progress_bar");
             ImGui.progressBar(fraction(processed, total), width, 0);
             ImGui.popID();
-        } else if (statusText != null && !statusText.isEmpty()) {
-            ImGui.textColored(PluginUiColors.STATUS_INFO, statusText);
         }
         if (cancelLabelKey != null && onCancel != null) {
             if (ImGui.button(PlotI18n.tr(cancelLabelKey), 0, 0)) {
                 onCancel.run();
             }
         }
-    }
-
-    private static void alignTextRight(String text) {
-        float width = ImGui.calcTextSize(text).x;
-        ImGui.setCursorPosX(ImGui.getCursorPosX() + ImGui.getContentRegionAvailX() - width);
     }
 
     /** 方块落地调度器的标准进度条 + 取消。 */
