@@ -62,7 +62,17 @@ public final class RoadToolManager {
     }
 
     public void cancel() {
-        pathPickSession.cancel();
+        if (pathPickSession.isActive()) {
+            cancelPathPick();
+        }
+    }
+
+    public void cancelPathPick() {
+        if (!pathPickSession.isActive()) {
+            return;
+        }
+        pathPickSession.cancel(host.appState());
+        status.info(PlotI18n.status("status.plot.road.pick_path_cancelled"));
     }
 
     public void tick() {
@@ -179,7 +189,7 @@ public final class RoadToolManager {
         }
 
         selectedPaths.clear();
-        pathPickSession.begin();
+        pathPickSession.begin(host.appState());
         toolManager.setActiveTool(selectTool);
         host.appState().setCurrentTool(baseTool);
         status.info(PlotI18n.tr("plugin.road.pick_path_hint"));

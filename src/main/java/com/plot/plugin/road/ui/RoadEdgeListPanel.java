@@ -26,7 +26,7 @@ import java.util.Set;
  */
 public final class RoadEdgeListPanel {
     private static final float EDGE_LIST_HEIGHT = 220f;
-    private static final float PATH_LIST_HEIGHT = 360f;
+    private static final float PATH_LIST_MAX_HEIGHT = 360f;
     private static final float EDGE_ROW_HEIGHT_LINES = 1.0f;
 
     private final RoadUiContext ctx;
@@ -95,11 +95,6 @@ public final class RoadEdgeListPanel {
 
     /** 路径 Tab：每条逻辑道路一行，带预览与精简工具栏。 */
     public void renderPathList(String childId) {
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        ImGui.inputTextWithHint(
-            "##path_road_search",
-            PlotI18n.tr("plugin.road.edge_search_hint"),
-            ctx.edgeSearchBuffer());
         if (ImGui.smallButton(PlotI18n.tr("plugin.road.select_all_edges") + "##path")) {
             ctx.networkManager().selectAllEdges();
         }
@@ -123,17 +118,16 @@ public final class RoadEdgeListPanel {
     public void renderList(boolean showDelete, String childId, boolean showThumbnails) {
         RoadNetwork network = ctx.networkManager().getNetwork();
         ctx.networkManager().ensureSelectionValid();
-        List<RoadEdge> edges = ctx.networkManager().filteredEdges(
-            ctx.edgeSearchBuffer().get(),
-            ctx.edgeSortMode(),
-            ctx.currentCoordFilter());
+        List<RoadEdge> edges = showThumbnails
+            ? List.copyOf(network.getEdges().values())
+            : ctx.networkManager().filteredEdges(
+                ctx.edgeSearchBuffer().get(),
+                ctx.edgeSortMode(),
+                ctx.currentCoordFilter());
 
-        float listHeight = showThumbnails ? PATH_LIST_HEIGHT : EDGE_LIST_HEIGHT;
-        ImGui.beginChild(childId, 0, listHeight, true);
-        if (edges.isEmpty()) {
-            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edge_list_empty"));
-        } else {
-            List<RoadEdgeListHelper.DisplayRow> rows = showThumbnails
+        List<RoadEdgeListHelper.DisplayRow> rows = List.of();
+        if (!edges.isEmpty()) {
+            rows = showThumbnails
                 ? RoadEdgeListHelper.buildPathDisplayRows(network, edges)
                 : RoadEdgeListHelper.buildDisplayRows(
                     network,
@@ -141,9 +135,36 @@ public final class RoadEdgeListPanel {
                     ctx.edgeSortMode(),
                     expandedSegmentGroups,
                     showDelete);
+        }
+
+        float listHeight = showThumbnails
+            ? pathListHeightForRows(rows.size())
+            : EDGE_LIST_HEIGHT;
+        ImGui.beginChild(childId, 0, listHeight, true);
+        if (rows.isEmpty()) {
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edge_list_empty"));
+        } else {
             renderVirtualEdgeList(network, rows, showDelete, showThumbnails);
         }
         ImGui.endChild();
+    }
+
+    private static float pathRowHeight() {
+        return Math.max(
+            RoadNetworkOverviewRenderer.thumbnailHeight(),
+            ImGui.getTextLineHeightWithSpacing() * 2f
+                + ImGui.getFrameHeightWithSpacing()
+                + ImGui.getStyle().getItemSpacingY())
+            + ImGui.getStyle().getItemSpacingY();
+    }
+
+    private static float pathListHeightForRows(int rowCount) {
+        float padding = ImGui.getStyle().getWindowPaddingY() * 2f;
+        if (rowCount <= 0) {
+            return ImGui.getTextLineHeightWithSpacing() * 2f + padding;
+        }
+        float content = rowCount * pathRowHeight() + padding;
+        return Math.min(PATH_LIST_MAX_HEIGHT, content);
     }
 
     private void renderVirtualEdgeList(
@@ -152,7 +173,7 @@ public final class RoadEdgeListPanel {
             boolean showDelete,
             boolean showThumbnails) {
         int rowHeight = showThumbnails
-            ? Math.round(RoadNetworkOverviewRenderer.thumbnailHeight() + ImGui.getStyle().getItemSpacingY())
+            ? Math.round(pathRowHeight())
             : Math.round(ImGui.getTextLineHeightWithSpacing() * EDGE_ROW_HEIGHT_LINES);
         ImGuiListClipper.forEach(rows.size(), rowHeight, new ImListClipperCallback() {
             @Override

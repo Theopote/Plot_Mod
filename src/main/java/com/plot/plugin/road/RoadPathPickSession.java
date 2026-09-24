@@ -76,15 +76,30 @@ public class RoadPathPickSession {
     }
 
     public void begin() {
+        begin(null);
+    }
+
+    public void begin(AppState appState) {
         active = true;
         accumulatedPaths.clear();
         canvasSnapshot.reset();
+        if (appState != null) {
+            canvasSnapshot.beginSession(appState);
+        }
     }
 
     public void cancel() {
+        cancel(null);
+    }
+
+    public void cancel(AppState appState) {
+        List<Shape> restoreSelection = canvasSnapshot.sessionStartSelection();
         active = false;
         accumulatedPaths.clear();
         canvasSnapshot.reset();
+        if (appState != null) {
+            appState.setSelectedShapes(restoreSelection);
+        }
     }
 
     /**
@@ -96,9 +111,11 @@ public class RoadPathPickSession {
         }
 
         if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
+            List<Shape> restoreSelection = canvasSnapshot.sessionStartSelection();
             active = false;
             accumulatedPaths.clear();
             canvasSnapshot.reset();
+            appState.setSelectedShapes(restoreSelection);
             return Outcome.failed(Result.CANCELLED);
         }
 

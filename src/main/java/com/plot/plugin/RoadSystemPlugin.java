@@ -3,11 +3,13 @@ package com.plot.plugin;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.plugin.IPlugin;
 import com.plot.core.plugin.PluginManager;
+import com.plot.core.shortcut.ShortcutManager;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.earthwork.RoadEarthworkCorridorResolver;
 import com.plot.plugin.road.earthwork.RoadEarthworkSurfaceSampler;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadNetworkGenerator;
+import com.plot.plugin.road.RoadPathPickEscapeShortcutListener;
 import com.plot.plugin.road.manager.RoadJunctionPropertyProvider;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.manager.RoadPersistenceManager;
@@ -42,6 +44,7 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
     private RoadPreviewManager previewManager;
     private RoadToolManager toolManager;
     private RoadUIManager uiManager;
+    private RoadPathPickEscapeShortcutListener pathPickEscapeListener;
 
     private final CanvasOverlayRegistry.Overlay roadOverlay = this::renderRoadOverlay;
 
@@ -77,6 +80,8 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
         previewManager = new RoadPreviewManager(status, ctx());
         networkManager.setOnNetworkChanged(previewManager::invalidatePreview);
         toolManager = new RoadToolManager(status, ctx());
+        pathPickEscapeListener = new RoadPathPickEscapeShortcutListener(toolManager);
+        ShortcutManager.getInstance().addListener(pathPickEscapeListener);
         uiManager = new RoadUIManager(
             networkManager, previewManager, persistenceManager, toolManager, status, ctx());
         toolManager.setPathsPickedHandler(paths -> {
@@ -130,6 +135,10 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
         }
         if (toolManager != null) {
             toolManager.cancel();
+        }
+        if (pathPickEscapeListener != null) {
+            ShortcutManager.getInstance().removeListener(pathPickEscapeListener);
+            pathPickEscapeListener = null;
         }
 
         ctx().events().unsubscribeOwner(this);

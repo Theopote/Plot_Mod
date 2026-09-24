@@ -56,6 +56,9 @@ public final class RoadPathHeader {
         ImGui.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.path.picking_hint"));
+        if (ImGui.button(PlotI18n.tr("plugin.road.path.cancel_pick") + "##road_path_cancel_pick", 0, 0)) {
+            ctx.toolManager().cancelPathPick();
+        }
     }
 
     private static void renderProjectStats(RoadNetwork network) {
