@@ -264,7 +264,7 @@ public final class BuildingFootprintsPanel {
             ImGui.separator();
             if (ImGui.button(PlotI18n.tr("plugin.building.delete"), 100, 0)) {
                 if (!ctx.pendingDeleteBuildingIds().isEmpty()) {
-                    ctx.projectHistory().push(ctx.project());
+                    ctx.pushProjectHistory();
                     for (String id : ctx.pendingDeleteBuildingIds()) {
                         ctx.project().removeBuilding(id);
                         ctx.selection().remove(id);

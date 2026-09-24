@@ -4109,6 +4109,8 @@
   "plugin.building.floor_plate_cannot_setback": "当前轮廓过小或过于复杂，无法退台。",
   "plugin.building.undo": "撤销",
   "plugin.building.redo": "重做",
+  "hint.plot.building.undo": "撤销上一步项目修改（认领、删除、参数编辑等）",
+  "hint.plot.building.redo": "重做上一步被撤销的修改",
   "plugin.building.footprints.canvas_hint": "点击「拾取轮廓」，在画布上用选择工具点选闭合图形（可 Ctrl 多选），右键确认后自动认领。每条闭合轮廓即一栋建筑。",
   "plugin.building.footprints.picking_active": "拾取中：点选闭合轮廓，右键确认认领",
   "plugin.building.footprints.picking_count": "拾取中：已选 %d 个轮廓，右键确认认领",

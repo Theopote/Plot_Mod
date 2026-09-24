@@ -4109,6 +4109,8 @@
   "plugin.building.floor_plate_cannot_setback": "Footprint is too small or complex for setback.",
   "plugin.building.undo": "Undo",
   "plugin.building.redo": "Redo",
+  "hint.plot.building.undo": "Undo the last project change (adopt, delete, parameter edits, etc.)",
+  "hint.plot.building.redo": "Redo the last undone change",
   "plugin.building.footprints.canvas_hint": "Click Pick footprint, select closed outlines on the canvas (Ctrl for multi-select), then right-click to adopt. Each closed outline becomes one building.",
   "plugin.building.footprints.picking_active": "Picking: select closed outlines, right-click to adopt",
   "plugin.building.footprints.picking_count": "Picking: %d outline(s) selected, right-click to adopt",

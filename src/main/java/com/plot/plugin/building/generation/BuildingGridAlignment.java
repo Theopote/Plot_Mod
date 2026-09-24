@@ -18,11 +18,6 @@ public final class BuildingGridAlignment {
     private BuildingGridAlignment() {
     }
 
-    /** 1 世界方块在画布上的平均步长（仅用于向后兼容；格网采样请用 {@link #blockCellSteps}）。 */
-    public static double blockCellSizeCanvas(BuildingCanvasScale scale, List<Vec2d> outerPoints) {
-        return scale.uniformBlocksToCanvas(1.0, outerPoints);
-    }
-
     /** 1 世界方块在画布 X / Z 方向的步长。 */
     public static Vec2d blockCellSteps(BuildingCanvasScale scale, List<Vec2d> outerPoints) {
         return scale.blockCellSteps(outerPoints);

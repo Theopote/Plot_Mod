@@ -102,7 +102,7 @@ public final class BuildingEditPanel {
             "plugin.building.label.floors",
             BuildingUiWidgets.SliderValueFormat.INT);
         if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
+            ctx.pushProjectHistory();
         }
         if (floorsChanged) {
             building.setFloors(floors[0]);
@@ -125,7 +125,7 @@ public final class BuildingEditPanel {
             "plugin.building.label.floor_height",
             BuildingUiWidgets.SliderValueFormat.GRID);
         if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
+            ctx.pushProjectHistory();
         }
         if (floorHeightChanged) {
             building.setFloorHeight(floorHeight[0]);
@@ -140,7 +140,7 @@ public final class BuildingEditPanel {
             "plugin.building.label.wall_thickness",
             BuildingUiWidgets.SliderValueFormat.GRID);
         if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
+            ctx.pushProjectHistory();
         }
         if (wallThicknessChanged) {
             building.setWallThickness(wallThickness[0]);
@@ -159,7 +159,7 @@ public final class BuildingEditPanel {
                 "plugin.building.label.roof_pitch",
                 BuildingUiWidgets.SliderValueFormat.ROOF_PITCH);
             if (ImGui.isItemActivated()) {
-                ctx.projectHistory().push(ctx.project());
+                ctx.pushProjectHistory();
             }
             if (pitchChanged) {
                 building.setRoofPitchRatio(pitch[0]);
@@ -176,7 +176,7 @@ public final class BuildingEditPanel {
                 "plugin.building.label.roof_eaves",
                 BuildingUiWidgets.SliderValueFormat.GRID);
             if (ImGui.isItemActivated()) {
-                ctx.projectHistory().push(ctx.project());
+                ctx.pushProjectHistory();
             }
             if (eavesChanged) {
                 building.setRoofEaves(eaves[0]);
@@ -192,39 +192,39 @@ public final class BuildingEditPanel {
     private void renderMaterialsSection(BuildingFootprint building) {
         BuildingUiWidgets.renderMaterialMixButton(ctx, PlotI18n.tr("plugin.building.wall_material"), building.getWallMaterial(),
             mix -> {
-                ctx.projectHistory().push(ctx.project());
+                ctx.pushProjectHistory();
                 building.setWallMaterial(mix);
                 ctx.invalidatePreview();
             });
         BuildingUiWidgets.renderMaterialMixButton(ctx, PlotI18n.tr("plugin.building.floor_material"), building.getFloorMaterial(),
             mix -> {
-                ctx.projectHistory().push(ctx.project());
+                ctx.pushProjectHistory();
                 building.setFloorMaterial(mix);
                 ctx.invalidatePreview();
             });
         BuildingUiWidgets.renderMaterialButton(ctx, PlotI18n.tr("plugin.building.window_material"), building.getWindowMaterial(),
             blockId -> {
-                ctx.projectHistory().push(ctx.project());
+                ctx.pushProjectHistory();
                 building.setWindowMaterial(blockId);
                 ctx.invalidatePreview();
             });
         BuildingUiWidgets.renderMaterialButton(ctx, PlotI18n.tr("plugin.building.balcony_slab_material"),
             building.getBalconySlabMaterial(),
             blockId -> {
-                ctx.projectHistory().push(ctx.project());
+                ctx.pushProjectHistory();
                 building.setBalconySlabMaterial(blockId);
                 ctx.invalidatePreview();
             });
         BuildingUiWidgets.renderMaterialButton(ctx, PlotI18n.tr("plugin.building.roof_material"), building.getRoofMaterial(),
             blockId -> {
-                ctx.projectHistory().push(ctx.project());
+                ctx.pushProjectHistory();
                 building.setRoofMaterial(blockId);
                 ctx.invalidatePreview();
             });
         BuildingUiWidgets.renderMaterialButton(ctx, PlotI18n.tr("plugin.building.foundation_material"),
             building.getFoundationFillMaterial(),
             blockId -> {
-                ctx.projectHistory().push(ctx.project());
+                ctx.pushProjectHistory();
                 building.setFoundationFillMaterial(blockId);
                 ctx.invalidatePreview();
             });
@@ -238,7 +238,7 @@ public final class BuildingEditPanel {
     private void renderSiteSection(BuildingFootprint building) {
         ctx.manualElevationRef().set(building.getManualBaseElevation() != null);
         if (ImGui.checkbox(PlotI18n.tr("plugin.building.manual_elevation"), ctx.manualElevationRef())) {
-            ctx.projectHistory().push(ctx.project());
+            ctx.pushProjectHistory();
             if (ctx.manualElevationRef().get()) {
                 building.setManualBaseElevation(64);
             } else {
@@ -255,7 +255,7 @@ public final class BuildingEditPanel {
                 "plugin.building.label.base_elevation",
                 BuildingUiWidgets.SliderValueFormat.ELEVATION_Y);
             if (ImGui.isItemActivated()) {
-                ctx.projectHistory().push(ctx.project());
+                ctx.pushProjectHistory();
             }
             if (elevationChanged) {
                 building.setManualBaseElevation(elevation[0]);
@@ -283,7 +283,7 @@ public final class BuildingEditPanel {
         }
 
         if (ImGui.checkbox(PlotI18n.tr("plugin.building.floor_plate_upper_setback"), setbackEnabled)) {
-            ctx.projectHistory().push(ctx.project());
+            ctx.pushProjectHistory();
             if (setbackEnabled.get()) {
                 BuildingFloorPlateUi.applySimpleTower(
                     building,
@@ -310,7 +310,7 @@ public final class BuildingEditPanel {
             "plugin.building.label.floor_plate_tower_start",
             BuildingUiWidgets.SliderValueFormat.INT);
         if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
+            ctx.pushProjectHistory();
         }
 
         int maxInset = BuildingFloorPlateUi.sliderMaxInset(canvasScale, building.getOuterPoints());
@@ -325,7 +325,7 @@ public final class BuildingEditPanel {
             "plugin.building.label.floor_plate_inset",
             BuildingUiWidgets.SliderValueFormat.GRID);
         if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
+            ctx.pushProjectHistory();
         }
 
         if (towerStartChanged || insetChanged) {
@@ -340,7 +340,7 @@ public final class BuildingEditPanel {
 
         ImBoolean windowsEnabled = new ImBoolean(building.isWindowsEnabled());
         if (ImGui.checkbox(PlotI18n.tr("plugin.building.windows_enabled"), windowsEnabled)) {
-            ctx.projectHistory().push(ctx.project());
+            ctx.pushProjectHistory();
             building.setWindowsEnabled(windowsEnabled.get());
             ctx.invalidatePreview();
         }
@@ -356,7 +356,7 @@ public final class BuildingEditPanel {
             "plugin.building.label.window_width",
             BuildingUiWidgets.SliderValueFormat.GRID);
         if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
+            ctx.pushProjectHistory();
         }
         if (windowWidthChanged) {
             building.setWindowWidth(windowWidth[0]);
@@ -369,7 +369,7 @@ public final class BuildingEditPanel {
             "plugin.building.label.window_pier_width",
             BuildingUiWidgets.SliderValueFormat.GRID);
         if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
+            ctx.pushProjectHistory();
         }
         if (windowPierChanged) {
             building.setWindowPierWidth(windowPier[0]);
@@ -382,7 +382,7 @@ public final class BuildingEditPanel {
             "plugin.building.label.window_height",
             BuildingUiWidgets.SliderValueFormat.GRID);
         if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
+            ctx.pushProjectHistory();
         }
         if (windowHeightChanged) {
             building.setWindowHeight(windowHeight[0]);
@@ -396,7 +396,7 @@ public final class BuildingEditPanel {
             "plugin.building.label.window_sill",
             BuildingUiWidgets.SliderValueFormat.GRID);
         if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
+            ctx.pushProjectHistory();
         }
         if (windowSillChanged) {
             building.setWindowSillHeight(windowSill[0]);
@@ -411,7 +411,7 @@ public final class BuildingEditPanel {
             "plugin.building.label.window_balcony_depth",
             BuildingUiWidgets.SliderValueFormat.GRID);
         if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
+            ctx.pushProjectHistory();
         }
         if (balconyDepthChanged) {
             building.setWindowBalconyDepth(balconyDepth[0]);
@@ -467,7 +467,7 @@ public final class BuildingEditPanel {
         if (BuildingUiWidgets.comboWithRightLabel("##roof_type", "plugin.building.roof_type", roofTypeIndex, labels)) {
             int index = roofTypeIndex.get();
             if (index >= 0 && index < roofTypes.length) {
-                ctx.projectHistory().push(ctx.project());
+                ctx.pushProjectHistory();
                 building.setRoofType(roofTypes[index]);
                 if (building.getRoofType().isSloped()) {
                     building.refreshSlopedRoofEligibility();

@@ -23,9 +23,7 @@ import java.util.Set;
  * <p>
  * Accessory 阶段仅含冻结集（女儿墙 / 雨篷 / 阳台），见 {@link com.plot.plugin.building.model.spec.AccessoryKind}。
  */
-public final class BuildingGenerationPipeline {
-    private final List<BuildingGenerationStage> stages;
-
+public record BuildingGenerationPipeline(List<BuildingGenerationStage> stages) {
     public BuildingGenerationPipeline(List<BuildingGenerationStage> stages) {
         Objects.requireNonNull(stages, "stages");
         if (stages.isEmpty()) {
@@ -39,13 +37,13 @@ public final class BuildingGenerationPipeline {
      */
     public static BuildingGenerationPipeline createDefault() {
         return new BuildingGenerationPipeline(List.of(
-            new SitePreparationStage(),
-            new FoundationGenerationStage(),
-            new WallGenerationStage(),
-            new FloorGenerationStage(),
-            new RoofGenerationStage(),
-            new AccessoryGenerationStage(),
-            new OpeningGenerationStage()
+                new SitePreparationStage(),
+                new FoundationGenerationStage(),
+                new WallGenerationStage(),
+                new FloorGenerationStage(),
+                new RoofGenerationStage(),
+                new AccessoryGenerationStage(),
+                new OpeningGenerationStage()
         ));
     }
 
@@ -54,9 +52,9 @@ public final class BuildingGenerationPipeline {
      */
     public static BuildingGenerationPipeline createFrameOnly() {
         return new BuildingGenerationPipeline(List.of(
-            new SitePreparationStage(),
-            new FoundationGenerationStage(),
-            new FrameGenerationStage()
+                new SitePreparationStage(),
+                new FoundationGenerationStage(),
+                new FrameGenerationStage()
         ));
     }
 
@@ -102,10 +100,6 @@ public final class BuildingGenerationPipeline {
 
     public static long packWorldColumn(int x, int z) {
         return ((long) x << 32) | (z & 0xffffffffL);
-    }
-
-    public List<BuildingGenerationStage> getStages() {
-        return stages;
     }
 
     public List<String> getStageNames() {

@@ -191,7 +191,7 @@ public final class BuildingUiContext {
                 cancelBuildingNameRename(building);
                 return;
             }
-            projectHistory().push(project());
+            pushProjectHistory();
             building.setName(trimmed);
         }
         state.endBuildingNameRename();
@@ -349,6 +349,18 @@ public final class BuildingUiContext {
 
     public void syncSelectedBuildingAfterHistory() {
         actions.syncSelectedBuildingAfterHistory();
+    }
+
+    public void pushProjectHistory() {
+        actions.pushProjectHistory();
+    }
+
+    public void undoProject() {
+        actions.undoProject();
+    }
+
+    public void redoProject() {
+        actions.redoProject();
     }
 
     public void resetAfterProjectLoad() {

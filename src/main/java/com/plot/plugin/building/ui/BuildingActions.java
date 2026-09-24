@@ -82,6 +82,30 @@ public final class BuildingActions {
         state.setBuildingNameEditingId("");
     }
 
+    public void pushProjectHistory() {
+        state.getProjectHistory().push(state.getProject());
+    }
+
+    public void undoProject() {
+        if (!state.getProjectHistory().canUndo()) {
+            return;
+        }
+        state.setProject(state.getProjectHistory().undo(state.getProject()));
+        syncSelectedBuildingAfterHistory();
+        clearPreview();
+        state.setProjectStatus("");
+    }
+
+    public void redoProject() {
+        if (!state.getProjectHistory().canRedo()) {
+            return;
+        }
+        state.setProject(state.getProjectHistory().redo(state.getProject()));
+        syncSelectedBuildingAfterHistory();
+        clearPreview();
+        state.setProjectStatus("");
+    }
+
     public void resetAfterProjectLoad() {
         state.setBuildingNameEditingId("");
         state.getPickSession().cancel();
@@ -430,7 +454,7 @@ public final class BuildingActions {
         if (targets == null || targets.isEmpty()) {
             return;
         }
-        state.getProjectHistory().push(state.getProject());
+        pushProjectHistory();
         long seed = state.getHeightDistMode() == BuildingHeightDistribution.Mode.RANDOM
             ? resolveHeightDistSeed(targets)
             : 0L;
@@ -461,7 +485,7 @@ public final class BuildingActions {
         if (primary == null || targets == null || targets.isEmpty()) {
             return;
         }
-        state.getProjectHistory().push(state.getProject());
+        pushProjectHistory();
         BuildingBatchEditor.ApplyResult result =
             BuildingBatchEditor.apply(primary, targets, state.getBatchFieldMask());
         invalidatePreview();
@@ -731,7 +755,7 @@ public final class BuildingActions {
             return;
         }
 
-        state.getProjectHistory().push(state.getProject());
+        pushProjectHistory();
         int adopted = 0;
         int skipped = 0;
         int repaired = 0;

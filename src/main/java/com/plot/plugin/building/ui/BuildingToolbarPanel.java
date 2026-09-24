@@ -26,10 +26,10 @@ public final class BuildingToolbarPanel {
             ImGui.beginDisabled();
         }
         if (ImGui.button(PlotI18n.tr("plugin.building.undo"), buttonWidth, 0)) {
-            ctx.setProject(ctx.projectHistory().undo(ctx.project()));
-            ctx.syncSelectedBuildingAfterHistory();
-            ctx.setBuildingNameEditingId("");
-            ctx.invalidatePreview();
+            ctx.undoProject();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.building.undo"));
         }
         if (undoDisabled) {
             ImGui.endDisabled();
@@ -41,10 +41,10 @@ public final class BuildingToolbarPanel {
             ImGui.beginDisabled();
         }
         if (ImGui.button(PlotI18n.tr("plugin.building.redo"), buttonWidth, 0)) {
-            ctx.setProject(ctx.projectHistory().redo(ctx.project()));
-            ctx.syncSelectedBuildingAfterHistory();
-            ctx.setBuildingNameEditingId("");
-            ctx.invalidatePreview();
+            ctx.redoProject();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.building.redo"));
         }
         if (redoDisabled) {
             ImGui.endDisabled();

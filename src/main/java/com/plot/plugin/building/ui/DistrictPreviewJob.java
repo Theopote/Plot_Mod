@@ -4,7 +4,6 @@ import com.plot.plugin.building.BuildingFootprintValidator;
 import com.plot.plugin.building.BuildingGenerator;
 import com.plot.plugin.building.generation.BuildingGenerationContext;
 import com.plot.plugin.building.generation.BuildingGenerationPipeline;
-import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.generation.DistrictGenerationResult;
 import com.plot.plugin.building.generation.DistrictMassingGenerator;
 import com.plot.plugin.building.model.BuildingFootprint;

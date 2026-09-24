@@ -1,6 +1,5 @@
 package com.plot.plugin.building.generation.stage;
 
-import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.core.material.MaterialMixResolver;
