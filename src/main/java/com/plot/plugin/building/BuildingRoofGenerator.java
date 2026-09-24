@@ -54,14 +54,8 @@ public final class BuildingRoofGenerator {
             : null;
         boolean ridgeAlongX = bounds != null && bounds.width() >= bounds.depth();
 
-        Vec2d blockSteps = com.plot.plugin.building.generation.BuildingGridAlignment.blockCellSteps(
-            scale, outerPoints);
-        for (Vec2d center : BuildingGeometryUtils.collectFootprintCellCenters(
-                outerPoints, blockSteps.x, blockSteps.y)) {
-            if (!roofPolygon.contains(center)) {
-                continue;
-            }
-
+        for (Vec2d center : BuildingGridAlignment.collectWorldAlignedCellCenters(
+                outerPoints, roofPolygon, scale)) {
             double eaveDistance = switch (roofType) {
                 case GABLE -> computeGableEaveDistance(
                     center, outerPoints, skeleton, bounds, ridgeAlongX, scale);

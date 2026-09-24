@@ -218,6 +218,19 @@ public final class BuildingGenerationContext {
         return collectFootprintCells(points, polygon, 1.0, 1.0);
     }
 
+    public static List<GridCell> collectFootprintCells(
+            List<Vec2d> points,
+            Polygon polygon,
+            BuildingCanvasScale scale) {
+        List<GridCell> cells = new ArrayList<>();
+        for (Vec2d center : BuildingGridAlignment.collectWorldAlignedCellCenters(points, polygon, scale)) {
+            cells.add(new GridCell(center));
+        }
+        return cells;
+    }
+
+    /** @deprecated 建筑生成请用 {@link #collectFootprintCells(List, Polygon, BuildingCanvasScale)}。 */
+    @Deprecated
     public static List<GridCell> collectFootprintCells(List<Vec2d> points, Polygon polygon, double cellSize) {
         return collectFootprintCells(points, polygon, cellSize, cellSize);
     }

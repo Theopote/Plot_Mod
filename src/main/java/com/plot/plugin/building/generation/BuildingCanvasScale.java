@@ -32,6 +32,11 @@ public final class BuildingCanvasScale {
         return coordinates;
     }
 
+    /** 世界方块列中心 → 画布坐标（与 {@link #blocksToCanvas} 冻结的投影一致）。 */
+    public Vec2d worldBlockCenterToCanvas(int blockX, int blockZ) {
+        return coordinates.captureProjection().toCanvas(new Vec2d(blockX + 0.5, blockZ + 0.5));
+    }
+
     public double blocksToCanvas(double blocks, Vec2d origin, Vec2d direction) {
         if (blocks == 0.0) {
             return 0.0;

@@ -48,10 +48,8 @@ public final class FloorPlateGeometryResolver {
         Polygon innerPolygon = innerPoints.size() >= 3
             ? BuildingGeometryUtils.toPolygon(innerPoints)
             : null;
-        Vec2d wallCellSteps = com.plot.plugin.building.generation.BuildingGridAlignment
-            .blockCellSteps(scale, outerPoints);
         List<BuildingGenerationContext.GridCell> outerCells = BuildingGenerationContext.collectFootprintCells(
-            outerPoints, outerPolygon, wallCellSteps.x, wallCellSteps.y);
+            outerPoints, outerPolygon, canvasScale);
         return new ResolvedFloorPlate(
             plate,
             Collections.unmodifiableList(outerPoints),

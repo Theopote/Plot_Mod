@@ -6,7 +6,6 @@ import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.building.generation.BuildingCanvasScale;
 import com.plot.plugin.building.generation.BuildingGenerationContext;
 import com.plot.plugin.building.generation.BuildingGenerationContext.GridCell;
-import com.plot.plugin.building.generation.BuildingGridAlignment;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.generation.massing.InnerOffsetDegradation;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
@@ -74,9 +73,8 @@ public final class MassingGeometryResolver {
                 definition.massing().coverageGapFloors());
         }
 
-        Vec2d blockSteps = BuildingGridAlignment.blockCellSteps(scale, outerPoints);
         List<GridCell> footprintCells = BuildingGenerationContext.collectFootprintCells(
-            outerPoints, outerPolygon, blockSteps.x, blockSteps.y);
+            outerPoints, outerPolygon, scale);
         return new ResolvedMassingGeometry(
             Collections.unmodifiableList(outerPoints),
             outerPolygon,

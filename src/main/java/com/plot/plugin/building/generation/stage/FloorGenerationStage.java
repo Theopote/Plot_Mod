@@ -7,7 +7,6 @@ import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.building.generation.BuildingBlockWriter;
 import com.plot.plugin.building.generation.BuildingGenerationContext;
-import com.plot.plugin.building.generation.BuildingGridAlignment;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.generation.massing.FloorPlateGeometryResolver.ResolvedFloorPlate;
 import com.plot.plugin.building.generation.massing.InnerOffsetDegradation;
@@ -54,10 +53,8 @@ public final class FloorGenerationStage implements BuildingGenerationStage {
                 continue;
             }
             int floorY = baseElevation + floor * massing.floorHeight();
-            Vec2d blockSteps = BuildingGridAlignment.blockCellSteps(
-                context.getCanvasScale(), plate.outerPoints());
             List<BuildingGenerationContext.GridCell> innerCells = BuildingGenerationContext.collectFootprintCells(
-                plate.innerPoints(), innerPolygon, blockSteps.x, blockSteps.y);
+                plate.innerPoints(), innerPolygon, context.getCanvasScale());
             for (BuildingGenerationContext.GridCell cell : innerCells) {
                 if (!InnerOffsetDegradation.isInteriorCell(innerPolygon, cell.center())) {
                     continue;
