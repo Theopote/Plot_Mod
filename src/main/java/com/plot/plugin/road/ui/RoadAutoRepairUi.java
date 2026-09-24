@@ -17,7 +17,20 @@ import java.util.List;
  */
 public final class RoadAutoRepairUi {
 
+    private static final RoadNetworkBuilder PROBE_BUILDER = new RoadNetworkBuilder();
+
+    private static long cachedRevision = Long.MIN_VALUE;
+    private static String cachedRoadId = "";
+    private static boolean cachedAdoptPending;
+    private static List<RoadRepairIssue> cachedIssues = List.of();
+
     private RoadAutoRepairUi() {
+    }
+
+    /** 路网或选中道路变更后使诊断缓存失效。 */
+    public static void invalidateCache() {
+        cachedRevision = Long.MIN_VALUE;
+        cachedRoadId = "";
     }
 
     public static void render(RoadUiContext ctx, RoadNetwork network, Road road) {
@@ -25,13 +38,7 @@ public final class RoadAutoRepairUi {
             return;
         }
 
-        IntersectionProbeResult probe = new RoadNetworkBuilder().probeIntersectionCompleteness(network);
-        List<RoadRepairIssue> issues = RoadAutoRepair.diagnose(
-            network,
-            road,
-            ctx.networkManager().getConfig(),
-            probe,
-            ctx.networkManager().isAdoptIntersectionRepairPending());
+        List<RoadRepairIssue> issues = resolveIssues(ctx, network, road);
         if (issues.isEmpty()) {
             return;
         }
@@ -50,6 +57,10 @@ public final class RoadAutoRepairUi {
         if (ImGui.button(PlotI18n.tr("plugin.road.fix_road.action") + "##fix_road_" + road.getId())) {
             executeFix(ctx, road);
         }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.road.fix_road.recheck") + "##fix_road_recheck_" + road.getId())) {
+            invalidateCache();
+        }
         ImGui.spacing();
     }
 
@@ -58,6 +69,7 @@ public final class RoadAutoRepairUi {
             return false;
         }
         RoadAutoRepair.Result result = ctx.networkManager().fixRoad(road);
+        invalidateCache();
         ctx.onGenerationConfigChanged();
 
         if (result.fullyRepaired()) {
@@ -74,6 +86,34 @@ public final class RoadAutoRepairUi {
             ctx.networkManager().selectRoad(result.roadId(), false);
         }
         return result.changed();
+    }
+
+    private static List<RoadRepairIssue> resolveIssues(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road) {
+        long revision = ctx.networkManager().getNetworkRevision();
+        boolean adoptPending = ctx.networkManager().isAdoptIntersectionRepairPending();
+        String roadId = road.getId();
+        if (revision == cachedRevision
+                && roadId.equals(cachedRoadId)
+                && adoptPending == cachedAdoptPending) {
+            return cachedIssues;
+        }
+
+        IntersectionProbeResult probe = PROBE_BUILDER.probeIntersectionCompleteness(network);
+        List<RoadRepairIssue> issues = RoadAutoRepair.diagnose(
+            network,
+            road,
+            ctx.networkManager().getConfig(),
+            probe,
+            adoptPending);
+
+        cachedRevision = revision;
+        cachedRoadId = roadId;
+        cachedAdoptPending = adoptPending;
+        cachedIssues = issues;
+        return issues;
     }
 
     private static String issueKey(RoadRepairIssue issue) {

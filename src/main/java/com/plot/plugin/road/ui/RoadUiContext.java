@@ -208,11 +208,26 @@ public final class RoadUiContext {
     }
 
     /**
-     * 推送历史记录并自动使预览失效。
-     * {@link RoadNetworkManager#pushHistory()} 已统一触发预览失效，此方法保留为语义明确的入口。
+     * 推送历史记录并自动使预览失效（快照 + 一次 revision）。
+     * 分步 ImGui 编辑请用 {@link #beginNetworkEdit()} / {@link #finishNetworkEdit()}。
      */
     public void pushHistoryAndInvalidatePreview() {
         networkManager.pushHistory();
+    }
+
+    /** {@link RoadNetworkManager#beginNetworkEdit()} */
+    public void beginNetworkEdit() {
+        networkManager.beginNetworkEdit();
+    }
+
+    /** {@link RoadNetworkManager#finishNetworkEdit()} */
+    public void finishNetworkEdit() {
+        networkManager.finishNetworkEdit();
+    }
+
+    /** {@link RoadNetworkManager#mutateNetwork(Runnable)} */
+    public void editNetwork(Runnable mutation) {
+        networkManager.mutateNetwork(mutation);
     }
 
     /**

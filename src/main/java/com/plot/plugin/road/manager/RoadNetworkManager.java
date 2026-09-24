@@ -28,12 +28,21 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Supplier;
 
 /**
  * 道路网络数据、选择状态与可撤销变更。
  *
  * <p>持有 live {@link RoadNetwork} 的<strong>单写者</strong>：变更应仅在 client / UI 线程通过本类进行。
  * 持久化、预览生成等若需与编辑并发，应对 {@link RoadNetwork#snapshot()} 副本操作，而非共享 live 实例。
+ *
+ * <p><strong>变更事务协议</strong>（一次用户编辑 = 一次 undo 快照 + 一次 {@link #getNetworkRevision()} + 一次预览失效）：
+ * <ul>
+ *   <li>{@link #mutateNetwork(Runnable)} — Manager 内原子编辑</li>
+ *   <li>{@link #pushUndoSnapshot()} → 修改 → {@link #commitNetworkChange()} — 分步编辑（如 ImGui 拖拽）</li>
+ *   <li>{@link #pushHistory()} — 快照并立即提交；ImGui {@code isItemActivated} 推历史时使用</li>
+ * </ul>
  */
 public final class RoadNetworkManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadNetwork");
@@ -187,12 +196,63 @@ public final class RoadNetworkManager {
     }
 
     /**
-     * 推入撤销快照，并标记路网即将/已经变更（使预览失效）。
-     * UI 与 Manager 在修改前应统一调用此方法。
+     * 推入撤销快照（不 bump {@link #getNetworkRevision()}）。
+     * 与 {@link #commitNetworkChange()} 配对：一次用户编辑 = 一次快照 + 一次 revision。
+     */
+    public void pushUndoSnapshot() {
+        history.push(network);
+    }
+
+    /**
+     * 一次用户编辑完成：bump revision 并使预览失效。
+     */
+    public void commitNetworkChange() {
+        notifyNetworkChanged();
+    }
+
+    /** {@link #pushUndoSnapshot()} 的语义别名。 */
+    public void beginNetworkEdit() {
+        pushUndoSnapshot();
+    }
+
+    /** {@link #commitNetworkChange()} 的语义别名。 */
+    public void finishNetworkEdit() {
+        commitNetworkChange();
+    }
+
+    /**
+     * 单次可撤销编辑：快照 → 修改 → 提交。
+     * Manager 内原子操作应优先使用此方法。
+     */
+    public void mutateNetwork(Runnable mutation) {
+        Objects.requireNonNull(mutation, "mutation");
+        pushUndoSnapshot();
+        mutation.run();
+        commitNetworkChange();
+    }
+
+    /**
+     * 单次可撤销编辑；{@code false} 时不提交 revision（撤销栈仍保留快照）。
+     */
+    public <T> T mutateNetwork(Supplier<T> mutation, java.util.function.Predicate<T> commitWhen) {
+        Objects.requireNonNull(mutation, "mutation");
+        Objects.requireNonNull(commitWhen, "commitWhen");
+        pushUndoSnapshot();
+        T result = mutation.get();
+        if (commitWhen.test(result)) {
+            commitNetworkChange();
+        }
+        return result;
+    }
+
+    /**
+     * 推入撤销快照并立即提交 revision。
+     * <p>ImGui 控件在 {@code isItemActivated} 时推历史、同一次交互内持续改值时使用。
+     * 新代码优先 {@link #mutateNetwork(Runnable)} 或 {@code pushUndoSnapshot} + {@code commitNetworkChange}。
      */
     public void pushHistory() {
-        history.push(network);
-        notifyNetworkChanged();
+        pushUndoSnapshot();
+        commitNetworkChange();
     }
 
     public void undo() {
@@ -295,13 +355,14 @@ public final class RoadNetworkManager {
             String strategyLabel,
             int sampleCount,
             double average) {
-        pushHistory();
-        for (RoadNode node : network.getNodes().values()) {
-            node.setManualElevation((double) elevation);
-        }
-        for (Road road : network.getRoads().values()) {
-            road.setMaxSlope(0f);
-        }
+        mutateNetwork(() -> {
+            for (RoadNode node : network.getNodes().values()) {
+                node.setManualElevation((double) elevation);
+            }
+            for (Road road : network.getRoads().values()) {
+                road.setMaxSlope(0f);
+            }
+        });
         // 仅改路网内道路坡度，不写全局默认配置，避免副作用持久化到 config
 
         if (sampleCount > 0) {
@@ -489,29 +550,30 @@ public final class RoadNetworkManager {
         if (edgeId == null || edgeId.isEmpty()) {
             return;
         }
-        pushHistory();
-        network.removeEdge(edgeId);
-        selectedEdgeIds.remove(edgeId);
-        if (edgeId.equals(lastSelectedEdgeId)) {
-            lastSelectedEdgeId = getPrimarySelectedEdgeId();
-        }
-        // 确保选择状态有效，删除边后其他相关边可能也变为无效
-        ensureSelectionValid();
+        mutateNetwork(() -> {
+            network.removeEdge(edgeId);
+            selectedEdgeIds.remove(edgeId);
+            if (edgeId.equals(lastSelectedEdgeId)) {
+                lastSelectedEdgeId = getPrimarySelectedEdgeId();
+            }
+            ensureSelectionValid();
+        });
     }
 
     public void deleteRoad(String roadId) {
         if (roadId == null || roadId.isBlank()) {
             return;
         }
-        pushHistory();
-        Road road = network.getRoad(roadId);
-        List<String> edgeIds = road != null ? new ArrayList<>(road.getOrderedSegmentIds()) : List.of();
-        network.removeRoad(roadId);
-        selectedEdgeIds.removeIf(edgeIds::contains);
-        if (edgeIds.contains(lastSelectedEdgeId)) {
-            lastSelectedEdgeId = "";
-        }
-        ensureSelectionValid();
+        mutateNetwork(() -> {
+            Road road = network.getRoad(roadId);
+            List<String> edgeIds = road != null ? new ArrayList<>(road.getOrderedSegmentIds()) : List.of();
+            network.removeRoad(roadId);
+            selectedEdgeIds.removeIf(edgeIds::contains);
+            if (edgeIds.contains(lastSelectedEdgeId)) {
+                lastSelectedEdgeId = "";
+            }
+            ensureSelectionValid();
+        });
     }
 
     /**
@@ -539,12 +601,12 @@ public final class RoadNetworkManager {
         if (index <= 0) {
             return null;
         }
-        pushHistory();
+        pushUndoSnapshot();
         String newRoadId = network.splitRoadBeforeSegment(roadId, segmentEdgeId);
         if (newRoadId == null) {
             return null;
         }
-        notifyNetworkChanged();
+        commitNetworkChange();
         return newRoadId;
     }
 
@@ -552,88 +614,73 @@ public final class RoadNetworkManager {
         if (edgeId == null || edgeId.isBlank()) {
             return CenterlineEditResult.failure(CenterlineEditStatus.EDGE_NOT_FOUND);
         }
-        pushHistory();
-        CenterlineEditResult result = RoadCenterlineEditor.insertPiAtLocalDistance(network, edgeId, localDistance);
-        if (result.isSuccess()) {
-            notifyNetworkChanged();
-        }
-        return result;
+        return mutateNetwork(
+            () -> RoadCenterlineEditor.insertPiAtLocalDistance(network, edgeId, localDistance),
+            CenterlineEditResult::isSuccess);
     }
 
     public CenterlineEditResult insertPiAtRoadStation(Road road, String edgeId, double roadStation) {
-        pushHistory();
-        CenterlineEditResult result = RoadCenterlineEditor.insertPiAtRoadStation(network, road, edgeId, roadStation);
-        if (result.isSuccess()) {
-            notifyNetworkChanged();
-        }
-        return result;
+        return mutateNetwork(
+            () -> RoadCenterlineEditor.insertPiAtRoadStation(network, road, edgeId, roadStation),
+            CenterlineEditResult::isSuccess);
     }
 
     public CenterlineEditResult splitEdgeAtLocalDistance(String edgeId, double localDistance) {
         if (edgeId == null || edgeId.isBlank()) {
             return CenterlineEditResult.failure(CenterlineEditStatus.EDGE_NOT_FOUND);
         }
-        pushHistory();
-        CenterlineEditResult result = RoadCenterlineEditor.splitAtLocalDistance(network, edgeId, localDistance);
-        if (result.isSuccess()) {
-            if (result.secondEdgeId() != null) {
-                setPrimarySelectedEdge(result.secondEdgeId());
-            }
-            notifyNetworkChanged();
-        }
-        return result;
+        return mutateNetwork(
+            () -> {
+                CenterlineEditResult result =
+                    RoadCenterlineEditor.splitAtLocalDistance(network, edgeId, localDistance);
+                if (result.isSuccess() && result.secondEdgeId() != null) {
+                    setPrimarySelectedEdge(result.secondEdgeId());
+                }
+                return result;
+            },
+            CenterlineEditResult::isSuccess);
     }
 
     public CenterlineEditResult filletCenterlineVertex(String edgeId, int vertexIndex, double radius) {
-        pushHistory();
-        CenterlineEditResult result = RoadCenterlineEditor.filletVertex(network, edgeId, vertexIndex, radius);
-        if (result.isSuccess()) {
-            notifyNetworkChanged();
-        }
-        return result;
+        return mutateNetwork(
+            () -> RoadCenterlineEditor.filletVertex(network, edgeId, vertexIndex, radius),
+            CenterlineEditResult::isSuccess);
     }
 
     public CenterlineEditResult mergeSegmentsAtNode(String nodeId) {
-        pushHistory();
-        CenterlineEditResult result = RoadCenterlineEditor.mergeThroughNode(network, nodeId);
-        if (result.isSuccess() && result.mergedEdgeId() != null) {
-            setPrimarySelectedEdge(result.mergedEdgeId());
-            notifyNetworkChanged();
-        }
-        return result;
+        return mutateNetwork(
+            () -> {
+                CenterlineEditResult result = RoadCenterlineEditor.mergeThroughNode(network, nodeId);
+                if (result.isSuccess() && result.mergedEdgeId() != null) {
+                    setPrimarySelectedEdge(result.mergedEdgeId());
+                }
+                return result;
+            },
+            result -> result.isSuccess() && result.mergedEdgeId() != null);
     }
 
     public CenterlineEditResult reverseEdge(String edgeId) {
-        pushHistory();
-        CenterlineEditResult result = RoadCenterlineEditor.reverseEdge(network, edgeId);
-        if (result.isSuccess()) {
-            notifyNetworkChanged();
-        }
-        return result;
+        return mutateNetwork(
+            () -> RoadCenterlineEditor.reverseEdge(network, edgeId),
+            CenterlineEditResult::isSuccess);
     }
 
     public CenterlineEditResult reverseRoad(Road road) {
         if (road == null) {
             return CenterlineEditResult.failure(CenterlineEditStatus.ROAD_NOT_FOUND);
         }
-        pushHistory();
-        CenterlineEditResult result = RoadCenterlineEditor.reverseRoad(network, road);
-        if (result.isSuccess()) {
-            notifyNetworkChanged();
-        }
-        return result;
+        return mutateNetwork(
+            () -> RoadCenterlineEditor.reverseRoad(network, road),
+            CenterlineEditResult::isSuccess);
     }
 
     public CenterlineEditResult materializeHorizontalAlignment(Road road) {
         if (road == null) {
             return CenterlineEditResult.failure(CenterlineEditStatus.ROAD_NOT_FOUND);
         }
-        pushHistory();
-        CenterlineEditResult result = HorizontalAlignmentCenterlineMaterializer.materialize(network, road);
-        if (result.isSuccess()) {
-            notifyNetworkChanged();
-        }
-        return result;
+        return mutateNetwork(
+            () -> HorizontalAlignmentCenterlineMaterializer.materialize(network, road),
+            CenterlineEditResult::isSuccess);
     }
 
     public void adoptSelectedPaths(List<Shape> selectedPaths) {
@@ -656,7 +703,7 @@ public final class RoadNetworkManager {
             String networkBeforeAdopt = network.toJson();
             try {
                 if (!historyPushed) {
-                    pushHistory();
+                    pushUndoSnapshot();
                     historyPushed = true;
                 }
                 Shape path = new PolylineShape(pathPoints, false);
@@ -713,7 +760,7 @@ public final class RoadNetworkManager {
 
         RoadTopologyRoadSplitter.RepairResult topologyRepair =
             RoadTopologyRoadSplitter.repairAfterAdopt(network);
-        notifyNetworkChanged();
+        commitNetworkChange();
 
         if (failedCount > 0) {
             status.warning(String.format(
@@ -748,9 +795,9 @@ public final class RoadNetworkManager {
      * Re-runs intersection detection and splitting on the live network (e.g. after validation warns).
      */
     public IntersectionResult reconcileIntersections() {
-        pushHistory();
+        pushUndoSnapshot();
         IntersectionResult result = networkBuilder.detectAndSplitIntersections(network);
-        notifyNetworkChanged();
+        commitNetworkChange();
         if (result == IntersectionResult.INCOMPLETE) {
             status.warning(PlotI18n.tr("plugin.road.reconcile_intersection_incomplete"));
         } else {
@@ -765,11 +812,11 @@ public final class RoadNetworkManager {
      * 与认领末尾的 {@link RoadTopologyRoadSplitter#repairAfterAdopt} 相同。
      */
     public RoadTopologyRoadSplitter.RepairResult repairTopology(Road road) {
-        pushHistory();
+        pushUndoSnapshot();
         RoadTopologyRoadSplitter.RepairResult result = road != null
             ? RoadTopologyRoadSplitter.repairRoad(network, road)
             : RoadTopologyRoadSplitter.repairAfterAdopt(network);
-        notifyNetworkChanged();
+        commitNetworkChange();
         return result;
     }
 
@@ -780,14 +827,14 @@ public final class RoadNetworkManager {
         if (road == null) {
             return new com.plot.plugin.road.repair.RoadAutoRepair.Result("", List.of(), List.of(), 0);
         }
-        pushHistory();
+        pushUndoSnapshot();
         com.plot.plugin.road.repair.RoadAutoRepair.Result result = com.plot.plugin.road.repair.RoadAutoRepair.fix(
             network,
             road,
             config,
             networkBuilder,
             () -> adoptIntersectionRepairPending = false);
-        notifyNetworkChanged();
+        commitNetworkChange();
         return result;
     }
 
@@ -926,24 +973,25 @@ public final class RoadNetworkManager {
         if (selectedEdgeIds.isEmpty()) {
             return;
         }
-        pushHistory();
-        LinkedHashSet<String> updatedRoadIds = new LinkedHashSet<>();
-        for (String edgeId : selectedEdgeIds) {
-            RoadEdge edge = network.getEdge(edgeId);
-            if (edge == null || edge.getRoadId() == null) {
-                continue;
+        mutateNetwork(() -> {
+            LinkedHashSet<String> updatedRoadIds = new LinkedHashSet<>();
+            for (String edgeId : selectedEdgeIds) {
+                RoadEdge edge = network.getEdge(edgeId);
+                if (edge == null || edge.getRoadId() == null) {
+                    continue;
+                }
+                if (!updatedRoadIds.add(edge.getRoadId())) {
+                    continue;
+                }
+                Road road = network.getRoadForEdge(edge);
+                if (road == null) {
+                    continue;
+                }
+                applyDraftToRoad(road, draft);
             }
-            if (!updatedRoadIds.add(edge.getRoadId())) {
-                continue;
-            }
-            Road road = network.getRoadForEdge(edge);
-            if (road == null) {
-                continue;
-            }
-            applyDraftToRoad(road, draft);
-        }
-        updateBatchEditDraft(draft);
-        status.success(PlotI18n.tr("plugin.road.batch_applied", updatedRoadIds.size()));
+            updateBatchEditDraft(draft);
+            status.success(PlotI18n.tr("plugin.road.batch_applied", updatedRoadIds.size()));
+        });
     }
 
     public Road getRoadForEdge(RoadEdge edge) {

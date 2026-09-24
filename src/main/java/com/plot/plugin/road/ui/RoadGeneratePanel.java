@@ -3,6 +3,7 @@ import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadLongitudinalProfileRenderer;
+import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadNetworkValidationReport;
 import com.plot.plugin.road.RoadNetworkEngineeringValidator;
 import com.plot.plugin.road.model.RoadEdge;
@@ -129,10 +130,21 @@ public final class RoadGeneratePanel {
                 RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING_LIGHT, PlotI18n.tr("plugin.road.generate_empty_result"));
             }
 
+            RoadNetworkGenerator.NetworkGenerationResult networkGenerationResult =
+                ctx.previewManager().getLastNetworkGenerationResult();
+            boolean partialFailure = networkGenerationResult != null
+                && networkGenerationResult.hasPartialFailure();
+            if (partialFailure) {
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.ERROR_SOFT,
+                    PlotI18n.tr("plugin.road.build_blocked_partial_generation"));
+            }
+
             boolean buildDisabled = !hasPlacements
                 || !buildReadiness.ready()
                 || ctx.host().placement().isBusy()
-                || validationReport.blocksBuild();
+                || validationReport.blocksBuild()
+                || partialFailure;
             if (buildDisabled) {
                 ImGui.beginDisabled();
             }
@@ -290,10 +302,21 @@ public final class RoadGeneratePanel {
             RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.build_confirm_cancel_hint"));
             RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.build_confirm_undo_hint"));
 
+            RoadNetworkGenerator.NetworkGenerationResult networkGenerationResult =
+                ctx.previewManager().getLastNetworkGenerationResult();
+            boolean partialFailure = networkGenerationResult != null
+                && networkGenerationResult.hasPartialFailure();
+            if (partialFailure) {
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.ERROR_SOFT,
+                    PlotI18n.tr("plugin.road.build_blocked_partial_generation"));
+            }
+
             ImGui.separator();
             boolean canBuild = readiness.ready()
                 && !ctx.host().placement().isBusy()
-                && !validationReport.blocksBuild();
+                && !validationReport.blocksBuild()
+                && !partialFailure;
             if (!canBuild) {
                 ImGui.beginDisabled();
             }

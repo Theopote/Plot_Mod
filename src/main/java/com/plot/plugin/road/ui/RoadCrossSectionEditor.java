@@ -79,8 +79,7 @@ public final class RoadCrossSectionEditor {
                 ImGui.sameLine(0, gap);
             }
             if (ImGui.button(PlotI18n.tr("preset.road." + style.id) + "##road_style_" + style.id, buttonWidth, 0)) {
-                ctx.networkManager().pushHistory();
-                road.applyStyle(style, themeId);
+                ctx.networkManager().mutateNetwork(() -> road.applyStyle(style, themeId));
                 if (onChanged != null) {
                     onChanged.run();
                 }

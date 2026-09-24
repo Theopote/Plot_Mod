@@ -258,7 +258,7 @@ public final class RoadEditPanel {
             RoadLongitudinalProfileRenderer.renderInteractive(
                 edgeResult, design, points, selectedProfilePvi, activeProfilePvi, maxGrade);
         if (interaction.dragStarted()) {
-            ctx.networkManager().pushHistory();
+            ctx.beginNetworkEdit();
         }
         selectedProfilePvi = interaction.selectedPviIndex();
         activeProfilePvi = interaction.activePviIndex();
@@ -286,6 +286,7 @@ public final class RoadEditPanel {
             road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
         }
         if (interaction.dragFinished()) {
+            ctx.finishNetworkEdit();
             propagateJunctionGrades(network, road);
         }
         ImGui.text(PlotI18n.tr("plugin.road.vertical_alignment_control_points"));
@@ -323,28 +324,30 @@ public final class RoadEditPanel {
             .orElse(null);
         if (VerticalProfileControlPoints.exceedsGradeLimit(selectedPoint, maxGrade)
                 && ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_auto_fix_grade"))) {
-            ctx.networkManager().pushHistory();
-            VerticalProfileAutoFixer.Result fixed = VerticalProfileAutoFixer.extendAdjacentRuns(
-                road.getVerticalAlignment(), selectedProfilePvi,
-                RoadStationing.canonicalLength(network, road), maxGrade);
-            road.setVerticalAlignment(fixed.alignment());
-            road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
-            propagateJunctionGrades(network, road);
-            profileAutoFixMessage = PlotI18n.tr(fixed.fullyResolved()
-                ? "plugin.road.vertical_alignment_auto_fix_success"
-                : "plugin.road.vertical_alignment_auto_fix_insufficient");
+            ctx.editNetwork(() -> {
+                VerticalProfileAutoFixer.Result fixed = VerticalProfileAutoFixer.extendAdjacentRuns(
+                    road.getVerticalAlignment(), selectedProfilePvi,
+                    RoadStationing.canonicalLength(network, road), maxGrade);
+                road.setVerticalAlignment(fixed.alignment());
+                road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+                propagateJunctionGrades(network, road);
+                profileAutoFixMessage = PlotI18n.tr(fixed.fullyResolved()
+                    ? "plugin.road.vertical_alignment_auto_fix_success"
+                    : "plugin.road.vertical_alignment_auto_fix_insufficient");
+            });
         }
         if (selectedProfilePvi > 0
                 && selectedProfilePvi < road.getVerticalAlignment().pviCount() - 1
                 && ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_auto_smooth"))) {
-            ctx.networkManager().pushHistory();
-            VerticalProfileCurveFitter.Result fitted = VerticalProfileCurveFitter.fitAt(
-                road.getVerticalAlignment(), selectedProfilePvi);
-            road.setVerticalAlignment(fitted.alignment());
-            road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
-            profileAutoFixMessage = PlotI18n.tr(fitted.hasSpace()
-                ? "plugin.road.vertical_alignment_auto_smooth_success"
-                : "plugin.road.vertical_alignment_auto_smooth_no_space");
+            ctx.editNetwork(() -> {
+                VerticalProfileCurveFitter.Result fitted = VerticalProfileCurveFitter.fitAt(
+                    road.getVerticalAlignment(), selectedProfilePvi);
+                road.setVerticalAlignment(fitted.alignment());
+                road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+                profileAutoFixMessage = PlotI18n.tr(fitted.hasSpace()
+                    ? "plugin.road.vertical_alignment_auto_smooth_success"
+                    : "plugin.road.vertical_alignment_auto_smooth_no_space");
+            });
         }
         if (!profileAutoFixMessage.isBlank()) {
             RoadUiWidgets.textWrappedColored(
@@ -359,15 +362,16 @@ public final class RoadEditPanel {
             RoadParameterLimits.ELEVATION_MAX,
             "Y=%.2f");
         if (ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_apply_control_point"))) {
-            ctx.networkManager().pushHistory();
-            double station = road.getVerticalAlignment().getPvis()
-                .get(selectedProfilePvi).getStation();
-            road.setVerticalAlignment(VerticalProfileControlPoints.move(
-                road.getVerticalAlignment(), selectedProfilePvi, station,
-                selectedProfileElevation[0], RoadStationing.canonicalLength(network, road)));
-            road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
-            propagateJunctionGrades(network, road);
-            profileAutoFixMessage = "";
+            ctx.editNetwork(() -> {
+                double station = road.getVerticalAlignment().getPvis()
+                    .get(selectedProfilePvi).getStation();
+                road.setVerticalAlignment(VerticalProfileControlPoints.move(
+                    road.getVerticalAlignment(), selectedProfilePvi, station,
+                    selectedProfileElevation[0], RoadStationing.canonicalLength(network, road)));
+                road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+                propagateJunctionGrades(network, road);
+                profileAutoFixMessage = "";
+            });
         }
     }
 
@@ -948,9 +952,11 @@ public final class RoadEditPanel {
             ImGui.pushStyleColor(ImGuiCol.ButtonHovered, PluginUiColors.DELETE_HOVER);
             ImGui.pushStyleColor(ImGuiCol.ButtonActive, PluginUiColors.DELETE_ACTIVE);
             if (ImGui.smallButton(deleteLabel + "##rm")) {
-                ctx.networkManager().pushHistory();
-                overrides.remove(i);
-                edge.setSlopeOverrides(overrides);
+                final int removeIndex = i;
+                ctx.editNetwork(() -> {
+                    overrides.remove(removeIndex);
+                    edge.setSlopeOverrides(overrides);
+                });
                 ImGui.popStyleColor(3);
                 ImGui.popID();
                 return;
@@ -992,9 +998,10 @@ public final class RoadEditPanel {
         }
 
         if (ImGui.button(PlotI18n.tr("plugin.road.add_slope_override"))) {
-            ctx.networkManager().pushHistory();
-            overrides.add(new RoadEdge.SlopeOverride(0, (float) edge.getLength(), config.getMaxSlope()));
-            edge.setSlopeOverrides(overrides);
+            ctx.editNetwork(() -> {
+                overrides.add(new RoadEdge.SlopeOverride(0, (float) edge.getLength(), config.getMaxSlope()));
+                edge.setSlopeOverrides(overrides);
+            });
         }
     }
 

@@ -71,7 +71,8 @@ public final class RoadAutoRepair {
     }
 
     /**
-     * 执行修复流水线。调用方负责 {@code pushHistory} 与 {@code notifyNetworkChanged}。
+     * 执行修复流水线。调用方负责 {@link com.plot.plugin.road.manager.RoadNetworkManager#mutateNetwork(Runnable)}
+     * 或 {@code pushUndoSnapshot} + {@code commitNetworkChange} 配对。
      */
     public static Result fix(
             RoadNetwork network,

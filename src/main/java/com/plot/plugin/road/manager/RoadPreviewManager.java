@@ -244,6 +244,10 @@ public final class RoadPreviewManager {
             status.warning(PlotI18n.tr("plugin.road.build_no_blocks"));
             return;
         }
+        if (lastNetworkGenerationResult != null && lastNetworkGenerationResult.hasPartialFailure()) {
+            status.error(PlotI18n.tr("plugin.road.build_blocked_partial_generation"));
+            return;
+        }
         if (previewNetwork != null
                 && RoadNetworkEngineeringValidator.analyzePreGeneration(previewNetwork).blocksBuild()) {
             invalidatePreview();
