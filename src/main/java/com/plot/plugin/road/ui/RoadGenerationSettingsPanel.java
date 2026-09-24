@@ -153,19 +153,6 @@ public final class RoadGenerationSettingsPanel {
         }
         RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.fill_factor");
 
-        float[] sampleDistance = {(float) config.getPathSampleDistance()};
-        if (ImGui.sliderFloat(
-            "##road_path_sample_distance",
-            sampleDistance,
-            (float) RoadParameterLimits.MIN_PATH_SAMPLE_DISTANCE,
-            (float) RoadParameterLimits.MAX_PATH_SAMPLE_DISTANCE,
-            PlotI18n.tr("plugin.road.path_sample_distance", sampleDistance[0])
-        )) {
-            config.setPathSampleDistance(sampleDistance[0]);
-            markChanged(ctx);
-        }
-        RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.path_sample_distance");
-
         int[] clearance = {(int) Math.round(config.getDefaultCrossingClearance())};
         if (ImGui.sliderInt(
             "##road_default_crossing_clearance",

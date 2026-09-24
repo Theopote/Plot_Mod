@@ -41,39 +41,22 @@ public final class RoadAdoptPanel {
     }
 
     private void renderSelectionStatus() {
-        if (ctx.toolManager().getPathPickSession().isActive()) {
-            List<Shape> overlayPaths = ctx.toolManager().getPickOverlayPaths();
-            if (!overlayPaths.isEmpty()) {
-                double totalLength = overlayPaths.stream()
-                    .mapToDouble(RoadToolManager::calculatePathLength)
-                    .sum();
-                ImGui.text(PlotI18n.tr(
-                    "plugin.road.adopt_selection_summary",
-                    overlayPaths.size(),
-                    totalLength));
-            }
-            ImGui.textColored(
-                PluginUiColors.STATUS_INFO,
-                PlotI18n.tr("plugin.road.adopt_picking_active"));
+        if (!ctx.toolManager().getPathPickSession().isActive()) {
             return;
         }
-
-        List<Shape> availablePaths = ctx.toolManager().findAvailablePaths();
-        if (!availablePaths.isEmpty() && ctx.networkManager().getNetwork().getRoads().isEmpty()) {
-            if (ImGui.beginCombo("##select_path", PlotI18n.tr("plugin.road.select_path_combo"))) {
-                for (Shape path : availablePaths) {
-                    String label = String.format(
-                        PlotI18n.tr("plugin.road.path_combo_item"),
-                        RoadToolManager.getPathTypeName(path),
-                        RoadToolManager.calculatePathLength(path));
-                    if (ImGui.selectable(label)) {
-                        ctx.networkManager().adoptSelectedPaths(List.of(path));
-                        ctx.notifyPathsAdopted();
-                    }
-                }
-                ImGui.endCombo();
-            }
+        List<Shape> overlayPaths = ctx.toolManager().getPickOverlayPaths();
+        if (!overlayPaths.isEmpty()) {
+            double totalLength = overlayPaths.stream()
+                .mapToDouble(RoadToolManager::calculatePathLength)
+                .sum();
+            ImGui.text(PlotI18n.tr(
+                "plugin.road.adopt_selection_summary",
+                overlayPaths.size(),
+                totalLength));
         }
+        ImGui.textColored(
+            PluginUiColors.STATUS_INFO,
+            PlotI18n.tr("plugin.road.adopt_picking_active"));
     }
 
     private void renderAdoptIntersectionRepairPrompt() {

@@ -122,7 +122,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         if (!roadIds.isEmpty()) {
             ctx.networkManager().selectRoad(roadIds.getFirst(), false);
         }
-        ctx.requestTab(RoadUiTab.STYLE);
+        ctx.requestOverlayRefresh();
     }
 
     /** 画布叠加层渲染前刷新（与 ImGui 面板 render 解耦）。 */
@@ -134,7 +134,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
      * 插件 UI 渲染后补绘：画布先于插件面板绘制，宽度/横断面滑条变更需前景层覆盖。
      */
     public void renderDeferredOverlay() {
-        if (!CanvasAccess.isPresent()) {
+        if (!ctx.consumeOverlayForegroundDirty() || !CanvasAccess.isPresent()) {
             return;
         }
         refreshOverlaySnapshot();
@@ -184,6 +184,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         String roadId = RoadOverlayController.hitTestRoad(overlayEntries, world.x, world.y);
         if (roadId != null && !roadId.isBlank()) {
             ctx.networkManager().selectRoad(roadId, false);
+            ctx.requestOverlayRefresh();
             ctx.requestTab(RoadUiTab.STYLE);
             RoadRepairDiagnosisCache.invalidate();
         }

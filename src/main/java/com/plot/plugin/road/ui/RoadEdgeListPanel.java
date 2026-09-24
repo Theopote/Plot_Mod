@@ -189,6 +189,7 @@ public final class RoadEdgeListPanel {
             "plugin.road.segment_count", group.edges().size()) + ")";
         if (ImGui.selectable(header + "##road_group_" + group.roadId(), roadSelected)) {
             ctx.networkManager().selectRoad(group.roadId(), ImGui.getIO().getKeyCtrl());
+            ctx.requestOverlayRefresh();
         }
         ImGui.popID();
     }
@@ -208,6 +209,7 @@ public final class RoadEdgeListPanel {
         if (ImGui.selectable(group.label() + "##road_single_" + group.roadId(), selected)) {
             if (hasRoadId) {
                 ctx.networkManager().selectRoad(group.roadId(), ImGui.getIO().getKeyCtrl());
+                ctx.requestOverlayRefresh();
             } else {
                 ctx.networkManager().handleEdgeSelect(edge.getId(), ImGui.getIO().getKeyCtrl());
             }

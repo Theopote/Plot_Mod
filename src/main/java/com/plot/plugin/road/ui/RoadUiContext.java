@@ -42,6 +42,7 @@ public final class RoadUiContext {
     private RoadUiTab pendingTab = null;
     private String pendingProfileEdgeId = "";
     private Runnable pathsAdoptedListener;
+    private boolean overlayForegroundDirty;
 
     public RoadUiContext(
             RoadNetworkManager networkManager,
@@ -271,9 +272,24 @@ public final class RoadUiContext {
 
     /** 横断面/默认参数变更后请求画布叠加层在当帧 UI 之后重绘。 */
     public void requestOverlayRefresh() {
+        overlayForegroundDirty = true;
         if (CanvasAccess.isPresent()) {
             CanvasAccess.get().markToolPreviewDirty();
         }
+    }
+
+    /** 道路横断面等会改变 overlay 几何的编辑：推入撤销并标记当帧前景补绘。 */
+    public void pushRoadEditHistory() {
+        networkManager.pushHistory();
+        requestOverlayRefresh();
+    }
+
+    public boolean consumeOverlayForegroundDirty() {
+        if (!overlayForegroundDirty) {
+            return false;
+        }
+        overlayForegroundDirty = false;
+        return true;
     }
 
     /** 跳转到编辑 Tab 并选中指定逻辑道路。 */

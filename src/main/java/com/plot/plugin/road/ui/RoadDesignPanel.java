@@ -64,7 +64,7 @@ final class RoadDesignPanel {
         renderCenterlineShapeHints(network, road);
 
         ImGui.separator();
-        RoadCrossSectionEditor.renderPrimaryStyle(ctx, road, ctx.networkManager()::pushHistory);
+        RoadCrossSectionEditor.renderPrimaryStyle(ctx, road, ctx::pushRoadEditHistory);
 
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.style.advanced_design"))) {
             renderAdvancedDesign(network, road, current, chainageDisplay);
@@ -114,7 +114,7 @@ final class RoadDesignPanel {
         verticalProfileEditor.renderInline(ctx, network, current);
 
         RoadUiSections.group("plugin.road.design_stack.typical_section");
-        RoadCrossSectionEditor.renderAdvancedCrossSection(ctx, road, ctx.networkManager()::pushHistory);
+        RoadCrossSectionEditor.renderAdvancedCrossSection(ctx, road, ctx::pushRoadEditHistory);
 
         RoadUiSections.group("plugin.road.design_stack.station_controls");
         if (chainageDisplay != null) {
