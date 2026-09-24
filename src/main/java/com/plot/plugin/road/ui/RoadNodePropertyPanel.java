@@ -6,10 +6,7 @@ import com.plot.plugin.road.RoadNodeElevationUtils;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadNodeListHelper;
-import com.plot.plugin.road.AutoGradeSeparationRecommendation;
-import com.plot.plugin.road.AutoGradeSeparationRecommendationCache;
 import com.plot.plugin.road.RoadParameterLimits;
-import com.plot.plugin.road.graph.RoadGraphQueries;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNetworkInvariantValidator;
@@ -23,7 +20,6 @@ import imgui.ImGui;
 import imgui.ImGuiListClipper;
 import imgui.callback.ImListClipperCallback;
 import imgui.type.ImBoolean;
-import imgui.type.ImInt;
 import imgui.type.ImString;
 import net.minecraft.world.World;
 
@@ -46,11 +42,11 @@ public final class RoadNodePropertyPanel {
     private final ImBoolean filterManualElevation = new ImBoolean(false);
     private final ImBoolean filterGradeSeparated = new ImBoolean(false);
     private final ImBoolean filterInvalid = new ImBoolean(false);
-    private final AutoGradeSeparationRecommendationCache autoGradeSeparationCache =
-        new AutoGradeSeparationRecommendationCache();
+    private final RoadGradeSeparationControls gradeSeparationControls;
 
     public RoadNodePropertyPanel(RoadUiContext ctx) {
         this.ctx = ctx;
+        this.gradeSeparationControls = new RoadGradeSeparationControls(ctx);
     }
 
     public void renderForSelectedNode(RoadJunctionPanel junctionPanel) {
@@ -278,36 +274,7 @@ public final class RoadNodePropertyPanel {
     }
 
     private void renderGradeSeparationControlsInline(RoadNode node, RoadNetwork network, RoadSystemConfig config) {
-        if (!RoadGraphQueries.isSimpleCrossing(node, network)) {
-            return;
-        }
-
-        List<String> roadIds = new ArrayList<>(network.getDistinctRoadIdsAtNode(node.getId()));
-        if (roadIds.size() != 2) {
-            return;
-        }
-
-        String[] labels = buildGradeSeparationLabels(roadIds, network);
-        int currentIndex = gradeSeparationIndex(node, roadIds);
-
-        ImGui.sameLine();
-        ImInt index = new ImInt(currentIndex);
-        if (ImGui.combo(PlotI18n.tr("plugin.road.grade_separation") + "##grade_sep", index, labels)) {
-            applyGradeSeparationSelection(node, network, config, roadIds, index.get());
-        }
-
-        if (node.isGradeSeparated()) {
-            renderClearanceSlider(node, network, config, true);
-            if (node.getElevatedRoadId() == null) {
-                renderAutoElevatedRoadHint(node, network, config);
-            }
-        }
-
-        if (node.getManualElevation() != null && node.isGradeSeparated()) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.STATUS_INFO,
-                PlotI18n.tr("plugin.road.grade_separation_manual_override"));
-        }
+        gradeSeparationControls.render(node, network, config, RoadGradeSeparationControls.Layout.INLINE);
     }
 
     /** 路径 Tab 交叉点列表：高程关系编辑。 */
@@ -315,130 +282,15 @@ public final class RoadNodePropertyPanel {
         if (node == null) {
             return;
         }
-        renderGradeSeparationControlsBlock(
+        gradeSeparationControls.render(
             node,
             ctx.networkManager().getNetwork(),
-            ctx.networkManager().getConfig());
+            ctx.networkManager().getConfig(),
+            RoadGradeSeparationControls.Layout.BLOCK);
     }
 
     private void renderGradeSeparationControlsBlock(RoadNode node, RoadNetwork network, RoadSystemConfig config) {
-        if (!RoadGraphQueries.isSimpleCrossing(node, network)) {
-            return;
-        }
-
-        List<String> roadIds = new ArrayList<>(network.getDistinctRoadIdsAtNode(node.getId()));
-        if (roadIds.size() != 2) {
-            return;
-        }
-
-        String[] labels = buildGradeSeparationLabels(roadIds, network);
-        int currentIndex = gradeSeparationIndex(node, roadIds);
-
-        ImInt index = new ImInt(currentIndex);
-        if (ImGui.combo(PlotI18n.tr("plugin.road.grade_separation") + "##grade_sep", index, labels)) {
-            applyGradeSeparationSelection(node, network, config, roadIds, index.get());
-        }
-
-        if (node.isGradeSeparated()) {
-            renderClearanceSlider(node, network, config, false);
-            if (node.getElevatedRoadId() == null) {
-                renderAutoElevatedRoadHint(node, network, config);
-            }
-        }
-
-        if (node.getManualElevation() != null && node.isGradeSeparated()) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.STATUS_INFO,
-                PlotI18n.tr("plugin.road.grade_separation_manual_override"));
-        }
-    }
-
-    private String[] buildGradeSeparationLabels(List<String> roadIds, RoadNetwork network) {
-        String[] labels = new String[roadIds.size() + 2];
-        labels[0] = PlotI18n.tr("plugin.road.grade_separation_none");
-        labels[1] = PlotI18n.tr("plugin.road.grade_separation_auto");
-        for (int i = 0; i < roadIds.size(); i++) {
-            labels[i + 2] = formatRoadLabel(network, roadIds.get(i));
-        }
-        return labels;
-    }
-
-    private static int gradeSeparationIndex(RoadNode node, List<String> roadIds) {
-        if (!node.isGradeSeparated()) {
-            return 0;
-        }
-        if (node.getElevatedRoadId() == null) {
-            return 1;
-        }
-        int roadIndex = roadIds.indexOf(node.getElevatedRoadId());
-        return roadIndex >= 0 ? roadIndex + 2 : 0;
-    }
-
-    private void applyGradeSeparationSelection(
-            RoadNode node,
-            RoadNetwork network,
-            RoadSystemConfig config,
-            List<String> roadIds,
-            int index) {
-        ctx.networkManager().pushHistory();
-        double clearance = node.getCrossingClearance() != null
-            ? node.getCrossingClearance()
-            : config.getDefaultCrossingClearance();
-        if (index == 0) {
-            network.setNodeGradeSeparation(node.getId(), false, null, null);
-        } else if (index == 1) {
-            network.setNodeGradeSeparation(node.getId(), true, null, clearance);
-        } else {
-            String selectedRoadId = roadIds.get(index - 2);
-            network.setNodeGradeSeparation(node.getId(), true, selectedRoadId, clearance);
-        }
-    }
-
-    private void renderClearanceSlider(
-            RoadNode node,
-            RoadNetwork network,
-            RoadSystemConfig config,
-            boolean inline) {
-        double currentClearance = node.getCrossingClearance() != null
-            ? node.getCrossingClearance()
-            : config.getDefaultCrossingClearance();
-        int[] clearance = {(int) Math.round(currentClearance)};
-        if (inline) {
-            ImGui.sameLine();
-        }
-        boolean clearanceChanged = ImGui.sliderInt(
-                PlotI18n.tr("plugin.road.crossing_clearance") + "##clearance",
-                clearance,
-                RoadParameterLimits.MIN_CROSSING_CLEARANCE,
-                RoadParameterLimits.MAX_CROSSING_CLEARANCE,
-                "%d");
-        if (ImGui.isItemActivated()) {
-            ctx.networkManager().pushHistory();
-        }
-        if (clearanceChanged) {
-            node.setCrossingClearance((double) clearance[0]);
-        }
-    }
-
-    private void renderAutoElevatedRoadHint(RoadNode node, RoadNetwork network, RoadSystemConfig config) {
-        AutoGradeSeparationRecommendation recommendation = autoGradeSeparationCache.resolve(
-            node,
-            network,
-            config,
-            ctx.host(),
-            ctx.networkManager().getNetworkRevision(),
-            config.generationInputsFingerprint(),
-            AutoGradeSeparationRecommendationCache.worldVersion(
-                RoadNetworkGenerator.getClientWorld(),
-                ctx.previewManager().getTerrainRevision()));
-        if (!recommendation.hasRecommendation()) {
-            return;
-        }
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr(
-                "plugin.road.grade_separation_auto_result",
-                formatRoadLabel(network, recommendation.elevatedRoadId())));
+        gradeSeparationControls.render(node, network, config, RoadGradeSeparationControls.Layout.BLOCK);
     }
 
     private int resolveManualLockElevation(RoadNode node, RoadNetwork network, RoadSystemConfig config) {
@@ -460,12 +312,4 @@ public final class RoadNodePropertyPanel {
         return new FlatTerrainSampler(TerrainSampler.DEFAULT_SEA_LEVEL);
     }
 
-    private static String formatRoadLabel(RoadNetwork network, String roadId) {
-        Road road = network.getRoad(roadId);
-        if (road != null && road.getName() != null && !road.getName().isBlank()) {
-            return road.getName();
-        }
-        String shortId = roadId.length() > 6 ? roadId.substring(0, 6) : roadId;
-        return PlotI18n.tr("plugin.road.road_label_fallback", shortId);
-    }
 }

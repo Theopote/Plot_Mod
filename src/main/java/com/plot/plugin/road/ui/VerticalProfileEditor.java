@@ -7,6 +7,7 @@ import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.profile.RoadProfileIntersection;
 import com.plot.plugin.road.profile.RoadProfileIntersectionResolver;
 import com.plot.plugin.road.station.RoadStationing;
@@ -39,6 +40,7 @@ final class VerticalProfileEditor {
     private int selectedIntersectionIndex = -1;
     private final float[] selectedProfileElevation = {64f};
     private String profileAutoFixMessage = "";
+    private RoadGradeSeparationControls gradeSeparationControls;
 
     void renderInline(RoadUiContext ctx, RoadNetwork network, RoadEdge edge) {
         ImGui.spacing();
@@ -131,7 +133,7 @@ final class VerticalProfileEditor {
         if (interaction.selectedIntersectionIndex() >= 0) {
             selectedIntersectionIndex = interaction.selectedIntersectionIndex();
         }
-        renderIntersectionDetail(intersections, interaction, config);
+        renderIntersectionDetail(ctx, network, intersections, interaction, config);
         ImGui.text(PlotI18n.tr("plugin.road.vertical_alignment_control_points"));
         for (VerticalProfileControlPoints.ControlPoint point : points) {
             boolean invalid = VerticalProfileControlPoints.exceedsGradeLimit(point, maxGrade);
@@ -228,21 +230,29 @@ final class VerticalProfileEditor {
     }
 
     private void renderIntersectionDetail(
+            RoadUiContext ctx,
+            RoadNetwork network,
             List<RoadProfileIntersection> intersections,
             RoadLongitudinalProfileRenderer.ControlInteraction interaction,
             RoadSystemConfig config) {
-        int detailIndex = interaction.hoveredIntersectionIndex() >= 0
-            ? interaction.hoveredIntersectionIndex()
-            : selectedIntersectionIndex;
+        int detailIndex = selectedIntersectionIndex >= 0
+            ? selectedIntersectionIndex
+            : interaction.hoveredIntersectionIndex();
         if (detailIndex < 0 || detailIndex >= intersections.size()) {
             return;
         }
+        boolean editable = selectedIntersectionIndex >= 0 && detailIndex == selectedIntersectionIndex;
         RoadProfileIntersection intersection = intersections.get(detailIndex);
         ImGui.spacing();
         ImGui.separator();
         ImGui.text(PlotI18n.tr(
             "plugin.road.profile_intersection_title",
             intersection.otherRoadLabel()));
+        if (!editable) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.profile_intersection_click_to_edit"));
+        }
         ImGui.text(PlotI18n.tr(
             "plugin.road.profile_intersection_current_elevation",
             String.format("%.1f", intersection.currentRoadElevation())));
@@ -257,8 +267,23 @@ final class VerticalProfileEditor {
             ImGui.text(PlotI18n.tr(
                 "plugin.road.profile_intersection_clearance",
                 String.format("%.1f", intersection.clearanceGap())));
-        } else {
+        } else if (!editable) {
             ImGui.text(PlotI18n.tr("plugin.road.profile_intersection_at_grade"));
+        }
+        if (editable) {
+            RoadNode node = network.getNode(intersection.nodeId());
+            if (node != null) {
+                if (gradeSeparationControls == null) {
+                    gradeSeparationControls = new RoadGradeSeparationControls(ctx);
+                }
+                boolean changed = gradeSeparationControls.render(
+                    node, network, config, RoadGradeSeparationControls.Layout.PROFILE);
+                if (changed && ctx.previewManager().hasValidPreview()) {
+                    RoadUiWidgets.textWrappedColored(
+                        PluginUiColors.HINT_GRAY,
+                        PlotI18n.tr("plugin.road.profile_intersection_recalculate_hint"));
+                }
+            }
         }
         ImGui.text(PlotI18n.tr(
             "plugin.road.profile_intersection_other_section",
