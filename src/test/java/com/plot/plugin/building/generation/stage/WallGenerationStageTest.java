@@ -40,6 +40,7 @@ class WallGenerationStageTest {
     @Test
     void innerOffsetFailureSkipsInteriorFloorOnly() {
         BuildingFootprint footprint = GoldenBuildingCaseFactory.b07NarrowCorridor().footprint();
+        footprint.setRoofType(BuildingFootprint.RoofType.NONE);
         BuildingGenerationResult wallResult = new BuildingGenerationResult();
         BuildingGenerationContext wallContext = BuildingGenerationContext.forTesting(
             footprint, stubCoordinates(), stubProjection(), wallResult);

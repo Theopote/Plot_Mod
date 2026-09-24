@@ -372,6 +372,10 @@ public final class BuildingGeometryUtils {
         return PolygonRegionUtils.collectFootprintCellCenters(points, List.of(), cellSize);
     }
 
+    public static List<Vec2d> collectFootprintCellCenters(List<Vec2d> points, double stepX, double stepZ) {
+        return PolygonRegionUtils.collectFootprintCellCenters(points, List.of(), stepX, stepZ);
+    }
+
     public static RectBounds normalizedRectBounds(List<Vec2d> points) {
         return toLocalBounds(PolygonRegionUtils.normalizedRectBounds(points));
     }

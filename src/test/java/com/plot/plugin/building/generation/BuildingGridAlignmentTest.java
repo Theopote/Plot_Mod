@@ -50,6 +50,38 @@ class BuildingGridAlignmentTest {
     }
 
     @Test
+    void anisotropicProjectionKeepsAdjacentGridCellsOnAdjacentWorldBlocks() {
+        BuildingFootprint footprint = GoldenBuildingCaseFactory.rectangle(12, 10, 1, 3, 1);
+        BuildingGenerationResult result = new BuildingGenerationResult();
+        BuildingGenerationContext context = BuildingGenerationContextFactory.forTesting(
+            footprint, anisotropicProjection(1.0, 4.0), NOOP, result);
+
+        new BuildingGenerationPipeline(List.of(
+            new WallGenerationStage()
+        )).generate(context);
+
+        var plate = context.resolvedFloorPlate(0);
+        Vec2d steps = BuildingGridAlignment.blockCellSteps(context.getCanvasScale(), plate.outerPoints());
+        java.util.Map<Long, com.plot.api.geometry.Vec2d> canvasByWorld = new java.util.HashMap<>();
+        for (var cell : plate.outerCells()) {
+            if (!com.plot.plugin.building.generation.massing.InnerOffsetDegradation.isWallMassCell(
+                    plate.outerPolygon(), plate.innerPolygon(), cell.center())) {
+                continue;
+            }
+            net.minecraft.util.math.BlockPos col = context.canvasToColumn(cell.center());
+            canvasByWorld.put(packColumn(col.getX(), col.getZ()), cell.center());
+        }
+
+        for (var entry : canvasByWorld.entrySet()) {
+            com.plot.api.geometry.Vec2d center = entry.getValue();
+            checkNeighborWorldStep(context, canvasByWorld, center,
+                new com.plot.api.geometry.Vec2d(center.x + steps.x, center.y));
+            checkNeighborWorldStep(context, canvasByWorld, center,
+                new com.plot.api.geometry.Vec2d(center.x, center.y + steps.y));
+        }
+    }
+
+    @Test
     void windowsShareColumnsWithWallsAtScaledProjection() {
         BuildingFootprint footprint = GoldenBuildingCaseFactory.rectangle(8, 6, 1, 3, 1);
         footprint.setWindowSpacing(4);
@@ -123,5 +155,45 @@ class BuildingGridAlignmentTest {
         int x = (int) (packed >> 32);
         int z = (int) packed;
         return x + "," + z;
+    }
+
+    private static void checkNeighborWorldStep(
+            BuildingGenerationContext context,
+            java.util.Map<Long, com.plot.api.geometry.Vec2d> canvasByWorld,
+            com.plot.api.geometry.Vec2d from,
+            com.plot.api.geometry.Vec2d neighborCanvas) {
+        if (!context.getOuterPolygon().contains(neighborCanvas)) {
+            return;
+        }
+        com.plot.api.geometry.Vec2d aligned = BuildingGridAlignment.snapToBlockCellCenter(
+            neighborCanvas, context.getCanvasScale(), context.getOuterPoints());
+        net.minecraft.util.math.BlockPos fromCol = context.canvasToColumn(from);
+        net.minecraft.util.math.BlockPos toCol = context.canvasToColumn(aligned);
+        if (!canvasByWorld.containsKey(packColumn(toCol.getX(), toCol.getZ()))) {
+            return;
+        }
+        int dx = Math.abs(toCol.getX() - fromCol.getX());
+        int dz = Math.abs(toCol.getZ() - fromCol.getZ());
+        assertTrue(dx + dz == 1,
+            "world gap between neighbors " + fromCol + " and " + toCol);
+    }
+
+    private static com.plot.api.world.SnapshotCoordinateService anisotropicProjection(
+            double xBlocksPerCanvas,
+            double zBlocksPerCanvas) {
+        float canvasWidth = 800f;
+        float canvasHeight = 600f;
+        com.plot.api.world.WorldViewBounds bounds = new com.plot.api.world.WorldViewBounds(
+            0.0,
+            canvasWidth * xBlocksPerCanvas,
+            0.0,
+            canvasHeight * zBlocksPerCanvas);
+        return new com.plot.api.world.SnapshotCoordinateService(
+            new com.plot.api.world.WorldProjectionSnapshot(
+                bounds,
+                256f,
+                1f,
+                canvasWidth,
+                canvasHeight));
     }
 }

@@ -46,14 +46,28 @@ class BuildingPreviewIdentityTest {
     }
 
     @Test
-    void staleWhenTargetOrderChanges() {
+    void validWhenTargetOrderChanges() {
         BuildingFootprint a = square("a", 10);
         BuildingFootprint b = square("b", 20);
         BuildingPreviewIdentity identity = BuildingPreviewIdentity.capture(List.of(a, b));
 
         assertEquals(
-            BuildingPreviewIdentity.Validity.STALE,
+            BuildingPreviewIdentity.Validity.VALID,
             identity.validityAgainst(List.of(b, a), true));
+    }
+
+    @Test
+    void validWhenPreviewUsedDistrictGenerationOrder() {
+        BuildingFootprint low = square("building-low", 10);
+        low.setFloors(2);
+        BuildingFootprint high = square("building-high", 12);
+        high.setFloors(8);
+        // 片区 job 内部按高度排序；UI Scope 仍用项目/选区顺序
+        BuildingPreviewIdentity identity = BuildingPreviewIdentity.capture(List.of(high, low));
+
+        assertEquals(
+            BuildingPreviewIdentity.Validity.VALID,
+            identity.validityAgainst(List.of(low, high), true));
     }
 
     @Test

@@ -31,7 +31,7 @@ public final class BuildingPreviewIdentity {
             return new BuildingPreviewIdentity(List.of(), 0, frameOnly);
         }
         return new BuildingPreviewIdentity(
-            orderedIds(targets), computeContentFingerprint(targets), frameOnly);
+            normalizedTargetIds(targets), computeContentFingerprint(targets), frameOnly);
     }
 
     public List<String> targetIds() {
@@ -52,7 +52,7 @@ public final class BuildingPreviewIdentity {
         if (currentTargets == null || currentTargets.isEmpty()) {
             return Validity.STALE;
         }
-        if (!targetIds.equals(orderedIds(currentTargets))) {
+        if (!targetIds.equals(normalizedTargetIds(currentTargets))) {
             return Validity.STALE;
         }
         if (contentFingerprint != computeContentFingerprint(currentTargets)) {
@@ -64,17 +64,18 @@ public final class BuildingPreviewIdentity {
         return Validity.VALID;
     }
 
-    /** 生成顺序（District later-wins 与 selection 顺序相关，不做排序）。 */
-    private static List<String> orderedIds(List<BuildingFootprint> targets) {
+    /** 目标 id 按字典序归一化；片区生成内部会重排，Scope 校验与列表顺序无关。 */
+    private static List<String> normalizedTargetIds(List<BuildingFootprint> targets) {
         return targets.stream()
             .map(BuildingFootprint::getId)
+            .sorted()
             .toList();
     }
 
     private static int computeContentFingerprint(List<BuildingFootprint> targets) {
         int hash = targets.size();
         for (BuildingFootprint building : targets) {
-            hash = 31 * hash + building.generationFingerprint();
+            hash ^= 31 * building.generationFingerprint();
         }
         return hash;
     }

@@ -54,8 +54,10 @@ public final class BuildingRoofGenerator {
             : null;
         boolean ridgeAlongX = bounds != null && bounds.width() >= bounds.depth();
 
-        double blockCellSize = scale.uniformBlocksToCanvas(1.0, outerPoints);
-        for (Vec2d center : BuildingGeometryUtils.collectFootprintCellCenters(outerPoints, blockCellSize)) {
+        Vec2d blockSteps = com.plot.plugin.building.generation.BuildingGridAlignment.blockCellSteps(
+            scale, outerPoints);
+        for (Vec2d center : BuildingGeometryUtils.collectFootprintCellCenters(
+                outerPoints, blockSteps.x, blockSteps.y)) {
             if (!roofPolygon.contains(center)) {
                 continue;
             }

@@ -160,7 +160,6 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
             return;
         }
 
-        double cellSize = BuildingGridAlignment.blockCellSizeCanvas(canvasScale, outerPoints);
         Set<BlockPos> carved = new LinkedHashSet<>();
         for (Vec2d center : columnCenters) {
             int segmentIndex = BuildingGeometryUtils.segmentIndexAtClosedDistance(
@@ -169,10 +168,11 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
                     outerPoints, center));
             Vec2d inward = BuildingGeometryUtils.outwardNormal(outerPoints, segmentIndex).multiply(-1);
             for (int depth = 0; depth < wallThickness; depth++) {
+                double stepAlongInward = canvasScale.blocksToCanvas(1.0, center, inward);
                 Vec2d point = depth == 0
                     ? center
                     : BuildingGridAlignment.snapToBlockCellCenter(
-                        center.add(inward.multiply(depth * cellSize)), canvasScale, outerPoints);
+                        center.add(inward.multiply(depth * stepAlongInward)), canvasScale, outerPoints);
                 BlockPos column = context.canvasToColumn(point);
                 for (int h = 0; h < height; h++) {
                     BlockPos pos = new BlockPos(column.getX(), startY + h, column.getZ());

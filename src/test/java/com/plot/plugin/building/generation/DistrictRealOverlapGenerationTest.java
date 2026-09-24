@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 真实 Pipeline 片区重叠：两栋同几何体块冲突时后生成者覆盖（later-wins）。
+ * 真实 Pipeline 片区重叠：同高同几何时按生成优先级决胜（先处理者保留重叠区）。
  */
 class DistrictRealOverlapGenerationTest {
 
@@ -32,11 +32,12 @@ class DistrictRealOverlapGenerationTest {
     }
 
     @Test
-    void realPipelineOverlapLaterBuildingWins() {
+    void realPipelineOverlapSameHeightPriorityBuildingWins() {
         BuildingFootprint first = DistrictMassingFixtures.massingFootprint(0, 2);
         first.setWallMaterial(MaterialMix.single("minecraft:stone_bricks"));
         BuildingFootprint second = DistrictMassingFixtures.sameGeometry(first, "overlap-second");
         second.setWallMaterial(MaterialMix.single("minecraft:bricks"));
+        // overlap-second 在同高排序中先于 d-0 处理，重叠区保留其材质
 
         BuildingGenerationResult firstOnly = generateOne(first);
         BuildingGenerationResult secondOnly = generateOne(second);
@@ -53,7 +54,8 @@ class DistrictRealOverlapGenerationTest {
 
         assertEquals(2, district.buildingsGenerated());
         assertTrue(district.hasBuildingOverlap());
-        assertTrue(district.conflictingBlockCount() >= 1);
+        // 低优先级建筑在占优轮廓内被过滤，不产生体素冲突计数
+        assertEquals(0, district.conflictingBlockCount());
 
         BlockPos sample = shared.iterator().next();
         BlockRecord merged = district.mergedPlacementRecords().get(sample);

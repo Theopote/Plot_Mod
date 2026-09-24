@@ -215,12 +215,20 @@ public final class BuildingGenerationContext {
     }
 
     public static List<GridCell> collectFootprintCells(List<Vec2d> points, Polygon polygon) {
-        return collectFootprintCells(points, polygon, 1.0);
+        return collectFootprintCells(points, polygon, 1.0, 1.0);
     }
 
     public static List<GridCell> collectFootprintCells(List<Vec2d> points, Polygon polygon, double cellSize) {
+        return collectFootprintCells(points, polygon, cellSize, cellSize);
+    }
+
+    public static List<GridCell> collectFootprintCells(
+            List<Vec2d> points,
+            Polygon polygon,
+            double stepX,
+            double stepZ) {
         List<GridCell> cells = new ArrayList<>();
-        for (Vec2d center : BuildingGeometryUtils.collectFootprintCellCenters(points, cellSize)) {
+        for (Vec2d center : BuildingGeometryUtils.collectFootprintCellCenters(points, stepX, stepZ)) {
             if (polygon.contains(center)) {
                 cells.add(new GridCell(center));
             }

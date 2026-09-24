@@ -88,6 +88,19 @@ public final class BuildingCanvasScale {
         return blocks * (sum / n);
     }
 
+    /**
+     * 1 世界方块在画布 X / Z 方向的步长（投影非均匀时两者可能不同）。
+     */
+    public Vec2d blockCellSteps(List<Vec2d> outerPoints) {
+        if (outerPoints == null || outerPoints.size() < 3) {
+            return new Vec2d(1.0, 1.0);
+        }
+        Vec2d probe = centroid(outerPoints);
+        double stepX = Math.abs(blocksToCanvas(1.0, probe, new Vec2d(1, 0)));
+        double stepZ = Math.abs(blocksToCanvas(1.0, probe, new Vec2d(0, 1)));
+        return new Vec2d(Math.max(1e-6, stepX), Math.max(1e-6, stepZ));
+    }
+
     private static Vec2d centroid(List<Vec2d> points) {
         double sx = 0.0;
         double sy = 0.0;

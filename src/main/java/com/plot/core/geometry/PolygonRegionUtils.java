@@ -304,23 +304,28 @@ public final class PolygonRegionUtils {
             List<Vec2d> outerRing,
             List<List<Vec2d>> holes,
             double cellSize) {
+        return collectFootprintCellCenters(outerRing, holes, cellSize, cellSize);
+    }
+
+    public static List<Vec2d> collectFootprintCellCenters(
+            List<Vec2d> outerRing,
+            List<List<Vec2d>> holes,
+            double stepX,
+            double stepZ) {
         if (outerRing == null || outerRing.size() < 3) {
             return List.of();
         }
-        if (Math.abs(cellSize - 1.0) < 1e-9) {
+        if (Math.abs(stepX - 1.0) < 1e-9 && Math.abs(stepZ - 1.0) < 1e-9) {
             return collectUnitFootprintCellCenters(outerRing, holes);
         }
-        double step = Math.max(1e-6, cellSize);
+        double sx = Math.max(1e-6, stepX);
+        double sz = Math.max(1e-6, stepZ);
         RectBounds bounds = computeBounds(outerRing, holes);
         List<Vec2d> centers = new ArrayList<>();
-        double minX = bounds.minX();
-        double maxX = bounds.maxX();
-        double minZ = bounds.minZ();
-        double maxZ = bounds.maxZ();
-        double startX = Math.floor(minX / step) * step + step * 0.5;
-        double startZ = Math.floor(minZ / step) * step + step * 0.5;
-        for (double x = startX; x <= maxX + 1e-9; x += step) {
-            for (double z = startZ; z <= maxZ + 1e-9; z += step) {
+        double startX = Math.floor(bounds.minX() / sx) * sx + sx * 0.5;
+        double startZ = Math.floor(bounds.minZ() / sz) * sz + sz * 0.5;
+        for (double x = startX; x <= bounds.maxX() + 1e-9; x += sx) {
+            for (double z = startZ; z <= bounds.maxZ() + 1e-9; z += sz) {
                 Vec2d center = new Vec2d(x, z);
                 if (containsPoint(outerRing, holes, center)) {
                     centers.add(center);

@@ -7,6 +7,7 @@ import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.building.generation.BuildingBlockWriter;
 import com.plot.plugin.building.generation.BuildingGenerationContext;
+import com.plot.plugin.building.generation.BuildingGridAlignment;
 import com.plot.plugin.building.generation.BuildingGenerationContext.GridCell;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.generation.massing.FloorPlateGeometryResolver.ResolvedFloorPlate;
@@ -79,7 +80,9 @@ public final class FrameGenerationStage implements BuildingGenerationStage {
 
         Set<Long> cornerColumns = new LinkedHashSet<>();
         for (Vec2d vertex : outerPoints) {
-            BlockPos column = context.canvasToColumn(vertex);
+            Vec2d aligned = BuildingGridAlignment.snapToBlockCellCenter(
+                vertex, context.getCanvasScale(), outerPoints);
+            BlockPos column = context.canvasToColumn(aligned);
             cornerColumns.add(packColumn(column.getX(), column.getZ()));
         }
 

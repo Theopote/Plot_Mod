@@ -74,9 +74,9 @@ public final class MassingGeometryResolver {
                 definition.massing().coverageGapFloors());
         }
 
-        double blockCellSize = BuildingGridAlignment.blockCellSizeCanvas(scale, outerPoints);
+        Vec2d blockSteps = BuildingGridAlignment.blockCellSteps(scale, outerPoints);
         List<GridCell> footprintCells = BuildingGenerationContext.collectFootprintCells(
-            outerPoints, outerPolygon, blockCellSize);
+            outerPoints, outerPolygon, blockSteps.x, blockSteps.y);
         return new ResolvedMassingGeometry(
             Collections.unmodifiableList(outerPoints),
             outerPolygon,
