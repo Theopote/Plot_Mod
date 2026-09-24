@@ -17,6 +17,7 @@ import com.plot.plugin.building.generation.DistrictGenerationResult;
 import com.plot.plugin.building.generation.DistrictMassingGenerator;
 import com.plot.plugin.building.generation.opening.OpeningVerticalLayout;
 import com.plot.plugin.building.generation.stage.OpeningGenerationStage;
+import com.plot.plugin.building.generation.stage.RoofGenerationStage;
 import com.plot.plugin.building.generation.stage.WallGenerationStage;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.ui.BuildingActions;
@@ -163,6 +164,43 @@ class BuildingMassingV1ContractTest {
         assertEquals(
             "plugin.building.generate.projection_changed",
             actions.previewStaleMessageKey(targets));
+    }
+
+    @Test
+    void noneRoofGeneratesZeroRoofBlocks() {
+        BuildingFootprint footprint = GoldenBuildingCaseFactory.rectangle(8, 6, 1, 3, 1);
+        footprint.setRoofType(BuildingFootprint.RoofType.NONE);
+
+        GoldenBuildingMetrics metrics = GoldenBuildingHarness.generate(footprint);
+        assertEquals(0, metrics.roofBlocks());
+        assertEquals("NONE", metrics.effectiveRoofType());
+
+        BuildingGenerationResult result = new BuildingGenerationResult();
+        BuildingGenerationContext context = BuildingGenerationContext.forTesting(
+            footprint,
+            IdentityCoordinateService.INSTANCE,
+            GoldenBuildingTestFixtures.projection(),
+            result);
+        new BuildingGenerationPipeline(List.of(new RoofGenerationStage())).generate(context);
+        assertEquals(0, result.placementRecords.size());
+    }
+
+    @Test
+    void flatToNoneRoofTypeMarksPreviewStale() {
+        BuildingFootprint footprint = overlapFootprint("roof-change", 3);
+        footprint.setRoofType(BuildingFootprint.RoofType.FLAT);
+        List<BuildingFootprint> targets = List.of(footprint);
+
+        BuildingPreviewIdentity identity = BuildingPreviewIdentity.capture(
+            targets, false, PROJECTION_A.fingerprint());
+        assertEquals(
+            BuildingPreviewIdentity.Validity.VALID,
+            identity.validityAgainst(targets, true, false, PROJECTION_A.fingerprint()));
+
+        footprint.setRoofType(BuildingFootprint.RoofType.NONE);
+        assertEquals(
+            BuildingPreviewIdentity.Validity.STALE,
+            identity.validityAgainst(targets, true, false, PROJECTION_A.fingerprint()));
     }
 
     @Test

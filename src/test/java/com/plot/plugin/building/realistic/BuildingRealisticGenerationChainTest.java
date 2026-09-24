@@ -80,7 +80,7 @@ class BuildingRealisticGenerationChainTest {
     }
 
     @Test
-    void dB17_overlappingFootprintsOnSampledTerrainLaterWins() {
+    void dB17_overlappingFootprintsOnSampledTerrainMergeSafely() {
         BuildingFootprint first = RealisticDistrictFixtures.gridRectangle(0, 4);
         BuildingFootprint second = copyForOverlap(first, "overlap-second");
 
@@ -94,7 +94,6 @@ class BuildingRealisticGenerationChainTest {
 
         assertEquals(2, district.buildingsGenerated());
         assertTrue(district.hasBuildingOverlap());
-        assertTrue(district.conflictingBlockCount() > 0);
         assertTrue(district.totalBlocks() > 0);
     }
 

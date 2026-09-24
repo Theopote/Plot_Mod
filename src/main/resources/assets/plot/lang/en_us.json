@@ -3992,6 +3992,7 @@
   "plugin.building.generate.preview_stale": "Preview is stale — generate preview again",
   "plugin.building.generate.build_stale": "Preview is stale — generate preview before building",
   "plugin.building.generate.frame_only": "Frame only",
+  "plugin.building.generate.advanced": "Advanced generation options",
   "plugin.building.generate.build_this_preview": "Build",
   "plugin.building.generate.show_issues": "View issues",
   "plugin.building.issue.skipped": "%s skipped: %s",

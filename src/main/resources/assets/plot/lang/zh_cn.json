@@ -3992,6 +3992,7 @@
   "plugin.building.generate.preview_stale": "预览已过期，请重新生成预览",
   "plugin.building.generate.build_stale": "预览已过期，请先重新生成预览",
   "plugin.building.generate.frame_only": "仅生成框架",
+  "plugin.building.generate.advanced": "高级生成选项",
   "plugin.building.generate.build_this_preview": "建造",
   "plugin.building.generate.show_issues": "查看问题",
   "plugin.building.issue.skipped": "%s 已跳过：%s",

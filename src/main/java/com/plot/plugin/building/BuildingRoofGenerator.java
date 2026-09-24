@@ -220,11 +220,6 @@ public final class BuildingRoofGenerator {
         return scale.canvasToBlocks(canvasDistance, point, direction);
     }
 
-    /** @deprecated use {@link #roofLayerCount} */
-    static int riseFromEaveDistance(double distToEaveBlocks, int pitch) {
-        return roofLayerCount(distToEaveBlocks, pitch, 0);
-    }
-
     private static Vec2d inwardFromNearestEdge(Vec2d point, StraightSkeleton.Result skeleton) {
         Vec2d ridgeDirection = skeleton.primaryRidgeDirection();
         if (ridgeDirection != null && ridgeDirection.lengthSquared() > 1e-12) {

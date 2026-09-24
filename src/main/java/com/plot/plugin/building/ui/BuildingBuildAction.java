@@ -29,11 +29,7 @@ public final class BuildingBuildAction {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.generate.build_needs_preview"));
         }
 
-        ImBoolean frameOnly = new ImBoolean(ctx.frameOnlyGenerate());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.building.generate.frame_only"), frameOnly)) {
-            ctx.setFrameOnlyGenerate(frameOnly.get());
-        }
-        UIUtils.renderEngineeringTooltip("hint.plot.building.generate.frame_only");
+        renderAdvancedOptions(ctx);
 
         boolean buildDisabled = validity != BuildingPreviewIdentity.Validity.VALID
             || !readiness.ready()
@@ -51,5 +47,16 @@ public final class BuildingBuildAction {
         if (buildDisabled) {
             ImGui.endDisabled();
         }
+    }
+
+    private static void renderAdvancedOptions(BuildingUiContext ctx) {
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.building.generate.advanced"))) {
+            return;
+        }
+        ImBoolean frameOnly = new ImBoolean(ctx.frameOnlyGenerate());
+        if (ImGui.checkbox(PlotI18n.tr("plugin.building.generate.frame_only"), frameOnly)) {
+            ctx.setFrameOnlyGenerate(frameOnly.get());
+        }
+        UIUtils.renderEngineeringTooltip("hint.plot.building.generate.frame_only");
     }
 }

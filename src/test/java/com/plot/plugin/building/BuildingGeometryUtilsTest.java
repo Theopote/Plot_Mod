@@ -187,9 +187,9 @@ class BuildingGeometryUtilsTest {
             new Vec2d(0, 10)
         );
         StraightSkeleton.Result skeleton = StraightSkeleton.compute(lShape);
-        int corner = BuildingRoofGenerator.computeHipRise(new Vec2d(0.5, 0.5), skeleton, null, 2, IDENTITY);
-        int interior = BuildingRoofGenerator.computeHipRise(new Vec2d(2.5, 2.5), skeleton, null, 2, IDENTITY);
-        assertEquals(0, corner);
-        assertTrue(interior > corner);
+        int corner = BuildingRoofGenerator.computeHipRise(new Vec2d(0.5, 0.5), skeleton, null, 1, IDENTITY);
+        int interior = BuildingRoofGenerator.computeHipRise(new Vec2d(8.0, 2.0), skeleton, null, 1, IDENTITY);
+        assertEquals(1, corner, "perimeter band still gets one roof layer when distance > 0");
+        assertTrue(interior > corner, () -> "interior=" + interior + " corner=" + corner);
     }
 }

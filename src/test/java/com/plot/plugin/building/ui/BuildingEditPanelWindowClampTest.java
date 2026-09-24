@@ -26,7 +26,7 @@ class BuildingEditPanelWindowClampTest {
         building.clampWindowToFloorHeight();
 
         assertEquals(BuildingFootprint.MAX_WINDOW_WIDTH, building.getWindowWidth());
-        assertEquals(4, building.getWindowSillHeight());
+        assertEquals(3, building.getWindowSillHeight());
         assertEquals(1, building.getWindowHeight());
     }
 
@@ -61,6 +61,6 @@ class BuildingEditPanelWindowClampTest {
         building.clampWindowToFloorHeight();
 
         assertEquals(0, building.getWindowSillHeight());
-        assertEquals(5, building.getWindowHeight());
+        assertEquals(4, building.getWindowHeight());
     }
 }

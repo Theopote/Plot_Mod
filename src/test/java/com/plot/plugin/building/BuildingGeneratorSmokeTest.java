@@ -28,7 +28,7 @@ class BuildingGeneratorSmokeTest {
         BuildingGeometryUtils.RectBounds bounds = new BuildingGeometryUtils.RectBounds(0, 16, 0, 10);
         int ridgeRise = BuildingRoofGenerator.computeGableRise(8, 5, bounds, true, 2, IDENTITY);
         int eaveRise = BuildingRoofGenerator.computeGableRise(8, 0.5, bounds, true, 2, IDENTITY);
-        assertEquals(0, eaveRise);
+        assertEquals(1, eaveRise, "eave band still gets one roof layer when distance > 0");
         assertTrue(ridgeRise > eaveRise);
         assertEquals(2, ridgeRise);
     }

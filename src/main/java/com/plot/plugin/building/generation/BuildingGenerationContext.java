@@ -229,12 +229,6 @@ public final class BuildingGenerationContext {
         return cells;
     }
 
-    /** @deprecated 建筑生成请用 {@link #collectFootprintCells(List, Polygon, BuildingCanvasScale)}。 */
-    @Deprecated
-    public static List<GridCell> collectFootprintCells(List<Vec2d> points, Polygon polygon, double cellSize) {
-        return collectFootprintCells(points, polygon, cellSize, cellSize);
-    }
-
     public static List<GridCell> collectFootprintCells(
             List<Vec2d> points,
             Polygon polygon,

@@ -70,33 +70,6 @@ public final class BuildingGridAlignment {
         return scale.worldBlockCenterToCanvas(blockX, blockZ);
     }
 
-    /** @deprecated 仅旧画布格网路径；建筑生成请用 {@link #snapToBlockCellCenter(Vec2d, BuildingCanvasScale, List)}。 */
-    @Deprecated
-    public static Vec2d snapToBlockCellCenter(
-            Vec2d canvasPos,
-            List<Vec2d> outerPoints,
-            double stepX,
-            double stepZ) {
-        if (canvasPos == null || outerPoints == null || outerPoints.size() < 3) {
-            return canvasPos;
-        }
-        double sx = Math.max(1e-6, stepX);
-        double sz = Math.max(1e-6, stepZ);
-        com.plot.core.geometry.PolygonRegionUtils.RectBounds bounds =
-            com.plot.core.geometry.PolygonRegionUtils.computeBounds(outerPoints, List.of());
-        double startX = Math.floor(bounds.minX() / sx) * sx + sx * 0.5;
-        double startZ = Math.floor(bounds.minZ() / sz) * sz + sz * 0.5;
-        long ix = Math.round((canvasPos.x - startX) / sx);
-        long iz = Math.round((canvasPos.y - startZ) / sz);
-        return new Vec2d(startX + ix * sx, startZ + iz * sz);
-    }
-
-    /** @deprecated 仅旧画布格网路径。 */
-    @Deprecated
-    public static Vec2d snapToBlockCellCenter(Vec2d canvasPos, List<Vec2d> outerPoints, double cellSize) {
-        return snapToBlockCellCenter(canvasPos, outerPoints, cellSize, cellSize);
-    }
-
     private static BlockBounds worldBlockBounds(List<Vec2d> points, ICoordinateService coords) {
         int minX = Integer.MAX_VALUE;
         int maxX = Integer.MIN_VALUE;
