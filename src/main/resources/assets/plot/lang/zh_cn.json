@@ -3165,7 +3165,7 @@
   "error.plot.validation.immutable_text_style": "TextStyle 是不可变对象，请使用 Builder 创建新实例",
   "error.plot.validation.immutable_extend_parameters": "ExtendParameters 是不可变的，不支持设置参数",
   "plugin.building.name": "建筑体块",
-  "plugin.building.desc": "将画布中的二维建筑轮廓快速转换为 Minecraft 中的建筑体块，可用于城市、街区、校园和大型建筑群的快速建模",
+  "plugin.building.desc": "将画布中的二维建筑轮廓快速转换为 Minecraft 中的建筑体块",
   "plugin.powerline.name": "电力线路",
   "plugin.powerline.desc": "认领直线/折线走线，自动布置电线杆并生成带垂度的装饰性导线",
   "plugin.pattern.name": "图案生成器",

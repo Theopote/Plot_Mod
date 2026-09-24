@@ -3165,7 +3165,7 @@
   "error.plot.validation.immutable_text_style": "TextStyle is immutable; create a new instance using Builder",
   "error.plot.validation.immutable_extend_parameters": "ExtendParameters is immutable; setting parameters is not supported",
   "plugin.building.name": "Building Massing",
-  "plugin.building.desc": "Turn 2D footprints on the canvas into Minecraft building masses for cities, blocks, campuses, and large building groups",
+  "plugin.building.desc": "Turn 2D footprints on the canvas into Minecraft building masses",
   "plugin.powerline.name": "Power Lines",
   "plugin.powerline.desc": "Adopt straight/polyline routes, place poles, and generate decorative sagging wires",
   "plugin.pattern.name": "Pattern Generator",
