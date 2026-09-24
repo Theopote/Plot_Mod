@@ -12,6 +12,9 @@ import com.plot.plugin.road.alignment.HorizontalAlignmentTopologyValidator;
 import com.plot.plugin.road.centerline.CenterlineEditResult;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.centerline.RoadCenterlineShapeValidator;
+import com.plot.plugin.road.centerline.RoadCenterlineViolation;
+import com.plot.plugin.road.centerline.RoadCenterlineViolationKind;
 import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
 import com.plot.plugin.road.model.RoadTopologyRoadSplitter;
 import com.plot.plugin.road.model.RoadTopologyViolation;
@@ -65,6 +68,7 @@ public final class RoadAutoRepair {
         List<RoadRepairIssue> issues = new ArrayList<>();
         addIntersectionIssues(issues, intersectionProbe, adoptIntersectionRepairPending);
         addTopologyIssues(issues, network, road);
+        addCenterlineShapeIssues(issues, network, road);
         addHorizontalAlignmentIssues(issues, network, road);
         addVerticalIssues(issues, network, road, config);
         return List.copyOf(issues);
@@ -176,6 +180,19 @@ public final class RoadAutoRepair {
         }
     }
 
+    private static void addCenterlineShapeIssues(
+            List<RoadRepairIssue> issues,
+            RoadNetwork network,
+            Road road) {
+        for (RoadCenterlineViolation violation : RoadCenterlineShapeValidator.validateRoad(network, road)) {
+            switch (violation.kind()) {
+                case SELF_INTERSECTION -> issues.add(RoadRepairIssue.CENTERLINE_SELF_INTERSECTION);
+                case SELF_OVERLAP -> issues.add(RoadRepairIssue.CENTERLINE_SELF_OVERLAP);
+                case NON_LINEAR_ROAD_TOPOLOGY -> issues.add(RoadRepairIssue.CENTERLINE_NON_LINEAR);
+            }
+        }
+    }
+
     private static void addHorizontalAlignmentIssues(
             List<RoadRepairIssue> issues,
             RoadNetwork network,
@@ -220,7 +237,8 @@ public final class RoadAutoRepair {
     private static boolean hasTopologyShapeIssue(List<RoadRepairIssue> issues) {
         return issues.contains(RoadRepairIssue.TOPOLOGY_DISCONNECTED)
             || issues.contains(RoadRepairIssue.TOPOLOGY_BRANCHING)
-            || issues.contains(RoadRepairIssue.TOPOLOGY_CYCLE);
+            || issues.contains(RoadRepairIssue.TOPOLOGY_CYCLE)
+            || issues.contains(RoadRepairIssue.CENTERLINE_NON_LINEAR);
     }
 
     private static boolean hasHorizontalRepairTarget(List<RoadRepairIssue> issues) {

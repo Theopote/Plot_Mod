@@ -3,6 +3,7 @@ package com.plot.plugin.road.validation;
 import com.plot.plugin.road.RoadNetworkValidationReport;
 import com.plot.plugin.road.alignment.HorizontalAlignmentViolationKind;
 import com.plot.plugin.road.centerline.CenterlineEditStatus;
+import com.plot.plugin.road.centerline.RoadCenterlineViolationKind;
 import com.plot.plugin.road.model.RoadTopologyViolationKind;
 import com.plot.plugin.road.vertical.VerticalAlignmentViolationKind;
 
@@ -73,6 +74,23 @@ public final class RoadValidationMessageCatalog {
         return null;
     }
 
+    public static RoadValidationMessage fromCenterlineKind(RoadCenterlineViolationKind kind) {
+        return switch (kind) {
+            case SELF_INTERSECTION -> RoadValidationMessage.of(
+                RoadNetworkValidationReport.Level.WARNING,
+                "centerline_self_intersection_single",
+                RoadValidationAction.REPAIR_ROAD_TOPOLOGY);
+            case SELF_OVERLAP -> RoadValidationMessage.of(
+                RoadNetworkValidationReport.Level.WARNING,
+                "centerline_self_overlap_single",
+                RoadValidationAction.REPAIR_ROAD_TOPOLOGY);
+            case NON_LINEAR_ROAD_TOPOLOGY -> RoadValidationMessage.of(
+                RoadNetworkValidationReport.Level.WARNING,
+                "centerline_non_linear_single",
+                RoadValidationAction.REPAIR_ROAD_TOPOLOGY);
+        };
+    }
+
     public static RoadValidationMessage fromCenterlineStatus(CenterlineEditStatus status) {
         return switch (status) {
             case JUNCTION_ENDPOINT_CONFLICT -> RoadValidationMessage.of(
@@ -121,6 +139,13 @@ public final class RoadValidationMessageCatalog {
             IssueTemplate.warning("road_cycle", RoadValidationAction.REPAIR_ROAD_TOPOLOGY));
         map.put("plugin.road.validation.road_order_mismatch",
             IssueTemplate.warning("road_order_mismatch", RoadValidationAction.SYNC_SEGMENT_ORDER));
+        map.put("plugin.road.validation.centerline_shape_ok", IssueTemplate.ok("centerline_shape_ok"));
+        map.put("plugin.road.validation.centerline_self_intersection",
+            IssueTemplate.warning("centerline_self_intersection", RoadValidationAction.REPAIR_ROAD_TOPOLOGY));
+        map.put("plugin.road.validation.centerline_self_overlap",
+            IssueTemplate.warning("centerline_self_overlap", RoadValidationAction.REPAIR_ROAD_TOPOLOGY));
+        map.put("plugin.road.validation.centerline_non_linear",
+            IssueTemplate.warning("centerline_non_linear", RoadValidationAction.REPAIR_ROAD_TOPOLOGY));
         map.put("plugin.road.validation.vertical_alignment_length_ok",
             IssueTemplate.ok("vertical_length_ok"));
         map.put("plugin.road.validation.vertical_alignment_length_mismatch",

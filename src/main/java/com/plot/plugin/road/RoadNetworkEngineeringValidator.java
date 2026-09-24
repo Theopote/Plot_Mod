@@ -24,6 +24,8 @@ import com.plot.plugin.road.vertical.VerticalAlignmentViolationKind;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
 import com.plot.plugin.road.vertical.FlatRoadJunctionConflictResolver;
+import com.plot.plugin.road.centerline.RoadCenterlineShapeValidator;
+import com.plot.plugin.road.centerline.RoadCenterlineViolationKind;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -110,6 +112,8 @@ public final class RoadNetworkEngineeringValidator {
 
         addRoadTopologyItems(items, network, true);
 
+        addCenterlineShapeItems(items, network, true);
+
         addVerticalAlignmentItems(items, network, config);
 
         addHorizontalAlignmentItems(items, network);
@@ -167,6 +171,8 @@ public final class RoadNetworkEngineeringValidator {
 
         addRoadTopologyItems(items, network, false);
 
+        addCenterlineShapeItems(items, network, false);
+
         RoadNetworkValidationResult invariants = RoadNetworkInvariantValidator.validate(network);
         if (!invariants.valid()) {
             items.add(RoadNetworkValidationReport.Item.warning(
@@ -212,6 +218,41 @@ public final class RoadNetworkEngineeringValidator {
             List<RoadNetworkValidationReport.Item> items,
             Map<RoadTopologyViolationKind, Integer> counts,
             RoadTopologyViolationKind kind,
+            String messageKey) {
+        int count = counts.getOrDefault(kind, 0);
+        if (count > 0) {
+            items.add(RoadNetworkValidationReport.Item.warning(messageKey, count));
+        }
+    }
+
+    private static void addCenterlineShapeItems(
+            List<RoadNetworkValidationReport.Item> items,
+            RoadNetwork network,
+            boolean includeOkWhenClean) {
+        Map<RoadCenterlineViolationKind, Integer> counts = RoadCenterlineShapeValidator.countByKind(network);
+        int total = counts.values().stream().mapToInt(Integer::intValue).sum();
+        if (total == 0) {
+            if (includeOkWhenClean) {
+                items.add(RoadNetworkValidationReport.Item.ok(
+                    "plugin.road.validation.centerline_shape_ok"));
+            }
+            return;
+        }
+        addCenterlineShapeWarningIfPositive(
+            items, counts, RoadCenterlineViolationKind.SELF_INTERSECTION,
+            "plugin.road.validation.centerline_self_intersection");
+        addCenterlineShapeWarningIfPositive(
+            items, counts, RoadCenterlineViolationKind.SELF_OVERLAP,
+            "plugin.road.validation.centerline_self_overlap");
+        addCenterlineShapeWarningIfPositive(
+            items, counts, RoadCenterlineViolationKind.NON_LINEAR_ROAD_TOPOLOGY,
+            "plugin.road.validation.centerline_non_linear");
+    }
+
+    private static void addCenterlineShapeWarningIfPositive(
+            List<RoadNetworkValidationReport.Item> items,
+            Map<RoadCenterlineViolationKind, Integer> counts,
+            RoadCenterlineViolationKind kind,
             String messageKey) {
         int count = counts.getOrDefault(kind, 0);
         if (count > 0) {

@@ -109,6 +109,58 @@ public final class PolygonValidator {
         return false;
     }
 
+    /**
+     * 开放折线自交：非相邻线段发生真交（不含首尾闭合）。
+     */
+    public static boolean hasOpenPolylineSelfIntersection(List<Vec2d> points) {
+        return hasOpenPolylineSelfIntersection(points, PolygonUtils.DEFAULT_EPSILON);
+    }
+
+    public static boolean hasOpenPolylineSelfIntersection(List<Vec2d> points, double epsilon) {
+        if (points == null || points.size() < 4) {
+            return false;
+        }
+        int segmentCount = points.size() - 1;
+        for (int i = 0; i < segmentCount; i++) {
+            Vec2d a1 = points.get(i);
+            Vec2d a2 = points.get(i + 1);
+            for (int j = i + 2; j < segmentCount; j++) {
+                Vec2d b1 = points.get(j);
+                Vec2d b2 = points.get(j + 1);
+                if (segmentsIntersectProperly(a1, a2, b1, b2, epsilon)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 开放折线自重叠：非相邻线段共线且投影区间有实质重叠（不含端点相接）。
+     */
+    public static boolean hasOpenPolylineSelfOverlap(List<Vec2d> points) {
+        return hasOpenPolylineSelfOverlap(points, PolygonUtils.DEFAULT_EPSILON);
+    }
+
+    public static boolean hasOpenPolylineSelfOverlap(List<Vec2d> points, double epsilon) {
+        if (points == null || points.size() < 3) {
+            return false;
+        }
+        int segmentCount = points.size() - 1;
+        for (int i = 0; i < segmentCount; i++) {
+            Vec2d a1 = points.get(i);
+            Vec2d a2 = points.get(i + 1);
+            for (int j = i + 2; j < segmentCount; j++) {
+                Vec2d b1 = points.get(j);
+                Vec2d b2 = points.get(j + 1);
+                if (segmentsOverlapCollinearly(a1, a2, b1, b2, epsilon)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     static boolean segmentsIntersectProperly(
             Vec2d a1, Vec2d a2, Vec2d b1, Vec2d b2, double epsilon) {
         double o1 = orientation(a1, a2, b1, epsilon);
@@ -120,6 +172,28 @@ public final class PolygonValidator {
             return true;
         }
         return false;
+    }
+
+    private static boolean segmentsOverlapCollinearly(
+            Vec2d a1, Vec2d a2, Vec2d b1, Vec2d b2, double epsilon) {
+        if (orientation(a1, a2, b1, epsilon) != 0.0 || orientation(a1, a2, b2, epsilon) != 0.0) {
+            return false;
+        }
+        double dx = a2.x - a1.x;
+        double dy = a2.y - a1.y;
+        double lengthSquared = dx * dx + dy * dy;
+        if (lengthSquared <= epsilon * epsilon) {
+            return false;
+        }
+        double invLengthSquared = 1.0 / lengthSquared;
+        double minA = 0.0;
+        double maxA = Math.sqrt(lengthSquared);
+        double tB1 = ((b1.x - a1.x) * dx + (b1.y - a1.y) * dy) * invLengthSquared;
+        double tB2 = ((b2.x - a1.x) * dx + (b2.y - a1.y) * dy) * invLengthSquared;
+        double minB = Math.min(tB1, tB2) * maxA;
+        double maxB = Math.max(tB1, tB2) * maxA;
+        double overlap = Math.min(maxA, maxB) - Math.max(minA, minB);
+        return overlap > epsilon;
     }
 
     private static double orientation(Vec2d a, Vec2d b, Vec2d c, double epsilon) {

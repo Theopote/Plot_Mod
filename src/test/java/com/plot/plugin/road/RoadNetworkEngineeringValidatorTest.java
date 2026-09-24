@@ -495,6 +495,25 @@ class RoadNetworkEngineeringValidatorTest {
             item.level() == RoadNetworkValidationReport.Level.ERROR && item.messageKey().equals(key));
     }
 
+    @Test
+    void reportsCenterlineSelfIntersectionAsWarning() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("road-x");
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 0));
+        network.createEdge(
+            n1.getId(),
+            n2.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(10, 10), new Vec2d(0, 10), new Vec2d(10, 0)),
+            road.getId());
+
+        RoadNetworkValidationReport report = RoadNetworkEngineeringValidator.analyze(
+            network, Map.of(), new RoadSystemConfig("test"));
+
+        assertTrue(hasWarning(report, "plugin.road.validation.centerline_self_intersection"));
+        assertFalse(report.blocksBuild());
+    }
+
     private static boolean hasWarning(RoadNetworkValidationReport report, String key) {
         return report.items().stream().anyMatch(item ->
             item.level() == RoadNetworkValidationReport.Level.WARNING && item.messageKey().equals(key));

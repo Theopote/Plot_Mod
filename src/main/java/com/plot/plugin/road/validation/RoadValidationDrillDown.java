@@ -8,6 +8,9 @@ import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.centerline.RoadCenterlineShapeValidator;
+import com.plot.plugin.road.centerline.RoadCenterlineViolation;
+import com.plot.plugin.road.centerline.RoadCenterlineViolationKind;
 import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
 import com.plot.plugin.road.model.RoadTopologyViolation;
 import com.plot.plugin.road.model.RoadTopologyViolationKind;
@@ -41,6 +44,9 @@ public final class RoadValidationDrillDown {
                  "road_branching",
                  "road_cycle",
                  "road_order_mismatch",
+                 "centerline_self_intersection",
+                 "centerline_self_overlap",
+                 "centerline_non_linear",
                  "topology_issues",
                  "vertical_grade_exceeds",
                  "vertical_length_mismatch",
@@ -68,6 +74,12 @@ public final class RoadValidationDrillDown {
             case "road_branching" -> roadsWithTopologyKind(network, RoadTopologyViolationKind.ROAD_BRANCHING);
             case "road_cycle" -> roadsWithTopologyKind(network, RoadTopologyViolationKind.ROAD_CYCLE);
             case "road_order_mismatch" -> roadsWithTopologyKind(network, RoadTopologyViolationKind.ROAD_ORDER_MISMATCH);
+            case "centerline_self_intersection" -> roadsWithCenterlineKind(
+                network, RoadCenterlineViolationKind.SELF_INTERSECTION);
+            case "centerline_self_overlap" -> roadsWithCenterlineKind(
+                network, RoadCenterlineViolationKind.SELF_OVERLAP);
+            case "centerline_non_linear" -> roadsWithCenterlineKind(
+                network, RoadCenterlineViolationKind.NON_LINEAR_ROAD_TOPOLOGY);
             case "topology_issues" -> allTopologyRoadIds(network);
             case "vertical_grade_exceeds" -> roadsExceedingGrade(network, config);
             case "vertical_length_mismatch" -> roadsWithVerticalLengthMismatch(network);
@@ -88,6 +100,18 @@ public final class RoadValidationDrillDown {
     private static List<String> roadsWithTopologyKind(RoadNetwork network, RoadTopologyViolationKind kind) {
         LinkedHashSet<String> roadIds = new LinkedHashSet<>();
         for (RoadTopologyViolation violation : RoadTopologyInvariantValidator.validate(network)) {
+            if (violation.kind() == kind) {
+                roadIds.add(violation.roadId());
+            }
+        }
+        return sortedRoadIds(network, roadIds);
+    }
+
+    private static List<String> roadsWithCenterlineKind(
+            RoadNetwork network,
+            RoadCenterlineViolationKind kind) {
+        LinkedHashSet<String> roadIds = new LinkedHashSet<>();
+        for (RoadCenterlineViolation violation : RoadCenterlineShapeValidator.validate(network)) {
             if (violation.kind() == kind) {
                 roadIds.add(violation.roadId());
             }
