@@ -130,6 +130,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
 
         refreshOverlaySnapshot();
         tickOverlayCanvasSelection();
+        buildPanel.renderProfileEditorWindow(ctx.networkManager().getNetwork());
     }
 
     /** 拾取完成并自动认领道路后的 UI 反馈。 */

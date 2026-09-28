@@ -2,6 +2,7 @@ package com.plot.plugin.road.ui;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadCrossSectionPreviewRenderer;
+import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadLongitudinalProfileRenderer;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.Road;
@@ -12,6 +13,7 @@ import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadGradeSeparationEvaluation;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.profile.RoadProfileIntersection;
+import com.plot.plugin.road.profile.RoadProfileIntersectionDragEditor;
 import com.plot.plugin.road.profile.RoadProfileIntersectionResolver;
 import com.plot.plugin.road.profile.RoadProfileIntersectionWarningResolver;
 import com.plot.core.terrain.FlatTerrainSampler;
@@ -31,16 +33,27 @@ import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.flag.ImGuiWindowFlags;
+import imgui.type.ImBoolean;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * 生成 Tab 内联纵断面 / PVI 交互编辑器。
+ * 生成 Tab 纵断面：内联只读概览 + 独立编辑器窗口（放大交互）。
  */
 final class VerticalProfileEditor {
+
+    private static final float INLINE_CHART_HEIGHT = 96f;
+    private static final float MIN_EDITOR_CHART_HEIGHT = 220f;
+    private static final int EDITOR_WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
+
+    private final ImBoolean editorWindowOpen = new ImBoolean(false);
+    private String editorEdgeId = "";
+    private boolean focusEditorOnOpen = false;
 
     private RoadGenerationResult cachedEditProfile;
     private String cachedEditProfileEdgeId = "";
@@ -51,6 +64,10 @@ final class VerticalProfileEditor {
     private String profileAutoFixMessage = "";
     private RoadGradeSeparationControls gradeSeparationControls;
     private boolean profileRecalcSuggested = false;
+    private int activeIntersectionDragIndex = -1;
+    private RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget
+        activeIntersectionDragTarget =
+            RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget.NONE;
 
     void clearCache() {
         cachedEditProfile = null;
@@ -60,6 +77,22 @@ final class VerticalProfileEditor {
         selectedIntersectionIndex = -1;
         profileAutoFixMessage = "";
         profileRecalcSuggested = false;
+        activeIntersectionDragIndex = -1;
+        activeIntersectionDragTarget =
+            RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget.NONE;
+    }
+
+    void openEditorForEdge(String edgeId) {
+        if (edgeId == null || edgeId.isBlank()) {
+            return;
+        }
+        editorEdgeId = edgeId;
+        editorWindowOpen.set(true);
+        focusEditorOnOpen = true;
+    }
+
+    boolean isEditorOpen() {
+        return editorWindowOpen.get();
     }
 
     void renderInline(RoadUiContext ctx, RoadNetwork network, RoadEdge edge) {
@@ -73,49 +106,149 @@ final class VerticalProfileEditor {
                 ImGuiTreeNodeFlags.DefaultOpen)) {
             return;
         }
+        RoadGenerationResult edgeResult = resolveEdgeResult(ctx, edge);
+        if (edgeResult == null || !edgeResult.hasProfileData()) {
+            renderMissingProfileActions(ctx, network);
+            return;
+        }
+        Road road = network.getRoadForEdge(edge);
+        if (road == null) {
+            return;
+        }
+        VerticalAlignmentProfileOverlay design =
+            VerticalAlignmentProfileOverlay.forEdge(network, edge).orElse(null);
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        List<RoadProfileIntersection> intersections = resolveIntersections(
+            ctx, network, road, edge, config, edgeResult);
+
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            RoadEdgeListHelper.formatEdgeLabel(network, edge));
+        RoadLongitudinalProfileRenderer.renderOverview(
+            edgeResult, design, intersections, INLINE_CHART_HEIGHT);
+        renderInlineLegend(design, intersections);
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.vertical_alignment_inline_preview_hint"));
+        if (ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_open_editor"),
+                ImGui.getContentRegionAvailX(), 0)) {
+            openEditorForEdge(edge.getId());
+        }
+    }
+
+    void renderEditorWindow(RoadUiContext ctx, RoadNetwork network) {
+        if (!editorWindowOpen.get()) {
+            return;
+        }
+        RoadEdge edge = network.getEdge(editorEdgeId);
+        if (edge == null) {
+            editorWindowOpen.set(false);
+            return;
+        }
+        Road road = network.getRoadForEdge(edge);
+        String title = PlotI18n.tr(
+            "plugin.road.vertical_alignment_editor_window_title",
+            road != null
+                ? RoadEdgeListHelper.formatRoadLabel(network, road)
+                : editorEdgeId);
+
+        if (focusEditorOnOpen) {
+            var center = ImGui.getMainViewport().getCenter();
+            ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
+            float viewportWidth = ImGui.getIO().getDisplaySizeX();
+            float viewportHeight = ImGui.getIO().getDisplaySizeY();
+            ImGui.setNextWindowSize(
+                Math.min(viewportWidth * 0.88f, 920f),
+                Math.min(viewportHeight * 0.72f, 580f),
+                ImGuiCond.Appearing);
+            ImGui.setNextWindowFocus();
+            focusEditorOnOpen = false;
+        }
+        ImGui.setNextWindowSizeConstraints(480f, 380f, Float.MAX_VALUE, Float.MAX_VALUE);
+
+        if (!ImGui.begin(title, editorWindowOpen, EDITOR_WINDOW_FLAGS)) {
+            ImGui.end();
+            return;
+        }
+        try {
+            RoadGenerationResult edgeResult = resolveEdgeResult(ctx, edge);
+            if (edgeResult == null || !edgeResult.hasProfileData()) {
+                renderMissingProfileActions(ctx, network);
+                return;
+            }
+            if (road == null) {
+                return;
+            }
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                RoadEdgeListHelper.formatEdgeLabel(network, edge));
+            VerticalAlignmentProfileOverlay design =
+                VerticalAlignmentProfileOverlay.forEdge(network, edge).orElse(null);
+            float chartHeight = Math.max(
+                MIN_EDITOR_CHART_HEIGHT,
+                ImGui.getContentRegionAvail().y * 0.42f);
+            renderInteractiveEditor(ctx, network, edge, road, edgeResult, design, chartHeight);
+        } finally {
+            ImGui.end();
+        }
+    }
+
+    private void renderMissingProfileActions(RoadUiContext ctx, RoadNetwork network) {
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.vertical_alignment_profile_preview_required"));
+        if (ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_calculate_profile"))) {
+            ctx.previewManager().startNetworkPreview(network, false);
+        }
+        ImGui.sameLine();
+        String fullPreviewLabel = ctx.previewManager().needsPreviewRecalc()
+            ? PlotI18n.tr("plugin.road.recalculate_preview")
+            : PlotI18n.tr("plugin.road.calc_preview");
+        if (ImGui.button(fullPreviewLabel + "##profile_full_preview")) {
+            ctx.previewManager().startNetworkPreview(network);
+        }
+    }
+
+    private RoadGenerationResult resolveEdgeResult(RoadUiContext ctx, RoadEdge edge) {
         RoadGenerationResult edgeResult = ctx.previewManager().getLastEdgeResult(edge.getId());
         if (edgeResult != null && edgeResult.hasProfileData()) {
             cachedEditProfile = edgeResult;
             cachedEditProfileEdgeId = edge.getId();
             profileRecalcSuggested = false;
-        } else if (edge.getId().equals(cachedEditProfileEdgeId)
+            return edgeResult;
+        }
+        if (edge.getId().equals(cachedEditProfileEdgeId)
                 && ctx.previewManager().hasValidPreview()) {
-            edgeResult = cachedEditProfile;
+            return cachedEditProfile;
         }
-        if (edgeResult == null || !edgeResult.hasProfileData()) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.vertical_alignment_profile_preview_required"));
-            if (ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_calculate_profile"))) {
-                ctx.previewManager().startNetworkPreview(network, false);
-            }
-            ImGui.sameLine();
-            String fullPreviewLabel = ctx.previewManager().needsPreviewRecalc()
-                ? PlotI18n.tr("plugin.road.recalculate_preview")
-                : PlotI18n.tr("plugin.road.calc_preview");
-            if (ImGui.button(fullPreviewLabel + "##profile_full_preview")) {
-                ctx.previewManager().startNetworkPreview(network);
-            }
-            return;
-        }
-        VerticalAlignmentProfileOverlay design =
-            VerticalAlignmentProfileOverlay.forEdge(network, edge).orElse(null);
-        renderControlPoints(ctx, network, edge, edgeResult, design);
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.vertical_alignment_profile_legend_hint"));
+        return null;
     }
 
-    private void renderControlPoints(
+    private static void renderInlineLegend(
+            VerticalAlignmentProfileOverlay design,
+            List<RoadProfileIntersection> intersections) {
+        ImGui.textColored(0xFF8B5A2B, "■ " + PlotI18n.tr("plugin.road.profile_ground"));
+        ImGui.sameLine();
+        ImGui.textColored(0xFF4DA3FF, "--- " + PlotI18n.tr("plugin.road.profile_guide"));
+        ImGui.sameLine();
+        ImGui.textColored(0xFFB0B0B0, "■ " + PlotI18n.tr("plugin.road.profile_target"));
+        if (design != null && !design.isEmpty()) {
+            ImGui.sameLine();
+            ImGui.textColored(0xFF5FD35F, "■ " + PlotI18n.tr("plugin.road.profile_design"));
+        }
+        if (intersections != null && intersections.stream().anyMatch(RoadProfileIntersection::gradeSeparated)) {
+            ImGui.textColored(0xFFFF9966, "\u25C7 " + PlotI18n.tr("plugin.road.profile_intersection_marker_grade"));
+        }
+    }
+
+    private void renderInteractiveEditor(
             RoadUiContext ctx,
             RoadNetwork network,
             RoadEdge edge,
+            Road road,
             RoadGenerationResult edgeResult,
-            VerticalAlignmentProfileOverlay design) {
-        Road road = network.getRoadForEdge(edge);
-        if (road == null) {
-            return;
-        }
+            VerticalAlignmentProfileOverlay design,
+            float chartHeight) {
         List<VerticalProfileControlPoints.ControlPoint> points =
             VerticalProfileControlPoints.forEdge(network, road, edge);
         if (points.isEmpty()) {
@@ -130,12 +263,33 @@ final class VerticalProfileEditor {
         RoadLongitudinalProfileRenderer.ControlInteraction interaction =
             RoadLongitudinalProfileRenderer.renderInteractive(
                 edgeResult, design, points, selectedProfilePvi, activeProfilePvi, maxGrade,
-                intersections, selectedIntersectionIndex);
-        if (interaction.dragStarted()) {
+                intersections, selectedIntersectionIndex, chartHeight,
+                activeIntersectionDragIndex, activeIntersectionDragTarget);
+        if (interaction.dragStarted() || interaction.intersectionDragStarted()) {
             ctx.beginNetworkEdit();
         }
         selectedProfilePvi = interaction.selectedPviIndex();
         activeProfilePvi = interaction.activePviIndex();
+        if (interaction.activeIntersectionDragIndex() >= 0) {
+            activeIntersectionDragIndex = interaction.activeIntersectionDragIndex();
+            activeIntersectionDragTarget = interaction.activeIntersectionDragTarget();
+        }
+        if (interaction.draggedIntersectionElevation() != null
+                && activeIntersectionDragIndex >= 0
+                && activeIntersectionDragIndex < intersections.size()
+                && activeIntersectionDragTarget
+                    == RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget.OTHER) {
+            RoadProfileIntersection intersection = intersections.get(activeIntersectionDragIndex);
+            if (RoadProfileIntersectionDragEditor.applyDraggedElevation(
+                    network, road, intersection,
+                    RoadProfileIntersectionDragEditor.DragTarget.OTHER,
+                    interaction.draggedIntersectionElevation(),
+                    config)) {
+                profileRecalcSuggested = true;
+                intersections = resolveIntersections(
+                    ctx, network, road, edge, config, edgeResult);
+            }
+        }
         if (interaction.draggedElevation() != null && interaction.draggedLocalDistance() != null
                 && selectedProfilePvi >= 0
                 && road.getVerticalAlignment() != null
@@ -163,9 +317,28 @@ final class VerticalProfileEditor {
             ctx.finishNetworkEdit();
             propagateJunctionGrades(ctx, network, road);
         }
+        if (interaction.intersectionDragFinished()) {
+            ctx.finishNetworkEdit();
+            Road otherRoad = activeIntersectionDragIndex >= 0
+                    && activeIntersectionDragIndex < intersections.size()
+                ? network.getRoad(intersections.get(activeIntersectionDragIndex).otherRoadId())
+                : null;
+            if (otherRoad != null) {
+                VerticalProfileNetworkPropagator.propagate(
+                    network, otherRoad, connected -> connected.getEffectiveMaxSlope(config));
+            }
+            activeIntersectionDragIndex = -1;
+            activeIntersectionDragTarget =
+                RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget.NONE;
+            ctx.previewManager().invalidatePreview();
+            ctx.requestOverlayRefresh();
+        }
         if (interaction.selectedIntersectionIndex() >= 0) {
             selectedIntersectionIndex = interaction.selectedIntersectionIndex();
         }
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.vertical_alignment_profile_legend_hint"));
         renderIntersectionLegend(intersections);
         renderIntersectionDetail(ctx, network, intersections, interaction, config);
         ImGui.text(PlotI18n.tr("plugin.road.vertical_alignment_control_points"));
@@ -303,6 +476,10 @@ final class VerticalProfileEditor {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.profile_intersection_click_to_edit"));
+        } else if (intersection.gradeSeparated()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.profile_intersection_drag_other_hint"));
         }
         ImGui.text(PlotI18n.tr(
             "plugin.road.profile_intersection_current_elevation",
@@ -353,8 +530,8 @@ final class VerticalProfileEditor {
             Math.round(RoadCrossSectionPreviewRenderer.CrossSectionLayout
                 .fromResolved(intersection.otherCrossSection(), 0f)
                 .totalWidthBlocks())));
-        float previewWidth = Math.min(ImGui.getContentRegionAvail().x, 220f);
-        float previewHeight = 44f;
+        float previewWidth = Math.min(ImGui.getContentRegionAvail().x, 280f);
+        float previewHeight = 56f;
         ImDrawList drawList = ImGui.getWindowDrawList();
         ImVec2 cursor = ImGui.getCursorScreenPos();
         RoadCrossSectionPreviewRenderer.renderMini(
@@ -366,6 +543,9 @@ final class VerticalProfileEditor {
             previewWidth,
             previewHeight);
         ImGui.dummy(previewWidth, previewHeight);
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.profile_intersection_cross_section_hint"));
     }
 
     private List<RoadProfileIntersection> resolveIntersections(

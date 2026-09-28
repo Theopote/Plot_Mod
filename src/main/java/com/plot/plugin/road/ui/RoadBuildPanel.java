@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+import com.plot.plugin.road.model.RoadNetwork;
+
 /**
  * 建造 Tab：预览、验证、纵断面结果与 Minecraft 落地。
  */
@@ -20,5 +22,9 @@ public final class RoadBuildPanel {
 
     public void renderBuildConfirmPopup() {
         generatePanel.renderBuildConfirmPopup();
+    }
+
+    public void renderProfileEditorWindow(RoadNetwork network) {
+        generatePanel.renderProfileEditorWindow(network);
     }
 }

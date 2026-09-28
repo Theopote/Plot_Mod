@@ -15,7 +15,8 @@ import java.util.List;
  * 道路纵断面预览（ImGui 绘制）。
  */
 public final class RoadLongitudinalProfileRenderer {
-    private static final float PREVIEW_HEIGHT = 120f;
+    public static final float DEFAULT_PREVIEW_HEIGHT = 120f;
+    private static final float PREVIEW_HEIGHT = DEFAULT_PREVIEW_HEIGHT;
     private static final int COLOR_BG = 0xFF2A2A2A;
     private static final int COLOR_BORDER = 0xFF606060;
     private static final int COLOR_AXIS = 0xFF888888;
@@ -41,7 +42,18 @@ public final class RoadLongitudinalProfileRenderer {
             boolean dragStarted,
             boolean dragFinished,
             int hoveredIntersectionIndex,
-            int selectedIntersectionIndex) {
+            int selectedIntersectionIndex,
+            int activeIntersectionDragIndex,
+            IntersectionDragTarget activeIntersectionDragTarget,
+            Double draggedIntersectionElevation,
+            boolean intersectionDragStarted,
+            boolean intersectionDragFinished) {
+
+        public enum IntersectionDragTarget {
+            NONE,
+            CURRENT,
+            OTHER
+        }
 
         public ControlInteraction(
                 int selectedPviIndex,
@@ -51,7 +63,21 @@ public final class RoadLongitudinalProfileRenderer {
                 boolean dragStarted,
                 boolean dragFinished) {
             this(selectedPviIndex, activePviIndex, draggedElevation, draggedLocalDistance,
-                dragStarted, dragFinished, -1, -1);
+                dragStarted, dragFinished, -1, -1, -1, IntersectionDragTarget.NONE, null, false, false);
+        }
+
+        public ControlInteraction(
+                int selectedPviIndex,
+                int activePviIndex,
+                Double draggedElevation,
+                Double draggedLocalDistance,
+                boolean dragStarted,
+                boolean dragFinished,
+                int hoveredIntersectionIndex,
+                int selectedIntersectionIndex) {
+            this(selectedPviIndex, activePviIndex, draggedElevation, draggedLocalDistance,
+                dragStarted, dragFinished, hoveredIntersectionIndex, selectedIntersectionIndex,
+                -1, IntersectionDragTarget.NONE, null, false, false);
         }
     }
 
@@ -70,6 +96,14 @@ public final class RoadLongitudinalProfileRenderer {
             RoadGenerationResult result,
             boolean showTitle,
             VerticalAlignmentProfileOverlay designOverlay) {
+        render(result, showTitle, designOverlay, DEFAULT_PREVIEW_HEIGHT);
+    }
+
+    public static void render(
+            RoadGenerationResult result,
+            boolean showTitle,
+            VerticalAlignmentProfileOverlay designOverlay,
+            float chartHeight) {
         if (result == null || !result.hasProfileData()) {
             return;
         }
@@ -87,7 +121,7 @@ public final class RoadLongitudinalProfileRenderer {
         float x0 = origin.x;
         float y0 = origin.y;
         float x1 = x0 + width;
-        float y1 = y0 + PREVIEW_HEIGHT;
+        float y1 = y0 + chartHeight;
 
         drawList.addRectFilled(x0, y0, x1, y1, COLOR_BG);
         drawList.addRect(x0, y0, x1, y1, COLOR_BORDER);
@@ -102,9 +136,9 @@ public final class RoadLongitudinalProfileRenderer {
             x0,
             y0,
             width,
-            PREVIEW_HEIGHT);
+            chartHeight);
 
-        ImGui.dummy(width, PREVIEW_HEIGHT);
+        ImGui.dummy(width, chartHeight);
         ImGui.textColored(COLOR_GROUND, "■ " + PlotI18n.tr("plugin.road.profile_ground"));
         ImGui.sameLine();
         ImGui.textColored(COLOR_GUIDE, "--- " + PlotI18n.tr("plugin.road.profile_guide"));
@@ -116,6 +150,35 @@ public final class RoadLongitudinalProfileRenderer {
         }
     }
 
+    /**
+     * 只读纵剖面概览：地形/设计线 + 交叉点标记，不含可拖动控制点。
+     */
+    public static void renderOverview(
+            RoadGenerationResult result,
+            VerticalAlignmentProfileOverlay designOverlay,
+            List<RoadProfileIntersection> intersections,
+            float chartHeight) {
+        if (result == null || !result.hasProfileData()) {
+            return;
+        }
+        float width = ImGui.getContentRegionAvail().x;
+        if (width < 40f) {
+            return;
+        }
+        ImVec2 origin = ImGui.getCursorScreenPos();
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        float x0 = origin.x;
+        float y0 = origin.y;
+        drawList.addRectFilled(x0, y0, x0 + width, y0 + chartHeight, COLOR_BG);
+        drawList.addRect(x0, y0, x0 + width, y0 + chartHeight, COLOR_BORDER);
+        drawProfile(drawList, result.profileDistances, result.profileGroundHeights,
+            result.profileGuideLine, result.profileTargetHeights, designOverlay,
+            x0, y0, width, chartHeight);
+        PlotRange range = plotRange(result, designOverlay, List.of(), intersections);
+        drawIntersectionMarkers(drawList, intersections, -1, range, x0, y0, width, chartHeight);
+        ImGui.dummy(width, chartHeight);
+    }
+
     public static ControlInteraction renderInteractive(
             RoadGenerationResult result,
             VerticalAlignmentProfileOverlay designOverlay,
@@ -125,7 +188,7 @@ public final class RoadLongitudinalProfileRenderer {
             double maxGradePercent) {
         return renderInteractive(
             result, designOverlay, controls, selectedPviIndex, activePviIndex,
-            maxGradePercent, List.of(), -1);
+            maxGradePercent, List.of(), -1, DEFAULT_PREVIEW_HEIGHT);
     }
 
     public static ControlInteraction renderInteractive(
@@ -137,6 +200,40 @@ public final class RoadLongitudinalProfileRenderer {
             double maxGradePercent,
             List<RoadProfileIntersection> intersections,
             int selectedIntersectionIndex) {
+        return renderInteractive(
+            result, designOverlay, controls, selectedPviIndex, activePviIndex,
+            maxGradePercent, intersections, selectedIntersectionIndex, DEFAULT_PREVIEW_HEIGHT,
+            -1, ControlInteraction.IntersectionDragTarget.NONE);
+    }
+
+    public static ControlInteraction renderInteractive(
+            RoadGenerationResult result,
+            VerticalAlignmentProfileOverlay designOverlay,
+            List<VerticalProfileControlPoints.ControlPoint> controls,
+            int selectedPviIndex,
+            int activePviIndex,
+            double maxGradePercent,
+            List<RoadProfileIntersection> intersections,
+            int selectedIntersectionIndex,
+            float chartHeight) {
+        return renderInteractive(
+            result, designOverlay, controls, selectedPviIndex, activePviIndex,
+            maxGradePercent, intersections, selectedIntersectionIndex, chartHeight,
+            -1, ControlInteraction.IntersectionDragTarget.NONE);
+    }
+
+    public static ControlInteraction renderInteractive(
+            RoadGenerationResult result,
+            VerticalAlignmentProfileOverlay designOverlay,
+            List<VerticalProfileControlPoints.ControlPoint> controls,
+            int selectedPviIndex,
+            int activePviIndex,
+            double maxGradePercent,
+            List<RoadProfileIntersection> intersections,
+            int selectedIntersectionIndex,
+            float chartHeight,
+            int activeIntersectionDragIndex,
+            ControlInteraction.IntersectionDragTarget activeIntersectionDragTarget) {
         if (result == null || !result.hasProfileData()) {
             return new ControlInteraction(selectedPviIndex, -1, null, null, false, false);
         }
@@ -148,18 +245,18 @@ public final class RoadLongitudinalProfileRenderer {
         ImDrawList drawList = ImGui.getWindowDrawList();
         float x0 = origin.x;
         float y0 = origin.y;
-        drawList.addRectFilled(x0, y0, x0 + width, y0 + PREVIEW_HEIGHT, COLOR_BG);
-        drawList.addRect(x0, y0, x0 + width, y0 + PREVIEW_HEIGHT, COLOR_BORDER);
+        drawList.addRectFilled(x0, y0, x0 + width, y0 + chartHeight, COLOR_BG);
+        drawList.addRect(x0, y0, x0 + width, y0 + chartHeight, COLOR_BORDER);
         drawProfile(drawList, result.profileDistances, result.profileGroundHeights,
             result.profileGuideLine, result.profileTargetHeights, designOverlay,
-            x0, y0, width, PREVIEW_HEIGHT);
+            x0, y0, width, chartHeight);
 
         PlotRange range = plotRange(result, designOverlay, controls, intersections);
         drawIntersectionMarkers(
-            drawList, intersections, selectedIntersectionIndex, range, x0, y0, width, PREVIEW_HEIGHT);
+            drawList, intersections, selectedIntersectionIndex, range, x0, y0, width, chartHeight);
         drawControlPoints(drawList, controls, selectedPviIndex, maxGradePercent,
-            range, x0, y0, width, PREVIEW_HEIGHT);
-        ImGui.invisibleButton("##road_profile_control_surface", width, PREVIEW_HEIGHT);
+            range, x0, y0, width, chartHeight);
+        ImGui.invisibleButton("##road_profile_control_surface", width, chartHeight);
 
         int selected = selectedPviIndex;
         int active = activePviIndex;
@@ -169,26 +266,56 @@ public final class RoadLongitudinalProfileRenderer {
         Double localDistance = null;
         int hoveredIntersection = -1;
         int selectedIntersection = selectedIntersectionIndex;
+        int activeIntersectionDrag = activeIntersectionDragIndex;
+        ControlInteraction.IntersectionDragTarget activeIntersectionTarget =
+            activeIntersectionDragTarget != null
+                ? activeIntersectionDragTarget
+                : ControlInteraction.IntersectionDragTarget.NONE;
+        Double intersectionElevation = null;
+        boolean intersectionStarted = false;
+        boolean intersectionFinished = false;
         if (ImGui.isItemHovered()) {
-            hoveredIntersection = nearestIntersection(
-                intersections, range, x0, y0, width, PREVIEW_HEIGHT,
+            IntersectionHit hoveredHit = hitIntersection(
+                intersections, range, x0, y0, width, chartHeight,
                 ImGui.getMousePosX(), ImGui.getMousePosY());
+            if (hoveredHit != null) {
+                hoveredIntersection = hoveredHit.index();
+            }
         }
-        if (ImGui.isItemHovered() && ImGui.isMouseClicked(0)) {
-            int nearest = nearestControl(controls, range, x0, y0, width, PREVIEW_HEIGHT,
+        if (activeIntersectionDrag < 0 && ImGui.isItemHovered() && ImGui.isMouseClicked(0)) {
+            int nearest = nearestControl(controls, range, x0, y0, width, chartHeight,
+                ImGui.getMousePosX(), ImGui.getMousePosY());
+            IntersectionHit hit = hitIntersection(
+                intersections, range, x0, y0, width, chartHeight,
                 ImGui.getMousePosX(), ImGui.getMousePosY());
             if (nearest >= 0) {
                 selected = nearest;
                 active = nearest;
                 started = true;
                 selectedIntersection = -1;
-            } else if (hoveredIntersection >= 0) {
-                selectedIntersection = hoveredIntersection;
+            } else if (hit != null && hit.target() == ControlInteraction.IntersectionDragTarget.OTHER) {
+                activeIntersectionDrag = hit.index();
+                activeIntersectionTarget = hit.target();
+                selectedIntersection = hit.index();
+                intersectionStarted = true;
+                selected = -1;
+                active = -1;
+            } else if (hit != null) {
+                selectedIntersection = hit.index();
             }
+        }
+        if (activeIntersectionDrag >= 0 && ImGui.isMouseDown(0)) {
+            intersectionElevation = elevationAtMouseY(
+                ImGui.getMousePosY(), range, y0, chartHeight);
+        }
+        if (activeIntersectionDrag >= 0 && ImGui.isMouseReleased(0)) {
+            intersectionFinished = true;
+            activeIntersectionDrag = -1;
+            activeIntersectionTarget = ControlInteraction.IntersectionDragTarget.NONE;
         }
         if (active >= 0 && ImGui.isMouseDown(0)) {
             elevation = elevationAtMouseY(
-                ImGui.getMousePosY(), range, y0, PREVIEW_HEIGHT);
+                ImGui.getMousePosY(), range, y0, chartHeight);
             localDistance = distanceAtMouseX(
                 ImGui.getMousePosX(), range, x0, width);
         }
@@ -198,7 +325,9 @@ public final class RoadLongitudinalProfileRenderer {
         }
         return new ControlInteraction(
             selected, active, elevation, localDistance, started, finished,
-            hoveredIntersection, selectedIntersection);
+            hoveredIntersection, selectedIntersection,
+            activeIntersectionDrag, activeIntersectionTarget, intersectionElevation,
+            intersectionStarted, intersectionFinished);
     }
 
     private record PlotRange(double maxDistance, int minHeight, int maxHeight) { }
@@ -310,6 +439,7 @@ public final class RoadLongitudinalProfileRenderer {
                     ? COLOR_INTERSECTION_WARNING
                     : markerColor;
                 drawDiamond(drawList, x, currentY, 5f, diamondColor);
+                drawDiamond(drawList, x, otherY, 5f, COLOR_OTHER_ROAD);
                 if (intersection.steepGradeWarning()) {
                     drawWarningBadge(drawList, x, currentY, diamondColor);
                 }
@@ -336,6 +466,66 @@ public final class RoadLongitudinalProfileRenderer {
     private static void drawWarningBadge(ImDrawList drawList, float cx, float cy, int color) {
         String badge = "!";
         drawList.addText(cx + 4f, cy - 11f, color, badge);
+    }
+
+    private record IntersectionHit(int index, ControlInteraction.IntersectionDragTarget target) { }
+
+    private static IntersectionHit hitIntersection(
+            List<RoadProfileIntersection> intersections,
+            PlotRange range,
+            float x0,
+            float y0,
+            float width,
+            float height,
+            float mouseX,
+            float mouseY) {
+        if (intersections == null || intersections.isEmpty()) {
+            return null;
+        }
+        float padding = 10f;
+        float plotX0 = x0 + padding;
+        float plotY0 = y0 + padding;
+        float plotWidth = width - 2 * padding;
+        float plotHeight = height - 2 * padding;
+        double bestDist = 12.0 * 12.0;
+        IntersectionHit best = null;
+        for (int i = 0; i < intersections.size(); i++) {
+            RoadProfileIntersection intersection = intersections.get(i);
+            float x = toPlotX(
+                intersection.localDistance(), range.maxDistance(), plotX0, plotWidth);
+            if (intersection.gradeSeparated()) {
+                float otherY = toPlotY(
+                    (int) Math.round(intersection.otherRoadElevation()),
+                    range.minHeight(),
+                    range.maxHeight(),
+                    plotY0,
+                    plotHeight);
+                double otherDist = distanceSquared(mouseX, mouseY, x, otherY);
+                if (otherDist <= bestDist) {
+                    bestDist = otherDist;
+                    best = new IntersectionHit(i, ControlInteraction.IntersectionDragTarget.OTHER);
+                }
+            } else {
+                float currentY = toPlotY(
+                    (int) Math.round(intersection.currentRoadElevation()),
+                    range.minHeight(),
+                    range.maxHeight(),
+                    plotY0,
+                    plotHeight);
+                double currentDist = distanceSquared(mouseX, mouseY, x, currentY);
+                if (currentDist <= bestDist) {
+                    bestDist = currentDist;
+                    best = new IntersectionHit(i, ControlInteraction.IntersectionDragTarget.OTHER);
+                }
+            }
+        }
+        return best;
+    }
+
+    private static double distanceSquared(float mouseX, float mouseY, float x, float y) {
+        double dx = mouseX - x;
+        double dy = mouseY - y;
+        return dx * dx + dy * dy;
     }
 
     private static int nearestIntersection(

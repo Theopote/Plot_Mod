@@ -41,6 +41,7 @@ public final class RoadGeneratePanel {
         profileEdgeId = edgeId;
         profileSectionForceOpen = true;
         ctx.networkManager().setPrimarySelectedEdge(edgeId);
+        profileEditor.openEditorForEdge(edgeId);
     }
 
     public void render() {
@@ -75,6 +76,10 @@ public final class RoadGeneratePanel {
             renderBuildAction(lastGenerationResult, buildReadiness, validationReport());
             renderPreviewDetailsCollapsible(network, lastGenerationResult);
         }
+    }
+
+    void renderProfileEditorWindow(RoadNetwork network) {
+        profileEditor.renderEditorWindow(ctx, network);
     }
 
     private void renderGenerateWorkflowHint() {
