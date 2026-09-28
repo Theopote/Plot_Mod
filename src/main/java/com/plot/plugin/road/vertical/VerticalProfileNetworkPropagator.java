@@ -127,10 +127,16 @@ public final class VerticalProfileNetworkPropagator {
             return new RoadResult(road.getId(), changedNode.getId(), mode, false, true, true);
         }
         if (mode == RoadVerticalMode.FLAT) {
+            FlatVerticalIntentSupport.applyJunctionElevation(
+                network,
+                road,
+                changedNode.getId(),
+                changedNode.getManualElevation(),
+                maxGradeResolver.applyAsDouble(road));
             boolean conflict = flatConflicts.stream().anyMatch(item ->
                 item.roadId().equals(road.getId()) && item.nodeId().equals(changedNode.getId()));
             return new RoadResult(
-                road.getId(), changedNode.getId(), mode, false, false, !conflict);
+                road.getId(), changedNode.getId(), mode, true, false, !conflict);
         }
         if (mode != RoadVerticalMode.MANUAL_PROFILE || road.getVerticalAlignment() == null) return null;
 

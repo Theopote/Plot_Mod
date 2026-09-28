@@ -4,6 +4,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.pipeline.profile.VerticalAlignmentProfileSupport;
+import com.plot.plugin.road.vertical.RoadVerticalAlignmentResolver;
 import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
 
@@ -50,11 +51,16 @@ public final class VerticalAlignmentProfileOverlay {
         if (!VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(network, road)) {
             return Optional.empty();
         }
+        double maxGrade = road.getMaxSlope() != null ? road.getMaxSlope() : 8.0;
+        RoadVerticalAlignment alignment = RoadVerticalAlignmentResolver.resolveSynced(
+            network, road, maxGrade);
+        if (!VerticalAlignmentGeometry.isEvaluable(alignment)) {
+            return Optional.empty();
+        }
         return RoadStationing.orientedSegment(network, road, edge.getId()).flatMap(oriented -> {
         double segmentStart = oriented.startStation();
         double edgeLength = oriented.length();
         double spacing = Math.max(MIN_SAMPLE_SPACING, edgeLength / 40.0);
-        RoadVerticalAlignment alignment = road.getVerticalAlignment();
         List<Double> localDistances = new ArrayList<>();
         List<Integer> localHeights = new ArrayList<>();
         double segmentEnd = oriented.endStation();

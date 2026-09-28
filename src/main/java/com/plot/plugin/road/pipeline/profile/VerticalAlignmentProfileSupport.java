@@ -3,6 +3,7 @@ package com.plot.plugin.road.pipeline.profile;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
@@ -19,10 +20,15 @@ public final class VerticalAlignmentProfileSupport {
         if (road == null || network == null) {
             return false;
         }
-        RoadVerticalAlignment alignment = road.getVerticalAlignment();
         RoadVerticalMode mode = road.getVerticalMode();
-        return (mode == RoadVerticalMode.FLAT || mode == RoadVerticalMode.MANUAL_PROFILE)
-            && RoadStationing.isStationable(network, road)
+        if (!RoadStationing.isStationable(network, road)) {
+            return false;
+        }
+        if (mode == RoadVerticalMode.FLAT) {
+            return FlatVerticalIntentSupport.resolveIntent(network, road) != null;
+        }
+        RoadVerticalAlignment alignment = road.getVerticalAlignment();
+        return mode == RoadVerticalMode.MANUAL_PROFILE
             && VerticalAlignmentGeometry.isEvaluable(alignment);
     }
 }

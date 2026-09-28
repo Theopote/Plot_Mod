@@ -11,6 +11,10 @@ import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.RoadGeometrySampler;
 import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
+import com.plot.plugin.road.vertical.RoadVerticalAlignment;
+import com.plot.plugin.road.vertical.RoadVerticalAlignmentResolver;
+import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.core.terrain.TerrainSampler;
 
 import java.util.List;
@@ -57,9 +61,14 @@ public final class RoadGeneratorProfileContext implements ProfileEdgeContext {
         RoadModelUtils.getEffectiveWidth(network, edge, config));
     Road road = network.getRoadForEdge(edge);
     if (VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(network, road)) {
+      double maxGrade = road.getEffectiveMaxSlope(config);
+      if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
+        FlatVerticalIntentSupport.syncCompiledAlignment(network, road, maxGrade);
+      }
+      RoadVerticalAlignment alignment = RoadVerticalAlignmentResolver.resolve(network, road, maxGrade);
       return RoadStationing.orientedSegment(network, road, edge.getId())
           .map(oriented -> VerticalAlignmentProfileSolver.solveForEdge(
-              road.getVerticalAlignment(),
+              alignment,
               oriented,
               segments,
               terrain,

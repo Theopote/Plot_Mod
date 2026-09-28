@@ -27,7 +27,13 @@ public final class VerticalProfileControlPoints {
     private VerticalProfileControlPoints() { }
 
     public static List<ControlPoint> forEdge(RoadNetwork network, Road road, RoadEdge edge) {
-        if (network == null || road == null || edge == null || road.getVerticalAlignment() == null) {
+        if (network == null || road == null || edge == null) {
+            return List.of();
+        }
+        if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
+            return List.of();
+        }
+        if (road.getVerticalAlignment() == null) {
             return List.of();
         }
         Optional<OrientedRoadSegment> oriented = RoadStationing.orientedSegment(network, road, edge.getId());

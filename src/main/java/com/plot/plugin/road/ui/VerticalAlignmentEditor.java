@@ -1,7 +1,6 @@
 package com.plot.plugin.road.ui;
 
 import com.plot.plugin.config.RoadSystemConfig;
-import com.plot.plugin.road.RoadUniformElevationUtils;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.ChainageDisplayContext;
@@ -14,7 +13,10 @@ import com.plot.plugin.road.vertical.VerticalAlignmentValidator;
 import com.plot.plugin.road.vertical.VerticalAlignmentViolation;
 import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
 import com.plot.plugin.road.vertical.VerticalAlignmentJunctionSynchronizer;
+import com.plot.plugin.road.vertical.FlatVerticalIntent;
+import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
+import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.plugin.road.vertical.VerticalProfileNetworkPropagator;
 import com.plot.plugin.road.validation.RoadValidationMessage;
 import com.plot.plugin.road.validation.RoadValidationMessageCatalog;
@@ -37,8 +39,6 @@ public final class VerticalAlignmentEditor {
     private String syncedRoadId = "";
     private final List<PviDraft> drafts = new ArrayList<>();
     private float flatElevation = 64f;
-    private String recommendedFlatRoadId = "";
-    private RoadUniformElevationUtils.FlatRoadRecommendation flatRecommendation;
 
     public void render(
             RoadNetwork network,
@@ -63,18 +63,25 @@ public final class VerticalAlignmentEditor {
             return;
         }
 
+        double roadLength = RoadStationing.canonicalLength(network, road);
+        RoadVerticalStrategy strategy = RoadVerticalStrategy.fromRoad(road);
+        if (strategy == RoadVerticalStrategy.FLAT) {
+            renderFlatGenerateSection(network, road, roadLength, config, onHistory);
+            return;
+        }
+        if (road.getVerticalMode() != RoadVerticalMode.MANUAL_PROFILE) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.vertical_alignment_terrain_adaptive_generate_hint"));
+            return;
+        }
         if (VerticalAlignmentJunctionSynchronizer.applySharedJunctionConstraints(network, road) > 0) {
             syncedRoadId = "";
         }
         syncDrafts(road);
-        double roadLength = RoadStationing.canonicalLength(network, road);
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.vertical_alignment_hint"));
-
-        renderVerticalMode(road, roadLength, onHistory);
-
-        renderFlatProfileAction(network, road, roadLength, config, terrainSupplier, onHistory);
 
         if (drafts.isEmpty()) {
             RoadUiWidgets.textWrappedColored(
@@ -124,7 +131,11 @@ public final class VerticalAlignmentEditor {
     }
 
     /** 编辑 Tab：仅纵向设计模式；PVI / 标高编辑在生成 Tab。 */
-    public void renderModeOnly(RoadNetwork network, Road road, Runnable onHistory) {
+    public void renderModeOnly(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config,
+            Runnable onHistory) {
         if (road == null || network == null) {
             return;
         }
@@ -135,107 +146,100 @@ public final class VerticalAlignmentEditor {
             return;
         }
         double roadLength = RoadStationing.canonicalLength(network, road);
-        renderVerticalMode(road, roadLength, onHistory);
+        renderVerticalStrategy(network, road, roadLength, config, onHistory);
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.vertical_alignment_edit_in_generate_hint"));
     }
 
-    private void renderVerticalMode(Road road, double roadLength, Runnable onHistory) {
-        RoadVerticalMode current = road.getVerticalMode();
+    private void renderVerticalStrategy(
+            RoadNetwork network,
+            Road road,
+            double roadLength,
+            RoadSystemConfig config,
+            Runnable onHistory) {
+        RoadVerticalStrategy current = RoadVerticalStrategy.fromRoad(road);
         if (ImGui.beginCombo(
-                PlotI18n.tr("plugin.road.vertical_mode"),
-                verticalModeLabel(current))) {
-            for (RoadVerticalMode mode : RoadVerticalMode.values()) {
+                PlotI18n.tr("plugin.road.vertical_strategy"),
+                current.label())) {
+            for (RoadVerticalStrategy strategy : RoadVerticalStrategy.values()) {
                 if (!VerticalProfileDesignRules.slopeAllowed(roadLength)
-                        && mode != RoadVerticalMode.FLAT) {
+                        && strategy == RoadVerticalStrategy.TERRAIN_ADAPTIVE) {
                     continue;
                 }
-                if (ImGui.selectable(verticalModeLabel(mode), mode == current)) {
+                if (ImGui.selectable(strategy.label(), strategy == current)) {
                     if (onHistory != null) {
                         onHistory.run();
                     }
-                    road.setVerticalMode(mode);
-                    if (mode == RoadVerticalMode.FLAT && roadLength > 1e-6) {
-                        double elevation = road.getVerticalAlignment() != null
-                            && !road.getVerticalAlignment().isEmpty()
-                            ? road.getVerticalAlignment().getPvis().getFirst().getElevation()
-                            : flatElevation;
-                        road.setVerticalAlignment(
-                            VerticalProfileDesignRules.flatAlignment(roadLength, elevation));
-                        syncedRoadId = "";
-                        syncDrafts(road);
+                    strategy.applyToRoad(network, road, config);
+                    syncedRoadId = "";
+                    syncDrafts(road);
+                    FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, road);
+                    if (intent != null) {
+                        flatElevation = (float) intent.getBaseElevation();
                     }
                 }
             }
             ImGui.endCombo();
         }
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.vertical_mode_hint_" + current.name().toLowerCase()));
+        if (current == RoadVerticalStrategy.FLAT) {
+            renderFlatElevationField(network, road, config, onHistory);
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.vertical_strategy_flat_hint"));
+        } else {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.vertical_strategy_terrain_adaptive_hint"));
+        }
     }
 
-    private static String verticalModeLabel(RoadVerticalMode mode) {
-        return PlotI18n.tr("plugin.road.vertical_mode_" + mode.name().toLowerCase());
-    }
-
-    private void renderFlatProfileAction(
+    private void renderFlatGenerateSection(
             RoadNetwork network,
             Road road,
             double roadLength,
             RoadSystemConfig config,
-            Supplier<TerrainSampler> terrainSupplier,
+            Runnable onHistory) {
+        FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, road);
+        if (intent != null) {
+            flatElevation = (float) intent.getBaseElevation();
+        }
+        renderFlatElevationField(network, road, config, onHistory);
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.vertical_strategy_flat_generate_hint"));
+        if (roadLength > 1e-6) {
+            FlatVerticalIntentSupport.syncCompiledAlignment(
+                network, road, road.getEffectiveMaxSlope(config));
+        }
+    }
+
+    private void renderFlatElevationField(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config,
             Runnable onHistory) {
         float[] elevation = {flatElevation};
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        ImGui.dragFloat(
-            PlotI18n.tr("plugin.road.vertical_alignment_flat_elevation"),
-            elevation,
-            0.5f,
-            -64f,
-            320f,
-            "%.1f");
-        flatElevation = elevation[0];
-        if (roadLength > 1e-6
-                && ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_make_flat"))) {
-            if (onHistory != null) {
-                onHistory.run();
-            }
-            road.setVerticalAlignment(
-                VerticalProfileDesignRules.flatAlignment(roadLength, flatElevation));
-            road.setVerticalMode(RoadVerticalMode.FLAT);
-            syncedRoadId = "";
-            syncDrafts(road);
-        }
-
-        if (!road.getId().equals(recommendedFlatRoadId)) {
-            recommendedFlatRoadId = road.getId();
-            flatRecommendation = null;
-        }
-        if (roadLength > 1e-6 && ImGui.button(
-                PlotI18n.tr("plugin.road.vertical_alignment_recommend_flat"))) {
-            TerrainSampler terrain = terrainSupplier != null ? terrainSupplier.get() : null;
-            if (terrain != null) {
-                flatRecommendation = RoadUniformElevationUtils.recommendMedianForRoad(
-                    network, road, terrain, config);
-            }
-        }
-        if (flatRecommendation != null && flatRecommendation.sampleCount() > 0) {
-            ImGui.sameLine();
-            ImGui.textColored(
-                PluginUiColors.STATUS_INFO,
-                PlotI18n.tr(
-                    "plugin.road.vertical_alignment_flat_recommendation",
-                    flatRecommendation.elevation(),
-                    flatRecommendation.sampleCount()));
-            if (ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_adopt_recommendation"))) {
-                if (onHistory != null) onHistory.run();
-                flatElevation = flatRecommendation.elevation();
-                road.setVerticalAlignment(
-                    VerticalProfileDesignRules.flatAlignment(roadLength, flatElevation));
-                road.setVerticalMode(RoadVerticalMode.FLAT);
-                syncedRoadId = "";
-                syncDrafts(road);
+        if (ImGui.dragFloat(
+                PlotI18n.tr("plugin.road.vertical_alignment_flat_elevation"),
+                elevation,
+                0.5f,
+                -64f,
+                320f,
+                "%.1f")) {
+            if (ImGui.isItemDeactivatedAfterEdit()) {
+                if (onHistory != null) {
+                    onHistory.run();
+                }
+                flatElevation = elevation[0];
+                FlatVerticalIntentSupport.setBaseElevation(
+                    network,
+                    road,
+                    flatElevation,
+                    road.getEffectiveMaxSlope(config));
+            } else {
+                flatElevation = elevation[0];
             }
         }
     }

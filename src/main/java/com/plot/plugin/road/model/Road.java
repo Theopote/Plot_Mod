@@ -4,6 +4,7 @@ import com.plot.core.material.MaterialMix;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
+import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.model.section.CenterLineStyle;
@@ -52,6 +53,7 @@ public class Road {
     private RoadHorizontalAlignment horizontalAlignment;
     private RoadVerticalAlignment verticalAlignment;
     private RoadVerticalMode verticalMode;
+    private FlatVerticalIntent flatVerticalIntent;
     private RoadVariableCrossSections variableCrossSections;
     private RoadStationFacilities stationFacilities;
     private final List<String> segmentIds = new ArrayList<>();
@@ -470,6 +472,14 @@ public class Road {
         this.verticalMode = verticalMode;
     }
 
+    public FlatVerticalIntent getFlatVerticalIntent() {
+        return flatVerticalIntent;
+    }
+
+    public void setFlatVerticalIntent(FlatVerticalIntent flatVerticalIntent) {
+        this.flatVerticalIntent = flatVerticalIntent != null ? flatVerticalIntent.copy() : null;
+    }
+
     public RoadVariableCrossSections getVariableCrossSections() {
         return variableCrossSections;
     }
@@ -629,6 +639,7 @@ public class Road {
         copy.horizontalAlignment = horizontalAlignment != null ? horizontalAlignment.copy() : null;
         copy.verticalAlignment = verticalAlignment != null ? verticalAlignment.copy() : null;
         copy.verticalMode = verticalMode;
+        copy.flatVerticalIntent = flatVerticalIntent != null ? flatVerticalIntent.copy() : null;
         copy.variableCrossSections = variableCrossSections != null ? variableCrossSections.copy() : null;
         copy.stationFacilities = stationFacilities != null ? stationFacilities.copy() : null;
         return copy;

@@ -14,6 +14,7 @@ import com.plot.plugin.road.RoadMaterialMixUtils;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.alignment.HorizontalAlignmentPersistence;
 import com.plot.plugin.road.alignment.HorizontalAlignmentPersistence.AlignmentData;
+import com.plot.plugin.road.vertical.FlatVerticalIntentPersistence;
 import com.plot.plugin.road.vertical.VerticalAlignmentPersistence;
 import com.plot.plugin.road.vertical.VerticalAlignmentPersistence.VerticalAlignmentData;
 import com.plot.plugin.road.model.VariableCrossSectionPersistence.VariableCrossSectionsData;
@@ -958,6 +959,7 @@ public class RoadNetwork {
         AlignmentData horizontalAlignment;
         VerticalAlignmentData verticalAlignment;
         String verticalMode;
+        FlatVerticalIntentPersistence.FlatVerticalIntentData flatVerticalIntent;
         VariableCrossSectionsData variableCrossSections;
         StationFacilitiesData stationFacilities;
         List<String> segmentIds = new ArrayList<>();
@@ -1012,6 +1014,7 @@ public class RoadNetwork {
                 roadData.horizontalAlignment = HorizontalAlignmentPersistence.toData(road.getHorizontalAlignment());
                 roadData.verticalAlignment = VerticalAlignmentPersistence.toData(road.getVerticalAlignment());
                 roadData.verticalMode = road.getVerticalMode().name();
+                roadData.flatVerticalIntent = FlatVerticalIntentPersistence.toData(road.getFlatVerticalIntent());
                 roadData.variableCrossSections = VariableCrossSectionPersistence.toData(road.getVariableCrossSections());
                 roadData.stationFacilities = StationFacilityPersistence.toData(road.getStationFacilities());
                 roadData.segmentIds = new ArrayList<>(road.getOrderedSegmentIds());
@@ -1088,6 +1091,7 @@ public class RoadNetwork {
                     road.setVerticalAlignment(VerticalAlignmentPersistence.fromData(roadData.verticalAlignment));
                     road.setVerticalMode(com.plot.plugin.road.vertical.RoadVerticalMode.fromStored(
                         roadData.verticalMode));
+                    road.setFlatVerticalIntent(FlatVerticalIntentPersistence.fromData(roadData.flatVerticalIntent));
                     road.setVariableCrossSections(VariableCrossSectionPersistence.fromData(roadData.variableCrossSections));
                     road.setStationFacilities(StationFacilityPersistence.fromData(roadData.stationFacilities));
                     network.roads.put(road.getId(), road);

@@ -423,7 +423,8 @@ final class VerticalProfileEditor {
                     ctx, network, road, edge, config, edgeResult, false);
             }
         }
-        if (interaction.draggedElevation() != null && interaction.draggedLocalDistance() != null
+        if (road.getVerticalMode() != RoadVerticalMode.FLAT
+                && interaction.draggedElevation() != null && interaction.draggedLocalDistance() != null
                 && selectedProfilePvi >= 0
                 && road.getVerticalAlignment() != null
                 && selectedProfilePvi < road.getVerticalAlignment().pviCount()) {
@@ -474,9 +475,12 @@ final class VerticalProfileEditor {
         renderIntersectionLegend(intersections);
         renderIntersectionDetail(ctx, network, intersections, interaction, config);
         if (points.isEmpty()) {
+            String emptyHint = road.getVerticalMode() == RoadVerticalMode.FLAT
+                ? "plugin.road.vertical_strategy_flat_profile_hint"
+                : "plugin.road.vertical_alignment_none";
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.vertical_alignment_none"));
+                PlotI18n.tr(emptyHint));
             return;
         }
         ImGui.text(PlotI18n.tr("plugin.road.vertical_alignment_control_points"));

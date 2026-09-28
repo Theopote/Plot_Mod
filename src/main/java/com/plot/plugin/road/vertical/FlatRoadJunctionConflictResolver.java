@@ -8,7 +8,7 @@ import com.plot.plugin.road.station.RoadStationing;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Detects and explicitly resolves conflicts between locked-flat roads and shared junction elevations. */
+/** Detects and explicitly resolves conflicts between flat roads and shared junction elevations. */
 public final class FlatRoadJunctionConflictResolver {
     private static final double EPSILON = 1e-6;
 
@@ -21,9 +21,10 @@ public final class FlatRoadJunctionConflictResolver {
         List<Conflict> conflicts = new ArrayList<>();
         for (Road road : network.getRoads().values()) {
             if (road.getVerticalMode() != RoadVerticalMode.FLAT
-                    || !VerticalProfileDesignRules.isFlat(road.getVerticalAlignment())
                     || !RoadStationing.isStationable(network, road)) continue;
-            double flatElevation = road.getVerticalAlignment().getPvis().getFirst().getElevation();
+            FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, road);
+            if (intent == null) continue;
+            double flatElevation = intent.getBaseElevation();
             for (String nodeId : VerticalAlignmentJunctionSynchronizer
                     .junctionStations(network, road).keySet()) {
                 RoadNode node = network.getNode(nodeId);
@@ -56,23 +57,36 @@ public final class FlatRoadJunctionConflictResolver {
                 else if (Math.abs(target - node.getManualElevation()) > EPSILON) incompatible = true;
             }
             if (!incompatible && target != null) {
-                road.setVerticalAlignment(VerticalProfileDesignRules.flatAlignment(
-                    RoadStationing.canonicalLength(network, road), target));
+                FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, road);
+                if (intent == null) continue;
+                intent.setBaseElevation(target);
+                for (String nodeId : intent.getIntersectionOverrides().keySet()) {
+                    intent.removeOverride(nodeId);
+                }
+                FlatVerticalIntentSupport.syncCompiledAlignment(
+                    network, road, road.getMaxSlope() != null ? road.getMaxSlope() : 8.0);
                 changed++;
             }
         }
         return changed;
     }
 
-    /** Converts conflicting flat roads to manual profiles and applies every shared junction constraint. */
+    /** Writes junction overrides so conflicting flat roads can meet at shared elevations. */
     public static int allowConflictingRoadsToSlope(RoadNetwork network) {
         List<String> roadIds = find(network).stream().map(Conflict::roadId).distinct().toList();
         int changed = 0;
         for (String roadId : roadIds) {
             Road road = network.getRoad(roadId);
             if (road == null) continue;
-            road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
-            VerticalAlignmentJunctionSynchronizer.applySharedJunctionConstraints(network, road);
+            for (Conflict conflict : find(network)) {
+                if (!conflict.roadId().equals(roadId)) continue;
+                FlatVerticalIntentSupport.applyJunctionElevation(
+                    network,
+                    road,
+                    conflict.nodeId(),
+                    conflict.junctionElevation(),
+                    road.getMaxSlope() != null ? road.getMaxSlope() : 8.0);
+            }
             changed++;
         }
         return changed;

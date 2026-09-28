@@ -7,6 +7,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalAlignmentJunctionSynchronizer;
@@ -43,7 +44,7 @@ public final class RoadProfileIntersectionDragEditor {
         if (target == DragTarget.OTHER) {
             return applyOtherRoadElevation(network, currentRoad, intersection, elevation, config);
         }
-        return applyCurrentRoadElevation(network, currentRoad, intersection, elevation);
+        return applyCurrentRoadElevation(network, currentRoad, intersection, elevation, config);
     }
 
     private static boolean applyOtherRoadElevation(
@@ -64,18 +65,12 @@ public final class RoadProfileIntersectionDragEditor {
                 intersection.currentRoadElevated(),
                 requiredClearance,
                 elevation);
-            OptionalInt pviIndex = junctionPviIndex(network, otherRoad, intersection.nodeId());
-            if (pviIndex.isEmpty() || otherRoad.getVerticalAlignment() == null) {
-                return false;
-            }
-            otherRoad.setVerticalAlignment(VerticalProfileControlPoints.withElevation(
-                otherRoad.getVerticalAlignment(), pviIndex.getAsInt(), elevation));
-            otherRoad.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
-            return true;
+            return applyRoadElevationAtJunction(
+                network, otherRoad, intersection.nodeId(), elevation, config);
         }
         node.setManualElevation(elevation);
-        syncAtGradeJunction(network, otherRoad, intersection.nodeId(), elevation);
-        syncAtGradeJunction(network, currentRoad, intersection.nodeId(), elevation);
+        syncAtGradeJunction(network, otherRoad, intersection.nodeId(), elevation, config);
+        syncAtGradeJunction(network, currentRoad, intersection.nodeId(), elevation, config);
         return true;
     }
 
@@ -83,23 +78,18 @@ public final class RoadProfileIntersectionDragEditor {
             RoadNetwork network,
             Road currentRoad,
             RoadProfileIntersection intersection,
-            double elevation) {
+            double elevation,
+            RoadSystemConfig config) {
         RoadNode node = network.getNode(intersection.nodeId());
         if (node == null) {
             return false;
         }
         if (intersection.gradeSeparated()) {
-            OptionalInt pviIndex = junctionPviIndex(network, currentRoad, intersection.nodeId());
-            if (pviIndex.isEmpty() || currentRoad.getVerticalAlignment() == null) {
-                return false;
-            }
-            currentRoad.setVerticalAlignment(VerticalProfileControlPoints.withElevation(
-                currentRoad.getVerticalAlignment(), pviIndex.getAsInt(), elevation));
-            currentRoad.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
-            return true;
+            return applyRoadElevationAtJunction(
+                network, currentRoad, intersection.nodeId(), elevation, config);
         }
         node.setManualElevation(elevation);
-        return syncAtGradeJunction(network, currentRoad, intersection.nodeId(), elevation);
+        return syncAtGradeJunction(network, currentRoad, intersection.nodeId(), elevation, config);
     }
 
     static double clampOtherGradeSeparatedElevation(
@@ -122,11 +112,46 @@ public final class RoadProfileIntersectionDragEditor {
         return config != null ? config.getDefaultCrossingClearance() : 4.0;
     }
 
+    private static boolean applyRoadElevationAtJunction(
+            RoadNetwork network,
+            Road road,
+            String nodeId,
+            double elevation,
+            RoadSystemConfig config) {
+        if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
+            FlatVerticalIntentSupport.applyJunctionElevation(
+                network,
+                road,
+                nodeId,
+                elevation,
+                road.getEffectiveMaxSlope(config));
+            return true;
+        }
+        OptionalInt pviIndex = junctionPviIndex(network, road, nodeId);
+        if (pviIndex.isEmpty() || road.getVerticalAlignment() == null) {
+            return false;
+        }
+        road.setVerticalAlignment(VerticalProfileControlPoints.withElevation(
+            road.getVerticalAlignment(), pviIndex.getAsInt(), elevation));
+        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        return true;
+    }
+
     private static boolean syncAtGradeJunction(
             RoadNetwork network,
             Road road,
             String nodeId,
-            double elevation) {
+            double elevation,
+            RoadSystemConfig config) {
+        if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
+            FlatVerticalIntentSupport.applyJunctionElevation(
+                network,
+                road,
+                nodeId,
+                elevation,
+                road.getEffectiveMaxSlope(config));
+            return true;
+        }
         OptionalInt pviIndex = junctionPviIndex(network, road, nodeId);
         if (pviIndex.isEmpty() || road.getVerticalAlignment() == null) {
             return false;
@@ -139,7 +164,14 @@ public final class RoadProfileIntersectionDragEditor {
     }
 
     static OptionalInt junctionPviIndex(RoadNetwork network, Road road, String nodeId) {
-        if (network == null || road == null || nodeId == null || road.getVerticalAlignment() == null) {
+        if (network == null || road == null || nodeId == null) {
+            return OptionalInt.empty();
+        }
+        if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
+            FlatVerticalIntentSupport.syncCompiledAlignment(
+                network, road, road.getMaxSlope() != null ? road.getMaxSlope() : 8.0);
+        }
+        if (road.getVerticalAlignment() == null) {
             return OptionalInt.empty();
         }
         OptionalDouble station = stationAtNode(network, road, nodeId);
