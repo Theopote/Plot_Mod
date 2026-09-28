@@ -72,10 +72,9 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         this.nodePropertyPanel = new RoadNodePropertyPanel(ctx);
         RoadOverviewPanel overviewPanel = new RoadOverviewPanel(ctx);
         RoadAdoptPanel adoptPanel = new RoadAdoptPanel(ctx);
-        RoadIntersectionListPanel intersectionListPanel =
-            new RoadIntersectionListPanel(ctx, nodePropertyPanel);
+        RoadIntersectionListPanel intersectionListPanel = new RoadIntersectionListPanel(ctx);
         RoadIntersectionDetailPanel intersectionDetailPanel = new RoadIntersectionDetailPanel(ctx);
-        this.editPanel = new RoadEditPanel(ctx, junctionPanel, nodePropertyPanel, defaultParamsPanel);
+        this.editPanel = new RoadEditPanel(ctx, defaultParamsPanel);
         RoadGeneratePanel generatePanel = new RoadGeneratePanel(ctx);
 
         this.toolbarPanel = new RoadToolbarPanel(ctx);
@@ -242,7 +241,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
     public void renderDeferredModals() {
         edgeListPanel.renderDeleteConfirmPopup();
         buildPanel.renderBuildConfirmPopup();
-        editPanel.renderUniformElevationConfirmPopup();
+        buildPanel.renderUniformElevationConfirmPopup();
     }
 
     /**

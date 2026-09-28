@@ -10,20 +10,17 @@ import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-/** 路径 Tab：交叉点列表与高程关系编辑。 */
+/** 路径 Tab：交叉点纯列表（选择后由上方详情面板编辑）。 */
 public final class RoadIntersectionListPanel {
     private final RoadUiContext ctx;
-    private final RoadNodePropertyPanel nodePropertyPanel;
 
-    public RoadIntersectionListPanel(RoadUiContext ctx, RoadNodePropertyPanel nodePropertyPanel) {
+    public RoadIntersectionListPanel(RoadUiContext ctx) {
         this.ctx = ctx;
-        this.nodePropertyPanel = nodePropertyPanel;
     }
 
     public void render() {
@@ -35,8 +32,9 @@ public final class RoadIntersectionListPanel {
         }
 
         String selectedNodeId = ctx.networkManager().getSelectedNodeId();
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.path.intersection_list_hint"));
         for (RoadNode node : junctions) {
-            renderJunctionRow(network, node, node.getId().equals(selectedNodeId));
+            renderSelectableRow(network, node, node.getId().equals(selectedNodeId));
         }
     }
 
@@ -54,34 +52,38 @@ public final class RoadIntersectionListPanel {
         return junctions;
     }
 
-    private void renderJunctionRow(RoadNetwork network, RoadNode node, boolean selected) {
+    private void renderSelectableRow(RoadNetwork network, RoadNode node, boolean selected) {
         RoadNetworkBuilder.JunctionType type =
             ctx.networkManager().getNetworkBuilder().classify(node);
         String title = formatJunctionTitle(network, node, type);
-        int flags = selected ? ImGuiTreeNodeFlags.DefaultOpen : ImGuiTreeNodeFlags.None;
-        if (!ImGui.collapsingHeader(title + "##junction_" + node.getId(), flags)) {
-            return;
-        }
-
-        if (ImGui.button(PlotI18n.tr("plugin.road.path.focus_junction") + "##focus_" + node.getId())) {
+        String status = formatIntersectionStatus(network, node);
+        String label = title + "  ·  " + status;
+        if (ImGui.selectable(label + "##junction_" + node.getId(), selected)) {
             focusJunction(network, node);
         }
-
-        ImGui.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.junction_topology_type", RoadNetworkManager.junctionTypeLabel(type)));
-
-        if (node.getId().equals(ctx.networkManager().getSelectedNodeId())) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.path.intersection_editing_above"));
-        } else if (RoadGraphQueries.isSimpleCrossing(node, network)) {
-            nodePropertyPanel.renderGradeSeparationForNode(node);
-        } else if (node.isGradeSeparated()) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.WARNING,
-                PlotI18n.tr("plugin.road.path.complex_grade_separation_hint"));
+        if (!RoadGraphQueries.isSimpleCrossing(node, network) && node.isGradeSeparated()) {
+            ImGui.sameLine();
+            ImGui.textColored(PluginUiColors.WARNING, "!");
         }
+    }
+
+    private static String formatIntersectionStatus(RoadNetwork network, RoadNode node) {
+        if (!RoadGraphQueries.isSimpleCrossing(node, network)) {
+            if (node.isGradeSeparated()) {
+                return PlotI18n.tr("plugin.road.path.intersection_status_complex_grade");
+            }
+            return PlotI18n.tr("plugin.road.path.intersection_status_complex");
+        }
+        if (!node.isGradeSeparated()) {
+            return PlotI18n.tr("plugin.road.path.intersection_status_at_grade");
+        }
+        String elevatedRoadId = node.getElevatedRoadId();
+        if (elevatedRoadId == null || elevatedRoadId.isBlank()) {
+            return PlotI18n.tr("plugin.road.path.intersection_status_auto");
+        }
+        return PlotI18n.tr(
+            "plugin.road.path.intersection_status_elevated",
+            formatRoadLabel(network, elevatedRoadId));
     }
 
     private void focusJunction(RoadNetwork network, RoadNode node) {

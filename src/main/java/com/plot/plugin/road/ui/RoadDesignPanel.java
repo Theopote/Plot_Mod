@@ -114,10 +114,8 @@ final class RoadDesignPanel {
 
         RoadUiSections.group("plugin.road.design_stack.alignment");
         horizontalAlignmentEditor.render(ctx, network, road, chainageDisplay);
-        verticalAlignmentEditor.render(
-            network, road, chainageDisplay, ctx.networkManager().getConfig(),
-            this::requireTerrainOrNull,
-            ctx.networkManager()::pushHistory);
+        verticalAlignmentEditor.renderModeOnly(
+            network, road, ctx.networkManager()::pushHistory);
         RoadUiSections.group("plugin.road.design_stack.typical_section");
         RoadCrossSectionEditor.renderAdvancedCrossSection(ctx, road, ctx::pushRoadEditHistory);
 

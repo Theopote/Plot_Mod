@@ -59,12 +59,12 @@ public final class RoadNodePropertyPanel {
 
         RoadNetwork network = ctx.networkManager().getNetwork();
         RoadSystemConfig config = ctx.networkManager().getConfig();
-        renderNodeElevationControls(node, network, config, false);
+        renderNodeElevationControls(node, network, config, false, false);
 
         junctionPanel.renderEditor();
     }
 
-    /** PropertyPanel 侧栏：与编辑 Tab 同一套控件，紧凑布局。 */
+    /** PropertyPanel 侧栏：节点标高与路口几何；立交关系在路径 Tab 编辑。 */
     public void renderPropertySection(RoadJunctionPanel junctionPanel) {
         RoadNode node = ctx.networkManager().getSelectedNode();
         if (node == null) {
@@ -75,7 +75,10 @@ public final class RoadNodePropertyPanel {
 
         RoadNetwork network = ctx.networkManager().getNetwork();
         RoadSystemConfig config = ctx.networkManager().getConfig();
-        renderNodeElevationControls(node, network, config, false);
+        renderNodeElevationControls(node, network, config, false, false);
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.node_grade_separation_in_path_hint"));
 
         junctionPanel.renderPropertySection();
     }
@@ -185,7 +188,7 @@ public final class RoadNodePropertyPanel {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("plugin.road.node_locate_hint"));
         }
-        renderNodeElevationControls(node, network, config, false);
+        renderNodeElevationControls(node, network, config, false, true);
     }
 
     private void renderNodeBadges(RoadNode node, Set<String> invalidNodeIds) {
@@ -215,7 +218,8 @@ public final class RoadNodePropertyPanel {
             RoadNode node,
             RoadNetwork network,
             RoadSystemConfig config,
-            boolean inline) {
+            boolean inline,
+            boolean includeGradeSeparation) {
         boolean autoMode = node.getManualElevation() == null;
         ImBoolean autoRef = new ImBoolean(autoMode);
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.node_elevation_auto") + "##auto", autoRef)) {
@@ -251,10 +255,12 @@ public final class RoadNodePropertyPanel {
             }
         }
 
-        if (inline) {
-            renderGradeSeparationControlsInline(node, network, config);
-        } else {
-            renderGradeSeparationControlsBlock(node, network, config);
+        if (includeGradeSeparation) {
+            if (inline) {
+                renderGradeSeparationControlsInline(node, network, config);
+            } else {
+                renderGradeSeparationControlsBlock(node, network, config);
+            }
         }
     }
 
@@ -273,18 +279,6 @@ public final class RoadNodePropertyPanel {
 
     private void renderGradeSeparationControlsInline(RoadNode node, RoadNetwork network, RoadSystemConfig config) {
         gradeSeparationControls.render(node, network, config, RoadGradeSeparationControls.Layout.INLINE);
-    }
-
-    /** 路径 Tab 交叉点列表：高程关系编辑。 */
-    public void renderGradeSeparationForNode(RoadNode node) {
-        if (node == null) {
-            return;
-        }
-        gradeSeparationControls.render(
-            node,
-            ctx.networkManager().getNetwork(),
-            ctx.networkManager().getConfig(),
-            RoadGradeSeparationControls.Layout.BLOCK);
     }
 
     private void renderGradeSeparationControlsBlock(RoadNode node, RoadNetwork network, RoadSystemConfig config) {

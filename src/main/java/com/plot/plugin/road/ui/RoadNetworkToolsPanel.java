@@ -12,7 +12,7 @@ import imgui.flag.ImGuiWindowFlags;
 import net.minecraft.world.World;
 
 /**
- * 编辑 Tab 路网级工具（全网统一标高等）。
+ * 生成 Tab 高级地形工具（全网统一标高等）。
  */
 final class RoadNetworkToolsPanel {
 

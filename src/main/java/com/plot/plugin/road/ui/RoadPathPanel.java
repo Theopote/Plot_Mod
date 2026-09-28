@@ -5,7 +5,6 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 
 /**
  * 路径 Tab：道路在哪里、当前选择、路径列表与交叉关系（不含风格编辑）。
@@ -46,9 +45,6 @@ public final class RoadPathPanel {
             renderSelectedIntersection(network);
             intersectionListPanel.render();
         }
-
-        ImGui.separator();
-        renderAdvancedPathManagement();
     }
 
     private void renderSelectedIntersection(RoadNetwork network) {
@@ -88,14 +84,4 @@ public final class RoadPathPanel {
         edgeListPanel.renderPathList("path_edge_list");
     }
 
-    private void renderAdvancedPathManagement() {
-        if (!ImGui.collapsingHeader(
-            PlotI18n.tr("plugin.road.path.advanced_management"),
-            ImGuiTreeNodeFlags.None)) {
-            return;
-        }
-        RoadNetwork network = ctx.networkManager().getNetwork();
-        overviewPanel.renderCompactNetworkSummary();
-        overviewPanel.renderHealthWarnings(network);
-    }
 }

@@ -123,6 +123,24 @@ public final class VerticalAlignmentEditor {
         }
     }
 
+    /** 编辑 Tab：仅纵向设计模式；PVI / 标高编辑在生成 Tab。 */
+    public void renderModeOnly(RoadNetwork network, Road road, Runnable onHistory) {
+        if (road == null || network == null) {
+            return;
+        }
+        if (!RoadStationing.isStationable(network, road)) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.vertical_alignment_requires_stationing"));
+            return;
+        }
+        double roadLength = RoadStationing.canonicalLength(network, road);
+        renderVerticalMode(road, roadLength, onHistory);
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.vertical_alignment_edit_in_generate_hint"));
+    }
+
     private void renderVerticalMode(Road road, double roadLength, Runnable onHistory) {
         RoadVerticalMode current = road.getVerticalMode();
         if (ImGui.beginCombo(

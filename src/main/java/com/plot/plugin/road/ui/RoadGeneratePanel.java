@@ -1,18 +1,26 @@
 package com.plot.plugin.road.ui;
 import com.plot.plugin.ui.PluginUiColors;
 
+import com.plot.core.terrain.MinecraftTerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadLongitudinalProfileRenderer;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadNetworkValidationReport;
 import com.plot.plugin.road.RoadNetworkEngineeringValidator;
+import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.solid.RoadGenerationResult;
+import com.plot.plugin.road.station.ChainageDisplayContext;
+import com.plot.plugin.road.station.ChainageDisplayMode;
+import com.plot.plugin.road.station.RoadStationFormat;
+import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
+import net.minecraft.world.World;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +32,8 @@ import java.util.Map;
 public final class RoadGeneratePanel {
     private final RoadUiContext ctx;
     private final VerticalProfileEditor profileEditor = new VerticalProfileEditor();
+    private final VerticalAlignmentEditor verticalAlignmentEditor = new VerticalAlignmentEditor();
+    private final RoadNetworkToolsPanel networkToolsPanel;
     private String profileEdgeId = "";
     private boolean profileSectionForceOpen = false;
     private long cachedValidationKey = Long.MIN_VALUE;
@@ -31,6 +41,7 @@ public final class RoadGeneratePanel {
 
     public RoadGeneratePanel(RoadUiContext ctx) {
         this.ctx = ctx;
+        this.networkToolsPanel = new RoadNetworkToolsPanel(ctx);
     }
 
     /** 从概览等入口跳转时，聚焦指定边的纵断面区块。 */
@@ -68,6 +79,7 @@ public final class RoadGeneratePanel {
         if (!network.getEdges().isEmpty()) {
             renderProfileWorkspace(network);
             renderIntersectionCheckSection(network, preflight);
+            renderAdvancedTerrainSection(network);
         }
 
         RoadGenerationResult lastGenerationResult = ctx.previewManager().getLastGenerationResult();
@@ -82,6 +94,10 @@ public final class RoadGeneratePanel {
         profileEditor.renderEditorWindow(ctx, network);
     }
 
+    void renderUniformElevationConfirmPopup() {
+        networkToolsPanel.renderConfirmPopup();
+    }
+
     private void renderGenerateWorkflowHint() {
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
@@ -92,9 +108,50 @@ public final class RoadGeneratePanel {
         ImGui.separator();
         RoadUiSections.section("plugin.road.generate.profile_section");
         RoadEdge edge = resolveProfileEdge(network);
-        if (edge != null) {
-            profileEditor.renderInline(ctx, network, edge);
+        if (edge == null) {
+            return;
         }
+        Road road = network.getRoadForEdge(edge);
+        if (road != null) {
+            verticalAlignmentEditor.render(
+                network,
+                road,
+                chainageContextOrNull(network, road),
+                ctx.networkManager().getConfig(),
+                this::requireTerrainOrNull,
+                ctx.networkManager()::pushHistory);
+        }
+        profileEditor.renderInline(ctx, network, edge);
+    }
+
+    private void renderAdvancedTerrainSection(RoadNetwork network) {
+        ImGui.separator();
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.generate.advanced_terrain"))) {
+            return;
+        }
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.generate.advanced_terrain_hint"));
+        networkToolsPanel.render(network);
+    }
+
+    private ChainageDisplayContext chainageContextOrNull(RoadNetwork network, Road road) {
+        if (!RoadStationing.isStationable(network, road)) {
+            return null;
+        }
+        return new ChainageDisplayContext(
+            RoadStationing.canonicalLength(network, road),
+            ChainageDisplayMode.FROM_START,
+            RoadStationFormat.KILOMETER_PLUS);
+    }
+
+    private TerrainSampler requireTerrainOrNull() {
+        World world = RoadNetworkGenerator.getClientWorld();
+        if (world == null) {
+            ctx.status().error(PlotI18n.tr("plugin.road.generate_world_unavailable"));
+            return null;
+        }
+        return MinecraftTerrainSampler.of(world, ctx.host().coordinates());
     }
 
     private RoadEdge resolveProfileEdge(RoadNetwork network) {

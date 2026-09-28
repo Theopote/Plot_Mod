@@ -27,4 +27,8 @@ public final class RoadBuildPanel {
     public void renderProfileEditorWindow(RoadNetwork network) {
         generatePanel.renderProfileEditorWindow(network);
     }
+
+    public void renderUniformElevationConfirmPopup() {
+        generatePanel.renderUniformElevationConfirmPopup();
+    }
 }

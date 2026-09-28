@@ -11,21 +11,11 @@ import imgui.ImGui;
  */
 public final class RoadEditPanel {
     private final RoadUiContext ctx;
-    private final RoadJunctionPanel junctionPanel;
-    private final RoadNodePropertyPanel nodePropertyPanel;
-    private final RoadNetworkToolsPanel networkToolsPanel;
     private final RoadDesignPanel designPanel;
     private final RoadEditWorkspace editWorkspace;
 
-    public RoadEditPanel(
-            RoadUiContext ctx,
-            RoadJunctionPanel junctionPanel,
-            RoadNodePropertyPanel nodePropertyPanel,
-            RoadDefaultParamsPanel defaultParamsPanel) {
+    public RoadEditPanel(RoadUiContext ctx, RoadDefaultParamsPanel defaultParamsPanel) {
         this.ctx = ctx;
-        this.junctionPanel = junctionPanel;
-        this.nodePropertyPanel = nodePropertyPanel;
-        this.networkToolsPanel = new RoadNetworkToolsPanel(ctx);
         this.designPanel = new RoadDesignPanel(ctx);
         this.editWorkspace = new RoadEditWorkspace(ctx, designPanel, defaultParamsPanel);
     }
@@ -39,13 +29,8 @@ public final class RoadEditPanel {
 
         ctx.networkManager().ensureSelectionValid();
         RoadSelectionHeader.render(ctx);
+        renderJunctionSelectionHint();
         ImGui.separator();
-
-        String selectedNodeId = ctx.networkManager().getSelectedNodeId();
-        if (selectedNodeId != null && !selectedNodeId.isBlank()) {
-            renderNodeJunctionSection();
-            return;
-        }
 
         RoadSelectionHeader.Mode mode = RoadSelectionHeader.resolveMode(ctx);
         switch (mode) {
@@ -58,31 +43,23 @@ public final class RoadEditPanel {
             }
             case MULTI -> editWorkspace.renderMulti();
         }
-
-        ImGui.separator();
-        renderAdvancedNetworkSection();
     }
 
     RoadDesignPanel designPanel() {
         return designPanel;
     }
 
-    void renderNodeJunctionSection() {
-        RoadUiSections.group("plugin.road.section.node_junction");
-        nodePropertyPanel.renderForSelectedNode(junctionPanel);
-    }
-
-    void renderAdvancedNetworkSection() {
-        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.style.advanced_network"))) {
+    private void renderJunctionSelectionHint() {
+        String selectedNodeId = ctx.networkManager().getSelectedNodeId();
+        if (selectedNodeId == null || selectedNodeId.isBlank()) {
             return;
         }
-        RoadNetwork network = ctx.networkManager().getNetwork();
-        networkToolsPanel.render(network);
-        ImGui.separator();
-        nodePropertyPanel.renderAllNodesCollapsibleList();
-    }
-
-    public void renderUniformElevationConfirmPopup() {
-        networkToolsPanel.renderConfirmPopup();
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.edit.junction_selected_hint"));
+        if (ImGui.button(PlotI18n.tr("plugin.road.edit.goto_intersections"))) {
+            ctx.requestTab(RoadUiTab.PATH);
+        }
+        ImGui.spacing();
     }
 }
