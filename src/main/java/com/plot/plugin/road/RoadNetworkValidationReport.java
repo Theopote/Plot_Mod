@@ -21,16 +21,22 @@ public record RoadNetworkValidationReport(List<Item> items) {
     }
 
     public boolean hasIntersectionWork() {
+        return intersectionIssueCount() > 0;
+    }
+
+    /** 交叉点相关的待处理或错误项数量（供生成 Tab 预检摘要）。 */
+    public int intersectionIssueCount() {
+        int count = 0;
         for (Item item : items) {
             if (item.level() == Level.OK) {
                 continue;
             }
             if ("plugin.road.validation.intersections_pending".equals(item.messageKey())
                     || "plugin.road.validation.intersections_incomplete".equals(item.messageKey())) {
-                return true;
+                count++;
             }
         }
-        return false;
+        return count;
     }
 
     public boolean hasErrors() {

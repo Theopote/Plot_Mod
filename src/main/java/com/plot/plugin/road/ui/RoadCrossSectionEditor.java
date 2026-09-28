@@ -124,7 +124,10 @@ public final class RoadCrossSectionEditor {
         }
         ImGui.spacing();
 
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.style.advanced_cross_section"))) {
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.style.advanced_cross_section_hint"));
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.style.engineering_cross_section"))) {
             CrossSectionDraftEditor.renderCrossSection(ctx, mutator, options);
         }
     }

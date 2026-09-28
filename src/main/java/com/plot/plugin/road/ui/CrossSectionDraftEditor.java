@@ -151,6 +151,16 @@ public final class CrossSectionDraftEditor {
             }
         }
 
+        if (!editor.options.showAppearanceStrips()) {
+            if (editor.options.showSlopeBatter()) {
+                renderSlopeBatterFields(editor);
+            }
+            if (editor.options.showMaxSlope()) {
+                renderMaxSlopeField(editor);
+            }
+            return;
+        }
+
         ImBoolean shoulderRef = new ImBoolean(draft.includeShoulder());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_shoulder") + "##" + id + "_shoulder", shoulderRef)) {
             if (roadEdit) {
@@ -178,48 +188,7 @@ public final class CrossSectionDraftEditor {
         }
 
         if (editor.options.showSlopeBatter()) {
-            ImGui.spacing();
-            ImGui.text(PlotI18n.tr("plugin.road.slope_batter_section"));
-            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.slope_batter_section_hint"));
-            ImBoolean slopeRef = new ImBoolean(draft.includeSlopeBatter());
-            if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_slope_batter") + "##" + id + "_slope", slopeRef)) {
-                if (roadEdit) {
-                    hooks.onItemActivated();
-                }
-                mutator.setIncludeSlopeBatter(slopeRef.get());
-            }
-            mutator.afterSlopeEnabledField();
-            if (draft.includeSlopeBatter()) {
-                float[] fillSlopeArr = {draft.fillSlopeRatio()};
-                if (EngineeringSlopeInput.render(
-                    id + "_fill_slope_ratio",
-                    PlotI18n.tr("plugin.road.fill_slope_ratio_label"),
-                    fillSlopeArr,
-                    EngineeringSlopeInput.ValueKind.BATTER
-                )) {
-                    if (roadEdit) {
-                        hooks.onItemActivated();
-                    }
-                    mutator.setFillSlopeRatio(fillSlopeArr[0]);
-                }
-                RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.fill_slope_ratio");
-                mutator.afterFillSlopeField();
-
-                float[] cutSlopeArr = {draft.cutSlopeRatio()};
-                if (EngineeringSlopeInput.render(
-                    id + "_cut_slope_ratio",
-                    PlotI18n.tr("plugin.road.cut_slope_ratio_label"),
-                    cutSlopeArr,
-                    EngineeringSlopeInput.ValueKind.BATTER
-                )) {
-                    if (roadEdit) {
-                        hooks.onItemActivated();
-                    }
-                    mutator.setCutSlopeRatio(cutSlopeArr[0]);
-                }
-                RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.cut_slope_ratio");
-                mutator.afterCutSlopeField();
-            }
+            renderSlopeBatterFields(editor);
         }
 
         ImBoolean bikeRef = new ImBoolean(draft.includeBikeLane());
@@ -299,21 +268,82 @@ public final class CrossSectionDraftEditor {
         }
 
         if (editor.options.showMaxSlope()) {
-            float[] maxSlopeArr = {draft.maxSlope()};
+            renderMaxSlopeField(editor);
+        }
+    }
+
+    private static void renderSlopeBatterFields(EditorContext editor) {
+        CrossSectionDraft draft = editor.draft;
+        CrossSectionDraftMutator mutator = editor.mutator;
+        CrossSectionDraftFieldHooks hooks = editor.hooks;
+        boolean roadEdit = editor.roadEdit;
+        String id = editor.id;
+
+        ImGui.spacing();
+        ImGui.text(PlotI18n.tr("plugin.road.slope_batter_section"));
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.slope_batter_section_hint"));
+        ImBoolean slopeRef = new ImBoolean(draft.includeSlopeBatter());
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_slope_batter") + "##" + id + "_slope", slopeRef)) {
+            if (roadEdit) {
+                hooks.onItemActivated();
+            }
+            mutator.setIncludeSlopeBatter(slopeRef.get());
+        }
+        mutator.afterSlopeEnabledField();
+        if (draft.includeSlopeBatter()) {
+            float[] fillSlopeArr = {draft.fillSlopeRatio()};
             if (EngineeringSlopeInput.render(
-                id + "_max_slope",
-                PlotI18n.tr("plugin.road.max_slope_label"),
-                maxSlopeArr,
-                EngineeringSlopeInput.ValueKind.GRADE
+                id + "_fill_slope_ratio",
+                PlotI18n.tr("plugin.road.fill_slope_ratio_label"),
+                fillSlopeArr,
+                EngineeringSlopeInput.ValueKind.BATTER
             )) {
                 if (roadEdit) {
                     hooks.onItemActivated();
                 }
-                mutator.setMaxSlope(maxSlopeArr[0]);
+                mutator.setFillSlopeRatio(fillSlopeArr[0]);
             }
-            RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.max_slope");
-            mutator.afterMaxSlopeField();
+            RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.fill_slope_ratio");
+            mutator.afterFillSlopeField();
+
+            float[] cutSlopeArr = {draft.cutSlopeRatio()};
+            if (EngineeringSlopeInput.render(
+                id + "_cut_slope_ratio",
+                PlotI18n.tr("plugin.road.cut_slope_ratio_label"),
+                cutSlopeArr,
+                EngineeringSlopeInput.ValueKind.BATTER
+            )) {
+                if (roadEdit) {
+                    hooks.onItemActivated();
+                }
+                mutator.setCutSlopeRatio(cutSlopeArr[0]);
+            }
+            RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.cut_slope_ratio");
+            mutator.afterCutSlopeField();
         }
+    }
+
+    private static void renderMaxSlopeField(EditorContext editor) {
+        CrossSectionDraft draft = editor.draft;
+        CrossSectionDraftMutator mutator = editor.mutator;
+        CrossSectionDraftFieldHooks hooks = editor.hooks;
+        boolean roadEdit = editor.roadEdit;
+        String id = editor.id;
+
+        float[] maxSlopeArr = {draft.maxSlope()};
+        if (EngineeringSlopeInput.render(
+            id + "_max_slope",
+            PlotI18n.tr("plugin.road.max_slope_label"),
+            maxSlopeArr,
+            EngineeringSlopeInput.ValueKind.GRADE
+        )) {
+            if (roadEdit) {
+                hooks.onItemActivated();
+            }
+            mutator.setMaxSlope(maxSlopeArr[0]);
+        }
+        RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.max_slope");
+        mutator.afterMaxSlopeField();
     }
 
     private static void renderMaterials(EditorContext editor) {

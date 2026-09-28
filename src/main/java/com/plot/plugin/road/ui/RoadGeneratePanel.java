@@ -188,19 +188,21 @@ public final class RoadGeneratePanel {
         }
         ImGui.separator();
         RoadUiSections.section("plugin.road.generate.intersection_check");
-        RoadUiWidgets.textWrapped(PlotI18n.tr(
-            "plugin.road.generate.intersection_summary",
-            network.getJunctionCount()));
-        if (preflight.hasIntersectionWork()) {
+        int junctionCount = network.getJunctionCount();
+        int issueCount = preflight.intersectionIssueCount();
+        if (issueCount > 0) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.WARNING_LIGHT,
-                PlotI18n.tr("plugin.road.generate.intersection_validation_hint"));
+                PlotI18n.tr(
+                    "plugin.road.generate.intersection_issues",
+                    issueCount,
+                    junctionCount));
         } else {
             RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.generate.intersection_ok_hint"));
+                PluginUiColors.STATUS_INFO,
+                PlotI18n.tr("plugin.road.generate.intersection_ok", junctionCount));
         }
-        if (ImGui.button(PlotI18n.tr("plugin.road.generate.edit_intersections"))) {
+        if (ImGui.button(PlotI18n.tr("plugin.road.generate.goto_intersections"))) {
             ctx.requestTab(RoadUiTab.PATH);
         }
     }

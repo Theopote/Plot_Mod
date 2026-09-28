@@ -5,10 +5,8 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadNodeElevationUtils;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadNetworkGenerator;
-import com.plot.plugin.road.RoadNodeListHelper;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.RoadNetwork;
-import com.plot.plugin.road.model.RoadNetworkInvariantValidator;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.core.terrain.FlatTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
@@ -16,52 +14,20 @@ import com.plot.plugin.road.vertical.VerticalProfileNetworkPropagator;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
-import imgui.ImGuiListClipper;
-import imgui.callback.ImListClipperCallback;
-import imgui.type.ImBoolean;
-import imgui.type.ImString;
 import net.minecraft.world.World;
 
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
- * 节点级属性编辑：选中节点详情 + 可折叠全网节点列表（巡查用）。
+ * 画布属性侧栏：节点标高与路口几何（圆角/标线）。
+ * 立交关系在路径 Tab 编辑。
  */
 public final class RoadNodePropertyPanel {
-    private static final float NODE_LIST_HEIGHT = 220f;
-    private static final float NODE_ROW_HEIGHT_LINES = 5.0f;
 
     private final RoadUiContext ctx;
-    private final ImString nodeSearchBuffer = new ImString(128);
-    private final ImBoolean filterJunction = new ImBoolean(false);
-    private final ImBoolean filterEndpoint = new ImBoolean(false);
-    private final ImBoolean filterManualElevation = new ImBoolean(false);
-    private final ImBoolean filterGradeSeparated = new ImBoolean(false);
-    private final ImBoolean filterInvalid = new ImBoolean(false);
-    private final RoadGradeSeparationControls gradeSeparationControls;
 
     public RoadNodePropertyPanel(RoadUiContext ctx) {
         this.ctx = ctx;
-        this.gradeSeparationControls = new RoadGradeSeparationControls(ctx);
-    }
-
-    public void renderForSelectedNode(RoadJunctionPanel junctionPanel) {
-        RoadNode node = ctx.networkManager().getSelectedNode();
-        if (node == null) {
-            return;
-        }
-
-        ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.road.node_selected_detail"));
-        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.node_elevation_hint"));
-
-        RoadNetwork network = ctx.networkManager().getNetwork();
-        RoadSystemConfig config = ctx.networkManager().getConfig();
-        renderNodeElevationControls(node, network, config, false, false);
-
-        junctionPanel.renderEditor();
     }
 
     /** PropertyPanel 侧栏：节点标高与路口几何；立交关系在路径 Tab 编辑。 */
@@ -75,7 +41,7 @@ public final class RoadNodePropertyPanel {
 
         RoadNetwork network = ctx.networkManager().getNetwork();
         RoadSystemConfig config = ctx.networkManager().getConfig();
-        renderNodeElevationControls(node, network, config, false, false);
+        renderNodeElevationControls(node, network, config);
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.node_grade_separation_in_path_hint"));
@@ -83,145 +49,12 @@ public final class RoadNodePropertyPanel {
         junctionPanel.renderPropertySection();
     }
 
-    public void renderAllNodesCollapsibleList() {
-        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.all_nodes"))) {
-            return;
-        }
-
-        RoadNetwork network = ctx.networkManager().getNetwork();
-        RoadSystemConfig config = ctx.networkManager().getConfig();
-        int totalNodes = network.getNodes().size();
-        if (totalNodes == 0) {
-            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_nodes"));
-            return;
-        }
-
-        List<RoadNode> nodes = filteredNodes(network);
-        renderNodeListToolbar(nodes.size(), totalNodes);
-        String selectedNodeId = ctx.networkManager().getSelectedNodeId();
-        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.node_elevation_list_hint"));
-        ImGui.beginChild("node_elevation_list", 0, NODE_LIST_HEIGHT, true);
-        if (nodes.isEmpty()) {
-            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.node_list_empty"));
-        } else {
-            Set<String> invalidNodeIds = RoadNetworkInvariantValidator.collectInvalidNodeIds(network);
-            renderVirtualNodeList(network, config, nodes, selectedNodeId, invalidNodeIds);
-        }
-        ImGui.endChild();
-    }
-
-    private void renderNodeListToolbar(int shownNodes, int totalNodes) {
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.62f);
-        ImGui.inputTextWithHint(
-            "##node_search",
-            PlotI18n.tr("plugin.road.node_search_hint"),
-            nodeSearchBuffer);
-        ImGui.sameLine();
-        ImGui.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.node_list_count", shownNodes, totalNodes));
-
-        ImGui.checkbox(PlotI18n.tr("plugin.road.node_filter_junction"), filterJunction);
-        ImGui.sameLine();
-        ImGui.checkbox(PlotI18n.tr("plugin.road.node_filter_endpoint"), filterEndpoint);
-        ImGui.sameLine();
-        ImGui.checkbox(PlotI18n.tr("plugin.road.node_filter_manual_elevation"), filterManualElevation);
-        ImGui.sameLine();
-        ImGui.checkbox(PlotI18n.tr("plugin.road.node_filter_grade_separated"), filterGradeSeparated);
-        ImGui.sameLine();
-        ImGui.checkbox(PlotI18n.tr("plugin.road.node_filter_invalid"), filterInvalid);
-    }
-
-    private RoadNodeListHelper.NodeFilter currentNodeFilter() {
-        return new RoadNodeListHelper.NodeFilter(
-            filterJunction.get(),
-            filterEndpoint.get(),
-            filterManualElevation.get(),
-            filterGradeSeparated.get(),
-            filterInvalid.get());
-    }
-
-    private List<RoadNode> filteredNodes(RoadNetwork network) {
-        return RoadNodeListHelper.filterAndSort(
-            network,
-            network.getNodes().values(),
-            nodeSearchBuffer.get(),
-            currentNodeFilter());
-    }
-
-    private void renderVirtualNodeList(
-            RoadNetwork network,
-            RoadSystemConfig config,
-            List<RoadNode> nodes,
-            String selectedNodeId,
-            Set<String> invalidNodeIds) {
-        int rowHeight = Math.round(ImGui.getTextLineHeightWithSpacing() * NODE_ROW_HEIGHT_LINES);
-        ImGuiListClipper.forEach(nodes.size(), rowHeight, new ImListClipperCallback() {
-            @Override
-            public void accept(int index) {
-                RoadNode node = nodes.get(index);
-                ImGui.pushID(node.getId());
-                renderNodeListRow(node, network, config, selectedNodeId, invalidNodeIds);
-                ImGui.popID();
-            }
-        });
-    }
-
-    private void renderNodeListRow(
-            RoadNode node,
-            RoadNetwork network,
-            RoadSystemConfig config,
-            String selectedNodeId,
-            Set<String> invalidNodeIds) {
-        boolean selected = node.getId().equals(selectedNodeId);
-        if (selected) {
-            ImGui.textColored(PluginUiColors.STATUS_INFO, "▸ " + formatNodeLabel(node));
-        } else {
-            ImGui.text(formatNodeLabel(node));
-        }
-        ImGui.sameLine();
-        renderNodeBadges(node, invalidNodeIds);
-        ImGui.sameLine();
-        if (ImGui.smallButton(PlotI18n.tr("plugin.road.locate") + "##locate")) {
-            ctx.networkManager().handleNodeSelect(node.getId());
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.node_locate_hint"));
-        }
-        renderNodeElevationControls(node, network, config, false, true);
-    }
-
-    private void renderNodeBadges(RoadNode node, Set<String> invalidNodeIds) {
-        if (node.isJunction()) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.node_badge_junction"));
-            ImGui.sameLine();
-        }
-        if (RoadNodeListHelper.isEndpoint(node)) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.node_badge_endpoint"));
-            ImGui.sameLine();
-        }
-        if (node.getManualElevation() != null) {
-            ImGui.textColored(PluginUiColors.STATUS_INFO, PlotI18n.tr("plugin.road.node_badge_manual"));
-            ImGui.sameLine();
-        }
-        if (node.isGradeSeparated()) {
-            ImGui.textColored(PluginUiColors.STATUS_INFO, PlotI18n.tr("plugin.road.node_badge_grade_sep"));
-            ImGui.sameLine();
-        }
-        if (invalidNodeIds.contains(node.getId())) {
-            ImGui.textColored(PluginUiColors.INVALID, PlotI18n.tr("plugin.road.node_badge_invalid"));
-            ImGui.sameLine();
-        }
-    }
-
     private void renderNodeElevationControls(
             RoadNode node,
             RoadNetwork network,
-            RoadSystemConfig config,
-            boolean inline,
-            boolean includeGradeSeparation) {
+            RoadSystemConfig config) {
         boolean autoMode = node.getManualElevation() == null;
-        ImBoolean autoRef = new ImBoolean(autoMode);
+        imgui.type.ImBoolean autoRef = new imgui.type.ImBoolean(autoMode);
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.node_elevation_auto") + "##auto", autoRef)) {
             ctx.networkManager().pushHistory();
             if (autoRef.get()) {
@@ -242,7 +75,6 @@ public final class RoadNodePropertyPanel {
                 RoadParameterLimits.ELEVATION_MIN,
                 RoadParameterLimits.ELEVATION_MAX,
                 "Y=%d");
-            // 先推历史（节点仍为旧值），再应用新值，避免撤销无效
             if (ImGui.isItemActivated()) {
                 ctx.networkManager().pushHistory();
             }
@@ -250,16 +82,8 @@ public final class RoadNodePropertyPanel {
                 node.setManualElevation((double) elevation[0]);
                 propagateNodeElevation(node, network, config);
             }
-            if (!inline && ImGui.isItemHovered()) {
+            if (ImGui.isItemHovered()) {
                 ImGui.setTooltip(PlotI18n.tr("hint.plot.road.node_elevation"));
-            }
-        }
-
-        if (includeGradeSeparation) {
-            if (inline) {
-                renderGradeSeparationControlsInline(node, network, config);
-            } else {
-                renderGradeSeparationControlsBlock(node, network, config);
             }
         }
     }
@@ -275,14 +99,6 @@ public final class RoadNodePropertyPanel {
     private static String formatNodeLabel(RoadNode node) {
         Vec2d pos = node.getPosition();
         return String.format("(%.0f, %.0f) deg=%d", pos.x, pos.y, node.getDegree());
-    }
-
-    private void renderGradeSeparationControlsInline(RoadNode node, RoadNetwork network, RoadSystemConfig config) {
-        gradeSeparationControls.render(node, network, config, RoadGradeSeparationControls.Layout.INLINE);
-    }
-
-    private void renderGradeSeparationControlsBlock(RoadNode node, RoadNetwork network, RoadSystemConfig config) {
-        gradeSeparationControls.render(node, network, config, RoadGradeSeparationControls.Layout.BLOCK);
     }
 
     private int resolveManualLockElevation(RoadNode node, RoadNetwork network, RoadSystemConfig config) {
@@ -303,5 +119,4 @@ public final class RoadNodePropertyPanel {
         }
         return new FlatTerrainSampler(TerrainSampler.DEFAULT_SEA_LEVEL);
     }
-
 }
