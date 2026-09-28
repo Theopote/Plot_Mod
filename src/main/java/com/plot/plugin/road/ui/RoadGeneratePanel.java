@@ -15,6 +15,7 @@ import com.plot.plugin.road.station.ChainageDisplayContext;
 import com.plot.plugin.road.station.ChainageDisplayMode;
 import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -92,7 +93,7 @@ public final class RoadGeneratePanel {
     }
 
     void renderProfileEditorWindow(RoadNetwork network) {
-        profileEditor.renderEditorWindow(ctx, network);
+        profileEditor.renderEditorWindow(ctx, network, resolveFlatProfileOverlay(network));
     }
 
     void renderUniformElevationConfirmPopup() {
@@ -121,6 +122,7 @@ public final class RoadGeneratePanel {
                     ctx, road, ctx.networkManager()::pushHistory);
             }
             verticalAlignmentEditor.render(
+                ctx,
                 network,
                 road,
                 chainageContextOrNull(network, road),
@@ -128,7 +130,23 @@ public final class RoadGeneratePanel {
                 this::requireTerrainOrNull,
                 ctx.networkManager()::pushHistory);
         }
-        profileEditor.renderInline(ctx, network, edge);
+        profileEditor.renderInline(ctx, network, edge, resolveFlatProfileOverlay(network, road));
+    }
+
+    private FlatElevationProfileOverlay resolveFlatProfileOverlay(RoadNetwork network) {
+        RoadEdge edge = resolveProfileEdge(network);
+        if (edge == null) {
+            return FlatElevationProfileOverlay.EMPTY;
+        }
+        Road road = network.getRoadForEdge(edge);
+        return resolveFlatProfileOverlay(network, road);
+    }
+
+    private FlatElevationProfileOverlay resolveFlatProfileOverlay(RoadNetwork network, Road road) {
+        if (road == null || RoadVerticalStrategy.fromRoad(road) != RoadVerticalStrategy.FLAT) {
+            return FlatElevationProfileOverlay.EMPTY;
+        }
+        return verticalAlignmentEditor.flatElevationProfileOverlay(network, road);
     }
 
     private void renderAdvancedTerrainSection(RoadNetwork network) {

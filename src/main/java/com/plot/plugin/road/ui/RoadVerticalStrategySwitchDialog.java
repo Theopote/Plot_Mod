@@ -6,6 +6,7 @@ import com.plot.plugin.road.RoadUniformElevationUtils;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.vertical.FlatElevationRecommendation;
 import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.core.terrain.TerrainSampler;
@@ -50,15 +51,31 @@ final class RoadVerticalStrategySwitchDialog {
             network, road, terrain, config);
         terrainRecommendedElevation = Float.NaN;
         terrainSummary = "";
-        if (terrain != null) {
-            RoadUniformElevationUtils.FlatRoadRecommendation recommendation =
-                RoadUniformElevationUtils.recommendMedianForRoad(network, road, terrain, config);
-            if (recommendation.sampleCount() > 0) {
-                terrainRecommendedElevation = recommendation.elevation();
+        if (terrain != null && config != null) {
+            FlatElevationRecommendation optimized =
+                FlatVerticalIntentSupport.recommendOptimizedElevation(network, road, terrain, config);
+            if (optimized.hasRecommendation()) {
+                terrainRecommendedElevation = optimized.best().elevation();
+                elevationDraft = terrainRecommendedElevation;
                 terrainSummary = PlotI18n.tr(
-                    "plugin.road.vertical_alignment_flat_recommendation",
-                    recommendation.elevation(),
-                    recommendation.sampleCount());
+                    "plugin.road.flat_elevation.switch_dialog_summary",
+                    optimized.best().elevation(),
+                    optimized.best().estimatedCutVolume(),
+                    optimized.best().estimatedFillVolume(),
+                    optimized.best().estimatedBridgeLength(),
+                    optimized.best().estimatedTunnelLength(),
+                    optimized.best().estimatedChangedBlocks(),
+                    optimized.terrainSampleCount());
+            } else {
+                RoadUniformElevationUtils.FlatRoadRecommendation recommendation =
+                    RoadUniformElevationUtils.recommendMedianForRoad(network, road, terrain, config);
+                if (recommendation.sampleCount() > 0) {
+                    terrainRecommendedElevation = recommendation.elevation();
+                    terrainSummary = PlotI18n.tr(
+                        "plugin.road.vertical_alignment_flat_recommendation",
+                        recommendation.elevation(),
+                        recommendation.sampleCount());
+                }
             }
         }
         popupPending = true;

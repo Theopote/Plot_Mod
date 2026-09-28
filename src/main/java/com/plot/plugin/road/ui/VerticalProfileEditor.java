@@ -22,6 +22,7 @@ import net.minecraft.world.World;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
+import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
 import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
 import com.plot.plugin.road.vertical.VerticalProfileAutoFixer;
 import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
@@ -108,7 +109,11 @@ final class VerticalProfileEditor {
         return editorWindowOpen.get() ? editorEdgeId : "";
     }
 
-    void renderInline(RoadUiContext ctx, RoadNetwork network, RoadEdge edge) {
+    void renderInline(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            RoadEdge edge,
+            FlatElevationProfileOverlay flatOverlay) {
         if (!ctx.previewManager().hasValidPreview()
                 && edge.getId().equals(cachedEditProfileEdgeId)) {
             clearCache();
@@ -138,8 +143,8 @@ final class VerticalProfileEditor {
             PluginUiColors.HINT_GRAY,
             RoadEdgeListHelper.formatEdgeLabel(network, edge));
         RoadLongitudinalProfileRenderer.renderOverview(
-            edgeResult, design, intersections, INLINE_CHART_HEIGHT);
-        renderInlineLegend(design, intersections);
+            edgeResult, design, intersections, INLINE_CHART_HEIGHT, flatOverlay);
+        renderInlineLegend(design, intersections, flatOverlay);
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.vertical_alignment_inline_preview_hint"));
@@ -149,7 +154,10 @@ final class VerticalProfileEditor {
         }
     }
 
-    void renderEditorWindow(RoadUiContext ctx, RoadNetwork network) {
+    void renderEditorWindow(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            FlatElevationProfileOverlay flatOverlay) {
         if (!editorWindowOpen.get()) {
             return;
         }
@@ -208,7 +216,7 @@ final class VerticalProfileEditor {
             float chartHeight = Math.max(
                 MIN_EDITOR_CHART_HEIGHT,
                 ImGui.getContentRegionAvail().y * 0.42f);
-            renderInteractiveEditor(ctx, network, edge, road, edgeResult, design, chartHeight);
+            renderInteractiveEditor(ctx, network, edge, road, edgeResult, design, chartHeight, flatOverlay);
         } finally {
             ImGui.end();
         }
@@ -362,7 +370,8 @@ final class VerticalProfileEditor {
 
     private static void renderInlineLegend(
             VerticalAlignmentProfileOverlay design,
-            List<RoadProfileIntersection> intersections) {
+            List<RoadProfileIntersection> intersections,
+            FlatElevationProfileOverlay flatOverlay) {
         ImGui.textColored(0xFF8B5A2B, "■ " + PlotI18n.tr("plugin.road.profile_ground"));
         ImGui.sameLine();
         ImGui.textColored(0xFF4DA3FF, "--- " + PlotI18n.tr("plugin.road.profile_guide"));
@@ -371,6 +380,18 @@ final class VerticalProfileEditor {
         if (design != null && !design.isEmpty()) {
             ImGui.sameLine();
             ImGui.textColored(0xFF5FD35F, "■ " + PlotI18n.tr("plugin.road.profile_design"));
+        }
+        if (flatOverlay != null && flatOverlay.showSuggested()) {
+            ImGui.sameLine();
+            ImGui.textColored(0xFFFFB84D, "=== " + PlotI18n.tr(
+                "plugin.road.profile_flat_suggested",
+                flatOverlay.suggestedElevation()));
+        }
+        if (flatOverlay != null && flatOverlay.showCurrent()) {
+            ImGui.sameLine();
+            ImGui.textColored(0xFF66D9EF, "--- " + PlotI18n.tr(
+                "plugin.road.profile_flat_current",
+                flatOverlay.currentElevation()));
         }
         if (intersections != null && intersections.stream().anyMatch(RoadProfileIntersection::gradeSeparated)) {
             ImGui.textColored(0xFFFF9966, "\u25C7 " + PlotI18n.tr("plugin.road.profile_intersection_marker_grade"));
@@ -384,7 +405,8 @@ final class VerticalProfileEditor {
             Road road,
             RoadGenerationResult edgeResult,
             VerticalAlignmentProfileOverlay design,
-            float chartHeight) {
+            float chartHeight,
+            FlatElevationProfileOverlay flatOverlay) {
         List<VerticalProfileControlPoints.ControlPoint> points =
             VerticalProfileControlPoints.forEdge(network, road, edge);
         float maxGrade = road.getMaxSlope() != null
@@ -397,7 +419,7 @@ final class VerticalProfileEditor {
             RoadLongitudinalProfileRenderer.renderInteractive(
                 edgeResult, design, points, selectedProfilePvi, activeProfilePvi, maxGrade,
                 intersections, selectedIntersectionIndex, chartHeight,
-                activeIntersectionDragIndex, activeIntersectionDragTarget);
+                activeIntersectionDragIndex, activeIntersectionDragTarget, flatOverlay);
         if (interaction.dragStarted() || interaction.intersectionDragStarted()) {
             ctx.beginNetworkEdit();
         }

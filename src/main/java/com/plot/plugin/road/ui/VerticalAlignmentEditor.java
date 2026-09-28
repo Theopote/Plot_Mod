@@ -13,6 +13,7 @@ import com.plot.plugin.road.vertical.VerticalAlignmentValidator;
 import com.plot.plugin.road.vertical.VerticalAlignmentViolation;
 import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
 import com.plot.plugin.road.vertical.VerticalAlignmentJunctionSynchronizer;
+import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
 import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
@@ -39,8 +40,11 @@ public final class VerticalAlignmentEditor {
     private String syncedRoadId = "";
     private final List<PviDraft> drafts = new ArrayList<>();
     private float flatElevation = 64f;
+    private final FlatElevationRecommendationUi flatElevationRecommendationUi =
+        new FlatElevationRecommendationUi();
 
     public void render(
+            RoadUiContext ctx,
             RoadNetwork network,
             Road road,
             ChainageDisplayContext chainageDisplay,
@@ -66,7 +70,7 @@ public final class VerticalAlignmentEditor {
         double roadLength = RoadStationing.canonicalLength(network, road);
         RoadVerticalStrategy strategy = RoadVerticalStrategy.fromRoad(road);
         if (strategy == RoadVerticalStrategy.FLAT) {
-            renderFlatGenerateSection(network, road, roadLength, config, onHistory);
+            renderFlatGenerateSection(ctx, network, road, roadLength, config, onHistory, terrainSupplier);
             return;
         }
         if (road.getVerticalMode() != RoadVerticalMode.MANUAL_PROFILE) {
@@ -132,6 +136,7 @@ public final class VerticalAlignmentEditor {
 
     /** 路径 Tab：纵向方式与水平道路基准高程；PVI / 纵断面编辑在生成 Tab。 */
     public void renderPathProperty(
+            RoadUiContext ctx,
             RoadNetwork network,
             Road road,
             RoadSystemConfig config,
@@ -149,6 +154,10 @@ public final class VerticalAlignmentEditor {
         }
         double roadLength = RoadStationing.canonicalLength(network, road);
         renderVerticalStrategy(network, road, roadLength, config, onHistory, switchDialog, terrainSupplier);
+        if (RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT) {
+            flatElevationRecommendationUi.renderPathControls(
+                ctx, network, road, onHistory, terrainSupplier);
+        }
     }
 
     private void renderVerticalStrategy(
@@ -206,16 +215,20 @@ public final class VerticalAlignmentEditor {
     }
 
     private void renderFlatGenerateSection(
+            RoadUiContext ctx,
             RoadNetwork network,
             Road road,
             double roadLength,
             RoadSystemConfig config,
-            Runnable onHistory) {
+            Runnable onHistory,
+            Supplier<TerrainSampler> terrainSupplier) {
         FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, road);
         if (intent != null) {
             flatElevation = (float) intent.getBaseElevation();
         }
         renderFlatElevationField(network, road, config, onHistory);
+        flatElevationRecommendationUi.renderGenerateControls(
+            ctx, network, road, onHistory, terrainSupplier);
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.vertical_strategy_flat_generate_hint"));
@@ -494,6 +507,14 @@ public final class VerticalAlignmentEditor {
             }
         }
         return true;
+    }
+
+    /** Flat-road profile chart reference lines (current vs optimizer suggestion). */
+    public FlatElevationProfileOverlay flatElevationProfileOverlay(RoadNetwork network, Road road) {
+        if (road == null) {
+            return FlatElevationProfileOverlay.EMPTY;
+        }
+        return flatElevationRecommendationUi.profileOverlay(network, road);
     }
 
     static final class PviDraft {

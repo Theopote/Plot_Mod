@@ -65,6 +65,7 @@ final class RoadPathVerticalPropertyPanel {
         ImGui.text(RoadEdgeListHelper.formatRoadLabel(network, road));
         ImGui.spacing();
         verticalAlignmentEditor.renderPathProperty(
+            ctx,
             network,
             road,
             ctx.networkManager().getConfig(),

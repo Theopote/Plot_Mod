@@ -169,7 +169,13 @@ public final class FlatVerticalIntentSupport {
                 }
             }
         }
-        if (terrain != null && network != null && RoadStationing.isStationable(network, road)) {
+        if (terrain != null && network != null && config != null
+                && RoadStationing.isStationable(network, road)) {
+            FlatElevationRecommendation optimized =
+                recommendOptimizedElevation(network, road, terrain, config);
+            if (optimized.hasRecommendation()) {
+                return optimized.best().elevation();
+            }
             RoadUniformElevationUtils.FlatRoadRecommendation recommendation =
                 RoadUniformElevationUtils.recommendMedianForRoad(network, road, terrain, config);
             if (recommendation.sampleCount() > 0) {
@@ -186,6 +192,15 @@ public final class FlatVerticalIntentSupport {
             }
         }
         return 64.0;
+    }
+
+    /** Derived flat baseline analysis; not persisted until the user adopts a candidate. */
+    public static FlatElevationRecommendation recommendOptimizedElevation(
+            RoadNetwork network,
+            Road road,
+            TerrainSampler terrain,
+            RoadSystemConfig config) {
+        return FlatElevationOptimizer.evaluate(network, road, terrain, config);
     }
 
     static Double medianSampledProfileElevation(RoadVerticalAlignment alignment, double roadLength) {
