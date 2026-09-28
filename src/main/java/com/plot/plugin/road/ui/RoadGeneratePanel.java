@@ -128,14 +128,16 @@ public final class RoadGeneratePanel {
 
         ImGui.sameLine();
         boolean hasPreview = ctx.previewManager().hasValidPreview();
-        if (!hasPreview || ctx.previewManager().isPreviewJobRunning()) {
+        boolean previewBusy = ctx.previewManager().isPreviewJobRunning();
+        boolean clearPreviewDisabled = !hasPreview || previewBusy;
+        if (clearPreviewDisabled) {
             ImGui.beginDisabled();
         }
         if (ImGui.button(PlotI18n.tr("plugin.road.clear_preview"), half, 0)) {
             ctx.previewManager().clearPreview();
             profileEdgeId = "";
         }
-        if (!hasPreview) {
+        if (clearPreviewDisabled) {
             ImGui.endDisabled();
         }
 
