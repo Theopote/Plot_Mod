@@ -74,6 +74,10 @@ public final class RoadValidationMessageUi {
             renderFlatJunctionConflictActions(ctx, network, suffix);
             return;
         }
+        if ("flat_flat_at_grade_mismatch".equals(issueId) && ctx != null) {
+            FlatFlatJunctionConflictUi.render(ctx, network, suffix);
+            return;
+        }
         if (message.hasAction() && ctx != null) {
             ImGui.indent();
             String actionLabel = PlotI18n.tr(message.actionKey());

@@ -93,13 +93,10 @@ public final class VerticalProfileNetworkPropagator {
             passes++;
             if (node == null || node.getManualElevation() == null || node.isGradeSeparated()) continue;
 
-            List<FlatRoadJunctionConflictResolver.Conflict> flatConflicts =
-                FlatRoadJunctionConflictResolver.find(network);
             for (String roadId : network.getDistinctRoadIdsAtNode(nodeId)) {
                 if (!visitedRoadIds.add(roadId)) continue;
                 Road road = network.getRoad(roadId);
-                RoadResult result = resolveRoad(
-                    network, road, node, maxGradeResolver, flatConflicts);
+                RoadResult result = resolveRoad(network, road, node, maxGradeResolver);
                 if (result == null) continue;
                 results.add(result);
                 if (road.getVerticalMode() == RoadVerticalMode.MANUAL_PROFILE) {
@@ -107,6 +104,14 @@ public final class VerticalProfileNetworkPropagator {
                             .publishJunctionElevations(network, road)) {
                         if (!changedNodeId.equals(nodeId)) {
                             enqueue(queue, queuedNodeIds, changedNodeId);
+                        }
+                    }
+                } else if (road.getVerticalMode() == RoadVerticalMode.FLAT && result.changed()) {
+                    for (String connectedNodeId
+                            : VerticalAlignmentJunctionSynchronizer.junctionStations(network, road)
+                                .keySet()) {
+                        if (!connectedNodeId.equals(nodeId)) {
+                            enqueue(queue, queuedNodeIds, connectedNodeId);
                         }
                     }
                 }
@@ -119,8 +124,7 @@ public final class VerticalProfileNetworkPropagator {
             RoadNetwork network,
             Road road,
             RoadNode changedNode,
-            ToDoubleFunction<Road> maxGradeResolver,
-            List<FlatRoadJunctionConflictResolver.Conflict> flatConflicts) {
+            ToDoubleFunction<Road> maxGradeResolver) {
         if (road == null) return null;
         RoadVerticalMode mode = road.getVerticalMode();
         if (mode == RoadVerticalMode.AUTO_SMOOTH || mode == RoadVerticalMode.FIT_TERRAIN) {
@@ -133,8 +137,8 @@ public final class VerticalProfileNetworkPropagator {
                 changedNode.getId(),
                 changedNode.getManualElevation(),
                 maxGradeResolver.applyAsDouble(road));
-            boolean conflict = flatConflicts.stream().anyMatch(item ->
-                item.roadId().equals(road.getId()) && item.nodeId().equals(changedNode.getId()));
+            boolean conflict = FlatRoadJunctionConflictResolver.hasConflictAt(
+                network, road.getId(), changedNode.getId());
             return new RoadResult(
                 road.getId(), changedNode.getId(), mode, true, false, !conflict);
         }

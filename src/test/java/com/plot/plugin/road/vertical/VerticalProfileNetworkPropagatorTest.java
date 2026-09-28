@@ -75,7 +75,8 @@ class VerticalProfileNetworkPropagatorTest {
         terrain.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
         Road flat = roadFromJunction(network, junction, "flat", new Vec2d(0, -100));
         flat.setVerticalMode(RoadVerticalMode.FLAT);
-        flat.setVerticalAlignment(VerticalProfileDesignRules.flatAlignment(100, 70));
+        flat.setFlatVerticalIntent(new FlatVerticalIntent(70.0));
+        FlatVerticalIntentSupport.syncCompiledAlignment(network, flat, 8.0);
 
         VerticalProfileNetworkPropagator.Result result =
             VerticalProfileNetworkPropagator.propagate(network, source, ignored -> 8.0);
@@ -88,14 +89,18 @@ class VerticalProfileNetworkPropagatorTest {
             item.roadId().equals(terrain.getId()) && item.regenerationRequired()
                 && item.fullyResolved()));
         assertTrue(result.roads().stream().anyMatch(item ->
-            item.roadId().equals(flat.getId()) && !item.changed()
-                && !item.fullyResolved()));
-        assertTrue(RoadNetworkEngineeringValidator.analyzePreGeneration(network).blocksBuild());
-
-        assertEquals(1, FlatRoadJunctionConflictResolver.allowConflictingRoadsToSlope(network));
-        assertEquals(RoadVerticalMode.MANUAL_PROFILE, flat.getVerticalMode());
-        assertTrue(flat.getVerticalAlignment().getPvis().stream()
-            .anyMatch(pvi -> Math.abs(pvi.getElevation() - 76) < 1e-6));
+            item.roadId().equals(flat.getId()) && item.changed()));
+        assertEquals(RoadVerticalMode.FLAT, flat.getVerticalMode());
+        FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, flat);
+        assertEquals(76.0, intent.getIntersectionOverride(junction.getId()), 1e-6);
+        double flatJunctionStation = VerticalAlignmentJunctionSynchronizer
+            .junctionStations(network, flat).get(junction.getId());
+        assertEquals(
+            76.0,
+            VerticalAlignmentGeometry.elevationAt(
+                flat.getVerticalAlignment(), flatJunctionStation).orElse(Double.NaN),
+            1e-3);
+        assertTrue(FlatRoadJunctionConflictResolver.find(network).isEmpty());
         assertFalse(RoadNetworkEngineeringValidator.analyzePreGeneration(network).blocksBuild());
     }
 

@@ -11,6 +11,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 
 /** Compiles {@link FlatVerticalIntent} into an evaluable {@link RoadVerticalAlignment}. */
 public final class FlatProfileCompiler {
@@ -36,7 +37,7 @@ public final class FlatProfileCompiler {
         }
 
         double base = intent.getBaseElevation();
-        Map<String, Double> junctionStations = collectJunctionStations(network, road);
+        Map<String, Double> junctionStations = collectJunctionStations(network, road, intent);
         List<JunctionConstraint> constraints = new ArrayList<>();
         for (Map.Entry<String, Double> entry : junctionStations.entrySet()) {
             double elevation = resolveJunctionElevation(entry.getKey(), base, intent, network);
@@ -52,6 +53,7 @@ public final class FlatProfileCompiler {
         for (JunctionConstraint constraint : constraints) {
             if (constraint.station() <= cursor + EPSILON) {
                 mergeOrReplace(pvis, constraint.station(), constraint.elevation(), true);
+                cursor = Math.max(cursor, constraint.station());
                 continue;
             }
             if (Math.abs(constraint.elevation() - base) <= EPSILON) {
@@ -59,15 +61,18 @@ public final class FlatProfileCompiler {
                 cursor = constraint.station();
                 continue;
             }
+            boolean atEnd = Math.abs(constraint.station() - roadLength) <= EPSILON;
             double runBefore = constraint.station() - cursor;
-            double runAfter = roadLength - constraint.station();
+            double runAfter = atEnd ? 0.0 : roadLength - constraint.station();
             double required = VerticalProfileDesignRules.requiredRunLength(
                 Math.abs(constraint.elevation() - base), maxGradePercent);
-            double transitionIn = cappedTransitionLength(runBefore, runAfter, required);
-            double transitionOut = cappedTransitionLength(runAfter, runBefore, required);
+            double transitionIn = cappedTransitionLength(
+                runBefore, Math.max(runAfter, runBefore), required);
+            double transitionOut = atEnd
+                ? 0.0
+                : cappedTransitionLength(runAfter, runBefore, required);
 
             double rampStart = constraint.station() - transitionIn;
-            double rampEnd = constraint.station() + transitionOut;
             if (rampStart > cursor + EPSILON) {
                 appendFlatSegment(pvis, cursor, rampStart, base);
             }
@@ -76,6 +81,11 @@ public final class FlatProfileCompiler {
                 constraint.station(),
                 constraint.elevation(),
                 true);
+            if (atEnd) {
+                cursor = roadLength;
+                continue;
+            }
+            double rampEnd = constraint.station() + transitionOut;
             if (rampEnd < roadLength - EPSILON) {
                 appendFlatSegment(pvis, constraint.station(), rampEnd, base);
                 cursor = rampEnd;
@@ -94,14 +104,32 @@ public final class FlatProfileCompiler {
         return new RoadVerticalAlignment(simplify(pvis));
     }
 
-    private static Map<String, Double> collectJunctionStations(RoadNetwork network, Road road) {
+    private static Map<String, Double> collectJunctionStations(
+            RoadNetwork network,
+            Road road,
+            FlatVerticalIntent intent) {
         Map<String, Double> stations = new LinkedHashMap<>(
             VerticalAlignmentJunctionSynchronizer.junctionStations(network, road));
         for (OrientedRoadSegment segment : RoadStationing.orientedSegments(network, road)) {
             addGradeSeparatedStation(network, stations, segment.entryNodeId(), segment.startStation());
             addGradeSeparatedStation(network, stations, segment.exitNodeId(), segment.endStation());
         }
+        if (intent != null) {
+            for (String nodeId : intent.getIntersectionOverrides().keySet()) {
+                stationAtNode(network, road, nodeId).ifPresent(station -> stations.putIfAbsent(nodeId, station));
+            }
+        }
         return stations;
+    }
+
+    private static OptionalDouble stationAtNode(RoadNetwork network, Road road, String nodeId) {
+        for (OrientedRoadSegment segment : RoadStationing.orientedSegments(network, road)) {
+            OptionalDouble station = segment.roadStationAtNode(nodeId);
+            if (station.isPresent()) {
+                return station;
+            }
+        }
+        return OptionalDouble.empty();
     }
 
     private static void addGradeSeparatedStation(

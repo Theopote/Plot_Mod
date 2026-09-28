@@ -160,6 +160,10 @@ public final class RoadValidationMessageCatalog {
             IssueTemplate.error("short_road_non_flat", RoadValidationAction.MAKE_SHORT_ROADS_FLAT));
         map.put("plugin.road.validation.flat_junction_conflict",
             IssueTemplate.error("flat_junction_conflict", null));
+        map.put("plugin.road.validation.flat_flat_at_grade_mismatch",
+            IssueTemplate.error("flat_flat_at_grade_mismatch", null));
+        map.put("plugin.road.validation.flat_transition_insufficient",
+            IssueTemplate.warning("flat_transition_insufficient"));
         map.put("plugin.road.validation.vertical_alignment_curve_ok",
             IssueTemplate.ok("vertical_curve_ok"));
         map.put("plugin.road.validation.vertical_alignment_curve_overlap",

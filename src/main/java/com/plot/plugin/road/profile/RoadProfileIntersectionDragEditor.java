@@ -7,6 +7,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.vertical.FlatRoadJunctionConflictResolver;
 import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
@@ -69,9 +70,21 @@ public final class RoadProfileIntersectionDragEditor {
                 network, otherRoad, intersection.nodeId(), elevation, config);
         }
         node.setManualElevation(elevation);
-        syncAtGradeJunction(network, otherRoad, intersection.nodeId(), elevation, config);
-        syncAtGradeJunction(network, currentRoad, intersection.nodeId(), elevation, config);
-        return true;
+        boolean changed = false;
+        if (otherRoad.getVerticalMode() == RoadVerticalMode.FLAT
+                || currentRoad.getVerticalMode() == RoadVerticalMode.FLAT) {
+            changed |= FlatRoadJunctionConflictResolver.applySharedElevationAtJunction(
+                network, intersection.nodeId(), elevation) > 0;
+        }
+        if (otherRoad.getVerticalMode() != RoadVerticalMode.FLAT) {
+            changed |= syncAtGradeJunction(
+                network, otherRoad, intersection.nodeId(), elevation, config);
+        }
+        if (currentRoad.getVerticalMode() != RoadVerticalMode.FLAT) {
+            changed |= syncAtGradeJunction(
+                network, currentRoad, intersection.nodeId(), elevation, config);
+        }
+        return changed;
     }
 
     private static boolean applyCurrentRoadElevation(
@@ -87,6 +100,10 @@ public final class RoadProfileIntersectionDragEditor {
         if (intersection.gradeSeparated()) {
             return applyRoadElevationAtJunction(
                 network, currentRoad, intersection.nodeId(), elevation, config);
+        }
+        if (currentRoad.getVerticalMode() == RoadVerticalMode.FLAT) {
+            return FlatRoadJunctionConflictResolver.applySharedElevationAtJunction(
+                network, intersection.nodeId(), elevation) > 0;
         }
         node.setManualElevation(elevation);
         return syncAtGradeJunction(network, currentRoad, intersection.nodeId(), elevation, config);

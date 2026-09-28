@@ -57,6 +57,7 @@ public final class RoadNetworkEngineeringValidator {
         if (network != null && !network.getEdges().isEmpty()) {
             addShortRoadVerticalAlignmentBlocker(items, network);
             addFlatRoadJunctionConflictBlocker(items, network);
+            addFlatFlatAtGradeMismatchBlocker(items, network);
             addIntersectionIncompleteBlocker(items, network);
             addHorizontalAlignmentPreflightBlockers(items, network);
         }
@@ -379,6 +380,8 @@ public final class RoadNetworkEngineeringValidator {
         }
         addShortRoadVerticalAlignmentBlocker(items, network);
         addFlatRoadJunctionConflictBlocker(items, network);
+        addFlatFlatAtGradeMismatchBlocker(items, network);
+        addFlatTransitionWarnings(items, network);
         int lengthMismatchCount = countVerticalAlignmentLengthMismatches(network);
         if (lengthMismatchCount == 0) {
             items.add(RoadNetworkValidationReport.Item.ok(
@@ -417,6 +420,26 @@ public final class RoadNetworkEngineeringValidator {
         if (count > 0) {
             items.add(RoadNetworkValidationReport.Item.error(
                 "plugin.road.validation.flat_junction_conflict", count));
+        }
+    }
+
+    private static void addFlatFlatAtGradeMismatchBlocker(
+            List<RoadNetworkValidationReport.Item> items,
+            RoadNetwork network) {
+        int count = FlatRoadJunctionConflictResolver.findFlatFlatConflicts(network).size();
+        if (count > 0) {
+            items.add(RoadNetworkValidationReport.Item.error(
+                "plugin.road.validation.flat_flat_at_grade_mismatch", count));
+        }
+    }
+
+    private static void addFlatTransitionWarnings(
+            List<RoadNetworkValidationReport.Item> items,
+            RoadNetwork network) {
+        int count = FlatRoadJunctionConflictResolver.findTransitionIssues(network).size();
+        if (count > 0) {
+            items.add(RoadNetworkValidationReport.Item.warning(
+                "plugin.road.validation.flat_transition_insufficient", count));
         }
     }
 

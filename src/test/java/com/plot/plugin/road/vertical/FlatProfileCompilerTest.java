@@ -30,7 +30,7 @@ class FlatProfileCompilerTest {
     @Test
     void junctionOverrideCreatesBumpAndReturnsToBase() {
         RoadNetwork network = roadWithJunction(100.0, 50.0);
-        Road road = network.getRoads().values().iterator().next();
+        Road road = network.getRoad("main");
         RoadNode center = network.getNodes().values().stream()
             .filter(RoadNode::isJunction)
             .findFirst()
@@ -39,11 +39,15 @@ class FlatProfileCompilerTest {
         intent.setIntersectionOverride(center.getId(), 73.0);
 
         RoadVerticalAlignment alignment = FlatProfileCompiler.compile(network, road, intent, 8.0);
+        double junctionStation = VerticalAlignmentJunctionSynchronizer
+            .junctionStations(network, road).get(center.getId());
         assertTrue(alignment.pviCount() >= 3);
-        double junctionElevation = VerticalAlignmentGeometry.elevationAt(alignment, 50.0).orElse(Double.NaN);
+        double junctionElevation = VerticalAlignmentGeometry.elevationAt(
+            alignment, junctionStation).orElse(Double.NaN);
         assertEquals(73.0, junctionElevation, 1e-3);
         assertEquals(70.0, VerticalAlignmentGeometry.elevationAt(alignment, 0.0).orElse(Double.NaN), 1e-3);
-        assertEquals(70.0, VerticalAlignmentGeometry.elevationAt(alignment, 100.0).orElse(Double.NaN), 1e-3);
+        assertEquals(70.0, VerticalAlignmentGeometry.elevationAt(alignment, roadLength(network, road))
+            .orElse(Double.NaN), 1e-3);
     }
 
     @Test
@@ -59,6 +63,10 @@ class FlatProfileCompilerTest {
         FlatVerticalIntentSupport.setBaseElevation(network, road, 72.0, 8.0);
         assertEquals(72.0, road.getVerticalAlignment().getPvis().getFirst().getElevation(), 1e-6);
         assertEquals(72.0, road.getVerticalAlignment().getPvis().getLast().getElevation(), 1e-6);
+    }
+
+    private static double roadLength(RoadNetwork network, Road road) {
+        return com.plot.plugin.road.station.RoadStationing.canonicalLength(network, road);
     }
 
     private static RoadNetwork straightRoad(double length) {
