@@ -113,6 +113,11 @@ public final class RoadGeneratorProfileContext implements ProfileEdgeContext {
     return config.getDefaultCrossingClearance();
   }
 
+  @Override
+  public RoadSystemConfig roadConfig() {
+    return config;
+  }
+
   @FunctionalInterface
   public interface CanvasUnitsPerBlockEstimator {
     double estimate(List<Vec2d> pathPoints, List<PathSegment> segments);

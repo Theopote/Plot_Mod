@@ -44,6 +44,11 @@ class GradeSeparationPolicyTest {
         public double defaultCrossingClearance() {
             return 5.0;
         }
+
+        @Override
+        public com.plot.plugin.config.RoadSystemConfig roadConfig() {
+            return null;
+        }
     };
 
     @Test

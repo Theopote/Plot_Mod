@@ -11,7 +11,7 @@ import net.minecraft.world.World;
 import java.util.Objects;
 
 /**
- * 缓存 {@link RoadGenerator#resolveElevatedRoadId} 的 UI 推荐结果，避免 ImGui 每帧重复采样地形。
+ * 缓存立交方案评估结果，避免 ImGui 每帧重复采样地形。
  */
 public final class AutoGradeSeparationRecommendationCache {
     private record CacheKey(long networkRevision, String nodeId, long configVersion, long worldVersion) {
@@ -31,7 +31,7 @@ public final class AutoGradeSeparationRecommendationCache {
         if (node == null || network == null || config == null || host == null) {
             return AutoGradeSeparationRecommendation.none();
         }
-        if (!node.isGradeSeparated() || node.getElevatedRoadId() != null) {
+        if (!node.isGradeSeparated()) {
             return AutoGradeSeparationRecommendation.none();
         }
 
@@ -63,10 +63,13 @@ public final class AutoGradeSeparationRecommendationCache {
         RoadGenerator generator = new RoadGenerator(
             config, host.coordinates(), host.projection());
         TerrainSampler terrain = resolveTerrainSampler(generator);
-        String elevatedRoadId = generator.resolveElevatedRoadId(node, network, terrain);
-        return elevatedRoadId != null
-            ? new AutoGradeSeparationRecommendation(elevatedRoadId)
-            : AutoGradeSeparationRecommendation.none();
+        RoadGradeSeparationEvaluation evaluation = RoadGradeSeparationEvaluator.evaluate(
+            node,
+            network,
+            config,
+            terrain,
+            generator.naturalRoadHeightAtNode());
+        return AutoGradeSeparationRecommendation.fromEvaluation(evaluation, node);
     }
 
     private static TerrainSampler resolveTerrainSampler(RoadGenerator generator) {

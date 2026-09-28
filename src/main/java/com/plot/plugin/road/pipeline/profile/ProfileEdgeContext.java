@@ -1,6 +1,7 @@
 package com.plot.plugin.road.pipeline.profile;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -28,4 +29,6 @@ public interface ProfileEdgeContext {
     int groundHeightAtNode(TerrainSampler terrain, RoadNode node, RoadNetwork network);
 
     double defaultCrossingClearance();
+
+    RoadSystemConfig roadConfig();
 }

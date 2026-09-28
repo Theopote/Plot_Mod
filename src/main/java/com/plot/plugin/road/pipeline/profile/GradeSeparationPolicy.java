@@ -1,5 +1,7 @@
 package com.plot.plugin.road.pipeline.profile;
 
+import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadGradeSeparationEvaluator;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -33,6 +35,12 @@ public final class GradeSeparationPolicy {
         }
         if (node.getElevatedRoadId() != null && !node.getElevatedRoadId().isBlank()) {
             return node.getElevatedRoadId();
+        }
+
+        RoadSystemConfig config = context.roadConfig();
+        if (config != null) {
+            return RoadGradeSeparationEvaluator.recommendElevatedRoadId(
+                node, network, config, terrain, naturalRoadHeight);
         }
 
         List<String> roadIds = new ArrayList<>(network.getDistinctRoadIdsAtNode(node.getId()));

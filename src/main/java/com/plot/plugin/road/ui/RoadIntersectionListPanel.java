@@ -71,7 +71,11 @@ public final class RoadIntersectionListPanel {
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.junction_topology_type", RoadNetworkManager.junctionTypeLabel(type)));
 
-        if (RoadGraphQueries.isSimpleCrossing(node, network)) {
+        if (node.getId().equals(ctx.networkManager().getSelectedNodeId())) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.path.intersection_editing_above"));
+        } else if (RoadGraphQueries.isSimpleCrossing(node, network)) {
             nodePropertyPanel.renderGradeSeparationForNode(node);
         } else if (node.isGradeSeparated()) {
             RoadUiWidgets.textWrappedColored(

@@ -1,6 +1,8 @@
 package com.plot.plugin.road.ui;
 
+import com.plot.plugin.road.graph.RoadGraphQueries;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadNode;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
@@ -13,6 +15,7 @@ public final class RoadPathPanel {
     private final RoadAdoptPanel adoptPanel;
     private final RoadEdgeListPanel edgeListPanel;
     private final RoadOverviewPanel overviewPanel;
+    private final RoadIntersectionDetailPanel intersectionDetailPanel;
     private final RoadIntersectionListPanel intersectionListPanel;
 
     public RoadPathPanel(
@@ -20,11 +23,13 @@ public final class RoadPathPanel {
             RoadAdoptPanel adoptPanel,
             RoadEdgeListPanel edgeListPanel,
             RoadOverviewPanel overviewPanel,
+            RoadIntersectionDetailPanel intersectionDetailPanel,
             RoadIntersectionListPanel intersectionListPanel) {
         this.ctx = ctx;
         this.adoptPanel = adoptPanel;
         this.edgeListPanel = edgeListPanel;
         this.overviewPanel = overviewPanel;
+        this.intersectionDetailPanel = intersectionDetailPanel;
         this.intersectionListPanel = intersectionListPanel;
     }
 
@@ -34,14 +39,36 @@ public final class RoadPathPanel {
         ImGui.separator();
         renderRoadList();
 
-        if (!ctx.networkManager().getNetwork().getEdges().isEmpty()) {
+        RoadNetwork network = ctx.networkManager().getNetwork();
+        if (!network.getEdges().isEmpty()) {
             ImGui.separator();
             RoadUiSections.section("plugin.road.path.intersections");
+            renderSelectedIntersection(network);
             intersectionListPanel.render();
         }
 
         ImGui.separator();
         renderAdvancedPathManagement();
+    }
+
+    private void renderSelectedIntersection(RoadNetwork network) {
+        String selectedNodeId = ctx.networkManager().getSelectedNodeId();
+        if (selectedNodeId == null || selectedNodeId.isBlank()) {
+            RoadUiWidgets.textWrappedColored(
+                com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.path.intersection_select_hint"));
+            ImGui.spacing();
+            return;
+        }
+        RoadNode node = network.getNode(selectedNodeId);
+        if (node == null || node.getDegree() < 2) {
+            return;
+        }
+        if (!node.isJunction() && !RoadGraphQueries.isSimpleCrossing(node, network)) {
+            return;
+        }
+        intersectionDetailPanel.render(network, node);
+        ImGui.spacing();
     }
 
     private void renderRoadList() {

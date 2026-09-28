@@ -150,12 +150,23 @@ public class RoadGenerator {
         return nodeTargetHeightResolver.targetHeightAtNode(edge, node, network, terrain);
     }
 
+    public GradeSeparationPolicy.NaturalRoadHeightAtNode naturalRoadHeightAtNode() {
+        return nodeTargetHeightResolver.naturalRoadHeightAtNode();
+    }
+
     public String resolveElevatedRoadId(RoadNode node, RoadNetwork network, TerrainSampler terrain) {
-        return gradeSeparationPolicy.resolveElevatedRoadId(
+        if (node == null || network == null || !node.isGradeSeparated()) {
+            return null;
+        }
+        if (node.getElevatedRoadId() != null && !node.getElevatedRoadId().isBlank()) {
+            return node.getElevatedRoadId();
+        }
+        return RoadGradeSeparationEvaluator.recommendElevatedRoadId(
             node,
             network,
+            pipelineHost.config(),
             terrain,
-            nodeTargetHeightResolver.naturalRoadHeightAtNode());
+            naturalRoadHeightAtNode());
     }
 
     int getTargetHeightAtNodeIgnoringGradeSeparation(
