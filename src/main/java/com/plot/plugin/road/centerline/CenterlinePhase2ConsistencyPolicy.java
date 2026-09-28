@@ -9,6 +9,10 @@ import com.plot.plugin.road.station.CenterlineEditStationPolicy;
 import com.plot.plugin.road.station.RoadStationDataTransforms.SegmentGeometrySnapshot;
 import com.plot.plugin.road.station.RoadStationMirroring;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 /**
  * 中心线编辑 → Phase 2 工程数据一致性规则（统一入口）。
  * <p>
@@ -22,6 +26,7 @@ import com.plot.plugin.road.station.RoadStationMirroring;
  *   <tr><td>Fillet</td><td>{@link CenterlineEditStationPolicy#REPARAMETERIZE_STATION}</td><td>refit / clear</td></tr>
  *   <tr><td>Split edge</td><td>{@link CenterlineEditStationPolicy#PRESERVE_STATION}</td><td>refit / clear</td></tr>
  *   <tr><td>Merge edge</td><td>{@link CenterlineEditStationPolicy#PRESERVE_STATION}</td><td>refit / clear</td></tr>
+ *   <tr><td>Merge junction node</td><td>{@link CenterlineEditStationPolicy#REPARAMETERIZE_STATION}</td><td>refit / clear</td></tr>
  *   <tr><td>Split road</td><td>{@link CenterlineEditStationPolicy#PARTITION_AND_RESET_TAIL}</td><td>clear + refit</td></tr>
  *   <tr><td>Merge road</td><td>{@link CenterlineEditStationPolicy#OFFSET_BY_HEAD_LENGTH}</td><td>clear + refit</td></tr>
  *   <tr><td>Reverse edge</td><td>{@link CenterlineEditStationPolicy#PRESERVE_STATION}</td><td>refit / clear</td></tr>
@@ -75,6 +80,39 @@ public final class CenterlinePhase2ConsistencyPolicy {
         if (road != null) {
             syncHorizontalAlignment(network, road);
         }
+    }
+
+    /**
+     * 邻近交叉点合并：对每条重连边按段长变化重映射沿桩号工程数据，并同步 HA。
+     */
+    public static void afterJunctionNodeMerge(
+            RoadNetwork network,
+            List<JunctionMergeEdgeEdit> edits) {
+        if (network == null || edits == null || edits.isEmpty()) {
+            return;
+        }
+        Set<String> syncedRoads = new HashSet<>();
+        for (JunctionMergeEdgeEdit edit : edits) {
+            if (edit == null || edit.edgeId() == null) {
+                continue;
+            }
+            Road road = roadForEdge(network, edit.edgeId());
+            if (edit.before() != null) {
+                afterSegmentGeometryEdit(
+                    network,
+                    CenterlineEditOperation.MERGE_JUNCTION_NODE,
+                    edit.edgeId(),
+                    edit.before());
+                if (road != null) {
+                    syncedRoads.add(road.getId());
+                }
+            } else if (road != null && syncedRoads.add(road.getId())) {
+                syncHorizontalAlignment(network, road);
+            }
+        }
+    }
+
+    public record JunctionMergeEdgeEdit(String edgeId, SegmentGeometrySnapshot before) {
     }
 
     /**

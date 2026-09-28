@@ -28,6 +28,10 @@ class CenterlineEditStationPolicyTest {
             CenterlineEditOperation.SPLIT_EDGE.defaultStationPolicy());
         assertEquals(CenterlineEditStationPolicy.PRESERVE_STATION,
             CenterlineEditOperation.MERGE_EDGE.defaultStationPolicy());
+        assertEquals(CenterlineEditStationPolicy.REPARAMETERIZE_STATION,
+            CenterlineEditOperation.MERGE_JUNCTION_NODE.defaultStationPolicy());
+        assertEquals(CenterlineEditStationPolicy.REPARAMETERIZE_STATION,
+            CenterlineEditOperation.MERGE_JUNCTION_NODE.resolveStationPolicy(8.0, 10.0));
         assertEquals(CenterlineEditStationPolicy.PARTITION_AND_RESET_TAIL,
             CenterlineEditOperation.SPLIT_ROAD.defaultStationPolicy());
         assertEquals(CenterlineEditStationPolicy.OFFSET_BY_HEAD_LENGTH,

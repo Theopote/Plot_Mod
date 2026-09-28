@@ -3,8 +3,9 @@ package com.plot.plugin.road.graph;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadNetworkBuilder;
-import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.centerline.CenterlinePhase2ConsistencyPolicy;
 import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.station.RoadStationDataTransforms.SegmentGeometrySnapshot;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 
@@ -160,12 +161,11 @@ public final class RoadGraphEdits {
         }
 
         Vec2d point = splitPoint != null ? splitPoint : splitNode.getPosition();
-        double effectiveTolerance = tolerance;
 
         List<List<Vec2d>> parts = RoadGeometryUtils.splitPolylineAt(
             edge.getCenterlinePoints(),
             point,
-            effectiveTolerance
+                tolerance
         );
         if (parts.size() != 2) {
             return Optional.empty();
@@ -380,13 +380,18 @@ public final class RoadGraphEdits {
             }
         }
 
+        List<CenterlinePhase2ConsistencyPolicy.JunctionMergeEdgeEdit> relinks = new ArrayList<>();
         boolean changed = false;
         for (String edgeId : List.copyOf(absorbed.getConnectedEdgeIds())) {
             RoadEdge edge = network.getEdge(edgeId);
             if (edge == null) {
                 continue;
             }
-            changed |= relinkEdgeEndpoint(edge, absorbedId, survivorId);
+            SegmentGeometrySnapshot before = SegmentGeometrySnapshot.capture(network, edgeId);
+            if (relinkEdgeEndpoint(edge, absorbedId, survivorId)) {
+                changed = true;
+                relinks.add(new CenterlinePhase2ConsistencyPolicy.JunctionMergeEdgeEdit(edgeId, before));
+            }
         }
         if (!changed) {
             return Optional.empty();
@@ -394,6 +399,7 @@ public final class RoadGraphEdits {
         if (absorbed.getDegree() == 0) {
             network.removeNode(absorbedId);
         }
+        CenterlinePhase2ConsistencyPolicy.afterJunctionNodeMerge(network, relinks);
         return Optional.of(survivorId);
     }
 

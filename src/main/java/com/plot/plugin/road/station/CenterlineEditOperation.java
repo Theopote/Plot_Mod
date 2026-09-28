@@ -20,6 +20,12 @@ public enum CenterlineEditOperation {
     /** 图 merge：总链长不变 → {@link CenterlineEditStationPolicy#PRESERVE_STATION}。 */
     MERGE_EDGE(CenterlineEditStationPolicy.PRESERVE_STATION),
 
+    /**
+     * 邻近交叉点合并：受影响边端点重连且段长通常变化 →
+     * {@link CenterlineEditStationPolicy#REPARAMETERIZE_STATION}（段长不变时退化为 preserve）。
+     */
+    MERGE_JUNCTION_NODE(CenterlineEditStationPolicy.REPARAMETERIZE_STATION),
+
     /** {@code splitRoadBeforeSegment} → {@link CenterlineEditStationPolicy#PARTITION_AND_RESET_TAIL}。 */
     SPLIT_ROAD(CenterlineEditStationPolicy.PARTITION_AND_RESET_TAIL),
 
@@ -46,7 +52,7 @@ public enum CenterlineEditOperation {
      * Insert PI 实际策略随段长是否变化而定。
      */
     public CenterlineEditStationPolicy resolveStationPolicy(double oldSegmentLength, double newSegmentLength) {
-        if (this == INSERT_PI) {
+        if (this == INSERT_PI || this == MERGE_JUNCTION_NODE) {
             return CenterlineEditStationPolicy.forSegmentGeometryEdit(oldSegmentLength, newSegmentLength);
         }
         return defaultStationPolicy;

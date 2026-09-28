@@ -54,9 +54,7 @@ public final class RoadJunctionOverlayController {
         if (type == RoadNetworkBuilder.JunctionType.COMPLEX) {
             return RoadJunctionOverlayKind.COMPLEX;
         }
-        if (node.getDegree() >= 3) {
-            return RoadJunctionOverlayKind.AT_GRADE;
-        }
+        node.getDegree();
         return RoadJunctionOverlayKind.AT_GRADE;
     }
 
