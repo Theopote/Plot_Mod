@@ -121,7 +121,8 @@ public final class RoadProfileIntersectionResolver {
                 otherSection,
                 gradeSeparated,
                 currentElevated,
-                clearance));
+                clearance,
+                false));
         }
     }
 

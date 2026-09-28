@@ -1396,6 +1396,8 @@
   "plugin.road.profile_intersection_click_to_edit": "Click a profile marker to edit the grade relation.",
   "plugin.road.profile_intersection_grade_edit": "Grade relation",
   "plugin.road.profile_intersection_recalculate_hint": "Grade relation updated. Recalculate the road to refresh the profile and preview.",
+  "plugin.road.profile_intersection_marker_grade": "grade-separated crossing",
+  "plugin.road.profile_intersection_marker_warning": "steep grade warning",
   "plugin.road.style.no_roads_hint": "Pick a path on the Route tab to create your first road.",
   "plugin.road.style.advanced_design": "Advanced road design",
   "plugin.road.style.advanced_cross_section": "Cross-section engineering",

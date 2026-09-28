@@ -8,8 +8,15 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.RoadGenerator;
+import com.plot.plugin.road.RoadGradeSeparationEvaluation;
+import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.profile.RoadProfileIntersection;
 import com.plot.plugin.road.profile.RoadProfileIntersectionResolver;
+import com.plot.plugin.road.profile.RoadProfileIntersectionWarningResolver;
+import com.plot.core.terrain.FlatTerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
+import net.minecraft.world.World;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
@@ -26,7 +33,9 @@ import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiTreeNodeFlags;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 编辑 Tab 内联纵断面 / PVI 交互编辑器。
@@ -92,8 +101,8 @@ final class VerticalProfileEditor {
             ? road.getMaxSlope()
             : ctx.networkManager().getConfig().getMaxSlope();
         RoadSystemConfig config = ctx.networkManager().getConfig();
-        List<RoadProfileIntersection> intersections = RoadProfileIntersectionResolver.forEdge(
-            network, road, edge, config, edgeResult);
+        List<RoadProfileIntersection> intersections = resolveIntersections(
+            ctx, network, road, edge, config, edgeResult);
         RoadLongitudinalProfileRenderer.ControlInteraction interaction =
             RoadLongitudinalProfileRenderer.renderInteractive(
                 edgeResult, design, points, selectedProfilePvi, activeProfilePvi, maxGrade,
@@ -133,6 +142,7 @@ final class VerticalProfileEditor {
         if (interaction.selectedIntersectionIndex() >= 0) {
             selectedIntersectionIndex = interaction.selectedIntersectionIndex();
         }
+        renderIntersectionLegend(intersections);
         renderIntersectionDetail(ctx, network, intersections, interaction, config);
         ImGui.text(PlotI18n.tr("plugin.road.vertical_alignment_control_points"));
         for (VerticalProfileControlPoints.ControlPoint point : points) {
@@ -229,6 +239,23 @@ final class VerticalProfileEditor {
         return left + " / " + right;
     }
 
+    private static void renderIntersectionLegend(List<RoadProfileIntersection> intersections) {
+        if (intersections == null || intersections.isEmpty()) {
+            return;
+        }
+        boolean hasGradeSeparated = intersections.stream().anyMatch(RoadProfileIntersection::gradeSeparated);
+        boolean hasWarning = intersections.stream().anyMatch(RoadProfileIntersection::steepGradeWarning);
+        if (!hasGradeSeparated) {
+            return;
+        }
+        ImGui.textColored(0xFFFF9966, "\u25C7 " + PlotI18n.tr("plugin.road.profile_intersection_marker_grade"));
+        if (hasWarning) {
+            ImGui.sameLine();
+            ImGui.textColored(PluginUiColors.WARNING, "\u25C7! " + PlotI18n.tr(
+                "plugin.road.profile_intersection_marker_warning"));
+        }
+    }
+
     private void renderIntersectionDetail(
             RoadUiContext ctx,
             RoadNetwork network,
@@ -267,6 +294,11 @@ final class VerticalProfileEditor {
             ImGui.text(PlotI18n.tr(
                 "plugin.road.profile_intersection_clearance",
                 String.format("%.1f", intersection.clearanceGap())));
+            if (intersection.steepGradeWarning()) {
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.WARNING,
+                    PlotI18n.tr("plugin.road.crossing_warning_steep"));
+            }
         } else if (!editable) {
             ImGui.text(PlotI18n.tr("plugin.road.profile_intersection_at_grade"));
         }
@@ -304,6 +336,42 @@ final class VerticalProfileEditor {
             previewWidth,
             previewHeight);
         ImGui.dummy(previewWidth, previewHeight);
+    }
+
+    private List<RoadProfileIntersection> resolveIntersections(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road,
+            RoadEdge edge,
+            RoadSystemConfig config,
+            RoadGenerationResult edgeResult) {
+        List<RoadProfileIntersection> intersections = RoadProfileIntersectionResolver.forEdge(
+            network, road, edge, config, edgeResult);
+        if (intersections.isEmpty()) {
+            return intersections;
+        }
+        RoadGenerator generator = new RoadGenerator(
+            config, ctx.host().coordinates(), ctx.host().projection());
+        TerrainSampler terrain = resolveTerrainSampler(generator);
+        Map<String, RoadGradeSeparationEvaluation> evaluationCache = new HashMap<>();
+        return RoadProfileIntersectionWarningResolver.withSteepGradeWarnings(
+            intersections,
+            network,
+            nodeId -> evaluationCache.computeIfAbsent(nodeId, id -> {
+                RoadNode node = network.getNode(id);
+                if (node == null || !node.isGradeSeparated()) {
+                    return null;
+                }
+                return generator.evaluateGradeSeparation(node, network, terrain);
+            }));
+    }
+
+    private static TerrainSampler resolveTerrainSampler(RoadGenerator generator) {
+        World world = RoadNetworkGenerator.getClientWorld();
+        if (world != null) {
+            return generator.createTerrainSampler(world);
+        }
+        return new FlatTerrainSampler(TerrainSampler.DEFAULT_SEA_LEVEL);
     }
 
     private void propagateJunctionGrades(RoadUiContext ctx, RoadNetwork network, Road road) {

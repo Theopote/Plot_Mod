@@ -17,7 +17,8 @@ public record RoadProfileIntersection(
         ResolvedCrossSection otherCrossSection,
         boolean gradeSeparated,
         boolean currentRoadElevated,
-        double clearance) {
+        double clearance,
+        boolean steepGradeWarning) {
 
     public double clearanceGap() {
         return Math.abs(currentRoadElevation - otherRoadElevation);

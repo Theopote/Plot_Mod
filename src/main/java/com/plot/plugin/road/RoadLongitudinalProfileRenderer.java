@@ -30,6 +30,7 @@ public final class RoadLongitudinalProfileRenderer {
     private static final int COLOR_INTERSECTION = 0xFF66CCFF;
     private static final int COLOR_INTERSECTION_SELECTED = 0xFFFFFFFF;
     private static final int COLOR_INTERSECTION_GRADE = 0xFFFF9966;
+    private static final int COLOR_INTERSECTION_WARNING = 0xFFFF5252;
     private static final int COLOR_OTHER_ROAD = 0xFFCC99FF;
 
     public record ControlInteraction(
@@ -285,6 +286,9 @@ public final class RoadLongitudinalProfileRenderer {
             int markerColor = intersection.gradeSeparated()
                 ? COLOR_INTERSECTION_GRADE
                 : COLOR_INTERSECTION;
+            if (intersection.steepGradeWarning()) {
+                markerColor = COLOR_INTERSECTION_WARNING;
+            }
             if (i == selectedIndex) {
                 markerColor = COLOR_INTERSECTION_SELECTED;
             }
@@ -296,10 +300,19 @@ public final class RoadLongitudinalProfileRenderer {
                     plotY0,
                     plotHeight);
                 float halfWidth = 10f;
-                drawList.addLine(x - halfWidth, currentY, x + halfWidth, currentY, markerColor, 2.2f);
+                int connectorColor = intersection.steepGradeWarning()
+                    ? COLOR_INTERSECTION_WARNING
+                    : markerColor;
+                drawList.addLine(x - halfWidth, currentY, x + halfWidth, currentY, connectorColor, 2.2f);
                 drawList.addLine(x - halfWidth, otherY, x + halfWidth, otherY, COLOR_OTHER_ROAD, 2.0f);
-                drawList.addLine(x, currentY, x, otherY, markerColor, 1.2f);
-                drawDiamond(drawList, x, currentY, 5f, markerColor);
+                drawList.addLine(x, currentY, x, otherY, connectorColor, 1.2f);
+                int diamondColor = intersection.steepGradeWarning()
+                    ? COLOR_INTERSECTION_WARNING
+                    : markerColor;
+                drawDiamond(drawList, x, currentY, 5f, diamondColor);
+                if (intersection.steepGradeWarning()) {
+                    drawWarningBadge(drawList, x, currentY, diamondColor);
+                }
             } else {
                 drawList.addCircleFilled(x, currentY, 5f, markerColor);
                 drawList.addCircle(x, currentY, 6f, COLOR_BG, 12, 1.5f);
@@ -318,6 +331,11 @@ public final class RoadLongitudinalProfileRenderer {
             cx, cy + radius,
             cx - radius, cy,
             color);
+    }
+
+    private static void drawWarningBadge(ImDrawList drawList, float cx, float cy, int color) {
+        String badge = "!";
+        drawList.addText(cx + 4f, cy - 11f, color, badge);
     }
 
     private static int nearestIntersection(
