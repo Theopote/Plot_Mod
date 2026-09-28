@@ -40,6 +40,7 @@ public final class RoadGeneratePanel {
         }
         profileEdgeId = edgeId;
         profileSectionForceOpen = true;
+        ctx.networkManager().setPrimarySelectedEdge(edgeId);
     }
 
     public void render() {
@@ -51,6 +52,9 @@ public final class RoadGeneratePanel {
         RoadSelectionHeader.render(ctx);
         ImGui.separator();
         renderNetworkBuildScope(network);
+        if (!network.getEdges().isEmpty()) {
+            renderGenerateWorkflowHint();
+        }
         ImGui.separator();
 
         RoadUiSections.section("plugin.road.section.generation_settings");
@@ -60,8 +64,9 @@ public final class RoadGeneratePanel {
 
         renderPreviewActions(network, preflight, buildReadiness);
 
-        if (ctx.previewManager().hasValidPreview()) {
+        if (!network.getEdges().isEmpty()) {
             renderProfileWorkspace(network);
+            renderIntersectionCheckSection(network, preflight);
         }
 
         RoadGenerationResult lastGenerationResult = ctx.previewManager().getLastGenerationResult();
@@ -72,16 +77,61 @@ public final class RoadGeneratePanel {
         }
     }
 
+    private void renderGenerateWorkflowHint() {
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.generate.workflow_hint"));
+    }
+
     private void renderProfileWorkspace(RoadNetwork network) {
         ImGui.separator();
         RoadUiSections.section("plugin.road.generate.profile_section");
+        RoadEdge edge = resolveProfileEdge(network);
+        if (edge != null) {
+            profileEditor.renderInline(ctx, network, edge);
+        }
+    }
+
+    private RoadEdge resolveProfileEdge(RoadNetwork network) {
+        if (profileEdgeId != null && !profileEdgeId.isBlank()) {
+            RoadEdge focused = network.getEdge(profileEdgeId);
+            if (focused != null) {
+                return focused;
+            }
+        }
         String edgeId = ctx.networkManager().getPrimarySelectedEdgeId();
         RoadEdge edge = edgeId != null ? network.getEdge(edgeId) : null;
         if (edge == null && !network.getEdges().isEmpty()) {
             edge = network.getEdge(network.getEdges().keySet().iterator().next());
         }
         if (edge != null) {
-            profileEditor.renderInline(ctx, network, edge);
+            profileEdgeId = edge.getId();
+        }
+        return edge;
+    }
+
+    private void renderIntersectionCheckSection(
+            RoadNetwork network,
+            RoadNetworkValidationReport preflight) {
+        if (network.getJunctionCount() <= 0) {
+            return;
+        }
+        ImGui.separator();
+        RoadUiSections.section("plugin.road.generate.intersection_check");
+        RoadUiWidgets.textWrapped(PlotI18n.tr(
+            "plugin.road.generate.intersection_summary",
+            network.getJunctionCount()));
+        if (preflight.hasIntersectionWork()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.WARNING_LIGHT,
+                PlotI18n.tr("plugin.road.generate.intersection_validation_hint"));
+        } else {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.generate.intersection_ok_hint"));
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.road.generate.edit_intersections"))) {
+            ctx.requestTab(RoadUiTab.PATH);
         }
     }
 
@@ -116,10 +166,19 @@ public final class RoadGeneratePanel {
             RoadNetworkValidationPanel.render(preflight, ctx);
         }
 
+        if (ctx.previewManager().needsPreviewRecalc() && !ctx.previewManager().hasValidPreview()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.WARNING_LIGHT,
+                PlotI18n.tr("plugin.road.preview_stale"));
+        }
+
         if (previewBlocked) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(PlotI18n.tr("plugin.road.calc_preview"), half, 0)) {
+        String calcLabel = ctx.previewManager().needsPreviewRecalc()
+            ? PlotI18n.tr("plugin.road.recalculate_preview")
+            : PlotI18n.tr("plugin.road.calc_preview");
+        if (ImGui.button(calcLabel, half, 0)) {
             ctx.previewManager().startNetworkPreview(network);
         }
         if (previewBlocked) {
@@ -136,6 +195,7 @@ public final class RoadGeneratePanel {
         if (ImGui.button(PlotI18n.tr("plugin.road.clear_preview"), half, 0)) {
             ctx.previewManager().clearPreview();
             profileEdgeId = "";
+            profileEditor.clearCache();
         }
         if (clearPreviewDisabled) {
             ImGui.endDisabled();
@@ -276,12 +336,6 @@ public final class RoadGeneratePanel {
         }
         String primaryId = ctx.networkManager().getPrimarySelectedEdgeId();
         profileEdgeId = edgeIds.contains(primaryId) ? primaryId : edgeIds.getFirst();
-    }
-
-    private void ensureProfileEdgeSelection(RoadNetwork network, List<String> edgeIds) {
-        if (profileEdgeId == null || profileEdgeId.isBlank() || !edgeIds.contains(profileEdgeId)) {
-            syncProfileEdgeSelection(network);
-        }
     }
 
     private void renderProfileEdgeSelector(RoadNetwork network, List<String> edgeIds) {

@@ -38,7 +38,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 编辑 Tab 内联纵断面 / PVI 交互编辑器。
+ * 生成 Tab 内联纵断面 / PVI 交互编辑器。
  */
 final class VerticalProfileEditor {
 
@@ -50,8 +50,23 @@ final class VerticalProfileEditor {
     private final float[] selectedProfileElevation = {64f};
     private String profileAutoFixMessage = "";
     private RoadGradeSeparationControls gradeSeparationControls;
+    private boolean profileRecalcSuggested = false;
+
+    void clearCache() {
+        cachedEditProfile = null;
+        cachedEditProfileEdgeId = "";
+        selectedProfilePvi = -1;
+        activeProfilePvi = -1;
+        selectedIntersectionIndex = -1;
+        profileAutoFixMessage = "";
+        profileRecalcSuggested = false;
+    }
 
     void renderInline(RoadUiContext ctx, RoadNetwork network, RoadEdge edge) {
+        if (!ctx.previewManager().hasValidPreview()
+                && edge.getId().equals(cachedEditProfileEdgeId)) {
+            clearCache();
+        }
         ImGui.spacing();
         if (!ImGui.collapsingHeader(
                 PlotI18n.tr("plugin.road.vertical_alignment_profile_editor"),
@@ -62,7 +77,9 @@ final class VerticalProfileEditor {
         if (edgeResult != null && edgeResult.hasProfileData()) {
             cachedEditProfile = edgeResult;
             cachedEditProfileEdgeId = edge.getId();
-        } else if (edge.getId().equals(cachedEditProfileEdgeId)) {
+            profileRecalcSuggested = false;
+        } else if (edge.getId().equals(cachedEditProfileEdgeId)
+                && ctx.previewManager().hasValidPreview()) {
             edgeResult = cachedEditProfile;
         }
         if (edgeResult == null || !edgeResult.hasProfileData()) {
@@ -71,6 +88,13 @@ final class VerticalProfileEditor {
                 PlotI18n.tr("plugin.road.vertical_alignment_profile_preview_required"));
             if (ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_calculate_profile"))) {
                 ctx.previewManager().startNetworkPreview(network, false);
+            }
+            ImGui.sameLine();
+            String fullPreviewLabel = ctx.previewManager().needsPreviewRecalc()
+                ? PlotI18n.tr("plugin.road.recalculate_preview")
+                : PlotI18n.tr("plugin.road.calc_preview");
+            if (ImGui.button(fullPreviewLabel + "##profile_full_preview")) {
+                ctx.previewManager().startNetworkPreview(network);
             }
             return;
         }
@@ -310,11 +334,17 @@ final class VerticalProfileEditor {
                 }
                 boolean changed = gradeSeparationControls.render(
                     node, network, config, RoadGradeSeparationControls.Layout.PROFILE);
-                if (changed && ctx.previewManager().hasValidPreview()) {
-                    RoadUiWidgets.textWrappedColored(
-                        PluginUiColors.HINT_GRAY,
-                        PlotI18n.tr("plugin.road.profile_intersection_recalculate_hint"));
+                if (changed) {
+                    profileRecalcSuggested = true;
                 }
+            }
+        }
+        if (profileRecalcSuggested && !ctx.previewManager().hasValidPreview()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.profile_intersection_recalculate_hint"));
+            if (ImGui.button(PlotI18n.tr("plugin.road.recalculate_preview") + "##profile_recalc")) {
+                ctx.previewManager().startNetworkPreview(network);
             }
         }
         ImGui.text(PlotI18n.tr(

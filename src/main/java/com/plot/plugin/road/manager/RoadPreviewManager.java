@@ -37,6 +37,7 @@ public final class RoadPreviewManager {
     private Map<String, Integer> lastNodeElevations = Collections.emptyMap();
     private RoadNetworkGenerator.NetworkGenerationResult lastNetworkGenerationResult;
     private long terrainRevision = 0L;
+    private boolean previewNeedsRecalc = false;
     private RoadNetworkPreviewJob previewJob;
 
     public RoadPreviewManager(RoadProjectStatus status, PluginContext host) {
@@ -55,6 +56,11 @@ public final class RoadPreviewManager {
     /** 地形/预览上下文变更计数，供 UI 缓存失效。 */
     public long getTerrainRevision() {
         return terrainRevision;
+    }
+
+    /** 是否曾有过预览且因路网/参数变更而失效，供 UI 切换「重新计算」文案。 */
+    public boolean needsPreviewRecalc() {
+        return previewNeedsRecalc;
     }
 
     private void bumpTerrainRevision() {
@@ -285,6 +291,7 @@ public final class RoadPreviewManager {
             lastGenerationResult.streetlightCount,
             lastGenerationResult.droppedSolidCount);
         applyPreviewReadyStatus();
+        previewNeedsRecalc = false;
         if (autoProjectGhosts) {
             projectRoadPreview();
         }
@@ -355,6 +362,7 @@ public final class RoadPreviewManager {
         lastNetworkGenerationResult = null;
         lastGenerationResult = null;
         previewNetwork = null;
+        previewNeedsRecalc = false;
     }
 
     /**
@@ -378,6 +386,7 @@ public final class RoadPreviewManager {
         previewNetwork = null;
         clearGhostBlocksSafely();
         if (hadPreview) {
+            previewNeedsRecalc = true;
             LOGGER.debug("网络已变更，预览结果与虚影已失效");
             status.info(PlotI18n.tr("plugin.road.preview_invalidated"));
         }
