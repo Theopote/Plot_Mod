@@ -18,10 +18,12 @@ import java.util.List;
 public final class RoadIntersectionDetailPanel {
     private final RoadUiContext ctx;
     private final RoadGradeSeparationControls gradeSeparationControls;
+    private final ComplexJunctionGuidePanel complexJunctionGuide;
 
     public RoadIntersectionDetailPanel(RoadUiContext ctx) {
         this.ctx = ctx;
         this.gradeSeparationControls = new RoadGradeSeparationControls(ctx);
+        this.complexJunctionGuide = new ComplexJunctionGuidePanel(ctx);
     }
 
     public void render(RoadNetwork network, RoadNode node) {
@@ -42,14 +44,13 @@ public final class RoadIntersectionDetailPanel {
                 network,
                 ctx.networkManager().getConfig(),
                 RoadGradeSeparationControls.Layout.BLOCK);
-        } else if (node.isGradeSeparated()) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.WARNING,
-                PlotI18n.tr("plugin.road.path.complex_grade_separation_hint"));
         } else {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.path.complex_intersection_hint"));
+            if (node.isGradeSeparated()) {
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.WARNING,
+                    PlotI18n.tr("plugin.road.path.complex_grade_separation_hint"));
+            }
+            complexJunctionGuide.render(network, node);
         }
     }
 

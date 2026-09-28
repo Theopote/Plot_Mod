@@ -351,6 +351,96 @@ public final class RoadGraphEdits {
         return List.of();
     }
 
+    /**
+     * 将两个交叉点合并为一个：保留 {@code survivorId}，把 {@code absorbedId} 上的边改接到 survivor。
+     * 若会产生同 road 的平行重复边则拒绝合并。
+     */
+    public Optional<String> mergeJunctionNode(String survivorId, String absorbedId) {
+        if (survivorId == null || absorbedId == null || survivorId.equals(absorbedId)) {
+            return Optional.empty();
+        }
+        RoadNode survivor = network.getNode(survivorId);
+        RoadNode absorbed = network.getNode(absorbedId);
+        if (survivor == null || absorbed == null) {
+            return Optional.empty();
+        }
+
+        List<String> edgeIds = List.copyOf(absorbed.getConnectedEdgeIds());
+        for (String edgeId : edgeIds) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge == null) {
+                continue;
+            }
+            String neighborId = otherEndpoint(edge, absorbedId);
+            if (neighborId == null) {
+                continue;
+            }
+            if (hasParallelEdge(survivorId, neighborId, edge.getRoadId(), edgeId)) {
+                return Optional.empty();
+            }
+        }
+
+        boolean changed = false;
+        for (String edgeId : List.copyOf(absorbed.getConnectedEdgeIds())) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge == null) {
+                continue;
+            }
+            changed |= relinkEdgeEndpoint(edge, absorbedId, survivorId);
+        }
+        if (!changed) {
+            return Optional.empty();
+        }
+        if (absorbed.getDegree() == 0) {
+            network.removeNode(absorbedId);
+        }
+        return Optional.of(survivorId);
+    }
+
+    private boolean hasParallelEdge(
+            String nodeA,
+            String nodeB,
+            String roadId,
+            String excludeEdgeId) {
+        for (RoadEdge edge : network.getEdgesAtNode(nodeA)) {
+            if (edge == null || edge.getId().equals(excludeEdgeId)) {
+                continue;
+            }
+            if (edge == null || roadId == null || !roadId.equals(edge.getRoadId())) {
+                continue;
+            }
+            String other = otherEndpoint(edge, nodeA);
+            if (nodeB.equals(other)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean relinkEdgeEndpoint(RoadEdge edge, String oldNodeId, String newNodeId) {
+        if (oldNodeId.equals(newNodeId)) {
+            return false;
+        }
+        RoadNode oldNode = network.getNode(oldNodeId);
+        RoadNode newNode = network.getNode(newNodeId);
+        if (oldNode == null || newNode == null) {
+            return false;
+        }
+        if (edge.getStartNodeId().equals(oldNodeId)) {
+            oldNode.removeEdge(edge.getId());
+            edge.setStartNodeId(newNodeId);
+            newNode.addEdge(edge.getId());
+            return true;
+        }
+        if (edge.getEndNodeId().equals(oldNodeId)) {
+            oldNode.removeEdge(edge.getId());
+            edge.setEndNodeId(newNodeId);
+            newNode.addEdge(edge.getId());
+            return true;
+        }
+        return false;
+    }
+
     public record SplitResult(String firstEdgeId, String secondEdgeId, String nodeId) {
     }
 }
