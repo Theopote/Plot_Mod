@@ -7,7 +7,6 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.CenterlineEditOperation;
 import com.plot.plugin.road.station.CenterlineEditStationPolicy;
 import com.plot.plugin.road.station.RoadStationDataTransforms.SegmentGeometrySnapshot;
-import com.plot.plugin.road.station.RoadStationMirroring;
 
 import java.util.HashSet;
 import java.util.List;

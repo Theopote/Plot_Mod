@@ -1,16 +1,9 @@
 package com.plot.plugin.road.graph;
 
-import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * 检测平面距离过近的多个交叉点（可能是应合并的重复路口）。
@@ -87,7 +80,7 @@ public final class NearbyJunctionClusterAnalyzer {
             if (component.size() >= 2) {
                 List<RoadNode> members = component.stream()
                     .map(network::getNode)
-                    .filter(node -> node != null)
+                    .filter(Objects::nonNull)
                     .sorted(Comparator.comparing(RoadNode::getId))
                     .toList();
                 clusters.add(new NearbyJunctionCluster(

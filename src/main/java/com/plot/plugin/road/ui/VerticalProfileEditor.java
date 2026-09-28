@@ -38,6 +38,7 @@ import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -95,6 +96,11 @@ final class VerticalProfileEditor {
         return editorWindowOpen.get();
     }
 
+    /** 编辑器打开时当前聚焦的分段，供生成 Tab 内联区同步。 */
+    String getFocusedEdgeId() {
+        return editorWindowOpen.get() ? editorEdgeId : "";
+    }
+
     void renderInline(RoadUiContext ctx, RoadNetwork network, RoadEdge edge) {
         if (!ctx.previewManager().hasValidPreview()
                 && edge.getId().equals(cachedEditProfileEdgeId)) {
@@ -140,6 +146,8 @@ final class VerticalProfileEditor {
         if (!editorWindowOpen.get()) {
             return;
         }
+        List<String> profileEdgeIds = listProfileEdgeIds(ctx);
+        ensureEditorEdgeSelection(ctx, network, profileEdgeIds);
         RoadEdge edge = network.getEdge(editorEdgeId);
         if (edge == null) {
             editorWindowOpen.set(false);
@@ -171,6 +179,15 @@ final class VerticalProfileEditor {
             return;
         }
         try {
+            renderEditorEdgeSelector(ctx, network, profileEdgeIds);
+            ImGui.spacing();
+
+            edge = network.getEdge(editorEdgeId);
+            if (edge == null) {
+                editorWindowOpen.set(false);
+                return;
+            }
+            road = network.getRoadForEdge(edge);
             RoadGenerationResult edgeResult = resolveEdgeResult(ctx, edge);
             if (edgeResult == null || !edgeResult.hasProfileData()) {
                 renderMissingProfileActions(ctx, network);
@@ -179,9 +196,6 @@ final class VerticalProfileEditor {
             if (road == null) {
                 return;
             }
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                RoadEdgeListHelper.formatEdgeLabel(network, edge));
             VerticalAlignmentProfileOverlay design =
                 VerticalAlignmentProfileOverlay.forEdge(network, edge).orElse(null);
             float chartHeight = Math.max(
@@ -191,6 +205,121 @@ final class VerticalProfileEditor {
         } finally {
             ImGui.end();
         }
+    }
+
+    private List<String> listProfileEdgeIds(RoadUiContext ctx) {
+        List<String> edgeIds = new ArrayList<>();
+        for (Map.Entry<String, RoadGenerationResult> entry
+                : ctx.previewManager().getLastEdgeResults().entrySet()) {
+            if (entry.getValue() != null && entry.getValue().hasProfileData()) {
+                edgeIds.add(entry.getKey());
+            }
+        }
+        return edgeIds;
+    }
+
+    private void ensureEditorEdgeSelection(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            List<String> edgeIds) {
+        if (edgeIds.isEmpty()) {
+            return;
+        }
+        if (editorEdgeId != null && !editorEdgeId.isBlank() && edgeIds.contains(editorEdgeId)) {
+            return;
+        }
+        String primaryId = ctx.networkManager().getPrimarySelectedEdgeId();
+        editorEdgeId = edgeIds.contains(primaryId) ? primaryId : edgeIds.getFirst();
+        resetEdgeLocalState();
+    }
+
+    private void renderEditorEdgeSelector(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            List<String> edgeIds) {
+        if (edgeIds.isEmpty()) {
+            return;
+        }
+        if (edgeIds.size() == 1) {
+            RoadEdge only = network.getEdge(edgeIds.getFirst());
+            if (only != null) {
+                ImGui.textColored(
+                    PluginUiColors.HINT_GRAY,
+                    formatProfileEdgeOptionLabel(network, only));
+            }
+            return;
+        }
+        RoadEdge current = network.getEdge(editorEdgeId);
+        String previewLabel = current != null
+            ? formatProfileEdgeOptionLabel(network, current)
+            : editorEdgeId;
+
+        if (ImGui.beginCombo(
+                PlotI18n.tr("plugin.road.vertical_alignment_editor_edge_select") + "##profile_editor_edge",
+                previewLabel)) {
+            for (String edgeId : edgeIds) {
+                RoadEdge edge = network.getEdge(edgeId);
+                if (edge == null) {
+                    continue;
+                }
+                String label = formatProfileEdgeOptionLabel(network, edge);
+                if (ImGui.selectable(label + "##editor_profile_" + edgeId, edgeId.equals(editorEdgeId))) {
+                    selectEditorEdge(ctx, network, edgeId);
+                }
+            }
+            ImGui.endCombo();
+        }
+
+        int currentIndex = Math.max(0, edgeIds.indexOf(editorEdgeId));
+        float navButtonWidth = 28f;
+        if (ImGui.button("<##profile_editor_prev", navButtonWidth, 0)) {
+            selectEditorEdge(
+                ctx, network,
+                edgeIds.get((currentIndex - 1 + edgeIds.size()) % edgeIds.size()));
+        }
+        ImGui.sameLine();
+        ImGui.text(PlotI18n.tr("plugin.road.profile_edge_index", currentIndex + 1, edgeIds.size()));
+        ImGui.sameLine();
+        if (ImGui.button(">##profile_editor_next", navButtonWidth, 0)) {
+            selectEditorEdge(
+                ctx, network,
+                edgeIds.get((currentIndex + 1) % edgeIds.size()));
+        }
+    }
+
+    private static String formatProfileEdgeOptionLabel(RoadNetwork network, RoadEdge edge) {
+        Road road = network.getRoadForEdge(edge);
+        String roadLabel = road != null
+            ? RoadEdgeListHelper.formatRoadLabel(network, road)
+            : PlotI18n.tr("plugin.road.road_label_fallback", edge.getRoadId());
+        return roadLabel + " · " + RoadEdgeListHelper.formatEdgeLabel(network, edge);
+    }
+
+    private void selectEditorEdge(RoadUiContext ctx, RoadNetwork network, String edgeId) {
+        if (edgeId == null || edgeId.isBlank() || edgeId.equals(editorEdgeId)) {
+            return;
+        }
+        if (network.getEdge(edgeId) == null) {
+            return;
+        }
+        editorEdgeId = edgeId;
+        resetEdgeLocalState();
+        RoadEdge edge = network.getEdge(edgeId);
+        if (edge != null && edge.getRoadId() != null) {
+            ctx.networkManager().selectRoad(edge.getRoadId(), false);
+        }
+        ctx.networkManager().setPrimarySelectedEdge(edgeId);
+        ctx.requestOverlayRefresh();
+    }
+
+    private void resetEdgeLocalState() {
+        selectedProfilePvi = -1;
+        activeProfilePvi = -1;
+        selectedIntersectionIndex = -1;
+        profileAutoFixMessage = "";
+        activeIntersectionDragIndex = -1;
+        activeIntersectionDragTarget =
+            RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget.NONE;
     }
 
     private void renderMissingProfileActions(RoadUiContext ctx, RoadNetwork network) {

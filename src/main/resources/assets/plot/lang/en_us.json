@@ -1577,6 +1577,7 @@
   "plugin.road.vertical_alignment_profile_editor": "Terrain and Road Profile",
   "plugin.road.vertical_alignment_open_editor": "Open profile editor…",
   "plugin.road.vertical_alignment_editor_window_title": "Profile editor — %s",
+  "plugin.road.vertical_alignment_editor_edge_select": "Road / segment",
   "plugin.road.vertical_alignment_inline_preview_hint": "Overview above: terrain, design profile, and crossing-road elevations at junctions (◇ markers). Open the editor for precise PVI drags and grade-separation edits.",
   "plugin.road.vertical_alignment_profile_preview_required": "Sample the current world terrain to compare terrain, suggested elevations, and the designed road.",
   "plugin.road.vertical_alignment_calculate_profile": "Sample Terrain and Calculate Profile",

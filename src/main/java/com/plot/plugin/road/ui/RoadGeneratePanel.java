@@ -98,6 +98,14 @@ public final class RoadGeneratePanel {
     }
 
     private RoadEdge resolveProfileEdge(RoadNetwork network) {
+        String focusedEdgeId = profileEditor.getFocusedEdgeId();
+        if (focusedEdgeId != null && !focusedEdgeId.isBlank()) {
+            RoadEdge focused = network.getEdge(focusedEdgeId);
+            if (focused != null) {
+                profileEdgeId = focusedEdgeId;
+                return focused;
+            }
+        }
         if (profileEdgeId != null && !profileEdgeId.isBlank()) {
             RoadEdge focused = network.getEdge(profileEdgeId);
             if (focused != null) {

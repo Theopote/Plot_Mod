@@ -1577,6 +1577,7 @@
   "plugin.road.vertical_alignment_profile_editor": "地形与道路纵剖面",
   "plugin.road.vertical_alignment_open_editor": "打开纵断面编辑器…",
   "plugin.road.vertical_alignment_editor_window_title": "纵断面编辑 — %s",
+  "plugin.road.vertical_alignment_editor_edge_select": "道路 / 分段",
   "plugin.road.vertical_alignment_inline_preview_hint": "上方为概览：显示场地地形、设计纵断面，以及交叉道路在路口处的高程关系（◇ 标记）。精确拖动 PVI 或调整立交关系请打开独立编辑器。",
   "plugin.road.vertical_alignment_profile_preview_required": "需要先采样当前世界地形，才能显示地形、建议标高和设计道路之间的关系。",
   "plugin.road.vertical_alignment_calculate_profile": "采样地形并计算纵剖面",
