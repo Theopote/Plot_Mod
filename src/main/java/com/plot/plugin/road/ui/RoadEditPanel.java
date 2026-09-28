@@ -1,6 +1,5 @@
 package com.plot.plugin.road.ui;
 
-import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -11,16 +10,13 @@ import imgui.ImGui;
  */
 public final class RoadEditPanel {
     private final RoadUiContext ctx;
-    private final RoadVerticalStrategySwitchDialog strategySwitchDialog = new RoadVerticalStrategySwitchDialog();
-    private final RoadVerticalBatchEditor verticalBatchEditor = new RoadVerticalBatchEditor();
     private final RoadDesignPanel designPanel;
     private final RoadEditWorkspace editWorkspace;
 
     public RoadEditPanel(RoadUiContext ctx, RoadDefaultParamsPanel defaultParamsPanel) {
         this.ctx = ctx;
-        this.designPanel = new RoadDesignPanel(ctx, strategySwitchDialog);
-        this.editWorkspace = new RoadEditWorkspace(
-            ctx, designPanel, defaultParamsPanel, verticalBatchEditor, strategySwitchDialog);
+        this.designPanel = new RoadDesignPanel(ctx);
+        this.editWorkspace = new RoadEditWorkspace(ctx, designPanel, defaultParamsPanel);
     }
 
     public void render() {
@@ -39,7 +35,7 @@ public final class RoadEditPanel {
         switch (mode) {
             case NONE -> editWorkspace.renderNoSelectionDefaults();
             case SINGLE -> {
-                Road road = ctx.networkManager().getPrimarySelectedRoad();
+                var road = ctx.networkManager().getPrimarySelectedRoad();
                 if (road != null) {
                     editWorkspace.renderSingle(network, road);
                 }
@@ -50,10 +46,6 @@ public final class RoadEditPanel {
 
     RoadDesignPanel designPanel() {
         return designPanel;
-    }
-
-    public void renderDeferredModals() {
-        strategySwitchDialog.renderPopup(ctx);
     }
 
     private void renderJunctionSelectionHint() {

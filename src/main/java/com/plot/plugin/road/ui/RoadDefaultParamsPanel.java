@@ -45,7 +45,6 @@ public final class RoadDefaultParamsPanel {
         RoadPresetCards.renderConfig(ctx);
         ImGui.spacing();
         RoadRouteQuickTune.renderConfigDefaults(ctx);
-        RoadStyleProductControls.renderConfigMaxSlopePresets(ctx);
 
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.route.advanced_defaults"))) {
             renderAdvancedDefaultsCollapsible();
@@ -67,7 +66,6 @@ public final class RoadDefaultParamsPanel {
         ImGui.spacing();
         RoadPresetCards.renderConfig(ctx);
         ImGui.spacing();
-        RoadStyleProductControls.renderConfigMaxSlopePresets(ctx);
 
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.adopt_advanced"))) {
             renderAdvancedCrossSectionFields(config);

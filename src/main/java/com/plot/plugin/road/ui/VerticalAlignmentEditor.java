@@ -130,8 +130,8 @@ public final class VerticalAlignmentEditor {
         }
     }
 
-    /** 编辑 Tab：仅纵向设计模式；PVI / 标高编辑在生成 Tab。 */
-    public void renderModeOnly(
+    /** 路径 Tab：纵向方式与水平道路基准高程；PVI / 纵断面编辑在生成 Tab。 */
+    public void renderPathProperty(
             RoadNetwork network,
             Road road,
             RoadSystemConfig config,
@@ -149,9 +149,6 @@ public final class VerticalAlignmentEditor {
         }
         double roadLength = RoadStationing.canonicalLength(network, road);
         renderVerticalStrategy(network, road, roadLength, config, onHistory, switchDialog, terrainSupplier);
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.vertical_alignment_edit_in_generate_hint"));
     }
 
     private void renderVerticalStrategy(

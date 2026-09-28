@@ -14,20 +14,14 @@ final class RoadEditWorkspace {
     private final RoadUiContext ctx;
     private final RoadDesignPanel designPanel;
     private final RoadDefaultParamsPanel defaultParamsPanel;
-    private final RoadVerticalBatchEditor verticalBatchEditor;
-    private final RoadVerticalStrategySwitchDialog strategySwitchDialog;
 
     RoadEditWorkspace(
             RoadUiContext ctx,
             RoadDesignPanel designPanel,
-            RoadDefaultParamsPanel defaultParamsPanel,
-            RoadVerticalBatchEditor verticalBatchEditor,
-            RoadVerticalStrategySwitchDialog strategySwitchDialog) {
+            RoadDefaultParamsPanel defaultParamsPanel) {
         this.ctx = ctx;
         this.designPanel = designPanel;
         this.defaultParamsPanel = defaultParamsPanel;
-        this.verticalBatchEditor = verticalBatchEditor;
-        this.strategySwitchDialog = strategySwitchDialog;
     }
 
     void renderSingle(RoadNetwork network, Road road) {
@@ -38,8 +32,6 @@ final class RoadEditWorkspace {
 
         RoadUiSections.section("plugin.road.edit.basic_params");
         RoadRouteQuickTune.renderForRoad(ctx, road, ctx.networkManager()::pushHistory);
-        RoadStyleProductControls.renderRoadMaxSlopePresets(
-            ctx, road, ctx.networkManager()::pushHistory);
         ImGui.spacing();
 
         renderCrossSectionAppearance(road);
@@ -69,7 +61,6 @@ final class RoadEditWorkspace {
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.batch_edit_hint", selectedRoadIds.size()));
         RoadBatchCrossSectionEditor.renderDraftFields(ctx, synced);
-        verticalBatchEditor.render(ctx, selectedRoadIds, strategySwitchDialog);
     }
 
     void renderNoSelectionDefaults() {

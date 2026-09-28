@@ -242,7 +242,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         edgeListPanel.renderDeleteConfirmPopup();
         buildPanel.renderBuildConfirmPopup();
         buildPanel.renderUniformElevationConfirmPopup();
-        editPanel.renderDeferredModals();
+        pathPanel.renderDeferredModals();
     }
 
     /**

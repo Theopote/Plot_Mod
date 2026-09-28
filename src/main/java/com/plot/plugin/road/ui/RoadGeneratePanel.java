@@ -15,6 +15,7 @@ import com.plot.plugin.road.station.ChainageDisplayContext;
 import com.plot.plugin.road.station.ChainageDisplayMode;
 import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.utils.PlotI18n;
@@ -113,6 +114,12 @@ public final class RoadGeneratePanel {
         }
         Road road = network.getRoadForEdge(edge);
         if (road != null) {
+            RoadVerticalStrategy strategy = RoadVerticalStrategy.fromRoad(road);
+            if (strategy == RoadVerticalStrategy.TERRAIN_ADAPTIVE
+                    && RoadGenerationSettingsPanel.showsTerrainAdaptiveControls(ctx)) {
+                RoadStyleProductControls.renderRoadMaxSlopePresets(
+                    ctx, road, ctx.networkManager()::pushHistory);
+            }
             verticalAlignmentEditor.render(
                 network,
                 road,

@@ -1,9 +1,6 @@
 package com.plot.plugin.road.ui;
 
-import com.plot.core.terrain.MinecraftTerrainSampler;
-import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.road.RoadEdgeListHelper;
-import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -21,7 +18,6 @@ import com.plot.plugin.road.validation.RoadValidationMessageCatalog;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
-import net.minecraft.world.World;
 
 import java.util.List;
 
@@ -31,9 +27,7 @@ import java.util.List;
 final class RoadDesignPanel {
 
     private final RoadUiContext ctx;
-    private final RoadVerticalStrategySwitchDialog strategySwitchDialog;
     private final RoadIdentityEditor identityEditor = new RoadIdentityEditor();
-    private final VerticalAlignmentEditor verticalAlignmentEditor = new VerticalAlignmentEditor();
     private final HorizontalAlignmentSummaryEditor horizontalAlignmentEditor = new HorizontalAlignmentSummaryEditor();
     private final VariableCrossSectionEditor variableCrossSectionEditor = new VariableCrossSectionEditor();
     private final StationFacilityEditor stationFacilityEditor = new StationFacilityEditor();
@@ -41,9 +35,8 @@ final class RoadDesignPanel {
     private final RoadSegmentEditor segmentEditor = new RoadSegmentEditor();
     private ChainageDisplayMode chainageDisplayMode = ChainageDisplayMode.FROM_START;
 
-    RoadDesignPanel(RoadUiContext ctx, RoadVerticalStrategySwitchDialog strategySwitchDialog) {
+    RoadDesignPanel(RoadUiContext ctx) {
         this.ctx = ctx;
-        this.strategySwitchDialog = strategySwitchDialog;
     }
 
     void render(RoadNetwork network) {
@@ -116,9 +109,6 @@ final class RoadDesignPanel {
 
         RoadUiSections.group("plugin.road.design_stack.alignment");
         horizontalAlignmentEditor.render(ctx, network, road, chainageDisplay);
-        verticalAlignmentEditor.renderModeOnly(
-            network, road, ctx.networkManager().getConfig(), ctx.networkManager()::pushHistory,
-            strategySwitchDialog, this::requireTerrainOrNull);
         RoadCrossSectionEditor.renderAdvancedCrossSection(ctx, road, ctx::pushRoadEditHistory);
 
         RoadUiSections.group("plugin.road.design_stack.station_controls");
@@ -203,12 +193,4 @@ final class RoadDesignPanel {
         }
     }
 
-    private TerrainSampler requireTerrainOrNull() {
-        World world = RoadNetworkGenerator.getClientWorld();
-        if (world == null) {
-            ctx.status().error(PlotI18n.tr("plugin.road.generate_world_unavailable"));
-            return null;
-        }
-        return MinecraftTerrainSampler.of(world, ctx.host().coordinates());
-    }
 }
