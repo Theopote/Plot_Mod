@@ -1,13 +1,14 @@
 package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
-import com.plot.plugin.road.pipeline.profile.GradeSeparationPolicy;
 import com.plot.core.terrain.FlatTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
+import com.plot.test.world.IdentityCoordinateService;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -26,16 +27,14 @@ class RoadGradeSeparationEvaluatorTest {
         config.setDefaultCrossingClearance(4.0);
         fixture.roadA().setMaxSlope(8f);
         fixture.roadB().setMaxSlope(8f);
+        fixture.north().setManualElevation(72.0);
+        fixture.south().setManualElevation(72.0);
 
-        GradeSeparationPolicy.NaturalRoadHeightAtNode naturalRoadHeight =
-            (node, network, terrainSampler, roadId) -> fixture.roadA().getId().equals(roadId) ? 80 : 64;
-
-        RoadGradeSeparationEvaluation evaluation = RoadGradeSeparationEvaluator.evaluate(
+        RoadGenerator generator = testGenerator(config);
+        RoadGradeSeparationEvaluation evaluation = generator.evaluateGradeSeparation(
             fixture.junction(),
             fixture.network(),
-            config,
-            new FlatTerrainSampler(64),
-            naturalRoadHeight);
+            new FlatTerrainSampler(64));
 
         assertNotNull(evaluation);
         assertEquals(fixture.roadA().getId(), evaluation.recommendedElevatedRoadId());
@@ -43,8 +42,8 @@ class RoadGradeSeparationEvaluatorTest {
         RoadGradeSeparationAlternative bOver = evaluation.alternativeFor(fixture.roadB().getId());
         assertNotNull(aOver);
         assertNotNull(bOver);
-        assertTrue(aOver.score() <= bOver.score());
-        assertFalse(aOver.exceedsSlopeLimit());
+        assertTrue(aOver.score() < bOver.score());
+        assertTrue(bOver.exceedsSlopeLimit() || bOver.estimatedMaxGradePercent() > aOver.estimatedMaxGradePercent());
     }
 
     @Test
@@ -54,27 +53,36 @@ class RoadGradeSeparationEvaluatorTest {
         config.setDefaultCrossingClearance(6.0);
         fixture.roadA().setMaxSlope(5f);
         fixture.roadB().setMaxSlope(20f);
-
-        GradeSeparationPolicy.NaturalRoadHeightAtNode naturalRoadHeight =
-            (node, network, terrainSampler, roadId) -> fixture.roadA().getId().equals(roadId) ? 64 : 80;
+        fixture.east().setManualElevation(80.0);
+        fixture.west().setManualElevation(80.0);
 
         fixture.junction().setGradeSeparated(true);
         fixture.junction().setElevatedRoadId(fixture.roadA().getId());
 
-        RoadGradeSeparationEvaluation evaluation = RoadGradeSeparationEvaluator.evaluate(
+        RoadGenerator generator = testGenerator(config);
+        RoadGradeSeparationEvaluation evaluation = generator.evaluateGradeSeparation(
             fixture.junction(),
             fixture.network(),
-            config,
-            new FlatTerrainSampler(64),
-            naturalRoadHeight);
+            new FlatTerrainSampler(64));
 
         assertTrue(evaluation.isLockedChoiceSteep(fixture.junction()));
         assertEquals(fixture.roadB().getId(), evaluation.recommendedIfDifferentFromLock(fixture.junction()));
     }
 
+    private static RoadGenerator testGenerator(RoadSystemConfig config) {
+        return new RoadGenerator(
+            config,
+            IdentityCoordinateService.INSTANCE,
+            BlockProjectionHandler.getInstance());
+    }
+
     private record SimpleCrossFixture(
             RoadNetwork network,
             RoadNode junction,
+            RoadNode north,
+            RoadNode south,
+            RoadNode east,
+            RoadNode west,
             Road roadA,
             Road roadB) {
         static SimpleCrossFixture create() {
@@ -94,7 +102,7 @@ class RoadGradeSeparationEvaluatorTest {
                 junction.getId(), east.getId(), List.of(new Vec2d(0, 0), new Vec2d(40, 0)), roadB.getId());
             network.createEdge(
                 junction.getId(), west.getId(), List.of(new Vec2d(0, 0), new Vec2d(-40, 0)), roadB.getId());
-            return new SimpleCrossFixture(network, junction, roadA, roadB);
+            return new SimpleCrossFixture(network, junction, north, south, east, west, roadA, roadB);
         }
     }
 }

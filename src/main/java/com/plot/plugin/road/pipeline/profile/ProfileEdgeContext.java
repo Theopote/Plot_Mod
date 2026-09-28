@@ -31,4 +31,11 @@ public interface ProfileEdgeContext {
     double defaultCrossingClearance();
 
     RoadSystemConfig roadConfig();
+
+    default com.plot.plugin.road.RoadGradeSeparationEvaluation evaluateGradeSeparation(
+            RoadNode node,
+            RoadNetwork network,
+            TerrainSampler terrain) {
+        return null;
+    }
 }

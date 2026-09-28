@@ -63,12 +63,7 @@ public final class AutoGradeSeparationRecommendationCache {
         RoadGenerator generator = new RoadGenerator(
             config, host.coordinates(), host.projection());
         TerrainSampler terrain = resolveTerrainSampler(generator);
-        RoadGradeSeparationEvaluation evaluation = RoadGradeSeparationEvaluator.evaluate(
-            node,
-            network,
-            config,
-            terrain,
-            generator.naturalRoadHeightAtNode());
+        RoadGradeSeparationEvaluation evaluation = generator.evaluateGradeSeparation(node, network, terrain);
         return AutoGradeSeparationRecommendation.fromEvaluation(evaluation, node);
     }
 

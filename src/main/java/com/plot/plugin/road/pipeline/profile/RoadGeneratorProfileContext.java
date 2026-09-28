@@ -23,6 +23,7 @@ public final class RoadGeneratorProfileContext implements ProfileEdgeContext {
   private final CanvasUnitsPerBlockEstimator canvasUnitsPerBlock;
   private final NodeGroundHeightResolver nodeGroundHeight;
   private final ProfileSolveSupport profileSupport;
+  private RoadGradeSeparationProfileEvaluator gradeSeparationEvaluator;
 
   public RoadGeneratorProfileContext(
       RoadSystemConfig config,
@@ -116,6 +117,25 @@ public final class RoadGeneratorProfileContext implements ProfileEdgeContext {
   @Override
   public RoadSystemConfig roadConfig() {
     return config;
+  }
+
+  public void bindGradeSeparationEvaluator(RoadGradeSeparationProfileEvaluator evaluator) {
+    this.gradeSeparationEvaluator = evaluator;
+  }
+
+  @Override
+  public com.plot.plugin.road.RoadGradeSeparationEvaluation evaluateGradeSeparation(
+      RoadNode node,
+      RoadNetwork network,
+      TerrainSampler terrain) {
+    if (gradeSeparationEvaluator == null) {
+      return null;
+    }
+    return gradeSeparationEvaluator.evaluate(node, network, terrain);
+  }
+
+  public double estimateCanvasUnitsPerBlock(List<Vec2d> pathPoints, List<PathSegment> segments) {
+    return canvasUnitsPerBlock.estimate(pathPoints, segments);
   }
 
   @FunctionalInterface

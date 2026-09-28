@@ -17,6 +17,7 @@ import com.plot.plugin.road.pipeline.profile.GradeSeparationPolicy;
 import com.plot.plugin.road.pipeline.profile.NetworkNodeElevationResolver;
 import com.plot.plugin.road.pipeline.profile.NodeTargetHeightResolver;
 import com.plot.plugin.road.pipeline.profile.RoadGeneratorProfileContext;
+import com.plot.plugin.road.pipeline.profile.RoadGradeSeparationProfileEvaluator;
 import com.plot.plugin.road.pipeline.profile.RoadProfileSolveCoordinator;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadVoxelRasterizer;
@@ -44,6 +45,7 @@ public class RoadGenerator {
     private final GradeSeparationPolicy gradeSeparationPolicy;
     private final NodeTargetHeightResolver nodeTargetHeightResolver;
     private final NetworkNodeElevationResolver networkNodeElevationResolver;
+    private final RoadGradeSeparationProfileEvaluator gradeSeparationEvaluator;
 
     public RoadGenerator(
             RoadSystemConfig config,
@@ -59,6 +61,14 @@ public class RoadGenerator {
                 profileContext,
             new com.plot.plugin.road.pipeline.profile.ProfileEndpointHeightResolver(
                 gradeSeparationPolicy, nodeTargetHeightResolver));
+        this.gradeSeparationEvaluator = new RoadGradeSeparationProfileEvaluator(
+            profileContext,
+            profileSolve,
+            networkNodeElevationResolver,
+            gradeSeparationPolicy,
+            nodeTargetHeightResolver,
+            config);
+        profileContext.bindGradeSeparationEvaluator(gradeSeparationEvaluator);
         this.edgeBuild = new RoadEdgeBuildOrchestrator(profileSolve);
     }
 
@@ -161,12 +171,26 @@ public class RoadGenerator {
         if (node.getElevatedRoadId() != null && !node.getElevatedRoadId().isBlank()) {
             return node.getElevatedRoadId();
         }
+        RoadGradeSeparationEvaluation evaluation = evaluateGradeSeparation(node, network, terrain);
+        if (evaluation != null) {
+            String recommended = evaluation.recommendedElevatedRoadId();
+            if (recommended != null) {
+                return recommended;
+            }
+        }
         return RoadGradeSeparationEvaluator.recommendElevatedRoadId(
             node,
             network,
             pipelineHost.config(),
             terrain,
             naturalRoadHeightAtNode());
+    }
+
+    public RoadGradeSeparationEvaluation evaluateGradeSeparation(
+            RoadNode node,
+            RoadNetwork network,
+            TerrainSampler terrain) {
+        return gradeSeparationEvaluator.evaluate(node, network, terrain);
     }
 
     int getTargetHeightAtNodeIgnoringGradeSeparation(
