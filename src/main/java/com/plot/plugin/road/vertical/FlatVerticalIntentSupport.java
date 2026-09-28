@@ -1,19 +1,25 @@
 package com.plot.plugin.road.vertical;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadUniformElevationUtils;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.station.RoadStationing;
+import com.plot.core.terrain.TerrainSampler;
+import com.plot.plugin.config.RoadSystemConfig;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /** Resolves, migrates, and syncs flat-road vertical intent. */
 public final class FlatVerticalIntentSupport {
 
     private static final double EPSILON = 1e-6;
+    private static final double PROFILE_SAMPLE_SPACING = 5.0;
 
     private FlatVerticalIntentSupport() {
     }
@@ -134,6 +140,14 @@ public final class FlatVerticalIntentSupport {
     }
 
     public static double recommendBaseElevation(RoadNetwork network, Road road) {
+        return recommendBaseElevation(network, road, null, null);
+    }
+
+    public static double recommendBaseElevation(
+            RoadNetwork network,
+            Road road,
+            TerrainSampler terrain,
+            RoadSystemConfig config) {
         if (road == null) {
             return 64.0;
         }
@@ -146,14 +160,21 @@ public final class FlatVerticalIntentSupport {
             if (VerticalProfileDesignRules.isFlat(alignment)) {
                 return alignment.getPvis().getFirst().getElevation();
             }
-            double sum = 0.0;
-            int count = 0;
-            for (PointOfVerticalIntersection pvi : alignment.getPvis()) {
-                sum += pvi.getElevation();
-                count++;
+            if (VerticalAlignmentGeometry.isEvaluable(alignment)) {
+                double length = network != null && RoadStationing.isStationable(network, road)
+                    ? RoadStationing.canonicalLength(network, road)
+                    : alignment.endStation();
+                Double median = medianSampledProfileElevation(alignment, length);
+                if (median != null) {
+                    return median;
+                }
             }
-            if (count > 0) {
-                return sum / count;
+        }
+        if (terrain != null && network != null && RoadStationing.isStationable(network, road)) {
+            RoadUniformElevationUtils.FlatRoadRecommendation recommendation =
+                RoadUniformElevationUtils.recommendMedianForRoad(network, road, terrain, config);
+            if (recommendation.sampleCount() > 0) {
+                return recommendation.elevation();
             }
         }
         if (network != null && RoadStationing.isStationable(network, road)) {
@@ -166,6 +187,40 @@ public final class FlatVerticalIntentSupport {
             }
         }
         return 64.0;
+    }
+
+    static Double medianSampledProfileElevation(RoadVerticalAlignment alignment, double roadLength) {
+        if (alignment == null || !VerticalAlignmentGeometry.isEvaluable(alignment)
+                || !Double.isFinite(roadLength) || roadLength <= EPSILON) {
+            return null;
+        }
+        List<Double> samples = new ArrayList<>();
+        for (double station = 0.0; station <= roadLength + EPSILON; station += PROFILE_SAMPLE_SPACING) {
+            VerticalAlignmentGeometry.elevationAt(alignment, station).ifPresent(samples::add);
+        }
+        VerticalAlignmentGeometry.elevationAt(alignment, roadLength).ifPresent(elevation -> {
+            if (samples.isEmpty() || Math.abs(samples.getLast() - elevation) > EPSILON) {
+                samples.add(elevation);
+            }
+        });
+        if (samples.isEmpty()) {
+            return null;
+        }
+        samples.sort(Double::compare);
+        int middle = samples.size() / 2;
+        return samples.size() % 2 == 1
+            ? samples.get(middle)
+            : (samples.get(middle - 1) + samples.get(middle)) / 2.0;
+    }
+
+    static double pviCountAverageElevation(RoadVerticalAlignment alignment) {
+        double sum = 0.0;
+        int count = 0;
+        for (PointOfVerticalIntersection pvi : alignment.getPvis()) {
+            sum += pvi.getElevation();
+            count++;
+        }
+        return count > 0 ? sum / count : 64.0;
     }
 
     public record BatchElevationSummary(boolean mixed, double commonElevation, int flatRoadCount) { }

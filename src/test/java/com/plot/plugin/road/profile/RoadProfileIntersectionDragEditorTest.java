@@ -9,10 +9,10 @@ import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
+import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.OptionalInt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -53,12 +53,9 @@ class RoadProfileIntersectionDragEditorTest {
             70.0,
             config));
 
-        OptionalInt junctionPvi = RoadProfileIntersectionDragEditor.junctionPviIndex(
-            network, roadB, center.getId());
-        assertTrue(junctionPvi.isPresent());
         assertEquals(
             70.0,
-            roadB.getVerticalAlignment().getPvis().get(junctionPvi.getAsInt()).getElevation(),
+            VerticalAlignmentGeometry.elevationAt(roadB.getVerticalAlignment(), 0.0).orElse(Double.NaN),
             1e-6);
         assertEquals(RoadVerticalMode.MANUAL_PROFILE, roadB.getVerticalMode());
     }
@@ -102,11 +99,9 @@ class RoadProfileIntersectionDragEditorTest {
             config));
 
         assertEquals(4.0, centerNode.getCrossingClearance(), 1e-6);
-        OptionalInt junctionPvi = RoadProfileIntersectionDragEditor.junctionPviIndex(
-            network, roadB, center.getId());
-        assertTrue(junctionPvi.isPresent());
         assertEquals(72.0,
-            roadB.getVerticalAlignment().getPvis().get(junctionPvi.getAsInt()).getElevation(), 1e-6);
+            VerticalAlignmentGeometry.elevationAt(roadB.getVerticalAlignment(), 0.0).orElse(Double.NaN),
+            1e-6);
     }
 
     @Test

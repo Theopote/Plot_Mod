@@ -32,6 +32,7 @@ final class RoadVerticalStrategySwitchDialog {
     private List<String> roadIds = List.of();
     private RoadVerticalStrategy targetStrategy = RoadVerticalStrategy.TERRAIN_ADAPTIVE;
     private float elevationDraft = 64f;
+    private float terrainRecommendedElevation = Float.NaN;
     private String terrainSummary = "";
 
     void requestSingleToFlat(
@@ -45,8 +46,21 @@ final class RoadVerticalStrategySwitchDialog {
         mode = Mode.SINGLE_TO_FLAT;
         roadIds = List.of(road.getId());
         targetStrategy = RoadVerticalStrategy.FLAT;
-        elevationDraft = (float) FlatVerticalIntentSupport.recommendBaseElevation(network, road);
-        terrainSummary = terrainRecommendation(network, road, terrain, config);
+        elevationDraft = (float) FlatVerticalIntentSupport.recommendBaseElevation(
+            network, road, terrain, config);
+        terrainRecommendedElevation = Float.NaN;
+        terrainSummary = "";
+        if (terrain != null) {
+            RoadUniformElevationUtils.FlatRoadRecommendation recommendation =
+                RoadUniformElevationUtils.recommendMedianForRoad(network, road, terrain, config);
+            if (recommendation.sampleCount() > 0) {
+                terrainRecommendedElevation = recommendation.elevation();
+                terrainSummary = PlotI18n.tr(
+                    "plugin.road.vertical_alignment_flat_recommendation",
+                    recommendation.elevation(),
+                    recommendation.sampleCount());
+            }
+        }
         popupPending = true;
     }
 
@@ -117,6 +131,10 @@ final class RoadVerticalStrategySwitchDialog {
                     RoadParameterLimits.ELEVATION_MAX,
                     "%.1f");
                 elevationDraft = elevation[0];
+                if (!Float.isNaN(terrainRecommendedElevation)
+                        && ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_adopt_recommendation"))) {
+                    elevationDraft = terrainRecommendedElevation;
+                }
             }
             case BATCH_TO_FLAT_RECOMMENDED -> ImGui.textWrapped(PlotI18n.tr(
                 "plugin.road.vertical_strategy_confirm_batch_flat_recommended",
@@ -180,24 +198,5 @@ final class RoadVerticalStrategySwitchDialog {
                 }
             }
         }
-    }
-
-    private static String terrainRecommendation(
-            RoadNetwork network,
-            Road road,
-            TerrainSampler terrain,
-            RoadSystemConfig config) {
-        if (terrain == null || road == null) {
-            return "";
-        }
-        RoadUniformElevationUtils.FlatRoadRecommendation recommendation =
-            RoadUniformElevationUtils.recommendMedianForRoad(network, road, terrain, config);
-        if (recommendation.sampleCount() <= 0) {
-            return "";
-        }
-        return PlotI18n.tr(
-            "plugin.road.vertical_alignment_flat_recommendation",
-            recommendation.elevation(),
-            recommendation.sampleCount());
     }
 }

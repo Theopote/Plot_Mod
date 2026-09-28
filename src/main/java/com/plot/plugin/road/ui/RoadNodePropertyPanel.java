@@ -10,6 +10,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.core.terrain.FlatTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
+import com.plot.plugin.road.vertical.RoadVerticalJunctionService;
 import com.plot.plugin.road.vertical.VerticalProfileNetworkPropagator;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -58,9 +59,13 @@ public final class RoadNodePropertyPanel {
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.node_elevation_auto") + "##auto", autoRef)) {
             ctx.networkManager().pushHistory();
             if (autoRef.get()) {
-                node.setManualElevation(null);
+                RoadVerticalJunctionService.clearAtGradeSharedElevation(network, node.getId(), config);
             } else {
-                node.setManualElevation((double) resolveManualLockElevation(node, network, config));
+                RoadVerticalJunctionService.setAtGradeSharedElevation(
+                    network,
+                    node.getId(),
+                    resolveManualLockElevation(node, network, config),
+                    config);
                 propagateNodeElevation(node, network, config);
             }
         }
@@ -79,7 +84,8 @@ public final class RoadNodePropertyPanel {
                 ctx.networkManager().pushHistory();
             }
             if (elevationChanged) {
-                node.setManualElevation((double) elevation[0]);
+                RoadVerticalJunctionService.setAtGradeSharedElevation(
+                    network, node.getId(), elevation[0], config);
                 propagateNodeElevation(node, network, config);
             }
             if (ImGui.isItemHovered()) {

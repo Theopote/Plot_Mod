@@ -118,24 +118,8 @@ public final class FlatRoadJunctionConflictResolver {
             RoadNetwork network,
             String nodeId,
             double elevation) {
-        if (network == null || nodeId == null) return 0;
-        RoadNode node = network.getNode(nodeId);
-        if (node != null) {
-            node.setManualElevation(elevation);
-        }
-        int changed = 0;
-        for (String roadId : network.getDistinctRoadIdsAtNode(nodeId)) {
-            Road road = network.getRoad(roadId);
-            if (road == null || road.getVerticalMode() != RoadVerticalMode.FLAT) continue;
-            FlatVerticalIntentSupport.applyJunctionElevation(
-                network,
-                road,
-                nodeId,
-                elevation,
-                road.getMaxSlope() != null ? road.getMaxSlope() : DEFAULT_MAX_GRADE);
-            changed++;
-        }
-        return changed;
+        return RoadVerticalJunctionService.setAtGradeSharedElevation(
+            network, nodeId, elevation, null);
     }
 
     public static int unifyToRoadBaseAtJunction(
