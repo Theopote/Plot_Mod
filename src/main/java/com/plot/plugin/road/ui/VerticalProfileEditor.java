@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 生成 Tab 纵断面：内联只读概览 + 独立编辑器窗口（放大交互）。
@@ -69,6 +70,11 @@ final class VerticalProfileEditor {
     private RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget
         activeIntersectionDragTarget =
             RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget.NONE;
+    private String cachedIntersectionsEdgeId = "";
+    private long cachedIntersectionsKey = Long.MIN_VALUE;
+    private List<RoadProfileIntersection> cachedIntersections = List.of();
+    private RoadGenerator cachedGradeSeparationGenerator;
+    private long cachedGradeSeparationGeneratorKey = Long.MIN_VALUE;
 
     void clearCache() {
         cachedEditProfile = null;
@@ -81,6 +87,7 @@ final class VerticalProfileEditor {
         activeIntersectionDragIndex = -1;
         activeIntersectionDragTarget =
             RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget.NONE;
+        invalidateIntersectionCache();
     }
 
     void openEditorForEdge(String edgeId) {
@@ -125,7 +132,7 @@ final class VerticalProfileEditor {
             VerticalAlignmentProfileOverlay.forEdge(network, edge).orElse(null);
         RoadSystemConfig config = ctx.networkManager().getConfig();
         List<RoadProfileIntersection> intersections = resolveIntersections(
-            ctx, network, road, edge, config, edgeResult);
+            ctx, network, road, edge, config, edgeResult, true);
 
         ImGui.textColored(
             PluginUiColors.HINT_GRAY,
@@ -380,15 +387,12 @@ final class VerticalProfileEditor {
             float chartHeight) {
         List<VerticalProfileControlPoints.ControlPoint> points =
             VerticalProfileControlPoints.forEdge(network, road, edge);
-        if (points.isEmpty()) {
-            return;
-        }
         float maxGrade = road.getMaxSlope() != null
             ? road.getMaxSlope()
             : ctx.networkManager().getConfig().getMaxSlope();
         RoadSystemConfig config = ctx.networkManager().getConfig();
         List<RoadProfileIntersection> intersections = resolveIntersections(
-            ctx, network, road, edge, config, edgeResult);
+            ctx, network, road, edge, config, edgeResult, activeIntersectionDragIndex < 0);
         RoadLongitudinalProfileRenderer.ControlInteraction interaction =
             RoadLongitudinalProfileRenderer.renderInteractive(
                 edgeResult, design, points, selectedProfilePvi, activeProfilePvi, maxGrade,
@@ -416,7 +420,7 @@ final class VerticalProfileEditor {
                     config)) {
                 profileRecalcSuggested = true;
                 intersections = resolveIntersections(
-                    ctx, network, road, edge, config, edgeResult);
+                    ctx, network, road, edge, config, edgeResult, false);
             }
         }
         if (interaction.draggedElevation() != null && interaction.draggedLocalDistance() != null
@@ -469,6 +473,12 @@ final class VerticalProfileEditor {
             PlotI18n.tr("plugin.road.vertical_alignment_profile_legend_hint"));
         renderIntersectionLegend(intersections);
         renderIntersectionDetail(ctx, network, intersections, interaction, config);
+        if (points.isEmpty()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.vertical_alignment_none"));
+            return;
+        }
         ImGui.text(PlotI18n.tr("plugin.road.vertical_alignment_control_points"));
         for (VerticalProfileControlPoints.ControlPoint point : points) {
             boolean invalid = VerticalProfileControlPoints.exceedsGradeLimit(point, maxGrade);
@@ -693,17 +703,21 @@ final class VerticalProfileEditor {
             Road road,
             RoadEdge edge,
             RoadSystemConfig config,
-            RoadGenerationResult edgeResult) {
+            RoadGenerationResult edgeResult,
+            boolean enrichSteepGradeWarnings) {
         List<RoadProfileIntersection> intersections = RoadProfileIntersectionResolver.forEdge(
             network, road, edge, config, edgeResult);
-        if (intersections.isEmpty()) {
+        if (!enrichSteepGradeWarnings || intersections.isEmpty()) {
             return intersections;
         }
-        RoadGenerator generator = new RoadGenerator(
-            config, ctx.host().coordinates(), ctx.host().projection());
+        long cacheKey = intersectionsCacheKey(ctx, edge.getId(), config);
+        if (edge.getId().equals(cachedIntersectionsEdgeId) && cacheKey == cachedIntersectionsKey) {
+            return cachedIntersections;
+        }
+        RoadGenerator generator = gradeSeparationGenerator(ctx, config, cacheKey);
         TerrainSampler terrain = resolveTerrainSampler(generator);
         Map<String, RoadGradeSeparationEvaluation> evaluationCache = new HashMap<>();
-        return RoadProfileIntersectionWarningResolver.withSteepGradeWarnings(
+        List<RoadProfileIntersection> resolved = RoadProfileIntersectionWarningResolver.withSteepGradeWarnings(
             intersections,
             network,
             nodeId -> evaluationCache.computeIfAbsent(nodeId, id -> {
@@ -713,6 +727,42 @@ final class VerticalProfileEditor {
                 }
                 return generator.evaluateGradeSeparation(node, network, terrain);
             }));
+        cachedIntersectionsEdgeId = edge.getId();
+        cachedIntersectionsKey = cacheKey;
+        cachedIntersections = resolved;
+        return resolved;
+    }
+
+    private void invalidateIntersectionCache() {
+        cachedIntersectionsEdgeId = "";
+        cachedIntersectionsKey = Long.MIN_VALUE;
+        cachedIntersections = List.of();
+        cachedGradeSeparationGenerator = null;
+        cachedGradeSeparationGeneratorKey = Long.MIN_VALUE;
+    }
+
+    private static long intersectionsCacheKey(
+            RoadUiContext ctx,
+            String edgeId,
+            RoadSystemConfig config) {
+        return Objects.hash(
+            edgeId,
+            ctx.networkManager().getNetworkRevision(),
+            ctx.previewManager().getTerrainRevision(),
+            config != null ? config.generationInputsFingerprint() : 0L);
+    }
+
+    private RoadGenerator gradeSeparationGenerator(
+            RoadUiContext ctx,
+            RoadSystemConfig config,
+            long cacheKey) {
+        if (cachedGradeSeparationGenerator != null && cachedGradeSeparationGeneratorKey == cacheKey) {
+            return cachedGradeSeparationGenerator;
+        }
+        cachedGradeSeparationGenerator = new RoadGenerator(
+            config, ctx.host().coordinates(), ctx.host().projection());
+        cachedGradeSeparationGeneratorKey = cacheKey;
+        return cachedGradeSeparationGenerator;
     }
 
     private static TerrainSampler resolveTerrainSampler(RoadGenerator generator) {
