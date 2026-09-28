@@ -84,7 +84,7 @@ final class FlatElevationRefinementEvaluator {
             totals.fillVolume(),
             totals.bridgeLength(),
             totals.tunnelLength(),
-            totals.changedBlocks(),
+            totals.earthworkBlocks(),
             true);
     }
 

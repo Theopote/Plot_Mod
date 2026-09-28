@@ -146,7 +146,8 @@ public final class RoadGeneratePanel {
         if (road == null || RoadVerticalStrategy.fromRoad(road) != RoadVerticalStrategy.FLAT) {
             return FlatElevationProfileOverlay.EMPTY;
         }
-        return verticalAlignmentEditor.flatElevationProfileOverlay(network, road);
+        return verticalAlignmentEditor.flatElevationProfileOverlay(
+            network, road, ctx.networkManager().getConfig());
     }
 
     private void renderAdvancedTerrainSection(RoadNetwork network) {

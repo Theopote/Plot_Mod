@@ -64,7 +64,7 @@ final class RoadVerticalStrategySwitchDialog {
                     optimized.best().estimatedFillVolume(),
                     optimized.best().estimatedBridgeLength(),
                     optimized.best().estimatedTunnelLength(),
-                    optimized.best().estimatedChangedBlocks(),
+                    optimized.best().estimatedEarthworkBlocks(),
                     optimized.terrainSampleCount());
             } else {
                 RoadUniformElevationUtils.FlatRoadRecommendation recommendation =

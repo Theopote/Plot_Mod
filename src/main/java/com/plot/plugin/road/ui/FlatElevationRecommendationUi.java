@@ -10,6 +10,7 @@ import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.FlatElevationCandidate;
 import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
 import com.plot.plugin.road.vertical.FlatElevationRecommendation;
+import com.plot.plugin.road.vertical.FlatElevationRecommendationSignature;
 import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.plugin.ui.PluginUiColors;
@@ -22,7 +23,8 @@ import java.util.function.Supplier;
 /** Caches derived flat elevation analysis; invalidated when the road path changes. */
 final class FlatElevationRecommendationSession {
     private String cachedRoadId = "";
-    private int cachedPathSignature = Integer.MIN_VALUE;
+    private int cachedContextSignature = Integer.MIN_VALUE;
+    private int cachedTerrainFingerprint = Integer.MIN_VALUE;
     private FlatElevationRecommendation recommendation = FlatElevationRecommendation.empty();
     private boolean stale = true;
 
@@ -30,14 +32,33 @@ final class FlatElevationRecommendationSession {
         return recommendation;
     }
 
-    boolean isStale(RoadNetwork network, Road road) {
-        if (road == null) {
+    boolean isStale(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config,
+            Supplier<TerrainSampler> terrainSupplier) {
+        if (road == null || config == null) {
             return true;
         }
         if (!road.getId().equals(cachedRoadId)) {
             return true;
         }
-        return stale || cachedPathSignature != pathSignature(network, road);
+        if (stale) {
+            return true;
+        }
+        if (cachedContextSignature != FlatElevationRecommendationSignature.contextSignature(
+                network, road, config)) {
+            return true;
+        }
+        if (terrainSupplier == null) {
+            return false;
+        }
+        TerrainSampler terrain = terrainSupplier.get();
+        if (terrain == null) {
+            return false;
+        }
+        return cachedTerrainFingerprint != FlatElevationRecommendationSignature.terrainFingerprint(
+            network, road, terrain, config);
     }
 
     FlatElevationRecommendation compute(
@@ -55,21 +76,16 @@ final class FlatElevationRecommendationSession {
         recommendation = FlatVerticalIntentSupport.recommendOptimizedElevation(
             network, road, terrain, config);
         cachedRoadId = road.getId();
-        cachedPathSignature = pathSignature(network, road);
+        cachedContextSignature = FlatElevationRecommendationSignature.contextSignature(
+            network, road, config);
+        cachedTerrainFingerprint = FlatElevationRecommendationSignature.terrainFingerprint(
+            network, road, terrain, config);
         stale = false;
         return recommendation;
     }
 
     void markStale() {
         stale = true;
-    }
-
-    private static int pathSignature(RoadNetwork network, Road road) {
-        int hash = road.getSegmentIds().hashCode();
-        if (RoadStationing.isStationable(network, road)) {
-            hash = 31 * hash + (int) Math.round(RoadStationing.canonicalLength(network, road) * 10.0);
-        }
-        return hash;
     }
 }
 
@@ -86,7 +102,7 @@ final class FlatElevationRecommendationUi {
         if (RoadVerticalStrategy.fromRoad(road) != RoadVerticalStrategy.FLAT) {
             return;
         }
-        renderStatus(network, road, false);
+        renderStatus(ctx, network, road, terrainSupplier, false);
         if (ImGui.button(PlotI18n.tr("plugin.road.flat_elevation.compute_recommendation"),
                 ImGui.getContentRegionAvailX(), 0)) {
             session.compute(ctx, network, road, terrainSupplier);
@@ -99,7 +115,7 @@ final class FlatElevationRecommendationUi {
         ImGui.text(PlotI18n.tr(
             "plugin.road.flat_elevation.recommended_y",
             best.elevation(),
-            best.estimatedChangedBlocks()));
+            best.estimatedEarthworkBlocks()));
         if (ImGui.button(PlotI18n.tr("plugin.road.flat_elevation.adopt_recommended"),
                 ImGui.getContentRegionAvailX(), 0)) {
             applyElevation(ctx, network, road, best.elevation(), onHistory);
@@ -118,7 +134,7 @@ final class FlatElevationRecommendationUi {
         }
         ImGui.spacing();
         RoadUiSections.group("plugin.road.flat_elevation.analysis");
-        renderStatus(network, road, true);
+        renderStatus(ctx, network, road, terrainSupplier, true);
         if (ImGui.button(PlotI18n.tr("plugin.road.flat_elevation.compute_recommendation"))) {
             session.compute(ctx, network, road, terrainSupplier);
         }
@@ -139,7 +155,7 @@ final class FlatElevationRecommendationUi {
             "plugin.road.flat_elevation.estimated_structures",
             best.estimatedBridgeLength(),
             best.estimatedTunnelLength(),
-            best.estimatedChangedBlocks()));
+            best.estimatedEarthworkBlocks()));
         if (ImGui.button(PlotI18n.tr("plugin.road.flat_elevation.adopt_recommended"))) {
             applyElevation(ctx, network, road, best.elevation(), onHistory);
             session.markStale();
@@ -151,7 +167,7 @@ final class FlatElevationRecommendationUi {
                 ImGui.bulletText(PlotI18n.tr(
                     "plugin.road.flat_elevation.alternative_row",
                     candidate.elevation(),
-                    candidate.estimatedChangedBlocks(),
+                    candidate.estimatedEarthworkBlocks(),
                     candidate.estimatedBridgeLength(),
                     candidate.estimatedTunnelLength()));
                 ImGui.sameLine();
@@ -164,11 +180,14 @@ final class FlatElevationRecommendationUi {
         }
     }
 
-    FlatElevationProfileOverlay profileOverlay(RoadNetwork network, Road road) {
+    FlatElevationProfileOverlay profileOverlay(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config) {
         if (RoadVerticalStrategy.fromRoad(road) != RoadVerticalStrategy.FLAT) {
             return FlatElevationProfileOverlay.EMPTY;
         }
-        Integer suggested = suggestedElevationOverlay(network, road);
+        Integer suggested = suggestedElevationOverlay(network, road, config);
         if (suggested == null) {
             return FlatElevationProfileOverlay.EMPTY;
         }
@@ -180,15 +199,23 @@ final class FlatElevationRecommendationUi {
         return FlatElevationProfileOverlay.of(current, suggested);
     }
 
-    Integer suggestedElevationOverlay(RoadNetwork network, Road road) {
-        if (session.isStale(network, road) || !session.recommendation().hasRecommendation()) {
+    Integer suggestedElevationOverlay(RoadNetwork network, Road road, RoadSystemConfig config) {
+        if (config == null
+                || session.isStale(network, road, config, null)
+                || !session.recommendation().hasRecommendation()) {
             return null;
         }
         return session.recommendation().best().elevation();
     }
 
-    private void renderStatus(RoadNetwork network, Road road, boolean verbose) {
-        if (session.isStale(network, road)) {
+    private void renderStatus(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road,
+            Supplier<TerrainSampler> terrainSupplier,
+            boolean verbose) {
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        if (session.isStale(network, road, config, terrainSupplier)) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
                 verbose

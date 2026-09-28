@@ -8,7 +8,7 @@ public record FlatElevationCandidate(
         int estimatedFillVolume,
         double estimatedBridgeLength,
         double estimatedTunnelLength,
-        int estimatedChangedBlocks,
+        int estimatedEarthworkBlocks,
         boolean feasible) {
 
     public static FlatElevationCandidate infeasible(int elevation) {

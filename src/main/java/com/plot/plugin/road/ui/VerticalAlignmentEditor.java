@@ -510,11 +510,14 @@ public final class VerticalAlignmentEditor {
     }
 
     /** Flat-road profile chart reference lines (current vs optimizer suggestion). */
-    public FlatElevationProfileOverlay flatElevationProfileOverlay(RoadNetwork network, Road road) {
+    public FlatElevationProfileOverlay flatElevationProfileOverlay(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config) {
         if (road == null) {
             return FlatElevationProfileOverlay.EMPTY;
         }
-        return flatElevationRecommendationUi.profileOverlay(network, road);
+        return flatElevationRecommendationUi.profileOverlay(network, road, config);
     }
 
     static final class PviDraft {

@@ -16,7 +16,7 @@ final class FlatElevationConstructionMetrics {
             int fillVolume,
             double bridgeLength,
             double tunnelLength,
-            int changedBlocks) {
+            int earthworkBlocks) {
 
         Metrics add(Metrics other) {
             return new Metrics(
@@ -24,7 +24,7 @@ final class FlatElevationConstructionMetrics {
                 fillVolume + other.fillVolume,
                 bridgeLength + other.bridgeLength,
                 tunnelLength + other.tunnelLength,
-                changedBlocks + other.changedBlocks);
+                earthworkBlocks + other.earthworkBlocks);
         }
 
         static Metrics empty() {
@@ -51,29 +51,36 @@ final class FlatElevationConstructionMetrics {
             int ground = averageHeight(info.groundStart, info.groundEnd);
             int target = averageHeight(info.targetStart, info.targetEnd);
             int diff = target - ground;
-            switch (detection.constructionTypes().get(i)) {
-                case CUT -> cutVolume += Math.abs(diff) * (int) Math.round(distance);
-                case FILL -> fillVolume += diff * (int) Math.round(distance);
-                case BRIDGE -> {
-                    fillVolume += diff * (int) Math.round(distance);
-                    bridgeLength += distance;
-                }
-                case TUNNEL -> {
-                    cutVolume += Math.abs(diff) * (int) Math.round(distance);
-                    tunnelLength += distance;
-                }
-                case ROAD -> {
-                    if (diff > 1) {
-                        fillVolume += diff * (int) Math.round(distance);
-                    } else if (diff < -1) {
-                        cutVolume += Math.abs(diff) * (int) Math.round(distance);
-                    }
+            EarthworkTotals totals = accumulateSegment(detection.constructionTypes().get(i), diff, distance);
+            cutVolume += totals.cutVolume;
+            fillVolume += totals.fillVolume;
+            bridgeLength += totals.bridgeLength;
+            tunnelLength += totals.tunnelLength;
+        }
+
+        return new Metrics(cutVolume, fillVolume, bridgeLength, tunnelLength, cutVolume + fillVolume);
+    }
+
+    static EarthworkTotals accumulateSegment(RoadConstructionType type, int diff, double distance) {
+        int roundedDistance = (int) Math.round(distance);
+        int cutVolume = 0;
+        int fillVolume = 0;
+        double bridgeLength = 0.0;
+        double tunnelLength = 0.0;
+        switch (type) {
+            case CUT -> cutVolume += Math.abs(diff) * roundedDistance;
+            case FILL -> fillVolume += diff * roundedDistance;
+            case BRIDGE -> bridgeLength += distance;
+            case TUNNEL -> tunnelLength += distance;
+            case ROAD -> {
+                if (diff > 1) {
+                    fillVolume += diff * roundedDistance;
+                } else if (diff < -1) {
+                    cutVolume += Math.abs(diff) * roundedDistance;
                 }
             }
         }
-
-        int changedBlocks = cutVolume + fillVolume;
-        return new Metrics(cutVolume, fillVolume, bridgeLength, tunnelLength, changedBlocks);
+        return new EarthworkTotals(cutVolume, fillVolume, bridgeLength, tunnelLength);
     }
 
     static double score(
@@ -91,5 +98,8 @@ final class FlatElevationConstructionMetrics {
 
     private static int averageHeight(int a, int b) {
         return (int) Math.round((a + b) / 2.0);
+    }
+
+    record EarthworkTotals(int cutVolume, int fillVolume, double bridgeLength, double tunnelLength) {
     }
 }

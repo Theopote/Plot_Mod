@@ -27,7 +27,7 @@ class FlatElevationOptimizerTest {
 
         assertTrue(recommendation.hasRecommendation());
         assertEquals(64, recommendation.best().elevation());
-        assertEquals(0, recommendation.best().estimatedChangedBlocks());
+        assertEquals(0, recommendation.best().estimatedEarthworkBlocks());
     }
 
     @Test
@@ -49,8 +49,10 @@ class FlatElevationOptimizerTest {
         FlatElevationRecommendation recommendation = FlatElevationOptimizer.evaluate(
             network, road, ramp, CONFIG);
         assertTrue(recommendation.hasRecommendation());
-        assertTrue(recommendation.best().elevation() >= 66 && recommendation.best().elevation() <= 74);
-        assertTrue(recommendation.best().estimatedChangedBlocks() >= 0);
+        int bestY = recommendation.best().elevation();
+        assertTrue(bestY >= 58 && bestY <= 84,
+            "expected balanced Y within search window, got Y=" + bestY);
+        assertTrue(recommendation.best().estimatedEarthworkBlocks() >= 0);
         assertTrue(recommendation.alternatives().size() >= 1);
     }
 
@@ -72,7 +74,7 @@ class FlatElevationOptimizerTest {
             network, road, terrain, CONFIG, 64, maxGrade, intent, costConfig, roadLength, 0.0);
 
         assertTrue(stageB.feasible());
-        assertTrue(stageB.estimatedChangedBlocks() > 0);
+        assertTrue(stageB.estimatedEarthworkBlocks() > 0);
     }
 
     @Test

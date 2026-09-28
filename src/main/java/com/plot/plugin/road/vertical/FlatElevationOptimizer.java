@@ -31,10 +31,11 @@ public final class FlatElevationOptimizer {
     private static final double DEFAULT_SAMPLE_SPACING = 1.0;
     private static final int SEARCH_MARGIN = 4;
     private static final int MEDIAN_RADIUS = 8;
-    private static final int TOP_K = 3;
+    private static final int REFINE_TOP_K = 5;
+    private static final int DISPLAY_TOP_K = 3;
     private static final double EPSILON = 1e-6;
 
-    private record TerrainSegmentSample(double segmentLength, int groundY) { }
+    record TerrainSegmentSample(double segmentLength, int groundY) { }
 
     private FlatElevationOptimizer() {
     }
@@ -109,7 +110,7 @@ public final class FlatElevationOptimizer {
             return new FlatElevationRecommendation(best, List.of(best), samples.size());
         }
 
-        List<FlatElevationCandidate> stageA = ranked.stream().limit(TOP_K).toList();
+        List<FlatElevationCandidate> stageA = ranked.stream().limit(REFINE_TOP_K).toList();
         List<FlatElevationCandidate> refined = refineTopCandidates(
             network,
             road,
@@ -121,7 +122,8 @@ public final class FlatElevationOptimizer {
             costConfig,
             roadLength,
             median);
-        return new FlatElevationRecommendation(refined.getFirst(), refined, samples.size());
+        List<FlatElevationCandidate> displayed = refined.stream().limit(DISPLAY_TOP_K).toList();
+        return new FlatElevationRecommendation(displayed.getFirst(), displayed, samples.size());
     }
 
     private static List<FlatElevationCandidate> refineTopCandidates(
@@ -184,7 +186,7 @@ public final class FlatElevationOptimizer {
             candidate.estimatedFillVolume(),
             candidate.estimatedBridgeLength(),
             candidate.estimatedTunnelLength(),
-            candidate.estimatedChangedBlocks(),
+            candidate.estimatedEarthworkBlocks(),
             true);
     }
 
@@ -212,7 +214,7 @@ public final class FlatElevationOptimizer {
             scored.estimatedFillVolume(),
             scored.estimatedBridgeLength(),
             scored.estimatedTunnelLength(),
-            scored.estimatedChangedBlocks(),
+            scored.estimatedEarthworkBlocks(),
             true);
     }
 
@@ -245,28 +247,15 @@ public final class FlatElevationOptimizer {
         for (int i = 0; i < types.size(); i++) {
             double distance = distances.get(i);
             int diff = candidateY - groundHeights.get(i);
-            switch (types.get(i)) {
-                case CUT -> cutVolume += Math.abs(diff) * distance;
-                case FILL -> fillVolume += diff * distance;
-                case BRIDGE -> {
-                    fillVolume += diff * distance;
-                    bridgeLength += distance;
-                }
-                case TUNNEL -> {
-                    cutVolume += Math.abs(diff) * distance;
-                    tunnelLength += distance;
-                }
-                case ROAD -> {
-                    if (diff > 1) {
-                        fillVolume += diff * distance;
-                    } else if (diff < -1) {
-                        cutVolume += Math.abs(diff) * distance;
-                    }
-                }
-            }
+            FlatElevationConstructionMetrics.EarthworkTotals totals =
+                FlatElevationConstructionMetrics.accumulateSegment(types.get(i), diff, distance);
+            cutVolume += totals.cutVolume();
+            fillVolume += totals.fillVolume();
+            bridgeLength += totals.bridgeLength();
+            tunnelLength += totals.tunnelLength();
         }
 
-        int changedBlocks = cutVolume + fillVolume;
+        int earthworkBlocks = cutVolume + fillVolume;
         double score = costConfig.cutCostPerVolume() * cutVolume
             + costConfig.fillCostPerVolume() * fillVolume
             + (bridgeLength > EPSILON ? costConfig.bridgeBaseCost() : 0.0)
@@ -281,7 +270,7 @@ public final class FlatElevationOptimizer {
             fillVolume,
             bridgeLength,
             tunnelLength,
-            changedBlocks,
+            earthworkBlocks,
             true);
     }
 
