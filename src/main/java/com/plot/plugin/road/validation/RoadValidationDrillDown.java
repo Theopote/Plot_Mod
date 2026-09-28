@@ -15,6 +15,7 @@ import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
 import com.plot.plugin.road.model.RoadTopologyViolation;
 import com.plot.plugin.road.model.RoadTopologyViolationKind;
 import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.vertical.FlatRoadJunctionConflictResolver;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import com.plot.plugin.road.vertical.VerticalAlignmentValidator;
@@ -57,7 +58,8 @@ public final class RoadValidationDrillDown {
                  "horizontal_centerline_deviation",
                  "junction_endpoint_conflict",
                  "alignment_topology_mismatch",
-                 "slope_override_overlap" -> true;
+                 "slope_override_overlap",
+                 "flat_transition_insufficient" -> true;
             default -> false;
         };
     }
@@ -93,6 +95,7 @@ public final class RoadValidationDrillDown {
             case "junction_endpoint_conflict" -> roadsWithHorizontalJunctionConflicts(network);
             case "alignment_topology_mismatch" -> roadsWithHorizontalTopologyMismatch(network);
             case "slope_override_overlap" -> roadsWithSlopeOverrideOverlap(network);
+            case "flat_transition_insufficient" -> roadsWithFlatTransitionIssues(network);
             default -> List.of();
         };
     }
@@ -247,6 +250,15 @@ public final class RoadValidationDrillDown {
             if (!HorizontalAlignmentTopologyValidator.validate(network, road).isEmpty()) {
                 roadIds.add(road.getId());
             }
+        }
+        return sortedRoadIds(network, roadIds);
+    }
+
+    private static List<String> roadsWithFlatTransitionIssues(RoadNetwork network) {
+        LinkedHashSet<String> roadIds = new LinkedHashSet<>();
+        for (FlatRoadJunctionConflictResolver.TransitionIssue issue
+                : FlatRoadJunctionConflictResolver.findTransitionIssues(network)) {
+            roadIds.add(issue.roadId());
         }
         return sortedRoadIds(network, roadIds);
     }

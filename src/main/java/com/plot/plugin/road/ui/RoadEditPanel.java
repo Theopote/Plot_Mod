@@ -11,13 +11,16 @@ import imgui.ImGui;
  */
 public final class RoadEditPanel {
     private final RoadUiContext ctx;
+    private final RoadVerticalStrategySwitchDialog strategySwitchDialog = new RoadVerticalStrategySwitchDialog();
+    private final RoadVerticalBatchEditor verticalBatchEditor = new RoadVerticalBatchEditor();
     private final RoadDesignPanel designPanel;
     private final RoadEditWorkspace editWorkspace;
 
     public RoadEditPanel(RoadUiContext ctx, RoadDefaultParamsPanel defaultParamsPanel) {
         this.ctx = ctx;
-        this.designPanel = new RoadDesignPanel(ctx);
-        this.editWorkspace = new RoadEditWorkspace(ctx, designPanel, defaultParamsPanel);
+        this.designPanel = new RoadDesignPanel(ctx, strategySwitchDialog);
+        this.editWorkspace = new RoadEditWorkspace(
+            ctx, designPanel, defaultParamsPanel, verticalBatchEditor, strategySwitchDialog);
     }
 
     public void render() {
@@ -47,6 +50,10 @@ public final class RoadEditPanel {
 
     RoadDesignPanel designPanel() {
         return designPanel;
+    }
+
+    public void renderDeferredModals() {
+        strategySwitchDialog.renderPopup(ctx);
     }
 
     private void renderJunctionSelectionHint() {

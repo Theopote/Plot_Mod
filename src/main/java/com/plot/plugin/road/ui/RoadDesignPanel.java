@@ -31,6 +31,7 @@ import java.util.List;
 final class RoadDesignPanel {
 
     private final RoadUiContext ctx;
+    private final RoadVerticalStrategySwitchDialog strategySwitchDialog;
     private final RoadIdentityEditor identityEditor = new RoadIdentityEditor();
     private final VerticalAlignmentEditor verticalAlignmentEditor = new VerticalAlignmentEditor();
     private final HorizontalAlignmentSummaryEditor horizontalAlignmentEditor = new HorizontalAlignmentSummaryEditor();
@@ -40,8 +41,9 @@ final class RoadDesignPanel {
     private final RoadSegmentEditor segmentEditor = new RoadSegmentEditor();
     private ChainageDisplayMode chainageDisplayMode = ChainageDisplayMode.FROM_START;
 
-    RoadDesignPanel(RoadUiContext ctx) {
+    RoadDesignPanel(RoadUiContext ctx, RoadVerticalStrategySwitchDialog strategySwitchDialog) {
         this.ctx = ctx;
+        this.strategySwitchDialog = strategySwitchDialog;
     }
 
     void render(RoadNetwork network) {
@@ -115,7 +117,8 @@ final class RoadDesignPanel {
         RoadUiSections.group("plugin.road.design_stack.alignment");
         horizontalAlignmentEditor.render(ctx, network, road, chainageDisplay);
         verticalAlignmentEditor.renderModeOnly(
-            network, road, ctx.networkManager().getConfig(), ctx.networkManager()::pushHistory);
+            network, road, ctx.networkManager().getConfig(), ctx.networkManager()::pushHistory,
+            strategySwitchDialog, this::requireTerrainOrNull);
         RoadCrossSectionEditor.renderAdvancedCrossSection(ctx, road, ctx::pushRoadEditHistory);
 
         RoadUiSections.group("plugin.road.design_stack.station_controls");

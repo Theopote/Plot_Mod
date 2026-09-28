@@ -6,6 +6,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.station.RoadStationing;
 
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -87,13 +88,23 @@ public final class FlatVerticalIntentSupport {
         if (road == null || network == null) {
             return;
         }
-        double base = recommendBaseElevation(network, road);
-        FlatVerticalIntent intent = new FlatVerticalIntent(base);
+        enableFlatWithBase(network, road, config, recommendBaseElevation(network, road));
+    }
+
+    public static void enableFlatWithBase(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config,
+            double baseElevation) {
+        if (road == null || network == null || !Double.isFinite(baseElevation)) {
+            return;
+        }
+        FlatVerticalIntent intent = new FlatVerticalIntent(baseElevation);
         for (Map.Entry<String, Double> entry
                 : VerticalAlignmentJunctionSynchronizer.junctionStations(network, road).entrySet()) {
             RoadNode node = network.getNode(entry.getKey());
             if (node != null && node.getManualElevation() != null
-                    && Math.abs(node.getManualElevation() - base) > EPSILON) {
+                    && Math.abs(node.getManualElevation() - baseElevation) > EPSILON) {
                 intent.setIntersectionOverride(entry.getKey(), node.getManualElevation());
             }
         }
@@ -163,6 +174,120 @@ public final class FlatVerticalIntentSupport {
             }
         }
         return 64.0;
+    }
+
+    public record BatchElevationSummary(boolean mixed, double commonElevation, int flatRoadCount) { }
+
+    public static BatchElevationSummary summarizeFlatBaseElevations(
+            RoadNetwork network,
+            Collection<String> roadIds) {
+        if (network == null || roadIds == null || roadIds.isEmpty()) {
+            return new BatchElevationSummary(false, 64.0, 0);
+        }
+        Double common = null;
+        int flatCount = 0;
+        for (String roadId : roadIds) {
+            Road road = network.getRoad(roadId);
+            if (road == null || road.getVerticalMode() != RoadVerticalMode.FLAT) {
+                continue;
+            }
+            FlatVerticalIntent intent = resolveIntent(network, road);
+            if (intent == null) {
+                continue;
+            }
+            flatCount++;
+            if (common == null) {
+                common = intent.getBaseElevation();
+            } else if (Math.abs(common - intent.getBaseElevation()) > EPSILON) {
+                return new BatchElevationSummary(true, common, flatCount);
+            }
+        }
+        return new BatchElevationSummary(false, common != null ? common : 64.0, flatCount);
+    }
+
+    public static int applyBatchTerrainAdaptive(
+            RoadNetwork network,
+            Collection<String> roadIds,
+            RoadSystemConfig config) {
+        if (network == null || roadIds == null) {
+            return 0;
+        }
+        int changed = 0;
+        for (String roadId : roadIds) {
+            Road road = network.getRoad(roadId);
+            if (road == null || !RoadStationing.isStationable(network, road)) {
+                continue;
+            }
+            if (RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.TERRAIN_ADAPTIVE) {
+                continue;
+            }
+            enableTerrainAdaptive(network, road, config);
+            changed++;
+        }
+        return changed;
+    }
+
+    public static int applyBatchFlatRecommended(
+            RoadNetwork network,
+            Collection<String> roadIds,
+            RoadSystemConfig config) {
+        if (network == null || roadIds == null) {
+            return 0;
+        }
+        int changed = 0;
+        for (String roadId : roadIds) {
+            Road road = network.getRoad(roadId);
+            if (road == null || !canUseFlatStrategy(network, road)) {
+                continue;
+            }
+            enableFlatWithBase(
+                network, road, config, recommendBaseElevation(network, road));
+            changed++;
+        }
+        return changed;
+    }
+
+    public static int applyBatchFlatUniformBase(
+            RoadNetwork network,
+            Collection<String> roadIds,
+            double baseElevation,
+            RoadSystemConfig config) {
+        if (network == null || roadIds == null || !Double.isFinite(baseElevation)) {
+            return 0;
+        }
+        int changed = 0;
+        for (String roadId : roadIds) {
+            Road road = network.getRoad(roadId);
+            if (road == null) {
+                continue;
+            }
+            if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
+                FlatVerticalIntent intent = resolveIntent(network, road);
+                if (intent != null
+                        && Math.abs(intent.getBaseElevation() - baseElevation) <= EPSILON) {
+                    continue;
+                }
+                setBaseElevation(
+                    network, road, baseElevation, road.getEffectiveMaxSlope(config));
+                changed++;
+                continue;
+            }
+            if (!canUseFlatStrategy(network, road)) {
+                continue;
+            }
+            enableFlatWithBase(network, road, config, baseElevation);
+            changed++;
+        }
+        return changed;
+    }
+
+    public static boolean canUseFlatStrategy(RoadNetwork network, Road road) {
+        if (road == null || network == null || !RoadStationing.isStationable(network, road)) {
+            return false;
+        }
+        double length = RoadStationing.canonicalLength(network, road);
+        return VerticalProfileDesignRules.slopeAllowed(length)
+            || road.getVerticalMode() == RoadVerticalMode.FLAT;
     }
 
     private static FlatVerticalIntent migrateLegacyFlat(RoadNetwork network, Road road) {

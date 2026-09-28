@@ -135,7 +135,9 @@ public final class VerticalAlignmentEditor {
             RoadNetwork network,
             Road road,
             RoadSystemConfig config,
-            Runnable onHistory) {
+            Runnable onHistory,
+            RoadVerticalStrategySwitchDialog switchDialog,
+            Supplier<TerrainSampler> terrainSupplier) {
         if (road == null || network == null) {
             return;
         }
@@ -146,7 +148,7 @@ public final class VerticalAlignmentEditor {
             return;
         }
         double roadLength = RoadStationing.canonicalLength(network, road);
-        renderVerticalStrategy(network, road, roadLength, config, onHistory);
+        renderVerticalStrategy(network, road, roadLength, config, onHistory, switchDialog, terrainSupplier);
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.vertical_alignment_edit_in_generate_hint"));
@@ -157,7 +159,9 @@ public final class VerticalAlignmentEditor {
             Road road,
             double roadLength,
             RoadSystemConfig config,
-            Runnable onHistory) {
+            Runnable onHistory,
+            RoadVerticalStrategySwitchDialog switchDialog,
+            Supplier<TerrainSampler> terrainSupplier) {
         RoadVerticalStrategy current = RoadVerticalStrategy.fromRoad(road);
         if (ImGui.beginCombo(
                 PlotI18n.tr("plugin.road.vertical_strategy"),
@@ -167,16 +171,26 @@ public final class VerticalAlignmentEditor {
                         && strategy == RoadVerticalStrategy.TERRAIN_ADAPTIVE) {
                     continue;
                 }
-                if (ImGui.selectable(strategy.label(), strategy == current)) {
-                    if (onHistory != null) {
-                        onHistory.run();
-                    }
-                    strategy.applyToRoad(network, road, config);
-                    syncedRoadId = "";
-                    syncDrafts(road);
-                    FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, road);
-                    if (intent != null) {
-                        flatElevation = (float) intent.getBaseElevation();
+                if (ImGui.selectable(strategy.label(), strategy == current)
+                        && strategy != current) {
+                    if (switchDialog != null) {
+                        if (strategy == RoadVerticalStrategy.FLAT) {
+                            TerrainSampler terrain = terrainSupplier != null ? terrainSupplier.get() : null;
+                            switchDialog.requestSingleToFlat(network, road, config, terrain);
+                        } else {
+                            switchDialog.requestToTerrainAdaptive(List.of(road.getId()));
+                        }
+                    } else {
+                        if (onHistory != null) {
+                            onHistory.run();
+                        }
+                        strategy.applyToRoad(network, road, config);
+                        syncedRoadId = "";
+                        syncDrafts(road);
+                        FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, road);
+                        if (intent != null) {
+                            flatElevation = (float) intent.getBaseElevation();
+                        }
                     }
                 }
             }

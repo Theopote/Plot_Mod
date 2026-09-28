@@ -1,9 +1,12 @@
 package com.plot.plugin.road.validation;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.vertical.FlatVerticalIntent;
+import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -67,5 +70,28 @@ class RoadValidationDrillDownTest {
             2);
 
         assertEquals("road_disconnected", message.issueId());
+    }
+
+    @Test
+    void resolvesFlatTransitionIssues() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("short-flat");
+        com.plot.plugin.road.model.RoadNode start = network.createNode(new Vec2d(0, 0));
+        com.plot.plugin.road.model.RoadNode center = network.createNode(new Vec2d(10, 0));
+        com.plot.plugin.road.model.RoadNode end = network.createNode(new Vec2d(12, 0));
+        network.createEdge(start.getId(), center.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+        network.createEdge(center.getId(), end.getId(),
+            List.of(new Vec2d(10, 0), new Vec2d(12, 0)), road.getId());
+        FlatVerticalIntentSupport.enableFlatWithBase(network, road, new RoadSystemConfig("test"), 70.0);
+        FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, road);
+        intent.setIntersectionOverride(center.getId(), 73.0);
+        FlatVerticalIntentSupport.syncCompiledAlignment(network, road, 8.0);
+
+        List<String> roadIds = RoadValidationDrillDown.affectedRoadIds(
+            "flat_transition_insufficient", network, new RoadSystemConfig("test"));
+
+        assertTrue(RoadValidationDrillDown.supports("flat_transition_insufficient"));
+        assertEquals(List.of(road.getId()), roadIds);
     }
 }
