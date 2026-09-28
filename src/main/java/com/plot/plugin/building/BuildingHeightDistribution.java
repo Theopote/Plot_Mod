@@ -3,11 +3,7 @@ package com.plot.plugin.building;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.building.model.BuildingFootprint;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
-import java.util.Random;
+import java.util.*;
 
 /**
  * District Massing Phase E：对选中建筑应用高度/层数分布，形成城市天际线。
@@ -35,7 +31,7 @@ public final class BuildingHeightDistribution {
             int lo = Math.max(1, Math.min(minFloors, maxFloors));
             int hi = Math.max(1, Math.max(minFloors, maxFloors));
             minFloors = Math.min(BuildingFootprint.MAX_FLOORS, lo);
-            maxFloors = Math.min(BuildingFootprint.MAX_FLOORS, Math.max(lo, hi));
+            maxFloors = Math.min(BuildingFootprint.MAX_FLOORS, hi);
         }
 
         public static Settings uniform(int floors) {
@@ -126,11 +122,7 @@ public final class BuildingHeightDistribution {
         int max = settings.maxFloors();
 
         switch (settings.mode()) {
-            case UNIFORM -> {
-                for (int i = 0; i < n; i++) {
-                    floors[i] = max;
-                }
-            }
+            case UNIFORM -> Arrays.fill(floors, max);
             case RANDOM -> {
                 Random random = new Random(settings.seed());
                 for (int i = 0; i < n; i++) {
@@ -138,7 +130,7 @@ public final class BuildingHeightDistribution {
                 }
             }
             case AREA_BASED -> applyByNormalizedMetric(buildings, floors, min, max, true,
-                building -> building.computeArea());
+                    BuildingFootprint::computeArea);
             case CENTER_HIGHER -> applyByDistanceToCentroid(buildings, floors, min, max, true);
             case EDGE_HIGHER -> applyByDistanceToCentroid(buildings, floors, min, max, false);
             case GRADIENT -> applyByGradientX(buildings, floors, min, max);

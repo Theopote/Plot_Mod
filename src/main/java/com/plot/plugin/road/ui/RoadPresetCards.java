@@ -43,7 +43,7 @@ public final class RoadPresetCards {
                 ctx.adoptIncludeSidewalkRef().set(config.isIncludeSidewalk());
                 ctx.onGenerationConfigChanged();
             },
-            () -> config.markCustom());
+                config::markCustom);
     }
 
     public static void renderForRoad(RoadUiContext ctx, Road road, Runnable onChanged) {

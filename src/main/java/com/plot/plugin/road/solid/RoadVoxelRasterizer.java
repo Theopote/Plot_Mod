@@ -79,8 +79,7 @@ public final class RoadVoxelRasterizer {
 
         // 提取公共逻辑：先处理非隧道，再处理隧道
         flushSolidsByLayer(result, solids, transformer, projectionHandler,
-            (res, prim, trans, handler, overrideExisting) ->
-                writePlacementRecord(res, prim, trans, handler, overrideExisting));
+                RoadVoxelRasterizer::writePlacementRecord);
 
         result.streetlightCount = result.streetlightBlocks.size();
     }

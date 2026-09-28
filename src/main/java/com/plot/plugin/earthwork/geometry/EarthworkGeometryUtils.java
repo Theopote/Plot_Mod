@@ -63,18 +63,22 @@ public final class EarthworkGeometryUtils {
         if (shape == null || isExcludedRegionShape(shape)) {
             return List.of();
         }
-        if (shape instanceof PolylineShape polyline) {
-            return PolygonRegionUtils.copyPoints(polyline.getPoints());
-        }
-        if (shape instanceof Polygon polygon) {
-            return PolygonRegionUtils.copyPoints(polygon.getPoints());
-        }
-        if (shape instanceof FreeDrawPath freeDraw) {
-            return PolygonRegionUtils.copyPoints(freeDraw.getPoints());
-        }
-        if (shape instanceof BezierCurveShape bezier) {
-            List<Vec2d> curvePoints = bezier.getCurvePoints();
-            return curvePoints != null ? PolygonRegionUtils.copyPoints(curvePoints) : List.of();
+        switch (shape) {
+            case PolylineShape polyline -> {
+                return PolygonRegionUtils.copyPoints(polyline.getPoints());
+            }
+            case Polygon polygon -> {
+                return PolygonRegionUtils.copyPoints(polygon.getPoints());
+            }
+            case FreeDrawPath freeDraw -> {
+                return PolygonRegionUtils.copyPoints(freeDraw.getPoints());
+            }
+            case BezierCurveShape bezier -> {
+                List<Vec2d> curvePoints = bezier.getCurvePoints();
+                return curvePoints != null ? PolygonRegionUtils.copyPoints(curvePoints) : List.of();
+            }
+            default -> {
+            }
         }
         if (shape instanceof RectangleShape
             || shape instanceof CircleShape

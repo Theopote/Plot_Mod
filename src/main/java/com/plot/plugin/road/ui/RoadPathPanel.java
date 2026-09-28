@@ -11,7 +11,6 @@ import imgui.flag.ImGuiTreeNodeFlags;
 public final class RoadPathPanel {
     private final RoadUiContext ctx;
     private final RoadAdoptPanel adoptPanel;
-    private final RoadDefaultParamsPanel defaultParamsPanel;
     private final RoadEdgeListPanel edgeListPanel;
     private final RoadOverviewPanel overviewPanel;
     private final RoadIntersectionListPanel intersectionListPanel;
@@ -19,13 +18,11 @@ public final class RoadPathPanel {
     public RoadPathPanel(
             RoadUiContext ctx,
             RoadAdoptPanel adoptPanel,
-            RoadDefaultParamsPanel defaultParamsPanel,
             RoadEdgeListPanel edgeListPanel,
             RoadOverviewPanel overviewPanel,
             RoadIntersectionListPanel intersectionListPanel) {
         this.ctx = ctx;
         this.adoptPanel = adoptPanel;
-        this.defaultParamsPanel = defaultParamsPanel;
         this.edgeListPanel = edgeListPanel;
         this.overviewPanel = overviewPanel;
         this.intersectionListPanel = intersectionListPanel;
@@ -73,8 +70,5 @@ public final class RoadPathPanel {
         RoadNetwork network = ctx.networkManager().getNetwork();
         overviewPanel.renderCompactNetworkSummary();
         overviewPanel.renderHealthWarnings(network);
-        ImGui.separator();
-        RoadUiSections.section("plugin.road.route.new_road_defaults");
-        defaultParamsPanel.renderRoutePrimary();
     }
 }

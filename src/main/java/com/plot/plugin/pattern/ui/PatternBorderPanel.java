@@ -26,7 +26,7 @@ public final class PatternBorderPanel {
         }
 
         PatternBorderConfig borderConfig = footprint.getBorderConfig();
-        Runnable beforeEdit = () -> ctx.pushProjectHistory();
+        Runnable beforeEdit = ctx::pushProjectHistory;
         Runnable commit = () -> {
             footprint.setBorderConfig(borderConfig);
             ctx.actions().invalidatePreview();

@@ -61,42 +61,34 @@ public final class PowerLineSourceDescriptor {
 
     public static PowerLineSourceDescriptor capture(Shape shape) {
         PowerLineSourcePath path = PowerLinePathAdapters.tryFrom(shape);
-        if (path == null) {
-            throw new IllegalArgumentException("Shape is not an adoptable power line path");
-        }
-        if (path instanceof PolylineSourcePath polyline) {
-            return polyline(shape.getId(), polyline.points(), polyline.isClosed());
-        }
-        if (path instanceof BezierSourcePath bezier && shape instanceof BezierCurveShape curve) {
-            return bezier(shape.getId(), curve.getControlPoints(), bezier.isClosed());
-        }
-        if (path instanceof EllipseLoopSourcePath ellipse) {
-            return ellipse(
-                shape.getId(),
-                ellipse.center(),
-                ellipse.radiusX(),
-                ellipse.radiusY(),
-                ellipse.rotation());
-        }
-        if (path instanceof ArcSourcePath && shape instanceof ArcShape arc) {
-            return arc(
-                shape.getId(),
-                arc.getCenter(),
-                arc.getRadius(),
-                arc.getStartAngle(),
-                arc.getEndAngle());
-        }
-        if (path instanceof EllipticalArcSourcePath && shape instanceof EllipticalArcShape arc) {
-            return ellipticalArc(
-                shape.getId(),
-                arc.getCenter(),
-                arc.getRadiusX(),
-                arc.getRadiusY(),
-                arc.getRotation(),
-                arc.getStartAngle(),
-                arc.getEndAngle());
-        }
-        throw new IllegalArgumentException("Unsupported source path type");
+        return switch (path) {
+            case null -> throw new IllegalArgumentException("Shape is not an adoptable power line path");
+            case PolylineSourcePath polyline -> polyline(shape.getId(), polyline.points(), polyline.isClosed());
+            case BezierSourcePath bezier when shape instanceof BezierCurveShape curve ->
+                    bezier(shape.getId(), curve.getControlPoints(), bezier.isClosed());
+            case EllipseLoopSourcePath ellipse -> ellipse(
+                    shape.getId(),
+                    ellipse.center(),
+                    ellipse.radiusX(),
+                    ellipse.radiusY(),
+                    ellipse.rotation());
+            case ArcSourcePath ignored when shape instanceof ArcShape arc -> arc(
+                    shape.getId(),
+                    arc.getCenter(),
+                    arc.getRadius(),
+                    arc.getStartAngle(),
+                    arc.getEndAngle());
+            case EllipticalArcSourcePath ignored when shape instanceof EllipticalArcShape arc ->
+                    ellipticalArc(
+                            shape.getId(),
+                            arc.getCenter(),
+                            arc.getRadiusX(),
+                            arc.getRadiusY(),
+                            arc.getRotation(),
+                            arc.getStartAngle(),
+                            arc.getEndAngle());
+            default -> throw new IllegalArgumentException("Unsupported source path type");
+        };
     }
 
     public static PowerLineSourceDescriptor polyline(String shapeId, List<Vec2d> points, boolean closed) {

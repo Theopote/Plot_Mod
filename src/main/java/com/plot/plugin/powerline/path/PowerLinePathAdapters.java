@@ -39,71 +39,75 @@ public final class PowerLinePathAdapters {
     }
 
     public static PowerLineSourcePath tryFrom(Shape shape) {
-        if (shape == null) {
-            return null;
-        }
-        if (shape instanceof LineShape line) {
-            return PolylineSourcePath.open(copyPoints(line.getPoints()));
-        }
-        if (shape instanceof PolylineShape polyline) {
-            return PolylineSourcePath.of(copyPoints(polyline.getPoints()), polyline.isClosed());
-        }
-        if (shape instanceof FreeDrawPath freeDraw) {
-            return PolylineSourcePath.open(copyPoints(freeDraw.getPoints()));
-        }
-        if (shape instanceof BezierCurveShape bezier) {
-            return bezierPath(bezier);
-        }
-        if (shape instanceof CircleShape circle) {
-            if (circle.getRadius() <= 1e-9) {
+        switch (shape) {
+            case null -> {
                 return null;
             }
-            return EllipseLoopSourcePath.circle(circle.getCenter(), circle.getRadius());
-        }
-        if (shape instanceof EllipseShape ellipse) {
-            if (ellipse.getRadiusX() <= 1e-9 || ellipse.getRadiusY() <= 1e-9) {
-                return null;
+            case LineShape line -> {
+                return PolylineSourcePath.open(copyPoints(line.getPoints()));
             }
-            return new EllipseLoopSourcePath(
-                ellipse.getCenter(),
-                ellipse.getRadiusX(),
-                ellipse.getRadiusY(),
-                ellipse.getRotation());
-        }
-        if (shape instanceof Polygon polygon) {
-            if (!polygon.isClosed() || polygon.getPoints().size() < 3) {
-                return null;
+            case PolylineShape polyline -> {
+                return PolylineSourcePath.of(copyPoints(polyline.getPoints()), polyline.isClosed());
             }
-            return PolylineSourcePath.of(copyClosedVertices(polygon.getPoints()), true);
-        }
-        if (shape instanceof RectangleShape rectangle) {
-            List<Vec2d> outline = copyPoints(rectangle.getPoints());
-            if (outline.size() < 3) {
-                return null;
+            case FreeDrawPath freeDraw -> {
+                return PolylineSourcePath.open(copyPoints(freeDraw.getPoints()));
             }
-            return PolylineSourcePath.of(copyClosedVertices(outline), true);
-        }
-        if (shape instanceof ArcShape arc) {
-            if (arc.getRadius() <= 1e-9) {
-                return null;
+            case BezierCurveShape bezier -> {
+                return bezierPath(bezier);
             }
-            return new ArcSourcePath(
-                arc.getCenter(),
-                arc.getRadius(),
-                arc.getStartAngle(),
-                arc.getEndAngle());
-        }
-        if (shape instanceof EllipticalArcShape arc) {
-            if (arc.getRadiusX() <= 1e-9 || arc.getRadiusY() <= 1e-9) {
-                return null;
+            case CircleShape circle -> {
+                if (circle.getRadius() <= 1e-9) {
+                    return null;
+                }
+                return EllipseLoopSourcePath.circle(circle.getCenter(), circle.getRadius());
             }
-            return new EllipticalArcSourcePath(
-                arc.getCenter(),
-                arc.getRadiusX(),
-                arc.getRadiusY(),
-                arc.getRotation(),
-                arc.getStartAngle(),
-                arc.getEndAngle());
+            case EllipseShape ellipse -> {
+                if (ellipse.getRadiusX() <= 1e-9 || ellipse.getRadiusY() <= 1e-9) {
+                    return null;
+                }
+                return new EllipseLoopSourcePath(
+                        ellipse.getCenter(),
+                        ellipse.getRadiusX(),
+                        ellipse.getRadiusY(),
+                        ellipse.getRotation());
+            }
+            case Polygon polygon -> {
+                if (!polygon.isClosed() || polygon.getPoints().size() < 3) {
+                    return null;
+                }
+                return PolylineSourcePath.of(copyClosedVertices(polygon.getPoints()), true);
+            }
+            case RectangleShape rectangle -> {
+                List<Vec2d> outline = copyPoints(rectangle.getPoints());
+                if (outline.size() < 3) {
+                    return null;
+                }
+                return PolylineSourcePath.of(copyClosedVertices(outline), true);
+            }
+            case ArcShape arc -> {
+                if (arc.getRadius() <= 1e-9) {
+                    return null;
+                }
+                return new ArcSourcePath(
+                        arc.getCenter(),
+                        arc.getRadius(),
+                        arc.getStartAngle(),
+                        arc.getEndAngle());
+            }
+            case EllipticalArcShape arc -> {
+                if (arc.getRadiusX() <= 1e-9 || arc.getRadiusY() <= 1e-9) {
+                    return null;
+                }
+                return new EllipticalArcSourcePath(
+                        arc.getCenter(),
+                        arc.getRadiusX(),
+                        arc.getRadiusY(),
+                        arc.getRotation(),
+                        arc.getStartAngle(),
+                        arc.getEndAngle());
+            }
+            default -> {
+            }
         }
         if (shape instanceof SpiralShape
             || shape instanceof SineCurveShape

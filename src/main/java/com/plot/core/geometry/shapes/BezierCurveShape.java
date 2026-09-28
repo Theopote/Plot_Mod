@@ -1199,18 +1199,11 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
         
         return result;
     }
-    
+
     /**
-     * 分割信息
-     */
-    private static class SplitInfo {
-        final int segmentIndex;
-        final double parameter;
-        
-        SplitInfo(int segmentIndex, double parameter) {
-            this.segmentIndex = segmentIndex;
-            this.parameter = parameter;
-        }
+         * 分割信息
+         */
+        private record SplitInfo(int segmentIndex, double parameter) {
     }
     
     /**
@@ -1953,18 +1946,11 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
         
         return newShapes;
     }
-    
+
     /**
-     * 打断信息
-     */
-    private static class BreakInfo {
-        final int segmentIndex;
-        final double parameter;
-        
-        BreakInfo(int segmentIndex, double parameter) {
-            this.segmentIndex = segmentIndex;
-            this.parameter = parameter;
-        }
+         * 打断信息
+         */
+        private record BreakInfo(int segmentIndex, double parameter) {
     }
     
     /**

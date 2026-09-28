@@ -46,7 +46,7 @@ public final class RoadGenerationPipeline {
             request.heightInfos(),
             request.terrain(),
             host.config(),
-            canvas -> host.canvasToBlockPos(canvas)));
+                host::canvasToBlockPos));
 
         ctx.setUnitsPerBlock(host.estimateCanvasUnitsPerBlock(request.pathPoints(), ctx.segments()));
 

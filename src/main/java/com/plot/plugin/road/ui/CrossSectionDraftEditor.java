@@ -328,7 +328,7 @@ public final class CrossSectionDraftEditor {
             "##" + id + "_road_material",
             PlotI18n.tr("plugin.road.material"),
             material[0],
-            value -> mutator.setMaterial(value),
+                mutator::setMaterial,
             hooks.pushHistoryOnPicker()
         );
         mutator.afterMaterialField();
@@ -342,7 +342,7 @@ public final class CrossSectionDraftEditor {
                 sidewalkMaterial[0] != null
                     ? sidewalkMaterial[0]
                     : ResolvedCrossSection.DEFAULT_MARKING_MATERIAL,
-                value -> mutator.setSidewalkMaterial(value),
+                    mutator::setSidewalkMaterial,
                 hooks.pushHistoryOnPicker()
             );
             mutator.afterSidewalkMaterialField();
@@ -355,7 +355,7 @@ public final class CrossSectionDraftEditor {
                 "##" + id + "_fill_slope_material",
                 PlotI18n.tr("plugin.road.fill_slope_material"),
                 fillSlopeMaterial[0],
-                value -> mutator.setFillSlopeMaterial(value),
+                    mutator::setFillSlopeMaterial,
                 hooks.pushHistoryOnPicker()
             );
             mutator.afterFillSlopeMaterialField();
@@ -365,7 +365,7 @@ public final class CrossSectionDraftEditor {
                 "##" + id + "_cut_slope_material",
                 PlotI18n.tr("plugin.road.cut_slope_material"),
                 cutSlopeMaterial[0] != null ? cutSlopeMaterial[0] : "",
-                value -> mutator.setCutSlopeMaterial(value),
+                    mutator::setCutSlopeMaterial,
                 hooks.pushHistoryOnPicker()
             );
             mutator.afterCutSlopeMaterialField();
@@ -377,7 +377,7 @@ public final class CrossSectionDraftEditor {
             "##" + id + "_marking_material",
             PlotI18n.tr("plugin.road.marking_material"),
             markingMaterial[0],
-            value -> mutator.setMarkingMaterial(value),
+                mutator::setMarkingMaterial,
             hooks.pushHistoryOnPicker()
         );
         mutator.afterMarkingMaterialField();

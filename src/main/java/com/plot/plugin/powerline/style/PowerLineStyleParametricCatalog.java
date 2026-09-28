@@ -7,7 +7,6 @@ import com.plot.plugin.powerline.design.parametric.TowerGeneratorConfig;
 import com.plot.plugin.powerline.design.parametric.TowerParametricDesignFactory;
 import com.plot.plugin.powerline.design.parametric.TowerParametricEditor;
 import com.plot.plugin.powerline.design.parametric.TowerParameterProfile;
-import com.plot.plugin.powerline.design.parametric.TowerParameterProfiles;
 import com.plot.plugin.powerline.design.parametric.TowerParameterSet;
 
 /** Style / tower family → 参数化 Profile 默认配置。 */
@@ -53,22 +52,19 @@ public final class PowerLineStyleParametricCatalog {
         if (poleDesignId == null || poleDesignId.isBlank()) {
             return null;
         }
-        if (PoleDesignCatalog.LATTICE_STEEL_TOWER_ID.equals(poleDesignId)) {
-            return TowerGeneratorConfig.parametricSmallLattice(TowerParameterSet.smallLatticeDefaults());
-        }
-        if (PoleDesignCatalog.TAPERED_LATTICE_TOWER_ID.equals(poleDesignId)) {
-            return TowerGeneratorConfig.parametricSmallLattice(TowerParameterSet.taperedLatticeDefaults());
-        }
-        if (PoleDesignCatalog.HEAVY_LATTICE_TOWER_ID.equals(poleDesignId)) {
-            return TowerGeneratorConfig.parametricHeavy(TowerParameterSet.heavyDefaults());
-        }
-        if (PoleDesignCatalog.STEAMPUNK_BRASS_TOWER_ID.equals(poleDesignId)) {
-            return TowerGeneratorConfig.parametricSteampunk(TowerParameterSet.steampunkDefaults());
-        }
-        if (PoleDesignCatalog.MODERN_HV_GLASS_TOWER_ID.equals(poleDesignId)) {
-            return TowerGeneratorConfig.parametricModernHvGlass(TowerParameterSet.modernHvGlassDefaults());
-        }
-        return null;
+        return switch (poleDesignId) {
+            case PoleDesignCatalog.LATTICE_STEEL_TOWER_ID ->
+                    TowerGeneratorConfig.parametricSmallLattice(TowerParameterSet.smallLatticeDefaults());
+            case PoleDesignCatalog.TAPERED_LATTICE_TOWER_ID ->
+                    TowerGeneratorConfig.parametricSmallLattice(TowerParameterSet.taperedLatticeDefaults());
+            case PoleDesignCatalog.HEAVY_LATTICE_TOWER_ID ->
+                    TowerGeneratorConfig.parametricHeavy(TowerParameterSet.heavyDefaults());
+            case PoleDesignCatalog.STEAMPUNK_BRASS_TOWER_ID ->
+                    TowerGeneratorConfig.parametricSteampunk(TowerParameterSet.steampunkDefaults());
+            case PoleDesignCatalog.MODERN_HV_GLASS_TOWER_ID ->
+                    TowerGeneratorConfig.parametricModernHvGlass(TowerParameterSet.modernHvGlassDefaults());
+            default -> null;
+        };
     }
 
     public static PoleDesign compileRepresentative(TowerGeneratorConfig config) {

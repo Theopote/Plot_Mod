@@ -15,7 +15,6 @@ import com.plot.core.persistence.BackupManager;
 import com.plot.core.persistence.PersistenceException;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
-import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.Events;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
@@ -324,10 +323,8 @@ public class Project {
      */
     static void writeAtomically(Path target, String content) throws IOException {
         try {
-            AtomicFileWriter.write(target, content, AtomicFileWriter.Options.projectDocument(json -> {
-                // round-trip validate via deserialize
-                deserialize(json);
-            }));
+            // round-trip validate via deserialize
+            AtomicFileWriter.write(target, content, AtomicFileWriter.Options.projectDocument(Project::deserialize));
         } catch (PersistenceException e) {
             throw new IOException(PlotI18n.error("error.plot.project.save_validation_failed"), e);
         } catch (IOException e) {

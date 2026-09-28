@@ -271,9 +271,7 @@ public final class RoadSlopeUtils {
                     effectiveSlope,
                     elevationAccumulator
                 );
-                int provisionalDirection = provisionalTargetEnd > currentHeight
-                    ? 1
-                    : (provisionalTargetEnd < currentHeight ? -1 : 0);
+                int provisionalDirection = Integer.compare(provisionalTargetEnd, currentHeight);
 
                 if (slopeLengthLimitEnabled && relaxedRemaining <= 0.0
                         && continuousRunLength < maxContinuousSlopeLength
@@ -301,7 +299,7 @@ public final class RoadSlopeUtils {
                 );
 
                 int delta = chunkTargetEnd - currentHeight;
-                int direction = delta > 0 ? 1 : (delta < 0 ? -1 : 0);
+                int direction = Integer.compare(delta, 0);
                 if (direction == 0 || direction != continuousDirection) {
                     continuousDirection = direction;
                     continuousRunLength = chunkDistance;
@@ -356,11 +354,11 @@ public final class RoadSlopeUtils {
         if (manualStartHeight != null) {
             int reachableEnd = clampTowardTarget(
                 manualStartHeight,
-                targetEnds.get(0),
-                segmentDistances.get(0),
-                maxSlopePercents.get(0)
+                targetEnds.getFirst(),
+                segmentDistances.getFirst(),
+                maxSlopePercents.getFirst()
             );
-            if (reachableEnd != targetEnds.get(0)) {
+            if (reachableEnd != targetEnds.getFirst()) {
                 slopeViolation = true;
             }
         }
@@ -396,7 +394,7 @@ public final class RoadSlopeUtils {
         }
 
         for (int offset = 1; offset <= maxHorizontalRun; offset++) {
-            int verticalChange = (int) Math.round(offset / slopeRatio);
+            int verticalChange = Math.round(offset / slopeRatio);
             int slopeHeight = shoulderEdgeHeight + direction * verticalChange;
             int groundHeight = groundHeightAtOffset.applyAsInt(offset);
             profile.add(new int[]{offset, slopeHeight});
