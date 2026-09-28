@@ -1,5 +1,6 @@
 package com.plot.plugin.road.vertical;
 
+import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadNetworkEngineeringValidator;
 import com.plot.plugin.road.model.Road;
@@ -10,6 +11,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FlatRoadJunctionConflictResolverTest {
@@ -59,6 +61,25 @@ class FlatRoadJunctionConflictResolverTest {
         assertEquals(RoadVerticalMode.FLAT, flat.getVerticalMode());
         assertEquals(76.0, intent.getIntersectionOverride(junction.getId()), 1e-6);
         assertTrue(FlatRoadJunctionConflictResolver.find(network).isEmpty());
+    }
+
+    @Test
+    void derivedFlatProfileSyncNeverChangesModeToManual() {
+        RoadNetwork network = new RoadNetwork();
+        var junction = network.createNode(new Vec2d(0, 0));
+        addBareSpur(network, junction, new Vec2d(0, 20));
+
+        Road flat = roadFromJunction(network, junction, "flat", new Vec2d(0, -100));
+        FlatVerticalIntentSupport.enableFlatWithBase(
+            network, flat, new RoadSystemConfig("test"), 70.0);
+        junction.setManualElevation(76.0);
+
+        FlatVerticalIntentSupport.syncCompiledAlignment(network, flat, 8.0);
+        assertEquals(RoadVerticalMode.FLAT, flat.getVerticalMode());
+
+        FlatVerticalIntentSupport.applyJunctionElevation(network, flat, junction.getId(), 76.0, 8.0);
+        assertEquals(RoadVerticalMode.FLAT, flat.getVerticalMode());
+        assertNotNull(flat.getVerticalAlignment());
     }
 
     private static RoadNetwork flatCrossNetwork(double baseA, double baseB) {

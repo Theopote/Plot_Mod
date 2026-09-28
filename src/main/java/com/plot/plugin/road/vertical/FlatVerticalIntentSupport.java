@@ -122,17 +122,9 @@ public final class FlatVerticalIntentSupport {
             return;
         }
         if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
-            FlatVerticalIntent intent = resolveIntent(network, road);
-            if (intent != null && network != null && config != null) {
-                RoadVerticalAlignment compiled = FlatProfileCompiler.compile(
-                    network, road, intent, road.getEffectiveMaxSlope(config));
-                road.setVerticalAlignment(compiled);
-                road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
-            } else {
-                road.setVerticalMode(RoadVerticalMode.AUTO_SMOOTH);
-                road.setVerticalAlignment(null);
-            }
             road.setFlatVerticalIntent(null);
+            road.setVerticalAlignment(null);
+            road.setVerticalMode(RoadVerticalMode.AUTO_SMOOTH);
             return;
         }
         if (road.getVerticalMode() == RoadVerticalMode.MANUAL_PROFILE) {

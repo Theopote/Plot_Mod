@@ -20,6 +20,8 @@ public final class FlatProfileCompiler {
 
     private record JunctionConstraint(String nodeId, double station, double elevation) { }
 
+    private record InfluenceInterval(double start, double end) { }
+
     private FlatProfileCompiler() {
     }
 
@@ -50,49 +52,9 @@ public final class FlatProfileCompiler {
         List<PointOfVerticalIntersection> pvis = new ArrayList<>();
         pvis.add(PointOfVerticalIntersection.of(0.0, base));
         double cursor = 0.0;
-        for (JunctionConstraint constraint : constraints) {
-            if (constraint.station() <= cursor + EPSILON) {
-                mergeOrReplace(pvis, constraint.station(), constraint.elevation(), true);
-                cursor = Math.max(cursor, constraint.station());
-                continue;
-            }
-            if (Math.abs(constraint.elevation() - base) <= EPSILON) {
-                appendFlatSegment(pvis, cursor, constraint.station(), base);
-                cursor = constraint.station();
-                continue;
-            }
-            boolean atEnd = Math.abs(constraint.station() - roadLength) <= EPSILON;
-            double runBefore = constraint.station() - cursor;
-            double runAfter = atEnd ? 0.0 : roadLength - constraint.station();
-            double required = VerticalProfileDesignRules.requiredRunLength(
-                Math.abs(constraint.elevation() - base), maxGradePercent);
-            double transitionIn = cappedTransitionLength(
-                runBefore, Math.max(runAfter, runBefore), required);
-            double transitionOut = atEnd
-                ? 0.0
-                : cappedTransitionLength(runAfter, runBefore, required);
-
-            double rampStart = constraint.station() - transitionIn;
-            if (rampStart > cursor + EPSILON) {
-                appendFlatSegment(pvis, cursor, rampStart, base);
-            }
-            mergeOrReplace(
-                pvis,
-                constraint.station(),
-                constraint.elevation(),
-                true);
-            if (atEnd) {
-                cursor = roadLength;
-                continue;
-            }
-            double rampEnd = constraint.station() + transitionOut;
-            if (rampEnd < roadLength - EPSILON) {
-                appendFlatSegment(pvis, constraint.station(), rampEnd, base);
-                cursor = rampEnd;
-            } else {
-                mergeOrReplace(pvis, roadLength, base, false);
-                cursor = roadLength;
-            }
+        for (List<JunctionConstraint> cluster
+                : clusterConstraints(constraints, roadLength, base, maxGradePercent)) {
+            cursor = compileCluster(pvis, cursor, roadLength, base, maxGradePercent, cluster);
         }
         if (roadLength > cursor + EPSILON) {
             appendFlatSegment(pvis, cursor, roadLength, base);
@@ -102,6 +64,120 @@ public final class FlatProfileCompiler {
         }
 
         return new RoadVerticalAlignment(simplify(pvis));
+    }
+
+    private static List<List<JunctionConstraint>> clusterConstraints(
+            List<JunctionConstraint> constraints,
+            double roadLength,
+            double base,
+            double maxGradePercent) {
+        List<List<JunctionConstraint>> clusters = new ArrayList<>();
+        List<JunctionConstraint> current = null;
+        InfluenceInterval currentInterval = null;
+        for (JunctionConstraint constraint : constraints) {
+            InfluenceInterval interval = influenceInterval(
+                constraint, roadLength, base, maxGradePercent);
+            if (current == null) {
+                current = new ArrayList<>();
+                current.add(constraint);
+                currentInterval = interval;
+                continue;
+            }
+            if (currentInterval.end() + EPSILON >= interval.start()) {
+                current.add(constraint);
+                currentInterval = new InfluenceInterval(
+                    currentInterval.start(),
+                    Math.max(currentInterval.end(), interval.end()));
+            } else {
+                clusters.add(current);
+                current = new ArrayList<>();
+                current.add(constraint);
+                currentInterval = interval;
+            }
+        }
+        if (current != null) {
+            clusters.add(current);
+        }
+        return clusters;
+    }
+
+    private static InfluenceInterval influenceInterval(
+            JunctionConstraint constraint,
+            double roadLength,
+            double base,
+            double maxGradePercent) {
+        double required = VerticalProfileDesignRules.requiredRunLength(
+            Math.abs(constraint.elevation() - base), maxGradePercent);
+        boolean atEnd = Math.abs(constraint.station() - roadLength) <= EPSILON;
+        double runBefore = constraint.station();
+        double runAfter = atEnd ? 0.0 : roadLength - constraint.station();
+        double transitionIn = cappedTransitionLength(
+            runBefore, Math.max(runAfter, runBefore), required);
+        double transitionOut = atEnd
+            ? 0.0
+            : cappedTransitionLength(runAfter, runBefore, required);
+        double start = Math.max(0.0, constraint.station() - transitionIn);
+        double end = atEnd ? roadLength : Math.min(roadLength, constraint.station() + transitionOut);
+        return new InfluenceInterval(start, end);
+    }
+
+    private static double compileCluster(
+            List<PointOfVerticalIntersection> pvis,
+            double cursor,
+            double roadLength,
+            double base,
+            double maxGradePercent,
+            List<JunctionConstraint> cluster) {
+        if (cluster.isEmpty()) {
+            return cursor;
+        }
+        JunctionConstraint first = cluster.getFirst();
+        JunctionConstraint last = cluster.getLast();
+
+        if (first.station() <= cursor + EPSILON) {
+            mergeOrReplace(pvis, first.station(), first.elevation(), true);
+            double nextCursor = Math.max(cursor, first.station());
+            for (int i = 1; i < cluster.size(); i++) {
+                JunctionConstraint constraint = cluster.get(i);
+                mergeOrReplace(pvis, constraint.station(), constraint.elevation(), true);
+                nextCursor = Math.max(nextCursor, constraint.station());
+            }
+            return nextCursor;
+        }
+
+        double runBefore = first.station() - cursor;
+        double requiredFirst = VerticalProfileDesignRules.requiredRunLength(
+            Math.abs(first.elevation() - base), maxGradePercent);
+        double transitionIn = cappedTransitionLength(
+            runBefore, Math.max(roadLength - first.station(), runBefore), requiredFirst);
+
+        boolean lastAtEnd = Math.abs(last.station() - roadLength) <= EPSILON;
+        double runAfter = lastAtEnd ? 0.0 : roadLength - last.station();
+        double requiredLast = VerticalProfileDesignRules.requiredRunLength(
+            Math.abs(last.elevation() - base), maxGradePercent);
+        double transitionOut = lastAtEnd
+            ? 0.0
+            : cappedTransitionLength(runAfter, last.station() - cursor, requiredLast);
+
+        double clusterStart = Math.max(cursor, first.station() - transitionIn);
+        double clusterEnd = lastAtEnd ? roadLength : Math.min(roadLength, last.station() + transitionOut);
+
+        if (clusterStart > cursor + EPSILON) {
+            appendFlatSegment(pvis, cursor, clusterStart, base);
+        }
+        if (clusterStart + EPSILON < first.station()) {
+            mergeOrReplace(pvis, clusterStart, base, false);
+        }
+        mergeOrReplace(pvis, first.station(), first.elevation(), true);
+        for (int i = 1; i < cluster.size(); i++) {
+            JunctionConstraint constraint = cluster.get(i);
+            mergeOrReplace(pvis, constraint.station(), constraint.elevation(), true);
+        }
+        if (!lastAtEnd && clusterEnd > last.station() + EPSILON) {
+            mergeOrReplace(pvis, clusterEnd, base, false);
+            return clusterEnd;
+        }
+        return lastAtEnd ? roadLength : Math.max(cursor, last.station());
     }
 
     private static Map<String, Double> collectJunctionStations(

@@ -82,8 +82,24 @@ class FlatVerticalIntentSupportBatchTest {
             network, List.of(flat.getId()), CONFIG);
 
         assertEquals(1, changed);
-        assertEquals(RoadVerticalMode.MANUAL_PROFILE, flat.getVerticalMode());
+        assertEquals(RoadVerticalMode.AUTO_SMOOTH, flat.getVerticalMode());
+        assertTrue(flat.getFlatVerticalIntent() == null);
+        assertTrue(flat.getVerticalAlignment() == null);
+    }
+
+    @Test
+    void flatToAdaptiveClearsCompiledProfile() {
+        RoadNetwork network = new RoadNetwork();
+        Road flat = network.createRoad("flat");
+        addStraightRoad(network, flat, 100.0);
+        FlatVerticalIntentSupport.enableFlatWithBase(network, flat, CONFIG, 80.0);
         assertFalse(flat.getVerticalAlignment().isEmpty());
+
+        FlatVerticalIntentSupport.enableTerrainAdaptive(network, flat, CONFIG);
+
+        assertEquals(RoadVerticalMode.AUTO_SMOOTH, flat.getVerticalMode());
+        assertTrue(flat.getFlatVerticalIntent() == null);
+        assertTrue(flat.getVerticalAlignment() == null);
     }
 
     private static void addStraightRoad(RoadNetwork network, Road road, double length) {

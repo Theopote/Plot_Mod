@@ -6,9 +6,11 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import org.junit.jupiter.api.Test;
 
+import java.util.Comparator;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FlatProfileCompilerTest {
@@ -48,6 +50,30 @@ class FlatProfileCompilerTest {
         assertEquals(70.0, VerticalAlignmentGeometry.elevationAt(alignment, 0.0).orElse(Double.NaN), 1e-3);
         assertEquals(70.0, VerticalAlignmentGeometry.elevationAt(alignment, roadLength(network, road))
             .orElse(Double.NaN), 1e-3);
+    }
+
+    @Test
+    void nearbyFlatOverridesFormClusterAndReportInsufficientTransition() {
+        RoadNetwork network = roadWithTwoNearbyJunctions(100.0, 50.0, 60.0);
+        Road road = network.getRoad("main");
+        List<RoadNode> junctions = network.getNodes().values().stream()
+            .filter(RoadNode::isJunction)
+            .sorted(Comparator.comparingDouble(node -> node.getPosition().x))
+            .toList();
+        FlatVerticalIntent intent = new FlatVerticalIntent(70.0);
+        intent.setIntersectionOverride(junctions.get(0).getId(), 75.0);
+        intent.setIntersectionOverride(junctions.get(1).getId(), 65.0);
+
+        RoadVerticalAlignment alignment = FlatProfileCompiler.compile(network, road, intent, 8.0);
+        assertTrue(VerticalProfileDesignRules.assess(
+            alignment, roadLength(network, road), 8.0).stream()
+            .anyMatch(issue -> issue.kind() == VerticalProfileDesignRules.IssueKind.GRADE_EXCEEDS_LIMIT
+                || issue.kind() == VerticalProfileDesignRules.IssueKind.GRADE_RUN_TOO_SHORT));
+
+        road.setVerticalMode(RoadVerticalMode.FLAT);
+        road.setFlatVerticalIntent(intent);
+        FlatVerticalIntentSupport.syncCompiledAlignment(network, road, 8.0);
+        assertFalse(FlatRoadJunctionConflictResolver.findTransitionIssues(network).isEmpty());
     }
 
     @Test
@@ -93,6 +119,33 @@ class FlatProfileCompilerTest {
             List.of(new Vec2d(junctionStation, 0), new Vec2d(length, 0)), road.getId());
         network.createEdge(center.getId(), north.getId(),
             List.of(new Vec2d(junctionStation, 0), new Vec2d(junctionStation, 20)), sideRoad.getId());
+        return network;
+    }
+
+    private static RoadNetwork roadWithTwoNearbyJunctions(
+            double length,
+            double firstJunctionStation,
+            double secondJunctionStation) {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("main");
+        Road sideA = network.createRoad("side-a");
+        Road sideB = network.createRoad("side-b");
+        RoadNode west = network.createNode(new Vec2d(0, 0));
+        RoadNode first = network.createNode(new Vec2d(firstJunctionStation, 0));
+        RoadNode second = network.createNode(new Vec2d(secondJunctionStation, 0));
+        RoadNode east = network.createNode(new Vec2d(length, 0));
+        RoadNode northA = network.createNode(new Vec2d(firstJunctionStation, 20));
+        RoadNode northB = network.createNode(new Vec2d(secondJunctionStation, 20));
+        network.createEdge(west.getId(), first.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(firstJunctionStation, 0)), road.getId());
+        network.createEdge(first.getId(), second.getId(),
+            List.of(new Vec2d(firstJunctionStation, 0), new Vec2d(secondJunctionStation, 0)), road.getId());
+        network.createEdge(second.getId(), east.getId(),
+            List.of(new Vec2d(secondJunctionStation, 0), new Vec2d(length, 0)), road.getId());
+        network.createEdge(first.getId(), northA.getId(),
+            List.of(new Vec2d(firstJunctionStation, 0), new Vec2d(firstJunctionStation, 20)), sideA.getId());
+        network.createEdge(second.getId(), northB.getId(),
+            List.of(new Vec2d(secondJunctionStation, 0), new Vec2d(secondJunctionStation, 20)), sideB.getId());
         return network;
     }
 }
