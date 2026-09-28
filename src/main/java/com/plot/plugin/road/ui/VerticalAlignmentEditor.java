@@ -89,7 +89,7 @@ public final class VerticalAlignmentEditor {
                 PlotI18n.tr("plugin.road.vertical_alignment_none"));
         }
 
-        if (drafts.size() > 0 && drafts.size() < 2) {
+        if (!drafts.isEmpty() && drafts.size() < 2) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.vertical_alignment_incomplete"));
@@ -281,7 +281,7 @@ public final class VerticalAlignmentEditor {
         }
         draft.station = station[0];
 
-        float[] elevation = {(float) draft.elevation};
+        float[] elevation = {draft.elevation};
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
         ImGui.dragFloat(
             PlotI18n.tr("plugin.road.vertical_alignment_elevation") + "##elevation",

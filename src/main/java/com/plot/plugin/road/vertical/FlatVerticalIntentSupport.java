@@ -237,7 +237,7 @@ public final class FlatVerticalIntentSupport {
         int changed = 0;
         for (String roadId : roadIds) {
             Road road = network.getRoad(roadId);
-            if (road == null || !canUseFlatStrategy(network, road)) {
+            if (!canUseFlatStrategy(network, road)) {
                 continue;
             }
             enableFlatWithBase(
