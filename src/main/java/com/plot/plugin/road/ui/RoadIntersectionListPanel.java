@@ -1,6 +1,5 @@
 package com.plot.plugin.road.ui;
 
-import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.graph.RoadGraphQueries;
@@ -86,7 +85,7 @@ public final class RoadIntersectionListPanel {
         for (String roadId : network.getDistinctRoadIdsAtNode(node.getId())) {
             Road road = network.getRoad(roadId);
             if (road != null && !road.getOrderedSegmentIds().isEmpty()) {
-                ctx.networkManager().handleEdgeSelect(road.getOrderedSegmentIds().get(0), true);
+                ctx.networkManager().handleEdgeSelect(road.getOrderedSegmentIds().getFirst(), true);
             }
         }
         ctx.requestOverlayRefresh();

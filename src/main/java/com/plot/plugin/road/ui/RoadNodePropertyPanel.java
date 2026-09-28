@@ -7,7 +7,6 @@ import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadNodeListHelper;
 import com.plot.plugin.road.RoadParameterLimits;
-import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNetworkInvariantValidator;
 import com.plot.plugin.road.model.RoadNode;
@@ -23,7 +22,6 @@ import imgui.type.ImBoolean;
 import imgui.type.ImString;
 import net.minecraft.world.World;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;

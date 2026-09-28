@@ -110,23 +110,29 @@ public final class RoadGeometryUtils {
         }
 
         // 贝塞尔：密采样 + RDP 简化（控制点序列不能当中心线）
-        if (shape instanceof BezierCurveShape bezier) {
-            List<Vec2d> sampled = sampleBezierCurve(bezier);
-            return bezier.isClosed() ? ensureClosed(sampled) : sampled;
-        }
+        switch (shape) {
+            case BezierCurveShape bezier -> {
+                List<Vec2d> sampled = sampleBezierCurve(bezier);
+                return bezier.isClosed() ? ensureClosed(sampled) : sampled;
+            }
 
-        // 折线 / 自由绘：原样取点（自由绘已在绘制时简化）
-        if (shape instanceof PolylineShape polyline) {
-            List<Vec2d> points = copyAndSanitizePoints(polyline.getPoints());
-            return polyline.isClosed() ? ensureClosed(points) : points;
-        }
-        if (shape instanceof FreeDrawPath) {
-            return copyAndSanitizePoints(shape.getPoints());
-        }
 
-        // 直线：两端点即可
-        if (shape instanceof LineShape) {
-            return copyAndSanitizePoints(shape.getPoints());
+            // 折线 / 自由绘：原样取点（自由绘已在绘制时简化）
+            case PolylineShape polyline -> {
+                List<Vec2d> points = copyAndSanitizePoints(polyline.getPoints());
+                return polyline.isClosed() ? ensureClosed(points) : points;
+            }
+            case FreeDrawPath ignored -> {
+                return copyAndSanitizePoints(shape.getPoints());
+            }
+
+
+            // 直线：两端点即可
+            case LineShape ignored -> {
+                return copyAndSanitizePoints(shape.getPoints());
+            }
+            default -> {
+            }
         }
 
         // 曲线 / 闭合轮廓：用 getPoints() 离散后适度简化，避免路网顶点过密
@@ -208,7 +214,7 @@ public final class RoadGeometryUtils {
             if (point == null) {
                 continue;
             }
-            if (prev != null && pointsNear(prev, point, 1e-9)) {
+            if (pointsNear(prev, point, 1e-9)) {
                 continue;
             }
             Vec2d copy = point.copy();
@@ -219,9 +225,9 @@ public final class RoadGeometryUtils {
         if (result.size() >= 2 && source.size() >= 2) {
             Vec2d firstSrc = source.getFirst();
             Vec2d lastSrc = source.getLast();
-            if (firstSrc != null && lastSrc != null
-                && pointsNear(firstSrc, lastSrc, 1e-6)
-                && !pointsNear(result.getFirst(), result.getLast(), 1e-6)) {
+            if (lastSrc != null
+                    && pointsNear(firstSrc, lastSrc, 1e-6)
+                    && !pointsNear(result.getFirst(), result.getLast(), 1e-6)) {
                 result.add(result.getFirst().copy());
             }
         }
@@ -784,7 +790,6 @@ public final class RoadGeometryUtils {
                 PathFragment fragment = fragments.get(index);
                 if (fragment.startCluster == terminalCluster) {
                     startFragment = index;
-                    forward = true;
                     break;
                 }
                 if (fragment.endCluster == terminalCluster) {
@@ -816,7 +821,6 @@ public final class RoadGeometryUtils {
                 PathFragment next = fragments.get(candidate);
                 if (next.startCluster == exitCluster) {
                     nextFragment = candidate;
-                    nextForward = true;
                     break;
                 }
                 if (next.endCluster == exitCluster) {
