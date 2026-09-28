@@ -85,7 +85,7 @@ class RoadCrossSectionPreviewRendererTest {
             PlotI18n.tr(
                 "plugin.road.preset_cross_section_caption",
                 highway.resolveLaneCount(),
-                Math.round(layout.totalWidthBlocks())),
+                Math.round(layout.roadBlocks)),
             caption);
         assertFalse(caption.contains("纵坡"));
         assertFalse(caption.toLowerCase().contains("grade"));
@@ -97,7 +97,7 @@ class RoadCrossSectionPreviewRendererTest {
         var layout = RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(path);
         String caption = RoadCrossSectionPreviewRenderer.formatPresetCaption(path, layout);
         assertEquals(
-            PlotI18n.tr("plugin.road.cross_section_scale", Math.round(layout.totalWidthBlocks())),
+            PlotI18n.tr("plugin.road.preset_carriageway_width", Math.round(layout.roadBlocks)),
             caption);
     }
 

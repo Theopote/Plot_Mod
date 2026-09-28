@@ -82,11 +82,11 @@ public final class RoadCrossSectionPreviewRenderer {
             return "";
         }
         int lanes = style.resolveLaneCount();
-        int totalWidth = Math.round(layout.totalWidthBlocks());
+        int carriagewayWidth = Math.round(layout.roadBlocks);
         if (lanes > 1) {
-            return PlotI18n.tr("plugin.road.preset_cross_section_caption", lanes, totalWidth);
+            return PlotI18n.tr("plugin.road.preset_cross_section_caption", lanes, carriagewayWidth);
         }
-        return PlotI18n.tr("plugin.road.cross_section_scale", totalWidth);
+        return PlotI18n.tr("plugin.road.preset_carriageway_width", carriagewayWidth);
     }
 
     private static void drawCrossSection(
