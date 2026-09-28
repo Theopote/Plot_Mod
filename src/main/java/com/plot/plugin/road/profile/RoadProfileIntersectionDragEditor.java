@@ -58,7 +58,12 @@ public final class RoadProfileIntersectionDragEditor {
             return false;
         }
         if (intersection.gradeSeparated()) {
-            elevation = clampOtherGradeSeparatedElevation(intersection, elevation, config);
+            double requiredClearance = requiredClearance(node, config);
+            elevation = clampOtherGradeSeparatedElevation(
+                intersection.currentRoadElevation(),
+                intersection.currentRoadElevated(),
+                requiredClearance,
+                elevation);
             OptionalInt pviIndex = junctionPviIndex(network, otherRoad, intersection.nodeId());
             if (pviIndex.isEmpty() || otherRoad.getVerticalAlignment() == null) {
                 return false;
@@ -66,7 +71,6 @@ public final class RoadProfileIntersectionDragEditor {
             otherRoad.setVerticalAlignment(VerticalProfileControlPoints.withElevation(
                 otherRoad.getVerticalAlignment(), pviIndex.getAsInt(), elevation));
             otherRoad.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
-            updateCrossingClearance(node, intersection, elevation);
             return true;
         }
         node.setManualElevation(elevation);
@@ -99,27 +103,23 @@ public final class RoadProfileIntersectionDragEditor {
     }
 
     static double clampOtherGradeSeparatedElevation(
-            RoadProfileIntersection intersection,
-            double requested,
-            RoadSystemConfig config) {
-        double minClearance = intersection.clearance() > 0
-            ? intersection.clearance()
-            : config.getDefaultCrossingClearance();
-        double current = intersection.currentRoadElevation();
-        if (intersection.currentRoadElevated()) {
-            double maxOther = current - minClearance;
+            double currentRoadElevation,
+            boolean currentRoadElevated,
+            double requiredClearance,
+            double requested) {
+        if (currentRoadElevated) {
+            double maxOther = currentRoadElevation - requiredClearance;
             return Math.min(requested, maxOther);
         }
-        double minOther = current + minClearance;
+        double minOther = currentRoadElevation + requiredClearance;
         return Math.max(requested, minOther);
     }
 
-    private static void updateCrossingClearance(
-            RoadNode node,
-            RoadProfileIntersection intersection,
-            double otherElevation) {
-        double gap = Math.abs(intersection.currentRoadElevation() - otherElevation);
-        node.setCrossingClearance(Math.max(1.0, Math.round(gap)));
+    public static double requiredClearance(RoadNode node, RoadSystemConfig config) {
+        if (node != null && node.getCrossingClearance() != null) {
+            return node.getCrossingClearance();
+        }
+        return config != null ? config.getDefaultCrossingClearance() : 4.0;
     }
 
     private static boolean syncAtGradeJunction(

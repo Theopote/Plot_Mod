@@ -453,8 +453,7 @@ final class VerticalProfileEditor {
                 ? network.getRoad(intersections.get(activeIntersectionDragIndex).otherRoadId())
                 : null;
             if (otherRoad != null) {
-                VerticalProfileNetworkPropagator.propagate(
-                    network, otherRoad, connected -> connected.getEffectiveMaxSlope(config));
+                propagateJunctionGrades(ctx, network, otherRoad);
             }
             activeIntersectionDragIndex = -1;
             activeIntersectionDragTarget =
@@ -621,9 +620,20 @@ final class VerticalProfileEditor {
                 ? PlotI18n.tr("plugin.road.profile_intersection_current_over")
                 : PlotI18n.tr("plugin.road.profile_intersection_other_over");
             ImGui.text(PlotI18n.tr("plugin.road.profile_intersection_relation", relation));
+            RoadNode node = network.getNode(intersection.nodeId());
+            double requiredClearance = RoadProfileIntersectionDragEditor.requiredClearance(node, config);
+            double actualClearance = intersection.clearanceGap();
             ImGui.text(PlotI18n.tr(
-                "plugin.road.profile_intersection_clearance",
-                String.format("%.1f", intersection.clearanceGap())));
+                "plugin.road.profile_intersection_required_clearance",
+                String.format("%.0f", requiredClearance)));
+            ImGui.text(PlotI18n.tr(
+                "plugin.road.profile_intersection_actual_clearance",
+                String.format("%.1f", actualClearance)));
+            if (actualClearance + 1e-6 < requiredClearance) {
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.WARNING,
+                    PlotI18n.tr("plugin.road.profile_intersection_clearance_insufficient"));
+            }
             if (intersection.steepGradeWarning()) {
                 RoadUiWidgets.textWrappedColored(
                     PluginUiColors.WARNING,
