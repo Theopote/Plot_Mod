@@ -3,6 +3,7 @@ package com.plot.plugin.road;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.style.RoadStyle;
 import com.plot.plugin.road.style.RoadStyleCatalog;
+import com.plot.utils.PlotI18n;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -73,6 +74,31 @@ class RoadCrossSectionPreviewRendererTest {
     void presetCardGeometryFitsCountryRoadWithinCardBounds() {
         assertPresetFitsCard(RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(
             RoadStyleCatalog.countryRoad()));
+    }
+
+    @Test
+    void presetCaptionDescribesCrossSectionOnly() {
+        RoadStyle highway = RoadStyleCatalog.highway();
+        var layout = RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(highway);
+        String caption = RoadCrossSectionPreviewRenderer.formatPresetCaption(highway, layout);
+        assertEquals(
+            PlotI18n.tr(
+                "plugin.road.preset_cross_section_caption",
+                highway.resolveLaneCount(),
+                Math.round(layout.totalWidthBlocks())),
+            caption);
+        assertFalse(caption.contains("纵坡"));
+        assertFalse(caption.toLowerCase().contains("grade"));
+    }
+
+    @Test
+    void presetCaptionUsesWidthOnlyForSingleLanePresets() {
+        RoadStyle path = RoadStyleCatalog.path();
+        var layout = RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(path);
+        String caption = RoadCrossSectionPreviewRenderer.formatPresetCaption(path, layout);
+        assertEquals(
+            PlotI18n.tr("plugin.road.cross_section_scale", Math.round(layout.totalWidthBlocks())),
+            caption);
     }
 
     @Test

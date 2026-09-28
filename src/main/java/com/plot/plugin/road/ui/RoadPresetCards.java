@@ -211,7 +211,7 @@ public final class RoadPresetCards {
             RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(style, themeId);
         String presetName = PlotI18n.tr("preset.road." + style.id);
         String caption = presetName + " ("
-            + RoadCrossSectionPreviewRenderer.formatPresetCaption(sectionLayout) + ")";
+            + RoadCrossSectionPreviewRenderer.formatPresetCaption(style, sectionLayout) + ")";
         float innerWidth = Math.max(1f, cardWidth - CARD_PADDING_X * 2f);
         float captionHeight = RoadUiWidgets.wrappedTextHeight(caption, innerWidth);
         float height = CARD_PADDING_TOP

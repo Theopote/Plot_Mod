@@ -74,16 +74,19 @@ public final class RoadCrossSectionPreviewRenderer {
         drawCrossSection(drawList, layout, x, y, width, height, options);
     }
 
-    public static String formatPresetCaption(CrossSectionLayout layout) {
-        String scale = PlotI18n.tr("plugin.road.cross_section_scale", Math.round(layout.totalWidthBlocks()));
-        if (layout.maxSlopePercent <= 0f) {
-            return scale;
+    /**
+     * 预设卡片副标题：仅描述横断面（宽度、车道等），不含纵坡——纵坡在生成阶段单独调整。
+     */
+    public static String formatPresetCaption(RoadStyle style, CrossSectionLayout layout) {
+        if (style == null || layout == null) {
+            return "";
         }
-        String grade = PlotI18n.tr(
-            "plugin.road.cross_section_grade",
-            SlopeFormatUtils.formatPercent(layout.maxSlopePercent)
-        );
-        return scale + ", " + grade;
+        int lanes = style.resolveLaneCount();
+        int totalWidth = Math.round(layout.totalWidthBlocks());
+        if (lanes > 1) {
+            return PlotI18n.tr("plugin.road.preset_cross_section_caption", lanes, totalWidth);
+        }
+        return PlotI18n.tr("plugin.road.cross_section_scale", totalWidth);
     }
 
     private static void drawCrossSection(
