@@ -1613,6 +1613,7 @@
   "plugin.road.vertical_alignment_hint": "Edit PVIs along road chainage. Middle PVIs may include vertical curve length.",
   "plugin.road.vertical_alignment_edit_in_generate_hint": "Edit PVIs, elevations, and vertical curves in the Generate tab profile section.",
   "plugin.road.node_grade_separation_in_path_hint": "Edit at-grade / grade-separated relations in the road plugin Path tab.",
+  "plugin.road.node_grade_separated_elevation_hint": "Grade-separated crossing: set each road's elevation in Path → Intersections or Generate → Profile. Shared node elevation is not available here.",
   "plugin.road.vertical_alignment_station": "Station",
   "plugin.road.vertical_alignment_elevation": "Elevation",
   "plugin.road.vertical_alignment_curve_length": "Curve length",

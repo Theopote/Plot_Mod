@@ -7,7 +7,6 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.core.terrain.TerrainSampler;
-import com.plot.plugin.config.RoadSystemConfig;
 
 import java.util.ArrayList;
 import java.util.Collection;

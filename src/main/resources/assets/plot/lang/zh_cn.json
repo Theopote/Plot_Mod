@@ -1613,6 +1613,7 @@
   "plugin.road.vertical_alignment_hint": "沿道路桩号编辑 PVI；中间变坡点可设置竖曲线长度。",
   "plugin.road.vertical_alignment_edit_in_generate_hint": "PVI、标高与竖曲线请在「生成」Tab 的纵断面区块中编辑。",
   "plugin.road.node_grade_separation_in_path_hint": "平交/立交关系请在道路插件「路径」Tab 的交叉关系中编辑。",
+  "plugin.road.node_grade_separated_elevation_hint": "立体交叉：各道路标高请在「路径 → 交叉关系」或「生成 → 纵剖面」中分别调整；此处不提供共享节点标高。",
   "plugin.road.vertical_alignment_station": "桩号",
   "plugin.road.vertical_alignment_elevation": "标高",
   "plugin.road.vertical_alignment_curve_length": "竖曲线长度",

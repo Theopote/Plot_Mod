@@ -42,7 +42,13 @@ public final class RoadNodePropertyPanel {
 
         RoadNetwork network = ctx.networkManager().getNetwork();
         RoadSystemConfig config = ctx.networkManager().getConfig();
-        renderNodeElevationControls(node, network, config);
+        if (node.isGradeSeparated()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.node_grade_separated_elevation_hint"));
+        } else {
+            renderNodeElevationControls(node, network, config);
+        }
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.node_grade_separation_in_path_hint"));
