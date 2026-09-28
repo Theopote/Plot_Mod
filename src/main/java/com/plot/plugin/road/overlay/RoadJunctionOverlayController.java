@@ -59,4 +59,32 @@ public final class RoadJunctionOverlayController {
         }
         return RoadJunctionOverlayKind.AT_GRADE;
     }
+
+    /**
+     * 画布点击命中测试：返回距点击位置最近的交叉点节点 id。
+     */
+    public static String hitTest(
+            List<RoadJunctionOverlayEntry> entries,
+            double worldX,
+            double worldY,
+            double worldRadius) {
+        if (entries == null || entries.isEmpty() || worldRadius <= 0.0) {
+            return null;
+        }
+        String closestNodeId = null;
+        double closestDistance = worldRadius;
+        for (RoadJunctionOverlayEntry entry : entries) {
+            if (entry == null || entry.position() == null) {
+                continue;
+            }
+            double distance = Math.hypot(
+                worldX - entry.position().x,
+                worldY - entry.position().y);
+            if (distance <= closestDistance) {
+                closestDistance = distance;
+                closestNodeId = entry.nodeId();
+            }
+        }
+        return closestNodeId;
+    }
 }

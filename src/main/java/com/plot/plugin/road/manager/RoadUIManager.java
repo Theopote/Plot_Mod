@@ -206,6 +206,18 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             return;
         }
         Vec2d world = canvas.screenToWorld(mouseScreen);
+        double junctionHitRadius = canvas.getCamera() != null
+            ? canvas.getCamera().screenToWorldDistance(12.0)
+            : 1.0;
+        String nodeId = RoadJunctionOverlayController.hitTest(
+            junctionOverlayEntries, world.x, world.y, junctionHitRadius);
+        if (nodeId != null && !nodeId.isBlank()) {
+            ctx.networkManager().handleNodeSelect(nodeId);
+            ctx.requestTab(RoadUiTab.PATH);
+            ctx.requestOverlayRefresh();
+            RoadRepairDiagnosisCache.invalidate();
+            return;
+        }
         String roadId = RoadOverlayController.hitTestRoad(overlayEntries, world.x, world.y);
         if (roadId != null && !roadId.isBlank()) {
             ctx.networkManager().selectRoad(roadId, false);

@@ -406,7 +406,7 @@ public final class RoadGraphEdits {
             if (edge == null || edge.getId().equals(excludeEdgeId)) {
                 continue;
             }
-            if (edge == null || roadId == null || !roadId.equals(edge.getRoadId())) {
+            if (roadId == null || !roadId.equals(edge.getRoadId())) {
                 continue;
             }
             String other = otherEndpoint(edge, nodeA);
@@ -426,15 +426,24 @@ public final class RoadGraphEdits {
         if (oldNode == null || newNode == null) {
             return false;
         }
+        Vec2d newPosition = newNode.getPosition().copy();
+        List<Vec2d> centerline = new ArrayList<>(edge.getCenterlinePoints());
+        if (centerline.isEmpty()) {
+            centerline = List.of(newPosition.copy(), newPosition.copy());
+        }
         if (edge.getStartNodeId().equals(oldNodeId)) {
             oldNode.removeEdge(edge.getId());
             edge.setStartNodeId(newNodeId);
+            centerline.set(0, newPosition);
+            edge.setCenterlinePoints(centerline);
             newNode.addEdge(edge.getId());
             return true;
         }
         if (edge.getEndNodeId().equals(oldNodeId)) {
             oldNode.removeEdge(edge.getId());
             edge.setEndNodeId(newNodeId);
+            centerline.set(centerline.size() - 1, newPosition);
+            edge.setCenterlinePoints(centerline);
             newNode.addEdge(edge.getId());
             return true;
         }

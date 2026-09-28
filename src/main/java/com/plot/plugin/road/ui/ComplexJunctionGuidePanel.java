@@ -12,13 +12,12 @@ import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/** 复杂多路交叉口的分步引导（不自动合并，仅检测 + 建议 + 可选操作）。 */
+/** 复杂多路交叉口：主界面简要说明 + 可折叠高级处理。 */
 public final class ComplexJunctionGuidePanel {
     private final RoadUiContext ctx;
 
@@ -30,58 +29,56 @@ public final class ComplexJunctionGuidePanel {
         if (network == null || node == null) {
             return;
         }
+        int roadCount = network.getDistinctRoadIdsAtNode(node.getId()).size();
+        ImGui.spacing();
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.complex_junction_summary", roadCount));
+        if (ImGui.button(PlotI18n.tr("plugin.road.complex_junction_node_settings") + "##complex_node")) {
+            focusNode(network, node);
+        }
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.complex_junction_advanced"))) {
+            return;
+        }
+        renderAdvanced(network, node);
+    }
+
+    private void renderAdvanced(RoadNetwork network, RoadNode node) {
         RoadNetworkBuilder.JunctionType type =
             ctx.networkManager().getNetworkBuilder().classify(node);
+        ImGui.bulletText(PlotI18n.tr(
+            "plugin.road.complex_junction_topology",
+            RoadNetworkManager.junctionTypeLabel(type),
+            node.getDegree()));
+        if (!RoadGraphQueries.isSimpleCrossing(node, network)) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.complex_junction_simple_crossing_only"));
+        }
+
         NearbyJunctionClusterAnalyzer.NearbyJunctionCluster cluster =
             NearbyJunctionClusterAnalyzer.clusterContaining(
                 network,
                 node.getId(),
                 NearbyJunctionClusterAnalyzer.DEFAULT_CLUSTER_DISTANCE_BLOCKS);
-
-        ImGui.spacing();
-        if (!ImGui.collapsingHeader(
-                PlotI18n.tr("plugin.road.complex_junction_guide_title"),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
-            return;
-        }
-
-        renderStepDiagnose(network, node, type);
         ImGui.separator();
-        renderStepNearbyCluster(network, node, cluster);
-        ImGui.separator();
-        renderStepRoadPairs(network, node);
-        ImGui.separator();
-        renderStepElevationHint();
-    }
+        ImGui.text(PlotI18n.tr("plugin.road.complex_junction_advanced_nearby"));
+        renderNearbyCluster(network, node, cluster);
 
-    private void renderStepDiagnose(
-            RoadNetwork network,
-            RoadNode node,
-            RoadNetworkBuilder.JunctionType type) {
-        ImGui.textColored(PluginUiColors.ACCENT_BLUE, PlotI18n.tr("plugin.road.complex_junction_step1_title"));
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr("plugin.road.complex_junction_advanced_pairs"));
+        renderRoadPairs(network, node);
+
+        ImGui.separator();
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.complex_junction_step1_body"));
-        ImGui.bulletText(PlotI18n.tr(
-            "plugin.road.complex_junction_topology",
-            RoadNetworkManager.junctionTypeLabel(type),
-            node.getDegree()));
-        ImGui.bulletText(PlotI18n.tr(
-            "plugin.road.complex_junction_road_count",
-            network.getDistinctRoadIdsAtNode(node.getId()).size()));
-        if (RoadGraphQueries.isSimpleCrossing(node, network)) {
-            return;
-        }
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.STATUS_INFO,
-            PlotI18n.tr("plugin.road.complex_junction_simple_crossing_only"));
+            PlotI18n.tr("plugin.road.complex_junction_step4_body"));
     }
 
-    private void renderStepNearbyCluster(
+    private void renderNearbyCluster(
             RoadNetwork network,
             RoadNode node,
             NearbyJunctionClusterAnalyzer.NearbyJunctionCluster cluster) {
-        ImGui.textColored(PluginUiColors.ACCENT_BLUE, PlotI18n.tr("plugin.road.complex_junction_step2_title"));
         if (cluster == null) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
@@ -90,7 +87,6 @@ public final class ComplexJunctionGuidePanel {
                     (int) Math.round(NearbyJunctionClusterAnalyzer.DEFAULT_CLUSTER_DISTANCE_BLOCKS)));
             return;
         }
-
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.WARNING,
             PlotI18n.tr(
@@ -126,12 +122,7 @@ public final class ComplexJunctionGuidePanel {
         }
     }
 
-    private void renderStepRoadPairs(RoadNetwork network, RoadNode node) {
-        ImGui.textColored(PluginUiColors.ACCENT_BLUE, PlotI18n.tr("plugin.road.complex_junction_step3_title"));
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.complex_junction_step3_body"));
-
+    private void renderRoadPairs(RoadNetwork network, RoadNode node) {
         List<String> roadIds = new ArrayList<>(network.getDistinctRoadIdsAtNode(node.getId()));
         if (roadIds.size() < 2) {
             return;
@@ -147,26 +138,20 @@ public final class ComplexJunctionGuidePanel {
                 RoadNode simpleNode = findSimpleCrossingForPair(network, roadA, roadB);
                 if (simpleNode != null && !simpleNode.getId().equals(node.getId())) {
                     ImGui.indent();
-                    RoadUiWidgets.textWrappedColored(
-                        PluginUiColors.STATUS_INFO,
-                        PlotI18n.tr(
-                            "plugin.road.complex_junction_pair_simple_hint",
-                            formatNodeLabel(network, simpleNode)));
                     if (ImGui.smallButton(PlotI18n.tr("plugin.road.path.focus_junction")
                             + "##pair_" + simpleNode.getId())) {
                         focusNode(network, simpleNode);
                     }
+                    ImGui.sameLine();
+                    ImGui.textColored(
+                        PluginUiColors.HINT_GRAY,
+                        PlotI18n.tr(
+                            "plugin.road.complex_junction_pair_simple_hint",
+                            formatNodeLabel(network, simpleNode)));
                     ImGui.unindent();
                 }
             }
         }
-    }
-
-    private void renderStepElevationHint() {
-        ImGui.textColored(PluginUiColors.ACCENT_BLUE, PlotI18n.tr("plugin.road.complex_junction_step4_title"));
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.complex_junction_step4_body"));
     }
 
     private RoadNode findSimpleCrossingForPair(RoadNetwork network, String roadA, String roadB) {

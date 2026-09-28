@@ -1,7 +1,11 @@
 package com.plot.plugin.road.graph;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.RoadGeometryUtils;
+import com.plot.plugin.road.RoadNetworkBuilder;
+import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadNetworkInvariantValidator;
 import com.plot.plugin.road.model.RoadNode;
 import org.junit.jupiter.api.Test;
 
@@ -9,12 +13,13 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadGraphEditsMergeJunctionTest {
 
     @Test
-    void mergesNearbyJunctionNodes() {
+    void mergesNearbyJunctionNodesAndSyncsCenterlineGeometry() {
         RoadNetwork network = new RoadNetwork();
         RoadNode survivor = network.createNode(new Vec2d(0, 0));
         RoadNode absorbed = network.createNode(new Vec2d(2, 0));
@@ -23,7 +28,7 @@ class RoadGraphEditsMergeJunctionTest {
         network.createEdge(
             survivor.getId(), network.createNode(new Vec2d(-10, 0)).getId(),
             List.of(new Vec2d(0, 0), new Vec2d(-10, 0)), roadA);
-        network.createEdge(
+        RoadEdge absorbedEdge = network.createEdge(
             absorbed.getId(), network.createNode(new Vec2d(10, 0)).getId(),
             List.of(new Vec2d(2, 0), new Vec2d(10, 0)), roadB);
 
@@ -34,5 +39,14 @@ class RoadGraphEditsMergeJunctionTest {
         assertEquals(survivor.getId(), merged.get());
         assertEquals(null, network.getNode(absorbed.getId()));
         assertEquals(2, survivor.getDegree());
+
+        RoadEdge relinked = network.getEdge(absorbedEdge.getId());
+        assertNotNull(relinked);
+        assertEquals(survivor.getId(), relinked.getStartNodeId());
+        assertTrue(RoadGeometryUtils.pointsNear(
+            relinked.getCenterlinePoints().getFirst(),
+            survivor.getPosition(),
+            RoadNetworkBuilder.NODE_TOLERANCE));
+        assertTrue(RoadNetworkInvariantValidator.validate(network).valid());
     }
 }
