@@ -24,8 +24,8 @@ import java.util.OptionalDouble;
 
 /**
  * Finds flat-road baseline elevations that minimize construction modification along terrain.
- * Stage A scans integer Y candidates with {@link RoadConstructionEvaluator}; junction
- * feasibility uses {@link FlatProfileCompiler}.
+ * Stage A scans integer Y candidates with {@link RoadConstructionEvaluator}; Stage B
+ * re-scores Top-K with compiled flat profile + {@link FlatElevationRefinementEvaluator}.
  */
 public final class FlatElevationOptimizer {
     private static final double DEFAULT_SAMPLE_SPACING = 1.0;
@@ -109,8 +109,54 @@ public final class FlatElevationOptimizer {
             return new FlatElevationRecommendation(best, List.of(best), samples.size());
         }
 
-        List<FlatElevationCandidate> alternatives = ranked.stream().limit(TOP_K).toList();
-        return new FlatElevationRecommendation(alternatives.getFirst(), alternatives, samples.size());
+        List<FlatElevationCandidate> stageA = ranked.stream().limit(TOP_K).toList();
+        List<FlatElevationCandidate> refined = refineTopCandidates(
+            network,
+            road,
+            terrain,
+            config,
+            stageA,
+            maxGrade,
+            intentTemplate,
+            costConfig,
+            roadLength,
+            median);
+        return new FlatElevationRecommendation(refined.getFirst(), refined, samples.size());
+    }
+
+    private static List<FlatElevationCandidate> refineTopCandidates(
+            RoadNetwork network,
+            Road road,
+            TerrainSampler terrain,
+            RoadSystemConfig config,
+            List<FlatElevationCandidate> stageA,
+            double maxGrade,
+            FlatVerticalIntent intentTemplate,
+            RoadConstructionEvaluator.RoadConstructionCostConfig costConfig,
+            double roadLength,
+            int median) {
+        List<FlatElevationCandidate> refined = new ArrayList<>(stageA.size());
+        for (FlatElevationCandidate candidate : stageA) {
+            double junctionPenalty = junctionAlignmentPenalty(
+                network, road, candidate.elevation(), intentTemplate, maxGrade, costConfig, roadLength);
+            FlatElevationCandidate stageB = FlatElevationRefinementEvaluator.refine(
+                network,
+                road,
+                terrain,
+                config,
+                candidate.elevation(),
+                maxGrade,
+                intentTemplate,
+                costConfig,
+                roadLength,
+                junctionPenalty);
+            refined.add(stageB.feasible() ? stageB : candidate);
+        }
+        refined.sort(Comparator
+            .comparingDouble(FlatElevationCandidate::score)
+            .thenComparingInt(candidate -> Math.abs(candidate.elevation() - median))
+            .thenComparingInt(FlatElevationCandidate::elevation));
+        return List.copyOf(refined);
     }
 
     /** Fast median guess retained for initial dialogs and search centering. */
@@ -239,7 +285,7 @@ public final class FlatElevationOptimizer {
             true);
     }
 
-    private static boolean isJunctionFeasible(
+    static boolean isJunctionFeasible(
             RoadNetwork network,
             Road road,
             int candidateY,

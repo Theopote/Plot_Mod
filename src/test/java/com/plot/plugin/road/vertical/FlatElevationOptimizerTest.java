@@ -55,6 +55,27 @@ class FlatElevationOptimizerTest {
     }
 
     @Test
+    void stageBRefinesMetricsWithCompiledProfile() {
+        RoadNetwork network = straightRoad(100.0);
+        Road road = network.getRoads().values().iterator().next();
+        String endNodeId = network.getEdges().values().iterator().next().getEndNodeId();
+        road.setFlatVerticalIntent(new FlatVerticalIntent(64.0, Map.of(endNodeId, 70.0)));
+        road.setVerticalMode(RoadVerticalMode.FLAT);
+
+        TerrainSampler terrain = new FlatTerrainSampler(64);
+        double maxGrade = road.getEffectiveMaxSlope(CONFIG);
+        FlatVerticalIntent intent = road.getFlatVerticalIntent().copy();
+        var costConfig = com.plot.plugin.road.RoadConstructionEvaluator.RoadConstructionCostConfig.from(CONFIG);
+        double roadLength = com.plot.plugin.road.station.RoadStationing.canonicalLength(network, road);
+
+        FlatElevationCandidate stageB = FlatElevationRefinementEvaluator.refine(
+            network, road, terrain, CONFIG, 64, maxGrade, intent, costConfig, roadLength, 0.0);
+
+        assertTrue(stageB.feasible());
+        assertTrue(stageB.estimatedChangedBlocks() > 0);
+    }
+
+    @Test
     void junctionConstraintPrefersSharedElevation() {
         RoadNetwork network = straightRoad(100.0);
         Road road = network.getRoads().values().iterator().next();
