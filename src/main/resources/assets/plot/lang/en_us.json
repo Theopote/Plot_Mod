@@ -1457,6 +1457,7 @@
   "plugin.road.profile_legend_pvi_selected": "Selected PVI",
   "plugin.road.profile_legend_pvi_invalid": "Over-limit PVI",
   "plugin.road.profile_editor_interaction_hint": "Double-click empty chart to add a PVI; left-click to select and drag; drag curve handles when selected; right-click a PVI to delete.",
+  "plugin.road.profile_control_elevation_tooltip": "Elevation: Y=%s",
   "plugin.road.profile_pvi_delete": "Delete PVI",
   "plugin.road.profile_pvi_delete_disabled": "Cannot delete endpoints or when only two PVIs remain",
   "plugin.road.profile_legend_curve_handle": "Curve handle",

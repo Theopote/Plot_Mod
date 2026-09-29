@@ -435,6 +435,13 @@ public final class RoadLongitudinalProfileRenderer {
         boolean curveHandleFinished = false;
 
         if (ImGui.isItemHovered()) {
+            if (active < 0 && activeCurvePvi < 0 && activeIntersectionDrag < 0) {
+                VerticalProfileControlPoints.ControlPoint hoveredControl = findHoveredControl(
+                    controls, range, x0, y0, width, chartHeight, mouseX, mouseY);
+                if (hoveredControl != null) {
+                    renderControlPointElevationTooltip(hoveredControl);
+                }
+            }
             IntersectionHit hoveredHit = hitIntersection(
                 intersections, range, x0, y0, width, chartHeight, mouseX, mouseY);
             if (hoveredHit != null) {
@@ -995,6 +1002,31 @@ public final class RoadLongitudinalProfileRenderer {
             }
         }
         return nearest;
+    }
+
+    private static VerticalProfileControlPoints.ControlPoint findHoveredControl(
+            List<VerticalProfileControlPoints.ControlPoint> controls,
+            PlotRange range,
+            float x0,
+            float y0,
+            float width,
+            float height,
+            float mouseX,
+            float mouseY) {
+        int nearest = nearestControl(controls, range, x0, y0, width, height, mouseX, mouseY);
+        return nearest >= 0 ? findControlPoint(controls, nearest) : null;
+    }
+
+    private static void renderControlPointElevationTooltip(
+            VerticalProfileControlPoints.ControlPoint point) {
+        if (point == null) {
+            return;
+        }
+        ImGui.beginTooltip();
+        ImGui.text(PlotI18n.tr(
+            "plugin.road.profile_control_elevation_tooltip",
+            String.format("%.1f", point.elevation())));
+        ImGui.endTooltip();
     }
 
     private static int nearestControl(

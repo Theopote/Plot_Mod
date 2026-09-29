@@ -1457,6 +1457,7 @@
   "plugin.road.profile_legend_pvi_selected": "选中变坡点",
   "plugin.road.profile_legend_pvi_invalid": "超限变坡点",
   "plugin.road.profile_editor_interaction_hint": "双击空白处添加变坡点；左键选中并拖动；选中后可拖竖曲线手柄；右键变坡点可删除。",
+  "plugin.road.profile_control_elevation_tooltip": "高程：Y=%s",
   "plugin.road.profile_pvi_delete": "删除变坡点",
   "plugin.road.profile_pvi_delete_disabled": "端点或仅剩两个变坡点时不可删除",
   "plugin.road.profile_legend_curve_handle": "竖曲线手柄",
