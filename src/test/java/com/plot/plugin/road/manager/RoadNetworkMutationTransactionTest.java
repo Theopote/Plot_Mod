@@ -25,7 +25,7 @@ class RoadNetworkMutationTransactionTest {
     @BeforeEach
     void setUp() {
         manager = new RoadNetworkManager(new RoadSystemConfig("test"), new RoadProjectStatus());
-        manager.setOnNetworkChanged(changeNotifications::incrementAndGet);
+        manager.setOnNetworkChanged(kind -> changeNotifications.incrementAndGet());
     }
 
     @Test

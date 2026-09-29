@@ -71,7 +71,7 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
         networkManager = new RoadNetworkManager(config, status);
         persistenceManager = new RoadPersistenceManager(getDataFolder(), status, ctx());
         previewManager = new RoadPreviewManager(status, ctx());
-        networkManager.setOnNetworkChanged(previewManager::invalidatePreview);
+        networkManager.setOnNetworkChanged(previewManager::handleNetworkChanged);
         toolManager = new RoadToolManager(status, ctx());
         pathPickEscapeListener = new RoadPathPickEscapeShortcutListener(toolManager);
         ShortcutManager.getInstance().addListener(pathPickEscapeListener);

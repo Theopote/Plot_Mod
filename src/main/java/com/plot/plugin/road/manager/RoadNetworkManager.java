@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -64,8 +65,9 @@ public final class RoadNetworkManager {
     private final LinkedHashSet<String> selectedEdgeIds = new LinkedHashSet<>();
     private String selectedNodeId = "";
     private String lastSelectedEdgeId = "";
-    /** 路网变更时回调（用于使预览失效），由插件装配。 */
-    private Runnable onNetworkChanged;
+    /** 路网变更时回调（预览失效等），由插件装配。 */
+    private Consumer<RoadChangeKind> onNetworkChanged;
+    private RoadChangeKind pendingChangeKind = RoadChangeKind.GENERAL;
 
     /** 批量草稿对应的选择签名；不能复用 lastSelectedEdgeId。 */
     private String lastBatchSelectionKey = "";
@@ -110,7 +112,7 @@ public final class RoadNetworkManager {
     /**
      * 注册路网变更监听（预览失效等）。重复设置会覆盖。
      */
-    public void setOnNetworkChanged(Runnable onNetworkChanged) {
+    public void setOnNetworkChanged(Consumer<RoadChangeKind> onNetworkChanged) {
         this.onNetworkChanged = onNetworkChanged;
     }
 
@@ -211,20 +213,30 @@ public final class RoadNetworkManager {
     }
 
     /**
-     * 一次用户编辑完成：bump revision 并使预览失效。
+     * 一次用户编辑完成：bump revision 并按变更类型通知预览层。
      */
     public void commitNetworkChange() {
-        notifyNetworkChanged();
+        commitNetworkChange(pendingChangeKind);
+    }
+
+    public void commitNetworkChange(RoadChangeKind kind) {
+        notifyNetworkChanged(kind != null ? kind : RoadChangeKind.GENERAL);
+        pendingChangeKind = RoadChangeKind.GENERAL;
     }
 
     /** {@link #pushUndoSnapshot()} 的语义别名。 */
     public void beginNetworkEdit() {
+        beginNetworkEdit(RoadChangeKind.GENERAL);
+    }
+
+    public void beginNetworkEdit(RoadChangeKind kind) {
+        pendingChangeKind = kind != null ? kind : RoadChangeKind.GENERAL;
         pushUndoSnapshot();
     }
 
     /** {@link #commitNetworkChange()} 的语义别名。 */
     public void finishNetworkEdit() {
-        commitNetworkChange();
+        commitNetworkChange(pendingChangeKind);
     }
 
     /**
@@ -267,8 +279,12 @@ public final class RoadNetworkManager {
      * 新代码优先 {@link #mutateNetwork(Runnable)} 或 {@code pushUndoSnapshot} + {@code commitNetworkChange}。
      */
     public void pushHistory() {
+        pushHistory(RoadChangeKind.GENERAL);
+    }
+
+    public void pushHistory(RoadChangeKind kind) {
         pushUndoSnapshot();
-        commitNetworkChange();
+        commitNetworkChange(kind);
     }
 
     public void undo() {
@@ -402,9 +418,13 @@ public final class RoadNetworkManager {
     }
 
     private void notifyNetworkChanged() {
+        notifyNetworkChanged(RoadChangeKind.GENERAL);
+    }
+
+    private void notifyNetworkChanged(RoadChangeKind kind) {
         networkRevision++;
         if (onNetworkChanged != null) {
-            onNetworkChanged.run();
+            onNetworkChanged.accept(kind);
         }
     }
 

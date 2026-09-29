@@ -1,6 +1,7 @@
 package com.plot.plugin.road.ui;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.ChainageDisplayContext;
@@ -142,7 +143,7 @@ public final class VerticalAlignmentEditor {
 
     private void beginDraftEdit(RoadUiContext ctx) {
         if (!draftEditPending) {
-            ctx.beginNetworkEdit();
+            ctx.beginNetworkEdit(RoadChangeKind.VERTICAL_PROFILE);
             draftEditPending = true;
         }
     }

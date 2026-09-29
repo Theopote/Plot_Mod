@@ -63,6 +63,11 @@ public final class RoadPreviewManager {
         return previewNeedsRecalc;
     }
 
+    /** 是否仍保留沿路径的地形纵断面采样（纵断面编辑会话用）。 */
+    public boolean hasProfileSampling() {
+        return !lastEdgeResults.isEmpty();
+    }
+
     private void bumpTerrainRevision() {
         terrainRevision++;
     }
@@ -366,14 +371,41 @@ public final class RoadPreviewManager {
     }
 
     /**
-     * 检查预览是否有效（非空且未过期）
+     * 检查建造预览是否有效（含可投影方块）。
      */
     public boolean hasValidPreview() {
         return lastGenerationResult != null && !lastGenerationResult.placementRecords.isEmpty();
     }
 
     /**
-     * 使预览失效（在网络变更时调用）。
+     * 按路网变更类型失效预览：纵断面编辑仅标记建造预览过期，保留地形采样。
+     */
+    public void handleNetworkChanged(RoadChangeKind kind) {
+        if (kind != null && kind.preservesProfileSampling()) {
+            markBuildPreviewStalePreservingProfile();
+            return;
+        }
+        invalidatePreview();
+    }
+
+    /**
+     * 使建造预览过期，但保留 {@link #lastEdgeResults} 供纵断面编辑器继续使用。
+     */
+    public void markBuildPreviewStalePreservingProfile() {
+        cancelPreviewJobSilently();
+        boolean hadBuildPreview = lastGenerationResult != null;
+        lastGenerationResult = null;
+        lastNetworkGenerationResult = null;
+        previewNetwork = null;
+        clearGhostBlocksSafely();
+        if (hadBuildPreview || hasProfileSampling()) {
+            previewNeedsRecalc = true;
+            LOGGER.debug("纵断面/交叉口编辑：建造预览已标记过期，保留地形纵断面采样");
+        }
+    }
+
+    /**
+     * 使预览完全失效（在网络结构/地形相关变更时调用）。
      * 同时清除虚影，避免界面上仍显示与当前路网不一致的投影。
      */
     public void invalidatePreview() {

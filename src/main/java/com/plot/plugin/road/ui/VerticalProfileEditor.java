@@ -19,6 +19,7 @@ import com.plot.core.terrain.FlatTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.world.World;
 import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
@@ -125,10 +126,6 @@ final class VerticalProfileEditor {
             RoadEdge edge,
             FlatElevationProfileOverlay flatOverlay,
             boolean workspaceEmbedded) {
-        if (!ctx.previewManager().hasValidPreview()
-                && edge.getId().equals(cachedEditProfileEdgeId)) {
-            clearCache();
-        }
         if (!workspaceEmbedded) {
             ImGui.spacing();
             if (!ImGui.collapsingHeader(
@@ -256,7 +253,7 @@ final class VerticalProfileEditor {
 
     private void beginProfileNetworkEdit(RoadUiContext ctx) {
         if (!profileNetworkEditPending) {
-            ctx.beginNetworkEdit();
+            ctx.beginNetworkEdit(RoadChangeKind.VERTICAL_PROFILE);
             profileNetworkEditPending = true;
         }
     }
@@ -422,6 +419,9 @@ final class VerticalProfileEditor {
     }
 
     private RoadGenerationResult resolveEdgeResult(RoadUiContext ctx, RoadEdge edge) {
+        if (edge == null) {
+            return null;
+        }
         RoadGenerationResult edgeResult = ctx.previewManager().getLastEdgeResult(edge.getId());
         if (edgeResult != null && edgeResult.hasProfileData()) {
             cachedEditProfile = edgeResult;
@@ -429,7 +429,8 @@ final class VerticalProfileEditor {
             return edgeResult;
         }
         if (edge.getId().equals(cachedEditProfileEdgeId)
-                && ctx.previewManager().hasValidPreview()) {
+                && cachedEditProfile != null
+                && cachedEditProfile.hasProfileData()) {
             return cachedEditProfile;
         }
         return null;
@@ -633,7 +634,7 @@ final class VerticalProfileEditor {
                 ctx,
                 network,
                 road,
-                ctx.networkManager()::pushHistory,
+                () -> ctx.networkManager().pushHistory(RoadChangeKind.VERTICAL_PROFILE),
                 FlatElevationRecommendationUi.terrainSupplier(ctx));
         } else {
             adaptiveProfileControls.render(
@@ -646,7 +647,26 @@ final class VerticalProfileEditor {
                 () -> beginProfileNetworkEdit(ctx),
                 propagate -> finishProfileNetworkEdit(ctx, propagate));
         }
-        renderPreviewRecalcHint(ctx, network);
+        renderBuildPreviewStaleBar(ctx, network);
+    }
+
+    private static void renderBuildPreviewStaleBar(RoadUiContext ctx, RoadNetwork network) {
+        if (!ctx.previewManager().needsPreviewRecalc()) {
+            return;
+        }
+        ImGui.separator();
+        ImGui.textColored(
+            PluginUiColors.WARNING_LIGHT,
+            PlotI18n.tr("plugin.road.profile_build_preview_stale"));
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.profile_build_preview_stale_hint"));
+        if (ImGui.button(
+                PlotI18n.tr("plugin.road.update_road_preview") + "##profile_editor_update_preview",
+                ImGui.getContentRegionAvailX(),
+                0)) {
+            ctx.previewManager().startNetworkPreview(network);
+        }
     }
 
     private void applyIntersectionDrag(
@@ -687,18 +707,6 @@ final class VerticalProfileEditor {
             case SHARED -> RoadProfileIntersectionDragEditor.DragTarget.SHARED;
             case NONE -> null;
         };
-    }
-
-    private static void renderPreviewRecalcHint(RoadUiContext ctx, RoadNetwork network) {
-        if (!ctx.previewManager().needsPreviewRecalc()) {
-            return;
-        }
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.profile_intersection_recalculate_hint"));
-        if (ImGui.button(PlotI18n.tr("plugin.road.recalculate_preview") + "##profile_recalc")) {
-            ctx.previewManager().startNetworkPreview(network);
-        }
     }
 
     private void renderIntersectionDetail(

@@ -1,6 +1,7 @@
 package com.plot.plugin.road.ui;
 
 import com.plot.core.context.PluginContext;
+import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.manager.RoadPersistenceManager;
 import com.plot.plugin.road.manager.RoadPreviewManager;
@@ -321,6 +322,10 @@ public final class RoadUiContext {
     /** {@link RoadNetworkManager#beginNetworkEdit()} */
     public void beginNetworkEdit() {
         networkManager.beginNetworkEdit();
+    }
+
+    public void beginNetworkEdit(RoadChangeKind kind) {
+        networkManager.beginNetworkEdit(kind);
     }
 
     /** {@link RoadNetworkManager#finishNetworkEdit()} */
