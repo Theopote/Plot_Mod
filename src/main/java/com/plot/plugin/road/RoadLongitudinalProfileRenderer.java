@@ -5,6 +5,7 @@ import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
 import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
 import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -28,7 +29,7 @@ public final class RoadLongitudinalProfileRenderer {
     private static final int COLOR_LABEL = 0xFFAAAAAA;
     private static final int COLOR_CONTROL = 0xFFFFC04D;
     private static final int COLOR_CONTROL_SELECTED = 0xFFFFFFFF;
-    private static final int COLOR_CONTROL_INVALID = 0xFF4D4DFF;
+    private static final int COLOR_CONTROL_INVALID = PluginUiColors.ERROR;
     private static final int COLOR_INTERSECTION = 0xFF66CCFF;
     private static final int COLOR_INTERSECTION_SELECTED = 0xFFFFFFFF;
     private static final int COLOR_INTERSECTION_GRADE = 0xFFFF9966;
@@ -316,25 +317,31 @@ public final class RoadLongitudinalProfileRenderer {
             }
         }
         if (activeIntersectionDrag < 0 && ImGui.isItemHovered() && ImGui.isMouseClicked(0)) {
-            int nearest = nearestControl(controls, range, x0, y0, width, chartHeight,
-                ImGui.getMousePosX(), ImGui.getMousePosY());
             IntersectionHit hit = hitIntersection(
                 intersections, range, x0, y0, width, chartHeight,
                 ImGui.getMousePosX(), ImGui.getMousePosY());
-            if (nearest >= 0) {
-                selected = nearest;
-                active = nearest;
-                started = true;
-                selectedIntersection = -1;
-            } else if (hit != null && hit.target() != ControlInteraction.IntersectionDragTarget.NONE) {
+            int nearest = nearestControl(controls, range, x0, y0, width, chartHeight,
+                ImGui.getMousePosX(), ImGui.getMousePosY());
+            if (hit != null && hit.target() != ControlInteraction.IntersectionDragTarget.NONE) {
                 activeIntersectionDrag = hit.index();
                 activeIntersectionTarget = hit.target();
                 selectedIntersection = hit.index();
                 intersectionStarted = true;
                 selected = -1;
                 active = -1;
+            } else if (nearest >= 0 && isElevationEditableControl(controls, nearest)) {
+                selected = nearest;
+                active = nearest;
+                started = true;
+                selectedIntersection = -1;
             } else if (hit != null) {
                 selectedIntersection = hit.index();
+                selected = -1;
+                active = -1;
+            } else {
+                selected = -1;
+                active = -1;
+                selectedIntersection = -1;
             }
         }
         if (activeIntersectionDrag >= 0 && ImGui.isMouseDown(0)) {
@@ -347,10 +354,14 @@ public final class RoadLongitudinalProfileRenderer {
             activeIntersectionTarget = ControlInteraction.IntersectionDragTarget.NONE;
         }
         if (active >= 0 && ImGui.isMouseDown(0)) {
-            elevation = elevationAtMouseY(
-                ImGui.getMousePosY(), range, y0, chartHeight);
-            localDistance = distanceAtMouseX(
-                ImGui.getMousePosX(), range, x0, width);
+            VerticalProfileControlPoints.ControlPoint activePoint =
+                findControlPoint(controls, active);
+            if (activePoint != null && activePoint.elevationEditable()) {
+                elevation = elevationAtMouseY(
+                    ImGui.getMousePosY(), range, y0, chartHeight);
+                localDistance = distanceAtMouseX(
+                    ImGui.getMousePosX(), range, x0, width);
+            }
         }
         if (active >= 0 && ImGui.isMouseReleased(0)) {
             finished = true;
@@ -654,6 +665,34 @@ public final class RoadLongitudinalProfileRenderer {
             drawList.addCircleFilled(x, y, radius, color);
             drawList.addCircle(x, y, radius + 1f, COLOR_BG, 12, 1.5f);
         }
+    }
+
+    private static boolean isElevationEditableControl(
+            List<VerticalProfileControlPoints.ControlPoint> controls,
+            int pviIndex) {
+        if (controls == null) {
+            return false;
+        }
+        for (VerticalProfileControlPoints.ControlPoint point : controls) {
+            if (point.pviIndex() == pviIndex) {
+                return point.elevationEditable();
+            }
+        }
+        return false;
+    }
+
+    private static VerticalProfileControlPoints.ControlPoint findControlPoint(
+            List<VerticalProfileControlPoints.ControlPoint> controls,
+            int pviIndex) {
+        if (controls == null) {
+            return null;
+        }
+        for (VerticalProfileControlPoints.ControlPoint point : controls) {
+            if (point.pviIndex() == pviIndex) {
+                return point;
+            }
+        }
+        return null;
     }
 
     private static int nearestControl(

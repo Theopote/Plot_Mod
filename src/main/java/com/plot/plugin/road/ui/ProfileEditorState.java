@@ -7,11 +7,13 @@ final class ProfileEditorState {
     final float[] selectedProfileElevation = {64f};
     String profileAutoFixMessage = "";
     boolean controlPointsExpanded = false;
+    boolean elevationEditPending = false;
 
     void reset() {
         selectedProfilePvi = -1;
         activeProfilePvi = -1;
         profileAutoFixMessage = "";
         controlPointsExpanded = false;
+        elevationEditPending = false;
     }
 }

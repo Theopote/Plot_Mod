@@ -40,6 +40,7 @@ public final class RoadGeneratePanel {
     public RoadGeneratePanel(RoadUiContext ctx) {
         this.ctx = ctx;
         this.networkToolsPanel = new RoadNetworkToolsPanel(ctx);
+        profileEditor.setOnAlignmentCommitted(verticalAlignmentEditor::invalidateDraftSync);
     }
 
     /** 从概览等入口跳转时，聚焦指定边的纵断面区块。 */
@@ -118,6 +119,12 @@ public final class RoadGeneratePanel {
                 RoadEdgeListHelper.formatRoadLabel(network, road));
             ImGui.spacing();
         }
+        profileEditor.renderInline(
+            ctx,
+            network,
+            edge,
+            resolveFlatProfileOverlay(network, road),
+            true);
         if (road != null) {
             RoadVerticalStrategy strategy = RoadVerticalStrategy.fromRoad(road);
             if (strategy == RoadVerticalStrategy.TERRAIN_ADAPTIVE
@@ -134,15 +141,7 @@ public final class RoadGeneratePanel {
                 ctx.networkManager().getConfig(),
                 this::requireTerrainOrNull,
                 ctx.networkManager()::pushHistory);
-        }
-        profileEditor.renderInline(
-            ctx,
-            network,
-            edge,
-            resolveFlatProfileOverlay(network, road),
-            true);
-        if (road != null) {
-            renderSlopeOverridesSection(network, road, edge, chainageContextOrNull(network, road));
+            renderSlopeOverridesSection(network, road, edge, chainageDisplay);
         }
     }
 

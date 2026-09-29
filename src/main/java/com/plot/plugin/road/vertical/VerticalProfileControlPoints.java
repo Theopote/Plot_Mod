@@ -22,7 +22,8 @@ public final class VerticalProfileControlPoints {
             Double leftGradePercent,
             Double rightGradePercent,
             boolean endpoint,
-            boolean sharedJunction) { }
+            boolean sharedJunction,
+            boolean elevationEditable) { }
 
     private VerticalProfileControlPoints() { }
 
@@ -54,11 +55,14 @@ public final class VerticalProfileControlPoints {
             Double right = i + 1 < pvis.size()
                 ? VerticalAlignmentGeometry.tangentGradePercent(pvi, pvis.get(i + 1))
                 : null;
+            boolean endpoint = i == 0 || i == pvis.size() - 1;
+            boolean sharedJunction = VerticalAlignmentJunctionSynchronizer.isSharedJunctionAtStation(
+                network, road, pvi.getStation());
             result.add(new ControlPoint(
                 i, pvi.getStation(), local.getAsDouble(), pvi.getElevation(), left, right,
-                i == 0 || i == pvis.size() - 1,
-                VerticalAlignmentJunctionSynchronizer.isSharedJunctionAtStation(
-                    network, road, pvi.getStation())));
+                endpoint,
+                sharedJunction,
+                elevationEditable(road, pvi, sharedJunction)));
         }
         return List.copyOf(result);
     }
@@ -124,14 +128,12 @@ public final class VerticalProfileControlPoints {
         return new RoadVerticalAlignment(edited);
     }
 
+    /**
+     * 可改高程：普通端点与中间变坡点可以；平交共享桩号与 JUNCTION_FIXED 走交叉标记。
+     * 端点桩号仍由 {@link #move} 锁住。
+     */
     public static boolean isEditablePvi(RoadNetwork network, Road road, ControlPoint point) {
         if (network == null || road == null || point == null) {
-            return false;
-        }
-        if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
-            return false;
-        }
-        if (point.sharedJunction() || point.endpoint()) {
             return false;
         }
         if (road.getVerticalAlignment() == null
@@ -139,8 +141,20 @@ public final class VerticalProfileControlPoints {
                 || point.pviIndex() >= road.getVerticalAlignment().pviCount()) {
             return false;
         }
-        PointOfVerticalIntersection pvi = road.getVerticalAlignment().getPvis().get(point.pviIndex());
-        return pvi.getConstraint() != VerticalControlPointConstraint.JUNCTION_FIXED;
+        return point.elevationEditable();
+    }
+
+    private static boolean elevationEditable(
+            Road road,
+            PointOfVerticalIntersection pvi,
+            boolean sharedJunction) {
+        if (road == null || pvi == null || road.getVerticalMode() == RoadVerticalMode.FLAT) {
+            return false;
+        }
+        if (sharedJunction || pvi.getConstraint() == VerticalControlPointConstraint.JUNCTION_FIXED) {
+            return false;
+        }
+        return true;
     }
 
     public static boolean canAutoSmooth(RoadNetwork network, Road road, ControlPoint point) {

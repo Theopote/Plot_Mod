@@ -111,6 +111,8 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         ctx.roadListRename().tickFrame();
         ctx.previewManager().tickPreviewJob();
 
+        buildPanel.renderProfileEditorWindow(ctx.networkManager().getNetwork());
+
         toolbarPanel.render();
 
         RoadUiTab pendingTab = ctx.pendingTab();
@@ -131,7 +133,6 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         if (ctx.toolManager().getPathPickSession().isActive()) {
             ctx.toolManager().tick();
         }
-        buildPanel.renderProfileEditorWindow(ctx.networkManager().getNetwork());
     }
 
     /** 拾取完成并自动认领道路后的 UI 反馈。 */

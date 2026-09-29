@@ -10,13 +10,14 @@ import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
+import java.util.Objects;
 import java.util.function.Supplier;
 
 /** 水平道路纵断面编辑器：Base Y、推荐 Y 与交叉约束，不暴露 PVI 编辑。 */
 final class FlatProfileControls {
     private final FlatElevationRecommendationUi recommendationUi = new FlatElevationRecommendationUi();
     private float flatElevation = 64f;
-    private String syncedRoadId = "";
+    private long syncedFlatIntentKey = Long.MIN_VALUE;
 
     void render(
             RoadUiContext ctx,
@@ -39,14 +40,24 @@ final class FlatProfileControls {
     }
 
     private void syncFlatElevation(RoadNetwork network, Road road) {
-        if (road.getId().equals(syncedRoadId)) {
+        FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, road);
+        long key = flatIntentKey(road, intent);
+        if (key == syncedFlatIntentKey) {
             return;
         }
-        syncedRoadId = road.getId();
-        FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, road);
+        syncedFlatIntentKey = key;
         if (intent != null) {
             flatElevation = (float) intent.getBaseElevation();
         }
+    }
+
+    private static long flatIntentKey(Road road, FlatVerticalIntent intent) {
+        if (road == null) {
+            return 0L;
+        }
+        return Objects.hash(
+            road.getId(),
+            intent != null ? Double.hashCode(intent.getBaseElevation()) : 0L);
     }
 
     private void renderBaseElevationField(
@@ -78,7 +89,7 @@ final class FlatProfileControls {
         }
     }
 
-    private static void applyBaseElevation(
+    private void applyBaseElevation(
             RoadUiContext ctx,
             RoadNetwork network,
             Road road,
@@ -93,6 +104,9 @@ final class FlatProfileControls {
             road,
             elevation,
             road.getEffectiveMaxSlope(config));
+        syncedFlatIntentKey = flatIntentKey(
+            road,
+            FlatVerticalIntentSupport.resolveIntent(network, road));
         ctx.onGenerationConfigChanged();
     }
 }

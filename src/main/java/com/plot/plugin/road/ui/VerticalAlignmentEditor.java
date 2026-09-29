@@ -38,10 +38,17 @@ import java.util.function.Supplier;
 public final class VerticalAlignmentEditor {
 
     private String syncedRoadId = "";
+    private long syncedDraftKey = Long.MIN_VALUE;
     private final List<PviDraft> drafts = new ArrayList<>();
     private float flatElevation = 64f;
+    private boolean draftEditPending = false;
     private final FlatElevationRecommendationUi flatElevationRecommendationUi =
         new FlatElevationRecommendationUi();
+
+    /** 外部（图表窗口等）修改纵断面后调用，强制数字列表重新同步。 */
+    public void invalidateDraftSync() {
+        syncedDraftKey = Long.MIN_VALUE;
+    }
 
     public void render(
             RoadUiContext ctx,
@@ -57,6 +64,9 @@ public final class VerticalAlignmentEditor {
 
         ImGui.spacing();
         if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.vertical_alignment_section"))) {
+            if (draftEditPending) {
+                commitDraftEdits(ctx, network, road, config);
+            }
             return;
         }
 
@@ -80,7 +90,7 @@ public final class VerticalAlignmentEditor {
             return;
         }
         if (VerticalAlignmentJunctionSynchronizer.applySharedJunctionConstraints(network, road) > 0) {
-            syncedRoadId = "";
+            syncedDraftKey = Long.MIN_VALUE;
         }
         syncDrafts(road);
         RoadUiWidgets.textWrappedColored(
@@ -106,15 +116,13 @@ public final class VerticalAlignmentEditor {
         }
 
         for (int i = 0; i < drafts.size(); i++) {
-            renderDraftRow(road, drafts.get(i), i, drafts.size(), (float) roadLength, chainageDisplay, onHistory);
+            renderDraftRow(ctx, network, road, config, drafts.get(i), i, drafts.size(),
+                (float) roadLength, chainageDisplay);
             if (i < drafts.size() - 1) {
                 ImGui.separator();
             }
         }
 
-        applyDraftsIfChanged(road);
-        VerticalProfileNetworkPropagator.propagate(
-            network, road, connected -> connected.getEffectiveMaxSlope(config));
         renderValidationMessages(road, roadLength);
 
         boolean slopeAllowed = VerticalProfileDesignRules.slopeAllowed(roadLength);
@@ -126,11 +134,49 @@ public final class VerticalAlignmentEditor {
         }
 
         if (slopeAllowed && ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_add"))) {
-            if (onHistory != null) {
-                onHistory.run();
-            }
+            beginDraftEdit(ctx);
             drafts.add(PviDraft.defaultEntry(drafts, roadLength));
-            applyDraftsIfChanged(road);
+            commitDraftEdits(ctx, network, road, config);
+        }
+    }
+
+    private void beginDraftEdit(RoadUiContext ctx) {
+        if (!draftEditPending) {
+            ctx.beginNetworkEdit();
+            draftEditPending = true;
+        }
+    }
+
+    private void finishDraftEdit(RoadUiContext ctx) {
+        if (draftEditPending) {
+            ctx.finishNetworkEdit();
+            draftEditPending = false;
+        }
+    }
+
+    private void commitDraftEdits(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config) {
+        if (applyDraftsIfChanged(road)) {
+            VerticalProfileNetworkPropagator.propagate(
+                network, road, connected -> connected.getEffectiveMaxSlope(config));
+        }
+        finishDraftEdit(ctx);
+    }
+
+    private void onDraftControlEdited(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config) {
+        if (applyDraftsIfChanged(road)) {
+            VerticalProfileNetworkPropagator.propagate(
+                network, road, connected -> connected.getEffectiveMaxSlope(config));
+        }
+        if (!ImGui.isAnyItemActive()) {
+            finishDraftEdit(ctx);
         }
     }
 
@@ -191,7 +237,7 @@ public final class VerticalAlignmentEditor {
                             onHistory.run();
                         }
                         strategy.applyToRoad(network, road, config);
-                        syncedRoadId = "";
+                        syncedDraftKey = Long.MIN_VALUE;
                         syncDrafts(road);
                         FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, road);
                         if (intent != null) {
@@ -269,13 +315,15 @@ public final class VerticalAlignmentEditor {
     }
 
     private void renderDraftRow(
+            RoadUiContext ctx,
+            RoadNetwork network,
             Road road,
+            RoadSystemConfig config,
             PviDraft draft,
             int index,
             int total,
             float roadLength,
-            ChainageDisplayContext chainageDisplay,
-            Runnable onHistory) {
+            ChainageDisplayContext chainageDisplay) {
         ImGui.pushID(index);
 
         float[] station = {draft.station};
@@ -286,10 +334,16 @@ public final class VerticalAlignmentEditor {
             0,
             roadLength,
             "%.1fm");
-        if (ImGui.isItemActivated() && onHistory != null) {
-            onHistory.run();
+        if (ImGui.isItemActivated()) {
+            beginDraftEdit(ctx);
         }
         draft.station = station[0];
+        if (draftEditPending && ImGui.isItemActive()) {
+            applyDraftsIfChanged(road);
+        }
+        if (ImGui.isItemDeactivatedAfterEdit()) {
+            onDraftControlEdited(ctx, network, road, config);
+        }
 
         float[] elevation = {draft.elevation};
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
@@ -300,10 +354,16 @@ public final class VerticalAlignmentEditor {
             -64f,
             320f,
             "%.1f");
-        if (ImGui.isItemActivated() && onHistory != null) {
-            onHistory.run();
+        if (ImGui.isItemActivated()) {
+            beginDraftEdit(ctx);
         }
         draft.elevation = elevation[0];
+        if (draftEditPending && ImGui.isItemActive()) {
+            applyDraftsIfChanged(road);
+        }
+        if (ImGui.isItemDeactivatedAfterEdit()) {
+            onDraftControlEdited(ctx, network, road, config);
+        }
 
         boolean middlePvi = index > 0 && index < total - 1;
         if (middlePvi) {
@@ -315,10 +375,16 @@ public final class VerticalAlignmentEditor {
                 0,
                 Math.max(10f, roadLength / 2f),
                 "%.1fm");
-            if (ImGui.isItemActivated() && onHistory != null) {
-                onHistory.run();
+            if (ImGui.isItemActivated()) {
+                beginDraftEdit(ctx);
             }
             draft.curveLength = Math.max(0f, curveLength[0]);
+            if (draftEditPending && ImGui.isItemActive()) {
+                applyDraftsIfChanged(road);
+            }
+            if (ImGui.isItemDeactivatedAfterEdit()) {
+                onDraftControlEdited(ctx, network, road, config);
+            }
         }
 
         String validation = validateDraft(draft, drafts, index, roadLength);
@@ -347,11 +413,9 @@ public final class VerticalAlignmentEditor {
         ImGui.pushStyleColor(ImGuiCol.ButtonHovered, PluginUiColors.DELETE_HOVER);
         ImGui.pushStyleColor(ImGuiCol.ButtonActive, PluginUiColors.DELETE_ACTIVE);
         if (ImGui.button(PlotI18n.tr("plugin.road.delete") + "##va_delete")) {
-            if (onHistory != null) {
-                onHistory.run();
-            }
+            beginDraftEdit(ctx);
             drafts.remove(index);
-            applyDraftsIfChanged(road);
+            commitDraftEdits(ctx, network, road, config);
             ImGui.popStyleColor(3);
             ImGui.popID();
             return;
@@ -361,27 +425,31 @@ public final class VerticalAlignmentEditor {
         ImGui.popID();
     }
 
-    private void applyDraftsIfChanged(Road road) {
+    private boolean applyDraftsIfChanged(Road road) {
         if (road == null) {
-            return;
+            return false;
         }
         List<PointOfVerticalIntersection> built = buildPvis(drafts);
         List<PointOfVerticalIntersection> current = road.getVerticalAlignment() != null
             ? road.getVerticalAlignment().getPvis()
             : List.of();
         if (pvisEqual(current, built)) {
-            return;
+            return false;
         }
         road.setVerticalAlignment(built.isEmpty() ? null : new RoadVerticalAlignment(built));
         if (!built.isEmpty()) {
             road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
         }
+        syncedDraftKey = draftSyncKey(road);
+        return true;
     }
 
     private void syncDrafts(Road road) {
-        if (Objects.equals(syncedRoadId, road.getId())) {
+        long key = draftSyncKey(road);
+        if (key == syncedDraftKey) {
             return;
         }
+        syncedDraftKey = key;
         syncedRoadId = road.getId();
         drafts.clear();
         RoadVerticalAlignment alignment = road.getVerticalAlignment();
@@ -395,6 +463,24 @@ public final class VerticalAlignmentEditor {
         if (!drafts.isEmpty()) {
             flatElevation = drafts.getFirst().elevation;
         }
+    }
+
+    private static long draftSyncKey(Road road) {
+        return Objects.hash(road.getId(), alignmentFingerprint(road.getVerticalAlignment()));
+    }
+
+    private static long alignmentFingerprint(RoadVerticalAlignment alignment) {
+        if (alignment == null) {
+            return 0L;
+        }
+        long hash = 1L;
+        for (PointOfVerticalIntersection pvi : alignment.getPvis()) {
+            hash = 31L * hash + Double.hashCode(pvi.getStation());
+            hash = 31L * hash + Double.hashCode(pvi.getElevation());
+            hash = 31L * hash + Objects.hashCode(pvi.getCurveLength());
+            hash = 31L * hash + Objects.hashCode(pvi.getConstraint());
+        }
+        return hash;
     }
 
     private void renderValidationMessages(Road road, double roadLength) {

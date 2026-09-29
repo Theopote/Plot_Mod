@@ -60,6 +60,8 @@ final class VerticalProfileEditor {
     private final ProfileEditorState editorState = new ProfileEditorState();
     private final FlatProfileControls flatProfileControls = new FlatProfileControls();
     private final AdaptiveProfileControls adaptiveProfileControls = new AdaptiveProfileControls();
+    private boolean profileNetworkEditPending = false;
+    private Runnable onAlignmentCommitted;
     private int selectedIntersectionIndex = -1;
     private RoadGradeSeparationControls gradeSeparationControls;
     private int activeIntersectionDragIndex = -1;
@@ -80,6 +82,7 @@ final class VerticalProfileEditor {
         activeIntersectionDragIndex = -1;
         activeIntersectionDragTarget =
             RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget.NONE;
+        profileNetworkEditPending = false;
         invalidateIntersectionCache();
     }
 
@@ -90,6 +93,10 @@ final class VerticalProfileEditor {
         editorEdgeId = edgeId;
         editorWindowOpen.set(true);
         focusEditorOnOpen = true;
+    }
+
+    void setOnAlignmentCommitted(Runnable onAlignmentCommitted) {
+        this.onAlignmentCommitted = onAlignmentCommitted;
     }
 
     boolean isEditorOpen() {
@@ -165,21 +172,22 @@ final class VerticalProfileEditor {
             RoadNetwork network,
             FlatElevationProfileOverlay flatOverlay) {
         if (!editorWindowOpen.get()) {
+            finishPendingNetworkEdit(ctx);
             return;
         }
-        List<String> profileEdgeIds = listProfileEdgeIds(ctx);
-        ensureEditorEdgeSelection(ctx, network, profileEdgeIds);
         RoadEdge edge = network.getEdge(editorEdgeId);
         if (edge == null) {
+            List<String> profileEdgeIds = listProfileEdgeIds(ctx, network, null);
+            ensureEditorEdgeSelection(ctx, network, profileEdgeIds);
+            edge = network.getEdge(editorEdgeId);
+        }
+        if (edge == null) {
             editorWindowOpen.set(false);
+            finishPendingNetworkEdit(ctx);
             return;
         }
         Road road = network.getRoadForEdge(edge);
-        String title = PlotI18n.tr(
-            "plugin.road.vertical_alignment_editor_window_title",
-            road != null
-                ? RoadEdgeListHelper.formatRoadLabel(network, road)
-                : editorEdgeId);
+        List<String> profileEdgeIds = listProfileEdgeIds(ctx, network, road);
 
         if (focusEditorOnOpen) {
             var center = ImGui.getMainViewport().getCenter();
@@ -195,17 +203,29 @@ final class VerticalProfileEditor {
         }
         ImGui.setNextWindowSizeConstraints(480f, 380f, Float.MAX_VALUE, Float.MAX_VALUE);
 
-        if (!ImGui.begin(title, editorWindowOpen, EDITOR_WINDOW_FLAGS)) {
+        if (!ImGui.begin(
+                PlotI18n.tr("plugin.road.vertical_alignment_editor_window") + "###road_profile_editor",
+                editorWindowOpen,
+                EDITOR_WINDOW_FLAGS)) {
+            finishPendingNetworkEdit(ctx);
             ImGui.end();
             return;
         }
         try {
+            if (road != null) {
+                ImGui.textColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr(
+                        "plugin.road.vertical_alignment_editor_window_title",
+                        RoadEdgeListHelper.formatRoadLabel(network, road)));
+            }
             renderEditorEdgeSelector(ctx, network, profileEdgeIds);
             ImGui.spacing();
 
             edge = network.getEdge(editorEdgeId);
             if (edge == null) {
                 editorWindowOpen.set(false);
+                finishPendingNetworkEdit(ctx);
                 return;
             }
             road = network.getRoadForEdge(edge);
@@ -224,11 +244,52 @@ final class VerticalProfileEditor {
                 ImGui.getContentRegionAvail().y * 0.42f);
             renderInteractiveEditor(ctx, network, edge, road, edgeResult, design, chartHeight, flatOverlay);
         } finally {
+            if (!editorWindowOpen.get()) {
+                finishPendingNetworkEdit(ctx);
+            }
             ImGui.end();
         }
     }
 
-    private List<String> listProfileEdgeIds(RoadUiContext ctx) {
+    private void beginProfileNetworkEdit(RoadUiContext ctx) {
+        if (!profileNetworkEditPending) {
+            ctx.beginNetworkEdit();
+            profileNetworkEditPending = true;
+        }
+    }
+
+    private void finishProfileNetworkEdit(RoadUiContext ctx, Runnable propagateJunctionGrades) {
+        if (!profileNetworkEditPending && !editorState.elevationEditPending) {
+            return;
+        }
+        if (propagateJunctionGrades != null) {
+            propagateJunctionGrades.run();
+        }
+        ctx.finishNetworkEdit();
+        profileNetworkEditPending = false;
+        editorState.elevationEditPending = false;
+        if (onAlignmentCommitted != null) {
+            onAlignmentCommitted.run();
+        }
+    }
+
+    private void finishPendingNetworkEdit(RoadUiContext ctx) {
+        finishProfileNetworkEdit(ctx, null);
+    }
+
+    private List<String> listProfileEdgeIds(RoadUiContext ctx, RoadNetwork network, Road road) {
+        if (road != null && com.plot.plugin.road.station.RoadStationing.isStationable(network, road)) {
+            List<String> ordered = new ArrayList<>();
+            for (String edgeId : road.getOrderedSegmentIds()) {
+                RoadGenerationResult result = ctx.previewManager().getLastEdgeResult(edgeId);
+                if (result != null && result.hasProfileData()) {
+                    ordered.add(edgeId);
+                }
+            }
+            if (!ordered.isEmpty()) {
+                return ordered;
+            }
+        }
         List<String> edgeIds = new ArrayList<>();
         for (Map.Entry<String, RoadGenerationResult> entry
                 : ctx.previewManager().getLastEdgeResults().entrySet()) {
@@ -322,6 +383,7 @@ final class VerticalProfileEditor {
         if (network.getEdge(edgeId) == null) {
             return;
         }
+        finishPendingNetworkEdit(ctx);
         editorEdgeId = edgeId;
         resetEdgeLocalState();
         RoadEdge edge = network.getEdge(edgeId);
@@ -414,12 +476,25 @@ final class VerticalProfileEditor {
         }
     }
 
+    private static void renderEditorControlLegend(boolean flatMode) {
+        if (flatMode) {
+            return;
+        }
+        ImGui.textColored(PluginUiColors.LEGEND, "\u25CF " + PlotI18n.tr("plugin.road.profile_legend_pvi"));
+        ImGui.sameLine();
+        ImGui.textColored(PluginUiColors.ERROR, "\u25CF " + PlotI18n.tr("plugin.road.profile_legend_pvi_invalid"));
+        ImGui.sameLine();
+        ImGui.textColored(PluginUiColors.ACCENT_BLUE, "\u25CF " + PlotI18n.tr(
+            "plugin.road.profile_legend_pvi_selected"));
+    }
+
     private void renderEditorLegend(
             VerticalAlignmentProfileOverlay design,
             List<RoadProfileIntersection> intersections,
             FlatElevationProfileOverlay flatOverlay,
             boolean flatMode) {
         renderInlineLegend(design, intersections, flatOverlay, flatMode);
+        renderEditorControlLegend(flatMode);
     }
 
     private void renderInteractiveEditor(
@@ -449,7 +524,7 @@ final class VerticalProfileEditor {
                 intersections, selectedIntersectionIndex, chartHeight,
                 activeIntersectionDragIndex, activeIntersectionDragTarget, flatOverlay);
         if (interaction.dragStarted() || interaction.intersectionDragStarted()) {
-            ctx.beginNetworkEdit();
+            beginProfileNetworkEdit(ctx);
         }
         if (!flatMode) {
             if (interaction.selectedPviIndex() >= 0
@@ -495,11 +570,10 @@ final class VerticalProfileEditor {
             }
         }
         if (interaction.dragFinished()) {
-            ctx.finishNetworkEdit();
-            propagateJunctionGrades(ctx, network, road);
+            finishProfileNetworkEdit(ctx, () -> propagateJunctionGrades(ctx, network, road));
         }
         if (interaction.intersectionDragFinished()) {
-            ctx.finishNetworkEdit();
+            finishProfileNetworkEdit(ctx, null);
             Road otherRoad = activeIntersectionDragIndex >= 0
                     && activeIntersectionDragIndex < intersections.size()
                 ? network.getRoad(intersections.get(activeIntersectionDragIndex).otherRoadId())
@@ -532,7 +606,9 @@ final class VerticalProfileEditor {
                 points,
                 maxGrade,
                 editorState,
-                () -> propagateJunctionGrades(ctx, network, road));
+                () -> propagateJunctionGrades(ctx, network, road),
+                () -> beginProfileNetworkEdit(ctx),
+                propagate -> finishProfileNetworkEdit(ctx, propagate));
         }
         renderPreviewRecalcHint(ctx, network);
     }
