@@ -3,6 +3,7 @@ import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.core.terrain.MinecraftTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
+import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadNetworkValidationReport;
@@ -140,7 +141,7 @@ public final class RoadGeneratePanel {
                 chainageDisplay,
                 ctx.networkManager().getConfig(),
                 this::requireTerrainOrNull,
-                ctx.networkManager()::pushHistory);
+                () -> ctx.networkManager().pushHistory(RoadChangeKind.VERTICAL_PROFILE));
             renderSlopeOverridesSection(network, road, edge, chainageDisplay);
         }
     }

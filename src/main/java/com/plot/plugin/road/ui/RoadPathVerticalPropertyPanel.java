@@ -2,6 +2,7 @@ package com.plot.plugin.road.ui;
 
 import com.plot.core.terrain.MinecraftTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
+import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.model.Road;
@@ -70,6 +71,7 @@ final class RoadPathVerticalPropertyPanel {
             road,
             ctx.networkManager().getConfig(),
             ctx.networkManager()::pushHistory,
+            () -> ctx.networkManager().pushHistory(RoadChangeKind.VERTICAL_PROFILE),
             strategySwitchDialog,
             () -> requireTerrainOrNull(ctx));
     }

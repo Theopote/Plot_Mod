@@ -81,7 +81,7 @@ public final class VerticalAlignmentEditor {
         double roadLength = RoadStationing.canonicalLength(network, road);
         RoadVerticalStrategy strategy = RoadVerticalStrategy.fromRoad(road);
         if (strategy == RoadVerticalStrategy.FLAT) {
-            renderFlatGenerateSection(ctx, network, road, roadLength, config, onHistory, terrainSupplier);
+            renderFlatGenerateSection(ctx, network, road, config, onHistory, terrainSupplier);
             return;
         }
         if (road.getVerticalMode() != RoadVerticalMode.MANUAL_PROFILE) {
@@ -187,7 +187,8 @@ public final class VerticalAlignmentEditor {
             RoadNetwork network,
             Road road,
             RoadSystemConfig config,
-            Runnable onHistory,
+            Runnable onStrategyHistory,
+            Runnable onProfileHistory,
             RoadVerticalStrategySwitchDialog switchDialog,
             Supplier<TerrainSampler> terrainSupplier) {
         if (road == null || network == null) {
@@ -200,10 +201,11 @@ public final class VerticalAlignmentEditor {
             return;
         }
         double roadLength = RoadStationing.canonicalLength(network, road);
-        renderVerticalStrategy(network, road, roadLength, config, onHistory, switchDialog, terrainSupplier);
+        renderVerticalStrategy(
+            network, road, roadLength, config, onStrategyHistory, onProfileHistory, switchDialog, terrainSupplier);
         if (RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT) {
             flatElevationRecommendationUi.renderPathControls(
-                ctx, network, road, onHistory, terrainSupplier);
+                ctx, network, road, onProfileHistory, terrainSupplier);
         }
     }
 
@@ -212,7 +214,8 @@ public final class VerticalAlignmentEditor {
             Road road,
             double roadLength,
             RoadSystemConfig config,
-            Runnable onHistory,
+            Runnable onStrategyHistory,
+            Runnable onProfileHistory,
             RoadVerticalStrategySwitchDialog switchDialog,
             Supplier<TerrainSampler> terrainSupplier) {
         RoadVerticalStrategy current = RoadVerticalStrategy.fromRoad(road);
@@ -234,8 +237,8 @@ public final class VerticalAlignmentEditor {
                             switchDialog.requestToTerrainAdaptive(List.of(road.getId()));
                         }
                     } else {
-                        if (onHistory != null) {
-                            onHistory.run();
+                        if (onStrategyHistory != null) {
+                            onStrategyHistory.run();
                         }
                         strategy.applyToRoad(network, road, config);
                         syncedDraftKey = Long.MIN_VALUE;
@@ -250,7 +253,7 @@ public final class VerticalAlignmentEditor {
             ImGui.endCombo();
         }
         if (current == RoadVerticalStrategy.FLAT) {
-            renderFlatElevationField(network, road, config, onHistory);
+            renderFlatElevationField(network, road, config, onProfileHistory);
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.vertical_strategy_flat_hint"));
@@ -265,7 +268,6 @@ public final class VerticalAlignmentEditor {
             RoadUiContext ctx,
             RoadNetwork network,
             Road road,
-            double roadLength,
             RoadSystemConfig config,
             Runnable onHistory,
             Supplier<TerrainSampler> terrainSupplier) {
@@ -279,10 +281,6 @@ public final class VerticalAlignmentEditor {
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.vertical_strategy_flat_generate_hint"));
-        if (roadLength > 1e-6) {
-            FlatVerticalIntentSupport.syncCompiledAlignment(
-                network, road, road.getEffectiveMaxSlope(config));
-        }
     }
 
     private void renderFlatElevationField(
