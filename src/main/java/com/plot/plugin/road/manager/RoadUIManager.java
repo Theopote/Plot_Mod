@@ -151,14 +151,19 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
     }
 
     /**
-     * 插件 UI 渲染后补绘：画布先于插件面板绘制，宽度/横断面滑条变更需前景层覆盖。
+     * 所有 ImGui 面板渲染完成后补绘道路叠加层（BackgroundDrawList + 画布裁剪）。
      */
-    public void renderDeferredOverlay() {
-        if (!ctx.consumeOverlayForegroundDirty() || !CanvasAccess.isPresent()) {
+    public void renderCanvasOverlay() {
+        if (!ctx.isRoadOverlayVisible() || !CanvasAccess.isPresent()) {
             return;
         }
+        captureOverlaySnapshot();
         Canvas canvas = CanvasAccess.get();
-        RoadOverlayCompositor.renderForeground(canvas, canvas.getCamera(), overlayEntries);
+        RoadOverlayCompositor.renderOnCanvas(
+            canvas,
+            canvas.getCamera(),
+            overlayEntries,
+            junctionOverlayEntries);
     }
 
     private void refreshOverlaySnapshotIfStale() {

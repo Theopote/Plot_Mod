@@ -22,12 +22,15 @@ public final class RoadCorridorWidth {
         return Math.max(0.5, halfWidth);
     }
 
-    /** 画布路径预览半宽：行车道 + 人行道（如有），不含路肩/自行车道/排水沟/边坡。 */
+    /** 画布路径预览半宽：行车道 + 自行车道/人行道（如有），不含路肩/排水沟/边坡。 */
     public static double canvasPreviewHalfWidthBlocks(ResolvedCrossSection section) {
         if (section == null) {
             return 0.0;
         }
         double halfWidth = section.carriagewayHalfWidth();
+        if (section.includeBikeLane && section.bikeLaneWidth > 0) {
+            halfWidth += section.bikeLaneWidth;
+        }
         if (section.includeSidewalk && section.sidewalkWidth > 0) {
             halfWidth += section.sidewalkWidth;
         }

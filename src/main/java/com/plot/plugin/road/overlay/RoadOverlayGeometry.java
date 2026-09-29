@@ -60,7 +60,7 @@ public final class RoadOverlayGeometry {
         return RoadEarthworkCorridorResolver.buildCorridorPolygon(centerline, halfWidth);
     }
 
-    /** 认领候选路径走廊半宽（画布坐标，行车道 + 人行道）。 */
+    /** 认领候选路径走廊半宽（画布坐标，行车道 + 可行走外侧条带）。 */
     public static double resolveConfigCorridorHalfWidth(
             RoadSystemConfig config,
             List<Vec2d> centerline,

@@ -8,14 +8,19 @@ import imgui.ImGui;
 import java.util.List;
 
 /**
- * 在插件 UI 更新后补绘道路叠加层（画布先于插件面板渲染，需前景层覆盖过期走廊）。
+ * 在插件 UI 更新后补绘道路叠加层：使用 BackgroundDrawList 并裁剪到画布区域，
+ * 保证叠加层位于画布之上、ImGui 面板之下。
  */
 public final class RoadOverlayCompositor {
     private RoadOverlayCompositor() {
     }
 
-    public static void renderForeground(Canvas canvas, CanvasCamera camera, List<RoadOverlayEntry> entries) {
-        if (canvas == null || camera == null || entries == null || entries.isEmpty()) {
+    public static void renderOnCanvas(
+            Canvas canvas,
+            CanvasCamera camera,
+            List<RoadOverlayEntry> entries,
+            List<RoadJunctionOverlayEntry> junctionEntries) {
+        if (canvas == null || camera == null) {
             return;
         }
         float x = canvas.getScreenX();
@@ -25,9 +30,17 @@ public final class RoadOverlayCompositor {
         if (w <= 0f || h <= 0f) {
             return;
         }
-        ImDrawList drawList = ImGui.getForegroundDrawList();
+        ImDrawList drawList = ImGui.getBackgroundDrawList();
+        if (drawList == null) {
+            return;
+        }
         drawList.pushClipRect(x, y, x + w, y + h, true);
-        RoadOverlayRenderer.render(drawList, camera, entries);
+        if (entries != null && !entries.isEmpty()) {
+            RoadOverlayRenderer.render(drawList, camera, entries);
+        }
+        if (junctionEntries != null && !junctionEntries.isEmpty()) {
+            RoadJunctionOverlayRenderer.render(drawList, camera, junctionEntries);
+        }
         drawList.popClipRect();
     }
 }

@@ -17,15 +17,10 @@ import com.plot.plugin.road.manager.RoadPreviewManager;
 import com.plot.plugin.road.manager.RoadProjectStatus;
 import com.plot.plugin.road.manager.RoadToolManager;
 import com.plot.plugin.road.manager.RoadUIManager;
-import com.plot.plugin.road.overlay.RoadJunctionOverlayRenderer;
-import com.plot.plugin.road.overlay.RoadOverlayRenderer;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
-import com.plot.ui.canvas.CanvasCamera;
-import com.plot.ui.canvas.CanvasOverlayRegistry;
 import com.plot.ui.component.ExtensionPanelIcons;
-import imgui.ImDrawList;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,8 +40,6 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
     private RoadToolManager toolManager;
     private RoadUIManager uiManager;
     private RoadPathPickEscapeShortcutListener pathPickEscapeListener;
-
-    private final CanvasOverlayRegistry.Overlay roadOverlay = this::renderRoadOverlay;
 
     private final EventListener projectLoadedListener = event -> {
         if (event instanceof ProjectLoadedEvent loaded) {
@@ -100,7 +93,6 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
         try {
             ctx().events().subscribe(this, ProjectLoadedEvent.class, projectLoadedListener);
             ctx().events().subscribe(this, ProjectSavedEvent.class, projectSavedListener);
-            CanvasOverlayRegistry.register(roadOverlay);
             persistenceManager.loadForCurrentProject(
                 networkManager::setNetwork,
                 () -> {
@@ -142,24 +134,9 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
         }
 
         ctx().events().unsubscribeOwner(this);
-        CanvasOverlayRegistry.unregister(roadOverlay);
-
         if (config != null) {
             config.save();
         }
-    }
-
-    private void renderRoadOverlay(ImDrawList drawList, CanvasCamera camera) {
-        if (!isEnabled() || uiManager == null) {
-            return;
-        }
-        IPlugin active = PluginManager.getInstance().getActivePlugin();
-        if (active != this) {
-            return;
-        }
-        uiManager.refreshOverlayForCanvas();
-        RoadOverlayRenderer.render(drawList, camera, uiManager.overlayEntries());
-        RoadJunctionOverlayRenderer.render(drawList, camera, uiManager.junctionOverlayEntries());
     }
 
     @Override
@@ -168,7 +145,6 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
             return;
         }
         uiManager.render();
-        uiManager.renderDeferredOverlay();
     }
 
     @Override
@@ -177,6 +153,12 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
             return;
         }
         uiManager.renderDeferredModals();
+        if (isEnabled() && uiManager != null) {
+            IPlugin active = PluginManager.getInstance().getActivePlugin();
+            if (active == this) {
+                uiManager.renderCanvasOverlay();
+            }
+        }
     }
 
     @Override
