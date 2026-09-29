@@ -1,14 +1,18 @@
 package com.plot.plugin.road.overlay;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.ICoordinateService;
 import com.plot.core.model.Shape;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.centerline.RoadCenterlineShapeValidator;
 import com.plot.plugin.road.earthwork.RoadEarthworkCorridorResolver;
+import com.plot.plugin.road.geometry.RoadCanvasScale;
+import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadSegmentOrdering;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
@@ -25,7 +29,8 @@ public final class RoadOverlayGeometry {
     public static List<Vec2d> resolveRoadCorridor(
             RoadNetwork network,
             Road road,
-            RoadSystemConfig config) {
+            RoadSystemConfig config,
+            ICoordinateService coordinates) {
         List<Vec2d> centerline = resolvePlanCenterline(network, road);
         if (centerline.size() < 2) {
             centerline = resolveRoadCenterline(network, road);
@@ -33,36 +38,47 @@ public final class RoadOverlayGeometry {
         if (centerline.size() < 2) {
             return List.of();
         }
-        double halfWidth = resolveRoadHalfWidth(network, road, config);
+        double halfWidth = resolveRoadHalfWidth(network, road, config, centerline, coordinates);
         if (halfWidth <= 0.0) {
             return List.of();
         }
         return RoadEarthworkCorridorResolver.buildCorridorPolygon(centerline, halfWidth);
     }
 
-    public static List<Vec2d> resolvePathCorridor(Shape path, RoadSystemConfig config) {
+    public static List<Vec2d> resolvePathCorridor(
+            Shape path,
+            RoadSystemConfig config,
+            ICoordinateService coordinates) {
         List<Vec2d> centerline = RoadGeometryUtils.extractShapePoints(path);
         if (centerline.size() < 2 || config == null) {
             return List.of();
         }
-        double halfWidth = resolveConfigCorridorHalfWidth(config);
+        double halfWidth = resolveConfigCorridorHalfWidth(config, centerline, coordinates);
         if (halfWidth <= 0.0) {
             return List.of();
         }
         return RoadEarthworkCorridorResolver.buildCorridorPolygon(centerline, halfWidth);
     }
 
-    /** 认领候选路径走廊半宽（与已生成道路同一套横断面解析）。 */
-    public static double resolveConfigCorridorHalfWidth(RoadSystemConfig config) {
+    /** 认领候选路径走廊半宽（画布坐标，含边坡外缘估计）。 */
+    public static double resolveConfigCorridorHalfWidth(
+            RoadSystemConfig config,
+            List<Vec2d> centerline,
+            ICoordinateService coordinates) {
         if (config == null) {
             return 0.0;
         }
         ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);
-        double halfWidth = section.carriagewayHalfWidth() + section.outerBandWidth();
-        if (section.includeDrain) {
-            halfWidth += 1.0;
+        double halfWidthBlocks = RoadCorridorWidth.overlayHalfWidthBlocks(section, config);
+        return scaleHalfWidthToCanvas(halfWidthBlocks, centerline, coordinates);
+    }
+
+    /** 硬质路面半宽（方块数，不含画布缩放）。 */
+    public static double resolveConfigPavementHalfWidthBlocks(RoadSystemConfig config) {
+        if (config == null) {
+            return 0.0;
         }
-        return Math.max(0.5, halfWidth);
+        return RoadCorridorWidth.pavementHalfWidthBlocks(ResolvedCrossSection.fromConfig(config));
     }
 
     public static List<Vec2d> resolveRoadCenterline(RoadNetwork network, Road road) {
@@ -75,7 +91,9 @@ public final class RoadOverlayGeometry {
     public static double resolveRoadHalfWidth(
             RoadNetwork network,
             Road road,
-            RoadSystemConfig config) {
+            RoadSystemConfig config,
+            List<Vec2d> centerline,
+            ICoordinateService coordinates) {
         if (network == null || road == null || config == null) {
             return 0.0;
         }
@@ -83,10 +101,26 @@ public final class RoadOverlayGeometry {
         for (String segmentId : segmentIds) {
             RoadEdge edge = network.getEdge(segmentId);
             if (edge != null) {
-                return RoadEarthworkCorridorResolver.resolveCorridorHalfWidth(network, edge, config, 0);
+                ResolvedCrossSection section = RoadModelUtils.resolveCrossSection(network, edge, config);
+                double halfWidthBlocks = RoadCorridorWidth.overlayHalfWidthBlocks(section, config);
+                return scaleHalfWidthToCanvas(halfWidthBlocks, centerline, coordinates);
             }
         }
-        return Math.max(0.5, resolveConfigCorridorHalfWidth(config));
+        return resolveConfigCorridorHalfWidth(config, centerline, coordinates);
+    }
+
+    private static double scaleHalfWidthToCanvas(
+            double halfWidthBlocks,
+            List<Vec2d> centerline,
+            ICoordinateService coordinates) {
+        if (halfWidthBlocks <= 0.0) {
+            return 0.0;
+        }
+        if (coordinates == null || centerline == null || centerline.size() < 2) {
+            return halfWidthBlocks;
+        }
+        RoadCanvasScale scale = RoadCanvasScale.capture(coordinates, centerline);
+        return scale.uniformBlocksToCanvas(halfWidthBlocks, centerline);
     }
 
     public static boolean containsPoint(List<Vec2d> polygon, double x, double y) {

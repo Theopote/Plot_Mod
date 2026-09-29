@@ -1,5 +1,6 @@
 package com.plot.plugin.road.overlay;
 
+import com.plot.api.world.ICoordinateService;
 import com.plot.core.model.Shape;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGeometryUtils;
@@ -21,6 +22,7 @@ public final class RoadOverlayController {
     public static List<RoadOverlayEntry> snapshot(
             RoadNetwork network,
             RoadSystemConfig config,
+            ICoordinateService coordinates,
             long networkRevision,
             LinkedHashSet<String> selectedRoadIds,
             String primaryRoadId,
@@ -39,7 +41,7 @@ public final class RoadOverlayController {
                 continue;
             }
             List<com.plot.api.geometry.Vec2d> corridor =
-                RoadOverlayGeometry.resolveRoadCorridor(network, road, config);
+                RoadOverlayGeometry.resolveRoadCorridor(network, road, config, coordinates);
             if (corridor.size() < 3) {
                 continue;
             }
@@ -58,7 +60,7 @@ public final class RoadOverlayController {
                     previewed)));
         }
 
-        appendPickCandidates(entries, pickCandidatePaths, config, pickSessionActive);
+        appendPickCandidates(entries, pickCandidatePaths, config, coordinates, pickSessionActive);
         entries.sort(Comparator.comparingInt(entry -> entry.state().renderPriority()));
         return entries;
     }
@@ -67,6 +69,7 @@ public final class RoadOverlayController {
             List<RoadOverlayEntry> entries,
             List<Shape> pickCandidatePaths,
             RoadSystemConfig config,
+            ICoordinateService coordinates,
             boolean pickSessionActive) {
         if (pickCandidatePaths == null || pickCandidatePaths.isEmpty()) {
             return;
@@ -78,7 +81,8 @@ public final class RoadOverlayController {
             if (path == null || !RoadGeometryUtils.isAdoptablePath(path)) {
                 continue;
             }
-            List<com.plot.api.geometry.Vec2d> corridor = RoadOverlayGeometry.resolvePathCorridor(path, config);
+            List<com.plot.api.geometry.Vec2d> corridor =
+                RoadOverlayGeometry.resolvePathCorridor(path, config, coordinates);
             if (corridor.size() < 3) {
                 continue;
             }

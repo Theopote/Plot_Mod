@@ -468,7 +468,7 @@ public final class RoadCrossSectionBuilder {
                 }
             } else {
                 for (int y = slopeHeight + 1; y <= groundY; y++) {
-                    solids.add(sample, y, RoadSolidLayer.SHOULDER, "minecraft:air");
+                    solids.add(sample, y, RoadSolidLayer.TUNNEL, "minecraft:air");
                 }
                 if (cutBlockId != null) {
                     solids.add(sample, slopeHeight, RoadSolidLayer.SHOULDER, cutBlockId);

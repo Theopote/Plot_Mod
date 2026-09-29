@@ -5,6 +5,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadRoadbedGradingUtils;
 import com.plot.plugin.road.RoadTerrainClearanceUtils;
+import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
@@ -121,13 +122,13 @@ public final class RoadTerrainGrader {
                 targetY = host.snapEndpointElevation(center, targetY);
                 double chainage = crossSections.chainageAtGeometryLocal(geometryLocal);
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
-                int sideBandWidth = crossSection.outerBandBlockCount();
-                int envelopeWidth = crossSection.carriagewayWidth + sideBandWidth * 2;
+                int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
+                int decorationWidth = RoadCorridorWidth.decorationClearWidthBlocks(crossSection, config);
                 if (envelopeWidth <= 0) {
                     continue;
                 }
                 RoadRoadbedGradingUtils.clearRoadDecorations(
-                    solids, center, leftNormal, envelopeWidth,
+                    solids, center, leftNormal, decorationWidth,
                     terrain, host.columnResolver(), unitsPerBlock);
                 String fillMaterialId = host.resolveBlockId(
                     crossSection.fillSlopeMaterial != null && !crossSection.fillSlopeMaterial.isBlank()

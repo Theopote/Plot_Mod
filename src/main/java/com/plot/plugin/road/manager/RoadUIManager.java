@@ -190,6 +190,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         overlayEntries = RoadOverlayController.snapshot(
             network,
             ctx.networkManager().getConfig(),
+            ctx.host().coordinates(),
             ctx.networkManager().getNetworkRevision(),
             selectedRoadIds,
             primaryRoadId,

@@ -8,6 +8,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.test.world.IdentityCoordinateService;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -18,16 +19,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadOverlayGeometryTest {
 
+    private static final List<Vec2d> CENTERLINE = List.of(new Vec2d(0, 0), new Vec2d(100, 0));
+
     @Test
-    void resolveConfigCorridorHalfWidth_includesSidewalkAndShoulder() {
+    void resolveConfigPavementHalfWidthBlocks_includesSidewalkAndShoulder() {
         RoadSystemConfig config = new RoadSystemConfig("road_test");
         config.setRoadWidth(7);
         config.setIncludeShoulder(true);
         config.setShoulderWidth(1);
         config.setIncludeSidewalk(true);
         config.setSidewalkWidth(2);
+        config.setIncludeSlopeBatter(false);
 
-        double halfWidth = RoadOverlayGeometry.resolveConfigCorridorHalfWidth(config);
+        double halfWidth = RoadOverlayGeometry.resolveConfigPavementHalfWidthBlocks(config);
 
         // 行车道半宽 3.5 + 路肩 1 + 人行道 2
         assertEquals(6.5, halfWidth, 0.01);
@@ -38,11 +42,14 @@ class RoadOverlayGeometryTest {
         RoadSystemConfig config = new RoadSystemConfig("road_test");
         config.setIncludeSidewalk(false);
         config.setIncludeShoulder(false);
+        config.setIncludeSlopeBatter(false);
         config.setRoadWidth(5);
-        double narrow = RoadOverlayGeometry.resolveConfigCorridorHalfWidth(config);
+        double narrow = RoadOverlayGeometry.resolveConfigCorridorHalfWidth(
+            config, CENTERLINE, IdentityCoordinateService.INSTANCE);
 
         config.setRoadWidth(9);
-        double wide = RoadOverlayGeometry.resolveConfigCorridorHalfWidth(config);
+        double wide = RoadOverlayGeometry.resolveConfigCorridorHalfWidth(
+            config, CENTERLINE, IdentityCoordinateService.INSTANCE);
 
         assertEquals(2.5, narrow, 0.01);
         assertEquals(4.5, wide, 0.01);
@@ -56,9 +63,11 @@ class RoadOverlayGeometryTest {
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
         config.setIncludeDrainage(false);
+        config.setIncludeSlopeBatter(false);
 
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("r1");
+        road.setIncludeSlopeBatter(false);
         RoadNode n1 = network.createNode(new Vec2d(0, 0));
         RoadNode n2 = network.createNode(new Vec2d(100, 0));
         network.createEdge(
@@ -70,7 +79,8 @@ class RoadOverlayGeometryTest {
 
         List<Vec2d> planCenterline = RoadOverlayGeometry.resolvePlanCenterline(network, road);
         List<Vec2d> storedCenterline = RoadOverlayGeometry.resolveRoadCenterline(network, road);
-        List<Vec2d> corridor = RoadOverlayGeometry.resolveRoadCorridor(network, road, config);
+        List<Vec2d> corridor = RoadOverlayGeometry.resolveRoadCorridor(
+            network, road, config, IdentityCoordinateService.INSTANCE);
 
         assertTrue(planCenterline.size() >= 2);
         assertEquals(0.0, storedCenterline.getFirst().y, 1e-6);

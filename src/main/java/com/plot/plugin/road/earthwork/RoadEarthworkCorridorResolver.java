@@ -6,6 +6,7 @@ import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.ui.tools.impl.modify.helper.OffsetHandler;
 
@@ -52,10 +53,7 @@ public final class RoadEarthworkCorridorResolver {
             RoadSystemConfig config,
             int extraMarginBlocks) {
         ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(network, edge, config);
-        double halfWidth = crossSection.carriagewayHalfWidth() + crossSection.outerBandWidth();
-        if (crossSection.includeDrain) {
-            halfWidth += 1.0;
-        }
+        double halfWidth = RoadCorridorWidth.pavementHalfWidthBlocks(crossSection);
         return halfWidth + Math.max(0, extraMarginBlocks);
     }
 
