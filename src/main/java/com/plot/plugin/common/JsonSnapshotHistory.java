@@ -68,4 +68,15 @@ public final class JsonSnapshotHistory<T> {
         undoStack.clear();
         redoStack.clear();
     }
+
+    /**
+     * 丢弃最近一次 {@link #push} 写入的撤销帧，并将 {@code current} 恢复为该帧快照。
+     * 用于 mutation 未提交（失败 / no-op）时避免空撤销步。
+     */
+    public T discardLatestUndoSnapshot(T current) {
+        if (undoStack.isEmpty()) {
+            return current;
+        }
+        return fromJson.apply(undoStack.pop());
+    }
 }

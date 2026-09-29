@@ -239,7 +239,7 @@ public final class RoadNetworkManager {
     }
 
     /**
-     * 单次可撤销编辑；{@code false} 时不提交 revision（撤销栈仍保留快照）。
+     * 单次可撤销编辑；失败或未变更时不提交 revision，并丢弃刚推入的撤销帧。
      */
     public <T> T mutateNetwork(Supplier<T> mutation, java.util.function.Predicate<T> commitWhen) {
         Objects.requireNonNull(mutation, "mutation");
@@ -248,8 +248,17 @@ public final class RoadNetworkManager {
         T result = mutation.get();
         if (commitWhen.test(result)) {
             commitNetworkChange();
+        } else {
+            abortPendingNetworkEdit();
         }
         return result;
+    }
+
+    /** 丢弃未提交的撤销帧，并将 live 网络恢复为 mutation 前快照。 */
+    private void abortPendingNetworkEdit() {
+        network = history.discardLatestUndoSnapshot(network);
+        network.assertInvariants();
+        ensureSelectionValid();
     }
 
     /**
@@ -611,6 +620,7 @@ public final class RoadNetworkManager {
         pushUndoSnapshot();
         String newRoadId = network.splitRoadBeforeSegment(roadId, segmentEdgeId);
         if (newRoadId == null) {
+            abortPendingNetworkEdit();
             return null;
         }
         commitNetworkChange();

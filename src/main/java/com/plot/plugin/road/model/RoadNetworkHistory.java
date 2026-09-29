@@ -37,4 +37,9 @@ public class RoadNetworkHistory {
     public void clear() {
         delegate.clear();
     }
+
+    /** @see JsonSnapshotHistory#discardLatestUndoSnapshot */
+    public RoadNetwork discardLatestUndoSnapshot(RoadNetwork current) {
+        return delegate.discardLatestUndoSnapshot(current);
+    }
 }

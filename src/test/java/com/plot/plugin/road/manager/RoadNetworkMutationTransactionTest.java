@@ -62,18 +62,18 @@ class RoadNetworkMutationTransactionTest {
     }
 
     @Test
-    void failedCenterlineEditDoesNotCommitRevision() {
+    void failedCenterlineEditDoesNotCreateUndoFrame() {
         long before = manager.getNetworkRevision();
         CenterlineEditResult result = manager.insertPiAtLocalDistance("missing-edge", 1.0);
         assertFalse(result.isSuccess());
         assertEquals(CenterlineEditStatus.EDGE_NOT_FOUND, result.status());
         assertEquals(before, manager.getNetworkRevision());
         assertEquals(0, changeNotifications.get());
-        assertTrue(manager.canUndo());
+        assertFalse(manager.canUndo());
     }
 
     @Test
-    void failedMaterializeDoesNotCommitRevision() {
+    void failedMaterializeDoesNotCreateUndoFrame() {
         RoadNetwork network = manager.getNetwork();
         Road road = network.createRoad("main");
         RoadNode a = network.createNode(new Vec2d(0, 0));
@@ -85,10 +85,11 @@ class RoadNetworkMutationTransactionTest {
         assertFalse(result.isSuccess());
         assertEquals(before, manager.getNetworkRevision());
         assertEquals(0, changeNotifications.get());
+        assertFalse(manager.canUndo());
     }
 
     @Test
-    void syncSegmentOrderNoOpDoesNotCommitRevision() {
+    void syncSegmentOrderNoOpDoesNotCreateUndoFrame() {
         RoadNetwork network = manager.getNetwork();
         Road road = network.createRoad("main");
         RoadNode a = network.createNode(new Vec2d(0, 0));
@@ -99,6 +100,22 @@ class RoadNetworkMutationTransactionTest {
         assertFalse(manager.syncRoadSegmentOrder(road));
         assertEquals(before, manager.getNetworkRevision());
         assertEquals(0, changeNotifications.get());
+        assertFalse(manager.canUndo());
+    }
+
+    @Test
+    void smoothGradeNoOpDoesNotCreateUndoFrame() {
+        RoadNetwork network = manager.getNetwork();
+        Road road = network.createRoad("main");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(10, 0));
+        network.createEdge(a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+
+        long before = manager.getNetworkRevision();
+        assertFalse(manager.smoothRoadGrade(road));
+        assertEquals(before, manager.getNetworkRevision());
+        assertEquals(0, changeNotifications.get());
+        assertFalse(manager.canUndo());
     }
 
     @Test

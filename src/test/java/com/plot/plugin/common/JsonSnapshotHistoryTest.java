@@ -77,4 +77,26 @@ class JsonSnapshotHistoryTest {
         assertFalse(history.canUndo());
         assertFalse(history.canRedo());
     }
+
+    @Test
+    void discardLatestUndoSnapshotRestoresPushedStateAndRemovesUndoFrame() {
+        JsonSnapshotHistory<RoadNetwork> history = new JsonSnapshotHistory<>(
+            RoadNetwork::toJson,
+            RoadNetwork::parseSnapshot
+        );
+
+        RoadNetwork original = new RoadNetwork();
+        original.createNode(new Vec2d(0, 0));
+
+        RoadNetwork mutated = new RoadNetwork();
+        mutated.createNode(new Vec2d(99, 0));
+
+        history.push(original);
+        assertTrue(history.canUndo());
+
+        RoadNetwork restored = history.discardLatestUndoSnapshot(mutated);
+        assertEquals(1, restored.getNodes().size());
+        assertEquals(0, restored.getNodes().values().iterator().next().getPosition().x, 1e-6);
+        assertFalse(history.canUndo());
+    }
 }
