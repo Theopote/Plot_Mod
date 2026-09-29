@@ -14,7 +14,8 @@ public final class RoadProfileIntersectionDragEditor {
 
     public enum DragTarget {
         CURRENT,
-        OTHER
+        OTHER,
+        SHARED
     }
 
     private RoadProfileIntersectionDragEditor() {
@@ -31,6 +32,9 @@ public final class RoadProfileIntersectionDragEditor {
             return false;
         }
         double elevation = RoadParameterLimits.clampManualElevation(requestedElevation);
+        if (target == DragTarget.SHARED) {
+            return applySharedElevation(network, intersection, elevation, config);
+        }
         if (target == DragTarget.OTHER) {
             return applyOtherRoadElevation(network, currentRoad, intersection, elevation, config);
         }
@@ -57,6 +61,19 @@ public final class RoadProfileIntersectionDragEditor {
                 elevation);
             return RoadVerticalJunctionService.setRoadElevationAtCrossing(
                 network, otherRoad, intersection.nodeId(), elevation, config);
+        }
+        return RoadVerticalJunctionService.setAtGradeSharedElevation(
+            network, intersection.nodeId(), elevation, config) > 0;
+    }
+
+    private static boolean applySharedElevation(
+            RoadNetwork network,
+            RoadProfileIntersection intersection,
+            double elevation,
+            RoadSystemConfig config) {
+        RoadNode node = network.getNode(intersection.nodeId());
+        if (node == null) {
+            return false;
         }
         return RoadVerticalJunctionService.setAtGradeSharedElevation(
             network, intersection.nodeId(), elevation, config) > 0;

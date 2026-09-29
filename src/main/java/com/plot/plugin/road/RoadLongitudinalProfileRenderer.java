@@ -55,7 +55,8 @@ public final class RoadLongitudinalProfileRenderer {
         public enum IntersectionDragTarget {
             NONE,
             CURRENT,
-            OTHER
+            OTHER,
+            SHARED
         }
 
         public ControlInteraction(
@@ -325,7 +326,7 @@ public final class RoadLongitudinalProfileRenderer {
                 active = nearest;
                 started = true;
                 selectedIntersection = -1;
-            } else if (hit != null && hit.target() == ControlInteraction.IntersectionDragTarget.OTHER) {
+            } else if (hit != null && hit.target() != ControlInteraction.IntersectionDragTarget.NONE) {
                 activeIntersectionDrag = hit.index();
                 activeIntersectionTarget = hit.target();
                 selectedIntersection = hit.index();
@@ -512,7 +513,29 @@ public final class RoadLongitudinalProfileRenderer {
         drawList.addText(cx + 4f, cy - 11f, color, badge);
     }
 
-    private record IntersectionHit(int index, ControlInteraction.IntersectionDragTarget target) { }
+    record IntersectionHit(int index, ControlInteraction.IntersectionDragTarget target) { }
+
+    static IntersectionHit hitIntersectionForTest(
+            List<RoadProfileIntersection> intersections,
+            double maxDistance,
+            int minHeight,
+            int maxHeight,
+            float x0,
+            float y0,
+            float width,
+            float height,
+            float mouseX,
+            float mouseY) {
+        return hitIntersection(
+            intersections,
+            new PlotRange(maxDistance, minHeight, maxHeight),
+            x0,
+            y0,
+            width,
+            height,
+            mouseX,
+            mouseY);
+    }
 
     private static IntersectionHit hitIntersection(
             List<RoadProfileIntersection> intersections,
@@ -537,6 +560,12 @@ public final class RoadLongitudinalProfileRenderer {
             RoadProfileIntersection intersection = intersections.get(i);
             float x = toPlotX(
                 intersection.localDistance(), range.maxDistance(), plotX0, plotWidth);
+            float currentY = toPlotY(
+                (int) Math.round(intersection.currentRoadElevation()),
+                range.minHeight(),
+                range.maxHeight(),
+                plotY0,
+                plotHeight);
             if (intersection.gradeSeparated()) {
                 float otherY = toPlotY(
                     (int) Math.round(intersection.otherRoadElevation()),
@@ -544,22 +573,21 @@ public final class RoadLongitudinalProfileRenderer {
                     range.maxHeight(),
                     plotY0,
                     plotHeight);
+                double currentDist = distanceSquared(mouseX, mouseY, x, currentY);
                 double otherDist = distanceSquared(mouseX, mouseY, x, otherY);
+                if (currentDist <= bestDist) {
+                    bestDist = currentDist;
+                    best = new IntersectionHit(i, ControlInteraction.IntersectionDragTarget.CURRENT);
+                }
                 if (otherDist <= bestDist) {
                     bestDist = otherDist;
                     best = new IntersectionHit(i, ControlInteraction.IntersectionDragTarget.OTHER);
                 }
             } else {
-                float currentY = toPlotY(
-                    (int) Math.round(intersection.currentRoadElevation()),
-                    range.minHeight(),
-                    range.maxHeight(),
-                    plotY0,
-                    plotHeight);
                 double currentDist = distanceSquared(mouseX, mouseY, x, currentY);
                 if (currentDist <= bestDist) {
                     bestDist = currentDist;
-                    best = new IntersectionHit(i, ControlInteraction.IntersectionDragTarget.OTHER);
+                    best = new IntersectionHit(i, ControlInteraction.IntersectionDragTarget.SHARED);
                 }
             }
         }

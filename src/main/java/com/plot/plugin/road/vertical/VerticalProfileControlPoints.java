@@ -124,6 +124,36 @@ public final class VerticalProfileControlPoints {
         return new RoadVerticalAlignment(edited);
     }
 
+    public static boolean isEditablePvi(RoadNetwork network, Road road, ControlPoint point) {
+        if (network == null || road == null || point == null) {
+            return false;
+        }
+        if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
+            return false;
+        }
+        if (point.sharedJunction() || point.endpoint()) {
+            return false;
+        }
+        if (road.getVerticalAlignment() == null
+                || point.pviIndex() < 0
+                || point.pviIndex() >= road.getVerticalAlignment().pviCount()) {
+            return false;
+        }
+        PointOfVerticalIntersection pvi = road.getVerticalAlignment().getPvis().get(point.pviIndex());
+        return pvi.getConstraint() != VerticalControlPointConstraint.JUNCTION_FIXED;
+    }
+
+    public static boolean canAutoSmooth(RoadNetwork network, Road road, ControlPoint point) {
+        if (!isEditablePvi(network, road, point)) {
+            return false;
+        }
+        if (road.getVerticalAlignment() == null) {
+            return false;
+        }
+        int index = point.pviIndex();
+        return index > 0 && index < road.getVerticalAlignment().pviCount() - 1;
+    }
+
     public static boolean exceedsGradeLimit(ControlPoint point, double maxGradePercent) {
         if (point == null || maxGradePercent <= EPSILON) {
             return false;

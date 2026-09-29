@@ -3,6 +3,7 @@ package com.plot.plugin.road.vertical;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.vertical.VerticalControlPointConstraint;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
@@ -55,6 +56,41 @@ class VerticalProfileControlPointsTest {
         RoadVerticalAlignment endpoint = VerticalProfileControlPoints.move(source, 0, 30, 72, 100);
         assertEquals(0, endpoint.getPvis().getFirst().getStation(), 1e-6);
         assertEquals(72, endpoint.getPvis().getFirst().getElevation(), 1e-6);
+    }
+
+    @Test void flatRoadProducesNoEditableControlPoints() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("road");
+        road.setVerticalMode(RoadVerticalMode.FLAT);
+        road.setVerticalAlignment(VerticalProfileDesignRules.flatAlignment(50, 70));
+        var a = network.createNode(new Vec2d(0, 0));
+        var b = network.createNode(new Vec2d(50, 0));
+        var edge = network.createEdge(a.getId(), b.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(50, 0)), road.getId());
+
+        assertTrue(VerticalProfileControlPoints.forEdge(network, road, edge).isEmpty());
+    }
+
+    @Test void junctionFixedMiddlePviIsNotEditable() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("road");
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 70),
+            new PointOfVerticalIntersection(
+                50, 75, null, VerticalControlPointConstraint.JUNCTION_FIXED),
+            PointOfVerticalIntersection.of(100, 70))));
+        var a = network.createNode(new Vec2d(0, 0));
+        var b = network.createNode(new Vec2d(100, 0));
+        var edge = network.createEdge(a.getId(), b.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
+
+        VerticalProfileControlPoints.ControlPoint middle =
+            VerticalProfileControlPoints.forEdge(network, road, edge).stream()
+                .filter(point -> point.pviIndex() == 1)
+                .findFirst()
+                .orElseThrow();
+        assertFalse(VerticalProfileControlPoints.isEditablePvi(network, road, middle));
+        assertFalse(VerticalProfileControlPoints.canAutoSmooth(network, road, middle));
     }
 
     @Test void movingEitherEndpointOfShortRoadKeepsWholeProfileFlat() {
