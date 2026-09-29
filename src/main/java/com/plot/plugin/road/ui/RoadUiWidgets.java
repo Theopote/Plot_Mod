@@ -6,6 +6,7 @@ import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiWindowFlags;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -163,5 +164,24 @@ public final class RoadUiWidgets {
                 onReset.run();
             }
         }
+    }
+
+    /**
+     * Deferred modal popup: {@code openRequest} only triggers {@link ImGui#openPopup} once;
+     * ImGui keeps the modal open until the user closes it.
+     *
+     * @return true when the modal is visible this frame (caller must {@link ImGui#endPopup()})
+     */
+    public static boolean beginDeferredPopupModal(
+            String popupId,
+            boolean openRequest,
+            Runnable onOpenRequested) {
+        if (openRequest) {
+            ImGui.openPopup(popupId);
+            if (onOpenRequested != null) {
+                onOpenRequested.run();
+            }
+        }
+        return ImGui.beginPopupModal(popupId, ImGuiWindowFlags.AlwaysAutoResize);
     }
 }

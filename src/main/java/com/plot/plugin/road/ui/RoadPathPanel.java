@@ -13,7 +13,7 @@ public final class RoadPathPanel {
     private final RoadUiContext ctx;
     private final RoadAdoptPanel adoptPanel;
     private final RoadEdgeListPanel edgeListPanel;
-    private final RoadOverviewPanel overviewPanel;
+    private final RoadPathOverviewPanel overviewPanel;
     private final RoadIntersectionDetailPanel intersectionDetailPanel;
     private final RoadIntersectionListPanel intersectionListPanel;
     private final RoadPathVerticalPropertyPanel verticalPropertyPanel =
@@ -23,7 +23,7 @@ public final class RoadPathPanel {
             RoadUiContext ctx,
             RoadAdoptPanel adoptPanel,
             RoadEdgeListPanel edgeListPanel,
-            RoadOverviewPanel overviewPanel,
+            RoadPathOverviewPanel overviewPanel,
             RoadIntersectionDetailPanel intersectionDetailPanel,
             RoadIntersectionListPanel intersectionListPanel) {
         this.ctx = ctx;

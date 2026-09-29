@@ -86,12 +86,13 @@ final class RoadNetworkToolsPanel {
     }
 
     void renderConfirmPopup() {
-        if (uniformElevationConfirmPending) {
-            ImGui.openPopup("##road_uniform_elevation_confirm");
-            uniformElevationConfirmPending = false;
+        if (!RoadUiWidgets.beginDeferredPopupModal(
+                "##road_uniform_elevation_confirm",
+                uniformElevationConfirmPending,
+                () -> uniformElevationConfirmPending = false)) {
+            return;
         }
-
-        if (ImGui.beginPopupModal("##road_uniform_elevation_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
+        try {
             if (uniformElevationConfirmAuto) {
                 ImGui.textWrapped(PlotI18n.tr("plugin.road.uniform_elevation_confirm_auto"));
             } else {
@@ -114,6 +115,7 @@ final class RoadNetworkToolsPanel {
             if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
                 ImGui.closeCurrentPopup();
             }
+        } finally {
             ImGui.endPopup();
         }
     }

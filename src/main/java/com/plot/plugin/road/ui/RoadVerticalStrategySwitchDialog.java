@@ -13,7 +13,6 @@ import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
-import imgui.flag.ImGuiWindowFlags;
 
 import java.util.Collection;
 import java.util.List;
@@ -113,11 +112,10 @@ final class RoadVerticalStrategySwitchDialog {
     }
 
     void renderPopup(RoadUiContext ctx) {
-        if (popupPending) {
-            ImGui.openPopup("##road_vertical_strategy_switch");
-            popupPending = false;
-        }
-        if (!ImGui.beginPopupModal("##road_vertical_strategy_switch", ImGuiWindowFlags.AlwaysAutoResize)) {
+        if (!RoadUiWidgets.beginDeferredPopupModal(
+                "##road_vertical_strategy_switch",
+                popupPending,
+                () -> popupPending = false)) {
             return;
         }
         try {

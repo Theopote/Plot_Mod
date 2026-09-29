@@ -19,7 +19,6 @@ import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
-import imgui.flag.ImGuiWindowFlags;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
@@ -454,19 +453,14 @@ public final class RoadGeneratePanel {
     }
 
     public void renderBuildConfirmPopup() {
-        if (ctx.buildConfirmPending()) {
-            ImGui.openPopup("##road_build_confirm");
-            ctx.clearBuildConfirmPending();
-        }
-
-        if (!ImGui.isPopupOpen("##road_build_confirm")) {
+        if (!RoadUiWidgets.beginDeferredPopupModal(
+                "##road_build_confirm",
+                ctx.buildConfirmPending(),
+                ctx::clearBuildConfirmPending)) {
             return;
         }
-
+        try {
         RoadGenerationResult lastGenerationResult = ctx.previewManager().getLastGenerationResult();
-        if (!ImGui.beginPopupModal("##road_build_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
-            return;
-        }
         RoadNetworkValidationReport validationReport = validationReport();
         int blockCount = lastGenerationResult != null ? lastGenerationResult.placementRecords.size() : 0;
         ImGui.text(String.format(PlotI18n.tr("plugin.road.build_confirm"), blockCount));
@@ -524,6 +518,8 @@ public final class RoadGeneratePanel {
         if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
             ImGui.closeCurrentPopup();
         }
-        ImGui.endPopup();
+        } finally {
+            ImGui.endPopup();
+        }
     }
 }

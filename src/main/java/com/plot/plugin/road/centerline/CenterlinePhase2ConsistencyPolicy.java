@@ -1,6 +1,7 @@
 package com.plot.plugin.road.centerline;
 
 import com.plot.plugin.road.alignment.CenterlineHorizontalAlignmentSync;
+import com.plot.plugin.road.alignment.HorizontalAlignmentCenterlineMaterializer;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -126,7 +127,12 @@ public final class CenterlinePhase2ConsistencyPolicy {
     }
 
     private static void syncHorizontalAlignment(RoadNetwork network, Road road) {
-        CenterlineHorizontalAlignmentSync.syncAfterCenterlineEdit(network, road);
+        CenterlineHorizontalAlignmentSync.Outcome outcome =
+            CenterlineHorizontalAlignmentSync.syncAfterCenterlineEdit(network, road);
+        if (outcome == CenterlineHorizontalAlignmentSync.Outcome.FITTED
+                && HorizontalAlignmentCenterlineMaterializer.canMaterialize(network, road)) {
+            HorizontalAlignmentCenterlineMaterializer.materialize(network, road);
+        }
     }
 
     private static Road roadForEdge(RoadNetwork network, String edgeId) {

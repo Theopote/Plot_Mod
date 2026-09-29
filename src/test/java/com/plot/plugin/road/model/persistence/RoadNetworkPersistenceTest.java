@@ -55,6 +55,27 @@ class RoadNetworkPersistenceTest {
         assertTrue(loaded.validateInvariants().isValid());
     }
 
+    @Test
+    void serializeIncludesSchemaVersion() {
+        RoadNetwork network = sampleNetwork();
+        String json = RoadNetworkPersistence.serialize(network);
+        assertTrue(json.contains("\"schemaVersion\": " + RoadNetwork.CURRENT_SCHEMA_VERSION));
+    }
+
+    @Test
+    void legacyJsonWithoutSchemaVersionLoads() throws Exception {
+        String legacy = """
+            {
+              "nodes": [],
+              "edges": [],
+              "roads": []
+            }
+            """;
+        RoadNetwork loaded = RoadNetworkPersistence.deserialize(legacy);
+        assertTrue(loaded.getEdges().isEmpty());
+        assertTrue(loaded.validateInvariants().isValid());
+    }
+
     private static RoadNetwork sampleNetwork() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("persist");

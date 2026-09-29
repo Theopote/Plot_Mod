@@ -15,7 +15,6 @@ import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiDir;
 import imgui.flag.ImGuiHoveredFlags;
 import imgui.flag.ImGuiPopupFlags;
-import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 
 import java.util.HashSet;
@@ -487,12 +486,13 @@ public final class RoadEdgeListPanel {
     }
 
     public void renderDeleteConfirmPopup() {
-        if (ctx.deleteConfirmPending()) {
-            ImGui.openPopup("##road_delete_confirm");
-            ctx.clearDeleteConfirmPending();
+        if (!RoadUiWidgets.beginDeferredPopupModal(
+                "##road_delete_confirm",
+                ctx.deleteConfirmPending(),
+                ctx::clearDeleteConfirmPending)) {
+            return;
         }
-
-        if (ImGui.beginPopupModal("##road_delete_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
+        try {
             RoadUiContext.RoadListAction action = ctx.pendingRoadListAction();
             if (action == null) {
                 action = !ctx.pendingDeleteRoadId().isEmpty()
@@ -528,6 +528,7 @@ public final class RoadEdgeListPanel {
                 ctx.clearPendingDeleteEdgeId();
                 ImGui.closeCurrentPopup();
             }
+        } finally {
             ImGui.endPopup();
         }
     }

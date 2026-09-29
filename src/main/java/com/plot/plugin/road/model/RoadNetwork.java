@@ -75,6 +75,9 @@ import java.util.stream.Collectors;
  */
 public class RoadNetwork {
 
+    /** 路网 sidecar JSON 格式版本（{@link NetworkData#schemaVersion}）。 */
+    public static final int CURRENT_SCHEMA_VERSION = 1;
+
     private static final Gson GSON = new GsonBuilder()
         .setPrettyPrinting()
         .registerTypeAdapter(MaterialMix.class, new MaterialMixTypeAdapter())
@@ -596,7 +599,40 @@ public class RoadNetwork {
                 PlotI18n.error("error.plot.road.network.invalid_json"));
         }
         validateNetworkData(data);
-        return data.toNetwork();
+        return migrateNetworkData(data).toNetwork();
+    }
+
+    private static NetworkData migrateNetworkData(NetworkData data) throws RoadNetworkFormatException {
+        int version = data.schemaVersion;
+        if (version <= 0) {
+            version = 0;
+        }
+        if (version > CURRENT_SCHEMA_VERSION) {
+            throw new RoadNetworkFormatException(
+                RoadNetworkFormatException.Reason.UNSUPPORTED_FORMAT_VERSION,
+                PlotI18n.error(
+                    "error.plot.road.network.unsupported_format_version",
+                    version,
+                    CURRENT_SCHEMA_VERSION));
+        }
+        while (version < CURRENT_SCHEMA_VERSION) {
+            data = switch (version) {
+                case 0 -> migrateV0ToV1(data);
+                default -> throw new RoadNetworkFormatException(
+                    RoadNetworkFormatException.Reason.UNSUPPORTED_FORMAT_VERSION,
+                    PlotI18n.error(
+                        "error.plot.road.network.unsupported_format_version",
+                        version,
+                        CURRENT_SCHEMA_VERSION));
+            };
+            version = data.schemaVersion;
+        }
+        return data;
+    }
+
+    private static NetworkData migrateV0ToV1(NetworkData data) {
+        data.schemaVersion = 1;
+        return data;
     }
 
     private static void validateNetworkData(NetworkData data) throws RoadNetworkFormatException {
@@ -966,12 +1002,14 @@ public class RoadNetwork {
     }
 
     static class NetworkData {
+        int schemaVersion = CURRENT_SCHEMA_VERSION;
         List<NodeData> nodes = new ArrayList<>();
         List<EdgeData> edges = new ArrayList<>();
         List<RoadData> roads = new ArrayList<>();
 
         static NetworkData from(RoadNetwork network) {
             NetworkData data = new NetworkData();
+            data.schemaVersion = CURRENT_SCHEMA_VERSION;
 
             for (RoadNode node : network.nodes.values()) {
                 NodeData nodeData = new NodeData();

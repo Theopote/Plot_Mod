@@ -9,7 +9,7 @@ import java.nio.file.Path;
 /**
  * 道路网络持久化边界（Facade）：稳定对外 API，内部仍委托 {@link RoadNetwork} JSON 实现。
  * <p>
- * 后续 format v2 / DTO 迁移时，调用方无需改动。
+ * 后续 format v2 / DTO 迁移时，调用方无需改动；格式版本见 {@link RoadNetwork#CURRENT_SCHEMA_VERSION}。
  */
 public final class RoadNetworkPersistence {
     private RoadNetworkPersistence() {

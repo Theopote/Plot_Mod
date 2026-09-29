@@ -15,15 +15,15 @@ import imgui.ImGui;
 import java.util.LinkedHashSet;
 
 /**
- * 道路概览 Tab：路网统计、缩略图点选；选中后提供进入编辑/纵断面的 workflow 捷径。
+ * 路径 Tab 路网缩略图与健康摘要：平面示意图点选、选中道路的编辑/纵断面捷径。
  */
-public final class RoadOverviewPanel {
+public final class RoadPathOverviewPanel {
     private final RoadUiContext ctx;
     private long cachedHealthKey = Long.MIN_VALUE;
     private RoadNetworkValidationReport cachedHealthReport =
         new RoadNetworkValidationReport(java.util.List.of());
 
-    public RoadOverviewPanel(RoadUiContext ctx) {
+    public RoadPathOverviewPanel(RoadUiContext ctx) {
         this.ctx = ctx;
     }
 

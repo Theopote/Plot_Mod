@@ -1,7 +1,8 @@
 package com.plot.plugin.road.ui;
 
-import com.plot.plugin.road.RoadEdgeListHelper;
+import com.plot.plugin.road.RoadAdoptDuplicateDetector;
 import com.plot.plugin.road.RoadGeometryUtils;
+import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -61,9 +62,27 @@ public final class RoadPathHeader {
         ImGui.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.path.picking_hint"));
+        renderDuplicatePathHint(ctx);
         if (ImGui.button(PlotI18n.tr("plugin.road.path.cancel_pick") + "##road_path_cancel_pick", 0, 0)) {
             ctx.toolManager().cancelPathPick();
         }
+    }
+
+    private static void renderDuplicatePathHint(RoadUiContext ctx) {
+        RoadNetwork network = ctx.networkManager().getNetwork();
+        if (network.getEdges().isEmpty()) {
+            return;
+        }
+        long duplicateCount = ctx.toolManager().getPickOverlayPaths().stream()
+            .map(RoadGeometryUtils::extractShapePoints)
+            .filter(points -> RoadAdoptDuplicateDetector.overlapsExistingPath(network, points))
+            .count();
+        if (duplicateCount <= 0) {
+            return;
+        }
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.WARNING,
+            PlotI18n.tr("plugin.road.adopt_duplicate_path_hint", duplicateCount));
     }
 
     private static void renderProjectStats(RoadUiContext ctx) {

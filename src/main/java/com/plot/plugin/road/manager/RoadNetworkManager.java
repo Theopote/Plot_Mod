@@ -784,6 +784,13 @@ public final class RoadNetworkManager {
         List<List<Vec2d>> adoptionGroups =
             RoadGeometryUtils.groupConnectedPathsForAdoption(selectedPaths);
 
+        int duplicatePathCount = 0;
+        for (List<Vec2d> pathPoints : adoptionGroups) {
+            if (RoadAdoptDuplicateDetector.overlapsExistingPath(network, pathPoints)) {
+                duplicatePathCount++;
+            }
+        }
+
         for (List<Vec2d> pathPoints : adoptionGroups) {
             String networkBeforeAdopt = network.toJson();
             try {
@@ -871,6 +878,9 @@ public final class RoadNetworkManager {
                 totalJunctions));
         } else {
             status.success(PlotI18n.tr("plugin.road.adopt_success"));
+        }
+        if (duplicatePathCount > 0) {
+            status.warning(PlotI18n.tr("plugin.road.adopt_duplicate_path_warning", duplicatePathCount));
         }
         LOGGER.info("认领道路完成: 成功 {} 条, 失败 {} 条 ({} 段边)",
             adoptedCount, failedCount, selectedEdgeIds.size());
