@@ -27,7 +27,7 @@ public final class RoadPresetCards {
     private static final float CARD_PADDING_TOP = 8f;
     private static final float CARD_PADDING_BOTTOM = 2f;
     private static final float PREVIEW_GAP = 1f;
-    private static final float PREVIEW_HEIGHT = 32f;
+    private static final float PREVIEW_HEIGHT = 48f;
 
     private RoadPresetCards() {
     }
@@ -41,7 +41,6 @@ public final class RoadPresetCards {
                 ctx,
                 config.getStyles(),
                 config.getSelectedPreset(),
-                config.getRoadThemeId(),
                 style -> {
                     config.applyStyle(style);
                     ctx.adoptIncludeSidewalkRef().set(config.isIncludeSidewalk());
@@ -66,7 +65,6 @@ public final class RoadPresetCards {
                 ctx,
                 config.getStyles(),
                 selectedId,
-                themeId,
                 style -> {
                     ctx.networkManager().mutateNetwork(() -> road.applyStyle(style, themeId));
                     if (onChanged != null) {
@@ -97,7 +95,6 @@ public final class RoadPresetCards {
                 ctx,
                 config.getStyles(),
                 selectedId,
-                themeId != null ? themeId : config.getRoadThemeId(),
                 style -> {
                     String applyTheme = themeId != null ? themeId : config.getRoadThemeId();
                     ctx.networkManager().mutateNetwork(() -> {
@@ -124,7 +121,6 @@ public final class RoadPresetCards {
             ctx,
             config.getStyles(),
             config.getSelectedPreset(),
-            config.getRoadThemeId(),
             style -> {
                 config.applyStyle(style);
                 ctx.adoptIncludeSidewalkRef().set(config.isIncludeSidewalk());
@@ -145,7 +141,6 @@ public final class RoadPresetCards {
             ctx,
             config.getStyles(),
             selectedId,
-            themeId,
             style -> {
                 ctx.networkManager().mutateNetwork(() -> road.applyStyle(style, themeId));
                 if (onChanged != null) {
@@ -169,7 +164,6 @@ public final class RoadPresetCards {
             ctx,
             config.getStyles(),
             selectedId,
-            themeId != null ? themeId : config.getRoadThemeId(),
             style -> {
                 String applyTheme = themeId != null ? themeId : config.getRoadThemeId();
                 ctx.networkManager().mutateNetwork(() -> {
@@ -226,7 +220,6 @@ public final class RoadPresetCards {
             RoadUiContext ctx,
             List<RoadStyle> styles,
             String selectedId,
-            String themeId,
             java.util.function.Consumer<RoadStyle> onSelect,
             Runnable onCustom) {
         float gap = CARD_PADDING_X;
@@ -237,7 +230,7 @@ public final class RoadPresetCards {
 
         List<CardLayout> layouts = new ArrayList<>(styles.size());
         for (RoadStyle style : styles) {
-            layouts.add(buildLayout(style, cardWidth, themeId));
+            layouts.add(buildLayout(style, cardWidth));
         }
 
         for (int index = 0; index < layouts.size(); index++) {
@@ -315,9 +308,9 @@ public final class RoadPresetCards {
         return a.equals(b);
     }
 
-    private static CardLayout buildLayout(RoadStyle style, float cardWidth, String themeId) {
+    private static CardLayout buildLayout(RoadStyle style, float cardWidth) {
         RoadCrossSectionPreviewRenderer.CrossSectionLayout sectionLayout =
-            RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(style, themeId);
+            RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(style);
         String presetName = PlotI18n.tr("preset.road." + style.id);
         String caption = presetName + " ("
             + RoadCrossSectionPreviewRenderer.formatPresetCaption(style, sectionLayout) + ")";

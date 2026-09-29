@@ -153,10 +153,9 @@ public final class RoadCrossSectionPreviewRenderer {
                 leftEdgeX,
                 deckBottom,
                 groundY,
-                -1,
+                -geometry.leftBatterPx(),
                 layout.fillSlopeRatio,
                 layout.fillSlopeColor,
-                layout.fillSlopeRatio > 0f,
                 renderOptions.drawSlopeLabels
             );
             if (renderOptions.drawCutSlope) {
@@ -165,10 +164,9 @@ public final class RoadCrossSectionPreviewRenderer {
                     rightEdgeX,
                     deckBottom,
                     geometry.cutTopY(),
-                    1,
+                    geometry.rightBatterPx(),
                     layout.cutSlopeRatio,
                     layout.cutSlopeColor,
-                    layout.cutSlopeRatio > 0f,
                     renderOptions.drawSlopeLabels
                 );
             }
@@ -212,6 +210,8 @@ public final class RoadCrossSectionPreviewRenderer {
         private final float visualLeft;
         private final float visualRight;
         private final float topY;
+        private final float leftBatterPx;
+        private final float rightBatterPx;
 
         private PreviewGeometry(
                 float deckY,
@@ -225,7 +225,9 @@ public final class RoadCrossSectionPreviewRenderer {
                 float visualWidth,
                 float visualLeft,
                 float visualRight,
-                float topY) {
+                float topY,
+                float leftBatterPx,
+                float rightBatterPx) {
             this.deckY = deckY;
             this.deckH = deckH;
             this.deckBottom = deckBottom;
@@ -238,6 +240,8 @@ public final class RoadCrossSectionPreviewRenderer {
             this.visualLeft = visualLeft;
             this.visualRight = visualRight;
             this.topY = topY;
+            this.leftBatterPx = leftBatterPx;
+            this.rightBatterPx = rightBatterPx;
         }
 
         static PreviewGeometry forBounds(
@@ -247,7 +251,9 @@ public final class RoadCrossSectionPreviewRenderer {
                 float width,
                 float height,
                 MiniRenderOptions options) {
-            float totalBlocks = layout.totalWidthBlocks();
+            float leftFromCenter = layout.leftDisplayedFromCenterBlocks(options.drawDrainage);
+            float rightFromCenter = layout.rightDisplayedFromCenterBlocks(options.drawDrainage);
+            float totalBlocks = leftFromCenter + rightFromCenter;
             if (totalBlocks <= 0f || width <= 0f || height <= 0f) {
                 return null;
             }
@@ -262,10 +268,10 @@ public final class RoadCrossSectionPreviewRenderer {
             float cutVertDrop = Math.max(0f, deckBottom - cutTopY);
 
             float leftBatterPx = layout.includeSlopeBatter && layout.fillSlopeRatio > 0f
-                ? fillVertDrop * layout.fillSlopeRatio
+                ? compactBatterRun(fillVertDrop * layout.fillSlopeRatio, options, height)
                 : 0f;
             float rightBatterPx = layout.includeSlopeBatter && options.drawCutSlope && layout.cutSlopeRatio > 0f
-                ? cutVertDrop * layout.cutSlopeRatio
+                ? compactBatterRun(cutVertDrop * layout.cutSlopeRatio, options, height)
                 : 0f;
             float availableWidth = Math.max(1f, width - padding * 2f);
             float scale = (availableWidth - leftBatterPx - rightBatterPx) / totalBlocks;
@@ -273,13 +279,11 @@ public final class RoadCrossSectionPreviewRenderer {
                 scale = availableWidth / totalBlocks;
             }
 
-            float leftOuterBlocks = layout.leftOuterHardEdgeFromCenterBlocks();
-            float rightOuterBlocks = layout.rightOuterHardEdgeFromCenterBlocks();
             float visualWidth = totalBlocks * scale + leftBatterPx + rightBatterPx;
             float visualLeft = x0 + (width - visualWidth) * 0.5f;
             float visualRight = visualLeft + visualWidth;
-            float roadCenterX = visualLeft + leftBatterPx + leftOuterBlocks * scale;
-            float cursorX = roadCenterX - totalBlocks * 0.5f * scale;
+            float roadCenterX = visualLeft + leftBatterPx + leftFromCenter * scale;
+            float cursorX = visualLeft + leftBatterPx;
             float topY = Math.min(deckY, cutTopY);
 
             return new PreviewGeometry(
@@ -294,7 +298,9 @@ public final class RoadCrossSectionPreviewRenderer {
                 visualWidth,
                 visualLeft,
                 visualRight,
-                topY);
+                topY,
+                leftBatterPx,
+                rightBatterPx);
         }
 
         float deckY() {
@@ -344,6 +350,24 @@ public final class RoadCrossSectionPreviewRenderer {
         float topY() {
             return topY;
         }
+
+        float leftBatterPx() {
+            return leftBatterPx;
+        }
+
+        float rightBatterPx() {
+            return rightBatterPx;
+        }
+    }
+
+    private static float compactBatterRun(float run, MiniRenderOptions options, float height) {
+        if (run <= 0f) {
+            return 0f;
+        }
+        if (!options.compactSlopes) {
+            return run;
+        }
+        return Math.min(run, Math.max(6f, height * 0.2f));
     }
 
     private static float resolveCutTopY(
@@ -408,26 +432,24 @@ public final class RoadCrossSectionPreviewRenderer {
             float edgeX,
             float deckBottom,
             float groundY,
-            int horizontalSign,
+            float horizontalRun,
             float slopeRatio,
             int color,
-            boolean enabled,
             boolean drawLabel) {
-        if (!enabled || slopeRatio <= 0f) {
+        if (Math.abs(horizontalRun) < 1f || slopeRatio <= 0f) {
             return;
         }
         float verticalDrop = Math.abs(groundY - deckBottom);
         if (verticalDrop < 1f) {
             return;
         }
-        float horizontalRun = verticalDrop * slopeRatio * horizontalSign;
         float endX = edgeX + horizontalRun;
         drawList.addTriangleFilled(edgeX, deckBottom, endX, groundY, edgeX, groundY, color);
         drawList.addLine(edgeX, deckBottom, endX, groundY, COLOR_BORDER, 1.2f);
 
         if (drawLabel) {
             String label = SlopeFormatUtils.formatRatio(slopeRatio);
-            float labelX = horizontalSign < 0 ? endX + 2f : edgeX + 2f;
+            float labelX = horizontalRun < 0f ? endX + 2f : edgeX + 2f;
             drawList.addText(labelX, deckBottom + 2f, COLOR_LABEL, label);
         }
     }
@@ -468,9 +490,9 @@ public final class RoadCrossSectionPreviewRenderer {
             return new MiniRenderOptions(8f, true, true, false, true, true, 0.28f, 0.22f, 0.72f);
         }
 
-        /** 预设卡片：隐藏排水沟、不画挖方三角，只保留填方示意。 */
+        /** 预设卡片：画排水沟与短挖方三角，边坡外扩压到卡片内。 */
         public static MiniRenderOptions presetCard() {
-            return new MiniRenderOptions(2f, false, false, true, false, false, 0.06f, 0.42f, 0.72f);
+            return new MiniRenderOptions(2f, false, false, true, true, true, 0.06f, 0.42f, 0.72f);
         }
     }
 
@@ -652,10 +674,12 @@ public final class RoadCrossSectionPreviewRenderer {
             return fromResolved(ResolvedCrossSection.fromConfig(config), 0f);
         }
 
+        /** 预设卡片：用风格自身材质（含风格自带 themeId），不套当前道路主题。 */
         public static CrossSectionLayout fromStyle(RoadStyle style) {
             return fromStyle(style, null);
         }
 
+        /** 编辑区大预览：可叠加当前道路/配置主题。 */
         public static CrossSectionLayout fromStyle(RoadStyle style, String themeId) {
             if (style == null) {
                 return fromResolved(ResolvedCrossSection.fromConfig(new RoadSystemConfig("preview")), 10.0f);
@@ -668,11 +692,12 @@ public final class RoadCrossSectionPreviewRenderer {
         }
 
         public float totalWidthBlocks() {
-            return roadBlocks
-                + leftShoulderBlocks + rightShoulderBlocks
-                + leftBikeBlocks + rightBikeBlocks
-                + leftSidewalkBlocks + rightSidewalkBlocks
-                + drainageBlocks * 2f;
+            return displayedWidthBlocks(true);
+        }
+
+        public float displayedWidthBlocks(boolean includeDrainage) {
+            return leftDisplayedFromCenterBlocks(includeDrainage)
+                + rightDisplayedFromCenterBlocks(includeDrainage);
         }
 
         public float centerOffsetBlocks(float scale) {
@@ -690,31 +715,69 @@ public final class RoadCrossSectionPreviewRenderer {
             return roadBlocks / 2f + rightShoulderBlocks + rightBikeBlocks + rightSidewalkBlocks;
         }
 
-        private static int colorForMaterial(String material, int fallback) {
-            String blockId = RoadMaterialUtils.resolveBlockId(material);
-            if (blockId == null) {
-                return fallback;
-            }
-            String id = blockId.toLowerCase();
-            if (id.contains("white") || id.contains("concrete") || id.contains("quartz")) {
-                return 0xFFD8D8D8;
-            }
-            if (id.contains("black") || id.contains("asphalt") || id.contains("gray_concrete")) {
-                return 0xFF404040;
-            }
-            if (id.contains("gravel") || id.contains("sand") || id.contains("dirt")) {
-                return 0xFFB8A070;
-            }
-            if (id.contains("grass") || id.contains("green")) {
-                return 0xFF6FA856;
-            }
-            if (id.contains("stone") || id.contains("cobble")) {
-                return 0xFF808080;
-            }
-            if (id.contains("brick") || id.contains("terracotta")) {
-                return 0xFF9A5A40;
-            }
+        float leftDisplayedFromCenterBlocks(boolean includeDrainage) {
+            return leftOuterHardEdgeFromCenterBlocks() + (includeDrainage ? drainageBlocks : 0f);
+        }
+
+        float rightDisplayedFromCenterBlocks(boolean includeDrainage) {
+            return rightOuterHardEdgeFromCenterBlocks() + (includeDrainage ? drainageBlocks : 0f);
+        }
+    }
+
+    /**
+     * 预览色：先匹配黑/灰/白/青等具体混凝土，再回退到泛化材质族。
+     * 同时扫原始材质 key 与解析后的 block id，避免 {@code material.plot.grass_block} 这类别名落到石头色。
+     */
+    static int colorForMaterial(String material, int fallback) {
+        if (material == null || material.isBlank()) {
             return fallback;
         }
+        String blockId = RoadMaterialUtils.resolveBlockId(material);
+        String id = ((blockId != null ? blockId : "") + " " + material).toLowerCase();
+        if (id.contains("blackstone") || id.contains("black_") || id.contains("asphalt")) {
+            return 0xFF3A3A3A;
+        }
+        if (id.contains("gray_concrete") || id.contains("grey_concrete")) {
+            return 0xFF6E6E6E;
+        }
+        if (id.contains("white_") || id.contains("quartz")) {
+            return 0xFFD8D8D8;
+        }
+        if (id.contains("cyan_")) {
+            return 0xFF2BB3B3;
+        }
+        if (id.contains("light_blue")) {
+            return 0xFF6FA8D8;
+        }
+        if (id.contains("yellow_") || id.contains("glowstone") || id.contains("gold")) {
+            return 0xFFE0C040;
+        }
+        if (id.contains("blue_")) {
+            return 0xFF3A6EC8;
+        }
+        if (id.contains("concrete")) {
+            return 0xFFB0B0B0;
+        }
+        if (id.contains("grass") || id.contains("moss") || id.contains("green")) {
+            return 0xFF6FA856;
+        }
+        if (id.contains("dirt_path") || id.contains("gravel") || id.contains("sand")
+            || id.contains("dirt") || id.contains("mud")) {
+            return 0xFFB8A070;
+        }
+        if (id.contains("snow") || id.contains("ice")) {
+            return 0xFFD0E8F0;
+        }
+        if (id.contains("brick") || id.contains("terracotta") || id.contains("plank")) {
+            return 0xFF9A5A40;
+        }
+        if (id.contains("stone") || id.contains("cobble") || id.contains("andesite")
+            || id.contains("deepslate") || id.contains("basalt")) {
+            return 0xFF808080;
+        }
+        if (id.contains("iron")) {
+            return 0xFFC0C0C0;
+        }
+        return fallback;
     }
 }
