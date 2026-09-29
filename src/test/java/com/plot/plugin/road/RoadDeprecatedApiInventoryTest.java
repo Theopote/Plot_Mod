@@ -89,12 +89,26 @@ class RoadDeprecatedApiInventoryTest {
             int count = 0;
             int index = 0;
             while ((index = content.indexOf(symbol, index)) >= 0) {
-                count++;
+                if (isWholeSymbolReference(content, index, symbol.length())) {
+                    count++;
+                }
                 index += symbol.length();
             }
             return count;
         } catch (IOException e) {
             return 0;
         }
+    }
+
+    /** 排除 {@code RoadPresetCards} 等更长标识符中的子串误报。 */
+    private static boolean isWholeSymbolReference(String content, int start, int length) {
+        if (start > 0 && Character.isJavaIdentifierPart(content.charAt(start - 1))) {
+            return false;
+        }
+        int end = start + length;
+        if (end < content.length() && Character.isJavaIdentifierPart(content.charAt(end))) {
+            return false;
+        }
+        return true;
     }
 }

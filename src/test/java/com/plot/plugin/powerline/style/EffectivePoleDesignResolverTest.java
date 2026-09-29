@@ -31,17 +31,20 @@ class EffectivePoleDesignResolverTest {
 
     @Test
     void modernHvGlassStyleApplicatorAdoptsCompiledAttachmentsWithInsulators() {
-        PoleDesign legacy = PoleDesignCatalog.modernHvGlassTower();
-        assertTrue(legacy.getAttachments().stream().allMatch(attachment -> attachment.getInsulatorLength() <= 0));
+        PoleDesign catalog = PoleDesignCatalog.modernHvGlassTower();
+        assertTrue(
+            catalog.getAttachments().stream().anyMatch(attachment -> attachment.getInsulatorLength() > 0),
+            "catalog modern HV tower should ship compiled attachments with insulator length");
 
         TowerGeneratorConfig config = PowerLineStylePresetCatalog.modernHvGlass()
             .getDefinition()
             .getParametricConfig();
-        PoleDesign applied = ParametricStyleTowerApplicator.apply(legacy, config);
+        PoleDesign applied = ParametricStyleTowerApplicator.apply(catalog, config);
 
         assertTrue(
             applied.getAttachments().stream().anyMatch(attachment -> attachment.getInsulatorLength() > 0),
-            "first parametric apply should adopt profile attachments with insulator length");
+            "parametric re-apply should preserve compiled attachments with insulator length");
+        assertTrue(applied.hasTowerStructure(), "parametric apply should compile tower structure");
     }
 
     @Test
