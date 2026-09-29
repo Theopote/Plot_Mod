@@ -177,4 +177,111 @@ public final class VerticalProfileControlPoints {
             || point.rightGradePercent() != null
                 && Math.abs(point.rightGradePercent()) > maxGradePercent + EPSILON;
     }
+
+    /** 在已有纵断面中插入变坡点；要求至少已有两个端点。 */
+    public static RoadVerticalAlignment insertAt(
+            RoadVerticalAlignment source,
+            double station,
+            double elevation,
+            double roadLength) {
+        if (source == null || source.pviCount() < 2
+                || !Double.isFinite(station) || !Double.isFinite(elevation)) {
+            throw new IllegalArgumentException("invalid PVI insert");
+        }
+        List<PointOfVerticalIntersection> pvis = new ArrayList<>(source.getPvis());
+        int insertIndex = pvis.size() - 1;
+        for (int i = 1; i < pvis.size(); i++) {
+            if (station + EPSILON < pvis.get(i).getStation()) {
+                insertIndex = i;
+                break;
+            }
+            if (Math.abs(station - pvis.get(i).getStation()) <= EPSILON) {
+                throw new IllegalArgumentException("duplicate PVI station");
+            }
+        }
+        double minimum = pvis.get(insertIndex - 1).getStation()
+            + VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH;
+        double maximum = pvis.get(insertIndex).getStation()
+            - VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH;
+        if (minimum > maximum) {
+            throw new IllegalArgumentException("insufficient room for PVI insert");
+        }
+        station = Math.max(minimum, Math.min(maximum, station));
+        pvis.add(insertIndex, PointOfVerticalIntersection.of(station, elevation));
+        return new RoadVerticalAlignment(pvis);
+    }
+
+    /**
+     * 无有效纵断面时从端点标高引导创建，否则插入新变坡点。
+     */
+    public static RoadVerticalAlignment bootstrapOrInsert(
+            RoadVerticalAlignment source,
+            double roadLength,
+            double startElevation,
+            double endElevation,
+            double insertStation,
+            double insertElevation) {
+        if (!Double.isFinite(roadLength) || roadLength <= EPSILON) {
+            throw new IllegalArgumentException("invalid road length");
+        }
+        if (!VerticalProfileDesignRules.slopeAllowed(roadLength)) {
+            return VerticalProfileDesignRules.flatAlignment(roadLength, insertElevation);
+        }
+        if (source != null && source.pviCount() >= 2) {
+            return insertAt(source, insertStation, insertElevation, roadLength);
+        }
+        double station = Math.max(
+            VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH,
+            Math.min(roadLength - VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH, insertStation));
+        List<PointOfVerticalIntersection> pvis = new ArrayList<>();
+        pvis.add(PointOfVerticalIntersection.of(0.0, startElevation));
+        if (station > VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH + EPSILON
+                && station < roadLength - VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH - EPSILON) {
+            pvis.add(PointOfVerticalIntersection.of(station, insertElevation));
+        }
+        pvis.add(PointOfVerticalIntersection.of(roadLength, endElevation));
+        return new RoadVerticalAlignment(pvis);
+    }
+
+    /** 删除变坡点，至少保留两个端点。 */
+    public static RoadVerticalAlignment removeAt(RoadVerticalAlignment source, int pviIndex) {
+        if (source == null || source.pviCount() <= 2 || pviIndex < 0 || pviIndex >= source.pviCount()) {
+            throw new IllegalArgumentException("invalid PVI delete");
+        }
+        List<PointOfVerticalIntersection> pvis = new ArrayList<>(source.getPvis());
+        pvis.remove(pviIndex);
+        return new RoadVerticalAlignment(pvis);
+    }
+
+    /** 更新中间变坡点竖曲线长度。 */
+    public static RoadVerticalAlignment withCurveLength(
+            RoadVerticalAlignment source,
+            int pviIndex,
+            double curveLength) {
+        if (source == null || pviIndex <= 0 || pviIndex >= source.pviCount() - 1
+                || curveLength < 0.0 || !Double.isFinite(curveLength)) {
+            throw new IllegalArgumentException("invalid curve length edit");
+        }
+        List<PointOfVerticalIntersection> pvis = source.getPvis();
+        double previous = pvis.get(pviIndex - 1).getStation();
+        double next = pvis.get(pviIndex + 1).getStation();
+        double maxLength = Math.max(
+            0.0,
+            2.0 * Math.min(
+                pvis.get(pviIndex).getStation() - previous - VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH,
+                next - pvis.get(pviIndex).getStation() - VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH));
+        double clamped = Math.min(maxLength, curveLength);
+        List<PointOfVerticalIntersection> edited = new ArrayList<>();
+        for (int i = 0; i < pvis.size(); i++) {
+            PointOfVerticalIntersection pvi = pvis.get(i);
+            if (i != pviIndex) {
+                edited.add(pvi.copy());
+                continue;
+            }
+            Double curve = clamped > EPSILON ? clamped : null;
+            edited.add(new PointOfVerticalIntersection(
+                pvi.getStation(), pvi.getElevation(), curve, pvi.getConstraint()));
+        }
+        return new RoadVerticalAlignment(edited);
+    }
 }

@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+import com.plot.plugin.road.RoadLongitudinalProfileRenderer;
+
 /** 纵断面编辑器窗口内的可变 UI 状态。 */
 final class ProfileEditorState {
     int selectedProfilePvi = -1;
@@ -8,6 +10,13 @@ final class ProfileEditorState {
     String profileAutoFixMessage = "";
     boolean controlPointsExpanded = false;
     boolean elevationEditPending = false;
+    int pendingProfilePvi = -1;
+    float pendingClickX;
+    float pendingClickY;
+    int activeCurveHandlePvi = -1;
+    RoadLongitudinalProfileRenderer.ControlInteraction.CurveHandleSide activeCurveHandle =
+        RoadLongitudinalProfileRenderer.ControlInteraction.CurveHandleSide.NONE;
+    int contextMenuPvi = -1;
 
     void reset() {
         selectedProfilePvi = -1;
@@ -15,5 +24,12 @@ final class ProfileEditorState {
         profileAutoFixMessage = "";
         controlPointsExpanded = false;
         elevationEditPending = false;
+        pendingProfilePvi = -1;
+        pendingClickX = 0f;
+        pendingClickY = 0f;
+        activeCurveHandlePvi = -1;
+        activeCurveHandle =
+            RoadLongitudinalProfileRenderer.ControlInteraction.CurveHandleSide.NONE;
+        contextMenuPvi = -1;
     }
 }

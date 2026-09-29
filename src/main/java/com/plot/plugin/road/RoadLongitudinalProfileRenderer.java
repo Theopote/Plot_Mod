@@ -38,6 +38,12 @@ public final class RoadLongitudinalProfileRenderer {
     private static final int COLOR_FLAT_CURRENT = 0xFF66D9EF;
     private static final int COLOR_FLAT_SUGGESTED = 0xFFFFB84D;
 
+    public record CurveHandle(
+            int pviIndex,
+            double localDistance,
+            double elevation,
+            boolean leftSide) { }
+
     public record ControlInteraction(
             int selectedPviIndex,
             int activePviIndex,
@@ -51,13 +57,31 @@ public final class RoadLongitudinalProfileRenderer {
             IntersectionDragTarget activeIntersectionDragTarget,
             Double draggedIntersectionElevation,
             boolean intersectionDragStarted,
-            boolean intersectionDragFinished) {
+            boolean intersectionDragFinished,
+            boolean addPointRequested,
+            Double addPointLocalDistance,
+            Double addPointElevation,
+            int contextMenuPviIndex,
+            int pendingPviIndex,
+            float pendingClickX,
+            float pendingClickY,
+            int activeCurveHandlePvi,
+            CurveHandleSide activeCurveHandle,
+            Double draggedCurveLength,
+            boolean curveHandleDragStarted,
+            boolean curveHandleDragFinished) {
 
         public enum IntersectionDragTarget {
             NONE,
             CURRENT,
             OTHER,
             SHARED
+        }
+
+        public enum CurveHandleSide {
+            NONE,
+            LEFT,
+            RIGHT
         }
 
         public ControlInteraction(
@@ -68,7 +92,8 @@ public final class RoadLongitudinalProfileRenderer {
                 boolean dragStarted,
                 boolean dragFinished) {
             this(selectedPviIndex, activePviIndex, draggedElevation, draggedLocalDistance,
-                dragStarted, dragFinished, -1, -1, -1, IntersectionDragTarget.NONE, null, false, false);
+                dragStarted, dragFinished, -1, -1, -1, IntersectionDragTarget.NONE, null, false, false,
+                false, null, null, -1, -1, 0f, 0f, -1, CurveHandleSide.NONE, null, false, false);
         }
 
         public ControlInteraction(
@@ -82,9 +107,14 @@ public final class RoadLongitudinalProfileRenderer {
                 int selectedIntersectionIndex) {
             this(selectedPviIndex, activePviIndex, draggedElevation, draggedLocalDistance,
                 dragStarted, dragFinished, hoveredIntersectionIndex, selectedIntersectionIndex,
-                -1, IntersectionDragTarget.NONE, null, false, false);
+                -1, IntersectionDragTarget.NONE, null, false, false,
+                false, null, null, -1, -1, 0f, 0f, -1, CurveHandleSide.NONE, null, false, false);
         }
     }
+
+    private static final float DRAG_THRESHOLD_PX = 5f;
+    private static final int COLOR_CURVE_HANDLE = 0xFF88DDFF;
+    private static final int COLOR_CURVE_HANDLE_SELECTED = 0xFFFFFFFF;
 
     private RoadLongitudinalProfileRenderer() {
     }
@@ -268,6 +298,32 @@ public final class RoadLongitudinalProfileRenderer {
             int activeIntersectionDragIndex,
             ControlInteraction.IntersectionDragTarget activeIntersectionDragTarget,
             FlatElevationProfileOverlay flatOverlay) {
+        return renderInteractive(
+            result, designOverlay, controls, selectedPviIndex, activePviIndex, maxGradePercent,
+            intersections, selectedIntersectionIndex, chartHeight, activeIntersectionDragIndex,
+            activeIntersectionDragTarget, flatOverlay, List.of(), -1, 0f, 0f, -1,
+            ControlInteraction.CurveHandleSide.NONE);
+    }
+
+    public static ControlInteraction renderInteractive(
+            RoadGenerationResult result,
+            VerticalAlignmentProfileOverlay designOverlay,
+            List<VerticalProfileControlPoints.ControlPoint> controls,
+            int selectedPviIndex,
+            int activePviIndex,
+            double maxGradePercent,
+            List<RoadProfileIntersection> intersections,
+            int selectedIntersectionIndex,
+            float chartHeight,
+            int activeIntersectionDragIndex,
+            ControlInteraction.IntersectionDragTarget activeIntersectionDragTarget,
+            FlatElevationProfileOverlay flatOverlay,
+            List<CurveHandle> curveHandles,
+            int pendingPviIndex,
+            float pendingClickX,
+            float pendingClickY,
+            int activeCurveHandlePvi,
+            ControlInteraction.CurveHandleSide activeCurveHandle) {
         if (result == null || !result.hasProfileData()) {
             return new ControlInteraction(selectedPviIndex, -1, null, null, false, false);
         }
@@ -290,10 +346,26 @@ public final class RoadLongitudinalProfileRenderer {
             drawList, intersections, selectedIntersectionIndex, range, x0, y0, width, chartHeight);
         drawControlPoints(drawList, controls, selectedPviIndex, maxGradePercent,
             range, x0, y0, width, chartHeight);
+        drawCurveHandles(
+            drawList,
+            controls,
+            curveHandles,
+            activeCurveHandlePvi,
+            activeCurveHandle,
+            range,
+            x0,
+            y0,
+            width,
+            chartHeight);
         ImGui.invisibleButton("##road_profile_control_surface", width, chartHeight);
 
+        float mouseX = ImGui.getMousePosX();
+        float mouseY = ImGui.getMousePosY();
         int selected = selectedPviIndex;
         int active = activePviIndex;
+        int pending = pendingPviIndex;
+        float pendingX = pendingClickX;
+        float pendingY = pendingClickY;
         boolean started = false;
         boolean finished = false;
         Double elevation = null;
@@ -308,45 +380,116 @@ public final class RoadLongitudinalProfileRenderer {
         Double intersectionElevation = null;
         boolean intersectionStarted = false;
         boolean intersectionFinished = false;
+        boolean addPointRequested = false;
+        Double addPointLocalDistance = null;
+        Double addPointElevation = null;
+        int contextMenuPvi = -1;
+        int activeCurvePvi = activeCurveHandlePvi;
+        ControlInteraction.CurveHandleSide activeCurveSide = activeCurveHandle != null
+            ? activeCurveHandle
+            : ControlInteraction.CurveHandleSide.NONE;
+        Double draggedCurveLength = null;
+        boolean curveHandleStarted = false;
+        boolean curveHandleFinished = false;
+
         if (ImGui.isItemHovered()) {
             IntersectionHit hoveredHit = hitIntersection(
-                intersections, range, x0, y0, width, chartHeight,
-                ImGui.getMousePosX(), ImGui.getMousePosY());
+                intersections, range, x0, y0, width, chartHeight, mouseX, mouseY);
             if (hoveredHit != null) {
                 hoveredIntersection = hoveredHit.index();
             }
         }
-        if (activeIntersectionDrag < 0 && ImGui.isItemHovered() && ImGui.isMouseClicked(0)) {
+
+        if (activeCurvePvi >= 0 && ImGui.isMouseDown(0)) {
+            CurveHandle activeHandle = findCurveHandle(curveHandles, activeCurvePvi, activeCurveSide);
+            if (activeHandle != null) {
+                VerticalProfileControlPoints.ControlPoint pvi =
+                    findControlPoint(controls, activeCurvePvi);
+                if (pvi != null) {
+                    double handleDistance = distanceAtMouseX(mouseX, range, x0, width);
+                    double halfLength = Math.abs(pvi.localDistance() - handleDistance);
+                    draggedCurveLength = Math.max(0.0, halfLength * 2.0);
+                }
+            }
+        }
+        if (activeCurvePvi >= 0 && ImGui.isMouseReleased(0)) {
+            curveHandleFinished = true;
+            activeCurvePvi = -1;
+            activeCurveSide = ControlInteraction.CurveHandleSide.NONE;
+        }
+
+        if (activeCurvePvi < 0 && activeIntersectionDrag < 0 && active < 0
+                && ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
+            int nearest = nearestControl(controls, range, x0, y0, width, chartHeight, mouseX, mouseY);
+            if (nearest < 0) {
+                addPointRequested = true;
+                addPointLocalDistance = distanceAtMouseX(mouseX, range, x0, width);
+                addPointElevation = elevationAtMouseY(mouseY, range, y0, chartHeight);
+                pending = -1;
+            }
+        }
+
+        if (activeCurvePvi < 0 && activeIntersectionDrag < 0 && active < 0
+                && ImGui.isItemHovered() && ImGui.isMouseClicked(1)) {
+            int nearest = nearestControl(controls, range, x0, y0, width, chartHeight, mouseX, mouseY);
+            if (nearest >= 0 && isElevationEditableControl(controls, nearest)) {
+                contextMenuPvi = nearest;
+                ImGui.openPopup("##road_profile_pvi_context");
+            }
+        }
+
+        if (activeCurvePvi < 0 && activeIntersectionDrag < 0 && active < 0
+                && ImGui.isItemHovered() && ImGui.isMouseClicked(0)) {
             IntersectionHit hit = hitIntersection(
-                intersections, range, x0, y0, width, chartHeight,
-                ImGui.getMousePosX(), ImGui.getMousePosY());
-            int nearest = nearestControl(controls, range, x0, y0, width, chartHeight,
-                ImGui.getMousePosX(), ImGui.getMousePosY());
+                intersections, range, x0, y0, width, chartHeight, mouseX, mouseY);
+            int nearest = nearestControl(controls, range, x0, y0, width, chartHeight, mouseX, mouseY);
+            CurveHandleHit curveHit = hitCurveHandle(curveHandles, range, x0, y0, width, chartHeight, mouseX, mouseY);
             if (hit != null && hit.target() != ControlInteraction.IntersectionDragTarget.NONE) {
                 activeIntersectionDrag = hit.index();
                 activeIntersectionTarget = hit.target();
                 selectedIntersection = hit.index();
                 intersectionStarted = true;
                 selected = -1;
-                active = -1;
+                pending = -1;
+            } else if (curveHit != null) {
+                activeCurvePvi = curveHit.pviIndex();
+                activeCurveSide = curveHit.side();
+                curveHandleStarted = true;
+                selected = curveHit.pviIndex();
+                selectedIntersection = -1;
+                pending = -1;
             } else if (nearest >= 0 && isElevationEditableControl(controls, nearest)) {
                 selected = nearest;
-                active = nearest;
-                started = true;
+                pending = nearest;
+                pendingX = mouseX;
+                pendingY = mouseY;
                 selectedIntersection = -1;
             } else if (hit != null) {
                 selectedIntersection = hit.index();
                 selected = -1;
-                active = -1;
+                pending = -1;
             } else {
                 selected = -1;
-                active = -1;
+                pending = -1;
                 selectedIntersection = -1;
             }
         }
+
+        if (pending >= 0 && active < 0 && activeCurvePvi < 0 && ImGui.isMouseDown(0)) {
+            double dx = mouseX - pendingX;
+            double dy = mouseY - pendingY;
+            if (dx * dx + dy * dy >= DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX
+                    && isElevationEditableControl(controls, pending)) {
+                active = pending;
+                started = true;
+            }
+        }
+        if (pending >= 0 && active < 0 && ImGui.isMouseReleased(0)) {
+            pending = -1;
+        }
+
         if (activeIntersectionDrag >= 0 && ImGui.isMouseDown(0)) {
-            intersectionElevation = elevationAtMouseY(
-                ImGui.getMousePosY(), range, y0, chartHeight);
+            intersectionElevation = elevationAtMouseY(mouseY, range, y0, chartHeight);
         }
         if (activeIntersectionDrag >= 0 && ImGui.isMouseReleased(0)) {
             intersectionFinished = true;
@@ -357,21 +500,23 @@ public final class RoadLongitudinalProfileRenderer {
             VerticalProfileControlPoints.ControlPoint activePoint =
                 findControlPoint(controls, active);
             if (activePoint != null && activePoint.elevationEditable()) {
-                elevation = elevationAtMouseY(
-                    ImGui.getMousePosY(), range, y0, chartHeight);
-                localDistance = distanceAtMouseX(
-                    ImGui.getMousePosX(), range, x0, width);
+                elevation = elevationAtMouseY(mouseY, range, y0, chartHeight);
+                localDistance = distanceAtMouseX(mouseX, range, x0, width);
             }
         }
         if (active >= 0 && ImGui.isMouseReleased(0)) {
             finished = true;
             active = -1;
+            pending = -1;
         }
         return new ControlInteraction(
             selected, active, elevation, localDistance, started, finished,
             hoveredIntersection, selectedIntersection,
             activeIntersectionDrag, activeIntersectionTarget, intersectionElevation,
-            intersectionStarted, intersectionFinished);
+            intersectionStarted, intersectionFinished,
+            addPointRequested, addPointLocalDistance, addPointElevation, contextMenuPvi,
+            pending, pendingX, pendingY, activeCurvePvi, activeCurveSide, draggedCurveLength,
+            curveHandleStarted, curveHandleFinished);
     }
 
     private record PlotRange(double maxDistance, int minHeight, int maxHeight) { }
@@ -693,6 +838,121 @@ public final class RoadLongitudinalProfileRenderer {
             }
         }
         return null;
+    }
+
+    private record CurveHandleHit(int pviIndex, ControlInteraction.CurveHandleSide side) { }
+
+    private static void drawCurveHandles(
+            ImDrawList drawList,
+            List<VerticalProfileControlPoints.ControlPoint> controls,
+            List<CurveHandle> handles,
+            int activeCurveHandlePvi,
+            ControlInteraction.CurveHandleSide activeCurveHandle,
+            PlotRange range,
+            float x0,
+            float y0,
+            float width,
+            float height) {
+        if (drawList == null || handles == null || handles.isEmpty()) {
+            return;
+        }
+        float padding = 10f;
+        for (CurveHandle handle : handles) {
+            VerticalProfileControlPoints.ControlPoint pvi = findControlPoint(controls, handle.pviIndex());
+            if (pvi == null) {
+                continue;
+            }
+            float handleX = toPlotX(handle.localDistance(), range.maxDistance(), x0 + padding, width - 2 * padding);
+            float handleY = toPlotY(
+                (int) Math.round(handle.elevation()),
+                range.minHeight(),
+                range.maxHeight(),
+                y0 + padding,
+                height - 2 * padding);
+            float pviX = toPlotX(pvi.localDistance(), range.maxDistance(), x0 + padding, width - 2 * padding);
+            float pviY = toPlotY(
+                (int) Math.round(pvi.elevation()),
+                range.minHeight(),
+                range.maxHeight(),
+                y0 + padding,
+                height - 2 * padding);
+            boolean active = handle.pviIndex() == activeCurveHandlePvi
+                && ((handle.leftSide()
+                        && activeCurveHandle == ControlInteraction.CurveHandleSide.LEFT)
+                    || (!handle.leftSide()
+                        && activeCurveHandle == ControlInteraction.CurveHandleSide.RIGHT));
+            int color = active ? COLOR_CURVE_HANDLE_SELECTED : COLOR_CURVE_HANDLE;
+            drawList.addLine(pviX, pviY, handleX, handleY, color, 1.2f);
+            drawList.addRectFilled(handleX - 3f, handleY - 3f, handleX + 3f, handleY + 3f, color);
+        }
+        CurveHandle left = findCurveHandle(handles, handles.getFirst().pviIndex(),
+            ControlInteraction.CurveHandleSide.LEFT);
+        CurveHandle right = findCurveHandle(handles, handles.getFirst().pviIndex(),
+            ControlInteraction.CurveHandleSide.RIGHT);
+        if (left != null && right != null) {
+            float leftX = toPlotX(left.localDistance(), range.maxDistance(), x0 + padding, width - 2 * padding);
+            float rightX = toPlotX(right.localDistance(), range.maxDistance(), x0 + padding, width - 2 * padding);
+            float midY = toPlotY(
+                (int) Math.round((left.elevation() + right.elevation()) * 0.5),
+                range.minHeight(),
+                range.maxHeight(),
+                y0 + padding,
+                height - 2 * padding);
+            drawList.addLine(leftX, midY, rightX, midY, COLOR_CURVE_HANDLE, 1.0f);
+        }
+    }
+
+    private static CurveHandle findCurveHandle(
+            List<CurveHandle> handles,
+            int pviIndex,
+            ControlInteraction.CurveHandleSide side) {
+        if (handles == null || side == ControlInteraction.CurveHandleSide.NONE) {
+            return null;
+        }
+        for (CurveHandle handle : handles) {
+            if (handle.pviIndex() == pviIndex
+                    && ((side == ControlInteraction.CurveHandleSide.LEFT && handle.leftSide())
+                        || (side == ControlInteraction.CurveHandleSide.RIGHT && !handle.leftSide()))) {
+                return handle;
+            }
+        }
+        return null;
+    }
+
+    private static CurveHandleHit hitCurveHandle(
+            List<CurveHandle> handles,
+            PlotRange range,
+            float x0,
+            float y0,
+            float width,
+            float height,
+            float mouseX,
+            float mouseY) {
+        if (handles == null || handles.isEmpty()) {
+            return null;
+        }
+        float padding = 10f;
+        double best = 8.0 * 8.0;
+        CurveHandleHit nearest = null;
+        for (CurveHandle handle : handles) {
+            float x = toPlotX(handle.localDistance(), range.maxDistance(), x0 + padding, width - 2 * padding);
+            float y = toPlotY(
+                (int) Math.round(handle.elevation()),
+                range.minHeight(),
+                range.maxHeight(),
+                y0 + padding,
+                height - 2 * padding);
+            double distance = (mouseX - x) * (mouseX - x) + (mouseY - y) * (mouseY - y);
+            if (distance <= best) {
+                best = distance;
+                nearest = new CurveHandleHit(
+                    handle.pviIndex(),
+                    handle.leftSide()
+                        ? ControlInteraction.CurveHandleSide.LEFT
+                        : ControlInteraction.CurveHandleSide.RIGHT);
+            }
+        }
+        return nearest;
     }
 
     private static int nearestControl(

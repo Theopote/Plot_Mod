@@ -113,6 +113,35 @@ class VerticalProfileControlPointsTest {
         assertFalse(VerticalProfileControlPoints.canAutoSmooth(network, road, middle));
     }
 
+    @Test void bootstrapOrInsertCreatesThreePointProfileWhenAlignmentMissing() {
+        RoadVerticalAlignment created = VerticalProfileControlPoints.bootstrapOrInsert(
+            null, 100, 70, 72, 40, 75);
+        assertEquals(3, created.pviCount());
+        assertEquals(40, created.getPvis().get(1).getStation(), 1e-6);
+        assertEquals(75, created.getPvis().get(1).getElevation(), 1e-6);
+    }
+
+    @Test void insertAndRemoveMiddlePviPreservesEndpoints() {
+        RoadVerticalAlignment source = new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 70),
+            PointOfVerticalIntersection.withCurve(50, 75, 12),
+            PointOfVerticalIntersection.of(100, 70)));
+        RoadVerticalAlignment inserted = VerticalProfileControlPoints.insertAt(source, 30, 73, 100);
+        assertEquals(4, inserted.pviCount());
+        RoadVerticalAlignment removed = VerticalProfileControlPoints.removeAt(inserted, 2);
+        assertEquals(3, removed.pviCount());
+        assertEquals(30, removed.getPvis().get(1).getStation(), 1e-6);
+    }
+
+    @Test void withCurveLengthClampsToNeighborSpacing() {
+        RoadVerticalAlignment source = new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 70),
+            PointOfVerticalIntersection.withCurve(50, 75, 12),
+            PointOfVerticalIntersection.of(100, 70)));
+        RoadVerticalAlignment edited = VerticalProfileControlPoints.withCurveLength(source, 1, 40);
+        assertEquals(40, edited.getPvis().get(1).getCurveLength(), 1e-6);
+    }
+
     @Test void movingEitherEndpointOfShortRoadKeepsWholeProfileFlat() {
         RoadVerticalAlignment source = VerticalProfileDesignRules.flatAlignment(18, 70);
         RoadVerticalAlignment moved = VerticalProfileControlPoints.move(source, 1, 18, 74, 18);
