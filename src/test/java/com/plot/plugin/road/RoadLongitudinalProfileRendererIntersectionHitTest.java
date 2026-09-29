@@ -118,6 +118,16 @@ class RoadLongitudinalProfileRendererIntersectionHitTest {
             hit.target());
     }
 
+    @Test
+    void sharedAtGradeElevationUsesAverageOfBothRoads() {
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);
+        RoadProfileIntersection intersection = new RoadProfileIntersection(
+            "node", "roadA", "roadB", "Road B", 40.0, 40.0, 72.0, 68.0,
+            section, false, false, 0.0, false);
+        assertEquals(70.0, RoadLongitudinalProfileRenderer.sharedAtGradeElevation(intersection), 1e-6);
+    }
+
     private static float yToPlot(int elevation, int minHeight, int maxHeight, float y0, float height) {
         float padding = 10f;
         float plotY0 = y0 + padding;
