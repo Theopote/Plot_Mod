@@ -27,7 +27,6 @@ public final class RoadCrossSectionEditor {
             return;
         }
         String styleId = road.getStyleId();
-        float maxSlope = road.getMaxSlope() != null ? road.getMaxSlope() : config.getMaxSlope();
         ImGui.text(PlotI18n.tr("plugin.road.cross_section_preview"));
         float width = ImGui.getContentRegionAvail().x;
         if (width < 40f) {
@@ -43,10 +42,10 @@ public final class RoadCrossSectionEditor {
                 ? RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(
                     style, road.getEffectiveThemeId(config))
                 : RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(
-                    road.getCrossSection().resolve(config), maxSlope);
+                    road.getCrossSection().resolve(config), 0f);
         } else {
             layout = RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(
-                road.getCrossSection().resolve(config), maxSlope);
+                road.getCrossSection().resolve(config), 0f);
         }
         RoadCrossSectionPreviewRenderer.renderMini(
             drawList,

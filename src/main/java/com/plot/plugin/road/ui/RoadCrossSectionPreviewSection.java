@@ -101,7 +101,7 @@ public final class RoadCrossSectionPreviewSection {
         float height = 56f;
         RoadCrossSectionPreviewRenderer.renderMini(
             drawList,
-            RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(resolved, draft.maxSlope()),
+            RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(resolved, 0f),
             origin.x,
             origin.y,
             width,

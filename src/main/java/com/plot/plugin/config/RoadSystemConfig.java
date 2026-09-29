@@ -716,9 +716,6 @@ public class RoadSystemConfig {
             setStreetlightSpacing(effective.streetlightSpacing);
         }
         this.includeSlopeBatter = effective.resolveIncludeSlopeBatter();
-        if (effective.maxSlope > 0f) {
-            setMaxSlope(effective.maxSlope);
-        }
         if (effective.fillSlopeRatio > 0f) {
             this.fillSlopeRatio = effective.fillSlopeRatio;
         }

@@ -45,7 +45,7 @@ public final class FlatElevationOptimizer {
             Road road,
             TerrainSampler terrain,
             RoadSystemConfig config) {
-        if (network == null || road == null || terrain == null || config == null
+        if (road == null || terrain == null || config == null
                 || !RoadStationing.isStationable(network, road)) {
             return FlatElevationRecommendation.empty();
         }
@@ -289,9 +289,8 @@ public final class FlatElevationOptimizer {
             }
             double required = VerticalProfileDesignRules.requiredRunLength(
                 Math.abs(junctionElev - candidateY), maxGrade);
-            double runBefore = station;
             double runAfter = roadLength - station;
-            if (required > runBefore + EPSILON && required > runAfter + EPSILON) {
+            if (required > station + EPSILON && required > runAfter + EPSILON) {
                 return false;
             }
         }
@@ -333,9 +332,8 @@ public final class FlatElevationOptimizer {
                 continue;
             }
             double station = entry.getValue();
-            double runBefore = station;
             double runAfter = roadLength - station;
-            double available = Math.max(runBefore, runAfter);
+            double available = Math.max(station, runAfter);
             double required = VerticalProfileDesignRules.requiredRunLength(delta, maxGrade);
             double transitionLength = Math.min(required, available);
             double volume = transitionLength * delta;

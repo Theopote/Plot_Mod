@@ -496,9 +496,6 @@ class RoadNetworkTest {
         assertEquals(style.width, road.getWidth());
         assertEquals(style.includeShoulder, road.getIncludeShoulder());
         assertEquals("city_main", road.getStyleId());
-        if (style.maxSlope > 0f) {
-            assertEquals(style.maxSlope, road.getMaxSlope());
-        }
     }
 
     @Test

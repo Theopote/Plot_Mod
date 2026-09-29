@@ -45,9 +45,7 @@ public final class RoadCrossSectionPreviewRenderer {
         drawList.addRectFilled(x0, y0, x1, y1, COLOR_BG);
         drawList.addRect(x0, y0, x1, y1, COLOR_BORDER);
 
-        CrossSectionLayout layout = CrossSectionLayout.fromResolved(
-            ResolvedCrossSection.fromConfig(config),
-            config.getMaxSlope());
+        CrossSectionLayout layout = CrossSectionLayout.fromConfig(config);
         drawCrossSection(drawList, layout, x0, y0, width, PREVIEW_HEIGHT);
 
         ImGui.dummy(width, PREVIEW_HEIGHT);
@@ -651,7 +649,7 @@ public final class RoadCrossSectionPreviewRenderer {
         }
 
         public static CrossSectionLayout fromConfig(RoadSystemConfig config) {
-            return fromResolved(ResolvedCrossSection.fromConfig(config), config.getMaxSlope());
+            return fromResolved(ResolvedCrossSection.fromConfig(config), 0f);
         }
 
         public static CrossSectionLayout fromStyle(RoadStyle style) {
@@ -665,7 +663,7 @@ public final class RoadCrossSectionPreviewRenderer {
             RoadSystemConfig defaults = new RoadSystemConfig("preview");
             return fromResolved(
                 ResolvedCrossSection.resolve(style.toCrossSection(themeId), defaults),
-                style.maxSlope > 0f ? style.maxSlope : defaults.getMaxSlope()
+                0f
             );
         }
 

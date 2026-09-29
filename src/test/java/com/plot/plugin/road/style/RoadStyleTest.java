@@ -4,6 +4,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.plugin.road.vertical.RoadVerticalMode;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -14,14 +15,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RoadStyleTest {
 
     @Test
-    void mountainStyleSetsSlopeAndMaxGrade() {
+    void mountainStyleSetsCrossSectionSlopeBatter() {
         RoadStyle style = RoadStyleCatalog.mountain();
         RoadCrossSection section = style.toCrossSection();
 
         assertTrue(section.getShoulder().getEnabled());
         assertTrue(section.getSlopeBatter().getEnabled());
         assertEquals(2.5f, section.getSlopeBatter().getFillRatio(), 1e-3);
-        assertEquals(12.0f, style.maxSlope, 1e-3);
     }
 
     @Test
@@ -52,8 +52,37 @@ class RoadStyleTest {
 
         assertEquals("residential", road.getStyleId());
         assertEquals(style.width, road.getWidth());
-        assertEquals(style.maxSlope, road.getMaxSlope());
         assertTrue(road.getIncludeSidewalk());
+    }
+
+    @Test
+    void applyingStyleDoesNotChangeRoadMaxSlope() {
+        Road road = new Road();
+        road.setMaxSlope(8.0f);
+
+        RoadStyleCatalog.highway().applyTo(road);
+
+        assertEquals(8.0f, road.getMaxSlope(), 1e-6);
+    }
+
+    @Test
+    void configApplyStyleDoesNotChangeMaxSlope() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        config.setMaxSlope(9.0f);
+
+        config.applyStyle(RoadStyleCatalog.mountain());
+
+        assertEquals(9.0f, config.getMaxSlope(), 1e-6);
+    }
+
+    @Test
+    void applyingStyleDoesNotChangeVerticalMode() {
+        Road road = new Road();
+        road.setVerticalMode(RoadVerticalMode.FLAT);
+
+        RoadStyleCatalog.highway().applyTo(road);
+
+        assertEquals(RoadVerticalMode.FLAT, road.getVerticalMode());
     }
 
     @Test

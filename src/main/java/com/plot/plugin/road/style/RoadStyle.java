@@ -8,7 +8,8 @@ import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 
 /**
- * 道路风格模板：一次性决定横断面、纵坡与附属设施参数。
+ * 道路风格模板：定义横断面、材质与附属设施。
+ * 纵向设计参数由 Vertical Strategy / Generate 流程独立管理。
  * 生成器只消费 {@link com.plot.plugin.road.model.section.ResolvedCrossSection}，不直接读 Style。
  */
 public class RoadStyle {
@@ -26,7 +27,6 @@ public class RoadStyle {
     public boolean includeDrainage;
     public boolean includeMedian;
     public int medianWidth;
-    public float maxSlope = 10.0f;
     public Boolean includeSlopeBatter;
     public float fillSlopeRatio = 1.5f;
     public float cutSlopeRatio = 1.0f;
@@ -110,7 +110,6 @@ public class RoadStyle {
         copy.includeDrainage = includeDrainage;
         copy.includeMedian = includeMedian;
         copy.medianWidth = medianWidth;
-        copy.maxSlope = maxSlope;
         copy.includeSlopeBatter = includeSlopeBatter;
         copy.fillSlopeRatio = fillSlopeRatio;
         copy.cutSlopeRatio = cutSlopeRatio;
@@ -217,8 +216,5 @@ public class RoadStyle {
             ? themeIdOverride
             : (this.themeId != null && !this.themeId.isBlank() ? this.themeId : RoadThemeCatalog.MODERN_ID);
         road.setThemeId(resolvedThemeId);
-        if (maxSlope > 0f) {
-            road.setMaxSlope(maxSlope);
-        }
     }
 }
