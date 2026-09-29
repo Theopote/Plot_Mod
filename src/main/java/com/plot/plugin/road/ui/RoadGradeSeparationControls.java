@@ -7,6 +7,7 @@ import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.graph.RoadGraphQueries;
+import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -75,7 +76,6 @@ public final class RoadGradeSeparationControls {
         }
         ImGui.popID();
         if (changed) {
-            ctx.previewManager().invalidatePreview();
             ctx.requestOverlayRefresh();
         }
         return changed;
@@ -194,12 +194,12 @@ public final class RoadGradeSeparationControls {
     }
 
     private void applyAtGrade(RoadNode node, RoadNetwork network) {
-        ctx.networkManager().pushHistory();
+        ctx.networkManager().pushHistory(RoadChangeKind.JUNCTION);
         network.setNodeGradeSeparation(node.getId(), false, null, null);
     }
 
     private void applyGradeSeparatedAuto(RoadNode node, RoadNetwork network, RoadSystemConfig config) {
-        ctx.networkManager().pushHistory();
+        ctx.networkManager().pushHistory(RoadChangeKind.JUNCTION);
         double clearance = node.getCrossingClearance() != null
             ? node.getCrossingClearance()
             : config.getDefaultCrossingClearance();
@@ -212,7 +212,7 @@ public final class RoadGradeSeparationControls {
             RoadSystemConfig config,
             List<String> roadIds,
             int index) {
-        ctx.networkManager().pushHistory();
+        ctx.networkManager().pushHistory(RoadChangeKind.JUNCTION);
         double clearance = node.getCrossingClearance() != null
             ? node.getCrossingClearance()
             : config.getDefaultCrossingClearance();
@@ -228,7 +228,7 @@ public final class RoadGradeSeparationControls {
             RoadNetwork network,
             RoadSystemConfig config,
             String elevatedRoadId) {
-        ctx.networkManager().pushHistory();
+        ctx.networkManager().pushHistory(RoadChangeKind.JUNCTION);
         double clearance = node.getCrossingClearance() != null
             ? node.getCrossingClearance()
             : config.getDefaultCrossingClearance();
@@ -250,7 +250,7 @@ public final class RoadGradeSeparationControls {
             RoadParameterLimits.MAX_CROSSING_CLEARANCE,
             "%d");
         if (ImGui.isItemActivated()) {
-            ctx.networkManager().pushHistory();
+            ctx.networkManager().pushHistory(RoadChangeKind.JUNCTION);
         }
         if (clearanceChanged) {
             node.setCrossingClearance((double) clearance[0]);

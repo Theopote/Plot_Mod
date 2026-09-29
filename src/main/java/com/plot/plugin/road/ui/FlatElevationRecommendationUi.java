@@ -238,7 +238,7 @@ final class FlatElevationRecommendationUi {
             road,
             elevation,
             road.getEffectiveMaxSlope(ctx.networkManager().getConfig()));
-        ctx.onGenerationConfigChanged();
+        ctx.requestOverlayRefresh();
     }
 
     static Supplier<TerrainSampler> terrainSupplier(RoadUiContext ctx) {

@@ -677,6 +677,16 @@ public final class RoadLongitudinalProfileRenderer {
         return new PlotRange(result.profileDistances.getLast(), min, max, geometryToProfileScale);
     }
 
+    static final double AT_GRADE_ELEVATION_TOLERANCE = 0.26;
+
+    static boolean atGradeElevationConflict(RoadProfileIntersection intersection) {
+        if (intersection == null || intersection.gradeSeparated()) {
+            return false;
+        }
+        return Math.abs(intersection.currentRoadElevation() - intersection.otherRoadElevation())
+            > AT_GRADE_ELEVATION_TOLERANCE;
+    }
+
     static double sharedAtGradeElevation(RoadProfileIntersection intersection) {
         if (intersection == null) {
             return 0.0;
@@ -737,6 +747,20 @@ public final class RoadLongitudinalProfileRenderer {
                 }
                 renderIntersectionLabel(
                     drawList, intersection, x, otherY, markerColor, otherRoadAboveCurrent(intersection));
+            } else if (atGradeElevationConflict(intersection)) {
+                float currentY = elevationPlotY(
+                    intersection.currentRoadElevation(), range, plotY0, plotHeight);
+                float otherY = elevationPlotY(
+                    intersection.otherRoadElevation(), range, plotY0, plotHeight);
+                int conflictColor = COLOR_INTERSECTION_WARNING;
+                drawList.addLine(x, currentY, x, otherY, conflictColor, 1.6f);
+                drawList.addCircleFilled(x, currentY, 4.5f, conflictColor);
+                drawList.addCircle(x, currentY, 5.5f, COLOR_BG, 12, 1.2f);
+                drawList.addCircleFilled(x, otherY, 4.5f, conflictColor);
+                drawList.addCircle(x, otherY, 5.5f, COLOR_BG, 12, 1.2f);
+                drawWarningBadge(drawList, x, (currentY + otherY) * 0.5f, conflictColor);
+                renderIntersectionLabel(
+                    drawList, intersection, x, (currentY + otherY) * 0.5f, conflictColor, false);
             } else {
                 float sharedY = elevationPlotY(sharedAtGradeElevation(intersection), range, plotY0, plotHeight);
                 drawList.addCircleFilled(x, sharedY, 5.5f, markerColor);
@@ -802,6 +826,16 @@ public final class RoadLongitudinalProfileRenderer {
                 ? PlotI18n.tr("plugin.road.profile_intersection_other_over")
                 : PlotI18n.tr("plugin.road.profile_intersection_current_over");
             ImGui.text(PlotI18n.tr("plugin.road.profile_intersection_relation", relation));
+        } else if (atGradeElevationConflict(intersection)) {
+            ImGui.text(PlotI18n.tr(
+                "plugin.road.profile_intersection_current_elevation",
+                String.format("%.1f", intersection.currentRoadElevation())));
+            ImGui.text(PlotI18n.tr(
+                "plugin.road.profile_intersection_other_elevation",
+                String.format("%.1f", intersection.otherRoadElevation())));
+            ImGui.textColored(
+                COLOR_INTERSECTION_WARNING,
+                PlotI18n.tr("plugin.road.profile_intersection_at_grade_conflict"));
         } else {
             ImGui.text(PlotI18n.tr(
                 "plugin.road.profile_intersection_at_grade_elevation",
@@ -873,6 +907,21 @@ public final class RoadLongitudinalProfileRenderer {
             float x = toPlotX(
                 range.chartDistance(intersection.localDistance()), range.maxDistance(), plotX0, plotWidth);
             if (intersection.gradeSeparated()) {
+                float currentY = elevationPlotY(
+                    intersection.currentRoadElevation(), range, plotY0, plotHeight);
+                float otherY = elevationPlotY(
+                    intersection.otherRoadElevation(), range, plotY0, plotHeight);
+                double currentDist = distanceSquared(mouseX, mouseY, x, currentY);
+                double otherDist = distanceSquared(mouseX, mouseY, x, otherY);
+                if (currentDist <= bestDist) {
+                    bestDist = currentDist;
+                    best = new IntersectionHit(i, ControlInteraction.IntersectionDragTarget.CURRENT);
+                }
+                if (otherDist <= bestDist) {
+                    bestDist = otherDist;
+                    best = new IntersectionHit(i, ControlInteraction.IntersectionDragTarget.OTHER);
+                }
+            } else if (atGradeElevationConflict(intersection)) {
                 float currentY = elevationPlotY(
                     intersection.currentRoadElevation(), range, plotY0, plotHeight);
                 float otherY = elevationPlotY(

@@ -163,7 +163,12 @@ final class VerticalProfileEditor {
             flatOverlay,
             ProfileChartCoordinates.geometryToProfileScale(edge, edgeResult));
         boolean flatMode = RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT;
-        renderInlineLegend(design, intersections, flatOverlay, flatMode);
+        renderInlineLegend(
+            design,
+            intersections,
+            flatOverlay,
+            flatMode,
+            ctx.previewManager().needsPreviewRecalc());
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.vertical_alignment_inline_preview_hint"));
@@ -446,11 +451,18 @@ final class VerticalProfileEditor {
             VerticalAlignmentProfileOverlay design,
             List<RoadProfileIntersection> intersections,
             FlatElevationProfileOverlay flatOverlay,
-            boolean flatMode) {
+            boolean flatMode,
+            boolean buildPreviewStale) {
+        String actualRoadLabel = buildPreviewStale
+            ? PlotI18n.tr("plugin.road.profile_last_preview_stale")
+            : PlotI18n.tr("plugin.road.profile_actual_road");
+        String targetLabel = buildPreviewStale
+            ? PlotI18n.tr("plugin.road.profile_last_preview_stale")
+            : PlotI18n.tr("plugin.road.profile_target");
         ImGui.textColored(0xFF8B5A2B, "■ " + PlotI18n.tr("plugin.road.profile_ground"));
         if (flatMode) {
             ImGui.sameLine();
-            ImGui.textColored(0xFFB0B0B0, "■ " + PlotI18n.tr("plugin.road.profile_actual_road"));
+            ImGui.textColored(0xFFB0B0B0, "■ " + actualRoadLabel);
             if (flatOverlay != null && flatOverlay.showCurrent()) {
                 ImGui.sameLine();
                 ImGui.textColored(0xFF66D9EF, "--- " + PlotI18n.tr(
@@ -465,7 +477,7 @@ final class VerticalProfileEditor {
             }
         } else {
             ImGui.sameLine();
-            ImGui.textColored(0xFFB0B0B0, "■ " + PlotI18n.tr("plugin.road.profile_actual_road"));
+            ImGui.textColored(0xFFB0B0B0, "■ " + actualRoadLabel);
             if (design != null && !design.isEmpty()) {
                 ImGui.sameLine();
                 ImGui.textColored(0xFF5FD35F, "■ " + PlotI18n.tr("plugin.road.profile_design"));
@@ -473,7 +485,7 @@ final class VerticalProfileEditor {
             if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.profile_advanced_display"))) {
                 ImGui.textColored(0xFF4DA3FF, "--- " + PlotI18n.tr("plugin.road.profile_guide"));
                 ImGui.sameLine();
-                ImGui.textColored(0xFFB0B0B0, "■ " + PlotI18n.tr("plugin.road.profile_target"));
+                ImGui.textColored(0xFFB0B0B0, "■ " + targetLabel);
             }
         }
         if (intersections != null && !intersections.isEmpty()) {
@@ -510,11 +522,17 @@ final class VerticalProfileEditor {
     }
 
     private void renderEditorLegend(
+            RoadUiContext ctx,
             VerticalAlignmentProfileOverlay design,
             List<RoadProfileIntersection> intersections,
             FlatElevationProfileOverlay flatOverlay,
             boolean flatMode) {
-        renderInlineLegend(design, intersections, flatOverlay, flatMode);
+        renderInlineLegend(
+            design,
+            intersections,
+            flatOverlay,
+            flatMode,
+            ctx.previewManager().needsPreviewRecalc());
         renderEditorControlLegend(flatMode);
     }
 
@@ -645,7 +663,7 @@ final class VerticalProfileEditor {
         if (interaction.selectedIntersectionIndex() >= 0) {
             selectedIntersectionIndex = interaction.selectedIntersectionIndex();
         }
-        renderEditorLegend(design, intersections, flatOverlay, flatMode);
+        renderEditorLegend(ctx, design, intersections, flatOverlay, flatMode);
         renderIntersectionDetail(ctx, network, road, intersections, interaction, config, flatMode);
         if (flatMode) {
             flatProfileControls.render(

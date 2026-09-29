@@ -28,8 +28,8 @@ final class FlatProfileControls {
         if (road == null || RoadVerticalStrategy.fromRoad(road) != RoadVerticalStrategy.FLAT) {
             return;
         }
-        syncFlatElevation(network, road);
         RoadSystemConfig config = ctx.networkManager().getConfig();
+        syncFlatElevation(network, road, config);
         RoadUiSections.section("plugin.road.profile_flat_editor_section");
         renderBaseElevationField(ctx, network, road, config, onHistory);
         ImGui.spacing();
@@ -39,7 +39,7 @@ final class FlatProfileControls {
             PlotI18n.tr("plugin.road.vertical_strategy_flat_profile_hint"));
     }
 
-    private void syncFlatElevation(RoadNetwork network, Road road) {
+    private void syncFlatElevation(RoadNetwork network, Road road, RoadSystemConfig config) {
         FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, road);
         long key = flatIntentKey(road, intent);
         if (key == syncedFlatIntentKey) {
@@ -48,7 +48,23 @@ final class FlatProfileControls {
         syncedFlatIntentKey = key;
         if (intent != null) {
             flatElevation = (float) intent.getBaseElevation();
+            syncCompiledAlignmentIfStationable(network, road, config);
         }
+    }
+
+    private static void syncCompiledAlignmentIfStationable(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config) {
+        if (!RoadStationing.isStationable(network, road)) {
+            return;
+        }
+        double roadLength = RoadStationing.canonicalLength(network, road);
+        if (roadLength <= 1e-6) {
+            return;
+        }
+        FlatVerticalIntentSupport.syncCompiledAlignment(
+            network, road, road.getEffectiveMaxSlope(config));
     }
 
     private static long flatIntentKey(Road road, FlatVerticalIntent intent) {
@@ -80,13 +96,6 @@ final class FlatProfileControls {
         if (ImGui.isItemDeactivatedAfterEdit()) {
             applyBaseElevation(ctx, network, road, config, onHistory, flatElevation);
         }
-        double roadLength = RoadStationing.isStationable(network, road)
-            ? RoadStationing.canonicalLength(network, road)
-            : 0.0;
-        if (roadLength > 1e-6) {
-            FlatVerticalIntentSupport.syncCompiledAlignment(
-                network, road, road.getEffectiveMaxSlope(config));
-        }
     }
 
     private void applyBaseElevation(
@@ -104,9 +113,10 @@ final class FlatProfileControls {
             road,
             elevation,
             road.getEffectiveMaxSlope(config));
+        syncCompiledAlignmentIfStationable(network, road, config);
         syncedFlatIntentKey = flatIntentKey(
             road,
             FlatVerticalIntentSupport.resolveIntent(network, road));
-        ctx.onGenerationConfigChanged();
+        ctx.requestOverlayRefresh();
     }
 }

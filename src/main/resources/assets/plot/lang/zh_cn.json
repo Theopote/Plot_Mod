@@ -1451,6 +1451,8 @@
   "plugin.road.profile_intersection_drag_grade_hint": "拖动 ◇ 可分别调整当前道路与交叉道路的立交标高。",
   "plugin.road.profile_flat_base_y": "水平基准 Y%s",
   "plugin.road.profile_actual_road": "实际道路",
+  "plugin.road.profile_last_preview_stale": "上次预览（已过期）",
+  "plugin.road.profile_intersection_at_grade_conflict": "平交高程不一致，请在路径页修正",
   "plugin.road.profile_editor_view_segment": "查看区段",
   "plugin.road.profile_control_points_collapsed": "控制点（%d）",
   "plugin.road.profile_legend_pvi": "变坡点",

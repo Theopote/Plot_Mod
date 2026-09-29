@@ -1451,6 +1451,8 @@
   "plugin.road.profile_intersection_drag_grade_hint": "Drag ◇ markers to adjust each road's grade-separated elevation independently.",
   "plugin.road.profile_flat_base_y": "Flat base Y%s",
   "plugin.road.profile_actual_road": "Actual road",
+  "plugin.road.profile_last_preview_stale": "Last preview (stale)",
+  "plugin.road.profile_intersection_at_grade_conflict": "At-grade elevation mismatch — resolve on the Path tab",
   "plugin.road.profile_editor_view_segment": "View segment",
   "plugin.road.profile_control_points_collapsed": "Control points (%d)",
   "plugin.road.profile_legend_pvi": "PVI",
