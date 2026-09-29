@@ -161,6 +161,8 @@ public final class RoadLongitudinalProfileRenderer {
         drawList.addRectFilled(x0, y0, x1, y1, COLOR_BG);
         drawList.addRect(x0, y0, x1, y1, COLOR_BORDER);
 
+        PlotRange range = plotRange(
+            result, designOverlay, List.of(), List.of(), FlatElevationProfileOverlay.EMPTY, 1.0);
         drawProfile(
             drawList,
             result.profileDistances,
@@ -168,10 +170,12 @@ public final class RoadLongitudinalProfileRenderer {
             result.profileGuideLine,
             result.profileTargetHeights,
             designOverlay,
+            FlatElevationProfileOverlay.EMPTY,
             x0,
             y0,
             width,
-            chartHeight);
+            chartHeight,
+            range);
 
         ImGui.dummy(width, chartHeight);
         ImGui.textColored(COLOR_GROUND, "■ " + PlotI18n.tr("plugin.road.profile_ground"));
@@ -225,11 +229,11 @@ public final class RoadLongitudinalProfileRenderer {
         float y0 = origin.y;
         drawList.addRectFilled(x0, y0, x0 + width, y0 + chartHeight, COLOR_BG);
         drawList.addRect(x0, y0, x0 + width, y0 + chartHeight, COLOR_BORDER);
-        drawProfile(drawList, result.profileDistances, result.profileGroundHeights,
-            result.profileGuideLine, result.profileTargetHeights, designOverlay, flatOverlay,
-            x0, y0, width, chartHeight, geometryToProfileScale);
         PlotRange range = plotRange(
             result, designOverlay, List.of(), intersections, flatOverlay, geometryToProfileScale);
+        drawProfile(drawList, result.profileDistances, result.profileGroundHeights,
+            result.profileGuideLine, result.profileTargetHeights, designOverlay, flatOverlay,
+            x0, y0, width, chartHeight, range);
         drawIntersectionMarkers(drawList, intersections, -1, range, x0, y0, width, chartHeight);
         ImGui.dummy(width, chartHeight);
     }
@@ -375,12 +379,11 @@ public final class RoadLongitudinalProfileRenderer {
         float y0 = origin.y;
         drawList.addRectFilled(x0, y0, x0 + width, y0 + chartHeight, COLOR_BG);
         drawList.addRect(x0, y0, x0 + width, y0 + chartHeight, COLOR_BORDER);
-        drawProfile(drawList, result.profileDistances, result.profileGroundHeights,
-            result.profileGuideLine, result.profileTargetHeights, designOverlay, flatOverlay,
-            x0, y0, width, chartHeight, geometryToProfileScale);
-
         PlotRange range = plotRange(
             result, designOverlay, controls, intersections, flatOverlay, geometryToProfileScale);
+        drawProfile(drawList, result.profileDistances, result.profileGroundHeights,
+            result.profileGuideLine, result.profileTargetHeights, designOverlay, flatOverlay,
+            x0, y0, width, chartHeight, range);
         drawIntersectionMarkers(
             drawList, intersections, selectedIntersectionIndex, range, x0, y0, width, chartHeight);
         drawControlPoints(drawList, controls, selectedPviIndex, maxGradePercent,
@@ -823,40 +826,6 @@ public final class RoadLongitudinalProfileRenderer {
         return dx * dx + dy * dy;
     }
 
-    private static int nearestIntersection(
-            List<RoadProfileIntersection> intersections,
-            PlotRange range,
-            float x0,
-            float y0,
-            float width,
-            float height,
-            float mouseX,
-            float mouseY) {
-        if (intersections == null || intersections.isEmpty()) {
-            return -1;
-        }
-        float padding = 10f;
-        double best = 12.0 * 12.0;
-        int nearest = -1;
-        for (int i = 0; i < intersections.size(); i++) {
-            RoadProfileIntersection intersection = intersections.get(i);
-            float x = toPlotX(
-                range.chartDistance(intersection.localDistance()), range.maxDistance(), x0 + padding, width - 2 * padding);
-            float y = toPlotY(
-                (int) Math.round(intersection.currentRoadElevation()),
-                range.minHeight(),
-                range.maxHeight(),
-                y0 + padding,
-                height - 2 * padding);
-            double distance = (mouseX - x) * (mouseX - x) + (mouseY - y) * (mouseY - y);
-            if (distance <= best) {
-                best = distance;
-                nearest = i;
-            }
-        }
-        return nearest;
-    }
-
     private static void drawControlPoints(
             ImDrawList drawList,
             List<VerticalProfileControlPoints.ControlPoint> controls,
@@ -1118,6 +1087,16 @@ public final class RoadLongitudinalProfileRenderer {
             float y0,
             float width,
             float height) {
+        if (distances == null || distances.isEmpty()) {
+            return;
+        }
+        RoadGenerationResult snapshot = new RoadGenerationResult(distances.getLast());
+        snapshot.profileDistances = distances;
+        snapshot.profileGroundHeights = groundHeights;
+        snapshot.profileGuideLine = guideLine;
+        snapshot.profileTargetHeights = targetHeights;
+        PlotRange range = plotRange(
+            snapshot, designOverlay, List.of(), List.of(), flatOverlay, 1.0);
         drawProfile(
             drawList,
             distances,
@@ -1130,7 +1109,7 @@ public final class RoadLongitudinalProfileRenderer {
             y0,
             width,
             height,
-            1.0);
+            range);
     }
 
     static void drawProfile(
@@ -1145,8 +1124,8 @@ public final class RoadLongitudinalProfileRenderer {
             float y0,
             float width,
             float height,
-            double geometryToProfileScale) {
-        if (distances == null || distances.isEmpty()) {
+            PlotRange range) {
+        if (distances == null || distances.isEmpty() || range == null) {
             return;
         }
 
@@ -1161,35 +1140,10 @@ public final class RoadLongitudinalProfileRenderer {
             return;
         }
 
-        double maxDistance = distances.getLast();
-        int minHeight = Integer.MAX_VALUE;
-        int maxHeight = Integer.MIN_VALUE;
-        for (int i = 0; i < distances.size(); i++) {
-            minHeight = Math.min(minHeight, groundHeights.get(i));
-            minHeight = Math.min(minHeight, guideLine.get(i));
-            maxHeight = Math.max(maxHeight, groundHeights.get(i));
-            maxHeight = Math.max(maxHeight, guideLine.get(i));
-            if (i < targetHeights.size()) {
-                minHeight = Math.min(minHeight, targetHeights.get(i));
-                maxHeight = Math.max(maxHeight, targetHeights.get(i));
-            }
-        }
-        if (designOverlay != null && !designOverlay.isEmpty()) {
-            for (int designHeight : designOverlay.heights()) {
-                minHeight = Math.min(minHeight, designHeight);
-                maxHeight = Math.max(maxHeight, designHeight);
-            }
-        }
-        int[] flatRange = applyFlatElevationToRange(flatOverlay, minHeight, maxHeight);
-        minHeight = flatRange[0];
-        maxHeight = flatRange[1];
-        if (minHeight == maxHeight) {
-            minHeight -= 2;
-            maxHeight += 2;
-        } else {
-            minHeight -= 1;
-            maxHeight += 1;
-        }
+        double maxDistance = range.maxDistance();
+        int minHeight = range.minHeight();
+        int maxHeight = range.maxHeight();
+        double geometryToProfileScale = range.geometryToProfileScale();
 
         drawList.addLine(plotX0, plotY1, plotX1, plotY1, COLOR_AXIS, 1f);
         drawList.addLine(plotX0, plotY0, plotX0, plotY1, COLOR_AXIS, 1f);
@@ -1365,6 +1319,9 @@ public final class RoadLongitudinalProfileRenderer {
     }
 
     private static float toPlotY(int height, int minHeight, int maxHeight, float plotY0, float plotHeight) {
+        if (maxHeight <= minHeight) {
+            return plotY0 + plotHeight * 0.5f;
+        }
         float ratio = (height - minHeight) / (float) (maxHeight - minHeight);
         return plotY0 + plotHeight * (1f - ratio);
     }

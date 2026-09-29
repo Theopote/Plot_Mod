@@ -12,7 +12,7 @@ import java.util.Optional;
 
 /** Projects road-level PVIs into a selected edge's unfolded longitudinal profile. */
 public final class VerticalProfileControlPoints {
-    private static final double EPSILON = 1e-6;
+    private static final double EPSILON = VerticalProfileConstants.STATION_EPSILON;
 
     public record ControlPoint(
             int pviIndex,
@@ -125,7 +125,7 @@ public final class VerticalProfileControlPoints {
                     station, elevation, pvi.getCurveLength(), pvi.getConstraint())
                 : pvi.copy());
         }
-        return new RoadVerticalAlignment(edited);
+        return normalizeAdjacentCurves(new RoadVerticalAlignment(edited), pviIndex);
     }
 
     /**
@@ -230,14 +230,15 @@ public final class VerticalProfileControlPoints {
         if (source != null && source.pviCount() >= 2) {
             return insertAt(source, insertStation, insertElevation, roadLength);
         }
-        double station = Math.max(
-            VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH,
-            Math.min(roadLength - VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH, insertStation));
+        double minRun = VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH;
+        boolean hasInteriorRoom = roadLength >= 2.0 * minRun - EPSILON;
         List<PointOfVerticalIntersection> pvis = new ArrayList<>();
         pvis.add(PointOfVerticalIntersection.of(0.0, startElevation));
-        if (station > VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH + EPSILON
-                && station < roadLength - VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH - EPSILON) {
-            pvis.add(PointOfVerticalIntersection.of(station, insertElevation));
+        if (hasInteriorRoom) {
+            double station = Math.max(minRun, Math.min(roadLength - minRun, insertStation));
+            if (station > EPSILON && roadLength - station > EPSILON) {
+                pvis.add(PointOfVerticalIntersection.of(station, insertElevation));
+            }
         }
         pvis.add(PointOfVerticalIntersection.of(roadLength, endElevation));
         return new RoadVerticalAlignment(pvis);
@@ -263,13 +264,7 @@ public final class VerticalProfileControlPoints {
             throw new IllegalArgumentException("invalid curve length edit");
         }
         List<PointOfVerticalIntersection> pvis = source.getPvis();
-        double previous = pvis.get(pviIndex - 1).getStation();
-        double next = pvis.get(pviIndex + 1).getStation();
-        double maxLength = Math.max(
-            0.0,
-            2.0 * Math.min(
-                pvis.get(pviIndex).getStation() - previous - VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH,
-                next - pvis.get(pviIndex).getStation() - VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH));
+        double maxLength = maxCurveLength(pvis, pviIndex);
         double clamped = Math.min(maxLength, curveLength);
         List<PointOfVerticalIntersection> edited = new ArrayList<>();
         for (int i = 0; i < pvis.size(); i++) {
@@ -282,6 +277,60 @@ public final class VerticalProfileControlPoints {
             edited.add(new PointOfVerticalIntersection(
                 pvi.getStation(), pvi.getElevation(), curve, pvi.getConstraint()));
         }
-        return new RoadVerticalAlignment(edited);
+        return normalizeAdjacentCurves(new RoadVerticalAlignment(edited), pviIndex);
+    }
+
+    static double maxCurveLength(List<PointOfVerticalIntersection> pvis, int pviIndex) {
+        if (pvis == null || pviIndex <= 0 || pviIndex >= pvis.size() - 1) {
+            return 0.0;
+        }
+        double station = pvis.get(pviIndex).getStation();
+        double leftSpan = station - pvis.get(pviIndex - 1).getStation();
+        if (pviIndex - 1 > 0 && pvis.get(pviIndex - 1).hasCurve()) {
+            leftSpan = station - curveEndStation(pvis.get(pviIndex - 1));
+        }
+        double rightSpan = pvis.get(pviIndex + 1).getStation() - station;
+        if (pviIndex + 1 < pvis.size() - 1 && pvis.get(pviIndex + 1).hasCurve()) {
+            rightSpan = curveStartStation(pvis.get(pviIndex + 1)) - station;
+        }
+        double minRun = VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH;
+        return Math.max(
+            0.0,
+            2.0 * Math.min(leftSpan - minRun, rightSpan - minRun));
+    }
+
+    private static double curveStartStation(PointOfVerticalIntersection pvi) {
+        return pvi.getStation() - pvi.getCurveLength() * 0.5;
+    }
+
+    private static double curveEndStation(PointOfVerticalIntersection pvi) {
+        return pvi.getStation() + pvi.getCurveLength() * 0.5;
+    }
+
+    private static RoadVerticalAlignment normalizeAdjacentCurves(
+            RoadVerticalAlignment alignment,
+            int centerIndex) {
+        List<PointOfVerticalIntersection> pvis = new ArrayList<>(alignment.getPvis());
+        int lo = Math.max(1, centerIndex - 1);
+        int hi = Math.min(pvis.size() - 2, centerIndex + 1);
+        for (int i = lo; i <= hi; i++) {
+            clampCurveLengthInPlace(pvis, i);
+        }
+        return new RoadVerticalAlignment(pvis);
+    }
+
+    private static void clampCurveLengthInPlace(List<PointOfVerticalIntersection> pvis, int pviIndex) {
+        PointOfVerticalIntersection pvi = pvis.get(pviIndex);
+        if (!pvi.hasCurve()) {
+            return;
+        }
+        double maxLength = maxCurveLength(pvis, pviIndex);
+        double current = pvi.getCurveLength();
+        if (current <= maxLength + EPSILON) {
+            return;
+        }
+        Double curve = maxLength > EPSILON ? maxLength : null;
+        pvis.set(pviIndex, new PointOfVerticalIntersection(
+            pvi.getStation(), pvi.getElevation(), curve, pvi.getConstraint()));
     }
 }

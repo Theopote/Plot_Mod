@@ -76,9 +76,9 @@ final class FlatProfileControls {
                 320f,
                 "%.1f")) {
             flatElevation = elevation[0];
-            if (ImGui.isItemDeactivatedAfterEdit()) {
-                applyBaseElevation(ctx, network, road, config, onHistory, flatElevation);
-            }
+        }
+        if (ImGui.isItemDeactivatedAfterEdit()) {
+            applyBaseElevation(ctx, network, road, config, onHistory, flatElevation);
         }
         double roadLength = RoadStationing.isStationable(network, road)
             ? RoadStationing.canonicalLength(network, road)

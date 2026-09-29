@@ -59,7 +59,7 @@ public final class RoadVerticalAlignment {
      */
     public boolean hasStrictlyIncreasingStorageOrder() {
         for (int i = 1; i < pvis.size(); i++) {
-            if (pvis.get(i).getStation() <= pvis.get(i - 1).getStation() + 1e-9) {
+            if (pvis.get(i).getStation() <= pvis.get(i - 1).getStation() + VerticalProfileConstants.STATION_EPSILON) {
                 return false;
             }
         }

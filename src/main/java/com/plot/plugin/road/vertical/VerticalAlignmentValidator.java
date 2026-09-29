@@ -9,7 +9,7 @@ import java.util.OptionalDouble;
  */
 public final class VerticalAlignmentValidator {
 
-    private static final double EPSILON = 1e-6;
+    private static final double EPSILON = VerticalProfileConstants.STATION_EPSILON;
 
     private VerticalAlignmentValidator() {
     }

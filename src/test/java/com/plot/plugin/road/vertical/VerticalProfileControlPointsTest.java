@@ -48,10 +48,14 @@ class VerticalProfileControlPointsTest {
             PointOfVerticalIntersection.of(0, 70),
             PointOfVerticalIntersection.withCurve(50, 75, 12),
             PointOfVerticalIntersection.of(100, 70)));
-        RoadVerticalAlignment middle = VerticalProfileControlPoints.move(source, 1, 95, 78, 100);
-        assertEquals(88, middle.getPvis().get(1).getStation(), 1e-6);
+        RoadVerticalAlignment middle = VerticalProfileControlPoints.move(source, 1, 60, 78, 100);
+        assertEquals(60, middle.getPvis().get(1).getStation(), 1e-6);
         assertEquals(78, middle.getPvis().get(1).getElevation(), 1e-6);
         assertEquals(12, middle.getPvis().get(1).getCurveLength(), 1e-6);
+
+        RoadVerticalAlignment nearEnd = VerticalProfileControlPoints.move(source, 1, 95, 78, 100);
+        assertEquals(88, nearEnd.getPvis().get(1).getStation(), 1e-6);
+        assertFalse(nearEnd.getPvis().get(1).hasCurve());
 
         RoadVerticalAlignment endpoint = VerticalProfileControlPoints.move(source, 0, 30, 72, 100);
         assertEquals(0, endpoint.getPvis().getFirst().getStation(), 1e-6);
@@ -119,6 +123,26 @@ class VerticalProfileControlPointsTest {
         assertEquals(3, created.pviCount());
         assertEquals(40, created.getPvis().get(1).getStation(), 1e-6);
         assertEquals(75, created.getPvis().get(1).getElevation(), 1e-6);
+    }
+
+    @Test void bootstrapOrInsertKeepsInteriorPointAtMinimumRunBoundary() {
+        RoadVerticalAlignment created = VerticalProfileControlPoints.bootstrapOrInsert(
+            null, 24, 70, 72, 20, 75);
+        assertEquals(3, created.pviCount());
+        assertEquals(12, created.getPvis().get(1).getStation(), 1e-6);
+        assertEquals(75, created.getPvis().get(1).getElevation(), 1e-6);
+    }
+
+    @Test void withCurveLengthRespectsAdjacentCurveOverlap() {
+        RoadVerticalAlignment source = new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 70),
+            PointOfVerticalIntersection.withCurve(40, 75, 30),
+            PointOfVerticalIntersection.withCurve(70, 78, 20),
+            PointOfVerticalIntersection.of(100, 72)));
+        double maxForSecond = VerticalProfileControlPoints.maxCurveLength(source.getPvis(), 2);
+        assertTrue(maxForSecond < 20, "second curve should be limited by first curve extent");
+        RoadVerticalAlignment edited = VerticalProfileControlPoints.withCurveLength(source, 2, 40);
+        assertTrue(edited.getPvis().get(2).getCurveLength() <= maxForSecond + 1e-6);
     }
 
     @Test void insertAndRemoveMiddlePviPreservesEndpoints() {
