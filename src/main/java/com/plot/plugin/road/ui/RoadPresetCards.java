@@ -20,6 +20,8 @@ import java.util.List;
 
 /** 道路类型预设卡片（配置默认 / 单条道路 / 批量道路共用）。 */
 public final class RoadPresetCards {
+    private static boolean presetLibraryExpanded = false;
+
     private static final float CARD_MIN_WIDTH = 96f;
     private static final float CARD_PADDING_X = 4f;
     private static final float CARD_PADDING_TOP = 8f;
@@ -28,6 +30,91 @@ public final class RoadPresetCards {
     private static final float PREVIEW_HEIGHT = 32f;
 
     private RoadPresetCards() {
+    }
+
+    public static void renderConfigCompact(RoadUiContext ctx) {
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        renderCompactPicker(
+            config.getSelectedPreset(),
+            true,
+            () -> renderGrid(
+                ctx,
+                config.getStyles(),
+                config.getSelectedPreset(),
+                config.getRoadThemeId(),
+                style -> {
+                    config.applyStyle(style);
+                    ctx.adoptIncludeSidewalkRef().set(config.isIncludeSidewalk());
+                    ctx.onGenerationConfigChanged();
+                    presetLibraryExpanded = false;
+                },
+                config::markCustom));
+    }
+
+    public static void renderForRoadCompact(RoadUiContext ctx, Road road, Runnable onChanged) {
+        if (road == null) {
+            return;
+        }
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        String selectedId = road.getStyleId();
+        String themeId = road.getEffectiveThemeId(config);
+        boolean customSelected = selectedId == null || selectedId.isBlank();
+        renderCompactPicker(
+            selectedId,
+            customSelected,
+            () -> renderGrid(
+                ctx,
+                config.getStyles(),
+                selectedId,
+                themeId,
+                style -> {
+                    ctx.networkManager().mutateNetwork(() -> road.applyStyle(style, themeId));
+                    if (onChanged != null) {
+                        onChanged.run();
+                    }
+                    ctx.requestOverlayRefresh();
+                    presetLibraryExpanded = false;
+                },
+                null));
+    }
+
+    public static void renderForRoadsCompact(
+            RoadUiContext ctx,
+            Collection<String> roadIds,
+            Runnable onChanged) {
+        if (roadIds == null || roadIds.isEmpty()) {
+            return;
+        }
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        RoadNetwork network = ctx.networkManager().getNetwork();
+        String selectedId = resolveSharedStyleId(network, roadIds);
+        String themeId = resolveSharedThemeId(network, roadIds, config);
+        boolean customSelected = selectedId == null || selectedId.isBlank();
+        renderCompactPicker(
+            selectedId,
+            customSelected,
+            () -> renderGrid(
+                ctx,
+                config.getStyles(),
+                selectedId,
+                themeId != null ? themeId : config.getRoadThemeId(),
+                style -> {
+                    String applyTheme = themeId != null ? themeId : config.getRoadThemeId();
+                    ctx.networkManager().mutateNetwork(() -> {
+                        for (String roadId : roadIds) {
+                            Road road = network.getRoad(roadId);
+                            if (road != null) {
+                                road.applyStyle(style, applyTheme);
+                            }
+                        }
+                    });
+                    if (onChanged != null) {
+                        onChanged.run();
+                    }
+                    ctx.requestOverlayRefresh();
+                    presetLibraryExpanded = false;
+                },
+                null));
     }
 
     public static void renderConfig(RoadUiContext ctx) {
@@ -99,6 +186,28 @@ public final class RoadPresetCards {
                 ctx.requestOverlayRefresh();
             },
             null);
+    }
+
+    private static void renderCompactPicker(
+            String selectedId,
+            boolean customSelected,
+            Runnable renderExpandedGrid) {
+        ImGui.text(PlotI18n.tr("plugin.road.preset_section"));
+        if (!customSelected && selectedId != null && !selectedId.isBlank()) {
+            ImGui.sameLine();
+            ImGui.textColored(PluginUiColors.ACCENT_BLUE, "— " + PlotI18n.tr("preset.road." + selectedId));
+        } else {
+            ImGui.sameLine();
+            ImGui.textColored(PluginUiColors.HINT_GRAY, "— " + PlotI18n.tr("plugin.road.preset_custom"));
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.road.preset.change") + "##road_preset_change")) {
+            presetLibraryExpanded = !presetLibraryExpanded;
+        }
+        if (presetLibraryExpanded) {
+            ImGui.spacing();
+            renderExpandedGrid.run();
+        }
+        ImGui.spacing();
     }
 
     private static void renderSectionHeader(String selectedId, boolean customSelected) {

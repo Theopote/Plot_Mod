@@ -39,11 +39,6 @@ public final class VariableCrossSectionEditor {
             return;
         }
 
-        ImGui.spacing();
-        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.variable_cross_section_section"))) {
-            return;
-        }
-
         if (!RoadStationing.isStationable(network, road)) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,

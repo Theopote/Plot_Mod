@@ -30,10 +30,6 @@ final class RoadCenterlineEditPanel {
     }
 
     void render(RoadUiContext ctx, RoadNetwork network, Road road, RoadEdge edge) {
-        ImGui.spacing();
-        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.centerline_edit_section"))) {
-            return;
-        }
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.centerline_edit_hint"));

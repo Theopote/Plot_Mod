@@ -44,11 +44,6 @@ public final class StationFacilityEditor {
             return;
         }
 
-        ImGui.spacing();
-        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.station_facility_section"))) {
-            return;
-        }
-
         if (!RoadStationing.isStationable(network, road)) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,

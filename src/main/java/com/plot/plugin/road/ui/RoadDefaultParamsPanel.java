@@ -42,7 +42,7 @@ public final class RoadDefaultParamsPanel {
 
     /** 路线 Tab（0 条选择）：新道路默认类型、宽度/车道与坡度预设。 */
     public void renderRoutePrimary() {
-        RoadPresetCards.renderConfig(ctx);
+        RoadPresetCards.renderConfigCompact(ctx);
         ImGui.spacing();
         RoadRouteQuickTune.renderConfigDefaults(ctx);
 

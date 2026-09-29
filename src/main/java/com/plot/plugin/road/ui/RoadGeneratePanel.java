@@ -121,14 +121,16 @@ public final class RoadGeneratePanel {
                 RoadStyleProductControls.renderRoadMaxSlopePresets(
                     ctx, road, ctx.networkManager()::pushHistory);
             }
+            ChainageDisplayContext chainageDisplay = chainageContextOrNull(network, road);
             verticalAlignmentEditor.render(
                 ctx,
                 network,
                 road,
-                chainageContextOrNull(network, road),
+                chainageDisplay,
                 ctx.networkManager().getConfig(),
                 this::requireTerrainOrNull,
                 ctx.networkManager()::pushHistory);
+            renderSlopeOverridesSection(network, road, edge, chainageDisplay);
         }
         profileEditor.renderInline(ctx, network, edge, resolveFlatProfileOverlay(network, road));
     }
@@ -159,6 +161,20 @@ public final class RoadGeneratePanel {
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.generate.advanced_terrain_hint"));
         networkToolsPanel.render(network);
+    }
+
+    private void renderSlopeOverridesSection(
+            RoadNetwork network,
+            Road road,
+            RoadEdge edge,
+            ChainageDisplayContext chainageDisplay) {
+        if (chainageDisplay == null) {
+            return;
+        }
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.generate.slope_overrides"))) {
+            return;
+        }
+        RoadSegmentEditor.renderSlopeOverrides(ctx, network, road, edge, chainageDisplay);
     }
 
     private ChainageDisplayContext chainageContextOrNull(RoadNetwork network, Road road) {

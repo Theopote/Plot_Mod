@@ -33,63 +33,60 @@ final class HorizontalAlignmentSummaryEditor {
                 PlotI18n.tr("plugin.road.horizontal_alignment_none"));
             return;
         }
-        ImGui.spacing();
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.horizontal_alignment_section"))) {
-            double total = RoadStationing.canonicalLength(network, road);
+        double total = RoadStationing.canonicalLength(network, road);
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr(
+                "plugin.road.horizontal_alignment_length",
+                alignment.getElements().size(),
+                total,
+                formatAlignmentChainage(chainageDisplay, total, 0.0),
+                formatAlignmentChainage(chainageDisplay, total, total)));
+        if (RoadStationing.isStationable(network, road)) {
+            HorizontalAlignmentCenterlineConsistency.Report consistency =
+                HorizontalAlignmentCenterlineConsistency.evaluate(network, road);
+            if (consistency.evaluable()) {
+                int color = consistency.isConsistent()
+                    ? PluginUiColors.HINT_GRAY
+                    : PluginUiColors.WARNING;
+                RoadUiWidgets.textWrappedColored(
+                    color,
+                    PlotI18n.tr(
+                        "plugin.road.horizontal_alignment_centerline_deviation",
+                        consistency.maxDeviationMeters(),
+                        consistency.meanDeviationMeters()));
+                if (!consistency.lengthMatches()) {
+                    RoadUiWidgets.textWrappedColored(
+                        PluginUiColors.WARNING,
+                        PlotI18n.tr(
+                            "plugin.road.horizontal_alignment_length_mismatch_hint",
+                            consistency.roadLengthMeters(),
+                            consistency.alignmentLengthMeters()));
+                }
+            }
+        }
+        if (!lastHorizontalAlignmentMessage.isBlank()) {
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, lastHorizontalAlignmentMessage);
+        }
+        if (RoadStationing.isStationable(network, road)
+            && HorizontalAlignmentCenterlineMaterializer.canMaterialize(network, road)) {
+            if (ImGui.button(PlotI18n.tr("plugin.road.horizontal_alignment_materialize") + "##ha_mat")) {
+                CenterlineEditResult result = ctx.networkManager().materializeHorizontalAlignment(road);
+                lastHorizontalAlignmentMessage = CenterlineEditMessages.format(result);
+            }
+            ImGui.sameLine();
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
-                PlotI18n.tr(
-                    "plugin.road.horizontal_alignment_length",
-                    alignment.getElements().size(),
-                    total,
-                    formatAlignmentChainage(chainageDisplay, total, 0.0),
-                    formatAlignmentChainage(chainageDisplay, total, total)));
-            if (RoadStationing.isStationable(network, road)) {
-                HorizontalAlignmentCenterlineConsistency.Report consistency =
-                    HorizontalAlignmentCenterlineConsistency.evaluate(network, road);
-                if (consistency.evaluable()) {
-                    int color = consistency.isConsistent()
-                        ? PluginUiColors.HINT_GRAY
-                        : PluginUiColors.WARNING;
-                    RoadUiWidgets.textWrappedColored(
-                        color,
-                        PlotI18n.tr(
-                            "plugin.road.horizontal_alignment_centerline_deviation",
-                            consistency.maxDeviationMeters(),
-                            consistency.meanDeviationMeters()));
-                    if (!consistency.lengthMatches()) {
-                        RoadUiWidgets.textWrappedColored(
-                            PluginUiColors.WARNING,
-                            PlotI18n.tr(
-                                "plugin.road.horizontal_alignment_length_mismatch_hint",
-                                consistency.roadLengthMeters(),
-                                consistency.alignmentLengthMeters()));
-                    }
-                }
-            }
-            if (!lastHorizontalAlignmentMessage.isBlank()) {
-                RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, lastHorizontalAlignmentMessage);
-            }
-            if (RoadStationing.isStationable(network, road)
-                && HorizontalAlignmentCenterlineMaterializer.canMaterialize(network, road)) {
-                if (ImGui.button(PlotI18n.tr("plugin.road.horizontal_alignment_materialize") + "##ha_mat")) {
-                    CenterlineEditResult result = ctx.networkManager().materializeHorizontalAlignment(road);
-                    lastHorizontalAlignmentMessage = CenterlineEditMessages.format(result);
-                }
-                ImGui.sameLine();
-                RoadUiWidgets.textWrappedColored(
-                    PluginUiColors.HINT_GRAY,
-                    PlotI18n.tr("plugin.road.horizontal_alignment_materialize_hint"));
-            }
-            int index = 0;
-            for (com.plot.plugin.road.alignment.HorizontalAlignmentElement element : alignment.getElements()) {
-                double start = HorizontalAlignmentGeometry.elementStartChainage(alignment, index++);
-                RoadUiWidgets.textWrappedColored(
-                    PluginUiColors.HINT_GRAY,
-                    chainageDisplay != null
-                        ? HorizontalAlignmentGeometry.describeElement(element, start, chainageDisplay)
-                        : HorizontalAlignmentGeometry.describeElement(element, start, RoadStationFormat.KILOMETER_PLUS));
-            }
+                PlotI18n.tr("plugin.road.horizontal_alignment_materialize_hint"));
+        }
+        int index = 0;
+        for (com.plot.plugin.road.alignment.HorizontalAlignmentElement element : alignment.getElements()) {
+            double start = HorizontalAlignmentGeometry.elementStartChainage(alignment, index++);
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                chainageDisplay != null
+                    ? HorizontalAlignmentGeometry.describeElement(element, start, chainageDisplay)
+                    : HorizontalAlignmentGeometry.describeElement(element, start, RoadStationFormat.KILOMETER_PLUS));
         }
     }
 

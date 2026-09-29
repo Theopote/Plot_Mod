@@ -1128,6 +1128,60 @@ public final class RoadNetworkManager {
             String cutSlopeMaterial,
             float maxSlope) {
 
+        public BatchEditDefaults withWidth(int newWidth) {
+            return new BatchEditDefaults(
+                newWidth,
+                laneCount,
+                material,
+                includeShoulder,
+                shoulderWidth,
+                includeSidewalk,
+                sidewalkWidth,
+                sidewalkMaterial,
+                includeDrainage,
+                includeBikeLane,
+                bikeLaneWidth,
+                includeMedian,
+                medianWidth,
+                streetlightSpacing,
+                laneDividers,
+                centerLineStyle,
+                markingMaterial,
+                includeSlopeBatter,
+                fillSlopeRatio,
+                cutSlopeRatio,
+                fillSlopeMaterial,
+                cutSlopeMaterial,
+                maxSlope);
+        }
+
+        public BatchEditDefaults withLaneCount(int newLaneCount) {
+            return new BatchEditDefaults(
+                width,
+                newLaneCount,
+                material,
+                includeShoulder,
+                shoulderWidth,
+                includeSidewalk,
+                sidewalkWidth,
+                sidewalkMaterial,
+                includeDrainage,
+                includeBikeLane,
+                bikeLaneWidth,
+                includeMedian,
+                medianWidth,
+                streetlightSpacing,
+                laneDividers,
+                centerLineStyle,
+                markingMaterial,
+                includeSlopeBatter,
+                fillSlopeRatio,
+                cutSlopeRatio,
+                fillSlopeMaterial,
+                cutSlopeMaterial,
+                maxSlope);
+        }
+
         /** 将批量草稿转为临时横断面，供预览与解析使用。 */
         public RoadCrossSection toCrossSection() {
             RoadCrossSection section = new RoadCrossSection();

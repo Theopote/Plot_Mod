@@ -27,14 +27,22 @@ public final class RoadCrossSectionEditor {
             return;
         }
         String styleId = road.getStyleId();
-        ImGui.text(PlotI18n.tr("plugin.road.cross_section_preview"));
+        String presetName = styleId != null && !styleId.isBlank()
+            ? PlotI18n.tr("preset.road." + styleId)
+            : PlotI18n.tr("plugin.road.preset_custom");
+        ResolvedCrossSection resolved = road.getCrossSection().resolve(config);
+        ImGui.text(PlotI18n.tr(
+            "plugin.road.edit.style_summary",
+            presetName,
+            resolved.carriagewayWidth,
+            resolved.laneCount));
         float width = ImGui.getContentRegionAvail().x;
         if (width < 40f) {
             return;
         }
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
-        float height = 88f;
+        float height = 64f;
         RoadCrossSectionPreviewRenderer.CrossSectionLayout layout;
         if (styleId != null && !styleId.isBlank()) {
             RoadStyle style = RoadStyleCatalog.findById(config, styleId);
@@ -55,10 +63,6 @@ public final class RoadCrossSectionEditor {
             width,
             height);
         ImGui.dummy(width, height);
-        ResolvedCrossSection resolved = road.getCrossSection().resolve(config);
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.lane_count_summary", resolved.laneCount, resolved.carriagewayWidth));
     }
 
     public static void renderPresetButtons(RoadUiContext ctx, Road road, Runnable onChanged) {

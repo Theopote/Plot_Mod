@@ -97,7 +97,7 @@ final class RoadSegmentEditor {
         ImGui.text(PlotI18n.tr("plugin.road.elevation_hint_end", endGround, endGuide));
     }
 
-    void renderSlopeOverrides(
+    static void renderSlopeOverrides(
             RoadUiContext ctx,
             RoadNetwork network,
             Road road,
