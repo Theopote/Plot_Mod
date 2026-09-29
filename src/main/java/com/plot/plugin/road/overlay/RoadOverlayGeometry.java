@@ -60,7 +60,7 @@ public final class RoadOverlayGeometry {
         return RoadEarthworkCorridorResolver.buildCorridorPolygon(centerline, halfWidth);
     }
 
-    /** 认领候选路径走廊半宽（画布坐标，含边坡外缘估计）。 */
+    /** 认领候选路径走廊半宽（画布坐标，行车道 + 人行道）。 */
     public static double resolveConfigCorridorHalfWidth(
             RoadSystemConfig config,
             List<Vec2d> centerline,
@@ -69,7 +69,7 @@ public final class RoadOverlayGeometry {
             return 0.0;
         }
         ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);
-        double halfWidthBlocks = RoadCorridorWidth.overlayHalfWidthBlocks(section, config);
+        double halfWidthBlocks = RoadCorridorWidth.canvasPreviewHalfWidthBlocks(section);
         return scaleHalfWidthToCanvas(halfWidthBlocks, centerline, coordinates);
     }
 
@@ -102,7 +102,7 @@ public final class RoadOverlayGeometry {
             RoadEdge edge = network.getEdge(segmentId);
             if (edge != null) {
                 ResolvedCrossSection section = RoadModelUtils.resolveCrossSection(network, edge, config);
-                double halfWidthBlocks = RoadCorridorWidth.overlayHalfWidthBlocks(section, config);
+                double halfWidthBlocks = RoadCorridorWidth.canvasPreviewHalfWidthBlocks(section);
                 return scaleHalfWidthToCanvas(halfWidthBlocks, centerline, coordinates);
             }
         }

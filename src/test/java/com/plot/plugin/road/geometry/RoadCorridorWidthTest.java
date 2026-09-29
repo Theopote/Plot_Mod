@@ -26,6 +26,25 @@ class RoadCorridorWidthTest {
     }
 
     @Test
+    void canvasPreviewHalfWidthIncludesSidewalkButNotShoulderOrSlope() {
+        RoadSystemConfig config = new RoadSystemConfig("road_test");
+        config.setRoadWidth(7);
+        config.setIncludeShoulder(true);
+        config.setShoulderWidth(1);
+        config.setIncludeSidewalk(true);
+        config.setSidewalkWidth(2);
+        config.setIncludeDrainage(true);
+        config.setIncludeSlopeBatter(true);
+        config.setTunnelThreshold(4);
+        config.setCutSlopeRatio(1.0f);
+
+        ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);
+
+        assertEquals(5.5, RoadCorridorWidth.canvasPreviewHalfWidthBlocks(section), 0.01);
+        assertEquals(7.5, RoadCorridorWidth.pavementHalfWidthBlocks(section), 0.01);
+    }
+
+    @Test
     void decorationClearWidthExtendsBeyondPavementWhenSlopeBatterEnabled() {
         RoadSystemConfig config = new RoadSystemConfig("road_test");
         config.setRoadWidth(5);

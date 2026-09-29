@@ -38,6 +38,26 @@ class RoadOverlayGeometryTest {
     }
 
     @Test
+    void resolveConfigCorridorHalfWidth_includesSidewalkButNotShoulder() {
+        RoadSystemConfig config = new RoadSystemConfig("road_test");
+        config.setRoadWidth(7);
+        config.setIncludeShoulder(true);
+        config.setShoulderWidth(1);
+        config.setIncludeSidewalk(true);
+        config.setSidewalkWidth(2);
+        config.setIncludeDrainage(true);
+        config.setIncludeSlopeBatter(true);
+
+        double corridorHalfWidth = RoadOverlayGeometry.resolveConfigCorridorHalfWidth(
+            config, CENTERLINE, IdentityCoordinateService.INSTANCE);
+        double pavementHalfWidth = RoadOverlayGeometry.resolveConfigPavementHalfWidthBlocks(config);
+
+        assertEquals(5.5, corridorHalfWidth, 0.01);
+        assertEquals(7.5, pavementHalfWidth, 0.01);
+        assertTrue(pavementHalfWidth > corridorHalfWidth);
+    }
+
+    @Test
     void resolveConfigCorridorHalfWidth_updatesWhenRoadWidthChanges() {
         RoadSystemConfig config = new RoadSystemConfig("road_test");
         config.setIncludeSidewalk(false);
