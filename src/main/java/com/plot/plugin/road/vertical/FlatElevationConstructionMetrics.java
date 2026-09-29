@@ -9,13 +9,16 @@ import java.util.List;
 
 /** Aggregates cut/fill/bridge/tunnel metrics from profile-based construction detection. */
 final class FlatElevationConstructionMetrics {
-    private static final double EPSILON = 1e-6;
+    private FlatElevationConstructionMetrics() {
+    }
 
     record Metrics(
             int cutVolume,
             int fillVolume,
             double bridgeLength,
             double tunnelLength,
+            int bridgeRunCount,
+            int tunnelRunCount,
             int earthworkBlocks) {
 
         Metrics add(Metrics other) {
@@ -24,15 +27,14 @@ final class FlatElevationConstructionMetrics {
                 fillVolume + other.fillVolume,
                 bridgeLength + other.bridgeLength,
                 tunnelLength + other.tunnelLength,
+                bridgeRunCount + other.bridgeRunCount,
+                tunnelRunCount + other.tunnelRunCount,
                 earthworkBlocks + other.earthworkBlocks);
         }
 
         static Metrics empty() {
-            return new Metrics(0, 0, 0.0, 0.0, 0);
+            return new Metrics(0, 0, 0.0, 0.0, 0, 0, 0);
         }
-    }
-
-    private FlatElevationConstructionMetrics() {
     }
 
     static Metrics aggregate(ConstructionDetection detection, List<SegmentHeightInfo> heightInfos) {
@@ -58,7 +60,47 @@ final class FlatElevationConstructionMetrics {
             tunnelLength += totals.tunnelLength;
         }
 
-        return new Metrics(cutVolume, fillVolume, bridgeLength, tunnelLength, cutVolume + fillVolume);
+        int bridgeRunCount = structureRunCount(detection, RoadConstructionType.BRIDGE);
+        int tunnelRunCount = structureRunCount(detection, RoadConstructionType.TUNNEL);
+        return new Metrics(
+            cutVolume,
+            fillVolume,
+            bridgeLength,
+            tunnelLength,
+            bridgeRunCount,
+            tunnelRunCount,
+            cutVolume + fillVolume);
+    }
+
+    static Metrics fromStageA(
+            List<RoadConstructionType> types,
+            int cutVolume,
+            int fillVolume,
+            double bridgeLength,
+            double tunnelLength) {
+        return new Metrics(
+            cutVolume,
+            fillVolume,
+            bridgeLength,
+            tunnelLength,
+            countStructureRuns(types, RoadConstructionType.BRIDGE),
+            countStructureRuns(types, RoadConstructionType.TUNNEL),
+            cutVolume + fillVolume);
+    }
+
+    static int countStructureRuns(List<RoadConstructionType> types, RoadConstructionType target) {
+        if (types == null || types.isEmpty()) {
+            return 0;
+        }
+        int count = 0;
+        RoadConstructionType previous = null;
+        for (RoadConstructionType type : types) {
+            if (type == target && previous != target) {
+                count++;
+            }
+            previous = type;
+        }
+        return count;
     }
 
     static EarthworkTotals accumulateSegment(RoadConstructionType type, int diff, double distance) {
@@ -89,11 +131,18 @@ final class FlatElevationConstructionMetrics {
             double junctionPenalty) {
         return costConfig.cutCostPerVolume() * metrics.cutVolume()
             + costConfig.fillCostPerVolume() * metrics.fillVolume()
-            + (metrics.bridgeLength() > EPSILON ? costConfig.bridgeBaseCost() : 0.0)
+            + costConfig.bridgeBaseCost() * metrics.bridgeRunCount()
             + costConfig.bridgeCostPerLength() * metrics.bridgeLength()
-            + (metrics.tunnelLength() > EPSILON ? costConfig.tunnelBaseCost() : 0.0)
+            + costConfig.tunnelBaseCost() * metrics.tunnelRunCount()
             + costConfig.tunnelCostPerLength() * metrics.tunnelLength()
             + junctionPenalty;
+    }
+
+    private static int structureRunCount(ConstructionDetection detection, RoadConstructionType type) {
+        if (!detection.runs().isEmpty()) {
+            return (int) detection.runCount(type);
+        }
+        return countStructureRuns(detection.constructionTypes(), type);
     }
 
     private static int averageHeight(int a, int b) {

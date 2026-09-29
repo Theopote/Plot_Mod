@@ -255,14 +255,9 @@ public final class FlatElevationOptimizer {
             tunnelLength += totals.tunnelLength();
         }
 
-        int earthworkBlocks = cutVolume + fillVolume;
-        double score = costConfig.cutCostPerVolume() * cutVolume
-            + costConfig.fillCostPerVolume() * fillVolume
-            + (bridgeLength > EPSILON ? costConfig.bridgeBaseCost() : 0.0)
-            + costConfig.bridgeCostPerLength() * bridgeLength
-            + (tunnelLength > EPSILON ? costConfig.tunnelBaseCost() : 0.0)
-            + costConfig.tunnelCostPerLength() * tunnelLength
-            + junctionPenalty;
+        FlatElevationConstructionMetrics.Metrics metrics = FlatElevationConstructionMetrics.fromStageA(
+            types, cutVolume, fillVolume, bridgeLength, tunnelLength);
+        double score = FlatElevationConstructionMetrics.score(metrics, costConfig, junctionPenalty);
         return new FlatElevationCandidate(
             candidateY,
             score,
@@ -270,7 +265,7 @@ public final class FlatElevationOptimizer {
             fillVolume,
             bridgeLength,
             tunnelLength,
-            earthworkBlocks,
+            metrics.earthworkBlocks(),
             true);
     }
 

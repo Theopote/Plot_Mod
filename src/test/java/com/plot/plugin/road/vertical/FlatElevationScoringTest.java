@@ -40,10 +40,73 @@ class FlatElevationScoringTest {
         assertEquals(0, metrics.fillVolume());
         assertEquals(0, metrics.cutVolume());
         assertEquals(20.0, metrics.bridgeLength(), 1e-6);
+        assertEquals(1, metrics.bridgeRunCount());
 
         var costConfig = RoadConstructionEvaluator.RoadConstructionCostConfig.from(CONFIG);
         double score = FlatElevationConstructionMetrics.score(metrics, costConfig, 0.0);
         double expected = costConfig.bridgeBaseCost() + costConfig.bridgeCostPerLength() * 20.0;
+        assertEquals(expected, score, 1e-6);
+    }
+
+    @Test
+    void twoBridgeRunsPayTwoBaseCosts() {
+        List<RoadConstructionType> types = List.of(
+            RoadConstructionType.BRIDGE,
+            RoadConstructionType.BRIDGE,
+            RoadConstructionType.ROAD,
+            RoadConstructionType.ROAD,
+            RoadConstructionType.BRIDGE,
+            RoadConstructionType.BRIDGE);
+        List<Double> distances = List.of(10.0, 10.0, 25.0, 25.0, 10.0, 10.0);
+        List<SegmentHeightInfo> infos = List.of(
+            segmentInfo(distances.get(0), 60, 80),
+            segmentInfo(distances.get(1), 60, 80),
+            segmentInfo(distances.get(2), 80, 80),
+            segmentInfo(distances.get(3), 80, 80),
+            segmentInfo(distances.get(4), 60, 80),
+            segmentInfo(distances.get(5), 60, 80));
+        ConstructionDetection detection = new ConstructionDetection(
+            List.of(), List.of(), types, distances);
+
+        FlatElevationConstructionMetrics.Metrics metrics =
+            FlatElevationConstructionMetrics.aggregate(detection, infos);
+        assertEquals(0, metrics.fillVolume());
+        assertEquals(2, metrics.bridgeRunCount());
+        assertEquals(40.0, metrics.bridgeLength(), 1e-6);
+
+        var costConfig = RoadConstructionEvaluator.RoadConstructionCostConfig.from(CONFIG);
+        double score = FlatElevationConstructionMetrics.score(metrics, costConfig, 0.0);
+        double expected = 2 * costConfig.bridgeBaseCost() + costConfig.bridgeCostPerLength() * 40.0;
+        assertEquals(expected, score, 1e-6);
+    }
+
+    @Test
+    void twoTunnelRunsPayTwoBaseCosts() {
+        List<RoadConstructionType> types = List.of(
+            RoadConstructionType.TUNNEL,
+            RoadConstructionType.TUNNEL,
+            RoadConstructionType.ROAD,
+            RoadConstructionType.TUNNEL,
+            RoadConstructionType.TUNNEL);
+        List<Double> distances = List.of(8.0, 8.0, 30.0, 12.0, 12.0);
+        List<SegmentHeightInfo> infos = List.of(
+            segmentInfo(distances.get(0), 80, 60),
+            segmentInfo(distances.get(1), 80, 60),
+            segmentInfo(distances.get(2), 60, 60),
+            segmentInfo(distances.get(3), 80, 60),
+            segmentInfo(distances.get(4), 80, 60));
+        ConstructionDetection detection = new ConstructionDetection(
+            List.of(), List.of(), types, distances);
+
+        FlatElevationConstructionMetrics.Metrics metrics =
+            FlatElevationConstructionMetrics.aggregate(detection, infos);
+        assertEquals(0, metrics.cutVolume());
+        assertEquals(2, metrics.tunnelRunCount());
+        assertEquals(40.0, metrics.tunnelLength(), 1e-6);
+
+        var costConfig = RoadConstructionEvaluator.RoadConstructionCostConfig.from(CONFIG);
+        double score = FlatElevationConstructionMetrics.score(metrics, costConfig, 0.0);
+        double expected = 2 * costConfig.tunnelBaseCost() + costConfig.tunnelCostPerLength() * 40.0;
         assertEquals(expected, score, 1e-6);
     }
 
@@ -62,6 +125,7 @@ class FlatElevationScoringTest {
         assertEquals(0, metrics.fillVolume());
         assertEquals(0, metrics.cutVolume());
         assertEquals(15.0, metrics.tunnelLength(), 1e-6);
+        assertEquals(1, metrics.tunnelRunCount());
 
         var costConfig = RoadConstructionEvaluator.RoadConstructionCostConfig.from(CONFIG);
         double score = FlatElevationConstructionMetrics.score(metrics, costConfig, 0.0);
@@ -168,13 +232,23 @@ class FlatElevationScoringTest {
             tunnelLength += totals.tunnelLength();
         }
         double score = FlatElevationConstructionMetrics.score(
-            new FlatElevationConstructionMetrics.Metrics(
-                cutVolume, fillVolume, bridgeLength, tunnelLength, cutVolume + fillVolume),
+            FlatElevationConstructionMetrics.fromStageA(
+                types, cutVolume, fillVolume, bridgeLength, tunnelLength),
             costConfig,
             0.0);
         return new FlatElevationCandidate(
             candidateY, score, cutVolume, fillVolume, bridgeLength, tunnelLength,
             cutVolume + fillVolume, true);
+    }
+
+    private static SegmentHeightInfo segmentInfo(double distance, int ground, int target) {
+        return new SegmentHeightInfo(
+            new PathSegment(new Vec2d(0, 0), new Vec2d(distance, 0)),
+            ground,
+            ground,
+            target,
+            target,
+            0.0);
     }
 
     private static RoadNetwork straightRoad(double length) {
