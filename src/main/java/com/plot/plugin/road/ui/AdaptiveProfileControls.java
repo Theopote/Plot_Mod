@@ -21,7 +21,6 @@ import java.util.List;
 final class AdaptiveProfileControls {
 
     void render(
-            RoadUiContext ctx,
             RoadNetwork network,
             Road road,
             List<VerticalProfileControlPoints.ControlPoint> points,
@@ -66,29 +65,28 @@ final class AdaptiveProfileControls {
         if (VerticalProfileControlPoints.isEditablePvi(network, road, selectedPoint)
                 && VerticalProfileControlPoints.exceedsGradeLimit(selectedPoint, maxGrade)
                 && ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_auto_fix_grade"))) {
-            ctx.editNetwork(() -> {
-                VerticalProfileAutoFixer.Result fixed = VerticalProfileAutoFixer.extendAdjacentRuns(
-                    road.getVerticalAlignment(), state.selectedProfilePvi,
-                    RoadStationing.canonicalLength(network, road), maxGrade);
-                road.setVerticalAlignment(fixed.alignment());
-                road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
-                propagateJunctionGrades.run();
-                state.profileAutoFixMessage = PlotI18n.tr(fixed.fullyResolved()
-                    ? "plugin.road.vertical_alignment_auto_fix_success"
-                    : "plugin.road.vertical_alignment_auto_fix_insufficient");
-            });
+            beginNetworkEdit.run();
+            VerticalProfileAutoFixer.Result fixed = VerticalProfileAutoFixer.extendAdjacentRuns(
+                road.getVerticalAlignment(), state.selectedProfilePvi,
+                RoadStationing.canonicalLength(network, road), maxGrade);
+            road.setVerticalAlignment(fixed.alignment());
+            road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+            state.profileAutoFixMessage = PlotI18n.tr(fixed.fullyResolved()
+                ? "plugin.road.vertical_alignment_auto_fix_success"
+                : "plugin.road.vertical_alignment_auto_fix_insufficient");
+            finishNetworkEdit.accept(propagateJunctionGrades);
         }
         if (VerticalProfileControlPoints.canAutoSmooth(network, road, selectedPoint)
                 && ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_auto_smooth"))) {
-            ctx.editNetwork(() -> {
-                VerticalProfileCurveFitter.Result fitted = VerticalProfileCurveFitter.fitAt(
-                    road.getVerticalAlignment(), state.selectedProfilePvi);
-                road.setVerticalAlignment(fitted.alignment());
-                road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
-                state.profileAutoFixMessage = PlotI18n.tr(fitted.hasSpace()
-                    ? "plugin.road.vertical_alignment_auto_smooth_success"
-                    : "plugin.road.vertical_alignment_auto_smooth_no_space");
-            });
+            beginNetworkEdit.run();
+            VerticalProfileCurveFitter.Result fitted = VerticalProfileCurveFitter.fitAt(
+                road.getVerticalAlignment(), state.selectedProfilePvi);
+            road.setVerticalAlignment(fitted.alignment());
+            road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+            state.profileAutoFixMessage = PlotI18n.tr(fitted.hasSpace()
+                ? "plugin.road.vertical_alignment_auto_smooth_success"
+                : "plugin.road.vertical_alignment_auto_smooth_no_space");
+            finishNetworkEdit.accept(null);
         }
         if (!state.profileAutoFixMessage.isBlank()) {
             RoadUiWidgets.textWrappedColored(

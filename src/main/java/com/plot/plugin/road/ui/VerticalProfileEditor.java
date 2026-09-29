@@ -600,7 +600,6 @@ final class VerticalProfileEditor {
                 FlatElevationRecommendationUi.terrainSupplier(ctx));
         } else {
             adaptiveProfileControls.render(
-                ctx,
                 network,
                 road,
                 points,
