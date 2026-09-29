@@ -1,9 +1,8 @@
 package com.plot.plugin.road.manager;
 
-import com.plot.api.geometry.Vec2d;
 import com.plot.core.model.Shape;
-import com.plot.core.tool.BaseTool;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.overlay.RoadCanvasSelectionController;
 import com.plot.plugin.road.overlay.RoadJunctionOverlayController;
 import com.plot.plugin.road.overlay.RoadJunctionOverlayEntry;
 import com.plot.plugin.road.overlay.RoadOverlayCompositor;
@@ -54,6 +53,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
 
     private List<RoadOverlayEntry> overlayEntries = List.of();
     private List<RoadJunctionOverlayEntry> junctionOverlayEntries = List.of();
+    private final RoadCanvasSelectionController canvasSelectionController = new RoadCanvasSelectionController();
 
     public RoadUIManager(
             RoadNetworkManager networkManager,
@@ -106,9 +106,6 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             return;
         }
 
-        if (ctx.toolManager().getPathPickSession().isActive()) {
-            ctx.toolManager().tick();
-        }
         ctx.roadListRename().tickFrame();
         ctx.previewManager().tickPreviewJob();
 
@@ -128,7 +125,10 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         }
 
         refreshOverlaySnapshot();
-        tickOverlayCanvasSelection();
+        tickCanvasSelection();
+        if (ctx.toolManager().getPathPickSession().isActive()) {
+            ctx.toolManager().tick();
+        }
         buildPanel.renderProfileEditorWindow(ctx.networkManager().getNetwork());
     }
 
@@ -183,45 +183,22 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             ctx.networkManager().getSelectedNodeId());
     }
 
-    private void tickOverlayCanvasSelection() {
-        if (ctx.toolManager().getPathPickSession().isActive()) {
-            return;
-        }
+    private void tickCanvasSelection() {
         if (!CanvasAccess.isPresent()) {
+            canvasSelectionController.resetPointer();
             return;
         }
-        Canvas canvas = CanvasAccess.get();
-        Vec2d mouseScreen = new Vec2d(ImGui.getMousePosX(), ImGui.getMousePosY());
-        if (!canvas.isScreenPosInsideCanvas(mouseScreen)) {
-            return;
-        }
-        if (ImGui.getIO().getWantCaptureMouse()) {
-            return;
-        }
-        if (!ImGui.isMouseClicked(0)) {
-            return;
-        }
-        BaseTool tool = ctx.host().appState().getCurrentTool();
-        if (tool == null || !"select".equals(tool.getId())) {
-            return;
-        }
-        Vec2d world = canvas.screenToWorld(mouseScreen);
-        double junctionHitRadius = canvas.getCamera() != null
-            ? canvas.getCamera().screenToWorldDistance(12.0)
-            : 1.0;
-        String nodeId = RoadJunctionOverlayController.hitTest(
-            junctionOverlayEntries, world.x, world.y, junctionHitRadius);
-        if (nodeId != null && !nodeId.isBlank()) {
-            ctx.networkManager().handleNodeSelect(nodeId);
+        boolean pickActive = ctx.toolManager().getPathPickSession().isActive();
+        canvasSelectionController.tick(
+            CanvasAccess.get(),
+            ctx.host().appState(),
+            ctx.networkManager(),
+            overlayEntries,
+            junctionOverlayEntries,
+            pickActive,
+            ctx::isRoadOverlayVisible);
+        if (pickActive || ctx.isRoadOverlayVisible()) {
             ctx.requestOverlayRefresh();
-            RoadRepairDiagnosisCache.invalidate();
-            return;
-        }
-        String roadId = RoadOverlayController.hitTestRoad(overlayEntries, world.x, world.y);
-        if (roadId != null && !roadId.isBlank()) {
-            ctx.networkManager().selectRoad(roadId, false);
-            ctx.requestOverlayRefresh();
-            RoadRepairDiagnosisCache.invalidate();
         }
     }
 

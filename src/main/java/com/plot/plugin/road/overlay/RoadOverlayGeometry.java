@@ -103,6 +103,76 @@ public final class RoadOverlayGeometry {
         return inside;
     }
 
+    public static boolean polygonContainedInRect(
+            List<Vec2d> polygon,
+            double minX,
+            double minY,
+            double maxX,
+            double maxY) {
+        if (polygon == null || polygon.size() < 3) {
+            return false;
+        }
+        for (Vec2d point : polygon) {
+            if (point.x < minX || point.x > maxX || point.y < minY || point.y > maxY) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static boolean polygonIntersectsRect(
+            List<Vec2d> polygon,
+            double minX,
+            double minY,
+            double maxX,
+            double maxY) {
+        if (polygon == null || polygon.size() < 3) {
+            return false;
+        }
+        for (Vec2d point : polygon) {
+            if (point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY) {
+                return true;
+            }
+        }
+        if (containsPoint(polygon, minX, minY)
+                || containsPoint(polygon, maxX, minY)
+                || containsPoint(polygon, maxX, maxY)
+                || containsPoint(polygon, minX, maxY)) {
+            return true;
+        }
+        return segmentsIntersectRect(polygon, minX, minY, maxX, maxY);
+    }
+
+    private static boolean segmentsIntersectRect(
+            List<Vec2d> polygon,
+            double minX,
+            double minY,
+            double maxX,
+            double maxY) {
+        int count = polygon.size();
+        for (int i = 0; i < count; i++) {
+            Vec2d a = polygon.get(i);
+            Vec2d b = polygon.get((i + 1) % count);
+            if (segmentIntersectsSegment(a, b, new Vec2d(minX, minY), new Vec2d(maxX, minY))
+                    || segmentIntersectsSegment(a, b, new Vec2d(maxX, minY), new Vec2d(maxX, maxY))
+                    || segmentIntersectsSegment(a, b, new Vec2d(maxX, maxY), new Vec2d(minX, maxY))
+                    || segmentIntersectsSegment(a, b, new Vec2d(minX, maxY), new Vec2d(minX, minY))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean segmentIntersectsSegment(Vec2d a, Vec2d b, Vec2d c, Vec2d d) {
+        double denominator = (b.x - a.x) * (d.y - c.y) - (b.y - a.y) * (d.x - c.x);
+        if (Math.abs(denominator) < 1e-12) {
+            return false;
+        }
+        double ua = ((d.x - c.x) * (a.y - c.y) - (d.y - c.y) * (a.x - c.x)) / denominator;
+        double ub = ((b.x - a.x) * (a.y - c.y) - (b.y - a.y) * (a.x - c.x)) / denominator;
+        return ua >= 0.0 && ua <= 1.0 && ub >= 0.0 && ub <= 1.0;
+    }
+
     public static List<Vec2d> mergeCenterlines(List<Vec2d> target, List<Vec2d> segment) {
         if (segment == null || segment.isEmpty()) {
             return target != null ? target : List.of();

@@ -117,18 +117,83 @@ public final class RoadOverlayController {
             List<RoadOverlayEntry> entries,
             double worldX,
             double worldY) {
+        RoadOverlayEntry hit = hitTestEntry(entries, worldX, worldY);
+        if (hit == null || hit.roadId().startsWith("shape:")) {
+            return null;
+        }
+        return hit.roadId();
+    }
+
+    /** 画布点击命中测试：道路走廊与认领候选路径（shape: 前缀）。 */
+    public static RoadOverlayEntry hitTestEntry(
+            List<RoadOverlayEntry> entries,
+            double worldX,
+            double worldY) {
         if (entries == null || entries.isEmpty()) {
             return null;
         }
         for (int i = entries.size() - 1; i >= 0; i--) {
             RoadOverlayEntry entry = entries.get(i);
-            if (entry.roadId().startsWith("shape:")) {
-                continue;
-            }
             if (RoadOverlayGeometry.containsPoint(entry.corridorPoints(), worldX, worldY)) {
-                return entry.roadId();
+                return entry;
             }
         }
         return null;
+    }
+
+    public static LinkedHashSet<String> collectRoadsInBox(
+            List<RoadOverlayEntry> entries,
+            double minX,
+            double minY,
+            double maxX,
+            double maxY,
+            boolean leftToRight) {
+        LinkedHashSet<String> roadIds = new LinkedHashSet<>();
+        if (entries == null || entries.isEmpty()) {
+            return roadIds;
+        }
+        for (RoadOverlayEntry entry : entries) {
+            if (entry == null || entry.roadId().startsWith("shape:")) {
+                continue;
+            }
+            if (matchesBox(entry.corridorPoints(), minX, minY, maxX, maxY, leftToRight)) {
+                roadIds.add(entry.roadId());
+            }
+        }
+        return roadIds;
+    }
+
+    public static LinkedHashSet<String> collectShapeIdsInBox(
+            List<RoadOverlayEntry> entries,
+            double minX,
+            double minY,
+            double maxX,
+            double maxY,
+            boolean leftToRight) {
+        LinkedHashSet<String> shapeIds = new LinkedHashSet<>();
+        if (entries == null || entries.isEmpty()) {
+            return shapeIds;
+        }
+        for (RoadOverlayEntry entry : entries) {
+            if (entry == null || !entry.roadId().startsWith("shape:")) {
+                continue;
+            }
+            if (matchesBox(entry.corridorPoints(), minX, minY, maxX, maxY, leftToRight)) {
+                shapeIds.add(entry.roadId().substring("shape:".length()));
+            }
+        }
+        return shapeIds;
+    }
+
+    private static boolean matchesBox(
+            List<com.plot.api.geometry.Vec2d> polygon,
+            double minX,
+            double minY,
+            double maxX,
+            double maxY,
+            boolean leftToRight) {
+        return leftToRight
+            ? RoadOverlayGeometry.polygonContainedInRect(polygon, minX, minY, maxX, maxY)
+            : RoadOverlayGeometry.polygonIntersectsRect(polygon, minX, minY, maxX, maxY);
     }
 }
