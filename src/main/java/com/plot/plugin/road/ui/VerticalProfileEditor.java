@@ -11,6 +11,7 @@ import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadGradeSeparationEvaluation;
 import com.plot.plugin.road.RoadNetworkGenerator;
+import com.plot.plugin.road.profile.ProfileChartCoordinates;
 import com.plot.plugin.road.profile.RoadProfileIntersection;
 import com.plot.plugin.road.profile.RoadProfileIntersectionDragEditor;
 import com.plot.plugin.road.profile.RoadProfileIntersectionResolver;
@@ -155,7 +156,12 @@ final class VerticalProfileEditor {
             PluginUiColors.HINT_GRAY,
             RoadEdgeListHelper.formatEdgeLabel(network, edge));
         RoadLongitudinalProfileRenderer.renderOverview(
-            edgeResult, design, intersections, INLINE_CHART_HEIGHT, flatOverlay);
+            edgeResult,
+            design,
+            intersections,
+            INLINE_CHART_HEIGHT,
+            flatOverlay,
+            ProfileChartCoordinates.geometryToProfileScale(edge, edgeResult));
         boolean flatMode = RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT;
         renderInlineLegend(design, intersections, flatOverlay, flatMode);
         RoadUiWidgets.textWrappedColored(
@@ -527,6 +533,7 @@ final class VerticalProfileEditor {
         List<RoadLongitudinalProfileRenderer.CurveHandle> curveHandles = flatMode
             ? List.of()
             : buildCurveHandles(network, road, edge, points, chartSelectedPvi);
+        double profileScale = ProfileChartCoordinates.geometryToProfileScale(edge, edgeResult);
         if (!flatMode) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
@@ -542,7 +549,8 @@ final class VerticalProfileEditor {
                 editorState.pendingClickX,
                 editorState.pendingClickY,
                 editorState.activeCurveHandlePvi,
-                editorState.activeCurveHandle);
+                editorState.activeCurveHandle,
+                profileScale);
         if (interaction.dragStarted()
                 || interaction.intersectionDragStarted()
                 || interaction.curveHandleDragStarted()) {
@@ -583,7 +591,8 @@ final class VerticalProfileEditor {
                 .get(editorState.selectedProfilePvi).getStation();
             double requestedStation = RoadStationing.orientedSegment(network, road, edge.getId())
                 .map(segment -> segment.roadStationAtGeometryLocal(
-                    interaction.draggedLocalDistance()))
+                    ProfileChartCoordinates.profileDistanceToGeometryLocal(
+                        edge, edgeResult, interaction.draggedLocalDistance())))
                 .orElse(currentStation);
             VerticalProfileControlPoints.ControlPoint draggedPoint = points.stream()
                 .filter(point -> point.pviIndex() == editorState.selectedProfilePvi)
@@ -905,8 +914,9 @@ final class VerticalProfileEditor {
         }
         beginProfileNetworkEdit(ctx);
         double roadLength = RoadStationing.canonicalLength(network, road);
-        double insertStation = roadStationAtLocal(
-            network, road, edge, interaction.addPointLocalDistance());
+        double geometryLocal = ProfileChartCoordinates.profileDistanceToGeometryLocal(
+            edge, edgeResult, interaction.addPointLocalDistance());
+        double insertStation = roadStationAtLocal(network, road, edge, geometryLocal);
         double startElevation = sampleProfileElevation(edgeResult, 0.0);
         double endElevation = sampleProfileElevation(
             edgeResult, edgeResult.profileDistances.getLast());

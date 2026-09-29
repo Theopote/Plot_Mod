@@ -134,7 +134,7 @@ public final class RoadProfileIntersectionResolver {
             double roadStation,
             double localDistance,
             RoadGenerationResult edgeResult) {
-        OptionalDouble fromProfile = interpolateProfile(edgeResult, localDistance);
+        OptionalDouble fromProfile = interpolateProfile(edgeResult, edge, localDistance);
         if (fromProfile.isPresent()) {
             return fromProfile;
         }
@@ -209,10 +209,15 @@ public final class RoadProfileIntersectionResolver {
         return Optional.empty();
     }
 
-    private static OptionalDouble interpolateProfile(RoadGenerationResult result, double localDistance) {
+    private static OptionalDouble interpolateProfile(
+            RoadGenerationResult result,
+            RoadEdge edge,
+            double geometryLocalDistance) {
         if (result == null || !result.hasProfileData()) {
             return OptionalDouble.empty();
         }
+        double localDistance = ProfileChartCoordinates.geometryLocalToProfileDistance(
+            edge, result, geometryLocalDistance);
         List<Double> distances = result.profileDistances;
         List<Integer> heights = result.profileTargetHeights;
         if (distances.isEmpty() || heights.size() != distances.size()) {
