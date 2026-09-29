@@ -26,7 +26,10 @@ public final class RoadOverlayGeometry {
             RoadNetwork network,
             Road road,
             RoadSystemConfig config) {
-        List<Vec2d> centerline = resolveRoadCenterline(network, road);
+        List<Vec2d> centerline = resolvePlanCenterline(network, road);
+        if (centerline.size() < 2) {
+            centerline = resolveRoadCenterline(network, road);
+        }
         if (centerline.size() < 2) {
             return List.of();
         }

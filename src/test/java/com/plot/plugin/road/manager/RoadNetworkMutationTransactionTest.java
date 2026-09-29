@@ -73,6 +73,35 @@ class RoadNetworkMutationTransactionTest {
     }
 
     @Test
+    void failedMaterializeDoesNotCommitRevision() {
+        RoadNetwork network = manager.getNetwork();
+        Road road = network.createRoad("main");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(10, 0));
+        network.createEdge(a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+
+        long before = manager.getNetworkRevision();
+        CenterlineEditResult result = manager.materializeHorizontalAlignment(road);
+        assertFalse(result.isSuccess());
+        assertEquals(before, manager.getNetworkRevision());
+        assertEquals(0, changeNotifications.get());
+    }
+
+    @Test
+    void syncSegmentOrderNoOpDoesNotCommitRevision() {
+        RoadNetwork network = manager.getNetwork();
+        Road road = network.createRoad("main");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(10, 0));
+        network.createEdge(a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+
+        long before = manager.getNetworkRevision();
+        assertFalse(manager.syncRoadSegmentOrder(road));
+        assertEquals(before, manager.getNetworkRevision());
+        assertEquals(0, changeNotifications.get());
+    }
+
+    @Test
     void reconcileIntersectionsIncrementsRevisionOnce() {
         RoadNetwork network = manager.getNetwork();
         Road road = network.createRoad("cross");

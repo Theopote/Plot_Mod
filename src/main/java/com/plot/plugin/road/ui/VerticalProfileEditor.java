@@ -106,15 +106,28 @@ final class VerticalProfileEditor {
             RoadNetwork network,
             RoadEdge edge,
             FlatElevationProfileOverlay flatOverlay) {
+        renderInline(ctx, network, edge, flatOverlay, false);
+    }
+
+    void renderInline(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            RoadEdge edge,
+            FlatElevationProfileOverlay flatOverlay,
+            boolean workspaceEmbedded) {
         if (!ctx.previewManager().hasValidPreview()
                 && edge.getId().equals(cachedEditProfileEdgeId)) {
             clearCache();
         }
-        ImGui.spacing();
-        if (!ImGui.collapsingHeader(
-                PlotI18n.tr("plugin.road.vertical_alignment_profile_editor"),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
-            return;
+        if (!workspaceEmbedded) {
+            ImGui.spacing();
+            if (!ImGui.collapsingHeader(
+                    PlotI18n.tr("plugin.road.vertical_alignment_profile_editor"),
+                    ImGuiTreeNodeFlags.DefaultOpen)) {
+                return;
+            }
+        } else {
+            ImGui.spacing();
         }
         RoadGenerationResult edgeResult = resolveEdgeResult(ctx, edge);
         if (edgeResult == null || !edgeResult.hasProfileData()) {

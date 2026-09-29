@@ -4,7 +4,6 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.core.terrain.MinecraftTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.road.RoadEdgeListHelper;
-import com.plot.plugin.road.RoadLongitudinalProfileRenderer;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadNetworkValidationReport;
 import com.plot.plugin.road.RoadNetworkEngineeringValidator;
@@ -17,7 +16,6 @@ import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
-import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -37,7 +35,6 @@ public final class RoadGeneratePanel {
     private final VerticalAlignmentEditor verticalAlignmentEditor = new VerticalAlignmentEditor();
     private final RoadNetworkToolsPanel networkToolsPanel;
     private String profileEdgeId = "";
-    private boolean profileSectionForceOpen = false;
     private long cachedValidationKey = Long.MIN_VALUE;
     private RoadNetworkValidationReport cachedValidationReport = new RoadNetworkValidationReport(List.of());
 
@@ -52,7 +49,6 @@ public final class RoadGeneratePanel {
             return;
         }
         profileEdgeId = edgeId;
-        profileSectionForceOpen = true;
         ctx.networkManager().setPrimarySelectedEdge(edgeId);
         profileEditor.openEditorForEdge(edgeId);
     }
@@ -114,6 +110,15 @@ public final class RoadGeneratePanel {
             return;
         }
         Road road = network.getRoadForEdge(edge);
+        List<String> profileEdgeIds = listProfileEdgeIds();
+        if (profileEdgeIds.size() > 1) {
+            renderProfileEdgeSelector(network, profileEdgeIds);
+        } else if (road != null) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                RoadEdgeListHelper.formatRoadLabel(network, road));
+            ImGui.spacing();
+        }
         if (road != null) {
             RoadVerticalStrategy strategy = RoadVerticalStrategy.fromRoad(road);
             if (strategy == RoadVerticalStrategy.TERRAIN_ADAPTIVE
@@ -130,9 +135,16 @@ public final class RoadGeneratePanel {
                 ctx.networkManager().getConfig(),
                 this::requireTerrainOrNull,
                 ctx.networkManager()::pushHistory);
-            renderSlopeOverridesSection(network, road, edge, chainageDisplay);
         }
-        profileEditor.renderInline(ctx, network, edge, resolveFlatProfileOverlay(network, road));
+        profileEditor.renderInline(
+            ctx,
+            network,
+            edge,
+            resolveFlatProfileOverlay(network, road),
+            true);
+        if (road != null) {
+            renderSlopeOverridesSection(network, road, edge, chainageContextOrNull(network, road));
+        }
     }
 
     private FlatElevationProfileOverlay resolveFlatProfileOverlay(RoadNetwork network) {
@@ -381,7 +393,6 @@ public final class RoadGeneratePanel {
 
         RoadNetworkValidationReport validationReport = validationReport();
         RoadNetworkValidationPanel.render(validationReport, ctx);
-        renderLongitudinalProfile(network);
     }
 
     private RoadNetworkValidationReport preflightReport(RoadNetwork network) {
@@ -398,39 +409,6 @@ public final class RoadGeneratePanel {
         return cachedValidationReport;
     }
 
-    private void renderLongitudinalProfile(RoadNetwork network) {
-        List<String> edgeIds = listProfileEdgeIds();
-        if (edgeIds.isEmpty()) {
-            return;
-        }
-        syncProfileEdgeSelection(network);
-        int headerFlags = profileSectionForceOpen ? imgui.flag.ImGuiTreeNodeFlags.DefaultOpen : 0;
-        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.longitudinal_profile"), headerFlags)) {
-            return;
-        }
-        profileSectionForceOpen = false;
-
-        if (edgeIds.size() > 1) {
-            renderProfileEdgeSelector(network, edgeIds);
-        } else {
-            RoadEdge edge = network.getEdge(edgeIds.getFirst());
-            if (edge != null) {
-                ImGui.textColored(
-                    PluginUiColors.HINT_GRAY,
-                    RoadEdgeListHelper.formatEdgeLabel(network, edge));
-            }
-        }
-
-        RoadGenerationResult profileResult = ctx.previewManager().getLastEdgeResult(profileEdgeId);
-        if (profileResult != null && profileResult.hasProfileData()) {
-            RoadEdge edge = network.getEdge(profileEdgeId);
-            VerticalAlignmentProfileOverlay designOverlay = edge != null
-                ? VerticalAlignmentProfileOverlay.forEdge(network, edge).orElse(null)
-                : null;
-            RoadLongitudinalProfileRenderer.render(profileResult, false, designOverlay);
-        }
-    }
-
     private List<String> listProfileEdgeIds() {
         List<String> edgeIds = new ArrayList<>();
         for (Map.Entry<String, RoadGenerationResult> entry
@@ -440,16 +418,6 @@ public final class RoadGeneratePanel {
             }
         }
         return edgeIds;
-    }
-
-    private void syncProfileEdgeSelection(RoadNetwork network) {
-        List<String> edgeIds = listProfileEdgeIds();
-        if (edgeIds.isEmpty()) {
-            profileEdgeId = "";
-            return;
-        }
-        String primaryId = ctx.networkManager().getPrimarySelectedEdgeId();
-        profileEdgeId = edgeIds.contains(primaryId) ? primaryId : edgeIds.getFirst();
     }
 
     private void renderProfileEdgeSelector(RoadNetwork network, List<String> edgeIds) {

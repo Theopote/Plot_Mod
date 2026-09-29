@@ -385,6 +385,10 @@ public final class RoadUiContext {
         requestOverlayRefresh();
     }
 
+    public boolean isOverlayForegroundDirty() {
+        return overlayForegroundDirty;
+    }
+
     public boolean consumeOverlayForegroundDirty() {
         if (!overlayForegroundDirty) {
             return false;

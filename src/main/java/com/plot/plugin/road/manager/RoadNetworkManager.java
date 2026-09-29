@@ -16,7 +16,14 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNetworkHistory;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.RoadSegmentOrdering;
+import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
 import com.plot.plugin.road.model.RoadTopologyRoadSplitter;
+import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.vertical.FlatRoadJunctionConflictResolver;
+import com.plot.plugin.road.vertical.RoadVerticalMode;
+import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
+import com.plot.plugin.road.vertical.VerticalAlignmentGradeSmoother;
+import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.RoadCrossSection;
@@ -681,6 +688,84 @@ public final class RoadNetworkManager {
         return mutateNetwork(
             () -> HorizontalAlignmentCenterlineMaterializer.materialize(network, road),
             CenterlineEditResult::isSuccess);
+    }
+
+    /** 校验一键修复：同步可维护道路的分段存储顺序。 */
+    public boolean syncRoadSegmentOrder(Road road) {
+        if (road == null) {
+            return false;
+        }
+        return mutateNetwork(
+            () -> RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(network, road),
+            synced -> synced);
+    }
+
+    /** 校验一键修复：平缓单条道路纵坡。 */
+    public boolean smoothRoadGrade(Road road) {
+        if (road == null) {
+            return false;
+        }
+        return mutateNetwork(
+            () -> VerticalAlignmentGradeSmoother.smoothRoad(network, road, config),
+            changed -> changed);
+    }
+
+    /** 校验一键修复：平缓全网超限纵坡。 */
+    public int smoothAllExceedingGrades() {
+        Integer count = mutateNetwork(
+            () -> VerticalAlignmentGradeSmoother.smoothAllExceeding(network, config),
+            changed -> changed > 0);
+        return count != null ? count : 0;
+    }
+
+    /** 校验一键修复：将过短非平路改为平路纵断面。 */
+    public int makeShortRoadsFlat() {
+        Integer changed = mutateNetwork(
+            () -> {
+                int count = 0;
+                for (Road candidate : network.getRoads().values()) {
+                    var alignment = candidate.getVerticalAlignment();
+                    if ((candidate.getVerticalMode() == RoadVerticalMode.FLAT
+                            || candidate.getVerticalMode() == RoadVerticalMode.MANUAL_PROFILE)
+                            && RoadStationing.isStationable(network, candidate)
+                            && VerticalAlignmentGeometry.isEvaluable(alignment)
+                            && !VerticalProfileDesignRules.slopeAllowed(
+                                RoadStationing.canonicalLength(network, candidate))
+                            && !VerticalProfileDesignRules.isFlat(alignment)) {
+                        double length = RoadStationing.canonicalLength(network, candidate);
+                        double elevation = alignment.getPvis().getFirst().getElevation();
+                        candidate.setVerticalAlignment(
+                            VerticalProfileDesignRules.flatAlignment(length, elevation));
+                        candidate.setVerticalMode(RoadVerticalMode.FLAT);
+                        count++;
+                    }
+                }
+                return count;
+            },
+            c -> c > 0);
+        return changed != null ? changed : 0;
+    }
+
+    /** 校验一键修复：平路在路口采用路口标高。 */
+    public int makeRoadsFlatAtJunctionElevation() {
+        if (FlatRoadJunctionConflictResolver.find(network).isEmpty()) {
+            return 0;
+        }
+        Integer changed = mutateNetwork(
+            () -> FlatRoadJunctionConflictResolver.makeRoadsFlatAtJunctionElevation(network),
+            c -> c > 0);
+        return changed != null ? changed : 0;
+    }
+
+    /** 校验一键修复：允许冲突平路改为有坡度。 */
+    public int allowConflictingRoadsToSlope() {
+        if (FlatRoadJunctionConflictResolver.find(network).isEmpty()) {
+            return 0;
+        }
+        Integer changed = mutateNetwork(
+            () -> FlatRoadJunctionConflictResolver.allowConflictingRoadsToSlope(network),
+            c -> c > 0);
+        return changed != null ? changed : 0;
     }
 
     public void adoptSelectedPaths(List<Shape> selectedPaths) {

@@ -2,17 +2,12 @@ package com.plot.plugin.road.ui;
 
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkValidationReport;
-import com.plot.plugin.road.alignment.HorizontalAlignmentCenterlineMaterializer;
 import com.plot.plugin.road.centerline.CenterlineEditResult;
+import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
-import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
-import com.plot.plugin.road.vertical.VerticalAlignmentGradeSmoother;
-import com.plot.plugin.road.station.RoadStationing;
-import com.plot.plugin.road.vertical.RoadVerticalMode;
-import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
-import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
 import com.plot.plugin.road.vertical.FlatRoadJunctionConflictResolver;
+import com.plot.plugin.road.vertical.VerticalAlignmentGradeSmoother;
 import com.plot.plugin.road.validation.RoadValidationAction;
 import com.plot.plugin.road.validation.RoadValidationDrillDown;
 import com.plot.plugin.road.validation.RoadValidationMessage;
@@ -180,28 +175,27 @@ public final class RoadValidationMessageUi {
         if (action == null || ctx == null) {
             return false;
         }
+        RoadNetworkManager manager = ctx.networkManager();
         return switch (action) {
             case RECONCILE_INTERSECTIONS -> {
                 RoadTopologyWorkflow.reconcileIntersections(ctx, true);
                 yield true;
             }
             case SYNC_SEGMENT_ORDER -> {
-                if (network == null || road == null) {
+                if (road == null) {
                     yield false;
                 }
-                ctx.networkManager().pushHistory();
-                boolean synced = RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(network, road);
+                boolean synced = manager.syncRoadSegmentOrder(road);
                 if (synced) {
                     ctx.status().success(PlotI18n.tr("plugin.road.sync_segment_order_success"));
                 }
                 yield synced;
             }
             case SNAP_TO_JUNCTION, MATERIALIZE_ALIGNMENT -> {
-                if (road == null || network == null) {
+                if (road == null) {
                     yield false;
                 }
-                ctx.networkManager().pushHistory();
-                CenterlineEditResult result = HorizontalAlignmentCenterlineMaterializer.materialize(network, road);
+                CenterlineEditResult result = manager.materializeHorizontalAlignment(road);
                 if (result.isSuccess()) {
                     ctx.status().success(PlotI18n.tr("plugin.road.horizontal_alignment_materialize_success"));
                     yield true;
@@ -210,13 +204,10 @@ public final class RoadValidationMessageUi {
                 yield false;
             }
             case SMOOTH_GRADE -> {
-                var config = ctx.networkManager().getConfig();
-                var net = network != null ? network : ctx.networkManager().getNetwork();
-                ctx.networkManager().pushHistory();
                 if (road != null) {
-                    if (VerticalAlignmentGradeSmoother.smoothRoad(net, road, config)) {
+                    if (manager.smoothRoadGrade(road)) {
                         ctx.onGenerationConfigChanged();
-                        float limit = road.getEffectiveMaxSlope(config);
+                        float limit = road.getEffectiveMaxSlope(manager.getConfig());
                         if (VerticalAlignmentGradeSmoother.exceedsGradeLimit(road.getVerticalAlignment(), limit)) {
                             ctx.status().warning(PlotI18n.tr("plugin.road.smooth_grade_partial"));
                         } else {
@@ -225,7 +216,7 @@ public final class RoadValidationMessageUi {
                         yield true;
                     }
                 } else {
-                    int count = VerticalAlignmentGradeSmoother.smoothAllExceeding(net, config);
+                    int count = manager.smoothAllExceedingGrades();
                     if (count > 0) {
                         ctx.onGenerationConfigChanged();
                         ctx.status().success(PlotI18n.tr("plugin.road.smooth_grade_success", count));
@@ -236,32 +227,14 @@ public final class RoadValidationMessageUi {
                 yield false;
             }
             case MAKE_SHORT_ROADS_FLAT -> {
-                RoadNetwork net = network != null ? network : ctx.networkManager().getNetwork();
+                RoadNetwork net = network != null ? network : manager.getNetwork();
                 int invalidCount = com.plot.plugin.road.RoadNetworkEngineeringValidator
                     .countShortRoadsWithNonFlatActiveAlignment(net);
                 if (invalidCount == 0) {
                     ctx.status().warning(PlotI18n.tr("plugin.road.short_roads_flat_failed"));
                     yield false;
                 }
-                int changed = 0;
-                ctx.networkManager().pushHistory();
-                for (Road candidate : net.getRoads().values()) {
-                    var alignment = candidate.getVerticalAlignment();
-                    if ((candidate.getVerticalMode() == RoadVerticalMode.FLAT
-                            || candidate.getVerticalMode() == RoadVerticalMode.MANUAL_PROFILE)
-                            && RoadStationing.isStationable(net, candidate)
-                            && VerticalAlignmentGeometry.isEvaluable(alignment)
-                            && !VerticalProfileDesignRules.slopeAllowed(
-                                RoadStationing.canonicalLength(net, candidate))
-                            && !VerticalProfileDesignRules.isFlat(alignment)) {
-                        double length = RoadStationing.canonicalLength(net, candidate);
-                        double elevation = alignment.getPvis().getFirst().getElevation();
-                        candidate.setVerticalAlignment(
-                            VerticalProfileDesignRules.flatAlignment(length, elevation));
-                        candidate.setVerticalMode(RoadVerticalMode.FLAT);
-                        changed++;
-                    }
-                }
+                int changed = manager.makeShortRoadsFlat();
                 if (changed > 0) {
                     ctx.onGenerationConfigChanged();
                     ctx.status().success(PlotI18n.tr("plugin.road.short_roads_flat_success", changed));
@@ -270,10 +243,11 @@ public final class RoadValidationMessageUi {
                 yield false;
             }
             case FLAT_TO_JUNCTION_ELEVATION -> {
-                RoadNetwork net = network != null ? network : ctx.networkManager().getNetwork();
-                if (FlatRoadJunctionConflictResolver.find(net).isEmpty()) yield false;
-                ctx.networkManager().pushHistory();
-                int changed = FlatRoadJunctionConflictResolver.makeRoadsFlatAtJunctionElevation(net);
+                RoadNetwork net = network != null ? network : manager.getNetwork();
+                if (FlatRoadJunctionConflictResolver.find(net).isEmpty()) {
+                    yield false;
+                }
+                int changed = manager.makeRoadsFlatAtJunctionElevation();
                 if (changed > 0) {
                     ctx.onGenerationConfigChanged();
                     ctx.status().success(PlotI18n.tr("plugin.road.flat_junction_adopted", changed));
@@ -283,10 +257,11 @@ public final class RoadValidationMessageUi {
                 yield false;
             }
             case ALLOW_FLAT_ROADS_TO_SLOPE -> {
-                RoadNetwork net = network != null ? network : ctx.networkManager().getNetwork();
-                if (FlatRoadJunctionConflictResolver.find(net).isEmpty()) yield false;
-                ctx.networkManager().pushHistory();
-                int changed = FlatRoadJunctionConflictResolver.allowConflictingRoadsToSlope(net);
+                RoadNetwork net = network != null ? network : manager.getNetwork();
+                if (FlatRoadJunctionConflictResolver.find(net).isEmpty()) {
+                    yield false;
+                }
+                int changed = manager.allowConflictingRoadsToSlope();
                 if (changed > 0) {
                     ctx.onGenerationConfigChanged();
                     ctx.status().success(PlotI18n.tr("plugin.road.flat_junction_slope_allowed", changed));
@@ -295,8 +270,10 @@ public final class RoadValidationMessageUi {
                 yield false;
             }
             case CANCEL_JUNCTION_ELEVATION_CHANGE -> {
-                if (!ctx.networkManager().canUndo()) yield false;
-                ctx.networkManager().undo();
+                if (!manager.canUndo()) {
+                    yield false;
+                }
+                manager.undo();
                 ctx.status().info(PlotI18n.tr("plugin.road.flat_junction_change_cancelled"));
                 yield true;
             }

@@ -20,7 +20,7 @@ Plot includes several built-in plugins accessible from the **Extension** tab in 
 | **Pattern Generator** | Claim closed regions and replace surface blocks with procedural patterns or imported pixel art |
 | **Power Lines** | Place poles along straight/polyline routes and generate decorative sagging wires |
 
-Earthwork, Road System, and Building Generator use **Overview / Adopt / Edit / Generate** tabs. Pattern Generator uses **Region / Pattern / Generate**. Power Lines uses **Route / Style / Build** (the Route tab also includes the line list and overview map).
+Earthwork and Building Generator use **Overview / Adopt / Edit / Generate** tabs. **Road System** uses **Path / Edit / Generate**. Pattern Generator uses **Region / Pattern / Generate**. Power Lines uses **Route / Style / Build** (the Route tab also includes the line list and overview map).
 
 ---
 
@@ -30,16 +30,25 @@ Earthwork, Road System, and Building Generator use **Overview / Adopt / Edit / G
 
 1. Draw road centerlines with polyline, spline, or similar tools
 2. Open **Extension** -> **Road System** -> enable the plugin
-3. Use the **Adopt** tab to claim paths as roads
-4. Use **Edit** to set width, cross-section, materials, and node elevation
-5. Use **Generate** to preview ghost blocks, then project to the world
+3. In **Path**, pick or click/box-select paths on the canvas to adopt roads; manage the road list and intersections; set vertical strategy (terrain adaptive / flat) and Flat Base Y
+4. In **Edit**, set presets, width, cross-section, materials, and street furniture
+5. In **Generate**, tune terrain adaptation and max slope, edit the longitudinal profile (recommended elevations and editor window), run preview, then project to the world
+
+### Three-tab layout
+
+| Tab | Focus |
+|-----|--------|
+| **Path** | Pick/canvas selection, road list, intersections, vertical strategy, network overview |
+| **Edit** | Cross-section presets, width/lanes, materials, furniture, advanced design |
+| **Generate** | Terrain sampling, preview job, profile chart, validation, build |
 
 ### Features
 
 - Presets (urban main/secondary roads, rural roads, highways)
-- Width, materials, slope and bridge/tunnel thresholds
+- Canvas corridor overlay: click/box-select roads with true-width corridors
+- Width, materials, slope and bridge/tunnel thresholds; flat-road elevation recommendations
 - Sidewalks, shoulders, drainage, streetlights
-- Junction markings (auto / force on / force off)
+- Junction markings (auto / force on / force off) and intersection editing
 - Cut/fill estimates and preview building
 
 ### Property Panel Integration
