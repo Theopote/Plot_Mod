@@ -12,6 +12,7 @@ import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadGradeSeparationEvaluation;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.profile.ProfileControlPoint;
+import com.plot.plugin.road.profile.ProfilePointRole;
 import com.plot.plugin.road.profile.RoadProfileChartAssembler;
 import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.profile.RoadProfileChartRenderer;
@@ -548,6 +549,11 @@ final class VerticalProfileEditor {
                 .orElse(null);
             if (draggedPoint != null && draggedPoint.sharedJunction()) {
                 requestedStation = currentStation;
+            }
+            if (draggedPoint != null && draggedPoint.role() == ProfilePointRole.START_ENDPOINT) {
+                requestedStation = 0.0;
+            } else if (draggedPoint != null && draggedPoint.role() == ProfilePointRole.END_ENDPOINT) {
+                requestedStation = RoadStationing.canonicalLength(network, road);
             }
             if (draggedPoint != null
                     && VerticalProfileControlPoints.isEditablePvi(network, road, draggedPoint)) {

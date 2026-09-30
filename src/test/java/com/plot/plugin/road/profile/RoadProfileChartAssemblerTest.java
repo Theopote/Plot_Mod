@@ -65,6 +65,52 @@ class RoadProfileChartAssemblerTest {
     }
 
     @Test
+    void fourSegmentRoadHasNoDuplicateSeamStations() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("main");
+        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 64.0),
+            PointOfVerticalIntersection.of(40.0, 70.0)
+        )));
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 0));
+        RoadNode n3 = network.createNode(new Vec2d(20, 0));
+        RoadNode n4 = network.createNode(new Vec2d(30, 0));
+        RoadNode n5 = network.createNode(new Vec2d(40, 0));
+        String edge1 = network.createEdge(
+            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId()).getId();
+        String edge2 = network.createEdge(
+            n2.getId(), n3.getId(), List.of(new Vec2d(10, 0), new Vec2d(20, 0)), road.getId()).getId();
+        String edge3 = network.createEdge(
+            n3.getId(), n4.getId(), List.of(new Vec2d(20, 0), new Vec2d(30, 0)), road.getId()).getId();
+        String edge4 = network.createEdge(
+            n4.getId(), n5.getId(), List.of(new Vec2d(30, 0), new Vec2d(40, 0)), road.getId()).getId();
+
+        Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
+        edgeResults.put(edge1, profileResult(10.0, 64, 65));
+        edgeResults.put(edge2, profileResult(10.0, 65, 66));
+        edgeResults.put(edge3, profileResult(10.0, 66, 68));
+        edgeResults.put(edge4, profileResult(10.0, 68, 70));
+
+        RoadProfileChartData chart = RoadProfileChartAssembler.assemble(
+            network,
+            road,
+            new RoadSystemConfig("test"),
+            edgeResults).orElseThrow();
+
+        assertEquals(5, chart.stations().size());
+        assertEquals(0.0, chart.stations().getFirst(), 1e-3);
+        assertEquals(10.0, chart.stations().get(1), 1e-3);
+        assertEquals(20.0, chart.stations().get(2), 1e-3);
+        assertEquals(30.0, chart.stations().get(3), 1e-3);
+        assertEquals(40.0, chart.stations().getLast(), 1e-3);
+        for (int i = 1; i < chart.stations().size(); i++) {
+            assertTrue(chart.stations().get(i) > chart.stations().get(i - 1));
+        }
+    }
+
+    @Test
     void controlPointsIncludeRoadEndpoints() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("main");

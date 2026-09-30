@@ -1,6 +1,8 @@
 package com.plot.plugin.road.profile;
 
 import com.plot.plugin.road.RoadLongitudinalProfileRenderer;
+import com.plot.plugin.road.station.RoadStationFormat;
+import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
 import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
 import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
@@ -9,6 +11,7 @@ import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
+import imgui.flag.ImGuiMouseCursor;
 
 import java.util.List;
 
@@ -29,7 +32,10 @@ public final class RoadProfileChartRenderer {
     private static final int COLOR_CONTROL_SELECTED = 0xFFFFFFFF;
     private static final int COLOR_CONTROL_INVALID = PluginUiColors.ERROR;
     private static final int COLOR_ENDPOINT = 0xFFFFE066;
+    private static final int COLOR_JUNCTION_FIXED = 0xFF9AA0A6;
     private static final float DRAG_THRESHOLD_PX = 5f;
+    private static final float DASH_LENGTH = 6f;
+    private static final float DASH_GAP = 4f;
 
     private RoadProfileChartRenderer() {
     }
@@ -169,6 +175,7 @@ public final class RoadProfileChartRenderer {
             if (hoveredHit != null) {
                 hoveredIntersection = hoveredHit.index();
             }
+            updateHoverCursor(controls, layout, range, mouseX, mouseY, active, activeIntersectionDrag);
         }
 
         if (activeCurvePvi >= 0 && ImGui.isMouseDown(0)) {
@@ -369,8 +376,8 @@ public final class RoadProfileChartRenderer {
         List<Double> stationTicks = ProfileElevationTicks.stationTicks(range.totalStation(), 5);
         for (double station : stationTicks) {
             float x = layout.plotX(station, range.totalStation());
-            String label = String.format("%.0fm", station);
-            drawList.addText(x - 12f, layout.plotBottom() + 4f, COLOR_LABEL, label);
+            String label = RoadStationing.format(station, RoadStationFormat.KILOMETER_PLUS);
+            drawList.addText(x - 16f, layout.plotBottom() + 4f, COLOR_LABEL, label);
         }
     }
 
@@ -421,10 +428,43 @@ public final class RoadProfileChartRenderer {
             float x1 = layout.plotX(stations.get(i), range.totalStation());
             float y1 = layout.plotY(elevations.get(i), range.minElevation(), range.maxElevation());
             if (dashed) {
-                drawList.addLine(x0, y0, x1, y1, color, thickness);
+                drawDashedLine(drawList, x0, y0, x1, y1, color, thickness);
             } else {
                 drawList.addLine(x0, y0, x1, y1, color, thickness);
             }
+        }
+    }
+
+    private static void drawDashedLine(
+            ImDrawList drawList,
+            float x0,
+            float y0,
+            float x1,
+            float y1,
+            int color,
+            float thickness) {
+        float dx = x1 - x0;
+        float dy = y1 - y0;
+        float length = (float) Math.hypot(dx, dy);
+        if (length <= 1e-3f) {
+            return;
+        }
+        float ux = dx / length;
+        float uy = dy / length;
+        float traveled = 0f;
+        boolean drawing = true;
+        while (traveled < length) {
+            float segment = drawing ? DASH_LENGTH : DASH_GAP;
+            float next = Math.min(length, traveled + segment);
+            if (drawing) {
+                float sx = x0 + ux * traveled;
+                float sy = y0 + uy * traveled;
+                float ex = x0 + ux * next;
+                float ey = y0 + uy * next;
+                drawList.addLine(sx, sy, ex, ey, color, thickness);
+            }
+            traveled = next;
+            drawing = !drawing;
         }
     }
 
@@ -442,15 +482,22 @@ public final class RoadProfileChartRenderer {
             float x = layout.plotX(point.roadStation(), range.totalStation());
             float y = layout.plotY(point.elevation(), range.minElevation(), range.maxElevation());
             boolean invalid = VerticalProfileControlPoints.exceedsGradeLimit(point, maxGradePercent);
+            boolean junctionFixed = point.role() == ProfilePointRole.JUNCTION_FIXED;
             int color = invalid ? COLOR_CONTROL_INVALID : COLOR_CONTROL;
             if (point.pviIndex() == selected) {
                 color = COLOR_CONTROL_SELECTED;
             }
-            float radius = point.endpoint() ? 6.5f : 4.5f;
+            float radius = point.endpoint() ? 6.5f : junctionFixed ? 3.5f : 4.5f;
             if (point.endpoint()) {
                 color = point.pviIndex() == selected ? COLOR_CONTROL_SELECTED : COLOR_ENDPOINT;
+            } else if (junctionFixed) {
+                color = point.pviIndex() == selected ? COLOR_CONTROL_SELECTED : COLOR_JUNCTION_FIXED;
             }
-            drawList.addCircleFilled(x, y, radius, color);
+            if (junctionFixed) {
+                drawList.addRectFilled(x - radius, y - radius, x + radius, y + radius, color);
+            } else {
+                drawList.addCircleFilled(x, y, radius, color);
+            }
             drawList.addCircle(x, y, radius + 1.2f, COLOR_BG, 12, 1.2f);
         }
     }
@@ -489,6 +536,46 @@ public final class RoadProfileChartRenderer {
     private static boolean isEditable(List<ProfileControlPoint> controls, int index) {
         ProfileControlPoint point = findControlPoint(controls, index);
         return point != null && point.elevationEditable();
+    }
+
+    private static void updateHoverCursor(
+            List<ProfileControlPoint> controls,
+            ProfileChartLayout layout,
+            RoadProfilePlotRange range,
+            float mouseX,
+            float mouseY,
+            int activePvi,
+            int activeIntersectionDrag) {
+        if (activePvi >= 0 || activeIntersectionDrag >= 0) {
+            return;
+        }
+        ProfileControlPoint hovered = findHoveredControl(controls, layout, range, mouseX, mouseY);
+        if (hovered != null && hovered.endpoint() && hovered.elevationEditable()) {
+            ImGui.setMouseCursor(ImGuiMouseCursor.ResizeNS);
+        }
+    }
+
+    private static ProfileControlPoint findHoveredControl(
+            List<ProfileControlPoint> controls,
+            ProfileChartLayout layout,
+            RoadProfilePlotRange range,
+            float mouseX,
+            float mouseY) {
+        if (controls == null || controls.isEmpty()) {
+            return null;
+        }
+        double best = 12.0 * 12.0;
+        ProfileControlPoint bestPoint = null;
+        for (ProfileControlPoint point : controls) {
+            float x = layout.plotX(point.roadStation(), range.totalStation());
+            float y = layout.plotY(point.elevation(), range.minElevation(), range.maxElevation());
+            double dist = (mouseX - x) * (mouseX - x) + (mouseY - y) * (mouseY - y);
+            if (dist <= best) {
+                best = dist;
+                bestPoint = point;
+            }
+        }
+        return bestPoint;
     }
 
     private static int nearestControl(
