@@ -49,16 +49,11 @@ class RoadWorkflowTest {
         adoptPath(List.of(new Vec2d(5, 5), new Vec2d(5, 10)));
 
         RoadNetwork network = manager.getNetwork();
-        assertEquals(3, network.getEdges().size());
+        assertEquals(2, network.getEdges().size());
         assertEquals(4, network.getNodes().size());
-        assertEquals(1, network.getJunctionCount());
+        assertEquals(0, network.getJunctionCount());
 
-        RoadNode junction = findNodeNear(network, new Vec2d(5, 5));
-        assertNotNull(junction);
-        assertEquals(3, junction.getDegree());
-        assertEquals(RoadNetworkBuilder.JunctionType.T_JUNCTION, builder.classify(junction));
-
-        String horizontalRoadId = findRoadWithSegmentCount(network, 2);
+        String horizontalRoadId = network.getRoads().values().iterator().next().getId();
         assertNotNull(horizontalRoadId);
 
         manager.selectRoad(horizontalRoadId, false);
@@ -97,19 +92,30 @@ class RoadWorkflowTest {
     void scenario2_crossroadGradeSeparationGenerateWithClearance() {
         adoptPath(List.of(new Vec2d(0, 5), new Vec2d(10, 5)));
         adoptPath(List.of(new Vec2d(5, 0), new Vec2d(5, 10)));
+        manager.reconcileCrossings();
 
         RoadNetwork network = manager.getNetwork();
-        RoadNode junction = findNodeNear(network, new Vec2d(5, 5));
-        assertNotNull(junction);
-        assertEquals(4, junction.getDegree());
-        assertEquals(RoadNetworkBuilder.JunctionType.CROSSROAD, builder.classify(junction));
+        assertEquals(1, network.getCrossings().size());
+        com.plot.plugin.road.crossing.RoadCrossing crossing =
+            network.getCrossings().values().iterator().next();
 
-        String verticalRoadId = findVerticalRoadAtJunction(network, junction);
-        String horizontalRoadId = findHorizontalRoadAtJunction(network, junction);
+        String verticalRoadId = isMostlyVerticalRoad(network, crossing.roadAId())
+            ? crossing.roadAId() : crossing.roadBId();
+        String horizontalRoadId = crossing.otherRoadId(verticalRoadId);
         assertNotNull(verticalRoadId);
         assertNotNull(horizontalRoadId);
 
         config.setDefaultCrossingClearance(3.0);
+        assertTrue(network.setCrossingGradeSeparation(
+            crossing.id(),
+            com.plot.plugin.road.crossing.CrossingType.GRADE_SEPARATED,
+            verticalRoadId,
+            3.0));
+
+        new RoadNetworkBuilder().detectAndSplitIntersections(network);
+        RoadNode junction = findNodeNear(network, new Vec2d(5, 5));
+        assertNotNull(junction);
+        assertEquals(4, junction.getDegree());
         assertTrue(network.setNodeGradeSeparation(junction.getId(), true, verticalRoadId, 3.0));
 
         RoadGenerator generator = new RoadGenerator(
@@ -329,5 +335,19 @@ class RoadWorkflowTest {
             ? edge.getEndNodeId()
             : edge.getStartNodeId();
         return network.getNode(otherId);
+    }
+
+    private static boolean isMostlyVerticalRoad(RoadNetwork network, String roadId) {
+        RoadEdge edge = network.getEdges().values().stream()
+            .filter(candidate -> roadId.equals(candidate.getRoadId()))
+            .findFirst()
+            .orElse(null);
+        if (edge == null || edge.getCenterlinePoints().size() < 2) {
+            return false;
+        }
+        Vec2d start = edge.getCenterlinePoints().getFirst();
+        Vec2d end = edge.getCenterlinePoints().getLast();
+        Vec2d delta = end.subtract(start);
+        return Math.abs(delta.x) < Math.abs(delta.y);
     }
 }

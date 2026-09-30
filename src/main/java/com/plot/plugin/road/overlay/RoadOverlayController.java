@@ -6,6 +6,8 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadTopologyMode;
+import com.plot.plugin.road.station.RoadLoopSeamService;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -47,6 +49,11 @@ public final class RoadOverlayController {
             }
             List<com.plot.api.geometry.Vec2d> centerline =
                 RoadOverlayGeometry.resolvePlanCenterline(network, road);
+            com.plot.api.geometry.Vec2d profileSeam = null;
+            if (road.getTopologyMode() == RoadTopologyMode.LOOP
+                    && road.getId().equals(primaryRoadId)) {
+                profileSeam = RoadLoopSeamService.overlayPosition(network, road);
+            }
             entries.add(new RoadOverlayEntry(
                 road.getId(),
                 road.getName(),
@@ -57,7 +64,8 @@ public final class RoadOverlayController {
                     selectedRoadIds,
                     primaryRoadId,
                     warnings,
-                    previewed)));
+                    previewed),
+                profileSeam));
         }
 
         appendPickCandidates(entries, pickCandidatePaths, config, coordinates, pickSessionActive);

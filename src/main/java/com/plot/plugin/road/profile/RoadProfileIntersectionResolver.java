@@ -2,6 +2,8 @@ package com.plot.plugin.road.profile;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadEdgeListHelper;
+import com.plot.plugin.road.crossing.CrossingType;
+import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -62,8 +64,58 @@ public final class RoadProfileIntersectionResolver {
                     config, edgeResult, intersections);
             }
         }
+        collectFromCrossings(network, road, config, intersections);
         intersections.sort(Comparator.comparingDouble(RoadProfileIntersection::roadStation));
         return List.copyOf(intersections);
+    }
+
+    private static void collectFromCrossings(
+            RoadNetwork network,
+            Road currentRoad,
+            RoadSystemConfig config,
+            List<RoadProfileIntersection> out) {
+        for (RoadCrossing crossing : network.crossingsForRoad(currentRoad.getId())) {
+            String otherRoadId = crossing.otherRoadId(currentRoad.getId());
+            if (otherRoadId == null) {
+                continue;
+            }
+            Road otherRoad = network.getRoad(otherRoadId);
+            if (otherRoad == null) {
+                continue;
+            }
+            double roadStation = crossing.stationOn(currentRoad.getId());
+            double otherStation = crossing.stationOn(otherRoadId);
+            OptionalDouble currentElevation = VerticalAlignmentGeometry.elevationAt(
+                currentRoad.getVerticalAlignment(), roadStation);
+            OptionalDouble otherElevation = VerticalAlignmentGeometry.elevationAt(
+                otherRoad.getVerticalAlignment(), otherStation);
+            if (currentElevation.isEmpty() || otherElevation.isEmpty()) {
+                continue;
+            }
+            boolean gradeSeparated = crossing.type() == CrossingType.GRADE_SEPARATED;
+            String elevatedRoadId = crossing.elevatedRoadId();
+            boolean currentElevated = gradeSeparated
+                && (elevatedRoadId == null || elevatedRoadId.equals(currentRoad.getId()));
+            double clearance = crossing.crossingClearance() != null
+                ? crossing.crossingClearance()
+                : config.getDefaultCrossingClearance();
+            ResolvedCrossSection otherSection =
+                VariableCrossSectionResolver.resolve(network, otherRoad, otherStation, config);
+            out.add(new RoadProfileIntersection(
+                "crossing:" + crossing.id(),
+                currentRoad.getId(),
+                otherRoadId,
+                RoadEdgeListHelper.formatRoadLabel(network, otherRoad),
+                roadStation,
+                roadStation,
+                currentElevation.getAsDouble(),
+                otherElevation.getAsDouble(),
+                otherSection,
+                gradeSeparated,
+                currentElevated,
+                clearance,
+                false));
+        }
     }
 
     public static List<RoadProfileIntersection> forEdge(

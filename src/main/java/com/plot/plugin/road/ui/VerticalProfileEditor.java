@@ -551,16 +551,28 @@ final class VerticalProfileEditor {
             if (draggedPoint != null && draggedPoint.sharedJunction()) {
                 requestedStation = currentStation;
             }
-            if (draggedPoint != null && draggedPoint.role() == ProfilePointRole.START_ENDPOINT) {
+            if (draggedPoint != null && (draggedPoint.role() == ProfilePointRole.START_ENDPOINT
+                    || draggedPoint.role() == ProfilePointRole.LOOP_SEAM_START)) {
                 requestedStation = 0.0;
-            } else if (draggedPoint != null && draggedPoint.role() == ProfilePointRole.END_ENDPOINT) {
+            } else if (draggedPoint != null && (draggedPoint.role() == ProfilePointRole.END_ENDPOINT
+                    || draggedPoint.role() == ProfilePointRole.LOOP_SEAM_END)) {
                 requestedStation = RoadStationing.canonicalLength(network, road);
             }
             if (draggedPoint != null
                     && VerticalProfileControlPoints.isEditablePvi(network, road, draggedPoint)) {
-                road.setVerticalAlignment(VerticalProfileControlPoints.move(
-                    road.getVerticalAlignment(), editorState.selectedProfilePvi, requestedStation,
-                    interaction.draggedElevation(), RoadStationing.canonicalLength(network, road)));
+                double elevation = interaction.draggedElevation();
+                if (road.getTopologyMode() == com.plot.plugin.road.model.RoadTopologyMode.LOOP
+                        && (draggedPoint.role() == ProfilePointRole.LOOP_SEAM_START
+                            || draggedPoint.role() == ProfilePointRole.LOOP_SEAM_END
+                            || draggedPoint.role() == ProfilePointRole.START_ENDPOINT
+                            || draggedPoint.role() == ProfilePointRole.END_ENDPOINT)) {
+                    road.setVerticalAlignment(VerticalProfileControlPoints.withElevation(
+                        road.getVerticalAlignment(), editorState.selectedProfilePvi, elevation, road));
+                } else {
+                    road.setVerticalAlignment(VerticalProfileControlPoints.move(
+                        road.getVerticalAlignment(), editorState.selectedProfilePvi, requestedStation,
+                        elevation, RoadStationing.canonicalLength(network, road)));
+                }
                 road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
             }
         }

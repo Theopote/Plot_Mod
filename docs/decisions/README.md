@@ -13,3 +13,4 @@
 | [0007](0007-road-design-derived-topology-geometry.md) | 道路三层几何：Design / Derived / Topology |
 | [0008](0008-auto-smooth-v1-semantics.md) | AUTO_SMOOTH v1 语义（自动控坡） |
 | [0009](0009-earthwork-minecraft-tool-not-civil-cad.md) | 土方插件是 Minecraft 整形工具，不是 Civil CAD |
+| [0010](0010-path-adopt-identity.md) | 路径认领保持源路径身份 |

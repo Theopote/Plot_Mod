@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -89,13 +90,44 @@ class RoadNetworkBuilderTest {
     }
 
     @Test
-    void adoptEndpointToMiddleCreatesTJunction() {
+    void adoptSkipsIntersectionSplit() {
         RoadNetwork network = new RoadNetwork();
 
         builder.adoptShape(network, new PolylineShape(
             List.of(new Vec2d(0, 5), new Vec2d(10, 5)), false), config);
         builder.adoptShape(network, new PolylineShape(
             List.of(new Vec2d(5, 5), new Vec2d(5, 10)), false), config);
+
+        assertEquals(2, network.getEdges().size());
+        assertEquals(4, network.getNodes().size());
+        assertEquals(0, network.getJunctionCount());
+    }
+
+    @Test
+    void adoptDoesNotSnapToExistingNode() {
+        RoadNetwork network = new RoadNetwork();
+
+        builder.adoptShape(network, new PolylineShape(
+            List.of(new Vec2d(0, 5), new Vec2d(10, 5)), false), config);
+        builder.adoptShape(network, new PolylineShape(
+            List.of(new Vec2d(10, 5), new Vec2d(20, 5)), false), config);
+
+        long nodesNearSharedEndpoint = network.getNodes().values().stream()
+            .filter(node -> RoadGeometryUtils.pointsNear(node.getPosition(), new Vec2d(10, 5), 1e-6))
+            .count();
+        assertEquals(2, nodesNearSharedEndpoint);
+    }
+
+    @Test
+    void detectAndSplitIntersectionsCreatesTJunction() {
+        RoadNetwork network = new RoadNetwork();
+
+        builder.adoptShape(network, new PolylineShape(
+            List.of(new Vec2d(0, 5), new Vec2d(10, 5)), false), config);
+        builder.adoptShape(network, new PolylineShape(
+            List.of(new Vec2d(5, 5), new Vec2d(5, 10)), false), config);
+
+        builder.detectAndSplitIntersections(network);
 
         assertEquals(3, network.getEdges().size());
         assertEquals(4, network.getNodes().size());
@@ -108,13 +140,15 @@ class RoadNetworkBuilderTest {
     }
 
     @Test
-    void adoptMiddleToMiddleCreatesCrossroad() {
+    void detectAndSplitIntersectionsCreatesCrossroad() {
         RoadNetwork network = new RoadNetwork();
 
         builder.adoptShape(network, new PolylineShape(
             List.of(new Vec2d(0, 5), new Vec2d(10, 5)), false), config);
         builder.adoptShape(network, new PolylineShape(
             List.of(new Vec2d(5, 0), new Vec2d(5, 10)), false), config);
+
+        builder.detectAndSplitIntersections(network);
 
         assertEquals(4, network.getEdges().size());
         assertEquals(5, network.getNodes().size());
@@ -300,6 +334,8 @@ class RoadNetworkBuilderTest {
             List.of(new Vec2d(5, 5), new Vec2d(5, 10)), false), config);
 
         String roadBId = result.edges().getFirst().getRoadId();
+        builder.detectAndSplitIntersections(network);
+
         Road roadB = network.getRoad(roadBId);
         assertNotNull(roadB);
 
@@ -401,6 +437,8 @@ class RoadNetworkBuilderTest {
         builder.adoptShape(network, new PolylineShape(
             List.of(new Vec2d(0, 5), new Vec2d(10, 5)), false), config);
 
+        builder.detectAndSplitIntersections(network);
+
         long nodesNearSelfCross = network.getNodes().values().stream()
             .filter(node -> RoadGeometryUtils.pointsNear(
                 node.getPosition(), new Vec2d(5, 5), RoadNetworkBuilder.NODE_TOLERANCE))
@@ -411,24 +449,20 @@ class RoadNetworkBuilderTest {
     @Test
     void sameAdoptGroupSkipsIntersectionWhenRoadIdsDiffer() {
         RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("self-cross");
+        String adoptGroup = UUID.randomUUID().toString();
 
-        builder.adoptShape(network, new PolylineShape(
-            List.of(new Vec2d(0, 0), new Vec2d(10, 10), new Vec2d(10, 0), new Vec2d(0, 10)), false), config);
-        builder.adoptShape(network, new PolylineShape(
-            List.of(new Vec2d(0, 5), new Vec2d(10, 5)), false), config);
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 10));
+        RoadNode n3 = network.createNode(new Vec2d(10, 0));
+        RoadNode n4 = network.createNode(new Vec2d(0, 10));
+        RoadEdge segmentA = network.createEdge(n1.getId(), n2.getId(), List.of(
+            new Vec2d(0, 0), new Vec2d(10, 10)), road.getId());
+        RoadEdge segmentB = network.createEdge(n3.getId(), n4.getId(), List.of(
+            new Vec2d(10, 0), new Vec2d(0, 10)), road.getId());
+        segmentA.setSourceRoadId(adoptGroup);
+        segmentB.setSourceRoadId(adoptGroup);
 
-        String adoptGroup = network.getEdges().values().stream()
-            .map(RoadEdge::getSourceRoadId)
-            .filter(Objects::nonNull)
-            .findFirst()
-            .orElseThrow();
-        List<RoadEdge> siblings = network.getEdges().values().stream()
-            .filter(edge -> adoptGroup.equals(edge.getSourceRoadId()))
-            .toList();
-        assertTrue(siblings.size() >= 2);
-
-        RoadEdge segmentA = siblings.get(0);
-        RoadEdge segmentB = siblings.get(1);
         Road reassignedRoad = network.createRoad("reassigned-road");
         segmentB.setRoadId(reassignedRoad.getId());
         network.assignEdgeToRoad(segmentB.getId(), reassignedRoad.getId());
@@ -445,7 +479,7 @@ class RoadNetworkBuilderTest {
     }
 
     @Test
-    void differentAdoptGroupsStillIntersect() {
+    void differentAdoptGroupsRemainIndependentUntilReconcile() {
         RoadNetwork network = new RoadNetwork();
 
         RoadNetworkBuilder.AdoptResult first = builder.adoptShape(network, new PolylineShape(
@@ -456,6 +490,10 @@ class RoadNetworkBuilderTest {
         assertNotEquals(
             first.edges().getFirst().getSourceRoadId(),
             second.edges().getFirst().getSourceRoadId());
+        assertEquals(2, network.getEdges().size());
+        assertEquals(0, network.getJunctionCount());
+
+        builder.detectAndSplitIntersections(network);
         assertEquals(3, network.getEdges().size());
         assertEquals(1, network.getJunctionCount());
     }

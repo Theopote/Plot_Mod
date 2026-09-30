@@ -62,7 +62,7 @@ final class RoadDesignPanel {
             RoadEdge current,
             ChainageDisplayContext chainageDisplay) {
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.design_stack.identity"))) {
-            identityEditor.render(network, road, ctx.networkManager()::pushHistory);
+            identityEditor.render(network, road, ctx.networkManager(), ctx.networkManager()::pushHistory);
             renderRoadIdentitySummary(network, road, chainageDisplay);
             if (chainageDisplay != null) {
                 renderChainageDisplayToggle();

@@ -145,6 +145,9 @@ public final class RoadTopologyRoadSplitter {
                     && !subgraph.hasBranching
                     && subgraph.endpointCount == 0) {
                 road.setTopologyMode(RoadTopologyMode.LOOP);
+                if (road.getLoopSeam() == null) {
+                    road.setLoopSeam(com.plot.plugin.road.station.RoadLoopSeamService.computeDefault(network, road));
+                }
                 promoted++;
             }
         }

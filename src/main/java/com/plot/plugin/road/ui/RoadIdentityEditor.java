@@ -1,6 +1,7 @@
 package com.plot.plugin.road.ui;
 
 import com.plot.plugin.road.RoadEdgeListHelper;
+import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadTopologyMode;
@@ -22,7 +23,7 @@ public final class RoadIdentityEditor {
     private String syncedRoadId = "";
     private final ImString nameBuffer = new ImString(MAX_NAME_LENGTH);
 
-    public void render(RoadNetwork network, Road road, Runnable onHistory) {
+    public void render(RoadNetwork network, Road road, RoadNetworkManager networkManager, Runnable onHistory) {
         if (road == null || network == null) {
             return;
         }
@@ -71,6 +72,9 @@ public final class RoadIdentityEditor {
         }
 
         renderTopologyMode(road, onHistory);
+        if (networkManager != null) {
+            renderLoopSeamControls(networkManager, road);
+        }
     }
 
     private void renderTopologyMode(Road road, Runnable onHistory) {
@@ -98,6 +102,35 @@ public final class RoadIdentityEditor {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.topology_mode.loop_hint"));
+        }
+    }
+
+    private void renderLoopSeamControls(RoadNetworkManager networkManager, Road road) {
+        if (road.getTopologyMode() != RoadTopologyMode.LOOP) {
+            return;
+        }
+        ImGui.spacing();
+        ImGui.text(PlotI18n.tr("plugin.road.loop_seam_section"));
+        if (ImGui.button(PlotI18n.tr("plugin.road.loop_seam_set_on_canvas"))) {
+            networkManager.beginLoopSeamCanvasPick(road.getId());
+        }
+        if (networkManager.getLoopSeamPickSession().matchesRoad(road.getId())) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.INFO_BLUE,
+                PlotI18n.tr("plugin.road.loop_seam_pick_active"));
+            if (ImGui.button(PlotI18n.tr("plugin.road.loop_seam_pick_cancel"))) {
+                networkManager.cancelLoopSeamCanvasPick();
+            }
+        }
+        if (networkManager.isLoopSeamRemapConfirmPending()) {
+            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.road.loop_seam_remap_confirm"));
+            if (ImGui.button(PlotI18n.tr("plugin.road.loop_seam_remap_apply"))) {
+                networkManager.confirmLoopSeamRemap();
+            }
+            ImGui.sameLine();
+            if (ImGui.button(PlotI18n.tr("plugin.road.loop_seam_remap_cancel"))) {
+                networkManager.declineLoopSeamRemap();
+            }
         }
     }
 

@@ -71,29 +71,22 @@ public class RoadNetworkBuilder {
             endPoint = shapeEndpoints.getLast();
         }
 
-        RoadNode startNode = findOrCreateNode(network, startPoint);
-        RoadNode endNode = findOrCreateNode(network, endPoint);
+        boolean geometricallyClosed = RoadGeometryUtils.pointsNear(startPoint, endPoint, NODE_TOLERANCE);
+        RoadNode startNode = network.createNode(startPoint);
+        RoadNode endNode = geometricallyClosed ? startNode : network.createNode(endPoint);
 
         Road road = network.createRoadForAdopt(defaults);
         RoadEdge edge = network.createEdge(startNode.getId(), endNode.getId(), points, road.getId());
         edge.setSourceRoadId(UUID.randomUUID().toString());
 
-        Set<String> adoptedEdgeIds = new HashSet<>();
-        adoptedEdgeIds.add(edge.getId());
-        IntersectionResult intersectionResult =
-            detectAndSplitIntersections(network, adoptedEdgeIds);
-
-        List<RoadEdge> producedEdges = adoptedEdgeIds.stream()
-            .map(network::getEdge)
-            .filter(Objects::nonNull)
-            .toList();
-        if (producedEdges.isEmpty()) {
-            throw new IllegalStateException("Adopted road produced no edges after intersection processing");
-        }
-        int junctionCount = Math.max(0, producedEdges.size() - 1);
-        return new AdoptResult(producedEdges, junctionCount, intersectionResult);
+        return new AdoptResult(List.of(edge), 0, IntersectionResult.COMPLETE);
     }
 
+    /**
+     * @deprecated 认领与 reconcile 不再写入拓扑；请使用 {@link com.plot.plugin.road.crossing.RoadCrossingReconciler}
+     * 与 {@link com.plot.plugin.road.crossing.RoadCrossingMaterializer}。
+     */
+    @Deprecated
     public IntersectionResult detectAndSplitIntersections(RoadNetwork network) {
         return detectAndSplitIntersections(network, null);
     }

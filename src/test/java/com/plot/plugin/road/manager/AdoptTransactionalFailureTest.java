@@ -2,14 +2,13 @@ package com.plot.plugin.road.manager;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.PolylineShape;
+import com.plot.core.model.Shape;
 import com.plot.plugin.config.RoadSystemConfig;
-import com.plot.plugin.road.IntersectionResult;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.model.RoadNetwork;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -20,11 +19,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AdoptTransactionalFailureTest {
 
     @Test
-    void adoptKeepsSuccessfulPathsWhenLaterPathFailsAtIntersection() {
+    void adoptKeepsSuccessfulPathsWhenLaterPathFails() {
         RoadNetworkManager manager = new RoadNetworkManager(
             new RoadSystemConfig("test"),
             new RoadProjectStatus(),
-            new IntersectionFailureAfterFirstSuccessBuilder());
+            new AdoptFailureAfterFirstSuccessBuilder());
 
         manager.adoptSelectedPaths(List.of(
             new PolylineShape(List.of(new Vec2d(0, 0), new Vec2d(10, 0)), false),
@@ -37,11 +36,11 @@ class AdoptTransactionalFailureTest {
     }
 
     @Test
-    void adoptRestoresNetworkWhenIntersectionPhaseFails() {
+    void adoptRestoresNetworkWhenAdoptFails() {
         RoadNetworkManager manager = new RoadNetworkManager(
             new RoadSystemConfig("test"),
             new RoadProjectStatus(),
-            new IntersectionFailureBuilder());
+            new AdoptFailureBuilder());
 
         RoadNetwork network = manager.getNetwork();
         assertEquals(0, network.getEdges().size());
@@ -55,30 +54,29 @@ class AdoptTransactionalFailureTest {
         assertTrue(manager.getSelectedEdgeIds().isEmpty());
     }
 
-    private static final class IntersectionFailureBuilder extends RoadNetworkBuilder {
+    private static final class AdoptFailureBuilder extends RoadNetworkBuilder {
         @Override
-        public IntersectionResult detectAndSplitIntersections(
+        public AdoptResult adoptShape(
                 RoadNetwork network,
-                Set<String> trackedEdgeIds) {
-            throw new RuntimeException("simulated intersection failure");
+                Shape shape,
+                RoadSystemConfig defaults) {
+            throw new RuntimeException("simulated adopt failure");
         }
     }
 
-    /**
-     * 第二批认领在求交阶段失败时，已成功认领的道路应保留，失败路径不得留下脏边。
-     */
-    private static final class IntersectionFailureAfterFirstSuccessBuilder extends RoadNetworkBuilder {
-        private int intersectionCalls;
+    private static final class AdoptFailureAfterFirstSuccessBuilder extends RoadNetworkBuilder {
+        private int adoptCalls;
 
         @Override
-        public IntersectionResult detectAndSplitIntersections(
+        public AdoptResult adoptShape(
                 RoadNetwork network,
-                Set<String> trackedEdgeIds) {
-            intersectionCalls++;
-            if (intersectionCalls >= 2) {
-                throw new RuntimeException("simulated intersection failure on second path");
+                Shape shape,
+                RoadSystemConfig defaults) {
+            adoptCalls++;
+            if (adoptCalls >= 2) {
+                throw new RuntimeException("simulated adopt failure on second path");
             }
-            return super.detectAndSplitIntersections(network, trackedEdgeIds);
+            return super.adoptShape(network, shape, defaults);
         }
     }
 }

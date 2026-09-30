@@ -89,6 +89,8 @@ public class RoadNetwork {
     private final Map<String, RoadEdge> edges = new ConcurrentHashMap<>();
     /** 并发安全的 id 索引；元素 {@link Road} 本身非线程安全。 */
     private final Map<String, Road> roads = new ConcurrentHashMap<>();
+    /** 平面交叉注册表（几何关系，非拓扑节点共享）。 */
+    private final Map<String, com.plot.plugin.road.crossing.RoadCrossing> crossings = new ConcurrentHashMap<>();
 
     public Map<String, RoadNode> getNodes() {
         return Map.copyOf(nodes);
@@ -100,6 +102,36 @@ public class RoadNetwork {
 
     public Map<String, Road> getRoads() {
         return Map.copyOf(roads);
+    }
+
+    public Map<String, com.plot.plugin.road.crossing.RoadCrossing> getCrossings() {
+        return Map.copyOf(crossings);
+    }
+
+    public com.plot.plugin.road.crossing.RoadCrossing getCrossing(String crossingId) {
+        return crossings.get(crossingId);
+    }
+
+    public void registerCrossing(com.plot.plugin.road.crossing.RoadCrossing crossing) {
+        if (crossing == null || crossing.id() == null) {
+            throw new IllegalArgumentException("crossing id required");
+        }
+        crossings.put(crossing.id(), crossing);
+    }
+
+    public void removeCrossing(String crossingId) {
+        if (crossingId != null) {
+            crossings.remove(crossingId);
+        }
+    }
+
+    public List<com.plot.plugin.road.crossing.RoadCrossing> crossingsForRoad(String roadId) {
+        if (roadId == null) {
+            return List.of();
+        }
+        return crossings.values().stream()
+            .filter(crossing -> crossing.involvesRoad(roadId))
+            .toList();
     }
 
     public RoadNode getNode(String nodeId) {
@@ -523,6 +555,35 @@ public class RoadNetwork {
     /**
      * 设置节点的立体交叉标记；校验失败时返回 false 且不修改状态。
      */
+    public boolean setCrossingGradeSeparation(
+            String crossingId,
+            com.plot.plugin.road.crossing.CrossingType type,
+            String elevatedRoadId,
+            Double crossingClearance) {
+        com.plot.plugin.road.crossing.RoadCrossing crossing = crossings.get(crossingId);
+        if (crossing == null) {
+            return false;
+        }
+        if (type == com.plot.plugin.road.crossing.CrossingType.GRADE_SEPARATED
+                && elevatedRoadId != null
+                && !elevatedRoadId.isBlank()
+                && !crossing.involvesRoad(elevatedRoadId)) {
+            return false;
+        }
+        crossings.put(crossingId, new com.plot.plugin.road.crossing.RoadCrossing(
+            crossing.id(),
+            crossing.roadAId(),
+            crossing.stationA(),
+            crossing.roadBId(),
+            crossing.stationB(),
+            crossing.position(),
+            type != null ? type : com.plot.plugin.road.crossing.CrossingType.AT_GRADE,
+            elevatedRoadId,
+            crossingClearance,
+            crossing.sharedElevation()));
+        return true;
+    }
+
     public boolean setNodeGradeSeparation(
             String nodeId,
             boolean gradeSeparated,
@@ -984,6 +1045,12 @@ public class RoadNetwork {
         }
     }
 
+    static class LoopSeamData {
+        Vec2dData position;
+        String segmentHintId;
+        Double localFraction;
+    }
+
     static class RoadData {
         String id;
         String name;
@@ -992,6 +1059,7 @@ public class RoadNetwork {
         CrossSectionData crossSection;
         Float maxSlope;
         String topologyMode;
+        LoopSeamData loopSeam;
         AlignmentData horizontalAlignment;
         VerticalAlignmentData verticalAlignment;
         String verticalMode;
@@ -1001,11 +1069,25 @@ public class RoadNetwork {
         List<String> segmentIds = new ArrayList<>();
     }
 
+    static class CrossingData {
+        String id;
+        String roadAId;
+        double stationA;
+        String roadBId;
+        double stationB;
+        Vec2dData position;
+        String type;
+        String elevatedRoadId;
+        Double crossingClearance;
+        Double sharedElevation;
+    }
+
     static class NetworkData {
         int schemaVersion = CURRENT_SCHEMA_VERSION;
         List<NodeData> nodes = new ArrayList<>();
         List<EdgeData> edges = new ArrayList<>();
         List<RoadData> roads = new ArrayList<>();
+        List<CrossingData> crossings = new ArrayList<>();
 
         static NetworkData from(RoadNetwork network) {
             NetworkData data = new NetworkData();
@@ -1049,6 +1131,13 @@ public class RoadNetwork {
                 if (road.getTopologyMode() != RoadTopologyMode.LINEAR) {
                     roadData.topologyMode = road.getTopologyMode().name();
                 }
+                if (road.getLoopSeam() != null) {
+                    LoopSeamData seamData = new LoopSeamData();
+                    seamData.position = new Vec2dData(road.getLoopSeam().position());
+                    seamData.segmentHintId = road.getLoopSeam().segmentHintId();
+                    seamData.localFraction = road.getLoopSeam().localFraction();
+                    roadData.loopSeam = seamData;
+                }
                 roadData.horizontalAlignment = HorizontalAlignmentPersistence.toData(road.getHorizontalAlignment());
                 roadData.verticalAlignment = VerticalAlignmentPersistence.toData(road.getVerticalAlignment());
                 roadData.verticalMode = road.getVerticalMode().name();
@@ -1057,6 +1146,21 @@ public class RoadNetwork {
                 roadData.stationFacilities = StationFacilityPersistence.toData(road.getStationFacilities());
                 roadData.segmentIds = new ArrayList<>(road.getOrderedSegmentIds());
                 data.roads.add(roadData);
+            }
+
+            for (com.plot.plugin.road.crossing.RoadCrossing crossing : network.crossings.values()) {
+                CrossingData crossingData = new CrossingData();
+                crossingData.id = crossing.id();
+                crossingData.roadAId = crossing.roadAId();
+                crossingData.stationA = crossing.stationA();
+                crossingData.roadBId = crossing.roadBId();
+                crossingData.stationB = crossing.stationB();
+                crossingData.position = new Vec2dData(crossing.position());
+                crossingData.type = crossing.type().name();
+                crossingData.elevatedRoadId = crossing.elevatedRoadId();
+                crossingData.crossingClearance = crossing.crossingClearance();
+                crossingData.sharedElevation = crossing.sharedElevation();
+                data.crossings.add(crossingData);
             }
 
             for (RoadEdge edge : network.edges.values()) {
@@ -1125,6 +1229,12 @@ public class RoadNetwork {
                     road.setStyleId(roadData.styleId);
                     road.setThemeId(roadData.themeId);
                     road.setTopologyMode(RoadTopologyMode.fromStored(roadData.topologyMode));
+                    if (roadData.loopSeam != null && roadData.loopSeam.position != null) {
+                        road.setLoopSeam(new RoadLoopSeam(
+                            roadData.loopSeam.position.toVec2d(),
+                            roadData.loopSeam.segmentHintId,
+                            roadData.loopSeam.localFraction));
+                    }
                     road.setHorizontalAlignment(HorizontalAlignmentPersistence.fromData(roadData.horizontalAlignment));
                     road.setVerticalAlignment(VerticalAlignmentPersistence.fromData(roadData.verticalAlignment));
                     road.setVerticalMode(com.plot.plugin.road.vertical.RoadVerticalMode.fromStored(
@@ -1170,6 +1280,25 @@ public class RoadNetwork {
 
                 if (roadId != null && !roadId.isBlank()) {
                     network.assignEdgeToRoad(edge.getId(), roadId);
+                }
+            }
+
+            if (crossings != null) {
+                for (CrossingData crossingData : crossings) {
+                    if (crossingData == null || crossingData.id == null || crossingData.position == null) {
+                        continue;
+                    }
+                    network.registerCrossing(new com.plot.plugin.road.crossing.RoadCrossing(
+                        crossingData.id,
+                        crossingData.roadAId,
+                        crossingData.stationA,
+                        crossingData.roadBId,
+                        crossingData.stationB,
+                        crossingData.position.toVec2d(),
+                        com.plot.plugin.road.crossing.CrossingType.fromStored(crossingData.type),
+                        crossingData.elevatedRoadId,
+                        crossingData.crossingClearance,
+                        crossingData.sharedElevation));
                 }
             }
 

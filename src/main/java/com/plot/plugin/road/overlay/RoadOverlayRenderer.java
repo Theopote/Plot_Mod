@@ -42,7 +42,20 @@ public final class RoadOverlayRenderer {
         }
         if (entry.state() == RoadOverlayState.PRIMARY) {
             renderDirectionArrow(drawList, camera, entry.centerlinePoints());
+            if (entry.profileSeamPosition() != null) {
+                renderProfileSeamMarker(drawList, camera, entry.profileSeamPosition());
+            }
         }
+    }
+
+    private static void renderProfileSeamMarker(ImDrawList drawList, CanvasCamera camera, Vec2d worldPosition) {
+        Vec2d screen = camera.worldToScreen(worldPosition);
+        float half = 6f;
+        float x = (float) screen.x;
+        float y = (float) screen.y;
+        int color = PluginUiColors.WARNING_STRONG;
+        drawList.addLine(x - half, y - half, x + half, y + half, color, 2f);
+        drawList.addLine(x - half, y + half, x + half, y - half, color, 2f);
     }
 
     private static void renderFill(

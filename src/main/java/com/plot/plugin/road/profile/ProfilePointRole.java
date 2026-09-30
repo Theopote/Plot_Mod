@@ -4,6 +4,8 @@ package com.plot.plugin.road.profile;
 public enum ProfilePointRole {
     START_ENDPOINT,
     END_ENDPOINT,
+    LOOP_SEAM_START,
+    LOOP_SEAM_END,
     INTERIOR_PVI,
     JUNCTION_FIXED
 }

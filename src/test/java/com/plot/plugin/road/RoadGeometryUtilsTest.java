@@ -288,7 +288,7 @@ class RoadGeometryUtilsTest {
     }
 
     @Test
-    void groupConnectedPathsMergesSimpleChain() {
+    void groupConnectedPathsKeepsSimpleChainSeparate() {
         List<LineShape> segments = List.of(
             new LineShape(new Vec2d(0, 0), new Vec2d(10, 0)),
             new LineShape(new Vec2d(10, 0), new Vec2d(20, 0)),
@@ -298,14 +298,11 @@ class RoadGeometryUtilsTest {
         List<List<Vec2d>> groups = RoadGeometryUtils.groupConnectedPathsForAdoption(
             new ArrayList<>(segments));
 
-        assertEquals(1, groups.size());
-        assertEquals(4, groups.getFirst().size());
-        assertEquals(0, groups.getFirst().getFirst().x, 1e-6);
-        assertEquals(30, groups.getFirst().getLast().x, 1e-6);
+        assertEquals(3, groups.size());
     }
 
     @Test
-    void groupConnectedPathsMergesReversedSegments() {
+    void groupConnectedPathsKeepsReversedSegmentsSeparate() {
         List<LineShape> segments = List.of(
             new LineShape(new Vec2d(0, 0), new Vec2d(10, 0)),
             new LineShape(new Vec2d(20, 0), new Vec2d(10, 0))
@@ -314,10 +311,7 @@ class RoadGeometryUtilsTest {
         List<List<Vec2d>> groups = RoadGeometryUtils.groupConnectedPathsForAdoption(
             new ArrayList<>(segments));
 
-        assertEquals(1, groups.size());
-        assertEquals(3, groups.getFirst().size());
-        assertEquals(0, groups.getFirst().getFirst().x, 1e-6);
-        assertEquals(20, groups.getFirst().getLast().x, 1e-6);
+        assertEquals(2, groups.size());
     }
 
     @Test

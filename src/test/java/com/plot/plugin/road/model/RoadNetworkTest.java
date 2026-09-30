@@ -278,7 +278,7 @@ class RoadNetworkTest {
     }
 
     @Test
-    void adoptCrossingRoadReturnsProducedSegments() {
+    void adoptCrossingRoadReturnsSingleEdgePerShape() {
         RoadNetwork network = new RoadNetwork();
         RoadNetworkBuilder builder = new RoadNetworkBuilder();
         RoadSystemConfig config = new RoadSystemConfig("road_system");
@@ -289,10 +289,10 @@ class RoadNetworkTest {
         builder.adoptShape(network, a, config);
         RoadNetworkBuilder.AdoptResult result = builder.adoptShape(network, b, config);
 
-        assertEquals(4, network.getEdges().size());
+        assertEquals(2, network.getEdges().size());
         assertEquals(2, network.getRoads().size());
-        assertEquals(2, result.edges().size());
-        assertEquals(1, result.junctionCount());
+        assertEquals(1, result.edges().size());
+        assertEquals(0, result.junctionCount());
         assertNotNull(result.edges().getFirst());
         assertFalse(result.edges().stream().anyMatch(edge -> network.getEdge(edge.getId()) == null));
     }
@@ -309,6 +309,7 @@ class RoadNetworkTest {
         builder.adoptShape(network, a, config);
         builder.adoptShape(network, b, config);
 
+        builder.detectAndSplitIntersections(network);
         int edgesAfterFirstSplit = network.getEdges().size();
         int nodesAfterFirstSplit = network.getNodes().size();
 
@@ -659,7 +660,7 @@ class RoadNetworkTest {
     }
 
     @Test
-    void mergedAdoptionCreatesSingleRoad() {
+    void oneShapeOneRoad_noMergeOnAdopt() {
         RoadNetwork network = new RoadNetwork();
         RoadNetworkBuilder builder = new RoadNetworkBuilder();
         RoadSystemConfig config = new RoadSystemConfig("road_system");
@@ -672,14 +673,14 @@ class RoadNetworkTest {
 
         List<List<Vec2d>> groups = RoadGeometryUtils.groupConnectedPathsForAdoption(
             new ArrayList<>(segments));
-        assertEquals(1, groups.size());
+        assertEquals(3, groups.size());
 
         for (List<Vec2d> points : groups) {
             builder.adoptShape(network, new PolylineShape(points, false), config);
         }
 
-        assertEquals(1, network.getRoads().size());
-        assertEquals(1, network.getEdges().size());
+        assertEquals(3, network.getRoads().size());
+        assertEquals(3, network.getEdges().size());
     }
 
     @Test

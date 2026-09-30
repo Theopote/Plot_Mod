@@ -67,6 +67,12 @@ public final class RoadCanvasSelectionController {
         }
 
         Vec2d world = canvas.screenToWorld(mouseScreen);
+        if (networkManager.getLoopSeamPickSession().isActive() && ImGui.isMouseReleased(0)) {
+            if (networkManager.tryApplyLoopSeamPick(world)) {
+                invalidateOverlay();
+            }
+            return;
+        }
         if (ImGui.isMouseClicked(0)) {
             pointerDown = true;
             pointerDownWorld = world;

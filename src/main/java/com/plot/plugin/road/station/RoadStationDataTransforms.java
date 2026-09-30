@@ -802,4 +802,45 @@ public final class RoadStationDataTransforms {
 
     private record Interval(double start, double end, RoadCrossSection template) {
     }
+
+    /**
+     * 闭环 seam 移动时旋转沿程工程数据，使物理位置与桩号对应关系保持不变。
+     */
+    public static void rotateLoopStations(Road road, double shiftMeters, double loopLength) {
+        if (road == null || loopLength <= EPSILON || Math.abs(shiftMeters) <= EPSILON) {
+            return;
+        }
+        if (road.getVerticalAlignment() != null) {
+            List<PointOfVerticalIntersection> rotated = new ArrayList<>();
+            for (PointOfVerticalIntersection pvi : road.getVerticalAlignment().getPvis()) {
+                double station = RoadLoopSeamService.rotateLoopStation(
+                    pvi.getStation(), shiftMeters, loopLength);
+                rotated.add(new PointOfVerticalIntersection(
+                    station, pvi.getElevation(), pvi.getCurveLength(), pvi.getConstraint()));
+            }
+            road.setVerticalAlignment(new RoadVerticalAlignment(rotated));
+        }
+        if (road.getVariableCrossSections() != null) {
+            List<StationCrossSection> rotated = new ArrayList<>();
+            for (StationCrossSection section : road.getVariableCrossSections().getStations()) {
+                double station = RoadLoopSeamService.rotateLoopStation(
+                    section.getStation(), shiftMeters, loopLength);
+                rotated.add(StationCrossSection.at(station, section.getCrossSection()));
+            }
+            road.setVariableCrossSections(new RoadVariableCrossSections(rotated));
+        }
+        if (road.getStationFacilities() != null && !road.getStationFacilities().isEmpty()) {
+            RoadStationFacilities facilities = new RoadStationFacilities();
+            for (com.plot.plugin.road.model.facility.StationFacilityRun run : road.getStationFacilities().getRuns()) {
+                double start = RoadLoopSeamService.rotateLoopStation(
+                    run.getStartStation(), shiftMeters, loopLength);
+                Double end = run.getEndStation() != null
+                    ? RoadLoopSeamService.rotateLoopStation(run.getEndStation(), shiftMeters, loopLength)
+                    : null;
+                facilities.addRun(new com.plot.plugin.road.model.facility.StationFacilityRun(
+                    start, end, run.getKind(), run.getSide(), run.getMaterial(), run.getHeight()));
+            }
+            road.setStationFacilities(facilities);
+        }
+    }
 }

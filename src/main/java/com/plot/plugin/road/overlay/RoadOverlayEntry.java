@@ -10,5 +10,15 @@ public record RoadOverlayEntry(
         String displayName,
         List<Vec2d> corridorPoints,
         List<Vec2d> centerlinePoints,
-        RoadOverlayState state) {
+        RoadOverlayState state,
+        Vec2d profileSeamPosition) {
+
+    public RoadOverlayEntry(
+            String roadId,
+            String displayName,
+            List<Vec2d> corridorPoints,
+            List<Vec2d> centerlinePoints,
+            RoadOverlayState state) {
+        this(roadId, displayName, corridorPoints, centerlinePoints, state, null);
+    }
 }

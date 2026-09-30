@@ -57,12 +57,23 @@ public final class RoadStationing {
      * 带方向的沿程分段列表；道路链的唯一拓扑+方向真相。
      */
     public static List<OrientedRoadSegment> orientedSegments(RoadNetwork network, Road road) {
+        return buildOrientedSegments(network, road, true);
+    }
+
+    static List<OrientedRoadSegment> orientedSegmentsWithoutLoopRotation(RoadNetwork network, Road road) {
+        return buildOrientedSegments(network, road, false);
+    }
+
+    private static List<OrientedRoadSegment> buildOrientedSegments(
+            RoadNetwork network,
+            Road road,
+            boolean applyLoopSeam) {
         if (network == null || road == null) {
             return List.of();
         }
         List<OrientedRoadSegment> oriented = new ArrayList<>();
         double station = 0.0;
-        for (SegmentChainBinding binding : segmentChainBindings(network, road)) {
+        for (SegmentChainBinding binding : segmentChainBindings(network, road, applyLoopSeam)) {
             RoadEdge edge = network.getEdge(binding.segmentId());
             if (edge == null) {
                 continue;
@@ -456,7 +467,10 @@ public final class RoadStationing {
     private record SegmentChainBinding(String segmentId, String entryNodeId) {
     }
 
-    private static List<SegmentChainBinding> segmentChainBindings(RoadNetwork network, Road road) {
+    private static List<SegmentChainBinding> segmentChainBindings(
+            RoadNetwork network,
+            Road road,
+            boolean applyLoopSeam) {
         if (network == null || road == null) {
             return List.of();
         }
@@ -481,6 +495,14 @@ public final class RoadStationing {
         }
 
         String startNodeId = findChainStart(network, nodeToEdgeIds);
+        if (applyLoopSeam
+                && road.getTopologyMode() == com.plot.plugin.road.model.RoadTopologyMode.LOOP
+                && road.getLoopSeam() != null) {
+            String seamStart = RoadLoopSeamService.resolveChainStartNodeId(network, road, road.getLoopSeam());
+            if (seamStart != null && nodeToEdgeIds.containsKey(seamStart)) {
+                startNodeId = seamStart;
+            }
+        }
         if (startNodeId == null) {
             return List.of();
         }

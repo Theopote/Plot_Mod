@@ -50,6 +50,7 @@ public class Road {
     private String themeId;
     private Float maxSlope;
     private RoadTopologyMode topologyMode = RoadTopologyMode.LINEAR;
+    private RoadLoopSeam loopSeam;
     private RoadHorizontalAlignment horizontalAlignment;
     private RoadVerticalAlignment verticalAlignment;
     private RoadVerticalMode verticalMode;
@@ -443,6 +444,14 @@ public class Road {
         this.topologyMode = topologyMode != null ? topologyMode : RoadTopologyMode.LINEAR;
     }
 
+    public RoadLoopSeam getLoopSeam() {
+        return loopSeam;
+    }
+
+    public void setLoopSeam(RoadLoopSeam loopSeam) {
+        this.loopSeam = loopSeam;
+    }
+
     public RoadHorizontalAlignment getHorizontalAlignment() {
         return horizontalAlignment;
     }
@@ -636,6 +645,7 @@ public class Road {
         copy.styleId = styleId;
         copy.themeId = themeId;
         copy.topologyMode = getTopologyMode();
+        copy.loopSeam = loopSeam;
         copy.horizontalAlignment = horizontalAlignment != null ? horizontalAlignment.copy() : null;
         copy.verticalAlignment = verticalAlignment != null ? verticalAlignment.copy() : null;
         copy.verticalMode = verticalMode;

@@ -40,14 +40,10 @@ class RoadGoldenWorkflowAcceptanceTest {
             List.of(new Vec2d(5, 5), new Vec2d(5, 10)), false)));
 
         RoadNetwork network = manager.getNetwork();
-        assertEquals(3, network.getEdges().size());
-        assertEquals(1, network.getJunctionCount());
+        assertEquals(2, network.getEdges().size());
+        assertEquals(0, network.getJunctionCount());
 
-        String roadId = network.getRoads().values().stream()
-            .filter(r -> r.getSegmentIds().size() == 2)
-            .map(Road::getId)
-            .findFirst()
-            .orElseThrow();
+        String roadId = network.getRoads().values().iterator().next().getId();
         manager.selectRoad(roadId, false);
 
         RoadNetworkManager.BatchEditDefaults draft = manager.loadBatchEditDefaults();

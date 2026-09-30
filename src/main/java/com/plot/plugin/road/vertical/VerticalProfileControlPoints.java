@@ -3,6 +3,7 @@ package com.plot.plugin.road.vertical;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadTopologyMode;
 import com.plot.plugin.road.profile.ProfileControlPoint;
 import com.plot.plugin.road.profile.ProfilePointRole;
 import com.plot.plugin.road.station.OrientedRoadSegment;
@@ -52,7 +53,7 @@ public final class VerticalProfileControlPoints {
                 : null;
             boolean sharedJunction = VerticalAlignmentJunctionSynchronizer.isSharedJunctionAtStation(
                 network, road, pvi.getStation());
-            ProfilePointRole role = resolveRole(i, pvis.size(), pvi, sharedJunction);
+            ProfilePointRole role = resolveRole(road, i, pvis.size(), pvi, sharedJunction);
             result.add(new ProfileControlPoint(
                 i,
                 pvi.getStation(),
@@ -67,15 +68,17 @@ public final class VerticalProfileControlPoints {
     }
 
     private static ProfilePointRole resolveRole(
+            Road road,
             int index,
             int count,
             PointOfVerticalIntersection pvi,
             boolean sharedJunction) {
+        boolean loop = road != null && road.getTopologyMode() == RoadTopologyMode.LOOP;
         if (index == 0) {
-            return ProfilePointRole.START_ENDPOINT;
+            return loop ? ProfilePointRole.LOOP_SEAM_START : ProfilePointRole.START_ENDPOINT;
         }
         if (index == count - 1) {
-            return ProfilePointRole.END_ENDPOINT;
+            return loop ? ProfilePointRole.LOOP_SEAM_END : ProfilePointRole.END_ENDPOINT;
         }
         if (sharedJunction || pvi.getConstraint() == VerticalControlPointConstraint.JUNCTION_FIXED) {
             return ProfilePointRole.JUNCTION_FIXED;
@@ -130,14 +133,26 @@ public final class VerticalProfileControlPoints {
             RoadVerticalAlignment source,
             int pviIndex,
             double elevation) {
+        return withElevation(source, pviIndex, elevation, null);
+    }
+
+    public static RoadVerticalAlignment withElevation(
+            RoadVerticalAlignment source,
+            int pviIndex,
+            double elevation,
+            Road road) {
         if (source == null || pviIndex < 0 || pviIndex >= source.pviCount()
                 || !Double.isFinite(elevation)) {
             throw new IllegalArgumentException("invalid PVI edit");
         }
+        boolean syncLoopSeam = road != null && road.getTopologyMode() == RoadTopologyMode.LOOP
+            && source.pviCount() >= 2
+            && (pviIndex == 0 || pviIndex == source.pviCount() - 1);
         List<PointOfVerticalIntersection> edited = new ArrayList<>();
         for (int i = 0; i < source.pviCount(); i++) {
             PointOfVerticalIntersection pvi = source.getPvis().get(i);
-            edited.add(i == pviIndex
+            boolean apply = i == pviIndex || (syncLoopSeam && (i == 0 || i == source.pviCount() - 1));
+            edited.add(apply
                 ? new PointOfVerticalIntersection(
                     pvi.getStation(), elevation, pvi.getCurveLength(), pvi.getConstraint())
                 : pvi.copy());

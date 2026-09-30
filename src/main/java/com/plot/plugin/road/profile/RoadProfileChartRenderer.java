@@ -7,7 +7,6 @@ import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
 import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
 import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
 import com.plot.plugin.ui.PluginUiColors;
-import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
@@ -262,9 +261,11 @@ public final class RoadProfileChartRenderer {
             if (activePoint != null && activePoint.elevationEditable()) {
                 elevation = layout.elevationAtMouseY(
                     mouseY, range.minElevation(), range.maxElevation());
-                if (activePoint.role() == ProfilePointRole.START_ENDPOINT) {
+                if (activePoint.role() == ProfilePointRole.START_ENDPOINT
+                        || activePoint.role() == ProfilePointRole.LOOP_SEAM_START) {
                     roadStation = 0.0;
-                } else if (activePoint.role() == ProfilePointRole.END_ENDPOINT) {
+                } else if (activePoint.role() == ProfilePointRole.END_ENDPOINT
+                        || activePoint.role() == ProfilePointRole.LOOP_SEAM_END) {
                     roadStation = range.totalStation();
                 } else {
                     roadStation = layout.stationAtMouseX(mouseX, range.totalStation());

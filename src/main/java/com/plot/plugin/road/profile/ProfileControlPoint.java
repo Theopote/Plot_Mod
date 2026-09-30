@@ -14,6 +14,9 @@ public record ProfileControlPoint(
         boolean elevationEditable) {
 
     public boolean endpoint() {
-        return role == ProfilePointRole.START_ENDPOINT || role == ProfilePointRole.END_ENDPOINT;
+        return role == ProfilePointRole.START_ENDPOINT
+            || role == ProfilePointRole.END_ENDPOINT
+            || role == ProfilePointRole.LOOP_SEAM_START
+            || role == ProfilePointRole.LOOP_SEAM_END;
     }
 }

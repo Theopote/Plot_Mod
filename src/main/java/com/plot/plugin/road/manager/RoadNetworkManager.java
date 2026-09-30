@@ -95,6 +95,10 @@ public final class RoadNetworkManager {
     private String batchFillSlopeMaterial = com.plot.plugin.road.RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
     private String batchCutSlopeMaterial = "";
     private boolean adoptIntersectionRepairPending = false;
+    private final RoadLoopSeamPickSession loopSeamPickSession = new RoadLoopSeamPickSession();
+    private boolean loopSeamRemapConfirmPending = false;
+    private com.plot.plugin.road.model.RoadLoopSeam pendingLoopSeamReplacement;
+    private double pendingLoopSeamShift = 0.0;
 
     public RoadNetworkManager(RoadSystemConfig config, RoadProjectStatus status) {
         this(config, status, new RoadNetworkBuilder());
@@ -872,14 +876,6 @@ public final class RoadNetworkManager {
 
         adoptIntersectionRepairPending = intersectionIncomplete;
 
-        if (intersectionIncomplete) {
-            IntersectionResult retry = networkBuilder.detectAndSplitIntersections(network);
-            if (retry == IntersectionResult.COMPLETE) {
-                intersectionIncomplete = false;
-                adoptIntersectionRepairPending = false;
-            }
-        }
-
         RoadTopologyRoadSplitter.RepairResult topologyRepair =
             RoadTopologyRoadSplitter.repairAfterAdopt(network);
         commitNetworkChange();
@@ -920,16 +916,146 @@ public final class RoadNetworkManager {
      * Re-runs intersection detection and splitting on the live network (e.g. after validation warns).
      */
     public IntersectionResult reconcileIntersections() {
+        return reconcileCrossings();
+    }
+
+    /**
+     * 检测并注册平面交叉关系，不修改拓扑节点/边。
+     */
+    public IntersectionResult reconcileCrossings() {
         pushUndoSnapshot();
-        IntersectionResult result = networkBuilder.detectAndSplitIntersections(network);
+        IntersectionResult result =
+            com.plot.plugin.road.crossing.RoadCrossingReconciler.reconcileCrossings(network);
         commitNetworkChange();
-        if (result == IntersectionResult.INCOMPLETE) {
-            status.warning(PlotI18n.tr("plugin.road.reconcile_intersection_incomplete"));
-        } else {
-            adoptIntersectionRepairPending = false;
-            status.success(PlotI18n.tr("plugin.road.reconcile_intersections_success"));
-        }
+        adoptIntersectionRepairPending = false;
+        status.success(PlotI18n.tr("plugin.road.reconcile_intersections_success"));
         return result;
+    }
+
+    public RoadLoopSeamPickSession getLoopSeamPickSession() {
+        return loopSeamPickSession;
+    }
+
+    public void beginLoopSeamCanvasPick(String roadId) {
+        loopSeamPickSession.begin(roadId);
+        status.info(PlotI18n.tr("plugin.road.loop_seam_pick_active"));
+    }
+
+    public void cancelLoopSeamCanvasPick() {
+        loopSeamPickSession.cancel();
+        loopSeamRemapConfirmPending = false;
+        pendingLoopSeamReplacement = null;
+    }
+
+    public boolean isLoopSeamRemapConfirmPending() {
+        return loopSeamRemapConfirmPending;
+    }
+
+    public void confirmLoopSeamRemap() {
+        if (!loopSeamRemapConfirmPending || pendingLoopSeamReplacement == null) {
+            return;
+        }
+        Road road = network.getRoad(loopSeamPickSession.roadId());
+        if (road == null) {
+            cancelLoopSeamCanvasPick();
+            return;
+        }
+        pushUndoSnapshot();
+        double loopLength = RoadStationing.canonicalLength(network, road);
+        com.plot.plugin.road.station.RoadStationDataTransforms.rotateLoopStations(
+            road, pendingLoopSeamShift, loopLength);
+        road.setLoopSeam(pendingLoopSeamReplacement);
+        loopSeamRemapConfirmPending = false;
+        pendingLoopSeamReplacement = null;
+        loopSeamPickSession.cancel();
+        commitNetworkChange();
+        status.success(PlotI18n.tr("plugin.road.loop_seam_updated"));
+    }
+
+    public void declineLoopSeamRemap() {
+        loopSeamRemapConfirmPending = false;
+        pendingLoopSeamReplacement = null;
+        loopSeamPickSession.cancel();
+    }
+
+    /**
+     * 画布点击设置闭环剖面开口点；若道路已有沿程数据则进入确认流程。
+     */
+    public boolean tryApplyLoopSeamPick(Vec2d worldPosition) {
+        if (!loopSeamPickSession.isActive() || worldPosition == null) {
+            return false;
+        }
+        Road road = network.getRoad(loopSeamPickSession.roadId());
+        if (road == null || road.getTopologyMode() != com.plot.plugin.road.model.RoadTopologyMode.LOOP) {
+            cancelLoopSeamCanvasPick();
+            return false;
+        }
+        com.plot.plugin.road.station.RoadLoopSeamService.SeamProjection projection =
+            projectLoopSeam(network, road, worldPosition);
+        if (projection == null) {
+            status.warning(PlotI18n.tr("plugin.road.loop_seam_pick_failed"));
+            return true;
+        }
+        com.plot.plugin.road.model.RoadLoopSeam replacement = com.plot.plugin.road.model.RoadLoopSeam.onSegment(
+            projection.position(), projection.segmentId(), projection.localFraction());
+        boolean hasStationData = road.getVerticalAlignment() != null && road.getVerticalAlignment().pviCount() > 0
+            || road.getVariableCrossSections() != null
+            || road.getStationFacilities() != null && !road.getStationFacilities().isEmpty();
+        if (!hasStationData) {
+            pushUndoSnapshot();
+            road.setLoopSeam(replacement);
+            loopSeamPickSession.cancel();
+            commitNetworkChange();
+            status.success(PlotI18n.tr("plugin.road.loop_seam_updated"));
+            return true;
+        }
+        double loopLength = RoadStationing.canonicalLength(network, road);
+        double oldOffset = road.getLoopSeam() != null
+            ? seamChainOffset(network, road, road.getLoopSeam())
+            : 0.0;
+        pendingLoopSeamShift = oldOffset - projection.chainStation();
+        if (pendingLoopSeamShift < -1e-6) {
+            pendingLoopSeamShift += loopLength;
+        }
+        pendingLoopSeamReplacement = replacement;
+        loopSeamRemapConfirmPending = true;
+        return true;
+    }
+
+    /**
+     * 显式连接两条道路端点（唯一允许的拓扑端点合并入口）。
+     */
+    public boolean connectRoadEndpoints(
+            String edgeAId,
+            boolean useStartA,
+            String edgeBId,
+            boolean useStartB) {
+        pushUndoSnapshot();
+        boolean connected = com.plot.plugin.road.graph.RoadExplicitConnector.connectEndpoints(
+            network, edgeAId, useStartA, edgeBId, useStartB);
+        if (connected) {
+            commitNetworkChange();
+            status.success(PlotI18n.tr("plugin.road.connect_roads_success"));
+        } else {
+            undo();
+            status.warning(PlotI18n.tr("plugin.road.connect_roads_failed"));
+        }
+        return connected;
+    }
+
+    private static double seamChainOffset(
+            RoadNetwork network,
+            Road road,
+            com.plot.plugin.road.model.RoadLoopSeam seam) {
+        var projection = projectLoopSeam(network, road, seam.position());
+        return projection != null ? projection.chainStation() : 0.0;
+    }
+
+    private static com.plot.plugin.road.station.RoadLoopSeamService.SeamProjection projectLoopSeam(
+            RoadNetwork network,
+            Road road,
+            Vec2d worldPosition) {
+        return com.plot.plugin.road.station.RoadLoopSeamService.projectForPick(network, road, worldPosition);
     }
 
     /**
