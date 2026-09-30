@@ -154,11 +154,12 @@ public final class RoadNetworkOverviewRenderer {
         drawEdges(drawList, network, viewport, selectedEdgeIds);
         List<RoadJunctionOverlayEntry> intersectionEntries = RoadJunctionOverlayController.snapshot(
             network, networkBuilder, selectedCrossingId, selectedNodeId);
-        drawIntersectionMarkers(drawList, intersectionEntries, viewport);
         drawSelectedJunctionPreview(
             drawList, network, config, viewport, selectedNodeId);
         drawNodes(
             drawList, network, networkBuilder, viewport, selectedNodeId);
+        drawIntersectionMarkers(drawList, intersectionEntries, viewport, false);
+        drawIntersectionMarkers(drawList, intersectionEntries, viewport, true);
 
         ImGui.invisibleButton("##road_map_hit", width, height);
         if (ImGui.isItemHovered()) {
@@ -294,12 +295,16 @@ public final class RoadNetworkOverviewRenderer {
     private static void drawIntersectionMarkers(
             ImDrawList drawList,
             List<RoadJunctionOverlayEntry> entries,
-            MapViewport viewport) {
+            MapViewport viewport,
+            boolean selectedOnly) {
         if (entries == null || entries.isEmpty()) {
             return;
         }
         for (RoadJunctionOverlayEntry entry : entries) {
             if (entry == null || entry.position() == null) {
+                continue;
+            }
+            if (entry.selected() != selectedOnly) {
                 continue;
             }
             float sx = toScreenX(entry.position().x, viewport);

@@ -123,10 +123,7 @@ public final class RoadCanvasSelectionController {
         IntersectionHit intersectionHit = RoadJunctionOverlayController.hitTest(
             junctionOverlayEntries, world.x, world.y, junctionHitRadius);
         if (intersectionHit != null && intersectionHit.id() != null && !intersectionHit.id().isBlank()) {
-            switch (intersectionHit.source()) {
-                case CROSSING -> networkManager.handleCrossingSelect(intersectionHit.id());
-                case LEGACY_NODE -> networkManager.handleNodeSelect(intersectionHit.id());
-            }
+            networkManager.focusIntersection(intersectionHit.source(), intersectionHit.id());
             if (!ctrl) {
                 appState.setSelectedShapes(List.of());
             }

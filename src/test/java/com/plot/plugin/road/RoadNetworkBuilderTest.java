@@ -5,6 +5,7 @@ import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.crossing.RoadCrossingMaterializer;
+import com.plot.plugin.road.crossing.RoadCrossingDetector;
 import com.plot.plugin.road.crossing.RoadCrossingReconciler;
 import com.plot.plugin.road.graph.RoadGraphEdits;
 import com.plot.plugin.road.model.RoadTopologyRoadSplitter;
@@ -448,6 +449,7 @@ class RoadNetworkBuilderTest {
             new Vec2d(5, 5), new Vec2d(5, 10)), roadB.getId());
 
         int edgesBefore = network.getEdges().size();
+        assertEquals(1, RoadCrossingDetector.detectAll(network).size());
         IntersectionProbeResult probe = builder.probeIntersectionCompleteness(network);
 
         assertEquals(edgesBefore, network.getEdges().size());

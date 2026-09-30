@@ -4,7 +4,9 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadNetworkBuilder;
+import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadNode;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -33,6 +35,23 @@ class RoadCrossingDetectorTest {
         assertEquals(nodesBefore, network.getNodes().size());
         assertEquals(2, network.getEdges().size());
         assertFalse(network.getJunctionCount() > 0);
+    }
+
+    @Test
+    void detectsCrossingWhenVerticalStartsOnHorizontalInterior() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+        RoadNode aStart = network.createNode(new Vec2d(0, 5));
+        RoadNode aEnd = network.createNode(new Vec2d(10, 5));
+        network.createEdge(
+            aStart.getId(), aEnd.getId(), List.of(new Vec2d(0, 5), new Vec2d(10, 5)), roadA.getId());
+        RoadNode bStart = network.createNode(new Vec2d(5, 5));
+        RoadNode bEnd = network.createNode(new Vec2d(5, 10));
+        network.createEdge(
+            bStart.getId(), bEnd.getId(), List.of(new Vec2d(5, 5), new Vec2d(5, 10)), roadB.getId());
+
+        assertEquals(1, RoadCrossingDetector.detectAll(network).size());
     }
 
     @Test

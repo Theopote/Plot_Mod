@@ -72,7 +72,7 @@ final class OpenPolylineOffset {
                 miterLimit,
                 warnings
             );
-            if (corner != null && PolygonUtils.isFinite(corner)) {
+            if (PolygonUtils.isFinite(corner)) {
                 output.add(corner);
             } else {
                 appendBevelCorner(output, current.end(), nextEdge.start(), warnings);
@@ -154,7 +154,7 @@ final class OpenPolylineOffset {
             current.start(), current.direction(),
             next.start(), next.direction()
         );
-        if (intersection != null && PolygonUtils.isFinite(intersection)) {
+        if (PolygonUtils.isFinite(intersection)) {
             double miterLength = intersection.distance(vertex);
             if (miterLength <= absDistance * miterLimit + PolygonUtils.DEFAULT_EPSILON) {
                 return intersection;
@@ -183,7 +183,7 @@ final class OpenPolylineOffset {
         List<Vec2d> result = new ArrayList<>();
         Vec2d previous = null;
         for (Vec2d point : centerline) {
-            if (point == null || !PolygonUtils.isFinite(point)) {
+            if (!PolygonUtils.isFinite(point)) {
                 continue;
             }
             if (previous != null && previous.distance(point) <= PolygonUtils.DEFAULT_EPSILON) {

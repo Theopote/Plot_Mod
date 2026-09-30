@@ -67,11 +67,15 @@ public final class RoadPathOverviewPanel {
                 ctx.requestOverlayRefresh();
             },
             crossingId -> {
-                ctx.networkManager().handleCrossingSelect(crossingId);
+                ctx.networkManager().focusIntersection(
+                    com.plot.plugin.road.overlay.IntersectionOverlaySource.CROSSING,
+                    crossingId);
                 ctx.requestOverlayRefresh();
             },
             nodeId -> {
-                ctx.networkManager().handleNodeSelect(nodeId);
+                ctx.networkManager().focusIntersection(
+                    com.plot.plugin.road.overlay.IntersectionOverlaySource.LEGACY_NODE,
+                    nodeId);
                 ctx.requestOverlayRefresh();
             });
     }

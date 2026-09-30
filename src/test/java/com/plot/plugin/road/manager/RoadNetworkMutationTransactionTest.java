@@ -119,19 +119,29 @@ class RoadNetworkMutationTransactionTest {
     }
 
     @Test
-    void reconcileIntersectionsIncrementsRevisionOnce() {
+    void reconcileIntersectionsIncrementsRevisionOnlyWhenRegistryChanges() {
         RoadNetwork network = manager.getNetwork();
-        Road road = network.createRoad("cross");
-        RoadNode a = network.createNode(new Vec2d(0, 0));
-        RoadNode b = network.createNode(new Vec2d(10, 0));
-        RoadNode c = network.createNode(new Vec2d(5, -5));
-        RoadNode d = network.createNode(new Vec2d(5, 5));
-        network.createEdge(a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
-        network.createEdge(c.getId(), d.getId(), List.of(new Vec2d(5, -5), new Vec2d(5, 5)), road.getId());
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+        RoadNode a1 = network.createNode(new Vec2d(0, 5));
+        RoadNode a2 = network.createNode(new Vec2d(10, 5));
+        RoadNode b1 = network.createNode(new Vec2d(5, 0));
+        RoadNode b2 = network.createNode(new Vec2d(5, 10));
+        network.createEdge(
+            a1.getId(), a2.getId(), List.of(new Vec2d(0, 5), new Vec2d(10, 5)), roadA.getId());
+        network.createEdge(
+            b1.getId(), b2.getId(), List.of(new Vec2d(5, 0), new Vec2d(5, 10)), roadB.getId());
 
         long before = manager.getNetworkRevision();
         manager.reconcileIntersections();
         assertEquals(before + 1, manager.getNetworkRevision());
         assertEquals(1, changeNotifications.get());
+        assertEquals(1, network.getCrossings().size());
+
+        long afterFirst = manager.getNetworkRevision();
+        manager.reconcileIntersections();
+        assertEquals(afterFirst, manager.getNetworkRevision());
+        assertEquals(1, changeNotifications.get());
+        assertTrue(manager.canUndo());
     }
 }

@@ -3,7 +3,6 @@ package com.plot.plugin.road.geometry;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.polygon.PolygonNormalizer;
 import com.plot.core.geometry.polygon.PolygonOffset;
-import com.plot.core.geometry.polygon.PolygonUtils;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadNetworkBuilder;
 

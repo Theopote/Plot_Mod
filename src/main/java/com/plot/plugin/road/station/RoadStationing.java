@@ -1,6 +1,8 @@
 package com.plot.plugin.road.station;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.RoadGeometryUtils;
+import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
@@ -315,6 +317,44 @@ public final class RoadStationing {
             String segmentId,
             double geometryLocalDistance) {
         return stationAt(network, road, segmentId, geometryLocalDistance);
+    }
+
+    /**
+     * 世界坐标 → canonical 桩号；基于 plan 中心线与 {@link OrientedRoadSegment} 链方向。
+     * <p>
+     * 边存储反向（{@code forward == false}）时仍返回同一物理位置的桩号，与
+     * {@link com.plot.plugin.road.station.RoadOrientationInvariantTest} 一致。
+     */
+    public static OptionalDouble chainageAtPosition(RoadNetwork network, Road road, Vec2d position) {
+        if (network == null || road == null || position == null || network.getRoad(road.getId()) == null) {
+            return OptionalDouble.empty();
+        }
+        double bestDistance = Double.MAX_VALUE;
+        Double bestChainage = null;
+        for (OrientedRoadSegment segment : orientedSegments(network, road)) {
+            RoadEdge edge = network.getEdge(segment.edgeId());
+            if (edge == null) {
+                continue;
+            }
+            List<Vec2d> points = RoadPlanGeometry.resolveEdgeCenterline(network, edge);
+            for (int i = 0; i < points.size() - 1; i++) {
+                Vec2d start = points.get(i);
+                Vec2d end = points.get(i + 1);
+                Vec2d projected = RoadGeometryUtils.projectPointOnSegment(start, end, position);
+                double distance = projected.distance(position);
+                if (distance > RoadNetworkBuilder.NODE_TOLERANCE || distance >= bestDistance) {
+                    continue;
+                }
+                double geometryLocal = start.distance(projected);
+                for (int j = 0; j < i; j++) {
+                    geometryLocal += points.get(j).distance(points.get(j + 1));
+                }
+                bestDistance = distance;
+                double instanceChainage = segment.roadStationAtGeometryLocal(geometryLocal);
+                bestChainage = toCanonicalChainage(network, road, instanceChainage);
+            }
+        }
+        return bestChainage != null ? OptionalDouble.of(bestChainage) : OptionalDouble.empty();
     }
 
     public static Optional<RoadStation> stationAt(

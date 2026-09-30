@@ -3,6 +3,7 @@ package com.plot.plugin.road.crossing;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.plugin.road.RoadGeometryUtils;
+import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -12,10 +13,11 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 
-/** 检测道路 centerline 的真实线段交点（不含端点邻近启发）。 */
+/** 检测道路 plan 中心线的真实线段交点（不含端点邻近启发）。 */
 public final class RoadCrossingDetector {
-    private static final double NODE_TOLERANCE = 0.5;
+    private static final double NODE_TOLERANCE = RoadCrossingMatcher.POSITION_TOLERANCE;
 
     private RoadCrossingDetector() {
     }
@@ -33,7 +35,7 @@ public final class RoadCrossingDetector {
                 if (edgeA.getRoadId() == null || edgeA.getRoadId().equals(edgeB.getRoadId())) {
                     continue;
                 }
-                for (Vec2d point : findSegmentIntersections(edgeA, edgeB)) {
+                for (Vec2d point : findSegmentIntersections(network, edgeA, edgeB)) {
                     RoadCrossing crossing = toCrossing(network, edgeA, edgeB, point);
                     if (crossing != null) {
                         deduped.putIfAbsent(dedupeKey(crossing), crossing);
@@ -44,13 +46,23 @@ public final class RoadCrossingDetector {
         return List.copyOf(deduped.values());
     }
 
-    private static List<Vec2d> findSegmentIntersections(RoadEdge edgeA, RoadEdge edgeB) {
-        PolylineShape polyA = new PolylineShape(edgeA.getCenterlinePoints(), false);
-        PolylineShape polyB = new PolylineShape(edgeB.getCenterlinePoints(), false);
-        List<Vec2d> raw = polyA.getIntersectionsWith(polyB);
+    private static List<Vec2d> findSegmentIntersections(
+            RoadNetwork network,
+            RoadEdge edgeA,
+            RoadEdge edgeB) {
+        List<Vec2d> centerlineA = RoadPlanGeometry.resolveEdgeCenterline(network, edgeA);
+        List<Vec2d> centerlineB = RoadPlanGeometry.resolveEdgeCenterline(network, edgeB);
+        if (centerlineA.size() < 2 || centerlineB.size() < 2) {
+            return List.of();
+        }
+        PolylineShape polyA = new PolylineShape(centerlineA, false);
+        PolylineShape polyB = new PolylineShape(centerlineB, false);
+        List<Vec2d> candidates = new ArrayList<>(polyA.getIntersectionsWith(polyB));
+        collectEndpointOnInteriorContacts(centerlineA, centerlineB, candidates);
+
         List<Vec2d> filtered = new ArrayList<>();
-        for (Vec2d point : raw) {
-            if (isNearAnyEndpoint(edgeA, point) && isNearAnyEndpoint(edgeB, point)) {
+        for (Vec2d point : candidates) {
+            if (isNearAnyEndpoint(centerlineA, point) && isNearAnyEndpoint(centerlineB, point)) {
                 continue;
             }
             filtered.add(point.copy());
@@ -58,16 +70,54 @@ public final class RoadCrossingDetector {
         return deduplicatePoints(filtered);
     }
 
-    private static boolean isNearAnyEndpoint(RoadEdge edge, Vec2d point) {
-        List<Vec2d> points = edge.getCenterlinePoints();
-        if (points.isEmpty()) {
+    /** 一端点落在另一道路内部（T 形接点）时，线段求交可能无结果。 */
+    private static void collectEndpointOnInteriorContacts(
+            List<Vec2d> centerlineA,
+            List<Vec2d> centerlineB,
+            List<Vec2d> out) {
+        collectEndpointsOnOtherInterior(centerlineA, centerlineB, out);
+        collectEndpointsOnOtherInterior(centerlineB, centerlineA, out);
+    }
+
+    private static void collectEndpointsOnOtherInterior(
+            List<Vec2d> source,
+            List<Vec2d> target,
+            List<Vec2d> out) {
+        if (source.size() < 2 || target.size() < 2) {
+            return;
+        }
+        for (Vec2d endpoint : List.of(source.getFirst(), source.getLast())) {
+            if (liesOnInterior(target, endpoint)) {
+                out.add(endpoint.copy());
+            }
+        }
+    }
+
+    private static boolean liesOnInterior(List<Vec2d> centerline, Vec2d point) {
+        for (int i = 0; i < centerline.size() - 1; i++) {
+            Vec2d start = centerline.get(i);
+            Vec2d end = centerline.get(i + 1);
+            Vec2d projected = RoadGeometryUtils.projectPointOnSegment(start, end, point);
+            if (projected.distance(point) > NODE_TOLERANCE) {
+                continue;
+            }
+            if (isNearAnyEndpoint(centerline, projected)) {
+                continue;
+            }
             return true;
         }
-        if (points.size() == 1) {
-            return RoadGeometryUtils.pointsNear(points.getFirst(), point, NODE_TOLERANCE);
+        return false;
+    }
+
+    private static boolean isNearAnyEndpoint(List<Vec2d> centerline, Vec2d point) {
+        if (centerline.isEmpty()) {
+            return true;
         }
-        return RoadGeometryUtils.pointsNear(points.getFirst(), point, NODE_TOLERANCE)
-            || RoadGeometryUtils.pointsNear(points.getLast(), point, NODE_TOLERANCE);
+        if (centerline.size() == 1) {
+            return RoadGeometryUtils.pointsNear(centerline.getFirst(), point, NODE_TOLERANCE);
+        }
+        return RoadGeometryUtils.pointsNear(centerline.getFirst(), point, NODE_TOLERANCE)
+            || RoadGeometryUtils.pointsNear(centerline.getLast(), point, NODE_TOLERANCE);
     }
 
     private static RoadCrossing toCrossing(
@@ -80,45 +130,19 @@ public final class RoadCrossingDetector {
         if (roadA == null || roadB == null) {
             return null;
         }
-        Double stationA = stationAtPosition(network, roadA, position);
-        Double stationB = stationAtPosition(network, roadB, position);
-        if (stationA == null || stationB == null) {
+        OptionalDouble chainageA = RoadStationing.chainageAtPosition(network, roadA, position);
+        OptionalDouble chainageB = RoadStationing.chainageAtPosition(network, roadB, position);
+        if (chainageA.isEmpty() || chainageB.isEmpty()) {
             return null;
         }
+        double stationA = chainageA.getAsDouble();
+        double stationB = chainageB.getAsDouble();
         String aId = roadA.getId();
         String bId = roadB.getId();
         if (aId.compareTo(bId) > 0) {
             return RoadCrossing.atGrade(bId, stationB, aId, stationA, position);
         }
         return RoadCrossing.atGrade(aId, stationA, bId, stationB, position);
-    }
-
-    private static Double stationAtPosition(RoadNetwork network, Road road, Vec2d position) {
-        double bestDistance = Double.MAX_VALUE;
-        Double bestStation = null;
-        for (var segment : RoadStationing.orientedSegments(network, road)) {
-            RoadEdge edge = network.getEdge(segment.edgeId());
-            if (edge == null) {
-                continue;
-            }
-            List<Vec2d> points = edge.getCenterlinePoints();
-            for (int i = 0; i < points.size() - 1; i++) {
-                Vec2d start = points.get(i);
-                Vec2d end = points.get(i + 1);
-                Vec2d projected = RoadGeometryUtils.projectPointOnSegment(start, end, position);
-                double distance = projected.distance(position);
-                if (distance > NODE_TOLERANCE || distance >= bestDistance) {
-                    continue;
-                }
-                double geometryLocal = start.distance(projected);
-                for (int j = 0; j < i; j++) {
-                    geometryLocal += points.get(j).distance(points.get(j + 1));
-                }
-                bestDistance = distance;
-                bestStation = segment.roadStationAtGeometryLocal(geometryLocal);
-            }
-        }
-        return bestStation;
     }
 
     private static String dedupeKey(RoadCrossing crossing) {

@@ -1047,12 +1047,17 @@ public final class RoadNetworkManager {
      */
     public IntersectionResult reconcileCrossings() {
         pushUndoSnapshot();
-        IntersectionResult result =
-            com.plot.plugin.road.crossing.RoadCrossingReconciler.reconcileCrossings(network);
+        com.plot.plugin.road.crossing.CrossingReconcileResult result =
+            com.plot.plugin.road.crossing.RoadCrossingReconciler.reconcileCrossingsDetailed(network);
+        if (!result.changed()) {
+            abortPendingNetworkEdit();
+            adoptIntersectionRepairPending = false;
+            return result.result();
+        }
         commitNetworkChange();
         adoptIntersectionRepairPending = false;
         status.success(PlotI18n.tr("plugin.road.reconcile_intersections_success"));
-        return result;
+        return result.result();
     }
 
     public RoadLoopSeamPickSession getLoopSeamPickSession() {

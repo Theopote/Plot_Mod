@@ -4,10 +4,8 @@ import com.plot.plugin.road.IntersectionProbeResult;
 import com.plot.plugin.road.IntersectionResult;
 import com.plot.plugin.road.model.RoadNetwork;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -23,40 +21,75 @@ public final class RoadCrossingReconciler {
         if (network == null || network.getEdges().isEmpty()) {
             return IntersectionProbeResult.resolved();
         }
-        Set<String> detectedKeys = new HashSet<>();
-        for (RoadCrossing detected : RoadCrossingDetector.detectAll(network)) {
-            detectedKeys.add(detected.stableKey());
+        List<RoadCrossing> detected = RoadCrossingDetector.detectAll(network);
+        List<RoadCrossing> registered = List.copyOf(network.getCrossings().values());
+        if (detected.isEmpty() && registered.isEmpty()) {
+            return IntersectionProbeResult.resolved();
         }
-        Set<String> registeredKeys = new HashSet<>();
-        for (RoadCrossing registered : network.getCrossings().values()) {
-            registeredKeys.add(registered.stableKey());
+        if (detected.size() != registered.size()) {
+            return new IntersectionProbeResult(IntersectionResult.COMPLETE, true);
         }
-        boolean pending = !detectedKeys.equals(registeredKeys);
-        return new IntersectionProbeResult(IntersectionResult.COMPLETE, pending);
+        Set<String> matchedRegisteredIds = new HashSet<>();
+        for (RoadCrossing detectedCrossing : detected) {
+            RoadCrossing match = RoadCrossingMatcher.matchExisting(
+                detectedCrossing, registered, matchedRegisteredIds);
+            if (match == null) {
+                return new IntersectionProbeResult(IntersectionResult.COMPLETE, true);
+            }
+            matchedRegisteredIds.add(match.id());
+        }
+        if (matchedRegisteredIds.size() != registered.size()) {
+            return new IntersectionProbeResult(IntersectionResult.COMPLETE, true);
+        }
+        return IntersectionProbeResult.resolved();
     }
 
     public static IntersectionResult reconcileCrossings(RoadNetwork network) {
-        if (network == null) {
-            return IntersectionResult.COMPLETE;
-        }
-        Map<String, RoadCrossing> existingByKey = new HashMap<>();
-        for (RoadCrossing existing : network.getCrossings().values()) {
-            existingByKey.put(existing.stableKey(), existing);
-        }
+        return reconcileCrossingsDetailed(network).result();
+    }
 
+    public static CrossingReconcileResult reconcileCrossingsDetailed(RoadNetwork network) {
+        if (network == null) {
+            return new CrossingReconcileResult(IntersectionResult.COMPLETE, 0, 0, 0);
+        }
+        List<RoadCrossing> existingCrossings = List.copyOf(network.getCrossings().values());
         List<RoadCrossing> detected = RoadCrossingDetector.detectAll(network);
+
+        Set<String> matchedExistingIds = new HashSet<>();
         Set<String> seenIds = new HashSet<>();
+        int added = 0;
+        int updated = 0;
+
         for (RoadCrossing detectedCrossing : detected) {
-            RoadCrossing merged = mergeWithExisting(detectedCrossing, existingByKey.get(detectedCrossing.stableKey()));
+            RoadCrossing existing = RoadCrossingMatcher.matchExisting(
+                detectedCrossing, existingCrossings, matchedExistingIds);
+            RoadCrossing merged = mergeWithExisting(detectedCrossing, existing);
+            if (existing == null) {
+                added++;
+            } else {
+                matchedExistingIds.add(existing.id());
+                if (geometryChanged(existing, merged)) {
+                    updated++;
+                }
+            }
             seenIds.add(merged.id());
             network.registerCrossing(merged);
         }
-        for (RoadCrossing existing : network.getCrossings().values()) {
+
+        int removed = 0;
+        for (RoadCrossing existing : existingCrossings) {
             if (!seenIds.contains(existing.id())) {
                 network.removeCrossing(existing.id());
+                removed++;
             }
         }
-        return IntersectionResult.COMPLETE;
+        return new CrossingReconcileResult(IntersectionResult.COMPLETE, added, removed, updated);
+    }
+
+    private static boolean geometryChanged(RoadCrossing before, RoadCrossing after) {
+        return Math.abs(before.stationA() - after.stationA()) > 1e-6
+            || Math.abs(before.stationB() - after.stationB()) > 1e-6
+            || !RoadCrossingMatcher.positionsEquivalent(before.position(), after.position());
     }
 
     private static RoadCrossing mergeWithExisting(RoadCrossing detected, RoadCrossing existing) {
