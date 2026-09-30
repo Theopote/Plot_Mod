@@ -14,7 +14,7 @@ import java.util.OptionalInt;
 
 /**
  * Unified junction elevation writes for at-grade and grade-separated crossings.
- * Keeps {@link RoadNode#manualElevation} and per-road FLAT overrides in sync.
+ * Keeps  and per-road FLAT overrides in sync.
  */
 public final class RoadVerticalJunctionService {
 
@@ -104,9 +104,7 @@ public final class RoadVerticalJunctionService {
         if (crossing.type() == CrossingType.GRADE_SEPARATED) {
             return syncManualProfileElevationAtStation(network, road, station, elevation);
         }
-        if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
-            return syncManualProfileElevationAtStation(network, road, station, elevation);
-        }
+        road.getVerticalMode();
         return syncManualProfileElevationAtStation(network, road, station, elevation);
     }
 

@@ -14,9 +14,8 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import org.junit.jupiter.api.Test;
 
-import java.util.HashSet;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -25,7 +24,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadNetworkBuilderTest {
@@ -297,10 +295,8 @@ class RoadNetworkBuilderTest {
 
         List<RoadEdge> roadASegments = materialized.getEdges().values().stream()
             .filter(edge -> roadA.getId().equals(edge.getRoadId()))
-            .sorted((left, right) -> Double.compare(
-                left.getCenterlinePoints().getFirst().x,
-                right.getCenterlinePoints().getFirst().x))
-            .collect(Collectors.toList());
+            .sorted(Comparator.comparingDouble(left -> left.getCenterlinePoints().getFirst().x))
+            .toList();
 
         assertEquals(2, roadASegments.size());
 

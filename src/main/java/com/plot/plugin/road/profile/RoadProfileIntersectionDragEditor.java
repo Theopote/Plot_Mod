@@ -2,7 +2,6 @@ package com.plot.plugin.road.profile;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadParameterLimits;
-import com.plot.plugin.road.crossing.CrossingType;
 import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.crossing.RoadCrossingRef;
 import com.plot.plugin.road.model.Road;
