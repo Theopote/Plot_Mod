@@ -4,10 +4,16 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.overlay.IntersectionHit;
+import com.plot.plugin.road.overlay.IntersectionOverlaySource;
+import com.plot.plugin.road.overlay.RoadJunctionOverlayController;
+import com.plot.plugin.road.overlay.RoadJunctionOverlayEntry;
+import com.plot.plugin.road.overlay.RoadJunctionOverlayKind;
 import com.plot.ui.canvas.Canvas;
 import com.plot.ui.canvas.CanvasAccess;
 import com.plot.utils.PlotI18n;
@@ -111,8 +117,10 @@ public final class RoadNetworkOverviewRenderer {
             RoadNetworkBuilder networkBuilder,
             RoadSystemConfig config,
             Set<String> selectedEdgeIds,
+            String selectedCrossingId,
             String selectedNodeId,
             Consumer<String> onEdgeSelected,
+            Consumer<String> onCrossingSelected,
             Consumer<String> onNodeSelected) {
         float mapWidth = ImGui.getContentRegionAvail().x;
         float mapHeight = mapHeightForWidth(mapWidth);
@@ -144,6 +152,9 @@ public final class RoadNetworkOverviewRenderer {
         Bounds bounds = computeBounds(network);
         MapViewport viewport = buildViewport(bounds, originX, originY, width, height);
         drawEdges(drawList, network, viewport, selectedEdgeIds);
+        List<RoadJunctionOverlayEntry> intersectionEntries = RoadJunctionOverlayController.snapshot(
+            network, networkBuilder, selectedCrossingId, selectedNodeId);
+        drawIntersectionMarkers(drawList, intersectionEntries, viewport);
         drawSelectedJunctionPreview(
             drawList, network, config, viewport, selectedNodeId);
         drawNodes(
@@ -157,10 +168,23 @@ public final class RoadNetworkOverviewRenderer {
             ImVec2 mouse = ImGui.getMousePos();
             double worldX = toWorldX(mouse.x, viewport);
             double worldY = toWorldY(mouse.y, viewport);
+            double intersectionHitRadius = viewport.hitThreshold() * 0.55;
 
-            String nodeHit = hitTestNode(network, worldX, worldY, viewport.hitThreshold() * 0.55);
-            if (nodeHit != null && onNodeSelected != null) {
-                onNodeSelected.accept(nodeHit);
+            IntersectionHit intersectionHit = RoadJunctionOverlayController.hitTest(
+                intersectionEntries, worldX, worldY, intersectionHitRadius);
+            if (intersectionHit != null) {
+                switch (intersectionHit.source()) {
+                    case CROSSING -> {
+                        if (onCrossingSelected != null) {
+                            onCrossingSelected.accept(intersectionHit.id());
+                        }
+                    }
+                    case LEGACY_NODE -> {
+                        if (onNodeSelected != null) {
+                            onNodeSelected.accept(intersectionHit.id());
+                        }
+                    }
+                }
             } else if (onEdgeSelected != null) {
                 String edgeHit = hitTestEdge(network, worldX, worldY, viewport.hitThreshold());
                 if (edgeHit != null) {
@@ -265,6 +289,46 @@ public final class RoadNetworkOverviewRenderer {
                 );
             }
         }
+    }
+
+    private static void drawIntersectionMarkers(
+            ImDrawList drawList,
+            List<RoadJunctionOverlayEntry> entries,
+            MapViewport viewport) {
+        if (entries == null || entries.isEmpty()) {
+            return;
+        }
+        for (RoadJunctionOverlayEntry entry : entries) {
+            if (entry == null || entry.position() == null) {
+                continue;
+            }
+            float sx = toScreenX(entry.position().x, viewport);
+            float sy = toScreenY(entry.position().y, viewport);
+            RoadJunctionOverlayKind kind = entry.selected()
+                ? RoadJunctionOverlayKind.SELECTED
+                : entry.kind();
+            int color = kind.markerColor();
+            float radius = entry.selected() ? SELECTED_NODE_RADIUS : NODE_RADIUS;
+            switch (kind) {
+                case GRADE_SEPARATED -> drawDiamond(drawList, sx, sy, radius, color);
+                case COMPLEX, WARNING -> drawList.addRectFilled(
+                    sx - radius, sy - radius, sx + radius, sy + radius, color);
+                case AT_GRADE -> drawList.addCircle(sx, sy, radius, color, 12, 2f);
+                default -> drawList.addCircleFilled(sx, sy, radius, color);
+            }
+            if (entry.selected()) {
+                drawList.addCircle(sx, sy, radius + 2.5f, COLOR_NODE_SELECTED_RING, 16, 1.5f);
+            }
+        }
+    }
+
+    private static void drawDiamond(ImDrawList drawList, float x, float y, float radius, int color) {
+        drawList.addQuadFilled(
+            x, y - radius,
+            x + radius, y,
+            x, y + radius,
+            x - radius, y,
+            color);
     }
 
     private static void drawNodes(
@@ -424,6 +488,16 @@ public final class RoadNetworkOverviewRenderer {
         }
         for (RoadNode node : network.getNodes().values()) {
             Vec2d pos = node.getPosition();
+            minX = Math.min(minX, pos.x);
+            minY = Math.min(minY, pos.y);
+            maxX = Math.max(maxX, pos.x);
+            maxY = Math.max(maxY, pos.y);
+        }
+        for (RoadCrossing crossing : network.getCrossings().values()) {
+            if (crossing == null || crossing.position() == null) {
+                continue;
+            }
+            Vec2d pos = crossing.position();
             minX = Math.min(minX, pos.x);
             minY = Math.min(minY, pos.y);
             maxX = Math.max(maxX, pos.x);

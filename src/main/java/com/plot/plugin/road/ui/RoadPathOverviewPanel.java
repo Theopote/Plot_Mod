@@ -60,9 +60,14 @@ public final class RoadPathOverviewPanel {
             ctx.networkManager().getNetworkBuilder(),
             ctx.networkManager().getConfig(),
             ctx.networkManager().getSelectedEdgeIds(),
+            ctx.networkManager().getSelectedCrossingId(),
             ctx.networkManager().getSelectedNodeId(),
             edgeId -> {
                 ctx.networkManager().handleEdgeSelect(edgeId, ImGui.getIO().getKeyCtrl());
+                ctx.requestOverlayRefresh();
+            },
+            crossingId -> {
+                ctx.networkManager().handleCrossingSelect(crossingId);
                 ctx.requestOverlayRefresh();
             },
             nodeId -> {
@@ -104,6 +109,10 @@ public final class RoadPathOverviewPanel {
     }
 
     private boolean hasSelection() {
+        String selectedCrossingId = ctx.networkManager().getSelectedCrossingId();
+        if (selectedCrossingId != null && !selectedCrossingId.isBlank()) {
+            return true;
+        }
         String selectedNodeId = ctx.networkManager().getSelectedNodeId();
         if (selectedNodeId != null && !selectedNodeId.isBlank()) {
             return true;
@@ -112,6 +121,10 @@ public final class RoadPathOverviewPanel {
     }
 
     private void renderSelectionShortcuts(RoadNetwork network) {
+        String selectedCrossingId = ctx.networkManager().getSelectedCrossingId();
+        if (selectedCrossingId != null && !selectedCrossingId.isBlank()) {
+            return;
+        }
         String selectedNodeId = ctx.networkManager().getSelectedNodeId();
         if (selectedNodeId != null && !selectedNodeId.isBlank()) {
             return;
