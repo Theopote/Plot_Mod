@@ -555,6 +555,15 @@ public class RoadNetwork {
     /**
      * 设置节点的立体交叉标记；校验失败时返回 false 且不修改状态。
      */
+    public boolean setCrossingSharedElevation(String crossingId, Double sharedElevation) {
+        com.plot.plugin.road.crossing.RoadCrossing crossing = crossings.get(crossingId);
+        if (crossing == null) {
+            return false;
+        }
+        crossings.put(crossingId, crossing.withSharedElevation(sharedElevation));
+        return true;
+    }
+
     public boolean setCrossingGradeSeparation(
             String crossingId,
             com.plot.plugin.road.crossing.CrossingType type,

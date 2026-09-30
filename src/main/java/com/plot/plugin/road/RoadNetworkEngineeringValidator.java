@@ -138,7 +138,7 @@ public final class RoadNetworkEngineeringValidator {
         }
 
         IntersectionProbeResult intersectionProbe =
-            new RoadNetworkBuilder().probeIntersectionCompleteness(network);
+            com.plot.plugin.road.crossing.RoadCrossingReconciler.probeRegistryCompleteness(network);
         if (intersectionProbe.isIncomplete()) {
             items.add(RoadNetworkValidationReport.Item.error(
                 "plugin.road.validation.intersections_incomplete"));
@@ -447,7 +447,7 @@ public final class RoadNetworkEngineeringValidator {
             List<RoadNetworkValidationReport.Item> items,
             RoadNetwork network) {
         IntersectionProbeResult intersectionProbe =
-            new RoadNetworkBuilder().probeIntersectionCompleteness(network);
+            com.plot.plugin.road.crossing.RoadCrossingReconciler.probeRegistryCompleteness(network);
         if (intersectionProbe.isIncomplete()) {
             items.add(RoadNetworkValidationReport.Item.error(
                 "plugin.road.validation.intersections_incomplete"));

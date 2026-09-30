@@ -2,6 +2,7 @@ package com.plot.plugin.road.ui;
 
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkBuilder;
+import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.graph.RoadGraphQueries;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.Road;
@@ -11,10 +12,7 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
-import java.util.ArrayList;
-import java.util.List;
-
-/** 路径 Tab：当前选中交叉点的简洁属性编辑（主入口）。 */
+/** 路径 Tab：当前选中交叉点的属性编辑（注册表 Crossing 为主）。 */
 public final class RoadIntersectionDetailPanel {
     private final RoadUiContext ctx;
     private final RoadGradeSeparationControls gradeSeparationControls;
@@ -26,7 +24,26 @@ public final class RoadIntersectionDetailPanel {
         this.complexJunctionGuide = new ComplexJunctionGuidePanel(ctx);
     }
 
-    public void render(RoadNetwork network, RoadNode node) {
+    public void renderCrossing(RoadNetwork network, RoadCrossing crossing) {
+        if (network == null || crossing == null) {
+            return;
+        }
+        ImGui.text(PlotI18n.tr("plugin.road.path.selected_intersection"));
+        ImGui.textColored(
+            PluginUiColors.ACCENT_BLUE,
+            formatCrossingTitle(network, crossing));
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.path.crossing_registry_hint"));
+
+        gradeSeparationControls.renderCrossing(
+            crossing,
+            network,
+            ctx.networkManager().getConfig(),
+            RoadGradeSeparationControls.Layout.BLOCK);
+    }
+
+    public void renderLegacyJunction(RoadNetwork network, RoadNode node) {
         if (network == null || node == null) {
             return;
         }
@@ -39,7 +56,7 @@ public final class RoadIntersectionDetailPanel {
             PlotI18n.tr("plugin.road.junction_topology_type", RoadNetworkManager.junctionTypeLabel(type)));
 
         if (RoadGraphQueries.isSimpleCrossing(node, network)) {
-            gradeSeparationControls.render(
+            gradeSeparationControls.renderLegacyJunction(
                 node,
                 network,
                 ctx.networkManager().getConfig(),
@@ -54,11 +71,23 @@ public final class RoadIntersectionDetailPanel {
         }
     }
 
+    /** @deprecated 使用 {@link #renderCrossing} 或 {@link #renderLegacyJunction} */
+    @Deprecated
+    public void render(RoadNetwork network, RoadNode node) {
+        renderLegacyJunction(network, node);
+    }
+
+    private String formatCrossingTitle(RoadNetwork network, RoadCrossing crossing) {
+        String a = formatRoadLabel(network, crossing.roadAId());
+        String b = formatRoadLabel(network, crossing.roadBId());
+        return PlotI18n.tr("plugin.road.path.intersection_pair", a, b);
+    }
+
     private String formatJunctionTitle(
             RoadNetwork network,
             RoadNode node,
             RoadNetworkBuilder.JunctionType type) {
-        List<String> roadIds = new ArrayList<>(network.getDistinctRoadIdsAtNode(node.getId()));
+        java.util.List<String> roadIds = new java.util.ArrayList<>(network.getDistinctRoadIdsAtNode(node.getId()));
         if (roadIds.size() >= 2) {
             String a = formatRoadLabel(network, roadIds.get(0));
             String b = formatRoadLabel(network, roadIds.get(1));

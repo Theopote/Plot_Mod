@@ -64,6 +64,7 @@ public final class RoadNetworkManager {
     private long networkRevision = 0L;
     private final LinkedHashSet<String> selectedEdgeIds = new LinkedHashSet<>();
     private String selectedNodeId = "";
+    private String selectedCrossingId = "";
     private String lastSelectedEdgeId = "";
     /** 路网变更时回调（预览失效等），由插件装配。 */
     private Consumer<RoadChangeKind> onNetworkChanged;
@@ -188,12 +189,46 @@ public final class RoadNetworkManager {
             return;
         }
         this.selectedNodeId = selectedNodeId;
+        selectedCrossingId = "";
         selectedEdgeIds.clear();
         lastSelectedEdgeId = "";
     }
 
     public void clearNodeSelection() {
         selectedNodeId = "";
+    }
+
+    public String getSelectedCrossingId() {
+        return selectedCrossingId;
+    }
+
+    public com.plot.plugin.road.crossing.RoadCrossing getSelectedCrossing() {
+        if (selectedCrossingId == null || selectedCrossingId.isBlank()) {
+            return null;
+        }
+        return network.getCrossing(selectedCrossingId);
+    }
+
+    public void setSelectedCrossingId(String crossingId) {
+        if (crossingId == null || crossingId.isBlank()) {
+            selectedCrossingId = "";
+            return;
+        }
+        if (network.getCrossing(crossingId) == null) {
+            return;
+        }
+        selectedCrossingId = crossingId;
+        selectedNodeId = "";
+        selectedEdgeIds.clear();
+        lastSelectedEdgeId = "";
+    }
+
+    public void clearCrossingSelection() {
+        selectedCrossingId = "";
+    }
+
+    public void handleCrossingSelect(String crossingId) {
+        setSelectedCrossingId(crossingId);
     }
 
     public String getLastSelectedEdgeId() {
@@ -311,6 +346,7 @@ public final class RoadNetworkManager {
         selectedEdgeIds.clear();
         lastSelectedEdgeId = "";
         selectedNodeId = "";
+        selectedCrossingId = "";
         lastBatchSelectionKey = "";
     }
 
@@ -449,6 +485,7 @@ public final class RoadNetworkManager {
             return;
         }
         selectedNodeId = nodeId;
+        selectedCrossingId = "";
         selectedEdgeIds.clear();
         lastSelectedEdgeId = "";
     }
@@ -467,6 +504,7 @@ public final class RoadNetworkManager {
                 selectedEdgeIds.add(edgeId);
                 lastSelectedEdgeId = edgeId;
             }
+            selectedNodeId = "";
         } else {
             RoadEdge edge = network.getEdge(edgeId);
             String roadId = edge != null ? edge.getRoadId() : null;
@@ -477,8 +515,9 @@ public final class RoadNetworkManager {
                 selectedEdgeIds.add(edgeId);
                 lastSelectedEdgeId = edgeId;
             }
+            selectedNodeId = "";
+            selectedCrossingId = "";
         }
-        selectedNodeId = "";
         ensureSelectionValid();
     }
 
@@ -511,7 +550,10 @@ public final class RoadNetworkManager {
             selectedEdgeIds.addAll(segmentIds);
             lastSelectedEdgeId = segmentIds.getFirst();
         }
-        selectedNodeId = "";
+        if (!multiSelect) {
+            selectedNodeId = "";
+            selectedCrossingId = "";
+        }
         ensureSelectionValid();
     }
 
@@ -528,6 +570,9 @@ public final class RoadNetworkManager {
         }
         if (selectedNodeId != null && !selectedNodeId.isBlank() && network.getNode(selectedNodeId) == null) {
             selectedNodeId = "";
+        }
+        if (selectedCrossingId != null && !selectedCrossingId.isBlank() && network.getCrossing(selectedCrossingId) == null) {
+            selectedCrossingId = "";
         }
     }
 
@@ -576,6 +621,7 @@ public final class RoadNetworkManager {
         selectedEdgeIds.clear();
         selectedEdgeIds.addAll(network.getEdges().keySet());
         selectedNodeId = "";
+        selectedCrossingId = "";
         lastSelectedEdgeId = selectedEdgeIds.isEmpty() ? "" : selectedEdgeIds.getFirst();
         ensureSelectionValid();
     }

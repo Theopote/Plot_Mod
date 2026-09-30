@@ -1399,6 +1399,7 @@
   "plugin.road.path.intersection_multi": "%s × %s and %d roads",
   "plugin.road.path.focus_junction": "Focus intersection",
   "plugin.road.path.intersection_list_hint": "Click to select an intersection and edit it in the panel above.",
+  "plugin.road.path.crossing_registry_hint": "Geometric crossing (roads stay independent in topology; junction is materialized at build time).",
   "plugin.road.path.intersection_status_at_grade": "At-grade",
   "plugin.road.path.intersection_status_auto": "Grade-separated · auto",
   "plugin.road.path.intersection_status_elevated": "%s above",

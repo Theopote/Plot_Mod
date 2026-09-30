@@ -2,8 +2,8 @@ package com.plot.plugin.road.repair;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.IntersectionProbeResult;
-import com.plot.plugin.road.IntersectionResult;
 import com.plot.plugin.road.RoadNetworkBuilder;
+import com.plot.plugin.road.crossing.RoadCrossingReconciler;
 import com.plot.plugin.road.alignment.CenterlineHorizontalAlignmentSync;
 import com.plot.plugin.road.alignment.HorizontalAlignmentCenterlineConsistency;
 import com.plot.plugin.road.alignment.HorizontalAlignmentCenterlineMaterializer;
@@ -88,9 +88,7 @@ public final class RoadAutoRepair {
             return new Result("", List.of(), List.of(), 0);
         }
 
-        IntersectionProbeResult probe = networkBuilder != null
-            ? networkBuilder.probeIntersectionCompleteness(network)
-            : IntersectionProbeResult.resolved();
+        IntersectionProbeResult probe = RoadCrossingReconciler.probeRegistryCompleteness(network);
         List<RoadRepairIssue> before = diagnose(network, road, config, probe, false);
         if (before.isEmpty()) {
             return new Result(road.getId(), List.of(), List.of(), 0);
@@ -101,14 +99,10 @@ public final class RoadAutoRepair {
 
         if (before.contains(RoadRepairIssue.INTERSECTION_INCOMPLETE)
                 || before.contains(RoadRepairIssue.INTERSECTION_PENDING)) {
-            if (networkBuilder != null) {
-                IntersectionResult reconcile = networkBuilder.detectAndSplitIntersections(network);
-                if (reconcile != IntersectionResult.INCOMPLETE) {
-                    steps++;
-                    if (onIntersectionReconciled != null) {
-                        onIntersectionReconciled.run();
-                    }
-                }
+            RoadCrossingReconciler.reconcileCrossings(network);
+            steps++;
+            if (onIntersectionReconciled != null) {
+                onIntersectionReconciled.run();
             }
         }
 
@@ -149,9 +143,7 @@ public final class RoadAutoRepair {
                 network,
                 road,
                 config,
-                networkBuilder != null
-                    ? networkBuilder.probeIntersectionCompleteness(network)
-                    : IntersectionProbeResult.resolved(),
+                RoadCrossingReconciler.probeRegistryCompleteness(network),
                 false)
             : List.of();
 

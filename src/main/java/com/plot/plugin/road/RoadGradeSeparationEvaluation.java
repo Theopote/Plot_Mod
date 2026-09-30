@@ -39,19 +39,27 @@ public record RoadGradeSeparationEvaluation(
     }
 
     public boolean isLockedChoiceSteep(RoadNode node) {
-        if (node == null || node.getElevatedRoadId() == null) {
+        return node != null && isLockedChoiceSteep(node.getElevatedRoadId());
+    }
+
+    public boolean isLockedChoiceSteep(String lockedElevatedRoadId) {
+        if (lockedElevatedRoadId == null || lockedElevatedRoadId.isBlank()) {
             return false;
         }
-        RoadGradeSeparationAlternative locked = alternativeFor(node.getElevatedRoadId());
+        RoadGradeSeparationAlternative locked = alternativeFor(lockedElevatedRoadId);
         return locked != null && locked.exceedsSlopeLimit();
     }
 
     public String recommendedIfDifferentFromLock(RoadNode node) {
-        if (node == null || node.getElevatedRoadId() == null) {
+        return node == null ? recommendedElevatedRoadId() : recommendedIfDifferentFromLock(node.getElevatedRoadId());
+    }
+
+    public String recommendedIfDifferentFromLock(String lockedElevatedRoadId) {
+        if (lockedElevatedRoadId == null || lockedElevatedRoadId.isBlank()) {
             return recommendedElevatedRoadId();
         }
         String recommended = recommendedElevatedRoadId();
-        if (recommended == null || recommended.equals(node.getElevatedRoadId())) {
+        if (recommended == null || recommended.equals(lockedElevatedRoadId)) {
             return null;
         }
         return recommended;

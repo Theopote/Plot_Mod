@@ -479,7 +479,7 @@ class RoadNetworkEngineeringValidatorTest {
         network.createEdge(bStart.getId(), bEnd.getId(), List.of(
             new Vec2d(5, 5), new Vec2d(5, 10)), roadB.getId());
 
-        new RoadNetworkBuilder().detectAndSplitIntersections(network);
+        com.plot.plugin.road.crossing.RoadCrossingReconciler.reconcileCrossings(network);
 
         RoadNetworkValidationReport report = RoadNetworkEngineeringValidator.analyze(
             network,

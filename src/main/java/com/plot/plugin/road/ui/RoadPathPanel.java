@@ -51,6 +51,14 @@ public final class RoadPathPanel {
     }
 
     private void renderSelectedIntersection(RoadNetwork network) {
+        com.plot.plugin.road.crossing.RoadCrossing selectedCrossing =
+            ctx.networkManager().getSelectedCrossing();
+        if (selectedCrossing != null) {
+            intersectionDetailPanel.renderCrossing(network, selectedCrossing);
+            ImGui.spacing();
+            return;
+        }
+
         String selectedNodeId = ctx.networkManager().getSelectedNodeId();
         if (selectedNodeId == null || selectedNodeId.isBlank()) {
             RoadUiWidgets.textWrappedColored(
@@ -66,7 +74,7 @@ public final class RoadPathPanel {
         if (!node.isJunction() && !RoadGraphQueries.isSimpleCrossing(node, network)) {
             return;
         }
-        intersectionDetailPanel.render(network, node);
+        intersectionDetailPanel.renderLegacyJunction(network, node);
         ImGui.spacing();
     }
 

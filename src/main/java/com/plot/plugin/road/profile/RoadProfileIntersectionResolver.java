@@ -4,6 +4,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.crossing.CrossingType;
 import com.plot.plugin.road.crossing.RoadCrossing;
+import com.plot.plugin.road.crossing.RoadCrossingRef;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -102,7 +103,7 @@ public final class RoadProfileIntersectionResolver {
             ResolvedCrossSection otherSection =
                 VariableCrossSectionResolver.resolve(network, otherRoad, otherStation, config);
             out.add(new RoadProfileIntersection(
-                "crossing:" + crossing.id(),
+                RoadCrossingRef.toRef(crossing.id()),
                 currentRoad.getId(),
                 otherRoadId,
                 RoadEdgeListHelper.formatRoadLabel(network, otherRoad),

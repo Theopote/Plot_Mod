@@ -19,7 +19,16 @@ public record AutoGradeSeparationRecommendation(
         if (evaluation == null || node == null || !node.isGradeSeparated()) {
             return none();
         }
-        if (node.getElevatedRoadId() != null && !node.getElevatedRoadId().isBlank()) {
+        return fromEvaluation(evaluation, node.getElevatedRoadId());
+    }
+
+    public static AutoGradeSeparationRecommendation fromEvaluation(
+            RoadGradeSeparationEvaluation evaluation,
+            String lockedElevatedRoadId) {
+        if (evaluation == null) {
+            return none();
+        }
+        if (lockedElevatedRoadId != null && !lockedElevatedRoadId.isBlank()) {
             return new AutoGradeSeparationRecommendation(null, evaluation);
         }
         return new AutoGradeSeparationRecommendation(evaluation.recommendedElevatedRoadId(), evaluation);
@@ -30,10 +39,18 @@ public record AutoGradeSeparationRecommendation(
     }
 
     public boolean warnsLockedChoice(RoadNode node) {
-        return evaluation != null && evaluation.isLockedChoiceSteep(node);
+        return node != null && warnsLockedChoice(node.getElevatedRoadId());
+    }
+
+    public boolean warnsLockedChoice(String lockedElevatedRoadId) {
+        return evaluation != null && evaluation.isLockedChoiceSteep(lockedElevatedRoadId);
     }
 
     public String adoptSuggestedElevatedRoadId(RoadNode node) {
-        return evaluation != null ? evaluation.recommendedIfDifferentFromLock(node) : null;
+        return node == null ? null : adoptSuggestedElevatedRoadId(node.getElevatedRoadId());
+    }
+
+    public String adoptSuggestedElevatedRoadId(String lockedElevatedRoadId) {
+        return evaluation != null ? evaluation.recommendedIfDifferentFromLock(lockedElevatedRoadId) : null;
     }
 }

@@ -1,5 +1,6 @@
 package com.plot.plugin.road.crossing;
 
+import com.plot.plugin.road.IntersectionProbeResult;
 import com.plot.plugin.road.IntersectionResult;
 import com.plot.plugin.road.model.RoadNetwork;
 
@@ -13,6 +14,25 @@ import java.util.UUID;
 /** 将几何交叉注册为 {@link RoadCrossing}，不修改拓扑节点/边。 */
 public final class RoadCrossingReconciler {
     private RoadCrossingReconciler() {
+    }
+
+    /**
+     * 探测几何交叉是否均已注册为 {@link RoadCrossing}（不修改 live 拓扑）。
+     */
+    public static IntersectionProbeResult probeRegistryCompleteness(RoadNetwork network) {
+        if (network == null || network.getEdges().isEmpty()) {
+            return IntersectionProbeResult.resolved();
+        }
+        Set<String> detectedKeys = new HashSet<>();
+        for (RoadCrossing detected : RoadCrossingDetector.detectAll(network)) {
+            detectedKeys.add(detected.stableKey());
+        }
+        Set<String> registeredKeys = new HashSet<>();
+        for (RoadCrossing registered : network.getCrossings().values()) {
+            registeredKeys.add(registered.stableKey());
+        }
+        boolean pending = !detectedKeys.equals(registeredKeys);
+        return new IntersectionProbeResult(IntersectionResult.COMPLETE, pending);
     }
 
     public static IntersectionResult reconcileCrossings(RoadNetwork network) {

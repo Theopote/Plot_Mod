@@ -309,13 +309,17 @@ class RoadNetworkTest {
         builder.adoptShape(network, a, config);
         builder.adoptShape(network, b, config);
 
-        builder.detectAndSplitIntersections(network);
-        int edgesAfterFirstSplit = network.getEdges().size();
-        int nodesAfterFirstSplit = network.getNodes().size();
+        com.plot.plugin.road.crossing.RoadCrossingReconciler.reconcileCrossings(network);
+        RoadNetwork firstMaterialized =
+            com.plot.plugin.road.crossing.RoadCrossingMaterializer.materializeForSnapshot(network);
+        int edgesAfterFirstSplit = firstMaterialized.getEdges().size();
+        int nodesAfterFirstSplit = firstMaterialized.getNodes().size();
 
-        builder.detectAndSplitIntersections(network);
-        int edgesAfterSecondSplit = network.getEdges().size();
-        int nodesAfterSecondSplit = network.getNodes().size();
+        com.plot.plugin.road.crossing.RoadCrossingReconciler.reconcileCrossings(network);
+        RoadNetwork secondMaterialized =
+            com.plot.plugin.road.crossing.RoadCrossingMaterializer.materializeForSnapshot(network);
+        int edgesAfterSecondSplit = secondMaterialized.getEdges().size();
+        int nodesAfterSecondSplit = secondMaterialized.getNodes().size();
 
         assertEquals(4, edgesAfterFirstSplit);
         assertEquals(5, nodesAfterFirstSplit);
@@ -422,12 +426,9 @@ class RoadNetworkTest {
             new Vec2d(10, -10), new Vec2d(10, 10)
         ), sharedRoad.getId());
 
-        int nodesBefore = network.getNodes().size();
-        int edgesBefore = network.getEdges().size();
-        builder.detectAndSplitIntersections(network);
+        com.plot.plugin.road.crossing.RoadCrossingReconciler.reconcileCrossings(network);
 
-        assertEquals(nodesBefore, network.getNodes().size());
-        assertEquals(edgesBefore, network.getEdges().size());
+        assertEquals(0, network.getCrossings().size());
     }
 
     @Test
@@ -447,10 +448,12 @@ class RoadNetworkTest {
             new Vec2d(5, 0), new Vec2d(5, 10)
         ), network.createRoad("road-b").getId());
 
-        builder.detectAndSplitIntersections(network);
+        com.plot.plugin.road.crossing.RoadCrossingReconciler.reconcileCrossings(network);
+        RoadNetwork materialized =
+            com.plot.plugin.road.crossing.RoadCrossingMaterializer.materializeForSnapshot(network);
 
-        assertEquals(4, network.getEdges().size());
-        assertEquals(5, network.getNodes().size());
+        assertEquals(4, materialized.getEdges().size());
+        assertEquals(5, materialized.getNodes().size());
     }
 
     @Test

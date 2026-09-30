@@ -1,6 +1,8 @@
 package com.plot.plugin.road.vertical;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.crossing.CrossingType;
+import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -65,6 +67,49 @@ public final class RoadVerticalJunctionService {
         return changed;
     }
 
+    /** 注册表 Crossing 的平交共享标高：写入 crossing 并同步两条道路纵断面。 */
+    public static int setAtGradeSharedElevation(
+            RoadNetwork network,
+            RoadCrossing crossing,
+            double elevation,
+            RoadSystemConfig config) {
+        if (network == null || crossing == null || !Double.isFinite(elevation)) {
+            return 0;
+        }
+        if (crossing.type() == CrossingType.GRADE_SEPARATED) {
+            return 0;
+        }
+        network.setCrossingSharedElevation(crossing.id(), elevation);
+        int changed = 0;
+        for (String roadId : List.of(crossing.roadAId(), crossing.roadBId())) {
+            Road road = network.getRoad(roadId);
+            if (road != null && setRoadElevationAtRegistryCrossing(network, road, crossing, elevation, config)) {
+                changed++;
+            }
+        }
+        return changed;
+    }
+
+    /** 注册表 Crossing 上单条道路的纵断面标高。 */
+    public static boolean setRoadElevationAtRegistryCrossing(
+            RoadNetwork network,
+            Road road,
+            RoadCrossing crossing,
+            double elevation,
+            RoadSystemConfig config) {
+        if (network == null || road == null || crossing == null || !Double.isFinite(elevation)) {
+            return false;
+        }
+        double station = crossing.stationOn(road.getId());
+        if (crossing.type() == CrossingType.GRADE_SEPARATED) {
+            return syncManualProfileElevationAtStation(network, road, station, elevation);
+        }
+        if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
+            return syncManualProfileElevationAtStation(network, road, station, elevation);
+        }
+        return syncManualProfileElevationAtStation(network, road, station, elevation);
+    }
+
     /** Per-road elevation at a crossing (grade-separated or single-road edit). */
     public static boolean setRoadElevationAtCrossing(
             RoadNetwork network,
@@ -126,7 +171,19 @@ public final class RoadVerticalJunctionService {
             Road road,
             String nodeId,
             double elevation) {
-        OptionalInt pviIndex = junctionPviIndex(network, road, nodeId);
+        Double station = stationAtNode(network, road, nodeId);
+        if (station == null) {
+            return false;
+        }
+        return syncManualProfileElevationAtStation(network, road, station, elevation);
+    }
+
+    private static boolean syncManualProfileElevationAtStation(
+            RoadNetwork network,
+            Road road,
+            double station,
+            double elevation) {
+        OptionalInt pviIndex = pviIndexNearStation(road, station);
         if (pviIndex.isEmpty() || road.getVerticalAlignment() == null) {
             return false;
         }
@@ -135,6 +192,19 @@ public final class RoadVerticalJunctionService {
         road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
         VerticalAlignmentJunctionSynchronizer.applySharedJunctionConstraints(network, road);
         return true;
+    }
+
+    private static OptionalInt pviIndexNearStation(Road road, double station) {
+        if (road == null || road.getVerticalAlignment() == null) {
+            return OptionalInt.empty();
+        }
+        List<PointOfVerticalIntersection> pvis = road.getVerticalAlignment().getPvis();
+        for (int i = 0; i < pvis.size(); i++) {
+            if (Math.abs(pvis.get(i).getStation() - station) <= STATION_TOLERANCE) {
+                return OptionalInt.of(i);
+            }
+        }
+        return OptionalInt.empty();
     }
 
     private static OptionalInt junctionPviIndex(RoadNetwork network, Road road, String nodeId) {

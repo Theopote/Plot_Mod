@@ -112,7 +112,7 @@ class RoadWorkflowTest {
             verticalRoadId,
             3.0));
 
-        new RoadNetworkBuilder().detectAndSplitIntersections(network);
+        com.plot.plugin.road.crossing.RoadCrossingMaterializer.materializeInPlace(network);
         RoadNode junction = findNodeNear(network, new Vec2d(5, 5));
         assertNotNull(junction);
         assertEquals(4, junction.getDegree());

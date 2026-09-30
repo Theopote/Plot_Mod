@@ -101,6 +101,12 @@ public record RoadCrossing(
             sharedElevation);
     }
 
+    public RoadCrossing withSharedElevation(Double newSharedElevation) {
+        return new RoadCrossing(
+            id, roadAId, stationA, roadBId, stationB,
+            position, type, elevatedRoadId, crossingClearance, newSharedElevation);
+    }
+
     public RoadCrossing withStationsOnRoad(String roadId, double newStation) {
         if (roadAId.equals(roadId)) {
             return new RoadCrossing(

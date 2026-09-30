@@ -1399,6 +1399,7 @@
   "plugin.road.path.intersection_multi": "%s × %s 等 %d 条道路",
   "plugin.road.path.focus_junction": "聚焦交叉点",
   "plugin.road.path.intersection_list_hint": "点击选择交叉点，在上方编辑平交/立交关系。",
+  "plugin.road.path.crossing_registry_hint": "几何交叉（拓扑上道路保持独立；生成时临时物化为路口）。",
   "plugin.road.path.intersection_status_at_grade": "平交",
   "plugin.road.path.intersection_status_auto": "立交·自动",
   "plugin.road.path.intersection_status_elevated": "%s 上跨",

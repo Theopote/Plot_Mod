@@ -1,7 +1,7 @@
 package com.plot.plugin.road.repair;
 
 import com.plot.plugin.road.IntersectionProbeResult;
-import com.plot.plugin.road.RoadNetworkBuilder;
+import com.plot.plugin.road.crossing.RoadCrossingReconciler;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.overlay.RoadOverlayWarningCache;
@@ -10,12 +10,10 @@ import com.plot.plugin.road.ui.RoadUiContext;
 import java.util.List;
 
 /**
- * 道路健康诊断缓存：复用 {@link RoadNetworkBuilder#probeIntersectionCompleteness} 结果，
- * 供 Auto Repair 横幅与 Topology Hints 共用，避免每帧重复 snapshot + 求交。
+ * 道路健康诊断缓存：复用 Crossing 注册完整性探测结果，
+ * 供 Auto Repair 横幅与 Topology Hints 共用，避免每帧重复求交。
  */
 public final class RoadRepairDiagnosisCache {
-
-    private static final RoadNetworkBuilder PROBE_BUILDER = new RoadNetworkBuilder();
 
     private static long cachedRevision = Long.MIN_VALUE;
     private static String cachedRoadId = "";
@@ -44,7 +42,7 @@ public final class RoadRepairDiagnosisCache {
             return cachedIssues;
         }
 
-        IntersectionProbeResult probe = PROBE_BUILDER.probeIntersectionCompleteness(network);
+        IntersectionProbeResult probe = RoadCrossingReconciler.probeRegistryCompleteness(network);
         List<RoadRepairIssue> issues = RoadAutoRepair.diagnose(
             network,
             road,
