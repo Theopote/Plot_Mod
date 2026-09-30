@@ -86,7 +86,7 @@ public final class RoadOverlayController {
             ? RoadOverlayState.PICK_ACTIVE
             : RoadOverlayState.CANDIDATE;
         for (Shape path : pickCandidatePaths) {
-            if (path == null || !RoadGeometryUtils.isAdoptablePath(path)) {
+            if (!RoadGeometryUtils.isAdoptablePath(path)) {
                 continue;
             }
             List<com.plot.api.geometry.Vec2d> corridor =

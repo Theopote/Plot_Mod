@@ -1,5 +1,6 @@
 package com.plot.plugin.road;
 
+import com.plot.plugin.road.crossing.RoadCrossingMaterializer;
 import com.plot.plugin.road.pipeline.EdgeGenerationOutcome;
 import com.plot.plugin.road.pipeline.EdgeGenerationResult;
 import com.plot.plugin.road.pipeline.RoadGenerationResultAssembler;
@@ -175,12 +176,15 @@ public class RoadNetworkGenerator {
 
     /**
      * 开启分帧预览会话（快照 + 队列）；{@link #preparePreviewSession} 完成地形采样与标高决议。
+     * <p>
+     * 生成在 {@link RoadCrossingMaterializer#materializeForSnapshot(RoadNetwork)} 副本上运行，
+     * 仅物化 registry 中已注册的 Crossing，不修改 live 路网拓扑。
      */
     public RoadNetworkPreviewSession beginPreviewSession(RoadNetwork network, TerrainSampler terrain) {
         if (network == null || terrain == null || network.getEdges().isEmpty()) {
             return RoadNetworkPreviewSession.empty(network);
         }
-        RoadNetwork generationNetwork = network.snapshot();
+        RoadNetwork generationNetwork = RoadCrossingMaterializer.materializeForSnapshot(network);
         List<RoadEdge> edges = new ArrayList<>(generationNetwork.getEdges().values());
         List<RoadNode> junctionNodes = RoadNetworkPreviewSession.collectJunctionNodes(generationNetwork);
         return new RoadNetworkPreviewSession(

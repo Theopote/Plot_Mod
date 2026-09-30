@@ -22,12 +22,8 @@ import com.plot.core.geometry.WorldProjectionMath;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * 道路几何工具（与 Shape / RoadGenerator 解耦的纯几何运算）
@@ -643,12 +639,7 @@ public final class RoadGeometryUtils {
         return groups;
     }
 
-    private static final class PathFragment {
-        final List<Vec2d> points;
-
-        PathFragment(List<Vec2d> points) {
-            this.points = points;
-        }
+    private record PathFragment(List<Vec2d> points) {
     }
 
     private static List<PathFragment> buildAdoptableFragments(List<Shape> shapes) {

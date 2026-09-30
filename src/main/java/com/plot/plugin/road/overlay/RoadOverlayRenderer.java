@@ -5,7 +5,6 @@ import com.plot.core.geometry.polygon.PolygonTriangulator;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.canvas.CanvasCamera;
 import imgui.ImDrawList;
-import imgui.ImVec2;
 
 import java.util.List;
 

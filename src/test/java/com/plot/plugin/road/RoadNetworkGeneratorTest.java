@@ -1,13 +1,16 @@
 package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.config.RoadSystemConfig;
-import com.plot.plugin.road.RoadGenerator;
-import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.alignment.HorizontalAlignmentElement;
 import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
+import com.plot.plugin.road.crossing.CrossingType;
+import com.plot.plugin.road.crossing.RoadCrossing;
+import com.plot.plugin.road.crossing.RoadCrossingMaterializer;
+import com.plot.plugin.road.crossing.RoadCrossingReconciler;
+import com.plot.plugin.road.graph.RoadGraphQueries;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -23,6 +26,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadNetworkGeneratorTest {
@@ -128,5 +132,73 @@ class RoadNetworkGeneratorTest {
         assertEquals(0.0, edge.getCenterlinePoints().getFirst().y, 1e-6,
             "preview/generate must not write derived centerline back to live network");
         assertEquals(1, result.successEdgeCount());
+    }
+
+    @Test
+    void generatePreviewMaterializesRegisteredCrossingsWithoutMutatingLiveNetwork() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        config.setRoadWidth(6);
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
+        config.setIncludeDrainage(false);
+        config.setPathSampleDistance(4.0);
+        config.setDefaultCrossingClearance(3.0);
+
+        RoadGenerator generator = new RoadGenerator(
+            config,
+            com.plot.test.world.IdentityCoordinateService.INSTANCE,
+            BlockProjectionHandler.getInstance());
+        RoadNetworkGenerator networkGenerator = new RoadNetworkGenerator(generator);
+        FlatTerrainSampler terrain = new FlatTerrainSampler(70);
+
+        RoadNetwork network = new RoadNetwork();
+        RoadNetworkBuilder builder = new RoadNetworkBuilder();
+        builder.adoptShape(network, new PolylineShape(
+            List.of(new Vec2d(0, 5), new Vec2d(10, 5)), false), config);
+        builder.adoptShape(network, new PolylineShape(
+            List.of(new Vec2d(5, 0), new Vec2d(5, 10)), false), config);
+        RoadCrossingReconciler.reconcileCrossings(network);
+
+        RoadCrossing crossing = network.getCrossings().values().iterator().next();
+        String verticalRoadId = Math.abs(crossing.stationA() - 5.0) < Math.abs(crossing.stationB() - 5.0)
+            ? crossing.roadBId() : crossing.roadAId();
+        if (!isMostlyVerticalRoad(network, verticalRoadId)) {
+            verticalRoadId = crossing.otherRoadId(verticalRoadId);
+        }
+        assertTrue(network.setCrossingGradeSeparation(
+            crossing.id(), CrossingType.GRADE_SEPARATED, verticalRoadId, 3.0));
+
+        int liveNodesBefore = network.getNodes().size();
+        assertTrue(network.getNodes().values().stream().noneMatch(node -> node.getDegree() >= 3));
+
+        RoadNetwork materialized = RoadCrossingMaterializer.materializeForSnapshot(network);
+        RoadNode junction = materialized.getNodes().values().stream()
+            .filter(node -> node.getDegree() >= 3)
+            .findFirst()
+            .orElse(null);
+        assertNotNull(junction);
+        assertTrue(RoadGraphQueries.isSimpleCrossing(junction, materialized));
+        assertTrue(junction.isGradeSeparated());
+        assertEquals(verticalRoadId, junction.getElevatedRoadId());
+
+        RoadNetworkGenerator.NetworkGenerationResult result = networkGenerator.generateAll(network, terrain);
+        assertEquals(liveNodesBefore, network.getNodes().size());
+        assertTrue(network.getNodes().values().stream().noneMatch(node -> node.getDegree() >= 3));
+        assertFalse(result.getJunctionResults().isEmpty());
+        assertTrue(result.successEdgeCount() >= 4);
+    }
+
+    private static boolean isMostlyVerticalRoad(RoadNetwork network, String roadId) {
+        Road road = network.getRoad(roadId);
+        if (road == null || road.getOrderedSegmentIds().isEmpty()) {
+            return false;
+        }
+        RoadEdge edge = network.getEdge(road.getOrderedSegmentIds().getFirst());
+        if (edge == null || edge.getCenterlinePoints().size() < 2) {
+            return false;
+        }
+        Vec2d start = edge.getCenterlinePoints().getFirst();
+        Vec2d end = edge.getCenterlinePoints().getLast();
+        return Math.abs(end.x - start.x) < Math.abs(end.y - start.y);
     }
 }

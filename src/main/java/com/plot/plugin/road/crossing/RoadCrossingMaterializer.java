@@ -56,6 +56,23 @@ public final class RoadCrossingMaterializer {
         RoadNode junction = findOrCreateNode(network, position);
         materializeRoadAtCrossing(network, crossing.roadAId(), crossing.stationA(), junction, position);
         materializeRoadAtCrossing(network, crossing.roadBId(), crossing.stationB(), junction, position);
+        applyCrossingDesignToJunction(network, crossing, junction);
+    }
+
+    private static void applyCrossingDesignToJunction(
+            RoadNetwork network,
+            RoadCrossing crossing,
+            RoadNode junction) {
+        if (crossing.type() == CrossingType.GRADE_SEPARATED) {
+            network.setNodeGradeSeparation(
+                junction.getId(),
+                true,
+                crossing.elevatedRoadId(),
+                crossing.crossingClearance());
+        }
+        if (crossing.sharedElevation() != null) {
+            junction.setManualElevation(crossing.sharedElevation());
+        }
     }
 
     private static void materializeRoadAtCrossing(

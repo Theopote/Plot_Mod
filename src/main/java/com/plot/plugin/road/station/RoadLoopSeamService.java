@@ -7,7 +7,6 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadLoopSeam;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
-import com.plot.plugin.road.model.RoadTopologyMode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -145,7 +144,6 @@ public final class RoadLoopSeamService {
             }
         } else {
             double tailLength = seamSegment.length() - seamChainLocal;
-            double headLength = seamChainLocal;
             rotated.add(new OrientedRoadSegment(
                 seamSegment.edgeId(),
                 seamSegment.forward(),
@@ -169,7 +167,7 @@ public final class RoadLoopSeamService {
                 seamSegment.entryNodeId(),
                 seamSegment.exitNodeId(),
                 station,
-                headLength,
+                    seamChainLocal,
                 0.0,
                 geometryLocalAtSeam));
         }
@@ -242,10 +240,7 @@ public final class RoadLoopSeamService {
         if (rotated < 0.0) {
             return 0.0;
         }
-        if (rotated > loopLength) {
-            return loopLength;
-        }
-        return rotated;
+        return Math.min(rotated, loopLength);
     }
 
     private static String fallbackNodeId(RoadNetwork network, Road road) {

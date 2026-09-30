@@ -499,7 +499,7 @@ public final class RoadNetworkManager {
             return;
         }
         if (multiSelect) {
-            boolean allSelected = segmentIds.stream().allMatch(selectedEdgeIds::contains);
+            boolean allSelected = selectedEdgeIds.containsAll(segmentIds);
             if (allSelected) {
                 segmentIds.forEach(selectedEdgeIds::remove);
             } else {

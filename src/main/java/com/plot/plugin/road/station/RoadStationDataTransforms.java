@@ -71,7 +71,7 @@ public final class RoadStationDataTransforms {
     }
 
     public static void refitHorizontalAlignmentFromCenterline(RoadNetwork network, Road road) {
-        if (network == null || road == null || !RoadStationing.isStationable(network, road)) {
+        if (road == null || !RoadStationing.isStationable(network, road)) {
             if (road != null) {
                 road.setHorizontalAlignment(null);
             }

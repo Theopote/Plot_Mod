@@ -135,7 +135,7 @@ public final class RoadCanvasSelectionController {
         if (hit != null) {
             if (hit.roadId().startsWith("shape:")) {
                 Shape shape = resolveShape(appState, hit.roadId().substring("shape:".length()));
-                if (shape != null && RoadGeometryUtils.isAdoptablePath(shape)) {
+                if (RoadGeometryUtils.isAdoptablePath(shape)) {
                     selectCanvasShapes(appState, List.of(shape), ctrl);
                     if (!ctrl) {
                         networkManager.clearEdgeSelection();
@@ -257,7 +257,7 @@ public final class RoadCanvasSelectionController {
         List<Shape> resolved = new ArrayList<>();
         for (String shapeId : shapeIds) {
             Shape shape = resolveShape(appState, shapeId);
-            if (shape != null && RoadGeometryUtils.isAdoptablePath(shape)) {
+            if (RoadGeometryUtils.isAdoptablePath(shape)) {
                 resolved.add(shape);
             }
         }

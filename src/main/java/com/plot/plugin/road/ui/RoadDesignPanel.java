@@ -53,13 +53,12 @@ final class RoadDesignPanel {
             return;
         }
         ChainageDisplayContext chainageDisplay = chainageContextOrNull(network, road);
-        renderAdvancedDesign(network, road, current, chainageDisplay);
+        renderAdvancedDesign(network, road, chainageDisplay);
     }
 
     private void renderAdvancedDesign(
             RoadNetwork network,
             Road road,
-            RoadEdge current,
             ChainageDisplayContext chainageDisplay) {
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.design_stack.identity"))) {
             identityEditor.render(network, road, ctx.networkManager(), ctx.networkManager()::pushHistory);
@@ -84,7 +83,7 @@ final class RoadDesignPanel {
 
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.design_stack.segments"))) {
             segmentEditor.renderSegmentList(ctx, network, road);
-            current = network.getEdge(ctx.networkManager().getPrimarySelectedEdgeId());
+            RoadEdge current = network.getEdge(ctx.networkManager().getPrimarySelectedEdgeId());
             if (current == null) {
                 return;
             }
