@@ -185,6 +185,36 @@ public final class RoadPlanGeometry {
         return sampled;
     }
 
+    /**
+     * 带设计 canonical 桩号的 plan 中心线采样；用于坐标 → 桩号反查。
+     */
+    public static List<PlanCenterlineSample> resolveEdgeCenterlineSamples(RoadNetwork network, RoadEdge edge) {
+        return resolveEdgeCenterlineSamples(
+            network,
+            edge,
+            HorizontalAlignmentCenterlineMaterializer.DEFAULT_SAMPLE_SPACING_METERS);
+    }
+
+    public static List<PlanCenterlineSample> resolveEdgeCenterlineSamples(
+            RoadNetwork network,
+            RoadEdge edge,
+            double sampleSpacingMeters) {
+        if (edge == null || network == null) {
+            return List.of();
+        }
+        Optional<OrientedRoadSegment> oriented = resolveOrientedSegment(network, edge);
+        if (oriented.isEmpty()) {
+            return List.of();
+        }
+        Road road = network.getRoadForEdge(edge);
+        return HorizontalAlignmentCenterlineMaterializer.samplePlanCenterline(
+            network,
+            road,
+            road.getHorizontalAlignment(),
+            oriented.get(),
+            sampleSpacingMeters);
+    }
+
     private static Optional<Double> instanceBearingAtStation(
             RoadNetwork network,
             Road road,

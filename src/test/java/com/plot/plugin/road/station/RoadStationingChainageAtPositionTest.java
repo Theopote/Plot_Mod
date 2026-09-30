@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * {@link RoadStationing#chainageAtPosition} 在 HA 道路上的精度特征测试。
@@ -31,12 +30,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class RoadStationingChainageAtPositionTest {
 
-    /** 直线段 / 已物化且与设计一致的区段。 */
+    /** 直线段 / 已物化且与设计一致的区段，以及 HA 采样反查目标精度。 */
     private static final double MATERIALIZED_TOLERANCE = 0.1;
-    /** 圆弧段：plan 折线采样与真实曲线参数化之间的已知误差上限。 */
-    private static final double ARC_SAMPLE_TOLERANCE = 2.5;
-    /** 单直线、设计/实例长度不一致时的全局比例换算误差。 */
-    private static final double SINGLE_TANGENT_MISMATCH_TOLERANCE = 0.5;
+    /** 单直线、设计/实例长度不一致时仍应回到设计桩号。 */
+    private static final double DESIGN_CHAINAGE_TOLERANCE = 0.05;
 
     @Test
     void roundTripsOnPlainPolylineWithoutDesignAlignment() {
@@ -70,9 +67,7 @@ class RoadStationingChainageAtPositionTest {
         RoadNetwork network = buildMaterializedTangentArcTangentRoad();
         Road road = network.getRoad("tat");
 
-        double tolerance = designChainage <= 50.0 + 1e-6
-            ? MATERIALIZED_TOLERANCE
-            : ARC_SAMPLE_TOLERANCE;
+        double tolerance = MATERIALIZED_TOLERANCE;
         assertChainageAtDesignPosition(network, road, designChainage, tolerance);
     }
 
@@ -91,7 +86,7 @@ class RoadStationingChainageAtPositionTest {
     }
 
     @Test
-    void lengthMismatchOnSingleTangent_usesGlobalRatioAtInteriorPoint() {
+    void lengthMismatchOnSingleTangent_returnsDesignChainageAtInteriorPoint() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("mismatch");
         double designLength = 300.0;
@@ -106,32 +101,17 @@ class RoadStationingChainageAtPositionTest {
             0.0,
             List.of(HorizontalAlignmentElement.tangent(designLength))));
 
-        double designChainage = 150.0;
-        Vec2d position = RoadStationing.pointAtStation(network, road, designChainage).orElseThrow();
-        double actual = RoadStationing.chainageAtPosition(network, road, position).orElseThrow();
-        double expectedFromGlobalRatio = designChainage / instanceLength * designLength;
-        assertEquals(expectedFromGlobalRatio, actual, 0.05,
-            () -> "position=" + position + " documents current global-ratio mapping");
-        assertTrue(Math.abs(actual - designChainage) > 0.05,
-            () -> "expected measurable drift before per-sample design chainage refactor, actual=" + actual);
+        assertChainageAtDesignPosition(network, road, 150.0, DESIGN_CHAINAGE_TOLERANCE);
     }
 
     @Test
-    void staleInstanceOnTangentArcTangent_arcMidpointDriftsFromDesignChainage() {
+    void staleInstanceOnTangentArcTangent_arcMidpointMatchesDesignChainage() {
         RoadNetwork network = buildTangentArcTangentRoadWithStaleInstance();
         Road road = network.getRoad("tat");
         double arcLength = Math.PI * 25.0 / 2.0;
         double designChainage = 50.0 + arcLength * 0.5;
 
-        Vec2d designPosition = RoadStationing.pointAtStation(network, road, designChainage).orElseThrow();
-        double actual = RoadStationing.chainageAtPosition(network, road, designPosition).orElseThrow();
-        double drift = Math.abs(actual - designChainage);
-
-        assertTrue(drift > 0.5,
-            () -> "arc midpoint drift should expose global-ratio error, design="
-                + designChainage + " actual=" + actual + " position=" + designPosition);
-        assertTrue(drift < designChainage * 0.5,
-            () -> "drift should stay bounded, actual=" + actual);
+        assertChainageAtDesignPosition(network, road, designChainage, MATERIALIZED_TOLERANCE);
     }
 
     @Test
@@ -161,8 +141,8 @@ class RoadStationingChainageAtPositionTest {
         RoadCrossing crossing = detected.getFirst();
         assertEquals(5.0, crossing.position().x, 1e-3);
         assertEquals(5.0, crossing.position().y, 1e-3);
-        assertEquals(5.0, crossing.stationOn(horizontal.getId()), SINGLE_TANGENT_MISMATCH_TOLERANCE);
-        assertEquals(5.0, crossing.stationOn(vertical.getId()), SINGLE_TANGENT_MISMATCH_TOLERANCE);
+        assertEquals(5.0, crossing.stationOn(horizontal.getId()), DESIGN_CHAINAGE_TOLERANCE);
+        assertEquals(5.0, crossing.stationOn(vertical.getId()), DESIGN_CHAINAGE_TOLERANCE);
     }
 
     @Test
@@ -191,7 +171,7 @@ class RoadStationingChainageAtPositionTest {
         assertEquals(crossingPoint.y, crossing.position().y, MATERIALIZED_TOLERANCE);
 
         double horizontalStation = crossing.stationOn(horizontal.getId());
-        assertEquals(crossingDesignChainage, horizontalStation, ARC_SAMPLE_TOLERANCE);
+        assertEquals(crossingDesignChainage, horizontalStation, MATERIALIZED_TOLERANCE);
     }
 
     @Test
@@ -199,9 +179,10 @@ class RoadStationingChainageAtPositionTest {
         RoadNetwork network = buildMaterializedTangentArcTangentRoad();
         Road road = network.getRoad("tat");
 
+        double arcLength = Math.PI * 25.0 / 2.0;
         assertChainageAtDesignPosition(network, road, 12.0, MATERIALIZED_TOLERANCE);
-        assertChainageAtDesignPosition(network, road, 50.0 + Math.PI * 25.0 / 4.0, ARC_SAMPLE_TOLERANCE);
-        assertChainageAtDesignPosition(network, road, 50.0 + Math.PI * 25.0 / 2.0 + 12.0, MATERIALIZED_TOLERANCE);
+        assertChainageAtDesignPosition(network, road, 50.0 + arcLength * 0.5, MATERIALIZED_TOLERANCE);
+        assertChainageAtDesignPosition(network, road, 50.0 + arcLength + 12.0, MATERIALIZED_TOLERANCE);
     }
 
     private static void assertChainageAtDesignPosition(

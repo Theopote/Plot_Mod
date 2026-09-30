@@ -278,6 +278,46 @@ public final class HorizontalAlignmentCenterlineMaterializer {
         return entry ? geometryPoints.getLast() : geometryPoints.getFirst();
     }
 
+    static List<PlanCenterlineSample> samplePlanCenterline(
+            RoadNetwork network,
+            Road road,
+            RoadHorizontalAlignment alignment,
+            OrientedRoadSegment oriented,
+            double spacing) {
+        if (network == null || road == null || alignment == null || alignment.isEmpty() || oriented == null) {
+            return List.of();
+        }
+        double spacingClamped = spacing > MIN_POINT_SPACING ? spacing : DEFAULT_SAMPLE_SPACING_METERS;
+        double startCanonical = RoadStationing.toCanonicalChainage(network, road, oriented.startStation());
+        double endCanonical = RoadStationing.toCanonicalChainage(network, road, oriented.endStation());
+        List<PlanCenterlineSample> alongChain = new ArrayList<>();
+        for (double chainage = startCanonical; chainage <= endCanonical + 1e-6; chainage += spacingClamped) {
+            double clamped = Math.min(chainage, endCanonical);
+            appendSampleIfDistinct(alongChain, alignment, clamped);
+        }
+        appendSampleIfDistinct(alongChain, alignment, endCanonical);
+        if (alongChain.isEmpty()) {
+            return List.of();
+        }
+        if (!oriented.forward()) {
+            Collections.reverse(alongChain);
+        }
+        return List.copyOf(alongChain);
+    }
+
+    private static void appendSampleIfDistinct(
+            List<PlanCenterlineSample> alongChain,
+            RoadHorizontalAlignment alignment,
+            double canonicalStation) {
+        HorizontalAlignmentGeometry.poseAt(alignment, canonicalStation).ifPresent(pose -> {
+            Vec2d point = new Vec2d(pose.x(), pose.y());
+            if (alongChain.isEmpty()
+                    || alongChain.getLast().position().distance(point) > MIN_POINT_SPACING) {
+                alongChain.add(new PlanCenterlineSample(point, canonicalStation));
+            }
+        });
+    }
+
     static List<Vec2d> sampleGeometryPoints(
             RoadHorizontalAlignment alignment,
             OrientedRoadSegment oriented,

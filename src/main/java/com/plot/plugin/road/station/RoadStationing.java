@@ -3,6 +3,7 @@ package com.plot.plugin.road.station;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadNetworkBuilder;
+import com.plot.plugin.road.alignment.PlanCenterlineSample;
 import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
@@ -329,6 +330,16 @@ public final class RoadStationing {
         if (network == null || road == null || position == null || network.getRoad(road.getId()) == null) {
             return OptionalDouble.empty();
         }
+        if (RoadPlanGeometry.hasDesignAlignment(network, road)) {
+            return chainageAtPositionOnDesignAlignment(network, road, position);
+        }
+        return chainageAtPositionOnInstanceCenterline(network, road, position);
+    }
+
+    private static OptionalDouble chainageAtPositionOnDesignAlignment(
+            RoadNetwork network,
+            Road road,
+            Vec2d position) {
         double bestDistance = Double.MAX_VALUE;
         Double bestChainage = null;
         for (OrientedRoadSegment segment : orientedSegments(network, road)) {
@@ -336,7 +347,39 @@ public final class RoadStationing {
             if (edge == null) {
                 continue;
             }
-            List<Vec2d> points = RoadPlanGeometry.resolveEdgeCenterline(network, edge);
+            List<PlanCenterlineSample> samples = RoadPlanGeometry.resolveEdgeCenterlineSamples(network, edge);
+            for (int i = 0; i < samples.size() - 1; i++) {
+                PlanCenterlineSample start = samples.get(i);
+                PlanCenterlineSample end = samples.get(i + 1);
+                Vec2d projected = RoadGeometryUtils.projectPointOnSegment(
+                    start.position(), end.position(), position);
+                double distance = projected.distance(position);
+                if (distance > RoadNetworkBuilder.NODE_TOLERANCE || distance >= bestDistance) {
+                    continue;
+                }
+                double span = start.position().distance(end.position());
+                double t = span <= STATION_EPSILON
+                    ? 0.0
+                    : start.position().distance(projected) / span;
+                bestDistance = distance;
+                bestChainage = start.canonicalStation() + t * (end.canonicalStation() - start.canonicalStation());
+            }
+        }
+        return bestChainage != null ? OptionalDouble.of(bestChainage) : OptionalDouble.empty();
+    }
+
+    private static OptionalDouble chainageAtPositionOnInstanceCenterline(
+            RoadNetwork network,
+            Road road,
+            Vec2d position) {
+        double bestDistance = Double.MAX_VALUE;
+        Double bestChainage = null;
+        for (OrientedRoadSegment segment : orientedSegments(network, road)) {
+            RoadEdge edge = network.getEdge(segment.edgeId());
+            if (edge == null) {
+                continue;
+            }
+            List<Vec2d> points = edge.getCenterlinePoints();
             for (int i = 0; i < points.size() - 1; i++) {
                 Vec2d start = points.get(i);
                 Vec2d end = points.get(i + 1);

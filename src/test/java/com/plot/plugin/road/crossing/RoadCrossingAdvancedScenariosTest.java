@@ -308,6 +308,72 @@ class RoadCrossingAdvancedScenariosTest {
         return network;
     }
 
+    @Test
+    void twoDistinctCrossingsWithinMatchingTolerance_detectBoth() {
+        RoadNetwork network = buildCloseDoubleCrossingNetwork();
+
+        List<RoadCrossing> detected = RoadCrossingDetector.detectAll(network);
+        assertEquals(2, detected.size());
+
+        List<RoadCrossing> byX = detected.stream()
+            .sorted(Comparator.comparing(c -> c.position().x))
+            .toList();
+        assertEquals(49.825, byX.get(0).position().x, EPS);
+        assertEquals(50.175, byX.get(1).position().x, EPS);
+        assertEquals(5.0, byX.get(0).position().y, EPS);
+        assertEquals(5.0, byX.get(1).position().y, EPS);
+        assertEquals(0.35, byX.get(1).position().x - byX.get(0).position().x, EPS);
+
+        RoadCrossingReconciler.reconcileCrossings(network);
+        assertEquals(2, network.getCrossings().size());
+    }
+
+    @Test
+    void probeRegistryCompleteness_detectsStaleGeometryAfterMatchedShift() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+        network.createEdge(
+            network.createNode(new Vec2d(0, 5)).getId(),
+            network.createNode(new Vec2d(10, 5)).getId(),
+            List.of(new Vec2d(0, 5), new Vec2d(10, 5)),
+            roadA.getId());
+        network.createEdge(
+            network.createNode(new Vec2d(5, 0)).getId(),
+            network.createNode(new Vec2d(5, 10)).getId(),
+            List.of(new Vec2d(5, 0), new Vec2d(5, 10)),
+            roadB.getId());
+        RoadCrossingReconciler.reconcileCrossings(network);
+
+        RoadEdge horizontalEdge = network.getEdge(roadA.getOrderedSegmentIds().getFirst());
+        horizontalEdge.setCenterlinePoints(List.of(new Vec2d(0, 5.3), new Vec2d(10, 5.3)));
+
+        assertTrue(RoadCrossingReconciler.probeRegistryCompleteness(network).hasPendingWork());
+    }
+
+    private static RoadNetwork buildCloseDoubleCrossingNetwork() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+        network.createEdge(
+            network.createNode(new Vec2d(0, 5)).getId(),
+            network.createNode(new Vec2d(100, 5)).getId(),
+            List.of(new Vec2d(0, 5), new Vec2d(100, 5)),
+            roadA.getId());
+        network.createEdge(
+            network.createNode(new Vec2d(40, -5)).getId(),
+            network.createNode(new Vec2d(60, -5)).getId(),
+            List.of(
+                new Vec2d(40, -5),
+                new Vec2d(49.825, 5),
+                new Vec2d(49.825, 15),
+                new Vec2d(50.175, 15),
+                new Vec2d(50.175, 5),
+                new Vec2d(60, -5)),
+            roadB.getId());
+        return network;
+    }
+
     private static RoadNetwork buildDoubleCrossingNetwork() {
         RoadNetwork network = new RoadNetwork();
         Road roadA = network.createRoad("road-a");

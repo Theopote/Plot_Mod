@@ -19,8 +19,8 @@ import java.util.OptionalDouble;
 public final class RoadCrossingDetector {
     /** 几何求交/端点落在线段内部判定容差；与 Connect 吸附容差分离。 */
     private static final double INTERSECTION_EPSILON = 1e-5;
-    /** 合并重复检测点时仍允许较宽的去重容差。 */
-    private static final double DEDUP_TOLERANCE = RoadCrossingMatcher.MATCH_POSITION_TOLERANCE;
+    /** 合并同一物理交点的重复检测；与稳定匹配容差分离。 */
+    private static final double DEDUP_TOLERANCE = INTERSECTION_EPSILON;
 
     private RoadCrossingDetector() {
     }

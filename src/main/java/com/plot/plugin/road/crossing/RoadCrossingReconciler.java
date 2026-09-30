@@ -38,6 +38,9 @@ public final class RoadCrossingReconciler {
                 return new IntersectionProbeResult(IntersectionResult.COMPLETE, true);
             }
             matchedRegisteredIds.add(match.id());
+            if (geometryChanged(match, mergeWithExisting(detectedCrossing, match))) {
+                return new IntersectionProbeResult(IntersectionResult.COMPLETE, true);
+            }
         }
         if (matchedRegisteredIds.size() != registered.size()) {
             return new IntersectionProbeResult(IntersectionResult.COMPLETE, true);
