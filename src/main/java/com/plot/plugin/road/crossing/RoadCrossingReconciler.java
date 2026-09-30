@@ -1,5 +1,6 @@
 package com.plot.plugin.road.crossing;
 
+import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.IntersectionProbeResult;
 import com.plot.plugin.road.IntersectionResult;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -87,9 +88,17 @@ public final class RoadCrossingReconciler {
     }
 
     private static boolean geometryChanged(RoadCrossing before, RoadCrossing after) {
-        return Math.abs(before.stationA() - after.stationA()) > 1e-6
-            || Math.abs(before.stationB() - after.stationB()) > 1e-6
-            || !RoadCrossingMatcher.positionsEquivalent(before.position(), after.position());
+        return Math.abs(before.stationA() - after.stationA()) > RoadCrossingMatcher.GEOMETRY_CHANGE_EPSILON
+            || Math.abs(before.stationB() - after.stationB()) > RoadCrossingMatcher.GEOMETRY_CHANGE_EPSILON
+            || positionChanged(before.position(), after.position());
+    }
+
+    private static boolean positionChanged(Vec2d before, Vec2d after) {
+        if (before == null || after == null) {
+            return before != after;
+        }
+        return Math.abs(before.x - after.x) > RoadCrossingMatcher.GEOMETRY_CHANGE_EPSILON
+            || Math.abs(before.y - after.y) > RoadCrossingMatcher.GEOMETRY_CHANGE_EPSILON;
     }
 
     private static RoadCrossing mergeWithExisting(RoadCrossing detected, RoadCrossing existing) {

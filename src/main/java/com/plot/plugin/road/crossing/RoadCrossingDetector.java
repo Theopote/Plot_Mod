@@ -17,7 +17,10 @@ import java.util.OptionalDouble;
 
 /** 检测道路 plan 中心线的真实线段交点（不含端点邻近启发）。 */
 public final class RoadCrossingDetector {
-    private static final double NODE_TOLERANCE = RoadCrossingMatcher.POSITION_TOLERANCE;
+    /** 几何求交/端点落在线段内部判定容差；与 Connect 吸附容差分离。 */
+    private static final double INTERSECTION_EPSILON = 1e-5;
+    /** 合并重复检测点时仍允许较宽的去重容差。 */
+    private static final double DEDUP_TOLERANCE = RoadCrossingMatcher.MATCH_POSITION_TOLERANCE;
 
     private RoadCrossingDetector() {
     }
@@ -98,7 +101,7 @@ public final class RoadCrossingDetector {
             Vec2d start = centerline.get(i);
             Vec2d end = centerline.get(i + 1);
             Vec2d projected = RoadGeometryUtils.projectPointOnSegment(start, end, point);
-            if (projected.distance(point) > NODE_TOLERANCE) {
+            if (projected.distance(point) > INTERSECTION_EPSILON) {
                 continue;
             }
             if (isNearAnyEndpoint(centerline, projected)) {
@@ -114,10 +117,10 @@ public final class RoadCrossingDetector {
             return true;
         }
         if (centerline.size() == 1) {
-            return RoadGeometryUtils.pointsNear(centerline.getFirst(), point, NODE_TOLERANCE);
+            return RoadGeometryUtils.pointsNear(centerline.getFirst(), point, INTERSECTION_EPSILON);
         }
-        return RoadGeometryUtils.pointsNear(centerline.getFirst(), point, NODE_TOLERANCE)
-            || RoadGeometryUtils.pointsNear(centerline.getLast(), point, NODE_TOLERANCE);
+        return RoadGeometryUtils.pointsNear(centerline.getFirst(), point, INTERSECTION_EPSILON)
+            || RoadGeometryUtils.pointsNear(centerline.getLast(), point, INTERSECTION_EPSILON);
     }
 
     private static RoadCrossing toCrossing(
@@ -157,7 +160,7 @@ public final class RoadCrossingDetector {
         for (Vec2d point : points) {
             boolean exists = false;
             for (Vec2d existing : unique) {
-                if (RoadGeometryUtils.pointsNear(existing, point, NODE_TOLERANCE)) {
+                if (RoadGeometryUtils.pointsNear(existing, point, DEDUP_TOLERANCE)) {
                     exists = true;
                     break;
                 }

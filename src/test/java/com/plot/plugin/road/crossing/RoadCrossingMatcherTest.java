@@ -17,7 +17,6 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -68,9 +67,11 @@ class RoadCrossingMatcherTest {
             .findFirst()
             .orElseThrow();
         RoadEdge horizontalEdge = network.getEdge(horizontalRoad.getOrderedSegmentIds().getFirst());
+        horizontalEdge.setCenterlinePoints(List.of(new Vec2d(0, 5.3), new Vec2d(10, 5.3)));
         RoadNode startNode = network.getNode(horizontalEdge.getStartNodeId());
-        startNode.setPosition(new Vec2d(-5, 5));
-        horizontalEdge.setCenterlinePoints(List.of(new Vec2d(-5, 5), new Vec2d(10, 5)));
+        RoadNode endNode = network.getNode(horizontalEdge.getEndNodeId());
+        startNode.setPosition(new Vec2d(0, 5.3));
+        endNode.setPosition(new Vec2d(10, 5.3));
 
         List<RoadCrossing> detected = RoadCrossingDetector.detectAll(network);
         assertEquals(1, detected.size(), "expected one detected crossing after geometry shift");
@@ -88,12 +89,7 @@ class RoadCrossingMatcherTest {
         assertEquals(verticalRoadId, preserved.elevatedRoadId());
         assertEquals(6.0, preserved.crossingClearance(), 1e-6);
         assertEquals(5.0, preserved.position().x, 1e-6);
-        assertEquals(5.0, preserved.position().y, 1e-6);
-        double horizontalStationBefore = original.involvesRoad(horizontalRoad.getId())
-            ? original.stationOn(horizontalRoad.getId()) : -1;
-        double horizontalStationAfter = preserved.involvesRoad(horizontalRoad.getId())
-            ? preserved.stationOn(horizontalRoad.getId()) : -1;
-        assertNotEquals(horizontalStationBefore, horizontalStationAfter, 1e-6);
+        assertEquals(5.3, preserved.position().y, 1e-6);
     }
 
     @Test
@@ -141,6 +137,37 @@ class RoadCrossingMatcherTest {
         assertEquals(0, second.added());
         assertEquals(0, second.removed());
         assertEquals(0, second.updated());
+    }
+
+    @Test
+    void reconcileDetailedReportsGeometryUpdateForSubMatchPositionShift() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+        network.createEdge(
+            network.createNode(new Vec2d(0, 5)).getId(),
+            network.createNode(new Vec2d(10, 5)).getId(),
+            List.of(new Vec2d(0, 5), new Vec2d(10, 5)),
+            roadA.getId());
+        network.createEdge(
+            network.createNode(new Vec2d(5, 0)).getId(),
+            network.createNode(new Vec2d(5, 10)).getId(),
+            List.of(new Vec2d(5, 0), new Vec2d(5, 10)),
+            roadB.getId());
+
+        CrossingReconcileResult first = RoadCrossingReconciler.reconcileCrossingsDetailed(network);
+        assertEquals(1, first.added());
+
+        RoadEdge horizontalEdge = network.getEdge(roadA.getOrderedSegmentIds().getFirst());
+        horizontalEdge.setCenterlinePoints(List.of(new Vec2d(0, 5.3), new Vec2d(10, 5.3)));
+
+        CrossingReconcileResult second = RoadCrossingReconciler.reconcileCrossingsDetailed(network);
+        assertTrue(second.changed());
+        assertEquals(0, second.added());
+        assertEquals(0, second.removed());
+        assertEquals(1, second.updated());
+        assertEquals(5.0, network.getCrossings().values().iterator().next().position().x, 1e-6);
+        assertEquals(5.3, network.getCrossings().values().iterator().next().position().y, 1e-6);
     }
 
     @Test

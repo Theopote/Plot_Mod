@@ -238,6 +238,76 @@ class RoadCrossingAdvancedScenariosTest {
         assertFalse(manager.getSelectedEdgeIds().isEmpty());
     }
 
+    @Test
+    void threeAdjacentCrossings_oneRemovedAfterShift_preservesRemainingDesign() {
+        RoadNetwork network = buildTripleCrossingNetwork();
+        RoadCrossingReconciler.reconcileCrossings(network);
+
+        List<RoadCrossing> registered = sortedByX(network);
+        assertEquals(3, registered.size());
+        String westId = registered.get(0).id();
+        String middleId = registered.get(1).id();
+        String eastId = registered.get(2).id();
+        String verticalRoadId = findVerticalRoadId(network, registered.get(0));
+
+        network.setCrossingGradeSeparation(westId, CrossingType.GRADE_SEPARATED, verticalRoadId, 4.0);
+        network.setCrossingGradeSeparation(middleId, CrossingType.AT_GRADE, null, null);
+        network.setCrossingGradeSeparation(eastId, CrossingType.GRADE_SEPARATED, verticalRoadId, 6.0);
+
+        Road roadA = network.getRoad("road-a");
+        RoadEdge edgeA = network.getEdge(roadA.getOrderedSegmentIds().getFirst());
+        edgeA.setCenterlinePoints(List.of(new Vec2d(0, 5.2), new Vec2d(30, 5.2)));
+
+        Road roadB = network.getRoad("road-b");
+        RoadEdge edgeB = network.getEdge(roadB.getOrderedSegmentIds().getFirst());
+        edgeB.setCenterlinePoints(List.of(
+            new Vec2d(10, 0),
+            new Vec2d(10, 10),
+            new Vec2d(20, 10),
+            new Vec2d(20, 0)));
+
+        RoadCrossingReconciler.reconcileCrossings(network);
+
+        assertEquals(2, network.getCrossings().size());
+        assertNull(network.getCrossing(middleId));
+
+        RoadCrossing preservedWest = network.getCrossing(westId);
+        RoadCrossing preservedEast = network.getCrossing(eastId);
+        assertNotNull(preservedWest);
+        assertNotNull(preservedEast);
+        assertEquals(CrossingType.GRADE_SEPARATED, preservedWest.type());
+        assertEquals(4.0, preservedWest.crossingClearance(), EPS);
+        assertEquals(CrossingType.GRADE_SEPARATED, preservedEast.type());
+        assertEquals(6.0, preservedEast.crossingClearance(), EPS);
+        assertEquals(10.0, preservedWest.position().x, EPS);
+        assertEquals(20.0, preservedEast.position().x, EPS);
+        assertEquals(5.2, preservedWest.position().y, EPS);
+    }
+
+    private static RoadNetwork buildTripleCrossingNetwork() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+        network.createEdge(
+            network.createNode(new Vec2d(0, 5)).getId(),
+            network.createNode(new Vec2d(30, 5)).getId(),
+            List.of(new Vec2d(0, 5), new Vec2d(30, 5)),
+            roadA.getId());
+        network.createEdge(
+            network.createNode(new Vec2d(10, 0)).getId(),
+            network.createNode(new Vec2d(20, 0)).getId(),
+            List.of(
+                new Vec2d(10, 0),
+                new Vec2d(10, 10),
+                new Vec2d(15, 10),
+                new Vec2d(15, 0),
+                new Vec2d(20, 0),
+                new Vec2d(20, 10),
+                new Vec2d(20, 0)),
+            roadB.getId());
+        return network;
+    }
+
     private static RoadNetwork buildDoubleCrossingNetwork() {
         RoadNetwork network = new RoadNetwork();
         Road roadA = network.createRoad("road-a");

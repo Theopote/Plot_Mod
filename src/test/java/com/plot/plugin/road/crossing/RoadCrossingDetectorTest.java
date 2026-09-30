@@ -90,4 +90,23 @@ class RoadCrossingDetectorTest {
         assertEquals(6.0, preserved.crossingClearance(), 1e-6);
         assertNotEquals(horizontalRoadId, preserved.elevatedRoadId());
     }
+
+    @Test
+    void doesNotDetectCrossingWhenEndpointIsNearButNotOnOtherRoad() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+        network.createEdge(
+            network.createNode(new Vec2d(0, 5)).getId(),
+            network.createNode(new Vec2d(10, 5)).getId(),
+            List.of(new Vec2d(0, 5), new Vec2d(10, 5)),
+            roadA.getId());
+        network.createEdge(
+            network.createNode(new Vec2d(5, 5.3)).getId(),
+            network.createNode(new Vec2d(5, 10)).getId(),
+            List.of(new Vec2d(5, 5.3), new Vec2d(5, 10)),
+            roadB.getId());
+
+        assertEquals(0, RoadCrossingDetector.detectAll(network).size());
+    }
 }

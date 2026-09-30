@@ -10,7 +10,10 @@ import java.util.Set;
 
 /** Crossing 稳定匹配：同道路对按空间位置对应，避免 station 漂移导致设计参数丢失。 */
 public final class RoadCrossingMatcher {
-    static final double POSITION_TOLERANCE = 0.5;
+    /** 在同道路对内寻找可继承的旧 Crossing 时的空间匹配容差。 */
+    static final double MATCH_POSITION_TOLERANCE = 0.5;
+    /** 判定 Crossing 几何是否发生实质性变化时的坐标/桩号容差。 */
+    static final double GEOMETRY_CHANGE_EPSILON = 1e-6;
     private static final double AMBIGUITY_TOLERANCE = 0.1;
 
     private RoadCrossingMatcher() {
@@ -72,7 +75,7 @@ public final class RoadCrossingMatcher {
                 continue;
             }
             double distance = detected.position().distance(candidate.position());
-            if (distance > POSITION_TOLERANCE) {
+            if (distance > MATCH_POSITION_TOLERANCE) {
                 continue;
             }
             if (distance < bestDistance) {
@@ -87,7 +90,7 @@ public final class RoadCrossingMatcher {
             return null;
         }
         if (pairCandidates.size() > 1
-                && secondBestDistance <= POSITION_TOLERANCE
+                && secondBestDistance <= MATCH_POSITION_TOLERANCE
                 && Math.abs(secondBestDistance - bestDistance) <= AMBIGUITY_TOLERANCE) {
             return null;
         }
@@ -95,6 +98,6 @@ public final class RoadCrossingMatcher {
     }
 
     public static boolean positionsEquivalent(Vec2d a, Vec2d b) {
-        return a != null && b != null && RoadGeometryUtils.pointsNear(a, b, POSITION_TOLERANCE);
+        return a != null && b != null && RoadGeometryUtils.pointsNear(a, b, MATCH_POSITION_TOLERANCE);
     }
 }
