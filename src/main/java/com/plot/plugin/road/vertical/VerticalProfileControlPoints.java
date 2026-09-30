@@ -3,6 +3,8 @@ package com.plot.plugin.road.vertical;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.profile.ProfileControlPoint;
+import com.plot.plugin.road.profile.ProfilePointRole;
 import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
 
@@ -27,6 +29,62 @@ public final class VerticalProfileControlPoints {
 
     private VerticalProfileControlPoints() { }
 
+    /** 道路级纵断面：全部 PVI，X 为 canonical road station。 */
+    public static List<ProfileControlPoint> forRoad(RoadNetwork network, Road road) {
+        if (network == null || road == null) {
+            return List.of();
+        }
+        if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
+            return List.of();
+        }
+        if (road.getVerticalAlignment() == null) {
+            return List.of();
+        }
+        List<PointOfVerticalIntersection> pvis = road.getVerticalAlignment().getPvis();
+        List<ProfileControlPoint> result = new ArrayList<>();
+        for (int i = 0; i < pvis.size(); i++) {
+            PointOfVerticalIntersection pvi = pvis.get(i);
+            Double left = i > 0
+                ? VerticalAlignmentGeometry.tangentGradePercent(pvis.get(i - 1), pvi)
+                : null;
+            Double right = i + 1 < pvis.size()
+                ? VerticalAlignmentGeometry.tangentGradePercent(pvi, pvis.get(i + 1))
+                : null;
+            boolean sharedJunction = VerticalAlignmentJunctionSynchronizer.isSharedJunctionAtStation(
+                network, road, pvi.getStation());
+            ProfilePointRole role = resolveRole(i, pvis.size(), pvi, sharedJunction);
+            result.add(new ProfileControlPoint(
+                i,
+                pvi.getStation(),
+                pvi.getElevation(),
+                role,
+                left,
+                right,
+                sharedJunction,
+                elevationEditable(road, pvi, sharedJunction)));
+        }
+        return List.copyOf(result);
+    }
+
+    private static ProfilePointRole resolveRole(
+            int index,
+            int count,
+            PointOfVerticalIntersection pvi,
+            boolean sharedJunction) {
+        if (sharedJunction || pvi.getConstraint() == VerticalControlPointConstraint.JUNCTION_FIXED) {
+            return ProfilePointRole.JUNCTION_FIXED;
+        }
+        if (index == 0) {
+            return ProfilePointRole.START_ENDPOINT;
+        }
+        if (index == count - 1) {
+            return ProfilePointRole.END_ENDPOINT;
+        }
+        return ProfilePointRole.INTERIOR_PVI;
+    }
+
+    /** @deprecated 纵断面编辑器已升级为道路级；保留供过渡与单测。 */
+    @Deprecated
     public static List<ControlPoint> forEdge(RoadNetwork network, Road road, RoadEdge edge) {
         if (network == null || road == null || edge == null) {
             return List.of();
@@ -144,6 +202,18 @@ public final class VerticalProfileControlPoints {
         return point.elevationEditable();
     }
 
+    public static boolean isEditablePvi(RoadNetwork network, Road road, ProfileControlPoint point) {
+        if (network == null || road == null || point == null) {
+            return false;
+        }
+        if (road.getVerticalAlignment() == null
+                || point.pviIndex() < 0
+                || point.pviIndex() >= road.getVerticalAlignment().pviCount()) {
+            return false;
+        }
+        return point.elevationEditable();
+    }
+
     private static boolean elevationEditable(
             Road road,
             PointOfVerticalIntersection pvi,
@@ -168,7 +238,44 @@ public final class VerticalProfileControlPoints {
         return index > 0 && index < road.getVerticalAlignment().pviCount() - 1;
     }
 
+    public static boolean canAutoSmooth(RoadNetwork network, Road road, ProfileControlPoint point) {
+        if (!isEditablePvi(network, road, point)) {
+            return false;
+        }
+        if (road.getVerticalAlignment() == null) {
+            return false;
+        }
+        int index = point.pviIndex();
+        return index > 0 && index < road.getVerticalAlignment().pviCount() - 1;
+    }
+
     public static boolean exceedsGradeLimit(ControlPoint point, double maxGradePercent) {
+        if (point == null || maxGradePercent <= EPSILON) {
+            return false;
+        }
+        return point.leftGradePercent() != null
+                && Math.abs(point.leftGradePercent()) > maxGradePercent + EPSILON
+            || point.rightGradePercent() != null
+                && Math.abs(point.rightGradePercent()) > maxGradePercent + EPSILON;
+    }
+
+    public static ControlPoint toLegacyControlPoint(ProfileControlPoint point) {
+        if (point == null) {
+            return null;
+        }
+        return new ControlPoint(
+            point.pviIndex(),
+            point.roadStation(),
+            point.roadStation(),
+            point.elevation(),
+            point.leftGradePercent(),
+            point.rightGradePercent(),
+            point.endpoint(),
+            point.sharedJunction(),
+            point.elevationEditable());
+    }
+
+    public static boolean exceedsGradeLimit(ProfileControlPoint point, double maxGradePercent) {
         if (point == null || maxGradePercent <= EPSILON) {
             return false;
         }

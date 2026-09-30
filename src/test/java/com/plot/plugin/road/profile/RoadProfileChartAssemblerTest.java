@@ -1,0 +1,110 @@
+package com.plot.plugin.road.profile;
+
+import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.solid.RoadGenerationResult;
+import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
+import com.plot.plugin.road.vertical.RoadVerticalAlignment;
+import com.plot.plugin.road.vertical.RoadVerticalMode;
+import org.junit.jupiter.api.Test;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class RoadProfileChartAssemblerTest {
+
+    @Test
+    void assemblesMultiSegmentRoadProfile() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("main");
+        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 64.0),
+            PointOfVerticalIntersection.of(15.0, 68.0),
+            PointOfVerticalIntersection.of(30.0, 70.0)
+        )));
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 0));
+        RoadNode n3 = network.createNode(new Vec2d(20, 0));
+        RoadNode n4 = network.createNode(new Vec2d(30, 0));
+        String edge1 = network.createEdge(
+            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId()).getId();
+        String edge2 = network.createEdge(
+            n2.getId(), n3.getId(), List.of(new Vec2d(10, 0), new Vec2d(20, 0)), road.getId()).getId();
+        String edge3 = network.createEdge(
+            n3.getId(), n4.getId(), List.of(new Vec2d(20, 0), new Vec2d(30, 0)), road.getId()).getId();
+
+        Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
+        edgeResults.put(edge1, profileResult(10.0, 64, 66));
+        edgeResults.put(edge2, profileResult(10.0, 66, 68));
+        edgeResults.put(edge3, profileResult(10.0, 68, 70));
+
+        RoadProfileChartData chart = RoadProfileChartAssembler.assemble(
+            network,
+            road,
+            new RoadSystemConfig("test"),
+            edgeResults).orElseThrow();
+
+        double canonical = RoadStationing.canonicalLength(network, road);
+        assertEquals(canonical, chart.totalStation(), 1e-3);
+        assertTrue(chart.hasProfileData());
+        assertEquals(0.0, chart.stations().getFirst(), 1e-3);
+        assertEquals(canonical, chart.stations().getLast(), 1e-3);
+        for (int i = 1; i < chart.stations().size(); i++) {
+            assertTrue(chart.stations().get(i) >= chart.stations().get(i - 1) - 1e-6);
+        }
+    }
+
+    @Test
+    void controlPointsIncludeRoadEndpoints() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("main");
+        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 64.0),
+            PointOfVerticalIntersection.of(20.0, 68.0),
+            PointOfVerticalIntersection.of(30.0, 70.0)
+        )));
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 0));
+        RoadNode n3 = network.createNode(new Vec2d(20, 0));
+        String edge1 = network.createEdge(
+            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId()).getId();
+        String edge2 = network.createEdge(
+            n2.getId(), n3.getId(), List.of(new Vec2d(10, 0), new Vec2d(20, 0)), road.getId()).getId();
+
+        Map<String, RoadGenerationResult> edgeResults = Map.of(
+            edge1, profileResult(10.0, 64, 66),
+            edge2, profileResult(10.0, 66, 70));
+
+        RoadProfileChartData chart = RoadProfileChartAssembler.assemble(
+            network,
+            road,
+            new RoadSystemConfig("test"),
+            edgeResults).orElseThrow();
+
+        assertFalse(chart.controlPoints().isEmpty());
+        assertEquals(ProfilePointRole.START_ENDPOINT, chart.controlPoints().getFirst().role());
+        assertEquals(ProfilePointRole.END_ENDPOINT, chart.controlPoints().getLast().role());
+        assertEquals(0.0, chart.controlPoints().getFirst().roadStation(), 1e-6);
+        assertEquals(30.0, chart.controlPoints().getLast().roadStation(), 1e-3);
+    }
+
+    private static RoadGenerationResult profileResult(double span, int startHeight, int endHeight) {
+        RoadGenerationResult result = new RoadGenerationResult(span);
+        result.profileDistances = List.of(0.0, span);
+        result.profileGroundHeights = List.of(startHeight, endHeight);
+        result.profileGuideLine = List.of(startHeight, endHeight);
+        result.profileTargetHeights = List.of(startHeight, endHeight);
+        return result;
+    }
+}

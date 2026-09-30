@@ -3,12 +3,38 @@ package com.plot.plugin.road.vertical;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.profile.ProfileControlPoint;
+import com.plot.plugin.road.profile.ProfilePointRole;
 import com.plot.plugin.road.vertical.VerticalControlPointConstraint;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class VerticalProfileControlPointsTest {
+    @Test void forRoadIncludesAllPvisWithCanonicalStations() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("road");
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 70),
+            PointOfVerticalIntersection.withCurve(50, 75, 12),
+            PointOfVerticalIntersection.of(100, 70))));
+        var a = network.createNode(new Vec2d(0, 0));
+        var b = network.createNode(new Vec2d(50, 0));
+        var c = network.createNode(new Vec2d(100, 0));
+        network.createEdge(a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(50, 0)), road.getId());
+        network.createEdge(b.getId(), c.getId(), List.of(new Vec2d(50, 0), new Vec2d(100, 0)), road.getId());
+
+        List<ProfileControlPoint> points = VerticalProfileControlPoints.forRoad(network, road);
+        assertEquals(3, points.size());
+        assertEquals(ProfilePointRole.START_ENDPOINT, points.getFirst().role());
+        assertEquals(ProfilePointRole.INTERIOR_PVI, points.get(1).role());
+        assertEquals(ProfilePointRole.END_ENDPOINT, points.getLast().role());
+        assertEquals(0.0, points.getFirst().roadStation(), 1e-6);
+        assertEquals(50.0, points.get(1).roadStation(), 1e-6);
+        assertEquals(100.0, points.getLast().roadStation(), 1e-6);
+        assertEquals(-10.0, points.get(1).rightGradePercent(), 1e-6);
+    }
+
     @Test void projectsOnlyPvisInsideSelectedEdgeAndReportsGrades() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("road");

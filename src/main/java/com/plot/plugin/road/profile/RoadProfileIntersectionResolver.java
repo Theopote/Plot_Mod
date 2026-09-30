@@ -17,7 +17,9 @@ import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
@@ -31,6 +33,37 @@ public final class RoadProfileIntersectionResolver {
     private static final double STATION_TOLERANCE = 0.26;
 
     private RoadProfileIntersectionResolver() {
+    }
+
+    public static List<RoadProfileIntersection> forRoad(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config,
+            Map<String, RoadGenerationResult> edgeResults) {
+        if (network == null || road == null || config == null || edgeResults == null) {
+            return List.of();
+        }
+        Set<String> visitedNodes = new LinkedHashSet<>();
+        List<RoadProfileIntersection> intersections = new ArrayList<>();
+        for (OrientedRoadSegment segment : RoadStationing.orientedSegments(network, road)) {
+            RoadEdge edge = network.getEdge(segment.edgeId());
+            RoadGenerationResult edgeResult = edgeResults.get(segment.edgeId());
+            if (edge == null) {
+                continue;
+            }
+            if (visitedNodes.add(segment.entryNodeId())) {
+                collectAtNodeRoad(
+                    network, road, edge, segment, segment.entryNodeId(), segment.startStation(),
+                    config, edgeResult, intersections);
+            }
+            if (visitedNodes.add(segment.exitNodeId())) {
+                collectAtNodeRoad(
+                    network, road, edge, segment, segment.exitNodeId(), segment.endStation(),
+                    config, edgeResult, intersections);
+            }
+        }
+        intersections.sort(Comparator.comparingDouble(RoadProfileIntersection::roadStation));
+        return List.copyOf(intersections);
     }
 
     public static List<RoadProfileIntersection> forEdge(
@@ -58,6 +91,21 @@ public final class RoadProfileIntersectionResolver {
         return List.copyOf(intersections);
     }
 
+    private static void collectAtNodeRoad(
+            RoadNetwork network,
+            Road currentRoad,
+            RoadEdge currentEdge,
+            OrientedRoadSegment segment,
+            String nodeId,
+            double roadStation,
+            RoadSystemConfig config,
+            RoadGenerationResult edgeResult,
+            List<RoadProfileIntersection> out) {
+        collectAtNode(
+            network, currentRoad, currentEdge, segment, nodeId, roadStation,
+            config, edgeResult, out, true);
+    }
+
     private static void collectAtNode(
             RoadNetwork network,
             Road currentRoad,
@@ -68,6 +116,22 @@ public final class RoadProfileIntersectionResolver {
             RoadSystemConfig config,
             RoadGenerationResult edgeResult,
             List<RoadProfileIntersection> out) {
+        collectAtNode(
+            network, currentRoad, currentEdge, segment, nodeId, roadStation,
+            config, edgeResult, out, false);
+    }
+
+    private static void collectAtNode(
+            RoadNetwork network,
+            Road currentRoad,
+            RoadEdge currentEdge,
+            OrientedRoadSegment segment,
+            String nodeId,
+            double roadStation,
+            RoadSystemConfig config,
+            RoadGenerationResult edgeResult,
+            List<RoadProfileIntersection> out,
+            boolean roadChart) {
         RoadNode node = network.getNode(nodeId);
         if (node == null) {
             return;
@@ -76,13 +140,14 @@ public final class RoadProfileIntersectionResolver {
         if (roadIds.size() < 2) {
             return;
         }
-        OptionalDouble geometryLocal = segment.geometryLocalAtRoadStation(roadStation);
-        if (geometryLocal.isEmpty()) {
+        OptionalDouble geometryLocalOpt = segment.geometryLocalAtRoadStation(roadStation);
+        if (geometryLocalOpt.isEmpty()) {
             return;
         }
-        double localDistance = geometryLocal.getAsDouble();
+        double geometryLocalDistance = geometryLocalOpt.getAsDouble();
+        double chartDistance = roadChart ? roadStation : geometryLocalDistance;
         OptionalDouble currentElevation = resolveCurrentElevation(
-            network, currentRoad, currentEdge, node, roadStation, localDistance, edgeResult);
+            network, currentRoad, currentEdge, node, roadStation, geometryLocalDistance, edgeResult);
         if (currentElevation.isEmpty()) {
             return;
         }
@@ -114,7 +179,7 @@ public final class RoadProfileIntersectionResolver {
                 currentRoad.getId(),
                 otherRoadId,
                 RoadEdgeListHelper.formatRoadLabel(network, otherRoad),
-                localDistance,
+                chartDistance,
                 roadStation,
                 currentElevation.getAsDouble(),
                 otherElevation.getAsDouble(),

@@ -10,13 +10,55 @@ import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import org.junit.jupiter.api.Test;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadProfileIntersectionResolverTest {
+
+    @Test
+    void forRoadUsesCanonicalRoadStation() {
+        RoadNetwork network = new RoadNetwork();
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        Road roadA = network.createRoad("Main");
+        Road roadB = network.createRoad("Side");
+        roadA.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 72),
+            PointOfVerticalIntersection.of(100, 72))));
+        roadB.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 68),
+            PointOfVerticalIntersection.of(50, 68))));
+
+        var west = network.createNode(new Vec2d(0, 0));
+        var center = network.createNode(new Vec2d(100, 0));
+        var north = network.createNode(new Vec2d(100, 50));
+        RoadEdge mainWest = network.createEdge(
+            west.getId(), center.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(100, 0)), roadA.getId());
+        network.createEdge(
+            center.getId(), north.getId(),
+            List.of(new Vec2d(100, 0), new Vec2d(100, 50)), roadB.getId());
+
+        RoadGenerationResult profile = new RoadGenerationResult(100);
+        profile.profileDistances = List.of(0.0, 50.0, 100.0);
+        profile.profileGroundHeights = List.of(70, 70, 70);
+        profile.profileGuideLine = List.of(71, 71, 71);
+        profile.profileTargetHeights = List.of(72, 72, 72);
+
+        Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
+        edgeResults.put(mainWest.getId(), profile);
+
+        List<RoadProfileIntersection> intersections = RoadProfileIntersectionResolver.forRoad(
+            network, roadA, config, edgeResults);
+
+        assertEquals(1, intersections.size());
+        assertEquals(100.0, intersections.getFirst().roadStation(), 1e-6);
+        assertEquals(roadB.getId(), intersections.getFirst().otherRoadId());
+    }
 
     @Test
     void resolvesCrossingAtRoadEndpoint() {

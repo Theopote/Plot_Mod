@@ -51,7 +51,12 @@ public final class RoadGeneratePanel {
         }
         profileEdgeId = edgeId;
         ctx.networkManager().setPrimarySelectedEdge(edgeId);
-        profileEditor.openEditorForEdge(edgeId);
+        RoadEdge edge = ctx.networkManager().getNetwork().getEdge(edgeId);
+        if (edge != null && edge.getRoadId() != null) {
+            profileEditor.openEditorForRoad(edge.getRoadId());
+        } else {
+            profileEditor.openEditorForEdge(ctx.networkManager().getNetwork(), edgeId);
+        }
     }
 
     public void render() {
@@ -106,27 +111,17 @@ public final class RoadGeneratePanel {
     private void renderProfileWorkspace(RoadNetwork network) {
         ImGui.separator();
         RoadUiSections.section("plugin.road.generate.profile_section");
-        RoadEdge edge = resolveProfileEdge(network);
-        if (edge == null) {
+        Road road = resolveProfileRoad(network);
+        if (road == null) {
             return;
-        }
-        Road road = network.getRoadForEdge(edge);
-        List<String> profileEdgeIds = listProfileEdgeIds();
-        if (profileEdgeIds.size() > 1) {
-            renderProfileEdgeSelector(network, profileEdgeIds);
-        } else if (road != null) {
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                RoadEdgeListHelper.formatRoadLabel(network, road));
-            ImGui.spacing();
         }
         profileEditor.renderInline(
             ctx,
             network,
-            edge,
+            road,
             resolveFlatProfileOverlay(network, road),
             true);
-        if (road != null) {
+        {
             RoadVerticalStrategy strategy = RoadVerticalStrategy.fromRoad(road);
             if (strategy == RoadVerticalStrategy.TERRAIN_ADAPTIVE
                     && RoadGenerationSettingsPanel.showsTerrainAdaptiveControls(ctx)) {
@@ -142,16 +137,15 @@ public final class RoadGeneratePanel {
                 ctx.networkManager().getConfig(),
                 this::requireTerrainOrNull,
                 () -> ctx.networkManager().pushHistory(RoadChangeKind.VERTICAL_PROFILE));
-            renderSlopeOverridesSection(network, road, edge, chainageDisplay);
+            RoadEdge slopeEdge = resolveProfileEdge(network);
+            if (slopeEdge != null) {
+                renderSlopeOverridesSection(network, road, slopeEdge, chainageDisplay);
+            }
         }
     }
 
     private FlatElevationProfileOverlay resolveFlatProfileOverlay(RoadNetwork network) {
-        RoadEdge edge = resolveProfileEdge(network);
-        if (edge == null) {
-            return FlatElevationProfileOverlay.EMPTY;
-        }
-        Road road = network.getRoadForEdge(edge);
+        Road road = resolveProfileRoad(network);
         return resolveFlatProfileOverlay(network, road);
     }
 
@@ -207,13 +201,29 @@ public final class RoadGeneratePanel {
         return MinecraftTerrainSampler.of(world, ctx.host().coordinates());
     }
 
-    private RoadEdge resolveProfileEdge(RoadNetwork network) {
-        String focusedEdgeId = profileEditor.getFocusedEdgeId();
-        if (focusedEdgeId != null && !focusedEdgeId.isBlank()) {
-            RoadEdge focused = network.getEdge(focusedEdgeId);
+    private Road resolveProfileRoad(RoadNetwork network) {
+        String focusedRoadId = profileEditor.getFocusedRoadId();
+        if (focusedRoadId != null && !focusedRoadId.isBlank()) {
+            Road focused = network.getRoad(focusedRoadId);
             if (focused != null) {
-                profileEdgeId = focusedEdgeId;
                 return focused;
+            }
+        }
+        RoadEdge edge = resolveProfileEdge(network);
+        return edge != null ? network.getRoadForEdge(edge) : ctx.networkManager().getPrimarySelectedRoad();
+    }
+
+    private RoadEdge resolveProfileEdge(RoadNetwork network) {
+        String focusedRoadId = profileEditor.getFocusedRoadId();
+        if (focusedRoadId != null && !focusedRoadId.isBlank()) {
+            Road road = network.getRoad(focusedRoadId);
+            if (road != null && !road.getOrderedSegmentIds().isEmpty()) {
+                String edgeId = road.getOrderedSegmentIds().getFirst();
+                RoadEdge focused = network.getEdge(edgeId);
+                if (focused != null) {
+                    profileEdgeId = edgeId;
+                    return focused;
+                }
             }
         }
         if (profileEdgeId != null && !profileEdgeId.isBlank()) {
@@ -406,50 +416,6 @@ public final class RoadGeneratePanel {
             cachedValidationKey = key;
         }
         return cachedValidationReport;
-    }
-
-    private List<String> listProfileEdgeIds() {
-        List<String> edgeIds = new ArrayList<>();
-        for (Map.Entry<String, RoadGenerationResult> entry
-                : ctx.previewManager().getLastEdgeResults().entrySet()) {
-            if (entry.getValue() != null && entry.getValue().hasProfileData()) {
-                edgeIds.add(entry.getKey());
-            }
-        }
-        return edgeIds;
-    }
-
-    private void renderProfileEdgeSelector(RoadNetwork network, List<String> edgeIds) {
-        RoadEdge current = network.getEdge(profileEdgeId);
-        String previewLabel = current != null
-            ? RoadEdgeListHelper.formatEdgeLabel(network, current)
-            : profileEdgeId;
-
-        if (ImGui.beginCombo(PlotI18n.tr("plugin.road.profile_edge_select") + "##profile_edge", previewLabel)) {
-            for (String edgeId : edgeIds) {
-                RoadEdge edge = network.getEdge(edgeId);
-                if (edge == null) {
-                    continue;
-                }
-                String label = RoadEdgeListHelper.formatEdgeLabel(network, edge);
-                if (ImGui.selectable(label + "##profile_" + edgeId, edgeId.equals(profileEdgeId))) {
-                    profileEdgeId = edgeId;
-                }
-            }
-            ImGui.endCombo();
-        }
-
-        int currentIndex = Math.max(0, edgeIds.indexOf(profileEdgeId));
-        float navButtonWidth = 28f;
-        if (ImGui.button("<##profile_prev", navButtonWidth, 0)) {
-            profileEdgeId = edgeIds.get((currentIndex - 1 + edgeIds.size()) % edgeIds.size());
-        }
-        ImGui.sameLine();
-        ImGui.text(PlotI18n.tr("plugin.road.profile_edge_index", currentIndex + 1, edgeIds.size()));
-        ImGui.sameLine();
-        if (ImGui.button(">##profile_next", navButtonWidth, 0)) {
-            profileEdgeId = edgeIds.get((currentIndex + 1) % edgeIds.size());
-        }
     }
 
     public void renderBuildConfirmPopup() {
