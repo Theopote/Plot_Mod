@@ -205,6 +205,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         junctionOverlayEntries = RoadJunctionOverlayController.snapshot(
             network,
             ctx.networkManager().getNetworkBuilder(),
+            ctx.networkManager().getSelectedCrossingId(),
             ctx.networkManager().getSelectedNodeId());
     }
 
@@ -213,6 +214,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         boolean pickActive = ctx.toolManager().getPathPickSession().isActive();
         return selectedRoadIds + "|"
             + ctx.networkManager().getSelectedNodeId() + "|"
+            + ctx.networkManager().getSelectedCrossingId() + "|"
             + pickActive + "|"
             + ctx.toolManager().getPickOverlayPaths().size();
     }

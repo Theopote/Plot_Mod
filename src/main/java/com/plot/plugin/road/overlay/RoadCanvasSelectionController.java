@@ -120,10 +120,13 @@ public final class RoadCanvasSelectionController {
         double junctionHitRadius = canvas.getCamera() != null
             ? canvas.getCamera().screenToWorldDistance(12.0)
             : 1.0;
-        String nodeId = RoadJunctionOverlayController.hitTest(
+        IntersectionHit intersectionHit = RoadJunctionOverlayController.hitTest(
             junctionOverlayEntries, world.x, world.y, junctionHitRadius);
-        if (nodeId != null && !nodeId.isBlank()) {
-            networkManager.handleNodeSelect(nodeId);
+        if (intersectionHit != null && intersectionHit.id() != null && !intersectionHit.id().isBlank()) {
+            switch (intersectionHit.source()) {
+                case CROSSING -> networkManager.handleCrossingSelect(intersectionHit.id());
+                case LEGACY_NODE -> networkManager.handleNodeSelect(intersectionHit.id());
+            }
             if (!ctrl) {
                 appState.setSelectedShapes(List.of());
             }

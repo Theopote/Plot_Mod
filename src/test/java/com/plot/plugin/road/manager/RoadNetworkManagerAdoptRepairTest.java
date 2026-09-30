@@ -41,6 +41,16 @@ class RoadNetworkManagerAdoptRepairTest {
     }
 
     @Test
+    void adoptIntersectingPathsRegistersCrossing() {
+        manager.adoptSelectedPaths(List.of(
+            new PolylineShape(List.of(new Vec2d(0, 5), new Vec2d(10, 5)), false),
+            new PolylineShape(List.of(new Vec2d(5, 0), new Vec2d(5, 10)), false)));
+
+        assertEquals(2, manager.getNetwork().getRoads().size());
+        assertEquals(1, manager.getNetwork().getCrossings().size());
+    }
+
+    @Test
     void adoptRepairsPreexistingBranchingRoad() {
         RoadNetwork network = manager.getNetwork();
         Road road = network.createRoad("fork-road");

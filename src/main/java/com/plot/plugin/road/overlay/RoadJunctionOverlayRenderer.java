@@ -32,11 +32,15 @@ public final class RoadJunctionOverlayRenderer {
         Vec2d screen = camera.worldToScreen(entry.position());
         float x = (float) screen.x;
         float y = (float) screen.y;
-        int color = entry.kind().markerColor();
+        RoadJunctionOverlayKind kind = entry.selected()
+            ? RoadJunctionOverlayKind.SELECTED
+            : entry.kind();
+        int color = kind.markerColor();
         float radius = entry.selected() ? MARKER_RADIUS + 2f : MARKER_RADIUS;
-        switch (entry.kind()) {
+        switch (kind) {
             case GRADE_SEPARATED -> drawDiamond(drawList, x, y, radius, color);
             case COMPLEX, WARNING -> drawSquare(drawList, x, y, radius, color);
+            case AT_GRADE -> drawList.addCircle(x, y, radius, color, 16, 2f);
             default -> drawList.addCircleFilled(x, y, radius, color);
         }
         if (entry.selected()) {

@@ -10,10 +10,10 @@ public enum RoadJunctionOverlayKind {
 
     public int markerColor() {
         return switch (this) {
-            case AT_GRADE -> 0xFF4CAF50;
-            case GRADE_SEPARATED -> 0xFF42A5F5;
+            case AT_GRADE -> 0xFF42A5F5;
+            case GRADE_SEPARATED -> 0xFFAB47BC;
             case COMPLEX -> 0xFFFFB74D;
-            case WARNING -> 0xFFFF5252;
+            case WARNING -> 0xFFFF9800;
             case SELECTED -> 0xFF64B5F6;
         };
     }

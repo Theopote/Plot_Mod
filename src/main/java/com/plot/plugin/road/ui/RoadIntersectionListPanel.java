@@ -7,6 +7,7 @@ import com.plot.plugin.road.crossing.CrossingType;
 import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.graph.RoadGraphQueries;
 import com.plot.plugin.road.manager.RoadNetworkManager;
+import com.plot.plugin.road.overlay.IntersectionOverlaySource;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -135,24 +136,12 @@ public final class RoadIntersectionListPanel {
     }
 
     private void focusCrossing(RoadNetwork network, RoadCrossing crossing) {
-        ctx.networkManager().handleCrossingSelect(crossing.id());
-        for (String roadId : List.of(crossing.roadAId(), crossing.roadBId())) {
-            Road road = network.getRoad(roadId);
-            if (road != null && !road.getOrderedSegmentIds().isEmpty()) {
-                ctx.networkManager().handleEdgeSelect(road.getOrderedSegmentIds().getFirst(), true);
-            }
-        }
+        ctx.networkManager().focusIntersection(IntersectionOverlaySource.CROSSING, crossing.id());
         ctx.requestOverlayRefresh();
     }
 
     private void focusLegacyJunction(RoadNetwork network, RoadNode node) {
-        ctx.networkManager().handleNodeSelect(node.getId());
-        for (String roadId : network.getDistinctRoadIdsAtNode(node.getId())) {
-            Road road = network.getRoad(roadId);
-            if (road != null && !road.getOrderedSegmentIds().isEmpty()) {
-                ctx.networkManager().handleEdgeSelect(road.getOrderedSegmentIds().getFirst(), true);
-            }
-        }
+        ctx.networkManager().focusIntersection(IntersectionOverlaySource.LEGACY_NODE, node.getId());
         ctx.requestOverlayRefresh();
     }
 

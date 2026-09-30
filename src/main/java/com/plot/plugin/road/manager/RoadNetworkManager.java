@@ -231,6 +231,65 @@ public final class RoadNetworkManager {
         setSelectedCrossingId(crossingId);
     }
 
+    /**
+     * 选中交叉点并高亮关联道路，不清除当前交叉点/节点选择语义。
+     */
+    public void focusIntersection(
+            com.plot.plugin.road.overlay.IntersectionOverlaySource source,
+            String id) {
+        if (source == null || id == null || id.isBlank()) {
+            return;
+        }
+        switch (source) {
+            case CROSSING -> setSelectedCrossingId(id);
+            case LEGACY_NODE -> {
+                RoadNode node = network.getNode(id);
+                if (node == null) {
+                    return;
+                }
+                selectedNodeId = id;
+                selectedCrossingId = "";
+                selectedEdgeIds.clear();
+                lastSelectedEdgeId = "";
+            }
+        }
+        highlightAssociatedRoads(resolveRoadIdsForIntersection(source, id));
+    }
+
+    private List<String> resolveRoadIdsForIntersection(
+            com.plot.plugin.road.overlay.IntersectionOverlaySource source,
+            String id) {
+        if (source == com.plot.plugin.road.overlay.IntersectionOverlaySource.CROSSING) {
+            com.plot.plugin.road.crossing.RoadCrossing crossing = network.getCrossing(id);
+            if (crossing == null) {
+                return List.of();
+            }
+            return List.of(crossing.roadAId(), crossing.roadBId());
+        }
+        return new ArrayList<>(network.getDistinctRoadIdsAtNode(id));
+    }
+
+    private void highlightAssociatedRoads(List<String> roadIds) {
+        for (String roadId : roadIds) {
+            if (roadId == null || roadId.isBlank()) {
+                continue;
+            }
+            Road road = network.getRoad(roadId);
+            if (road == null || road.getOrderedSegmentIds().isEmpty()) {
+                continue;
+            }
+            String edgeId = road.getOrderedSegmentIds().getFirst();
+            if (network.getEdge(edgeId) == null) {
+                continue;
+            }
+            if (!selectedEdgeIds.contains(edgeId)) {
+                selectedEdgeIds.add(edgeId);
+            }
+            lastSelectedEdgeId = edgeId;
+        }
+        ensureSelectionValid();
+    }
+
     public String getLastSelectedEdgeId() {
         return lastSelectedEdgeId;
     }
@@ -504,7 +563,6 @@ public final class RoadNetworkManager {
                 selectedEdgeIds.add(edgeId);
                 lastSelectedEdgeId = edgeId;
             }
-            selectedNodeId = "";
         } else {
             RoadEdge edge = network.getEdge(edgeId);
             String roadId = edge != null ? edge.getRoadId() : null;
@@ -701,37 +759,32 @@ public final class RoadNetworkManager {
         if (edgeId == null || edgeId.isBlank()) {
             return CenterlineEditResult.failure(CenterlineEditStatus.EDGE_NOT_FOUND);
         }
-        return mutateNetwork(
-            () -> RoadCenterlineEditor.insertPiAtLocalDistance(network, edgeId, localDistance),
-            CenterlineEditResult::isSuccess);
+        return mutateCenterlineGeometry(
+            () -> RoadCenterlineEditor.insertPiAtLocalDistance(network, edgeId, localDistance));
     }
 
     public CenterlineEditResult insertPiAtRoadStation(Road road, String edgeId, double roadStation) {
-        return mutateNetwork(
-            () -> RoadCenterlineEditor.insertPiAtRoadStation(network, road, edgeId, roadStation),
-            CenterlineEditResult::isSuccess);
+        return mutateCenterlineGeometry(
+            () -> RoadCenterlineEditor.insertPiAtRoadStation(network, road, edgeId, roadStation));
     }
 
     public CenterlineEditResult splitEdgeAtLocalDistance(String edgeId, double localDistance) {
         if (edgeId == null || edgeId.isBlank()) {
             return CenterlineEditResult.failure(CenterlineEditStatus.EDGE_NOT_FOUND);
         }
-        return mutateNetwork(
-            () -> {
-                CenterlineEditResult result =
-                    RoadCenterlineEditor.splitAtLocalDistance(network, edgeId, localDistance);
-                if (result.isSuccess() && result.secondEdgeId() != null) {
-                    setPrimarySelectedEdge(result.secondEdgeId());
-                }
-                return result;
-            },
-            CenterlineEditResult::isSuccess);
+        return mutateCenterlineGeometry(() -> {
+            CenterlineEditResult result =
+                RoadCenterlineEditor.splitAtLocalDistance(network, edgeId, localDistance);
+            if (result.isSuccess() && result.secondEdgeId() != null) {
+                setPrimarySelectedEdge(result.secondEdgeId());
+            }
+            return result;
+        });
     }
 
     public CenterlineEditResult filletCenterlineVertex(String edgeId, int vertexIndex, double radius) {
-        return mutateNetwork(
-            () -> RoadCenterlineEditor.filletVertex(network, edgeId, vertexIndex, radius),
-            CenterlineEditResult::isSuccess);
+        return mutateCenterlineGeometry(
+            () -> RoadCenterlineEditor.filletVertex(network, edgeId, vertexIndex, radius));
     }
 
     public CenterlineEditResult mergeSegmentsAtNode(String nodeId) {
@@ -739,6 +792,7 @@ public final class RoadNetworkManager {
             () -> {
                 CenterlineEditResult result = RoadCenterlineEditor.mergeThroughNode(network, nodeId);
                 if (result.isSuccess() && result.mergedEdgeId() != null) {
+                    reconcileCrossingsInPlace();
                     setPrimarySelectedEdge(result.mergedEdgeId());
                 }
                 return result;
@@ -747,18 +801,27 @@ public final class RoadNetworkManager {
     }
 
     public CenterlineEditResult reverseEdge(String edgeId) {
-        return mutateNetwork(
-            () -> RoadCenterlineEditor.reverseEdge(network, edgeId),
-            CenterlineEditResult::isSuccess);
+        return mutateCenterlineGeometry(
+            () -> RoadCenterlineEditor.reverseEdge(network, edgeId));
     }
 
     public CenterlineEditResult reverseRoad(Road road) {
         if (road == null) {
             return CenterlineEditResult.failure(CenterlineEditStatus.ROAD_NOT_FOUND);
         }
-        return mutateNetwork(
-            () -> RoadCenterlineEditor.reverseRoad(network, road),
-            CenterlineEditResult::isSuccess);
+        return mutateCenterlineGeometry(
+            () -> RoadCenterlineEditor.reverseRoad(network, road));
+    }
+
+    private CenterlineEditResult mutateCenterlineGeometry(
+            java.util.function.Supplier<CenterlineEditResult> mutation) {
+        return mutateNetwork(() -> {
+            CenterlineEditResult result = mutation.get();
+            if (result.isSuccess()) {
+                reconcileCrossingsInPlace();
+            }
+            return result;
+        }, CenterlineEditResult::isSuccess);
     }
 
     public CenterlineEditResult materializeHorizontalAlignment(Road road) {
@@ -766,8 +829,20 @@ public final class RoadNetworkManager {
             return CenterlineEditResult.failure(CenterlineEditStatus.ROAD_NOT_FOUND);
         }
         return mutateNetwork(
-            () -> HorizontalAlignmentCenterlineMaterializer.materialize(network, road),
+            () -> {
+                CenterlineEditResult result =
+                    HorizontalAlignmentCenterlineMaterializer.materialize(network, road);
+                if (result.isSuccess()) {
+                    reconcileCrossingsInPlace();
+                }
+                return result;
+            },
             CenterlineEditResult::isSuccess);
+    }
+
+    /** 内联刷新 Crossing 注册表（不推入额外 Undo 帧）。 */
+    void reconcileCrossingsInPlace() {
+        com.plot.plugin.road.crossing.RoadCrossingReconciler.reconcileCrossings(network);
     }
 
     /** 校验一键修复：同步可维护道路的分段存储顺序。 */
@@ -920,10 +995,12 @@ public final class RoadNetworkManager {
             return;
         }
 
-        adoptIntersectionRepairPending = intersectionIncomplete;
-
         RoadTopologyRoadSplitter.RepairResult topologyRepair =
             RoadTopologyRoadSplitter.repairAfterAdopt(network);
+        com.plot.plugin.road.crossing.RoadCrossingReconciler.reconcileCrossings(network);
+        IntersectionProbeResult crossingProbe =
+            com.plot.plugin.road.crossing.RoadCrossingReconciler.probeRegistryCompleteness(network);
+        adoptIntersectionRepairPending = intersectionIncomplete || crossingProbe.hasPendingWork();
         commitNetworkChange();
 
         if (failedCount > 0) {
@@ -1011,6 +1088,7 @@ public final class RoadNetworkManager {
         com.plot.plugin.road.station.RoadStationDataTransforms.rotateLoopStations(
             network, road, pendingLoopSeamShift, loopLength);
         road.setLoopSeam(pendingLoopSeamReplacement);
+        reconcileCrossingsInPlace();
         loopSeamRemapConfirmPending = false;
         pendingLoopSeamReplacement = null;
         loopSeamPickSession.cancel();
