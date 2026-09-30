@@ -44,7 +44,6 @@ import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -685,7 +684,7 @@ final class VerticalProfileEditor {
         if (detailIndex < 0 || detailIndex >= intersections.size()) {
             return;
         }
-        boolean editable = selectedIntersectionIndex >= 0 && detailIndex == selectedIntersectionIndex;
+        boolean editable = selectedIntersectionIndex >= 0;
         RoadProfileIntersection intersection = intersections.get(detailIndex);
         ImGui.spacing();
         ImGui.separator();

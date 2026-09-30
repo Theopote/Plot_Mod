@@ -8,39 +8,33 @@ import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
 /**
  * 设计纵断面叠加线：道路级 canonical station + double 高程。
  */
-public final class VerticalAlignmentProfileOverlay {
+public record VerticalAlignmentProfileOverlay(List<Double> stations, List<Double> elevations) {
 
     private static final double MIN_SAMPLE_SPACING = 2.0;
-
-    private final List<Double> stations;
-    private final List<Double> elevations;
 
     public VerticalAlignmentProfileOverlay(List<Double> stations, List<Double> elevations) {
         this.stations = List.copyOf(stations);
         this.elevations = List.copyOf(elevations);
     }
 
-    public List<Double> stations() {
-        return stations;
-    }
-
-    public List<Double> elevations() {
-        return elevations;
-    }
-
-    /** @deprecated 使用 {@link #stations()}；旧 edge-local 距离。 */
+    /**
+     * @deprecated 使用 {@link #stations()}；旧 edge-local 距离。
+     */
     @Deprecated
     public List<Double> distances() {
         return stations;
     }
 
-    /** @deprecated 使用 {@link #elevations()}。 */
+    /**
+     * @deprecated 使用 {@link #elevations()}。
+     */
     @Deprecated
     public List<Integer> heights() {
         List<Integer> legacy = new ArrayList<>(elevations.size());
@@ -66,7 +60,7 @@ public final class VerticalAlignmentProfileOverlay {
         }
         double maxGrade = road.getMaxSlope() != null ? road.getMaxSlope() : 8.0;
         RoadVerticalAlignment alignment = RoadVerticalAlignmentResolver.resolveSynced(
-            network, road, maxGrade);
+                network, road, maxGrade);
         if (!VerticalAlignmentGeometry.isEvaluable(alignment)) {
             return Optional.empty();
         }
@@ -90,7 +84,9 @@ public final class VerticalAlignmentProfileOverlay {
         return Optional.of(new VerticalAlignmentProfileOverlay(sampleStations, sampleElevations));
     }
 
-    /** @deprecated 纵断面编辑器已升级为道路级。 */
+    /**
+     * @deprecated 纵断面编辑器已升级为道路级。
+     */
     @Deprecated
     public static Optional<VerticalAlignmentProfileOverlay> forEdge(RoadNetwork network, RoadEdge edge) {
         if (network == null || edge == null) {
@@ -106,7 +102,7 @@ public final class VerticalAlignmentProfileOverlay {
         }
         double maxGrade = road.getMaxSlope() != null ? road.getMaxSlope() : 8.0;
         RoadVerticalAlignment alignment = RoadVerticalAlignmentResolver.resolveSynced(
-            network, road, maxGrade);
+                network, road, maxGrade);
         if (!VerticalAlignmentGeometry.isEvaluable(alignment)) {
             return Optional.empty();
         }
@@ -143,7 +139,7 @@ public final class VerticalAlignmentProfileOverlay {
             return;
         }
         double height = VerticalAlignmentGeometry.elevationAt(alignment, station)
-            .orElse(elevations.isEmpty() ? 64.0 : elevations.getLast());
+                .orElse(elevations.isEmpty() ? 64.0 : elevations.getLast());
         stations.add(station);
         elevations.add(height);
         sortByStation(stations, elevations);
@@ -160,7 +156,7 @@ public final class VerticalAlignmentProfileOverlay {
         }
         double chainage = oriented.roadStationAtGeometryLocal(geometryLocalDistance);
         double height = VerticalAlignmentGeometry.elevationAt(alignment, chainage)
-            .orElse(elevations.isEmpty() ? 64.0 : elevations.getLast());
+                .orElse(elevations.isEmpty() ? 64.0 : elevations.getLast());
         distances.add(geometryLocalDistance);
         elevations.add(height);
         sortByStation(distances, elevations);
@@ -171,7 +167,7 @@ public final class VerticalAlignmentProfileOverlay {
         for (int i = 0; i < stations.size(); i++) {
             indices.add(i);
         }
-        indices.sort((a, b) -> Double.compare(stations.get(a), stations.get(b)));
+        indices.sort(Comparator.comparingDouble(stations::get));
         List<Double> sortedStations = new ArrayList<>();
         List<Double> sortedElevations = new ArrayList<>();
         for (int index : indices) {

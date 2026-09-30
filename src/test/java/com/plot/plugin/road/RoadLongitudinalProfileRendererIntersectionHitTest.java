@@ -14,7 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@SuppressWarnings("deprecation")
 class RoadLongitudinalProfileRendererIntersectionHitTest {
 
     @Test
@@ -36,24 +35,17 @@ class RoadLongitudinalProfileRendererIntersectionHitTest {
             4.0,
             false);
 
-        float x0 = 0f;
-        float y0 = 0f;
-        float width = 200f;
-        float height = 120f;
-        float plotX = x0 + 10f + (50f / 100f) * (width - 20f);
+        ProfileChartLayout layout = ProfileChartLayout.fromOuterRect(0f, 0f, 200f, 120f);
+        RoadProfilePlotRange range = new RoadProfilePlotRange(100.0, 60.0, 80.0);
+        float plotX = layout.plotX(50.0, range.totalStation());
 
         RoadLongitudinalProfileRenderer.IntersectionHit currentHit =
-            RoadLongitudinalProfileRenderer.hitIntersectionForTest(
+            RoadLongitudinalProfileRenderer.hitIntersectionRoad(
                 List.of(intersection),
-                100.0,
-                60,
-                80,
-                x0,
-                y0,
-                width,
-                height,
+                layout,
+                range,
                 plotX,
-                yToPlot(76, 60, 80, y0, height));
+                layout.plotY(76.0, range.minElevation(), range.maxElevation()));
         assertNotNull(currentHit);
         assertEquals(0, currentHit.index());
         assertEquals(
@@ -61,17 +53,12 @@ class RoadLongitudinalProfileRendererIntersectionHitTest {
             currentHit.target());
 
         RoadLongitudinalProfileRenderer.IntersectionHit otherHit =
-            RoadLongitudinalProfileRenderer.hitIntersectionForTest(
+            RoadLongitudinalProfileRenderer.hitIntersectionRoad(
                 List.of(intersection),
-                100.0,
-                60,
-                80,
-                x0,
-                y0,
-                width,
-                height,
+                layout,
+                range,
                 plotX,
-                yToPlot(68, 60, 80, y0, height));
+                layout.plotY(68.0, range.minElevation(), range.maxElevation()));
         assertNotNull(otherHit);
         assertEquals(0, otherHit.index());
         assertEquals(
@@ -98,24 +85,17 @@ class RoadLongitudinalProfileRendererIntersectionHitTest {
             0.0,
             false);
 
-        float x0 = 0f;
-        float y0 = 0f;
-        float width = 200f;
-        float height = 120f;
-        float plotX = x0 + 10f + (40f / 80f) * (width - 20f);
+        ProfileChartLayout layout = ProfileChartLayout.fromOuterRect(0f, 0f, 200f, 120f);
+        RoadProfilePlotRange range = new RoadProfilePlotRange(80.0, 60.0, 80.0);
+        float plotX = layout.plotX(40.0, range.totalStation());
 
         RoadLongitudinalProfileRenderer.IntersectionHit hit =
-            RoadLongitudinalProfileRenderer.hitIntersectionForTest(
+            RoadLongitudinalProfileRenderer.hitIntersectionRoad(
                 List.of(intersection),
-                80.0,
-                60,
-                80,
-                x0,
-                y0,
-                width,
-                height,
+                layout,
+                range,
                 plotX,
-                yToPlot(70, 60, 80, y0, height));
+                layout.plotY(70.0, range.minElevation(), range.maxElevation()));
         assertNotNull(hit);
         assertEquals(0, hit.index());
         assertEquals(
@@ -180,13 +160,5 @@ class RoadLongitudinalProfileRendererIntersectionHitTest {
             "node", "roadA", "roadB", "Road B", 40.0, 40.0, 72.0, 68.0,
             section, false, false, 0.0, false);
         assertTrue(RoadLongitudinalProfileRenderer.atGradeElevationConflict(intersection));
-    }
-
-    private static float yToPlot(int elevation, int minHeight, int maxHeight, float y0, float height) {
-        float padding = 10f;
-        float plotY0 = y0 + padding;
-        float plotHeight = height - 2 * padding;
-        float span = Math.max(1, maxHeight - minHeight);
-        return plotY0 + (maxHeight - elevation) / span * plotHeight;
     }
 }

@@ -221,10 +221,7 @@ public final class VerticalProfileControlPoints {
         if (road == null || pvi == null || road.getVerticalMode() == RoadVerticalMode.FLAT) {
             return false;
         }
-        if (sharedJunction || pvi.getConstraint() == VerticalControlPointConstraint.JUNCTION_FIXED) {
-            return false;
-        }
-        return true;
+        return !sharedJunction && pvi.getConstraint() != VerticalControlPointConstraint.JUNCTION_FIXED;
     }
 
     public static boolean canAutoSmooth(RoadNetwork network, Road road, ControlPoint point) {

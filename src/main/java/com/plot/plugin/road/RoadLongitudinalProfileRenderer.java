@@ -1037,32 +1037,6 @@ public final class RoadLongitudinalProfileRenderer {
 
     public record IntersectionHit(int index, ControlInteraction.IntersectionDragTarget target) { }
 
-    /**
-     * @deprecated Edge-local hit-test；请使用 {@link #hitIntersectionRoad} 与 {@link ProfileChartLayout}。
-     */
-    @Deprecated
-    static IntersectionHit hitIntersectionForTest(
-            List<RoadProfileIntersection> intersections,
-            double maxDistance,
-            int minHeight,
-            int maxHeight,
-            float x0,
-            float y0,
-            float width,
-            float height,
-            float mouseX,
-            float mouseY) {
-        return hitIntersection(
-            intersections,
-            new PlotRange(maxDistance, minHeight, maxHeight, 1.0),
-            x0,
-            y0,
-            width,
-            height,
-            mouseX,
-            mouseY);
-    }
-
     private static IntersectionHit hitIntersection(
             List<RoadProfileIntersection> intersections,
             PlotRange range,
