@@ -806,6 +806,25 @@ public final class RoadStationDataTransforms {
     /**
      * 闭环 seam 移动时旋转沿程工程数据，使物理位置与桩号对应关系保持不变。
      */
+    public static void rotateLoopStations(
+            com.plot.plugin.road.model.RoadNetwork network,
+            com.plot.plugin.road.model.Road road,
+            double shiftMeters,
+            double loopLength) {
+        rotateLoopStations(road, shiftMeters, loopLength);
+        if (network == null || road == null || loopLength <= EPSILON || Math.abs(shiftMeters) <= EPSILON) {
+            return;
+        }
+        for (com.plot.plugin.road.crossing.RoadCrossing crossing : network.crossingsForRoad(road.getId())) {
+            double rotatedStation = RoadLoopSeamService.rotateLoopStation(
+                crossing.stationOn(road.getId()), shiftMeters, loopLength);
+            network.registerCrossing(crossing.withStationsOnRoad(road.getId(), rotatedStation));
+        }
+    }
+
+    /**
+     * 闭环 seam 移动时旋转道路内沿程工程数据。
+     */
     public static void rotateLoopStations(Road road, double shiftMeters, double loopLength) {
         if (road == null || loopLength <= EPSILON || Math.abs(shiftMeters) <= EPSILON) {
             return;

@@ -9,6 +9,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.RoadTopologyMode;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /** 闭环剖面开口点：默认选择、链上投影与遍历起点解析。 */
@@ -86,6 +87,145 @@ public final class RoadLoopSeamService {
             return projection.exitNodeId();
         }
         return projection.entryNodeId();
+    }
+
+    /**
+     * 闭环沿程分段：以 seam 为 station 0，必要时将首/尾 Edge 逻辑拆成 slice。
+     */
+    public static List<OrientedRoadSegment> buildLoopOrientedSegments(RoadNetwork network, Road road) {
+        List<OrientedRoadSegment> base = RoadStationing.buildBaseOrientedSegments(network, road);
+        if (base.isEmpty() || road == null || road.getLoopSeam() == null) {
+            return base;
+        }
+        SeamProjection projection = resolveSeamProjection(network, road, road.getLoopSeam());
+        if (projection == null) {
+            return base;
+        }
+
+        int seamIndex = -1;
+        double seamChainLocal = 0.0;
+        OrientedRoadSegment seamSegment = null;
+        for (int i = 0; i < base.size(); i++) {
+            OrientedRoadSegment segment = base.get(i);
+            if (projection.chainStation() <= segment.endStation() + EPSILON) {
+                seamIndex = i;
+                seamSegment = segment;
+                seamChainLocal = projection.chainStation() - segment.startStation();
+                break;
+            }
+        }
+        if (seamSegment == null) {
+            return base;
+        }
+
+        RoadEdge seamEdge = network.getEdge(seamSegment.edgeId());
+        if (seamEdge == null) {
+            return base;
+        }
+        double fullEdgeLength = seamEdge.getLength();
+        double geometryLocalAtSeam = seamSegment.geometryLocalFromChainLocal(seamChainLocal);
+        boolean seamAtEntry = seamChainLocal <= EPSILON;
+        boolean seamAtExit = seamChainLocal >= seamSegment.length() - EPSILON;
+
+        List<OrientedRoadSegment> rotated = new ArrayList<>(base.size() + 1);
+        double station = 0.0;
+
+        if (seamAtEntry) {
+            for (int k = 0; k < base.size(); k++) {
+                OrientedRoadSegment original = base.get((seamIndex + k) % base.size());
+                rotated.add(original.withStartStation(station));
+                station += original.length();
+            }
+        } else if (seamAtExit) {
+            int startIndex = (seamIndex + 1) % base.size();
+            for (int k = 0; k < base.size(); k++) {
+                OrientedRoadSegment original = base.get((startIndex + k) % base.size());
+                rotated.add(original.withStartStation(station));
+                station += original.length();
+            }
+        } else {
+            double tailLength = seamSegment.length() - seamChainLocal;
+            double headLength = seamChainLocal;
+            rotated.add(new OrientedRoadSegment(
+                seamSegment.edgeId(),
+                seamSegment.forward(),
+                seamSegment.entryNodeId(),
+                seamSegment.exitNodeId(),
+                station,
+                tailLength,
+                geometryLocalAtSeam,
+                fullEdgeLength));
+            station += tailLength;
+
+            for (int k = 1; k < base.size(); k++) {
+                OrientedRoadSegment original = base.get((seamIndex + k) % base.size());
+                rotated.add(original.withStartStation(station));
+                station += original.length();
+            }
+
+            rotated.add(new OrientedRoadSegment(
+                seamSegment.edgeId(),
+                seamSegment.forward(),
+                seamSegment.entryNodeId(),
+                seamSegment.exitNodeId(),
+                station,
+                headLength,
+                0.0,
+                geometryLocalAtSeam));
+        }
+        return List.copyOf(rotated);
+    }
+
+    private static SeamProjection resolveSeamProjection(RoadNetwork network, Road road, RoadLoopSeam seam) {
+        if (seam.segmentHintId() != null && seam.localFraction() != null) {
+            for (OrientedRoadSegment segment : RoadStationing.buildBaseOrientedSegments(network, road)) {
+                if (!segment.edgeId().equals(seam.segmentHintId())) {
+                    continue;
+                }
+                double chainLocal = seam.localFraction() * segment.length();
+                double geometryLocal = segment.geometryLocalFromChainLocal(chainLocal);
+                RoadEdge edge = network.getEdge(seam.segmentHintId());
+                if (edge == null) {
+                    break;
+                }
+                Vec2d position = pointOnEdge(edge, geometryLocal);
+                if (position == null) {
+                    break;
+                }
+                return new SeamProjection(
+                    position,
+                    seam.segmentHintId(),
+                    segment.entryNodeId(),
+                    segment.exitNodeId(),
+                    seam.localFraction(),
+                    segment.startStation() + chainLocal);
+            }
+        }
+        return projectOntoOrientedChain(network, road, seam.position());
+    }
+
+    private static Vec2d pointOnEdge(RoadEdge edge, double geometryLocal) {
+        List<Vec2d> points = edge.getCenterlinePoints();
+        if (points.isEmpty()) {
+            return null;
+        }
+        double remaining = Math.max(0.0, geometryLocal);
+        for (int i = 0; i < points.size() - 1; i++) {
+            Vec2d start = points.get(i);
+            Vec2d end = points.get(i + 1);
+            double segmentLength = start.distance(end);
+            if (remaining <= segmentLength + EPSILON) {
+                if (segmentLength <= EPSILON) {
+                    return start.copy();
+                }
+                double t = remaining / segmentLength;
+                return new Vec2d(
+                    start.x + (end.x - start.x) * t,
+                    start.y + (end.y - start.y) * t);
+            }
+            remaining -= segmentLength;
+        }
+        return points.getLast().copy();
     }
 
     public static double rotateLoopStation(double oldStation, double shift, double loopLength) {

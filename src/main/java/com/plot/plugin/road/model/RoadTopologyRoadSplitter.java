@@ -124,6 +124,26 @@ public final class RoadTopologyRoadSplitter {
         return new RepairResult(sourceRoadsRepaired, newRoadsCreated, loopsPromoted);
     }
 
+    private static void promoteToLoop(RoadNetwork network, Road road) {
+        road.setTopologyMode(RoadTopologyMode.LOOP);
+        if (road.getLoopSeam() == null) {
+            road.setLoopSeam(com.plot.plugin.road.station.RoadLoopSeamService.computeDefault(network, road));
+        }
+    }
+
+    private static boolean promoteSingleSelfLoop(RoadNetwork network, Road road, Subgraph subgraph) {
+        if (subgraph.edgeIds.size() != 1 || subgraph.hasBranching || subgraph.componentCount != 1) {
+            return false;
+        }
+        String edgeId = subgraph.edgeIds.iterator().next();
+        RoadEdge edge = network.getEdge(edgeId);
+        if (edge == null || !edge.getStartNodeId().equals(edge.getEndNodeId())) {
+            return false;
+        }
+        promoteToLoop(network, road);
+        return true;
+    }
+
     private static int promoteClosedLoopsToLoopMode(RoadNetwork network) {
         return promoteClosedLoopsToLoopMode(network, null);
     }
@@ -138,16 +158,16 @@ public final class RoadTopologyRoadSplitter {
                 continue;
             }
             Subgraph subgraph = Subgraph.build(network, road);
-            if (subgraph.edgeIds.size() <= 1) {
+            if (subgraph.edgeIds.size() == 1) {
+                if (promoteSingleSelfLoop(network, road, subgraph)) {
+                    promoted++;
+                }
                 continue;
             }
             if (subgraph.componentCount == 1
                     && !subgraph.hasBranching
                     && subgraph.endpointCount == 0) {
-                road.setTopologyMode(RoadTopologyMode.LOOP);
-                if (road.getLoopSeam() == null) {
-                    road.setLoopSeam(com.plot.plugin.road.station.RoadLoopSeamService.computeDefault(network, road));
-                }
+                promoteToLoop(network, road);
                 promoted++;
             }
         }

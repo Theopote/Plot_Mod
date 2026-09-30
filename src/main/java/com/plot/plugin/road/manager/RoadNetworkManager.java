@@ -963,7 +963,7 @@ public final class RoadNetworkManager {
         pushUndoSnapshot();
         double loopLength = RoadStationing.canonicalLength(network, road);
         com.plot.plugin.road.station.RoadStationDataTransforms.rotateLoopStations(
-            road, pendingLoopSeamShift, loopLength);
+            network, road, pendingLoopSeamShift, loopLength);
         road.setLoopSeam(pendingLoopSeamReplacement);
         loopSeamRemapConfirmPending = false;
         pendingLoopSeamReplacement = null;
@@ -1030,17 +1030,16 @@ public final class RoadNetworkManager {
             boolean useStartA,
             String edgeBId,
             boolean useStartB) {
-        pushUndoSnapshot();
-        boolean connected = com.plot.plugin.road.graph.RoadExplicitConnector.connectEndpoints(
-            network, edgeAId, useStartA, edgeBId, useStartB);
-        if (connected) {
-            commitNetworkChange();
+        Boolean connected = mutateNetwork(
+            () -> com.plot.plugin.road.graph.RoadExplicitConnector.connectEndpoints(
+                network, edgeAId, useStartA, edgeBId, useStartB),
+            result -> result);
+        if (Boolean.TRUE.equals(connected)) {
             status.success(PlotI18n.tr("plugin.road.connect_roads_success"));
         } else {
-            undo();
             status.warning(PlotI18n.tr("plugin.road.connect_roads_failed"));
         }
-        return connected;
+        return Boolean.TRUE.equals(connected);
     }
 
     private static double seamChainOffset(

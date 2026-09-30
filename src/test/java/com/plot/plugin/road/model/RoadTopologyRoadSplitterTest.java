@@ -76,6 +76,25 @@ class RoadTopologyRoadSplitterTest {
     }
 
     @Test
+    void promotesSingleSelfLoopToLoopMode() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("circle");
+        RoadNode node = network.createNode(new Vec2d(0, 0));
+        network.createEdge(node.getId(), node.getId(), List.of(
+            new Vec2d(10, 0),
+            new Vec2d(0, 10),
+            new Vec2d(-10, 0),
+            new Vec2d(0, -10),
+            new Vec2d(10, 0)), road.getId());
+
+        RoadTopologyRoadSplitter.RepairResult result = RoadTopologyRoadSplitter.repairAfterAdopt(network);
+
+        assertEquals(RoadTopologyMode.LOOP, road.getTopologyMode());
+        assertEquals(1, result.loopsPromoted());
+        assertNotNull(road.getLoopSeam());
+    }
+
+    @Test
     void promotesClosedLoopToLoopMode() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("ring");

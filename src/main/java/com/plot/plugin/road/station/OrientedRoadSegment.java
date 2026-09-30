@@ -8,6 +8,9 @@ import java.util.OptionalDouble;
  * {@code forward == false} 表示几何方向与链方向相反；生成时须用
  * {@link com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry#chainLeftNormal}
  * 解析相对链的 LEFT/RIGHT，而非几何 {@code leftNormal}。
+ * <p>
+ * 闭环 seam 可将一条 Edge 逻辑拆成两个 slice（{@code geometryChainStart/End}），
+ * 使 station 0 落在用户点击的 × 位置而非 Edge 入口节点。
  */
 public record OrientedRoadSegment(
         String edgeId,
@@ -15,12 +18,29 @@ public record OrientedRoadSegment(
         String entryNodeId,
         String exitNodeId,
         double startStation,
-        double length) {
+        double length,
+        double geometryChainStart,
+        double geometryChainEnd) {
 
     private static final double EPSILON = 1e-6;
 
+    public OrientedRoadSegment(
+            String edgeId,
+            boolean forward,
+            String entryNodeId,
+            String exitNodeId,
+            double startStation,
+            double length) {
+        this(edgeId, forward, entryNodeId, exitNodeId, startStation, length, 0.0, length);
+    }
+
     public double endStation() {
         return startStation + length;
+    }
+
+    public boolean isPartialSlice() {
+        return geometryChainStart > EPSILON
+            || geometryChainEnd < length - EPSILON;
     }
 
     /**
@@ -28,7 +48,7 @@ public record OrientedRoadSegment(
      */
     public double chainLocalFromGeometryLocal(double geometryLocalDistance) {
         double clamped = clampGeometryLocal(geometryLocalDistance);
-        return forward ? clamped : length - clamped;
+        return forward ? clamped - geometryChainStart : geometryChainEnd - clamped;
     }
 
     /**
@@ -36,7 +56,7 @@ public record OrientedRoadSegment(
      */
     public double geometryLocalFromChainLocal(double chainLocalDistance) {
         double clamped = clampChainLocal(chainLocalDistance);
-        return forward ? clamped : length - clamped;
+        return forward ? geometryChainStart + clamped : geometryChainEnd - clamped;
     }
 
     /**
@@ -74,20 +94,26 @@ public record OrientedRoadSegment(
         if (nodeId == null || nodeId.isBlank()) {
             return OptionalDouble.empty();
         }
-        if (entryNodeId.equals(nodeId)) {
+        if (entryNodeId.equals(nodeId) && geometryChainStart <= EPSILON) {
             return OptionalDouble.of(startStation);
         }
-        if (exitNodeId.equals(nodeId)) {
+        if (exitNodeId.equals(nodeId) && geometryChainEnd >= length + geometryChainStart - EPSILON) {
             return OptionalDouble.of(endStation());
         }
         return OptionalDouble.empty();
     }
 
+    public OrientedRoadSegment withStartStation(double newStartStation) {
+        return new OrientedRoadSegment(
+            edgeId, forward, entryNodeId, exitNodeId,
+            newStartStation, length, geometryChainStart, geometryChainEnd);
+    }
+
     private double clampGeometryLocal(double geometryLocalDistance) {
         if (!Double.isFinite(geometryLocalDistance)) {
-            return 0.0;
+            return geometryChainStart;
         }
-        return Math.max(0.0, Math.min(geometryLocalDistance, length));
+        return Math.max(geometryChainStart, Math.min(geometryLocalDistance, geometryChainEnd));
     }
 
     private double clampChainLocal(double chainLocalDistance) {

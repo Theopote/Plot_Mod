@@ -71,6 +71,22 @@ public final class RoadStationing {
         if (network == null || road == null) {
             return List.of();
         }
+        if (applyLoopSeam
+                && road.getTopologyMode() == RoadTopologyMode.LOOP
+                && road.getLoopSeam() != null) {
+            return RoadLoopSeamService.buildLoopOrientedSegments(network, road);
+        }
+        return buildLinearOrientedSegments(network, road, applyLoopSeam);
+    }
+
+    static List<OrientedRoadSegment> buildBaseOrientedSegments(RoadNetwork network, Road road) {
+        return buildLinearOrientedSegments(network, road, false);
+    }
+
+    private static List<OrientedRoadSegment> buildLinearOrientedSegments(
+            RoadNetwork network,
+            Road road,
+            boolean applyLoopSeam) {
         List<OrientedRoadSegment> oriented = new ArrayList<>();
         double station = 0.0;
         for (SegmentChainBinding binding : segmentChainBindings(network, road, applyLoopSeam)) {
@@ -80,14 +96,17 @@ public final class RoadStationing {
             }
             boolean forward = binding.entryNodeId().equals(edge.getStartNodeId());
             String exitNodeId = forward ? edge.getEndNodeId() : edge.getStartNodeId();
+            double edgeLength = edge.getLength();
             oriented.add(new OrientedRoadSegment(
                 binding.segmentId(),
                 forward,
                 binding.entryNodeId(),
                 exitNodeId,
                 station,
-                edge.getLength()));
-            station += edge.getLength();
+                edgeLength,
+                0.0,
+                edgeLength));
+            station += edgeLength;
         }
         return List.copyOf(oriented);
     }

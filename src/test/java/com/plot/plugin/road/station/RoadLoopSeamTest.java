@@ -1,6 +1,10 @@
 package com.plot.plugin.road.station;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.alignment.RoadPlanGeometry;
+import com.plot.plugin.road.crossing.CrossingType;
+import com.plot.plugin.road.crossing.RoadCrossing;
+import com.plot.plugin.road.crossing.RoadCrossingReconciler;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadLoopSeam;
@@ -49,6 +53,68 @@ class RoadLoopSeamTest {
     }
 
     @Test
+    void interiorSeamBecomesActualStationZero() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("square");
+        road.setTopologyMode(RoadTopologyMode.LOOP);
+        RoadNode n0 = network.createNode(new Vec2d(0, 0));
+        RoadNode n1 = network.createNode(new Vec2d(10, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 10));
+        RoadNode n3 = network.createNode(new Vec2d(0, 10));
+        RoadEdge edge1 = network.createEdge(n0.getId(), n1.getId(), List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+        network.createEdge(n1.getId(), n2.getId(), List.of(
+            new Vec2d(10, 0), new Vec2d(10, 10)), road.getId());
+        network.createEdge(n2.getId(), n3.getId(), List.of(
+            new Vec2d(10, 10), new Vec2d(0, 10)), road.getId());
+        network.createEdge(n3.getId(), n0.getId(), List.of(
+            new Vec2d(0, 10), new Vec2d(0, 0)), road.getId());
+
+        Vec2d seamPosition = new Vec2d(5, 0);
+        road.setLoopSeam(RoadLoopSeam.onSegment(seamPosition, edge1.getId(), 0.5));
+
+        Vec2d stationZero = RoadPlanGeometry.instancePointAtStation(network, road, 0.0).orElseThrow();
+        assertEquals(seamPosition.x, stationZero.x, 1e-4);
+        assertEquals(seamPosition.y, stationZero.y, 1e-4);
+        assertEquals(40.0, RoadStationing.canonicalLength(network, road), 1e-4);
+    }
+
+    @Test
+    void rotateLoopSeamRemapsCrossingStations() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("loop");
+        roadA.setTopologyMode(RoadTopologyMode.LOOP);
+        RoadNode n0 = network.createNode(new Vec2d(0, 0));
+        RoadNode n1 = network.createNode(new Vec2d(40, 0));
+        network.createEdge(n0.getId(), n1.getId(), List.of(new Vec2d(0, 0), new Vec2d(40, 0)), roadA.getId());
+        network.createEdge(n1.getId(), n0.getId(), List.of(new Vec2d(40, 0), new Vec2d(0, 0)), roadA.getId());
+        roadA.setLoopSeam(RoadLoopSeam.at(new Vec2d(0, 0)));
+
+        Road roadB = network.createRoad("cross");
+        network.createEdge(
+            network.createNode(new Vec2d(20, -10)).getId(),
+            network.createNode(new Vec2d(20, 10)).getId(),
+            List.of(new Vec2d(20, -10), new Vec2d(20, 10)),
+            roadB.getId());
+
+        RoadCrossingReconciler.reconcileCrossings(network);
+        RoadCrossing crossing = network.getCrossings().values().iterator().next();
+        String crossingId = crossing.id();
+        network.setCrossingGradeSeparation(crossingId, CrossingType.GRADE_SEPARATED, roadB.getId(), 6.0);
+
+        double stationOnA = crossing.stationOn(roadA.getId());
+        RoadStationDataTransforms.rotateLoopStations(network, roadA, 30.0, 80.0);
+
+        RoadCrossing rotated = network.getCrossing(crossingId);
+        assertEquals(
+            RoadLoopSeamService.rotateLoopStation(stationOnA, 30.0, 80.0),
+            rotated.stationOn(roadA.getId()),
+            1e-4);
+        assertEquals(CrossingType.GRADE_SEPARATED, rotated.type());
+        assertEquals(6.0, rotated.crossingClearance(), 1e-6);
+    }
+
+    @Test
     void loopStationing_startsAtSeam() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("ring");
@@ -56,9 +122,9 @@ class RoadLoopSeamTest {
         RoadNode n1 = network.createNode(new Vec2d(0, 0));
         RoadNode n2 = network.createNode(new Vec2d(10, 0));
         RoadNode n3 = network.createNode(new Vec2d(10, 10));
-        RoadEdge e1 = network.createEdge(n1.getId(), n2.getId(), List.of(
+        network.createEdge(n1.getId(), n2.getId(), List.of(
             new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
-        network.createEdge(n2.getId(), n3.getId(), List.of(
+        RoadEdge e2 = network.createEdge(n2.getId(), n3.getId(), List.of(
             new Vec2d(10, 0), new Vec2d(10, 10)), road.getId());
         network.createEdge(n3.getId(), n1.getId(), List.of(
             new Vec2d(10, 10), new Vec2d(0, 0)), road.getId());
@@ -66,8 +132,11 @@ class RoadLoopSeamTest {
         road.setLoopSeam(RoadLoopSeam.at(new Vec2d(10, 0)));
 
         List<OrientedRoadSegment> segments = RoadStationing.orientedSegments(network, road);
-        assertEquals(e1.getId(), segments.getFirst().edgeId());
+        assertEquals(e2.getId(), segments.getFirst().edgeId());
         assertEquals(n2.getId(), segments.getFirst().entryNodeId());
+        Vec2d stationZero = RoadPlanGeometry.instancePointAtStation(network, road, 0.0).orElseThrow();
+        assertEquals(10.0, stationZero.x, 1e-4);
+        assertEquals(0.0, stationZero.y, 1e-4);
     }
 
     @Test

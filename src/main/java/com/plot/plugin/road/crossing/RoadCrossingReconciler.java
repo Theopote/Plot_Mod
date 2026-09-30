@@ -3,9 +3,12 @@ package com.plot.plugin.road.crossing;
 import com.plot.plugin.road.IntersectionResult;
 import com.plot.plugin.road.model.RoadNetwork;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /** 将几何交叉注册为 {@link RoadCrossing}，不修改拓扑节点/边。 */
 public final class RoadCrossingReconciler {
@@ -16,17 +19,43 @@ public final class RoadCrossingReconciler {
         if (network == null) {
             return IntersectionResult.COMPLETE;
         }
+        Map<String, RoadCrossing> existingByKey = new HashMap<>();
+        for (RoadCrossing existing : network.getCrossings().values()) {
+            existingByKey.put(existing.stableKey(), existing);
+        }
+
         List<RoadCrossing> detected = RoadCrossingDetector.detectAll(network);
-        Set<String> seen = new HashSet<>();
-        for (RoadCrossing crossing : detected) {
-            seen.add(crossing.id());
-            network.registerCrossing(crossing);
+        Set<String> seenIds = new HashSet<>();
+        for (RoadCrossing detectedCrossing : detected) {
+            RoadCrossing merged = mergeWithExisting(detectedCrossing, existingByKey.get(detectedCrossing.stableKey()));
+            seenIds.add(merged.id());
+            network.registerCrossing(merged);
         }
         for (RoadCrossing existing : network.getCrossings().values()) {
-            if (!seen.contains(existing.id())) {
+            if (!seenIds.contains(existing.id())) {
                 network.removeCrossing(existing.id());
             }
         }
         return IntersectionResult.COMPLETE;
+    }
+
+    private static RoadCrossing mergeWithExisting(RoadCrossing detected, RoadCrossing existing) {
+        if (existing != null) {
+            return existing.withRefreshedGeometry(
+                detected.stationA(),
+                detected.stationB(),
+                detected.position());
+        }
+        return new RoadCrossing(
+            UUID.randomUUID().toString(),
+            detected.roadAId(),
+            detected.stationA(),
+            detected.roadBId(),
+            detected.stationB(),
+            detected.position(),
+            CrossingType.AT_GRADE,
+            null,
+            null,
+            null);
     }
 }

@@ -5,6 +5,7 @@ import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.graph.RoadGraphEdits;
+import com.plot.plugin.road.model.RoadTopologyRoadSplitter;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -30,6 +31,25 @@ class RoadNetworkBuilderTest {
 
     private final RoadNetworkBuilder builder = new RoadNetworkBuilder();
     private final RoadSystemConfig config = new RoadSystemConfig("road_system");
+
+    @Test
+    void adoptClosedRectanglePromotesToLoopWithDefaultSeam() {
+        RoadNetwork network = new RoadNetwork();
+        Polygon rectangle = new Polygon(List.of(
+            new Vec2d(0, 0),
+            new Vec2d(10, 0),
+            new Vec2d(10, 10),
+            new Vec2d(0, 10)));
+
+        builder.adoptShape(network, rectangle, config);
+        RoadTopologyRoadSplitter.repairAfterAdopt(network);
+
+        assertEquals(1, network.getRoads().size());
+        Road road = network.getRoads().values().iterator().next();
+        assertEquals(com.plot.plugin.road.model.RoadTopologyMode.LOOP, road.getTopologyMode());
+        assertNotNull(road.getLoopSeam());
+        assertTrue(com.plot.plugin.road.station.RoadStationing.isStationable(network, road));
+    }
 
     @Test
     void adoptClosedPolygonCreatesLoopEdgeWithoutPreviewGap() {

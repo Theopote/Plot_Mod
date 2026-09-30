@@ -70,4 +70,48 @@ public record RoadCrossing(
         }
         throw new IllegalArgumentException("road not part of crossing: " + roadId);
     }
+
+    /** 稳定匹配键：几何刷新时保留设计意图。 */
+    public static String stableKey(
+            String roadAId,
+            double stationA,
+            String roadBId,
+            double stationB) {
+        return roadAId
+            + "|" + Math.round(stationA * 100.0)
+            + "|" + roadBId
+            + "|" + Math.round(stationB * 100.0);
+    }
+
+    public String stableKey() {
+        return stableKey(roadAId, stationA, roadBId, stationB);
+    }
+
+    public RoadCrossing withRefreshedGeometry(double newStationA, double newStationB, Vec2d newPosition) {
+        return new RoadCrossing(
+            id,
+            roadAId,
+            newStationA,
+            roadBId,
+            newStationB,
+            newPosition,
+            type,
+            elevatedRoadId,
+            crossingClearance,
+            sharedElevation);
+    }
+
+    public RoadCrossing withStationsOnRoad(String roadId, double newStation) {
+        if (roadAId.equals(roadId)) {
+            return new RoadCrossing(
+                id, roadAId, newStation, roadBId, stationB,
+                position, type, elevatedRoadId, crossingClearance, sharedElevation);
+        }
+        if (roadBId.equals(roadId)) {
+            return new RoadCrossing(
+                id, roadAId, stationA, roadBId, newStation,
+                position, type, elevatedRoadId, crossingClearance, sharedElevation);
+        }
+        throw new IllegalArgumentException("road not part of crossing: " + roadId);
+    }
 }
