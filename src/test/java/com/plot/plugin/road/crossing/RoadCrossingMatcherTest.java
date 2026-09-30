@@ -42,13 +42,18 @@ class RoadCrossingMatcherTest {
     @Test
     void reconcilePreservesGradeSeparationAfterRoadStationShift() {
         RoadNetwork network = new RoadNetwork();
-        RoadNetworkBuilder builder = new RoadNetworkBuilder();
-        RoadSystemConfig config = new RoadSystemConfig("crossing");
-
-        builder.adoptShape(network, new PolylineShape(
-            List.of(new Vec2d(0, 5), new Vec2d(10, 5)), false), config);
-        builder.adoptShape(network, new PolylineShape(
-            List.of(new Vec2d(5, 0), new Vec2d(5, 10)), false), config);
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+        network.createEdge(
+            network.createNode(new Vec2d(0, 5)).getId(),
+            network.createNode(new Vec2d(10, 5)).getId(),
+            List.of(new Vec2d(0, 5), new Vec2d(10, 5)),
+            roadA.getId());
+        network.createEdge(
+            network.createNode(new Vec2d(5, 0)).getId(),
+            network.createNode(new Vec2d(5, 10)).getId(),
+            List.of(new Vec2d(5, 0), new Vec2d(5, 10)),
+            roadB.getId());
         RoadCrossingReconciler.reconcileCrossings(network);
 
         RoadCrossing original = network.getCrossings().values().iterator().next();
@@ -62,11 +67,7 @@ class RoadCrossingMatcherTest {
             verticalRoadId,
             6.0);
 
-        Road horizontalRoad = network.getRoads().values().stream()
-            .filter(road -> !road.getId().equals(verticalRoadId))
-            .findFirst()
-            .orElseThrow();
-        RoadEdge horizontalEdge = network.getEdge(horizontalRoad.getOrderedSegmentIds().getFirst());
+        RoadEdge horizontalEdge = network.getEdge(roadA.getOrderedSegmentIds().getFirst());
         horizontalEdge.setCenterlinePoints(List.of(new Vec2d(0, 5.3), new Vec2d(10, 5.3)));
         RoadNode startNode = network.getNode(horizontalEdge.getStartNodeId());
         RoadNode endNode = network.getNode(horizontalEdge.getEndNodeId());

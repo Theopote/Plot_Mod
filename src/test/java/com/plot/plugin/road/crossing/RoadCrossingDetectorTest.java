@@ -92,6 +92,25 @@ class RoadCrossingDetectorTest {
     }
 
     @Test
+    void detectsCrossingAfterHorizontalVerticalShift() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+        network.createEdge(
+            network.createNode(new Vec2d(0, 5.3)).getId(),
+            network.createNode(new Vec2d(10, 5.3)).getId(),
+            List.of(new Vec2d(0, 5.3), new Vec2d(10, 5.3)),
+            roadA.getId());
+        network.createEdge(
+            network.createNode(new Vec2d(5, 0)).getId(),
+            network.createNode(new Vec2d(5, 10)).getId(),
+            List.of(new Vec2d(5, 0), new Vec2d(5, 10)),
+            roadB.getId());
+
+        assertEquals(1, RoadCrossingDetector.detectAll(network).size());
+    }
+
+    @Test
     void doesNotDetectCrossingWhenEndpointIsNearButNotOnOtherRoad() {
         RoadNetwork network = new RoadNetwork();
         Road roadA = network.createRoad("road-a");
