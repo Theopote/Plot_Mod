@@ -42,9 +42,9 @@ public final class RoadOverlayController {
             if (road == null) {
                 continue;
             }
-            List<com.plot.api.geometry.Vec2d> corridor =
-                RoadOverlayGeometry.resolveRoadCorridor(network, road, config, coordinates);
-            if (corridor.size() < 3) {
+            com.plot.plugin.road.geometry.RoadCorridorGeometry corridor =
+                RoadOverlayGeometry.resolveRoadCorridorGeometry(network, road, config, coordinates);
+            if (corridor.primaryFillContour().size() < 3) {
                 continue;
             }
             List<com.plot.api.geometry.Vec2d> centerline =
@@ -57,7 +57,7 @@ public final class RoadOverlayController {
             entries.add(new RoadOverlayEntry(
                 road.getId(),
                 road.getName(),
-                List.copyOf(corridor),
+                corridor,
                 List.copyOf(centerline),
                 resolveRoadState(
                     road.getId(),
@@ -89,15 +89,15 @@ public final class RoadOverlayController {
             if (!RoadGeometryUtils.isAdoptablePath(path)) {
                 continue;
             }
-            List<com.plot.api.geometry.Vec2d> corridor =
-                RoadOverlayGeometry.resolvePathCorridor(path, config, coordinates);
-            if (corridor.size() < 3) {
+            com.plot.plugin.road.geometry.RoadCorridorGeometry corridor =
+                RoadOverlayGeometry.resolvePathCorridorGeometry(path, config, coordinates);
+            if (corridor.primaryFillContour().size() < 3) {
                 continue;
             }
             entries.add(new RoadOverlayEntry(
                 "shape:" + path.getId(),
                 path.getId(),
-                List.copyOf(corridor),
+                corridor,
                 RoadOverlayGeometry.resolveShapeCenterline(path),
                 state));
         }
@@ -146,7 +146,7 @@ public final class RoadOverlayController {
         }
         for (int i = entries.size() - 1; i >= 0; i--) {
             RoadOverlayEntry entry = entries.get(i);
-            if (RoadOverlayGeometry.containsPoint(entry.corridorPoints(), worldX, worldY)) {
+            if (RoadOverlayGeometry.containsPoint(entry.corridorGeometry(), worldX, worldY)) {
                 return entry;
             }
         }

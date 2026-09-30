@@ -6,8 +6,10 @@ import com.plot.plugin.road.alignment.HorizontalAlignmentElement;
 import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.geometry.RoadCorridorGeometry;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.model.RoadTopologyMode;
 import com.plot.test.world.IdentityCoordinateService;
 import org.junit.jupiter.api.Test;
 
@@ -110,5 +112,45 @@ class RoadOverlayGeometryTest {
         assertFalse(corridor.isEmpty());
         assertTrue(RoadOverlayGeometry.containsPoint(corridor, 50, 8));
         assertFalse(RoadOverlayGeometry.containsPoint(corridor, 50, 0));
+    }
+
+    @Test
+    void containsPoint_closedLoopExcludesInnerHole() {
+        List<Vec2d> centerline = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(20, 0),
+            new Vec2d(20, 10),
+            new Vec2d(0, 10),
+            new Vec2d(0, 0));
+        RoadCorridorGeometry geometry = com.plot.plugin.road.geometry.RoadCorridorGeometryBuilder.build(
+            centerline, 3.0, true);
+
+        assertTrue(RoadOverlayGeometry.containsPoint(geometry, 1, 1));
+        assertFalse(RoadOverlayGeometry.containsPoint(geometry, 10, 5));
+    }
+
+    @Test
+    void resolveRoadCorridorGeometry_marksLoopRoadClosed() {
+        RoadSystemConfig config = new RoadSystemConfig("road_test");
+        config.setRoadWidth(6);
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
+        config.setIncludeDrainage(false);
+        config.setIncludeSlopeBatter(false);
+
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("loop");
+        road.setTopologyMode(RoadTopologyMode.LOOP);
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        network.createEdge(
+            n1.getId(), n1.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(20, 0), new Vec2d(20, 10), new Vec2d(0, 10), new Vec2d(0, 0)),
+            road.getId());
+
+        RoadCorridorGeometry geometry = RoadOverlayGeometry.resolveRoadCorridorGeometry(
+            network, road, config, IdentityCoordinateService.INSTANCE);
+
+        assertTrue(geometry.closed());
+        assertEquals(2, geometry.fillContours().size());
     }
 }

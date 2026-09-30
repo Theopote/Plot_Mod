@@ -2,6 +2,8 @@ package com.plot.plugin.road.overlay;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.polygon.PolygonTriangulator;
+import com.plot.core.geometry.polygon.RegionTriangulator;
+import com.plot.plugin.road.geometry.RoadCorridorGeometry;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.canvas.CanvasCamera;
 import imgui.ImDrawList;
@@ -29,13 +31,13 @@ public final class RoadOverlayRenderer {
     }
 
     private static void renderEntry(ImDrawList drawList, CanvasCamera camera, RoadOverlayEntry entry) {
-        List<Vec2d> corridor = entry.corridorPoints();
-        if (corridor.size() < 3) {
+        RoadCorridorGeometry corridor = entry.corridorGeometry();
+        if (corridor == null || corridor.primaryFillContour().size() < 3) {
             return;
         }
         RoadOverlayStyle style = RoadOverlayStyle.forState(entry.state());
         renderFill(drawList, camera, corridor, style.fillColor());
-        renderPolylineOutline(drawList, camera, corridor, style, true);
+        renderCorridorOutlines(drawList, camera, corridor, style);
         if (style.drawCenterline()) {
             renderCenterline(drawList, camera, entry.centerlinePoints(), style.outlineColor());
         }
@@ -60,19 +62,38 @@ public final class RoadOverlayRenderer {
     private static void renderFill(
             ImDrawList drawList,
             CanvasCamera camera,
-            List<Vec2d> points,
+            RoadCorridorGeometry corridor,
             int fillColor) {
-        if ((fillColor >>> 24) == 0 || points.size() > MAX_FILL_VERTICES) {
+        if ((fillColor >>> 24) == 0) {
             return;
         }
-        PolygonTriangulator.TriangulationResult triangulation = PolygonTriangulator.triangulate(points);
+        List<Vec2d> vertices;
+        PolygonTriangulator.TriangulationResult triangulation;
+        if (corridor.closed() && corridor.innerHole().size() >= 3) {
+            vertices = RegionTriangulator.bridgeSingleHole(corridor.outerContour(), corridor.innerHole());
+            if (vertices.size() > MAX_FILL_VERTICES) {
+                return;
+            }
+            triangulation = PolygonTriangulator.triangulate(vertices);
+        } else {
+            vertices = corridor.primaryFillContour();
+            if (vertices.size() > MAX_FILL_VERTICES) {
+                return;
+            }
+            triangulation = PolygonTriangulator.triangulate(vertices);
+        }
         if (!triangulation.success()) {
             return;
         }
         for (PolygonTriangulator.Triangle triangle : triangulation.triangles()) {
-            Vec2d a = points.get(triangle.i0());
-            Vec2d b = points.get(triangle.i1());
-            Vec2d c = points.get(triangle.i2());
+            if (triangle.i0() >= vertices.size()
+                    || triangle.i1() >= vertices.size()
+                    || triangle.i2() >= vertices.size()) {
+                continue;
+            }
+            Vec2d a = vertices.get(triangle.i0());
+            Vec2d b = vertices.get(triangle.i1());
+            Vec2d c = vertices.get(triangle.i2());
             Vec2d screenA = camera.worldToScreen(a);
             Vec2d screenB = camera.worldToScreen(b);
             Vec2d screenC = camera.worldToScreen(c);
@@ -85,6 +106,19 @@ public final class RoadOverlayRenderer {
                 (float) screenC.y,
                 fillColor);
         }
+    }
+
+    private static void renderCorridorOutlines(
+            ImDrawList drawList,
+            CanvasCamera camera,
+            RoadCorridorGeometry corridor,
+            RoadOverlayStyle style) {
+        if (corridor.closed() && corridor.innerHole().size() >= 3) {
+            renderPolylineOutline(drawList, camera, corridor.outerContour(), style, true);
+            renderPolylineOutline(drawList, camera, corridor.innerHole(), style, true);
+            return;
+        }
+        renderPolylineOutline(drawList, camera, corridor.primaryFillContour(), style, true);
     }
 
     private static void renderPolylineOutline(

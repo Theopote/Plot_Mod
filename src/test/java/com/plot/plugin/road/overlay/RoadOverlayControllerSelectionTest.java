@@ -1,6 +1,7 @@
 package com.plot.plugin.road.overlay;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.geometry.RoadCorridorGeometry;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashSet;
@@ -68,7 +69,9 @@ class RoadOverlayControllerSelectionTest {
             String id,
             List<Vec2d> corridor,
             RoadOverlayState state) {
-        return new RoadOverlayEntry(id, id, corridor, corridor, state);
+        RoadCorridorGeometry geometry = new RoadCorridorGeometry(
+            corridor, corridor, corridor, List.of(corridor), false, List.of());
+        return new RoadOverlayEntry(id, id, geometry, corridor, state);
     }
 
     private static List<Vec2d> square(double minX, double minY, double maxX, double maxY) {

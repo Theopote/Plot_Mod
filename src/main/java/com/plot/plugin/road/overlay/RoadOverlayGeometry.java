@@ -2,6 +2,10 @@ package com.plot.plugin.road.overlay;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
+import com.plot.core.geometry.RegionGeometry;
+import com.plot.core.geometry.shapes.BezierCurveShape;
+import com.plot.core.geometry.shapes.Polygon;
+import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.model.Shape;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGeometryUtils;
@@ -9,12 +13,15 @@ import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.centerline.RoadCenterlineShapeValidator;
 import com.plot.plugin.road.earthwork.RoadEarthworkCorridorResolver;
 import com.plot.plugin.road.geometry.RoadCanvasScale;
+import com.plot.plugin.road.geometry.RoadCorridorGeometry;
+import com.plot.plugin.road.geometry.RoadCorridorGeometryBuilder;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadSegmentOrdering;
+import com.plot.plugin.road.model.RoadTopologyMode;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 
 import java.util.ArrayList;
@@ -31,33 +38,64 @@ public final class RoadOverlayGeometry {
             Road road,
             RoadSystemConfig config,
             ICoordinateService coordinates) {
+        return resolveRoadCorridorGeometry(network, road, config, coordinates).primaryFillContour();
+    }
+
+    public static RoadCorridorGeometry resolveRoadCorridorGeometry(
+            RoadNetwork network,
+            Road road,
+            RoadSystemConfig config,
+            ICoordinateService coordinates) {
         List<Vec2d> centerline = resolvePlanCenterline(network, road);
         if (centerline.size() < 2) {
             centerline = resolveRoadCenterline(network, road);
         }
-        if (centerline.size() < 2) {
-            return List.of();
+        if (centerline.size() < 2 || road == null) {
+            return new RoadCorridorGeometry(List.of(), List.of(), List.of(), List.of(), false, List.of());
         }
         double halfWidth = resolveRoadHalfWidth(network, road, config, centerline, coordinates);
         if (halfWidth <= 0.0) {
-            return List.of();
+            return new RoadCorridorGeometry(centerline, List.of(), List.of(), List.of(), false, List.of());
         }
-        return RoadEarthworkCorridorResolver.buildCorridorPolygon(centerline, halfWidth);
+        boolean closed = road.getTopologyMode() == RoadTopologyMode.LOOP
+            || RoadCorridorGeometryBuilder.isGeometricallyClosed(centerline);
+        return RoadEarthworkCorridorResolver.buildCorridorGeometry(centerline, halfWidth, closed);
     }
 
     public static List<Vec2d> resolvePathCorridor(
             Shape path,
             RoadSystemConfig config,
             ICoordinateService coordinates) {
+        return resolvePathCorridorGeometry(path, config, coordinates).primaryFillContour();
+    }
+
+    public static RoadCorridorGeometry resolvePathCorridorGeometry(
+            Shape path,
+            RoadSystemConfig config,
+            ICoordinateService coordinates) {
         List<Vec2d> centerline = RoadGeometryUtils.extractShapePoints(path);
         if (centerline.size() < 2 || config == null) {
-            return List.of();
+            return new RoadCorridorGeometry(List.of(), List.of(), List.of(), List.of(), false, List.of());
         }
         double halfWidth = resolveConfigCorridorHalfWidth(config, centerline, coordinates);
         if (halfWidth <= 0.0) {
-            return List.of();
+            return new RoadCorridorGeometry(centerline, List.of(), List.of(), List.of(), false, List.of());
         }
-        return RoadEarthworkCorridorResolver.buildCorridorPolygon(centerline, halfWidth);
+        boolean closed = isShapeTopologyClosed(path)
+            || RoadCorridorGeometryBuilder.isGeometricallyClosed(centerline);
+        return RoadEarthworkCorridorResolver.buildCorridorGeometry(centerline, halfWidth, closed);
+    }
+
+    static boolean isShapeTopologyClosed(Shape shape) {
+        if (shape == null) {
+            return false;
+        }
+        return switch (shape) {
+            case PolylineShape polyline -> polyline.isClosed();
+            case BezierCurveShape bezier -> bezier.isClosed();
+            case Polygon polygon -> polygon.isClosed();
+            default -> false;
+        };
     }
 
     /** 认领候选路径走廊半宽（画布坐标，行车道 + 可行走外侧条带）。 */
@@ -121,6 +159,17 @@ public final class RoadOverlayGeometry {
         }
         RoadCanvasScale scale = RoadCanvasScale.capture(coordinates, centerline);
         return scale.uniformBlocksToCanvas(halfWidthBlocks, centerline);
+    }
+
+    public static boolean containsPoint(RoadCorridorGeometry geometry, double x, double y) {
+        if (geometry == null || geometry.primaryFillContour().size() < 3) {
+            return false;
+        }
+        Vec2d point = new Vec2d(x, y);
+        if (geometry.closed() && geometry.innerHole().size() >= 3) {
+            return RegionGeometry.of(geometry.outerContour(), List.of(geometry.innerHole())).contains(point);
+        }
+        return containsPoint(geometry.primaryFillContour(), x, y);
     }
 
     public static boolean containsPoint(List<Vec2d> polygon, double x, double y) {

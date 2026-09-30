@@ -3,14 +3,16 @@ package com.plot.plugin.road.earthwork;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.alignment.RoadPlanGeometry;
+import com.plot.plugin.road.geometry.RoadCorridorGeometry;
+import com.plot.plugin.road.geometry.RoadCorridorGeometryBuilder;
+import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
+import com.plot.plugin.road.model.RoadTopologyMode;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
-import com.plot.ui.tools.impl.modify.helper.OffsetHandler;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -37,7 +39,8 @@ public final class RoadEarthworkCorridorResolver {
         if (halfWidth <= 0.0) {
             return List.of();
         }
-        return buildCorridorPolygon(centerline, halfWidth);
+        boolean closed = isEdgeCorridorClosed(network, edge);
+        return buildCorridorPolygon(centerline, halfWidth, closed);
     }
 
     public static List<Vec2d> resolveCenterline(RoadNetwork network, RoadEdge edge) {
@@ -57,17 +60,35 @@ public final class RoadEarthworkCorridorResolver {
         return halfWidth + Math.max(0, extraMarginBlocks);
     }
 
+    public static RoadCorridorGeometry buildCorridorGeometry(
+            List<Vec2d> centerline,
+            double halfWidth,
+            boolean closed) {
+        return RoadCorridorGeometryBuilder.build(centerline, halfWidth, closed);
+    }
+
+    public static RoadCorridorGeometry buildCorridorGeometry(List<Vec2d> centerline, double halfWidth) {
+        return RoadCorridorGeometryBuilder.build(centerline, halfWidth);
+    }
+
     public static List<Vec2d> buildCorridorPolygon(List<Vec2d> centerline, double halfWidth) {
-        List<Vec2d> left = OffsetHandler.offsetPolyline(centerline, halfWidth);
-        List<Vec2d> right = OffsetHandler.offsetPolyline(centerline, -halfWidth);
-        if (left.size() < 2 || right.size() < 2) {
-            return List.of();
+        return buildCorridorPolygon(centerline, halfWidth, RoadCorridorGeometryBuilder.isGeometricallyClosed(centerline));
+    }
+
+    public static List<Vec2d> buildCorridorPolygon(List<Vec2d> centerline, double halfWidth, boolean closed) {
+        RoadCorridorGeometry geometry = buildCorridorGeometry(centerline, halfWidth, closed);
+        return geometry.primaryFillContour();
+    }
+
+    private static boolean isEdgeCorridorClosed(RoadNetwork network, RoadEdge edge) {
+        if (network == null || edge == null || edge.getRoadId() == null) {
+            return false;
         }
-        List<Vec2d> polygon = new ArrayList<>(left.size() + right.size());
-        polygon.addAll(left);
-        for (int index = right.size() - 1; index >= 0; index--) {
-            polygon.add(new Vec2d(right.get(index).x, right.get(index).y));
+        Road road = network.getRoad(edge.getRoadId());
+        if (road != null && road.getTopologyMode() == RoadTopologyMode.LOOP) {
+            return true;
         }
-        return polygon.size() >= 3 ? polygon : List.of();
+        List<Vec2d> centerline = RoadPlanGeometry.resolveEdgeCenterline(network, edge);
+        return RoadCorridorGeometryBuilder.isGeometricallyClosed(centerline);
     }
 }
