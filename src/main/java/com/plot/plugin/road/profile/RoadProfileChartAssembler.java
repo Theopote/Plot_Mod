@@ -23,6 +23,28 @@ public final class RoadProfileChartAssembler {
     private RoadProfileChartAssembler() {
     }
 
+    /** 部分 segment 有预览采样、部分缺失时返回 true。 */
+    public static boolean hasIncompleteProfileSampling(
+            RoadNetwork network,
+            Road road,
+            Map<String, RoadGenerationResult> edgeResults) {
+        if (network == null || road == null || edgeResults == null
+                || !RoadStationing.isStationable(network, road)) {
+            return false;
+        }
+        boolean any = false;
+        boolean all = true;
+        for (OrientedRoadSegment segment : RoadStationing.orientedSegments(network, road)) {
+            RoadGenerationResult edgeResult = edgeResults.get(segment.edgeId());
+            if (edgeResult != null && edgeResult.hasProfileData()) {
+                any = true;
+            } else {
+                all = false;
+            }
+        }
+        return any && !all;
+    }
+
     public static Optional<RoadProfileChartData> assemble(
             RoadNetwork network,
             Road road,
@@ -39,19 +61,28 @@ public final class RoadProfileChartAssembler {
             return Optional.empty();
         }
 
+        List<OrientedRoadSegment> segments = RoadStationing.orientedSegments(network, road);
+        if (segments.isEmpty()) {
+            return Optional.empty();
+        }
+        for (OrientedRoadSegment segment : segments) {
+            RoadGenerationResult edgeResult = edgeResults.get(segment.edgeId());
+            if (edgeResult == null || !edgeResult.hasProfileData()) {
+                return Optional.empty();
+            }
+        }
+
         List<Double> stations = new ArrayList<>();
         List<Double> groundElevations = new ArrayList<>();
         List<Double> previewElevations = new ArrayList<>();
         List<Double> guideElevations = new ArrayList<>();
 
-        for (OrientedRoadSegment segment : RoadStationing.orientedSegments(network, road)) {
-            RoadGenerationResult edgeResult = edgeResults.get(segment.edgeId());
-            if (edgeResult == null || !edgeResult.hasProfileData()) {
-                continue;
-            }
+        for (OrientedRoadSegment segment : segments) {
             appendSegmentSamples(
+                network,
+                road,
                 segment,
-                edgeResult,
+                edgeResults.get(segment.edgeId()),
                 stations,
                 groundElevations,
                 previewElevations,
@@ -65,7 +96,7 @@ public final class RoadProfileChartAssembler {
         List<RoadProfileIntersection> intersections = RoadProfileIntersectionResolver.forRoad(
             network, road, config, edgeResults);
 
-        return Optional.of(new RoadProfileChartData(
+        RoadProfileChartData chart = new RoadProfileChartData(
             road.getId(),
             totalStation,
             List.copyOf(stations),
@@ -73,10 +104,16 @@ public final class RoadProfileChartAssembler {
             List.copyOf(previewElevations),
             List.copyOf(guideElevations),
             controlPoints,
-            intersections));
+            intersections);
+        if (!chart.hasCompleteRoadProfile()) {
+            return Optional.empty();
+        }
+        return Optional.of(chart);
     }
 
     private static void appendSegmentSamples(
+            RoadNetwork network,
+            Road road,
             OrientedRoadSegment segment,
             RoadGenerationResult edgeResult,
             List<Double> stations,
@@ -88,12 +125,16 @@ public final class RoadProfileChartAssembler {
         if (profileSpan <= 1e-9) {
             profileSpan = segment.length();
         }
-        double segmentStart = segment.startStation();
-        double segmentLength = segment.length();
 
-        for (int i = 0; i < profileDistances.size(); i++) {
-            double localProfile = profileDistances.get(i) - profileDistances.getFirst();
-            double roadStation = segmentStart + (localProfile / profileSpan) * segmentLength;
+        int startIndex = segment.forward() ? 0 : profileDistances.size() - 1;
+        int endIndex = segment.forward() ? profileDistances.size() : -1;
+        int step = segment.forward() ? 1 : -1;
+        for (int i = startIndex; i != endIndex; i += step) {
+            double geometryLocal = (profileDistances.get(i) - profileDistances.getFirst())
+                * (segment.length() / profileSpan);
+            double chainLocal = segment.chainLocalFromGeometryLocal(geometryLocal);
+            double instanceStation = segment.startStation() + chainLocal;
+            double roadStation = RoadStationing.toCanonicalChainage(network, road, instanceStation);
             if (!stations.isEmpty()
                     && Math.abs(roadStation - stations.getLast()) <= STATION_MERGE_TOLERANCE) {
                 groundElevations.set(

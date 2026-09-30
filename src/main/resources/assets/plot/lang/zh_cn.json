@@ -1453,6 +1453,7 @@
   "plugin.road.profile_actual_road": "实际道路",
   "plugin.road.profile_last_preview_stale": "上次预览（已过期）",
   "plugin.road.profile_discontinuous_road_hint": "道路存在分叉或断开，无法显示连续纵断面图。请使用下方数字 PVI 编辑。",
+  "plugin.road.profile_incomplete_preview_hint": "部分路段缺少纵断面采样数据，请重新计算预览以刷新整条道路的纵断面。",
   "plugin.road.profile_intersection_at_grade_conflict": "平交高程不一致，请在路径页修正",
   "plugin.road.profile_control_points_collapsed": "控制点（%d）",
   "plugin.road.profile_legend_pvi": "变坡点",

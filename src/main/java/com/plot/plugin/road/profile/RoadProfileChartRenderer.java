@@ -362,6 +362,9 @@ public final class RoadProfileChartRenderer {
             layout.outerRight(), layout.outerBottom(), COLOR_BORDER);
     }
 
+    private static final float AXIS_LABEL_PAD = 6f;
+    private static final float AXIS_LABEL_LINE_OFFSET = 6f;
+
     private static void drawAxesAndGrid(ImDrawList drawList, ProfileChartLayout layout, RoadProfilePlotRange range) {
         List<Double> ticks = ProfileElevationTicks.elevationTicks(
             range.minElevation(), range.maxElevation());
@@ -370,14 +373,27 @@ public final class RoadProfileChartRenderer {
             drawList.addLine(
                 layout.plotLeft(), y, layout.plotRight(), y, COLOR_GRID, 1f);
             String label = String.format("%.0f", tick);
-            drawList.addText(layout.plotLeft() - 34f, y - 6f, COLOR_LABEL, label);
-            drawList.addText(layout.plotRight() + 4f, y - 6f, COLOR_LABEL, label);
+            float textWidth = ImGui.calcTextSize(label).x;
+            float textY = y - AXIS_LABEL_LINE_OFFSET;
+            drawList.addText(
+                layout.plotLeft() - AXIS_LABEL_PAD - textWidth, textY, COLOR_LABEL, label);
+            drawList.addText(layout.plotRight() + AXIS_LABEL_PAD, textY, COLOR_LABEL, label);
         }
         List<Double> stationTicks = ProfileElevationTicks.stationTicks(range.totalStation(), 5);
-        for (double station : stationTicks) {
-            float x = layout.plotX(station, range.totalStation());
+        float stationLabelY = layout.plotBottom() + 4f;
+        for (int i = 0; i < stationTicks.size(); i++) {
+            double station = stationTicks.get(i);
             String label = RoadStationing.format(station, RoadStationFormat.KILOMETER_PLUS);
-            drawList.addText(x - 16f, layout.plotBottom() + 4f, COLOR_LABEL, label);
+            float textWidth = ImGui.calcTextSize(label).x;
+            float x;
+            if (i == 0) {
+                x = layout.plotLeft();
+            } else if (i == stationTicks.size() - 1) {
+                x = layout.plotRight() - textWidth;
+            } else {
+                x = layout.plotX(station, range.totalStation()) - textWidth * 0.5f;
+            }
+            drawList.addText(x, stationLabelY, COLOR_LABEL, label);
         }
     }
 

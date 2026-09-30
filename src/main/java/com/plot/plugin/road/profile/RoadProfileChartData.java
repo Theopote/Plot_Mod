@@ -26,6 +26,28 @@ public record RoadProfileChartData(
             && previewElevations.size() == stations.size();
     }
 
+    /** Road-level 图表契约：station 覆盖完整 canonical 范围且单调。 */
+    public boolean hasCompleteRoadProfile() {
+        if (!hasProfileData() || totalStation <= EPSILON) {
+            return false;
+        }
+        if (Math.abs(stations.getFirst()) > 1e-2) {
+            return false;
+        }
+        if (Math.abs(stations.getLast() - totalStation) > 1e-2) {
+            return false;
+        }
+        for (int i = 1; i < stations.size(); i++) {
+            if (stations.get(i) + EPSILON < stations.get(i - 1)) {
+                return false;
+            }
+            if (stations.get(i) < -EPSILON || stations.get(i) > totalStation + 1e-2) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public double previewElevationAt(double station) {
         return interpolate(stations, previewElevations, station);
     }

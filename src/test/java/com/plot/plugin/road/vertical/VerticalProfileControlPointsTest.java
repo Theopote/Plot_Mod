@@ -5,6 +5,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.profile.ProfileControlPoint;
 import com.plot.plugin.road.profile.ProfilePointRole;
+import com.plot.plugin.road.vertical.VerticalAlignmentJunctionSynchronizer;
 import com.plot.plugin.road.vertical.VerticalControlPointConstraint;
 import org.junit.jupiter.api.Test;
 import java.util.List;
@@ -118,6 +119,32 @@ class VerticalProfileControlPointsTest {
             assertTrue(point.elevationEditable());
             assertTrue(VerticalProfileControlPoints.isEditablePvi(network, road, point));
         }
+    }
+
+    @Test void endpointAtSharedJunctionKeepsStartRoleAndAllowsElevationEdit() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("main");
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 76.0),
+            PointOfVerticalIntersection.of(20.0, 78.0))));
+        var junction = network.createNode(new Vec2d(0, 0));
+        var end = network.createNode(new Vec2d(20, 0));
+        var north = network.createNode(new Vec2d(0, 20));
+        var south = network.createNode(new Vec2d(0, -20));
+        network.createEdge(junction.getId(), end.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(20, 0)), road.getId());
+        network.createEdge(junction.getId(), north.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(0, 20)));
+        network.createEdge(junction.getId(), south.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(0, -20)));
+
+        VerticalAlignmentJunctionSynchronizer.synchronize(network, road);
+
+        ProfileControlPoint start = VerticalProfileControlPoints.forRoad(network, road).getFirst();
+        assertEquals(ProfilePointRole.START_ENDPOINT, start.role());
+        assertTrue(start.sharedJunction());
+        assertTrue(start.elevationEditable());
+        assertTrue(VerticalProfileControlPoints.isEditablePvi(network, road, start));
     }
 
     @Test void junctionFixedMiddlePviIsNotEditable() {

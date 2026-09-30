@@ -1453,6 +1453,7 @@
   "plugin.road.profile_actual_road": "Actual road",
   "plugin.road.profile_last_preview_stale": "Last preview (stale)",
   "plugin.road.profile_discontinuous_road_hint": "This road has a fork or gap and cannot show a continuous profile chart. Use the numeric PVI editor below.",
+  "plugin.road.profile_incomplete_preview_hint": "Profile sampling is incomplete for one or more road segments. Recalculate preview to refresh the full road profile.",
   "plugin.road.profile_intersection_at_grade_conflict": "At-grade elevation mismatch — resolve on the Path tab",
   "plugin.road.profile_control_points_collapsed": "Control points (%d)",
   "plugin.road.profile_legend_pvi": "PVI",

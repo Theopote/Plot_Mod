@@ -173,7 +173,7 @@ final class VerticalProfileEditor {
         }
         RoadProfileChartData chartData = resolveChartData(ctx, network, road);
         if (chartData == null || !chartData.hasProfileData()) {
-            renderMissingProfileActions(ctx, network);
+            renderMissingProfileActions(ctx, network, road);
             return;
         }
         VerticalAlignmentProfileOverlay design =
@@ -252,7 +252,7 @@ final class VerticalProfileEditor {
             }
             RoadProfileChartData chartData = resolveChartData(ctx, network, road);
             if (chartData == null || !chartData.hasProfileData()) {
-                renderMissingProfileActions(ctx, network);
+                renderMissingProfileActions(ctx, network, road);
                 return;
             }
             VerticalAlignmentProfileOverlay design =
@@ -356,10 +356,12 @@ final class VerticalProfileEditor {
             RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget.NONE;
     }
 
-    private void renderMissingProfileActions(RoadUiContext ctx, RoadNetwork network) {
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.vertical_alignment_profile_preview_required"));
+    private void renderMissingProfileActions(RoadUiContext ctx, RoadNetwork network, Road road) {
+        String hint = road != null && RoadProfileChartAssembler.hasIncompleteProfileSampling(
+                network, road, ctx.previewManager().getLastEdgeResults())
+            ? PlotI18n.tr("plugin.road.profile_incomplete_preview_hint")
+            : PlotI18n.tr("plugin.road.vertical_alignment_profile_preview_required");
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, hint);
         if (ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_calculate_profile"))) {
             ctx.previewManager().startNetworkPreview(network, false);
         }

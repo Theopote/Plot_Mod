@@ -61,7 +61,7 @@ public final class VerticalProfileControlPoints {
                 left,
                 right,
                 sharedJunction,
-                elevationEditable(road, pvi, sharedJunction)));
+                elevationEditable(road, pvi, sharedJunction, i, pvis.size())));
         }
         return List.copyOf(result);
     }
@@ -71,14 +71,14 @@ public final class VerticalProfileControlPoints {
             int count,
             PointOfVerticalIntersection pvi,
             boolean sharedJunction) {
-        if (sharedJunction || pvi.getConstraint() == VerticalControlPointConstraint.JUNCTION_FIXED) {
-            return ProfilePointRole.JUNCTION_FIXED;
-        }
         if (index == 0) {
             return ProfilePointRole.START_ENDPOINT;
         }
         if (index == count - 1) {
             return ProfilePointRole.END_ENDPOINT;
+        }
+        if (sharedJunction || pvi.getConstraint() == VerticalControlPointConstraint.JUNCTION_FIXED) {
+            return ProfilePointRole.JUNCTION_FIXED;
         }
         return ProfilePointRole.INTERIOR_PVI;
     }
@@ -120,7 +120,7 @@ public final class VerticalProfileControlPoints {
                 i, pvi.getStation(), local.getAsDouble(), pvi.getElevation(), left, right,
                 endpoint,
                 sharedJunction,
-                elevationEditable(road, pvi, sharedJunction)));
+                elevationEditable(road, pvi, sharedJunction, i, pvis.size())));
         }
         return List.copyOf(result);
     }
@@ -217,9 +217,14 @@ public final class VerticalProfileControlPoints {
     private static boolean elevationEditable(
             Road road,
             PointOfVerticalIntersection pvi,
-            boolean sharedJunction) {
+            boolean sharedJunction,
+            int index,
+            int count) {
         if (road == null || pvi == null || road.getVerticalMode() == RoadVerticalMode.FLAT) {
             return false;
+        }
+        if (index == 0 || index == count - 1) {
+            return true;
         }
         return !sharedJunction && pvi.getConstraint() != VerticalControlPointConstraint.JUNCTION_FIXED;
     }
