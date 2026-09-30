@@ -16,6 +16,12 @@ import java.util.List;
 
 /**
  * 道路纵断面预览（ImGui 绘制）。
+ *
+ * <p>纵断面编辑器主路径已迁移至道路级 canonical station，请使用
+ * {@link com.plot.plugin.road.profile.RoadProfileChartRenderer} 与
+ * {@link com.plot.plugin.road.profile.RoadProfileChartData}。
+ * 本类中基于 edge-local {@code profileDistances} / {@code localDistance} 的
+ * {@code render*} 方法已废弃，仅保留供过渡与单测。
  */
 public final class RoadLongitudinalProfileRenderer {
     public static final float DEFAULT_PREVIEW_HEIGHT = 120f;
@@ -120,14 +126,20 @@ public final class RoadLongitudinalProfileRenderer {
     private RoadLongitudinalProfileRenderer() {
     }
 
+    /** @deprecated Edge-local 渲染已废弃，请使用 {@link com.plot.plugin.road.profile.RoadProfileChartRenderer}。 */
+    @Deprecated
     public static void render(RoadGenerationResult result) {
         render(result, true);
     }
 
+    /** @deprecated Edge-local 渲染已废弃，请使用 {@link com.plot.plugin.road.profile.RoadProfileChartRenderer}。 */
+    @Deprecated
     public static void render(RoadGenerationResult result, boolean showTitle) {
         render(result, showTitle, null);
     }
 
+    /** @deprecated Edge-local 渲染已废弃，请使用 {@link com.plot.plugin.road.profile.RoadProfileChartRenderer}。 */
+    @Deprecated
     public static void render(
             RoadGenerationResult result,
             boolean showTitle,
@@ -135,6 +147,8 @@ public final class RoadLongitudinalProfileRenderer {
         render(result, showTitle, designOverlay, DEFAULT_PREVIEW_HEIGHT);
     }
 
+    /** @deprecated Edge-local 渲染已废弃，请使用 {@link com.plot.plugin.road.profile.RoadProfileChartRenderer}。 */
+    @Deprecated
     public static void render(
             RoadGenerationResult result,
             boolean showTitle,
@@ -192,7 +206,10 @@ public final class RoadLongitudinalProfileRenderer {
 
     /**
      * 只读纵剖面概览：地形/设计线 + 交叉点标记，不含可拖动控制点。
+     *
+     * @deprecated Edge-local 渲染已废弃，请使用 {@link com.plot.plugin.road.profile.RoadProfileChartRenderer#renderOverview}。
      */
+    @Deprecated
     public static void renderOverview(
             RoadGenerationResult result,
             VerticalAlignmentProfileOverlay designOverlay,
@@ -201,6 +218,8 @@ public final class RoadLongitudinalProfileRenderer {
         renderOverview(result, designOverlay, intersections, chartHeight, FlatElevationProfileOverlay.EMPTY);
     }
 
+    /** @deprecated Edge-local 渲染已废弃，请使用 {@link com.plot.plugin.road.profile.RoadProfileChartRenderer#renderOverview}。 */
+    @Deprecated
     public static void renderOverview(
             RoadGenerationResult result,
             VerticalAlignmentProfileOverlay designOverlay,
@@ -210,6 +229,8 @@ public final class RoadLongitudinalProfileRenderer {
         renderOverview(result, designOverlay, intersections, chartHeight, flatOverlay, 1.0);
     }
 
+    /** @deprecated Edge-local 渲染已废弃，请使用 {@link com.plot.plugin.road.profile.RoadProfileChartRenderer#renderOverview}。 */
+    @Deprecated
     public static void renderOverview(
             RoadGenerationResult result,
             VerticalAlignmentProfileOverlay designOverlay,
@@ -250,6 +271,8 @@ public final class RoadLongitudinalProfileRenderer {
         }
     }
 
+    /** @deprecated Edge-local 交互已废弃，请使用 {@link com.plot.plugin.road.profile.RoadProfileChartRenderer#renderInteractive}。 */
+    @Deprecated
     public static ControlInteraction renderInteractive(
             RoadGenerationResult result,
             VerticalAlignmentProfileOverlay designOverlay,
@@ -262,6 +285,8 @@ public final class RoadLongitudinalProfileRenderer {
             maxGradePercent, List.of(), -1, DEFAULT_PREVIEW_HEIGHT);
     }
 
+    /** @deprecated Edge-local 交互已废弃，请使用 {@link com.plot.plugin.road.profile.RoadProfileChartRenderer#renderInteractive}。 */
+    @Deprecated
     public static ControlInteraction renderInteractive(
             RoadGenerationResult result,
             VerticalAlignmentProfileOverlay designOverlay,
@@ -277,6 +302,8 @@ public final class RoadLongitudinalProfileRenderer {
             -1, ControlInteraction.IntersectionDragTarget.NONE);
     }
 
+    /** @deprecated Edge-local 交互已废弃，请使用 {@link com.plot.plugin.road.profile.RoadProfileChartRenderer#renderInteractive}。 */
+    @Deprecated
     public static ControlInteraction renderInteractive(
             RoadGenerationResult result,
             VerticalAlignmentProfileOverlay designOverlay,
@@ -293,6 +320,8 @@ public final class RoadLongitudinalProfileRenderer {
             -1, ControlInteraction.IntersectionDragTarget.NONE);
     }
 
+    /** @deprecated Edge-local 交互已废弃，请使用 {@link com.plot.plugin.road.profile.RoadProfileChartRenderer#renderInteractive}。 */
+    @Deprecated
     public static ControlInteraction renderInteractive(
             RoadGenerationResult result,
             VerticalAlignmentProfileOverlay designOverlay,
@@ -312,6 +341,8 @@ public final class RoadLongitudinalProfileRenderer {
             FlatElevationProfileOverlay.EMPTY);
     }
 
+    /** @deprecated Edge-local 交互已废弃，请使用 {@link com.plot.plugin.road.profile.RoadProfileChartRenderer#renderInteractive}。 */
+    @Deprecated
     public static ControlInteraction renderInteractive(
             RoadGenerationResult result,
             VerticalAlignmentProfileOverlay designOverlay,
@@ -332,6 +363,8 @@ public final class RoadLongitudinalProfileRenderer {
             ControlInteraction.CurveHandleSide.NONE);
     }
 
+    /** @deprecated Edge-local 交互已废弃，请使用 {@link com.plot.plugin.road.profile.RoadProfileChartRenderer#renderInteractive}。 */
+    @Deprecated
     public static ControlInteraction renderInteractive(
             RoadGenerationResult result,
             VerticalAlignmentProfileOverlay designOverlay,
@@ -358,6 +391,8 @@ public final class RoadLongitudinalProfileRenderer {
             pendingClickX, pendingClickY, activeCurveHandlePvi, activeCurveHandle, 1.0);
     }
 
+    /** @deprecated Edge-local 交互已废弃，请使用 {@link com.plot.plugin.road.profile.RoadProfileChartRenderer#renderInteractive}。 */
+    @Deprecated
     public static ControlInteraction renderInteractive(
             RoadGenerationResult result,
             VerticalAlignmentProfileOverlay designOverlay,
@@ -1002,6 +1037,10 @@ public final class RoadLongitudinalProfileRenderer {
 
     public record IntersectionHit(int index, ControlInteraction.IntersectionDragTarget target) { }
 
+    /**
+     * @deprecated Edge-local hit-test；请使用 {@link #hitIntersectionRoad} 与 {@link ProfileChartLayout}。
+     */
+    @Deprecated
     static IntersectionHit hitIntersectionForTest(
             List<RoadProfileIntersection> intersections,
             double maxDistance,
@@ -1332,6 +1371,8 @@ public final class RoadLongitudinalProfileRenderer {
         return Math.rint(ratio * range.maxDistance() * 4.0) / 4.0;
     }
 
+    /** @deprecated Edge-local 绘制辅助，仅供本类废弃路径内部使用。 */
+    @Deprecated
     static void drawProfile(
             ImDrawList drawList,
             List<Double> distances,
@@ -1345,6 +1386,8 @@ public final class RoadLongitudinalProfileRenderer {
         drawProfile(drawList, distances, groundHeights, guideLine, targetHeights, null, x0, y0, width, height);
     }
 
+    /** @deprecated Edge-local 绘制辅助，仅供本类废弃路径内部使用。 */
+    @Deprecated
     static void drawProfile(
             ImDrawList drawList,
             List<Double> distances,
@@ -1370,6 +1413,8 @@ public final class RoadLongitudinalProfileRenderer {
             height);
     }
 
+    /** @deprecated Edge-local 绘制辅助，仅供本类废弃路径内部使用。 */
+    @Deprecated
     static void drawProfile(
             ImDrawList drawList,
             List<Double> distances,
@@ -1407,6 +1452,8 @@ public final class RoadLongitudinalProfileRenderer {
             range);
     }
 
+    /** @deprecated Edge-local 绘制辅助，仅供本类废弃路径内部使用。 */
+    @Deprecated
     static void drawProfile(
             ImDrawList drawList,
             List<Double> distances,

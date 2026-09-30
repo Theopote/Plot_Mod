@@ -40,7 +40,7 @@ class VerticalAlignmentProfileOverlayTest {
     }
 
     @Test
-    void clipsDesignProfileToEdgeRange() {
+    void forRoadSamplesElevationsAlongCanonicalStations() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("design");
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
@@ -50,24 +50,24 @@ class VerticalAlignmentProfileOverlayTest {
         RoadNode n1 = network.createNode(new Vec2d(0, 0));
         RoadNode n2 = network.createNode(new Vec2d(50, 0));
         RoadNode n3 = network.createNode(new Vec2d(100, 0));
-        var first = network.createEdge(
+        network.createEdge(
             n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(50, 0)), road.getId());
-        var second = network.createEdge(
+        network.createEdge(
             n2.getId(), n3.getId(), List.of(new Vec2d(50, 0), new Vec2d(100, 0)), road.getId());
 
-        VerticalAlignmentProfileOverlay tail = VerticalAlignmentProfileOverlay
-            .forEdge(network, second)
+        VerticalAlignmentProfileOverlay overlay = VerticalAlignmentProfileOverlay
+            .forRoad(network, road)
             .orElseThrow();
-        assertTrue(!tail.isEmpty());
-        assertEquals(0.0, tail.distances().getFirst(), 1e-6);
-        assertEquals(50.0, tail.distances().getLast(), 1e-6);
-        assertEquals(90, tail.heights().getFirst());
-        assertEquals(100, tail.heights().getLast());
 
-        VerticalAlignmentProfileOverlay head = VerticalAlignmentProfileOverlay
-            .forEdge(network, first)
-            .orElseThrow();
-        assertEquals(80, head.heights().getFirst());
-        assertEquals(90, head.heights().getLast());
+        int nearest = 0;
+        double best = Double.MAX_VALUE;
+        for (int i = 0; i < overlay.stations().size(); i++) {
+            double delta = Math.abs(overlay.stations().get(i) - 50.0);
+            if (delta < best) {
+                best = delta;
+                nearest = i;
+            }
+        }
+        assertEquals(90.0, overlay.elevations().get(nearest), 1.0);
     }
 }

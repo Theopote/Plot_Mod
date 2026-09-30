@@ -35,7 +35,7 @@ class VerticalProfileControlPointsTest {
         assertEquals(-10.0, points.get(1).rightGradePercent(), 1e-6);
     }
 
-    @Test void projectsOnlyPvisInsideSelectedEdgeAndReportsGrades() {
+    @Test void forRoadReportsTangentGradesAtInteriorPvi() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("road");
         road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
@@ -46,15 +46,15 @@ class VerticalProfileControlPointsTest {
         var b = network.createNode(new Vec2d(50, 0));
         var c = network.createNode(new Vec2d(100, 0));
         network.createEdge(a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(50, 0)), road.getId());
-        var tail = network.createEdge(b.getId(), c.getId(), List.of(new Vec2d(50, 0), new Vec2d(100, 0)), road.getId());
+        network.createEdge(b.getId(), c.getId(), List.of(new Vec2d(50, 0), new Vec2d(100, 0)), road.getId());
 
-        List<VerticalProfileControlPoints.ControlPoint> points =
-            VerticalProfileControlPoints.forEdge(network, road, tail);
-        assertEquals(2, points.size());
-        assertEquals(1, points.getFirst().pviIndex());
-        assertEquals(0.0, points.getFirst().localDistance(), 1e-6);
-        assertEquals(-10.0, points.getFirst().rightGradePercent(), 1e-6);
-        assertEquals(50.0, points.getLast().localDistance(), 1e-6);
+        ProfileControlPoint interior = VerticalProfileControlPoints.forRoad(network, road).stream()
+            .filter(point -> point.pviIndex() == 1)
+            .findFirst()
+            .orElseThrow();
+        assertEquals(50.0, interior.roadStation(), 1e-6);
+        assertEquals(-10.0, interior.rightGradePercent(), 1e-6);
+        assertEquals(10.0, interior.leftGradePercent(), 1e-6);
     }
 
     @Test void elevationEditPreservesStationAndVerticalCurve() {
@@ -95,10 +95,10 @@ class VerticalProfileControlPointsTest {
         road.setVerticalAlignment(VerticalProfileDesignRules.flatAlignment(50, 70));
         var a = network.createNode(new Vec2d(0, 0));
         var b = network.createNode(new Vec2d(50, 0));
-        var edge = network.createEdge(a.getId(), b.getId(),
+        network.createEdge(a.getId(), b.getId(),
             List.of(new Vec2d(0, 0), new Vec2d(50, 0)), road.getId());
 
-        assertTrue(VerticalProfileControlPoints.forEdge(network, road, edge).isEmpty());
+        assertTrue(VerticalProfileControlPoints.forRoad(network, road).isEmpty());
     }
 
     @Test void simpleEndpointPviIsEditable() {
@@ -109,13 +109,12 @@ class VerticalProfileControlPointsTest {
             PointOfVerticalIntersection.of(100, 72))));
         var a = network.createNode(new Vec2d(0, 0));
         var b = network.createNode(new Vec2d(100, 0));
-        var edge = network.createEdge(a.getId(), b.getId(),
+        network.createEdge(a.getId(), b.getId(),
             List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
 
-        List<VerticalProfileControlPoints.ControlPoint> points =
-            VerticalProfileControlPoints.forEdge(network, road, edge);
+        List<ProfileControlPoint> points = VerticalProfileControlPoints.forRoad(network, road);
         assertEquals(2, points.size());
-        for (VerticalProfileControlPoints.ControlPoint point : points) {
+        for (ProfileControlPoint point : points) {
             assertTrue(point.elevationEditable());
             assertTrue(VerticalProfileControlPoints.isEditablePvi(network, road, point));
         }
@@ -131,14 +130,14 @@ class VerticalProfileControlPointsTest {
             PointOfVerticalIntersection.of(100, 70))));
         var a = network.createNode(new Vec2d(0, 0));
         var b = network.createNode(new Vec2d(100, 0));
-        var edge = network.createEdge(a.getId(), b.getId(),
+        network.createEdge(a.getId(), b.getId(),
             List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
 
-        VerticalProfileControlPoints.ControlPoint middle =
-            VerticalProfileControlPoints.forEdge(network, road, edge).stream()
-                .filter(point -> point.pviIndex() == 1)
-                .findFirst()
-                .orElseThrow();
+        ProfileControlPoint middle = VerticalProfileControlPoints.forRoad(network, road).stream()
+            .filter(point -> point.pviIndex() == 1)
+            .findFirst()
+            .orElseThrow();
+        assertEquals(ProfilePointRole.JUNCTION_FIXED, middle.role());
         assertFalse(VerticalProfileControlPoints.isEditablePvi(network, road, middle));
         assertFalse(VerticalProfileControlPoints.canAutoSmooth(network, road, middle));
     }

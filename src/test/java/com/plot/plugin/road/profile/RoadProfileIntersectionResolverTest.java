@@ -89,13 +89,16 @@ class RoadProfileIntersectionResolverTest {
         profile.profileGuideLine = List.of(71, 71, 71);
         profile.profileTargetHeights = List.of(72, 72, 72);
 
-        List<RoadProfileIntersection> intersections = RoadProfileIntersectionResolver.forEdge(
-            network, roadA, mainWest, config, profile);
+        Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
+        edgeResults.put(mainWest.getId(), profile);
+
+        List<RoadProfileIntersection> intersections = RoadProfileIntersectionResolver.forRoad(
+            network, roadA, config, edgeResults);
 
         assertEquals(1, intersections.size());
         RoadProfileIntersection crossing = intersections.getFirst();
         assertEquals(roadB.getId(), crossing.otherRoadId());
-        assertEquals(100.0, crossing.localDistance(), 1e-6);
+        assertEquals(100.0, crossing.roadStation(), 1e-6);
         assertEquals(72.0, crossing.currentRoadElevation(), 1e-6);
         assertFalse(crossing.gradeSeparated());
     }
@@ -121,7 +124,7 @@ class RoadProfileIntersectionResolverTest {
         RoadEdge mainWest = network.createEdge(
             west.getId(), center.getId(),
             List.of(new Vec2d(0, 0), new Vec2d(50, 0)), roadA.getId());
-        network.createEdge(
+        RoadEdge mainEast = network.createEdge(
             center.getId(), east.getId(),
             List.of(new Vec2d(50, 0), new Vec2d(100, 0)), roadA.getId());
         network.createEdge(
@@ -132,17 +135,27 @@ class RoadProfileIntersectionResolverTest {
             List.of(new Vec2d(50, 0), new Vec2d(50, -50)), roadB.getId());
         assertTrue(network.setNodeGradeSeparation(center.getId(), true, roadA.getId(), 4.0));
 
-        RoadGenerationResult profile = new RoadGenerationResult(50);
-        profile.profileDistances = List.of(0.0, 50.0);
-        profile.profileGroundHeights = List.of(70, 70);
-        profile.profileGuideLine = List.of(71, 71);
-        profile.profileTargetHeights = List.of(76, 76);
+        RoadGenerationResult westProfile = new RoadGenerationResult(50);
+        westProfile.profileDistances = List.of(0.0, 50.0);
+        westProfile.profileGroundHeights = List.of(70, 70);
+        westProfile.profileGuideLine = List.of(71, 71);
+        westProfile.profileTargetHeights = List.of(76, 76);
+        RoadGenerationResult eastProfile = new RoadGenerationResult(50);
+        eastProfile.profileDistances = List.of(0.0, 50.0);
+        eastProfile.profileGroundHeights = List.of(70, 70);
+        eastProfile.profileGuideLine = List.of(71, 71);
+        eastProfile.profileTargetHeights = List.of(76, 76);
 
-        List<RoadProfileIntersection> intersections = RoadProfileIntersectionResolver.forEdge(
-            network, roadA, mainWest, config, profile);
+        Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
+        edgeResults.put(mainWest.getId(), westProfile);
+        edgeResults.put(mainEast.getId(), eastProfile);
+
+        List<RoadProfileIntersection> intersections = RoadProfileIntersectionResolver.forRoad(
+            network, roadA, config, edgeResults);
 
         assertEquals(1, intersections.size());
         RoadProfileIntersection crossing = intersections.getFirst();
+        assertEquals(50.0, crossing.roadStation(), 1e-6);
         assertTrue(crossing.gradeSeparated());
         assertTrue(crossing.currentRoadElevated());
         assertEquals(4.0, crossing.clearance(), 1e-6);
