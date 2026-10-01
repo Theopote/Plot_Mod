@@ -95,6 +95,14 @@ public final class RoadProfileChartAssembler {
         List<ProfileControlPoint> controlPoints = VerticalProfileControlPoints.forRoad(network, road);
         List<RoadProfileIntersection> intersections = RoadProfileIntersectionResolver.forRoad(
             network, road, config, edgeResults);
+        boolean manualEndpointConstraintFeasible = true;
+        for (OrientedRoadSegment segment : segments) {
+            RoadGenerationResult edgeResult = edgeResults.get(segment.edgeId());
+            if (edgeResult != null && !edgeResult.manualEndpointConstraintFeasible) {
+                manualEndpointConstraintFeasible = false;
+                break;
+            }
+        }
 
         RoadProfileChartData chart = new RoadProfileChartData(
             road.getId(),
@@ -104,7 +112,8 @@ public final class RoadProfileChartAssembler {
             List.copyOf(previewElevations),
             List.copyOf(guideElevations),
             controlPoints,
-            intersections);
+            intersections,
+            manualEndpointConstraintFeasible);
         if (!chart.hasCompleteRoadProfile()) {
             return Optional.empty();
         }

@@ -1490,6 +1490,8 @@
   "plugin.road.profile_intersection_cross_section_hint": "Cross-section preview shows the intersecting road's section shape. Dragging ◇ or using grade controls updates that road's profile.",
   "plugin.road.profile_intersection_grade_edit": "Grade relation",
   "plugin.road.profile_intersection_recalculate_hint": "Grade relation updated. Recalculate preview to refresh the profile and ghost blocks.",
+  "plugin.road.profile_endpoint_constraint_infeasible": "Fixed endpoint elevation cannot be reached within the maximum grade.",
+  "plugin.road.profile_endpoint_constraint_infeasible_hint": "A junction or manual endpoint requires more rise or fall than this road length allows at the current max grade. The preview climbs only within the slope limit instead of forcing a final jump.",
   "plugin.road.profile_build_preview_stale": "Profile changed — full road preview not yet updated",
   "plugin.road.profile_build_preview_stale_hint": "You can keep editing the vertical profile. Click below when ready to refresh cut/fill, bridges, tunnels, and ghost blocks.",
   "plugin.road.update_road_preview": "Update road preview",

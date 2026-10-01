@@ -13,7 +13,29 @@ public record RoadProfileChartData(
         List<Double> previewElevations,
         List<Double> guideElevations,
         List<ProfileControlPoint> controlPoints,
-        List<RoadProfileIntersection> intersections) {
+        List<RoadProfileIntersection> intersections,
+        boolean manualEndpointConstraintFeasible) {
+
+    public RoadProfileChartData(
+            String roadId,
+            double totalStation,
+            List<Double> stations,
+            List<Double> groundElevations,
+            List<Double> previewElevations,
+            List<Double> guideElevations,
+            List<ProfileControlPoint> controlPoints,
+            List<RoadProfileIntersection> intersections) {
+        this(
+            roadId,
+            totalStation,
+            stations,
+            groundElevations,
+            previewElevations,
+            guideElevations,
+            controlPoints,
+            intersections,
+            true);
+    }
 
     private static final double EPSILON = 1e-6;
 

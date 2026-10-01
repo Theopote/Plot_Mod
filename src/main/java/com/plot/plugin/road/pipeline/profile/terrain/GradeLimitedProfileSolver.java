@@ -1,5 +1,7 @@
 package com.plot.plugin.road.pipeline.profile.terrain;
 
+import com.plot.plugin.road.RoadSlopeUtils;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -15,7 +17,10 @@ public final class GradeLimitedProfileSolver {
     private GradeLimitedProfileSolver() {
     }
 
-    public record SegmentEndSolveResult(int startHeight, List<Integer> segmentEnds) {
+    public record SegmentEndSolveResult(
+            int startHeight,
+            List<Integer> segmentEnds,
+            boolean manualEndpointsFeasible) {
     }
 
     /**
@@ -51,29 +56,63 @@ public final class GradeLimitedProfileSolver {
             manualStartHeight,
             manualEndHeight,
             preset);
+        int startHeight = roundedStartHeight(stations, manualStartHeight);
+        boolean endpointsFeasible = areManualEndpointsFeasible(
+            manualStartHeight,
+            manualEndHeight,
+            segmentDistances,
+            maxSlopePercents,
+            startHeight);
+        Integer effectiveManualEndHeight = endpointsFeasible ? manualEndHeight : null;
         return new SegmentEndSolveResult(
-            roundedStartHeight(stations, manualStartHeight),
-            toSegmentEnds(stations, segmentDistances, maxSlopePercents, manualStartHeight, manualEndHeight));
+            startHeight,
+            toSegmentEnds(
+                stations,
+                segmentDistances,
+                maxSlopePercents,
+                startHeight,
+                effectiveManualEndHeight),
+            endpointsFeasible);
+    }
+
+    public static boolean areManualEndpointsFeasible(
+            Integer manualStartHeight,
+            Integer manualEndHeight,
+            List<Double> segmentDistances,
+            List<Float> maxSlopePercents,
+            int profileStartHeight) {
+        if (manualEndHeight == null) {
+            return true;
+        }
+        int startHeight = manualStartHeight != null ? manualStartHeight : profileStartHeight;
+        double maxTotalRise = totalMaxRise(segmentDistances, maxSlopePercents);
+        return Math.abs(manualEndHeight - startHeight) <= maxTotalRise + EPSILON;
     }
 
     private static List<Integer> toSegmentEnds(
             double[] stations,
             List<Double> segmentDistances,
             List<Float> maxSlopePercents,
-            Integer manualStartHeight,
+            int startHeight,
             Integer manualEndHeight) {
         List<Integer> segmentEnds = new ArrayList<>(segmentDistances.size());
         if (stations.length != segmentDistances.size() + 1) {
             throw new IllegalArgumentException("station count must match segment count");
         }
-        int previous = roundedStartHeight(stations, manualStartHeight);
+        int previous = startHeight;
+        RoadSlopeUtils.ElevationAccumulator accumulator = new RoadSlopeUtils.ElevationAccumulator();
         for (int i = 0; i < segmentDistances.size(); i++) {
-            double maxRise = maxRise(segmentDistances.get(i), maxSlopePercents.get(i));
             int ideal = (int) Math.round(stations[i + 1]);
-            int clamped = clampIntToward(previous, ideal, maxRise);
+            int target = ideal;
             if (manualEndHeight != null && i == segmentDistances.size() - 1) {
-                clamped = manualEndHeight;
+                target = manualEndHeight;
             }
+            int clamped = RoadSlopeUtils.clampTowardTarget(
+                previous,
+                target,
+                segmentDistances.get(i),
+                maxSlopePercents.get(i),
+                accumulator);
             segmentEnds.add(clamped);
             previous = clamped;
         }
@@ -109,8 +148,17 @@ public final class GradeLimitedProfileSolver {
 
         TerrainFollowPreset effectivePreset = preset != null ? preset : TerrainFollowPreset.STANDARD;
         int stationCount = trendElevations.size();
+        int profileStart = manualStartHeight != null
+            ? manualStartHeight
+            : (int) Math.round(trendElevations.getFirst());
+        boolean endpointsFeasible = areManualEndpointsFeasible(
+            manualStartHeight,
+            manualEndHeight,
+            segmentDistances,
+            maxSlopePercents,
+            profileStart);
         boolean lockStart = manualStartHeight != null;
-        boolean lockEnd = manualEndHeight != null;
+        boolean lockEnd = manualEndHeight != null && endpointsFeasible;
         double startTarget = lockStart
             ? manualStartHeight.doubleValue()
             : trendElevations.getFirst();
@@ -141,6 +189,14 @@ public final class GradeLimitedProfileSolver {
         projectFeasible(
             current, segmentDistances, maxSlopePercents, lockStart, lockEnd, startTarget, endTarget);
         return current;
+    }
+
+    private static double totalMaxRise(List<Double> segmentDistances, List<Float> maxSlopePercents) {
+        double total = 0.0;
+        for (int i = 0; i < segmentDistances.size(); i++) {
+            total += maxRise(segmentDistances.get(i), maxSlopePercents.get(i));
+        }
+        return total;
     }
 
     private static double[] singlePass(
@@ -246,14 +302,5 @@ public final class GradeLimitedProfileSolver {
             return target;
         }
         return from + (delta > 0.0 ? maxDelta : -maxDelta);
-    }
-
-    private static int clampIntToward(int from, int target, double maxDelta) {
-        int maxStep = Math.max(0, (int) Math.ceil(maxDelta - EPSILON));
-        int delta = target - from;
-        if (Math.abs(delta) <= maxStep) {
-            return target;
-        }
-        return from + (delta > 0 ? maxStep : -maxStep);
     }
 }

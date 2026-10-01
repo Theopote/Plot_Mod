@@ -213,6 +213,7 @@ final class VerticalProfileEditor {
             flatOverlay,
             ProfileChartRenderMode.OVERVIEW,
             road.getVerticalMode());
+        renderManualEndpointConstraintWarning(chartData);
         renderInlineLegend(
             road,
             design,
@@ -569,6 +570,7 @@ final class VerticalProfileEditor {
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.profile_editor_interaction_hint"));
         }
+        renderManualEndpointConstraintWarning(chartData);
         RoadLongitudinalProfileRenderer.ControlInteraction interaction =
             RoadProfileChartRenderer.renderInteractive(
                 chartData, design, points, chartSelectedPvi, chartActivePvi, maxGrade,
@@ -719,6 +721,19 @@ final class VerticalProfileEditor {
                 propagate -> finishProfileNetworkEdit(ctx, propagate));
         }
         renderBuildPreviewStaleBar(ctx, network);
+    }
+
+    private static void renderManualEndpointConstraintWarning(RoadProfileChartData chartData) {
+        if (chartData == null || chartData.manualEndpointConstraintFeasible()) {
+            return;
+        }
+        ImGui.spacing();
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.WARNING,
+            PlotI18n.tr("plugin.road.profile_endpoint_constraint_infeasible"));
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.profile_endpoint_constraint_infeasible_hint"));
     }
 
     private static void renderBuildPreviewStaleBar(RoadUiContext ctx, RoadNetwork network) {

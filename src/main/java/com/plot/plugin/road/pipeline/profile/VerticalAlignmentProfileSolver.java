@@ -2,6 +2,7 @@ package com.plot.plugin.road.pipeline.profile;
 
 import com.plot.plugin.road.RoadSlopeUtils;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
+import com.plot.plugin.road.pipeline.profile.terrain.GradeLimitedProfileSolver;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
@@ -99,12 +100,29 @@ public final class VerticalAlignmentProfileSolver {
             manualEndHeight,
             designElevation);
 
+        List<Double> segmentDistances = new ArrayList<>(segments.size());
+        List<Float> maxSlopePercents = new ArrayList<>(segments.size());
+        for (PathSegment segment : segments) {
+            segmentDistances.add(segment.distance / canvasUnitsPerBlock);
+            maxSlopePercents.add(support.defaultMaxSlope());
+        }
+        int profileStartHeight = manualStartHeight != null
+            ? manualStartHeight
+            : designElevation.elevationAtLocalDistance(0.0);
+        boolean manualEndpointConstraintFeasible = GradeLimitedProfileSolver.areManualEndpointsFeasible(
+            manualStartHeight,
+            manualEndHeight,
+            segmentDistances,
+            maxSlopePercents,
+            profileStartHeight);
+
         return new ProfileSolveResult(
             heightInfos,
             worldCumulativeDistances,
             new ArrayList<>(sampleData.groundSamples()),
             new ArrayList<>(designTargets),
-            new ArrayList<>(designTargets));
+            new ArrayList<>(designTargets),
+            manualEndpointConstraintFeasible);
     }
 
     private static List<Integer> buildDesignProfileTargets(

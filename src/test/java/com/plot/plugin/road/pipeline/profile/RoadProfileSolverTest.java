@@ -197,6 +197,31 @@ class RoadProfileSolverTest {
     }
 
     @Test
+    void fitTerrainReportsInfeasibleManualEndpointConstraints() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("infeasible-end");
+        RoadNode start = network.createNode(new Vec2d(0, 0));
+        RoadNode end = network.createNode(new Vec2d(40, 0));
+        RoadEdge edge = network.createEdge(
+            start.getId(),
+            end.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(40, 0)),
+            road.getId());
+        road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        road.setMaxSlope(8.0f);
+
+        List<PathSegment> segments = sampledSegments(new Vec2d(0, 0), new Vec2d(40, 0), 20.0);
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        config.setMaxSlope(8.0f);
+        ProfileSolveSupport support = ProfileSolveSupport.fromConfig(config, ignored -> 1.0);
+        ProfileSolveResult result = RoadProfileSolver.solveForEdge(
+            segments, new FlatTerrainSampler(60), network, edge, config, 2.5, 58, 80, support);
+
+        assertFalse(result.manualEndpointConstraintFeasible());
+        assertTrue(result.heightInfos().getLast().targetEnd < 80);
+    }
+
+    @Test
     void fitTerrainSmoothsSuddenTerrainStep() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("step-target");

@@ -37,6 +37,8 @@ public class RoadGenerationResult {
     public List<Integer> profileGroundHeights = new ArrayList<>();
     public List<Integer> profileGuideLine = new ArrayList<>();
     public List<Integer> profileTargetHeights = new ArrayList<>();
+    /** False when a pinned start/end elevation cannot be reached within max slope. */
+    public boolean manualEndpointConstraintFeasible = true;
 
     public RoadGenerationResult(double pathLength) {
         this.pathLength = pathLength;
@@ -86,6 +88,7 @@ public class RoadGenerationResult {
         profileGroundHeights = new ArrayList<>(source.profileGroundHeights);
         profileGuideLine = new ArrayList<>(source.profileGuideLine);
         profileTargetHeights = new ArrayList<>(source.profileTargetHeights);
+        manualEndpointConstraintFeasible = source.manualEndpointConstraintFeasible;
     }
 
     public boolean hasProfileData() {

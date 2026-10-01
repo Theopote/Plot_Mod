@@ -133,6 +133,7 @@ public final class RoadProfileSolver {
         profile.profileGroundHeights = new ArrayList<>(result.profileGroundHeights());
         profile.profileGuideLine = new ArrayList<>(result.profileGuideLine());
         profile.profileTargetHeights = new ArrayList<>(result.profileTargetHeights());
+        profile.manualEndpointConstraintFeasible = result.manualEndpointConstraintFeasible();
         return profile;
     }
 
@@ -209,6 +210,7 @@ public final class RoadProfileSolver {
         }
 
         Integer terrainAdaptiveStartHeight = null;
+        boolean manualEndpointConstraintFeasible = true;
         List<Integer> targetEnds;
         if (useTerrainAdaptiveSolver && terrainTrend != null) {
             GradeLimitedProfileSolver.SegmentEndSolveResult terrainSolve =
@@ -221,7 +223,17 @@ public final class RoadProfileSolver {
                     effectiveTerrainPreset);
             terrainAdaptiveStartHeight = terrainSolve.startHeight();
             targetEnds = terrainSolve.segmentEnds();
+            manualEndpointConstraintFeasible = terrainSolve.manualEndpointsFeasible();
         } else {
+            int profileStartHeight = manualStartHeight != null
+                ? manualStartHeight
+                : guideStarts.getFirst();
+            manualEndpointConstraintFeasible = GradeLimitedProfileSolver.areManualEndpointsFeasible(
+                manualStartHeight,
+                manualEndHeight,
+                distances,
+                effectiveMaxSlopes,
+                profileStartHeight);
             targetEnds = RoadSlopeUtils.computeChainedTargetHeights(
                 distances,
                 guideStarts,
@@ -262,7 +274,8 @@ public final class RoadProfileSolver {
             worldCumulativeDistances,
             new ArrayList<>(sampleData.groundSamples()),
             new ArrayList<>(guideLine),
-            buildProfileTargetHeights(heightInfos, manualStartHeight));
+            buildProfileTargetHeights(heightInfos, manualStartHeight),
+            manualEndpointConstraintFeasible);
     }
 
     private static List<Double> toWorldDistances(

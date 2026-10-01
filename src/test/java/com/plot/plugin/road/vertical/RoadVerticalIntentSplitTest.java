@@ -8,6 +8,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.RoadSegmentOrdering;
 import com.plot.plugin.road.model.RoadTopologyRoadSplitter;
+import com.plot.plugin.road.pipeline.profile.terrain.TerrainFollowPreset;
 import com.plot.plugin.road.station.RoadStationing;
 import org.junit.jupiter.api.Test;
 
@@ -67,6 +68,43 @@ class RoadVerticalIntentSplitTest {
         assertEquals(70.0, tail.getFlatVerticalIntent().getBaseElevation(), 1e-6);
         assertEquals(72.0, tail.getFlatVerticalIntent().getIntersectionOverride(n3.getId()), 1e-6);
         assertNull(tail.getFlatVerticalIntent().getIntersectionOverride(n1.getId()));
+    }
+
+    @Test
+    void splitFitTerrainRoadPreservesTerrainFollowPreset() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoadForAdopt(config);
+        road.setTerrainFollowPreset(TerrainFollowPreset.TIGHT);
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 0));
+        RoadNode n3 = network.createNode(new Vec2d(20, 0));
+        network.createEdge(n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+        network.createEdge(n2.getId(), n3.getId(), List.of(new Vec2d(10, 0), new Vec2d(20, 0)), road.getId());
+
+        String splitSegmentId = RoadSegmentOrdering.orderedSegmentIds(network, road).get(1);
+        String tailId = network.splitRoadBeforeSegment(road.getId(), splitSegmentId);
+
+        assertEquals(TerrainFollowPreset.TIGHT, network.getRoad(road.getId()).getStoredTerrainFollowPreset());
+        assertEquals(TerrainFollowPreset.TIGHT, network.getRoad(tailId).getStoredTerrainFollowPreset());
+    }
+
+    @Test
+    void topologyRepairPreservesTerrainFollowPreset() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoadForAdopt(config);
+        road.setTerrainFollowPreset(TerrainFollowPreset.TIGHT);
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 0));
+        RoadNode n3 = network.createNode(new Vec2d(100, 0));
+        RoadNode n4 = network.createNode(new Vec2d(110, 0));
+        network.createEdge(n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+        network.createEdge(n3.getId(), n4.getId(), List.of(new Vec2d(100, 0), new Vec2d(110, 0)), road.getId());
+
+        RoadTopologyRoadSplitter.repairAfterAdopt(network);
+
+        for (Road repaired : network.getRoads().values()) {
+            assertEquals(TerrainFollowPreset.TIGHT, repaired.getStoredTerrainFollowPreset());
+        }
     }
 
     @Test

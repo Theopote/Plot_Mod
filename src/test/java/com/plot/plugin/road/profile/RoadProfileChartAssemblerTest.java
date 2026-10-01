@@ -208,6 +208,40 @@ class RoadProfileChartAssemblerTest {
     }
 
     @Test
+    void aggregatesManualEndpointFeasibilityAcrossEdges() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("infeasible-end");
+        road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 0));
+        RoadNode n3 = network.createNode(new Vec2d(20, 0));
+        String edge1 = network.createEdge(
+            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId()).getId();
+        String edge2 = network.createEdge(
+            n2.getId(), n3.getId(), List.of(new Vec2d(10, 0), new Vec2d(20, 0)), road.getId()).getId();
+
+        Map<String, RoadGenerationResult> feasible = new LinkedHashMap<>();
+        feasible.put(edge1, profileResult(10.0, 64, 66, true));
+        feasible.put(edge2, profileResult(10.0, 66, 70, true));
+        RoadProfileChartData ok = RoadProfileChartAssembler.assemble(
+            network,
+            road,
+            new RoadSystemConfig("test"),
+            feasible).orElseThrow();
+        assertTrue(ok.manualEndpointConstraintFeasible());
+
+        Map<String, RoadGenerationResult> infeasible = new LinkedHashMap<>();
+        infeasible.put(edge1, profileResult(10.0, 64, 66, true));
+        infeasible.put(edge2, profileResult(10.0, 66, 70, false));
+        RoadProfileChartData warning = RoadProfileChartAssembler.assemble(
+            network,
+            road,
+            new RoadSystemConfig("test"),
+            infeasible).orElseThrow();
+        assertFalse(warning.manualEndpointConstraintFeasible());
+    }
+
+    @Test
     void missingMiddleEdgeProfileReturnsEmpty() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("gap");
@@ -235,11 +269,20 @@ class RoadProfileChartAssemblerTest {
     }
 
     private static RoadGenerationResult profileResult(double span, int startHeight, int endHeight) {
+        return profileResult(span, startHeight, endHeight, true);
+    }
+
+    private static RoadGenerationResult profileResult(
+            double span,
+            int startHeight,
+            int endHeight,
+            boolean manualEndpointConstraintFeasible) {
         RoadGenerationResult result = new RoadGenerationResult(span);
         result.profileDistances = List.of(0.0, span);
         result.profileGroundHeights = List.of(startHeight, endHeight);
         result.profileGuideLine = List.of(startHeight, endHeight);
         result.profileTargetHeights = List.of(startHeight, endHeight);
+        result.manualEndpointConstraintFeasible = manualEndpointConstraintFeasible;
         return result;
     }
 }

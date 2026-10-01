@@ -3,6 +3,7 @@ package com.plot.plugin.road.vertical;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.pipeline.profile.terrain.TerrainFollowPreset;
 import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
 
@@ -88,6 +89,7 @@ public final class RoadVerticalIntentTransforms {
             Road target,
             RoadVerticalMode capturedMode,
             FlatVerticalIntent capturedFlatIntent,
+            TerrainFollowPreset capturedTerrainFollowPreset,
             RoadNetwork network,
             Set<String> edgeIds) {
         if (target == null) {
@@ -95,6 +97,9 @@ public final class RoadVerticalIntentTransforms {
         }
         if (capturedMode != null) {
             target.setVerticalMode(capturedMode);
+        }
+        if (capturedTerrainFollowPreset != null) {
+            target.setTerrainFollowPreset(capturedTerrainFollowPreset);
         }
         if (capturedFlatIntent == null) {
             target.setFlatVerticalIntent(null);

@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GradeLimitedProfileSolverTest {
@@ -27,16 +28,50 @@ class GradeLimitedProfileSolverTest {
     }
 
     @Test
-    void manualEndpointsArePinned() {
+    void feasibleManualEndpointsAreReachedWithoutFinalSlopeViolation() {
+        List<Double> trend = List.of(60.0, 59.0, 61.0);
+        List<Double> distances = List.of(20.0, 20.0);
+        List<Float> slopes = List.of(8.0f, 8.0f);
+
+        GradeLimitedProfileSolver.SegmentEndSolveResult result =
+            GradeLimitedProfileSolver.solveSegmentEndsWithStart(
+                trend, distances, slopes, 58, 60, TerrainFollowPreset.STANDARD);
+
+        assertTrue(result.manualEndpointsFeasible());
+        assertEquals(60, result.segmentEnds().getLast());
+        assertTrue(result.segmentEnds().getFirst() > 58);
+    }
+
+    @Test
+    void infeasibleManualEndpointsAreNotForcedOntoLastSegment() {
         List<Double> trend = List.of(60.0, 68.0, 75.0);
         List<Double> distances = List.of(20.0, 20.0);
         List<Float> slopes = List.of(8.0f, 8.0f);
 
-        List<Integer> ends = GradeLimitedProfileSolver.solveSegmentEnds(
-            trend, distances, slopes, 58, 80, TerrainFollowPreset.STANDARD);
+        GradeLimitedProfileSolver.SegmentEndSolveResult result =
+            GradeLimitedProfileSolver.solveSegmentEndsWithStart(
+                trend, distances, slopes, 58, 80, TerrainFollowPreset.STANDARD);
 
-        assertEquals(80, ends.getLast());
-        assertTrue(ends.getFirst() > 58, "first segment end should climb from pinned start toward manual end");
+        assertFalse(result.manualEndpointsFeasible());
+        assertTrue(result.segmentEnds().getLast() < 80,
+            "infeasible manual end should climb only within slope budget");
+        assertTrue(result.segmentEnds().getLast() <= 61,
+            () -> "40 m at 8% allows at most ~3 blocks rise from 58, got " + result.segmentEnds().getLast());
+    }
+
+    @Test
+    void fractionalSlopeBudgetDoesNotCeilToFullBlockStep() {
+        List<Double> trend = List.of(60.0, 60.5, 61.0, 61.5, 62.0);
+        List<Double> distances = constantDistances(4, 10.0);
+        List<Float> slopes = constantSlopes(4, 5.0f);
+
+        List<Integer> profile = toProfile(
+            60,
+            GradeLimitedProfileSolver.solveSegmentEnds(
+                trend, distances, slopes, null, null, TerrainFollowPreset.STANDARD));
+
+        assertEquals(60, profile.get(1),
+            "5% over 10 m should not quantize to +1 block in the first segment");
     }
 
     @Test
