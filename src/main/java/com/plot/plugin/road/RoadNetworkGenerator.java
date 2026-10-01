@@ -339,6 +339,45 @@ public class RoadNetworkGenerator {
             networkResult);
     }
 
+    /**
+     * 轻量纵断面采样：同步派生中心线、决议节点标高并对每条边求解 profile，
+     * 不执行横断面生成、土方、路口方块与 placement 聚合。
+     */
+    public ProfileSamplingResult calculateProfileSampling(RoadNetwork network, World world) {
+        if (network == null || world == null) {
+            return ProfileSamplingResult.empty();
+        }
+        return calculateProfileSampling(network, roadGenerator.createTerrainSampler(world));
+    }
+
+    public ProfileSamplingResult calculateProfileSampling(RoadNetwork network, TerrainSampler terrain) {
+        RoadNetworkPreviewSession session = beginPreviewSession(network, terrain);
+        if (!session.isValid()) {
+            return ProfileSamplingResult.empty();
+        }
+        preparePreviewSession(session);
+        Map<String, Integer> nodeElevations = session.nodeElevations();
+        RoadNetwork generationNetwork = session.generationNetwork();
+        Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
+        for (RoadEdge edge : generationNetwork.getEdges().values()) {
+            RoadNode start = generationNetwork.getNode(edge.getStartNodeId());
+            RoadNode end = generationNetwork.getNode(edge.getEndNodeId());
+            if (start == null || end == null) {
+                continue;
+            }
+            RoadGenerationResult profile = roadGenerator.sampleEdgeProfile(
+                generationNetwork, edge, start, end, terrain, nodeElevations);
+            if (profile != null && profile.hasProfileData()) {
+                edgeResults.put(edge.getId(), profile);
+            }
+        }
+        if (edgeResults.isEmpty()) {
+            return ProfileSamplingResult.empty();
+        }
+        LOGGER.info("纵断面采样完成: {} 条边", edgeResults.size());
+        return new ProfileSamplingResult(edgeResults, nodeElevations);
+    }
+
     private static PreviewResult emptyPreviewResult() {
         NetworkGenerationResult empty = new NetworkGenerationResult();
         return new PreviewResult(
@@ -353,6 +392,20 @@ public class RoadNetworkGenerator {
             Map<String, RoadGenerationResult> edgeResults,
             Map<String, Integer> nodeElevations,
             NetworkGenerationResult networkResult) {
+    }
+
+    /** 仅纵断面采样结果，不含建造预览聚合。 */
+    public record ProfileSamplingResult(
+            Map<String, RoadGenerationResult> edgeResults,
+            Map<String, Integer> nodeElevations) {
+
+        public static ProfileSamplingResult empty() {
+            return new ProfileSamplingResult(Map.of(), Map.of());
+        }
+
+        public boolean isEmpty() {
+            return edgeResults.isEmpty();
+        }
     }
 
     private RoadGenerationResult aggregateNetworkResult(

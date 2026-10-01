@@ -115,6 +115,39 @@ public final class RoadPreviewManager {
         return startNetworkPreview(network, true);
     }
 
+    /**
+     * 轻量纵断面采样：仅更新 {@link #lastEdgeResults} 与节点标高，不生成建造预览或虚影。
+     */
+    public boolean calculateProfileSamplingOnly(RoadNetwork network) {
+        if (network.getEdges().isEmpty()) {
+            status.warning(PlotI18n.tr("plugin.road.no_edges"));
+            return false;
+        }
+
+        World world = RoadNetworkGenerator.getClientWorld();
+        if (world == null || networkGenerator == null) {
+            LOGGER.warn("世界或生成器未就绪");
+            status.error(PlotI18n.tr("plugin.road.generate_world_unavailable"));
+            return false;
+        }
+
+        cancelPreviewJobSilently();
+        try {
+            RoadNetworkGenerator.ProfileSamplingResult sampling =
+                networkGenerator.calculateProfileSampling(network, world);
+            if (sampling.isEmpty()) {
+                status.warning(PlotI18n.tr("plugin.road.profile_sampling_empty"));
+                return false;
+            }
+            applyProfileSamplingResult(network, sampling);
+            return true;
+        } catch (RuntimeException e) {
+            status.error(PlotI18n.tr("plugin.road.profile_sampling_failed"));
+            LOGGER.error("纵断面采样失败: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
     public boolean startNetworkPreview(RoadNetwork network, boolean autoProjectGhosts) {
         if (network.getEdges().isEmpty()) {
             status.warning(PlotI18n.tr("plugin.road.no_edges"));
@@ -266,6 +299,18 @@ public final class RoadPreviewManager {
             LOGGER.error("计算路网预览失败: {}", e.getMessage(), e);
             return false;
         }
+    }
+
+    private void applyProfileSamplingResult(
+            RoadNetwork network,
+            RoadNetworkGenerator.ProfileSamplingResult sampling) {
+        previewNetwork = network;
+        lastEdgeResults = new LinkedHashMap<>(sampling.edgeResults());
+        lastNodeElevations = new LinkedHashMap<>(sampling.nodeElevations());
+        bumpTerrainRevision();
+        status.success(PlotI18n.tr(
+            "plugin.road.profile_sampling_ready",
+            sampling.edgeResults().size()));
     }
 
     private void applyPreviewResult(

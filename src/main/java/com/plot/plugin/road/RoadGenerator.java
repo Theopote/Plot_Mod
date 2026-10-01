@@ -96,6 +96,21 @@ public class RoadGenerator {
     }
 
     /**
+     * 仅采样纵断面序列，供纵断面编辑器使用，不生成道路几何与方块预览。
+     */
+    public RoadGenerationResult sampleEdgeProfile(
+            RoadNetwork network,
+            RoadEdge edge,
+            RoadNode startNode,
+            RoadNode endNode,
+            TerrainSampler terrain,
+            Map<String, Integer> networkNodeElevations) {
+        synchronizeDerivedCenterline(network, edge);
+        return edgeBuild.sampleEdgeProfile(
+            network, edge, startNode, endNode, terrain, networkNodeElevations, pipelineHost);
+    }
+
+    /**
      * 基于路网边生成道路；{@code networkNodeElevations} 为路网统一节点标高（两遍求解第二遍使用）。
      */
     public RoadGenerationResult generateEdge(

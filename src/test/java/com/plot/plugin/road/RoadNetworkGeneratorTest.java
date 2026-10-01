@@ -15,6 +15,8 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.profile.RoadProfileChartAssembler;
+import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.pipeline.EdgeGenerationOutcome;
 import com.plot.plugin.road.pipeline.EdgeGenerationResult;
 import com.plot.plugin.road.pipeline.RoadGenerationResultAssembler;
@@ -186,6 +188,82 @@ class RoadNetworkGeneratorTest {
         assertTrue(network.getNodes().values().stream().noneMatch(node -> node.getDegree() >= 3));
         assertFalse(result.getJunctionResults().isEmpty());
         assertTrue(result.successEdgeCount() >= 4);
+    }
+
+    @Test
+    void calculateProfileSamplingProducesChartDataWithoutPlacement() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
+        config.setIncludeDrainage(false);
+
+        RoadGenerator generator = new RoadGenerator(
+            config,
+            com.plot.test.world.IdentityCoordinateService.INSTANCE,
+            BlockProjectionHandler.getInstance());
+        RoadNetworkGenerator networkGenerator = new RoadNetworkGenerator(generator);
+        FlatTerrainSampler terrain = new FlatTerrainSampler(64);
+
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoadForAdopt(config);
+        RoadNode start = network.createNode(new Vec2d(0, 0));
+        RoadNode end = network.createNode(new Vec2d(100, 0));
+        network.createEdge(
+            start.getId(),
+            end.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(100, 0)),
+            road.getId());
+
+        RoadNetworkGenerator.ProfileSamplingResult sampling =
+            networkGenerator.calculateProfileSampling(network, terrain);
+
+        assertFalse(sampling.isEmpty());
+        RoadGenerationResult edgeProfile = sampling.edgeResults().values().iterator().next();
+        assertTrue(edgeProfile.hasProfileData());
+        assertTrue(edgeProfile.placementRecords.isEmpty());
+
+        assertTrue(RoadProfileChartAssembler.assemble(
+            network, road, config, sampling.edgeResults()).orElseThrow().hasProfileData());
+    }
+
+    @Test
+    void calculateProfileSamplingMatchesFullPreviewProfileSeries() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
+        config.setIncludeDrainage(false);
+
+        RoadGenerator generator = new RoadGenerator(
+            config,
+            com.plot.test.world.IdentityCoordinateService.INSTANCE,
+            BlockProjectionHandler.getInstance());
+        RoadNetworkGenerator networkGenerator = new RoadNetworkGenerator(generator);
+        FlatTerrainSampler terrain = new FlatTerrainSampler(72);
+
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoadForAdopt(config);
+        RoadNode start = network.createNode(new Vec2d(0, 0));
+        RoadNode end = network.createNode(new Vec2d(60, 0));
+        RoadEdge edge = network.createEdge(
+            start.getId(),
+            end.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(60, 0)),
+            road.getId());
+
+        RoadNetworkGenerator.ProfileSamplingResult sampling =
+            networkGenerator.calculateProfileSampling(network, terrain);
+        RoadNetworkGenerator.PreviewResult preview =
+            networkGenerator.generatePreview(network, terrain);
+
+        RoadGenerationResult sampled = sampling.edgeResults().get(edge.getId());
+        RoadGenerationResult full = preview.edgeResults().get(edge.getId());
+        assertNotNull(sampled);
+        assertNotNull(full);
+        assertEquals(sampled.profileDistances, full.profileDistances);
+        assertEquals(sampled.profileGroundHeights, full.profileGroundHeights);
+        assertEquals(sampled.profileTargetHeights, full.profileTargetHeights);
+        assertEquals(sampled.profileGuideLine, full.profileGuideLine);
+        assertFalse(preview.aggregate().placementRecords.isEmpty());
     }
 
     private static boolean isMostlyVerticalRoad(RoadNetwork network, String roadId) {

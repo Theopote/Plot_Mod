@@ -362,7 +362,7 @@ final class VerticalProfileEditor {
             : PlotI18n.tr("plugin.road.vertical_alignment_profile_preview_required");
         RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, hint);
         if (ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_calculate_profile"))) {
-            ctx.previewManager().startNetworkPreview(network, false);
+            ctx.previewManager().calculateProfileSamplingOnly(network);
         }
         ImGui.sameLine();
         String fullPreviewLabel = ctx.previewManager().needsPreviewRecalc()

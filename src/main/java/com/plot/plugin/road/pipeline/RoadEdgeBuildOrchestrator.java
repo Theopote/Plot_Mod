@@ -38,6 +38,42 @@ public final class RoadEdgeBuildOrchestrator {
         this.profileSolve = profileSolve;
     }
 
+    /**
+     * 仅求解纵断面采样（地形 / 引导线 / 目标标高），不执行横断面、土方与方块落地。
+     */
+    public RoadGenerationResult sampleEdgeProfile(
+            RoadNetwork network,
+            RoadEdge edge,
+            RoadNode startNode,
+            RoadNode endNode,
+            TerrainSampler terrain,
+            Map<String, Integer> networkNodeElevations,
+            RoadGenerationPipelineHost host) {
+        if (edge == null || terrain == null) {
+            return new RoadGenerationResult(0);
+        }
+
+        List<Vec2d> pathPoints = RoadPlanGeometry.resolveEdgeCenterline(
+            network,
+            edge,
+            host.config().getPathSampleDistance());
+        if (pathPoints.size() < 2) {
+            return new RoadGenerationResult(0);
+        }
+
+        try {
+            List<PathSegment> segments = samplePath(pathPoints, host);
+            ProfileSolveResult heightCalculation = profileSolve.solveForEdge(
+                segments, terrain, network, edge, startNode, endNode, true, networkNodeElevations);
+            RoadGenerationResult result = RoadProfileSolver.toProfileSnapshot(heightCalculation);
+            result.edgeId = edge.getId();
+            return result;
+        } catch (Exception e) {
+            LOGGER.warn("纵断面采样失败 edge {}: {}", edge.getId(), e.getMessage());
+            return new RoadGenerationResult(0);
+        }
+    }
+
     public EdgeGenerationResult generateEdge(
             RoadNetwork network,
             RoadEdge edge,
