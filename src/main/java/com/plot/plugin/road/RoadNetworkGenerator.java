@@ -4,6 +4,8 @@ import com.plot.plugin.road.crossing.RoadCrossingMaterializer;
 import com.plot.plugin.road.pipeline.EdgeGenerationOutcome;
 import com.plot.plugin.road.pipeline.EdgeGenerationResult;
 import com.plot.plugin.road.pipeline.RoadGenerationResultAssembler;
+import com.plot.plugin.road.profile.RoadProfileChartData;
+import com.plot.plugin.road.profile.RoadProfileSamplingAssembler;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.alignment.DerivedCenterlineSynchronizer;
 import com.plot.plugin.road.model.RoadEdge;
@@ -164,6 +166,11 @@ public class RoadNetworkGenerator {
             return new NetworkGenerationResult();
         }
         preparePreviewSession(session);
+        runPreviewSessionToCompletion(session);
+        return session.networkResult();
+    }
+
+    private void runPreviewSessionToCompletion(RoadNetworkPreviewSession session) {
         while (session.hasMoreEdges()) {
             tickPreviewSessionEdges(session, Integer.MAX_VALUE);
         }
@@ -171,7 +178,6 @@ public class RoadNetworkGenerator {
             tickPreviewSessionJunctions(session, Integer.MAX_VALUE);
         }
         logGenerationSummary(session.networkResult(), session.nodeElevations());
-        return session.networkResult();
     }
 
     /**
@@ -279,13 +285,7 @@ public class RoadNetworkGenerator {
         if (session == null || !session.isValid()) {
             return emptyPreviewResult();
         }
-        logGenerationSummary(session.networkResult(), session.nodeElevations());
-        RoadGenerationResult aggregate = aggregateNetworkResult(session.sourceNetwork(), session.networkResult());
-        return new PreviewResult(
-            aggregate,
-            session.networkResult().getEdgeResults(),
-            session.networkResult().getNodeElevations(),
-            session.networkResult());
+        return buildPreviewResult(session);
     }
 
     private void logGenerationSummary(NetworkGenerationResult networkResult, Map<String, Integer> nodeElevations) {
@@ -330,13 +330,13 @@ public class RoadNetworkGenerator {
      * 无 World 的预览入口（基准 / Golden / 单元测试）。
      */
     public PreviewResult generatePreview(RoadNetwork network, TerrainSampler terrain) {
-        NetworkGenerationResult networkResult = generateAll(network, terrain);
-        RoadGenerationResult aggregate = aggregateNetworkResult(network, networkResult);
-        return new PreviewResult(
-            aggregate,
-            networkResult.getEdgeResults(),
-            networkResult.getNodeElevations(),
-            networkResult);
+        RoadNetworkPreviewSession session = beginPreviewSession(network, terrain);
+        if (!session.isValid()) {
+            return emptyPreviewResult();
+        }
+        preparePreviewSession(session);
+        runPreviewSessionToCompletion(session);
+        return buildPreviewResult(session);
     }
 
     /**
@@ -374,33 +374,61 @@ public class RoadNetworkGenerator {
         if (edgeResults.isEmpty()) {
             return ProfileSamplingResult.empty();
         }
-        LOGGER.info("纵断面采样完成: {} 条边", edgeResults.size());
-        return new ProfileSamplingResult(edgeResults, nodeElevations);
+        Map<String, RoadProfileChartData> roadProfiles = RoadProfileSamplingAssembler.assembleAll(
+            generationNetwork,
+            edgeResults,
+            roadGenerator.getConfig());
+        LOGGER.info("纵断面采样完成: {} 条边, {} 条道路纵断面", edgeResults.size(), roadProfiles.size());
+        return new ProfileSamplingResult(generationNetwork, edgeResults, nodeElevations, roadProfiles);
+    }
+
+    private PreviewResult buildPreviewResult(RoadNetworkPreviewSession session) {
+        RoadNetwork profileNetwork = session.generationNetwork();
+        NetworkGenerationResult networkResult = session.networkResult();
+        Map<String, RoadGenerationResult> edgeResults = networkResult.getEdgeResults();
+        Map<String, RoadProfileChartData> roadProfiles = RoadProfileSamplingAssembler.assembleAll(
+            profileNetwork,
+            edgeResults,
+            roadGenerator.getConfig());
+        RoadGenerationResult aggregate = aggregateNetworkResult(session.sourceNetwork(), networkResult);
+        return new PreviewResult(
+            profileNetwork,
+            aggregate,
+            edgeResults,
+            networkResult.getNodeElevations(),
+            networkResult,
+            roadProfiles);
     }
 
     private static PreviewResult emptyPreviewResult() {
         NetworkGenerationResult empty = new NetworkGenerationResult();
         return new PreviewResult(
+            null,
             new RoadGenerationResult(0),
             Map.of(),
             Map.of(),
-            empty);
+            empty,
+            Map.of());
     }
 
     public record PreviewResult(
+            RoadNetwork profileNetwork,
             RoadGenerationResult aggregate,
             Map<String, RoadGenerationResult> edgeResults,
             Map<String, Integer> nodeElevations,
-            NetworkGenerationResult networkResult) {
+            NetworkGenerationResult networkResult,
+            Map<String, RoadProfileChartData> roadProfiles) {
     }
 
     /** 仅纵断面采样结果，不含建造预览聚合。 */
     public record ProfileSamplingResult(
+            RoadNetwork profileNetwork,
             Map<String, RoadGenerationResult> edgeResults,
-            Map<String, Integer> nodeElevations) {
+            Map<String, Integer> nodeElevations,
+            Map<String, RoadProfileChartData> roadProfiles) {
 
         public static ProfileSamplingResult empty() {
-            return new ProfileSamplingResult(Map.of(), Map.of());
+            return new ProfileSamplingResult(null, Map.of(), Map.of(), Map.of());
         }
 
         public boolean isEmpty() {

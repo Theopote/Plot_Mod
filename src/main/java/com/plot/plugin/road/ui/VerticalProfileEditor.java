@@ -13,7 +13,6 @@ import com.plot.plugin.road.RoadGradeSeparationEvaluation;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.profile.ProfileControlPoint;
 import com.plot.plugin.road.profile.ProfilePointRole;
-import com.plot.plugin.road.profile.RoadProfileChartAssembler;
 import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.profile.RoadProfileChartRenderer;
 import com.plot.plugin.road.profile.RoadProfileIntersection;
@@ -329,15 +328,11 @@ final class VerticalProfileEditor {
         if (road == null) {
             return null;
         }
-        RoadProfileChartData assembled = RoadProfileChartAssembler.assemble(
-            network,
-            road,
-            ctx.networkManager().getConfig(),
-            ctx.previewManager().getLastEdgeResults()).orElse(null);
-        if (assembled != null && assembled.hasProfileData()) {
-            cachedChartData = assembled;
+        RoadProfileChartData chart = ctx.previewManager().getRoadProfileChart(road.getId());
+        if (chart != null && chart.hasProfileData()) {
+            cachedChartData = chart;
             cachedChartRoadId = road.getId();
-            return assembled;
+            return chart;
         }
         if (road.getId().equals(cachedChartRoadId)
                 && cachedChartData != null
@@ -356,8 +351,7 @@ final class VerticalProfileEditor {
     }
 
     private void renderMissingProfileActions(RoadUiContext ctx, RoadNetwork network, Road road) {
-        String hint = road != null && RoadProfileChartAssembler.hasIncompleteProfileSampling(
-                network, road, ctx.previewManager().getLastEdgeResults())
+        String hint = road != null && ctx.previewManager().hasIncompleteProfileSampling(network, road)
             ? PlotI18n.tr("plugin.road.profile_incomplete_preview_hint")
             : PlotI18n.tr("plugin.road.vertical_alignment_profile_preview_required");
         RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, hint);
@@ -817,10 +811,19 @@ final class VerticalProfileEditor {
             RoadSystemConfig config,
             RoadProfileChartData chartData,
             boolean enrichSteepGradeWarnings) {
+        RoadNetwork profileNetwork = ctx.previewManager().getLastProfileNetwork();
+        RoadNetwork intersectionNetwork = profileNetwork != null ? profileNetwork : network;
+        Road profileRoad = intersectionNetwork.getRoad(road.getId());
+        if (profileRoad == null) {
+            profileRoad = road;
+        }
         List<RoadProfileIntersection> intersections = chartData != null
             ? chartData.intersections()
             : RoadProfileIntersectionResolver.forRoad(
-                network, road, config, ctx.previewManager().getLastEdgeResults());
+                intersectionNetwork,
+                profileRoad,
+                config,
+                ctx.previewManager().getLastEdgeResults());
         if (!enrichSteepGradeWarnings || intersections.isEmpty()) {
             return intersections;
         }

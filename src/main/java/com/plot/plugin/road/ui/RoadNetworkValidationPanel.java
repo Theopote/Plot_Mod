@@ -22,10 +22,12 @@ public final class RoadNetworkValidationPanel {
     }
 
     public static RoadNetworkValidationReport analyze(RoadUiContext ctx) {
-        RoadNetwork network = ctx.networkManager().getNetwork();
+        RoadNetwork liveNetwork = ctx.networkManager().getNetwork();
+        RoadNetwork profileNetwork = ctx.previewManager().getLastProfileNetwork();
+        RoadNetwork validationNetwork = profileNetwork != null ? profileNetwork : liveNetwork;
         Map<String, RoadGenerationResult> edgeResults = ctx.previewManager().getLastEdgeResults();
         return RoadNetworkEngineeringValidator.analyze(
-            network,
+            validationNetwork,
             edgeResults,
             ctx.networkManager().getConfig());
     }

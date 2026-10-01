@@ -15,7 +15,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
-import com.plot.plugin.road.profile.RoadProfileChartAssembler;
+import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.pipeline.EdgeGenerationOutcome;
 import com.plot.plugin.road.pipeline.EdgeGenerationResult;
@@ -222,8 +222,10 @@ class RoadNetworkGeneratorTest {
         assertTrue(edgeProfile.hasProfileData());
         assertTrue(edgeProfile.placementRecords.isEmpty());
 
-        assertTrue(RoadProfileChartAssembler.assemble(
-            network, road, config, sampling.edgeResults()).orElseThrow().hasProfileData());
+        RoadProfileChartData chart = sampling.roadProfiles().get(road.getId());
+        assertNotNull(chart);
+        assertTrue(chart.hasProfileData());
+        assertNotNull(sampling.profileNetwork());
     }
 
     @Test

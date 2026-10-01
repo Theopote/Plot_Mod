@@ -9,7 +9,11 @@ import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadNetworkEngineeringValidator;
 import com.plot.plugin.road.RoadNetworkValidationReport;
 import com.plot.plugin.road.RoadPlacementVisibility;
+import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.profile.RoadProfileChartAssembler;
+import com.plot.plugin.road.profile.RoadProfileChartData;
+import com.plot.plugin.road.station.RoadStationing;
 import com.plot.utils.PlotI18n;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -33,8 +37,10 @@ public final class RoadPreviewManager {
     private RoadNetworkGenerator networkGenerator;
     private RoadGenerationResult lastGenerationResult;
     private RoadNetwork previewNetwork;
+    private RoadNetwork lastProfileNetwork;
     private Map<String, RoadGenerationResult> lastEdgeResults = Collections.emptyMap();
     private Map<String, Integer> lastNodeElevations = Collections.emptyMap();
+    private Map<String, RoadProfileChartData> lastRoadProfiles = Collections.emptyMap();
     private RoadNetworkGenerator.NetworkGenerationResult lastNetworkGenerationResult;
     private long terrainRevision = 0L;
     private boolean previewNeedsRecalc = false;
@@ -85,6 +91,43 @@ public final class RoadPreviewManager {
 
     public Map<String, RoadGenerationResult> getLastEdgeResults() {
         return lastEdgeResults;
+    }
+
+    public RoadNetwork getLastProfileNetwork() {
+        return lastProfileNetwork;
+    }
+
+    public Map<String, RoadProfileChartData> getLastRoadProfiles() {
+        return lastRoadProfiles;
+    }
+
+    public RoadProfileChartData getRoadProfileChart(String roadId) {
+        if (roadId == null || lastRoadProfiles.isEmpty()) {
+            return null;
+        }
+        return lastRoadProfiles.get(roadId);
+    }
+
+    public boolean hasRoadProfileChart(String roadId) {
+        RoadProfileChartData chart = getRoadProfileChart(roadId);
+        return chart != null && chart.hasProfileData();
+    }
+
+    public boolean hasIncompleteProfileSampling(RoadNetwork liveNetwork, Road road) {
+        if (road == null || liveNetwork == null || lastEdgeResults.isEmpty()) {
+            return false;
+        }
+        RoadProfileChartData chart = getRoadProfileChart(road.getId());
+        if (chart != null && chart.hasProfileData()) {
+            return !chart.hasCompleteRoadProfile();
+        }
+        RoadNetwork profileNetwork = lastProfileNetwork != null ? lastProfileNetwork : liveNetwork;
+        Road profileRoad = profileNetwork.getRoad(road.getId());
+        if (profileRoad == null || !RoadStationing.isStationable(profileNetwork, profileRoad)) {
+            return false;
+        }
+        return RoadProfileChartAssembler.hasIncompleteProfileSampling(
+            profileNetwork, profileRoad, lastEdgeResults);
     }
 
     public RoadNetworkGenerator.NetworkGenerationResult getLastNetworkGenerationResult() {
@@ -229,8 +272,7 @@ public final class RoadPreviewManager {
         }
         lastGenerationResult = null;
         previewNetwork = null;
-        lastEdgeResults = Collections.emptyMap();
-        lastNodeElevations = Collections.emptyMap();
+        clearProfileSamplingState();
         lastNetworkGenerationResult = null;
         status.error(PlotI18n.tr("plugin.road.generate_preview_failed"));
         if (error != null) {
@@ -292,8 +334,7 @@ public final class RoadPreviewManager {
         } catch (RuntimeException e) {
             lastGenerationResult = null;
             previewNetwork = null;
-            lastEdgeResults = Collections.emptyMap();
-            lastNodeElevations = Collections.emptyMap();
+            clearProfileSamplingState();
             lastNetworkGenerationResult = null;
             status.error(PlotI18n.tr("plugin.road.generate_preview_failed"));
             LOGGER.error("计算路网预览失败: {}", e.getMessage(), e);
@@ -305,8 +346,7 @@ public final class RoadPreviewManager {
             RoadNetwork network,
             RoadNetworkGenerator.ProfileSamplingResult sampling) {
         previewNetwork = network;
-        lastEdgeResults = new LinkedHashMap<>(sampling.edgeResults());
-        lastNodeElevations = new LinkedHashMap<>(sampling.nodeElevations());
+        applyProfileSamplingState(sampling);
         bumpTerrainRevision();
         status.success(PlotI18n.tr(
             "plugin.road.profile_sampling_ready",
@@ -319,8 +359,7 @@ public final class RoadPreviewManager {
             boolean autoProjectGhosts) {
         lastGenerationResult = previewResult.aggregate();
         previewNetwork = network;
-        lastEdgeResults = new LinkedHashMap<>(previewResult.edgeResults());
-        lastNodeElevations = new LinkedHashMap<>(previewResult.nodeElevations());
+        applyProfileSamplingState(previewResult);
         lastNetworkGenerationResult = previewResult.networkResult();
         bumpTerrainRevision();
 
@@ -407,8 +446,7 @@ public final class RoadPreviewManager {
         if (ghostBlockManager != null) {
             ghostBlockManager.clearGhostBlocks(GhostBlockOwners.ROAD);
         }
-        lastEdgeResults = Collections.emptyMap();
-        lastNodeElevations = Collections.emptyMap();
+        clearProfileSamplingState();
         lastNetworkGenerationResult = null;
         lastGenerationResult = null;
         previewNetwork = null;
@@ -456,8 +494,7 @@ public final class RoadPreviewManager {
     public void invalidatePreview() {
         cancelPreviewJobSilently();
         boolean hadPreview = lastGenerationResult != null || !lastEdgeResults.isEmpty();
-        lastEdgeResults = Collections.emptyMap();
-        lastNodeElevations = Collections.emptyMap();
+        clearProfileSamplingState();
         lastNetworkGenerationResult = null;
         lastGenerationResult = null;
         previewNetwork = null;
@@ -557,6 +594,27 @@ public final class RoadPreviewManager {
             result.success(),
             result.total(),
             result.failed()));
+    }
+
+    private void applyProfileSamplingState(RoadNetworkGenerator.ProfileSamplingResult sampling) {
+        lastProfileNetwork = sampling.profileNetwork();
+        lastEdgeResults = new LinkedHashMap<>(sampling.edgeResults());
+        lastNodeElevations = new LinkedHashMap<>(sampling.nodeElevations());
+        lastRoadProfiles = new LinkedHashMap<>(sampling.roadProfiles());
+    }
+
+    private void applyProfileSamplingState(RoadNetworkGenerator.PreviewResult previewResult) {
+        lastProfileNetwork = previewResult.profileNetwork();
+        lastEdgeResults = new LinkedHashMap<>(previewResult.edgeResults());
+        lastNodeElevations = new LinkedHashMap<>(previewResult.nodeElevations());
+        lastRoadProfiles = new LinkedHashMap<>(previewResult.roadProfiles());
+    }
+
+    private void clearProfileSamplingState() {
+        lastProfileNetwork = null;
+        lastEdgeResults = Collections.emptyMap();
+        lastNodeElevations = Collections.emptyMap();
+        lastRoadProfiles = Collections.emptyMap();
     }
 
     private void clearGhostBlocksSafely() {
