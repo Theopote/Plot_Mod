@@ -7,6 +7,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.model.RoadTopologyMode;
 import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
 
@@ -122,7 +123,7 @@ public final class HorizontalAlignmentCenterlineMaterializer {
 
         snapSharedNodeEndpoints(network, road.getId(), orientedSegments, centerlinesByEdgeId);
 
-        if (!validateInteriorJunctions(orientedSegments, centerlinesByEdgeId)) {
+        if (!validateJunctionContinuity(road, orientedSegments, centerlinesByEdgeId)) {
             return Optional.empty();
         }
 
@@ -253,25 +254,44 @@ public final class HorizontalAlignmentCenterlineMaterializer {
         return chainEntry ? pointCount - 1 : 0;
     }
 
-    private static boolean validateInteriorJunctions(
+    private static boolean validateJunctionContinuity(
+            Road road,
             List<OrientedRoadSegment> orientedSegments,
             Map<String, List<Vec2d>> centerlinesByEdgeId) {
         for (int index = 0; index < orientedSegments.size() - 1; index++) {
-            OrientedRoadSegment upstream = orientedSegments.get(index);
-            OrientedRoadSegment downstream = orientedSegments.get(index + 1);
-            if (!upstream.exitNodeId().equals(downstream.entryNodeId())) {
-                return false;
-            }
-
-            List<Vec2d> upstreamPoints = centerlinesByEdgeId.get(upstream.edgeId());
-            List<Vec2d> downstreamPoints = centerlinesByEdgeId.get(downstream.edgeId());
-            Vec2d upstreamExit = chainEndpoint(upstream, upstreamPoints, false);
-            Vec2d downstreamEntry = chainEndpoint(downstream, downstreamPoints, true);
-            if (upstreamExit.distance(downstreamEntry) > ENDPOINT_TOLERANCE_METERS) {
+            if (!validateJunctionPair(
+                    orientedSegments.get(index),
+                    orientedSegments.get(index + 1),
+                    centerlinesByEdgeId)) {
                 return false;
             }
         }
+        if (road != null
+                && road.getTopologyMode() == RoadTopologyMode.LOOP
+                && orientedSegments.size() > 1) {
+            return validateJunctionPair(
+                orientedSegments.getLast(),
+                orientedSegments.getFirst(),
+                centerlinesByEdgeId);
+        }
         return true;
+    }
+
+    private static boolean validateJunctionPair(
+            OrientedRoadSegment upstream,
+            OrientedRoadSegment downstream,
+            Map<String, List<Vec2d>> centerlinesByEdgeId) {
+        if (!upstream.exitNodeId().equals(downstream.entryNodeId())) {
+            return false;
+        }
+        List<Vec2d> upstreamPoints = centerlinesByEdgeId.get(upstream.edgeId());
+        List<Vec2d> downstreamPoints = centerlinesByEdgeId.get(downstream.edgeId());
+        if (upstreamPoints == null || downstreamPoints == null) {
+            return false;
+        }
+        Vec2d upstreamExit = chainEndpoint(upstream, upstreamPoints, false);
+        Vec2d downstreamEntry = chainEndpoint(downstream, downstreamPoints, true);
+        return upstreamExit.distance(downstreamEntry) <= ENDPOINT_TOLERANCE_METERS;
     }
 
     private static Vec2d chainEndpoint(OrientedRoadSegment oriented, List<Vec2d> geometryPoints, boolean entry) {

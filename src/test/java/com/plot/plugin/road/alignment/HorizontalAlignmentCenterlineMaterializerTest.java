@@ -323,6 +323,47 @@ class HorizontalAlignmentCenterlineMaterializerTest {
         assertTrue(closingEdge.getCenterlinePoints().getLast().distance(loopCloseNode.getPosition()) < 1.0);
     }
 
+    @Test
+    void loopHa_materializeRejectsClosingEndpointMismatch() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("open-loop-ha");
+        road.setTopologyMode(RoadTopologyMode.LOOP);
+
+        RoadNode n0 = network.createNode(new Vec2d(0, 0));
+        RoadNode n1 = network.createNode(new Vec2d(20, 0));
+        RoadEdge forward = network.createEdge(
+            n0.getId(),
+            n1.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(20, 0)),
+            road.getId());
+        RoadEdge back = network.createEdge(
+            n1.getId(),
+            n0.getId(),
+            List.of(new Vec2d(20, 0), new Vec2d(0, 0)),
+            road.getId());
+
+        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(new Vec2d(0, 0), 0.0, List.of());
+        alignment.addElement(HorizontalAlignmentElement.tangent(40.0));
+        road.setHorizontalAlignment(alignment);
+        road.setLoopSeam(RoadLoopSeam.at(new Vec2d(0, 0)));
+
+        List<Vec2d> forwardBefore = List.copyOf(forward.getCenterlinePoints());
+        List<Vec2d> backBefore = List.copyOf(back.getCenterlinePoints());
+        Vec2d n0Before = network.getNode(n0.getId()).getPosition().copy();
+        Vec2d n1Before = network.getNode(n1.getId()).getPosition().copy();
+
+        assertTrue(HorizontalAlignmentCenterlineConsistency.isMaterializable(network, road));
+        assertTrue(HorizontalAlignmentCenterlineMaterializer.prepareMaterialization(
+            network, road, alignment, 2.0).isEmpty());
+
+        CenterlineEditResult result = HorizontalAlignmentCenterlineMaterializer.materialize(network, road);
+        assertEquals(CenterlineEditStatus.TOO_FEW_POINTS, result.status());
+        assertEquals(forwardBefore, forward.getCenterlinePoints());
+        assertEquals(backBefore, back.getCenterlinePoints());
+        assertEquals(n0Before, network.getNode(n0.getId()).getPosition());
+        assertEquals(n1Before, network.getNode(n1.getId()).getPosition());
+    }
+
     private static void assertContinuousPhysicalEdge(RoadEdge edge, double maxSegmentLength) {
         List<Vec2d> points = edge.getCenterlinePoints();
         assertTrue(points.size() >= 2, () -> "edge " + edge.getId() + " has too few points");
