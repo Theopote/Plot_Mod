@@ -15,6 +15,8 @@ import com.plot.plugin.road.profile.ProfileControlPoint;
 import com.plot.plugin.road.profile.ProfilePointRole;
 import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.profile.RoadProfileChartRenderer;
+import com.plot.plugin.road.profile.RoadProfileRoadList;
+import com.plot.plugin.road.profile.RoadProfileRoadNavigator;
 import com.plot.plugin.road.profile.RoadProfileIntersection;
 import com.plot.plugin.road.profile.RoadProfileIntersectionDragEditor;
 import com.plot.plugin.road.profile.RoadProfileIntersectionResolver;
@@ -101,27 +103,31 @@ final class VerticalProfileEditor {
         focusEditorOnOpen = true;
     }
 
-    void openEditorForEdge(RoadNetwork network, String edgeId) {
+    void openEditorForEdge(RoadUiContext ctx, RoadNetwork network, String edgeId) {
         if (edgeId == null || edgeId.isBlank()) {
             return;
         }
         if (network != null) {
             RoadEdge edge = network.getEdge(edgeId);
             if (edge != null && edge.getRoadId() != null && !edge.getRoadId().isBlank()) {
-                openEditorForRoad(edge.getRoadId());
+                openEditorForRoad(ctx, edge.getRoadId());
                 return;
             }
         }
         openEditorForEdge(edgeId);
     }
 
-    void openEditorForRoad(String roadId) {
+    void openEditorForRoad(RoadUiContext ctx, String roadId) {
         if (roadId == null || roadId.isBlank()) {
             return;
         }
-        editorRoadId = roadId;
+        selectEditorRoad(ctx, roadId, true);
         editorWindowOpen.set(true);
         focusEditorOnOpen = true;
+    }
+
+    void renderCompactMissingProfile(RoadUiContext ctx, RoadNetwork network, Road road) {
+        renderMissingProfileActions(ctx, network, road);
     }
 
     void setOnAlignmentCommitted(Runnable onAlignmentCommitted) {
@@ -132,9 +138,8 @@ final class VerticalProfileEditor {
         return editorWindowOpen.get();
     }
 
-    /** 编辑器打开时当前聚焦的道路，供生成 Tab 内联区同步。 */
-    String getFocusedRoadId() {
-        return editorWindowOpen.get() ? editorRoadId : "";
+    String getEditorRoadId() {
+        return editorRoadId;
     }
 
     void renderInline(
@@ -173,7 +178,7 @@ final class VerticalProfileEditor {
         renderRoadSummary(ctx, network, road);
         if (ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_open_editor"),
                 ImGui.getContentRegionAvailX(), 0)) {
-            openEditorForRoad(road.getId());
+            openEditorForRoad(ctx, road.getId());
         }
         RoadProfileChartData chartData = resolveChartData(ctx, network, road);
         if (chartData == null || !chartData.hasProfileData()) {
@@ -240,6 +245,8 @@ final class VerticalProfileEditor {
                 finishPendingNetworkEdit(ctx);
                 return;
             }
+            renderEditorRoadSelector(ctx, network);
+            ImGui.spacing();
             renderRoadSummary(ctx, network, road);
             ImGui.spacing();
             if (!RoadStationing.isStationable(network, road)) {
@@ -293,22 +300,85 @@ final class VerticalProfileEditor {
         finishProfileNetworkEdit(ctx, null);
     }
 
+    private void selectEditorRoad(RoadUiContext ctx, String roadId, boolean syncSelection) {
+        if (roadId == null || roadId.isBlank()) {
+            return;
+        }
+        if (Objects.equals(editorRoadId, roadId)) {
+            return;
+        }
+        finishPendingNetworkEdit(ctx);
+        editorRoadId = roadId;
+        resetEditorLocalState();
+        invalidateIntersectionCache();
+        cachedChartData = null;
+        cachedChartRoadId = "";
+        if (syncSelection) {
+            ctx.networkManager().selectRoad(roadId, false);
+            ctx.requestOverlayRefresh();
+        }
+    }
+
     private void ensureEditorRoadSelection(RoadUiContext ctx, RoadNetwork network) {
-        if (editorRoadId != null && !editorRoadId.isBlank() && network.getRoad(editorRoadId) != null) {
+        List<Road> roads = RoadProfileRoadList.listStationableRoads(network);
+        if (roads.isEmpty()) {
             return;
         }
-        Road road = ctx.networkManager().getPrimarySelectedRoad();
-        if (road != null) {
-            editorRoadId = road.getId();
-            resetEditorLocalState();
+        Road primary = ctx.networkManager().getPrimarySelectedRoad();
+        if (primary != null
+                && RoadStationing.isStationable(network, primary)
+                && !Objects.equals(editorRoadId, primary.getId())) {
+            selectEditorRoad(ctx, primary.getId(), false);
             return;
         }
-        String primaryEdgeId = ctx.networkManager().getPrimarySelectedEdgeId();
-        RoadEdge edge = network.getEdge(primaryEdgeId);
-        if (edge != null && edge.getRoadId() != null) {
-            editorRoadId = edge.getRoadId();
-            resetEditorLocalState();
+        String normalized = RoadProfileRoadNavigator.normalizeRoadId(roads, editorRoadId);
+        if (normalized != null && !Objects.equals(editorRoadId, normalized)) {
+            selectEditorRoad(ctx, normalized, false);
         }
+    }
+
+    private void renderEditorRoadSelector(RoadUiContext ctx, RoadNetwork network) {
+        List<Road> roads = RoadProfileRoadList.listStationableRoads(network);
+        if (roads.isEmpty()) {
+            return;
+        }
+        int currentIndex = RoadProfileRoadNavigator.indexOf(roads, editorRoadId);
+        if (currentIndex < 0) {
+            currentIndex = 0;
+        }
+        Road currentRoad = roads.get(currentIndex);
+
+        ImGui.text(PlotI18n.tr("plugin.road.profile_editor_road_selector"));
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_road_nav_prev") + "##profile_prev")) {
+            selectEditorRoad(ctx, RoadProfileRoadNavigator.previousRoadId(roads, editorRoadId), true);
+        }
+        ImGui.sameLine();
+        String preview = RoadProfileRoadList.formatProfileRoadSummary(network, currentRoad);
+        if (ImGui.beginCombo("##profile_editor_road_combo", preview)) {
+            for (Road road : roads) {
+                String label = RoadProfileRoadList.formatProfileRoadSummary(network, road);
+                boolean selected = road.getId().equals(editorRoadId);
+                if (ImGui.selectable(label, selected)) {
+                    selectEditorRoad(ctx, road.getId(), true);
+                }
+                if (selected) {
+                    ImGui.setItemDefaultFocus();
+                }
+            }
+            ImGui.endCombo();
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.road.profile_editor_road_nav_next") + "##profile_next")) {
+            selectEditorRoad(ctx, RoadProfileRoadNavigator.nextRoadId(roads, editorRoadId), true);
+        }
+        ImGui.sameLine();
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr(
+                "plugin.road.profile_overview_road_index",
+                currentIndex + 1,
+                roads.size()));
     }
 
     private void renderRoadSummary(RoadUiContext ctx, RoadNetwork network, Road road) {
