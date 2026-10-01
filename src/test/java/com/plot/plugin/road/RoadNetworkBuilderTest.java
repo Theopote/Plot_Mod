@@ -13,6 +13,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.vertical.RoadVerticalMode;
 import org.junit.jupiter.api.Test;
 
 import java.util.Comparator;
@@ -31,6 +32,20 @@ class RoadNetworkBuilderTest {
 
     private final RoadNetworkBuilder builder = new RoadNetworkBuilder();
     private final RoadSystemConfig config = new RoadSystemConfig("road_system");
+
+    @Test
+    void adoptedRoadDefaultsToFitTerrain() {
+        RoadNetwork network = new RoadNetwork();
+        PolylineShape shape = new PolylineShape(List.of(
+            new Vec2d(0, 0),
+            new Vec2d(100, 0)
+        ), false);
+
+        builder.adoptShape(network, shape, config);
+
+        Road road = network.getRoads().values().iterator().next();
+        assertEquals(RoadVerticalMode.FIT_TERRAIN, road.getVerticalMode());
+    }
 
     @Test
     void adoptClosedRectanglePromotesToLoopWithDefaultSeam() {

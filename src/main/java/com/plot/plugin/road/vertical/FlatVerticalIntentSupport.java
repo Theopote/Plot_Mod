@@ -35,9 +35,7 @@ public final class FlatVerticalIntentSupport {
             return null;
         }
         FlatVerticalIntent migrated = migrateLegacyFlat(network, road);
-        if (migrated != null) {
-            road.setFlatVerticalIntent(migrated);
-        }
+        road.setFlatVerticalIntent(migrated);
         return migrated;
     }
 
@@ -160,7 +158,7 @@ public final class FlatVerticalIntentSupport {
                 return alignment.getPvis().getFirst().getElevation();
             }
             if (VerticalAlignmentGeometry.isEvaluable(alignment)) {
-                double length = network != null && RoadStationing.isStationable(network, road)
+                double length = RoadStationing.isStationable(network, road)
                     ? RoadStationing.canonicalLength(network, road)
                     : alignment.endStation();
                 Double median = medianSampledProfileElevation(alignment, length);
@@ -169,7 +167,7 @@ public final class FlatVerticalIntentSupport {
                 }
             }
         }
-        if (terrain != null && network != null && config != null
+        if (terrain != null && config != null
                 && RoadStationing.isStationable(network, road)) {
             FlatElevationRecommendation optimized =
                 recommendOptimizedElevation(network, road, terrain, config);
@@ -182,7 +180,7 @@ public final class FlatVerticalIntentSupport {
                 return recommendation.elevation();
             }
         }
-        if (network != null && RoadStationing.isStationable(network, road)) {
+        if (RoadStationing.isStationable(network, road)) {
             for (Map.Entry<String, Double> entry
                     : VerticalAlignmentJunctionSynchronizer.junctionStations(network, road).entrySet()) {
                 RoadNode node = network.getNode(entry.getKey());
@@ -204,7 +202,7 @@ public final class FlatVerticalIntentSupport {
     }
 
     static Double medianSampledProfileElevation(RoadVerticalAlignment alignment, double roadLength) {
-        if (alignment == null || !VerticalAlignmentGeometry.isEvaluable(alignment)
+        if (!VerticalAlignmentGeometry.isEvaluable(alignment)
                 || !Double.isFinite(roadLength) || roadLength <= EPSILON) {
             return null;
         }
@@ -343,7 +341,7 @@ public final class FlatVerticalIntentSupport {
     }
 
     public static boolean canUseFlatStrategy(RoadNetwork network, Road road) {
-        if (road == null || network == null || !RoadStationing.isStationable(network, road)) {
+        if (road == null || !RoadStationing.isStationable(network, road)) {
             return false;
         }
         double length = RoadStationing.canonicalLength(network, road);

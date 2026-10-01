@@ -2,6 +2,8 @@ package com.plot.plugin.road.pipeline.profile;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.core.geometry.shapes.PolylineShape;
+import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -56,6 +58,42 @@ class RoadProfileSolverTest {
 
         assertEquals(70, result.heightInfos().getFirst().targetStart);
         assertEquals(70, result.heightInfos().getFirst().targetEnd);
+    }
+
+    @Test
+    void adoptedTerrainAdaptiveRoadTracksInteriorTerrain() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNetworkBuilder builder = new RoadNetworkBuilder();
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        builder.adoptShape(network, new PolylineShape(
+            List.of(new Vec2d(0, 0), new Vec2d(100, 0)), false), config);
+
+        Road road = network.getRoads().values().iterator().next();
+        RoadEdge edge = network.getEdges().values().iterator().next();
+        assertEquals(RoadVerticalMode.FIT_TERRAIN, road.getVerticalMode());
+
+        TerrainSampler terrain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return 64 + (int) Math.round(4.0 * Math.sin(point.x / 15.0));
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return false;
+            }
+        };
+
+        List<PathSegment> segments = sampledSegments(new Vec2d(0, 0), new Vec2d(100, 0), 10.0);
+        ProfileSolveSupport support = ProfileSolveSupport.fromConfig(config, ignored -> 1.0);
+        ProfileSolveResult result = RoadProfileSolver.solveForEdge(
+            segments, terrain, network, edge, config, 2.5, null, null, support);
+
+        List<Integer> targets = result.profileTargetHeights();
+        assertFalse(targets.isEmpty());
+        int mid = targets.size() / 2;
+        assertNotEquals(targets.getFirst(), targets.get(mid),
+            "adopted road should follow interior terrain without manual vertical mode change");
     }
 
     @Test

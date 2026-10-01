@@ -15,6 +15,7 @@ import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.alignment.HorizontalAlignmentPersistence;
 import com.plot.plugin.road.alignment.HorizontalAlignmentPersistence.AlignmentData;
 import com.plot.plugin.road.vertical.FlatVerticalIntentPersistence;
+import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalAlignmentPersistence;
 import com.plot.plugin.road.vertical.VerticalAlignmentPersistence.VerticalAlignmentData;
 import com.plot.plugin.road.model.VariableCrossSectionPersistence.VariableCrossSectionsData;
@@ -182,12 +183,14 @@ public class RoadNetwork {
 
     /**
      * 创建道路并将当前全局默认快照为显式值（不随后续修改认领默认而变）。
+     * 垂直模式固定为 {@link RoadVerticalMode#FIT_TERRAIN}，与 UI「适应地形」语义一致。
      *
      * @see RoadParameterInheritance#snapshotGlobalDefaults(Road, RoadSystemConfig)
      */
     public Road createRoadForAdopt(RoadSystemConfig defaults) {
         Road road = createRoad();
         RoadParameterInheritance.snapshotGlobalDefaults(road, defaults);
+        road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
         return road;
     }
 
