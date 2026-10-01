@@ -11,6 +11,7 @@ import com.plot.plugin.road.station.SegmentStation;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalDouble;
 
 /**
  * 道路平面几何统一查询：有设计平面线形时以 {@link RoadHorizontalAlignment} 为权威，
@@ -173,16 +174,12 @@ public final class RoadPlanGeometry {
         if (oriented.isEmpty()) {
             return edge.getCenterlinePoints();
         }
-        Road road = network.getRoadForEdge(edge);
-        RoadHorizontalAlignment alignment = road.getHorizontalAlignment();
-        List<Vec2d> sampled = HorizontalAlignmentCenterlineMaterializer.sampleGeometryPoints(
-            alignment,
-            oriented.get(),
-            sampleSpacingMeters);
-        if (sampled.size() < 2) {
+        List<PlanCenterlineSample> samples = resolveEdgeCenterlineSamples(
+            network, edge, sampleSpacingMeters);
+        if (samples.size() < 2) {
             return edge.getCenterlinePoints();
         }
-        return sampled;
+        return samples.stream().map(PlanCenterlineSample::position).toList();
     }
 
     /**
@@ -213,6 +210,36 @@ public final class RoadPlanGeometry {
             road.getHorizontalAlignment(),
             oriented.get(),
             sampleSpacingMeters);
+    }
+
+    /**
+     * 在单条边的 plan 采样折线上反查 canonical 桩号。
+     */
+    public static OptionalDouble chainageAtPositionOnPlanSamples(
+            Vec2d position,
+            List<PlanCenterlineSample> samples) {
+        if (position == null || samples == null || samples.size() < 2) {
+            return OptionalDouble.empty();
+        }
+        double bestDistance = Double.MAX_VALUE;
+        Double bestChainage = null;
+        for (int i = 0; i < samples.size() - 1; i++) {
+            PlanCenterlineSample start = samples.get(i);
+            PlanCenterlineSample end = samples.get(i + 1);
+            Vec2d projected = RoadGeometryUtils.projectPointOnSegment(
+                start.position(), end.position(), position);
+            double distance = projected.distance(position);
+            if (distance > com.plot.plugin.road.RoadNetworkBuilder.NODE_TOLERANCE || distance >= bestDistance) {
+                continue;
+            }
+            double span = start.position().distance(end.position());
+            double t = span <= STATION_EPSILON
+                ? 0.0
+                : start.position().distance(projected) / span;
+            bestDistance = distance;
+            bestChainage = start.canonicalStation() + t * (end.canonicalStation() - start.canonicalStation());
+        }
+        return bestChainage != null ? OptionalDouble.of(bestChainage) : OptionalDouble.empty();
     }
 
     private static Optional<Double> instanceBearingAtStation(

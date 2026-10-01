@@ -3,6 +3,7 @@ package com.plot.plugin.road.crossing;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.plugin.road.RoadGeometryUtils;
+import com.plot.plugin.road.alignment.PlanCenterlineSample;
 import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
@@ -10,6 +11,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.RoadStationing;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +31,7 @@ public final class RoadCrossingDetector {
         if (network == null) {
             return List.of();
         }
+        DetectionSession session = new DetectionSession(network);
         List<RoadEdge> edges = new ArrayList<>(network.getEdges().values());
         Map<String, RoadCrossing> deduped = new LinkedHashMap<>();
         for (int i = 0; i < edges.size(); i++) {
@@ -38,8 +41,8 @@ public final class RoadCrossingDetector {
                 if (edgeA.getRoadId() == null || edgeA.getRoadId().equals(edgeB.getRoadId())) {
                     continue;
                 }
-                for (Vec2d point : findSegmentIntersections(network, edgeA, edgeB)) {
-                    RoadCrossing crossing = toCrossing(network, edgeA, edgeB, point);
+                for (Vec2d point : findSegmentIntersections(session, edgeA, edgeB)) {
+                    RoadCrossing crossing = toCrossing(session, edgeA, edgeB, point);
                     if (crossing != null) {
                         deduped.putIfAbsent(dedupeKey(crossing), crossing);
                     }
@@ -50,11 +53,11 @@ public final class RoadCrossingDetector {
     }
 
     private static List<Vec2d> findSegmentIntersections(
-            RoadNetwork network,
+            DetectionSession session,
             RoadEdge edgeA,
             RoadEdge edgeB) {
-        List<Vec2d> centerlineA = RoadPlanGeometry.resolveEdgeCenterline(network, edgeA);
-        List<Vec2d> centerlineB = RoadPlanGeometry.resolveEdgeCenterline(network, edgeB);
+        List<Vec2d> centerlineA = session.planCenterline(edgeA);
+        List<Vec2d> centerlineB = session.planCenterline(edgeB);
         if (centerlineA.size() < 2 || centerlineB.size() < 2) {
             return List.of();
         }
@@ -124,17 +127,19 @@ public final class RoadCrossingDetector {
     }
 
     private static RoadCrossing toCrossing(
-            RoadNetwork network,
+            DetectionSession session,
             RoadEdge edgeA,
             RoadEdge edgeB,
             Vec2d position) {
-        Road roadA = network.getRoad(edgeA.getRoadId());
-        Road roadB = network.getRoad(edgeB.getRoadId());
+        Road roadA = session.network.getRoad(edgeA.getRoadId());
+        Road roadB = session.network.getRoad(edgeB.getRoadId());
         if (roadA == null || roadB == null) {
             return null;
         }
-        OptionalDouble chainageA = RoadStationing.chainageAtPosition(network, roadA, position);
-        OptionalDouble chainageB = RoadStationing.chainageAtPosition(network, roadB, position);
+        OptionalDouble chainageA = RoadStationing.chainageAtPosition(
+            session.network, roadA, position, session.samplesByEdgeId);
+        OptionalDouble chainageB = RoadStationing.chainageAtPosition(
+            session.network, roadB, position, session.samplesByEdgeId);
         if (chainageA.isEmpty() || chainageB.isEmpty()) {
             return null;
         }
@@ -170,5 +175,26 @@ public final class RoadCrossingDetector {
             }
         }
         return unique;
+    }
+
+    private static final class DetectionSession {
+        private final RoadNetwork network;
+        private final Map<String, List<PlanCenterlineSample>> samplesByEdgeId = new HashMap<>();
+
+        private DetectionSession(RoadNetwork network) {
+            this.network = network;
+        }
+
+        private List<Vec2d> planCenterline(RoadEdge edge) {
+            if (!RoadPlanGeometry.usesDesignAlignment(network, edge)) {
+                return List.copyOf(edge.getCenterlinePoints());
+            }
+            return samplesFor(edge).stream().map(PlanCenterlineSample::position).toList();
+        }
+
+        private List<PlanCenterlineSample> samplesFor(RoadEdge edge) {
+            return samplesByEdgeId.computeIfAbsent(
+                edge.getId(), id -> RoadPlanGeometry.resolveEdgeCenterlineSamples(network, edge));
+        }
     }
 }

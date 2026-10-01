@@ -4,7 +4,9 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.alignment.HorizontalAlignmentCenterlineMaterializer;
 import com.plot.plugin.road.alignment.HorizontalAlignmentElement;
 import com.plot.plugin.road.alignment.HorizontalAlignmentGeometry;
+import com.plot.plugin.road.alignment.PlanCenterlineSample;
 import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
+import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.alignment.TurnDirection;
 import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.crossing.RoadCrossingDetector;
@@ -20,13 +22,13 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * {@link RoadStationing#chainageAtPosition} 在 HA 道路上的精度特征测试。
+ * {@link RoadStationing#chainageAtPosition} 与 {@link RoadPlanGeometry} HA 采样一致性测试。
  * <p>
  * 设计桩号权威来源为 {@link HorizontalAlignmentGeometry#poseAt}；
- * 当前实现经由 plan 折线局部距离 → 实例链长 → {@link RoadStationing#toCanonicalChainage} 全局比例换算。
- * 物化一致的几何应满足 tight 往返；设计/实例长度不一致或曲线段采样稀疏时误差会放大。
+ * HA 道路通过 {@link PlanCenterlineSample} 采样折线插值反查 canonical 桩号。
  */
 class RoadStationingChainageAtPositionTest {
 
@@ -112,6 +114,40 @@ class RoadStationingChainageAtPositionTest {
         double designChainage = 50.0 + arcLength * 0.5;
 
         assertChainageAtDesignPosition(network, road, designChainage, MATERIALIZED_TOLERANCE);
+    }
+
+    @Test
+    void resolveEdgeCenterline_matchesCanonicalSamples_whenDesignAndInstanceLengthDiffer() {
+        RoadNetwork network = buildLengthMismatchCrossingNearEndNetwork();
+        Road horizontal = network.getRoad("ha-horizontal");
+        RoadEdge edge = network.getEdge(horizontal.getOrderedSegmentIds().getFirst());
+
+        List<PlanCenterlineSample> samples = RoadPlanGeometry.resolveEdgeCenterlineSamples(network, edge);
+        List<Vec2d> centerline = RoadPlanGeometry.resolveEdgeCenterline(network, edge);
+        assertTrue(samples.size() >= 2);
+        assertEquals(samples.size(), centerline.size());
+        for (int i = 0; i < samples.size(); i++) {
+            assertEquals(samples.get(i).position().x, centerline.get(i).x, 1e-6);
+            assertEquals(samples.get(i).position().y, centerline.get(i).y, 1e-6);
+        }
+        assertEquals(300.0, samples.getLast().canonicalStation(), DESIGN_CHAINAGE_TOLERANCE);
+    }
+
+    @Test
+    void crossingDetectionAndChainageLookup_agreeNearDesignEndWhenInstanceShorter() {
+        RoadNetwork network = buildLengthMismatchCrossingNearEndNetwork();
+        Road horizontal = network.getRoad("ha-horizontal");
+        double designChainage = 295.0;
+
+        List<RoadCrossing> detected = RoadCrossingDetector.detectAll(network);
+        assertEquals(1, detected.size());
+
+        RoadCrossing crossing = detected.getFirst();
+        assertEquals(designChainage, crossing.stationOn(horizontal.getId()), DESIGN_CHAINAGE_TOLERANCE);
+        assertEquals(
+            designChainage,
+            RoadStationing.chainageAtPosition(network, horizontal, crossing.position()).orElseThrow(),
+            DESIGN_CHAINAGE_TOLERANCE);
     }
 
     @Test
@@ -255,6 +291,29 @@ class RoadStationingChainageAtPositionTest {
             new Vec2d(50, 0),
             new Vec2d(70, 20),
             new Vec2d(75, 75)));
+        return network;
+    }
+
+    private static RoadNetwork buildLengthMismatchCrossingNearEndNetwork() {
+        RoadNetwork network = new RoadNetwork();
+        Road horizontal = network.createRoad("ha-horizontal");
+        Road vertical = network.createRoad("vertical");
+        double designLength = 300.0;
+        double instanceLength = 299.3;
+        network.createEdge(
+            network.createNode(new Vec2d(0, 0)).getId(),
+            network.createNode(new Vec2d(instanceLength, 0)).getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(instanceLength, 0)),
+            horizontal.getId());
+        horizontal.setHorizontalAlignment(new RoadHorizontalAlignment(
+            new Vec2d(0, 0),
+            0.0,
+            List.of(HorizontalAlignmentElement.tangent(designLength))));
+        network.createEdge(
+            network.createNode(new Vec2d(295, -10)).getId(),
+            network.createNode(new Vec2d(295, 10)).getId(),
+            List.of(new Vec2d(295, -10), new Vec2d(295, 10)),
+            vertical.getId());
         return network;
     }
 }

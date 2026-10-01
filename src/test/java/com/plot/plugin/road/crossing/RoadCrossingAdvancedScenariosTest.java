@@ -329,6 +329,48 @@ class RoadCrossingAdvancedScenariosTest {
     }
 
     @Test
+    void twoNearbyCrossingsPreserveDistinctDesignAfterShift() {
+        RoadNetwork network = buildCloseDoubleCrossingNetwork();
+        RoadCrossingReconciler.reconcileCrossings(network);
+
+        List<RoadCrossing> registered = sortedByX(network);
+        String westId = registered.get(0).id();
+        String eastId = registered.get(1).id();
+        String verticalRoadId = findVerticalRoadId(network, registered.get(0));
+
+        network.setCrossingGradeSeparation(westId, CrossingType.GRADE_SEPARATED, verticalRoadId, 4.0);
+        network.setCrossingGradeSeparation(eastId, CrossingType.AT_GRADE, null, null);
+
+        Road roadA = network.getRoad("road-a");
+        RoadEdge edgeA = network.getEdge(roadA.getOrderedSegmentIds().getFirst());
+        edgeA.setCenterlinePoints(List.of(new Vec2d(0, 5.2), new Vec2d(100, 5.2)));
+
+        Road roadB = network.getRoad("road-b");
+        RoadEdge edgeB = network.getEdge(roadB.getOrderedSegmentIds().getFirst());
+        edgeB.setCenterlinePoints(List.of(
+            new Vec2d(40, -5.2),
+            new Vec2d(49.825, 5.2),
+            new Vec2d(49.825, 15.2),
+            new Vec2d(50.175, 15.2),
+            new Vec2d(50.175, 5.2),
+            new Vec2d(60, -5.2)));
+
+        RoadCrossingReconciler.reconcileCrossings(network);
+
+        assertEquals(2, network.getCrossings().size());
+        RoadCrossing west = network.getCrossing(westId);
+        RoadCrossing east = network.getCrossing(eastId);
+        assertNotNull(west);
+        assertNotNull(east);
+        assertEquals(CrossingType.GRADE_SEPARATED, west.type());
+        assertEquals(4.0, west.crossingClearance(), EPS);
+        assertEquals(verticalRoadId, west.elevatedRoadId());
+        assertEquals(CrossingType.AT_GRADE, east.type());
+        assertEquals(49.825, west.position().x, EPS);
+        assertEquals(50.175, east.position().x, EPS);
+    }
+
+    @Test
     void probeRegistryCompleteness_detectsStaleGeometryAfterMatchedShift() {
         RoadNetwork network = new RoadNetwork();
         Road roadA = network.createRoad("road-a");

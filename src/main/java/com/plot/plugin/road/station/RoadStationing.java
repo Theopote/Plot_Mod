@@ -327,11 +327,22 @@ public final class RoadStationing {
      * {@link com.plot.plugin.road.station.RoadOrientationInvariantTest} 一致。
      */
     public static OptionalDouble chainageAtPosition(RoadNetwork network, Road road, Vec2d position) {
+        return chainageAtPosition(network, road, position, null);
+    }
+
+    /**
+     * 世界坐标 → canonical 桩号；可选传入边采样缓存（同一次 Crossing 检测内复用）。
+     */
+    public static OptionalDouble chainageAtPosition(
+            RoadNetwork network,
+            Road road,
+            Vec2d position,
+            java.util.Map<String, List<PlanCenterlineSample>> cachedSamplesByEdgeId) {
         if (network == null || road == null || position == null || network.getRoad(road.getId()) == null) {
             return OptionalDouble.empty();
         }
         if (RoadPlanGeometry.hasDesignAlignment(network, road)) {
-            return chainageAtPositionOnDesignAlignment(network, road, position);
+            return chainageAtPositionOnDesignAlignment(network, road, position, cachedSamplesByEdgeId);
         }
         return chainageAtPositionOnInstanceCenterline(network, road, position);
     }
@@ -339,7 +350,8 @@ public final class RoadStationing {
     private static OptionalDouble chainageAtPositionOnDesignAlignment(
             RoadNetwork network,
             Road road,
-            Vec2d position) {
+            Vec2d position,
+            java.util.Map<String, List<PlanCenterlineSample>> cachedSamplesByEdgeId) {
         double bestDistance = Double.MAX_VALUE;
         Double bestChainage = null;
         for (OrientedRoadSegment segment : orientedSegments(network, road)) {
@@ -347,25 +359,32 @@ public final class RoadStationing {
             if (edge == null) {
                 continue;
             }
-            List<PlanCenterlineSample> samples = RoadPlanGeometry.resolveEdgeCenterlineSamples(network, edge);
-            for (int i = 0; i < samples.size() - 1; i++) {
-                PlanCenterlineSample start = samples.get(i);
-                PlanCenterlineSample end = samples.get(i + 1);
-                Vec2d projected = RoadGeometryUtils.projectPointOnSegment(
-                    start.position(), end.position(), position);
-                double distance = projected.distance(position);
-                if (distance > RoadNetworkBuilder.NODE_TOLERANCE || distance >= bestDistance) {
-                    continue;
-                }
-                double span = start.position().distance(end.position());
-                double t = span <= STATION_EPSILON
-                    ? 0.0
-                    : start.position().distance(projected) / span;
-                bestDistance = distance;
-                bestChainage = start.canonicalStation() + t * (end.canonicalStation() - start.canonicalStation());
+            List<PlanCenterlineSample> samples = cachedSamplesByEdgeId != null
+                ? cachedSamplesByEdgeId.computeIfAbsent(
+                    edge.getId(), id -> RoadPlanGeometry.resolveEdgeCenterlineSamples(network, edge))
+                : RoadPlanGeometry.resolveEdgeCenterlineSamples(network, edge);
+            OptionalDouble chainage = RoadPlanGeometry.chainageAtPositionOnPlanSamples(position, samples);
+            if (chainage.isEmpty()) {
+                continue;
             }
+            double distance = distanceToPlanSamples(position, samples);
+            if (distance > RoadNetworkBuilder.NODE_TOLERANCE || distance >= bestDistance) {
+                continue;
+            }
+            bestDistance = distance;
+            bestChainage = chainage.getAsDouble();
         }
         return bestChainage != null ? OptionalDouble.of(bestChainage) : OptionalDouble.empty();
+    }
+
+    private static double distanceToPlanSamples(Vec2d position, List<PlanCenterlineSample> samples) {
+        double bestDistance = Double.MAX_VALUE;
+        for (int i = 0; i < samples.size() - 1; i++) {
+            Vec2d projected = RoadGeometryUtils.projectPointOnSegment(
+                samples.get(i).position(), samples.get(i + 1).position(), position);
+            bestDistance = Math.min(bestDistance, projected.distance(position));
+        }
+        return bestDistance;
     }
 
     private static OptionalDouble chainageAtPositionOnInstanceCenterline(

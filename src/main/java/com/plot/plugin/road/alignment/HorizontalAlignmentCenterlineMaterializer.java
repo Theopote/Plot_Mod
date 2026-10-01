@@ -106,7 +106,8 @@ public final class HorizontalAlignmentCenterlineMaterializer {
                 return Optional.empty();
             }
 
-            List<Vec2d> geometryPoints = sampleGeometryPoints(alignment, oriented, spacing);
+            List<Vec2d> geometryPoints = sampleGeometryPoints(
+                network, road, alignment, oriented, spacing);
             if (geometryPoints.size() < 2) {
                 return Optional.empty();
             }
@@ -319,34 +320,14 @@ public final class HorizontalAlignmentCenterlineMaterializer {
     }
 
     static List<Vec2d> sampleGeometryPoints(
+            RoadNetwork network,
+            Road road,
             RoadHorizontalAlignment alignment,
             OrientedRoadSegment oriented,
             double spacing) {
-        List<Vec2d> alongChain = new ArrayList<>();
-        double endStation = oriented.endStation();
-        for (double chainage = oriented.startStation(); chainage <= endStation + 1e-6; chainage += spacing) {
-            double clamped = Math.min(chainage, endStation);
-            HorizontalAlignmentGeometry.poseAt(alignment, clamped).ifPresent(pose -> {
-                Vec2d point = new Vec2d(pose.x(), pose.y());
-                if (alongChain.isEmpty() || alongChain.getLast().distance(point) > MIN_POINT_SPACING) {
-                    alongChain.add(point);
-                }
-            });
-        }
-        HorizontalAlignmentGeometry.poseAt(alignment, endStation).ifPresent(pose -> {
-            Vec2d point = new Vec2d(pose.x(), pose.y());
-            if (alongChain.isEmpty() || alongChain.getLast().distance(point) > MIN_POINT_SPACING) {
-                alongChain.add(point);
-            }
-        });
-
-        if (alongChain.isEmpty()) {
-            return List.of();
-        }
-        if (!oriented.forward()) {
-            Collections.reverse(alongChain);
-        }
-        return List.copyOf(alongChain);
+        return samplePlanCenterline(network, road, alignment, oriented, spacing).stream()
+            .map(PlanCenterlineSample::position)
+            .toList();
     }
 
     static boolean isNodeExclusiveToRoad(RoadNetwork network, String nodeId, String roadId) {
