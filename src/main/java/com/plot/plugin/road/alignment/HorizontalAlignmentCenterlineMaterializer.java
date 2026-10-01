@@ -98,7 +98,9 @@ public final class HorizontalAlignmentCenterlineMaterializer {
             ? sampleSpacingMeters
             : DEFAULT_SAMPLE_SPACING_METERS;
 
-        List<OrientedRoadSegment> orientedSegments = RoadStationing.orientedSegments(network, road);
+        // Seam 只旋转 Road station origin；物理 Edge 写回须用未 slice 的拓扑分段。
+        List<OrientedRoadSegment> orientedSegments =
+            RoadStationing.physicalEdgeSegmentsForMaterialization(network, road);
         Map<String, List<Vec2d>> centerlinesByEdgeId = new LinkedHashMap<>();
 
         for (OrientedRoadSegment oriented : orientedSegments) {
@@ -325,14 +327,18 @@ public final class HorizontalAlignmentCenterlineMaterializer {
             RoadHorizontalAlignment alignment,
             OrientedRoadSegment oriented,
             double spacing) {
-        if (network != null && road != null && RoadPlanGeometry.hasDesignAlignment(network, road)) {
-            RoadEdge edge = network.getEdge(oriented.edgeId());
-            if (edge != null) {
-                return RoadPlanGeometry.resolveEdgeCenterlineSamples(network, edge, spacing).stream()
-                    .map(PlanCenterlineSample::position)
-                    .toList();
-            }
-        }
+        return samplePhysicalEdgeGeometryPoints(network, road, alignment, oriented, spacing);
+    }
+
+    /**
+     * 单条物理 Edge 的连续中心线采样；不按 LOOP seam traversal slice 拼接。
+     */
+    static List<Vec2d> samplePhysicalEdgeGeometryPoints(
+            RoadNetwork network,
+            Road road,
+            RoadHorizontalAlignment alignment,
+            OrientedRoadSegment oriented,
+            double spacing) {
         return samplePlanCenterline(network, road, alignment, oriented, spacing).stream()
             .map(PlanCenterlineSample::position)
             .toList();

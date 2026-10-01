@@ -226,9 +226,42 @@ public final class RoadPlanGeometry {
     }
 
     /**
-     * 带设计 canonical 桩号的 plan 中心线采样；用于坐标 → 桩号反查。
+     * 物理 Edge 的连续中心线采样（不按 LOOP seam slice 拆分）；用于物化写回。
+     */
+    public static List<PlanCenterlineSample> resolvePhysicalEdgeCenterlineSamples(
+            RoadNetwork network,
+            RoadEdge edge) {
+        return resolvePhysicalEdgeCenterlineSamples(
+            network,
+            edge,
+            HorizontalAlignmentCenterlineMaterializer.DEFAULT_SAMPLE_SPACING_METERS);
+    }
+
+    public static List<PlanCenterlineSample> resolvePhysicalEdgeCenterlineSamples(
+            RoadNetwork network,
+            RoadEdge edge,
+            double sampleSpacingMeters) {
+        if (edge == null || network == null || edge.getRoadId() == null) {
+            return List.of();
+        }
+        Road road = network.getRoadForEdge(edge);
+        if (road == null || !hasDesignAlignment(network, road)) {
+            return List.of();
+        }
+        return RoadStationing.physicalOrientedSegment(network, road, edge.getId())
+            .map(oriented -> HorizontalAlignmentCenterlineMaterializer.samplePlanCenterline(
+                network,
+                road,
+                road.getHorizontalAlignment(),
+                oriented,
+                sampleSpacingMeters))
+            .orElse(List.of());
+    }
+
+    /**
+     * Road traversal 视角的 Edge 采样（LOOP interior seam 下同一 edgeId 可含多个 slice）。
      * <p>
-     * 从 {@link #resolveRoadCenterlineSamples} 按 Edge 所属 slice 过滤，覆盖 LOOP interior seam 双 slice。
+     * 用于 Crossing / station / profile；勿用于 {@link RoadEdge#setCenterlinePoints} 写回。
      */
     public static List<PlanCenterlineSample> resolveEdgeCenterlineSamples(RoadNetwork network, RoadEdge edge) {
         return resolveEdgeCenterlineSamples(

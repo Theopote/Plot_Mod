@@ -67,6 +67,33 @@ public final class RoadStationing {
         return buildOrientedSegments(network, road, false);
     }
 
+    /**
+     * 物理 Edge 写回用语义：不应用 LOOP seam slice 拆分，每个 edgeId 至多出现一次。
+     */
+    public static List<OrientedRoadSegment> physicalEdgeSegmentsForMaterialization(
+            RoadNetwork network,
+            Road road) {
+        return orientedSegmentsWithoutLoopRotation(network, road);
+    }
+
+    /**
+     * 单条物理 Edge 在未旋转链上的定向分段。
+     */
+    public static Optional<OrientedRoadSegment> physicalOrientedSegment(
+            RoadNetwork network,
+            Road road,
+            String edgeId) {
+        if (edgeId == null || edgeId.isBlank()) {
+            return Optional.empty();
+        }
+        for (OrientedRoadSegment segment : physicalEdgeSegmentsForMaterialization(network, road)) {
+            if (segment.edgeId().equals(edgeId)) {
+                return Optional.of(segment);
+            }
+        }
+        return Optional.empty();
+    }
+
     private static List<OrientedRoadSegment> buildOrientedSegments(
             RoadNetwork network,
             Road road,

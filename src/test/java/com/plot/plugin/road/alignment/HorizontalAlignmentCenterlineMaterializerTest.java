@@ -5,11 +5,15 @@ import com.plot.plugin.road.centerline.CenterlineEditResult;
 import com.plot.plugin.road.centerline.CenterlineEditStatus;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.RoadLoopSeam;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.model.RoadTopologyMode;
+import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -17,6 +21,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HorizontalAlignmentCenterlineMaterializerTest {
@@ -280,5 +285,131 @@ class HorizontalAlignmentCenterlineMaterializerTest {
         assertEquals(headBefore, head.getCenterlinePoints());
         assertEquals(zeroBefore, zeroLength.getCenterlinePoints());
         assertEquals(tailBefore, tail.getCenterlinePoints());
+    }
+
+    @Test
+    void loopHa_materializeWithInteriorSeam_preservesContinuousPhysicalEdges() {
+        RoadNetwork network = buildMaterializableSquareLoopHaNetwork();
+        Road road = network.getRoad("square-ha");
+        Vec2d seamPosition = new Vec2d(5, 0);
+
+        CenterlineEditResult result = HorizontalAlignmentCenterlineMaterializer.materialize(network, road);
+        assertTrue(result.isSuccess());
+
+        for (String segmentId : road.getOrderedSegmentIds()) {
+            RoadEdge edge = network.getEdge(segmentId);
+            assertNotNull(edge);
+            assertContinuousPhysicalEdge(edge, 5.0);
+        }
+
+        List<OrientedRoadSegment> physical =
+            RoadStationing.physicalEdgeSegmentsForMaterialization(network, road);
+        assertFalse(physical.isEmpty());
+        OrientedRoadSegment firstSegment = physical.getFirst();
+        OrientedRoadSegment lastSegment = physical.getLast();
+        assertEquals(firstSegment.entryNodeId(), lastSegment.exitNodeId());
+
+        RoadEdge seamEdge = network.getEdge(firstSegment.edgeId());
+        RoadNode startNode = network.getNode(seamEdge.getStartNodeId());
+        RoadNode endNode = network.getNode(seamEdge.getEndNodeId());
+        assertEdgeEndpointsMatchNodes(seamEdge, startNode, endNode, 0.5);
+
+        Vec2d stationZero = RoadPlanGeometry.pointAtStation(network, road, 0.0).orElseThrow();
+        assertEquals(seamPosition.x, stationZero.x, 0.15);
+        assertEquals(seamPosition.y, stationZero.y, 0.15);
+
+        RoadNode loopCloseNode = network.getNode(firstSegment.entryNodeId());
+        RoadEdge closingEdge = network.getEdge(lastSegment.edgeId());
+        assertTrue(closingEdge.getCenterlinePoints().getLast().distance(loopCloseNode.getPosition()) < 1.0);
+    }
+
+    private static void assertContinuousPhysicalEdge(RoadEdge edge, double maxSegmentLength) {
+        List<Vec2d> points = edge.getCenterlinePoints();
+        assertTrue(points.size() >= 2, () -> "edge " + edge.getId() + " has too few points");
+        for (int i = 0; i < points.size() - 1; i++) {
+            double span = points.get(i).distance(points.get(i + 1));
+            assertTrue(span <= maxSegmentLength,
+                "edge " + edge.getId() + " segment " + i + " span=" + span);
+        }
+    }
+
+    private static void assertEdgeEndpointsMatchNodes(
+            RoadEdge edge,
+            RoadNode startNode,
+            RoadNode endNode,
+            double tolerance) {
+        List<Vec2d> points = edge.getCenterlinePoints();
+        assertTrue(points.getFirst().distance(startNode.getPosition()) <= tolerance);
+        assertTrue(points.getLast().distance(endNode.getPosition()) <= tolerance);
+    }
+
+    private static RoadNetwork buildMaterializableSquareLoopHaNetwork() {
+        double arcLen = Math.PI * 10.0 / 2.0;
+        double sideChain = 10.0 + arcLen;
+        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(
+            new Vec2d(0, 0),
+            0.0,
+            List.of(
+                HorizontalAlignmentElement.tangent(10),
+                HorizontalAlignmentElement.circularArc(arcLen, 10, TurnDirection.LEFT),
+                HorizontalAlignmentElement.tangent(10),
+                HorizontalAlignmentElement.circularArc(arcLen, 10, TurnDirection.LEFT),
+                HorizontalAlignmentElement.tangent(10),
+                HorizontalAlignmentElement.circularArc(arcLen, 10, TurnDirection.LEFT),
+                HorizontalAlignmentElement.tangent(10),
+                HorizontalAlignmentElement.circularArc(arcLen, 10, TurnDirection.LEFT)));
+
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("square-ha");
+        road.setHorizontalAlignment(alignment);
+        road.setTopologyMode(RoadTopologyMode.LOOP);
+
+        List<RoadNode> corners = new ArrayList<>(4);
+        for (int i = 0; i < 4; i++) {
+            double chainage = i * sideChain;
+            AlignmentPose pose = HorizontalAlignmentGeometry.poseAt(alignment, chainage).orElseThrow();
+            corners.add(network.createNode(new Vec2d(pose.x(), pose.y())));
+        }
+
+        List<RoadEdge> edges = new ArrayList<>(4);
+        for (int i = 0; i < 4; i++) {
+            int next = (i + 1) % 4;
+            double start = i * sideChain;
+            double end = (i + 1) * sideChain;
+            List<Vec2d> points = sampleAlignmentRange(alignment, start, end, 0.5);
+            edges.add(network.createEdge(
+                corners.get(i).getId(),
+                corners.get(next).getId(),
+                points,
+                road.getId()));
+        }
+
+        RoadEdge seamEdge = edges.getFirst();
+        road.setLoopSeam(RoadLoopSeam.onSegment(
+            new Vec2d(5, 0),
+            seamEdge.getId(),
+            5.0 / sideChain));
+        return network;
+    }
+
+    private static List<Vec2d> sampleAlignmentRange(
+            RoadHorizontalAlignment alignment,
+            double startChainage,
+            double endChainage,
+            double spacing) {
+        List<Vec2d> points = new ArrayList<>();
+        for (double chainage = startChainage; chainage <= endChainage + 1e-6; chainage += spacing) {
+            double clamped = Math.min(chainage, endChainage);
+            HorizontalAlignmentGeometry.poseAt(alignment, clamped)
+                .ifPresent(pose -> points.add(new Vec2d(pose.x(), pose.y())));
+        }
+        HorizontalAlignmentGeometry.poseAt(alignment, endChainage)
+            .ifPresent(pose -> {
+                Vec2d point = new Vec2d(pose.x(), pose.y());
+                if (points.isEmpty() || points.getLast().distance(point) > 1e-3) {
+                    points.add(point);
+                }
+            });
+        return List.copyOf(points);
     }
 }
