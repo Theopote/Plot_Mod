@@ -6,6 +6,7 @@ import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
 import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
+import com.plot.plugin.road.vertical.RoadVerticalIntentTransforms;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.RoadCrossSection;
@@ -669,5 +670,6 @@ public class Road {
         maxSlope = source.maxSlope;
         styleId = source.styleId;
         themeId = source.themeId;
+        RoadVerticalIntentTransforms.copyIntentFrom(this, source);
     }
 }

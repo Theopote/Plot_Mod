@@ -38,6 +38,40 @@ class RoadNetworkVerticalModeMigrationTest {
     }
 
     @Test
+    void schemaV1AutoSmoothWithDormantAlignmentMigratesToFitTerrain() throws Exception {
+        Road road = loadSingleRoad("""
+            {
+              "schemaVersion": 1,
+              "nodes": [
+                {"id":"n1","position":{"x":0,"y":0},"connectedEdgeIds":["e1"]},
+                {"id":"n2","position":{"x":18,"y":0},"connectedEdgeIds":["e1"]}
+              ],
+              "edges": [{
+                "id":"e1",
+                "startNodeId":"n1",
+                "endNodeId":"n2",
+                "centerlinePoints":[{"x":0,"y":0},{"x":18,"y":0}],
+                "roadId":"road-a"
+              }],
+              "roads": [{
+                "id":"road-a",
+                "crossSection": {"carriageway": {"width": 5}},
+                "verticalMode": "AUTO_SMOOTH",
+                "verticalAlignment": {
+                  "pvis": [
+                    {"station": 0.0, "elevation": 70.0},
+                    {"station": 18.0, "elevation": 72.0}
+                  ]
+                },
+                "segmentIds":["e1"]
+              }]
+            }
+            """);
+
+        assertEquals(RoadVerticalMode.FIT_TERRAIN, road.getVerticalMode());
+    }
+
+    @Test
     void schemaV1AutoSmoothWithoutProfileMigratesToFitTerrain() throws Exception {
         Road road = loadSingleRoad("""
             {

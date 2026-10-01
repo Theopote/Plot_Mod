@@ -19,7 +19,7 @@ import com.plot.plugin.road.model.section.RoadCrossSection;
  * <ul>
  *   <li>{@link RoadNetwork#createRoad()} — 空道路，全部字段继承（动态跟随全局默认）</li>
  *   <li>{@link #snapshotGlobalDefaults(Road, RoadSystemConfig)} / 认领 — 将认领面板当前默认<strong>快照</strong>为显式值</li>
- *   <li>{@link Road#copyEngineeringFrom(Road)} — 拆分道路时复制父路显式工程属性</li>
+ *   <li>{@link Road#copyEngineeringFrom(Road)} — 拆分道路时复制父路显式工程属性与垂直意图</li>
  *   <li>单条编辑 / 批量应用 — 用户改动写入显式覆盖</li>
  *   <li>{@link Road#inheritAllDefaults()} — 清空覆盖，恢复动态继承</li>
  * </ul>

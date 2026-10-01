@@ -58,16 +58,19 @@ final class RoadNetworkVerticalModeMigration {
     }
 
     private static boolean shouldMigrateLegacyAutoSmooth(RoadNetwork.RoadData road) {
-        if (road == null || hasFlatVerticalIntent(road) || hasManualVerticalProfile(road)) {
+        if (road == null || hasFlatVerticalIntent(road)) {
+            return false;
+        }
+        if (RoadVerticalMode.MANUAL_PROFILE.name().equalsIgnoreCase(road.verticalMode)) {
             return false;
         }
         if (RoadVerticalMode.FIT_TERRAIN.name().equalsIgnoreCase(road.verticalMode)) {
             return false;
         }
-        if (RoadVerticalMode.FLAT.name().equalsIgnoreCase(road.verticalMode)
-                || RoadVerticalMode.MANUAL_PROFILE.name().equalsIgnoreCase(road.verticalMode)) {
+        if (RoadVerticalMode.FLAT.name().equalsIgnoreCase(road.verticalMode)) {
             return false;
         }
+        // v1 的 AUTO_SMOOTH 即使残留 dormant verticalAlignment 也应迁移为 FIT_TERRAIN
         return road.verticalMode == null
             || road.verticalMode.isBlank()
             || RoadVerticalMode.AUTO_SMOOTH.name().equalsIgnoreCase(road.verticalMode);

@@ -13,6 +13,7 @@ import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.StationCrossSection;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
+import com.plot.plugin.road.vertical.RoadVerticalIntentTransforms;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -91,6 +92,7 @@ public final class RoadStationDataTransforms {
         }
         double totalLength = RoadStationing.canonicalLength(network, head);
         boolean refit = applyRoadSplit(head, tail, splitStation, totalLength);
+        RoadVerticalIntentTransforms.partitionFlatIntentOnRoadSplit(network, head, tail, splitStation);
         if (refit) {
             refitHorizontalAlignmentFromCenterline(network, head);
             refitHorizontalAlignmentFromCenterline(network, tail);
