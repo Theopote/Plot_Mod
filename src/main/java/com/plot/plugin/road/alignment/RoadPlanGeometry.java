@@ -5,10 +5,14 @@ import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadTopologyMode;
 import com.plot.plugin.road.station.OrientedRoadSegment;
+import com.plot.plugin.road.station.RoadLoopSeamService;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.station.SegmentStation;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -93,7 +97,9 @@ public final class RoadPlanGeometry {
 
     public static Optional<Vec2d> pointAtStation(RoadNetwork network, Road road, double chainageMeters) {
         if (hasDesignAlignment(network, road)) {
-            return HorizontalAlignmentGeometry.poseAt(road.getHorizontalAlignment(), chainageMeters)
+            return HorizontalAlignmentGeometry.poseAt(
+                    road.getHorizontalAlignment(),
+                    haNativeStation(network, road, chainageMeters))
                 .map(pose -> new Vec2d(pose.x(), pose.y()));
         }
         return instancePointAtStation(network, road, chainageMeters);
@@ -101,7 +107,9 @@ public final class RoadPlanGeometry {
 
     public static Optional<AlignmentPose> poseAtStation(RoadNetwork network, Road road, double chainageMeters) {
         if (hasDesignAlignment(network, road)) {
-            return HorizontalAlignmentGeometry.poseAt(road.getHorizontalAlignment(), chainageMeters);
+            return HorizontalAlignmentGeometry.poseAt(
+                road.getHorizontalAlignment(),
+                haNativeStation(network, road, chainageMeters));
         }
         return instancePointAtStation(network, road, chainageMeters)
             .flatMap(point -> instanceBearingAtStation(network, road, chainageMeters)
@@ -110,7 +118,9 @@ public final class RoadPlanGeometry {
 
     public static Optional<Double> bearingAtStation(RoadNetwork network, Road road, double chainageMeters) {
         if (hasDesignAlignment(network, road)) {
-            return HorizontalAlignmentGeometry.poseAt(road.getHorizontalAlignment(), chainageMeters)
+            return HorizontalAlignmentGeometry.poseAt(
+                    road.getHorizontalAlignment(),
+                    haNativeStation(network, road, chainageMeters))
                 .map(AlignmentPose::bearingRadians);
         }
         return instanceBearingAtStation(network, road, chainageMeters);
@@ -183,7 +193,42 @@ public final class RoadPlanGeometry {
     }
 
     /**
+     * 整条 Road 的 plan 中心线采样（canonical 0 → L）；HA 与实例折线统一入口。
+     */
+    public static List<PlanCenterlineSample> resolveRoadCenterlineSamples(RoadNetwork network, Road road) {
+        return resolveRoadCenterlineSamples(
+            network,
+            road,
+            HorizontalAlignmentCenterlineMaterializer.DEFAULT_SAMPLE_SPACING_METERS);
+    }
+
+    public static List<PlanCenterlineSample> resolveRoadCenterlineSamples(
+            RoadNetwork network,
+            Road road,
+            double sampleSpacingMeters) {
+        if (network == null || road == null || network.getRoad(road.getId()) == null) {
+            return List.of();
+        }
+        double spacing = sampleSpacingMeters > STATION_EPSILON
+            ? sampleSpacingMeters
+            : HorizontalAlignmentCenterlineMaterializer.DEFAULT_SAMPLE_SPACING_METERS;
+        double total = canonicalLength(network, road);
+        if (total <= STATION_EPSILON) {
+            return List.of();
+        }
+        List<PlanCenterlineSample> samples = new ArrayList<>();
+        for (double chainage = 0.0; chainage <= total + STATION_EPSILON; chainage += spacing) {
+            double clamped = Math.min(chainage, total);
+            appendRoadSampleIfDistinct(network, road, samples, clamped);
+        }
+        appendRoadSampleIfDistinct(network, road, samples, total);
+        return List.copyOf(samples);
+    }
+
+    /**
      * 带设计 canonical 桩号的 plan 中心线采样；用于坐标 → 桩号反查。
+     * <p>
+     * 从 {@link #resolveRoadCenterlineSamples} 按 Edge 所属 slice 过滤，覆盖 LOOP interior seam 双 slice。
      */
     public static List<PlanCenterlineSample> resolveEdgeCenterlineSamples(RoadNetwork network, RoadEdge edge) {
         return resolveEdgeCenterlineSamples(
@@ -196,20 +241,22 @@ public final class RoadPlanGeometry {
             RoadNetwork network,
             RoadEdge edge,
             double sampleSpacingMeters) {
-        if (edge == null || network == null) {
-            return List.of();
-        }
-        Optional<OrientedRoadSegment> oriented = resolveOrientedSegment(network, edge);
-        if (oriented.isEmpty()) {
+        if (edge == null || network == null || edge.getRoadId() == null) {
             return List.of();
         }
         Road road = network.getRoadForEdge(edge);
-        return HorizontalAlignmentCenterlineMaterializer.samplePlanCenterline(
+        if (road == null) {
+            return List.of();
+        }
+        List<OrientedRoadSegment> slices = RoadStationing.orientedSegmentsForEdge(network, road, edge.getId());
+        if (slices.isEmpty()) {
+            return List.of();
+        }
+        return filterSamplesForSlices(
             network,
             road,
-            road.getHorizontalAlignment(),
-            oriented.get(),
-            sampleSpacingMeters);
+            resolveRoadCenterlineSamples(network, road, sampleSpacingMeters),
+            slices);
     }
 
     /**
@@ -331,5 +378,119 @@ public final class RoadPlanGeometry {
             return Optional.empty();
         }
         return RoadStationing.orientedSegment(network, network.getRoadForEdge(edge), edge.getId());
+    }
+
+    /**
+     * LOOP canonical 桩号 → HA native 桩号；LINEAR 或无 seam 时恒等。
+     */
+    static double haNativeStation(RoadNetwork network, Road road, double canonicalStation) {
+        if (road == null || !Double.isFinite(canonicalStation)) {
+            return 0.0;
+        }
+        if (road.getTopologyMode() != RoadTopologyMode.LOOP || road.getLoopSeam() == null) {
+            return canonicalStation;
+        }
+        double designLength = designLength(network, road);
+        if (designLength <= STATION_EPSILON) {
+            return canonicalStation;
+        }
+        double offset = seamHaNativeOffset(network, road);
+        double nativeStation = canonicalStation + offset;
+        if (nativeStation >= designLength - STATION_EPSILON) {
+            nativeStation -= designLength;
+        }
+        return Math.max(0.0, Math.min(nativeStation, designLength));
+    }
+
+    private static double seamHaNativeOffset(RoadNetwork network, Road road) {
+        if (network == null || road == null
+                || road.getTopologyMode() != RoadTopologyMode.LOOP
+                || road.getLoopSeam() == null) {
+            return 0.0;
+        }
+        RoadHorizontalAlignment alignment = road.getHorizontalAlignment();
+        if (alignment == null || alignment.isEmpty()) {
+            return 0.0;
+        }
+        Vec2d seamPosition = RoadLoopSeamService.overlayPosition(network, road);
+        if (seamPosition == null) {
+            return 0.0;
+        }
+        List<PlanCenterlineSample> nativeSamples = sampleHaNativeUnrotated(
+            alignment,
+            HorizontalAlignmentCenterlineMaterializer.DEFAULT_SAMPLE_SPACING_METERS);
+        return chainageAtPositionOnPlanSamples(seamPosition, nativeSamples).orElse(0.0);
+    }
+
+    private static List<PlanCenterlineSample> sampleHaNativeUnrotated(
+            RoadHorizontalAlignment alignment,
+            double sampleSpacingMeters) {
+        double total = HorizontalAlignmentGeometry.totalLength(alignment);
+        if (total <= STATION_EPSILON) {
+            return List.of();
+        }
+        double spacing = sampleSpacingMeters > STATION_EPSILON
+            ? sampleSpacingMeters
+            : HorizontalAlignmentCenterlineMaterializer.DEFAULT_SAMPLE_SPACING_METERS;
+        List<PlanCenterlineSample> samples = new ArrayList<>();
+        for (double chainage = 0.0; chainage <= total + STATION_EPSILON; chainage += spacing) {
+            double clamped = Math.min(chainage, total);
+            HorizontalAlignmentGeometry.poseAt(alignment, clamped).ifPresent(pose -> {
+                Vec2d point = new Vec2d(pose.x(), pose.y());
+                if (samples.isEmpty()
+                        || samples.getLast().position().distance(point) > STATION_EPSILON) {
+                    samples.add(new PlanCenterlineSample(point, clamped));
+                }
+            });
+        }
+        HorizontalAlignmentGeometry.poseAt(alignment, total).ifPresent(pose -> {
+            Vec2d point = new Vec2d(pose.x(), pose.y());
+            if (samples.isEmpty()
+                    || samples.getLast().position().distance(point) > STATION_EPSILON) {
+                samples.add(new PlanCenterlineSample(point, total));
+            }
+        });
+        return List.copyOf(samples);
+    }
+
+    private static void appendRoadSampleIfDistinct(
+            RoadNetwork network,
+            Road road,
+            List<PlanCenterlineSample> samples,
+            double canonicalStation) {
+        pointAtStation(network, road, canonicalStation).ifPresent(point -> {
+            if (samples.isEmpty()
+                    || samples.getLast().position().distance(point) > STATION_EPSILON
+                    || Math.abs(samples.getLast().canonicalStation() - canonicalStation) > STATION_EPSILON) {
+                samples.add(new PlanCenterlineSample(point, canonicalStation));
+            }
+        });
+    }
+
+    private static List<PlanCenterlineSample> filterSamplesForSlices(
+            RoadNetwork network,
+            Road road,
+            List<PlanCenterlineSample> roadSamples,
+            List<OrientedRoadSegment> slices) {
+        if (roadSamples.isEmpty() || slices.isEmpty()) {
+            return List.of();
+        }
+        List<PlanCenterlineSample> filtered = new ArrayList<>();
+        for (OrientedRoadSegment slice : slices) {
+            double start = RoadStationing.toCanonicalChainage(network, road, slice.startStation());
+            double end = RoadStationing.toCanonicalChainage(network, road, slice.endStation());
+            List<PlanCenterlineSample> sliceSamples = new ArrayList<>();
+            for (PlanCenterlineSample sample : roadSamples) {
+                if (sample.canonicalStation() >= start - STATION_EPSILON
+                        && sample.canonicalStation() <= end + STATION_EPSILON) {
+                    sliceSamples.add(sample);
+                }
+            }
+            if (!slice.forward()) {
+                Collections.reverse(sliceSamples);
+            }
+            filtered.addAll(sliceSamples);
+        }
+        return List.copyOf(filtered);
     }
 }

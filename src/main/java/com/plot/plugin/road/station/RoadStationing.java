@@ -118,15 +118,27 @@ public final class RoadStationing {
             RoadNetwork network,
             Road road,
             String segmentId) {
-        if (segmentId == null || segmentId.isBlank()) {
-            return Optional.empty();
+        List<OrientedRoadSegment> matches = orientedSegmentsForEdge(network, road, segmentId);
+        return matches.isEmpty() ? Optional.empty() : Optional.of(matches.getFirst());
+    }
+
+    /**
+     * 返回 edgeId 对应的全部 traversal slice（LOOP interior seam 可能拆成两段）。
+     */
+    public static List<OrientedRoadSegment> orientedSegmentsForEdge(
+            RoadNetwork network,
+            Road road,
+            String edgeId) {
+        if (edgeId == null || edgeId.isBlank()) {
+            return List.of();
         }
+        List<OrientedRoadSegment> matches = new ArrayList<>();
         for (OrientedRoadSegment segment : orientedSegments(network, road)) {
-            if (segment.edgeId().equals(segmentId)) {
-                return Optional.of(segment);
+            if (segment.edgeId().equals(edgeId)) {
+                matches.add(segment);
             }
         }
-        return Optional.empty();
+        return List.copyOf(matches);
     }
 
     /**
@@ -337,12 +349,12 @@ public final class RoadStationing {
             RoadNetwork network,
             Road road,
             Vec2d position,
-            java.util.Map<String, List<PlanCenterlineSample>> cachedSamplesByEdgeId) {
+            java.util.Map<String, List<PlanCenterlineSample>> cachedSamplesByRoadId) {
         if (network == null || road == null || position == null || network.getRoad(road.getId()) == null) {
             return OptionalDouble.empty();
         }
         if (RoadPlanGeometry.hasDesignAlignment(network, road)) {
-            return chainageAtPositionOnDesignAlignment(network, road, position, cachedSamplesByEdgeId);
+            return chainageAtPositionOnDesignAlignment(network, road, position, cachedSamplesByRoadId);
         }
         return chainageAtPositionOnInstanceCenterline(network, road, position);
     }
@@ -351,30 +363,20 @@ public final class RoadStationing {
             RoadNetwork network,
             Road road,
             Vec2d position,
-            java.util.Map<String, List<PlanCenterlineSample>> cachedSamplesByEdgeId) {
-        double bestDistance = Double.MAX_VALUE;
-        Double bestChainage = null;
-        for (OrientedRoadSegment segment : orientedSegments(network, road)) {
-            RoadEdge edge = network.getEdge(segment.edgeId());
-            if (edge == null) {
-                continue;
-            }
-            List<PlanCenterlineSample> samples = cachedSamplesByEdgeId != null
-                ? cachedSamplesByEdgeId.computeIfAbsent(
-                    edge.getId(), id -> RoadPlanGeometry.resolveEdgeCenterlineSamples(network, edge))
-                : RoadPlanGeometry.resolveEdgeCenterlineSamples(network, edge);
-            OptionalDouble chainage = RoadPlanGeometry.chainageAtPositionOnPlanSamples(position, samples);
-            if (chainage.isEmpty()) {
-                continue;
-            }
-            double distance = distanceToPlanSamples(position, samples);
-            if (distance > RoadNetworkBuilder.NODE_TOLERANCE || distance >= bestDistance) {
-                continue;
-            }
-            bestDistance = distance;
-            bestChainage = chainage.getAsDouble();
+            java.util.Map<String, List<PlanCenterlineSample>> cachedSamplesByRoadId) {
+        List<PlanCenterlineSample> samples = cachedSamplesByRoadId != null
+            ? cachedSamplesByRoadId.computeIfAbsent(
+                road.getId(), id -> RoadPlanGeometry.resolveRoadCenterlineSamples(network, road))
+            : RoadPlanGeometry.resolveRoadCenterlineSamples(network, road);
+        OptionalDouble chainage = RoadPlanGeometry.chainageAtPositionOnPlanSamples(position, samples);
+        if (chainage.isEmpty()) {
+            return OptionalDouble.empty();
         }
-        return bestChainage != null ? OptionalDouble.of(bestChainage) : OptionalDouble.empty();
+        double distance = distanceToPlanSamples(position, samples);
+        if (distance > RoadNetworkBuilder.NODE_TOLERANCE) {
+            return OptionalDouble.empty();
+        }
+        return chainage;
     }
 
     private static double distanceToPlanSamples(Vec2d position, List<PlanCenterlineSample> samples) {

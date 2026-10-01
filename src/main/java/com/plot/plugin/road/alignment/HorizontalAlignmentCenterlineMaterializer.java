@@ -325,6 +325,14 @@ public final class HorizontalAlignmentCenterlineMaterializer {
             RoadHorizontalAlignment alignment,
             OrientedRoadSegment oriented,
             double spacing) {
+        if (network != null && road != null && RoadPlanGeometry.hasDesignAlignment(network, road)) {
+            RoadEdge edge = network.getEdge(oriented.edgeId());
+            if (edge != null) {
+                return RoadPlanGeometry.resolveEdgeCenterlineSamples(network, edge, spacing).stream()
+                    .map(PlanCenterlineSample::position)
+                    .toList();
+            }
+        }
         return samplePlanCenterline(network, road, alignment, oriented, spacing).stream()
             .map(PlanCenterlineSample::position)
             .toList();

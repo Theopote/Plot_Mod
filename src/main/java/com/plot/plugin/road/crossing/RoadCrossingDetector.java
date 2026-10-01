@@ -8,6 +8,7 @@ import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
 
 import java.util.ArrayList;
@@ -32,17 +33,17 @@ public final class RoadCrossingDetector {
             return List.of();
         }
         DetectionSession session = new DetectionSession(network);
-        List<RoadEdge> edges = new ArrayList<>(network.getEdges().values());
+        List<Road> roads = new ArrayList<>(network.getRoads().values());
         Map<String, RoadCrossing> deduped = new LinkedHashMap<>();
-        for (int i = 0; i < edges.size(); i++) {
-            RoadEdge edgeA = edges.get(i);
-            for (int j = i + 1; j < edges.size(); j++) {
-                RoadEdge edgeB = edges.get(j);
-                if (edgeA.getRoadId() == null || edgeA.getRoadId().equals(edgeB.getRoadId())) {
+        for (int i = 0; i < roads.size(); i++) {
+            Road roadA = roads.get(i);
+            for (int j = i + 1; j < roads.size(); j++) {
+                Road roadB = roads.get(j);
+                if (roadA.getId() == null || roadA.getId().equals(roadB.getId())) {
                     continue;
                 }
-                for (Vec2d point : findSegmentIntersections(session, edgeA, edgeB)) {
-                    RoadCrossing crossing = toCrossing(session, edgeA, edgeB, point);
+                for (Vec2d point : findSegmentIntersections(session, roadA, roadB)) {
+                    RoadCrossing crossing = toCrossing(session, roadA, roadB, point);
                     if (crossing != null) {
                         deduped.putIfAbsent(dedupeKey(crossing), crossing);
                     }
@@ -54,10 +55,10 @@ public final class RoadCrossingDetector {
 
     private static List<Vec2d> findSegmentIntersections(
             DetectionSession session,
-            RoadEdge edgeA,
-            RoadEdge edgeB) {
-        List<Vec2d> centerlineA = session.planCenterline(edgeA);
-        List<Vec2d> centerlineB = session.planCenterline(edgeB);
+            Road roadA,
+            Road roadB) {
+        List<Vec2d> centerlineA = session.planCenterline(roadA);
+        List<Vec2d> centerlineB = session.planCenterline(roadB);
         if (centerlineA.size() < 2 || centerlineB.size() < 2) {
             return List.of();
         }
@@ -128,18 +129,16 @@ public final class RoadCrossingDetector {
 
     private static RoadCrossing toCrossing(
             DetectionSession session,
-            RoadEdge edgeA,
-            RoadEdge edgeB,
+            Road roadA,
+            Road roadB,
             Vec2d position) {
-        Road roadA = session.network.getRoad(edgeA.getRoadId());
-        Road roadB = session.network.getRoad(edgeB.getRoadId());
         if (roadA == null || roadB == null) {
             return null;
         }
         OptionalDouble chainageA = RoadStationing.chainageAtPosition(
-            session.network, roadA, position, session.samplesByEdgeId);
+            session.network, roadA, position, session.samplesByRoadId);
         OptionalDouble chainageB = RoadStationing.chainageAtPosition(
-            session.network, roadB, position, session.samplesByEdgeId);
+            session.network, roadB, position, session.samplesByRoadId);
         if (chainageA.isEmpty() || chainageB.isEmpty()) {
             return null;
         }
@@ -179,22 +178,85 @@ public final class RoadCrossingDetector {
 
     private static final class DetectionSession {
         private final RoadNetwork network;
-        private final Map<String, List<PlanCenterlineSample>> samplesByEdgeId = new HashMap<>();
+        private final Map<String, List<PlanCenterlineSample>> samplesByRoadId = new HashMap<>();
 
         private DetectionSession(RoadNetwork network) {
             this.network = network;
         }
 
-        private List<Vec2d> planCenterline(RoadEdge edge) {
-            if (!RoadPlanGeometry.usesDesignAlignment(network, edge)) {
-                return List.copyOf(edge.getCenterlinePoints());
+        private List<Vec2d> planCenterline(Road road) {
+            if (road == null) {
+                return List.of();
             }
-            return samplesFor(edge).stream().map(PlanCenterlineSample::position).toList();
+            if (RoadPlanGeometry.hasDesignAlignment(network, road)) {
+                return samplesFor(road).stream().map(PlanCenterlineSample::position).toList();
+            }
+            return instancePlanCenterline(road);
         }
 
-        private List<PlanCenterlineSample> samplesFor(RoadEdge edge) {
-            return samplesByEdgeId.computeIfAbsent(
-                edge.getId(), id -> RoadPlanGeometry.resolveEdgeCenterlineSamples(network, edge));
+        private List<PlanCenterlineSample> samplesFor(Road road) {
+            return samplesByRoadId.computeIfAbsent(
+                road.getId(), id -> RoadPlanGeometry.resolveRoadCenterlineSamples(network, road));
+        }
+
+        private List<Vec2d> instancePlanCenterline(Road road) {
+            List<Vec2d> merged = new ArrayList<>();
+            for (OrientedRoadSegment segment : RoadStationing.orientedSegments(network, road)) {
+                appendJoined(merged, orientedSegmentPoints(segment));
+            }
+            return List.copyOf(merged);
+        }
+
+        private List<Vec2d> orientedSegmentPoints(OrientedRoadSegment segment) {
+            RoadEdge edge = network.getEdge(segment.edgeId());
+            if (edge == null) {
+                return List.of();
+            }
+            List<Vec2d> points = edge.getCenterlinePoints();
+            if (points.isEmpty()) {
+                return List.of();
+            }
+            if (!segment.isPartialSlice()) {
+                return segment.forward() ? List.copyOf(points) : reverseCopy(points);
+            }
+            List<Vec2d> slice = new ArrayList<>();
+            double spacing = 0.25;
+            for (double chainLocal = 0.0; chainLocal <= segment.length() + INTERSECTION_EPSILON; chainLocal += spacing) {
+                double geometryLocal = segment.geometryLocalFromChainLocal(Math.min(chainLocal, segment.length()));
+                Vec2d point = RoadGeometryUtils.pointAtDistance(points, geometryLocal);
+                if (point == null) {
+                    continue;
+                }
+                if (slice.isEmpty() || slice.getLast().distance(point) > INTERSECTION_EPSILON) {
+                    slice.add(point);
+                }
+            }
+            return List.copyOf(slice);
+        }
+
+        private static List<Vec2d> reverseCopy(List<Vec2d> points) {
+            List<Vec2d> reversed = new ArrayList<>(points.size());
+            for (int i = points.size() - 1; i >= 0; i--) {
+                reversed.add(points.get(i));
+            }
+            return reversed;
+        }
+
+        private static void appendJoined(List<Vec2d> merged, List<Vec2d> points) {
+            if (points.isEmpty()) {
+                return;
+            }
+            if (merged.isEmpty()) {
+                merged.addAll(points);
+                return;
+            }
+            Vec2d last = merged.getLast();
+            Vec2d first = points.getFirst();
+            if (last.distance(first) <= INTERSECTION_EPSILON) {
+                merged.addAll(points.subList(1, points.size()));
+            } else {
+                merged.addAll(points);
+            }
         }
     }
 }

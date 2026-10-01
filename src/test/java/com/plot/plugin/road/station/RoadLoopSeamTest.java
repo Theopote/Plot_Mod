@@ -1,9 +1,14 @@
 package com.plot.plugin.road.station;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.alignment.HorizontalAlignmentElement;
+import com.plot.plugin.road.alignment.PlanCenterlineSample;
+import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
 import com.plot.plugin.road.alignment.RoadPlanGeometry;
+import com.plot.plugin.road.alignment.TurnDirection;
 import com.plot.plugin.road.crossing.CrossingType;
 import com.plot.plugin.road.crossing.RoadCrossing;
+import com.plot.plugin.road.crossing.RoadCrossingDetector;
 import com.plot.plugin.road.crossing.RoadCrossingReconciler;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
@@ -19,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -159,6 +165,111 @@ class RoadLoopSeamTest {
     void rotateLoopStation_wrapsCorrectly() {
         assertEquals(90.0, RoadLoopSeamService.rotateLoopStation(10.0, 20.0, 100.0), 1e-6);
         assertEquals(0.0, RoadLoopSeamService.rotateLoopStation(25.0, 25.0, 100.0), 1e-6);
+    }
+
+    @Test
+    void loopHa_interiorSeam_stationZeroAtSeam() {
+        RoadNetwork network = buildSquareLoopHaNetwork();
+        Road road = network.getRoad("square-ha");
+        Vec2d seamPosition = new Vec2d(5, 0);
+
+        Vec2d stationZero = RoadPlanGeometry.pointAtStation(network, road, 0.0).orElseThrow();
+        assertEquals(seamPosition.x, stationZero.x, 0.1);
+        assertEquals(seamPosition.y, stationZero.y, 0.1);
+    }
+
+    @Test
+    void loopHa_interiorSeam_roadSamplesCoverFullLoop() {
+        RoadNetwork network = buildSquareLoopHaNetwork();
+        Road road = network.getRoad("square-ha");
+
+        List<PlanCenterlineSample> samples = RoadPlanGeometry.resolveRoadCenterlineSamples(network, road);
+        assertFalse(samples.isEmpty());
+        assertEquals(RoadPlanGeometry.canonicalLength(network, road), samples.getLast().canonicalStation(), 0.5);
+
+        Vec2d seamPosition = new Vec2d(5, 0);
+        assertEquals(seamPosition.x, samples.getFirst().position().x, 0.1);
+        assertEquals(seamPosition.y, samples.getFirst().position().y, 0.1);
+    }
+
+    @Test
+    void loopHa_interiorSeam_crossingOnHeadSlice_detected() {
+        RoadNetwork network = buildSquareLoopHaNetwork();
+        Road loopRoad = network.getRoad("square-ha");
+
+        Road crossRoad = network.createRoad("cross");
+        network.createEdge(
+            network.createNode(new Vec2d(2.5, -5)).getId(),
+            network.createNode(new Vec2d(2.5, 5)).getId(),
+            List.of(new Vec2d(2.5, -5), new Vec2d(2.5, 5)),
+            crossRoad.getId());
+
+        List<RoadCrossing> crossings = RoadCrossingDetector.detectAll(network);
+        assertEquals(1, crossings.size());
+        RoadCrossing crossing = crossings.getFirst();
+        assertTrue(crossing.involvesRoad(loopRoad.getId()));
+        assertTrue(crossing.involvesRoad(crossRoad.getId()));
+        assertEquals(2.5, crossing.position().x, 0.2);
+        assertEquals(0.0, crossing.position().y, 0.2);
+    }
+
+    @Test
+    void loopHa_chainageRoundTrip_afterInteriorSeam() {
+        RoadNetwork network = buildSquareLoopHaNetwork();
+        Road road = network.getRoad("square-ha");
+        double total = RoadPlanGeometry.canonicalLength(network, road);
+
+        assertChainageRoundTrip(network, road, 0.0, 0.15);
+        assertChainageRoundTrip(network, road, total * 0.25, 0.15);
+        assertChainageRoundTrip(network, road, total * 0.75, 0.15);
+    }
+
+    private static void assertChainageRoundTrip(
+            RoadNetwork network,
+            Road road,
+            double designChainage,
+            double tolerance) {
+        Vec2d position = RoadStationing.pointAtStation(network, road, designChainage).orElseThrow();
+        double actual = RoadStationing.chainageAtPosition(network, road, position).orElseThrow();
+        assertEquals(designChainage, actual, tolerance,
+            () -> "design=" + designChainage + " position=" + position);
+    }
+
+    private static RoadNetwork buildSquareLoopHaNetwork() {
+        double arcLen = Math.PI * 10.0 / 2.0;
+        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(
+            new Vec2d(0, 0),
+            0.0,
+            List.of(
+                HorizontalAlignmentElement.tangent(10),
+                HorizontalAlignmentElement.circularArc(arcLen, 10, TurnDirection.LEFT),
+                HorizontalAlignmentElement.tangent(10),
+                HorizontalAlignmentElement.circularArc(arcLen, 10, TurnDirection.LEFT),
+                HorizontalAlignmentElement.tangent(10),
+                HorizontalAlignmentElement.circularArc(arcLen, 10, TurnDirection.LEFT),
+                HorizontalAlignmentElement.tangent(10),
+                HorizontalAlignmentElement.circularArc(arcLen, 10, TurnDirection.LEFT)));
+
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("square-ha");
+        road.setHorizontalAlignment(alignment);
+        road.setTopologyMode(RoadTopologyMode.LOOP);
+
+        RoadNode n0 = network.createNode(new Vec2d(0, 0));
+        RoadNode n1 = network.createNode(new Vec2d(10, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 10));
+        RoadNode n3 = network.createNode(new Vec2d(0, 10));
+        RoadEdge edge1 = network.createEdge(n0.getId(), n1.getId(), List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+        network.createEdge(n1.getId(), n2.getId(), List.of(
+            new Vec2d(10, 0), new Vec2d(10, 10)), road.getId());
+        network.createEdge(n2.getId(), n3.getId(), List.of(
+            new Vec2d(10, 10), new Vec2d(0, 10)), road.getId());
+        network.createEdge(n3.getId(), n0.getId(), List.of(
+            new Vec2d(0, 10), new Vec2d(0, 0)), road.getId());
+
+        road.setLoopSeam(RoadLoopSeam.onSegment(new Vec2d(5, 0), edge1.getId(), 0.5));
+        return network;
     }
 
     @Test
