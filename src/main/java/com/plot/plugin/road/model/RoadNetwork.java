@@ -77,7 +77,7 @@ import java.util.stream.Collectors;
 public class RoadNetwork {
 
     /** 路网 sidecar JSON 格式版本（{@link NetworkData#schemaVersion}）。 */
-    public static final int CURRENT_SCHEMA_VERSION = 1;
+    public static final int CURRENT_SCHEMA_VERSION = 2;
 
     private static final Gson GSON = new GsonBuilder()
         .setPrettyPrinting()
@@ -691,6 +691,7 @@ public class RoadNetwork {
         while (version < CURRENT_SCHEMA_VERSION) {
             data = switch (version) {
                 case 0 -> migrateV0ToV1(data);
+                case 1 -> RoadNetworkVerticalModeMigration.migrateV1ToV2(data);
                 default -> throw new RoadNetworkFormatException(
                     RoadNetworkFormatException.Reason.UNSUPPORTED_FORMAT_VERSION,
                     PlotI18n.error(
@@ -700,6 +701,7 @@ public class RoadNetwork {
             };
             version = data.schemaVersion;
         }
+        RoadNetworkVerticalModeMigration.normalizeLoadedVerticalModes(data);
         return data;
     }
 
@@ -1152,7 +1154,9 @@ public class RoadNetwork {
                 }
                 roadData.horizontalAlignment = HorizontalAlignmentPersistence.toData(road.getHorizontalAlignment());
                 roadData.verticalAlignment = VerticalAlignmentPersistence.toData(road.getVerticalAlignment());
-                roadData.verticalMode = road.getVerticalMode().name();
+                if (road.getStoredVerticalMode() != null) {
+                    roadData.verticalMode = road.getStoredVerticalMode().name();
+                }
                 roadData.flatVerticalIntent = FlatVerticalIntentPersistence.toData(road.getFlatVerticalIntent());
                 roadData.variableCrossSections = VariableCrossSectionPersistence.toData(road.getVariableCrossSections());
                 roadData.stationFacilities = StationFacilityPersistence.toData(road.getStationFacilities());

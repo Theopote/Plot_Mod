@@ -477,6 +477,11 @@ public class Road {
             : RoadVerticalMode.AUTO_SMOOTH;
     }
 
+    /** 持久化字段；{@code null} 表示未显式设置（加载时由迁移逻辑决议）。 */
+    public RoadVerticalMode getStoredVerticalMode() {
+        return verticalMode;
+    }
+
     public void setVerticalMode(RoadVerticalMode verticalMode) {
         this.verticalMode = verticalMode;
     }

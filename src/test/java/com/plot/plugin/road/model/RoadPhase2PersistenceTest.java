@@ -84,6 +84,7 @@ class RoadPhase2PersistenceTest {
         assertNull(restored.getVerticalAlignment());
         assertNull(restored.getVariableCrossSections());
         assertNull(restored.getStationFacilities());
+        assertEquals(RoadVerticalMode.FIT_TERRAIN, restored.getVerticalMode());
     }
 
     private static RoadNetwork buildNetworkWithPhase2Road() {
@@ -94,6 +95,7 @@ class RoadPhase2PersistenceTest {
         road.setWidth(6);
         road.setHorizontalAlignment(sampleHorizontalAlignment());
         road.setVerticalAlignment(sampleVerticalAlignment());
+        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
         road.setVariableCrossSections(sampleVariableCrossSections());
         road.setStationFacilities(sampleStationFacilities());
 
