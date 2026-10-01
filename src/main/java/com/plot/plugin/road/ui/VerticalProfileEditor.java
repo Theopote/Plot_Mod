@@ -14,6 +14,7 @@ import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.profile.ProfileChartRenderMode;
 import com.plot.plugin.road.profile.ProfileControlPoint;
 import com.plot.plugin.road.profile.ProfilePointRole;
+import com.plot.plugin.road.profile.ProfileChartLegend;
 import com.plot.plugin.road.profile.ProfileRenderCache;
 import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.profile.RoadProfileChartRenderer;
@@ -203,10 +204,17 @@ final class VerticalProfileEditor {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         List<RoadProfileIntersection> intersections = resolveIntersections(
             ctx, network, road, config, chartData, true);
-        RoadProfileChartRenderer.renderOverview(
-            chartData, design, intersections, INLINE_CHART_HEIGHT, flatOverlay);
         boolean flatMode = RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT;
+        RoadProfileChartRenderer.renderOverview(
+            chartData,
+            design,
+            intersections,
+            INLINE_CHART_HEIGHT,
+            flatOverlay,
+            ProfileChartRenderMode.OVERVIEW,
+            road.getVerticalMode());
         renderInlineLegend(
+            road,
             design,
             intersections,
             flatOverlay,
@@ -417,8 +425,6 @@ final class VerticalProfileEditor {
             RoadNetwork network,
             Road road,
             RoadProfileChartData chartData,
-            VerticalAlignmentProfileOverlay design,
-            List<ProfileControlPoint> controls,
             FlatElevationProfileOverlay flatOverlay,
             List<RoadProfileIntersection> intersections) {
         long cacheKey = ProfileRenderCache.computeKey(
@@ -432,7 +438,7 @@ final class VerticalProfileEditor {
             return profileRenderCache;
         }
         profileRenderCache = ProfileRenderCache.build(
-            cacheKey, chartData, design, controls, intersections, flatOverlay);
+            cacheKey, chartData, intersections, flatOverlay);
         return profileRenderCache;
     }
 
@@ -480,63 +486,19 @@ final class VerticalProfileEditor {
     }
 
     private static void renderInlineLegend(
+            Road road,
             VerticalAlignmentProfileOverlay design,
             List<RoadProfileIntersection> intersections,
             FlatElevationProfileOverlay flatOverlay,
             boolean flatMode,
             boolean buildPreviewStale) {
-        String actualRoadLabel = buildPreviewStale
-            ? PlotI18n.tr("plugin.road.profile_last_preview_stale")
-            : PlotI18n.tr("plugin.road.profile_actual_road");
-        String targetLabel = buildPreviewStale
-            ? PlotI18n.tr("plugin.road.profile_last_preview_stale")
-            : PlotI18n.tr("plugin.road.profile_target");
-        ImGui.textColored(0xFF8B5A2B, "■ " + PlotI18n.tr("plugin.road.profile_ground"));
-        if (flatMode) {
-            ImGui.sameLine();
-            ImGui.textColored(0xFFB0B0B0, "■ " + actualRoadLabel);
-            if (flatOverlay != null && flatOverlay.showCurrent()) {
-                ImGui.sameLine();
-                ImGui.textColored(0xFF66D9EF, "--- " + PlotI18n.tr(
-                    "plugin.road.profile_flat_base_y",
-                    flatOverlay.currentElevation()));
-            }
-            if (flatOverlay != null && flatOverlay.showSuggested()) {
-                ImGui.sameLine();
-                ImGui.textColored(0xFFFFB84D, "=== " + PlotI18n.tr(
-                    "plugin.road.profile_flat_suggested",
-                    flatOverlay.suggestedElevation()));
-            }
-        } else {
-            ImGui.sameLine();
-            ImGui.textColored(0xFFB0B0B0, "■ " + actualRoadLabel);
-            if (design != null && !design.isEmpty()) {
-                ImGui.sameLine();
-                ImGui.textColored(0xFF5FD35F, "■ " + PlotI18n.tr("plugin.road.profile_design"));
-            }
-            if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.profile_advanced_display"))) {
-                ImGui.textColored(0xFF4DA3FF, "--- " + PlotI18n.tr("plugin.road.profile_guide"));
-                ImGui.sameLine();
-                ImGui.textColored(0xFFB0B0B0, "■ " + targetLabel);
-            }
-        }
-        if (intersections != null && !intersections.isEmpty()) {
-            boolean hasGradeSeparated = intersections.stream().anyMatch(RoadProfileIntersection::gradeSeparated);
-            boolean hasAtGrade = intersections.stream().anyMatch(intersection -> !intersection.gradeSeparated());
-            if (hasAtGrade) {
-                ImGui.textColored(0xFF66CCFF, "\u25CF " + PlotI18n.tr("plugin.road.profile_intersection_marker"));
-            }
-            if (hasGradeSeparated) {
-                if (hasAtGrade) {
-                    ImGui.sameLine();
-                }
-                ImGui.textColored(0xFFFF9966, "\u25CE " + PlotI18n.tr(
-                    "plugin.road.profile_intersection_marker_current"));
-                ImGui.sameLine();
-                ImGui.textColored(0xFFCC99FF, "\u25C7 " + PlotI18n.tr(
-                    "plugin.road.profile_intersection_marker_grade"));
-            }
-        }
+        ProfileChartLegend.renderSeriesLegend(
+            road != null ? road.getVerticalMode() : null,
+            flatMode,
+            design,
+            flatOverlay,
+            buildPreviewStale);
+        ProfileChartLegend.renderIntersectionLegend(intersections);
     }
 
     private static void renderEditorControlLegend(boolean flatMode) {
@@ -555,11 +517,13 @@ final class VerticalProfileEditor {
 
     private void renderEditorLegend(
             RoadUiContext ctx,
+            Road road,
             VerticalAlignmentProfileOverlay design,
             List<RoadProfileIntersection> intersections,
             FlatElevationProfileOverlay flatOverlay,
             boolean flatMode) {
         renderInlineLegend(
+            road,
             design,
             intersections,
             flatOverlay,
@@ -593,8 +557,8 @@ final class VerticalProfileEditor {
             ctx, network, road, config, chartData, activeIntersectionDragIndex < 0);
         List<RoadProfileIntersection> intersections =
             profileEditSession.effectiveIntersections(baseIntersections);
-        resolveRenderCache(
-            ctx, network, road, chartData, design, points, flatOverlay, baseIntersections);
+        ProfileRenderCache renderCache = resolveRenderCache(
+            ctx, network, road, chartData, flatOverlay, baseIntersections);
         int chartSelectedPvi = flatMode ? -1 : editorState.selectedProfilePvi;
         int chartActivePvi = flatMode ? -1 : editorState.activeProfilePvi;
         List<RoadLongitudinalProfileRenderer.CurveHandle> curveHandles = flatMode
@@ -615,7 +579,10 @@ final class VerticalProfileEditor {
                 editorState.pendingClickX,
                 editorState.pendingClickY,
                 editorState.activeCurveHandlePvi,
-                editorState.activeCurveHandle);
+                editorState.activeCurveHandle,
+                ProfileChartRenderMode.EDITOR,
+                renderCache,
+                road.getVerticalMode());
         if (interaction.intersectionDragStarted()) {
             profileEditSession.beginIntersectionEdit(baseIntersections);
         }
@@ -731,7 +698,7 @@ final class VerticalProfileEditor {
         if (interaction.selectedIntersectionIndex() >= 0) {
             selectedIntersectionIndex = interaction.selectedIntersectionIndex();
         }
-        renderEditorLegend(ctx, design, intersections, flatOverlay, flatMode);
+        renderEditorLegend(ctx, road, design, intersections, flatOverlay, flatMode);
         renderIntersectionDetail(ctx, network, road, intersections, interaction, config, flatMode);
         if (flatMode) {
             flatProfileControls.render(

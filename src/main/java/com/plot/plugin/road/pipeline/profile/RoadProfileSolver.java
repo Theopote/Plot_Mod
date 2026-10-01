@@ -10,6 +10,11 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.core.terrain.TerrainSampler;
+import com.plot.plugin.road.pipeline.profile.terrain.GradeLimitedProfileSolver;
+import com.plot.plugin.road.pipeline.profile.terrain.TerrainFollowPreset;
+import com.plot.plugin.road.pipeline.profile.terrain.TerrainProfileSampleChain;
+import com.plot.plugin.road.pipeline.profile.terrain.TerrainTrendBuilder;
+import com.plot.plugin.road.pipeline.profile.terrain.TerrainTrendResult;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
 
@@ -49,7 +54,8 @@ public final class RoadProfileSolver {
             null,
             segmentIndex -> support.defaultMaxSlope(),
             support,
-            RoadVerticalMode.AUTO_SMOOTH);
+            RoadVerticalMode.AUTO_SMOOTH,
+            TerrainFollowPreset.STANDARD);
     }
 
     public static ProfileSolveResult solveWithManualElevation(
@@ -71,7 +77,8 @@ public final class RoadProfileSolver {
             manualRoadElevation,
             segmentIndex -> support.defaultMaxSlope(),
             support,
-            RoadVerticalMode.AUTO_SMOOTH);
+            RoadVerticalMode.AUTO_SMOOTH,
+            TerrainFollowPreset.STANDARD);
     }
 
     public static ProfileSolveResult solveForEdge(
@@ -114,7 +121,10 @@ public final class RoadProfileSolver {
             support,
             owningRoad != null
                 ? owningRoad.getVerticalMode()
-                : RoadVerticalMode.AUTO_SMOOTH);
+                : RoadVerticalMode.AUTO_SMOOTH,
+            owningRoad != null
+                ? owningRoad.getEffectiveTerrainFollowPreset()
+                : TerrainFollowPreset.STANDARD);
     }
 
     public static RoadGenerationResult toProfileSnapshot(ProfileSolveResult result) {
@@ -149,22 +159,28 @@ public final class RoadProfileSolver {
             Integer manualEndHeight,
             IntFunction<Float> maxSlopeResolver,
             ProfileSolveSupport support,
-            RoadVerticalMode verticalMode) {
+            RoadVerticalMode verticalMode,
+            TerrainFollowPreset terrainFollowPreset) {
         double canvasUnitsPerBlock = support.canvasUnitsPerBlock(segments);
         List<Double> worldCumulativeDistances = toWorldDistances(
             sampleData.cumulativeDistances(), canvasUnitsPerBlock);
         List<Integer> guideLine;
-        // Terrain Fit means terrain-targeted, not an unconstrained copy of every terrain sample.
-        // The shared grade solver below still enforces effective slopes and endpoint constraints.
-        if (verticalMode == RoadVerticalMode.FIT_TERRAIN
-                && VerticalProfileDesignRules.slopeAllowed(worldCumulativeDistances.getLast())) {
-            guideLine = new ArrayList<>(sampleData.groundSamples());
-            if (manualStartHeight != null && !guideLine.isEmpty()) {
-                guideLine.set(0, manualStartHeight);
-            }
-            if (manualEndHeight != null && !guideLine.isEmpty()) {
-                guideLine.set(guideLine.size() - 1, manualEndHeight);
-            }
+        TerrainTrendResult terrainTrend = null;
+        boolean useTerrainAdaptiveSolver = verticalMode == RoadVerticalMode.FIT_TERRAIN
+            && VerticalProfileDesignRules.slopeAllowed(worldCumulativeDistances.getLast());
+        TerrainFollowPreset effectiveTerrainPreset = terrainFollowPreset != null
+            ? terrainFollowPreset
+            : TerrainFollowPreset.STANDARD;
+        if (useTerrainAdaptiveSolver) {
+            TerrainProfileSampleChain terrainChain = TerrainProfileSampleChain.fromWorldSamples(
+                worldCumulativeDistances,
+                sampleData.groundSamples());
+            terrainTrend = TerrainTrendBuilder.build(
+                terrainChain,
+                effectiveTerrainPreset,
+                manualStartHeight,
+                manualEndHeight);
+            guideLine = new ArrayList<>(terrainTrend.toIntegerGuideLine());
         } else {
             guideLine = RoadGuideLineUtils.computeGuideLine(
                 sampleData.groundSamples(),
@@ -192,21 +208,38 @@ public final class RoadProfileSolver {
             }
         }
 
-        List<Integer> targetEnds = RoadSlopeUtils.computeChainedTargetHeights(
-            distances,
-            guideStarts,
-            guideEnds,
-            effectiveMaxSlopes,
-            manualStartHeight,
-            manualEndHeight,
-            support.maxContinuousSlopeLength(),
-            support.relaxedSlopeLength(),
-            support.relaxedSlopePercent());
+        Integer terrainAdaptiveStartHeight = null;
+        List<Integer> targetEnds;
+        if (useTerrainAdaptiveSolver && terrainTrend != null) {
+            GradeLimitedProfileSolver.SegmentEndSolveResult terrainSolve =
+                GradeLimitedProfileSolver.solveSegmentEndsWithStart(
+                    terrainTrend.trendElevations(),
+                    distances,
+                    effectiveMaxSlopes,
+                    manualStartHeight,
+                    manualEndHeight,
+                    effectiveTerrainPreset);
+            terrainAdaptiveStartHeight = terrainSolve.startHeight();
+            targetEnds = terrainSolve.segmentEnds();
+        } else {
+            targetEnds = RoadSlopeUtils.computeChainedTargetHeights(
+                distances,
+                guideStarts,
+                guideEnds,
+                effectiveMaxSlopes,
+                manualStartHeight,
+                manualEndHeight,
+                support.maxContinuousSlopeLength(),
+                support.relaxedSlopeLength(),
+                support.relaxedSlopePercent());
+        }
 
         List<SegmentHeightInfo> heightInfos = new ArrayList<>();
         int currentHeight = manualStartHeight != null
             ? manualStartHeight
-            : guideStarts.getFirst();
+            : terrainAdaptiveStartHeight != null
+                ? terrainAdaptiveStartHeight
+                : guideStarts.getFirst();
 
         for (int i = 0; i < segments.size(); i++) {
             PathSegment segment = segments.get(i);

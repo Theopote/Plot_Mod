@@ -18,6 +18,13 @@ class ProfileChartRenderModeTest {
     }
 
     @Test
+    void overviewModeShowsTerrainTrendGuide() {
+        ProfileChartRenderMode mode = ProfileChartRenderMode.OVERVIEW;
+        assertTrue(mode.showGuideLine());
+        assertFalse(mode.showElevationAxisLabels());
+    }
+
+    @Test
     void editorModeShowsFullDetail() {
         ProfileChartRenderMode mode = ProfileChartRenderMode.EDITOR;
         assertTrue(mode.showElevationAxisLabels());

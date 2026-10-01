@@ -34,7 +34,7 @@ public enum ProfileChartRenderMode {
     }
 
     public boolean showGuideLine() {
-        return this == EDITOR;
+        return this == OVERVIEW || this == EDITOR;
     }
 
     public boolean showIntersectionLabels() {

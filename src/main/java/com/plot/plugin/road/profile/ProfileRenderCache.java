@@ -1,7 +1,6 @@
 package com.plot.plugin.road.profile;
 
 import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
-import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
 
 import java.util.List;
 import java.util.Objects;
@@ -9,8 +8,20 @@ import java.util.Objects;
 /** 纵断面图静态层缓存（地形/目标线/范围/交叉口），PVI 拖动不重建。 */
 public record ProfileRenderCache(
         long cacheKey,
-        RoadProfilePlotRange plotRange,
+        double totalStation,
+        RoadProfilePlotRange staticPlotRange,
+        double staticMinRaw,
+        double staticMaxRaw,
         List<RoadProfileIntersection> intersections) {
+
+    /** 兼容旧字段名。 */
+    public RoadProfilePlotRange plotRange() {
+        return staticPlotRange();
+    }
+
+    RoadProfileChartRenderer.ElevationBounds staticRawBounds() {
+        return new RoadProfileChartRenderer.ElevationBounds(staticMinRaw, staticMaxRaw);
+    }
 
     public static long computeKey(
             String roadId,
@@ -29,18 +40,27 @@ public record ProfileRenderCache(
     public static ProfileRenderCache build(
             long cacheKey,
             RoadProfileChartData chart,
-            VerticalAlignmentProfileOverlay design,
-            List<ProfileControlPoint> controls,
             List<RoadProfileIntersection> intersections,
             FlatElevationProfileOverlay flatOverlay) {
         if (chart == null || !chart.hasProfileData()) {
-            return new ProfileRenderCache(cacheKey, null, List.of());
+            return new ProfileRenderCache(cacheKey, 0.0, null, 62.0, 66.0, List.of());
         }
-        RoadProfilePlotRange range = RoadProfileChartRenderer.plotRange(
-            chart, design, controls, intersections, flatOverlay);
+        RoadProfileChartRenderer.ElevationBounds staticBounds =
+            RoadProfileChartRenderer.staticChartBounds(chart, flatOverlay);
+        if (staticBounds == null) {
+            staticBounds = new RoadProfileChartRenderer.ElevationBounds(62.0, 66.0);
+        }
+        RoadProfilePlotRange staticRange =
+            RoadProfileChartRenderer.toPlotRange(chart.totalStation(), staticBounds);
         List<RoadProfileIntersection> cachedIntersections = intersections != null
             ? List.copyOf(intersections)
             : List.of();
-        return new ProfileRenderCache(cacheKey, range, cachedIntersections);
+        return new ProfileRenderCache(
+            cacheKey,
+            chart.totalStation(),
+            staticRange,
+            staticBounds.min(),
+            staticBounds.max(),
+            cachedIntersections);
     }
 }

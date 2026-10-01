@@ -35,6 +35,9 @@ public final class RoadVerticalIntentTransforms {
                 target.setVerticalMode(effective);
             }
         }
+        if (source.getStoredTerrainFollowPreset() != null) {
+            target.setTerrainFollowPreset(source.getStoredTerrainFollowPreset());
+        }
         if (source.getFlatVerticalIntent() != null) {
             target.setFlatVerticalIntent(source.getFlatVerticalIntent());
         }

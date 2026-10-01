@@ -1077,6 +1077,7 @@ public class RoadNetwork {
         AlignmentData horizontalAlignment;
         VerticalAlignmentData verticalAlignment;
         String verticalMode;
+        String terrainFollowPreset;
         FlatVerticalIntentPersistence.FlatVerticalIntentData flatVerticalIntent;
         VariableCrossSectionsData variableCrossSections;
         StationFacilitiesData stationFacilities;
@@ -1156,6 +1157,9 @@ public class RoadNetwork {
                 roadData.verticalAlignment = VerticalAlignmentPersistence.toData(road.getVerticalAlignment());
                 if (road.getStoredVerticalMode() != null) {
                     roadData.verticalMode = road.getStoredVerticalMode().name();
+                }
+                if (road.getStoredTerrainFollowPreset() != null) {
+                    roadData.terrainFollowPreset = road.getStoredTerrainFollowPreset().name();
                 }
                 roadData.flatVerticalIntent = FlatVerticalIntentPersistence.toData(road.getFlatVerticalIntent());
                 roadData.variableCrossSections = VariableCrossSectionPersistence.toData(road.getVariableCrossSections());
@@ -1255,6 +1259,8 @@ public class RoadNetwork {
                     road.setVerticalAlignment(VerticalAlignmentPersistence.fromData(roadData.verticalAlignment));
                     road.setVerticalMode(com.plot.plugin.road.vertical.RoadVerticalMode.fromStored(
                         roadData.verticalMode));
+                    road.setTerrainFollowPreset(com.plot.plugin.road.pipeline.profile.terrain.TerrainFollowPreset
+                        .fromStored(roadData.terrainFollowPreset));
                     road.setFlatVerticalIntent(FlatVerticalIntentPersistence.fromData(roadData.flatVerticalIntent));
                     road.setVariableCrossSections(VariableCrossSectionPersistence.fromData(roadData.variableCrossSections));
                     road.setStationFacilities(StationFacilityPersistence.fromData(roadData.stationFacilities));

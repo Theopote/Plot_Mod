@@ -109,7 +109,8 @@ public final class RoadProfileOverviewSection {
                     intersections,
                     chartHeight,
                     flatOverlay,
-                    mode);
+                    mode,
+                    road.getVerticalMode());
             }
         } finally {
             ImGui.popID();

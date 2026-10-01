@@ -135,6 +135,7 @@ public final class RoadGeneratePanel {
                 && RoadGenerationSettingsPanel.showsTerrainAdaptiveControls(ctx)) {
             RoadStyleProductControls.renderRoadMaxSlopePresets(
                 ctx, road, ctx.networkManager()::pushHistory);
+            TerrainFollowPresetControls.render(ctx, road, ctx.networkManager()::pushHistory);
         }
         ChainageDisplayContext chainageDisplay = chainageContextOrNull(network, road);
         verticalAlignmentEditor.render(
