@@ -4,7 +4,7 @@ import com.plot.plugin.road.station.RoadStationDataTransforms;
 import com.plot.plugin.road.station.RoadStationDataTransforms.StationDataSnapshot;
 import com.plot.plugin.road.station.RoadStationDataTransforms.StationRange;
 import com.plot.plugin.road.station.RoadStationing;
-import com.plot.plugin.road.vertical.RoadVerticalIntentTransforms;
+import com.plot.plugin.road.vertical.VerticalIntentSnapshot;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -236,6 +236,7 @@ public final class RoadTopologyRoadSplitter {
             Set<String> keepComponent,
             int branchIndexStart) {
         StationDataSnapshot snapshot = StationDataSnapshot.capture(road);
+        VerticalIntentSnapshot intentSnapshot = VerticalIntentSnapshot.capture(road);
         double totalLength = RoadStationing.canonicalLength(network, road);
         boolean mapStationData = snapshot.hasPhase2Data() && totalLength > 1e-6;
 
@@ -262,7 +263,7 @@ public final class RoadTopologyRoadSplitter {
             }
         }
         reassignComponent(network, road, components.get(keepIndex));
-        RoadVerticalIntentTransforms.retainFlatOverridesForEdges(network, road, components.get(keepIndex));
+        intentSnapshot.applyTo(network, road, components.get(keepIndex));
 
         int branchIndex = branchIndexStart;
         int created = 0;
@@ -285,7 +286,7 @@ public final class RoadTopologyRoadSplitter {
                 }
             }
             reassignComponent(network, splitRoad, components.get(i));
-            RoadVerticalIntentTransforms.retainFlatOverridesForEdges(network, splitRoad, components.get(i));
+            intentSnapshot.applyTo(network, splitRoad, components.get(i));
             splitRoads.add(splitRoad);
             created++;
         }

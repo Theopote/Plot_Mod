@@ -58,18 +58,46 @@ public final class RoadVerticalIntentTransforms {
         retainFlatOverridesForSplitSide(network, head, tail, splitStation, false);
     }
 
-    /** 拓扑分量拆分后，仅保留属于该分量边集的节点 override。 */
-    public static void retainFlatOverridesForEdges(RoadNetwork network, Road road, Set<String> edgeIds) {
-        if (network == null || road == null || edgeIds == null || road.getFlatVerticalIntent() == null) {
-            return;
+    /** 从原始 intent 复制并仅保留属于 {@code edgeIds} 分量的节点 override。 */
+    public static FlatVerticalIntent copyFlatIntentForEdges(
+            FlatVerticalIntent source,
+            RoadNetwork network,
+            Set<String> edgeIds) {
+        if (source == null || network == null || edgeIds == null) {
+            return null;
         }
+        FlatVerticalIntent copy = source.copy();
         Set<String> nodeIds = collectNodeIds(network, edgeIds);
-        FlatVerticalIntent intent = road.getFlatVerticalIntent();
-        for (String nodeId : List.copyOf(intent.getIntersectionOverrides().keySet())) {
+        for (String nodeId : List.copyOf(copy.getIntersectionOverrides().keySet())) {
             if (!nodeIds.contains(nodeId)) {
-                intent.removeOverride(nodeId);
+                copy.removeOverride(nodeId);
             }
         }
+        return copy;
+    }
+
+    /**
+     * 将捕获的垂直意图应用到道路，并按分量边集裁剪 flat overrides。
+     *
+     * @see VerticalIntentSnapshot
+     */
+    public static void applyCapturedIntent(
+            Road target,
+            RoadVerticalMode capturedMode,
+            FlatVerticalIntent capturedFlatIntent,
+            RoadNetwork network,
+            Set<String> edgeIds) {
+        if (target == null) {
+            return;
+        }
+        if (capturedMode != null) {
+            target.setVerticalMode(capturedMode);
+        }
+        if (capturedFlatIntent == null) {
+            target.setFlatVerticalIntent(null);
+            return;
+        }
+        target.setFlatVerticalIntent(copyFlatIntentForEdges(capturedFlatIntent, network, edgeIds));
     }
 
     private static void retainFlatOverridesForSplitSide(
@@ -88,8 +116,13 @@ public final class RoadVerticalIntentTransforms {
                 intent.removeOverride(nodeId);
                 continue;
             }
-            double value = station.getAsDouble();
-            boolean keep = headSide ? value < splitStation - EPSILON : value >= splitStation - EPSILON;
+            double nodeStation = station.getAsDouble();
+            boolean keep;
+            if (Math.abs(nodeStation - splitStation) <= EPSILON) {
+                keep = true;
+            } else {
+                keep = headSide ? nodeStation < splitStation : nodeStation > splitStation;
+            }
             if (!keep) {
                 intent.removeOverride(nodeId);
             }
