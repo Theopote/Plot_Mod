@@ -8,8 +8,10 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.RoadSegmentOrdering;
 import com.plot.plugin.road.model.RoadTopologyRoadSplitter;
+import com.plot.plugin.road.station.RoadStationing;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -145,6 +147,104 @@ class RoadVerticalIntentSplitTest {
     }
 
     @Test
+    void topologyRepairPreservesSharedForkOverrideOnAllBranches() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("fork-shared");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(10, 0));
+        RoadNode c = network.createNode(new Vec2d(20, 0));
+        RoadNode d = network.createNode(new Vec2d(10, 10));
+        network.createEdge(a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+        network.createEdge(b.getId(), c.getId(), List.of(new Vec2d(10, 0), new Vec2d(20, 0)), road.getId());
+        network.createEdge(b.getId(), d.getId(), List.of(new Vec2d(10, 0), new Vec2d(10, 10)), road.getId());
+
+        FlatVerticalIntentSupport.enableFlatWithBase(network, road, config, 68.0);
+        road.getFlatVerticalIntent().setIntersectionOverride(b.getId(), 74.0);
+        FlatVerticalIntentSupport.syncCompiledAlignment(network, road, road.getEffectiveMaxSlope(config));
+
+        RoadTopologyRoadSplitter.repairAfterAdopt(network);
+
+        assertEquals(3, network.getRoads().size());
+        for (Road repaired : roadsContainingNode(network, b.getId())) {
+            assertEquals(74.0, repaired.getFlatVerticalIntent().getIntersectionOverride(b.getId()), 1e-6);
+        }
+        assertEquals(3, roadsContainingNode(network, b.getId()).size());
+    }
+
+    @Test
+    void topologyRepairPartitionsFlatOverridesForDisconnectedComponents() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("disconnected-flat");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(10, 0));
+        RoadNode c = network.createNode(new Vec2d(100, 0));
+        RoadNode d = network.createNode(new Vec2d(110, 0));
+        network.createEdge(a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+        network.createEdge(c.getId(), d.getId(), List.of(new Vec2d(100, 0), new Vec2d(110, 0)), road.getId());
+
+        FlatVerticalIntentSupport.enableFlatWithBase(network, road, config, 68.0);
+        road.getFlatVerticalIntent().setIntersectionOverride(b.getId(), 71.0);
+        road.getFlatVerticalIntent().setIntersectionOverride(d.getId(), 75.0);
+        FlatVerticalIntentSupport.syncCompiledAlignment(network, road, road.getEffectiveMaxSlope(config));
+
+        RoadTopologyRoadSplitter.repairAfterAdopt(network);
+
+        assertEquals(2, network.getRoads().size());
+
+        Road roadWithB = roadContainingNode(network, b.getId()).orElseThrow();
+        Road roadWithD = roadContainingNode(network, d.getId()).orElseThrow();
+
+        assertEquals(71.0, roadWithB.getFlatVerticalIntent().getIntersectionOverride(b.getId()), 1e-6);
+        assertNull(roadWithB.getFlatVerticalIntent().getIntersectionOverride(d.getId()));
+
+        assertEquals(75.0, roadWithD.getFlatVerticalIntent().getIntersectionOverride(d.getId()), 1e-6);
+        assertNull(roadWithD.getFlatVerticalIntent().getIntersectionOverride(b.getId()));
+    }
+
+    @Test
+    void topologyRepairFlatIntentCompilesCorrectProfiles() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("fork-compile");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(10, 0));
+        RoadNode c = network.createNode(new Vec2d(20, 0));
+        RoadNode d = network.createNode(new Vec2d(10, 10));
+        network.createEdge(a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+        network.createEdge(b.getId(), c.getId(), List.of(new Vec2d(10, 0), new Vec2d(20, 0)), road.getId());
+        network.createEdge(b.getId(), d.getId(), List.of(new Vec2d(10, 0), new Vec2d(10, 10)), road.getId());
+
+        FlatVerticalIntentSupport.enableFlatWithBase(network, road, config, 68.0);
+        road.getFlatVerticalIntent().setIntersectionOverride(c.getId(), 72.0);
+        road.getFlatVerticalIntent().setIntersectionOverride(d.getId(), 75.0);
+        FlatVerticalIntentSupport.syncCompiledAlignment(network, road, road.getEffectiveMaxSlope(config));
+
+        RoadTopologyRoadSplitter.repairAfterAdopt(network);
+
+        Road branchCRoad = roadContainingNode(network, c.getId()).orElseThrow();
+        Road branchDRoad = roadContainingNode(network, d.getId()).orElseThrow();
+        double maxGrade = branchCRoad.getEffectiveMaxSlope(config);
+
+        FlatVerticalIntent branchCIntent = branchCRoad.getFlatVerticalIntent();
+        FlatVerticalIntent branchDIntent = branchDRoad.getFlatVerticalIntent();
+        RoadVerticalAlignment branchCAlignment =
+            FlatProfileCompiler.compile(network, branchCRoad, branchCIntent, maxGrade);
+        RoadVerticalAlignment branchDAlignment =
+            FlatProfileCompiler.compile(network, branchDRoad, branchDIntent, maxGrade);
+
+        double cEndpointStation = endpointStationForNode(network, branchCRoad, c.getId());
+        double dEndpointStation = endpointStationForNode(network, branchDRoad, d.getId());
+
+        assertEquals(
+            72.0,
+            VerticalAlignmentGeometry.elevationAt(branchCAlignment, cEndpointStation).orElse(Double.NaN),
+            1e-3);
+        assertEquals(
+            75.0,
+            VerticalAlignmentGeometry.elevationAt(branchDAlignment, dEndpointStation).orElse(Double.NaN),
+            1e-3);
+    }
+
+    @Test
     void topologyRepairDoesNotConvertFlatToManualProfile() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("fork-flat");
@@ -171,15 +271,32 @@ class RoadVerticalIntentSplitTest {
     }
 
     private static Optional<Road> roadContainingNode(RoadNetwork network, String nodeId) {
+        List<Road> roads = roadsContainingNode(network, nodeId);
+        return roads.isEmpty() ? Optional.empty() : Optional.of(roads.getFirst());
+    }
+
+    private static List<Road> roadsContainingNode(RoadNetwork network, String nodeId) {
+        List<Road> matches = new ArrayList<>();
         for (Road candidate : network.getRoads().values()) {
             for (String segmentId : candidate.getOrderedSegmentIds()) {
                 RoadEdge edge = network.getEdge(segmentId);
                 if (edge != null
                         && (nodeId.equals(edge.getStartNodeId()) || nodeId.equals(edge.getEndNodeId()))) {
-                    return Optional.of(candidate);
+                    matches.add(candidate);
+                    break;
                 }
             }
         }
-        return Optional.empty();
+        return matches;
+    }
+
+    private static double endpointStationForNode(RoadNetwork network, Road road, String nodeId) {
+        return RoadStationing.orientedSegments(network, road).stream()
+            .filter(segment -> nodeId.equals(segment.entryNodeId()) || nodeId.equals(segment.exitNodeId()))
+            .mapToDouble(segment -> nodeId.equals(segment.exitNodeId())
+                ? segment.endStation()
+                : segment.startStation())
+            .findFirst()
+            .orElseThrow();
     }
 }
