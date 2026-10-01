@@ -1,6 +1,7 @@
 package com.plot.plugin.road;
 
 import com.plot.plugin.road.profile.ProfileChartLayout;
+import com.plot.plugin.road.profile.ProfileChartRenderMode;
 import com.plot.plugin.road.profile.RoadProfileIntersection;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
@@ -743,6 +744,20 @@ public final class RoadLongitudinalProfileRenderer {
             double totalStation,
             double minElevation,
             double maxElevation) {
+        drawIntersectionMarkersRoad(
+            drawList, intersections, selectedIndex, layout,
+            totalStation, minElevation, maxElevation, ProfileChartRenderMode.EDITOR);
+    }
+
+    public static void drawIntersectionMarkersRoad(
+            ImDrawList drawList,
+            List<RoadProfileIntersection> intersections,
+            int selectedIndex,
+            ProfileChartLayout layout,
+            double totalStation,
+            double minElevation,
+            double maxElevation,
+            ProfileChartRenderMode mode) {
         if (intersections == null || intersections.isEmpty()) {
             return;
         }
@@ -766,7 +781,9 @@ public final class RoadLongitudinalProfileRenderer {
                 int connectorColor = intersection.steepGradeWarning()
                     ? COLOR_INTERSECTION_WARNING
                     : markerColor;
-                drawList.addLine(x, currentY, x, otherY, connectorColor, 1.6f);
+                if (mode.showIntersectionConnectors()) {
+                    drawList.addLine(x, currentY, x, otherY, connectorColor, 1.6f);
+                }
                 drawList.addCircleFilled(x, currentY, 3.5f, markerColor);
                 drawList.addCircle(x, currentY, 4.5f, COLOR_BG, 12, 1.2f);
                 drawDiamond(drawList, x, otherY, 5.5f, COLOR_OTHER_ROAD);
@@ -774,28 +791,36 @@ public final class RoadLongitudinalProfileRenderer {
                 if (intersection.steepGradeWarning()) {
                     drawWarningBadge(drawList, x, otherY, COLOR_INTERSECTION_WARNING);
                 }
-                renderIntersectionLabel(
-                    drawList, intersection, x, otherY, markerColor, otherRoadAboveCurrent(intersection));
+                if (mode.showIntersectionLabels()) {
+                    renderIntersectionLabel(
+                        drawList, intersection, x, otherY, markerColor, otherRoadAboveCurrent(intersection));
+                }
             } else if (atGradeElevationConflict(intersection)) {
                 float currentY = layout.plotY(
                     intersection.currentRoadElevation(), minElevation, maxElevation);
                 float otherY = layout.plotY(
                     intersection.otherRoadElevation(), minElevation, maxElevation);
                 int conflictColor = COLOR_INTERSECTION_WARNING;
-                drawList.addLine(x, currentY, x, otherY, conflictColor, 1.6f);
+                if (mode.showIntersectionConnectors()) {
+                    drawList.addLine(x, currentY, x, otherY, conflictColor, 1.6f);
+                }
                 drawList.addCircleFilled(x, currentY, 4.5f, conflictColor);
                 drawList.addCircle(x, currentY, 5.5f, COLOR_BG, 12, 1.2f);
                 drawList.addCircleFilled(x, otherY, 4.5f, conflictColor);
                 drawList.addCircle(x, otherY, 5.5f, COLOR_BG, 12, 1.2f);
                 drawWarningBadge(drawList, x, (currentY + otherY) * 0.5f, conflictColor);
-                renderIntersectionLabel(
-                    drawList, intersection, x, (currentY + otherY) * 0.5f, conflictColor, false);
+                if (mode.showIntersectionLabels()) {
+                    renderIntersectionLabel(
+                        drawList, intersection, x, (currentY + otherY) * 0.5f, conflictColor, false);
+                }
             } else {
                 float sharedY = layout.plotY(
                     sharedAtGradeElevation(intersection), minElevation, maxElevation);
                 drawList.addCircleFilled(x, sharedY, 5.5f, markerColor);
                 drawList.addCircle(x, sharedY, 6.5f, COLOR_BG, 12, 1.5f);
-                renderIntersectionLabel(drawList, intersection, x, sharedY, markerColor, false);
+                if (mode.showIntersectionLabels()) {
+                    renderIntersectionLabel(drawList, intersection, x, sharedY, markerColor, false);
+                }
             }
         }
     }

@@ -43,7 +43,7 @@ public final class RoadProfileRoadList {
         return PlotI18n.tr(
             "plugin.road.profile_road_summary_line",
             RoadEdgeListHelper.formatRoadLabel(network, road),
-            RoadUiFormat.format(length),
+            RoadUiFormat.formatDistance(length),
             RoadVerticalStrategy.fromRoad(road).label());
     }
 

@@ -32,16 +32,24 @@ public final class VerticalProfileControlPoints {
 
     /** 道路级纵断面：全部 PVI，X 为 canonical road station。 */
     public static List<ProfileControlPoint> forRoad(RoadNetwork network, Road road) {
-        if (network == null || road == null) {
+        if (network == null || road == null || road.getVerticalAlignment() == null) {
+            return List.of();
+        }
+        return forAlignment(network, road, road.getVerticalAlignment());
+    }
+
+    /** 从指定 alignment 投影控制点（Draft 渲染 / 编辑预览）。 */
+    public static List<ProfileControlPoint> forAlignment(
+            RoadNetwork network,
+            Road road,
+            RoadVerticalAlignment alignment) {
+        if (network == null || road == null || alignment == null) {
             return List.of();
         }
         if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
             return List.of();
         }
-        if (road.getVerticalAlignment() == null) {
-            return List.of();
-        }
-        List<PointOfVerticalIntersection> pvis = road.getVerticalAlignment().getPvis();
+        List<PointOfVerticalIntersection> pvis = alignment.getPvis();
         List<ProfileControlPoint> result = new ArrayList<>();
         for (int i = 0; i < pvis.size(); i++) {
             PointOfVerticalIntersection pvi = pvis.get(i);

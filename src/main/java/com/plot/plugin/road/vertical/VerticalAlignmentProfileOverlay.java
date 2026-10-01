@@ -61,6 +61,23 @@ public record VerticalAlignmentProfileOverlay(List<Double> stations, List<Double
         double maxGrade = road.getMaxSlope() != null ? road.getMaxSlope() : 8.0;
         RoadVerticalAlignment alignment = RoadVerticalAlignmentResolver.resolveSynced(
                 network, road, maxGrade);
+        return forAlignment(network, road, alignment);
+    }
+
+    /** 从指定 alignment 采样设计纵断面叠加线（Draft 预览）。 */
+    public static Optional<VerticalAlignmentProfileOverlay> forAlignment(
+            RoadNetwork network,
+            Road road,
+            RoadVerticalAlignment alignment) {
+        if (network == null || road == null || alignment == null) {
+            return Optional.empty();
+        }
+        if (!RoadStationing.isStationable(network, road)) {
+            return Optional.empty();
+        }
+        if (!VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(network, road)) {
+            return Optional.empty();
+        }
         if (!VerticalAlignmentGeometry.isEvaluable(alignment)) {
             return Optional.empty();
         }

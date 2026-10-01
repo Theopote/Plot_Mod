@@ -45,6 +45,17 @@ public final class RoadProfileChartRenderer {
             List<RoadProfileIntersection> intersections,
             float chartHeight,
             FlatElevationProfileOverlay flatOverlay) {
+        renderOverview(
+            chart, design, intersections, chartHeight, flatOverlay, ProfileChartRenderMode.OVERVIEW);
+    }
+
+    public static void renderOverview(
+            RoadProfileChartData chart,
+            VerticalAlignmentProfileOverlay design,
+            List<RoadProfileIntersection> intersections,
+            float chartHeight,
+            FlatElevationProfileOverlay flatOverlay,
+            ProfileChartRenderMode mode) {
         if (chart == null || !chart.hasProfileData()) {
             return;
         }
@@ -58,11 +69,11 @@ public final class RoadProfileChartRenderer {
             origin.x, origin.y, width, chartHeight);
         RoadProfilePlotRange range = plotRange(chart, design, List.of(), intersections, flatOverlay);
         drawBackground(drawList, layout);
-        drawAxesAndGrid(drawList, layout, range);
-        drawSeries(drawList, layout, range, chart, design, flatOverlay);
+        drawAxesAndGrid(drawList, layout, range, mode);
+        drawSeries(drawList, layout, range, chart, design, flatOverlay, mode);
         RoadLongitudinalProfileRenderer.drawIntersectionMarkersRoad(
             drawList, intersections, -1, layout,
-            range.totalStation(), range.minElevation(), range.maxElevation());
+            range.totalStation(), range.minElevation(), range.maxElevation(), mode);
         ImGui.invisibleButton("##road_profile_overview_surface", width, chartHeight);
     }
 
@@ -85,6 +96,34 @@ public final class RoadProfileChartRenderer {
             float pendingClickY,
             int activeCurveHandlePvi,
             RoadLongitudinalProfileRenderer.ControlInteraction.CurveHandleSide activeCurveHandle) {
+        return renderInteractive(
+            chart, design, controls, selectedPviIndex, activePviIndex, maxGradePercent,
+            intersections, selectedIntersectionIndex, chartHeight,
+            activeIntersectionDragIndex, activeIntersectionDragTarget, flatOverlay,
+            curveHandles, pendingPviIndex, pendingClickX, pendingClickY,
+            activeCurveHandlePvi, activeCurveHandle, ProfileChartRenderMode.EDITOR);
+    }
+
+    public static RoadLongitudinalProfileRenderer.ControlInteraction renderInteractive(
+            RoadProfileChartData chart,
+            VerticalAlignmentProfileOverlay design,
+            List<ProfileControlPoint> controls,
+            int selectedPviIndex,
+            int activePviIndex,
+            double maxGradePercent,
+            List<RoadProfileIntersection> intersections,
+            int selectedIntersectionIndex,
+            float chartHeight,
+            int activeIntersectionDragIndex,
+            RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget activeIntersectionDragTarget,
+            FlatElevationProfileOverlay flatOverlay,
+            List<RoadLongitudinalProfileRenderer.CurveHandle> curveHandles,
+            int pendingPviIndex,
+            float pendingClickX,
+            float pendingClickY,
+            int activeCurveHandlePvi,
+            RoadLongitudinalProfileRenderer.ControlInteraction.CurveHandleSide activeCurveHandle,
+            ProfileChartRenderMode mode) {
         if (chart == null || !chart.hasProfileData()) {
             return new RoadLongitudinalProfileRenderer.ControlInteraction(
                 selectedPviIndex, -1, null, null, false, false);
@@ -100,14 +139,14 @@ public final class RoadProfileChartRenderer {
             origin.x, origin.y, width, chartHeight);
         RoadProfilePlotRange range = plotRange(chart, design, controls, intersections, flatOverlay);
         drawBackground(drawList, layout);
-        drawAxesAndGrid(drawList, layout, range);
-        drawSeries(drawList, layout, range, chart, design, flatOverlay);
+        drawAxesAndGrid(drawList, layout, range, mode);
+        drawSeries(drawList, layout, range, chart, design, flatOverlay, mode);
         drawRoadControlPoints(drawList, controls, selectedPviIndex, maxGradePercent, layout, range);
         drawRoadCurveHandles(
             drawList, controls, curveHandles, activeCurveHandlePvi, activeCurveHandle, layout, range);
         RoadLongitudinalProfileRenderer.drawIntersectionMarkersRoad(
             drawList, intersections, selectedIntersectionIndex, layout,
-            range.totalStation(), range.minElevation(), range.maxElevation());
+            range.totalStation(), range.minElevation(), range.maxElevation(), mode);
         ImGui.invisibleButton("##road_profile_control_surface", width, chartHeight);
 
         return handleInteraction(
@@ -366,36 +405,65 @@ public final class RoadProfileChartRenderer {
     private static final float AXIS_LABEL_PAD = 6f;
     private static final float AXIS_LABEL_LINE_OFFSET = 6f;
 
-    private static void drawAxesAndGrid(ImDrawList drawList, ProfileChartLayout layout, RoadProfilePlotRange range) {
+    private static void drawAxesAndGrid(
+            ImDrawList drawList,
+            ProfileChartLayout layout,
+            RoadProfilePlotRange range,
+            ProfileChartRenderMode mode) {
         List<Double> ticks = ProfileElevationTicks.elevationTicks(
             range.minElevation(), range.maxElevation());
+        if (mode.maxElevationTicks() < Integer.MAX_VALUE && mode.maxElevationTicks() > 0) {
+            ticks = subsampleTicks(ticks, mode.maxElevationTicks());
+        } else if (mode.maxElevationTicks() == 0) {
+            ticks = subsampleTicks(ticks, 3);
+        }
         for (double tick : ticks) {
             float y = layout.plotY(tick, range.minElevation(), range.maxElevation());
             drawList.addLine(
                 layout.plotLeft(), y, layout.plotRight(), y, COLOR_GRID, 1f);
-            String label = String.format("%.0f", tick);
-            float textWidth = ImGui.calcTextSize(label).x;
-            float textY = y - AXIS_LABEL_LINE_OFFSET;
-            drawList.addText(
-                layout.plotLeft() - AXIS_LABEL_PAD - textWidth, textY, COLOR_LABEL, label);
-            drawList.addText(layout.plotRight() + AXIS_LABEL_PAD, textY, COLOR_LABEL, label);
-        }
-        List<Double> stationTicks = ProfileElevationTicks.stationTicks(range.totalStation(), 5);
-        float stationLabelY = layout.plotBottom() + 4f;
-        for (int i = 0; i < stationTicks.size(); i++) {
-            double station = stationTicks.get(i);
-            String label = RoadStationing.format(station, RoadStationFormat.KILOMETER_PLUS);
-            float textWidth = ImGui.calcTextSize(label).x;
-            float x;
-            if (i == 0) {
-                x = layout.plotLeft();
-            } else if (i == stationTicks.size() - 1) {
-                x = layout.plotRight() - textWidth;
-            } else {
-                x = layout.plotX(station, range.totalStation()) - textWidth * 0.5f;
+            if (mode.showElevationAxisLabels()) {
+                String label = String.format("%.0f", tick);
+                float textWidth = ImGui.calcTextSize(label).x;
+                float textY = y - AXIS_LABEL_LINE_OFFSET;
+                drawList.addText(
+                    layout.plotLeft() - AXIS_LABEL_PAD - textWidth, textY, COLOR_LABEL, label);
+                drawList.addText(layout.plotRight() + AXIS_LABEL_PAD, textY, COLOR_LABEL, label);
             }
-            drawList.addText(x, stationLabelY, COLOR_LABEL, label);
         }
+        List<Double> stationTicks = ProfileElevationTicks.stationTicks(
+            range.totalStation(), mode.maxStationTicks());
+        if (mode.showStationAxisLabels()) {
+            float stationLabelY = layout.plotBottom() + 4f;
+            for (int i = 0; i < stationTicks.size(); i++) {
+                double station = stationTicks.get(i);
+                String label = RoadStationing.format(station, RoadStationFormat.KILOMETER_PLUS);
+                float textWidth = ImGui.calcTextSize(label).x;
+                float x;
+                if (i == 0) {
+                    x = layout.plotLeft();
+                } else if (i == stationTicks.size() - 1) {
+                    x = layout.plotRight() - textWidth;
+                } else {
+                    x = layout.plotX(station, range.totalStation()) - textWidth * 0.5f;
+                }
+                drawList.addText(x, stationLabelY, COLOR_LABEL, label);
+            }
+        }
+    }
+
+    private static List<Double> subsampleTicks(List<Double> ticks, int maxCount) {
+        if (ticks == null || ticks.size() <= maxCount || maxCount <= 0) {
+            return ticks;
+        }
+        if (maxCount == 1) {
+            return List.of(ticks.getFirst());
+        }
+        List<Double> sampled = new java.util.ArrayList<>(maxCount);
+        for (int i = 0; i < maxCount; i++) {
+            int index = (int) Math.round(i * (ticks.size() - 1) / (double) (maxCount - 1));
+            sampled.add(ticks.get(index));
+        }
+        return sampled;
     }
 
     private static void drawSeries(
@@ -404,15 +472,18 @@ public final class RoadProfileChartRenderer {
             RoadProfilePlotRange range,
             RoadProfileChartData chart,
             VerticalAlignmentProfileOverlay design,
-            FlatElevationProfileOverlay flatOverlay) {
+            FlatElevationProfileOverlay flatOverlay,
+            ProfileChartRenderMode mode) {
         drawPolyline(
-            drawList, layout, range, chart.stations(), chart.groundElevations(), COLOR_GROUND, 2.2f, false);
-        if (!chart.guideElevations().isEmpty()) {
+            drawList, layout, range, chart.stations(), chart.groundElevations(),
+            COLOR_GROUND, mode.groundLineWidth(), false);
+        if (mode.showGuideLine() && !chart.guideElevations().isEmpty()) {
             drawPolyline(
                 drawList, layout, range, chart.stations(), chart.guideElevations(), COLOR_GUIDE, 1.6f, true);
         }
         drawPolyline(
-            drawList, layout, range, chart.stations(), chart.previewElevations(), COLOR_TARGET, 2.4f, false);
+            drawList, layout, range, chart.stations(), chart.previewElevations(),
+            COLOR_TARGET, mode.roadLineWidth(), false);
         if (design != null && !design.isEmpty()) {
             drawPolyline(
                 drawList, layout, range, design.stations(), design.elevations(), COLOR_DESIGN, 2.6f, false);
@@ -425,6 +496,20 @@ public final class RoadProfileChartRenderer {
             float y = layout.plotY(flatOverlay.suggestedElevation(), range.minElevation(), range.maxElevation());
             drawList.addLine(layout.plotLeft(), y, layout.plotRight(), y, 0xFFFFB84D, 1.8f);
         }
+    }
+
+    private static void drawSeries(
+            ImDrawList drawList,
+            ProfileChartLayout layout,
+            RoadProfilePlotRange range,
+            RoadProfileChartData chart,
+            VerticalAlignmentProfileOverlay design,
+            FlatElevationProfileOverlay flatOverlay) {
+        drawSeries(drawList, layout, range, chart, design, flatOverlay, ProfileChartRenderMode.EDITOR);
+    }
+
+    private static void drawAxesAndGrid(ImDrawList drawList, ProfileChartLayout layout, RoadProfilePlotRange range) {
+        drawAxesAndGrid(drawList, layout, range, ProfileChartRenderMode.EDITOR);
     }
 
     private static void drawPolyline(

@@ -43,6 +43,7 @@ public final class RoadGeneratePanel {
         this.ctx = ctx;
         this.networkToolsPanel = new RoadNetworkToolsPanel(ctx);
         profileEditor.setOnAlignmentCommitted(verticalAlignmentEditor::invalidateDraftSync);
+        profileEditor.setFlatOverlayResolver(road -> resolveFlatProfileOverlay(ctx.networkManager().getNetwork(), road));
     }
 
     /** 从概览等入口跳转时，聚焦指定边的纵断面区块。 */
@@ -96,7 +97,8 @@ public final class RoadGeneratePanel {
     }
 
     void renderProfileEditorWindow(RoadNetwork network) {
-        profileEditor.renderEditorWindow(ctx, network, resolveFlatProfileOverlay(network));
+        profileEditor.setFlatOverlayResolver(road -> resolveFlatProfileOverlay(network, road));
+        profileEditor.renderEditorWindow(ctx, network);
     }
 
     void renderUniformElevationConfirmPopup() {

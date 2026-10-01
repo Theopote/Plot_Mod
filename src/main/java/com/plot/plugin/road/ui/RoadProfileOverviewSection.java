@@ -2,6 +2,7 @@ package com.plot.plugin.road.ui;
 
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.profile.ProfileChartRenderMode;
 import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.profile.RoadProfileChartRenderer;
 import com.plot.plugin.road.profile.RoadProfileIntersection;
@@ -76,15 +77,20 @@ public final class RoadProfileOverviewSection {
             if (active) {
                 header += "  " + PlotI18n.tr("plugin.road.profile_overview_active");
             }
-            if (ImGui.selectable(header + "##profile_overview_header", active)) {
+            header += " · " + RoadProfileRoadList.formatProfileRoadSummary(network, road);
+
+            float editButtonWidth = ImGui.calcTextSize(
+                PlotI18n.tr("plugin.road.profile_overview_edit")).x
+                + ImGui.getStyle().getFramePaddingX() * 2.0f;
+            float headerWidth = ImGui.getContentRegionAvailX() - editButtonWidth - ImGui.getStyle().getItemSpacingX();
+            if (ImGui.selectable(header + "##profile_overview_header", active, 0, headerWidth, 0)) {
                 ctx.networkManager().selectRoad(road.getId(), false);
                 ctx.requestOverlayRefresh();
             }
-
-            ImGui.indent();
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                RoadProfileRoadList.formatProfileRoadSummary(network, road));
+            ImGui.sameLine();
+            if (ImGui.button(PlotI18n.tr("plugin.road.profile_overview_edit") + "##overview_edit")) {
+                profileEditor.openEditorForRoad(ctx, road.getId());
+            }
 
             float chartHeight = active ? ACTIVE_CHART_HEIGHT : MINI_CHART_HEIGHT;
             RoadProfileChartData chartData = ctx.previewManager().getRoadProfileChart(road.getId());
@@ -94,30 +100,17 @@ public final class RoadProfileOverviewSection {
                 VerticalAlignmentProfileOverlay design =
                     VerticalAlignmentProfileOverlay.forRoad(network, road).orElse(null);
                 List<RoadProfileIntersection> intersections = chartData.intersections();
+                ProfileChartRenderMode mode = active
+                    ? ProfileChartRenderMode.OVERVIEW
+                    : ProfileChartRenderMode.MINI;
                 RoadProfileChartRenderer.renderOverview(
                     chartData,
                     design,
                     intersections,
                     chartHeight,
-                    flatOverlay);
+                    flatOverlay,
+                    mode);
             }
-
-            float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
-            if (ImGui.button(
-                    PlotI18n.tr("plugin.road.vertical_alignment_open_editor") + "##overview_open",
-                    buttonWidth,
-                    0)) {
-                profileEditor.openEditorForRoad(ctx, road.getId());
-            }
-            ImGui.sameLine();
-            if (ImGui.button(
-                    PlotI18n.tr("plugin.road.profile_overview_select_road") + "##overview_select",
-                    buttonWidth,
-                    0)) {
-                ctx.networkManager().selectRoad(road.getId(), false);
-                ctx.requestOverlayRefresh();
-            }
-            ImGui.unindent();
         } finally {
             ImGui.popID();
         }
