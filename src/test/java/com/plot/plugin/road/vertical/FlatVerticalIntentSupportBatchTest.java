@@ -82,7 +82,7 @@ class FlatVerticalIntentSupportBatchTest {
             network, List.of(flat.getId()), CONFIG);
 
         assertEquals(1, changed);
-        assertEquals(RoadVerticalMode.AUTO_SMOOTH, flat.getVerticalMode());
+        assertEquals(RoadVerticalMode.FIT_TERRAIN, flat.getVerticalMode());
         assertTrue(flat.getFlatVerticalIntent() == null);
         assertTrue(flat.getVerticalAlignment() == null);
     }
@@ -97,7 +97,7 @@ class FlatVerticalIntentSupportBatchTest {
 
         FlatVerticalIntentSupport.enableTerrainAdaptive(network, flat, CONFIG);
 
-        assertEquals(RoadVerticalMode.AUTO_SMOOTH, flat.getVerticalMode());
+        assertEquals(RoadVerticalMode.FIT_TERRAIN, flat.getVerticalMode());
         assertTrue(flat.getFlatVerticalIntent() == null);
         assertTrue(flat.getVerticalAlignment() == null);
     }

@@ -129,13 +129,13 @@ public final class FlatVerticalIntentSupport {
         if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
             road.setFlatVerticalIntent(null);
             road.setVerticalAlignment(null);
-            road.setVerticalMode(RoadVerticalMode.AUTO_SMOOTH);
+            road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
             return;
         }
         if (road.getVerticalMode() == RoadVerticalMode.MANUAL_PROFILE) {
             return;
         }
-        road.setVerticalMode(RoadVerticalMode.AUTO_SMOOTH);
+        road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
     }
 
     public static double recommendBaseElevation(RoadNetwork network, Road road) {

@@ -171,6 +171,11 @@ final class VerticalProfileEditor {
                 PlotI18n.tr("plugin.road.profile_discontinuous_road_hint"));
             return;
         }
+        renderRoadSummary(ctx, network, road);
+        if (ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_open_editor"),
+                ImGui.getContentRegionAvailX(), 0)) {
+            openEditorForRoad(road.getId());
+        }
         RoadProfileChartData chartData = resolveChartData(ctx, network, road);
         if (chartData == null || !chartData.hasProfileData()) {
             renderMissingProfileActions(ctx, network, road);
@@ -181,8 +186,6 @@ final class VerticalProfileEditor {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         List<RoadProfileIntersection> intersections = resolveIntersections(
             ctx, network, road, config, chartData, true);
-
-        renderRoadSummary(ctx, network, road);
         RoadProfileChartRenderer.renderOverview(
             chartData, design, intersections, INLINE_CHART_HEIGHT, flatOverlay);
         boolean flatMode = RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT;
@@ -195,10 +198,6 @@ final class VerticalProfileEditor {
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.vertical_alignment_inline_preview_hint"));
-        if (ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_open_editor"),
-                ImGui.getContentRegionAvailX(), 0)) {
-            openEditorForRoad(road.getId());
-        }
     }
 
     void renderEditorWindow(
