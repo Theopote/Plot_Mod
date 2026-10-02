@@ -178,6 +178,21 @@ class WaterCrossingConstructionResolverTest {
     }
 
     @Test
+    void bridgeDeckStationIsLimitedToCrossingZone() {
+        WaterCrossing bridge = new WaterCrossing(
+            0.0, 4.0, 8.0, 12.0,
+            5.0, 7.0, 4.0, 2.0, 3.0,
+            50, 50, 51, WaterCrossingStrategy.BRIDGE);
+
+        assertTrue(WaterCrossingConstructionResolver.isBridgeDeckStation(List.of(bridge), 4.0));
+        assertTrue(WaterCrossingConstructionResolver.isBridgeDeckStation(List.of(bridge), 8.0));
+        assertTrue(!WaterCrossingConstructionResolver.isBridgeDeckStation(List.of(bridge), 2.0));
+        assertTrue(!WaterCrossingConstructionResolver.isBridgeDeckStation(List.of(bridge), 10.0));
+        assertTrue(WaterCrossingConstructionResolver.isBridgeStructureStation(List.of(bridge), 2.0));
+        assertTrue(!WaterCrossingConstructionResolver.isBridgeStructureStation(List.of(bridge), 15.0));
+    }
+
+    @Test
     void longBridgeUsesWiderPillarSpacing() {
         WaterCrossing longBridge = new WaterCrossing(
             0.0, 0.0, 100.0, 110.0,

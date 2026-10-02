@@ -1,6 +1,7 @@
 package com.plot.plugin.road.geometry;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 
 /**
@@ -44,6 +45,22 @@ public final class RoadCorridorWidth {
             halfWidth += slopeBatterMarginBlocks(section, config);
         }
         return halfWidth;
+    }
+
+    /**
+     * 桥面硬质横断面总宽：行车道 + 路肩/自行车道/人行道，不含排水沟。
+     * 桥面板、桥台、护栏外缘与桥墩帽统一使用此包络。
+     */
+    public static int bridgeDeckWidthBlocks(ResolvedCrossSection section) {
+        if (section == null) {
+            return 1;
+        }
+        return Math.max(1, section.carriagewayWidth + section.outerBandBlockCount() * 2);
+    }
+
+    /** 桥面硬质横断面半宽（自中心线到最外侧条带中心）。 */
+    public static double bridgeDeckHalfWidthBlocks(ResolvedCrossSection section) {
+        return RoadDimensionUtils.halfExtentFromCenter(bridgeDeckWidthBlocks(section));
     }
 
     /** 路基挖填包络总宽（方块数）。 */

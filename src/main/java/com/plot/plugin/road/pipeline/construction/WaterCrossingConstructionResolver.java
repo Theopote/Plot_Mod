@@ -69,6 +69,27 @@ public final class WaterCrossingConstructionResolver {
         return null;
     }
 
+    /**
+     * Returns true when the station lies on an elevated bridge deck (crossing zone only,
+     * not approach/exit ramps). When no crossing data is available, defers to segment-level BRIDGE.
+     */
+    public static boolean isBridgeDeckStation(
+            List<WaterCrossing> crossings,
+            double worldStation) {
+        if (crossings == null || crossings.isEmpty()) {
+            return true;
+        }
+        for (WaterCrossing crossing : crossings) {
+            if (!isElevatedBridgeStrategy(crossing.strategy())) {
+                continue;
+            }
+            if (crossing.isInCrossingZone(worldStation)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static boolean isBridgeStructureStation(
             List<WaterCrossing> crossings,
             double worldStation) {

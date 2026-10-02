@@ -245,7 +245,7 @@ class BridgeStructureGeneratorTest {
     }
 
     @Test
-    void wideRoadPierCapMatchesCarriagewayWidth() {
+    void wideRoadPierCapMatchesBridgeDeckWidth() {
         RoadSolidModel solids = new RoadSolidModel();
         List<PathSegment> segments = List.of(new PathSegment(new Vec2d(0, 0), new Vec2d(20, 0)));
         List<SegmentHeightInfo> heightInfos = List.of(
@@ -258,6 +258,7 @@ class BridgeStructureGeneratorTest {
         RoadSystemConfig config = new RoadSystemConfig("bridge-structure");
         config.setRoadWidth(7);
         config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
         ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);
 
         BridgeStructureGenerator.generate(
@@ -280,8 +281,54 @@ class BridgeStructureGeneratorTest {
             .map(primitive -> Math.round(primitive.planPoint().y * 10.0))
             .distinct()
             .count();
-        assertEquals(section.carriagewayWidth, pierCapWidth,
-            "interior pier deck slab should span the carriageway");
+        assertEquals(
+            com.plot.plugin.road.geometry.RoadCorridorWidth.bridgeDeckWidthBlocks(section),
+            pierCapWidth,
+            "interior pier deck slab should span the bridge deck envelope");
+    }
+
+    @Test
+    void pierCapSpansFullBridgeDeckWhenSidewalkEnabled() {
+        RoadSolidModel solids = new RoadSolidModel();
+        List<PathSegment> segments = List.of(new PathSegment(new Vec2d(0, 0), new Vec2d(20, 0)));
+        List<SegmentHeightInfo> heightInfos = List.of(
+            new SegmentHeightInfo(
+                segments.getFirst(), 50, 50, 69, 69, 64, 64, 64, 64, 20.0));
+        WaterCrossing bridge = new WaterCrossing(
+            0.0, 5.0, 15.0, 20.0,
+            8.0, 12.0, 10.0, 10.0, 14.0,
+            68, 68, 69, WaterCrossingStrategy.BRIDGE);
+        RoadSystemConfig config = new RoadSystemConfig("bridge-structure");
+        config.setRoadWidth(5);
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(true);
+        config.setSidewalkWidth(2);
+        ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);
+
+        BridgeStructureGenerator.generate(
+            TEST_HOST,
+            solids,
+            List.of(RoadConstructionType.BRIDGE),
+            segments,
+            heightInfos,
+            CrossSectionBuildContext.fixed(section),
+            flatBed(50),
+            1.0,
+            DesignElevationSource.inactive(),
+            BuildHeightProfile.inactive(),
+            List.of(bridge));
+
+        long pierCapWidth = solids.primitives().stream()
+            .filter(primitive -> primitive.layer() == RoadSolidLayer.BRIDGE)
+            .filter(primitive -> primitive.elevation() == 63)
+            .filter(primitive -> Math.abs(primitive.planPoint().x - 10.0) < 1.5)
+            .map(primitive -> Math.round(primitive.planPoint().y * 10.0))
+            .distinct()
+            .count();
+        assertEquals(
+            com.plot.plugin.road.geometry.RoadCorridorWidth.bridgeDeckWidthBlocks(section),
+            pierCapWidth,
+            "interior pier deck slab should span the full bridge deck envelope");
     }
 
     @Test

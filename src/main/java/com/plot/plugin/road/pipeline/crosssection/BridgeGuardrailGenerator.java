@@ -2,15 +2,17 @@ package com.plot.plugin.road.pipeline.crosssection;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadConstructionType;
-import com.plot.plugin.road.RoadDimensionUtils;
+import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
+import com.plot.plugin.road.pipeline.construction.WaterCrossingConstructionResolver;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
+import com.plot.plugin.road.pipeline.profile.environment.WaterCrossing;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
 
@@ -42,6 +44,7 @@ public final class BridgeGuardrailGenerator {
             double unitsPerBlock,
             DesignElevationSource designElevation,
             BuildHeightProfile buildProfile,
+            List<WaterCrossing> profileWaterCrossings,
             String guardrailMaterial) {
         if (constructionTypes.stream().noneMatch(type -> type == RoadConstructionType.BRIDGE)) {
             return;
@@ -66,13 +69,18 @@ public final class BridgeGuardrailGenerator {
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
                 double geometryLocal = geometryLocalBase + segment.distance * t;
+                double worldStation = geometryLocal / scale;
+                if (!WaterCrossingConstructionResolver.isBridgeDeckStation(
+                        profileWaterCrossings, worldStation)) {
+                    continue;
+                }
                 int deckY = DesignElevationSource.resolveTargetElevation(
                     designElevation,
                     buildProfile,
                     info,
                     geometryLocal,
                     t,
-                    geometryLocal / scale);
+                    worldStation);
                 deckY = host.snapEndpointElevation(center, deckY);
                 double chainage = crossSections.chainageAtGeometryLocal(geometryLocal);
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
@@ -81,7 +89,7 @@ public final class BridgeGuardrailGenerator {
                     center,
                     normal,
                     deckY,
-                    crossSection.carriagewayWidth,
+                    crossSection,
                     blockId,
                     scale);
             }
@@ -94,13 +102,13 @@ public final class BridgeGuardrailGenerator {
             Vec2d center,
             Vec2d leftNormal,
             int deckY,
-            int carriagewayWidth,
+            ResolvedCrossSection crossSection,
             String blockId,
             double scale) {
         Vec2d normal = leftNormal.lengthSquared() > 1e-12
             ? leftNormal.normalize()
             : new Vec2d(0, 1);
-        double edgeOffset = RoadDimensionUtils.halfExtentFromCenter(Math.max(1, carriagewayWidth)) * scale;
+        double edgeOffset = RoadCorridorWidth.bridgeDeckHalfWidthBlocks(crossSection) * scale;
         int elevation = deckY + 1;
         solids.add(center.add(normal.multiply(edgeOffset)), elevation, RoadSolidLayer.GUARDRAIL, blockId);
         solids.add(center.subtract(normal.multiply(edgeOffset)), elevation, RoadSolidLayer.GUARDRAIL, blockId);

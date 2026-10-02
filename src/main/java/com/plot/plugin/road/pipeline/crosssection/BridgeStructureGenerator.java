@@ -52,7 +52,6 @@ public final class BridgeStructureGenerator {
             double worldStation,
             double geometryDistance,
             StructureKind kind,
-            /** -1 approach-side abutment, +1 exit-side abutment, 0 pier. */
             int landwardSign,
             boolean heavyPier) {
     }
@@ -397,7 +396,7 @@ public final class BridgeStructureGenerator {
             ResolvedCrossSection crossSection,
             double unitsPerBlock,
             int landwardSign) {
-        int widthBlocks = Math.max(3, RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection));
+        int widthBlocks = Math.max(3, RoadCorridorWidth.bridgeDeckWidthBlocks(crossSection));
         Vec2d forward = segmentForward(segment);
         double scale = unitsPerBlock > EPSILON ? unitsPerBlock : 1.0;
         int stepSign = landwardSign < 0 ? -1 : 1;
@@ -453,8 +452,9 @@ public final class BridgeStructureGenerator {
                 forward,
                 scale);
         }
+        int deckWidthBlocks = RoadCorridorWidth.bridgeDeckWidthBlocks(crossSection);
         placeDeckSlab(
-            solids, center, leftNormal, carriagewayWidth, deckY - 1, deckSlabBlockId, unitsPerBlock);
+            solids, center, leftNormal, deckWidthBlocks, deckY - 1, deckSlabBlockId, unitsPerBlock);
     }
 
     private static void placeDeckSlab(

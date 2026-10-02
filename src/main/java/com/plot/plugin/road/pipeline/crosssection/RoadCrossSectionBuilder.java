@@ -89,7 +89,8 @@ public final class RoadCrossSectionBuilder {
             crossSections,
             unitsPerBlock,
             designElevation,
-            buildProfile);
+            buildProfile,
+            ctx.request().profileWaterCrossings());
 
         generateShoulderBlocks(
             crossSectionHost, solids, segments, heightInfos, crossSections, unitsPerBlock, designElevation, buildProfile);
@@ -609,7 +610,8 @@ public final class RoadCrossSectionBuilder {
             CrossSectionBuildContext crossSections,
             double unitsPerBlock,
             DesignElevationSource designElevation,
-            BuildHeightProfile buildProfile) {
+            BuildHeightProfile buildProfile,
+            List<com.plot.plugin.road.pipeline.profile.environment.WaterCrossing> profileWaterCrossings) {
         if (!host.includeBridgeGuardrail()) {
             return;
         }
@@ -633,6 +635,7 @@ public final class RoadCrossSectionBuilder {
             unitsPerBlock,
             designElevation,
             buildProfile,
+            profileWaterCrossings,
             host.bridgeGuardrailMaterial());
     }
 

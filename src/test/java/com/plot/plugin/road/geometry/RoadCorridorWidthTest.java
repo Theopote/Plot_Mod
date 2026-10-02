@@ -47,6 +47,25 @@ class RoadCorridorWidthTest {
     }
 
     @Test
+    void bridgeDeckWidthIncludesOuterBandsButNotDrain() {
+        RoadSystemConfig config = new RoadSystemConfig("road_test");
+        config.setRoadWidth(5);
+        config.setIncludeShoulder(true);
+        config.setShoulderWidth(1);
+        config.setIncludeBikeLane(true);
+        config.setBikeLaneWidth(2);
+        config.setIncludeSidewalk(true);
+        config.setSidewalkWidth(2);
+        config.setIncludeDrainage(true);
+
+        ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);
+
+        assertEquals(15, RoadCorridorWidth.bridgeDeckWidthBlocks(section));
+        assertEquals(7.5, RoadCorridorWidth.bridgeDeckHalfWidthBlocks(section), 0.01);
+        assertEquals(17, RoadCorridorWidth.gradingEnvelopeWidthBlocks(section));
+    }
+
+    @Test
     void decorationClearWidthExtendsBeyondPavementWhenSlopeBatterEnabled() {
         RoadSystemConfig config = new RoadSystemConfig("road_test");
         config.setRoadWidth(5);
