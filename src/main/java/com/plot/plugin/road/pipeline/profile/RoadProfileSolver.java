@@ -10,6 +10,7 @@ import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.road.pipeline.profile.terrain.GradeLimitedProfileSolver;
+import com.plot.plugin.road.pipeline.profile.terrain.ProfileCutFillBalancer;
 import com.plot.plugin.road.pipeline.profile.terrain.TerrainFollowPreset;
 import com.plot.plugin.road.pipeline.profile.terrain.TerrainProfileSampleChain;
 import com.plot.plugin.road.pipeline.profile.terrain.TerrainTrendBuilder;
@@ -216,9 +217,17 @@ public final class RoadProfileSolver {
                     manualStartHeight,
                     manualEndHeight,
                     effectiveTerrainPreset);
-            designElevations = terrainSolve.designElevations();
+            designElevations = ProfileCutFillBalancer.apply(
+                sampleData.groundSamples(),
+                terrainSolve.designElevations(),
+                support.fillFactor(),
+                effectiveTerrainPreset.cutFillBalanceWeight());
             manualEndpointConstraintFeasible = terrainSolve.manualEndpointsFeasible();
-            raster = terrainSolve.rasterization();
+            raster = RoadHeightRasterizer.rasterize(
+                designElevations,
+                distances,
+                effectiveMaxSlopes,
+                manualStartHeight);
         } else {
             designElevations = toDoubleList(guideLine);
             int profileStartHeight = manualStartHeight != null

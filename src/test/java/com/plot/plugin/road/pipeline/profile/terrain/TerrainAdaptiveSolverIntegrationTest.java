@@ -62,15 +62,15 @@ class TerrainAdaptiveSolverIntegrationTest {
         ProfileSolveResult tight = solve(fixture.withPreset(TerrainFollowPreset.TIGHT));
         List<Integer> ground = gentle.profileGroundHeights();
 
-        double gentleError = meanAbsoluteError(gentle.profileBuildHeights(), ground);
-        double standardError = meanAbsoluteError(standard.profileBuildHeights(), ground);
-        double tightError = meanAbsoluteError(tight.profileBuildHeights(), ground);
+        double gentleError = meanAbsoluteError(gentle.profileGuideLine(), ground);
+        double standardError = meanAbsoluteError(standard.profileGuideLine(), ground);
+        double tightError = meanAbsoluteError(tight.profileGuideLine(), ground);
 
         assertTrue(gentleError >= standardError - 0.5,
-            () -> "gentle should track ground less closely than standard: "
+            () -> "gentle trend should track ground less closely than standard: "
                 + gentleError + " vs " + standardError);
         assertTrue(standardError >= tightError - 0.5,
-            () -> "standard should track ground less closely than tight: "
+            () -> "standard trend should track ground less closely than tight: "
                 + standardError + " vs " + tightError);
         assertNotEquals(gentle.profileGuideLine(), tight.profileGuideLine());
     }
@@ -133,6 +133,83 @@ class TerrainAdaptiveSolverIntegrationTest {
     void manualProfileModeDoesNotExposeTerrainTrendGuideSemantics() {
         assertEquals(ProfileChartGuideSemantics.NONE,
             ProfileChartGuideSemantics.fromVerticalMode(RoadVerticalMode.MANUAL_PROFILE));
+    }
+
+    @Test
+    void cutFillBalanceReducesFillBiasOnAscendingTerrain() {
+        Fixture fixture = ascendingTerrainFixture(100.0, 10.0, 8.0f);
+        fixture.config().setFillFactor(1.35f);
+
+        ProfileSolveResult gentle = solve(fixture.withPreset(TerrainFollowPreset.GENTLE));
+        ProfileSolveResult tight = solve(fixture.withPreset(TerrainFollowPreset.TIGHT));
+
+        long gentleImbalance = Math.abs(estimateBalance(gentle));
+        long tightImbalance = Math.abs(estimateBalance(tight));
+        assertTrue(gentleImbalance <= tightImbalance,
+            () -> "gentle balance weight should reduce cut/fill imbalance: "
+                + gentleImbalance + " vs " + tightImbalance);
+        assertTrue(meanBuild(gentle.profileBuildHeights()) >= meanBuild(tight.profileBuildHeights()),
+            "gentle preset should raise fill-lagging profile more than tight");
+    }
+
+    private static long estimateBalance(ProfileSolveResult result) {
+        List<Integer> ground = result.profileGroundHeights();
+        List<Integer> build = result.profileBuildHeights();
+        long cut = 0L;
+        long fill = 0L;
+        for (int i = 0; i < Math.min(ground.size(), build.size()); i++) {
+            int diff = build.get(i) - ground.get(i);
+            if (diff > 0) {
+                fill += diff;
+            } else if (diff < 0) {
+                cut += -diff;
+            }
+        }
+        return fill - cut;
+    }
+
+    private static double meanBuild(List<Integer> buildHeights) {
+        return buildHeights.stream().mapToInt(Integer::intValue).average().orElse(0.0);
+    }
+
+    private static Fixture ascendingTerrainFixture(double lengthMeters, double stepMeters, float maxSlope) {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("ascending");
+        road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
+        road.setMaxSlope(maxSlope);
+        road.setTerrainFollowPreset(TerrainFollowPreset.STANDARD);
+        RoadNode start = network.createNode(new Vec2d(0, 0));
+        RoadNode end = network.createNode(new Vec2d(lengthMeters, 0));
+        RoadEdge edge = network.createEdge(
+            start.getId(),
+            end.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(lengthMeters, 0)),
+            road.getId());
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        config.setMaxSlope(maxSlope);
+        config.setFillFactor(1.35f);
+        return new Fixture(
+            network,
+            road,
+            edge,
+            config,
+            sampledSegments(lengthMeters, stepMeters),
+            ascendingTerrain(),
+            TerrainFollowPreset.STANDARD);
+    }
+
+    private static TerrainSampler ascendingTerrain() {
+        return new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return 64 + (int) Math.round(point.x * 0.12);
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return false;
+            }
+        };
     }
 
     private static ProfileSolveResult solve(Fixture fixture) {
