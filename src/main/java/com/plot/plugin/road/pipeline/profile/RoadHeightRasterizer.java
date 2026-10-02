@@ -8,9 +8,12 @@ import java.util.List;
 
 /**
  * 将连续设计纵断面离散为 Minecraft 方块级建造高程。
- * 坡度预算通过 {@link RoadSlopeUtils.ElevationAccumulator} 在长距离上累积，而非逐段 ceil。
+ * 在全局 chainage（约 1 block / station）上采样，坡度预算通过
+ * {@link RoadSlopeUtils.ElevationAccumulator} 累积，避免 PathSegment 切分影响台阶分布。
  */
 public final class RoadHeightRasterizer {
+
+    private static final double EPSILON = 1e-9;
 
     private RoadHeightRasterizer() {
     }
@@ -19,6 +22,8 @@ public final class RoadHeightRasterizer {
             int startHeight,
             List<Integer> buildHeights,
             List<Integer> segmentBuildEnds,
+            List<BuildHeightSample> samples,
+            BuildHeightProfile buildProfile,
             double maxDesignBuildDeviation,
             double cumulativeGradeError,
             int longestFlatRun,
@@ -35,7 +40,7 @@ public final class RoadHeightRasterizer {
             Integer manualStartHeight,
             Integer manualEndHeight) {
         if (segmentDistances == null || segmentDistances.isEmpty()) {
-            return new RasterizationResult(0, List.of(), List.of(), 0.0, 0.0, 0, 0);
+            return emptyResult();
         }
         if (designElevations == null || designElevations.size() != segmentDistances.size() + 1) {
             throw new IllegalArgumentException("design elevations must have one more sample than segments");
@@ -53,22 +58,33 @@ public final class RoadHeightRasterizer {
             startHeight);
         Integer effectiveManualEndHeight = endpointsFeasible ? manualEndHeight : null;
 
-        List<Integer> segmentBuildEnds = rasterizeSegmentEnds(
+        List<Double> cumulativeDistances = cumulativeDistances(segmentDistances);
+        double totalLength = cumulativeDistances.getLast();
+        List<BuildHeightSample> samples = rasterizeBlockSamples(
             designElevations,
             segmentDistances,
+            cumulativeDistances,
             maxSlopePercents,
+            totalLength,
             startHeight,
             effectiveManualEndHeight);
+
+        List<Integer> segmentBuildEnds = segmentBuildEndsFromSamples(
+            samples, cumulativeDistances, segmentDistances.size());
         List<Integer> buildHeights = buildStationHeights(startHeight, segmentBuildEnds);
+        List<Double> designAtSegmentStations = designAtStations(designElevations, cumulativeDistances);
+        BuildHeightProfile buildProfile = BuildHeightProfile.fromSamples(samples);
 
         return new RasterizationResult(
             startHeight,
             buildHeights,
             segmentBuildEnds,
-            maxDesignBuildDeviation(designElevations, buildHeights),
-            cumulativeGradeError(designElevations, buildHeights),
-            longestFlatRun(buildHeights),
-            countSteps(buildHeights));
+            samples,
+            buildProfile,
+            maxDesignBuildDeviation(designAtSegmentStations, buildHeights),
+            cumulativeGradeError(designAtSegmentStations, buildHeights),
+            longestFlatRun(samples),
+            countSteps(samples));
     }
 
     /**
@@ -92,30 +108,187 @@ public final class RoadHeightRasterizer {
             manualEndHeight);
     }
 
-    private static List<Integer> rasterizeSegmentEnds(
+    private static RasterizationResult emptyResult() {
+        return new RasterizationResult(
+            0,
+            List.of(),
+            List.of(),
+            List.of(),
+            BuildHeightProfile.inactive(),
+            0.0,
+            0.0,
+            0,
+            0);
+    }
+
+    private static List<BuildHeightSample> rasterizeBlockSamples(
             List<Double> designElevations,
             List<Double> segmentDistances,
+            List<Double> cumulativeDistances,
             List<Float> maxSlopePercents,
+            double totalLength,
             int startHeight,
             Integer manualEndHeight) {
-        List<Integer> segmentEnds = new ArrayList<>(segmentDistances.size());
-        int previous = startHeight;
+        List<BuildHeightSample> samples = new ArrayList<>();
+        int currentBuild = startHeight;
         RoadSlopeUtils.ElevationAccumulator accumulator = new RoadSlopeUtils.ElevationAccumulator();
-        for (int i = 0; i < segmentDistances.size(); i++) {
-            int target = (int) Math.round(designElevations.get(i + 1));
-            if (manualEndHeight != null && i == segmentDistances.size() - 1) {
-                target = manualEndHeight;
-            }
-            int clamped = RoadSlopeUtils.clampTowardTarget(
-                previous,
-                target,
-                segmentDistances.get(i),
-                maxSlopePercents.get(i),
+
+        double designAtStart = interpolateDesignElevation(0.0, designElevations, segmentDistances, cumulativeDistances);
+        samples.add(new BuildHeightSample(0.0, designAtStart, startHeight));
+
+        int wholeBlocks = (int) Math.floor(totalLength + EPSILON);
+        double lastSegmentStart = cumulativeDistances.get(cumulativeDistances.size() - 2);
+        for (int block = 1; block <= wholeBlocks; block++) {
+            double station = block;
+            double designY = interpolateDesignElevation(
+                station, designElevations, segmentDistances, cumulativeDistances);
+            float maxSlope = maxSlopeAt(station, segmentDistances, cumulativeDistances, maxSlopePercents);
+            double targetElevation = targetDesignElevation(
+                designY, manualEndHeight, station, lastSegmentStart);
+            currentBuild = advanceTowardContinuousElevation(
+                currentBuild,
+                targetElevation,
+                1.0,
+                maxSlope,
                 accumulator);
-            segmentEnds.add(clamped);
-            previous = clamped;
+            samples.add(new BuildHeightSample(station, designY, currentBuild));
+        }
+
+        if (totalLength - wholeBlocks > EPSILON) {
+            double designY = interpolateDesignElevation(
+                totalLength, designElevations, segmentDistances, cumulativeDistances);
+            float maxSlope = maxSlopeAt(totalLength, segmentDistances, cumulativeDistances, maxSlopePercents);
+            double targetElevation = targetDesignElevation(
+                designY, manualEndHeight, totalLength, lastSegmentStart);
+            double tailDistance = totalLength - wholeBlocks;
+            currentBuild = advanceTowardContinuousElevation(
+                currentBuild,
+                targetElevation,
+                tailDistance,
+                maxSlope,
+                accumulator);
+            samples.add(new BuildHeightSample(totalLength, designY, currentBuild));
+        }
+
+        return List.copyOf(samples);
+    }
+
+    private static List<Integer> segmentBuildEndsFromSamples(
+            List<BuildHeightSample> samples,
+            List<Double> cumulativeDistances,
+            int segmentCount) {
+        List<Integer> segmentEnds = new ArrayList<>(segmentCount);
+        for (int i = 0; i < segmentCount; i++) {
+            double station = cumulativeDistances.get(i + 1);
+            segmentEnds.add(buildYAtStation(samples, station));
         }
         return segmentEnds;
+    }
+
+    private static double targetDesignElevation(
+            double designY,
+            Integer manualEndHeight,
+            double station,
+            double lastSegmentStart) {
+        if (manualEndHeight != null && station + EPSILON >= lastSegmentStart) {
+            return manualEndHeight;
+        }
+        return designY;
+    }
+
+    private static int advanceTowardContinuousElevation(
+            int currentBuild,
+            double targetElevation,
+            double distance,
+            float maxSlopePercent,
+            RoadSlopeUtils.ElevationAccumulator accumulator) {
+        double maxRise = distance * maxSlopePercent / 100.0;
+        double delta = targetElevation - currentBuild;
+        if (Math.abs(delta) <= maxRise + EPSILON) {
+            return accumulator.advance(currentBuild, delta);
+        }
+        double continuousStep = delta > 0.0 ? maxRise : -maxRise;
+        return accumulator.advance(currentBuild, continuousStep);
+    }
+
+    private static int buildYAtStation(List<BuildHeightSample> samples, double station) {
+        BuildHeightSample match = samples.getFirst();
+        for (BuildHeightSample sample : samples) {
+            if (sample.station() <= station + EPSILON) {
+                match = sample;
+            } else {
+                break;
+            }
+        }
+        return match.buildY();
+    }
+
+    private static List<Double> cumulativeDistances(List<Double> segmentDistances) {
+        List<Double> cumulative = new ArrayList<>(segmentDistances.size() + 1);
+        cumulative.add(0.0);
+        double total = 0.0;
+        for (double distance : segmentDistances) {
+            total += distance;
+            cumulative.add(total);
+        }
+        return cumulative;
+    }
+
+    private static List<Double> designAtStations(
+            List<Double> designElevations,
+            List<Double> cumulativeDistances) {
+        List<Double> designAtStations = new ArrayList<>(cumulativeDistances.size());
+        for (double station : cumulativeDistances) {
+            designAtStations.add(designElevations.get(indexAtStation(station, cumulativeDistances)));
+        }
+        return designAtStations;
+    }
+
+    static double interpolateDesignElevation(
+            double station,
+            List<Double> designElevations,
+            List<Double> segmentDistances,
+            List<Double> cumulativeDistances) {
+        if (station <= EPSILON) {
+            return designElevations.getFirst();
+        }
+        if (station >= cumulativeDistances.getLast() - EPSILON) {
+            return designElevations.getLast();
+        }
+        int segmentIndex = segmentIndexAt(station, cumulativeDistances);
+        double segmentStart = cumulativeDistances.get(segmentIndex);
+        double segmentLength = segmentDistances.get(segmentIndex);
+        double localT = segmentLength > EPSILON
+            ? (station - segmentStart) / segmentLength
+            : 0.0;
+        double start = designElevations.get(segmentIndex);
+        double end = designElevations.get(segmentIndex + 1);
+        return start * (1.0 - localT) + end * localT;
+    }
+
+    static float maxSlopeAt(
+            double station,
+            List<Double> segmentDistances,
+            List<Double> cumulativeDistances,
+            List<Float> maxSlopePercents) {
+        return maxSlopePercents.get(segmentIndexAt(station, cumulativeDistances));
+    }
+
+    private static int segmentIndexAt(double station, List<Double> cumulativeDistances) {
+        int index = indexAtStation(station, cumulativeDistances);
+        if (index >= cumulativeDistances.size() - 1) {
+            return cumulativeDistances.size() - 2;
+        }
+        return index;
+    }
+
+    private static int indexAtStation(double station, List<Double> cumulativeDistances) {
+        for (int i = cumulativeDistances.size() - 1; i >= 0; i--) {
+            if (station + EPSILON >= cumulativeDistances.get(i)) {
+                return i;
+            }
+        }
+        return 0;
     }
 
     private static List<Integer> buildStationHeights(int startHeight, List<Integer> segmentBuildEnds) {
@@ -150,14 +323,14 @@ public final class RoadHeightRasterizer {
         return Math.abs(buildDelta - designDelta);
     }
 
-    static int longestFlatRun(List<Integer> buildHeights) {
-        if (buildHeights.size() < 2) {
-            return buildHeights.size();
+    static int longestFlatRun(List<BuildHeightSample> samples) {
+        if (samples.size() < 2) {
+            return samples.size();
         }
         int longest = 1;
         int current = 1;
-        for (int i = 1; i < buildHeights.size(); i++) {
-            if (buildHeights.get(i).equals(buildHeights.get(i - 1))) {
+        for (int i = 1; i < samples.size(); i++) {
+            if (samples.get(i).buildY() == samples.get(i - 1).buildY()) {
                 current++;
             } else {
                 longest = Math.max(longest, current);
@@ -167,10 +340,10 @@ public final class RoadHeightRasterizer {
         return Math.max(longest, current);
     }
 
-    static int countSteps(List<Integer> buildHeights) {
+    static int countSteps(List<BuildHeightSample> samples) {
         int steps = 0;
-        for (int i = 1; i < buildHeights.size(); i++) {
-            if (!buildHeights.get(i).equals(buildHeights.get(i - 1))) {
+        for (int i = 1; i < samples.size(); i++) {
+            if (samples.get(i).buildY() != samples.get(i - 1).buildY()) {
                 steps++;
             }
         }

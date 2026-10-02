@@ -185,7 +185,10 @@ public final class RoadProfileChartAssembler {
                 && index < edgeResult.profileDesignElevations.size()) {
             return edgeResult.profileDesignElevations.get(index);
         }
-        return edgeResult.profileTargetHeights.get(index).doubleValue();
+        if (!edgeResult.profileGuideLine.isEmpty() && index < edgeResult.profileGuideLine.size()) {
+            return edgeResult.profileGuideLine.get(index).doubleValue();
+        }
+        return resolveBuildElevation(edgeResult, index);
     }
 
     private static double resolveBuildElevation(RoadGenerationResult edgeResult, int index) {
@@ -193,6 +196,6 @@ public final class RoadProfileChartAssembler {
                 && index < edgeResult.profileBuildHeights.size()) {
             return edgeResult.profileBuildHeights.get(index).doubleValue();
         }
-        return edgeResult.profileTargetHeights.get(index).doubleValue();
+        return edgeResult.profileGroundHeights.get(index).doubleValue();
     }
 }

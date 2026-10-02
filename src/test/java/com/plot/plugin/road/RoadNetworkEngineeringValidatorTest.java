@@ -401,7 +401,6 @@ class RoadNetworkEngineeringValidatorTest {
         }
         result.profileDesignElevations = design;
         result.profileBuildHeights = new java.util.ArrayList<>(heights);
-        result.profileTargetHeights = heights;
         return result;
     }
 

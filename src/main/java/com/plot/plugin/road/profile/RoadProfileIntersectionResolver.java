@@ -337,7 +337,7 @@ public final class RoadProfileIntersectionResolver {
         double localDistance = ProfileChartCoordinates.geometryLocalToProfileDistance(
             edge, result, geometryLocalDistance);
         List<Double> distances = result.profileDistances;
-        List<Integer> heights = result.profileTargetHeights;
+        List<Integer> heights = result.profileBuildHeights;
         if (distances.isEmpty() || heights.size() != distances.size()) {
             return OptionalDouble.empty();
         }

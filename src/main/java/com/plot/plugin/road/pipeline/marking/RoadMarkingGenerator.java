@@ -7,6 +7,7 @@ import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
 import com.plot.plugin.road.pipeline.RoadPathStationSampler;
+import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
@@ -37,6 +38,7 @@ public final class RoadMarkingGenerator {
             crossSections,
             ctx.unitsPerBlock(),
             ctx.request().designElevation(),
+            ctx.buildProfile(),
             host::resolveBlockId);
     }
 
@@ -47,6 +49,7 @@ public final class RoadMarkingGenerator {
             CrossSectionBuildContext crossSections,
             double unitsPerBlock,
             DesignElevationSource designElevation,
+            BuildHeightProfile buildProfile,
             MaterialResolver materialResolver) {
         AtomicInteger sampleIndex = new AtomicInteger();
         RoadPathStationSampler.forEach(
@@ -55,6 +58,7 @@ public final class RoadMarkingGenerator {
             crossSections.samplingOriented(),
             unitsPerBlock,
             designElevation,
+            buildProfile,
             null,
             (center, leftNormal, targetY, chainage) -> {
                 int index = sampleIndex.getAndIncrement();

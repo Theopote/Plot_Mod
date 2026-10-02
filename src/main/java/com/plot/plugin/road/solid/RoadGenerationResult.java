@@ -38,8 +38,6 @@ public class RoadGenerationResult {
     public List<Integer> profileGuideLine = new ArrayList<>();
     public List<Double> profileDesignElevations = new ArrayList<>();
     public List<Integer> profileBuildHeights = new ArrayList<>();
-    /** Build heights; kept in sync with {@link #profileBuildHeights} for legacy callers. */
-    public List<Integer> profileTargetHeights = new ArrayList<>();
     /** False when a pinned start/end elevation cannot be reached within max slope. */
     public boolean manualEndpointConstraintFeasible = true;
 
@@ -92,7 +90,6 @@ public class RoadGenerationResult {
         profileGuideLine = new ArrayList<>(source.profileGuideLine);
         profileDesignElevations = new ArrayList<>(source.profileDesignElevations);
         profileBuildHeights = new ArrayList<>(source.profileBuildHeights);
-        profileTargetHeights = new ArrayList<>(source.profileTargetHeights);
         manualEndpointConstraintFeasible = source.manualEndpointConstraintFeasible;
     }
 
@@ -103,12 +100,7 @@ public class RoadGenerationResult {
             return false;
         }
         int sampleCount = profileDistances.size();
-        boolean buildReady = !profileBuildHeights.isEmpty()
-            ? profileBuildHeights.size() == sampleCount
-            : profileTargetHeights.size() == sampleCount;
-        boolean designReady = !profileDesignElevations.isEmpty()
-            ? profileDesignElevations.size() == sampleCount
-            : profileTargetHeights.size() == sampleCount;
-        return buildReady && designReady;
+        return profileBuildHeights.size() == sampleCount
+            && profileDesignElevations.size() == sampleCount;
     }
 }

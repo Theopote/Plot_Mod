@@ -12,14 +12,12 @@ public record ProfileSolveResult(
         List<Integer> profileGuideLine,
         List<Double> profileDesignElevations,
         List<Integer> profileBuildHeights,
+        BuildHeightProfile buildProfile,
         boolean manualEndpointConstraintFeasible) {
 
     public static ProfileSolveResult empty() {
-        return new ProfileSolveResult(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), true);
-    }
-
-    /** Build heights; alias for legacy callers. */
-    public List<Integer> profileTargetHeights() {
-        return profileBuildHeights;
+        return new ProfileSolveResult(
+            List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
+            BuildHeightProfile.inactive(), true);
     }
 }

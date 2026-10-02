@@ -14,6 +14,7 @@ import com.plot.plugin.road.pipeline.StationFacilityBuildContext;
 import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
+import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.solid.RoadSolidLayer;
@@ -58,6 +59,7 @@ public final class RoadStationFacilityGenerator {
                 ctx.unitsPerBlock()),
             ctx.unitsPerBlock(),
             ctx.request().designElevation(),
+            ctx.buildProfile(),
             host::resolveBlockId,
             host::snapEndpointElevation);
     }
@@ -74,6 +76,7 @@ public final class RoadStationFacilityGenerator {
             StationFacilityJunctionTrim.FacilityEndpointTrim trim,
             double unitsPerBlock,
             DesignElevationSource designElevation,
+            BuildHeightProfile buildProfile,
             MaterialResolver materialResolver,
             ElevationSnapper elevationSnapper) {
         if (trim == null) {
@@ -95,11 +98,14 @@ public final class RoadStationFacilityGenerator {
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
                 double geometryLocal = geometryLocalBase + segment.distance * t;
+                double worldStation = geometryLocal / scale;
                 int targetY = DesignElevationSource.resolveTargetElevation(
                     designElevation,
+                    buildProfile,
                     info,
                     geometryLocal,
-                    t);
+                    t,
+                    worldStation);
                 targetY = elevationSnapper.snap(center, targetY);
                 double chainage = oriented.roadStationAtGeometryLocal(geometryLocal);
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);

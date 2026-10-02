@@ -10,6 +10,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
+import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnapResolver;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnaps;
@@ -120,6 +121,7 @@ public final class RoadEdgeBuildOrchestrator {
                 edge.getId(),
                 StationFacilityBuildContext.forEdge(network, edge),
                 designElevation,
+                heightCalculation.buildProfile(),
                 host);
             result.edgeId = edge.getId();
             result.copyProfileFrom(RoadProfileSolver.toProfileSnapshot(heightCalculation));
@@ -149,6 +151,7 @@ public final class RoadEdgeBuildOrchestrator {
             pathPoints, terrain, crossSection, crossSections, heightCalculation.heightInfos(), pathLength, null, "standalone",
             StationFacilityBuildContext.EMPTY,
             DesignElevationSource.inactive(),
+            heightCalculation.buildProfile(),
             host);
         result.copyProfileFrom(RoadProfileSolver.toProfileSnapshot(heightCalculation));
         return result;
@@ -165,6 +168,7 @@ public final class RoadEdgeBuildOrchestrator {
             String carriagewaySeedKey,
             StationFacilityBuildContext stationFacilities,
             DesignElevationSource designElevation,
+            BuildHeightProfile buildProfile,
             RoadGenerationPipelineHost host) {
         return pipeline.execute(
             new RoadGenerationBuildRequest(
@@ -177,7 +181,8 @@ public final class RoadEdgeBuildOrchestrator {
                 endpointSnaps,
                 carriagewaySeedKey,
                 stationFacilities,
-                designElevation),
+                designElevation,
+                buildProfile),
             host);
     }
 

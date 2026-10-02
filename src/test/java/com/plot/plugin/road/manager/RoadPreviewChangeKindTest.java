@@ -64,7 +64,7 @@ class RoadPreviewChangeKindTest {
         RoadGenerationResult edgeResult = new RoadGenerationResult(100.0);
         edgeResult.profileDistances = List.of(0.0, 100.0);
         edgeResult.profileGroundHeights = List.of(64, 65);
-        edgeResult.profileTargetHeights = List.of(66, 67);
+        edgeResult.profileBuildHeights = List.of(66, 67);
 
         setField(previewManager, "lastEdgeResults", Map.of("edge-1", edgeResult));
         setField(previewManager, "lastGenerationResult", new RoadGenerationResult(50.0));

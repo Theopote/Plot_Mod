@@ -89,7 +89,7 @@ class RoadProfileSolverTest {
         ProfileSolveResult result = RoadProfileSolver.solveForEdge(
             segments, terrain, network, edge, config, 2.5, null, null, support);
 
-        List<Integer> targets = result.profileTargetHeights();
+        List<Integer> targets = result.profileBuildHeights();
         assertFalse(targets.isEmpty());
         int mid = targets.size() / 2;
         assertNotEquals(targets.getFirst(), targets.get(mid),
@@ -132,7 +132,7 @@ class RoadProfileSolverTest {
         ProfileSolveResult smooth = RoadProfileSolver.solveForEdge(
             segments, terrain, network, edge, config, 2.5, null, null, support);
 
-        List<Integer> fitTargets = fit.profileTargetHeights();
+        List<Integer> fitTargets = fit.profileBuildHeights();
         List<Integer> ground = fit.profileGroundHeights();
         List<Integer> guide = fit.profileGuideLine();
         assertFalse(fitTargets.isEmpty());
@@ -149,7 +149,7 @@ class RoadProfileSolverTest {
             () -> "v2 targets should follow smoothed trend, not chase raw ground spikes");
 
         double fitGroundError = meanAbsoluteError(fitTargets, ground);
-        double smoothGroundError = meanAbsoluteError(smooth.profileTargetHeights(), smooth.profileGroundHeights());
+        double smoothGroundError = meanAbsoluteError(smooth.profileBuildHeights(), smooth.profileGroundHeights());
         assertTrue(fitGroundError < smoothGroundError,
             () -> "FIT_TERRAIN should track terrain more closely than AUTO_SMOOTH");
     }
@@ -254,7 +254,7 @@ class RoadProfileSolverTest {
         ProfileSolveResult result = RoadProfileSolver.solveForEdge(
             segments, terrain, network, edge, config, 2.5, null, null, support);
 
-        List<Integer> targets = result.profileTargetHeights();
+        List<Integer> targets = result.profileBuildHeights();
         double maxStep = maxAdjacentDelta(targets);
         assertTrue(maxStep < 15.0,
             () -> "FIT_TERRAIN target should spread the 15 m terrain step, got jump " + maxStep);

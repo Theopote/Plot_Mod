@@ -134,7 +134,6 @@ public final class RoadProfileSolver {
         profile.profileGuideLine = new ArrayList<>(result.profileGuideLine());
         profile.profileDesignElevations = new ArrayList<>(result.profileDesignElevations());
         profile.profileBuildHeights = new ArrayList<>(result.profileBuildHeights());
-        profile.profileTargetHeights = new ArrayList<>(result.profileBuildHeights());
         profile.manualEndpointConstraintFeasible = result.manualEndpointConstraintFeasible();
         return profile;
     }
@@ -225,14 +224,7 @@ public final class RoadProfileSolver {
                     effectiveTerrainPreset);
             designElevations = terrainSolve.designElevations();
             manualEndpointConstraintFeasible = terrainSolve.manualEndpointsFeasible();
-            raster = new RoadHeightRasterizer.RasterizationResult(
-                terrainSolve.startHeight(),
-                buildStationHeights(terrainSolve.startHeight(), terrainSolve.segmentBuildEnds()),
-                terrainSolve.segmentBuildEnds(),
-                0.0,
-                0.0,
-                0,
-                0);
+            raster = terrainSolve.rasterization();
         } else {
             designElevations = toDoubleList(guideLine);
             int profileStartHeight = manualStartHeight != null
@@ -257,15 +249,15 @@ public final class RoadProfileSolver {
             int buildStart = manualStartHeight != null
                 ? manualStartHeight
                 : guideStarts.getFirst();
-            List<Integer> buildHeights = buildStationHeights(buildStart, chainedBuildEnds);
-            raster = new RoadHeightRasterizer.RasterizationResult(
-                buildStart,
-                buildHeights,
-                chainedBuildEnds,
-                RoadHeightRasterizer.maxDesignBuildDeviation(designElevations, buildHeights),
-                RoadHeightRasterizer.cumulativeGradeError(designElevations, buildHeights),
-                RoadHeightRasterizer.longestFlatRun(buildHeights),
-                RoadHeightRasterizer.countSteps(buildHeights));
+            raster = RoadHeightRasterizer.rasterize(
+                designElevations,
+                distances,
+                effectiveMaxSlopes,
+                manualStartHeight,
+                manualEndHeight);
+            if (!chainedBuildEnds.isEmpty()) {
+                raster = mergeChainedSegmentEnds(raster, buildStart, chainedBuildEnds, designElevations);
+            }
         }
 
         List<SegmentHeightInfo> heightInfos = buildHeightInfos(
@@ -282,7 +274,31 @@ public final class RoadProfileSolver {
             new ArrayList<>(guideLine),
             designElevations,
             raster.buildHeights(),
+            raster.buildProfile(),
             manualEndpointConstraintFeasible);
+    }
+
+    /**
+     * AUTO_SMOOTH still uses chained segment-end solver for slope-length limits; block placement
+     * uses {@link BuildHeightProfile} from rasterization while segment chart endpoints stay chained.
+     */
+    private static RoadHeightRasterizer.RasterizationResult mergeChainedSegmentEnds(
+            RoadHeightRasterizer.RasterizationResult raster,
+            int buildStart,
+            List<Integer> chainedBuildEnds,
+            List<Double> designElevations) {
+        List<Integer> buildHeights = buildStationHeights(buildStart, chainedBuildEnds);
+        List<Double> designAtStations = new ArrayList<>(designElevations);
+        return new RoadHeightRasterizer.RasterizationResult(
+            buildStart,
+            buildHeights,
+            chainedBuildEnds,
+            raster.samples(),
+            raster.buildProfile(),
+            RoadHeightRasterizer.maxDesignBuildDeviation(designAtStations, buildHeights),
+            RoadHeightRasterizer.cumulativeGradeError(designAtStations, buildHeights),
+            RoadHeightRasterizer.longestFlatRun(raster.samples()),
+            RoadHeightRasterizer.countSteps(raster.samples()));
     }
 
     private static List<SegmentHeightInfo> buildHeightInfos(

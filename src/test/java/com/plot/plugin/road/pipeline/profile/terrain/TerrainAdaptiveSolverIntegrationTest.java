@@ -40,7 +40,7 @@ class TerrainAdaptiveSolverIntegrationTest {
         ProfileSolveResult result = solve(fixture);
         List<Integer> ground = result.profileGroundHeights();
         List<Integer> guide = result.profileGuideLine();
-        List<Integer> targets = result.profileTargetHeights();
+        List<Integer> targets = result.profileBuildHeights();
 
         assertTrue(ground.size() >= 20, "mountain road should sample many stations");
         assertInteriorVariation(targets);
@@ -62,9 +62,9 @@ class TerrainAdaptiveSolverIntegrationTest {
         ProfileSolveResult tight = solve(fixture.withPreset(TerrainFollowPreset.TIGHT));
         List<Integer> ground = gentle.profileGroundHeights();
 
-        double gentleError = meanAbsoluteError(gentle.profileTargetHeights(), ground);
-        double standardError = meanAbsoluteError(standard.profileTargetHeights(), ground);
-        double tightError = meanAbsoluteError(tight.profileTargetHeights(), ground);
+        double gentleError = meanAbsoluteError(gentle.profileBuildHeights(), ground);
+        double standardError = meanAbsoluteError(standard.profileBuildHeights(), ground);
+        double tightError = meanAbsoluteError(tight.profileBuildHeights(), ground);
 
         assertTrue(gentleError >= standardError - 0.5,
             () -> "gentle should track ground less closely than standard: "
@@ -82,7 +82,7 @@ class TerrainAdaptiveSolverIntegrationTest {
 
         List<Integer> ground = result.profileGroundHeights();
         List<Integer> guide = result.profileGuideLine();
-        List<Integer> targets = result.profileTargetHeights();
+        List<Integer> targets = result.profileBuildHeights();
 
         assertNotEquals(ground, guide);
         assertTrue(maxAdjacentDelta(guide) < maxAdjacentDelta(ground));

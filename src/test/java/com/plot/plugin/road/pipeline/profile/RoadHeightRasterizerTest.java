@@ -81,6 +81,69 @@ class RoadHeightRasterizerTest {
         assertEquals(fromDouble.buildHeights(), fromInteger.buildHeights());
     }
 
+    @Test
+    void blockStepsAreIndependentOfPathSegmentation() {
+        List<Double> designA = List.of(64.0, 65.0, 66.0, 66.0, 66.0);
+        List<Double> distancesA = List.of(10.0, 10.0, 10.0, 10.0);
+        List<Double> designB = List.of(64.0, 64.5, 65.0, 65.5, 66.0);
+        List<Double> distancesB = List.of(5.0, 15.0, 8.0, 12.0);
+        List<Float> slopes = constantSlopes(4, 5.0f);
+
+        RoadHeightRasterizer.RasterizationResult resultA = RoadHeightRasterizer.rasterize(
+            designA, distancesA, slopes, null, null);
+        RoadHeightRasterizer.RasterizationResult resultB = RoadHeightRasterizer.rasterize(
+            designB, distancesB, slopes, null, null);
+
+        assertEquals(resultA.samples().size(), resultB.samples().size());
+        for (int i = 0; i < resultA.samples().size(); i++) {
+            BuildHeightSample sampleA = resultA.samples().get(i);
+            BuildHeightSample sampleB = resultB.samples().get(i);
+            assertEquals(sampleA.station(), sampleB.station(), 1e-9);
+            assertEquals(sampleA.buildY(), sampleB.buildY(),
+                () -> "block step at station " + sampleA.station() + " should not depend on segmentation");
+        }
+    }
+
+    @Test
+    void rasterizeProducesBlockPlacementSamples() {
+        List<Double> design = List.of(64.0, 65.6);
+        List<Double> distances = List.of(18.0);
+        List<Float> slopes = List.of(8.0f);
+
+        RoadHeightRasterizer.RasterizationResult result = RoadHeightRasterizer.rasterize(
+            design, distances, slopes, null, null);
+
+        assertEquals(19, result.samples().size());
+        assertTrue(result.buildProfile().isActive());
+        assertEquals(64, result.samples().getFirst().buildY());
+        assertEquals(result.samples().getLast().buildY(), result.segmentBuildEnds().getLast());
+        for (int i = 1; i < result.samples().size(); i++) {
+            assertTrue(Math.abs(result.samples().get(i).buildY() - result.samples().get(i - 1).buildY()) <= 1);
+        }
+    }
+
+    @Test
+    void fivePercentGradeRisesRoughlyEveryTwentyBlocks() {
+        List<Double> design = List.of(64.0, 65.0);
+        List<Double> distances = List.of(40.0);
+        List<Float> slopes = List.of(5.0f);
+
+        RoadHeightRasterizer.RasterizationResult result = RoadHeightRasterizer.rasterize(
+            design, distances, slopes, null, null);
+
+        List<Integer> riseStations = new ArrayList<>();
+        int previous = result.samples().getFirst().buildY();
+        for (BuildHeightSample sample : result.samples()) {
+            if (sample.buildY() > previous) {
+                riseStations.add((int) Math.round(sample.station()));
+            }
+            previous = sample.buildY();
+        }
+        assertEquals(1, riseStations.size());
+        assertTrue(riseStations.getFirst() >= 18 && riseStations.getFirst() <= 22,
+            () -> "5% grade should place a step near every 20 blocks, got station " + riseStations);
+    }
+
     private static List<Double> constantDistances(int count, double distance) {
         List<Double> distances = new ArrayList<>();
         for (int i = 0; i < count; i++) {

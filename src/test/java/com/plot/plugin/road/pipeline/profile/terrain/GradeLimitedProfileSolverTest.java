@@ -98,6 +98,57 @@ class GradeLimitedProfileSolverTest {
     }
 
     @Test
+    void gentlePresetSmoothsGradeChangesMoreThanTightOnOscillatingTrend() {
+        List<Double> trend = List.of(
+            60.0, 63.0, 60.0, 63.0, 60.0, 63.0, 60.0, 63.0, 60.0, 63.0, 60.0);
+        List<Double> distances = constantDistances(trend.size() - 1, 10.0);
+        List<Float> slopes = constantSlopes(distances.size(), 8.0f);
+
+        double[] gentle = GradeLimitedProfileSolver.solveStationElevations(
+            trend, distances, slopes, null, null, TerrainFollowPreset.GENTLE);
+        double[] tight = GradeLimitedProfileSolver.solveStationElevations(
+            trend, distances, slopes, null, null, TerrainFollowPreset.TIGHT);
+
+        double gentleVariation = GradeLimitedProfileSolver.totalAbsoluteGradeChange(gentle, distances);
+        double tightVariation = GradeLimitedProfileSolver.totalAbsoluteGradeChange(tight, distances);
+        assertTrue(gentleVariation < tightVariation,
+            () -> "gentle should reduce grade reversals more than tight: "
+                + gentleVariation + " vs " + tightVariation);
+        assertTrue(gentleVariation < tightVariation * 0.85,
+            () -> "grade smoothing should materially reduce oscillation, got " + gentleVariation);
+    }
+
+    @Test
+    void gradeChangeProjectionRespectsHardCap() {
+        List<Double> trend = List.of(60.0, 68.0, 60.0, 68.0, 60.0);
+        List<Double> distances = constantDistances(4, 10.0);
+        List<Float> slopes = constantSlopes(4, 10.0f);
+
+        double[] stations = GradeLimitedProfileSolver.solveStationElevations(
+            trend, distances, slopes, null, null, TerrainFollowPreset.STANDARD);
+
+        for (int i = 1; i < stations.length - 1; i++) {
+            double leftGrade = GradeLimitedProfileSolver.gradeAtSegment(
+                stations[i - 1], stations[i], distances.get(i - 1));
+            double rightGrade = GradeLimitedProfileSolver.gradeAtSegment(
+                stations[i], stations[i + 1], distances.get(i));
+            int stationIndex = i;
+            assertTrue(Math.abs(rightGrade - leftGrade)
+                    <= TerrainFollowPreset.STANDARD.maxGradeChangePercent() + 1e-6,
+                () -> "grade change at station " + stationIndex + " exceeded cap: "
+                    + leftGrade + " -> " + rightGrade);
+        }
+    }
+
+    @Test
+    void equalGradeElevationInterpolatesDistanceWeightedMidpoint() {
+        assertEquals(62.0, GradeLimitedProfileSolver.equalGradeElevationAt(60.0, 64.0, 10.0, 10.0), 1e-9);
+        assertEquals(62.0 + 2.0 / 3.0,
+            GradeLimitedProfileSolver.equalGradeElevationAt(60.0, 64.0, 20.0, 10.0),
+            1e-9);
+    }
+
+    @Test
     void relaxationMovesResultCloserToTrendThanForwardOnlyPass() {
         List<Double> trend = List.of(60.0, 62.0, 68.0, 74.0, 75.0);
         List<Double> distances = constantDistances(4, 10.0);

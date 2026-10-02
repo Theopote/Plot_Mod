@@ -14,6 +14,7 @@ import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
+import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.solid.RoadSolidLayer;
@@ -109,6 +110,7 @@ class StationFacilityJunctionTrimTest {
             new StationFacilityJunctionTrim.FacilityEndpointTrim(12.0, 0.0),
             1.0,
             DesignElevationSource.inactive(),
+            BuildHeightProfile.inactive(),
             material -> material,
             (center, targetY) -> targetY);
 
@@ -124,6 +126,7 @@ class StationFacilityJunctionTrimTest {
             StationFacilityJunctionTrim.FacilityEndpointTrim.NONE,
             1.0,
             DesignElevationSource.inactive(),
+            BuildHeightProfile.inactive(),
             material -> material,
             (center, targetY) -> targetY);
 

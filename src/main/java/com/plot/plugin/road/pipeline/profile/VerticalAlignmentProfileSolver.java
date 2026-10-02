@@ -131,6 +131,7 @@ public final class VerticalAlignmentProfileSolver {
             guideLine,
             designElevations,
             raster.buildHeights(),
+            raster.buildProfile(),
             manualEndpointConstraintFeasible);
     }
 

@@ -155,8 +155,8 @@ class RoadWorkflowTest {
 
         assertFalse(underpassResult.roadBlocks.isEmpty());
         assertFalse(elevatedResult.roadBlocks.isEmpty());
-        assertEquals(70, (int) underpassResult.profileTargetHeights.getFirst());
-        assertEquals(73, (int) elevatedResult.profileTargetHeights.getFirst());
+        assertEquals(70, (int) underpassResult.profileBuildHeights.getFirst());
+        assertEquals(73, (int) elevatedResult.profileBuildHeights.getFirst());
     }
 
     @Test

@@ -47,7 +47,7 @@ class RoadProfileIntersectionResolverTest {
         profile.profileDistances = List.of(0.0, 50.0, 100.0);
         profile.profileGroundHeights = List.of(70, 70, 70);
         profile.profileGuideLine = List.of(71, 71, 71);
-        profile.profileTargetHeights = List.of(72, 72, 72);
+        profile.profileBuildHeights = List.of(72, 72, 72);
 
         Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
         edgeResults.put(mainWest.getId(), profile);
@@ -87,7 +87,7 @@ class RoadProfileIntersectionResolverTest {
         profile.profileDistances = List.of(0.0, 50.0, 100.0);
         profile.profileGroundHeights = List.of(70, 70, 70);
         profile.profileGuideLine = List.of(71, 71, 71);
-        profile.profileTargetHeights = List.of(72, 72, 72);
+        profile.profileBuildHeights = List.of(72, 72, 72);
 
         Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
         edgeResults.put(mainWest.getId(), profile);
@@ -139,12 +139,12 @@ class RoadProfileIntersectionResolverTest {
         westProfile.profileDistances = List.of(0.0, 50.0);
         westProfile.profileGroundHeights = List.of(70, 70);
         westProfile.profileGuideLine = List.of(71, 71);
-        westProfile.profileTargetHeights = List.of(76, 76);
+        westProfile.profileBuildHeights = List.of(76, 76);
         RoadGenerationResult eastProfile = new RoadGenerationResult(50);
         eastProfile.profileDistances = List.of(0.0, 50.0);
         eastProfile.profileGroundHeights = List.of(70, 70);
         eastProfile.profileGuideLine = List.of(71, 71);
-        eastProfile.profileTargetHeights = List.of(76, 76);
+        eastProfile.profileBuildHeights = List.of(76, 76);
 
         Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
         edgeResults.put(mainWest.getId(), westProfile);

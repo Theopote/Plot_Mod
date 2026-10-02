@@ -184,7 +184,7 @@ public final class RoadLongitudinalProfileRenderer {
             result.profileDistances,
             result.profileGroundHeights,
             result.profileGuideLine,
-            result.profileTargetHeights,
+            result.profileBuildHeights,
             designOverlay,
             FlatElevationProfileOverlay.EMPTY,
             x0,
@@ -255,7 +255,7 @@ public final class RoadLongitudinalProfileRenderer {
         PlotRange range = plotRange(
             result, designOverlay, List.of(), intersections, flatOverlay, geometryToProfileScale);
         drawProfile(drawList, result.profileDistances, result.profileGroundHeights,
-            result.profileGuideLine, result.profileTargetHeights, designOverlay, flatOverlay,
+            result.profileGuideLine, result.profileBuildHeights, designOverlay, flatOverlay,
             x0, y0, width, chartHeight, range);
         drawIntersectionMarkers(drawList, intersections, -1, range, x0, y0, width, chartHeight);
         ImGui.invisibleButton("##road_profile_overview_surface", width, chartHeight);
@@ -430,7 +430,7 @@ public final class RoadLongitudinalProfileRenderer {
         PlotRange range = plotRange(
             result, designOverlay, controls, intersections, flatOverlay, geometryToProfileScale);
         drawProfile(drawList, result.profileDistances, result.profileGroundHeights,
-            result.profileGuideLine, result.profileTargetHeights, designOverlay, flatOverlay,
+            result.profileGuideLine, result.profileBuildHeights, designOverlay, flatOverlay,
             x0, y0, width, chartHeight, range);
         drawControlPoints(drawList, controls, selectedPviIndex, maxGradePercent,
             range, x0, y0, width, chartHeight);
@@ -672,7 +672,7 @@ public final class RoadLongitudinalProfileRenderer {
         int min = Integer.MAX_VALUE;
         int max = Integer.MIN_VALUE;
         for (List<Integer> values : List.of(
-                result.profileGroundHeights, result.profileGuideLine, result.profileTargetHeights)) {
+                result.profileGroundHeights, result.profileGuideLine, result.profileBuildHeights)) {
             for (int value : values) {
                 min = Math.min(min, value);
                 max = Math.max(max, value);
@@ -1433,7 +1433,7 @@ public final class RoadLongitudinalProfileRenderer {
         snapshot.profileDistances = distances;
         snapshot.profileGroundHeights = groundHeights;
         snapshot.profileGuideLine = guideLine;
-        snapshot.profileTargetHeights = targetHeights;
+        snapshot.profileBuildHeights = new java.util.ArrayList<>(targetHeights);
         PlotRange range = plotRange(
             snapshot, designOverlay, List.of(), List.of(), flatOverlay, 1.0);
         drawProfile(

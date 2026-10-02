@@ -3,6 +3,7 @@ package com.plot.plugin.road.pipeline;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
+import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.station.OrientedRoadSegment;
@@ -40,6 +41,7 @@ public final class RoadPathStationSampler {
             new OrientedRoadSegment(null, true, null, null, segmentStartStation, Double.POSITIVE_INFINITY),
             unitsPerBlock,
             DesignElevationSource.inactive(),
+            BuildHeightProfile.inactive(),
             elevationSnapper,
             consumer);
     }
@@ -58,6 +60,7 @@ public final class RoadPathStationSampler {
             new OrientedRoadSegment(null, true, null, null, segmentStartStation, Double.POSITIVE_INFINITY),
             unitsPerBlock,
             designElevation,
+            BuildHeightProfile.inactive(),
             elevationSnapper,
             consumer);
     }
@@ -68,6 +71,7 @@ public final class RoadPathStationSampler {
             OrientedRoadSegment oriented,
             double unitsPerBlock,
             DesignElevationSource designElevation,
+            BuildHeightProfile buildProfile,
             ElevationSnapper elevationSnapper,
             StationSampleConsumer consumer) {
         if (segments == null || heightInfos == null || consumer == null || oriented == null) {
@@ -84,11 +88,14 @@ public final class RoadPathStationSampler {
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
                 double geometryLocal = geometryLocalBase + segment.distance * t;
+                double worldStation = geometryLocal / scale;
                 int targetY = DesignElevationSource.resolveTargetElevation(
                     designElevation,
+                    buildProfile,
                     info,
                     geometryLocal,
-                    t);
+                    t,
+                    worldStation);
                 if (elevationSnapper != null) {
                     targetY = elevationSnapper.snap(center, targetY);
                 }

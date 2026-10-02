@@ -19,9 +19,16 @@ public final class GradeLimitedProfileSolver {
 
     public record DesignSolveResult(
             List<Double> designElevations,
-            int startHeight,
-            List<Integer> segmentBuildEnds,
+            RoadHeightRasterizer.RasterizationResult rasterization,
             boolean manualEndpointsFeasible) {
+
+        public int startHeight() {
+            return rasterization.startHeight();
+        }
+
+        public List<Integer> segmentBuildEnds() {
+            return rasterization.segmentBuildEnds();
+        }
     }
 
     public record SegmentEndSolveResult(
@@ -82,8 +89,7 @@ public final class GradeLimitedProfileSolver {
             manualEndHeight);
         return new DesignSolveResult(
             designElevations,
-            raster.startHeight(),
-            raster.segmentBuildEnds(),
+            raster,
             endpointsFeasible);
     }
 
@@ -188,11 +194,93 @@ public final class GradeLimitedProfileSolver {
             }
             applyEndpointLocks(current, lockStart, lockEnd, startTarget, endTarget);
             projectFeasible(
-                current, segmentDistances, maxSlopePercents, lockStart, lockEnd, startTarget, endTarget);
+                current,
+                segmentDistances,
+                maxSlopePercents,
+                effectivePreset.maxGradeChangePercent(),
+                lockStart,
+                lockEnd,
+                startTarget,
+                endTarget);
         }
+        smoothGradeChanges(
+            current,
+            segmentDistances,
+            maxSlopePercents,
+            effectivePreset,
+            lockStart,
+            lockEnd,
+            startTarget,
+            endTarget);
         projectFeasible(
-            current, segmentDistances, maxSlopePercents, lockStart, lockEnd, startTarget, endTarget);
+            current,
+            segmentDistances,
+            maxSlopePercents,
+            effectivePreset.maxGradeChangePercent(),
+            lockStart,
+            lockEnd,
+            startTarget,
+            endTarget);
         return current;
+    }
+
+    private static void smoothGradeChanges(
+            double[] elevations,
+            List<Double> segmentDistances,
+            List<Float> maxSlopePercents,
+            TerrainFollowPreset preset,
+            boolean lockStart,
+            boolean lockEnd,
+            double startLock,
+            double endLock) {
+        double weight = preset.gradeChangeSmoothingWeight();
+        int iterations = preset.gradeChangeSmoothingIterations();
+        if (weight <= EPSILON || iterations <= 0 || elevations.length < 3) {
+            return;
+        }
+        for (int iteration = 0; iteration < iterations; iteration++) {
+            double[] updated = elevations.clone();
+            for (int i = 1; i < elevations.length - 1; i++) {
+                double distLeft = segmentDistances.get(i - 1);
+                double distRight = segmentDistances.get(i);
+                double equalGradeElevation = equalGradeElevationAt(
+                    elevations[i - 1],
+                    elevations[i + 1],
+                    distLeft,
+                    distRight);
+                updated[i] = (1.0 - weight) * elevations[i] + weight * equalGradeElevation;
+            }
+            applyEndpointLocks(updated, lockStart, lockEnd, startLock, endLock);
+            projectFeasible(
+                updated,
+                segmentDistances,
+                maxSlopePercents,
+                preset.maxGradeChangePercent(),
+                lockStart,
+                lockEnd,
+                startLock,
+                endLock);
+            System.arraycopy(updated, 0, elevations, 0, elevations.length);
+        }
+    }
+
+    /** Elevation at vertex {@code i} that makes grades on both adjacent segments equal. */
+    static double equalGradeElevationAt(
+            double leftElevation,
+            double rightElevation,
+            double leftDistance,
+            double rightDistance) {
+        if (leftDistance <= EPSILON && rightDistance <= EPSILON) {
+            return (leftElevation + rightElevation) * 0.5;
+        }
+        if (leftDistance <= EPSILON) {
+            return rightElevation;
+        }
+        if (rightDistance <= EPSILON) {
+            return leftElevation;
+        }
+        return (leftElevation * rightDistance + rightElevation * leftDistance)
+            / (leftDistance + rightDistance);
     }
 
     private static double totalMaxRise(List<Double> segmentDistances, List<Float> maxSlopePercents) {
@@ -236,6 +324,7 @@ public final class GradeLimitedProfileSolver {
             double[] elevations,
             List<Double> segmentDistances,
             List<Float> maxSlopePercents,
+            double maxGradeChangePercent,
             boolean lockStart,
             boolean lockEnd,
             double startLock,
@@ -264,6 +353,14 @@ public final class GradeLimitedProfileSolver {
                     changed = true;
                 }
             }
+            if (maxGradeChangePercent > EPSILON) {
+                changed |= projectGradeChangeFeasible(
+                    elevations,
+                    segmentDistances,
+                    maxGradeChangePercent,
+                    lockStart,
+                    lockEnd);
+            }
             if (!changed) {
                 break;
             }
@@ -274,6 +371,62 @@ public final class GradeLimitedProfileSolver {
         if (lockEnd) {
             elevations[elevations.length - 1] = endLock;
         }
+    }
+
+    private static boolean projectGradeChangeFeasible(
+            double[] elevations,
+            List<Double> segmentDistances,
+            double maxGradeChangePercent,
+            boolean lockStart,
+            boolean lockEnd) {
+        boolean changed = false;
+        int lastInterior = elevations.length - 2;
+        int firstInterior = 1;
+        if (lockStart) {
+            firstInterior = Math.max(firstInterior, 1);
+        }
+        if (lockEnd) {
+            lastInterior = Math.min(lastInterior, elevations.length - 2);
+        }
+        for (int i = firstInterior; i <= lastInterior; i++) {
+            double distLeft = segmentDistances.get(i - 1);
+            double distRight = segmentDistances.get(i);
+            if (distLeft <= EPSILON || distRight <= EPSILON) {
+                continue;
+            }
+            double reciprocalSum = 1.0 / distLeft + 1.0 / distRight;
+            double center = elevations[i + 1] / distRight + elevations[i - 1] / distLeft;
+            double low = (center - maxGradeChangePercent / 100.0) / reciprocalSum;
+            double high = (center + maxGradeChangePercent / 100.0) / reciprocalSum;
+            double clamped = Math.max(low, Math.min(high, elevations[i]));
+            if (Math.abs(clamped - elevations[i]) > EPSILON) {
+                elevations[i] = clamped;
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    static double gradeAtSegment(double startElevation, double endElevation, double distance) {
+        if (distance <= EPSILON) {
+            return 0.0;
+        }
+        return (endElevation - startElevation) / distance * 100.0;
+    }
+
+    static double totalAbsoluteGradeChange(double[] elevations, List<Double> segmentDistances) {
+        if (elevations.length < 3 || segmentDistances.isEmpty()) {
+            return 0.0;
+        }
+        double total = 0.0;
+        for (int i = 1; i < elevations.length - 1; i++) {
+            double leftGrade = gradeAtSegment(
+                elevations[i - 1], elevations[i], segmentDistances.get(i - 1));
+            double rightGrade = gradeAtSegment(
+                elevations[i], elevations[i + 1], segmentDistances.get(i));
+            total += Math.abs(rightGrade - leftGrade);
+        }
+        return total;
     }
 
     private static double clampToSlopeBracket(double anchor, double value, double maxRise) {

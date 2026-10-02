@@ -5,6 +5,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
+import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.solid.RoadSolidLayer;
@@ -38,7 +39,8 @@ class RoadFurnitureGeneratorTest {
             CrossSectionBuildContext.fixed(section),
             4,
             1.0,
-            elevations);
+            elevations,
+            BuildHeightProfile.inactive());
 
         var lights = solids.byLayer(RoadSolidLayer.STREETLIGHT);
         assertFalse(lights.isEmpty());

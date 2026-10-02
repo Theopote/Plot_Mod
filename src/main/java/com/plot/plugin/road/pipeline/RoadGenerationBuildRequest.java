@@ -2,6 +2,7 @@ package com.plot.plugin.road.pipeline;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnaps;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
@@ -22,7 +23,8 @@ public record RoadGenerationBuildRequest(
         EndpointElevationSnaps endpointSnaps,
         String carriagewaySeedKey,
         StationFacilityBuildContext stationFacilities,
-        DesignElevationSource designElevation) {
+        DesignElevationSource designElevation,
+        BuildHeightProfile buildProfile) {
 
     public RoadGenerationBuildRequest {
         if (stationFacilities == null) {
@@ -33,6 +35,9 @@ public record RoadGenerationBuildRequest(
         }
         if (designElevation == null) {
             designElevation = DesignElevationSource.inactive();
+        }
+        if (buildProfile == null) {
+            buildProfile = BuildHeightProfile.inactive();
         }
     }
 
@@ -56,6 +61,7 @@ public record RoadGenerationBuildRequest(
             endpointSnaps,
             carriagewaySeedKey,
             stationFacilities,
-            DesignElevationSource.inactive());
+            DesignElevationSource.inactive(),
+            BuildHeightProfile.inactive());
     }
 }

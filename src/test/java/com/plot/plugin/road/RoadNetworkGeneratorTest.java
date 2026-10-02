@@ -263,7 +263,7 @@ class RoadNetworkGeneratorTest {
         assertNotNull(full);
         assertEquals(sampled.profileDistances, full.profileDistances);
         assertEquals(sampled.profileGroundHeights, full.profileGroundHeights);
-        assertEquals(sampled.profileTargetHeights, full.profileTargetHeights);
+        assertEquals(sampled.profileBuildHeights, full.profileBuildHeights);
         assertEquals(sampled.profileGuideLine, full.profileGuideLine);
         assertFalse(preview.aggregate().placementRecords.isEmpty());
     }

@@ -112,8 +112,8 @@ class RoadGeneratorTerrainTest {
         var eastResult = generator.generateEdge(
             network, eastEdge, junction, east, terrain, nodeElevations);
 
-        assertEquals(unified, (int) northResult.profileTargetHeights.getFirst());
-        assertEquals(unified, (int) eastResult.profileTargetHeights.getFirst());
+        assertEquals(unified, (int) northResult.profileBuildHeights.getFirst());
+        assertEquals(unified, (int) eastResult.profileBuildHeights.getFirst());
     }
 
     @Test

@@ -117,7 +117,7 @@ class RoadVerticalDesignWorkflowTest {
         List<PointOfVerticalIntersection> pvis = new ArrayList<>();
         for (int i = 0; i < result.profileDistances().size(); i++) {
             pvis.add(PointOfVerticalIntersection.of(
-                result.profileDistances().get(i), result.profileTargetHeights().get(i)));
+                result.profileDistances().get(i), result.profileBuildHeights().get(i)));
         }
         assertEquals(RoadVerticalMode.AUTO_SMOOTH, road.getVerticalMode());
         return new RoadVerticalAlignment(pvis);

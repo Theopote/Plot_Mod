@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.pipeline.construction.ConstructionDetection;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
+import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnaps;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.solid.RoadGenerationResult;
@@ -46,6 +47,10 @@ public final class RoadGenerationPipelineContext {
 
     public double pathLength() {
         return request.pathLength();
+    }
+
+    public BuildHeightProfile buildProfile() {
+        return request.buildProfile();
     }
 
     public EndpointElevationSnaps endpointSnaps() {

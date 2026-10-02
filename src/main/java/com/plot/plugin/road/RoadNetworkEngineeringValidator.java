@@ -779,6 +779,6 @@ public final class RoadNetworkEngineeringValidator {
         if (!result.profileDesignElevations.isEmpty() && index < result.profileDesignElevations.size()) {
             return result.profileDesignElevations.get(index);
         }
-        return result.profileTargetHeights.get(index);
+        return result.profileBuildHeights.get(index);
     }
 }

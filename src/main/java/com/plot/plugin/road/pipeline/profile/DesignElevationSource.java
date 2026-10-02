@@ -123,11 +123,16 @@ public record DesignElevationSource(
 
     public static int resolveTargetElevation(
             DesignElevationSource designElevation,
+            BuildHeightProfile buildProfile,
             SegmentHeightInfo info,
-            double localCanvasDistanceOnEdge,
-            double segmentInterpolation) {
+            double geometryLocalCanvas,
+            double segmentInterpolation,
+            double worldStation) {
         if (designElevation != null && designElevation.isActive()) {
-            return designElevation.elevationAtLocalDistance(localCanvasDistanceOnEdge);
+            return designElevation.elevationAtLocalDistance(geometryLocalCanvas);
+        }
+        if (buildProfile != null && buildProfile.isActive()) {
+            return buildProfile.elevationAtWorldStation(worldStation);
         }
         return VoxelElevationDiscretizer.linearElevationAtRatio(
             info.targetStart, info.targetEnd, segmentInterpolation);
