@@ -220,8 +220,14 @@ public final class RoadProfileSolver {
             designElevations = ProfileCutFillBalancer.apply(
                 sampleData.groundSamples(),
                 terrainSolve.designElevations(),
+                distances,
+                effectiveMaxSlopes,
                 support.fillFactor(),
-                effectiveTerrainPreset.cutFillBalanceWeight());
+                effectiveTerrainPreset.cutFillBalanceWeight(),
+                effectiveTerrainPreset,
+                manualStartHeight,
+                manualEndHeight,
+                terrainSolve.manualEndpointsFeasible());
             manualEndpointConstraintFeasible = terrainSolve.manualEndpointsFeasible();
             raster = RoadHeightRasterizer.rasterize(
                 designElevations,

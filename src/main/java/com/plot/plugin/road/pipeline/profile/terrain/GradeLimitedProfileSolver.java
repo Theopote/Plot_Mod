@@ -116,6 +116,48 @@ public final class GradeLimitedProfileSolver {
             solved.manualEndpointsFeasible());
     }
 
+    /**
+     * Re-project a design profile onto the feasible domain (max slope, max grade change, endpoint locks).
+     */
+    public static List<Double> projectDesignFeasible(
+            List<Double> designElevations,
+            List<Double> segmentDistances,
+            List<Float> maxSlopePercents,
+            TerrainFollowPreset preset,
+            Integer manualStartHeight,
+            Integer manualEndHeight,
+            boolean manualEndpointsFeasible) {
+        Objects.requireNonNull(designElevations, "designElevations");
+        Objects.requireNonNull(segmentDistances, "segmentDistances");
+        Objects.requireNonNull(maxSlopePercents, "maxSlopePercents");
+        if (designElevations.isEmpty()) {
+            return designElevations;
+        }
+        if (designElevations.size() != segmentDistances.size() + 1) {
+            throw new IllegalArgumentException("design elevations must have one more sample than segments");
+        }
+        if (maxSlopePercents.size() != segmentDistances.size()) {
+            throw new IllegalArgumentException("max slope list must match segment count");
+        }
+        TerrainFollowPreset effectivePreset = preset != null ? preset : TerrainFollowPreset.STANDARD;
+        double[] elevations = designElevations.stream().mapToDouble(Double::doubleValue).toArray();
+        boolean lockStart = manualStartHeight != null;
+        boolean lockEnd = manualEndHeight != null && manualEndpointsFeasible;
+        double startLock = lockStart ? manualStartHeight.doubleValue() : elevations[0];
+        double endLock = lockEnd ? manualEndHeight.doubleValue() : elevations[elevations.length - 1];
+        applyEndpointLocks(elevations, lockStart, lockEnd, startLock, endLock);
+        projectFeasible(
+            elevations,
+            segmentDistances,
+            maxSlopePercents,
+            effectivePreset.maxGradeChangePercent(),
+            lockStart,
+            lockEnd,
+            startLock,
+            endLock);
+        return toDesignList(elevations);
+    }
+
     public static boolean areManualEndpointsFeasible(
             Integer manualStartHeight,
             Integer manualEndHeight,
