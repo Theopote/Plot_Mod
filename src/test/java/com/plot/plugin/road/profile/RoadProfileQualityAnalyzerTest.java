@@ -19,12 +19,10 @@ class RoadProfileQualityAnalyzerTest {
             new BuildHeightSample(20.0, 66.0, 66));
 
         RoadProfileQualityMetrics metrics = RoadProfileQualityAnalyzer.analyze(
-            chartWithSamples(samples, ground(64.0, 20.0)),
-            8.0,
-            4.0);
+            chartWithSamples(samples, ground(64.0, 20.0)));
 
-        assertEquals(20, metrics.fillBlockColumns());
-        assertEquals(0, metrics.cutBlockColumns());
+        assertEquals(20, metrics.terrain().fillBlockColumns());
+        assertEquals(0, metrics.terrain().cutBlockColumns());
     }
 
     @Test
@@ -34,12 +32,10 @@ class RoadProfileQualityAnalyzerTest {
             new BuildHeightSample(20.0, 64.0, 62));
 
         RoadProfileQualityMetrics metrics = RoadProfileQualityAnalyzer.analyze(
-            chartWithSamples(samples, ground(64.0, 20.0)),
-            8.0,
-            4.0);
+            chartWithSamples(samples, ground(64.0, 20.0)));
 
-        assertEquals(0, metrics.fillBlockColumns());
-        assertEquals(20, metrics.cutBlockColumns());
+        assertEquals(0, metrics.terrain().fillBlockColumns());
+        assertEquals(20, metrics.terrain().cutBlockColumns());
     }
 
     @Test
@@ -48,17 +44,31 @@ class RoadProfileQualityAnalyzerTest {
             new BuildHeightSample(0.0, 64.0, 64),
             new BuildHeightSample(10.0, 66.0, 66));
 
-        RoadProfileChartData chart = chartWithSamples(samples, ground(64.0, 10.0));
-        RoadProfileQualityMetrics metrics = RoadProfileQualityAnalyzer.analyze(chart, 8.0, 4.0);
+        RoadProfileQualityMetrics metrics = RoadProfileQualityAnalyzer.analyze(
+            chartWithSamples(samples, ground(64.0, 10.0)));
 
-        assertEquals(1, metrics.abnormalStepCount());
-        assertEquals(1, metrics.stepCount());
-        assertTrue(metrics.maxBuildGradePercent() > 15.0);
-        assertEquals(10.0, metrics.longestConstantGradeRun(), 1e-6);
+        assertEquals(1, metrics.build().abnormalStepCount());
+        assertEquals(1, metrics.build().stepCount());
     }
 
     @Test
-    void rasterizedProfileProducesGradeRunAndSteps() {
+    void designMetricsDetectCrestGradeChange() {
+        RoadProfileChartData chart = chartWithDesignProfile(
+            List.of(0.0, 10.0, 20.0, 30.0),
+            List.of(64.0, 64.5, 65.0, 64.5),
+            List.of(
+                new BuildHeightSample(0.0, 64.0, 64),
+                new BuildHeightSample(30.0, 64.5, 64)),
+            List.of(64.0, 64.0, 64.0, 64.0));
+
+        RoadProfileQualityMetrics metrics = RoadProfileQualityAnalyzer.analyze(chart);
+
+        assertEquals(5.0, metrics.design().maxGradePercent(), 0.1);
+        assertEquals(10.0, metrics.design().maxGradeChangePercent(), 0.1);
+    }
+
+    @Test
+    void rasterizedProfileProducesExpectedBuildMetrics() {
         RoadHeightRasterizer.RasterizationResult raster = RoadHeightRasterizer.rasterize(
             List.of(64.0, 65.0), List.of(40.0), List.of(5.0f), null);
 
@@ -71,16 +81,13 @@ class RoadProfileQualityAnalyzerTest {
         }
         RoadProfileChartData chart = chartWithSamples(samples, ground(64.0, 40.0));
 
-        RoadProfileQualityMetrics metrics = RoadProfileQualityAnalyzer.analyze(chart, 8.0, 4.0);
+        RoadProfileQualityMetrics metrics = RoadProfileQualityAnalyzer.analyze(chart);
 
-        assertEquals(1, metrics.stepCount());
-        assertEquals(0, metrics.abnormalStepCount());
-        assertTrue(metrics.longestFlatRun() >= 18,
-            "5% grade should accumulate a long flat run before the first step");
-        assertTrue(metrics.longestConstantGradeRun() >= 18.0,
-            "step spacing should define the constant-grade run length");
-        assertTrue(metrics.maxBuildGradePercent() <= 8.0);
-        assertTrue(metrics.maxDesignBuildDeviation() <= 1.0);
+        assertEquals(1, metrics.build().stepCount());
+        assertEquals(0, metrics.build().abnormalStepCount());
+        assertTrue(metrics.build().longestFlatRun() >= 18);
+        assertTrue(metrics.design().maxGradePercent() <= 8.0);
+        assertTrue(metrics.build().maxDesignBuildDeviation() <= 1.0);
     }
 
     @Test
@@ -95,7 +102,6 @@ class RoadProfileQualityAnalyzerTest {
     }
 
     private static List<Double> ground(double elevation, double length) {
-        List<Double> stations = List.of(0.0, length);
         return List.of(elevation, elevation);
     }
 
@@ -122,5 +128,47 @@ class RoadProfileQualityAnalyzerTest {
             List.of(),
             List.of(),
             true);
+    }
+
+    private static RoadProfileChartData chartWithDesignProfile(
+            List<Double> stations,
+            List<Double> design,
+            List<BuildHeightSample> samples,
+            List<Double> groundElevations) {
+        double total = stations.getLast();
+        List<Double> buildSummary = stations.stream()
+            .map(station -> buildElevationFromSamples(samples, station))
+            .toList();
+        return new RoadProfileChartData(
+            "test",
+            total,
+            stations,
+            groundElevations,
+            design,
+            buildSummary,
+            samples,
+            groundElevations,
+            List.of(),
+            List.of(),
+            true);
+    }
+
+    private static double buildElevationFromSamples(List<BuildHeightSample> samples, double station) {
+        BuildHeightSample first = samples.getFirst();
+        if (station <= first.station()) {
+            return first.buildY();
+        }
+        BuildHeightSample last = samples.getLast();
+        if (station >= last.station()) {
+            return last.buildY();
+        }
+        for (int i = 1; i < samples.size(); i++) {
+            BuildHeightSample previous = samples.get(i - 1);
+            BuildHeightSample current = samples.get(i);
+            if (station <= current.station()) {
+                return previous.buildY();
+            }
+        }
+        return last.buildY();
     }
 }

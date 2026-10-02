@@ -5,7 +5,7 @@ import com.plot.plugin.road.pipeline.profile.BuildHeightSample;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 从道路级纵断面图数据估算 cut/fill、坡长、坡变率与异常台阶。 */
+/** 从道路级纵断面图数据估算 design / build / terrain 三组质量指标。 */
 public final class RoadProfileQualityAnalyzer {
 
     private static final double EPSILON = 1e-6;
@@ -14,22 +14,21 @@ public final class RoadProfileQualityAnalyzer {
     private RoadProfileQualityAnalyzer() {
     }
 
-    public static RoadProfileQualityMetrics analyze(
-            RoadProfileChartData chart,
-            double maxGradePercent,
-            double maxGradeChangeLimitPercent) {
+    public static RoadProfileQualityMetrics analyze(RoadProfileChartData chart) {
         if (chart == null || !chart.hasProfileData()) {
             return RoadProfileQualityMetrics.empty();
         }
+        RoadProfileQualityMetrics.DesignMetrics design = analyzeDesign(chart);
         if (chart.hasBuildSamples()) {
-            return analyzeSamples(chart, chart.buildSamples());
+            return analyzeWithBuildSamples(chart, chart.buildSamples(), design);
         }
-        return analyzeSegmentSummary(chart);
+        return analyzeSegmentFallback(chart, design);
     }
 
-    private static RoadProfileQualityMetrics analyzeSamples(
+    private static RoadProfileQualityMetrics analyzeWithBuildSamples(
             RoadProfileChartData chart,
-            List<BuildHeightSample> samples) {
+            List<BuildHeightSample> samples,
+            RoadProfileQualityMetrics.DesignMetrics design) {
         int cut = 0;
         int fill = 0;
         double maxDeviation = 0.0;
@@ -52,100 +51,28 @@ public final class RoadProfileQualityAnalyzer {
             fill += earthwork.fill;
         }
 
-        StepAnalysis stepAnalysis = analyzeSteps(samples);
+        StepAnalysis stepAnalysis = analyzeBuildSteps(samples);
 
         return new RoadProfileQualityMetrics(
-            cut,
-            fill,
-            stepAnalysis.maxGradePercent(),
-            stepAnalysis.maxGradeChangePercent(),
-            stepAnalysis.longestConstantGradeRun(),
-            longestFlatRun(samples),
-            stepAnalysis.stepCount(),
-            stepAnalysis.abnormalStepCount(),
-            maxDeviation,
-            cumulativeGradeError(samples));
+            design,
+            new RoadProfileQualityMetrics.BuildMetrics(
+                stepAnalysis.stepCount(),
+                longestFlatRun(samples),
+                maxDeviation,
+                stepAnalysis.abnormalStepCount(),
+                cumulativeGradeError(samples)),
+            new RoadProfileQualityMetrics.TerrainMetrics(cut, fill));
     }
 
-    private static StepAnalysis analyzeSteps(List<BuildHeightSample> samples) {
-        if (samples.size() < 2) {
-            return StepAnalysis.empty();
-        }
-        double lastStepStation = samples.getFirst().station();
-        int lastBuildY = samples.getFirst().buildY();
-        int steps = 0;
-        int abnormalSteps = 0;
-        double maxGrade = 0.0;
-        List<Double> stepGrades = new ArrayList<>();
-        List<Double> stepRunLengths = new ArrayList<>();
-
-        for (int i = 1; i < samples.size(); i++) {
-            BuildHeightSample sample = samples.get(i);
-            if (sample.buildY() == lastBuildY) {
-                continue;
-            }
-            int delta = sample.buildY() - lastBuildY;
-            if (Math.abs(delta) > 1) {
-                abnormalSteps++;
-            }
-            steps++;
-            double span = sample.station() - lastStepStation;
-            if (span > EPSILON) {
-                double grade = Math.abs(delta) / span * 100.0;
-                stepGrades.add(grade);
-                stepRunLengths.add(span);
-                maxGrade = Math.max(maxGrade, grade);
-            }
-            lastStepStation = sample.station();
-            lastBuildY = sample.buildY();
-        }
-
-        return new StepAnalysis(
-            steps,
-            abnormalSteps,
-            maxGrade,
-            maxAdjacentGradeChange(stepGrades),
-            longestSameGradeRun(stepGrades, stepRunLengths));
-    }
-
-    private static double longestSameGradeRun(List<Double> grades, List<Double> runLengths) {
-        if (grades.isEmpty() || grades.size() != runLengths.size()) {
-            return 0.0;
-        }
-        double longest = runLengths.getFirst();
-        double current = runLengths.getFirst();
-        for (int i = 1; i < grades.size(); i++) {
-            if (Math.abs(grades.get(i) - grades.get(i - 1)) <= GRADE_TOLERANCE_PERCENT) {
-                current += runLengths.get(i);
-            } else {
-                longest = Math.max(longest, current);
-                current = runLengths.get(i);
-            }
-        }
-        return Math.max(longest, current);
-    }
-
-    private record StepAnalysis(
-            int stepCount,
-            int abnormalStepCount,
-            double maxGradePercent,
-            double maxGradeChangePercent,
-            double longestConstantGradeRun) {
-
-        static StepAnalysis empty() {
-            return new StepAnalysis(0, 0, 0.0, 0.0, 0.0);
-        }
-    }
-
-    private static RoadProfileQualityMetrics analyzeSegmentSummary(RoadProfileChartData chart) {
+    private static RoadProfileQualityMetrics analyzeSegmentFallback(
+            RoadProfileChartData chart,
+            RoadProfileQualityMetrics.DesignMetrics design) {
         List<Double> stations = chart.stations();
         List<Double> build = chart.buildElevations();
-        List<Double> design = chart.previewElevations();
+        List<Double> designElevations = chart.previewElevations();
 
         int cut = 0;
         int fill = 0;
-        double maxGrade = 0.0;
-        List<Double> localGrades = new ArrayList<>();
         int abnormalSteps = 0;
         int steps = 0;
         double maxDeviation = 0.0;
@@ -164,10 +91,7 @@ public final class RoadProfileQualityAnalyzer {
             if (Math.abs(delta) > 1) {
                 abnormalSteps++;
             }
-            double grade = Math.abs(delta) / span * 100.0;
-            localGrades.add(grade);
-            maxGrade = Math.max(maxGrade, grade);
-            maxDeviation = Math.max(maxDeviation, Math.abs(design.get(i) - build.get(i)));
+            maxDeviation = Math.max(maxDeviation, Math.abs(designElevations.get(i) - build.get(i)));
 
             double mid = stations.get(i - 1) + span * 0.5;
             int groundY = (int) Math.round(chart.groundElevationAt(mid));
@@ -192,20 +116,96 @@ public final class RoadProfileQualityAnalyzer {
         }
         longestFlat = Math.max(longestFlat, currentFlat);
 
-        double totalDesignDelta = design.getLast() - design.getFirst();
+        double totalDesignDelta = designElevations.getLast() - designElevations.getFirst();
         double totalBuildDelta = build.getLast() - build.getFirst();
 
         return new RoadProfileQualityMetrics(
-            cut,
-            fill,
+            design,
+            new RoadProfileQualityMetrics.BuildMetrics(
+                steps,
+                longestFlat,
+                maxDeviation,
+                abnormalSteps,
+                Math.abs(totalBuildDelta - totalDesignDelta)),
+            new RoadProfileQualityMetrics.TerrainMetrics(cut, fill));
+    }
+
+    private static RoadProfileQualityMetrics.DesignMetrics analyzeDesign(RoadProfileChartData chart) {
+        List<Double> stations = chart.stations();
+        List<Double> elevations = chart.previewElevations();
+        if (stations.size() < 2 || elevations.size() != stations.size()) {
+            return RoadProfileQualityMetrics.DesignMetrics.empty();
+        }
+
+        List<Double> signedGrades = new ArrayList<>();
+        List<Double> runLengths = new ArrayList<>();
+        double maxGrade = 0.0;
+
+        for (int i = 1; i < stations.size(); i++) {
+            double span = stations.get(i) - stations.get(i - 1);
+            if (span <= EPSILON) {
+                continue;
+            }
+            double signedGrade = (elevations.get(i) - elevations.get(i - 1)) / span * 100.0;
+            signedGrades.add(signedGrade);
+            runLengths.add(span);
+            maxGrade = Math.max(maxGrade, Math.abs(signedGrade));
+        }
+
+        return new RoadProfileQualityMetrics.DesignMetrics(
             maxGrade,
-            maxAdjacentGradeChange(localGrades),
-            spanBetween(stations.getFirst(), stations.getLast()),
-            longestFlat,
-            steps,
-            abnormalSteps,
-            maxDeviation,
-            Math.abs(totalBuildDelta - totalDesignDelta));
+            maxAdjacentGradeChange(signedGrades),
+            longestSameGradeRun(signedGrades, runLengths));
+    }
+
+    private static StepAnalysis analyzeBuildSteps(List<BuildHeightSample> samples) {
+        if (samples.size() < 2) {
+            return StepAnalysis.empty();
+        }
+        double lastStepStation = samples.getFirst().station();
+        int lastBuildY = samples.getFirst().buildY();
+        int steps = 0;
+        int abnormalSteps = 0;
+
+        for (int i = 1; i < samples.size(); i++) {
+            BuildHeightSample sample = samples.get(i);
+            if (sample.buildY() == lastBuildY) {
+                continue;
+            }
+            int delta = sample.buildY() - lastBuildY;
+            if (Math.abs(delta) > 1) {
+                abnormalSteps++;
+            }
+            steps++;
+            lastStepStation = sample.station();
+            lastBuildY = sample.buildY();
+        }
+
+        return new StepAnalysis(steps, abnormalSteps);
+    }
+
+    private record StepAnalysis(int stepCount, int abnormalStepCount) {
+
+        static StepAnalysis empty() {
+            return new StepAnalysis(0, 0);
+        }
+    }
+
+    private static double longestSameGradeRun(List<Double> signedGrades, List<Double> runLengths) {
+        if (signedGrades.isEmpty() || signedGrades.size() != runLengths.size()) {
+            return 0.0;
+        }
+        double longest = runLengths.getFirst();
+        double current = runLengths.getFirst();
+        for (int i = 1; i < signedGrades.size(); i++) {
+            if (Math.abs(signedGrades.get(i) - signedGrades.get(i - 1)) <= GRADE_TOLERANCE_PERCENT) {
+                current += runLengths.get(i);
+            } else {
+                longest = Math.max(longest, current);
+                current = runLengths.get(i);
+            }
+        }
+        return Math.max(longest, current);
     }
 
     private static EarthworkDelta earthworkDelta(
@@ -227,13 +227,13 @@ public final class RoadProfileQualityAnalyzer {
 
     private record EarthworkDelta(int cut, int fill) { }
 
-    private static double maxAdjacentGradeChange(List<Double> localGrades) {
-        if (localGrades.size() < 2) {
+    private static double maxAdjacentGradeChange(List<Double> signedGrades) {
+        if (signedGrades.size() < 2) {
             return 0.0;
         }
         double max = 0.0;
-        for (int i = 1; i < localGrades.size(); i++) {
-            max = Math.max(max, Math.abs(localGrades.get(i) - localGrades.get(i - 1)));
+        for (int i = 1; i < signedGrades.size(); i++) {
+            max = Math.max(max, Math.abs(signedGrades.get(i) - signedGrades.get(i - 1)));
         }
         return max;
     }
@@ -264,9 +264,5 @@ public final class RoadProfileQualityAnalyzer {
         double designDelta = last.designElevation() - first.designElevation();
         double buildDelta = last.buildY() - first.buildY();
         return Math.abs(buildDelta - designDelta);
-    }
-
-    private static double spanBetween(double start, double end) {
-        return Math.max(0.0, end - start);
     }
 }

@@ -8,7 +8,7 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
-/** 纵断面质量指标紧凑摘要（编辑器 / 卡片下方）。 */
+/** 纵断面质量指标紧凑摘要（Design / Build / Terrain 三组）。 */
 public final class ProfileQualitySummary {
 
     private ProfileQualitySummary() {
@@ -22,10 +22,9 @@ public final class ProfileQualitySummary {
         if (chart == null || !chart.hasProfileData()) {
             return;
         }
-        double maxGrade = resolveMaxGrade(road, config);
-        double maxGradeChange = resolveMaxGradeChange(road);
-        RoadProfileQualityMetrics metrics = RoadProfileQualityAnalyzer.analyze(
-            chart, maxGrade, maxGradeChange);
+        double maxGradeLimit = resolveMaxGrade(road, config);
+        double maxGradeChangeLimit = resolveMaxGradeChange(road);
+        RoadProfileQualityMetrics metrics = RoadProfileQualityAnalyzer.analyze(chart);
         if (metrics.isEmpty()) {
             return;
         }
@@ -40,51 +39,68 @@ public final class ProfileQualitySummary {
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.profile_quality_heading"));
 
-        renderMetric(
-            PlotI18n.tr("plugin.road.profile_quality_cut", metrics.cutBlockColumns()),
-            false);
-        ImGui.sameLine();
-        renderMetric(
-            PlotI18n.tr("plugin.road.profile_quality_fill", metrics.fillBlockColumns()),
-            false);
-        ImGui.sameLine();
-        renderMetric(
-            PlotI18n.tr("plugin.road.profile_quality_max_grade", metrics.maxBuildGradePercent()),
-            metrics.exceedsMaxGrade(maxGrade));
-
+        renderSectionLabel("plugin.road.profile_quality_section_design");
         renderMetric(
             PlotI18n.tr(
-                "plugin.road.profile_quality_longest_grade_run",
-                metrics.longestConstantGradeRun()),
-            false);
+                "plugin.road.profile_quality_design_max_grade",
+                metrics.design().maxGradePercent()),
+            metrics.design().exceedsMaxGrade(maxGradeLimit));
         ImGui.sameLine();
         renderMetric(
             PlotI18n.tr(
-                "plugin.road.profile_quality_max_grade_change",
-                metrics.maxGradeChangePercent()),
-            metrics.exceedsMaxGradeChange(maxGradeChange));
+                "plugin.road.profile_quality_design_max_grade_change",
+                metrics.design().maxGradeChangePercent()),
+            metrics.design().exceedsMaxGradeChange(maxGradeChangeLimit));
         ImGui.sameLine();
         renderMetric(
-            PlotI18n.tr("plugin.road.profile_quality_steps", metrics.stepCount()),
+            PlotI18n.tr(
+                "plugin.road.profile_quality_design_longest_grade_run",
+                metrics.design().longestGradeRun()),
             false);
 
-        if (metrics.hasAbnormalSteps() || metrics.hasDesignBuildMismatch()) {
-            if (metrics.hasAbnormalSteps()) {
-                renderMetric(
-                    PlotI18n.tr(
-                        "plugin.road.profile_quality_abnormal_steps",
-                        metrics.abnormalStepCount()),
-                    true);
-                ImGui.sameLine();
-            }
-            if (metrics.hasDesignBuildMismatch()) {
-                renderMetric(
-                    PlotI18n.tr(
-                        "plugin.road.profile_quality_design_deviation",
-                        metrics.maxDesignBuildDeviation()),
-                    true);
-            }
+        renderSectionLabel("plugin.road.profile_quality_section_build");
+        renderMetric(
+            PlotI18n.tr("plugin.road.profile_quality_build_steps", metrics.build().stepCount()),
+            false);
+        ImGui.sameLine();
+        renderMetric(
+            PlotI18n.tr(
+                "plugin.road.profile_quality_build_longest_flat",
+                metrics.build().longestFlatRun()),
+            false);
+        ImGui.sameLine();
+        renderMetric(
+            PlotI18n.tr(
+                "plugin.road.profile_quality_build_max_deviation",
+                metrics.build().maxDesignBuildDeviation()),
+            metrics.build().hasDesignBuildMismatch());
+        if (metrics.build().hasAbnormalSteps()) {
+            ImGui.sameLine();
+            renderMetric(
+                PlotI18n.tr(
+                    "plugin.road.profile_quality_build_abnormal_steps",
+                    metrics.build().abnormalStepCount()),
+                true);
         }
+
+        renderSectionLabel("plugin.road.profile_quality_section_terrain");
+        renderMetric(
+            PlotI18n.tr(
+                "plugin.road.profile_quality_terrain_cut",
+                metrics.terrain().cutBlockColumns()),
+            false);
+        ImGui.sameLine();
+        renderMetric(
+            PlotI18n.tr(
+                "plugin.road.profile_quality_terrain_fill",
+                metrics.terrain().fillBlockColumns()),
+            false);
+        ImGui.sameLine();
+        renderMetric(
+            PlotI18n.tr(
+                "plugin.road.profile_quality_terrain_balance",
+                metrics.terrain().balanceBlockColumns()),
+            false);
     }
 
     public static String compactLine(
@@ -94,16 +110,17 @@ public final class ProfileQualitySummary {
         if (chart == null || !chart.hasProfileData()) {
             return "";
         }
-        RoadProfileQualityMetrics metrics = RoadProfileQualityAnalyzer.analyze(
-            chart,
-            resolveMaxGrade(road, config),
-            resolveMaxGradeChange(road));
+        RoadProfileQualityMetrics metrics = RoadProfileQualityAnalyzer.analyze(chart);
         return PlotI18n.tr(
             "plugin.road.profile_quality_compact_line",
-            metrics.cutBlockColumns(),
-            metrics.fillBlockColumns(),
-            metrics.maxBuildGradePercent(),
-            metrics.stepCount());
+            metrics.terrain().cutBlockColumns(),
+            metrics.terrain().fillBlockColumns(),
+            metrics.design().maxGradePercent(),
+            metrics.build().stepCount());
+    }
+
+    private static void renderSectionLabel(String key) {
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(key));
     }
 
     private static void renderMetric(String label, boolean warning) {
