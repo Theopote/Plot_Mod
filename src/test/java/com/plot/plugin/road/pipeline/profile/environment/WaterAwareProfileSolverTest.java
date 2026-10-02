@@ -86,6 +86,38 @@ class WaterAwareProfileSolverTest {
     }
 
     @Test
+    void causewayApproachDoesNotUseBridgeClearance() {
+        TerrainFollowPreset preset = TerrainFollowPreset.STANDARD;
+        EnvironmentProfile environment = causewayApproachEnvironment();
+        List<Double> trend = List.of(64.0, 64.0, 63.0, 63.0, 64.0);
+        WaterCrossingSettings settings = new WaterCrossingSettings(1, 6.0, 2, 6.0, 60.0, false);
+        List<WaterCrossing> crossings = WaterCrossingClassifier.classify(
+            WaterCrossingDetector.detect(environment),
+            settings,
+            preset,
+            3.0);
+        assertEquals(WaterCrossingStrategy.CAUSEWAY, crossings.getFirst().strategy());
+
+        List<VerticalStationConstraint> constraints = VerticalStationConstraints.build(
+            environment, crossings, trend, settings);
+        WaterCrossing crossing = crossings.getFirst();
+        VerticalStationConstraint approachConstraint = null;
+        for (int i = 0; i < environment.samples().size(); i++) {
+            EnvironmentSample sample = environment.samples().get(i);
+            if (crossing.isInApproachZone(sample.station()) && !sample.hasWater()) {
+                approachConstraint = constraints.get(i);
+            }
+        }
+        assertTrue(approachConstraint != null, "expected land sample in causeway approach zone");
+        assertTrue(
+            approachConstraint.minimumElevation() < 63.0 + settings.waterRoadClearanceBlocks() - 1e-6,
+            "causeway approach must ramp to water surface, not bridge clearance");
+        assertTrue(
+            approachConstraint.minimumElevation() >= crossing.waterSurfaceY() - 1e-6,
+            "causeway approach must not drop below water surface");
+    }
+
+    @Test
     void tunnelNotAllowedByDefault() {
         TerrainFollowPreset preset = TerrainFollowPreset.STANDARD;
         List<Double> trend = List.of(60.0, 58.0, 56.0, 58.0, 60.0);
@@ -143,6 +175,17 @@ class WaterAwareProfileSolverTest {
                 new EnvironmentSample(3.0, 62, 63, 1, SurfaceContext.SHALLOW_WATER),
                 EnvironmentSample.land(4.0, 64)),
             List.of(0.0, 1.0, 2.0, 3.0, 4.0));
+    }
+
+    private static EnvironmentProfile causewayApproachEnvironment() {
+        return new EnvironmentProfile(
+            List.of(
+                EnvironmentSample.land(0.0, 64),
+                EnvironmentSample.land(0.4, 64),
+                new EnvironmentSample(1.0, 62, 63, 1, SurfaceContext.SHALLOW_WATER),
+                new EnvironmentSample(2.0, 62, 63, 1, SurfaceContext.SHALLOW_WATER),
+                EnvironmentSample.land(3.0, 64)),
+            List.of(0.0, 0.4, 1.0, 2.0, 3.0));
     }
 
     private static List<Double> constantDistances(int count, double distance) {

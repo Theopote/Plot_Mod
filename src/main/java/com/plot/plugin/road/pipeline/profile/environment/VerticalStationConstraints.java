@@ -39,10 +39,10 @@ public final class VerticalStationConstraints {
         WaterCrossing crossing = findCrossing(crossings, sample.station());
         if (crossing == null || !sample.hasWater()) {
             if (crossing != null && crossing.isInApproachZone(sample.station())) {
-                return shoreConstraint(sample, crossing, preferred, settings);
+                return crossingTransitionConstraint(sample, crossing, preferred, settings);
             }
             if (crossing != null && crossing.isInExitZone(sample.station())) {
-                return shoreConstraint(sample, crossing, preferred, settings);
+                return crossingTransitionConstraint(sample, crossing, preferred, settings);
             }
             return VerticalStationConstraint.land(preferred);
         }
@@ -62,16 +62,8 @@ public final class VerticalStationConstraints {
                 null,
                 SurfaceContext.DEEP_WATER);
         }
-        if (strategy == WaterCrossingStrategy.CAUSEWAY) {
-            double minimum = sample.waterSurfaceY();
-            return new VerticalStationConstraint(
-                Math.max(preferred, minimum),
-                minimum,
-                null,
-                sample.context());
-        }
-        double minimum = crossing.waterSurfaceY() + settings.waterRoadClearanceBlocks();
-        double rampedMinimum = minimum;
+        double crossingMinimum = crossingTargetMinimumElevation(crossing, settings);
+        double rampedMinimum = crossingMinimum;
         SurfaceContext context = sample.context();
         if (crossing.isInApproachZone(sample.station())) {
             rampedMinimum = rampMinimum(
@@ -79,52 +71,60 @@ public final class VerticalStationConstraints {
                 crossing.approachStartStation(),
                 crossing.crossingStartStation(),
                 crossing.entryBankTerrainY(),
-                minimum);
+                crossingMinimum);
             context = SurfaceContext.SHORE;
         } else if (crossing.isInExitZone(sample.station())) {
             rampedMinimum = rampMinimum(
                 sample.station(),
                 crossing.crossingEndStation(),
                 crossing.exitEndStation(),
-                minimum,
+                crossingMinimum,
                 crossing.exitBankTerrainY());
             context = SurfaceContext.SHORE;
         }
         return new VerticalStationConstraint(
-            Math.max(preferred, minimum),
+            Math.max(preferred, crossingMinimum),
             rampedMinimum,
             null,
             context);
     }
 
-    private static VerticalStationConstraint shoreConstraint(
+    private static VerticalStationConstraint crossingTransitionConstraint(
             EnvironmentSample sample,
             WaterCrossing crossing,
             double preferred,
             WaterCrossingSettings settings) {
-        double bridgeMinimum = crossing.waterSurfaceY() + settings.waterRoadClearanceBlocks();
+        double crossingMinimum = crossingTargetMinimumElevation(crossing, settings);
         double rampedMinimum;
-        SurfaceContext context = SurfaceContext.SHORE;
         if (crossing.isInApproachZone(sample.station())) {
             rampedMinimum = rampMinimum(
                 sample.station(),
                 crossing.approachStartStation(),
                 crossing.crossingStartStation(),
                 crossing.entryBankTerrainY(),
-                bridgeMinimum);
+                crossingMinimum);
         } else {
             rampedMinimum = rampMinimum(
                 sample.station(),
                 crossing.crossingEndStation(),
                 crossing.exitEndStation(),
-                bridgeMinimum,
+                crossingMinimum,
                 crossing.exitBankTerrainY());
         }
         return new VerticalStationConstraint(
-            Math.max(preferred, bridgeMinimum),
+            Math.max(preferred, crossingMinimum),
             rampedMinimum,
             null,
-            context);
+            SurfaceContext.SHORE);
+    }
+
+    static double crossingTargetMinimumElevation(
+            WaterCrossing crossing,
+            WaterCrossingSettings settings) {
+        if (crossing.strategy() == WaterCrossingStrategy.CAUSEWAY) {
+            return crossing.waterSurfaceY();
+        }
+        return crossing.waterSurfaceY() + settings.waterRoadClearanceBlocks();
     }
 
     private static double rampMinimum(
