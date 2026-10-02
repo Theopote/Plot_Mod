@@ -132,7 +132,9 @@ public final class RoadProfileSolver {
         profile.profileDistances = new ArrayList<>(result.profileDistances());
         profile.profileGroundHeights = new ArrayList<>(result.profileGroundHeights());
         profile.profileGuideLine = new ArrayList<>(result.profileGuideLine());
-        profile.profileTargetHeights = new ArrayList<>(result.profileTargetHeights());
+        profile.profileDesignElevations = new ArrayList<>(result.profileDesignElevations());
+        profile.profileBuildHeights = new ArrayList<>(result.profileBuildHeights());
+        profile.profileTargetHeights = new ArrayList<>(result.profileBuildHeights());
         profile.manualEndpointConstraintFeasible = result.manualEndpointConstraintFeasible();
         return profile;
     }
@@ -209,32 +211,40 @@ public final class RoadProfileSolver {
             }
         }
 
-        Integer terrainAdaptiveStartHeight = null;
-        boolean manualEndpointConstraintFeasible = true;
-        List<Integer> targetEnds;
+        List<Double> designElevations;
+        boolean manualEndpointConstraintFeasible;
+        RoadHeightRasterizer.RasterizationResult raster;
         if (useTerrainAdaptiveSolver && terrainTrend != null) {
-            GradeLimitedProfileSolver.SegmentEndSolveResult terrainSolve =
-                GradeLimitedProfileSolver.solveSegmentEndsWithStart(
+            GradeLimitedProfileSolver.DesignSolveResult terrainSolve =
+                GradeLimitedProfileSolver.solveDesignProfile(
                     terrainTrend.trendElevations(),
                     distances,
                     effectiveMaxSlopes,
                     manualStartHeight,
                     manualEndHeight,
                     effectiveTerrainPreset);
-            terrainAdaptiveStartHeight = terrainSolve.startHeight();
-            targetEnds = terrainSolve.segmentEnds();
+            designElevations = terrainSolve.designElevations();
             manualEndpointConstraintFeasible = terrainSolve.manualEndpointsFeasible();
+            raster = new RoadHeightRasterizer.RasterizationResult(
+                terrainSolve.startHeight(),
+                buildStationHeights(terrainSolve.startHeight(), terrainSolve.segmentBuildEnds()),
+                terrainSolve.segmentBuildEnds(),
+                0.0,
+                0.0,
+                0,
+                0);
         } else {
+            designElevations = toDoubleList(guideLine);
             int profileStartHeight = manualStartHeight != null
                 ? manualStartHeight
-                : guideStarts.getFirst();
+                : guideLine.getFirst();
             manualEndpointConstraintFeasible = GradeLimitedProfileSolver.areManualEndpointsFeasible(
                 manualStartHeight,
                 manualEndHeight,
                 distances,
                 effectiveMaxSlopes,
                 profileStartHeight);
-            targetEnds = RoadSlopeUtils.computeChainedTargetHeights(
+            List<Integer> chainedBuildEnds = RoadSlopeUtils.computeChainedTargetHeights(
                 distances,
                 guideStarts,
                 guideEnds,
@@ -244,38 +254,79 @@ public final class RoadProfileSolver {
                 support.maxContinuousSlopeLength(),
                 support.relaxedSlopeLength(),
                 support.relaxedSlopePercent());
-        }
-
-        List<SegmentHeightInfo> heightInfos = new ArrayList<>();
-        int currentHeight = manualStartHeight != null
-            ? manualStartHeight
-            : terrainAdaptiveStartHeight != null
-                ? terrainAdaptiveStartHeight
+            int buildStart = manualStartHeight != null
+                ? manualStartHeight
                 : guideStarts.getFirst();
-
-        for (int i = 0; i < segments.size(); i++) {
-            PathSegment segment = segments.get(i);
-            int targetStart = currentHeight;
-            int targetEnd = targetEnds.get(i);
-            double actualSlope = RoadSlopeUtils.computeActualSlopePercent(
-                targetStart, targetEnd, segment.distance / canvasUnitsPerBlock);
-            heightInfos.add(new SegmentHeightInfo(
-                segment,
-                sampleData.groundStarts().get(i),
-                sampleData.groundEnds().get(i),
-                targetStart,
-                targetEnd,
-                actualSlope));
-            currentHeight = targetEnd;
+            List<Integer> buildHeights = buildStationHeights(buildStart, chainedBuildEnds);
+            raster = new RoadHeightRasterizer.RasterizationResult(
+                buildStart,
+                buildHeights,
+                chainedBuildEnds,
+                RoadHeightRasterizer.maxDesignBuildDeviation(designElevations, buildHeights),
+                RoadHeightRasterizer.cumulativeGradeError(designElevations, buildHeights),
+                RoadHeightRasterizer.longestFlatRun(buildHeights),
+                RoadHeightRasterizer.countSteps(buildHeights));
         }
+
+        List<SegmentHeightInfo> heightInfos = buildHeightInfos(
+            segments,
+            sampleData,
+            designElevations,
+            raster,
+            canvasUnitsPerBlock);
 
         return new ProfileSolveResult(
             heightInfos,
             worldCumulativeDistances,
             new ArrayList<>(sampleData.groundSamples()),
             new ArrayList<>(guideLine),
-            buildProfileTargetHeights(heightInfos, manualStartHeight),
+            designElevations,
+            raster.buildHeights(),
             manualEndpointConstraintFeasible);
+    }
+
+    private static List<SegmentHeightInfo> buildHeightInfos(
+            List<PathSegment> segments,
+            HeightSampleData sampleData,
+            List<Double> designElevations,
+            RoadHeightRasterizer.RasterizationResult raster,
+            double canvasUnitsPerBlock) {
+        List<SegmentHeightInfo> heightInfos = new ArrayList<>();
+        int currentBuild = raster.startHeight();
+        for (int i = 0; i < segments.size(); i++) {
+            PathSegment segment = segments.get(i);
+            int buildStart = currentBuild;
+            int buildEnd = raster.segmentBuildEnds().get(i);
+            double designStart = designElevations.get(i);
+            double designEnd = designElevations.get(i + 1);
+            double segmentDistanceWorld = segment.distance / canvasUnitsPerBlock;
+            heightInfos.add(new SegmentHeightInfo(
+                segment,
+                sampleData.groundStarts().get(i),
+                sampleData.groundEnds().get(i),
+                buildStart,
+                buildEnd,
+                designStart,
+                designEnd,
+                segmentDistanceWorld));
+            currentBuild = buildEnd;
+        }
+        return heightInfos;
+    }
+
+    private static List<Integer> buildStationHeights(int startHeight, List<Integer> segmentBuildEnds) {
+        List<Integer> buildHeights = new ArrayList<>(segmentBuildEnds.size() + 1);
+        buildHeights.add(startHeight);
+        buildHeights.addAll(segmentBuildEnds);
+        return buildHeights;
+    }
+
+    private static List<Double> toDoubleList(List<Integer> values) {
+        List<Double> doubles = new ArrayList<>(values.size());
+        for (int value : values) {
+            doubles.add((double) value);
+        }
+        return doubles;
     }
 
     private static List<Double> toWorldDistances(
@@ -298,21 +349,5 @@ public final class RoadProfileSolver {
         }
         return sampleData.cumulativeDistances().get(segmentIndex)
             / Math.max(1e-9, canvasUnitsPerBlock);
-    }
-
-    private static List<Integer> buildProfileTargetHeights(
-            List<SegmentHeightInfo> heightInfos,
-            Integer manualStartHeight) {
-        if (heightInfos.isEmpty()) {
-            return List.of();
-        }
-        List<Integer> profileTargetHeights = new ArrayList<>(heightInfos.size() + 1);
-        profileTargetHeights.add(manualStartHeight != null
-            ? manualStartHeight
-            : heightInfos.getFirst().targetStart);
-        for (SegmentHeightInfo info : heightInfos) {
-            profileTargetHeights.add(info.targetEnd);
-        }
-        return profileTargetHeights;
     }
 }

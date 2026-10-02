@@ -23,8 +23,8 @@ public final class RoadProfileChartRenderer {
     private static final int COLOR_BG = 0xFF2A2A2A;
     private static final int COLOR_BORDER = 0xFF606060;
     private static final int COLOR_GROUND = ProfileChartSeriesStyle.RAW_TERRAIN;
-    private static final int COLOR_TARGET = ProfileChartSeriesStyle.ROAD_PROFILE;
     private static final int COLOR_DESIGN = ProfileChartSeriesStyle.DESIGN_PROFILE;
+    private static final int COLOR_BUILD = ProfileChartSeriesStyle.BUILD_PROFILE;
     private static final int COLOR_LABEL = 0x88AAAAAA;
     private static final int COLOR_GRID = 0x18FFFFFF;
     private static final int COLOR_CONTROL = 0xFFFFC04D;
@@ -421,6 +421,8 @@ public final class RoadProfileChartRenderer {
         max = extendMax(max, chart.groundElevations());
         min = extendMin(min, chart.previewElevations());
         max = extendMax(max, chart.previewElevations());
+        min = extendMin(min, chart.buildElevations());
+        max = extendMax(max, chart.buildElevations());
         min = extendMin(min, chart.guideElevations());
         max = extendMax(max, chart.guideElevations());
         if (flatOverlay != null) {
@@ -608,7 +610,12 @@ public final class RoadProfileChartRenderer {
         }
         drawPolyline(
             drawList, layout, range, chart.stations(), chart.previewElevations(),
-            COLOR_TARGET, mode.roadLineWidth(), false);
+            COLOR_DESIGN, mode.roadLineWidth(), false);
+        if (chart.buildElevations() != null && !chart.buildElevations().isEmpty()) {
+            drawPolyline(
+                drawList, layout, range, chart.stations(), chart.buildElevations(),
+                COLOR_BUILD, Math.max(1.4f, mode.roadLineWidth() - 0.4f), false);
+        }
         if (design != null && !design.isEmpty()) {
             drawPolyline(
                 drawList, layout, range, design.stations(), design.elevations(), COLOR_DESIGN, 2.6f, false);

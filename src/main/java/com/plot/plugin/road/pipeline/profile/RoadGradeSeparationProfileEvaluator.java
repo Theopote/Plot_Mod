@@ -193,7 +193,7 @@ public final class RoadGradeSeparationProfileEvaluator {
         double accumulatedBlocks = 0.0;
         if (junctionAtStart) {
             for (SegmentHeightInfo info : heightInfos) {
-                maxGrade = Math.max(maxGrade, (float) Math.abs(info.slope));
+                maxGrade = Math.max(maxGrade, (float) Math.abs(info.buildSlope));
                 accumulatedBlocks += info.segment.distance / Math.max(canvasUnitsPerBlock, 1e-9);
                 if (accumulatedBlocks >= approachBlocks) {
                     break;
@@ -202,7 +202,7 @@ public final class RoadGradeSeparationProfileEvaluator {
         } else {
             for (int i = heightInfos.size() - 1; i >= 0; i--) {
                 SegmentHeightInfo info = heightInfos.get(i);
-                maxGrade = Math.max(maxGrade, (float) Math.abs(info.slope));
+                maxGrade = Math.max(maxGrade, (float) Math.abs(info.buildSlope));
                 accumulatedBlocks += info.segment.distance / Math.max(canvasUnitsPerBlock, 1e-9);
                 if (accumulatedBlocks >= approachBlocks) {
                     break;

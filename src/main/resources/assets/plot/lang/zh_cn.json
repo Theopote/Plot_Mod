@@ -658,6 +658,8 @@
   "plugin.road.profile_terrain_raw": "原始地形",
   "plugin.road.profile_terrain_trend": "地形趋势",
   "plugin.road.profile_road_profile": "道路纵断面",
+  "plugin.road.profile_design_elevation": "设计纵断面",
+  "plugin.road.profile_build_elevation": "方块铺设",
   "plugin.road.profile_guide": "引导线建议",
   "plugin.road.profile_target": "道路目标标高",
   "plugin.road.profile_design": "设计纵断面",

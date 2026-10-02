@@ -36,6 +36,9 @@ public class RoadGenerationResult {
     public List<Double> profileDistances = new ArrayList<>();
     public List<Integer> profileGroundHeights = new ArrayList<>();
     public List<Integer> profileGuideLine = new ArrayList<>();
+    public List<Double> profileDesignElevations = new ArrayList<>();
+    public List<Integer> profileBuildHeights = new ArrayList<>();
+    /** Build heights; kept in sync with {@link #profileBuildHeights} for legacy callers. */
     public List<Integer> profileTargetHeights = new ArrayList<>();
     /** False when a pinned start/end elevation cannot be reached within max slope. */
     public boolean manualEndpointConstraintFeasible = true;
@@ -87,14 +90,25 @@ public class RoadGenerationResult {
         profileDistances = new ArrayList<>(source.profileDistances);
         profileGroundHeights = new ArrayList<>(source.profileGroundHeights);
         profileGuideLine = new ArrayList<>(source.profileGuideLine);
+        profileDesignElevations = new ArrayList<>(source.profileDesignElevations);
+        profileBuildHeights = new ArrayList<>(source.profileBuildHeights);
         profileTargetHeights = new ArrayList<>(source.profileTargetHeights);
         manualEndpointConstraintFeasible = source.manualEndpointConstraintFeasible;
     }
 
     public boolean hasProfileData() {
-        return !profileDistances.isEmpty()
-            && profileDistances.size() == profileGroundHeights.size()
-            && profileDistances.size() == profileGuideLine.size()
-            && profileDistances.size() == profileTargetHeights.size();
+        if (profileDistances.isEmpty()
+                || profileDistances.size() != profileGroundHeights.size()
+                || profileDistances.size() != profileGuideLine.size()) {
+            return false;
+        }
+        int sampleCount = profileDistances.size();
+        boolean buildReady = !profileBuildHeights.isEmpty()
+            ? profileBuildHeights.size() == sampleCount
+            : profileTargetHeights.size() == sampleCount;
+        boolean designReady = !profileDesignElevations.isEmpty()
+            ? profileDesignElevations.size() == sampleCount
+            : profileTargetHeights.size() == sampleCount;
+        return buildReady && designReady;
     }
 }

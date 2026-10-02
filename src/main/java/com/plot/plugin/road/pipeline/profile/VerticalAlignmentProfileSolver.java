@@ -66,35 +66,7 @@ public final class VerticalAlignmentProfileSolver {
             sampleData.cumulativeDistances(),
             canvasUnitsPerBlock);
 
-        List<SegmentHeightInfo> heightInfos = new ArrayList<>();
-        double localDistance = 0.0;
-        for (int i = 0; i < segments.size(); i++) {
-            PathSegment segment = segments.get(i);
-            int targetStart = designElevation.elevationAtLocalDistance(localDistance);
-            double endLocalDistance = localDistance + segment.distance;
-            int targetEnd = designElevation.elevationAtLocalDistance(endLocalDistance);
-            if (i == 0 && manualStartHeight != null) {
-                targetStart = manualStartHeight;
-            }
-            if (i == segments.size() - 1 && manualEndHeight != null) {
-                targetEnd = manualEndHeight;
-            }
-            double actualSlope = RoadSlopeUtils.computeActualSlopePercent(
-                targetStart,
-                targetEnd,
-                segment.distance / canvasUnitsPerBlock);
-            heightInfos.add(new SegmentHeightInfo(
-                segment,
-                sampleData.groundStarts().get(i),
-                sampleData.groundEnds().get(i),
-                targetStart,
-                targetEnd,
-                actualSlope));
-            localDistance = endLocalDistance;
-        }
-
-        List<Integer> designTargets = buildDesignProfileTargets(
-            alignment,
+        List<Double> designElevations = buildDesignProfileElevations(
             sampleData,
             manualStartHeight,
             manualEndHeight,
@@ -116,22 +88,58 @@ public final class VerticalAlignmentProfileSolver {
             maxSlopePercents,
             profileStartHeight);
 
+        RoadHeightRasterizer.RasterizationResult raster = RoadHeightRasterizer.rasterize(
+            designElevations,
+            segmentDistances,
+            maxSlopePercents,
+            manualStartHeight,
+            manualEndHeight);
+
+        List<Integer> guideLine = toIntegerGuideLine(designElevations);
+        List<SegmentHeightInfo> heightInfos = new ArrayList<>();
+        double localDistance = 0.0;
+        for (int i = 0; i < segments.size(); i++) {
+            PathSegment segment = segments.get(i);
+            int targetStart = designElevation.elevationAtLocalDistance(localDistance);
+            double endLocalDistance = localDistance + segment.distance;
+            int targetEnd = designElevation.elevationAtLocalDistance(endLocalDistance);
+            if (i == 0 && manualStartHeight != null) {
+                targetStart = manualStartHeight;
+            }
+            if (i == segments.size() - 1 && manualEndHeight != null) {
+                targetEnd = manualEndHeight;
+            }
+            double designStart = designElevations.get(i);
+            double designEnd = designElevations.get(i + 1);
+            double segmentDistanceWorld = segment.distance / canvasUnitsPerBlock;
+            heightInfos.add(new SegmentHeightInfo(
+                segment,
+                sampleData.groundStarts().get(i),
+                sampleData.groundEnds().get(i),
+                targetStart,
+                targetEnd,
+                designStart,
+                designEnd,
+                segmentDistanceWorld));
+            localDistance = endLocalDistance;
+        }
+
         return new ProfileSolveResult(
             heightInfos,
             worldCumulativeDistances,
             new ArrayList<>(sampleData.groundSamples()),
-            new ArrayList<>(designTargets),
-            new ArrayList<>(designTargets),
+            guideLine,
+            designElevations,
+            raster.buildHeights(),
             manualEndpointConstraintFeasible);
     }
 
-    private static List<Integer> buildDesignProfileTargets(
-            RoadVerticalAlignment alignment,
+    private static List<Double> buildDesignProfileElevations(
             ProfileGroundSampler.SampleData sampleData,
             Integer manualStartHeight,
             Integer manualEndHeight,
             DesignElevationSource designElevation) {
-        List<Integer> targets = new ArrayList<>(sampleData.groundSamples().size());
+        List<Double> elevations = new ArrayList<>(sampleData.groundSamples().size());
         double sampledPathLength = sampleData.cumulativeDistances().isEmpty()
             ? 0.0
             : sampleData.cumulativeDistances().getLast();
@@ -140,16 +148,26 @@ public final class VerticalAlignmentProfileSolver {
                 ? sampleData.cumulativeDistances().get(i)
                 : sampledPathLength;
             double chainage = designElevation.mapLocalToChainage(localDistance);
-            int target = designElevation.elevationAtChainage(chainage);
+            double target = VerticalAlignmentGeometry
+                .elevationAt(designElevation.alignment(), chainage)
+                .orElse(designElevation.elevationAtChainage(chainage));
             if (i == 0 && manualStartHeight != null) {
                 target = manualStartHeight;
             }
             if (i == sampleData.groundSamples().size() - 1 && manualEndHeight != null) {
                 target = manualEndHeight;
             }
-            targets.add(target);
+            elevations.add(target);
         }
-        return targets;
+        return elevations;
+    }
+
+    private static List<Integer> toIntegerGuideLine(List<Double> designElevations) {
+        List<Integer> guideLine = new ArrayList<>(designElevations.size());
+        for (double elevation : designElevations) {
+            guideLine.add((int) Math.round(elevation));
+        }
+        return guideLine;
     }
 
     private static List<Double> toWorldDistances(

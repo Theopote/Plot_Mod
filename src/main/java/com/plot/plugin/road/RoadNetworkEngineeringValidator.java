@@ -769,7 +769,16 @@ public final class RoadNetworkEngineeringValidator {
         if (distance <= 1e-6) {
             return 0f;
         }
-        int delta = result.profileTargetHeights.get(toIndex) - result.profileTargetHeights.get(fromIndex);
+        double fromElevation = resolveDesignElevation(result, fromIndex);
+        double toElevation = resolveDesignElevation(result, toIndex);
+        double delta = toElevation - fromElevation;
         return (float) (Math.abs(delta) / distance * 100.0);
+    }
+
+    private static double resolveDesignElevation(RoadGenerationResult result, int index) {
+        if (!result.profileDesignElevations.isEmpty() && index < result.profileDesignElevations.size()) {
+            return result.profileDesignElevations.get(index);
+        }
+        return result.profileTargetHeights.get(index);
     }
 }

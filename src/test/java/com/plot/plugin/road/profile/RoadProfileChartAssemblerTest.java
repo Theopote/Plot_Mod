@@ -281,6 +281,8 @@ class RoadProfileChartAssemblerTest {
         result.profileDistances = List.of(0.0, span);
         result.profileGroundHeights = List.of(startHeight, endHeight);
         result.profileGuideLine = List.of(startHeight, endHeight);
+        result.profileDesignElevations = List.of((double) startHeight, (double) endHeight);
+        result.profileBuildHeights = List.of(startHeight, endHeight);
         result.profileTargetHeights = List.of(startHeight, endHeight);
         result.manualEndpointConstraintFeasible = manualEndpointConstraintFeasible;
         return result;

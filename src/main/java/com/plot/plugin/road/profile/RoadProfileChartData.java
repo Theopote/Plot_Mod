@@ -11,6 +11,7 @@ public record RoadProfileChartData(
         List<Double> stations,
         List<Double> groundElevations,
         List<Double> previewElevations,
+        List<Double> buildElevations,
         List<Double> guideElevations,
         List<ProfileControlPoint> controlPoints,
         List<RoadProfileIntersection> intersections,
@@ -31,10 +32,34 @@ public record RoadProfileChartData(
             stations,
             groundElevations,
             previewElevations,
+            previewElevations,
             guideElevations,
             controlPoints,
             intersections,
             true);
+    }
+
+    public RoadProfileChartData(
+            String roadId,
+            double totalStation,
+            List<Double> stations,
+            List<Double> groundElevations,
+            List<Double> previewElevations,
+            List<Double> guideElevations,
+            List<ProfileControlPoint> controlPoints,
+            List<RoadProfileIntersection> intersections,
+            boolean manualEndpointConstraintFeasible) {
+        this(
+            roadId,
+            totalStation,
+            stations,
+            groundElevations,
+            previewElevations,
+            previewElevations,
+            guideElevations,
+            controlPoints,
+            intersections,
+            manualEndpointConstraintFeasible);
     }
 
     private static final double EPSILON = 1e-6;
@@ -45,7 +70,9 @@ public record RoadProfileChartData(
             && groundElevations != null
             && groundElevations.size() == stations.size()
             && previewElevations != null
-            && previewElevations.size() == stations.size();
+            && previewElevations.size() == stations.size()
+            && buildElevations != null
+            && buildElevations.size() == stations.size();
     }
 
     /** Road-level 图表契约：station 覆盖完整 canonical 范围且单调。 */
@@ -72,6 +99,10 @@ public record RoadProfileChartData(
 
     public double previewElevationAt(double station) {
         return interpolate(stations, previewElevations, station);
+    }
+
+    public double buildElevationAt(double station) {
+        return interpolate(stations, buildElevations, station);
     }
 
     public double groundElevationAt(double station) {

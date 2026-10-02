@@ -28,7 +28,7 @@ public final class HorizontalAlignmentPolylineFitter {
     }
 
     public static Optional<RoadHorizontalAlignment> fit(RoadNetwork network, Road road) {
-        if (network == null || road == null || !RoadStationing.isStationable(network, road)) {
+        if (road == null || !RoadStationing.isStationable(network, road)) {
             return Optional.empty();
         }
         List<Vec2d> chainPoints = collectChainPoints(network, road);
@@ -168,15 +168,14 @@ public final class HorizontalAlignmentPolylineFitter {
 
         for (int leg = 0; leg < vertexCount - 1; leg++) {
             double tangentLength = legLengths[leg];
-            int cornerAtStart = leg;
             int cornerAtEnd = leg + 1;
             if (cornerAtEnd < vertexCount - 1 && Math.abs(turnAngles[cornerAtEnd]) >= COLINEAR_ANGLE_RADIANS) {
                 tangentLength -= tangentInset(radii[cornerAtEnd], turnAngles[cornerAtEnd]);
             }
-            if (cornerAtStart >= 1
-                    && cornerAtStart < vertexCount - 1
-                    && Math.abs(turnAngles[cornerAtStart]) >= COLINEAR_ANGLE_RADIANS) {
-                tangentLength -= tangentInset(radii[cornerAtStart], turnAngles[cornerAtStart]);
+            if (leg >= 1
+                    && leg < vertexCount - 1
+                    && Math.abs(turnAngles[leg]) >= COLINEAR_ANGLE_RADIANS) {
+                tangentLength -= tangentInset(radii[leg], turnAngles[leg]);
             }
             if (tangentLength < MIN_TANGENT_LENGTH) {
                 return Optional.empty();

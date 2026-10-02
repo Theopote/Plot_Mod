@@ -27,6 +27,8 @@ class ProfileChartCoordinatesTest {
         result.profileDistances = List.of(0.0, 25.0, 50.0);
         result.profileGroundHeights = List.of(64, 65, 66);
         result.profileGuideLine = List.of(64, 65, 66);
+        result.profileDesignElevations = List.of(64.0, 65.0, 66.0);
+        result.profileBuildHeights = List.of(64, 65, 66);
         result.profileTargetHeights = List.of(64, 65, 66);
 
         assertEquals(0.5, ProfileChartCoordinates.geometryToProfileScale(edge, result), 1e-6);

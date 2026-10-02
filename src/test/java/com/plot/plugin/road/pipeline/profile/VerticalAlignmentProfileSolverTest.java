@@ -64,11 +64,13 @@ class VerticalAlignmentProfileSolverTest {
             new FlatTerrainSampler(64),
             4.0,
             70,
-            95,
+            78,
             support);
 
         assertEquals(70, result.heightInfos().getFirst().targetStart);
-        assertEquals(95, result.heightInfos().getFirst().targetEnd);
+        assertEquals(78, result.heightInfos().getFirst().targetEnd);
+        assertEquals(70.0, result.profileDesignElevations().getFirst(), 1e-6);
+        assertEquals(78.0, result.profileDesignElevations().getLast(), 1e-6);
     }
 
     @Test

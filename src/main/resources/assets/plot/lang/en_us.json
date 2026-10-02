@@ -658,6 +658,8 @@
   "plugin.road.profile_terrain_raw": "Raw Terrain",
   "plugin.road.profile_terrain_trend": "Terrain Trend",
   "plugin.road.profile_road_profile": "Road Profile",
+  "plugin.road.profile_design_elevation": "Design Profile",
+  "plugin.road.profile_build_elevation": "Block Placement",
   "plugin.road.profile_guide": "Guide Line",
   "plugin.road.profile_target": "Road Target Elevation",
   "plugin.road.profile_design": "Design Profile",

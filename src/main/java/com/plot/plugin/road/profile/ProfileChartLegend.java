@@ -42,8 +42,12 @@ public final class ProfileChartLegend {
             "--- " + PlotI18n.tr("plugin.road.profile_terrain_trend"));
         ImGui.sameLine();
         ImGui.textColored(
-            ProfileChartSeriesStyle.ROAD_PROFILE,
-            "\u25A0 " + roadProfileLabel(buildPreviewStale));
+            ProfileChartSeriesStyle.DESIGN_PROFILE,
+            "\u25A0 " + PlotI18n.tr("plugin.road.profile_design_elevation"));
+        ImGui.sameLine();
+        ImGui.textColored(
+            ProfileChartSeriesStyle.BUILD_PROFILE,
+            "\u25A0 " + buildProfileLabel(buildPreviewStale));
     }
 
     private static void renderGeneralLegend(
@@ -56,8 +60,12 @@ public final class ProfileChartLegend {
             "\u25A0 " + PlotI18n.tr("plugin.road.profile_ground"));
         ImGui.sameLine();
         ImGui.textColored(
-            ProfileChartSeriesStyle.ROAD_PROFILE,
-            "\u25A0 " + roadProfileLabel(buildPreviewStale));
+            ProfileChartSeriesStyle.DESIGN_PROFILE,
+            "\u25A0 " + PlotI18n.tr("plugin.road.profile_design_elevation"));
+        ImGui.sameLine();
+        ImGui.textColored(
+            ProfileChartSeriesStyle.BUILD_PROFILE,
+            "\u25A0 " + buildProfileLabel(buildPreviewStale));
         if (verticalMode == RoadVerticalMode.MANUAL_PROFILE && design != null && !design.isEmpty()) {
             ImGui.sameLine();
             ImGui.textColored(
@@ -80,8 +88,8 @@ public final class ProfileChartLegend {
             "\u25A0 " + PlotI18n.tr("plugin.road.profile_ground"));
         ImGui.sameLine();
         ImGui.textColored(
-            ProfileChartSeriesStyle.ROAD_PROFILE,
-            "\u25A0 " + roadProfileLabel(buildPreviewStale));
+            ProfileChartSeriesStyle.BUILD_PROFILE,
+            "\u25A0 " + buildProfileLabel(buildPreviewStale));
         if (flatOverlay != null && flatOverlay.showCurrent()) {
             ImGui.sameLine();
             ImGui.textColored(0xFF66D9EF, "--- " + PlotI18n.tr(
@@ -117,10 +125,10 @@ public final class ProfileChartLegend {
         }
     }
 
-    private static String roadProfileLabel(boolean buildPreviewStale) {
+    private static String buildProfileLabel(boolean buildPreviewStale) {
         return buildPreviewStale
             ? PlotI18n.tr("plugin.road.profile_last_preview_stale")
-            : PlotI18n.tr("plugin.road.profile_road_profile");
+            : PlotI18n.tr("plugin.road.profile_build_elevation");
     }
 
 }

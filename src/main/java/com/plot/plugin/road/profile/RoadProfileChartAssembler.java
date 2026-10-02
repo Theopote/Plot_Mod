@@ -74,7 +74,8 @@ public final class RoadProfileChartAssembler {
 
         List<Double> stations = new ArrayList<>();
         List<Double> groundElevations = new ArrayList<>();
-        List<Double> previewElevations = new ArrayList<>();
+        List<Double> designElevations = new ArrayList<>();
+        List<Double> buildElevations = new ArrayList<>();
         List<Double> guideElevations = new ArrayList<>();
 
         for (OrientedRoadSegment segment : segments) {
@@ -85,7 +86,8 @@ public final class RoadProfileChartAssembler {
                 edgeResults.get(segment.edgeId()),
                 stations,
                 groundElevations,
-                previewElevations,
+                designElevations,
+                buildElevations,
                 guideElevations);
         }
         if (stations.size() < 2) {
@@ -109,7 +111,8 @@ public final class RoadProfileChartAssembler {
             totalStation,
             List.copyOf(stations),
             List.copyOf(groundElevations),
-            List.copyOf(previewElevations),
+            List.copyOf(designElevations),
+            List.copyOf(buildElevations),
             List.copyOf(guideElevations),
             controlPoints,
             intersections,
@@ -127,7 +130,8 @@ public final class RoadProfileChartAssembler {
             RoadGenerationResult edgeResult,
             List<Double> stations,
             List<Double> groundElevations,
-            List<Double> previewElevations,
+            List<Double> designElevations,
+            List<Double> buildElevations,
             List<Double> guideElevations) {
         List<Double> profileDistances = edgeResult.profileDistances;
         double profileSpan = profileDistances.getLast() - profileDistances.getFirst();
@@ -144,14 +148,15 @@ public final class RoadProfileChartAssembler {
             double chainLocal = segment.chainLocalFromGeometryLocal(geometryLocal);
             double instanceStation = segment.startStation() + chainLocal;
             double roadStation = RoadStationing.toCanonicalChainage(network, road, instanceStation);
+            double design = resolveDesignElevation(edgeResult, i);
+            double build = resolveBuildElevation(edgeResult, i);
             if (!stations.isEmpty()
                     && Math.abs(roadStation - stations.getLast()) <= STATION_MERGE_TOLERANCE) {
                 groundElevations.set(
                     groundElevations.size() - 1,
                     edgeResult.profileGroundHeights.get(i).doubleValue());
-                previewElevations.set(
-                    previewElevations.size() - 1,
-                    edgeResult.profileTargetHeights.get(i).doubleValue());
+                designElevations.set(designElevations.size() - 1, design);
+                buildElevations.set(buildElevations.size() - 1, build);
                 if (!edgeResult.profileGuideLine.isEmpty()
                         && edgeResult.profileGuideLine.size() == profileDistances.size()) {
                     guideElevations.set(
@@ -162,7 +167,8 @@ public final class RoadProfileChartAssembler {
             }
             stations.add(roadStation);
             groundElevations.add(edgeResult.profileGroundHeights.get(i).doubleValue());
-            previewElevations.add(edgeResult.profileTargetHeights.get(i).doubleValue());
+            designElevations.add(design);
+            buildElevations.add(build);
             if (!edgeResult.profileGuideLine.isEmpty()
                     && edgeResult.profileGuideLine.size() == profileDistances.size()) {
                 guideElevations.add(edgeResult.profileGuideLine.get(i).doubleValue());
@@ -172,5 +178,21 @@ public final class RoadProfileChartAssembler {
                 guideElevations.add(edgeResult.profileGroundHeights.get(i).doubleValue());
             }
         }
+    }
+
+    private static double resolveDesignElevation(RoadGenerationResult edgeResult, int index) {
+        if (!edgeResult.profileDesignElevations.isEmpty()
+                && index < edgeResult.profileDesignElevations.size()) {
+            return edgeResult.profileDesignElevations.get(index);
+        }
+        return edgeResult.profileTargetHeights.get(index).doubleValue();
+    }
+
+    private static double resolveBuildElevation(RoadGenerationResult edgeResult, int index) {
+        if (!edgeResult.profileBuildHeights.isEmpty()
+                && index < edgeResult.profileBuildHeights.size()) {
+            return edgeResult.profileBuildHeights.get(index).doubleValue();
+        }
+        return edgeResult.profileTargetHeights.get(index).doubleValue();
     }
 }

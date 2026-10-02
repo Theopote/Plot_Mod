@@ -79,8 +79,10 @@ class ProfileRenderCacheTest {
             stations,
             ground,
             ground,
+            ground,
             List.of(),
             List.of(),
-            List.of());
+            List.of(),
+            true);
     }
 }

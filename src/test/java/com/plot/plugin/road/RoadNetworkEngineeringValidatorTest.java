@@ -398,6 +398,12 @@ class RoadNetworkEngineeringValidatorTest {
         result.profileDistances = distances;
         result.profileGroundHeights = heights;
         result.profileGuideLine = heights;
+        List<Double> design = new java.util.ArrayList<>();
+        for (int height : heights) {
+            design.add((double) height);
+        }
+        result.profileDesignElevations = design;
+        result.profileBuildHeights = new java.util.ArrayList<>(heights);
         result.profileTargetHeights = heights;
         return result;
     }
