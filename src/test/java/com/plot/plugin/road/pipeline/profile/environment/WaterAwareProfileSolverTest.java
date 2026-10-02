@@ -68,7 +68,7 @@ class WaterAwareProfileSolverTest {
         assertEquals(WaterCrossingStrategy.CAUSEWAY, crossings.getFirst().strategy());
         List<VerticalStationConstraint> constraints = VerticalStationConstraints.build(
             environment, crossings, trend, settings);
-        assertEquals(62.0, constraints.get(2).minimumElevation(), 1e-6);
+        assertEquals(63.0, constraints.get(2).minimumElevation(), 1e-6);
         VerticalStationConstraints.StationElevationBounds bounds =
             VerticalStationConstraints.toBounds(constraints);
         GradeLimitedProfileSolver.DesignSolveResult solved = GradeLimitedProfileSolver.solveDesignProfile(
@@ -81,8 +81,8 @@ class WaterAwareProfileSolverTest {
             preset,
             1.0f,
             bounds);
-        assertTrue(solved.designElevations().get(2) >= 62.0 - 1e-6,
-            "causeway should allow design down to bed elevation");
+        assertTrue(solved.designElevations().get(2) >= 63.0 - 1e-6,
+            "causeway road surface must stay at or above water surface");
     }
 
     @Test

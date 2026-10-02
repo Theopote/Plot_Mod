@@ -63,9 +63,10 @@ public final class VerticalStationConstraints {
                 SurfaceContext.DEEP_WATER);
         }
         if (strategy == WaterCrossingStrategy.CAUSEWAY) {
+            double minimum = sample.waterSurfaceY();
             return new VerticalStationConstraint(
-                preferred,
-                (double) sample.terrainY(),
+                Math.max(preferred, minimum),
+                minimum,
                 null,
                 sample.context());
         }
