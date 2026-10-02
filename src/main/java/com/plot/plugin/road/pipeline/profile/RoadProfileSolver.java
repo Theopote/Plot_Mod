@@ -214,7 +214,7 @@ public final class RoadProfileSolver {
         List<Double> designElevations;
         boolean manualEndpointConstraintFeasible;
         RoadHeightRasterizer.RasterizationResult raster;
-        if (useTerrainAdaptiveSolver && terrainTrend != null) {
+        if (useTerrainAdaptiveSolver) {
             GradeLimitedProfileSolver.DesignSolveResult terrainSolve =
                 GradeLimitedProfileSolver.solveDesignProfile(
                     terrainTrend.trendElevations(),

@@ -109,7 +109,7 @@ public final class RoadSlopeUtils {
 
     public static double computeActualSlopePercent(int targetStart, int targetEnd, double segmentDistance) {
         return computeActualSlopePercent(
-            (double) targetStart, (double) targetEnd, segmentDistance);
+                targetStart, (double) targetEnd, segmentDistance);
     }
 
     public static double computeActualSlopePercent(

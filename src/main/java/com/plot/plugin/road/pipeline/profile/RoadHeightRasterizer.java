@@ -102,8 +102,7 @@ public final class RoadHeightRasterizer {
         int previous = startHeight;
         RoadSlopeUtils.ElevationAccumulator accumulator = new RoadSlopeUtils.ElevationAccumulator();
         for (int i = 0; i < segmentDistances.size(); i++) {
-            int ideal = (int) Math.round(designElevations.get(i + 1));
-            int target = ideal;
+            int target = (int) Math.round(designElevations.get(i + 1));
             if (manualEndHeight != null && i == segmentDistances.size() - 1) {
                 target = manualEndHeight;
             }

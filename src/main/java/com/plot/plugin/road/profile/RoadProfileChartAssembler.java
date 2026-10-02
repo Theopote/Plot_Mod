@@ -28,7 +28,7 @@ public final class RoadProfileChartAssembler {
             RoadNetwork network,
             Road road,
             Map<String, RoadGenerationResult> edgeResults) {
-        if (network == null || road == null || edgeResults == null
+        if (road == null || edgeResults == null
                 || !RoadStationing.isStationable(network, road)) {
             return false;
         }
