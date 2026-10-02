@@ -1,8 +1,10 @@
 package com.plot.plugin.road.pipeline.profile.terrain;
 
 import com.plot.plugin.road.pipeline.profile.RoadHeightRasterizer;
+import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
@@ -13,6 +15,7 @@ public final class GradeLimitedProfileSolver {
 
     private static final int MAX_PROJECTION_ITERATIONS = 64;
     private static final double EPSILON = 1e-9;
+    private static final double GRADE_MATCH_TOLERANCE_PERCENT = 0.75;
 
     private GradeLimitedProfileSolver() {
     }
@@ -211,6 +214,15 @@ public final class GradeLimitedProfileSolver {
             lockEnd,
             startTarget,
             endTarget);
+        enforceGradeTransitionLengths(
+            current,
+            segmentDistances,
+            maxSlopePercents,
+            effectivePreset,
+            lockStart,
+            lockEnd,
+            startTarget,
+            endTarget);
         projectFeasible(
             current,
             segmentDistances,
@@ -261,6 +273,220 @@ public final class GradeLimitedProfileSolver {
                 endLock);
             System.arraycopy(updated, 0, elevations, 0, elevations.length);
         }
+    }
+
+    /**
+     * Spread significant grade reversals over a minimum transition length so crests / sags
+     * do not collapse into a single station kink.
+     */
+    private static void enforceGradeTransitionLengths(
+            double[] elevations,
+            List<Double> segmentDistances,
+            List<Float> maxSlopePercents,
+            TerrainFollowPreset preset,
+            boolean lockStart,
+            boolean lockEnd,
+            double startLock,
+            double endLock) {
+        if (elevations.length < 3 || segmentDistances.isEmpty()) {
+            return;
+        }
+        double[] chainage = cumulativeChainage(segmentDistances);
+        List<Integer> breakVertices = new ArrayList<>();
+        List<Double> breakMagnitudes = new ArrayList<>();
+        int firstInterior = lockStart ? 2 : 1;
+        int lastInterior = lockEnd ? elevations.length - 3 : elevations.length - 2;
+        for (int vertex = firstInterior; vertex <= lastInterior; vertex++) {
+            double leftGrade = gradeAtSegment(
+                elevations[vertex - 1],
+                elevations[vertex],
+                segmentDistances.get(vertex - 1));
+            double rightGrade = gradeAtSegment(
+                elevations[vertex],
+                elevations[vertex + 1],
+                segmentDistances.get(vertex));
+            double magnitude = Math.abs(rightGrade - leftGrade);
+            if (magnitude <= gradeTransitionTriggerPercent(preset)) {
+                continue;
+            }
+            breakVertices.add(vertex);
+            breakMagnitudes.add(magnitude);
+        }
+        if (breakVertices.isEmpty()) {
+            return;
+        }
+
+        Integer[] order = new Integer[breakVertices.size()];
+        for (int i = 0; i < order.length; i++) {
+            order[i] = i;
+        }
+        java.util.Arrays.sort(order, Comparator.comparingDouble(breakMagnitudes::get).reversed());
+
+        double[] updated = elevations.clone();
+        for (int index : order) {
+            int vertex = breakVertices.get(index);
+            double leftGrade = gradeAtSegment(
+                updated[vertex - 1],
+                updated[vertex],
+                segmentDistances.get(vertex - 1));
+            double rightGrade = gradeAtSegment(
+                updated[vertex],
+                updated[vertex + 1],
+                segmentDistances.get(vertex));
+            double leftRun = constantGradeRunLength(
+                updated, segmentDistances, vertex - 1, -1, leftGrade);
+            double rightRun = constantGradeRunLength(
+                updated, segmentDistances, vertex, 1, rightGrade);
+            double transitionLength = resolveGradeTransitionLength(
+                preset, leftRun, rightRun);
+            if (transitionLength <= EPSILON) {
+                continue;
+            }
+            spreadGradeTransitionAtVertex(
+                updated,
+                chainage,
+                vertex,
+                leftGrade,
+                rightGrade,
+                transitionLength);
+        }
+        applyEndpointLocks(updated, lockStart, lockEnd, startLock, endLock);
+        projectFeasible(
+            updated,
+            segmentDistances,
+            maxSlopePercents,
+            preset.maxGradeChangePercent(),
+            lockStart,
+            lockEnd,
+            startLock,
+            endLock);
+        System.arraycopy(updated, 0, elevations, 0, elevations.length);
+    }
+
+    static double resolveGradeTransitionLength(
+            TerrainFollowPreset preset,
+            double leftRun,
+            double rightRun) {
+        TerrainFollowPreset effectivePreset = preset != null ? preset : TerrainFollowPreset.STANDARD;
+        double presetMinimum = Math.max(
+            VerticalProfileDesignRules.MIN_VERTICAL_TRANSITION_LENGTH,
+            effectivePreset.minGradeTransitionMeters());
+        double suggested = VerticalProfileDesignRules.suggestedTransitionLength(leftRun, rightRun);
+        if (suggested <= EPSILON) {
+            return Math.min(presetMinimum, leftRun + rightRun);
+        }
+        return Math.max(presetMinimum, suggested);
+    }
+
+    private static double gradeTransitionTriggerPercent(TerrainFollowPreset preset) {
+        TerrainFollowPreset effectivePreset = preset != null ? preset : TerrainFollowPreset.STANDARD;
+        return Math.max(
+            2.0,
+            effectivePreset.maxGradeChangePercent() * 0.75);
+    }
+
+    static double constantGradeRunLength(
+            double[] elevations,
+            List<Double> segmentDistances,
+            int segmentIndex,
+            int direction,
+            double referenceGrade) {
+        if (segmentIndex < 0 || segmentIndex >= segmentDistances.size()) {
+            return 0.0;
+        }
+        double run = segmentDistances.get(segmentIndex);
+        int index = segmentIndex + direction;
+        while (index >= 0 && index < segmentDistances.size()) {
+            int startVertex = Math.min(index, index + 1);
+            int endVertex = Math.max(index, index + 1);
+            double segmentGrade = gradeAtSegment(
+                elevations[startVertex],
+                elevations[endVertex],
+                segmentDistances.get(index));
+            if (Math.abs(segmentGrade - referenceGrade) > GRADE_MATCH_TOLERANCE_PERCENT) {
+                break;
+            }
+            run += segmentDistances.get(index);
+            index += direction;
+        }
+        return run;
+    }
+
+    static void spreadGradeTransitionAtVertex(
+            double[] elevations,
+            double[] chainage,
+            int vertex,
+            double incomingGradePercent,
+            double outgoingGradePercent,
+            double transitionLength) {
+        double center = chainage[vertex];
+        double start = center - transitionLength * 0.5;
+        double end = center + transitionLength * 0.5;
+        start = Math.max(start, chainage[0]);
+        end = Math.min(end, chainage[chainage.length - 1]);
+        double effectiveLength = end - start;
+        if (effectiveLength <= EPSILON) {
+            return;
+        }
+        double startElevation = elevationAtChainage(elevations, chainage, start);
+        for (int i = 0; i < elevations.length; i++) {
+            double station = chainage[i];
+            if (station + EPSILON < start || station - EPSILON > end) {
+                continue;
+            }
+            double offset = station - start;
+            elevations[i] = elevationAlongLinearGradeRamp(
+                startElevation,
+                incomingGradePercent,
+                outgoingGradePercent,
+                offset,
+                effectiveLength);
+        }
+    }
+
+    static double elevationAlongLinearGradeRamp(
+            double startElevation,
+            double incomingGradePercent,
+            double outgoingGradePercent,
+            double offset,
+            double transitionLength) {
+        if (transitionLength <= EPSILON) {
+            return startElevation;
+        }
+        double clampedOffset = Math.max(0.0, Math.min(offset, transitionLength));
+        return startElevation
+            + (incomingGradePercent * clampedOffset
+                + (outgoingGradePercent - incomingGradePercent)
+                    * clampedOffset * clampedOffset / (2.0 * transitionLength))
+            / 100.0;
+    }
+
+    static double elevationAtChainage(double[] elevations, double[] chainage, double station) {
+        if (station <= chainage[0] + EPSILON) {
+            return elevations[0];
+        }
+        if (station >= chainage[chainage.length - 1] - EPSILON) {
+            return elevations[elevations.length - 1];
+        }
+        for (int i = 1; i < chainage.length; i++) {
+            if (station <= chainage[i] + EPSILON) {
+                double span = chainage[i] - chainage[i - 1];
+                if (span <= EPSILON) {
+                    return elevations[i];
+                }
+                double blend = (station - chainage[i - 1]) / span;
+                return elevations[i - 1] + (elevations[i] - elevations[i - 1]) * blend;
+            }
+        }
+        return elevations[elevations.length - 1];
+    }
+
+    private static double[] cumulativeChainage(List<Double> segmentDistances) {
+        double[] chainage = new double[segmentDistances.size() + 1];
+        for (int i = 0; i < segmentDistances.size(); i++) {
+            chainage[i + 1] = chainage[i] + segmentDistances.get(i);
+        }
+        return chainage;
     }
 
     /** Elevation at vertex {@code i} that makes grades on both adjacent segments equal. */

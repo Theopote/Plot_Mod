@@ -141,14 +141,6 @@ class GradeLimitedProfileSolverTest {
     }
 
     @Test
-    void equalGradeElevationInterpolatesDistanceWeightedMidpoint() {
-        assertEquals(62.0, GradeLimitedProfileSolver.equalGradeElevationAt(60.0, 64.0, 10.0, 10.0), 1e-9);
-        assertEquals(62.0 + 2.0 / 3.0,
-            GradeLimitedProfileSolver.equalGradeElevationAt(60.0, 64.0, 20.0, 10.0),
-            1e-9);
-    }
-
-    @Test
     void relaxationMovesResultCloserToTrendThanForwardOnlyPass() {
         List<Double> trend = List.of(60.0, 62.0, 68.0, 74.0, 75.0);
         List<Double> distances = constantDistances(4, 10.0);
@@ -162,6 +154,116 @@ class GradeLimitedProfileSolverTest {
         double forwardOnlyError = meanAbsoluteError(forwardOnlyProfile(trend, distances, slopes), trend);
         assertTrue(solvedError <= forwardOnlyError + 1.0,
                 "relaxed profile should track trend at least as well as forward-only");
+    }
+
+    @Test
+    void equalGradeElevationInterpolatesDistanceWeightedMidpoint() {
+        assertEquals(62.0, GradeLimitedProfileSolver.equalGradeElevationAt(60.0, 64.0, 10.0, 10.0), 1e-9);
+        assertEquals(62.0 + 2.0 / 3.0,
+            GradeLimitedProfileSolver.equalGradeElevationAt(60.0, 64.0, 20.0, 10.0),
+            1e-9);
+    }
+
+    @Test
+    void linearGradeRampNetElevationChangeIsZeroForSymmetricCrest() {
+        double end = GradeLimitedProfileSolver.elevationAlongLinearGradeRamp(
+            65.0, 5.0, -5.0, 20.0, 20.0);
+        assertEquals(65.0, end, 1e-6,
+            "symmetric +5% to -5% ramp should return to start elevation at transition end");
+    }
+
+    @Test
+    void resolveGradeTransitionLengthUsesPresetMinimum() {
+        double gentle = GradeLimitedProfileSolver.resolveGradeTransitionLength(
+            TerrainFollowPreset.GENTLE, 5.0, 5.0);
+        double tight = GradeLimitedProfileSolver.resolveGradeTransitionLength(
+            TerrainFollowPreset.TIGHT, 5.0, 5.0);
+        assertTrue(gentle >= TerrainFollowPreset.GENTLE.minGradeTransitionMeters());
+        assertTrue(tight >= TerrainFollowPreset.TIGHT.minGradeTransitionMeters());
+        assertTrue(gentle > tight);
+    }
+
+    @Test
+    void spreadGradeTransitionSoftensSharpCrestVertex() {
+        List<Double> distances = constantDistances(10, 10.0);
+        double[] elevations = {
+            60.0, 60.5, 61.0, 61.5, 62.0,
+            62.5, 62.0, 61.5, 61.0, 60.5, 60.0
+        };
+        double[] chainage = cumulativeChainage(distances);
+        double[] before = elevations.clone();
+
+        GradeLimitedProfileSolver.spreadGradeTransitionAtVertex(
+            elevations, chainage, 5, 5.0, -5.0, 20.0);
+
+        double beforeBreak = Math.abs(
+            GradeLimitedProfileSolver.gradeAtSegment(before[4], before[5], 10.0)
+                - GradeLimitedProfileSolver.gradeAtSegment(before[5], before[6], 10.0));
+        double afterBreak = Math.abs(
+            GradeLimitedProfileSolver.gradeAtSegment(elevations[4], elevations[5], 10.0)
+                - GradeLimitedProfileSolver.gradeAtSegment(elevations[5], elevations[6], 10.0));
+        assertTrue(afterBreak < beforeBreak,
+            () -> "spread should reduce crest grade break from " + beforeBreak + " to " + afterBreak);
+        assertTrue(maxAdjacentDelta(elevations) <= maxAdjacentDelta(before) + 1e-6);
+    }
+
+    @Test
+    void gradeTransitionSoftensSharpCrestInDesignProfile() {
+        List<Double> trend = List.of(
+            60.0, 60.5, 61.0, 61.5, 62.0,
+            62.5, 62.0, 61.5, 61.0, 60.5, 60.0);
+        List<Double> distances = constantDistances(trend.size() - 1, 10.0);
+        List<Float> slopes = constantSlopes(distances.size(), 10.0f);
+
+        double[] solved = GradeLimitedProfileSolver.solveStationElevations(
+            trend, distances, slopes, null, null, TerrainFollowPreset.STANDARD);
+
+        int crestVertex = 5;
+        double trendBreak = Math.abs(
+            GradeLimitedProfileSolver.gradeAtSegment(
+                trend.get(crestVertex - 1), trend.get(crestVertex), distances.get(crestVertex - 1))
+                - GradeLimitedProfileSolver.gradeAtSegment(
+                    trend.get(crestVertex), trend.get(crestVertex + 1), distances.get(crestVertex)));
+        double solvedBreak = Math.abs(
+            GradeLimitedProfileSolver.gradeAtSegment(
+                solved[crestVertex - 1], solved[crestVertex], distances.get(crestVertex - 1))
+                - GradeLimitedProfileSolver.gradeAtSegment(
+                    solved[crestVertex], solved[crestVertex + 1], distances.get(crestVertex)));
+        assertTrue(solvedBreak < trendBreak,
+            () -> "solver should soften crest grade break from " + trendBreak + " to " + solvedBreak);
+    }
+
+    @Test
+    void gentlePresetSpreadsGradeTransitionsMoreThanTight() {
+        List<Double> trend = List.of(
+            60.0, 61.0, 62.0, 63.0, 64.0,
+            63.0, 62.0, 61.0, 60.0, 59.0, 58.0);
+        List<Double> distances = constantDistances(trend.size() - 1, 10.0);
+        List<Float> slopes = constantSlopes(distances.size(), 10.0f);
+
+        double[] gentle = GradeLimitedProfileSolver.solveStationElevations(
+            trend, distances, slopes, null, null, TerrainFollowPreset.GENTLE);
+        double[] tight = GradeLimitedProfileSolver.solveStationElevations(
+            trend, distances, slopes, null, null, TerrainFollowPreset.TIGHT);
+
+        assertTrue(GradeLimitedProfileSolver.totalAbsoluteGradeChange(gentle, distances)
+            <= GradeLimitedProfileSolver.totalAbsoluteGradeChange(tight, distances) + 1e-6);
+    }
+
+    private static double maxAdjacentDelta(double[] elevations) {
+        double max = 0.0;
+        for (int i = 1; i < elevations.length; i++) {
+            max = Math.max(max, Math.abs(elevations[i] - elevations[i - 1]));
+        }
+        return max;
+    }
+
+    private static double[] cumulativeChainage(List<Double> segmentDistances) {
+        double[] chainage = new double[segmentDistances.size() + 1];
+        for (int i = 0; i < segmentDistances.size(); i++) {
+            chainage[i + 1] = chainage[i] + segmentDistances.get(i);
+        }
+        return chainage;
     }
 
     private static List<Integer> forwardOnlyProfile(
@@ -203,14 +305,6 @@ class GradeLimitedProfileSolverTest {
             slopes.add(slope);
         }
         return slopes;
-    }
-
-    private static double maxAdjacentDelta(double[] elevations) {
-        double max = 0.0;
-        for (int i = 1; i < elevations.length; i++) {
-            max = Math.max(max, Math.abs(elevations[i] - elevations[i - 1]));
-        }
-        return max;
     }
 
     private static double maxAdjacentDelta(List<Integer> elevations) {
