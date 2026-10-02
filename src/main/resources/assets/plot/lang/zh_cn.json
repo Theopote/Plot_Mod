@@ -1495,6 +1495,8 @@
   "plugin.road.profile_intersection_recalculate_hint": "高程关系已更新。请重新「计算预览」以刷新纵断面与虚影。",
   "plugin.road.profile_endpoint_constraint_infeasible": "固定端点标高无法在最大坡度内到达。",
   "plugin.road.profile_endpoint_constraint_infeasible_hint": "路口或手动端点要求的高差超过当前道路长度与最大坡度允许的范围。预览将仅在坡度限制内爬升，不会在最后一段强制跳变。",
+  "plugin.road.profile_water_constraint_infeasible": "固定标高无法满足水面以上所需净空。",
+  "plugin.road.profile_water_constraint_infeasible_hint": "请提高道路标高或调整水域净空设置。未锁定端点时，平路与手动模式会自动抬高。",
   "plugin.road.profile_build_preview_stale": "纵断面已修改，完整道路预览尚未更新",
   "plugin.road.profile_build_preview_stale_hint": "可继续调整纵断面；准备好后点击下方按钮，刷新挖填、桥隧与虚影预览。",
   "plugin.road.profile_quality_heading": "纵断面质量（预览估算）",

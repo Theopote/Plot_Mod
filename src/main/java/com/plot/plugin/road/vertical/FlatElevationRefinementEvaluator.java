@@ -126,7 +126,10 @@ final class FlatElevationRefinementEvaluator {
             halfWidth,
             null,
             null,
-            profileSupport);
+            profileSupport,
+            config,
+            RoadVerticalMode.FLAT,
+            road.getEffectiveTerrainFollowPreset());
         if (solved.heightInfos().isEmpty()) {
             return FlatElevationConstructionMetrics.Metrics.empty();
         }

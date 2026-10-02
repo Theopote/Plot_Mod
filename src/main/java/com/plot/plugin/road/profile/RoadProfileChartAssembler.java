@@ -106,10 +106,16 @@ public final class RoadProfileChartAssembler {
         List<RoadProfileIntersection> intersections = RoadProfileIntersectionResolver.forRoad(
             network, road, config, edgeResults);
         boolean manualEndpointConstraintFeasible = true;
+        boolean waterConstraintFeasible = true;
         for (OrientedRoadSegment segment : segments) {
             RoadGenerationResult edgeResult = edgeResults.get(segment.edgeId());
             if (edgeResult != null && !edgeResult.manualEndpointConstraintFeasible) {
                 manualEndpointConstraintFeasible = false;
+            }
+            if (edgeResult != null && !edgeResult.waterConstraintFeasible) {
+                waterConstraintFeasible = false;
+            }
+            if (!manualEndpointConstraintFeasible && !waterConstraintFeasible) {
                 break;
             }
         }
@@ -126,6 +132,7 @@ public final class RoadProfileChartAssembler {
             controlPoints,
             intersections,
             manualEndpointConstraintFeasible,
+            waterConstraintFeasible,
             new ArrayList<>(waterElevations),
             List.copyOf(waterCrossings));
         if (!chart.hasCompleteRoadProfile()) {

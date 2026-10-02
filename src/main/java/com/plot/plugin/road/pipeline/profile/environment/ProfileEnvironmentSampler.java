@@ -17,6 +17,29 @@ public final class ProfileEnvironmentSampler {
     private ProfileEnvironmentSampler() {
     }
 
+    public static EnvironmentProfile collectDense(
+            List<PathSegment> segments,
+            TerrainSampler terrain,
+            double halfWidth,
+            double canvasUnitsPerBlock,
+            double pathSampleDistanceMeters,
+            double environmentSampleSpacingMeters) {
+        double spacingCanvas = ProfileStationGrid.resolveSpacingCanvas(
+            canvasUnitsPerBlock,
+            pathSampleDistanceMeters,
+            environmentSampleSpacingMeters);
+        List<ProfileStationGrid.StationPoint> grid =
+            ProfileStationGrid.alongPath(segments, spacingCanvas);
+        List<EnvironmentSample> samples = new ArrayList<>(grid.size());
+        List<Double> cumulativeDistances = new ArrayList<>(grid.size());
+        for (ProfileStationGrid.StationPoint point : grid) {
+            EnvironmentColumn column = sampleColumn(terrain, point.point(), point.tangent(), halfWidth);
+            samples.add(toSample(point.station(), column));
+            cumulativeDistances.add(point.station());
+        }
+        return new EnvironmentProfile(List.copyOf(samples), List.copyOf(cumulativeDistances));
+    }
+
     public static EnvironmentProfile collect(
             List<PathSegment> segments,
             TerrainSampler terrain,

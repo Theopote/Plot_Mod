@@ -47,6 +47,8 @@ public class RoadGenerationResult {
     public List<WaterCrossingChartMarker> profileWaterCrossingMarkers = new ArrayList<>();
     /** False when a pinned start/end elevation cannot be reached within max slope. */
     public boolean manualEndpointConstraintFeasible = true;
+    /** False when a fixed flat or manual elevation cannot clear water minimums. */
+    public boolean waterConstraintFeasible = true;
 
     public RoadGenerationResult(double pathLength) {
         this.pathLength = pathLength;
@@ -102,6 +104,7 @@ public class RoadGenerationResult {
         profileWaterHeights = new ArrayList<>(source.profileWaterHeights);
         profileWaterCrossingMarkers = new ArrayList<>(source.profileWaterCrossingMarkers);
         manualEndpointConstraintFeasible = source.manualEndpointConstraintFeasible;
+        waterConstraintFeasible = source.waterConstraintFeasible;
     }
 
     public boolean hasProfileData() {

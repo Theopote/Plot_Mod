@@ -8,6 +8,8 @@ public record WaterCrossing(
         double crossingStartStation,
         double crossingEndStation,
         double exitEndStation,
+        double firstWaterSampleStation,
+        double lastWaterSampleStation,
         double lengthMeters,
         double averageDepth,
         double maxDepth,

@@ -32,6 +32,8 @@ public final class WaterCrossingClassifier {
                 crossing.crossingStartStation(),
                 crossing.crossingEndStation(),
                 exitEnd,
+                crossing.firstWaterSampleStation(),
+                crossing.lastWaterSampleStation(),
                 crossing.lengthMeters(),
                 crossing.averageDepth(),
                 crossing.maxDepth(),
@@ -50,7 +52,8 @@ public final class WaterCrossingClassifier {
             return WaterCrossingStrategy.TUNNEL_CANDIDATE;
         }
         if (crossing.lengthMeters() + 1e-9 < settings.causewayMaxLengthMeters()
-                && crossing.maxDepth() <= settings.causewayMaxDepthBlocks()) {
+                && crossing.maxDepth() <= settings.causewayMaxDepthBlocks()
+                && crossing.lengthMeters() + 1e-9 < settings.bridgePreferredMinLengthMeters()) {
             return WaterCrossingStrategy.CAUSEWAY;
         }
         if (crossing.lengthMeters() + 1e-9 >= settings.longBridgeLengthMeters()) {

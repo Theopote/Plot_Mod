@@ -219,6 +219,7 @@ final class VerticalProfileEditor {
             ctx.previewManager().needsPreviewRecalc(),
             true);
         renderManualEndpointConstraintWarning(chartData);
+        renderWaterConstraintWarning(chartData);
         ProfileQualitySummary.render(
             chartData,
             road,
@@ -557,6 +558,7 @@ final class VerticalProfileEditor {
                 PlotI18n.tr("plugin.road.profile_editor_interaction_hint"));
         }
         renderManualEndpointConstraintWarning(chartData);
+        renderWaterConstraintWarning(chartData);
         RoadLongitudinalProfileRenderer.ControlInteraction interaction =
             RoadProfileChartRenderer.renderInteractive(
                 chartData, design, points, chartSelectedPvi, chartActivePvi, maxGrade,
@@ -712,6 +714,19 @@ final class VerticalProfileEditor {
                 propagate -> finishProfileNetworkEdit(ctx, propagate));
         }
         renderBuildPreviewStaleBar(ctx, network);
+    }
+
+    private static void renderWaterConstraintWarning(RoadProfileChartData chartData) {
+        if (chartData == null || chartData.waterConstraintFeasible()) {
+            return;
+        }
+        ImGui.spacing();
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.WARNING,
+            PlotI18n.tr("plugin.road.profile_water_constraint_infeasible"));
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.profile_water_constraint_infeasible_hint"));
     }
 
     private static void renderManualEndpointConstraintWarning(RoadProfileChartData chartData) {

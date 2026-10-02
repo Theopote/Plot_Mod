@@ -93,6 +93,7 @@ public class RoadSystemConfig {
     private double bridgePreferredMinLengthMeters = 6.0;
     private double longBridgeLengthMeters = 60.0;
     private boolean allowUnderwaterRoad = false;
+    private double environmentSampleSpacingMeters = 2.0;
 
     public RoadSystemConfig(String pluginId) {
         this.pluginId = pluginId;
@@ -710,6 +711,14 @@ public class RoadSystemConfig {
         this.allowUnderwaterRoad = allowUnderwaterRoad;
     }
 
+    public double getEnvironmentSampleSpacingMeters() {
+        return environmentSampleSpacingMeters;
+    }
+
+    public void setEnvironmentSampleSpacingMeters(double environmentSampleSpacingMeters) {
+        this.environmentSampleSpacingMeters = Math.max(0.5, environmentSampleSpacingMeters);
+    }
+
     /**
      * 影响纵断面/自然高度推算的全局参数指纹，供 UI 缓存失效。
      */
@@ -722,7 +731,14 @@ public class RoadSystemConfig {
             tunnelThreshold,
             maxContinuousSlopeLength,
             relaxedSlopeLength,
-            relaxedSlopePercent);
+            relaxedSlopePercent,
+            waterRoadClearanceBlocks,
+            causewayMaxLengthMeters,
+            causewayMaxDepthBlocks,
+            bridgePreferredMinLengthMeters,
+            longBridgeLengthMeters,
+            allowUnderwaterRoad,
+            environmentSampleSpacingMeters);
     }
     
     /**

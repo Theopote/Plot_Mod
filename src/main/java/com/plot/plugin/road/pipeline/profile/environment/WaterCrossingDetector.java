@@ -37,8 +37,10 @@ public final class WaterCrossingDetector {
             List<EnvironmentSample> samples,
             int startIndex,
             int endIndex) {
-        double crossingStart = samples.get(startIndex).station();
-        double crossingEnd = samples.get(endIndex).station();
+        double firstWaterSample = samples.get(startIndex).station();
+        double lastWaterSample = samples.get(endIndex).station();
+        double estimatedStart = estimateCrossingStart(samples, startIndex);
+        double estimatedEnd = estimateCrossingEnd(samples, endIndex);
         int entryBank = bankTerrainY(samples, startIndex, -1);
         int exitBank = bankTerrainY(samples, endIndex, 1);
         int waterSurface = representativeWaterSurface(samples, startIndex, endIndex);
@@ -55,12 +57,14 @@ public final class WaterCrossingDetector {
             count++;
         }
         double averageDepth = count > 0 ? totalDepth / count : 0.0;
-        double lengthMeters = Math.max(0.0, crossingEnd - crossingStart);
+        double lengthMeters = Math.max(0.0, estimatedEnd - estimatedStart);
         return new WaterCrossing(
-            crossingStart,
-            crossingStart,
-            crossingEnd,
-            crossingEnd,
+            estimatedStart,
+            estimatedStart,
+            estimatedEnd,
+            estimatedEnd,
+            firstWaterSample,
+            lastWaterSample,
             lengthMeters,
             averageDepth,
             maxDepth,
@@ -68,6 +72,28 @@ public final class WaterCrossingDetector {
             exitBank,
             waterSurface,
             WaterCrossingStrategy.BRIDGE);
+    }
+
+    static double estimateCrossingStart(List<EnvironmentSample> samples, int firstWaterIndex) {
+        EnvironmentSample firstWater = samples.get(firstWaterIndex);
+        if (firstWaterIndex <= 0) {
+            return firstWater.station();
+        }
+        EnvironmentSample previousLand = samples.get(firstWaterIndex - 1);
+        return midpoint(previousLand.station(), firstWater.station());
+    }
+
+    static double estimateCrossingEnd(List<EnvironmentSample> samples, int lastWaterIndex) {
+        EnvironmentSample lastWater = samples.get(lastWaterIndex);
+        if (lastWaterIndex >= samples.size() - 1) {
+            return lastWater.station();
+        }
+        EnvironmentSample nextLand = samples.get(lastWaterIndex + 1);
+        return midpoint(lastWater.station(), nextLand.station());
+    }
+
+    private static double midpoint(double left, double right) {
+        return (left + right) * 0.5;
     }
 
     private static int bankTerrainY(List<EnvironmentSample> samples, int waterIndex, int direction) {

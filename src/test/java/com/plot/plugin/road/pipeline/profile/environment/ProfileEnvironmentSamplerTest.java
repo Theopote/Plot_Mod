@@ -21,11 +21,12 @@ class ProfileEnvironmentSamplerTest {
             new PathSegment(new Vec2d(0, 0), new Vec2d(50, 0)),
             new PathSegment(new Vec2d(50, 0), new Vec2d(100, 0)));
 
-        EnvironmentProfile profile = ProfileEnvironmentSampler.collect(segments, terrain, 2.5);
+        EnvironmentProfile profile = ProfileEnvironmentSampler.collectDense(
+            segments, terrain, 2.5, 1.0, 10.0, 2.0);
 
         assertTrue(profile.samples().size() >= 3);
-        boolean sawWater = profile.samples().stream().anyMatch(EnvironmentSample::hasWater);
-        assertTrue(sawWater, "expected at least one station with exposed water");
+        long waterCount = profile.samples().stream().filter(EnvironmentSample::hasWater).count();
+        assertTrue(waterCount >= 3, "expected multiple water stations across river span");
         EnvironmentSample waterSample = profile.samples().stream()
             .filter(EnvironmentSample::hasWater)
             .findFirst()
@@ -34,6 +35,23 @@ class ProfileEnvironmentSamplerTest {
         assertEquals(55, waterSample.terrainY());
         assertTrue(waterSample.waterDepth() > 0);
         assertNotNull(waterSample.context());
+    }
+
+    @Test
+    void riverBetweenSegmentEndpointsProducesNonZeroCrossingWidth() {
+        TerrainSampler terrain = riverTerrain(68, 55, 69, 20.0, 30.0);
+        List<PathSegment> segments = List.of(
+            new PathSegment(new Vec2d(0, 0), new Vec2d(50, 0)));
+
+        EnvironmentProfile profile = ProfileEnvironmentSampler.collectDense(
+            segments, terrain, 2.5, 1.0, 50.0, 2.0);
+        List<WaterCrossing> crossings = WaterCrossingDetector.detect(profile);
+
+        assertEquals(1, crossings.size());
+        WaterCrossing crossing = crossings.getFirst();
+        assertTrue(crossing.lengthMeters() > 0.0, "interior river must produce non-zero crossing width");
+        assertTrue(crossing.crossingStartStation() < crossing.firstWaterSampleStation());
+        assertTrue(crossing.crossingEndStation() > crossing.lastWaterSampleStation());
     }
 
     static TerrainSampler riverTerrain(

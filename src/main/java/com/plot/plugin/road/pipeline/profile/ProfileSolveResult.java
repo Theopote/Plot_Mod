@@ -18,6 +18,7 @@ public record ProfileSolveResult(
         List<BuildHeightSample> profileBuildSamples,
         BuildHeightProfile buildProfile,
         boolean manualEndpointConstraintFeasible,
+        boolean waterConstraintFeasible,
         List<Integer> profileWaterHeights,
         List<WaterCrossing> profileWaterCrossings,
         List<WaterCrossingChartMarker> profileWaterCrossingMarkers) {
@@ -25,6 +26,6 @@ public record ProfileSolveResult(
     public static ProfileSolveResult empty() {
         return new ProfileSolveResult(
             List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
-            BuildHeightProfile.inactive(), true, List.of(), List.of(), List.of());
+            BuildHeightProfile.inactive(), true, true, List.of(), List.of(), List.of());
     }
 }

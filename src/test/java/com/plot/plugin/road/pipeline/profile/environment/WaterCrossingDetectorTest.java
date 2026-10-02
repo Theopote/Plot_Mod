@@ -26,9 +26,11 @@ class WaterCrossingDetectorTest {
 
         assertEquals(1, crossings.size());
         WaterCrossing crossing = crossings.getFirst();
-        assertEquals(20.0, crossing.crossingStartStation(), 1e-6);
-        assertEquals(40.0, crossing.crossingEndStation(), 1e-6);
-        assertEquals(20.0, crossing.lengthMeters(), 1e-6);
+        assertEquals(15.0, crossing.crossingStartStation(), 1e-6);
+        assertEquals(45.0, crossing.crossingEndStation(), 1e-6);
+        assertEquals(30.0, crossing.lengthMeters(), 1e-6);
+        assertEquals(20.0, crossing.firstWaterSampleStation(), 1e-6);
+        assertEquals(40.0, crossing.lastWaterSampleStation(), 1e-6);
         assertEquals(69, crossing.waterSurfaceY());
         assertEquals(14.0, crossing.maxDepth(), 1e-6);
         assertFalse(crossings.getFirst().containsStation(10.0));

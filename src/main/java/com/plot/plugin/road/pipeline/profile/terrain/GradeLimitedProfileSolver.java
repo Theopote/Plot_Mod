@@ -180,6 +180,89 @@ public final class GradeLimitedProfileSolver {
         return Math.abs(manualEndHeight - startHeight) <= maxTotalRise + EPSILON;
     }
 
+    /**
+     * Re-project a design profile onto slope, grade-change, endpoint, and elevation-bound constraints.
+     */
+    public static List<Double> projectOntoFeasibleDomain(
+            List<Double> designElevations,
+            List<Double> segmentDistances,
+            List<Float> maxSlopePercents,
+            TerrainFollowPreset preset,
+            Integer manualStartHeight,
+            Integer manualEndHeight,
+            VerticalStationConstraints.StationElevationBounds elevationBounds,
+            boolean manualEndpointsFeasible) {
+        Objects.requireNonNull(designElevations, "designElevations");
+        Objects.requireNonNull(segmentDistances, "segmentDistances");
+        Objects.requireNonNull(maxSlopePercents, "maxSlopePercents");
+        if (designElevations.isEmpty()) {
+            return designElevations;
+        }
+        if (designElevations.size() != segmentDistances.size() + 1) {
+            throw new IllegalArgumentException("design elevations must have one more sample than segments");
+        }
+        if (maxSlopePercents.size() != segmentDistances.size()) {
+            throw new IllegalArgumentException("max slope list must match segment count");
+        }
+        TerrainFollowPreset effectivePreset = preset != null ? preset : TerrainFollowPreset.STANDARD;
+        double[] elevations = designElevations.stream().mapToDouble(Double::doubleValue).toArray();
+        boolean lockStart = manualStartHeight != null;
+        boolean lockEnd = manualEndHeight != null && manualEndpointsFeasible;
+        double startLock = lockStart ? manualStartHeight.doubleValue() : elevations[0];
+        double endLock = lockEnd ? manualEndHeight.doubleValue() : elevations[elevations.length - 1];
+        double[] minElevations = elevationBounds != null ? elevationBounds.minimumElevations() : null;
+        double[] maxElevations = elevationBounds != null ? elevationBounds.maximumElevations() : null;
+        applyEndpointLocks(elevations, lockStart, lockEnd, startLock, endLock);
+        projectFeasible(
+            elevations,
+            segmentDistances,
+            maxSlopePercents,
+            effectivePreset.maxGradeChangePercent(),
+            lockStart,
+            lockEnd,
+            startLock,
+            endLock,
+            minElevations,
+            maxElevations);
+        if (!hasActiveElevationBounds(minElevations, maxElevations)) {
+            projectFeasible(
+                elevations,
+                segmentDistances,
+                maxSlopePercents,
+                0.0,
+                lockStart,
+                lockEnd,
+                startLock,
+                endLock,
+                null,
+                null);
+        } else {
+            smoothGradeChanges(
+                elevations,
+                segmentDistances,
+                maxSlopePercents,
+                effectivePreset,
+                lockStart,
+                lockEnd,
+                startLock,
+                endLock,
+                minElevations,
+                maxElevations);
+            projectFeasible(
+                elevations,
+                segmentDistances,
+                maxSlopePercents,
+                effectivePreset.maxGradeChangePercent(),
+                lockStart,
+                lockEnd,
+                startLock,
+                endLock,
+                minElevations,
+                maxElevations);
+        }
+        return toDesignList(elevations);
+    }
+
     private static List<Double> toDesignList(double[] stations) {
         List<Double> designElevations = new ArrayList<>(stations.length);
         for (double station : stations) {

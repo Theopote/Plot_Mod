@@ -9,6 +9,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.core.terrain.TerrainSampler;
+import com.plot.plugin.road.pipeline.profile.environment.EnvironmentFeasibilityProjector;
 import com.plot.plugin.road.pipeline.profile.environment.EnvironmentProfile;
 import com.plot.plugin.road.pipeline.profile.environment.EnvironmentSample;
 import com.plot.plugin.road.pipeline.profile.environment.ProfileEnvironmentSampler;
@@ -65,7 +66,7 @@ public final class RoadProfileSolver {
             RoadVerticalMode.AUTO_SMOOTH,
             TerrainFollowPreset.STANDARD,
             null,
-            null);
+            collectDenseEnvironment(segments, terrain, halfWidth, null, support));
     }
 
     public static ProfileSolveResult solveWithManualElevation(
@@ -90,7 +91,7 @@ public final class RoadProfileSolver {
             RoadVerticalMode.AUTO_SMOOTH,
             TerrainFollowPreset.STANDARD,
             null,
-            null);
+            collectDenseEnvironment(segments, terrain, halfWidth, null, support));
     }
 
     public static ProfileSolveResult solveForEdge(
@@ -109,7 +110,8 @@ public final class RoadProfileSolver {
 
         HeightSampleData sampleData = toHeightSampleData(
             ProfileGroundSampler.collect(segments, terrain, halfWidth));
-        EnvironmentProfile environment = ProfileEnvironmentSampler.collect(segments, terrain, halfWidth);
+        EnvironmentProfile environment = collectDenseEnvironment(
+            segments, terrain, halfWidth, config, support);
 
         List<Float> maxSlopes = new ArrayList<>();
         double canvasUnitsPerBlock = support.canvasUnitsPerBlock(segments);
@@ -152,6 +154,7 @@ public final class RoadProfileSolver {
         profile.profileBuildSamples = new ArrayList<>(result.profileBuildSamples());
         profile.buildProfile = result.buildProfile();
         profile.manualEndpointConstraintFeasible = result.manualEndpointConstraintFeasible();
+        profile.waterConstraintFeasible = result.waterConstraintFeasible();
         profile.profileWaterHeights = new ArrayList<>(result.profileWaterHeights());
         profile.profileWaterCrossingMarkers = new ArrayList<>(result.profileWaterCrossingMarkers());
         return profile;
@@ -187,14 +190,19 @@ public final class RoadProfileSolver {
         double canvasUnitsPerBlock = support.canvasUnitsPerBlock(segments);
         List<Double> worldCumulativeDistances = toWorldDistances(
             sampleData.cumulativeDistances(), canvasUnitsPerBlock);
-        EnvironmentProfile worldEnvironment = toWorldEnvironment(environment, canvasUnitsPerBlock);
+        EnvironmentProfile worldDenseEnvironment = toWorldEnvironment(environment, canvasUnitsPerBlock);
+        EnvironmentProfile solverEnvironment = worldDenseEnvironment != null
+            ? worldDenseEnvironment.resampleAtStations(worldCumulativeDistances)
+            : null;
         WaterCrossingSettings waterSettings = WaterCrossingSettings.fromConfig(config);
-        List<Integer> waterHeights = extractWaterHeights(environment);
+        List<Integer> waterHeights = extractWaterHeights(solverEnvironment);
         List<WaterCrossing> waterCrossings = classifyWaterCrossings(
-            worldEnvironment,
+            worldDenseEnvironment,
             waterSettings,
             terrainFollowPreset,
             worldCumulativeDistances);
+        EnvironmentFeasibilityProjector.FlattenPolicy flattenPolicy =
+            resolveFlattenPolicy(verticalMode, manualStartHeight, manualEndHeight);
         List<WaterCrossingChartMarker> waterCrossingMarkers = toChartMarkers(waterCrossings);
         List<Integer> guideLine;
         TerrainTrendResult terrainTrend = null;
@@ -235,11 +243,12 @@ public final class RoadProfileSolver {
 
         List<Double> designElevations;
         boolean manualEndpointConstraintFeasible;
+        boolean waterConstraintFeasible = true;
         RoadHeightRasterizer.RasterizationResult raster;
         if (useTerrainAdaptiveSolver) {
             VerticalStationConstraints.StationElevationBounds elevationBounds =
                 VerticalStationConstraints.toBounds(VerticalStationConstraints.build(
-                    worldEnvironment,
+                    solverEnvironment,
                     waterCrossings,
                     terrainTrend.trendElevations(),
                     waterSettings));
@@ -256,22 +265,35 @@ public final class RoadProfileSolver {
                     elevationBounds);
             designElevations = terrainSolve.designElevations();
             manualEndpointConstraintFeasible = terrainSolve.manualEndpointsFeasible();
+            waterConstraintFeasible = EnvironmentFeasibilityProjector.evaluateWaterFeasibility(
+                designElevations,
+                solverEnvironment,
+                waterCrossings,
+                waterSettings,
+                manualStartHeight,
+                manualEndHeight,
+                flattenPolicy);
             raster = RoadHeightRasterizer.rasterize(
                 designElevations,
                 distances,
                 effectiveMaxSlopes,
                 manualStartHeight);
         } else {
-            designElevations = toDoubleList(guideLine);
-            int profileStartHeight = manualStartHeight != null
-                ? manualStartHeight
-                : guideLine.getFirst();
-            manualEndpointConstraintFeasible = GradeLimitedProfileSolver.areManualEndpointsFeasible(
-                manualStartHeight,
-                manualEndHeight,
-                distances,
-                effectiveMaxSlopes,
-                profileStartHeight);
+            EnvironmentFeasibilityProjector.EnvironmentFeasibilityResult envResult =
+                EnvironmentFeasibilityProjector.project(
+                    toDoubleList(guideLine),
+                    distances,
+                    effectiveMaxSlopes,
+                    solverEnvironment,
+                    waterCrossings,
+                    waterSettings,
+                    effectiveTerrainPreset,
+                    manualStartHeight,
+                    manualEndHeight,
+                    flattenPolicy);
+            designElevations = envResult.designElevations();
+            manualEndpointConstraintFeasible = envResult.manualEndpointsFeasible();
+            waterConstraintFeasible = envResult.waterConstraintFeasible();
             raster = RoadHeightRasterizer.rasterize(
                 designElevations,
                 distances,
@@ -297,9 +319,48 @@ public final class RoadProfileSolver {
             raster.samples(),
             raster.buildProfile(),
             manualEndpointConstraintFeasible,
+            waterConstraintFeasible,
             waterHeights,
             waterCrossings,
             waterCrossingMarkers);
+    }
+
+    private static EnvironmentProfile collectDenseEnvironment(
+            List<PathSegment> segments,
+            TerrainSampler terrain,
+            double halfWidth,
+            RoadSystemConfig config,
+            ProfileSolveSupport support) {
+        double canvasUnitsPerBlock = support.canvasUnitsPerBlock(segments);
+        double pathSampleDistance = config != null ? config.getPathSampleDistance() : 1.0;
+        double environmentSpacing = config != null
+            ? config.getEnvironmentSampleSpacingMeters()
+            : 2.0;
+        return ProfileEnvironmentSampler.collectDense(
+            segments,
+            terrain,
+            halfWidth,
+            canvasUnitsPerBlock,
+            pathSampleDistance,
+            environmentSpacing);
+    }
+
+    private static EnvironmentFeasibilityProjector.FlattenPolicy resolveFlattenPolicy(
+            RoadVerticalMode verticalMode,
+            Integer manualStartHeight,
+            Integer manualEndHeight) {
+        if (verticalMode == RoadVerticalMode.FLAT) {
+            if (manualStartHeight != null || manualEndHeight != null) {
+                return EnvironmentFeasibilityProjector.FlattenPolicy.STRICT_MANUAL;
+            }
+            return EnvironmentFeasibilityProjector.FlattenPolicy.AUTO_RAISE_UNIFORM;
+        }
+        if (manualStartHeight != null
+                && manualEndHeight != null
+                && manualStartHeight.equals(manualEndHeight)) {
+            return EnvironmentFeasibilityProjector.FlattenPolicy.STRICT_MANUAL;
+        }
+        return EnvironmentFeasibilityProjector.FlattenPolicy.NONE;
     }
 
     private static List<SegmentHeightInfo> buildHeightInfos(

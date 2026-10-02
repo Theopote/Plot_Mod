@@ -22,6 +22,7 @@ public record RoadProfileChartData(
         List<ProfileControlPoint> controlPoints,
         List<RoadProfileIntersection> intersections,
         boolean manualEndpointConstraintFeasible,
+        boolean waterConstraintFeasible,
         List<Double> waterElevations,
         List<WaterCrossingChartMarker> waterCrossings) {
 
@@ -46,6 +47,35 @@ public record RoadProfileChartData(
             controlPoints,
             intersections,
             true,
+            true,
+            List.of(),
+            List.of());
+    }
+
+    public RoadProfileChartData(
+            String roadId,
+            double totalStation,
+            List<Double> stations,
+            List<Double> groundElevations,
+            List<Double> previewElevations,
+            List<Double> guideElevations,
+            List<ProfileControlPoint> controlPoints,
+            List<RoadProfileIntersection> intersections,
+            boolean manualEndpointConstraintFeasible,
+            boolean waterConstraintFeasible) {
+        this(
+            roadId,
+            totalStation,
+            stations,
+            groundElevations,
+            previewElevations,
+            previewElevations,
+            List.of(),
+            guideElevations,
+            controlPoints,
+            intersections,
+            manualEndpointConstraintFeasible,
+            waterConstraintFeasible,
             List.of(),
             List.of());
     }
@@ -72,6 +102,37 @@ public record RoadProfileChartData(
             controlPoints,
             intersections,
             manualEndpointConstraintFeasible,
+            true,
+            List.of(),
+            List.of());
+    }
+
+    public RoadProfileChartData(
+            String roadId,
+            double totalStation,
+            List<Double> stations,
+            List<Double> groundElevations,
+            List<Double> previewElevations,
+            List<Double> buildElevations,
+            List<BuildHeightSample> buildSamples,
+            List<Double> guideElevations,
+            List<ProfileControlPoint> controlPoints,
+            List<RoadProfileIntersection> intersections,
+            boolean manualEndpointConstraintFeasible,
+            boolean waterConstraintFeasible) {
+        this(
+            roadId,
+            totalStation,
+            stations,
+            groundElevations,
+            previewElevations,
+            buildElevations,
+            buildSamples,
+            guideElevations,
+            controlPoints,
+            intersections,
+            manualEndpointConstraintFeasible,
+            waterConstraintFeasible,
             List.of(),
             List.of());
     }
@@ -100,6 +161,7 @@ public record RoadProfileChartData(
             controlPoints,
             intersections,
             manualEndpointConstraintFeasible,
+            true,
             List.of(),
             List.of());
     }

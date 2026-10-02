@@ -1495,6 +1495,8 @@
   "plugin.road.profile_intersection_recalculate_hint": "Grade relation updated. Recalculate preview to refresh the profile and ghost blocks.",
   "plugin.road.profile_endpoint_constraint_infeasible": "Fixed endpoint elevation cannot be reached within the maximum grade.",
   "plugin.road.profile_endpoint_constraint_infeasible_hint": "A junction or manual endpoint requires more rise or fall than this road length allows at the current max grade. The preview climbs only within the slope limit instead of forcing a final jump.",
+  "plugin.road.profile_water_constraint_infeasible": "Fixed elevation cannot clear water surface plus required clearance.",
+  "plugin.road.profile_water_constraint_infeasible_hint": "Raise the road elevation or adjust water clearance settings. Flat and manual modes auto-raise when endpoints are not locked.",
   "plugin.road.profile_build_preview_stale": "Profile changed — full road preview not yet updated",
   "plugin.road.profile_build_preview_stale_hint": "You can keep editing the vertical profile. Click below when ready to refresh cut/fill, bridges, tunnels, and ghost blocks.",
   "plugin.road.profile_quality_heading": "Profile quality (preview estimate)",
