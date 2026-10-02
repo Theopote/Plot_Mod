@@ -18,7 +18,7 @@ public final class GradeLimitedProfileSolver {
     private static final double EPSILON = 1e-9;
     private static final double GRADE_MATCH_TOLERANCE_PERCENT = 0.75;
     private static final long MIN_IMBALANCE_TO_CORRECT = 10L;
-    private static final double CUT_FILL_STEP_BLOCKS = 0.5;
+    static final double CUT_FILL_STEP_BLOCKS = 0.5;
 
     private GradeLimitedProfileSolver() {
     }
@@ -408,16 +408,19 @@ public final class GradeLimitedProfileSolver {
             && !ProfileCutFillBalancer.containsLargeTerrainStep(groundSamples);
     }
 
-    /** Signed nudge direction (blocks) that reduces global cut/fill imbalance at one station. */
+    /**
+     * Signed nudge direction that reduces global cut/fill imbalance at one station.
+     * Cut surplus raises cut stations only; fill surplus lowers fill stations only.
+     */
     static double cutFillNudgeDirection(long imbalance, int ground, double design) {
         if (Math.abs(ground - design) <= EPSILON) {
             return 0.0;
         }
         if (imbalance > 0) {
-            return ground > design ? 1.0 : -1.0;
+            return ground > design ? 1.0 : 0.0;
         }
         if (imbalance < 0) {
-            return -1.0;
+            return design > ground ? -1.0 : 0.0;
         }
         return 0.0;
     }
@@ -432,10 +435,8 @@ public final class GradeLimitedProfileSolver {
             return design;
         }
         double maxStep = CUT_FILL_STEP_BLOCKS * stepScale;
-        if (direction > 0.0) {
-            return design + Math.min(maxStep, ground - design);
-        }
-        return design - Math.min(maxStep, design - ground);
+        double distanceToGround = Math.abs(ground - design);
+        return design + direction * Math.min(maxStep, distanceToGround);
     }
 
     private static void smoothGradeChanges(

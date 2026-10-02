@@ -2,6 +2,8 @@ package com.plot.plugin.road.pipeline.profile.terrain;
 
 import com.plot.core.material.MaterialConversionModel;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.util.List;
 
@@ -9,6 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ProfileCutFillBalancerTest {
+
+    private static final double EPSILON = 1e-9;
 
     @Test
     void computeBalanceDiffDetectsCutDominance() {
@@ -50,16 +54,62 @@ class ProfileCutFillBalancerTest {
             > TerrainFollowPreset.TIGHT.cutFillBalanceWeight());
     }
 
-    @Test
-    void cutFillNudgeDirectionRaisesCutStationsWhenSupplyExceedsFill() {
-        assertEquals(1.0, GradeLimitedProfileSolver.cutFillNudgeDirection(20L, 70, 64.0), 1e-9);
-        assertEquals(-1.0, GradeLimitedProfileSolver.cutFillNudgeDirection(20L, 60, 68.0), 1e-9);
-        assertEquals(0.0, GradeLimitedProfileSolver.cutFillNudgeDirection(20L, 64, 64.0), 1e-9);
+    @ParameterizedTest
+    @CsvSource({
+        "20, 70, 64.0, 1.0",
+        "20, 60, 68.0, 0.0",
+        "-20, 70, 64.0, 0.0",
+        "-20, 60, 68.0, -1.0"
+    })
+    void cutFillNudgeDirectionUsesQuadrantSemantics(
+            long imbalance,
+            int ground,
+            double design,
+            double expectedDirection) {
+        assertEquals(
+            expectedDirection,
+            GradeLimitedProfileSolver.cutFillNudgeDirection(imbalance, ground, design),
+            EPSILON);
     }
 
     @Test
-    void cutFillNudgeDirectionLowersStationsWhenFillExceedsSupply() {
-        assertEquals(-1.0, GradeLimitedProfileSolver.cutFillNudgeDirection(-20L, 70, 64.0), 1e-9);
-        assertEquals(-1.0, GradeLimitedProfileSolver.cutFillNudgeDirection(-20L, 60, 68.0), 1e-9);
+    void cutFillTargetNeverMovesMoreThanConfiguredStep() {
+        double target = GradeLimitedProfileSolver.cutFillBalanceTarget(-20L, 70, 64.0, 1.0);
+
+        assertEquals(64.0, target, EPSILON,
+            "fill surplus should not nudge cut stations");
+        assertTrue(
+            Math.abs(target - 64.0) <= GradeLimitedProfileSolver.CUT_FILL_STEP_BLOCKS + EPSILON);
+    }
+
+    @Test
+    void cutFillTargetDoesNotJumpToGroundOnFillSurplusCutStation() {
+        double target = GradeLimitedProfileSolver.cutFillBalanceTarget(-20L, 70, 64.0, 1.0);
+
+        assertEquals(64.0, target, EPSILON);
+        assertTrue(target < 70.0, "target must not snap to ground in one step");
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "20, 70, 64.0, 1.0",
+        "20, 60, 68.0, 1.0",
+        "-20, 70, 64.0, 1.0",
+        "-20, 60, 68.0, 1.0",
+        "20, 70, 64.0, 0.5",
+        "-20, 60, 68.0, 0.25"
+    })
+    void cutFillTargetRespectsMaxStepInvariant(
+            long imbalance,
+            int ground,
+            double design,
+            double stepScale) {
+        double target = GradeLimitedProfileSolver.cutFillBalanceTarget(
+            imbalance, ground, design, stepScale);
+        double maxStep = GradeLimitedProfileSolver.CUT_FILL_STEP_BLOCKS * stepScale;
+
+        assertTrue(
+            Math.abs(target - design) <= maxStep + EPSILON,
+            () -> "target " + target + " moved more than " + maxStep + " from design " + design);
     }
 }
