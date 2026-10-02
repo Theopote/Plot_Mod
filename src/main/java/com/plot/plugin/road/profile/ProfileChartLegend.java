@@ -89,6 +89,10 @@ public final class ProfileChartLegend {
             "\u25A0 " + PlotI18n.tr("plugin.road.profile_terrain_raw"));
         ImGui.sameLine();
         ImGui.textColored(
+            ProfileChartSeriesStyle.WATER_SURFACE,
+            "--- " + PlotI18n.tr("plugin.road.profile_water_surface"));
+        ImGui.sameLine();
+        ImGui.textColored(
             ProfileChartSeriesStyle.TERRAIN_TREND,
             "--- " + PlotI18n.tr("plugin.road.profile_terrain_trend"));
         ImGui.sameLine();

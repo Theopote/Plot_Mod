@@ -9,6 +9,7 @@ public final class ProfileChartSeriesStyle {
     public static final int ROAD_PROFILE = 0xFFB0B0B0;
     public static final int BUILD_PROFILE = 0xFF909090;
     public static final int DESIGN_PROFILE = 0xFF5FD35F;
+    public static final int WATER_SURFACE = 0xFF4DB8FF;
 
     private ProfileChartSeriesStyle() {
     }

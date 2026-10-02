@@ -21,7 +21,9 @@ public record RoadProfileChartData(
         List<Double> guideElevations,
         List<ProfileControlPoint> controlPoints,
         List<RoadProfileIntersection> intersections,
-        boolean manualEndpointConstraintFeasible) {
+        boolean manualEndpointConstraintFeasible,
+        List<Double> waterElevations,
+        List<WaterCrossingChartMarker> waterCrossings) {
 
     public RoadProfileChartData(
             String roadId,
@@ -43,7 +45,9 @@ public record RoadProfileChartData(
             guideElevations,
             controlPoints,
             intersections,
-            true);
+            true,
+            List.of(),
+            List.of());
     }
 
     public RoadProfileChartData(
@@ -67,7 +71,37 @@ public record RoadProfileChartData(
             guideElevations,
             controlPoints,
             intersections,
-            manualEndpointConstraintFeasible);
+            manualEndpointConstraintFeasible,
+            List.of(),
+            List.of());
+    }
+
+    public RoadProfileChartData(
+            String roadId,
+            double totalStation,
+            List<Double> stations,
+            List<Double> groundElevations,
+            List<Double> previewElevations,
+            List<Double> buildElevations,
+            List<BuildHeightSample> buildSamples,
+            List<Double> guideElevations,
+            List<ProfileControlPoint> controlPoints,
+            List<RoadProfileIntersection> intersections,
+            boolean manualEndpointConstraintFeasible) {
+        this(
+            roadId,
+            totalStation,
+            stations,
+            groundElevations,
+            previewElevations,
+            buildElevations,
+            buildSamples,
+            guideElevations,
+            controlPoints,
+            intersections,
+            manualEndpointConstraintFeasible,
+            List.of(),
+            List.of());
     }
 
     private static final double EPSILON = 1e-6;
@@ -85,6 +119,18 @@ public record RoadProfileChartData(
 
     public boolean hasBuildSamples() {
         return buildSamples != null && buildSamples.size() >= 2;
+    }
+
+    public boolean hasWaterElevations() {
+        if (waterElevations == null || waterElevations.isEmpty()) {
+            return false;
+        }
+        for (Double water : waterElevations) {
+            if (water != null && Double.isFinite(water)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Road-level 图表契约：station 覆盖完整 canonical 范围且单调。 */

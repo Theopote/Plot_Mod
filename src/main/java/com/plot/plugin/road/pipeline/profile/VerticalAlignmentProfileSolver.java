@@ -124,7 +124,10 @@ public final class VerticalAlignmentProfileSolver {
             raster.buildHeights(),
             raster.samples(),
             raster.buildProfile(),
-            manualEndpointConstraintFeasible);
+            manualEndpointConstraintFeasible,
+            List.of(),
+            List.of(),
+            List.of());
     }
 
     private static List<Double> buildDesignProfileElevations(

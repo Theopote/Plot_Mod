@@ -87,6 +87,12 @@ public class RoadSystemConfig {
     private float defaultCornerRadius = (float) RoadNode.DEFAULT_CORNER_RADIUS;
     private float fillFactor = 1.1f;
     private double defaultCrossingClearance = 3.0;
+    private int waterRoadClearanceBlocks = 1;
+    private double causewayMaxLengthMeters = 6.0;
+    private int causewayMaxDepthBlocks = 2;
+    private double bridgePreferredMinLengthMeters = 6.0;
+    private double longBridgeLengthMeters = 60.0;
+    private boolean allowUnderwaterRoad = false;
 
     public RoadSystemConfig(String pluginId) {
         this.pluginId = pluginId;
@@ -659,6 +665,54 @@ public class RoadSystemConfig {
 
     public void setDefaultCrossingClearance(double defaultCrossingClearance) {
         this.defaultCrossingClearance = RoadParameterLimits.clampCrossingClearance(defaultCrossingClearance);
+    }
+
+    public int getWaterRoadClearanceBlocks() {
+        return waterRoadClearanceBlocks;
+    }
+
+    public void setWaterRoadClearanceBlocks(int waterRoadClearanceBlocks) {
+        this.waterRoadClearanceBlocks = Math.max(0, waterRoadClearanceBlocks);
+    }
+
+    public double getCausewayMaxLengthMeters() {
+        return causewayMaxLengthMeters;
+    }
+
+    public void setCausewayMaxLengthMeters(double causewayMaxLengthMeters) {
+        this.causewayMaxLengthMeters = Math.max(0.0, causewayMaxLengthMeters);
+    }
+
+    public int getCausewayMaxDepthBlocks() {
+        return causewayMaxDepthBlocks;
+    }
+
+    public void setCausewayMaxDepthBlocks(int causewayMaxDepthBlocks) {
+        this.causewayMaxDepthBlocks = Math.max(0, causewayMaxDepthBlocks);
+    }
+
+    public double getBridgePreferredMinLengthMeters() {
+        return bridgePreferredMinLengthMeters;
+    }
+
+    public void setBridgePreferredMinLengthMeters(double bridgePreferredMinLengthMeters) {
+        this.bridgePreferredMinLengthMeters = Math.max(0.0, bridgePreferredMinLengthMeters);
+    }
+
+    public double getLongBridgeLengthMeters() {
+        return longBridgeLengthMeters;
+    }
+
+    public void setLongBridgeLengthMeters(double longBridgeLengthMeters) {
+        this.longBridgeLengthMeters = Math.max(0.0, longBridgeLengthMeters);
+    }
+
+    public boolean isAllowUnderwaterRoad() {
+        return allowUnderwaterRoad;
+    }
+
+    public void setAllowUnderwaterRoad(boolean allowUnderwaterRoad) {
+        this.allowUnderwaterRoad = allowUnderwaterRoad;
     }
 
     /**

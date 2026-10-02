@@ -2,6 +2,7 @@ package com.plot.plugin.road.pipeline.profile.terrain;
 
 import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.road.pipeline.profile.RoadHeightRasterizer;
+import com.plot.plugin.road.pipeline.profile.environment.VerticalStationConstraints;
 import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
 
 import java.util.ArrayList;
@@ -90,6 +91,28 @@ public final class GradeLimitedProfileSolver {
             Integer manualEndHeight,
             TerrainFollowPreset preset,
             float fillFactor) {
+        return solveDesignProfile(
+            trendElevations,
+            groundSamples,
+            segmentDistances,
+            maxSlopePercents,
+            manualStartHeight,
+            manualEndHeight,
+            preset,
+            fillFactor,
+            null);
+    }
+
+    public static DesignSolveResult solveDesignProfile(
+            List<Double> trendElevations,
+            List<Integer> groundSamples,
+            List<Double> segmentDistances,
+            List<Float> maxSlopePercents,
+            Integer manualStartHeight,
+            Integer manualEndHeight,
+            TerrainFollowPreset preset,
+            float fillFactor,
+            VerticalStationConstraints.StationElevationBounds elevationBounds) {
         double[] stations = solveStationElevations(
             trendElevations,
             groundSamples,
@@ -98,7 +121,8 @@ public final class GradeLimitedProfileSolver {
             manualStartHeight,
             manualEndHeight,
             preset,
-            fillFactor);
+            fillFactor,
+            elevationBounds);
         List<Double> designElevations = toDesignList(stations);
         int profileStart = manualStartHeight != null
             ? manualStartHeight
@@ -141,47 +165,6 @@ public final class GradeLimitedProfileSolver {
             solved.manualEndpointsFeasible());
     }
 
-    /**
-     * Re-project a design profile onto the feasible domain (max slope, max grade change, endpoint locks).
-     */
-    public static List<Double> projectDesignFeasible(
-            List<Double> designElevations,
-            List<Double> segmentDistances,
-            List<Float> maxSlopePercents,
-            TerrainFollowPreset preset,
-            Integer manualStartHeight,
-            Integer manualEndHeight,
-            boolean manualEndpointsFeasible) {
-        Objects.requireNonNull(designElevations, "designElevations");
-        Objects.requireNonNull(segmentDistances, "segmentDistances");
-        Objects.requireNonNull(maxSlopePercents, "maxSlopePercents");
-        if (designElevations.isEmpty()) {
-            return designElevations;
-        }
-        if (designElevations.size() != segmentDistances.size() + 1) {
-            throw new IllegalArgumentException("design elevations must have one more sample than segments");
-        }
-        if (maxSlopePercents.size() != segmentDistances.size()) {
-            throw new IllegalArgumentException("max slope list must match segment count");
-        }
-        TerrainFollowPreset effectivePreset = preset != null ? preset : TerrainFollowPreset.STANDARD;
-        double[] elevations = designElevations.stream().mapToDouble(Double::doubleValue).toArray();
-        boolean lockStart = manualStartHeight != null;
-        boolean lockEnd = manualEndHeight != null && manualEndpointsFeasible;
-        double startLock = lockStart ? manualStartHeight.doubleValue() : elevations[0];
-        double endLock = lockEnd ? manualEndHeight.doubleValue() : elevations[elevations.length - 1];
-        applyEndpointLocks(elevations, lockStart, lockEnd, startLock, endLock);
-        projectFeasible(
-            elevations,
-            segmentDistances,
-            maxSlopePercents,
-            effectivePreset.maxGradeChangePercent(),
-            lockStart,
-            lockEnd,
-            startLock,
-            endLock);
-        return toDesignList(elevations);
-    }
 
     public static boolean areManualEndpointsFeasible(
             Integer manualStartHeight,
@@ -212,13 +195,28 @@ public final class GradeLimitedProfileSolver {
             TerrainFollowPreset preset) {
         return solveStationElevations(
             trendElevations,
-            null,
+                segmentDistances,
+            maxSlopePercents,
+                preset,
+            1.0f);
+    }
+
+    static double[] solveStationElevations(
+            List<Double> trendElevations,
+            List<Double> segmentDistances,
+            List<Float> maxSlopePercents,
+            TerrainFollowPreset preset,
+            float fillFactor) {
+        return solveStationElevations(
+            trendElevations,
+                null,
             segmentDistances,
             maxSlopePercents,
                 null,
                 null,
             preset,
-            1.0f);
+            fillFactor,
+            null);
     }
 
     static double[] solveStationElevations(
@@ -229,7 +227,10 @@ public final class GradeLimitedProfileSolver {
             Integer manualStartHeight,
             Integer manualEndHeight,
             TerrainFollowPreset preset,
-            float fillFactor) {
+            float fillFactor,
+            VerticalStationConstraints.StationElevationBounds elevationBounds) {
+        double[] minElevations = elevationMinArray(elevationBounds);
+        double[] maxElevations = elevationMaxArray(elevationBounds);
         Objects.requireNonNull(trendElevations, "trendElevations");
         Objects.requireNonNull(segmentDistances, "segmentDistances");
         Objects.requireNonNull(maxSlopePercents, "maxSlopePercents");
@@ -285,7 +286,9 @@ public final class GradeLimitedProfileSolver {
             lockStart,
             lockEnd,
             startTarget,
-            endTarget);
+            endTarget,
+            minElevations,
+            maxElevations);
         smoothGradeChanges(
             current,
             segmentDistances,
@@ -294,7 +297,9 @@ public final class GradeLimitedProfileSolver {
             lockStart,
             lockEnd,
             startTarget,
-            endTarget);
+            endTarget,
+            minElevations,
+            maxElevations);
         enforceGradeTransitionLengths(
             current,
             segmentDistances,
@@ -303,7 +308,9 @@ public final class GradeLimitedProfileSolver {
             lockStart,
             lockEnd,
             startTarget,
-            endTarget);
+            endTarget,
+            minElevations,
+            maxElevations);
         projectFeasible(
             current,
             segmentDistances,
@@ -312,17 +319,64 @@ public final class GradeLimitedProfileSolver {
             lockStart,
             lockEnd,
             startTarget,
-            endTarget);
-        projectFeasible(
-            current,
-            segmentDistances,
-            maxSlopePercents,
-            0.0,
-            lockStart,
-            lockEnd,
-            startTarget,
-            endTarget);
+            endTarget,
+            minElevations,
+            maxElevations);
+        if (!hasActiveElevationBounds(minElevations, maxElevations)) {
+            projectFeasible(
+                current,
+                segmentDistances,
+                maxSlopePercents,
+                0.0,
+                lockStart,
+                lockEnd,
+                startTarget,
+                endTarget,
+                null,
+                null);
+        } else {
+            smoothGradeChanges(
+                current,
+                segmentDistances,
+                maxSlopePercents,
+                effectivePreset,
+                lockStart,
+                lockEnd,
+                startTarget,
+                endTarget,
+                minElevations,
+                maxElevations);
+            projectFeasible(
+                current,
+                segmentDistances,
+                maxSlopePercents,
+                effectivePreset.maxGradeChangePercent(),
+                lockStart,
+                lockEnd,
+                startTarget,
+                endTarget,
+                minElevations,
+                maxElevations);
+        }
         return current;
+    }
+
+    private static boolean hasActiveElevationBounds(double[] minElevations, double[] maxElevations) {
+        if (minElevations != null) {
+            for (double min : minElevations) {
+                if (!Double.isNaN(min)) {
+                    return true;
+                }
+            }
+        }
+        if (maxElevations != null) {
+            for (double max : maxElevations) {
+                if (!Double.isNaN(max)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -341,7 +395,9 @@ public final class GradeLimitedProfileSolver {
             boolean lockStart,
             boolean lockEnd,
             double startLock,
-            double endLock) {
+            double endLock,
+            double[] minElevations,
+            double[] maxElevations) {
         double alpha = preset.trendBlendWeight();
         double beta = 0.0;
         boolean cutFillEnabled = isCutFillBalanceEnabled(groundSamples, preset, current.length);
@@ -394,7 +450,9 @@ public final class GradeLimitedProfileSolver {
                 lockStart,
                 lockEnd,
                 startLock,
-                endLock);
+                endLock,
+                minElevations,
+                maxElevations);
         }
     }
 
@@ -447,7 +505,9 @@ public final class GradeLimitedProfileSolver {
             boolean lockStart,
             boolean lockEnd,
             double startLock,
-            double endLock) {
+            double endLock,
+            double[] minElevations,
+            double[] maxElevations) {
         double weight = preset.gradeChangeSmoothingWeight();
         int iterations = preset.gradeChangeSmoothingIterations();
         if (weight <= EPSILON || iterations <= 0 || elevations.length < 3) {
@@ -474,7 +534,9 @@ public final class GradeLimitedProfileSolver {
                 lockStart,
                 lockEnd,
                 startLock,
-                endLock);
+                endLock,
+                minElevations,
+                maxElevations);
             System.arraycopy(updated, 0, elevations, 0, elevations.length);
         }
     }
@@ -491,7 +553,9 @@ public final class GradeLimitedProfileSolver {
             boolean lockStart,
             boolean lockEnd,
             double startLock,
-            double endLock) {
+            double endLock,
+            double[] minElevations,
+            double[] maxElevations) {
         if (elevations.length < 3 || segmentDistances.isEmpty()) {
             return;
         }
@@ -563,7 +627,9 @@ public final class GradeLimitedProfileSolver {
             lockStart,
             lockEnd,
             startLock,
-            endLock);
+            endLock,
+            minElevations,
+            maxElevations);
         System.arraycopy(updated, 0, elevations, 0, elevations.length);
     }
 
@@ -601,7 +667,7 @@ public final class GradeLimitedProfileSolver {
         double run = segmentDistances.get(segmentIndex);
         int index = segmentIndex + direction;
         while (index >= 0 && index < segmentDistances.size()) {
-            int startVertex = Math.min(index, index + 1);
+            int startVertex = index;
             int endVertex = Math.max(index, index + 1);
             double segmentGrade = gradeAtSegment(
                 elevations[startVertex],
@@ -757,7 +823,9 @@ public final class GradeLimitedProfileSolver {
             boolean lockStart,
             boolean lockEnd,
             double startLock,
-            double endLock) {
+            double endLock,
+            double[] minElevations,
+            double[] maxElevations) {
         for (int iteration = 0; iteration < MAX_PROJECTION_ITERATIONS; iteration++) {
             boolean changed = false;
             if (lockStart) {
@@ -766,6 +834,12 @@ public final class GradeLimitedProfileSolver {
             if (lockEnd) {
                 elevations[elevations.length - 1] = endLock;
             }
+            changed |= projectElevationBounds(
+                elevations,
+                minElevations,
+                maxElevations,
+                lockStart,
+                lockEnd);
             if (maxGradeChangePercent > EPSILON) {
                 changed |= projectGradeChangeFeasible(
                     elevations,
@@ -782,6 +856,12 @@ public final class GradeLimitedProfileSolver {
                 lockEnd,
                 startLock,
                 endLock);
+            changed |= projectElevationBounds(
+                elevations,
+                minElevations,
+                maxElevations,
+                lockStart,
+                lockEnd);
             if (!changed) {
                 break;
             }
@@ -792,6 +872,57 @@ public final class GradeLimitedProfileSolver {
         if (lockEnd) {
             elevations[elevations.length - 1] = endLock;
         }
+        projectElevationBounds(
+            elevations,
+            minElevations,
+            maxElevations,
+            lockStart,
+            lockEnd);
+    }
+
+    private static boolean projectElevationBounds(
+            double[] elevations,
+            double[] minElevations,
+            double[] maxElevations,
+            boolean lockStart,
+            boolean lockEnd) {
+        if (minElevations == null && maxElevations == null) {
+            return false;
+        }
+        boolean changed = false;
+        int last = elevations.length - 1;
+        for (int i = 0; i < elevations.length; i++) {
+            if (i == 0 && lockStart) {
+                continue;
+            }
+            if (i == last && lockEnd) {
+                continue;
+            }
+            double value = elevations[i];
+            if (minElevations != null
+                    && i < minElevations.length
+                    && !Double.isNaN(minElevations[i])
+                    && value < minElevations[i] - EPSILON) {
+                elevations[i] = minElevations[i];
+                changed = true;
+            }
+            if (maxElevations != null
+                    && i < maxElevations.length
+                    && !Double.isNaN(maxElevations[i])
+                    && value > maxElevations[i] + EPSILON) {
+                elevations[i] = maxElevations[i];
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    private static double[] elevationMinArray(VerticalStationConstraints.StationElevationBounds bounds) {
+        return bounds != null ? bounds.minimumElevations() : null;
+    }
+
+    private static double[] elevationMaxArray(VerticalStationConstraints.StationElevationBounds bounds) {
+        return bounds != null ? bounds.maximumElevations() : null;
     }
 
     private static boolean projectSegmentSlopes(

@@ -12,6 +12,13 @@ import com.plot.plugin.road.pipeline.profile.ProfileSolveSupport;
 import com.plot.plugin.road.pipeline.profile.RoadProfileSolver;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.core.terrain.TerrainSampler;
+import com.plot.plugin.road.pipeline.profile.environment.EnvironmentProfile;
+import com.plot.plugin.road.pipeline.profile.environment.EnvironmentSample;
+import com.plot.plugin.road.pipeline.profile.environment.SurfaceContext;
+import com.plot.plugin.road.pipeline.profile.environment.VerticalStationConstraints;
+import com.plot.plugin.road.pipeline.profile.environment.WaterCrossingClassifier;
+import com.plot.plugin.road.pipeline.profile.environment.WaterCrossingDetector;
+import com.plot.plugin.road.pipeline.profile.environment.WaterCrossingSettings;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -62,6 +69,67 @@ class FitTerrainSolverInvariantTest {
             solved.designElevations(), distances);
         assertTrue(maxGradeChange <= preset.maxGradeChangePercent() + 1e-6,
             () -> "double projection must leave grade-change cap intact, got " + maxGradeChange);
+    }
+
+    @Test
+    void finalProfileRespectsWaterConstraintAfterDoubleProjection() {
+        TerrainFollowPreset preset = TerrainFollowPreset.STANDARD;
+        List<Double> trend = List.of(68.0, 66.0, 62.0, 58.0, 56.0, 58.0, 62.0, 66.0, 68.0);
+        List<Integer> ground = List.of(68, 68, 55, 55, 55, 55, 55, 68, 68);
+        List<Double> distances = constantDistances(trend.size() - 1, 15.0);
+        List<Float> slopes = constantSlopes(distances.size(), 8.0f);
+        EnvironmentProfile environment = new EnvironmentProfile(
+            List.of(
+                EnvironmentSample.land(0.0, 68),
+                EnvironmentSample.land(15.0, 68),
+                new EnvironmentSample(30.0, 55, 69, 14, SurfaceContext.DEEP_WATER),
+                new EnvironmentSample(45.0, 55, 69, 14, SurfaceContext.DEEP_WATER),
+                new EnvironmentSample(60.0, 55, 69, 14, SurfaceContext.DEEP_WATER),
+                new EnvironmentSample(75.0, 55, 69, 14, SurfaceContext.DEEP_WATER),
+                new EnvironmentSample(90.0, 55, 69, 14, SurfaceContext.DEEP_WATER),
+                EnvironmentSample.land(105.0, 68),
+                EnvironmentSample.land(120.0, 68)),
+            List.of(0.0, 15.0, 30.0, 45.0, 60.0, 75.0, 90.0, 105.0, 120.0));
+        WaterCrossingSettings settings = WaterCrossingSettings.defaults();
+        VerticalStationConstraints.StationElevationBounds bounds = VerticalStationConstraints.toBounds(
+            VerticalStationConstraints.build(
+                environment,
+                WaterCrossingClassifier.classify(
+                    WaterCrossingDetector.detect(environment),
+                    settings,
+                    preset,
+                    120.0),
+                trend,
+                settings));
+
+        GradeLimitedProfileSolver.DesignSolveResult solved = GradeLimitedProfileSolver.solveDesignProfile(
+            trend,
+            ground,
+            distances,
+            slopes,
+            70,
+            70,
+            preset,
+            1.35f,
+            bounds);
+
+        FitTerrainProfileInvariants.assertDesignProfileInvariants(
+            solved.designElevations(),
+            ground,
+            distances,
+            slopes,
+            preset,
+            70,
+            70,
+            solved.manualEndpointsFeasible());
+        FitTerrainProfileInvariants.assertWaterClearanceInvariants(
+            solved.designElevations(),
+            environment.waterSurfaceSamples(),
+            settings.waterRoadClearanceBlocks());
+        double maxGradeChange = FitTerrainProfileInvariants.maxAdjacentGradeChange(
+            solved.designElevations(), distances);
+        assertTrue(maxGradeChange <= preset.maxGradeChangePercent() + 1e-6,
+            () -> "water bounds must survive double projection, grade change " + maxGradeChange);
     }
 
     @Test

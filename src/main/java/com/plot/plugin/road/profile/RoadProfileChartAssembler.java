@@ -79,6 +79,8 @@ public final class RoadProfileChartAssembler {
         List<Double> buildElevations = new ArrayList<>();
         List<BuildHeightSample> buildSamples = new ArrayList<>();
         List<Double> guideElevations = new ArrayList<>();
+        List<Double> waterElevations = new ArrayList<>();
+        List<WaterCrossingChartMarker> waterCrossings = new ArrayList<>();
 
         for (OrientedRoadSegment segment : segments) {
             RoadGenerationResult edgeResult = edgeResults.get(segment.edgeId());
@@ -91,7 +93,9 @@ public final class RoadProfileChartAssembler {
                 groundElevations,
                 designElevations,
                 buildElevations,
-                guideElevations);
+                guideElevations,
+                waterElevations);
+            appendWaterCrossings(network, road, segment, edgeResult, waterCrossings);
             appendBuildSamples(network, road, segment, edgeResult, buildSamples);
         }
         if (stations.size() < 2) {
@@ -121,7 +125,9 @@ public final class RoadProfileChartAssembler {
             List.copyOf(guideElevations),
             controlPoints,
             intersections,
-            manualEndpointConstraintFeasible);
+            manualEndpointConstraintFeasible,
+            new ArrayList<>(waterElevations),
+            List.copyOf(waterCrossings));
         if (!chart.hasCompleteRoadProfile()) {
             return Optional.empty();
         }
@@ -137,7 +143,8 @@ public final class RoadProfileChartAssembler {
             List<Double> groundElevations,
             List<Double> designElevations,
             List<Double> buildElevations,
-            List<Double> guideElevations) {
+            List<Double> guideElevations,
+            List<Double> waterElevations) {
         List<Double> profileDistances = edgeResult.profileDistances;
         double profileSpan = profileDistances.getLast() - profileDistances.getFirst();
         if (profileSpan <= 1e-9) {
@@ -155,6 +162,7 @@ public final class RoadProfileChartAssembler {
             double roadStation = RoadStationing.toCanonicalChainage(network, road, instanceStation);
             double design = resolveDesignElevation(edgeResult, i);
             double build = resolveBuildElevation(edgeResult, i);
+            Double water = resolveWaterElevation(edgeResult, i);
             if (!stations.isEmpty()
                     && Math.abs(roadStation - stations.getLast()) <= STATION_MERGE_TOLERANCE) {
                 groundElevations.set(
@@ -162,6 +170,9 @@ public final class RoadProfileChartAssembler {
                     edgeResult.profileGroundHeights.get(i).doubleValue());
                 designElevations.set(designElevations.size() - 1, design);
                 buildElevations.set(buildElevations.size() - 1, build);
+                if (!waterElevations.isEmpty()) {
+                    waterElevations.set(waterElevations.size() - 1, water);
+                }
                 if (!edgeResult.profileGuideLine.isEmpty()
                         && edgeResult.profileGuideLine.size() == profileDistances.size()) {
                     guideElevations.set(
@@ -174,6 +185,7 @@ public final class RoadProfileChartAssembler {
             groundElevations.add(edgeResult.profileGroundHeights.get(i).doubleValue());
             designElevations.add(design);
             buildElevations.add(build);
+            waterElevations.add(water);
             if (!edgeResult.profileGuideLine.isEmpty()
                     && edgeResult.profileGuideLine.size() == profileDistances.size()) {
                 guideElevations.add(edgeResult.profileGuideLine.get(i).doubleValue());
@@ -183,6 +195,51 @@ public final class RoadProfileChartAssembler {
                 guideElevations.add(edgeResult.profileGroundHeights.get(i).doubleValue());
             }
         }
+    }
+
+    private static void appendWaterCrossings(
+            RoadNetwork network,
+            Road road,
+            OrientedRoadSegment segment,
+            RoadGenerationResult edgeResult,
+            List<WaterCrossingChartMarker> waterCrossings) {
+        if (edgeResult.profileWaterCrossingMarkers == null
+                || edgeResult.profileWaterCrossingMarkers.isEmpty()) {
+            return;
+        }
+        List<Double> profileDistances = edgeResult.profileDistances;
+        double profileSpan = profileDistances.getLast() - profileDistances.getFirst();
+        if (profileSpan <= 1e-9) {
+            profileSpan = segment.length();
+        }
+        for (WaterCrossingChartMarker marker : edgeResult.profileWaterCrossingMarkers) {
+            double startGeometry = marker.startStation();
+            double endGeometry = marker.endStation();
+            if (!segment.forward()) {
+                double total = profileDistances.getLast() - profileDistances.getFirst();
+                startGeometry = total - marker.endStation();
+                endGeometry = total - marker.startStation();
+            }
+            double startChain = segment.chainLocalFromGeometryLocal(
+                startGeometry * (segment.length() / profileSpan));
+            double endChain = segment.chainLocalFromGeometryLocal(
+                endGeometry * (segment.length() / profileSpan));
+            double roadStart = RoadStationing.toCanonicalChainage(
+                network, road, segment.startStation() + startChain);
+            double roadEnd = RoadStationing.toCanonicalChainage(
+                network, road, segment.startStation() + endChain);
+            waterCrossings.add(new WaterCrossingChartMarker(roadStart, roadEnd, marker.strategy()));
+        }
+    }
+
+    private static Double resolveWaterElevation(RoadGenerationResult edgeResult, int index) {
+        if (edgeResult.profileWaterHeights == null
+                || index < 0
+                || index >= edgeResult.profileWaterHeights.size()) {
+            return null;
+        }
+        Integer water = edgeResult.profileWaterHeights.get(index);
+        return water == null ? null : water.doubleValue();
     }
 
     private static double resolveDesignElevation(RoadGenerationResult edgeResult, int index) {

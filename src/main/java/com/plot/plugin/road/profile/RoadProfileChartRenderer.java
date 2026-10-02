@@ -432,6 +432,10 @@ public final class RoadProfileChartRenderer {
         }
         min = extendMin(min, chart.guideElevations());
         max = extendMax(max, chart.guideElevations());
+        if (chart.hasWaterElevations()) {
+            min = extendMin(min, chart.waterElevations());
+            max = extendMax(max, chart.waterElevations());
+        }
         if (flatOverlay != null) {
             if (flatOverlay.showCurrent()) {
                 min = Math.min(min, flatOverlay.currentElevation());
@@ -504,17 +508,57 @@ public final class RoadProfileChartRenderer {
     }
 
     private static double extendMin(double min, List<Double> values) {
-        for (double value : values) {
+        if (values == null) {
+            return min;
+        }
+        for (Double value : values) {
+            if (value == null || !Double.isFinite(value)) {
+                continue;
+            }
             min = Math.min(min, value);
         }
         return min;
     }
 
     private static double extendMax(double max, List<Double> values) {
-        for (double value : values) {
+        if (values == null) {
+            return max;
+        }
+        for (Double value : values) {
+            if (value == null || !Double.isFinite(value)) {
+                continue;
+            }
             max = Math.max(max, value);
         }
         return max;
+    }
+
+    private static void drawWaterCrossingMarkers(
+            ImDrawList drawList,
+            ProfileChartLayout layout,
+            RoadProfilePlotRange range,
+            RoadProfileChartData chart) {
+        if (chart.waterCrossings() == null || chart.waterCrossings().isEmpty()) {
+            return;
+        }
+        float top = layout.plotTop();
+        float bottom = layout.plotBottom();
+        for (WaterCrossingChartMarker marker : chart.waterCrossings()) {
+            float x0 = layout.plotX(marker.startStation(), range.totalStation());
+            float x1 = layout.plotX(marker.endStation(), range.totalStation());
+            int color = crossingMarkerColor(marker.strategy());
+            drawList.addRectFilled(x0, top + 2f, x1, top + 8f, color);
+            drawList.addRectFilled(x0, bottom - 8f, x1, bottom - 2f, color);
+        }
+    }
+
+    private static int crossingMarkerColor(
+            com.plot.plugin.road.pipeline.profile.environment.WaterCrossingStrategy strategy) {
+        return switch (strategy) {
+            case CAUSEWAY -> 0x66FFE066;
+            case BRIDGE, LONG_BRIDGE -> 0x66FF9966;
+            case TUNNEL_CANDIDATE -> 0x66CC99FF;
+        };
     }
 
     private static void drawBackground(ImDrawList drawList, ProfileChartLayout layout) {
@@ -602,6 +646,18 @@ public final class RoadProfileChartRenderer {
         drawPolyline(
             drawList, layout, range, chart.stations(), chart.groundElevations(),
             COLOR_GROUND, mode.groundLineWidth(), false);
+        if (chart.hasWaterElevations()) {
+            drawPolyline(
+                drawList,
+                layout,
+                range,
+                chart.stations(),
+                chart.waterElevations(),
+                ProfileChartSeriesStyle.WATER_SURFACE,
+                1.8f,
+                true);
+        }
+        drawWaterCrossingMarkers(drawList, layout, range, chart);
         if (mode.showGuideLine()
                 && guideSemantics != ProfileChartGuideSemantics.NONE
                 && !chart.guideElevations().isEmpty()) {
@@ -700,10 +756,15 @@ public final class RoadProfileChartRenderer {
             return;
         }
         for (int i = 1; i < stations.size(); i++) {
+            Double start = elevations.get(i - 1);
+            Double end = elevations.get(i);
+            if (start == null || end == null || !Double.isFinite(start) || !Double.isFinite(end)) {
+                continue;
+            }
             float x0 = layout.plotX(stations.get(i - 1), range.totalStation());
-            float y0 = layout.plotY(elevations.get(i - 1), range.minElevation(), range.maxElevation());
+            float y0 = layout.plotY(start, range.minElevation(), range.maxElevation());
             float x1 = layout.plotX(stations.get(i), range.totalStation());
-            float y1 = layout.plotY(elevations.get(i), range.minElevation(), range.maxElevation());
+            float y1 = layout.plotY(end, range.minElevation(), range.maxElevation());
             if (dashed) {
                 drawDashedLine(drawList, x0, y0, x1, y1, color, thickness);
             } else {

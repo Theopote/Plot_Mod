@@ -1,6 +1,7 @@
 package com.plot.plugin.road.pipeline.profile.terrain;
 
 import com.plot.core.material.MaterialConversionModel;
+import com.plot.plugin.road.pipeline.profile.ProfileSolveResult;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -108,6 +109,53 @@ final class FitTerrainProfileInvariants {
         for (int build : buildHeights) {
             assertTrue(Double.isFinite(build), "build height must be finite");
         }
+    }
+
+    static void assertWaterClearanceInvariants(
+            List<Double> design,
+            List<Integer> waterHeights,
+            int clearanceBlocks) {
+        if (waterHeights == null || waterHeights.isEmpty()) {
+            return;
+        }
+        int count = Math.min(design.size(), waterHeights.size());
+        for (int i = 0; i < count; i++) {
+            Integer water = waterHeights.get(i);
+            if (water == null) {
+                continue;
+            }
+            assertTrue(
+                design.get(i) >= water + clearanceBlocks - EPSILON,
+                "station " + i + " design " + design.get(i)
+                    + " must stay at or above water " + water + " + clearance " + clearanceBlocks);
+        }
+    }
+
+    static void assertFullProfileInvariants(
+            ProfileSolveResult result,
+            List<Double> segmentDistances,
+            List<Float> maxSlopePercents,
+            TerrainFollowPreset preset,
+            Integer manualStartHeight,
+            Integer manualEndHeight,
+            float fillFactor,
+            int waterClearanceBlocks) {
+        assertDesignProfileInvariants(
+            result.profileDesignElevations(),
+            result.profileGroundHeights(),
+            segmentDistances,
+            maxSlopePercents,
+            preset,
+            manualStartHeight,
+            manualEndHeight,
+            result.manualEndpointConstraintFeasible());
+        assertBuildRasterizationReasonable(
+            result.profileDesignElevations(),
+            result.profileBuildHeights());
+        assertWaterClearanceInvariants(
+            result.profileDesignElevations(),
+            result.profileWaterHeights(),
+            waterClearanceBlocks);
     }
 
     private static double maxDesignBuildDeviation(List<Double> design, List<Integer> buildHeights) {

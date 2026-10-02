@@ -9,11 +9,20 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.core.terrain.TerrainSampler;
+import com.plot.plugin.road.pipeline.profile.environment.EnvironmentProfile;
+import com.plot.plugin.road.pipeline.profile.environment.EnvironmentSample;
+import com.plot.plugin.road.pipeline.profile.environment.ProfileEnvironmentSampler;
+import com.plot.plugin.road.pipeline.profile.environment.VerticalStationConstraints;
+import com.plot.plugin.road.pipeline.profile.environment.WaterCrossing;
+import com.plot.plugin.road.pipeline.profile.environment.WaterCrossingClassifier;
+import com.plot.plugin.road.pipeline.profile.environment.WaterCrossingDetector;
+import com.plot.plugin.road.pipeline.profile.environment.WaterCrossingSettings;
 import com.plot.plugin.road.pipeline.profile.terrain.GradeLimitedProfileSolver;
 import com.plot.plugin.road.pipeline.profile.terrain.TerrainFollowPreset;
 import com.plot.plugin.road.pipeline.profile.terrain.TerrainProfileSampleChain;
 import com.plot.plugin.road.pipeline.profile.terrain.TerrainTrendBuilder;
 import com.plot.plugin.road.pipeline.profile.terrain.TerrainTrendResult;
+import com.plot.plugin.road.profile.WaterCrossingChartMarker;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
 
@@ -54,7 +63,9 @@ public final class RoadProfileSolver {
             segmentIndex -> support.defaultMaxSlope(),
             support,
             RoadVerticalMode.AUTO_SMOOTH,
-            TerrainFollowPreset.STANDARD);
+            TerrainFollowPreset.STANDARD,
+            null,
+            null);
     }
 
     public static ProfileSolveResult solveWithManualElevation(
@@ -77,7 +88,9 @@ public final class RoadProfileSolver {
             segmentIndex -> support.defaultMaxSlope(),
             support,
             RoadVerticalMode.AUTO_SMOOTH,
-            TerrainFollowPreset.STANDARD);
+            TerrainFollowPreset.STANDARD,
+            null,
+            null);
     }
 
     public static ProfileSolveResult solveForEdge(
@@ -96,6 +109,7 @@ public final class RoadProfileSolver {
 
         HeightSampleData sampleData = toHeightSampleData(
             ProfileGroundSampler.collect(segments, terrain, halfWidth));
+        EnvironmentProfile environment = ProfileEnvironmentSampler.collect(segments, terrain, halfWidth);
 
         List<Float> maxSlopes = new ArrayList<>();
         double canvasUnitsPerBlock = support.canvasUnitsPerBlock(segments);
@@ -123,7 +137,9 @@ public final class RoadProfileSolver {
                 : RoadVerticalMode.AUTO_SMOOTH,
             owningRoad != null
                 ? owningRoad.getEffectiveTerrainFollowPreset()
-                : TerrainFollowPreset.STANDARD);
+                : TerrainFollowPreset.STANDARD,
+            config,
+            environment);
     }
 
     public static RoadGenerationResult toProfileSnapshot(ProfileSolveResult result) {
@@ -136,6 +152,8 @@ public final class RoadProfileSolver {
         profile.profileBuildSamples = new ArrayList<>(result.profileBuildSamples());
         profile.buildProfile = result.buildProfile();
         profile.manualEndpointConstraintFeasible = result.manualEndpointConstraintFeasible();
+        profile.profileWaterHeights = new ArrayList<>(result.profileWaterHeights());
+        profile.profileWaterCrossingMarkers = new ArrayList<>(result.profileWaterCrossingMarkers());
         return profile;
     }
 
@@ -163,10 +181,21 @@ public final class RoadProfileSolver {
             IntFunction<Float> maxSlopeResolver,
             ProfileSolveSupport support,
             RoadVerticalMode verticalMode,
-            TerrainFollowPreset terrainFollowPreset) {
+            TerrainFollowPreset terrainFollowPreset,
+            RoadSystemConfig config,
+            EnvironmentProfile environment) {
         double canvasUnitsPerBlock = support.canvasUnitsPerBlock(segments);
         List<Double> worldCumulativeDistances = toWorldDistances(
             sampleData.cumulativeDistances(), canvasUnitsPerBlock);
+        EnvironmentProfile worldEnvironment = toWorldEnvironment(environment, canvasUnitsPerBlock);
+        WaterCrossingSettings waterSettings = WaterCrossingSettings.fromConfig(config);
+        List<Integer> waterHeights = extractWaterHeights(environment);
+        List<WaterCrossing> waterCrossings = classifyWaterCrossings(
+            worldEnvironment,
+            waterSettings,
+            terrainFollowPreset,
+            worldCumulativeDistances);
+        List<WaterCrossingChartMarker> waterCrossingMarkers = toChartMarkers(waterCrossings);
         List<Integer> guideLine;
         TerrainTrendResult terrainTrend = null;
         boolean useTerrainAdaptiveSolver = verticalMode == RoadVerticalMode.FIT_TERRAIN
@@ -208,6 +237,12 @@ public final class RoadProfileSolver {
         boolean manualEndpointConstraintFeasible;
         RoadHeightRasterizer.RasterizationResult raster;
         if (useTerrainAdaptiveSolver) {
+            VerticalStationConstraints.StationElevationBounds elevationBounds =
+                VerticalStationConstraints.toBounds(VerticalStationConstraints.build(
+                    worldEnvironment,
+                    waterCrossings,
+                    terrainTrend.trendElevations(),
+                    waterSettings));
             GradeLimitedProfileSolver.DesignSolveResult terrainSolve =
                 GradeLimitedProfileSolver.solveDesignProfile(
                     terrainTrend.trendElevations(),
@@ -217,7 +252,8 @@ public final class RoadProfileSolver {
                     manualStartHeight,
                     manualEndHeight,
                     effectiveTerrainPreset,
-                    support.fillFactor());
+                    support.fillFactor(),
+                    elevationBounds);
             designElevations = terrainSolve.designElevations();
             manualEndpointConstraintFeasible = terrainSolve.manualEndpointsFeasible();
             raster = RoadHeightRasterizer.rasterize(
@@ -246,6 +282,7 @@ public final class RoadProfileSolver {
         List<SegmentHeightInfo> heightInfos = buildHeightInfos(
             segments,
             sampleData,
+            waterHeights,
             designElevations,
             raster,
             canvasUnitsPerBlock);
@@ -259,12 +296,16 @@ public final class RoadProfileSolver {
             raster.buildHeights(),
             raster.samples(),
             raster.buildProfile(),
-            manualEndpointConstraintFeasible);
+            manualEndpointConstraintFeasible,
+            waterHeights,
+            waterCrossings,
+            waterCrossingMarkers);
     }
 
     private static List<SegmentHeightInfo> buildHeightInfos(
             List<PathSegment> segments,
             HeightSampleData sampleData,
+            List<Integer> waterHeights,
             List<Double> designElevations,
             RoadHeightRasterizer.RasterizationResult raster,
             double canvasUnitsPerBlock) {
@@ -281,6 +322,8 @@ public final class RoadProfileSolver {
                 segment,
                 sampleData.groundStarts().get(i),
                 sampleData.groundEnds().get(i),
+                waterHeightAt(waterHeights, i),
+                waterHeightAt(waterHeights, i + 1),
                 buildStart,
                 buildEnd,
                 designStart,
@@ -289,6 +332,76 @@ public final class RoadProfileSolver {
             currentBuild = buildEnd;
         }
         return heightInfos;
+    }
+
+    private static Integer waterHeightAt(List<Integer> waterHeights, int index) {
+        if (waterHeights == null || index < 0 || index >= waterHeights.size()) {
+            return null;
+        }
+        return waterHeights.get(index);
+    }
+
+    private static EnvironmentProfile toWorldEnvironment(
+            EnvironmentProfile environment,
+            double canvasUnitsPerBlock) {
+        if (environment == null || environment.samples().isEmpty()) {
+            return environment;
+        }
+        double scale = canvasUnitsPerBlock > 1e-9 ? canvasUnitsPerBlock : 1.0;
+        List<EnvironmentSample> samples = new ArrayList<>(environment.samples().size());
+        for (EnvironmentSample sample : environment.samples()) {
+            samples.add(new EnvironmentSample(
+                sample.station() / scale,
+                sample.terrainY(),
+                sample.waterSurfaceY(),
+                sample.waterDepth(),
+                sample.context()));
+        }
+        List<Double> distances = toWorldDistances(environment.cumulativeDistances(), canvasUnitsPerBlock);
+        return new EnvironmentProfile(List.copyOf(samples), distances);
+    }
+
+    private static List<Integer> extractWaterHeights(EnvironmentProfile environment) {
+        if (environment == null || environment.samples().isEmpty()) {
+            return List.of();
+        }
+        List<Integer> waterHeights = new ArrayList<>(environment.samples().size());
+        for (EnvironmentSample sample : environment.samples()) {
+            waterHeights.add(sample.waterSurfaceY());
+        }
+        return waterHeights;
+    }
+
+    private static List<WaterCrossing> classifyWaterCrossings(
+            EnvironmentProfile environment,
+            WaterCrossingSettings settings,
+            TerrainFollowPreset preset,
+            List<Double> worldCumulativeDistances) {
+        if (environment == null || environment.samples().isEmpty()) {
+            return List.of();
+        }
+        double profileLength = worldCumulativeDistances.isEmpty()
+            ? 0.0
+            : worldCumulativeDistances.getLast();
+        return WaterCrossingClassifier.classify(
+            WaterCrossingDetector.detect(environment),
+            settings,
+            preset,
+            profileLength);
+    }
+
+    private static List<WaterCrossingChartMarker> toChartMarkers(List<WaterCrossing> crossings) {
+        if (crossings == null || crossings.isEmpty()) {
+            return List.of();
+        }
+        List<WaterCrossingChartMarker> markers = new ArrayList<>(crossings.size());
+        for (WaterCrossing crossing : crossings) {
+            markers.add(new WaterCrossingChartMarker(
+                crossing.crossingStartStation(),
+                crossing.crossingEndStation(),
+                crossing.strategy()));
+        }
+        return List.copyOf(markers);
     }
 
     private static List<Integer> buildStationHeights(int startHeight, List<Integer> segmentBuildEnds) {

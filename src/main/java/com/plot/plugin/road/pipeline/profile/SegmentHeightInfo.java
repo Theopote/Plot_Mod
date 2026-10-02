@@ -10,6 +10,8 @@ public final class SegmentHeightInfo {
     public final PathSegment segment;
     public final int groundStart;
     public final int groundEnd;
+    public final Integer waterStart;
+    public final Integer waterEnd;
     public final double designStart;
     public final double designEnd;
     public final int targetStart;
@@ -30,6 +32,8 @@ public final class SegmentHeightInfo {
             segment,
             groundStart,
             groundEnd,
+            null,
+            null,
             targetStart,
             targetEnd,
             targetStart,
@@ -51,6 +55,33 @@ public final class SegmentHeightInfo {
             segment,
             groundStart,
             groundEnd,
+            null,
+            null,
+            targetStart,
+            targetEnd,
+            designStart,
+            designEnd,
+            RoadSlopeUtils.computeActualSlopePercent(designStart, designEnd, segmentDistanceWorld),
+            RoadSlopeUtils.computeActualSlopePercent(targetStart, targetEnd, segmentDistanceWorld));
+    }
+
+    public SegmentHeightInfo(
+            PathSegment segment,
+            int groundStart,
+            int groundEnd,
+            Integer waterStart,
+            Integer waterEnd,
+            int targetStart,
+            int targetEnd,
+            double designStart,
+            double designEnd,
+            double segmentDistanceWorld) {
+        this(
+            segment,
+            groundStart,
+            groundEnd,
+            waterStart,
+            waterEnd,
             targetStart,
             targetEnd,
             designStart,
@@ -63,6 +94,8 @@ public final class SegmentHeightInfo {
             PathSegment segment,
             int groundStart,
             int groundEnd,
+            Integer waterStart,
+            Integer waterEnd,
             int targetStart,
             int targetEnd,
             double designStart,
@@ -72,6 +105,8 @@ public final class SegmentHeightInfo {
         this.segment = segment;
         this.groundStart = groundStart;
         this.groundEnd = groundEnd;
+        this.waterStart = waterStart;
+        this.waterEnd = waterEnd;
         this.designStart = designStart;
         this.designEnd = designEnd;
         this.targetStart = targetStart;

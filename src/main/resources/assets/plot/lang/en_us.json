@@ -656,6 +656,7 @@
   "plugin.road.profile_edge_index": "%d / %d",
   "plugin.road.profile_ground": "Existing Ground",
   "plugin.road.profile_terrain_raw": "Raw Terrain",
+  "plugin.road.profile_water_surface": "Water Surface",
   "plugin.road.profile_terrain_trend": "Terrain Trend",
   "plugin.road.profile_road_profile": "Road Profile",
   "plugin.road.profile_design_elevation": "Design Profile",

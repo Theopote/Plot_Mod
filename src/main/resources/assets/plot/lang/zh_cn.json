@@ -656,6 +656,7 @@
   "plugin.road.profile_edge_index": "%d / %d",
   "plugin.road.profile_ground": "现状地形",
   "plugin.road.profile_terrain_raw": "原始地形",
+  "plugin.road.profile_water_surface": "水面",
   "plugin.road.profile_terrain_trend": "地形趋势",
   "plugin.road.profile_road_profile": "道路纵断面",
   "plugin.road.profile_design_elevation": "设计纵断面",

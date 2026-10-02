@@ -33,7 +33,9 @@ public final class RoadConstructionClassifier {
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             SegmentHeightInfo info = heightInfos.get(i);
             segmentDistances.add(info.segment.distance);
-            groundHeights.add(averageHeight(info.groundStart, info.groundEnd));
+            groundHeights.add(averageHeight(
+                effectiveGround(info.groundStart, info.waterStart),
+                effectiveGround(info.groundEnd, info.waterEnd)));
             targetHeights.add(averageHeight(info.targetStart, info.targetEnd));
         }
 
@@ -79,6 +81,13 @@ public final class RoadConstructionClassifier {
             resolvedTypes,
             segmentDistances,
             buildRuns(resolvedTypes, segmentDistances, groundHeights, targetHeights));
+    }
+
+    private static int effectiveGround(int terrainY, Integer waterSurfaceY) {
+        if (waterSurfaceY == null) {
+            return terrainY;
+        }
+        return Math.max(terrainY, waterSurfaceY);
     }
 
     private static List<ConstructionRun> buildRuns(
