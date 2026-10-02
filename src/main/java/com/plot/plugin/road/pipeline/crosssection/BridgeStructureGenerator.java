@@ -31,6 +31,8 @@ import java.util.Set;
 public final class BridgeStructureGenerator {
 
     private static final double EPSILON = 1e-6;
+    /** Interior pier spacing in world/block stations (not canvas geometry units). */
+    private static final double DEFAULT_PIER_SPACING_BLOCKS = 6.0;
 
     private BridgeStructureGenerator() {
     }
@@ -195,17 +197,16 @@ public final class BridgeStructureGenerator {
             CrossSectionBuildContext crossSections,
             double unitsPerBlock) {
         double scale = unitsPerBlock > EPSILON ? unitsPerBlock : 1.0;
-        double defaultSpacing = Math.max(unitsPerBlock, 6.0 * unitsPerBlock);
-        double desiredSpacing = WaterCrossingConstructionResolver.bridgePillarSpacingBlocks(
+        double desiredSpacingBlocks = WaterCrossingConstructionResolver.bridgePillarSpacingBlocks(
             List.of(crossing),
             crossing.crossingStartStation() + 1.0,
-            defaultSpacing);
-        double span = crossing.crossingEndStation() - crossing.crossingStartStation();
-        if (span <= desiredSpacing + EPSILON) {
+            DEFAULT_PIER_SPACING_BLOCKS);
+        double spanBlocks = crossing.crossingEndStation() - crossing.crossingStartStation();
+        if (spanBlocks <= desiredSpacingBlocks + EPSILON) {
             return;
         }
-        int bayCount = Math.max(1, (int) Math.round(span / desiredSpacing));
-        double actualSpacing = span / bayCount;
+        int bayCount = Math.max(1, (int) Math.round(spanBlocks / desiredSpacingBlocks));
+        double actualSpacing = spanBlocks / bayCount;
         for (int bay = 1; bay < bayCount; bay++) {
             double worldStation = crossing.crossingStartStation() + bay * actualSpacing;
             if (isNearAbutment(stations, worldStation)) {
@@ -224,9 +225,9 @@ public final class BridgeStructureGenerator {
             double unitsPerBlock,
             List<WaterCrossing> profileWaterCrossings) {
         double scale = unitsPerBlock > EPSILON ? unitsPerBlock : 1.0;
-        double defaultSpacing = Math.max(unitsPerBlock, 6.0 * unitsPerBlock);
+        double defaultSpacingGeometry = DEFAULT_PIER_SPACING_BLOCKS * scale;
         double accumulated = 0.0;
-        double pillarSpacing = defaultSpacing;
+        double pillarSpacing = defaultSpacingGeometry;
         double pillarChainage = 0.0;
         boolean inBridgeRun = false;
         for (int i = 0; i < segments.size(); i++) {
@@ -242,7 +243,7 @@ public final class BridgeStructureGenerator {
             double minChainage = Math.min(chainageA, chainageB);
             double maxChainage = Math.max(chainageA, chainageB);
             if (!inBridgeRun) {
-                pillarSpacing = defaultSpacing;
+                pillarSpacing = defaultSpacingGeometry;
                 pillarChainage = Math.ceil((minChainage - EPSILON) / pillarSpacing) * pillarSpacing;
                 inBridgeRun = true;
             }
@@ -264,12 +265,11 @@ public final class BridgeStructureGenerator {
                     pillarChainage += pillarSpacing;
                     continue;
                 }
-                pillarSpacing = Math.max(
-                    unitsPerBlock,
-                    WaterCrossingConstructionResolver.bridgePillarSpacingBlocks(
-                        profileWaterCrossings,
-                        worldStation,
-                        6.0 * unitsPerBlock));
+                double desiredSpacingBlocks = WaterCrossingConstructionResolver.bridgePillarSpacingBlocks(
+                    profileWaterCrossings,
+                    worldStation,
+                    DEFAULT_PIER_SPACING_BLOCKS);
+                pillarSpacing = Math.max(scale, desiredSpacingBlocks * scale);
                 addPierStation(stations, dedupe, worldStation, crossSections, scale);
                 pillarChainage += pillarSpacing;
             }

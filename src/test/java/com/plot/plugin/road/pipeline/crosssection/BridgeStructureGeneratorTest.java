@@ -15,6 +15,8 @@ import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.core.terrain.TerrainSampler;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -151,6 +153,50 @@ class BridgeStructureGeneratorTest {
             double spacing = pierStations.get(i) - pierStations.get(i - 1);
             assertEquals(12.0, spacing, 0.25, "pier spacing must stay uniform across path segment boundaries");
         }
+    }
+
+    @ParameterizedTest
+    @ValueSource(doubles = {2.0, 2.5})
+    void longBridgePierSpacingUsesWorldUnitsWhenCanvasScaleIsNotOne(double unitsPerBlock) {
+        WaterCrossing longBridge = new WaterCrossing(
+            0.0, 0.0, 60.0, 66.0,
+            0.0, 60.0, 60.0, 10.0, 14.0,
+            68, 68, 69, WaterCrossingStrategy.LONG_BRIDGE);
+        double endCanvas = 60.0 * unitsPerBlock;
+        List<PathSegment> segments = List.of(
+            new PathSegment(new Vec2d(0, 0), new Vec2d(7.0 * unitsPerBlock, 0)),
+            new PathSegment(new Vec2d(7.0 * unitsPerBlock, 0), new Vec2d(25.0 * unitsPerBlock, 0)),
+            new PathSegment(new Vec2d(25.0 * unitsPerBlock, 0), new Vec2d(endCanvas, 0)));
+        List<SegmentHeightInfo> heightInfos = List.of(
+            new SegmentHeightInfo(segments.get(0), 50, 50, 69, 69, 64, 64, 64, 64, 7.0),
+            new SegmentHeightInfo(segments.get(1), 50, 50, 69, 69, 64, 64, 64, 64, 18.0),
+            new SegmentHeightInfo(segments.get(2), 50, 50, 69, 69, 64, 64, 64, 64, 35.0));
+        ResolvedCrossSection section = ResolvedCrossSection.fromConfig(new RoadSystemConfig("bridge-structure"));
+
+        List<BridgeStructureGenerator.StructureStation> stations =
+            BridgeStructureGenerator.planStructureStations(
+                List.of(
+                    RoadConstructionType.BRIDGE,
+                    RoadConstructionType.BRIDGE,
+                    RoadConstructionType.BRIDGE),
+                segments,
+                heightInfos,
+                CrossSectionBuildContext.fixed(section),
+                unitsPerBlock,
+                List.of(longBridge));
+
+        List<Double> pierStations = stations.stream()
+            .filter(station -> station.kind() == BridgeStructureGenerator.StructureKind.INTERIOR_PIER)
+            .map(BridgeStructureGenerator.StructureStation::worldStation)
+            .sorted()
+            .collect(Collectors.toList());
+
+        assertEquals(4, pierStations.size(),
+            "long bridge should place four interior piers at 12-block spacing");
+        assertEquals(12.0, pierStations.get(0), 0.25);
+        assertEquals(24.0, pierStations.get(1), 0.25);
+        assertEquals(36.0, pierStations.get(2), 0.25);
+        assertEquals(48.0, pierStations.get(3), 0.25);
     }
 
     @Test
