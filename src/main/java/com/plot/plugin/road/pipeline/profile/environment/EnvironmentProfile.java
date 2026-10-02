@@ -13,7 +13,7 @@ public record EnvironmentProfile(
 
     public List<Integer> waterSurfaceSamples() {
         return samples.stream()
-            .map(sample -> sample.waterSurfaceY())
+            .map(EnvironmentSample::waterSurfaceY)
             .toList();
     }
 }

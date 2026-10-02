@@ -288,9 +288,8 @@ public class RoadSystemConfig {
     }
     
     public void setBridgeThreshold(int bridgeThreshold) {
-        this.bridgeThreshold = Math.max(
-            RoadParameterLimits.MIN_BRIDGE_THRESHOLD,
-            Math.min(RoadParameterLimits.MAX_BRIDGE_THRESHOLD, bridgeThreshold));
+        this.bridgeThreshold = Math.clamp(bridgeThreshold,
+                RoadParameterLimits.MIN_BRIDGE_THRESHOLD, RoadParameterLimits.MAX_BRIDGE_THRESHOLD);
     }
 
     public boolean isGenerateBridgePillars() {
@@ -306,33 +305,32 @@ public class RoadSystemConfig {
     }
     
     public void setTunnelThreshold(int tunnelThreshold) {
-        this.tunnelThreshold = Math.max(
-            RoadParameterLimits.MIN_TUNNEL_THRESHOLD,
-            Math.min(RoadParameterLimits.MAX_TUNNEL_THRESHOLD, tunnelThreshold));
+        this.tunnelThreshold = Math.clamp(tunnelThreshold,
+                RoadParameterLimits.MIN_TUNNEL_THRESHOLD, RoadParameterLimits.MAX_TUNNEL_THRESHOLD);
     }
 
     public int getTunnelClearanceHeight() {
-        return Math.max(3, Math.min(12, tunnelClearanceHeight));
+        return Math.clamp(tunnelClearanceHeight, 3, 12);
     }
 
     public void setTunnelClearanceHeight(int tunnelClearanceHeight) {
-        this.tunnelClearanceHeight = Math.max(3, Math.min(12, tunnelClearanceHeight));
+        this.tunnelClearanceHeight = Math.clamp(tunnelClearanceHeight, 3, 12);
     }
 
     public int getTunnelSideClearance() {
-        return Math.max(0, Math.min(4, tunnelSideClearance));
+        return Math.clamp(tunnelSideClearance, 0, 4);
     }
 
     public void setTunnelSideClearance(int tunnelSideClearance) {
-        this.tunnelSideClearance = Math.max(0, Math.min(4, tunnelSideClearance));
+        this.tunnelSideClearance = Math.clamp(tunnelSideClearance, 0, 4);
     }
 
     public int getTunnelLiningThickness() {
-        return Math.max(1, Math.min(3, tunnelLiningThickness));
+        return Math.clamp(tunnelLiningThickness, 1, 3);
     }
 
     public void setTunnelLiningThickness(int tunnelLiningThickness) {
-        this.tunnelLiningThickness = Math.max(1, Math.min(3, tunnelLiningThickness));
+        this.tunnelLiningThickness = Math.clamp(tunnelLiningThickness, 1, 3);
     }
 
     public String getTunnelLiningMaterial() {
@@ -354,11 +352,11 @@ public class RoadSystemConfig {
     }
 
     public int getTunnelAccentSpacing() {
-        return Math.max(0, Math.min(32, tunnelAccentSpacing));
+        return Math.clamp(tunnelAccentSpacing, 0, 32);
     }
 
     public void setTunnelAccentSpacing(int tunnelAccentSpacing) {
-        this.tunnelAccentSpacing = Math.max(0, Math.min(32, tunnelAccentSpacing));
+        this.tunnelAccentSpacing = Math.clamp(tunnelAccentSpacing, 0, 32);
     }
 
     public double getFillCostPerVolume() {
@@ -430,9 +428,8 @@ public class RoadSystemConfig {
     }
 
     public void setPathSampleDistance(double pathSampleDistance) {
-        this.pathSampleDistance = Math.max(
-            RoadParameterLimits.MIN_PATH_SAMPLE_DISTANCE,
-            Math.min(RoadParameterLimits.MAX_PATH_SAMPLE_DISTANCE, pathSampleDistance));
+        this.pathSampleDistance = Math.clamp(pathSampleDistance,
+                RoadParameterLimits.MIN_PATH_SAMPLE_DISTANCE, RoadParameterLimits.MAX_PATH_SAMPLE_DISTANCE);
     }
 
     public boolean isIncludeShoulder() {
@@ -570,7 +567,7 @@ public class RoadSystemConfig {
     }
 
     public void setFillSlopeRatio(float fillSlopeRatio) {
-        this.fillSlopeRatio = Math.max(0.5f, Math.min(5.0f, fillSlopeRatio));
+        this.fillSlopeRatio = Math.clamp(fillSlopeRatio, 0.5f, 5.0f);
     }
 
     public float getCutSlopeRatio() {
@@ -578,7 +575,7 @@ public class RoadSystemConfig {
     }
 
     public void setCutSlopeRatio(float cutSlopeRatio) {
-        this.cutSlopeRatio = Math.max(0.5f, Math.min(5.0f, cutSlopeRatio));
+        this.cutSlopeRatio = Math.clamp(cutSlopeRatio, 0.5f, 5.0f);
     }
 
     public String getFillSlopeMaterial() {
@@ -640,10 +637,8 @@ public class RoadSystemConfig {
     }
 
     public void setDefaultCornerRadius(float defaultCornerRadius) {
-        this.defaultCornerRadius = (float) Math.max(
-            RoadNode.MIN_CORNER_RADIUS,
-            Math.min(RoadNode.MAX_CORNER_RADIUS, defaultCornerRadius)
-        );
+        this.defaultCornerRadius = (float) Math.clamp(defaultCornerRadius,
+                RoadNode.MIN_CORNER_RADIUS, RoadNode.MAX_CORNER_RADIUS);
     }
 
     public float getFillFactor() {
@@ -651,7 +646,7 @@ public class RoadSystemConfig {
     }
 
     public void setFillFactor(float fillFactor) {
-        this.fillFactor = Math.max(1.0f, Math.min(2.0f, fillFactor));
+        this.fillFactor = Math.clamp(fillFactor, 1.0f, 2.0f);
     }
 
     /** 纵断面平衡用的材料换算模型（与土方 {@link com.plot.core.material.MaterialConversionModel} 同语义）。 */

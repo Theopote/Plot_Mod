@@ -1,7 +1,5 @@
 package com.plot.plugin.road.pipeline.profile.environment;
 
-import com.plot.plugin.road.pipeline.profile.terrain.TerrainFollowPreset;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -139,7 +137,7 @@ public final class VerticalStationConstraints {
             return endMinimum;
         }
         double blend = (station - zoneStart) / span;
-        blend = Math.max(0.0, Math.min(1.0, blend));
+        blend = Math.clamp(blend, 0.0, 1.0);
         return startMinimum + (endMinimum - startMinimum) * blend;
     }
 
