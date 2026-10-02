@@ -115,6 +115,69 @@ class WaterAwareProfileSolverTest {
         assertTrue(
             approachConstraint.minimumElevation() >= crossing.waterSurfaceY() - 1e-6,
             "causeway approach must not drop below water surface");
+        assertPreferredFollowsRamp(approachConstraint, 64.0);
+    }
+
+    @Test
+    void causewayApproachPreferredElevationFollowsRamp() {
+        TerrainFollowPreset preset = TerrainFollowPreset.STANDARD;
+        EnvironmentProfile environment = causewayApproachEnvironment();
+        List<Double> trend = List.of(64.0, 64.0, 63.0, 63.0, 64.0);
+        WaterCrossingSettings settings = new WaterCrossingSettings(1, 6.0, 2, 6.0, 60.0, false);
+        List<WaterCrossing> crossings = WaterCrossingClassifier.classify(
+            WaterCrossingDetector.detect(environment),
+            settings,
+            preset,
+            3.0);
+        List<VerticalStationConstraint> constraints = VerticalStationConstraints.build(
+            environment, crossings, trend, settings);
+        WaterCrossing crossing = crossings.getFirst();
+
+        for (int i = 0; i < environment.samples().size(); i++) {
+            EnvironmentSample sample = environment.samples().get(i);
+            if (crossing.isInApproachZone(sample.station()) && !sample.hasWater()) {
+                assertPreferredFollowsRamp(constraints.get(i), trend.get(i));
+            }
+        }
+    }
+
+    @Test
+    void bridgeApproachPreferredElevationFollowsRamp() {
+        TerrainFollowPreset preset = TerrainFollowPreset.STANDARD;
+        EnvironmentProfile environment = bridgeApproachEnvironment();
+        List<Double> trend = List.of(68.0, 68.0, 68.0, 70.0, 70.0, 68.0);
+        WaterCrossingSettings settings = new WaterCrossingSettings(1, 6.0, 2, 6.0, 60.0, false);
+        List<WaterCrossing> crossings = WaterCrossingClassifier.classify(
+            WaterCrossingDetector.detect(environment),
+            settings,
+            preset,
+            60.0);
+        assertEquals(WaterCrossingStrategy.BRIDGE, crossings.getFirst().strategy());
+
+        List<VerticalStationConstraint> constraints = VerticalStationConstraints.build(
+            environment, crossings, trend, settings);
+        WaterCrossing crossing = crossings.getFirst();
+        double bridgeTarget = VerticalStationConstraints.crossingTargetMinimumElevation(crossing, settings);
+
+        VerticalStationConstraint midApproach = null;
+        for (int i = 0; i < environment.samples().size(); i++) {
+            EnvironmentSample sample = environment.samples().get(i);
+            if (crossing.isInApproachZone(sample.station()) && !sample.hasWater()) {
+                VerticalStationConstraint constraint = constraints.get(i);
+                assertPreferredFollowsRamp(constraint, trend.get(i));
+                if (sample.station() > crossing.approachStartStation() + 1e-6
+                        && sample.station() < crossing.crossingStartStation() - 1e-6) {
+                    midApproach = constraint;
+                }
+            }
+        }
+        assertTrue(midApproach != null, "expected interior approach sample");
+        assertTrue(
+            midApproach.preferredElevation() < bridgeTarget - 1e-6,
+            "bridge approach preferred should follow ramp, not jump to full deck height");
+        assertTrue(
+            midApproach.minimumElevation() < bridgeTarget - 1e-6,
+            "bridge approach hard minimum should still be ramping");
     }
 
     @Test
@@ -186,6 +249,28 @@ class WaterAwareProfileSolverTest {
                 new EnvironmentSample(2.0, 62, 63, 1, SurfaceContext.SHALLOW_WATER),
                 EnvironmentSample.land(3.0, 64)),
             List.of(0.0, 0.4, 1.0, 2.0, 3.0));
+    }
+
+    private static EnvironmentProfile bridgeApproachEnvironment() {
+        return new EnvironmentProfile(
+            List.of(
+                EnvironmentSample.land(0.0, 68),
+                EnvironmentSample.land(10.0, 68),
+                EnvironmentSample.land(20.0, 68),
+                new EnvironmentSample(30.0, 55, 69, 14, SurfaceContext.DEEP_WATER),
+                new EnvironmentSample(45.0, 55, 69, 14, SurfaceContext.DEEP_WATER),
+                EnvironmentSample.land(60.0, 68)),
+            List.of(0.0, 10.0, 20.0, 30.0, 45.0, 60.0));
+    }
+
+    private static void assertPreferredFollowsRamp(
+            VerticalStationConstraint constraint,
+            double terrainPreferred) {
+        assertEquals(
+            Math.max(terrainPreferred, constraint.minimumElevation()),
+            constraint.preferredElevation(),
+            1e-6,
+            "preferred target should follow transition ramp, not full crossing minimum");
     }
 
     private static List<Double> constantDistances(int count, double distance) {

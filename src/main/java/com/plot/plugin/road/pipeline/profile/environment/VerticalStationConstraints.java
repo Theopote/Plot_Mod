@@ -83,7 +83,7 @@ public final class VerticalStationConstraints {
             context = SurfaceContext.SHORE;
         }
         return new VerticalStationConstraint(
-            Math.max(preferred, crossingMinimum),
+            Math.max(preferred, rampedMinimum),
             rampedMinimum,
             null,
             context);
@@ -112,7 +112,7 @@ public final class VerticalStationConstraints {
                 crossing.exitBankTerrainY());
         }
         return new VerticalStationConstraint(
-            Math.max(preferred, crossingMinimum),
+            Math.max(preferred, rampedMinimum),
             rampedMinimum,
             null,
             SurfaceContext.SHORE);
