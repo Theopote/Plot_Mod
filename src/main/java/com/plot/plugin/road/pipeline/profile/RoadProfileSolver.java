@@ -133,6 +133,8 @@ public final class RoadProfileSolver {
         profile.profileGuideLine = new ArrayList<>(result.profileGuideLine());
         profile.profileDesignElevations = new ArrayList<>(result.profileDesignElevations());
         profile.profileBuildHeights = new ArrayList<>(result.profileBuildHeights());
+        profile.profileBuildSamples = new ArrayList<>(result.profileBuildSamples());
+        profile.buildProfile = result.buildProfile();
         profile.manualEndpointConstraintFeasible = result.manualEndpointConstraintFeasible();
         return profile;
     }
@@ -232,8 +234,7 @@ public final class RoadProfileSolver {
                 designElevations,
                 distances,
                 effectiveMaxSlopes,
-                manualStartHeight,
-                manualEndHeight);
+                manualStartHeight);
         }
 
         List<SegmentHeightInfo> heightInfos = buildHeightInfos(
@@ -250,6 +251,7 @@ public final class RoadProfileSolver {
             new ArrayList<>(guideLine),
             designElevations,
             raster.buildHeights(),
+            raster.samples(),
             raster.buildProfile(),
             manualEndpointConstraintFeasible);
     }

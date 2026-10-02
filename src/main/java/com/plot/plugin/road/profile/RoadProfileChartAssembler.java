@@ -1,6 +1,7 @@
 package com.plot.plugin.road.profile;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.pipeline.profile.BuildHeightSample;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.solid.RoadGenerationResult;
@@ -76,19 +77,22 @@ public final class RoadProfileChartAssembler {
         List<Double> groundElevations = new ArrayList<>();
         List<Double> designElevations = new ArrayList<>();
         List<Double> buildElevations = new ArrayList<>();
+        List<BuildHeightSample> buildSamples = new ArrayList<>();
         List<Double> guideElevations = new ArrayList<>();
 
         for (OrientedRoadSegment segment : segments) {
+            RoadGenerationResult edgeResult = edgeResults.get(segment.edgeId());
             appendSegmentSamples(
                 network,
                 road,
                 segment,
-                edgeResults.get(segment.edgeId()),
+                edgeResult,
                 stations,
                 groundElevations,
                 designElevations,
                 buildElevations,
                 guideElevations);
+            appendBuildSamples(network, road, segment, edgeResult, buildSamples);
         }
         if (stations.size() < 2) {
             return Optional.empty();
@@ -113,6 +117,7 @@ public final class RoadProfileChartAssembler {
             List.copyOf(groundElevations),
             List.copyOf(designElevations),
             List.copyOf(buildElevations),
+            List.copyOf(buildSamples),
             List.copyOf(guideElevations),
             controlPoints,
             intersections,
@@ -197,5 +202,62 @@ public final class RoadProfileChartAssembler {
             return edgeResult.profileBuildHeights.get(index).doubleValue();
         }
         return edgeResult.profileGroundHeights.get(index).doubleValue();
+    }
+
+    private static void appendBuildSamples(
+            RoadNetwork network,
+            Road road,
+            OrientedRoadSegment segment,
+            RoadGenerationResult edgeResult,
+            List<BuildHeightSample> buildSamples) {
+        if (edgeResult.profileBuildSamples == null || edgeResult.profileBuildSamples.isEmpty()) {
+            return;
+        }
+        if (segment.forward()) {
+            for (BuildHeightSample sample : edgeResult.profileBuildSamples) {
+                appendMappedBuildSample(network, road, segment, edgeResult, sample, buildSamples);
+            }
+        } else {
+            for (int i = edgeResult.profileBuildSamples.size() - 1; i >= 0; i--) {
+                appendMappedBuildSample(
+                    network, road, segment, edgeResult, edgeResult.profileBuildSamples.get(i), buildSamples);
+            }
+        }
+    }
+
+    private static void appendMappedBuildSample(
+            RoadNetwork network,
+            Road road,
+            OrientedRoadSegment segment,
+            RoadGenerationResult edgeResult,
+            BuildHeightSample sample,
+            List<BuildHeightSample> buildSamples) {
+        double roadStation = toRoadStation(network, road, segment, edgeResult, sample.station());
+        if (!buildSamples.isEmpty()
+                && Math.abs(roadStation - buildSamples.getLast().station()) <= STATION_MERGE_TOLERANCE) {
+            buildSamples.set(
+                buildSamples.size() - 1,
+                new BuildHeightSample(roadStation, sample.designElevation(), sample.buildY()));
+            return;
+        }
+        buildSamples.add(new BuildHeightSample(roadStation, sample.designElevation(), sample.buildY()));
+    }
+
+    private static double toRoadStation(
+            RoadNetwork network,
+            Road road,
+            OrientedRoadSegment segment,
+            RoadGenerationResult edgeResult,
+            double edgeStation) {
+        List<Double> profileDistances = edgeResult.profileDistances;
+        double profileSpan = profileDistances.getLast() - profileDistances.getFirst();
+        if (profileSpan <= 1e-9) {
+            profileSpan = segment.length();
+        }
+        double geometryLocal = (edgeStation - profileDistances.getFirst())
+            * (segment.length() / profileSpan);
+        double chainLocal = segment.chainLocalFromGeometryLocal(geometryLocal);
+        double instanceStation = segment.startStation() + chainLocal;
+        return RoadStationing.toCanonicalChainage(network, road, instanceStation);
     }
 }

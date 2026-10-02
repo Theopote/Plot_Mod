@@ -81,6 +81,7 @@ class ProfileRenderCacheTest {
             ground,
             ground,
             List.of(),
+            ground,
             List.of(),
             List.of(),
             true);

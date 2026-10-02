@@ -30,14 +30,16 @@ public final class RoadHeightRasterizer {
     }
 
     /**
-     * @param designElevations station-level design elevations, length = segments + 1
+     * @param designElevations station-level design elevations, length = segments + 1.
+     *     Endpoint targets must already be encoded in the design profile; this rasterizer
+     *     only discretizes the continuous design under slope limits.
+     * @param forcedStartHeight optional pinned build height at chainage 0
      */
     public static RasterizationResult rasterize(
             List<Double> designElevations,
             List<Double> segmentDistances,
             List<Float> maxSlopePercents,
-            Integer manualStartHeight,
-            Integer manualEndHeight) {
+            Integer forcedStartHeight) {
         if (segmentDistances == null || segmentDistances.isEmpty()) {
             return emptyResult();
         }
@@ -48,7 +50,7 @@ public final class RoadHeightRasterizer {
             throw new IllegalArgumentException("max slope list must match segment count");
         }
 
-        int startHeight = roundedStartHeight(designElevations, manualStartHeight);
+        int startHeight = roundedStartHeight(designElevations, forcedStartHeight);
 
         List<Double> cumulativeDistances = cumulativeDistances(segmentDistances);
         double totalLength = cumulativeDistances.getLast();
@@ -85,8 +87,7 @@ public final class RoadHeightRasterizer {
             List<Integer> designStations,
             List<Double> segmentDistances,
             List<Float> maxSlopePercents,
-            Integer manualStartHeight,
-            Integer manualEndHeight) {
+            Integer forcedStartHeight) {
         List<Double> designElevations = new ArrayList<>(designStations.size());
         for (int value : designStations) {
             designElevations.add((double) value);
@@ -95,8 +96,7 @@ public final class RoadHeightRasterizer {
             designElevations,
             segmentDistances,
             maxSlopePercents,
-            manualStartHeight,
-            manualEndHeight);
+            forcedStartHeight);
     }
 
     private static RasterizationResult emptyResult() {
@@ -272,9 +272,9 @@ public final class RoadHeightRasterizer {
         return buildHeights;
     }
 
-    private static int roundedStartHeight(List<Double> designElevations, Integer manualStartHeight) {
-        if (manualStartHeight != null) {
-            return manualStartHeight;
+    private static int roundedStartHeight(List<Double> designElevations, Integer forcedStartHeight) {
+        if (forcedStartHeight != null) {
+            return forcedStartHeight;
         }
         return (int) Math.round(designElevations.getFirst());
     }

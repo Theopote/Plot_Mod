@@ -14,6 +14,57 @@ public final class ProfileChartLegend {
     private ProfileChartLegend() {
     }
 
+    /** 紧凑卡片单行图例：Overview 为地形+建造，Editor 为地形+设计+建造。 */
+    public static void renderCompact(
+            ProfileChartRenderMode chartMode,
+            RoadVerticalMode verticalMode,
+            boolean flatMode,
+            boolean buildPreviewStale) {
+        if (flatMode) {
+            renderFlatCompactLegend(buildPreviewStale);
+            return;
+        }
+        if (chartMode == ProfileChartRenderMode.EDITOR) {
+            renderCompactEditorLegend(buildPreviewStale);
+            return;
+        }
+        renderCompactOverviewLegend(buildPreviewStale);
+    }
+
+    private static void renderCompactOverviewLegend(boolean buildPreviewStale) {
+        ImGui.textColored(
+            ProfileChartSeriesStyle.RAW_TERRAIN,
+            "\u25A0 " + PlotI18n.tr("plugin.road.profile_ground"));
+        ImGui.sameLine();
+        ImGui.textColored(
+            ProfileChartSeriesStyle.BUILD_PROFILE,
+            "\u25A0 " + buildProfileLabel(buildPreviewStale));
+    }
+
+    private static void renderCompactEditorLegend(boolean buildPreviewStale) {
+        ImGui.textColored(
+            ProfileChartSeriesStyle.RAW_TERRAIN,
+            "\u25A0 " + PlotI18n.tr("plugin.road.profile_ground"));
+        ImGui.sameLine();
+        ImGui.textColored(
+            ProfileChartSeriesStyle.DESIGN_PROFILE,
+            "\u25A0 " + PlotI18n.tr("plugin.road.profile_design_elevation"));
+        ImGui.sameLine();
+        ImGui.textColored(
+            ProfileChartSeriesStyle.BUILD_PROFILE,
+            "\u25A0 " + buildProfileLabel(buildPreviewStale));
+    }
+
+    private static void renderFlatCompactLegend(boolean buildPreviewStale) {
+        ImGui.textColored(
+            ProfileChartSeriesStyle.RAW_TERRAIN,
+            "\u25A0 " + PlotI18n.tr("plugin.road.profile_ground"));
+        ImGui.sameLine();
+        ImGui.textColored(
+            ProfileChartSeriesStyle.BUILD_PROFILE,
+            "\u25A0 " + buildProfileLabel(buildPreviewStale));
+    }
+
     public static void renderSeriesLegend(
             RoadVerticalMode verticalMode,
             boolean flatMode,

@@ -15,9 +15,11 @@ import com.plot.plugin.road.profile.ProfileChartRenderMode;
 import com.plot.plugin.road.profile.ProfileControlPoint;
 import com.plot.plugin.road.profile.ProfilePointRole;
 import com.plot.plugin.road.profile.ProfileChartLegend;
+import com.plot.plugin.road.profile.ProfileQualitySummary;
 import com.plot.plugin.road.profile.ProfileRenderCache;
 import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.profile.RoadProfileChartRenderer;
+import com.plot.plugin.road.profile.RoadProfileCompactCard;
 import com.plot.plugin.road.profile.RoadProfileRoadList;
 import com.plot.plugin.road.profile.RoadProfileRoadNavigator;
 import com.plot.plugin.road.profile.RoadProfileIntersection;
@@ -60,7 +62,7 @@ import java.util.function.Function;
  */
 final class VerticalProfileEditor {
 
-    private static final float INLINE_CHART_HEIGHT = 128f;
+    private static final float INLINE_CHART_HEIGHT = RoadProfileCompactCard.INLINE_CHART_HEIGHT;
     private static final float MIN_EDITOR_CHART_HEIGHT = 220f;
     private static final int EDITOR_WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
 
@@ -205,21 +207,22 @@ final class VerticalProfileEditor {
         List<RoadProfileIntersection> intersections = resolveIntersections(
             ctx, network, road, config, chartData, true);
         boolean flatMode = RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT;
-        RoadProfileChartRenderer.renderOverview(
+        RoadProfileCompactCard.renderOverview(
             chartData,
             design,
             intersections,
             INLINE_CHART_HEIGHT,
             flatOverlay,
             ProfileChartRenderMode.OVERVIEW,
-            road.getVerticalMode());
-        renderManualEndpointConstraintWarning(chartData);
-        renderInlineLegend(
-            road,
-            design,
-            intersections,
-            flatOverlay,
+            road.getVerticalMode(),
             flatMode,
+            ctx.previewManager().needsPreviewRecalc(),
+            true);
+        renderManualEndpointConstraintWarning(chartData);
+        ProfileQualitySummary.render(
+            chartData,
+            road,
+            ctx.networkManager().getConfig(),
             ctx.previewManager().needsPreviewRecalc());
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
@@ -486,22 +489,6 @@ final class VerticalProfileEditor {
         }
     }
 
-    private static void renderInlineLegend(
-            Road road,
-            VerticalAlignmentProfileOverlay design,
-            List<RoadProfileIntersection> intersections,
-            FlatElevationProfileOverlay flatOverlay,
-            boolean flatMode,
-            boolean buildPreviewStale) {
-        ProfileChartLegend.renderSeriesLegend(
-            road != null ? road.getVerticalMode() : null,
-            flatMode,
-            design,
-            flatOverlay,
-            buildPreviewStale);
-        ProfileChartLegend.renderIntersectionLegend(intersections);
-    }
-
     private static void renderEditorControlLegend(boolean flatMode) {
         if (flatMode) {
             return;
@@ -523,13 +510,12 @@ final class VerticalProfileEditor {
             List<RoadProfileIntersection> intersections,
             FlatElevationProfileOverlay flatOverlay,
             boolean flatMode) {
-        renderInlineLegend(
-            road,
-            design,
-            intersections,
-            flatOverlay,
+        ProfileChartLegend.renderCompact(
+            ProfileChartRenderMode.EDITOR,
+            road != null ? road.getVerticalMode() : null,
             flatMode,
             ctx.previewManager().needsPreviewRecalc());
+        ProfileChartLegend.renderIntersectionLegend(intersections);
         renderEditorControlLegend(flatMode);
     }
 
@@ -701,6 +687,11 @@ final class VerticalProfileEditor {
             selectedIntersectionIndex = interaction.selectedIntersectionIndex();
         }
         renderEditorLegend(ctx, road, design, intersections, flatOverlay, flatMode);
+        ProfileQualitySummary.render(
+            chartData,
+            road,
+            config,
+            ctx.previewManager().needsPreviewRecalc());
         renderIntersectionDetail(ctx, network, road, intersections, interaction, config, flatMode);
         if (flatMode) {
             flatProfileControls.render(

@@ -18,16 +18,58 @@ public record ProfileChartLayout(
     private static final float TOP_GUTTER = 14f;
     private static final float BOTTOM_GUTTER = 24f;
 
+    private static final float COMPACT_LEFT_GUTTER = 4f;
+    private static final float COMPACT_RIGHT_GUTTER = 4f;
+    private static final float COMPACT_TOP_GUTTER = 4f;
+    private static final float COMPACT_BOTTOM_GUTTER = 6f;
+    private static final float COMPACT_BOTTOM_GUTTER_WITH_STATION_LABELS = 16f;
+
     public static ProfileChartLayout fromOuterRect(float x0, float y0, float width, float height) {
+        return fromOuterRect(x0, y0, width, height, false, true);
+    }
+
+    public static ProfileChartLayout fromOuterRect(
+            float x0,
+            float y0,
+            float width,
+            float height,
+            ProfileChartRenderMode mode) {
+        if (mode == null) {
+            return fromOuterRect(x0, y0, width, height);
+        }
+        return fromOuterRect(x0, y0, width, height, mode.useCompactLayout(), mode.showStationAxisLabels());
+    }
+
+    private static ProfileChartLayout fromOuterRect(
+            float x0,
+            float y0,
+            float width,
+            float height,
+            boolean compact,
+            boolean stationLabels) {
+        if (!compact) {
+            return new ProfileChartLayout(
+                x0,
+                y0,
+                x0 + width,
+                y0 + height,
+                x0 + LEFT_GUTTER,
+                y0 + TOP_GUTTER,
+                x0 + width - RIGHT_GUTTER,
+                y0 + height - BOTTOM_GUTTER);
+        }
+        float bottomGutter = stationLabels
+            ? COMPACT_BOTTOM_GUTTER_WITH_STATION_LABELS
+            : COMPACT_BOTTOM_GUTTER;
         return new ProfileChartLayout(
             x0,
             y0,
             x0 + width,
             y0 + height,
-            x0 + LEFT_GUTTER,
-            y0 + TOP_GUTTER,
-            x0 + width - RIGHT_GUTTER,
-            y0 + height - BOTTOM_GUTTER);
+            x0 + COMPACT_LEFT_GUTTER,
+            y0 + COMPACT_TOP_GUTTER,
+            x0 + width - COMPACT_RIGHT_GUTTER,
+            y0 + height - bottomGutter);
     }
 
     public float plotWidth() {

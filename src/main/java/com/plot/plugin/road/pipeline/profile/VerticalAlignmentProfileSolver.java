@@ -91,8 +91,7 @@ public final class VerticalAlignmentProfileSolver {
             designElevations,
             segmentDistances,
             maxSlopePercents,
-            manualStartHeight,
-            manualEndHeight);
+            manualStartHeight);
 
         List<Integer> guideLine = toIntegerGuideLine(designElevations);
         List<SegmentHeightInfo> heightInfos = new ArrayList<>();
@@ -123,6 +122,7 @@ public final class VerticalAlignmentProfileSolver {
             guideLine,
             designElevations,
             raster.buildHeights(),
+            raster.samples(),
             raster.buildProfile(),
             manualEndpointConstraintFeasible);
     }

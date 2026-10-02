@@ -462,9 +462,8 @@ public final class RoadCrossSectionBuilder {
         int profileDirection = isFill ? -1 : 1;
         float slopeRatio = isFill ? fillRatio : cutRatio;
         int heightDifference = Math.abs(targetY - groundAtEdge);
-        int usefulHorizontalRun = Math.min(
-            maxHorizontalRun,
-            Math.max(2, (int) Math.ceil(heightDifference * Math.max(0.5f, slopeRatio)) + 2));
+        int usefulHorizontalRun = Math.clamp((int) Math.ceil(heightDifference * Math.max(0.5f, slopeRatio)) + 2, 2,
+                maxHorizontalRun);
 
         List<int[]> profile = RoadSlopeUtils.computeSlopeProfile(
             targetY,
@@ -590,7 +589,7 @@ public final class RoadCrossSectionBuilder {
             DesignElevationSource designElevation,
             BuildHeightProfile buildProfile) {
         double t = segment.distance > 1e-9
-            ? Math.max(0.0, Math.min(1.0, (globalDistance - segmentStartDistance) / segment.distance))
+            ? Math.clamp((globalDistance - segmentStartDistance) / segment.distance, 0.0, 1.0)
             : 0.0;
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         int targetY = DesignElevationSource.resolveTargetElevation(

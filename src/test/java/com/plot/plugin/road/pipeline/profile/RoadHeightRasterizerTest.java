@@ -18,7 +18,7 @@ class RoadHeightRasterizerTest {
         List<Float> slopes = constantSlopes(4, 5.0f);
 
         RoadHeightRasterizer.RasterizationResult result = RoadHeightRasterizer.rasterize(
-            design, distances, slopes, null, null);
+            design, distances, slopes, null);
 
         assertEquals(60, result.buildHeights().get(1),
             "5% over 10 m should not quantize to +1 block in the first segment");
@@ -26,26 +26,26 @@ class RoadHeightRasterizerTest {
     }
 
     @Test
-    void infeasibleManualEndIsNotForcedOntoLastSegment() {
+    void infeasibleDesignEndIsNotForcedOntoLastSegment() {
         List<Double> design = List.of(58.0, 61.0, 80.0);
         List<Double> distances = List.of(20.0, 20.0);
         List<Float> slopes = List.of(8.0f, 8.0f);
 
         RoadHeightRasterizer.RasterizationResult result = RoadHeightRasterizer.rasterize(
-            design, distances, slopes, 58, 80);
+            design, distances, slopes, 58);
 
         assertTrue(result.segmentBuildEnds().getLast() < 80);
         assertTrue(result.cumulativeGradeError() <= 20.0);
     }
 
     @Test
-    void feasibleManualEndIsReachedWithinSlopeBudget() {
+    void feasibleDesignEndIsReachedWithinSlopeBudget() {
         List<Double> design = List.of(58.0, 59.0, 60.0);
         List<Double> distances = List.of(20.0, 20.0);
         List<Float> slopes = List.of(8.0f, 8.0f);
 
         RoadHeightRasterizer.RasterizationResult result = RoadHeightRasterizer.rasterize(
-            design, distances, slopes, 58, 60);
+            design, distances, slopes, 58);
 
         assertEquals(60, result.segmentBuildEnds().getLast());
         assertTrue(result.maxDesignBuildDeviation() <= 1.0);
@@ -58,7 +58,7 @@ class RoadHeightRasterizerTest {
         List<Float> slopes = constantSlopes(4, 8.0f);
 
         RoadHeightRasterizer.RasterizationResult result = RoadHeightRasterizer.rasterize(
-            design, distances, slopes, null, null);
+            design, distances, slopes, null);
 
         assertTrue(result.cumulativeGradeError() <= 1.0);
         assertTrue(result.maxDesignBuildDeviation() <= 1.0);
@@ -74,9 +74,9 @@ class RoadHeightRasterizerTest {
 
         RoadHeightRasterizer.RasterizationResult fromInteger =
             RoadHeightRasterizer.rasterizeFromIntegerDesign(
-                integerDesign, distances, slopes, null, null);
+                integerDesign, distances, slopes, null);
         RoadHeightRasterizer.RasterizationResult fromDouble =
-            RoadHeightRasterizer.rasterize(design, distances, slopes, null, null);
+            RoadHeightRasterizer.rasterize(design, distances, slopes, null);
 
         assertEquals(fromDouble.buildHeights(), fromInteger.buildHeights());
     }
@@ -93,9 +93,9 @@ class RoadHeightRasterizerTest {
         List<Float> slopes = constantSlopes(4, 8.0f);
 
         RoadHeightRasterizer.RasterizationResult resultA = RoadHeightRasterizer.rasterize(
-            designA, distancesA, slopes, null, null);
+            designA, distancesA, slopes, null);
         RoadHeightRasterizer.RasterizationResult resultB = RoadHeightRasterizer.rasterize(
-            designB, distancesB, slopes, null, null);
+            designB, distancesB, slopes, null);
 
         assertEquals(resultA.samples().size(), resultB.samples().size());
         for (int i = 0; i < resultA.samples().size(); i++) {
@@ -115,7 +115,7 @@ class RoadHeightRasterizerTest {
         List<Float> slopes = constantSlopes(3, 8.0f);
 
         RoadHeightRasterizer.RasterizationResult result = RoadHeightRasterizer.rasterize(
-            design, distances, slopes, null, null);
+            design, distances, slopes, null);
 
         assertEquals(result.samples().getLast().buildY(), result.buildProfile().endElevation());
         for (int i = 0; i < result.buildHeights().size(); i++) {
@@ -137,7 +137,7 @@ class RoadHeightRasterizerTest {
         List<Float> slopes = List.of(8.0f);
 
         RoadHeightRasterizer.RasterizationResult result = RoadHeightRasterizer.rasterize(
-            design, distances, slopes, null, null);
+            design, distances, slopes, null);
 
         BuildHeightProfile profile = result.buildProfile();
         assertEquals(18.7, profile.endStation(), 1e-6);
@@ -147,20 +147,20 @@ class RoadHeightRasterizerTest {
     }
 
     @Test
-    void manualEndDoesNotRushAcrossEntireLastSegment() {
+    void designEndDoesNotRushAcrossEntireLastSegment() {
         List<Double> design = List.of(64.0, 70.0);
         List<Double> distances = List.of(100.0);
         List<Float> slopes = List.of(8.0f);
 
         RoadHeightRasterizer.RasterizationResult result = RoadHeightRasterizer.rasterize(
-            design, distances, slopes, null, 70);
+            design, distances, slopes, null);
 
         assertTrue(result.longestFlatRun() < 25,
             () -> "endpoint should follow design slope, not rush then flatten; longest flat "
                 + result.longestFlatRun());
         assertEquals(70, result.buildProfile().endElevation());
         assertTrue(result.samples().getLast().buildY() >= 68,
-            "build should approach manual endpoint along the design profile");
+            "build should approach design endpoint along the continuous profile");
     }
 
     @Test
@@ -170,7 +170,7 @@ class RoadHeightRasterizerTest {
         List<Float> slopes = List.of(8.0f);
 
         RoadHeightRasterizer.RasterizationResult result = RoadHeightRasterizer.rasterize(
-            design, distances, slopes, null, null);
+            design, distances, slopes, null);
 
         assertEquals(19, result.samples().size());
         assertTrue(result.buildProfile().isActive());
@@ -188,7 +188,7 @@ class RoadHeightRasterizerTest {
         List<Float> slopes = List.of(5.0f);
 
         RoadHeightRasterizer.RasterizationResult result = RoadHeightRasterizer.rasterize(
-            design, distances, slopes, null, null);
+            design, distances, slopes, null);
 
         List<Integer> riseStations = new ArrayList<>();
         int previous = result.samples().getFirst().buildY();

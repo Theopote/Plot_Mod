@@ -12,16 +12,21 @@ class ProfileChartRenderModeTest {
     void miniModeSuppressesLabelsAndGuideLine() {
         ProfileChartRenderMode mode = ProfileChartRenderMode.MINI;
         assertFalse(mode.showElevationAxisLabels());
+        assertFalse(mode.showStationAxisLabels());
         assertFalse(mode.showIntersectionLabels());
         assertFalse(mode.showGuideLine());
+        assertFalse(mode.showDesignProfileLine());
+        assertTrue(mode.useCompactLayout());
         assertEquals(3, mode.maxStationTicks());
     }
 
     @Test
-    void overviewModeShowsTerrainTrendGuide() {
+    void overviewModeShowsDesignLineInCompactLayout() {
         ProfileChartRenderMode mode = ProfileChartRenderMode.OVERVIEW;
-        assertTrue(mode.showGuideLine());
+        assertTrue(mode.showDesignProfileLine());
+        assertFalse(mode.showGuideLine());
         assertFalse(mode.showElevationAxisLabels());
+        assertTrue(mode.useCompactLayout());
     }
 
     @Test

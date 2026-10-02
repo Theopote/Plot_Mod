@@ -1,6 +1,7 @@
 package com.plot.plugin.road.profile;
 
 import com.plot.plugin.road.RoadLongitudinalProfileRenderer;
+import com.plot.plugin.road.pipeline.profile.BuildHeightSample;
 import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
@@ -77,7 +78,7 @@ public final class RoadProfileChartRenderer {
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
         ProfileChartLayout layout = ProfileChartLayout.fromOuterRect(
-            origin.x, origin.y, width, chartHeight);
+            origin.x, origin.y, width, chartHeight, mode);
         RoadProfilePlotRange range = plotRange(chart, design, List.of(), intersections, flatOverlay);
         drawBackground(drawList, layout);
         drawAxesAndGrid(drawList, layout, range, mode);
@@ -179,7 +180,7 @@ public final class RoadProfileChartRenderer {
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
         ProfileChartLayout layout = ProfileChartLayout.fromOuterRect(
-            origin.x, origin.y, width, chartHeight);
+            origin.x, origin.y, width, chartHeight, mode);
         RoadProfilePlotRange range = resolvePlotRange(
             renderCache, chart, design, controls, intersections, flatOverlay);
         drawBackground(drawList, layout);
@@ -423,6 +424,12 @@ public final class RoadProfileChartRenderer {
         max = extendMax(max, chart.previewElevations());
         min = extendMin(min, chart.buildElevations());
         max = extendMax(max, chart.buildElevations());
+        if (chart.hasBuildSamples()) {
+            for (BuildHeightSample sample : chart.buildSamples()) {
+                min = Math.min(min, sample.buildY());
+                max = Math.max(max, sample.buildY());
+            }
+        }
         min = extendMin(min, chart.guideElevations());
         max = extendMax(max, chart.guideElevations());
         if (flatOverlay != null) {
@@ -608,10 +615,20 @@ public final class RoadProfileChartRenderer {
                 1.6f,
                 true);
         }
-        drawPolyline(
-            drawList, layout, range, chart.stations(), chart.previewElevations(),
-            COLOR_DESIGN, mode.roadLineWidth(), false);
-        if (chart.buildElevations() != null && !chart.buildElevations().isEmpty()) {
+        if (mode.showDesignProfileLine()) {
+            drawPolyline(
+                drawList, layout, range, chart.stations(), chart.previewElevations(),
+                COLOR_DESIGN, mode.roadLineWidth(), false);
+        }
+        if (mode == ProfileChartRenderMode.EDITOR && chart.hasBuildSamples()) {
+            drawBuildStairStep(
+                drawList,
+                layout,
+                range,
+                chart.buildSamples(),
+                COLOR_BUILD,
+                Math.max(1.4f, mode.roadLineWidth() - 0.4f));
+        } else if (chart.buildElevations() != null && !chart.buildElevations().isEmpty()) {
             drawPolyline(
                 drawList, layout, range, chart.stations(), chart.buildElevations(),
                 COLOR_BUILD, Math.max(1.4f, mode.roadLineWidth() - 0.4f), false);
@@ -644,6 +661,30 @@ public final class RoadProfileChartRenderer {
 
     private static void drawAxesAndGrid(ImDrawList drawList, ProfileChartLayout layout, RoadProfilePlotRange range) {
         drawAxesAndGrid(drawList, layout, range, ProfileChartRenderMode.EDITOR);
+    }
+
+    private static void drawBuildStairStep(
+            ImDrawList drawList,
+            ProfileChartLayout layout,
+            RoadProfilePlotRange range,
+            List<BuildHeightSample> samples,
+            int color,
+            float thickness) {
+        if (samples == null || samples.size() < 2) {
+            return;
+        }
+        for (int i = 0; i < samples.size() - 1; i++) {
+            BuildHeightSample current = samples.get(i);
+            BuildHeightSample next = samples.get(i + 1);
+            float x0 = layout.plotX(current.station(), range.totalStation());
+            float y0 = layout.plotY(current.buildY(), range.minElevation(), range.maxElevation());
+            float x1 = layout.plotX(next.station(), range.totalStation());
+            float y1 = layout.plotY(next.buildY(), range.minElevation(), range.maxElevation());
+            drawList.addLine(x0, y0, x1, y0, color, thickness);
+            if (next.buildY() != current.buildY()) {
+                drawList.addLine(x1, y0, x1, y1, color, thickness);
+            }
+        }
     }
 
     private static void drawPolyline(

@@ -4,7 +4,9 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.profile.ProfileChartRenderMode;
 import com.plot.plugin.road.profile.RoadProfileChartData;
-import com.plot.plugin.road.profile.RoadProfileChartRenderer;
+import com.plot.plugin.road.profile.ProfileQualitySummary;
+import com.plot.plugin.road.profile.RoadProfileCompactCard;
+import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.plugin.road.profile.RoadProfileIntersection;
 import com.plot.plugin.road.profile.RoadProfileRoadList;
 import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
@@ -19,8 +21,8 @@ import java.util.function.Function;
 /** Generate Tab 纵断面总览：全部可桩号化 Road 的缩略图卡片。 */
 public final class RoadProfileOverviewSection {
 
-    public static final float MINI_CHART_HEIGHT = 80f;
-    public static final float ACTIVE_CHART_HEIGHT = 128f;
+    public static final float MINI_CHART_HEIGHT = RoadProfileCompactCard.CHART_HEIGHT;
+    public static final float ACTIVE_CHART_HEIGHT = RoadProfileCompactCard.ACTIVE_CHART_HEIGHT;
 
     private RoadProfileOverviewSection() {
     }
@@ -100,17 +102,29 @@ public final class RoadProfileOverviewSection {
                 VerticalAlignmentProfileOverlay design =
                     VerticalAlignmentProfileOverlay.forRoad(network, road).orElse(null);
                 List<RoadProfileIntersection> intersections = chartData.intersections();
-                ProfileChartRenderMode mode = active
-                    ? ProfileChartRenderMode.OVERVIEW
-                    : ProfileChartRenderMode.MINI;
-                RoadProfileChartRenderer.renderOverview(
+                ProfileChartRenderMode mode = ProfileChartRenderMode.MINI;
+                boolean flatMode = RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT;
+                RoadProfileCompactCard.renderOverview(
                     chartData,
                     design,
                     intersections,
                     chartHeight,
                     flatOverlay,
                     mode,
-                    road.getVerticalMode());
+                    road.getVerticalMode(),
+                    flatMode,
+                    ctx.previewManager().needsPreviewRecalc());
+                if (active) {
+                    String qualityLine = ProfileQualitySummary.compactLine(
+                        chartData,
+                        road,
+                        ctx.networkManager().getConfig());
+                    if (!qualityLine.isEmpty()) {
+                        RoadUiWidgets.textWrappedColored(
+                            PluginUiColors.HINT_GRAY,
+                            qualityLine);
+                    }
+                }
             }
         } finally {
             ImGui.popID();

@@ -30,11 +30,20 @@ public enum ProfileChartRenderMode {
     }
 
     public boolean showStationAxisLabels() {
-        return true;
+        return this == EDITOR;
+    }
+
+    public boolean useCompactLayout() {
+        return this == MINI || this == OVERVIEW;
+    }
+
+    /** 连续设计纵断面；紧凑 Overview 仅显示地形 + 建造台阶。 */
+    public boolean showDesignProfileLine() {
+        return this == OVERVIEW || this == EDITOR;
     }
 
     public boolean showGuideLine() {
-        return this == OVERVIEW || this == EDITOR;
+        return this == EDITOR;
     }
 
     public boolean showIntersectionLabels() {

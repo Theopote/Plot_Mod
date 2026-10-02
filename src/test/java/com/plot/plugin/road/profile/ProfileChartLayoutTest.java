@@ -3,6 +3,7 @@ package com.plot.plugin.road.profile;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ProfileChartLayoutTest {
 
@@ -30,5 +31,14 @@ class ProfileChartLayoutTest {
         ProfileChartLayout layout = ProfileChartLayout.fromOuterRect(0f, 0f, 400f, 200f);
         assertEquals(0.0, layout.stationAtMouseX(layout.plotLeft() - 20f, 426.0), 1e-6);
         assertEquals(426.0, layout.stationAtMouseX(layout.plotRight() + 20f, 426.0), 1e-6);
+    }
+
+    @Test
+    void compactLayoutMaximizesPlotArea() {
+        ProfileChartLayout standard = ProfileChartLayout.fromOuterRect(0f, 0f, 400f, 80f);
+        ProfileChartLayout compact = ProfileChartLayout.fromOuterRect(
+            0f, 0f, 400f, 80f, ProfileChartRenderMode.MINI);
+        assertTrue(compact.plotWidth() > standard.plotWidth());
+        assertTrue(compact.plotHeight() > standard.plotHeight());
     }
 }

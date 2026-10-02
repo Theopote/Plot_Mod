@@ -1,9 +1,14 @@
 package com.plot.plugin.road.profile;
 
+import com.plot.plugin.road.pipeline.profile.BuildHeightSample;
+
 import java.util.List;
 
 /**
  * 整条道路的纵断面图数据：X 轴为 canonical road station {@code 0…totalStation}。
+ * <p>
+ * {@link #buildElevations()} 为 segment-boundary 摘要，供概览与范围计算；
+ * {@link #buildSamples()} 为完整方块阶梯序列，供 Editor 真实 stair-step 绘制。
  */
 public record RoadProfileChartData(
         String roadId,
@@ -12,6 +17,7 @@ public record RoadProfileChartData(
         List<Double> groundElevations,
         List<Double> previewElevations,
         List<Double> buildElevations,
+        List<BuildHeightSample> buildSamples,
         List<Double> guideElevations,
         List<ProfileControlPoint> controlPoints,
         List<RoadProfileIntersection> intersections,
@@ -33,6 +39,7 @@ public record RoadProfileChartData(
             groundElevations,
             previewElevations,
             previewElevations,
+            List.of(),
             guideElevations,
             controlPoints,
             intersections,
@@ -56,6 +63,7 @@ public record RoadProfileChartData(
             groundElevations,
             previewElevations,
             previewElevations,
+            List.of(),
             guideElevations,
             controlPoints,
             intersections,
@@ -73,6 +81,10 @@ public record RoadProfileChartData(
             && previewElevations.size() == stations.size()
             && buildElevations != null
             && buildElevations.size() == stations.size();
+    }
+
+    public boolean hasBuildSamples() {
+        return buildSamples != null && buildSamples.size() >= 2;
     }
 
     /** Road-level 图表契约：station 覆盖完整 canonical 范围且单调。 */
@@ -102,11 +114,28 @@ public record RoadProfileChartData(
     }
 
     public double buildElevationAt(double station) {
+        if (hasBuildSamples()) {
+            return buildElevationFromSamples(station);
+        }
         return interpolate(stations, buildElevations, station);
     }
 
     public double groundElevationAt(double station) {
         return interpolate(stations, groundElevations, station);
+    }
+
+    private double buildElevationFromSamples(double station) {
+        if (station <= buildSamples.getFirst().station() + EPSILON) {
+            return buildSamples.getFirst().buildY();
+        }
+        BuildHeightSample match = buildSamples.getFirst();
+        for (BuildHeightSample sample : buildSamples) {
+            if (sample.station() > station + EPSILON) {
+                break;
+            }
+            match = sample;
+        }
+        return match.buildY();
     }
 
     static double interpolate(List<Double> stations, List<Double> values, double station) {

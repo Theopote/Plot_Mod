@@ -8,6 +8,8 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.pipeline.profile.BuildHeightSample;
+import com.plot.plugin.road.pipeline.profile.RoadHeightRasterizer;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
@@ -266,6 +268,73 @@ class RoadProfileChartAssemblerTest {
             road,
             new RoadSystemConfig("test"),
             edgeResults).isEmpty());
+    }
+
+    @Test
+    void assemblerCarriesFullBlockBuildSamplesForEditorStairStep() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("main");
+        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 64.0),
+            PointOfVerticalIntersection.of(40.0, 65.0)
+        )));
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(40, 0));
+        String edgeId = network.createEdge(
+            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(40, 0)), road.getId()).getId();
+
+        RoadHeightRasterizer.RasterizationResult raster = RoadHeightRasterizer.rasterize(
+            List.of(64.0, 65.0), List.of(40.0), List.of(5.0f), null);
+        RoadGenerationResult edgeResult = profileResult(40.0, 64, 65);
+        edgeResult.profileBuildSamples = raster.samples();
+        edgeResult.buildProfile = raster.buildProfile();
+
+        Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
+        edgeResults.put(edgeId, edgeResult);
+
+        RoadProfileChartData chart = RoadProfileChartAssembler.assemble(
+            network, road, new RoadSystemConfig("test"), edgeResults).orElseThrow();
+
+        assertTrue(chart.hasBuildSamples());
+        assertTrue(chart.buildSamples().size() > chart.buildElevations().size(),
+            "editor stair-step should use per-block samples, not segment-boundary summary");
+        assertEquals(0.0, chart.buildSamples().getFirst().station(), 1e-3);
+        assertEquals(40.0, chart.buildSamples().getLast().station(), 1e-3);
+        for (int i = 1; i < chart.buildSamples().size(); i++) {
+            BuildHeightSample previous = chart.buildSamples().get(i - 1);
+            BuildHeightSample current = chart.buildSamples().get(i);
+            assertTrue(current.station() >= previous.station() - 1e-6);
+            assertTrue(Math.abs(current.buildY() - previous.buildY()) <= 1);
+        }
+    }
+
+    @Test
+    void buildElevationLookupUsesBlockSamplesWhenPresent() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("main");
+        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(40, 0));
+        String edgeId = network.createEdge(
+            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(40, 0)), road.getId()).getId();
+
+        RoadHeightRasterizer.RasterizationResult raster = RoadHeightRasterizer.rasterize(
+            List.of(64.0, 65.0), List.of(40.0), List.of(5.0f), null);
+        RoadGenerationResult edgeResult = profileResult(40.0, 64, 65);
+        edgeResult.profileBuildSamples = raster.samples();
+        edgeResult.buildProfile = raster.buildProfile();
+
+        RoadProfileChartData chart = RoadProfileChartAssembler.assemble(
+            network,
+            road,
+            new RoadSystemConfig("test"),
+            Map.of(edgeId, edgeResult)).orElseThrow();
+
+        assertEquals(
+            raster.buildProfile().elevationAtWorldStation(20.0),
+            chart.buildElevationAt(20.0),
+            1e-6);
     }
 
     private static RoadGenerationResult profileResult(double span, int startHeight, int endHeight) {

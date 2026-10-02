@@ -85,8 +85,7 @@ public final class GradeLimitedProfileSolver {
             designElevations,
             segmentDistances,
             maxSlopePercents,
-            manualStartHeight,
-            manualEndHeight);
+            manualStartHeight);
         return new DesignSolveResult(
             designElevations,
             raster,

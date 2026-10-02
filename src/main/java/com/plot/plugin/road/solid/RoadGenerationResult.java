@@ -2,6 +2,8 @@ package com.plot.plugin.road.solid;
 
 import com.plot.core.command.BlockRecord;
 import com.plot.plugin.road.RoadConstructionType;
+import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
+import com.plot.plugin.road.pipeline.profile.BuildHeightSample;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -38,6 +40,8 @@ public class RoadGenerationResult {
     public List<Integer> profileGuideLine = new ArrayList<>();
     public List<Double> profileDesignElevations = new ArrayList<>();
     public List<Integer> profileBuildHeights = new ArrayList<>();
+    public BuildHeightProfile buildProfile = BuildHeightProfile.inactive();
+    public List<BuildHeightSample> profileBuildSamples = new ArrayList<>();
     /** False when a pinned start/end elevation cannot be reached within max slope. */
     public boolean manualEndpointConstraintFeasible = true;
 
@@ -90,6 +94,8 @@ public class RoadGenerationResult {
         profileGuideLine = new ArrayList<>(source.profileGuideLine);
         profileDesignElevations = new ArrayList<>(source.profileDesignElevations);
         profileBuildHeights = new ArrayList<>(source.profileBuildHeights);
+        buildProfile = source.buildProfile;
+        profileBuildSamples = new ArrayList<>(source.profileBuildSamples);
         manualEndpointConstraintFeasible = source.manualEndpointConstraintFeasible;
     }
 

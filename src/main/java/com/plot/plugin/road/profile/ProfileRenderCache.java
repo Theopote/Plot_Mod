@@ -34,7 +34,8 @@ public record ProfileRenderCache(
             chart.stations() != null ? chart.stations().size() : 0,
             chart.groundElevations() != null ? chart.groundElevations().hashCode() : 0,
             chart.previewElevations() != null ? chart.previewElevations().hashCode() : 0,
-            chart.buildElevations() != null ? chart.buildElevations().hashCode() : 0);
+            chart.buildElevations() != null ? chart.buildElevations().hashCode() : 0,
+            chart.buildSamples() != null ? chart.buildSamples().hashCode() : 0);
         return Objects.hash(roadId, networkRevision, terrainRevision, chartFingerprint);
     }
 
