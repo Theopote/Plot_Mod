@@ -80,6 +80,17 @@ public final class RoadCrossSectionBuilder {
             buildProfile,
             ctx.request().profileWaterCrossings());
 
+        generateBridgeGuardrails(
+            crossSectionHost,
+            solids,
+            detection.constructionTypes(),
+            segments,
+            heightInfos,
+            crossSections,
+            unitsPerBlock,
+            designElevation,
+            buildProfile);
+
         generateShoulderBlocks(
             crossSectionHost, solids, segments, heightInfos, crossSections, unitsPerBlock, designElevation, buildProfile);
         generateBikeLaneBlocks(
@@ -121,6 +132,10 @@ public final class RoadCrossSectionBuilder {
 
         boolean generateBridgePillars();
 
+        boolean includeBridgeGuardrail();
+
+        String bridgeGuardrailMaterial();
+
         static CrossSectionHost from(RoadGenerationPipelineContext.Host host) {
             return new CrossSectionHost() {
                 @Override
@@ -151,6 +166,16 @@ public final class RoadCrossSectionBuilder {
                 @Override
                 public boolean generateBridgePillars() {
                     return host.config().isGenerateBridgePillars();
+                }
+
+                @Override
+                public boolean includeBridgeGuardrail() {
+                    return host.config().isIncludeBridgeGuardrail();
+                }
+
+                @Override
+                public String bridgeGuardrailMaterial() {
+                    return host.config().getBridgeGuardrailMaterial();
                 }
             };
         }
@@ -573,6 +598,42 @@ public final class RoadCrossSectionBuilder {
             designElevation,
             buildProfile,
             profileWaterCrossings);
+    }
+
+    private static void generateBridgeGuardrails(
+            CrossSectionHost host,
+            RoadSolidModel solids,
+            List<RoadConstructionType> constructionTypes,
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            CrossSectionBuildContext crossSections,
+            double unitsPerBlock,
+            DesignElevationSource designElevation,
+            BuildHeightProfile buildProfile) {
+        if (!host.includeBridgeGuardrail()) {
+            return;
+        }
+        BridgeGuardrailGenerator.generate(
+            new BridgeGuardrailGenerator.Host() {
+                @Override
+                public String resolveBlockId(String material) {
+                    return host.resolveBlockId(material);
+                }
+
+                @Override
+                public int snapEndpointElevation(Vec2d center, int targetY) {
+                    return host.snapEndpointElevation(center, targetY);
+                }
+            },
+            solids,
+            constructionTypes,
+            segments,
+            heightInfos,
+            crossSections,
+            unitsPerBlock,
+            designElevation,
+            buildProfile,
+            host.bridgeGuardrailMaterial());
     }
 
     private static boolean usesStationGatedDrainage(StationFacilityBuildContext stationFacilities) {

@@ -51,6 +51,11 @@ public final class RoadGenerationSettingsPanel {
             config.setGenerateBridgePillars(bridgePillars.get());
             markChanged(ctx);
         }
+        ImBoolean bridgeGuardrail = new ImBoolean(config.isIncludeBridgeGuardrail());
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_bridge_guardrail"), bridgeGuardrail)) {
+            config.setIncludeBridgeGuardrail(bridgeGuardrail.get());
+            markChanged(ctx);
+        }
     }
 
     /** 建造 Tab 高级：桥隧阈值、采样、净空等工程参数。 */

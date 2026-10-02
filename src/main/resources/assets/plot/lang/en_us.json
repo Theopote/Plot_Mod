@@ -409,6 +409,7 @@
   "plugin.earthwork.target_elevation": "Target Elevation: %s m",
   "plugin.road.bridge_threshold": "Bridge Threshold: %s blocks",
   "plugin.road.generate_bridge_pillars": "Generate bridge pillars",
+  "plugin.road.include_bridge_guardrail": "Bridge guardrails",
   "plugin.road.build": "Build",
   "plugin.road.calc_preview": "Calculate Preview",
   "plugin.road.recalculate_preview": "Recalculate Preview",

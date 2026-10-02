@@ -47,6 +47,8 @@ class RoadSystemConfigTest {
         RoadSystemConfig config = new RoadSystemConfig("workflow_test");
         config.setLaneCount(4);
         config.setGenerateBridgePillars(false);
+        config.setIncludeBridgeGuardrail(true);
+        config.setBridgeGuardrailMaterial("minecraft:dark_oak_fence");
         config.setTunnelClearanceHeight(7);
         config.setTunnelSideClearance(2);
         config.setTunnelLiningThickness(2);
@@ -64,6 +66,8 @@ class RoadSystemConfigTest {
         assertNotNull(loaded);
         assertEquals(4, loaded.getLaneCount());
         assertFalse(loaded.isGenerateBridgePillars());
+        assertTrue(loaded.isIncludeBridgeGuardrail());
+        assertEquals("minecraft:dark_oak_fence", loaded.getBridgeGuardrailMaterial());
         assertEquals(7, loaded.getTunnelClearanceHeight());
         assertEquals(2, loaded.getTunnelSideClearance());
         assertEquals(2, loaded.getTunnelLiningThickness());

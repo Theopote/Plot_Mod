@@ -44,6 +44,8 @@ public class RoadSystemConfig {
     private float maxSlope = 10.0f; // 最大坡度（百分比）
     private int bridgeThreshold = 3; // 桥阈值（方块高度差）- 从5改为3，更容易触发桥梁
     private boolean generateBridgePillars = true;
+    private boolean includeBridgeGuardrail = false;
+    private String bridgeGuardrailMaterial = "minecraft:oak_fence";
     private int tunnelThreshold = 4; // 隧道阈值（方块高度差）- 从8改为4，山体覆盖4格即形成隧道
     private int tunnelClearanceHeight = 5;
     private int tunnelSideClearance = 1;
@@ -299,6 +301,24 @@ public class RoadSystemConfig {
 
     public void setGenerateBridgePillars(boolean generateBridgePillars) {
         this.generateBridgePillars = generateBridgePillars;
+    }
+
+    public boolean isIncludeBridgeGuardrail() {
+        return includeBridgeGuardrail;
+    }
+
+    public void setIncludeBridgeGuardrail(boolean includeBridgeGuardrail) {
+        this.includeBridgeGuardrail = includeBridgeGuardrail;
+    }
+
+    public String getBridgeGuardrailMaterial() {
+        return bridgeGuardrailMaterial == null || bridgeGuardrailMaterial.isBlank()
+            ? "minecraft:oak_fence"
+            : bridgeGuardrailMaterial;
+    }
+
+    public void setBridgeGuardrailMaterial(String bridgeGuardrailMaterial) {
+        this.bridgeGuardrailMaterial = bridgeGuardrailMaterial;
     }
     
     public int getTunnelThreshold() {
