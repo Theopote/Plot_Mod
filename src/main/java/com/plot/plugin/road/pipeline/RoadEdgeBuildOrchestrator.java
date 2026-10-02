@@ -122,6 +122,7 @@ public final class RoadEdgeBuildOrchestrator {
                 StationFacilityBuildContext.forEdge(network, edge),
                 designElevation,
                 heightCalculation.buildProfile(),
+                heightCalculation.profileWaterCrossings(),
                 host);
             result.edgeId = edge.getId();
             result.copyProfileFrom(RoadProfileSolver.toProfileSnapshot(heightCalculation));
@@ -152,6 +153,7 @@ public final class RoadEdgeBuildOrchestrator {
             StationFacilityBuildContext.EMPTY,
             DesignElevationSource.inactive(),
             heightCalculation.buildProfile(),
+            heightCalculation.profileWaterCrossings(),
             host);
         result.copyProfileFrom(RoadProfileSolver.toProfileSnapshot(heightCalculation));
         return result;
@@ -169,6 +171,7 @@ public final class RoadEdgeBuildOrchestrator {
             StationFacilityBuildContext stationFacilities,
             DesignElevationSource designElevation,
             BuildHeightProfile buildProfile,
+            List<com.plot.plugin.road.pipeline.profile.environment.WaterCrossing> profileWaterCrossings,
             RoadGenerationPipelineHost host) {
         return pipeline.execute(
             new RoadGenerationBuildRequest(
@@ -182,7 +185,8 @@ public final class RoadEdgeBuildOrchestrator {
                 carriagewaySeedKey,
                 stationFacilities,
                 designElevation,
-                buildProfile),
+                buildProfile,
+                profileWaterCrossings),
             host);
     }
 

@@ -83,6 +83,50 @@ public final class RoadConstructionClassifier {
             buildRuns(resolvedTypes, segmentDistances, groundHeights, targetHeights));
     }
 
+    static ConstructionDetection finalizeDetection(
+            List<RoadConstructionType> resolvedTypes,
+            List<Double> segmentDistances,
+            List<SegmentHeightInfo> heightInfos,
+            CanvasBlockPosResolver canvasToBlockPos,
+            TerrainSampler terrain) {
+        List<BridgeSegment> bridges = new ArrayList<>();
+        List<TunnelSegment> tunnels = new ArrayList<>();
+        List<Integer> groundHeights = new ArrayList<>();
+        List<Integer> targetHeights = new ArrayList<>();
+        for (int i = 0; i < resolvedTypes.size() && i < heightInfos.size(); i++) {
+            SegmentHeightInfo info = heightInfos.get(i);
+            groundHeights.add(averageHeight(
+                effectiveGround(info.groundStart, info.waterStart),
+                effectiveGround(info.groundEnd, info.waterEnd)));
+            targetHeights.add(averageHeight(info.targetStart, info.targetEnd));
+            RoadConstructionType type = resolvedTypes.get(i);
+            if (type == RoadConstructionType.BRIDGE) {
+                int heightDifference = Math.max(
+                    info.targetStart - info.groundStart,
+                    info.targetEnd - info.groundEnd);
+                bridges.add(new BridgeSegment(info.segment, Math.max(0, heightDifference)));
+            } else if (type == RoadConstructionType.TUNNEL && terrain != null && canvasToBlockPos != null) {
+                Vec2d mid = info.segment.start.lerp(info.segment.end, 0.5);
+                int targetY = Math.round((info.targetStart + info.targetEnd) / 2.0f);
+                BlockPos pos = canvasToBlockPos.resolve(mid).withY(targetY);
+                if (terrain.isSolidBlock(pos.getX(), pos.getY(), pos.getZ())) {
+                    int heightDifference = Math.max(
+                        info.groundStart - info.targetStart,
+                        info.groundEnd - info.targetEnd);
+                    tunnels.add(new TunnelSegment(info.segment, Math.max(0, heightDifference)));
+                } else {
+                    resolvedTypes.set(i, RoadConstructionType.CUT);
+                }
+            }
+        }
+        return new ConstructionDetection(
+            bridges,
+            tunnels,
+            List.copyOf(resolvedTypes),
+            segmentDistances,
+            buildRuns(resolvedTypes, segmentDistances, groundHeights, targetHeights));
+    }
+
     private static int effectiveGround(int terrainY, Integer waterSurfaceY) {
         if (waterSurfaceY == null) {
             return terrainY;

@@ -1,6 +1,8 @@
 package com.plot.plugin.road.pipeline;
 
+import com.plot.plugin.road.pipeline.construction.ConstructionDetection;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
+import com.plot.plugin.road.pipeline.construction.WaterCrossingConstructionResolver;
 import com.plot.plugin.road.pipeline.crosssection.RoadCrossSectionBuilder;
 import com.plot.plugin.road.pipeline.furniture.RoadFurnitureGenerator;
 import com.plot.plugin.road.pipeline.facility.RoadStationFacilityGenerator;
@@ -41,14 +43,23 @@ public final class RoadGenerationPipeline {
             host.config().getPathSampleDistance(),
             host::estimateCanvasUnitsPerBlock));
 
-        ctx.setDetection(RoadConstructionClassifier.classify(
+        ctx.setUnitsPerBlock(host.estimateCanvasUnitsPerBlock(request.pathPoints(), ctx.segments()));
+
+        ConstructionDetection detection = RoadConstructionClassifier.classify(
             ctx.segments(),
             request.heightInfos(),
             request.terrain(),
             host.config(),
-                host::canvasToBlockPos));
-
-        ctx.setUnitsPerBlock(host.estimateCanvasUnitsPerBlock(request.pathPoints(), ctx.segments()));
+            host::canvasToBlockPos);
+        detection = WaterCrossingConstructionResolver.apply(
+            detection,
+            request.profileWaterCrossings(),
+            request.heightInfos(),
+            ctx.unitsPerBlock(),
+            host.config(),
+            request.terrain(),
+            host::canvasToBlockPos);
+        ctx.setDetection(detection);
 
         host.setEndpointSnaps(request.endpointSnaps());
         try {

@@ -6,6 +6,7 @@ import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnaps;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
+import com.plot.plugin.road.pipeline.profile.environment.WaterCrossing;
 import com.plot.core.terrain.TerrainSampler;
 
 import java.util.List;
@@ -24,7 +25,8 @@ public record RoadGenerationBuildRequest(
         String carriagewaySeedKey,
         StationFacilityBuildContext stationFacilities,
         DesignElevationSource designElevation,
-        BuildHeightProfile buildProfile) {
+        BuildHeightProfile buildProfile,
+        List<WaterCrossing> profileWaterCrossings) {
 
     public RoadGenerationBuildRequest {
         if (stationFacilities == null) {
@@ -39,6 +41,36 @@ public record RoadGenerationBuildRequest(
         if (buildProfile == null) {
             buildProfile = BuildHeightProfile.inactive();
         }
+        if (profileWaterCrossings == null) {
+            profileWaterCrossings = List.of();
+        }
+    }
+
+    public RoadGenerationBuildRequest(
+            List<Vec2d> pathPoints,
+            TerrainSampler terrain,
+            ResolvedCrossSection crossSection,
+            CrossSectionBuildContext crossSections,
+            List<SegmentHeightInfo> heightInfos,
+            double pathLength,
+            EndpointElevationSnaps endpointSnaps,
+            String carriagewaySeedKey,
+            StationFacilityBuildContext stationFacilities,
+            DesignElevationSource designElevation,
+            BuildHeightProfile buildProfile) {
+        this(
+            pathPoints,
+            terrain,
+            crossSection,
+            crossSections,
+            heightInfos,
+            pathLength,
+            endpointSnaps,
+            carriagewaySeedKey,
+            stationFacilities,
+            designElevation,
+            buildProfile,
+            List.of());
     }
 
     public RoadGenerationBuildRequest(
@@ -62,6 +94,7 @@ public record RoadGenerationBuildRequest(
             carriagewaySeedKey,
             stationFacilities,
             DesignElevationSource.inactive(),
-            BuildHeightProfile.inactive());
+            BuildHeightProfile.inactive(),
+            List.of());
     }
 }

@@ -15,6 +15,8 @@ import com.plot.plugin.road.pipeline.StationFacilityBuildContext;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
 import com.plot.plugin.road.pipeline.construction.ConstructionDetection;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
+import com.plot.plugin.road.pipeline.construction.WaterCrossingConstructionResolver;
+import com.plot.plugin.road.pipeline.profile.environment.WaterCrossing;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
@@ -65,6 +67,19 @@ public final class RoadCrossSectionBuilder {
             unitsPerBlock,
             designElevation,
             buildProfile);
+
+        generateBridgeStructures(
+            crossSectionHost,
+            solids,
+            detection.constructionTypes(),
+            segments,
+            heightInfos,
+            crossSections,
+            terrain,
+            unitsPerBlock,
+            designElevation,
+            buildProfile,
+            ctx.request().profileWaterCrossings());
 
         generateShoulderBlocks(
             crossSectionHost, solids, segments, heightInfos, crossSections, unitsPerBlock, designElevation, buildProfile);
@@ -226,10 +241,6 @@ public final class RoadCrossSectionBuilder {
             }
             geometryLocalBase += segment.distance;
         }
-
-        generateBridgeStructures(
-            host, solids, constructionTypes, segments, heightInfos,
-            crossSections, terrain, unitsPerBlock, designElevation, buildProfile);
     }
 
     private static void generateShoulderBlocks(
@@ -536,7 +547,8 @@ public final class RoadCrossSectionBuilder {
             TerrainSampler terrain,
             double unitsPerBlock,
             DesignElevationSource designElevation,
-            BuildHeightProfile buildProfile) {
+            BuildHeightProfile buildProfile,
+            List<WaterCrossing> profileWaterCrossings) {
         if (constructionTypes.stream().noneMatch(type -> type == RoadConstructionType.BRIDGE)) {
             return;
         }
@@ -544,7 +556,8 @@ public final class RoadCrossSectionBuilder {
             return;
         }
         String pillarBlockId = host.resolveBlockId("material.plot.stone");
-        double pillarSpacing = Math.max(unitsPerBlock, 6.0 * unitsPerBlock);
+        double defaultPillarSpacing = Math.max(unitsPerBlock, 6.0 * unitsPerBlock);
+        double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         double accumulated = 0.0;
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             PathSegment segment = segments.get(i);
@@ -558,6 +571,7 @@ public final class RoadCrossSectionBuilder {
                 double chainageB = crossSections.chainageAtGeometryLocal(segmentEnd);
                 double minChainage = Math.min(chainageA, chainageB);
                 double maxChainage = Math.max(chainageA, chainageB);
+                double pillarSpacing = defaultPillarSpacing;
                 double pillarChainage = Math.ceil((minChainage - 1e-9) / pillarSpacing) * pillarSpacing;
                 while (pillarChainage <= maxChainage + 1e-9) {
                     double geometryDistance = crossSections.orientedSegment() != null
@@ -565,9 +579,21 @@ public final class RoadCrossSectionBuilder {
                             .geometryLocalAtRoadStation(pillarChainage)
                             .orElse(accumulated)
                         : pillarChainage;
-                    placeBridgePillarCrossSection(
-                        host, solids, segment, info, geometryDistance, accumulated,
-                        crossSections, terrain, pillarBlockId, unitsPerBlock, designElevation, buildProfile);
+                    double worldStation = geometryDistance / scale;
+                    if (profileWaterCrossings == null
+                            || profileWaterCrossings.isEmpty()
+                            || WaterCrossingConstructionResolver.isBridgeStructureStation(
+                                profileWaterCrossings, worldStation)) {
+                        pillarSpacing = Math.max(
+                            unitsPerBlock,
+                            WaterCrossingConstructionResolver.bridgePillarSpacingBlocks(
+                                profileWaterCrossings,
+                                worldStation,
+                                6.0 * unitsPerBlock));
+                        placeBridgePillarCrossSection(
+                            host, solids, segment, info, geometryDistance, accumulated,
+                            crossSections, terrain, pillarBlockId, unitsPerBlock, designElevation, buildProfile);
+                    }
                     pillarChainage += pillarSpacing;
                 }
             }
