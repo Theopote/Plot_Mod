@@ -168,7 +168,7 @@ public final class RoadCrossSectionBuilder {
             double unitsPerBlock,
             DesignElevationSource designElevation,
             BuildHeightProfile buildProfile) {
-        String bridgeStructureBlockId = host.resolveBlockId("material.plot.stone");
+        String bridgeStructureBlockId = host.resolveBlockId(BridgeStructureGenerator.DECK_SLAB_MATERIAL);
         boolean chainForward = crossSections.samplingOriented().forward();
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         double geometryLocalBase = 0.0;

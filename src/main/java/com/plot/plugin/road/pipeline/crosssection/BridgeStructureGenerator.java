@@ -37,6 +37,8 @@ public final class BridgeStructureGenerator {
     private static final int ABUTMENT_THICKNESS_BLOCKS = 2;
     /** Narrow roads get a single pier column; wider roads get edge + center columns. */
     private static final int SINGLE_COLUMN_CARRIAGEWAY_WIDTH = 3;
+    static final String PIER_MATERIAL = "material.plot.stone_bricks";
+    static final String DECK_SLAB_MATERIAL = "material.plot.stone";
 
     private BridgeStructureGenerator() {
     }
@@ -51,7 +53,8 @@ public final class BridgeStructureGenerator {
             double geometryDistance,
             StructureKind kind,
             /** -1 approach-side abutment, +1 exit-side abutment, 0 pier. */
-            int landwardSign) {
+            int landwardSign,
+            boolean heavyPier) {
     }
 
     record StationLocation(
@@ -82,7 +85,8 @@ public final class BridgeStructureGenerator {
         if (constructionTypes.stream().noneMatch(type -> type == RoadConstructionType.BRIDGE)) {
             return;
         }
-        String structureBlockId = host.resolveBlockId("material.plot.stone");
+        String pierBlockId = host.resolveBlockId(PIER_MATERIAL);
+        String deckSlabBlockId = host.resolveBlockId(DECK_SLAB_MATERIAL);
         double scale = unitsPerBlock > EPSILON ? unitsPerBlock : 1.0;
         List<StructureStation> planned = planStructureStations(
             constructionTypes,
@@ -106,10 +110,12 @@ public final class BridgeStructureGenerator {
                 unitsPerBlock,
                 designElevation,
                 buildProfile,
-                structureBlockId,
+                pierBlockId,
+                deckSlabBlockId,
                 location,
                 station.kind(),
-                station.landwardSign());
+                station.landwardSign(),
+                station.heavyPier());
         }
     }
 
@@ -168,7 +174,7 @@ public final class BridgeStructureGenerator {
         String key = stationKey(worldStation, StructureKind.ABUTMENT) + "@" + landwardSign;
         if (dedupe.add(key)) {
             stations.add(new StructureStation(
-                worldStation, geometryDistance, StructureKind.ABUTMENT, landwardSign));
+                worldStation, geometryDistance, StructureKind.ABUTMENT, landwardSign, false));
         }
     }
 
@@ -226,7 +232,8 @@ public final class BridgeStructureGenerator {
             if (isNearAbutment(stations, worldStation)) {
                 continue;
             }
-            addPierStation(stations, dedupe, worldStation, crossSections, scale);
+            boolean heavyPier = crossing.strategy() == WaterCrossingStrategy.LONG_BRIDGE;
+            addPierStation(stations, dedupe, worldStation, crossSections, scale, heavyPier);
         }
     }
 
@@ -284,7 +291,7 @@ public final class BridgeStructureGenerator {
                     worldStation,
                     DEFAULT_PIER_SPACING_BLOCKS);
                 pillarSpacing = Math.max(scale, desiredSpacingBlocks * scale);
-                addPierStation(stations, dedupe, worldStation, crossSections, scale);
+                addPierStation(stations, dedupe, worldStation, crossSections, scale, false);
                 pillarChainage += pillarSpacing;
             }
             accumulated = segmentEnd;
@@ -296,11 +303,14 @@ public final class BridgeStructureGenerator {
             Set<String> dedupe,
             double worldStation,
             CrossSectionBuildContext crossSections,
-            double scale) {
+            double scale,
+            boolean heavyPier) {
         double geometryDistance = geometryDistanceAtWorldStation(worldStation, crossSections, scale);
-        String key = stationKey(worldStation, StructureKind.INTERIOR_PIER);
+        String key = stationKey(worldStation, StructureKind.INTERIOR_PIER)
+            + (heavyPier ? "#heavy" : "");
         if (dedupe.add(key)) {
-            stations.add(new StructureStation(worldStation, geometryDistance, StructureKind.INTERIOR_PIER, 0));
+            stations.add(new StructureStation(
+                worldStation, geometryDistance, StructureKind.INTERIOR_PIER, 0, heavyPier));
         }
     }
 
@@ -324,10 +334,12 @@ public final class BridgeStructureGenerator {
             double unitsPerBlock,
             DesignElevationSource designElevation,
             BuildHeightProfile buildProfile,
-            String structureBlockId,
+            String pierBlockId,
+            String deckSlabBlockId,
             StationLocation location,
             StructureKind kind,
-            int landwardSign) {
+            int landwardSign,
+            boolean heavyPier) {
         PathSegment segment = segments.get(location.segmentIndex());
         SegmentHeightInfo info = heightInfos.get(location.segmentIndex());
         int deckY = DesignElevationSource.resolveTargetElevation(
@@ -346,32 +358,42 @@ public final class BridgeStructureGenerator {
         ResolvedCrossSection crossSection = crossSections.resolve(chainage);
         if (kind == StructureKind.ABUTMENT) {
             placeAbutment(
-                host,
                 solids,
                 segment,
                 center,
                 leftNormal,
                 deckY,
                 terrain,
-                structureBlockId,
+                pierBlockId,
+                deckSlabBlockId,
                 crossSection,
                 unitsPerBlock,
                 landwardSign);
         } else {
             placeInteriorPier(
-                host, solids, center, leftNormal, deckY, terrain, structureBlockId, crossSection, unitsPerBlock);
+                solids,
+                segment,
+                center,
+                leftNormal,
+                deckY,
+                terrain,
+                pierBlockId,
+                deckSlabBlockId,
+                crossSection,
+                unitsPerBlock,
+                heavyPier);
         }
     }
 
     private static void placeAbutment(
-            Host host,
             RoadSolidModel solids,
             PathSegment segment,
             Vec2d center,
             Vec2d leftNormal,
             int deckY,
             TerrainSampler terrain,
-            String blockId,
+            String pierBlockId,
+            String deckSlabBlockId,
             ResolvedCrossSection crossSection,
             double unitsPerBlock,
             int landwardSign) {
@@ -382,38 +404,57 @@ public final class BridgeStructureGenerator {
         for (int step = 0; step < ABUTMENT_THICKNESS_BLOCKS; step++) {
             Vec2d wallCenter = center.add(forward.multiply(stepSign * step * scale));
             fillVerticalStrip(
-                solids, wallCenter, leftNormal, widthBlocks, deckY, terrain, blockId, unitsPerBlock);
+                solids, wallCenter, leftNormal, widthBlocks, deckY, terrain, pierBlockId, unitsPerBlock);
             placeDeckSlab(
-                solids, wallCenter, leftNormal, widthBlocks, deckY - 1, blockId, unitsPerBlock);
+                solids, wallCenter, leftNormal, widthBlocks, deckY - 1, deckSlabBlockId, unitsPerBlock);
         }
     }
 
     private static void placeInteriorPier(
-            Host host,
             RoadSolidModel solids,
+            PathSegment segment,
             Vec2d center,
             Vec2d leftNormal,
             int deckY,
             TerrainSampler terrain,
-            String blockId,
+            String pierBlockId,
+            String deckSlabBlockId,
             ResolvedCrossSection crossSection,
-            double unitsPerBlock) {
+            double unitsPerBlock,
+            boolean heavyPier) {
         int carriagewayWidth = Math.max(1, crossSection.carriagewayWidth);
         double scale = unitsPerBlock > EPSILON ? unitsPerBlock : 1.0;
         Vec2d normal = leftNormal.lengthSquared() > EPSILON
             ? leftNormal.normalize()
             : new Vec2d(0, 1);
+        Vec2d forward = segmentForward(segment);
         if (carriagewayWidth <= SINGLE_COLUMN_CARRIAGEWAY_WIDTH) {
-            placePierColumn(solids, center, deckY, terrain, blockId);
+            placePierColumn(solids, center, deckY, terrain, pierBlockId, heavyPier, forward, scale);
         } else {
             int minOffset = RoadDimensionUtils.minLateralOffset(carriagewayWidth);
             int maxOffset = RoadDimensionUtils.maxLateralOffset(carriagewayWidth);
-            placePierColumn(solids, center, deckY, terrain, blockId);
-            placePierColumn(solids, center.add(normal.multiply(minOffset * scale)), deckY, terrain, blockId);
-            placePierColumn(solids, center.add(normal.multiply(maxOffset * scale)), deckY, terrain, blockId);
+            placePierColumn(solids, center, deckY, terrain, pierBlockId, heavyPier, forward, scale);
+            placePierColumn(
+                solids,
+                center.add(normal.multiply(minOffset * scale)),
+                deckY,
+                terrain,
+                pierBlockId,
+                heavyPier,
+                forward,
+                scale);
+            placePierColumn(
+                solids,
+                center.add(normal.multiply(maxOffset * scale)),
+                deckY,
+                terrain,
+                pierBlockId,
+                heavyPier,
+                forward,
+                scale);
         }
         placeDeckSlab(
-            solids, center, leftNormal, carriagewayWidth, deckY - 1, blockId, unitsPerBlock);
+            solids, center, leftNormal, carriagewayWidth, deckY - 1, deckSlabBlockId, unitsPerBlock);
     }
 
     private static void placeDeckSlab(
@@ -444,6 +485,21 @@ public final class BridgeStructureGenerator {
             Vec2d canvasPos,
             int deckY,
             TerrainSampler terrain,
+            String blockId,
+            boolean heavyPier,
+            Vec2d forward,
+            double scale) {
+        fillPierColumn(solids, canvasPos, deckY, terrain, blockId);
+        if (heavyPier) {
+            fillPierColumn(solids, canvasPos.add(forward.multiply(scale)), deckY, terrain, blockId);
+        }
+    }
+
+    private static void fillPierColumn(
+            RoadSolidModel solids,
+            Vec2d canvasPos,
+            int deckY,
+            TerrainSampler terrain,
             String blockId) {
         int groundY = terrain.sampleSurfaceY(canvasPos);
         for (int y = groundY + 1; y < deckY; y++) {
@@ -468,7 +524,7 @@ public final class BridgeStructureGenerator {
         int maxOffset = RoadDimensionUtils.maxLateralOffset(widthBlocks);
         for (int lateral = minOffset; lateral <= maxOffset; lateral++) {
             Vec2d planPoint = center.add(normal.multiply(lateral * scale));
-            placePierColumn(solids, planPoint, deckY, terrain, blockId);
+            fillPierColumn(solids, planPoint, deckY, terrain, blockId);
         }
     }
 

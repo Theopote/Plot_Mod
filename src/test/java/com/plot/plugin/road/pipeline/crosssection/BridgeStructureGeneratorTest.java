@@ -29,7 +29,13 @@ class BridgeStructureGeneratorTest {
     private static final BridgeStructureGenerator.Host TEST_HOST = new BridgeStructureGenerator.Host() {
         @Override
         public String resolveBlockId(String material) {
-            return "material.plot.stone";
+            if (BridgeStructureGenerator.PIER_MATERIAL.equals(material)) {
+                return "minecraft:stone_bricks";
+            }
+            if (BridgeStructureGenerator.DECK_SLAB_MATERIAL.equals(material)) {
+                return "minecraft:stone";
+            }
+            return material;
         }
 
         @Override
@@ -315,6 +321,74 @@ class BridgeStructureGeneratorTest {
     }
 
     @Test
+    void pierColumnsUseDifferentMaterialThanDeckSlab() {
+        RoadSolidModel solids = new RoadSolidModel();
+        List<PathSegment> segments = List.of(new PathSegment(new Vec2d(0, 0), new Vec2d(20, 0)));
+        List<SegmentHeightInfo> heightInfos = List.of(
+            new SegmentHeightInfo(
+                segments.getFirst(), 50, 50, 69, 69, 64, 64, 64, 64, 20.0));
+        WaterCrossing bridge = new WaterCrossing(
+            0.0, 5.0, 15.0, 20.0,
+            8.0, 12.0, 10.0, 10.0, 14.0,
+            68, 68, 69, WaterCrossingStrategy.BRIDGE);
+
+        BridgeStructureGenerator.generate(
+            TEST_HOST,
+            solids,
+            List.of(RoadConstructionType.BRIDGE),
+            segments,
+            heightInfos,
+            CrossSectionBuildContext.fixed(ResolvedCrossSection.fromConfig(new RoadSystemConfig("bridge-structure"))),
+            flatBed(50),
+            1.0,
+            DesignElevationSource.inactive(),
+            BuildHeightProfile.inactive(),
+            List.of(bridge));
+
+        assertTrue(solids.primitives().stream().anyMatch(primitive ->
+            primitive.layer() == RoadSolidLayer.BRIDGE
+                && primitive.elevation() >= 51
+                && primitive.elevation() <= 62
+                && "minecraft:stone_bricks".equals(primitive.materialId())));
+        assertTrue(solids.primitives().stream().anyMatch(primitive ->
+            primitive.layer() == RoadSolidLayer.BRIDGE
+                && primitive.elevation() == 63
+                && "minecraft:stone".equals(primitive.materialId())));
+    }
+
+    @Test
+    void longBridgeThickensPierAlongRoadAxis() {
+        RoadSolidModel solids = new RoadSolidModel();
+        List<PathSegment> segments = List.of(new PathSegment(new Vec2d(0, 0), new Vec2d(60, 0)));
+        List<SegmentHeightInfo> heightInfos = List.of(
+            new SegmentHeightInfo(
+                segments.getFirst(), 50, 50, 69, 69, 64, 64, 64, 64, 60.0));
+        WaterCrossing longBridge = new WaterCrossing(
+            0.0, 0.0, 60.0, 66.0,
+            0.0, 60.0, 60.0, 10.0, 14.0,
+            68, 68, 69, WaterCrossingStrategy.LONG_BRIDGE);
+
+        BridgeStructureGenerator.generate(
+            TEST_HOST,
+            solids,
+            List.of(RoadConstructionType.BRIDGE),
+            segments,
+            heightInfos,
+            CrossSectionBuildContext.fixed(ResolvedCrossSection.fromConfig(new RoadSystemConfig("bridge-structure"))),
+            flatBed(50),
+            1.0,
+            DesignElevationSource.inactive(),
+            BuildHeightProfile.inactive(),
+            List.of(longBridge));
+
+        assertTrue(hasSupportColumn(solids, 12, 51));
+        assertTrue(hasSupportColumn(solids, 13, 51),
+            "long bridge pier should thicken by one block along the road axis");
+        assertTrue(hasSupportColumn(solids, 24, 51));
+        assertTrue(hasSupportColumn(solids, 25, 51));
+    }
+
+    @Test
     void interiorPierIncludesCapCourse() {
         RoadSolidModel solids = new RoadSolidModel();
         List<PathSegment> segments = List.of(new PathSegment(new Vec2d(0, 0), new Vec2d(12, 0)));
@@ -369,6 +443,7 @@ class BridgeStructureGeneratorTest {
         return solids.primitives().stream().anyMatch(primitive ->
             primitive.layer() == RoadSolidLayer.BRIDGE
                 && Math.abs(primitive.planPoint().x - x) < 0.5
-                && primitive.elevation() == minY);
+                && primitive.elevation() == minY
+                && "minecraft:stone_bricks".equals(primitive.materialId()));
     }
 }
