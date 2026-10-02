@@ -1,6 +1,5 @@
 package com.plot.plugin.road.pipeline.profile;
 
-import com.plot.plugin.road.RoadSlopeUtils;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.terrain.GradeLimitedProfileSolver;
 import com.plot.core.terrain.TerrainSampler;
@@ -97,18 +96,11 @@ public final class VerticalAlignmentProfileSolver {
 
         List<Integer> guideLine = toIntegerGuideLine(designElevations);
         List<SegmentHeightInfo> heightInfos = new ArrayList<>();
-        double localDistance = 0.0;
+        int currentBuild = raster.startHeight();
         for (int i = 0; i < segments.size(); i++) {
             PathSegment segment = segments.get(i);
-            int targetStart = designElevation.elevationAtLocalDistance(localDistance);
-            double endLocalDistance = localDistance + segment.distance;
-            int targetEnd = designElevation.elevationAtLocalDistance(endLocalDistance);
-            if (i == 0 && manualStartHeight != null) {
-                targetStart = manualStartHeight;
-            }
-            if (i == segments.size() - 1 && manualEndHeight != null) {
-                targetEnd = manualEndHeight;
-            }
+            int buildStart = currentBuild;
+            int buildEnd = raster.segmentBuildEnds().get(i);
             double designStart = designElevations.get(i);
             double designEnd = designElevations.get(i + 1);
             double segmentDistanceWorld = segment.distance / canvasUnitsPerBlock;
@@ -116,12 +108,12 @@ public final class VerticalAlignmentProfileSolver {
                 segment,
                 sampleData.groundStarts().get(i),
                 sampleData.groundEnds().get(i),
-                targetStart,
-                targetEnd,
+                buildStart,
+                buildEnd,
                 designStart,
                 designEnd,
                 segmentDistanceWorld));
-            localDistance = endLocalDistance;
+            currentBuild = buildEnd;
         }
 
         return new ProfileSolveResult(

@@ -161,7 +161,7 @@ class GradeLimitedProfileSolverTest {
         double solvedError = meanAbsoluteError(profile, trend);
         double forwardOnlyError = meanAbsoluteError(forwardOnlyProfile(trend, distances, slopes), trend);
         assertTrue(solvedError <= forwardOnlyError + 1.0,
-            () -> "relaxed profile should track trend at least as well as forward-only");
+                "relaxed profile should track trend at least as well as forward-only");
     }
 
     private static List<Integer> forwardOnlyProfile(

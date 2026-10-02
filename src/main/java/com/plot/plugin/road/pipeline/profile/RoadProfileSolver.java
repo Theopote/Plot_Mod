@@ -2,7 +2,6 @@ package com.plot.plugin.road.pipeline.profile;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGuideLineUtils;
-import com.plot.plugin.road.RoadSlopeUtils;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadModelUtils;
@@ -192,13 +191,6 @@ public final class RoadProfileSolver {
                 manualEndHeight);
         }
 
-        List<Integer> guideStarts = new ArrayList<>();
-        List<Integer> guideEnds = new ArrayList<>();
-        for (int i = 0; i < segments.size(); i++) {
-            guideStarts.add(guideLine.get(i));
-            guideEnds.add(guideLine.get(i + 1));
-        }
-
         List<Double> distances = new ArrayList<>();
         List<Float> effectiveMaxSlopes = new ArrayList<>();
         for (int i = 0; i < segments.size(); i++) {
@@ -236,28 +228,12 @@ public final class RoadProfileSolver {
                 distances,
                 effectiveMaxSlopes,
                 profileStartHeight);
-            List<Integer> chainedBuildEnds = RoadSlopeUtils.computeChainedTargetHeights(
-                distances,
-                guideStarts,
-                guideEnds,
-                effectiveMaxSlopes,
-                manualStartHeight,
-                manualEndHeight,
-                support.maxContinuousSlopeLength(),
-                support.relaxedSlopeLength(),
-                support.relaxedSlopePercent());
-            int buildStart = manualStartHeight != null
-                ? manualStartHeight
-                : guideStarts.getFirst();
             raster = RoadHeightRasterizer.rasterize(
                 designElevations,
                 distances,
                 effectiveMaxSlopes,
                 manualStartHeight,
                 manualEndHeight);
-            if (!chainedBuildEnds.isEmpty()) {
-                raster = mergeChainedSegmentEnds(raster, buildStart, chainedBuildEnds, designElevations);
-            }
         }
 
         List<SegmentHeightInfo> heightInfos = buildHeightInfos(
@@ -276,29 +252,6 @@ public final class RoadProfileSolver {
             raster.buildHeights(),
             raster.buildProfile(),
             manualEndpointConstraintFeasible);
-    }
-
-    /**
-     * AUTO_SMOOTH still uses chained segment-end solver for slope-length limits; block placement
-     * uses {@link BuildHeightProfile} from rasterization while segment chart endpoints stay chained.
-     */
-    private static RoadHeightRasterizer.RasterizationResult mergeChainedSegmentEnds(
-            RoadHeightRasterizer.RasterizationResult raster,
-            int buildStart,
-            List<Integer> chainedBuildEnds,
-            List<Double> designElevations) {
-        List<Integer> buildHeights = buildStationHeights(buildStart, chainedBuildEnds);
-        List<Double> designAtStations = new ArrayList<>(designElevations);
-        return new RoadHeightRasterizer.RasterizationResult(
-            buildStart,
-            buildHeights,
-            chainedBuildEnds,
-            raster.samples(),
-            raster.buildProfile(),
-            RoadHeightRasterizer.maxDesignBuildDeviation(designAtStations, buildHeights),
-            RoadHeightRasterizer.cumulativeGradeError(designAtStations, buildHeights),
-            RoadHeightRasterizer.longestFlatRun(raster.samples()),
-            RoadHeightRasterizer.countSteps(raster.samples()));
     }
 
     private static List<SegmentHeightInfo> buildHeightInfos(

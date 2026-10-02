@@ -1,7 +1,6 @@
 package com.plot.plugin.road.pipeline.profile;
 
 import com.plot.plugin.road.RoadSlopeUtils;
-import com.plot.plugin.road.pipeline.profile.terrain.GradeLimitedProfileSolver;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,13 +49,6 @@ public final class RoadHeightRasterizer {
         }
 
         int startHeight = roundedStartHeight(designElevations, manualStartHeight);
-        boolean endpointsFeasible = GradeLimitedProfileSolver.areManualEndpointsFeasible(
-            manualStartHeight,
-            manualEndHeight,
-            segmentDistances,
-            maxSlopePercents,
-            startHeight);
-        Integer effectiveManualEndHeight = endpointsFeasible ? manualEndHeight : null;
 
         List<Double> cumulativeDistances = cumulativeDistances(segmentDistances);
         double totalLength = cumulativeDistances.getLast();
@@ -66,8 +58,7 @@ public final class RoadHeightRasterizer {
             cumulativeDistances,
             maxSlopePercents,
             totalLength,
-            startHeight,
-            effectiveManualEndHeight);
+            startHeight);
 
         List<Integer> segmentBuildEnds = segmentBuildEndsFromSamples(
             samples, cumulativeDistances, segmentDistances.size());
@@ -127,8 +118,7 @@ public final class RoadHeightRasterizer {
             List<Double> cumulativeDistances,
             List<Float> maxSlopePercents,
             double totalLength,
-            int startHeight,
-            Integer manualEndHeight) {
+            int startHeight) {
         List<BuildHeightSample> samples = new ArrayList<>();
         int currentBuild = startHeight;
         RoadSlopeUtils.ElevationAccumulator accumulator = new RoadSlopeUtils.ElevationAccumulator();
@@ -137,17 +127,14 @@ public final class RoadHeightRasterizer {
         samples.add(new BuildHeightSample(0.0, designAtStart, startHeight));
 
         int wholeBlocks = (int) Math.floor(totalLength + EPSILON);
-        double lastSegmentStart = cumulativeDistances.get(cumulativeDistances.size() - 2);
         for (int block = 1; block <= wholeBlocks; block++) {
             double station = block;
             double designY = interpolateDesignElevation(
                 station, designElevations, segmentDistances, cumulativeDistances);
             float maxSlope = maxSlopeAt(station, segmentDistances, cumulativeDistances, maxSlopePercents);
-            double targetElevation = targetDesignElevation(
-                designY, manualEndHeight, station, lastSegmentStart);
             currentBuild = advanceTowardContinuousElevation(
                 currentBuild,
-                targetElevation,
+                designY,
                 1.0,
                 maxSlope,
                 accumulator);
@@ -158,12 +145,10 @@ public final class RoadHeightRasterizer {
             double designY = interpolateDesignElevation(
                 totalLength, designElevations, segmentDistances, cumulativeDistances);
             float maxSlope = maxSlopeAt(totalLength, segmentDistances, cumulativeDistances, maxSlopePercents);
-            double targetElevation = targetDesignElevation(
-                designY, manualEndHeight, totalLength, lastSegmentStart);
             double tailDistance = totalLength - wholeBlocks;
             currentBuild = advanceTowardContinuousElevation(
                 currentBuild,
-                targetElevation,
+                designY,
                 tailDistance,
                 maxSlope,
                 accumulator);
@@ -183,17 +168,6 @@ public final class RoadHeightRasterizer {
             segmentEnds.add(buildYAtStation(samples, station));
         }
         return segmentEnds;
-    }
-
-    private static double targetDesignElevation(
-            double designY,
-            Integer manualEndHeight,
-            double station,
-            double lastSegmentStart) {
-        if (manualEndHeight != null && station + EPSILON >= lastSegmentStart) {
-            return manualEndHeight;
-        }
-        return designY;
     }
 
     private static int advanceTowardContinuousElevation(

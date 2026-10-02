@@ -383,7 +383,6 @@ public final class GradeLimitedProfileSolver {
         int lastInterior = elevations.length - 2;
         int firstInterior = 1;
         if (lockStart) {
-            firstInterior = Math.max(firstInterior, 1);
         }
         if (lockEnd) {
             lastInterior = Math.min(lastInterior, elevations.length - 2);

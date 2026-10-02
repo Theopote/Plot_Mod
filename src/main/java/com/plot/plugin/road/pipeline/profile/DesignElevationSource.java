@@ -128,11 +128,11 @@ public record DesignElevationSource(
             double geometryLocalCanvas,
             double segmentInterpolation,
             double worldStation) {
-        if (designElevation != null && designElevation.isActive()) {
-            return designElevation.elevationAtLocalDistance(geometryLocalCanvas);
-        }
         if (buildProfile != null && buildProfile.isActive()) {
             return buildProfile.elevationAtWorldStation(worldStation);
+        }
+        if (designElevation != null && designElevation.isActive()) {
+            return designElevation.elevationAtLocalDistance(geometryLocalCanvas);
         }
         return VoxelElevationDiscretizer.linearElevationAtRatio(
             info.targetStart, info.targetEnd, segmentInterpolation);

@@ -83,11 +83,14 @@ class RoadHeightRasterizerTest {
 
     @Test
     void blockStepsAreIndependentOfPathSegmentation() {
-        List<Double> designA = List.of(64.0, 65.0, 66.0, 66.0, 66.0);
+        List<Double> stationsA = List.of(0.0, 10.0, 20.0, 30.0, 40.0);
+        List<Double> designA = linearDesign(stationsA, 64.0, 0.05);
         List<Double> distancesA = List.of(10.0, 10.0, 10.0, 10.0);
-        List<Double> designB = List.of(64.0, 64.5, 65.0, 65.5, 66.0);
+
+        List<Double> stationsB = List.of(0.0, 5.0, 20.0, 28.0, 40.0);
+        List<Double> designB = linearDesign(stationsB, 64.0, 0.05);
         List<Double> distancesB = List.of(5.0, 15.0, 8.0, 12.0);
-        List<Float> slopes = constantSlopes(4, 5.0f);
+        List<Float> slopes = constantSlopes(4, 8.0f);
 
         RoadHeightRasterizer.RasterizationResult resultA = RoadHeightRasterizer.rasterize(
             designA, distancesA, slopes, null, null);
@@ -101,7 +104,63 @@ class RoadHeightRasterizerTest {
             assertEquals(sampleA.station(), sampleB.station(), 1e-9);
             assertEquals(sampleA.buildY(), sampleB.buildY(),
                 () -> "block step at station " + sampleA.station() + " should not depend on segmentation");
+            assertEquals(64.0 + 0.05 * sampleA.station(), sampleA.designElevation(), 1e-6);
         }
+    }
+
+    @Test
+    void rasterizationResultIsInternallyConsistent() {
+        List<Double> design = List.of(64.0, 65.0, 66.0, 66.0);
+        List<Double> distances = List.of(10.0, 15.0, 15.0);
+        List<Float> slopes = constantSlopes(3, 8.0f);
+
+        RoadHeightRasterizer.RasterizationResult result = RoadHeightRasterizer.rasterize(
+            design, distances, slopes, null, null);
+
+        assertEquals(result.samples().getLast().buildY(), result.buildProfile().endElevation());
+        for (int i = 0; i < result.buildHeights().size(); i++) {
+            double station = i == 0 ? 0.0 : distances.stream().limit(i).mapToDouble(Double::doubleValue).sum();
+            assertEquals(
+                result.buildProfile().elevationAtWorldStation(station),
+                result.buildHeights().get(i),
+                () -> "chart build height at station " + station + " must match BuildHeightProfile");
+        }
+        for (int i = 0; i < result.segmentBuildEnds().size(); i++) {
+            assertEquals(result.segmentBuildEnds().get(i), result.buildHeights().get(i + 1));
+        }
+    }
+
+    @Test
+    void buildProfilePreservesFractionalEndpointElevation() {
+        List<Double> design = List.of(64.0, 65.0);
+        List<Double> distances = List.of(18.7);
+        List<Float> slopes = List.of(8.0f);
+
+        RoadHeightRasterizer.RasterizationResult result = RoadHeightRasterizer.rasterize(
+            design, distances, slopes, null, null);
+
+        BuildHeightProfile profile = result.buildProfile();
+        assertEquals(18.7, profile.endStation(), 1e-6);
+        assertEquals(result.samples().getLast().buildY(), profile.endElevation());
+        assertEquals(profile.endElevation(), profile.elevationAtWorldStation(18.7));
+        assertEquals(profile.elevationAtWorldStation(18.0), profile.elevationAtWorldStation(18.69));
+    }
+
+    @Test
+    void manualEndDoesNotRushAcrossEntireLastSegment() {
+        List<Double> design = List.of(64.0, 70.0);
+        List<Double> distances = List.of(100.0);
+        List<Float> slopes = List.of(8.0f);
+
+        RoadHeightRasterizer.RasterizationResult result = RoadHeightRasterizer.rasterize(
+            design, distances, slopes, null, 70);
+
+        assertTrue(result.longestFlatRun() < 25,
+            () -> "endpoint should follow design slope, not rush then flatten; longest flat "
+                + result.longestFlatRun());
+        assertEquals(70, result.buildProfile().endElevation());
+        assertTrue(result.samples().getLast().buildY() >= 68,
+            "build should approach manual endpoint along the design profile");
     }
 
     @Test
@@ -142,6 +201,14 @@ class RoadHeightRasterizerTest {
         assertEquals(1, riseStations.size());
         assertTrue(riseStations.getFirst() >= 18 && riseStations.getFirst() <= 22,
             () -> "5% grade should place a step near every 20 blocks, got station " + riseStations);
+    }
+
+    private static List<Double> linearDesign(List<Double> stations, double intercept, double slope) {
+        List<Double> design = new ArrayList<>(stations.size());
+        for (double station : stations) {
+            design.add(intercept + slope * station);
+        }
+        return design;
     }
 
     private static List<Double> constantDistances(int count, double distance) {

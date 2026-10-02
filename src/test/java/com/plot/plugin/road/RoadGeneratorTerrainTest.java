@@ -8,6 +8,7 @@ import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.core.terrain.FlatTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
+import net.minecraft.util.math.Vec3i;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -163,7 +164,7 @@ class RoadGeneratorTerrainTest {
             "a level design profile must produce one continuous deck elevation");
         long supportStations = result.bridgeBlocks.stream()
             .filter(pos -> pos.getY() < 63)
-            .map(pos -> pos.getX())
+            .map(Vec3i::getX)
             .collect(Collectors.toSet())
             .size();
         assertTrue(supportStations <= 4,

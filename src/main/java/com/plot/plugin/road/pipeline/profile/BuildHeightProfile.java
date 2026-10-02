@@ -9,24 +9,29 @@ import java.util.List;
  */
 public final class BuildHeightProfile {
 
-    private static final BuildHeightProfile INACTIVE = new BuildHeightProfile(new int[0], 0.0);
+    private static final double EPSILON = 1e-9;
+    private static final BuildHeightProfile INACTIVE = new BuildHeightProfile(new int[0], 0.0, 0);
 
     private final int[] elevationsByBlock;
     private final double endStation;
+    private final int endElevation;
 
     public BuildHeightProfile(List<BuildHeightSample> samples) {
         if (samples == null || samples.isEmpty()) {
             elevationsByBlock = new int[0];
             endStation = 0.0;
+            endElevation = 0;
             return;
         }
-        double lastStation = samples.getLast().station();
-        int blockCount = (int) Math.floor(lastStation + 1e-9);
+        BuildHeightSample lastSample = samples.getLast();
+        double lastStation = lastSample.station();
+        endElevation = lastSample.buildY();
+        int blockCount = (int) Math.floor(lastStation + EPSILON);
         elevationsByBlock = new int[blockCount + 1];
         int sampleIndex = 0;
         for (int block = 0; block <= blockCount; block++) {
             while (sampleIndex + 1 < samples.size()
-                    && samples.get(sampleIndex + 1).station() <= block + 1e-9) {
+                    && samples.get(sampleIndex + 1).station() <= block + EPSILON) {
                 sampleIndex++;
             }
             elevationsByBlock[block] = samples.get(sampleIndex).buildY();
@@ -34,9 +39,10 @@ public final class BuildHeightProfile {
         endStation = lastStation;
     }
 
-    private BuildHeightProfile(int[] elevationsByBlock, double endStation) {
+    private BuildHeightProfile(int[] elevationsByBlock, double endStation, int endElevation) {
         this.elevationsByBlock = elevationsByBlock;
         this.endStation = endStation;
+        this.endElevation = endElevation;
     }
 
     public static BuildHeightProfile inactive() {
@@ -58,7 +64,20 @@ public final class BuildHeightProfile {
         return endStation;
     }
 
+    public int endElevation() {
+        return endElevation;
+    }
+
     public int elevationAtWorldStation(double worldStation) {
+        if (elevationsByBlock.length == 0) {
+            return 0;
+        }
+        if (!Double.isFinite(worldStation) || worldStation <= EPSILON) {
+            return elevationsByBlock[0];
+        }
+        if (worldStation >= endStation - EPSILON) {
+            return endElevation;
+        }
         return VoxelElevationDiscretizer.elevationAtStation(worldStation, elevationsByBlock);
     }
 }
