@@ -164,12 +164,75 @@ public final class BridgeStructureGenerator {
             CrossSectionBuildContext crossSections,
             double unitsPerBlock,
             List<WaterCrossing> profileWaterCrossings) {
+        if (profileWaterCrossings != null && !profileWaterCrossings.isEmpty()) {
+            for (WaterCrossing crossing : profileWaterCrossings) {
+                if (crossing.strategy() == WaterCrossingStrategy.BRIDGE
+                        || crossing.strategy() == WaterCrossingStrategy.LONG_BRIDGE) {
+                    appendPiersForCrossingSpan(
+                        stations,
+                        dedupe,
+                        crossing,
+                        crossSections,
+                        unitsPerBlock);
+                }
+            }
+            return;
+        }
+        appendPiersAlongBridgeSegments(
+            stations,
+            dedupe,
+            constructionTypes,
+            segments,
+            crossSections,
+            unitsPerBlock,
+            profileWaterCrossings);
+    }
+
+    private static void appendPiersForCrossingSpan(
+            List<StructureStation> stations,
+            Set<String> dedupe,
+            WaterCrossing crossing,
+            CrossSectionBuildContext crossSections,
+            double unitsPerBlock) {
+        double scale = unitsPerBlock > EPSILON ? unitsPerBlock : 1.0;
+        double defaultSpacing = Math.max(unitsPerBlock, 6.0 * unitsPerBlock);
+        double desiredSpacing = WaterCrossingConstructionResolver.bridgePillarSpacingBlocks(
+            List.of(crossing),
+            crossing.crossingStartStation() + 1.0,
+            defaultSpacing);
+        double span = crossing.crossingEndStation() - crossing.crossingStartStation();
+        if (span <= desiredSpacing + EPSILON) {
+            return;
+        }
+        int bayCount = Math.max(1, (int) Math.round(span / desiredSpacing));
+        double actualSpacing = span / bayCount;
+        for (int bay = 1; bay < bayCount; bay++) {
+            double worldStation = crossing.crossingStartStation() + bay * actualSpacing;
+            if (isNearAbutment(stations, worldStation)) {
+                continue;
+            }
+            addPierStation(stations, dedupe, worldStation, crossSections, scale);
+        }
+    }
+
+    private static void appendPiersAlongBridgeSegments(
+            List<StructureStation> stations,
+            Set<String> dedupe,
+            List<RoadConstructionType> constructionTypes,
+            List<PathSegment> segments,
+            CrossSectionBuildContext crossSections,
+            double unitsPerBlock,
+            List<WaterCrossing> profileWaterCrossings) {
         double scale = unitsPerBlock > EPSILON ? unitsPerBlock : 1.0;
         double defaultSpacing = Math.max(unitsPerBlock, 6.0 * unitsPerBlock);
         double accumulated = 0.0;
+        double pillarSpacing = defaultSpacing;
+        double pillarChainage = 0.0;
+        boolean inBridgeRun = false;
         for (int i = 0; i < segments.size(); i++) {
             PathSegment segment = segments.get(i);
             if (RoadConstructionClassifier.constructionTypeAt(constructionTypes, i) != RoadConstructionType.BRIDGE) {
+                inBridgeRun = false;
                 accumulated += segment.distance;
                 continue;
             }
@@ -178,8 +241,11 @@ public final class BridgeStructureGenerator {
             double chainageB = crossSections.chainageAtGeometryLocal(segmentEnd);
             double minChainage = Math.min(chainageA, chainageB);
             double maxChainage = Math.max(chainageA, chainageB);
-            double pillarSpacing = defaultSpacing;
-            double pillarChainage = Math.ceil((minChainage - EPSILON) / pillarSpacing) * pillarSpacing;
+            if (!inBridgeRun) {
+                pillarSpacing = defaultSpacing;
+                pillarChainage = Math.ceil((minChainage - EPSILON) / pillarSpacing) * pillarSpacing;
+                inBridgeRun = true;
+            }
             while (pillarChainage <= maxChainage + EPSILON) {
                 double geometryDistance = crossSections.orientedSegment() != null
                     ? crossSections.orientedSegment()
@@ -204,13 +270,23 @@ public final class BridgeStructureGenerator {
                         profileWaterCrossings,
                         worldStation,
                         6.0 * unitsPerBlock));
-                String key = stationKey(worldStation, StructureKind.INTERIOR_PIER);
-                if (dedupe.add(key)) {
-                    stations.add(new StructureStation(worldStation, geometryDistance, StructureKind.INTERIOR_PIER));
-                }
+                addPierStation(stations, dedupe, worldStation, crossSections, scale);
                 pillarChainage += pillarSpacing;
             }
             accumulated = segmentEnd;
+        }
+    }
+
+    private static void addPierStation(
+            List<StructureStation> stations,
+            Set<String> dedupe,
+            double worldStation,
+            CrossSectionBuildContext crossSections,
+            double scale) {
+        double geometryDistance = geometryDistanceAtWorldStation(worldStation, crossSections, scale);
+        String key = stationKey(worldStation, StructureKind.INTERIOR_PIER);
+        if (dedupe.add(key)) {
+            stations.add(new StructureStation(worldStation, geometryDistance, StructureKind.INTERIOR_PIER));
         }
     }
 

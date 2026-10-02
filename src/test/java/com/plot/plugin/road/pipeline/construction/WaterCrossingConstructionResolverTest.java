@@ -108,6 +108,76 @@ class WaterCrossingConstructionResolverTest {
     }
 
     @Test
+    void adjacentCausewayAndBridgeDoNotCrossContaminateStrategy() {
+        ConstructionDetection base = detection(List.of(
+            RoadConstructionType.ROAD,
+            RoadConstructionType.ROAD,
+            RoadConstructionType.ROAD));
+        WaterCrossing causeway = new WaterCrossing(
+            0.0, 1.0, 4.0, 5.0,
+            1.5, 3.5, 3.0, 1.0, 1.0,
+            64, 64, 63, WaterCrossingStrategy.CAUSEWAY);
+        WaterCrossing bridge = new WaterCrossing(
+            3.0, 6.0, 30.0, 33.0,
+            10.0, 20.0, 24.0, 10.0, 14.0,
+            68, 68, 69, WaterCrossingStrategy.BRIDGE);
+        List<SegmentHeightInfo> heightInfos = List.of(
+            heightInfo(0.0, 4.0, 64, 64, 63, 63, 64, 64),
+            heightInfo(4.0, 6.0, 64, 64, 63, 69, 64, 64),
+            heightInfo(6.0, 10.0, 68, 68, 69, 69, 64, 64));
+
+        ConstructionDetection resolved = WaterCrossingConstructionResolver.apply(
+            base,
+            List.of(causeway, bridge),
+            heightInfos,
+            1.0,
+            new RoadSystemConfig("test"),
+            null,
+            canvas -> new net.minecraft.util.math.BlockPos(0, 0, 0));
+
+        assertEquals(
+            RoadConstructionType.ROAD,
+            resolved.constructionTypes().get(1),
+            "bridge approach must not inherit another crossing's crossing zone");
+    }
+
+    @Test
+    void adjacentBridgeAndTunnelDoNotCrossContaminateStrategy() {
+        ConstructionDetection base = detection(List.of(
+            RoadConstructionType.ROAD,
+            RoadConstructionType.ROAD,
+            RoadConstructionType.ROAD));
+        WaterCrossing bridge = new WaterCrossing(
+            0.0, 2.0, 10.0, 12.0,
+            3.0, 9.0, 8.0, 10.0, 14.0,
+            68, 68, 69, WaterCrossingStrategy.BRIDGE);
+        WaterCrossing tunnel = new WaterCrossing(
+            12.0, 18.0, 25.0, 28.0,
+            19.0, 24.0, 7.0, 10.0, 14.0,
+            68, 68, 69, WaterCrossingStrategy.TUNNEL_CANDIDATE);
+        List<SegmentHeightInfo> heightInfos = List.of(
+            heightInfo(0.0, 12.0, 68, 68, 69, 69, 64, 64),
+            heightInfo(12.0, 17.0, 68, 68, 69, 69, 64, 64),
+            heightInfo(17.0, 28.0, 68, 68, 69, 69, 64, 64));
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        config.setAllowUnderwaterRoad(true);
+
+        ConstructionDetection resolved = WaterCrossingConstructionResolver.apply(
+            base,
+            List.of(bridge, tunnel),
+            heightInfos,
+            1.0,
+            config,
+            null,
+            canvas -> new net.minecraft.util.math.BlockPos(0, 0, 0));
+
+        assertEquals(
+            RoadConstructionType.ROAD,
+            resolved.constructionTypes().get(1),
+            "tunnel approach must not inherit another crossing's crossing zone");
+    }
+
+    @Test
     void longBridgeUsesWiderPillarSpacing() {
         WaterCrossing longBridge = new WaterCrossing(
             0.0, 0.0, 100.0, 110.0,
@@ -121,7 +191,8 @@ class WaterCrossingConstructionResolverTest {
     }
 
     private static ConstructionDetection detection(List<RoadConstructionType> types) {
-        return new ConstructionDetection(List.of(), List.of(), types, List.of(3.0), List.of());
+        List<Double> distances = types.stream().map(type -> 3.0).toList();
+        return new ConstructionDetection(List.of(), List.of(), types, distances, List.of());
     }
 
     private static SegmentHeightInfo heightInfo(

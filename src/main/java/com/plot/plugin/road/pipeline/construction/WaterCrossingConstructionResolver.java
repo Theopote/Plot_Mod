@@ -126,29 +126,41 @@ public final class WaterCrossingConstructionResolver {
             double segmentStart,
             double segmentEnd,
             RoadSystemConfig config) {
-        WaterCrossingStrategy strategy = dominantStrategy(crossings, segmentStart, segmentEnd);
-        if (strategy == null) {
+        WaterCrossing selected = dominantCrossing(crossings, segmentStart, segmentEnd);
+        if (selected == null) {
             return baseType;
         }
-        return switch (strategy) {
-            case CAUSEWAY -> overlapsCausewayFillZone(crossings, segmentStart, segmentEnd)
+        return switch (selected.strategy()) {
+            case CAUSEWAY -> overlapLength(
+                    segmentStart,
+                    segmentEnd,
+                    selected.approachStartStation(),
+                    selected.exitEndStation()) > EPSILON
                 ? RoadConstructionType.FILL
                 : baseType;
-            case BRIDGE, LONG_BRIDGE -> overlapsCrossingZone(crossings, segmentStart, segmentEnd)
+            case BRIDGE, LONG_BRIDGE -> overlapLength(
+                    segmentStart,
+                    segmentEnd,
+                    selected.crossingStartStation(),
+                    selected.crossingEndStation()) > EPSILON
                 ? RoadConstructionType.BRIDGE
                 : baseType;
             case TUNNEL_CANDIDATE -> config != null && config.isAllowUnderwaterRoad()
-                && overlapsCrossingZone(crossings, segmentStart, segmentEnd)
+                && overlapLength(
+                    segmentStart,
+                    segmentEnd,
+                    selected.crossingStartStation(),
+                    selected.crossingEndStation()) > EPSILON
                 ? RoadConstructionType.TUNNEL
                 : baseType;
         };
     }
 
-    private static WaterCrossingStrategy dominantStrategy(
+    private static WaterCrossing dominantCrossing(
             List<WaterCrossing> crossings,
             double segmentStart,
             double segmentEnd) {
-        WaterCrossingStrategy selected = null;
+        WaterCrossing selected = null;
         double bestOverlap = 0.0;
         for (WaterCrossing crossing : crossings) {
             double overlap = overlapLength(
@@ -161,45 +173,10 @@ public final class WaterCrossingConstructionResolver {
             }
             if (overlap > bestOverlap + EPSILON) {
                 bestOverlap = overlap;
-                selected = crossing.strategy();
+                selected = crossing;
             }
         }
         return selected;
-    }
-
-    private static boolean overlapsCrossingZone(
-            List<WaterCrossing> crossings,
-            double segmentStart,
-            double segmentEnd) {
-        for (WaterCrossing crossing : crossings) {
-            if (overlapLength(
-                    segmentStart,
-                    segmentEnd,
-                    crossing.crossingStartStation(),
-                    crossing.crossingEndStation()) > EPSILON) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static boolean overlapsCausewayFillZone(
-            List<WaterCrossing> crossings,
-            double segmentStart,
-            double segmentEnd) {
-        for (WaterCrossing crossing : crossings) {
-            if (crossing.strategy() != WaterCrossingStrategy.CAUSEWAY) {
-                continue;
-            }
-            if (overlapLength(
-                    segmentStart,
-                    segmentEnd,
-                    crossing.approachStartStation(),
-                    crossing.exitEndStation()) > EPSILON) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static boolean isElevatedBridgeStrategy(WaterCrossingStrategy strategy) {
