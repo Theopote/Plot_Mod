@@ -10,7 +10,6 @@ import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.road.pipeline.profile.terrain.GradeLimitedProfileSolver;
-import com.plot.plugin.road.pipeline.profile.terrain.ProfileCutFillBalancer;
 import com.plot.plugin.road.pipeline.profile.terrain.TerrainFollowPreset;
 import com.plot.plugin.road.pipeline.profile.terrain.TerrainProfileSampleChain;
 import com.plot.plugin.road.pipeline.profile.terrain.TerrainTrendBuilder;
@@ -212,22 +211,14 @@ public final class RoadProfileSolver {
             GradeLimitedProfileSolver.DesignSolveResult terrainSolve =
                 GradeLimitedProfileSolver.solveDesignProfile(
                     terrainTrend.trendElevations(),
+                    sampleData.groundSamples(),
                     distances,
                     effectiveMaxSlopes,
                     manualStartHeight,
                     manualEndHeight,
-                    effectiveTerrainPreset);
-            designElevations = ProfileCutFillBalancer.apply(
-                sampleData.groundSamples(),
-                terrainSolve.designElevations(),
-                distances,
-                effectiveMaxSlopes,
-                support.fillFactor(),
-                effectiveTerrainPreset.cutFillBalanceWeight(),
-                effectiveTerrainPreset,
-                manualStartHeight,
-                manualEndHeight,
-                terrainSolve.manualEndpointsFeasible());
+                    effectiveTerrainPreset,
+                    support.fillFactor());
+            designElevations = terrainSolve.designElevations();
             manualEndpointConstraintFeasible = terrainSolve.manualEndpointsFeasible();
             raster = RoadHeightRasterizer.rasterize(
                 designElevations,

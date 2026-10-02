@@ -1,5 +1,6 @@
 package com.plot.plugin.road.pipeline.profile.terrain;
 
+import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.road.pipeline.profile.RoadHeightRasterizer;
 import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
 
@@ -16,6 +17,8 @@ public final class GradeLimitedProfileSolver {
     private static final int MAX_PROJECTION_ITERATIONS = 64;
     private static final double EPSILON = 1e-9;
     private static final double GRADE_MATCH_TOLERANCE_PERCENT = 0.75;
+    private static final long MIN_IMBALANCE_TO_CORRECT = 10L;
+    private static final double CUT_FILL_STEP_BLOCKS = 0.35;
 
     private GradeLimitedProfileSolver() {
     }
@@ -67,13 +70,35 @@ public final class GradeLimitedProfileSolver {
             Integer manualStartHeight,
             Integer manualEndHeight,
             TerrainFollowPreset preset) {
-        double[] stations = solveStationElevations(
+        return solveDesignProfile(
             trendElevations,
+            null,
             segmentDistances,
             maxSlopePercents,
             manualStartHeight,
             manualEndHeight,
-            preset);
+            preset,
+            1.0f);
+    }
+
+    public static DesignSolveResult solveDesignProfile(
+            List<Double> trendElevations,
+            List<Integer> groundSamples,
+            List<Double> segmentDistances,
+            List<Float> maxSlopePercents,
+            Integer manualStartHeight,
+            Integer manualEndHeight,
+            TerrainFollowPreset preset,
+            float fillFactor) {
+        double[] stations = solveStationElevations(
+            trendElevations,
+            groundSamples,
+            segmentDistances,
+            maxSlopePercents,
+            manualStartHeight,
+            manualEndHeight,
+            preset,
+            fillFactor);
         List<Double> designElevations = toDesignList(stations);
         int profileStart = manualStartHeight != null
             ? manualStartHeight
@@ -187,6 +212,26 @@ public final class GradeLimitedProfileSolver {
             Integer manualStartHeight,
             Integer manualEndHeight,
             TerrainFollowPreset preset) {
+        return solveStationElevations(
+            trendElevations,
+            null,
+            segmentDistances,
+            maxSlopePercents,
+            manualStartHeight,
+            manualEndHeight,
+            preset,
+            1.0f);
+    }
+
+    static double[] solveStationElevations(
+            List<Double> trendElevations,
+            List<Integer> groundSamples,
+            List<Double> segmentDistances,
+            List<Float> maxSlopePercents,
+            Integer manualStartHeight,
+            Integer manualEndHeight,
+            TerrainFollowPreset preset,
+            float fillFactor) {
         Objects.requireNonNull(trendElevations, "trendElevations");
         Objects.requireNonNull(segmentDistances, "segmentDistances");
         Objects.requireNonNull(maxSlopePercents, "maxSlopePercents");
@@ -265,6 +310,17 @@ public final class GradeLimitedProfileSolver {
             lockEnd,
             startTarget,
             endTarget);
+        optimizeCutFillBalance(
+            current,
+            groundSamples,
+            segmentDistances,
+            maxSlopePercents,
+            effectivePreset,
+            fillFactor,
+            lockStart,
+            lockEnd,
+            startTarget,
+            endTarget);
         projectFeasible(
             current,
             segmentDistances,
@@ -275,6 +331,82 @@ public final class GradeLimitedProfileSolver {
             startTarget,
             endTarget);
         return current;
+    }
+
+    /**
+     * Relax interior stations to reduce cut/fill imbalance while preserving hard constraints
+     * via endpoint locks and feasibility projection after each pass.
+     */
+    private static void optimizeCutFillBalance(
+            double[] elevations,
+            List<Integer> groundSamples,
+            List<Double> segmentDistances,
+            List<Float> maxSlopePercents,
+            TerrainFollowPreset preset,
+            float fillFactor,
+            boolean lockStart,
+            boolean lockEnd,
+            double startLock,
+            double endLock) {
+        if (groundSamples == null
+                || preset.cutFillBalanceWeight() <= EPSILON
+                || groundSamples.size() != elevations.length
+                || ProfileCutFillBalancer.containsLargeTerrainStep(groundSamples)) {
+            return;
+        }
+        MaterialConversionModel materials = MaterialConversionModel.fromLegacyFillFactor(fillFactor);
+        if (Math.abs(ProfileCutFillBalancer.computeBalanceDiff(
+                groundSamples, toDesignList(elevations), 0, materials))
+                < MIN_IMBALANCE_TO_CORRECT) {
+            return;
+        }
+        int firstAdjustable = lockStart ? 1 : 0;
+        int lastAdjustable = lockEnd ? elevations.length - 2 : elevations.length - 1;
+        if (firstAdjustable > lastAdjustable) {
+            return;
+        }
+        double balanceWeight = preset.cutFillBalanceWeight();
+        for (int iteration = 0; iteration < preset.relaxationIterations(); iteration++) {
+            long imbalance = ProfileCutFillBalancer.computeBalanceDiff(
+                groundSamples, toDesignList(elevations), 0, materials);
+            if (Math.abs(imbalance) < MIN_IMBALANCE_TO_CORRECT) {
+                break;
+            }
+            double step = balanceWeight * CUT_FILL_STEP_BLOCKS
+                * Math.min(1.0, Math.abs(imbalance) / 30.0);
+            for (int i = firstAdjustable; i <= lastAdjustable; i++) {
+                int ground = groundSamples.get(i);
+                double design = elevations[i];
+                double direction = cutFillNudgeDirection(imbalance, ground, design);
+                if (direction != 0.0) {
+                    elevations[i] = design + direction * step;
+                }
+            }
+            applyEndpointLocks(elevations, lockStart, lockEnd, startLock, endLock);
+            projectFeasible(
+                elevations,
+                segmentDistances,
+                maxSlopePercents,
+                preset.maxGradeChangePercent(),
+                lockStart,
+                lockEnd,
+                startLock,
+                endLock);
+        }
+    }
+
+    /** Signed nudge direction (blocks) that reduces global cut/fill imbalance at one station. */
+    static double cutFillNudgeDirection(long imbalance, int ground, double design) {
+        if (Math.abs(ground - design) <= EPSILON) {
+            return 0.0;
+        }
+        if (imbalance > 0) {
+            return ground > design ? 1.0 : -1.0;
+        }
+        if (imbalance < 0) {
+            return -1.0;
+        }
+        return 0.0;
     }
 
     private static void smoothGradeChanges(

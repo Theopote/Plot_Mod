@@ -1,5 +1,6 @@
 package com.plot.plugin.road.pipeline.profile.terrain;
 
+import com.plot.core.material.MaterialConversionModel;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -234,6 +235,128 @@ class GradeLimitedProfileSolverTest {
     }
 
     @Test
+    void cutFillObjectiveRaisesCutHeavyProfile() {
+        List<Double> trend = List.of(64.0, 64.0, 64.0, 64.0, 64.0);
+        List<Integer> ground = List.of(70, 70, 70, 70, 70);
+        List<Double> distances = constantDistances(4, 20.0);
+        List<Float> slopes = constantSlopes(4, 8.0f);
+
+        List<Double> withoutBalance = GradeLimitedProfileSolver.solveDesignProfile(
+            trend, null, distances, slopes, null, null, TerrainFollowPreset.STANDARD, 1.1f)
+            .designElevations();
+        List<Double> withBalance = GradeLimitedProfileSolver.solveDesignProfile(
+            trend, ground, distances, slopes, null, null, TerrainFollowPreset.STANDARD, 1.1f)
+            .designElevations();
+
+        assertTrue(average(withBalance) > average(withoutBalance),
+            "solver cut/fill objective should raise cut-heavy profile");
+        assertTrue(Math.abs(ProfileCutFillBalancer.computeBalanceDiff(
+            ground, withBalance, 0, MaterialConversionModel.DEFAULT))
+            < Math.abs(ProfileCutFillBalancer.computeBalanceDiff(
+                ground, withoutBalance, 0, MaterialConversionModel.DEFAULT)));
+    }
+
+    @Test
+    void cutFillObjectiveLowersFillHeavyProfile() {
+        List<Double> trend = List.of(68.0, 68.0, 68.0, 68.0, 68.0);
+        List<Integer> ground = List.of(60, 60, 60, 60, 60);
+        List<Double> distances = constantDistances(4, 20.0);
+        List<Float> slopes = constantSlopes(4, 8.0f);
+
+        List<Double> withoutBalance = GradeLimitedProfileSolver.solveDesignProfile(
+            trend, null, distances, slopes, null, null, TerrainFollowPreset.STANDARD, 1.1f)
+            .designElevations();
+        List<Double> withBalance = GradeLimitedProfileSolver.solveDesignProfile(
+            trend, ground, distances, slopes, null, null, TerrainFollowPreset.STANDARD, 1.1f)
+            .designElevations();
+
+        assertTrue(average(withBalance) < average(withoutBalance),
+            "solver cut/fill objective should lower fill-heavy profile");
+    }
+
+    @Test
+    void cutFillBalanceWeightScalesObjectiveStrength() {
+        List<Double> trend = List.of(64.0, 64.0, 64.0, 64.0, 64.0);
+        List<Integer> ground = List.of(70, 70, 70, 70, 70);
+        List<Double> distances = constantDistances(4, 20.0);
+        List<Float> slopes = constantSlopes(4, 8.0f);
+
+        List<Double> gentle = GradeLimitedProfileSolver.solveDesignProfile(
+            trend, ground, distances, slopes, null, null, TerrainFollowPreset.GENTLE, 1.1f)
+            .designElevations();
+        List<Double> tight = GradeLimitedProfileSolver.solveDesignProfile(
+            trend, ground, distances, slopes, null, null, TerrainFollowPreset.TIGHT, 1.1f)
+            .designElevations();
+
+        double gentleShift = average(gentle) - average(trend);
+        double tightShift = average(tight) - average(trend);
+        assertTrue(gentleShift > tightShift,
+            () -> "gentle preset should apply stronger cut/fill objective than tight: "
+                + gentleShift + " vs " + tightShift);
+    }
+
+    @Test
+    void cutFillObjectivePreservesLockedStart() {
+        List<Double> trend = List.of(64.0, 64.0, 64.0, 64.0, 68.0);
+        List<Integer> ground = List.of(70, 70, 70, 70, 70);
+        List<Double> distances = constantDistances(4, 20.0);
+        List<Float> slopes = constantSlopes(4, 8.0f);
+
+        List<Double> balanced = GradeLimitedProfileSolver.solveDesignProfile(
+            trend, ground, distances, slopes, 64, null, TerrainFollowPreset.STANDARD, 1.1f)
+            .designElevations();
+
+        assertEquals(64.0, balanced.getFirst(), 1e-6);
+    }
+
+    @Test
+    void cutFillObjectivePreservesLockedEnd() {
+        List<Double> trend = List.of(64.0, 64.0, 64.0, 64.0, 70.0);
+        List<Integer> ground = List.of(70, 70, 70, 70, 70);
+        List<Double> distances = constantDistances(4, 20.0);
+        List<Float> slopes = constantSlopes(4, 8.0f);
+
+        List<Double> balanced = GradeLimitedProfileSolver.solveDesignProfile(
+            trend, ground, distances, slopes, null, 70, TerrainFollowPreset.STANDARD, 1.1f)
+            .designElevations();
+
+        assertEquals(70.0, balanced.getLast(), 1e-6);
+    }
+
+    @Test
+    void cutFillObjectivePreservesBothEndpoints() {
+        List<Double> trend = List.of(64.0, 65.0, 66.0, 67.0, 68.0, 69.0, 69.5, 69.8, 70.0);
+        List<Integer> ground = List.of(70, 70, 70, 70, 70, 70, 70, 70, 70);
+        List<Double> distances = constantDistances(8, 15.0);
+        List<Float> slopes = constantSlopes(8, 8.0f);
+
+        List<Double> balanced = GradeLimitedProfileSolver.solveDesignProfile(
+            trend, ground, distances, slopes, 64, 70, TerrainFollowPreset.STANDARD, 1.1f)
+            .designElevations();
+
+        assertEquals(64.0, balanced.getFirst(), 1e-6);
+        assertEquals(70.0, balanced.getLast(), 1e-6);
+    }
+
+    @Test
+    void cutFillObjectiveDoesNotViolateMaxGradeAfterProjection() {
+        TerrainFollowPreset preset = TerrainFollowPreset.STANDARD;
+        List<Double> trend = List.of(
+            64.0, 64.5, 65.0, 65.5, 66.0, 66.5, 67.0, 67.5, 68.0, 70.0);
+        List<Integer> ground = List.of(70, 70, 70, 70, 70, 70, 70, 70, 70, 70);
+        List<Double> distances = constantDistances(9, 12.0);
+        List<Float> slopes = constantSlopes(9, 8.0f);
+
+        List<Double> balanced = GradeLimitedProfileSolver.solveDesignProfile(
+            trend, ground, distances, slopes, 64, 70, preset, 1.1f)
+            .designElevations();
+
+        assertEquals(64.0, balanced.getFirst(), 1e-6);
+        assertEquals(70.0, balanced.getLast(), 1e-6);
+        assertTrue(maxAbsoluteSegmentGrade(balanced, distances) <= 8.0 + 1e-6);
+    }
+
+    @Test
     void gentlePresetSpreadsGradeTransitionsMoreThanTight() {
         List<Double> trend = List.of(
             60.0, 61.0, 62.0, 63.0, 64.0,
@@ -248,6 +371,24 @@ class GradeLimitedProfileSolverTest {
 
         assertTrue(GradeLimitedProfileSolver.totalAbsoluteGradeChange(gentle, distances)
             <= GradeLimitedProfileSolver.totalAbsoluteGradeChange(tight, distances) + 1e-6);
+    }
+
+    private static double average(List<Double> elevations) {
+        double sum = 0.0;
+        for (double elevation : elevations) {
+            sum += elevation;
+        }
+        return sum / elevations.size();
+    }
+
+    private static double maxAbsoluteSegmentGrade(List<Double> elevations, List<Double> distances) {
+        double maxSlopePercent = 0.0;
+        for (int i = 0; i < distances.size(); i++) {
+            double grade = Math.abs(GradeLimitedProfileSolver.gradeAtSegment(
+                elevations.get(i), elevations.get(i + 1), distances.get(i)));
+            maxSlopePercent = Math.max(maxSlopePercent, grade);
+        }
+        return maxSlopePercent;
     }
 
     private static double maxAdjacentDelta(double[] elevations) {
