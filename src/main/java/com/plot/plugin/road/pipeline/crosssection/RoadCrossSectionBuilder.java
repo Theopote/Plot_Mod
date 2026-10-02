@@ -15,7 +15,6 @@ import com.plot.plugin.road.pipeline.StationFacilityBuildContext;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
 import com.plot.plugin.road.pipeline.construction.ConstructionDetection;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
-import com.plot.plugin.road.pipeline.construction.WaterCrossingConstructionResolver;
 import com.plot.plugin.road.pipeline.profile.environment.WaterCrossing;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
@@ -549,107 +548,31 @@ public final class RoadCrossSectionBuilder {
             DesignElevationSource designElevation,
             BuildHeightProfile buildProfile,
             List<WaterCrossing> profileWaterCrossings) {
-        if (constructionTypes.stream().noneMatch(type -> type == RoadConstructionType.BRIDGE)) {
-            return;
-        }
         if (!host.generateBridgePillars()) {
             return;
         }
-        String pillarBlockId = host.resolveBlockId("material.plot.stone");
-        double defaultPillarSpacing = Math.max(unitsPerBlock, 6.0 * unitsPerBlock);
-        double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
-        double accumulated = 0.0;
-        for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
-            PathSegment segment = segments.get(i);
-            SegmentHeightInfo info = heightInfos.get(i);
-            boolean isBridge = RoadConstructionClassifier.constructionTypeAt(
-                constructionTypes, i) == RoadConstructionType.BRIDGE;
-            double segmentEnd = accumulated + segment.distance;
-
-            if (isBridge) {
-                double chainageA = crossSections.chainageAtGeometryLocal(accumulated);
-                double chainageB = crossSections.chainageAtGeometryLocal(segmentEnd);
-                double minChainage = Math.min(chainageA, chainageB);
-                double maxChainage = Math.max(chainageA, chainageB);
-                double pillarSpacing = defaultPillarSpacing;
-                double pillarChainage = Math.ceil((minChainage - 1e-9) / pillarSpacing) * pillarSpacing;
-                while (pillarChainage <= maxChainage + 1e-9) {
-                    double geometryDistance = crossSections.orientedSegment() != null
-                        ? crossSections.orientedSegment()
-                            .geometryLocalAtRoadStation(pillarChainage)
-                            .orElse(accumulated)
-                        : pillarChainage;
-                    double worldStation = geometryDistance / scale;
-                    if (profileWaterCrossings == null
-                            || profileWaterCrossings.isEmpty()
-                            || WaterCrossingConstructionResolver.isBridgeStructureStation(
-                                profileWaterCrossings, worldStation)) {
-                        pillarSpacing = Math.max(
-                            unitsPerBlock,
-                            WaterCrossingConstructionResolver.bridgePillarSpacingBlocks(
-                                profileWaterCrossings,
-                                worldStation,
-                                6.0 * unitsPerBlock));
-                        placeBridgePillarCrossSection(
-                            host, solids, segment, info, geometryDistance, accumulated,
-                            crossSections, terrain, pillarBlockId, unitsPerBlock, designElevation, buildProfile);
-                    }
-                    pillarChainage += pillarSpacing;
+        BridgeStructureGenerator.generate(
+            new BridgeStructureGenerator.Host() {
+                @Override
+                public String resolveBlockId(String material) {
+                    return host.resolveBlockId(material);
                 }
-            }
-            accumulated = segmentEnd;
-        }
-    }
 
-    private static void placeBridgePillarCrossSection(
-            CrossSectionHost host,
-            RoadSolidModel solids,
-            PathSegment segment,
-            SegmentHeightInfo info,
-            double globalDistance,
-            double segmentStartDistance,
-            CrossSectionBuildContext crossSections,
-            TerrainSampler terrain,
-            String pillarBlockId,
-            double unitsPerBlock,
-            DesignElevationSource designElevation,
-            BuildHeightProfile buildProfile) {
-        double t = segment.distance > 1e-9
-            ? Math.clamp((globalDistance - segmentStartDistance) / segment.distance, 0.0, 1.0)
-            : 0.0;
-        double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
-        int targetY = DesignElevationSource.resolveTargetElevation(
+                @Override
+                public int snapEndpointElevation(Vec2d center, int targetY) {
+                    return host.snapEndpointElevation(center, targetY);
+                }
+            },
+            solids,
+            constructionTypes,
+            segments,
+            heightInfos,
+            crossSections,
+            terrain,
+            unitsPerBlock,
             designElevation,
             buildProfile,
-            info,
-            globalDistance,
-            t,
-            globalDistance / scale);
-        Vec2d center = segment.start.lerp(segment.end, t);
-        Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(
-            segment,
-            crossSections.samplingOriented().forward());
-        double chainage = crossSections.chainageAtGeometryLocal(globalDistance);
-        ResolvedCrossSection crossSection = crossSections.resolve(chainage);
-        double halfExtent = RoadDimensionUtils.halfExtentFromCenter(crossSection.carriagewayWidth) * unitsPerBlock;
-        Vec2d left = center.add(leftNormal.multiply(halfExtent));
-        Vec2d right = center.subtract(leftNormal.multiply(halfExtent));
-        placeBridgePillars(host, solids, center, targetY, terrain, pillarBlockId);
-        placeBridgePillars(host, solids, left, targetY, terrain, pillarBlockId);
-        placeBridgePillars(host, solids, right, targetY, terrain, pillarBlockId);
-    }
-
-    private static void placeBridgePillars(
-            CrossSectionHost host,
-            RoadSolidModel solids,
-            Vec2d canvasPos,
-            int deckY,
-            TerrainSampler terrain,
-            String blockId) {
-        int groundY = terrain.sampleSurfaceY(canvasPos);
-        for (int y = groundY + 1; y < deckY; y++) {
-            solids.add(canvasPos, y, RoadSolidLayer.BRIDGE, blockId);
-        }
+            profileWaterCrossings);
     }
 
     private static boolean usesStationGatedDrainage(StationFacilityBuildContext stationFacilities) {

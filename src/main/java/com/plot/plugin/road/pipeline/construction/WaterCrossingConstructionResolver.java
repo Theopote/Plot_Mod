@@ -99,6 +99,27 @@ public final class WaterCrossingConstructionResolver {
         return defaultSpacingBlocks;
     }
 
+    /**
+     * Returns true when grading should treat the station as causeway embankment fill
+     * (approach ramp, crossing, and exit ramp).
+     */
+    public static boolean isCausewayFillStation(
+            List<WaterCrossing> crossings,
+            double worldStation) {
+        if (crossings == null || crossings.isEmpty()) {
+            return false;
+        }
+        for (WaterCrossing crossing : crossings) {
+            if (crossing.strategy() != WaterCrossingStrategy.CAUSEWAY) {
+                continue;
+            }
+            if (crossing.containsStation(worldStation)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static RoadConstructionType resolveSegmentType(
             RoadConstructionType baseType,
             List<WaterCrossing> crossings,
@@ -110,7 +131,7 @@ public final class WaterCrossingConstructionResolver {
             return baseType;
         }
         return switch (strategy) {
-            case CAUSEWAY -> overlapsCrossingZone(crossings, segmentStart, segmentEnd)
+            case CAUSEWAY -> overlapsCausewayFillZone(crossings, segmentStart, segmentEnd)
                 ? RoadConstructionType.FILL
                 : baseType;
             case BRIDGE, LONG_BRIDGE -> overlapsCrossingZone(crossings, segmentStart, segmentEnd)
@@ -156,6 +177,25 @@ public final class WaterCrossingConstructionResolver {
                     segmentEnd,
                     crossing.crossingStartStation(),
                     crossing.crossingEndStation()) > EPSILON) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean overlapsCausewayFillZone(
+            List<WaterCrossing> crossings,
+            double segmentStart,
+            double segmentEnd) {
+        for (WaterCrossing crossing : crossings) {
+            if (crossing.strategy() != WaterCrossingStrategy.CAUSEWAY) {
+                continue;
+            }
+            if (overlapLength(
+                    segmentStart,
+                    segmentEnd,
+                    crossing.approachStartStation(),
+                    crossing.exitEndStation()) > EPSILON) {
                 return true;
             }
         }

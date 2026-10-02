@@ -11,11 +11,13 @@ import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
+import com.plot.plugin.road.pipeline.construction.WaterCrossingConstructionResolver;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
+import com.plot.plugin.road.pipeline.profile.environment.WaterCrossing;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.core.terrain.TerrainSampler;
 
@@ -40,6 +42,7 @@ public final class RoadTerrainGrader {
             ctx.detection().constructionTypes(),
             ctx.request().designElevation(),
             ctx.buildProfile(),
+            ctx.request().profileWaterCrossings(),
             GradingHost.from(host));
     }
 
@@ -98,6 +101,7 @@ public final class RoadTerrainGrader {
             List<RoadConstructionType> constructionTypes,
             DesignElevationSource designElevation,
             BuildHeightProfile buildProfile,
+            List<WaterCrossing> profileWaterCrossings,
             GradingHost host) {
         RoadSystemConfig config = host.config();
         int tunnelThreshold = config.getTunnelThreshold();
@@ -140,9 +144,13 @@ public final class RoadTerrainGrader {
                     crossSection.fillSlopeMaterial != null && !crossSection.fillSlopeMaterial.isBlank()
                         ? crossSection.fillSlopeMaterial
                         : config.getFillSlopeMaterial());
-                if (type == RoadConstructionType.BRIDGE) {
+                RoadConstructionType sampleType = effectiveConstructionType(
+                    type,
+                    profileWaterCrossings,
+                    worldStation);
+                if (sampleType == RoadConstructionType.BRIDGE) {
                     continue;
-                } else if (type == RoadConstructionType.TUNNEL) {
+                } else if (sampleType == RoadConstructionType.TUNNEL) {
                     String liningMaterial = config.getTunnelLiningMaterial();
                     int accentSpacing = config.getTunnelAccentSpacing();
                     if (accentSpacing > 0 && !config.getTunnelAccentMaterial().isBlank()
@@ -158,12 +166,22 @@ public final class RoadTerrainGrader {
                     total = total.add(RoadRoadbedGradingUtils.gradeCrossSectionEnvelope(
                         solids, center, leftNormal, envelopeWidth, targetY,
                         tunnelThreshold, bridgeThreshold, fillMaterialId,
-                        terrain, host.columnResolver(), unitsPerBlock, type));
+                        terrain, host.columnResolver(), unitsPerBlock, sampleType));
                 }
             }
             geometryLocalBase += segment.distance;
         }
         metrics.cutVolume = total.cutVolume();
         metrics.fillVolume = total.fillVolume();
+    }
+
+    private static RoadConstructionType effectiveConstructionType(
+            RoadConstructionType segmentType,
+            List<WaterCrossing> profileWaterCrossings,
+            double worldStation) {
+        if (WaterCrossingConstructionResolver.isCausewayFillStation(profileWaterCrossings, worldStation)) {
+            return RoadConstructionType.FILL;
+        }
+        return segmentType;
     }
 }

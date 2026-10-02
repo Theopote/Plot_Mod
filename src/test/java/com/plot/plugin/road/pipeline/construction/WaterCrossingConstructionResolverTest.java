@@ -62,6 +62,52 @@ class WaterCrossingConstructionResolverTest {
     }
 
     @Test
+    void causewayApproachZoneForcesFillConstruction() {
+        ConstructionDetection base = detection(List.of(RoadConstructionType.ROAD));
+        WaterCrossing causeway = new WaterCrossing(
+            0.0, 0.5, 2.5, 3.0,
+            1.0, 2.0, 2.0, 1.0, 1.0,
+            64, 64, 63, WaterCrossingStrategy.CAUSEWAY);
+        List<SegmentHeightInfo> heightInfos = List.of(
+            heightInfo(0.0, 0.4, 64, 64, null, null, 64, 63));
+
+        ConstructionDetection resolved = WaterCrossingConstructionResolver.apply(
+            base,
+            List.of(causeway),
+            heightInfos,
+            1.0,
+            new RoadSystemConfig("test"),
+            null,
+            canvas -> new net.minecraft.util.math.BlockPos(0, 0, 0));
+
+        assertEquals(RoadConstructionType.FILL, resolved.constructionTypes().getFirst());
+        assertTrue(WaterCrossingConstructionResolver.isCausewayFillStation(List.of(causeway), 0.2));
+    }
+
+    @Test
+    void bridgeApproachZoneDoesNotForceFillConstruction() {
+        ConstructionDetection base = detection(List.of(RoadConstructionType.ROAD));
+        WaterCrossing bridge = new WaterCrossing(
+            0.0, 5.0, 25.0, 30.0,
+            10.0, 20.0, 20.0, 10.0, 14.0,
+            68, 68, 69, WaterCrossingStrategy.BRIDGE);
+        List<SegmentHeightInfo> heightInfos = List.of(
+            heightInfo(0.0, 4.0, 68, 68, null, null, 68, 68));
+
+        ConstructionDetection resolved = WaterCrossingConstructionResolver.apply(
+            base,
+            List.of(bridge),
+            heightInfos,
+            1.0,
+            new RoadSystemConfig("test"),
+            null,
+            canvas -> new net.minecraft.util.math.BlockPos(0, 0, 0));
+
+        assertEquals(RoadConstructionType.ROAD, resolved.constructionTypes().getFirst());
+        assertTrue(!WaterCrossingConstructionResolver.isCausewayFillStation(List.of(bridge), 2.0));
+    }
+
+    @Test
     void longBridgeUsesWiderPillarSpacing() {
         WaterCrossing longBridge = new WaterCrossing(
             0.0, 0.0, 100.0, 110.0,
