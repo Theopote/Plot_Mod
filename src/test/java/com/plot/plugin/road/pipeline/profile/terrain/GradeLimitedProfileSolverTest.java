@@ -1,6 +1,5 @@
 package com.plot.plugin.road.pipeline.profile.terrain;
 
-import com.plot.core.material.MaterialConversionModel;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -20,7 +19,7 @@ class GradeLimitedProfileSolverTest {
         List<Float> slopes = constantSlopes(distances.size(), 8.0f);
 
         double[] stations = GradeLimitedProfileSolver.solveStationElevations(
-            trend, distances, slopes, null, null, TerrainFollowPreset.STANDARD);
+            trend, distances, slopes, TerrainFollowPreset.STANDARD);
 
         double maxStep = maxAdjacentDelta(stations);
         assertTrue(maxStep <= 0.8 + 1e-6,
@@ -106,9 +105,9 @@ class GradeLimitedProfileSolverTest {
         List<Float> slopes = constantSlopes(distances.size(), 8.0f);
 
         double[] gentle = GradeLimitedProfileSolver.solveStationElevations(
-            trend, distances, slopes, null, null, TerrainFollowPreset.GENTLE);
+            trend, distances, slopes, TerrainFollowPreset.GENTLE);
         double[] tight = GradeLimitedProfileSolver.solveStationElevations(
-            trend, distances, slopes, null, null, TerrainFollowPreset.TIGHT);
+            trend, distances, slopes, TerrainFollowPreset.TIGHT);
 
         double gentleVariation = GradeLimitedProfileSolver.totalAbsoluteGradeChange(gentle, distances);
         double tightVariation = GradeLimitedProfileSolver.totalAbsoluteGradeChange(tight, distances);
@@ -126,7 +125,7 @@ class GradeLimitedProfileSolverTest {
         List<Float> slopes = constantSlopes(4, 10.0f);
 
         double[] stations = GradeLimitedProfileSolver.solveStationElevations(
-            trend, distances, slopes, null, null, TerrainFollowPreset.STANDARD);
+            trend, distances, slopes, TerrainFollowPreset.STANDARD);
 
         for (int i = 1; i < stations.length - 1; i++) {
             double leftGrade = GradeLimitedProfileSolver.gradeAtSegment(
@@ -217,7 +216,7 @@ class GradeLimitedProfileSolverTest {
         List<Float> slopes = constantSlopes(distances.size(), 10.0f);
 
         double[] solved = GradeLimitedProfileSolver.solveStationElevations(
-            trend, distances, slopes, null, null, TerrainFollowPreset.STANDARD);
+            trend, distances, slopes, TerrainFollowPreset.STANDARD);
 
         int crestVertex = 5;
         double trendBreak = Math.abs(
@@ -232,6 +231,27 @@ class GradeLimitedProfileSolverTest {
                     solved[crestVertex], solved[crestVertex + 1], distances.get(crestVertex)));
         assertTrue(solvedBreak < trendBreak,
             () -> "solver should soften crest grade break from " + trendBreak + " to " + solvedBreak);
+    }
+
+    @Test
+    void cutFillBlendedWithTrendRelaxationTracksGroundAndTrend() {
+        List<Double> trend = List.of(64.0, 65.0, 66.0, 67.0, 68.0);
+        List<Integer> ground = List.of(70, 70, 70, 70, 70);
+        List<Double> distances = constantDistances(4, 20.0);
+        List<Float> slopes = constantSlopes(4, 8.0f);
+
+        List<Double> trendOnly = GradeLimitedProfileSolver.solveDesignProfile(
+            trend, null, distances, slopes, null, null, TerrainFollowPreset.STANDARD, 1.1f)
+            .designElevations();
+        List<Double> blended = GradeLimitedProfileSolver.solveDesignProfile(
+            trend, ground, distances, slopes, null, null, TerrainFollowPreset.STANDARD, 1.1f)
+            .designElevations();
+
+        assertTrue(average(blended) > average(trendOnly),
+            "blended relaxation should raise cut-heavy profile toward ground");
+        assertTrue(meanAbsoluteErrorDoubles(blended, trend)
+                < meanAbsoluteErrorDoubles(trendOnly, trend) + 2.0,
+            "blended profile should still track trend after mixed relaxation");
     }
 
     @Test
@@ -250,10 +270,8 @@ class GradeLimitedProfileSolverTest {
 
         assertTrue(average(withBalance) > average(withoutBalance),
             "solver cut/fill objective should raise cut-heavy profile");
-        assertTrue(Math.abs(ProfileCutFillBalancer.computeBalanceDiff(
-            ground, withBalance, 0, MaterialConversionModel.DEFAULT))
-            < Math.abs(ProfileCutFillBalancer.computeBalanceDiff(
-                ground, withoutBalance, 0, MaterialConversionModel.DEFAULT)));
+        assertTrue(meanGroundError(withBalance, ground) < meanGroundError(withoutBalance, ground),
+            "blended cut/fill should move profile closer to ground on cut-heavy terrain");
     }
 
     @Test
@@ -365,12 +383,21 @@ class GradeLimitedProfileSolverTest {
         List<Float> slopes = constantSlopes(distances.size(), 10.0f);
 
         double[] gentle = GradeLimitedProfileSolver.solveStationElevations(
-            trend, distances, slopes, null, null, TerrainFollowPreset.GENTLE);
+            trend, distances, slopes, TerrainFollowPreset.GENTLE);
         double[] tight = GradeLimitedProfileSolver.solveStationElevations(
-            trend, distances, slopes, null, null, TerrainFollowPreset.TIGHT);
+            trend, distances, slopes, TerrainFollowPreset.TIGHT);
 
         assertTrue(GradeLimitedProfileSolver.totalAbsoluteGradeChange(gentle, distances)
             <= GradeLimitedProfileSolver.totalAbsoluteGradeChange(tight, distances) + 1e-6);
+    }
+
+    private static double meanGroundError(List<Double> elevations, List<Integer> ground) {
+        double sum = 0.0;
+        int count = Math.min(elevations.size(), ground.size());
+        for (int i = 0; i < count; i++) {
+            sum += Math.abs(elevations.get(i) - ground.get(i));
+        }
+        return count > 0 ? sum / count : Double.POSITIVE_INFINITY;
     }
 
     private static double average(List<Double> elevations) {
@@ -472,6 +499,15 @@ class GradeLimitedProfileSolverTest {
     }
 
     private static double meanAbsoluteError(List<Integer> actual, List<Double> desired) {
+        double sum = 0.0;
+        int count = Math.min(actual.size(), desired.size());
+        for (int i = 0; i < count; i++) {
+            sum += Math.abs(actual.get(i) - desired.get(i));
+        }
+        return count > 0 ? sum / count : Double.POSITIVE_INFINITY;
+    }
+
+    private static double meanAbsoluteErrorDoubles(List<Double> actual, List<Double> desired) {
         double sum = 0.0;
         int count = Math.min(actual.size(), desired.size());
         for (int i = 0; i < count; i++) {

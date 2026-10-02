@@ -18,7 +18,7 @@ public final class GradeLimitedProfileSolver {
     private static final double EPSILON = 1e-9;
     private static final double GRADE_MATCH_TOLERANCE_PERCENT = 0.75;
     private static final long MIN_IMBALANCE_TO_CORRECT = 10L;
-    private static final double CUT_FILL_STEP_BLOCKS = 0.35;
+    private static final double CUT_FILL_STEP_BLOCKS = 0.5;
 
     private GradeLimitedProfileSolver() {
     }
@@ -209,16 +209,14 @@ public final class GradeLimitedProfileSolver {
             List<Double> trendElevations,
             List<Double> segmentDistances,
             List<Float> maxSlopePercents,
-            Integer manualStartHeight,
-            Integer manualEndHeight,
             TerrainFollowPreset preset) {
         return solveStationElevations(
             trendElevations,
             null,
             segmentDistances,
             maxSlopePercents,
-            manualStartHeight,
-            manualEndHeight,
+                null,
+                null,
             preset,
             1.0f);
     }
@@ -276,22 +274,18 @@ public final class GradeLimitedProfileSolver {
         }
         applyEndpointLocks(current, lockStart, lockEnd, startTarget, endTarget);
 
-        double alpha = effectivePreset.trendBlendWeight();
-        for (int iteration = 0; iteration < effectivePreset.relaxationIterations(); iteration++) {
-            for (int i = 1; i < stationCount - 1; i++) {
-                current[i] = (1.0 - alpha) * current[i] + alpha * trendElevations.get(i);
-            }
-            applyEndpointLocks(current, lockStart, lockEnd, startTarget, endTarget);
-            projectFeasible(
-                current,
-                segmentDistances,
-                maxSlopePercents,
-                effectivePreset.maxGradeChangePercent(),
-                lockStart,
-                lockEnd,
-                startTarget,
-                endTarget);
-        }
+        relaxTowardTrendAndCutFill(
+            current,
+            trendElevations,
+            groundSamples,
+            segmentDistances,
+            maxSlopePercents,
+            effectivePreset,
+            fillFactor,
+            lockStart,
+            lockEnd,
+            startTarget,
+            endTarget);
         smoothGradeChanges(
             current,
             segmentDistances,
@@ -310,17 +304,6 @@ public final class GradeLimitedProfileSolver {
             lockEnd,
             startTarget,
             endTarget);
-        optimizeCutFillBalance(
-            current,
-            groundSamples,
-            segmentDistances,
-            maxSlopePercents,
-            effectivePreset,
-            fillFactor,
-            lockStart,
-            lockEnd,
-            startTarget,
-            endTarget);
         projectFeasible(
             current,
             segmentDistances,
@@ -330,15 +313,26 @@ public final class GradeLimitedProfileSolver {
             lockEnd,
             startTarget,
             endTarget);
+        projectFeasible(
+            current,
+            segmentDistances,
+            maxSlopePercents,
+            0.0,
+            lockStart,
+            lockEnd,
+            startTarget,
+            endTarget);
         return current;
     }
 
     /**
-     * Relax interior stations to reduce cut/fill imbalance while preserving hard constraints
-     * via endpoint locks and feasibility projection after each pass.
+     * Joint relaxation toward terrain trend and cut/fill balance each iteration:
+     * {@code current = keep * current + alpha * trend + beta * cutFillTarget},
+     * then project back to the feasible domain.
      */
-    private static void optimizeCutFillBalance(
-            double[] elevations,
+    private static void relaxTowardTrendAndCutFill(
+            double[] current,
+            List<Double> trendElevations,
             List<Integer> groundSamples,
             List<Double> segmentDistances,
             List<Float> maxSlopePercents,
@@ -348,43 +342,52 @@ public final class GradeLimitedProfileSolver {
             boolean lockEnd,
             double startLock,
             double endLock) {
-        if (groundSamples == null
-                || preset.cutFillBalanceWeight() <= EPSILON
-                || groundSamples.size() != elevations.length
-                || ProfileCutFillBalancer.containsLargeTerrainStep(groundSamples)) {
-            return;
+        double alpha = preset.trendBlendWeight();
+        double beta = 0.0;
+        boolean cutFillEnabled = isCutFillBalanceEnabled(groundSamples, preset, current.length);
+        if (cutFillEnabled) {
+            beta = preset.cutFillBalanceWeight();
+            double total = alpha + beta;
+            if (total > 1.0 + EPSILON) {
+                alpha /= total;
+                beta /= total;
+            }
         }
-        MaterialConversionModel materials = MaterialConversionModel.fromLegacyFillFactor(fillFactor);
-        if (Math.abs(ProfileCutFillBalancer.computeBalanceDiff(
-                groundSamples, toDesignList(elevations), 0, materials))
-                < MIN_IMBALANCE_TO_CORRECT) {
-            return;
-        }
-        int firstAdjustable = lockStart ? 1 : 0;
-        int lastAdjustable = lockEnd ? elevations.length - 2 : elevations.length - 1;
-        if (firstAdjustable > lastAdjustable) {
-            return;
-        }
-        double balanceWeight = preset.cutFillBalanceWeight();
+        MaterialConversionModel materials = cutFillEnabled
+            ? MaterialConversionModel.fromLegacyFillFactor(fillFactor)
+            : null;
+        int stationCount = current.length;
+
         for (int iteration = 0; iteration < preset.relaxationIterations(); iteration++) {
-            long imbalance = ProfileCutFillBalancer.computeBalanceDiff(
-                groundSamples, toDesignList(elevations), 0, materials);
-            if (Math.abs(imbalance) < MIN_IMBALANCE_TO_CORRECT) {
-                break;
+            boolean applyCutFill = cutFillEnabled;
+            long imbalance = 0L;
+            if (applyCutFill) {
+                imbalance = ProfileCutFillBalancer.computeBalanceDiff(
+                    groundSamples, toDesignList(current), 0, materials);
+                applyCutFill = Math.abs(imbalance) >= MIN_IMBALANCE_TO_CORRECT;
             }
-            double step = balanceWeight * CUT_FILL_STEP_BLOCKS
-                * Math.min(1.0, Math.abs(imbalance) / 30.0);
-            for (int i = firstAdjustable; i <= lastAdjustable; i++) {
-                int ground = groundSamples.get(i);
-                double design = elevations[i];
-                double direction = cutFillNudgeDirection(imbalance, ground, design);
-                if (direction != 0.0) {
-                    elevations[i] = design + direction * step;
+            double iterationBeta = applyCutFill ? beta : 0.0;
+            double iterationKeep = 1.0 - alpha - iterationBeta;
+            double cutFillStepScale = applyCutFill
+                ? Math.min(1.0, Math.abs(imbalance) / 30.0)
+                : 0.0;
+
+            for (int i = 1; i < stationCount - 1; i++) {
+                double trendTarget = trendElevations.get(i);
+                double blended = iterationKeep * current[i] + alpha * trendTarget;
+                if (applyCutFill) {
+                    double cutFillTarget = cutFillBalanceTarget(
+                        imbalance,
+                        groundSamples.get(i),
+                        current[i],
+                        cutFillStepScale);
+                    blended += iterationBeta * cutFillTarget;
                 }
+                current[i] = blended;
             }
-            applyEndpointLocks(elevations, lockStart, lockEnd, startLock, endLock);
+            applyEndpointLocks(current, lockStart, lockEnd, startLock, endLock);
             projectFeasible(
-                elevations,
+                current,
                 segmentDistances,
                 maxSlopePercents,
                 preset.maxGradeChangePercent(),
@@ -393,6 +396,16 @@ public final class GradeLimitedProfileSolver {
                 startLock,
                 endLock);
         }
+    }
+
+    private static boolean isCutFillBalanceEnabled(
+            List<Integer> groundSamples,
+            TerrainFollowPreset preset,
+            int stationCount) {
+        return groundSamples != null
+            && preset.cutFillBalanceWeight() > EPSILON
+            && groundSamples.size() == stationCount
+            && !ProfileCutFillBalancer.containsLargeTerrainStep(groundSamples);
     }
 
     /** Signed nudge direction (blocks) that reduces global cut/fill imbalance at one station. */
@@ -407,6 +420,22 @@ public final class GradeLimitedProfileSolver {
             return -1.0;
         }
         return 0.0;
+    }
+
+    static double cutFillBalanceTarget(
+            long imbalance,
+            int ground,
+            double design,
+            double stepScale) {
+        double direction = cutFillNudgeDirection(imbalance, ground, design);
+        if (direction == 0.0) {
+            return design;
+        }
+        double maxStep = CUT_FILL_STEP_BLOCKS * stepScale;
+        if (direction > 0.0) {
+            return design + Math.min(maxStep, ground - design);
+        }
+        return design - Math.min(maxStep, design - ground);
     }
 
     private static void smoothGradeChanges(
@@ -736,22 +765,6 @@ public final class GradeLimitedProfileSolver {
             if (lockEnd) {
                 elevations[elevations.length - 1] = endLock;
             }
-            for (int i = 0; i < segmentDistances.size(); i++) {
-                double maxRise = maxRise(segmentDistances.get(i), maxSlopePercents.get(i));
-                double projected = clampToSlopeBracket(elevations[i], elevations[i + 1], maxRise);
-                if (Math.abs(projected - elevations[i + 1]) > EPSILON) {
-                    elevations[i + 1] = projected;
-                    changed = true;
-                }
-            }
-            for (int i = segmentDistances.size() - 1; i >= 0; i--) {
-                double maxRise = maxRise(segmentDistances.get(i), maxSlopePercents.get(i));
-                double projected = clampToSlopeBracket(elevations[i + 1], elevations[i], maxRise);
-                if (Math.abs(projected - elevations[i]) > EPSILON) {
-                    elevations[i] = projected;
-                    changed = true;
-                }
-            }
             if (maxGradeChangePercent > EPSILON) {
                 changed |= projectGradeChangeFeasible(
                     elevations,
@@ -760,6 +773,14 @@ public final class GradeLimitedProfileSolver {
                     lockStart,
                     lockEnd);
             }
+            changed |= projectSegmentSlopes(
+                elevations,
+                segmentDistances,
+                maxSlopePercents,
+                lockStart,
+                lockEnd,
+                startLock,
+                endLock);
             if (!changed) {
                 break;
             }
@@ -770,6 +791,52 @@ public final class GradeLimitedProfileSolver {
         if (lockEnd) {
             elevations[elevations.length - 1] = endLock;
         }
+    }
+
+    private static boolean projectSegmentSlopes(
+            double[] elevations,
+            List<Double> segmentDistances,
+            List<Float> maxSlopePercents,
+            boolean lockStart,
+            boolean lockEnd,
+            double startLock,
+            double endLock) {
+        if (lockStart) {
+            elevations[0] = startLock;
+        }
+        if (lockEnd) {
+            elevations[elevations.length - 1] = endLock;
+        }
+        boolean changed = false;
+        for (int i = 0; i < segmentDistances.size(); i++) {
+            if (lockEnd && i + 1 == elevations.length - 1) {
+                continue;
+            }
+            double maxRise = maxRise(segmentDistances.get(i), maxSlopePercents.get(i));
+            double projected = clampToSlopeBracket(elevations[i], elevations[i + 1], maxRise);
+            if (Math.abs(projected - elevations[i + 1]) > EPSILON) {
+                elevations[i + 1] = projected;
+                changed = true;
+            }
+        }
+        if (lockStart) {
+            elevations[0] = startLock;
+        }
+        if (lockEnd) {
+            elevations[elevations.length - 1] = endLock;
+        }
+        for (int i = segmentDistances.size() - 1; i >= 0; i--) {
+            if (lockStart && i == 0) {
+                continue;
+            }
+            double maxRise = maxRise(segmentDistances.get(i), maxSlopePercents.get(i));
+            double projected = clampToSlopeBracket(elevations[i + 1], elevations[i], maxRise);
+            if (Math.abs(projected - elevations[i]) > EPSILON) {
+                elevations[i] = projected;
+                changed = true;
+            }
+        }
+        return changed;
     }
 
     private static boolean projectGradeChangeFeasible(
