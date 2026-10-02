@@ -3,7 +3,7 @@ package com.plot.plugin.road.pipeline.profile.terrain;
 import java.util.ArrayList;
 import java.util.List;
 
-/** raw 地形 → median → moving average → 地形趋势线。 */
+/** raw 地形 → median → moving average → step transition spread → 地形趋势线。 */
 public final class TerrainTrendBuilder {
 
     private TerrainTrendBuilder() {
@@ -30,6 +30,10 @@ public final class TerrainTrendBuilder {
         TerrainProfileSampleChain medianChain = chain.withElevations(medianFiltered);
         List<Double> trend = TerrainProfileFilter.movingAverage(
             medianChain, effectivePreset.movingAverageWindowMeters());
+        trend = TerrainProfileFilter.spreadStepTransitions(
+            chain,
+            trend,
+            effectivePreset.stepTransitionMeters());
 
         trend = applyEndpointOverrides(trend, manualStartHeight, manualEndHeight);
         return new TerrainTrendResult(chain.rawElevations(), trend);
