@@ -111,20 +111,14 @@ public final class RoadGeneratePanel {
         if (road == null) {
             return;
         }
-        ImGui.spacing();
-        RoadUiSections.section("plugin.road.profile_active_road_detail");
-        ImGui.textColored(
-            PluginUiColors.HINT_GRAY,
-            RoadProfileRoadList.formatProfileRoadSummary(network, road));
-        ImGui.spacing();
-        RoadVerticalStrategy strategy = RoadVerticalStrategy.fromRoad(road);
-        if (strategy == RoadVerticalStrategy.TERRAIN_ADAPTIVE
-                && RoadGenerationSettingsPanel.showsTerrainAdaptiveControls(ctx)) {
+        if (RoadGenerationSettingsPanel.showsPerRoadTerrainControls(ctx, road)) {
+            ImGui.spacing();
             RoadStyleProductControls.renderRoadMaxSlopePresets(
                 ctx, road, ctx.networkManager()::pushHistory);
             RoadStyleProductControls.renderRoadTerrainStylePresets(
                 ctx, road, ctx.networkManager()::pushHistory);
         }
+        ImGui.spacing();
         verticalModeControls.render(
             ctx,
             network,
@@ -214,7 +208,7 @@ public final class RoadGeneratePanel {
         boolean hasNetwork = !network.getEdges().isEmpty();
         boolean previewBlocked = !hasNetwork || preflight.blocksBuild() || ctx.previewManager().isPreviewJobRunning();
 
-        if (!preflight.items().isEmpty()) {
+        if (!preflight.items().isEmpty() && !ctx.previewManager().hasValidPreview()) {
             RoadNetworkValidationPanel.render(preflight, ctx);
         }
 
@@ -310,10 +304,6 @@ public final class RoadGeneratePanel {
             lastGenerationResult.normalRoadLength,
             lastGenerationResult.bridgeLength,
             lastGenerationResult.tunnelLength));
-        ImGui.text(PlotI18n.tr("plugin.road.bridge_count_result",
-            lastGenerationResult.bridgeCount, lastGenerationResult.bridgeBlocks.size()));
-        ImGui.text(PlotI18n.tr("plugin.road.tunnel_count_result",
-            lastGenerationResult.tunnelCount, lastGenerationResult.tunnelBlocks.size()));
 
         RoadNetworkValidationReport validationReport = validationReport();
         RoadNetworkValidationPanel.render(validationReport, ctx);

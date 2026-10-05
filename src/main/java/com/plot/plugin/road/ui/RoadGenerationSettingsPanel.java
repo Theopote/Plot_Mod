@@ -2,6 +2,8 @@ package com.plot.plugin.road.ui;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.profile.RoadProfileRoadList;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -26,6 +28,18 @@ public final class RoadGenerationSettingsPanel {
         return RoadVerticalStrategy.fromRoad(road) != RoadVerticalStrategy.FLAT;
     }
 
+    /** 纵断面工作区已为当前道路展示坡度/地形预设时，生成设置区不再重复全局预设。 */
+    public static boolean showsPerRoadTerrainControls(RoadUiContext ctx, Road road) {
+        return road != null
+            && RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.TERRAIN_ADAPTIVE
+            && showsTerrainAdaptiveControls(ctx);
+    }
+
+    public static boolean defersTerrainControlsToProfileWorkspace(RoadUiContext ctx) {
+        RoadNetwork network = ctx.networkManager().getNetwork();
+        return showsPerRoadTerrainControls(ctx, RoadProfileRoadList.resolveActiveRoad(network, ctx));
+    }
+
     /** 建造 Tab 主界面：地形适应、坡度预设、桥梁选项。 */
     public static void renderPrimary(RoadUiContext ctx) {
         RoadSystemConfig config = ctx.networkManager().getConfig();
@@ -34,8 +48,10 @@ public final class RoadGenerationSettingsPanel {
         }
 
         if (showsTerrainAdaptiveControls(ctx)) {
-            RoadStyleProductControls.renderConfigMaxSlopePresets(ctx);
-            RoadStyleProductControls.renderTerrainStylePresets(ctx);
+            if (!defersTerrainControlsToProfileWorkspace(ctx)) {
+                RoadStyleProductControls.renderConfigMaxSlopePresets(ctx);
+                RoadStyleProductControls.renderTerrainStylePresets(ctx);
+            }
         } else {
             RoadUiWidgets.textWrappedColored(
                 com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
