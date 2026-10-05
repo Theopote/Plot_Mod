@@ -91,6 +91,21 @@ class RoadProfileQualityAnalyzerTest {
     }
 
     @Test
+    void earthworkUsesContinuousSpanAcrossSubBlockSampling() {
+        List<BuildHeightSample> oneMeterSamples = uniformSamples(100.0, 66, 101);
+        List<BuildHeightSample> halfMeterSamples = uniformSamples(100.0, 66, 201);
+
+        double oneMeterFill = RoadProfileQualityAnalyzer.analyze(
+            chartWithSamples(oneMeterSamples, ground(64.0, 100.0))).terrain().fillBlockColumns();
+        double halfMeterFill = RoadProfileQualityAnalyzer.analyze(
+            chartWithSamples(halfMeterSamples, ground(64.0, 100.0))).terrain().fillBlockColumns();
+
+        assertEquals(oneMeterFill, halfMeterFill, 1e-6,
+            "earthwork volume should not double when sample spacing drops below 1 block");
+        assertEquals(100.0, oneMeterFill, 1e-6);
+    }
+
+    @Test
     void longestFlatRunMatchesRasterizerSemantics() {
         List<BuildHeightSample> samples = List.of(
             new BuildHeightSample(0.0, 64.0, 64),
@@ -103,6 +118,15 @@ class RoadProfileQualityAnalyzerTest {
 
     private static List<Double> ground(double elevation, double length) {
         return List.of(elevation, elevation);
+    }
+
+    private static List<BuildHeightSample> uniformSamples(double totalLength, int buildY, int count) {
+        List<BuildHeightSample> samples = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            double station = totalLength * i / (count - 1);
+            samples.add(new BuildHeightSample(station, buildY, buildY));
+        }
+        return samples;
     }
 
     private static RoadProfileChartData chartWithSamples(

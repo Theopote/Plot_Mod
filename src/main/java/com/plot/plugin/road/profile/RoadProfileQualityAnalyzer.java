@@ -29,8 +29,8 @@ public final class RoadProfileQualityAnalyzer {
             RoadProfileChartData chart,
             List<BuildHeightSample> samples,
             RoadProfileQualityMetrics.DesignMetrics design) {
-        int cut = 0;
-        int fill = 0;
+        double cut = 0.0;
+        double fill = 0.0;
         double maxDeviation = 0.0;
 
         for (BuildHeightSample sample : samples) {
@@ -71,8 +71,8 @@ public final class RoadProfileQualityAnalyzer {
         List<Double> build = chart.buildElevations();
         List<Double> designElevations = chart.previewElevations();
 
-        int cut = 0;
-        int fill = 0;
+        double cut = 0.0;
+        double fill = 0.0;
         int abnormalSteps = 0;
         int steps = 0;
         double maxDeviation = 0.0;
@@ -96,11 +96,10 @@ public final class RoadProfileQualityAnalyzer {
             double mid = stations.get(i - 1) + span * 0.5;
             int groundY = (int) Math.round(chart.groundElevationAt(mid));
             int diff = prevBuildY - groundY;
-            int roundedSpan = Math.max(1, (int) Math.round(span));
             if (diff > 1) {
-                fill += (diff - 1) * roundedSpan;
+                fill += (diff - 1) * span;
             } else if (diff < -1) {
-                cut += (-diff - 1) * roundedSpan;
+                cut += (-diff - 1) * span;
             }
         }
 
@@ -215,17 +214,16 @@ public final class RoadProfileQualityAnalyzer {
         double mid = sample.station() + span * 0.5;
         int groundY = (int) Math.round(chart.groundElevationAt(mid));
         int diff = sample.buildY() - groundY;
-        int roundedSpan = Math.max(1, (int) Math.round(span));
         if (diff > 1) {
-            return new EarthworkDelta(0, (diff - 1) * roundedSpan);
+            return new EarthworkDelta(0.0, (diff - 1) * span);
         }
         if (diff < -1) {
-            return new EarthworkDelta((-diff - 1) * roundedSpan, 0);
+            return new EarthworkDelta((-diff - 1) * span, 0.0);
         }
-        return new EarthworkDelta(0, 0);
+        return new EarthworkDelta(0.0, 0.0);
     }
 
-    private record EarthworkDelta(int cut, int fill) { }
+    private record EarthworkDelta(double cut, double fill) { }
 
     private static double maxAdjacentGradeChange(List<Double> signedGrades) {
         if (signedGrades.size() < 2) {

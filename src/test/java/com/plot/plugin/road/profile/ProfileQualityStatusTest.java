@@ -105,14 +105,24 @@ class ProfileQualityStatusTest {
     void terrainStatusIsStableAcrossSampleDensity() {
         RoadProfileChartData sparse = chartWithUniformTerrainOffset(100.0, 64.0, 65.0, 6);
         RoadProfileChartData dense = chartWithUniformTerrainOffset(100.0, 64.0, 65.0, 101);
+        RoadProfileChartData halfMeter = chartWithUniformTerrainOffset(100.0, 64.0, 66.0, 201);
 
         ProfileQualityStatus.Level sparseLevel = terrainLevel(
             ProfileQualityStatus.evaluate(sparse, null, new RoadSystemConfig("test")));
         ProfileQualityStatus.Level denseLevel = terrainLevel(
             ProfileQualityStatus.evaluate(dense, null, new RoadSystemConfig("test")));
+        ProfileQualityStatus.Level oneMeterLevel = terrainLevel(
+            ProfileQualityStatus.evaluate(
+                chartWithUniformTerrainOffset(100.0, 64.0, 66.0, 101),
+                null,
+                new RoadSystemConfig("test")));
+        ProfileQualityStatus.Level halfMeterLevel = terrainLevel(
+            ProfileQualityStatus.evaluate(halfMeter, null, new RoadSystemConfig("test")));
 
         assertEquals(sparseLevel, denseLevel,
             "same average terrain modification should yield the same terrain status");
+        assertEquals(oneMeterLevel, halfMeterLevel,
+            "sub-1 block sampling must not inflate terrain modification status");
     }
 
     private static ProfileQualityStatus.Level terrainLevel(ProfileQualityStatus.Summary summary) {

@@ -58,20 +58,20 @@ public record RoadProfileQualityMetrics(
         }
     }
 
-    public record TerrainMetrics(int cutBlockColumns, int fillBlockColumns) {
+    public record TerrainMetrics(double cutBlockColumns, double fillBlockColumns) {
 
-        private static final TerrainMetrics EMPTY = new TerrainMetrics(0, 0);
+        private static final TerrainMetrics EMPTY = new TerrainMetrics(0.0, 0.0);
 
         public static TerrainMetrics empty() {
             return EMPTY;
         }
 
-        public int earthworkBlockColumns() {
+        public double earthworkBlockColumns() {
             return cutBlockColumns + fillBlockColumns;
         }
 
         /** 填方减挖方；正数表示净填。 */
-        public int balanceBlockColumns() {
+        public double balanceBlockColumns() {
             return fillBlockColumns - cutBlockColumns;
         }
     }
