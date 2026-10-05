@@ -70,6 +70,7 @@ class ProfileChartHitTesterTest {
             PointOfVerticalIntersection.of(50, 75),
             PointOfVerticalIntersection.of(100, 70)));
         assertFalse(VerticalProfileControlPoints.canInsertAt(alignment, 50, 100));
+        assertFalse(VerticalProfileControlPoints.canInsertAt(alignment, 5, 100));
 
         double minRun = VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH;
         RoadVerticalAlignment tight = new RoadVerticalAlignment(List.of(

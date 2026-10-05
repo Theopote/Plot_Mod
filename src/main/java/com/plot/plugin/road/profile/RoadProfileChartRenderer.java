@@ -10,7 +10,6 @@ import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
 import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
-import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
 import com.plot.plugin.ui.PluginUiColors;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -328,7 +327,7 @@ public final class RoadProfileChartRenderer {
             ProfileControlPoint point = ProfileChartHitTester.hitPvi(
                 controls, layout, range, mouseX, mouseY,
                 ProfileChartHitTester.DEFAULT_PVI_HIT_RADIUS_PX);
-            if (point != null && ProfileChartHitTester.canOpenPviContextMenu(point)) {
+            if (ProfileChartHitTester.canOpenPviContextMenu(point)) {
                 contextMenuPvi = point.pviIndex();
                 ImGui.openPopup("##road_profile_pvi_context");
             }

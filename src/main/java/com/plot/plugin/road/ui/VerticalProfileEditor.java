@@ -1062,12 +1062,8 @@ final class VerticalProfileEditor {
         }
     }
 
-    static boolean canDeleteProfilePvi(Road road, int pviIndex) {
-        return road != null
-            && road.getVerticalAlignment() != null
-            && road.getVerticalAlignment().pviCount() > 2
-            && pviIndex > 0
-            && pviIndex < road.getVerticalAlignment().pviCount() - 1;
+    static boolean canDeleteProfilePvi(RoadNetwork network, Road road, int pviIndex) {
+        return VerticalProfileControlPoints.canDelete(network, road, pviIndex);
     }
 
     private void deleteProfilePvi(
@@ -1075,7 +1071,7 @@ final class VerticalProfileEditor {
             RoadNetwork network,
             Road road,
             int pviIndex) {
-        if (!canDeleteProfilePvi(road, pviIndex)) {
+        if (!canDeleteProfilePvi(network, road, pviIndex)) {
             return;
         }
         beginProfileNetworkEdit(ctx);
@@ -1095,7 +1091,8 @@ final class VerticalProfileEditor {
         }
         return switch (reason) {
             case INSUFFICIENT_SPACE -> PlotI18n.tr("plugin.road.profile_pvi_insert_insufficient_space");
-            case DUPLICATE_STATION -> PlotI18n.tr("plugin.road.profile_pvi_insert_too_close");
+            case DUPLICATE_STATION, TOO_CLOSE_TO_NEIGHBOR ->
+                PlotI18n.tr("plugin.road.profile_pvi_insert_too_close");
             case INVALID_INPUT -> PlotI18n.tr("plugin.road.profile_pvi_insert_invalid");
             case ROAD_TOO_SHORT -> PlotI18n.tr("plugin.road.profile_pvi_insert_road_too_short");
         };
@@ -1109,7 +1106,7 @@ final class VerticalProfileEditor {
             return;
         }
         int pviIndex = editorState.contextMenuPvi;
-        boolean canDelete = canDeleteProfilePvi(road, pviIndex);
+        boolean canDelete = canDeleteProfilePvi(network, road, pviIndex);
         if (!canDelete) {
             ImGui.textDisabled(PlotI18n.tr("plugin.road.profile_pvi_delete_disabled"));
         } else if (ImGui.menuItem(PlotI18n.tr("plugin.road.profile_pvi_delete"))) {

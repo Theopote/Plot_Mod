@@ -315,6 +315,7 @@ public final class VerticalProfileControlPoints {
         INVALID_INPUT,
         DUPLICATE_STATION,
         INSUFFICIENT_SPACE,
+        TOO_CLOSE_TO_NEIGHBOR,
         ROAD_TOO_SHORT
     }
 
@@ -340,7 +341,7 @@ public final class VerticalProfileControlPoints {
             return false;
         }
         if (!VerticalProfileDesignRules.slopeAllowed(roadLength)) {
-            return true;
+            return false;
         }
         if (source == null || source.pviCount() < 2) {
             return canBootstrapInteriorPoint(station, roadLength);
@@ -367,11 +368,6 @@ public final class VerticalProfileControlPoints {
         if (insertIndex < 0) {
             return InsertResult.fail(InsertFailureReason.DUPLICATE_STATION);
         }
-        double minimum = pvis.get(insertIndex - 1).getStation()
-            + VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH;
-        double maximum = pvis.get(insertIndex).getStation()
-            - VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH;
-        station = Math.max(minimum, Math.min(maximum, station));
         pvis.add(insertIndex, PointOfVerticalIntersection.of(station, elevation));
         return InsertResult.ok(new RoadVerticalAlignment(pvis));
     }
@@ -388,13 +384,17 @@ public final class VerticalProfileControlPoints {
             return InsertResult.fail(InsertFailureReason.INVALID_INPUT);
         }
         if (!VerticalProfileDesignRules.slopeAllowed(roadLength)) {
-            return InsertResult.ok(VerticalProfileDesignRules.flatAlignment(roadLength, insertElevation));
+            return InsertResult.fail(InsertFailureReason.ROAD_TOO_SHORT);
         }
         if (source != null && source.pviCount() >= 2) {
             return tryInsertAt(source, insertStation, insertElevation, roadLength);
         }
         if (!canBootstrapInteriorPoint(insertStation, roadLength)) {
-            return InsertResult.fail(InsertFailureReason.INSUFFICIENT_SPACE);
+            InsertFailureReason reason = roadLength
+                    < 2.0 * VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH - EPSILON
+                ? InsertFailureReason.INSUFFICIENT_SPACE
+                : InsertFailureReason.TOO_CLOSE_TO_NEIGHBOR;
+            return InsertResult.fail(reason);
         }
         return InsertResult.ok(bootstrapAlignment(
             roadLength, startElevation, endElevation, insertStation, insertElevation));
@@ -455,6 +455,9 @@ public final class VerticalProfileControlPoints {
         if (minimum > maximum) {
             return InsertFailureReason.INSUFFICIENT_SPACE;
         }
+        if (station < minimum - EPSILON || station > maximum + EPSILON) {
+            return InsertFailureReason.TOO_CLOSE_TO_NEIGHBOR;
+        }
         return null;
     }
 
@@ -477,8 +480,8 @@ public final class VerticalProfileControlPoints {
         if (roadLength < 2.0 * minRun - EPSILON) {
             return false;
         }
-        double station = Math.max(minRun, Math.min(roadLength - minRun, insertStation));
-        return station > EPSILON && roadLength - station > EPSILON;
+        return insertStation + EPSILON >= minRun
+            && insertStation <= roadLength - minRun + EPSILON;
     }
 
     private static RoadVerticalAlignment bootstrapAlignment(
@@ -487,21 +490,54 @@ public final class VerticalProfileControlPoints {
             double endElevation,
             double insertStation,
             double insertElevation) {
-        double minRun = VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH;
         List<PointOfVerticalIntersection> pvis = new ArrayList<>();
         pvis.add(PointOfVerticalIntersection.of(0.0, startElevation));
-        double station = Math.max(minRun, Math.min(roadLength - minRun, insertStation));
-        if (station > EPSILON && roadLength - station > EPSILON) {
-            pvis.add(PointOfVerticalIntersection.of(station, insertElevation));
-        }
+        pvis.add(PointOfVerticalIntersection.of(insertStation, insertElevation));
         pvis.add(PointOfVerticalIntersection.of(roadLength, endElevation));
         return new RoadVerticalAlignment(pvis);
     }
 
+    /** Whether a PVI may be deleted from the profile editor (graph, panel, context menu). */
+    public static boolean canDelete(RoadNetwork network, Road road, ProfileControlPoint point) {
+        if (network == null || road == null || point == null) {
+            return false;
+        }
+        RoadVerticalAlignment alignment = road.getVerticalAlignment();
+        if (alignment == null) {
+            return false;
+        }
+        int index = point.pviIndex();
+        int count = alignment.pviCount();
+        if (count <= 2 || index <= 0 || index >= count - 1) {
+            return false;
+        }
+        if (point.role() == ProfilePointRole.JUNCTION_FIXED || point.sharedJunction()) {
+            return false;
+        }
+        PointOfVerticalIntersection pvi = alignment.getPvis().get(index);
+        return pvi.getConstraint() != VerticalControlPointConstraint.JUNCTION_FIXED;
+    }
+
+    public static boolean canDelete(RoadNetwork network, Road road, int pviIndex) {
+        if (network == null || road == null || pviIndex < 0) {
+            return false;
+        }
+        return forRoad(network, road).stream()
+            .filter(point -> point.pviIndex() == pviIndex)
+            .findFirst()
+            .map(point -> canDelete(network, road, point))
+            .orElse(false);
+    }
+
     /** 删除变坡点，至少保留两个端点。 */
     public static RoadVerticalAlignment removeAt(RoadVerticalAlignment source, int pviIndex) {
-        if (source == null || source.pviCount() <= 2 || pviIndex < 0 || pviIndex >= source.pviCount()) {
+        if (source == null || source.pviCount() <= 2
+                || pviIndex <= 0 || pviIndex >= source.pviCount() - 1) {
             throw new IllegalArgumentException("invalid PVI delete");
+        }
+        PointOfVerticalIntersection pvi = source.getPvis().get(pviIndex);
+        if (pvi.getConstraint() == VerticalControlPointConstraint.JUNCTION_FIXED) {
+            throw new IllegalArgumentException("cannot delete junction-fixed PVI");
         }
         List<PointOfVerticalIntersection> pvis = new ArrayList<>(source.getPvis());
         pvis.remove(pviIndex);

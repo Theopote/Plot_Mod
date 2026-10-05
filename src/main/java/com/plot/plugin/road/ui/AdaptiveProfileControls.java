@@ -102,7 +102,8 @@ final class AdaptiveProfileControls {
             ctx.finishNetworkEdit();
             ctx.previewManager().markBuildPreviewStalePreservingProfile();
         }
-        boolean canDelete = VerticalProfileEditor.canDeleteProfilePvi(road, state.selectedProfilePvi);
+        boolean canDelete = VerticalProfileControlPoints.canDelete(
+            network, road, state.selectedProfilePvi);
         if (!canDelete) {
             ImGui.beginDisabled();
         }
