@@ -1,5 +1,9 @@
 package com.plot.plugin.road;
 
+import com.plot.core.terrain.TerrainSampler;
+import com.plot.plugin.road.vertical.RoadElevationBounds;
+import com.plot.plugin.road.vertical.RoadWorldElevationBounds;
+
 /**
  * 道路插件参数合法范围与 clamp 工具（UI 与模型共用）。
  */
@@ -10,8 +14,10 @@ public final class RoadParameterLimits {
     public static final int MAX_LANE_COUNT = 4;
     public static final int MIN_STRIP_WIDTH = 1;
     public static final int MAX_STRIP_WIDTH = 3;
-    public static final int ELEVATION_MIN = -64;
-    public static final int ELEVATION_MAX = 320;
+    /** Inclusive minimum placeable block Y for default overworld fallback. */
+    public static final int ELEVATION_MIN = TerrainSampler.DEFAULT_WORLD_BOTTOM_Y;
+    /** Inclusive maximum placeable block Y for default overworld fallback. */
+    public static final int ELEVATION_MAX = TerrainSampler.DEFAULT_WORLD_TOP_EXCLUSIVE_Y - 1;
     public static final int MIN_CROSSING_CLEARANCE = 1;
     public static final int MAX_CROSSING_CLEARANCE = 10;
     public static final int STREETLIGHT_DISABLED = 0;
@@ -57,7 +63,11 @@ public final class RoadParameterLimits {
     }
 
     public static double clampElevation(double elevation) {
-        return Math.max(ELEVATION_MIN, Math.min(ELEVATION_MAX, elevation));
+        return elevationBounds().clamp(elevation);
+    }
+
+    public static RoadElevationBounds elevationBounds() {
+        return RoadWorldElevationBounds.fallback();
     }
 
     public static Double clampManualElevation(Double elevation) {

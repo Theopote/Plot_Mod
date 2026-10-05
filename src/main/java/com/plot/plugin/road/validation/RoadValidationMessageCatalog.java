@@ -157,6 +157,8 @@ public final class RoadValidationMessageCatalog {
             IssueTemplate.warning("vertical_elevation_change_not_visible"));
         map.put("plugin.road.validation.short_road_non_flat",
             IssueTemplate.error("short_road_non_flat", RoadValidationAction.MAKE_SHORT_ROADS_FLAT));
+        map.put("plugin.road.validation.vertical_elevation_out_of_bounds",
+            IssueTemplate.error("vertical_elevation_out_of_bounds", null));
         map.put("plugin.road.validation.flat_junction_conflict",
             IssueTemplate.error("flat_junction_conflict", null));
         map.put("plugin.road.validation.flat_flat_at_grade_mismatch",

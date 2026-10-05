@@ -6,7 +6,9 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
+import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
+import com.plot.plugin.road.vertical.RoadWorldElevationBounds;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
@@ -31,7 +33,7 @@ final class FlatProfileControls {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         syncFlatElevation(network, road, config);
         RoadUiSections.section("plugin.road.profile_flat_editor_section");
-        renderBaseElevationField(ctx, network, road, config, onHistory);
+        renderBaseElevationField(ctx, network, road, config, onHistory, terrainSupplier);
         ImGui.spacing();
         recommendationUi.renderGenerateControls(ctx, network, road, onHistory, terrainSupplier);
         RoadUiWidgets.textWrappedColored(
@@ -81,15 +83,15 @@ final class FlatProfileControls {
             RoadNetwork network,
             Road road,
             RoadSystemConfig config,
-            Runnable onHistory) {
+            Runnable onHistory,
+            Supplier<com.plot.core.terrain.TerrainSampler> terrainSupplier) {
+        RoadElevationBounds bounds = resolveElevationBounds(terrainSupplier);
         float[] elevation = {flatElevation};
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.dragFloat(
+        if (RoadElevationInput.renderDragFloat(
                 PlotI18n.tr("plugin.road.vertical_alignment_flat_elevation"),
                 elevation,
+                bounds,
                 0.5f,
-                -64f,
-                320f,
                 "%.1f")) {
             flatElevation = elevation[0];
         }
@@ -118,5 +120,12 @@ final class FlatProfileControls {
             road,
             FlatVerticalIntentSupport.resolveIntent(network, road));
         ctx.requestOverlayRefresh();
+    }
+
+    private static RoadElevationBounds resolveElevationBounds(
+            Supplier<com.plot.core.terrain.TerrainSampler> terrainSupplier) {
+        com.plot.core.terrain.TerrainSampler terrain =
+            terrainSupplier != null ? terrainSupplier.get() : null;
+        return RoadWorldElevationBounds.resolve(terrain);
     }
 }

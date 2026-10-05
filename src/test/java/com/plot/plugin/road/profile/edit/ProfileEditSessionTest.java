@@ -8,8 +8,10 @@ import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.profile.ProfileControlPoint;
 import com.plot.plugin.road.profile.ProfilePointRole;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
+import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
+import com.plot.plugin.road.vertical.RoadWorldElevationBounds;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -59,6 +61,24 @@ class ProfileEditSessionTest {
         session.cancelEdit();
         assertFalse(session.isActive());
         assertEquals(originalMid, road.getVerticalAlignment().getPvis().get(1).getElevation());
+    }
+
+    @Test
+    void pviDragClampsElevationToWorldBounds() {
+        session.setElevationBounds(new RoadElevationBounds(-64, 319));
+        session.beginPviEdit(road);
+        ProfileControlPoint midPoint = new ProfileControlPoint(
+            1, 50.0, 68.0, ProfilePointRole.INTERIOR_PVI, null, null, false, true);
+        session.updatePviDrag(network, road, midPoint, 1, 50.0, 500.0);
+        assertEquals(319.0, session.effectiveAlignment(road).getPvis().get(1).getElevation());
+    }
+
+    @Test
+    void numericElevationEditClampsBeforeCommit() {
+        session.setElevationBounds(RoadWorldElevationBounds.fallback());
+        session.beginNumericEdit(road);
+        session.updatePviElevation(network, road, 1, 400.0);
+        assertEquals(319.0, session.effectiveAlignment(road).getPvis().get(1).getElevation());
     }
 
     @Test

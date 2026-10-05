@@ -121,12 +121,6 @@ public final class ProfileChartLegend {
         ImGui.textColored(
             ProfileChartSeriesStyle.BUILD_PROFILE,
             "\u25A0 " + buildProfileLabel(buildPreviewStale));
-        if (verticalMode == RoadVerticalMode.MANUAL_PROFILE && design != null && !design.isEmpty()) {
-            ImGui.sameLine();
-            ImGui.textColored(
-                ProfileChartSeriesStyle.DESIGN_PROFILE,
-                "\u25A0 " + PlotI18n.tr("plugin.road.profile_design"));
-        }
         if (guideSemantics == ProfileChartGuideSemantics.GUIDE_LINE) {
             ImGui.sameLine();
             ImGui.textColored(

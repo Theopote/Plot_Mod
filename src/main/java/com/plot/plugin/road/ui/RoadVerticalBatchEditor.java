@@ -83,8 +83,8 @@ final class RoadVerticalBatchEditor {
             elevationLabel,
             elevation,
             0.5f,
-            -64f,
-            320f,
+            com.plot.plugin.road.RoadParameterLimits.ELEVATION_MIN,
+            com.plot.plugin.road.RoadParameterLimits.ELEVATION_MAX,
             summary.mixed() ? PlotI18n.tr("plugin.road.vertical_batch_elevation_mixed") : "%.1f");
         unifiedElevationDraft = elevation[0];
         ImGui.sameLine();

@@ -17,8 +17,10 @@ import com.plot.plugin.road.vertical.VerticalAlignmentJunctionSynchronizer;
 import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
 import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
+import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
+import com.plot.plugin.road.vertical.RoadWorldElevationBounds;
 import com.plot.plugin.road.vertical.VerticalProfileNetworkPropagator;
 import com.plot.plugin.road.validation.RoadValidationMessage;
 import com.plot.plugin.road.validation.RoadValidationMessageCatalog;
@@ -253,7 +255,7 @@ public final class VerticalAlignmentEditor {
             ImGui.endCombo();
         }
         if (current == RoadVerticalStrategy.FLAT) {
-            renderFlatElevationField(network, road, config, onProfileHistory);
+            renderFlatElevationField(network, road, config, onProfileHistory, terrainSupplier);
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.vertical_strategy_flat_hint"));
@@ -275,7 +277,7 @@ public final class VerticalAlignmentEditor {
         if (intent != null) {
             flatElevation = (float) intent.getBaseElevation();
         }
-        renderFlatElevationField(network, road, config, onHistory);
+        renderFlatElevationField(network, road, config, onHistory, terrainSupplier);
         flatElevationRecommendationUi.renderGenerateControls(
             ctx, network, road, onHistory, terrainSupplier);
         RoadUiWidgets.textWrappedColored(
@@ -287,15 +289,15 @@ public final class VerticalAlignmentEditor {
             RoadNetwork network,
             Road road,
             RoadSystemConfig config,
-            Runnable onHistory) {
+            Runnable onHistory,
+            Supplier<TerrainSampler> terrainSupplier) {
+        RoadElevationBounds bounds = resolveElevationBounds(terrainSupplier);
         float[] elevation = {flatElevation};
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.dragFloat(
+        if (RoadElevationInput.renderDragFloat(
                 PlotI18n.tr("plugin.road.vertical_alignment_flat_elevation"),
                 elevation,
+                bounds,
                 0.5f,
-                -64f,
-                320f,
                 "%.1f")) {
             if (ImGui.isItemDeactivatedAfterEdit()) {
                 if (onHistory != null) {
@@ -345,13 +347,11 @@ public final class VerticalAlignmentEditor {
         }
 
         float[] elevation = {draft.elevation};
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        ImGui.dragFloat(
+        RoadElevationInput.renderDragFloat(
             PlotI18n.tr("plugin.road.vertical_alignment_elevation") + "##elevation",
             elevation,
+            RoadWorldElevationBounds.fallback(),
             0.5f,
-            -64f,
-            320f,
             "%.1f");
         if (ImGui.isItemActivated()) {
             beginDraftEdit(ctx);
@@ -592,6 +592,11 @@ public final class VerticalAlignmentEditor {
             }
         }
         return true;
+    }
+
+    private static RoadElevationBounds resolveElevationBounds(Supplier<TerrainSampler> terrainSupplier) {
+        TerrainSampler terrain = terrainSupplier != null ? terrainSupplier.get() : null;
+        return RoadWorldElevationBounds.resolve(terrain);
     }
 
     /** Flat-road profile chart reference lines (current vs optimizer suggestion). */

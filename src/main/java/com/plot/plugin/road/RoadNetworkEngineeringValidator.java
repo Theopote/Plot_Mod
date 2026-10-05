@@ -17,7 +17,10 @@ import com.plot.plugin.road.alignment.HorizontalAlignmentTopologyValidator;
 import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.solid.RoadGenerationResult;
+import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
+import com.plot.plugin.road.vertical.RoadVerticalBoundsValidator;
+import com.plot.plugin.road.vertical.RoadWorldElevationBounds;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import com.plot.plugin.road.vertical.VerticalAlignmentValidator;
 import com.plot.plugin.road.vertical.VerticalAlignmentViolationKind;
@@ -56,6 +59,7 @@ public final class RoadNetworkEngineeringValidator {
         List<RoadNetworkValidationReport.Item> items = new ArrayList<>();
         if (network != null && !network.getEdges().isEmpty()) {
             addShortRoadVerticalAlignmentBlocker(items, network);
+            addVerticalElevationBoundsBlocker(items, network);
             addFlatRoadJunctionConflictBlocker(items, network);
             addFlatFlatAtGradeMismatchBlocker(items, network);
             addIntersectionIncompleteBlocker(items, network);
@@ -379,6 +383,7 @@ public final class RoadNetworkEngineeringValidator {
             return;
         }
         addShortRoadVerticalAlignmentBlocker(items, network);
+        addVerticalElevationBoundsBlocker(items, network);
         addFlatRoadJunctionConflictBlocker(items, network);
         addFlatFlatAtGradeMismatchBlocker(items, network);
         addFlatTransitionWarnings(items, network);
@@ -411,6 +416,20 @@ public final class RoadNetworkEngineeringValidator {
         }
 
         addVerticalAlignmentTopologyItems(items, network);
+    }
+
+    private static void addVerticalElevationBoundsBlocker(
+            List<RoadNetworkValidationReport.Item> items,
+            RoadNetwork network) {
+        RoadElevationBounds bounds = RoadWorldElevationBounds.fallback();
+        int count = RoadVerticalBoundsValidator.findViolations(network, bounds).size();
+        if (count > 0) {
+            items.add(RoadNetworkValidationReport.Item.error(
+                "plugin.road.validation.vertical_elevation_out_of_bounds",
+                count,
+                (int) bounds.minY(),
+                (int) bounds.maxY()));
+        }
     }
 
     private static void addFlatRoadJunctionConflictBlocker(

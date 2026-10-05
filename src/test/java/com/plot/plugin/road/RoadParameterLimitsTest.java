@@ -57,6 +57,6 @@ class RoadParameterLimitsTest {
     void clampManualElevation() {
         assertNull(RoadParameterLimits.clampManualElevation(null));
         assertEquals(-64.0, RoadParameterLimits.clampManualElevation(-100.0));
-        assertEquals(320.0, RoadParameterLimits.clampManualElevation(400.0));
+        assertEquals(319.0, RoadParameterLimits.clampManualElevation(400.0));
     }
 }

@@ -11,8 +11,10 @@ import com.plot.plugin.road.profile.RoadProfileIntersection;
 import com.plot.plugin.road.profile.RoadProfileIntersectionDragEditor;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.ui.RoadUiContext;
+import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
+import com.plot.plugin.road.vertical.RoadWorldElevationBounds;
 import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
 import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
 
@@ -25,6 +27,15 @@ public final class ProfileEditSession {
 
     private final ProfileEditDraft draft = new ProfileEditDraft();
     private int activeCurvePviIndex = -1;
+    private RoadElevationBounds elevationBounds = RoadWorldElevationBounds.fallback();
+
+    public void setElevationBounds(RoadElevationBounds bounds) {
+        elevationBounds = bounds != null ? bounds : RoadWorldElevationBounds.fallback();
+    }
+
+    public RoadElevationBounds elevationBounds() {
+        return elevationBounds;
+    }
 
     public boolean isActive() {
         return draft.isActive();
@@ -47,6 +58,25 @@ public final class ProfileEditSession {
         if (!draft.isActive()) {
             draft.beginAlignmentEdit(road, ProfileEditDraft.Kind.PVI);
         }
+    }
+
+    public void beginNumericEdit(Road road) {
+        beginPviEdit(road);
+    }
+
+    public void updatePviElevation(RoadNetwork network, Road road, int pviIndex, double elevation) {
+        if (road == null || draft.draftAlignment() == null || pviIndex < 0
+                || pviIndex >= draft.draftAlignment().pviCount()) {
+            return;
+        }
+        double station = draft.draftAlignment().getPvis().get(pviIndex).getStation();
+        RoadVerticalAlignment updated = VerticalProfileControlPoints.move(
+            draft.draftAlignment(),
+            pviIndex,
+            station,
+            elevationBounds.clamp(elevation),
+            RoadStationing.canonicalLength(network, road));
+        draft.setDraftAlignment(updated);
     }
 
     public void beginCurveEdit(Road road, int pviIndex) {
@@ -74,6 +104,7 @@ public final class ProfileEditSession {
         if (road == null || draggedPoint == null || draft.draftAlignment() == null) {
             return;
         }
+        elevation = elevationBounds.clamp(elevation);
         RoadVerticalAlignment updated;
         if (road.getTopologyMode() == RoadTopologyMode.LOOP
                 && (draggedPoint.role() == ProfilePointRole.LOOP_SEAM_START
@@ -105,7 +136,7 @@ public final class ProfileEditSession {
             int index,
             RoadProfileIntersectionDragEditor.DragTarget target,
             double elevation) {
-        draft.updateIntersectionDraft(index, target, elevation);
+        draft.updateIntersectionDraft(index, target, elevationBounds.clamp(elevation));
     }
 
     public RoadVerticalAlignment effectiveAlignment(Road road) {

@@ -33,7 +33,9 @@ import net.minecraft.world.World;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
+import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
+import com.plot.plugin.road.vertical.RoadWorldElevationBounds;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
@@ -490,20 +492,6 @@ final class VerticalProfileEditor {
         }
     }
 
-    private static void renderEditorControlLegend(boolean flatMode) {
-        if (flatMode) {
-            return;
-        }
-        ImGui.textColored(PluginUiColors.LEGEND, "\u25CF " + PlotI18n.tr("plugin.road.profile_legend_pvi"));
-        ImGui.sameLine();
-        ImGui.textColored(PluginUiColors.ERROR, "\u25CF " + PlotI18n.tr("plugin.road.profile_legend_pvi_invalid"));
-        ImGui.sameLine();
-        ImGui.textColored(PluginUiColors.ACCENT_BLUE, "\u25CF " + PlotI18n.tr(
-            "plugin.road.profile_legend_pvi_selected"));
-        ImGui.sameLine();
-        ImGui.textColored(0xFF88DDFF, "\u25A0 " + PlotI18n.tr("plugin.road.profile_legend_curve_handle"));
-    }
-
     private void renderEditorLegend(
             RoadUiContext ctx,
             Road road,
@@ -517,7 +505,6 @@ final class VerticalProfileEditor {
             flatMode,
             ctx.previewManager().needsPreviewRecalc());
         ProfileChartLegend.renderIntersectionLegend(intersections);
-        renderEditorControlLegend(flatMode);
     }
 
     private void renderInteractiveEditor(
@@ -559,6 +546,8 @@ final class VerticalProfileEditor {
         }
         renderManualEndpointConstraintWarning(chartData);
         renderWaterConstraintWarning(chartData);
+        RoadElevationBounds elevationBounds = resolveElevationBounds(ctx);
+        profileEditSession.setElevationBounds(elevationBounds);
         RoadLongitudinalProfileRenderer.ControlInteraction interaction =
             RoadProfileChartRenderer.renderInteractive(
                 chartData, design, points, chartSelectedPvi, chartActivePvi, maxGrade,
@@ -572,7 +561,8 @@ final class VerticalProfileEditor {
                 editorState.activeCurveHandle,
                 ProfileChartRenderMode.EDITOR,
                 renderCache,
-                road.getVerticalMode());
+                road.getVerticalMode(),
+                elevationBounds);
         if (interaction.intersectionDragStarted()) {
             profileEditSession.beginIntersectionEdit(baseIntersections);
         }
@@ -704,14 +694,16 @@ final class VerticalProfileEditor {
                 FlatElevationRecommendationUi.terrainSupplier(ctx));
         } else {
             adaptiveProfileControls.render(
+                ctx,
                 network,
                 road,
+                config,
+                profileEditSession,
                 legacyPoints,
                 maxGrade,
                 editorState,
                 () -> propagateJunctionGrades(ctx, network, road),
-                () -> beginProfileNetworkEdit(ctx),
-                propagate -> finishProfileNetworkEdit(ctx, propagate));
+                onAlignmentCommitted);
         }
         renderBuildPreviewStaleBar(ctx, network);
     }
@@ -1007,6 +999,11 @@ final class VerticalProfileEditor {
         return cachedGradeSeparationGenerator;
     }
 
+    private static RoadElevationBounds resolveElevationBounds(RoadUiContext ctx) {
+        TerrainSampler terrain = FlatElevationRecommendationUi.terrainSupplier(ctx).get();
+        return RoadWorldElevationBounds.resolve(terrain);
+    }
+
     private static TerrainSampler resolveTerrainSampler(RoadGenerator generator) {
         World world = RoadNetworkGenerator.getClientWorld();
         if (world != null) {
@@ -1031,13 +1028,15 @@ final class VerticalProfileEditor {
         double insertStation = interaction.addPointLocalDistance();
         double startElevation = chartData.groundElevationAt(0.0);
         double endElevation = chartData.groundElevationAt(chartData.totalStation());
+        RoadElevationBounds bounds = resolveElevationBounds(ctx);
+        double insertElevation = bounds.clamp(interaction.addPointElevation());
         RoadVerticalAlignment updated = VerticalProfileControlPoints.bootstrapOrInsert(
             road.getVerticalAlignment(),
             roadLength,
             startElevation,
             endElevation,
             insertStation,
-            interaction.addPointElevation());
+            insertElevation);
         road.setVerticalAlignment(updated);
         road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
         editorState.selectedProfilePvi = findNearestPviIndex(updated, insertStation);

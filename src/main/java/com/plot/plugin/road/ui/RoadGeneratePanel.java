@@ -12,9 +12,6 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.profile.RoadProfileRoadList;
-import com.plot.plugin.road.station.ChainageDisplayContext;
-import com.plot.plugin.road.station.ChainageDisplayMode;
-import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
@@ -31,14 +28,13 @@ import java.util.List;
 public final class RoadGeneratePanel {
     private final RoadUiContext ctx;
     private final VerticalProfileEditor profileEditor = new VerticalProfileEditor();
-    private final VerticalAlignmentEditor verticalAlignmentEditor = new VerticalAlignmentEditor();
+    private final VerticalModeControls verticalModeControls = new VerticalModeControls();
     private String profileEdgeId = "";
     private long cachedValidationKey = Long.MIN_VALUE;
     private RoadNetworkValidationReport cachedValidationReport = new RoadNetworkValidationReport(List.of());
 
     public RoadGeneratePanel(RoadUiContext ctx) {
         this.ctx = ctx;
-        profileEditor.setOnAlignmentCommitted(verticalAlignmentEditor::invalidateDraftSync);
         profileEditor.setFlatOverlayResolver(road -> resolveFlatProfileOverlay(ctx.networkManager().getNetwork(), road));
     }
 
@@ -128,12 +124,10 @@ public final class RoadGeneratePanel {
             RoadStyleProductControls.renderRoadTerrainStylePresets(
                 ctx, road, ctx.networkManager()::pushHistory);
         }
-        ChainageDisplayContext chainageDisplay = chainageContextOrNull(network, road);
-        verticalAlignmentEditor.render(
+        verticalModeControls.render(
             ctx,
             network,
             road,
-            chainageDisplay,
             ctx.networkManager().getConfig(),
             this::requireTerrainOrNull,
             () -> ctx.networkManager().pushHistory(RoadChangeKind.VERTICAL_PROFILE));
@@ -148,18 +142,8 @@ public final class RoadGeneratePanel {
         if (road == null || RoadVerticalStrategy.fromRoad(road) != RoadVerticalStrategy.FLAT) {
             return FlatElevationProfileOverlay.EMPTY;
         }
-        return verticalAlignmentEditor.flatElevationProfileOverlay(
+        return verticalModeControls.flatElevationProfileOverlay(
             network, road, ctx.networkManager().getConfig());
-    }
-
-    private ChainageDisplayContext chainageContextOrNull(RoadNetwork network, Road road) {
-        if (!RoadStationing.isStationable(network, road)) {
-            return null;
-        }
-        return new ChainageDisplayContext(
-            RoadStationing.canonicalLength(network, road),
-            ChainageDisplayMode.FROM_START,
-            RoadStationFormat.DISTANCE_METERS);
     }
 
     private TerrainSampler requireTerrainOrNull() {
