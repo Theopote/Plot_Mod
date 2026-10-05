@@ -119,6 +119,14 @@ class RoadStationingTest {
     }
 
     @Test
+    void formatDistanceMetersForProductUi() {
+        assertEquals("0 m", RoadStationing.format(0.0, RoadStationFormat.DISTANCE_METERS));
+        assertEquals("20 m", RoadStationing.format(20.0, RoadStationFormat.DISTANCE_METERS));
+        assertEquals("1.25 km", RoadStationing.format(1250.0, RoadStationFormat.DISTANCE_METERS));
+        assertEquals("20 m", RoadStationing.format(80.0, 100.0, RoadStationFormat.DISTANCE_METERS, ChainageDisplayMode.FROM_END));
+    }
+
+    @Test
     void endStationResolvesToLastSegmentEnd() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("road-a");

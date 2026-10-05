@@ -220,6 +220,6 @@ final class RoadSegmentEditor {
         if (display != null) {
             return display.format(chainageMeters);
         }
-        return RoadStationing.format(chainageMeters, RoadStationFormat.KILOMETER_PLUS);
+        return RoadStationing.format(chainageMeters, RoadStationFormat.DISTANCE_METERS);
     }
 }

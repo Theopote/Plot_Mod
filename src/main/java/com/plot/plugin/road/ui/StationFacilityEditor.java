@@ -175,7 +175,7 @@ public final class StationFacilityEditor {
                 PluginUiColors.HINT_GRAY,
                 chainageDisplay != null
                     ? StationFacilityResolver.describe(toRun(draft), chainageDisplay)
-                    : StationFacilityResolver.describe(toRun(draft), RoadStationFormat.KILOMETER_PLUS));
+                    : StationFacilityResolver.describe(toRun(draft), RoadStationFormat.DISTANCE_METERS));
         }
 
         ImGui.pushStyleColor(ImGuiCol.Button, PluginUiColors.DELETE);

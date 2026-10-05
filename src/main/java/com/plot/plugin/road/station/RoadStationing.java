@@ -517,6 +517,9 @@ public final class RoadStationing {
         if (!Double.isFinite(chainageMeters)) {
             return "-";
         }
+        if (format == RoadStationFormat.DISTANCE_METERS) {
+            return formatDistanceMeters(chainageMeters);
+        }
         int kilometers = (int) Math.floor(chainageMeters / 1000.0);
         double meters = chainageMeters - kilometers * 1000.0;
         if (Math.abs(meters - Math.rint(meters)) < 0.05) {
@@ -547,6 +550,9 @@ public final class RoadStationing {
     public static String formatFromEnd(double metersFromEnd, RoadStationFormat format) {
         if (!Double.isFinite(metersFromEnd)) {
             return "-";
+        }
+        if (format == RoadStationFormat.DISTANCE_METERS) {
+            return formatDistanceMeters(metersFromEnd);
         }
         int kilometers = (int) Math.floor(metersFromEnd / 1000.0);
         double meters = metersFromEnd - kilometers * 1000.0;
@@ -730,5 +736,16 @@ public final class RoadStationing {
             }
         }
         return null;
+    }
+
+    private static String formatDistanceMeters(double meters) {
+        double safeMeters = Math.max(0.0, meters);
+        if (safeMeters >= 1000.0) {
+            return String.format(Locale.ROOT, "%.2f km", safeMeters / 1000.0);
+        }
+        if (Math.abs(safeMeters - Math.rint(safeMeters)) < 0.05) {
+            return String.format(Locale.ROOT, "%.0f m", safeMeters);
+        }
+        return String.format(Locale.ROOT, "%.1f m", safeMeters);
     }
 }

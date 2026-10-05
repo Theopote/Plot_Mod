@@ -34,14 +34,12 @@ public final class RoadGeneratePanel {
     private final RoadUiContext ctx;
     private final VerticalProfileEditor profileEditor = new VerticalProfileEditor();
     private final VerticalAlignmentEditor verticalAlignmentEditor = new VerticalAlignmentEditor();
-    private final RoadNetworkToolsPanel networkToolsPanel;
     private String profileEdgeId = "";
     private long cachedValidationKey = Long.MIN_VALUE;
     private RoadNetworkValidationReport cachedValidationReport = new RoadNetworkValidationReport(List.of());
 
     public RoadGeneratePanel(RoadUiContext ctx) {
         this.ctx = ctx;
-        this.networkToolsPanel = new RoadNetworkToolsPanel(ctx);
         profileEditor.setOnAlignmentCommitted(verticalAlignmentEditor::invalidateDraftSync);
         profileEditor.setFlatOverlayResolver(road -> resolveFlatProfileOverlay(ctx.networkManager().getNetwork(), road));
     }
@@ -84,7 +82,6 @@ public final class RoadGeneratePanel {
         if (!network.getEdges().isEmpty()) {
             renderProfileWorkspace(network);
             renderIntersectionCheckSection(network, preflight);
-            renderAdvancedTerrainSection(network);
         }
 
         RoadGenerationResult lastGenerationResult = ctx.previewManager().getLastGenerationResult();
@@ -98,10 +95,6 @@ public final class RoadGeneratePanel {
     void renderProfileEditorWindow(RoadNetwork network) {
         profileEditor.setFlatOverlayResolver(road -> resolveFlatProfileOverlay(network, road));
         profileEditor.renderEditorWindow(ctx, network);
-    }
-
-    void renderUniformElevationConfirmPopup() {
-        networkToolsPanel.renderConfirmPopup();
     }
 
     private void renderGenerateWorkflowHint() {
@@ -145,10 +138,6 @@ public final class RoadGeneratePanel {
             ctx.networkManager().getConfig(),
             this::requireTerrainOrNull,
             () -> ctx.networkManager().pushHistory(RoadChangeKind.VERTICAL_PROFILE));
-        RoadEdge slopeEdge = resolveProfileEdge(network, road);
-        if (slopeEdge != null) {
-            renderSlopeOverridesSection(network, road, slopeEdge, chainageDisplay);
-        }
     }
 
     private FlatElevationProfileOverlay resolveFlatProfileOverlay(RoadNetwork network) {
@@ -164,31 +153,6 @@ public final class RoadGeneratePanel {
             network, road, ctx.networkManager().getConfig());
     }
 
-    private void renderAdvancedTerrainSection(RoadNetwork network) {
-        ImGui.separator();
-        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.generate.advanced_terrain"))) {
-            return;
-        }
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.generate.advanced_terrain_hint"));
-        networkToolsPanel.render(network);
-    }
-
-    private void renderSlopeOverridesSection(
-            RoadNetwork network,
-            Road road,
-            RoadEdge edge,
-            ChainageDisplayContext chainageDisplay) {
-        if (chainageDisplay == null) {
-            return;
-        }
-        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.generate.slope_overrides"))) {
-            return;
-        }
-        RoadSegmentEditor.renderSlopeOverrides(ctx, network, road, edge, chainageDisplay);
-    }
-
     private ChainageDisplayContext chainageContextOrNull(RoadNetwork network, Road road) {
         if (!RoadStationing.isStationable(network, road)) {
             return null;
@@ -196,7 +160,7 @@ public final class RoadGeneratePanel {
         return new ChainageDisplayContext(
             RoadStationing.canonicalLength(network, road),
             ChainageDisplayMode.FROM_START,
-            RoadStationFormat.KILOMETER_PLUS);
+            RoadStationFormat.DISTANCE_METERS);
     }
 
     private TerrainSampler requireTerrainOrNull() {
@@ -210,35 +174,6 @@ public final class RoadGeneratePanel {
 
     private Road resolveActiveProfileRoad(RoadNetwork network) {
         return RoadProfileRoadList.resolveActiveRoad(network, ctx);
-    }
-
-    private RoadEdge resolveProfileEdge(RoadNetwork network, Road road) {
-        if (road != null && !road.getOrderedSegmentIds().isEmpty()) {
-            String edgeId = road.getOrderedSegmentIds().getFirst();
-            RoadEdge focused = network.getEdge(edgeId);
-            if (focused != null) {
-                profileEdgeId = edgeId;
-                return focused;
-            }
-        }
-        if (profileEdgeId != null && !profileEdgeId.isBlank()) {
-            RoadEdge focused = network.getEdge(profileEdgeId);
-            if (focused != null && road != null && road.getId().equals(focused.getRoadId())) {
-                return focused;
-            }
-        }
-        String edgeId = ctx.networkManager().getPrimarySelectedEdgeId();
-        RoadEdge edge = edgeId != null ? network.getEdge(edgeId) : null;
-        if (edge != null && road != null && !road.getId().equals(edge.getRoadId())) {
-            edge = null;
-        }
-        if (edge == null && road != null && !road.getOrderedSegmentIds().isEmpty()) {
-            edge = network.getEdge(road.getOrderedSegmentIds().getFirst());
-        }
-        if (edge != null) {
-            profileEdgeId = edge.getId();
-        }
-        return edge;
     }
 
     private void renderIntersectionCheckSection(

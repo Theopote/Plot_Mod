@@ -604,7 +604,7 @@ public final class RoadProfileChartRenderer {
             float stationLabelY = layout.plotBottom() + 4f;
             for (int i = 0; i < stationTicks.size(); i++) {
                 double station = stationTicks.get(i);
-                String label = RoadStationing.format(station, RoadStationFormat.KILOMETER_PLUS);
+                String label = RoadStationing.format(station, RoadStationFormat.DISTANCE_METERS);
                 float textWidth = ImGui.calcTextSize(label).x;
                 float x;
                 if (i == 0) {

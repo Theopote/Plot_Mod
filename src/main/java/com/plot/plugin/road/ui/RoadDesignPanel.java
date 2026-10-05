@@ -24,17 +24,23 @@ final class RoadDesignPanel {
     private final StationFacilityEditor stationFacilityEditor = new StationFacilityEditor();
     private final RoadCenterlineEditPanel centerlineEditPanel = new RoadCenterlineEditPanel();
     private final RoadSegmentEditor segmentEditor = new RoadSegmentEditor();
+    private final RoadNetworkToolsPanel networkToolsPanel;
     private ChainageDisplayMode chainageDisplayMode = ChainageDisplayMode.FROM_START;
     private boolean forceOpenAdvancedDesign;
     private boolean forceOpenDiagnostics;
 
     RoadDesignPanel(RoadUiContext ctx) {
         this.ctx = ctx;
+        this.networkToolsPanel = new RoadNetworkToolsPanel(ctx);
     }
 
     void requestOpenDiagnostics() {
         forceOpenAdvancedDesign = true;
         forceOpenDiagnostics = true;
+    }
+
+    void renderUniformElevationConfirmPopup() {
+        networkToolsPanel.renderConfirmPopup();
     }
 
     void renderAdvancedDesignSection(RoadNetwork network, Road road) {
@@ -53,12 +59,13 @@ final class RoadDesignPanel {
             return;
         }
         ChainageDisplayContext chainageDisplay = chainageContextOrNull(network, road);
-        renderAdvancedDesign(network, road, chainageDisplay);
+        renderAdvancedDesign(network, road, current, chainageDisplay);
     }
 
     private void renderAdvancedDesign(
             RoadNetwork network,
             Road road,
+            RoadEdge current,
             ChainageDisplayContext chainageDisplay) {
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.design_stack.identity"))) {
             identityEditor.render(network, road, ctx.networkManager(), ctx.networkManager()::pushHistory);
@@ -83,13 +90,19 @@ final class RoadDesignPanel {
 
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.design_stack.segments"))) {
             segmentEditor.renderSegmentList(ctx, network, road);
-            RoadEdge current = network.getEdge(ctx.networkManager().getPrimarySelectedEdgeId());
-            if (current == null) {
-                return;
-            }
             segmentEditor.renderSegmentSummary(network, road, current, chainageDisplay);
             centerlineEditPanel.render(ctx, network, road, current);
             segmentEditor.renderElevationHint(ctx, current);
+            if (chainageDisplay != null) {
+                renderSlopeOverridesSection(network, road, current, chainageDisplay);
+            }
+        }
+
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.generate.advanced_terrain"))) {
+            RoadUiWidgets.textWrappedColored(
+                com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.generate.advanced_terrain_hint"));
+            networkToolsPanel.render(network);
         }
 
         int diagnosticsFlags = forceOpenDiagnostics ? ImGuiTreeNodeFlags.DefaultOpen : 0;
@@ -101,6 +114,18 @@ final class RoadDesignPanel {
             diagnosticsFlags)) {
             RoadEditDiagnosticsBanner.renderDetailedIssues(ctx, network, road);
         }
+    }
+
+    private void renderSlopeOverridesSection(
+            RoadNetwork network,
+            Road road,
+            RoadEdge edge,
+            ChainageDisplayContext chainageDisplay) {
+        ImGui.spacing();
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.generate.slope_overrides"))) {
+            return;
+        }
+        RoadSegmentEditor.renderSlopeOverrides(ctx, network, road, edge, chainageDisplay);
     }
 
     private void renderRoadIdentitySummary(
@@ -134,6 +159,6 @@ final class RoadDesignPanel {
         return new ChainageDisplayContext(
             RoadStationing.canonicalLength(network, road),
             chainageDisplayMode,
-            RoadStationFormat.KILOMETER_PLUS);
+            RoadStationFormat.DISTANCE_METERS);
     }
 }

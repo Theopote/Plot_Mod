@@ -112,7 +112,7 @@ public final class VariableCrossSectionEditor {
                         chainageDisplay)
                     : VariableCrossSectionResolver.describe(
                         new StationCrossSection(draft.station, draft.crossSectionDraft.toCrossSection()),
-                        RoadStationFormat.KILOMETER_PLUS));
+                        RoadStationFormat.DISTANCE_METERS));
         }
 
         int treeFlags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.FramePadding;

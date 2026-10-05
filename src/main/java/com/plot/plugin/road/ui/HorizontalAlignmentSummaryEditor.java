@@ -86,7 +86,7 @@ final class HorizontalAlignmentSummaryEditor {
                 PluginUiColors.HINT_GRAY,
                 chainageDisplay != null
                     ? HorizontalAlignmentGeometry.describeElement(element, start, chainageDisplay)
-                    : HorizontalAlignmentGeometry.describeElement(element, start, RoadStationFormat.KILOMETER_PLUS));
+                    : HorizontalAlignmentGeometry.describeElement(element, start, RoadStationFormat.DISTANCE_METERS));
         }
     }
 
@@ -97,6 +97,6 @@ final class HorizontalAlignmentSummaryEditor {
         if (display != null) {
             return new ChainageDisplayContext(alignmentTotal, display.mode(), display.format()).format(chainageMeters);
         }
-        return RoadStationing.format(chainageMeters, RoadStationFormat.KILOMETER_PLUS);
+        return RoadStationing.format(chainageMeters, RoadStationFormat.DISTANCE_METERS);
     }
 }

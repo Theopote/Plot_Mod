@@ -16,7 +16,7 @@ import imgui.flag.ImGuiCol;
 import java.util.function.Supplier;
 
 /**
- * 道路设计方向指示：K0+000 在链入口，桩号沿箭头递增。
+ * 道路设计方向指示：0 m 在链入口，距离沿箭头递增。
  * <p>
  * 与 {@link com.plot.plugin.road.station.ChainageDisplayMode}（仅显示格式）无关。
  */
@@ -49,8 +49,8 @@ public final class RoadDirectionIndicator {
         }
 
         double totalLength = RoadStationing.canonicalLength(network, road);
-        String chainStart = RoadStationing.format(0.0, totalLength, RoadStationFormat.KILOMETER_PLUS, ChainageDisplayMode.FROM_START);
-        String chainEnd = RoadStationing.format(totalLength, totalLength, RoadStationFormat.KILOMETER_PLUS, ChainageDisplayMode.FROM_START);
+        String chainStart = RoadStationing.format(0.0, totalLength, RoadStationFormat.DISTANCE_METERS, ChainageDisplayMode.FROM_START);
+        String chainEnd = RoadStationing.format(totalLength, totalLength, RoadStationFormat.DISTANCE_METERS, ChainageDisplayMode.FROM_START);
 
         renderDiagram(chainStart, chainEnd);
         renderEntryExitHint(network, road);

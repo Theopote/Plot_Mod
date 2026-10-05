@@ -48,6 +48,10 @@ public final class RoadEditPanel {
         return designPanel;
     }
 
+    public void renderUniformElevationConfirmPopup() {
+        designPanel.renderUniformElevationConfirmPopup();
+    }
+
     private void renderJunctionSelectionHint() {
         String selectedNodeId = ctx.networkManager().getSelectedNodeId();
         if (selectedNodeId == null || selectedNodeId.isBlank()) {

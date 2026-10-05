@@ -395,13 +395,13 @@ public final class VerticalAlignmentEditor {
                 PluginUiColors.HINT_GRAY,
                 chainageDisplay != null
                     ? VerticalAlignmentGeometry.describePvi(pvi, index, total, chainageDisplay)
-                    : VerticalAlignmentGeometry.describePvi(pvi, index, total, RoadStationFormat.KILOMETER_PLUS));
+                    : VerticalAlignmentGeometry.describePvi(pvi, index, total, RoadStationFormat.DISTANCE_METERS));
             if (middlePvi && draft.curveLength > 0f) {
                 String curve = chainageDisplay != null
                     ? VerticalAlignmentGeometry.describeCurveAtPvi(
                         buildPvis(drafts), index, chainageDisplay)
                     : VerticalAlignmentGeometry.describeCurveAtPvi(
-                        buildPvis(drafts), index, RoadStationFormat.KILOMETER_PLUS);
+                        buildPvis(drafts), index, RoadStationFormat.DISTANCE_METERS);
                 if (!curve.isBlank()) {
                     RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, "  " + curve);
                 }

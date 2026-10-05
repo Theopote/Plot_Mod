@@ -10,7 +10,7 @@ public record ChainageDisplayContext(
 
     public ChainageDisplayContext {
         if (format == null) {
-            format = RoadStationFormat.KILOMETER_PLUS;
+            format = RoadStationFormat.DISTANCE_METERS;
         }
         if (mode == null) {
             mode = ChainageDisplayMode.FROM_START;
@@ -18,7 +18,7 @@ public record ChainageDisplayContext(
     }
 
     public static ChainageDisplayContext fromStart(double totalLength) {
-        return new ChainageDisplayContext(totalLength, ChainageDisplayMode.FROM_START, RoadStationFormat.KILOMETER_PLUS);
+        return new ChainageDisplayContext(totalLength, ChainageDisplayMode.FROM_START, RoadStationFormat.DISTANCE_METERS);
     }
 
     public String format(double chainageMeters) {
