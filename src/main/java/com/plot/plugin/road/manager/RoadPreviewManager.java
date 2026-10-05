@@ -8,6 +8,8 @@ import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadNetworkEngineeringValidator;
 import com.plot.plugin.road.RoadNetworkValidationReport;
+import com.plot.plugin.road.validation.RoadElevationBoundsResolver;
+import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.RoadPlacementVisibility;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -197,8 +199,9 @@ public final class RoadPreviewManager {
             return false;
         }
 
+        RoadElevationBounds elevationBounds = validationElevationBounds();
         RoadNetworkValidationReport preflight =
-            RoadNetworkEngineeringValidator.analyzePreGeneration(network);
+            RoadNetworkEngineeringValidator.analyzePreGeneration(network, elevationBounds);
         if (preflight.blocksBuild()) {
             invalidatePreview();
             status.error(PlotI18n.tr("plugin.road.preview_blocked_validation"));
@@ -312,8 +315,9 @@ public final class RoadPreviewManager {
             return false;
         }
 
+        RoadElevationBounds elevationBounds = validationElevationBounds();
         RoadNetworkValidationReport preflight =
-            RoadNetworkEngineeringValidator.analyzePreGeneration(network);
+            RoadNetworkEngineeringValidator.analyzePreGeneration(network, elevationBounds);
         if (preflight.blocksBuild()) {
             invalidatePreview();
             status.error(PlotI18n.tr("plugin.road.preview_blocked_validation"));
@@ -517,7 +521,8 @@ public final class RoadPreviewManager {
             return;
         }
         if (previewNetwork != null
-                && RoadNetworkEngineeringValidator.analyzePreGeneration(previewNetwork).blocksBuild()) {
+                && RoadNetworkEngineeringValidator.analyzePreGeneration(
+                    previewNetwork, validationElevationBounds()).blocksBuild()) {
             invalidatePreview();
             status.error(PlotI18n.tr("plugin.road.build_blocked_validation"));
             return;
@@ -608,6 +613,10 @@ public final class RoadPreviewManager {
         lastEdgeResults = new LinkedHashMap<>(previewResult.edgeResults());
         lastNodeElevations = new LinkedHashMap<>(previewResult.nodeElevations());
         lastRoadProfiles = new LinkedHashMap<>(previewResult.roadProfiles());
+    }
+
+    private RoadElevationBounds validationElevationBounds() {
+        return RoadElevationBoundsResolver.resolveClientWorld(host.coordinates());
     }
 
     private void clearProfileSamplingState() {

@@ -8,6 +8,7 @@ import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadNetworkValidationReport;
 import com.plot.plugin.road.RoadNetworkEngineeringValidator;
+import com.plot.plugin.road.validation.RoadElevationBoundsResolver;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.solid.RoadGenerationResult;
@@ -319,7 +320,9 @@ public final class RoadGeneratePanel {
     }
 
     private RoadNetworkValidationReport preflightReport(RoadNetwork network) {
-        return RoadNetworkEngineeringValidator.analyzePreGeneration(network);
+        return RoadNetworkEngineeringValidator.analyzePreGeneration(
+            network,
+            RoadElevationBoundsResolver.resolveClientWorld(ctx.host().coordinates()));
     }
 
     private RoadNetworkValidationReport validationReport() {

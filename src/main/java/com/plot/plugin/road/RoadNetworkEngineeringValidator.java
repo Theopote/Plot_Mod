@@ -56,10 +56,16 @@ public final class RoadNetworkEngineeringValidator {
      * 仅包含会使生成几何不可信的硬阻断项；一般 Warning（如道路分叉、未对齐交叉）不在此升格。
      */
     public static RoadNetworkValidationReport analyzePreGeneration(RoadNetwork network) {
+        return analyzePreGeneration(network, RoadWorldElevationBounds.fallback());
+    }
+
+    public static RoadNetworkValidationReport analyzePreGeneration(
+            RoadNetwork network,
+            RoadElevationBounds elevationBounds) {
         List<RoadNetworkValidationReport.Item> items = new ArrayList<>();
         if (network != null && !network.getEdges().isEmpty()) {
             addShortRoadVerticalAlignmentBlocker(items, network);
-            addVerticalElevationBoundsBlocker(items, network);
+            addVerticalElevationBoundsBlocker(items, network, elevationBounds);
             addFlatRoadJunctionConflictBlocker(items, network);
             addFlatFlatAtGradeMismatchBlocker(items, network);
             addIntersectionIncompleteBlocker(items, network);
@@ -72,6 +78,14 @@ public final class RoadNetworkEngineeringValidator {
             RoadNetwork network,
             Map<String, RoadGenerationResult> edgeResults,
             RoadSystemConfig config) {
+        return analyze(network, edgeResults, config, RoadWorldElevationBounds.fallback());
+    }
+
+    public static RoadNetworkValidationReport analyze(
+            RoadNetwork network,
+            Map<String, RoadGenerationResult> edgeResults,
+            RoadSystemConfig config,
+            RoadElevationBounds elevationBounds) {
         List<RoadNetworkValidationReport.Item> items = new ArrayList<>();
         if (network == null || network.getEdges().isEmpty()) {
             return new RoadNetworkValidationReport(items);
@@ -119,7 +133,7 @@ public final class RoadNetworkEngineeringValidator {
 
         addCenterlineShapeItems(items, network, true);
 
-        addVerticalAlignmentItems(items, network, config);
+        addVerticalAlignmentItems(items, network, config, elevationBounds);
 
         addHorizontalAlignmentItems(items, network);
 
@@ -378,12 +392,13 @@ public final class RoadNetworkEngineeringValidator {
     private static void addVerticalAlignmentItems(
             List<RoadNetworkValidationReport.Item> items,
             RoadNetwork network,
-            RoadSystemConfig config) {
+            RoadSystemConfig config,
+            RoadElevationBounds elevationBounds) {
         if (!hasVerticalAlignmentRoads(network)) {
             return;
         }
         addShortRoadVerticalAlignmentBlocker(items, network);
-        addVerticalElevationBoundsBlocker(items, network);
+        addVerticalElevationBoundsBlocker(items, network, elevationBounds);
         addFlatRoadJunctionConflictBlocker(items, network);
         addFlatFlatAtGradeMismatchBlocker(items, network);
         addFlatTransitionWarnings(items, network);
@@ -420,8 +435,11 @@ public final class RoadNetworkEngineeringValidator {
 
     private static void addVerticalElevationBoundsBlocker(
             List<RoadNetworkValidationReport.Item> items,
-            RoadNetwork network) {
-        RoadElevationBounds bounds = RoadWorldElevationBounds.fallback();
+            RoadNetwork network,
+            RoadElevationBounds bounds) {
+        if (bounds == null) {
+            bounds = RoadWorldElevationBounds.fallback();
+        }
         int count = RoadVerticalBoundsValidator.findViolations(network, bounds).size();
         if (count > 0) {
             items.add(RoadNetworkValidationReport.Item.error(

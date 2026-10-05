@@ -1685,6 +1685,7 @@
   "plugin.road.vertical_batch_skipped_not_stationable": "%d road(s) skipped because they are not stationable.",
   "plugin.road.vertical_alignment_terrain_adaptive_generate_hint": "Terrain-adaptive grades are computed during preview. Open the profile editor to review quality.",
   "plugin.road.vertical_mode_manual_profile_generate_hint": "Manual profile is active. Use Edit Profile to adjust PVIs; terrain style and slope presets apply on recalculate.",
+  "plugin.road.vertical_path_manual_profile_hint": "Manual profile PVIs are edited in the profile editor (Generate tab → Edit Profile).",
   "plugin.road.elevation_bounds_hint": "World block Y range: %d to %d",
   "plugin.road.vertical_alignment_none": "No vertical alignment defined (using node elevations / slope solver)",
   "plugin.road.vertical_alignment_incomplete": "Vertical alignment needs at least 2 PVIs",

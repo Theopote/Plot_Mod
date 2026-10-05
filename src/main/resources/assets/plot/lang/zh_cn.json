@@ -1685,6 +1685,7 @@
   "plugin.road.vertical_batch_skipped_not_stationable": "%d 条道路因不可桩号化已跳过。",
   "plugin.road.vertical_alignment_terrain_adaptive_generate_hint": "适应地形模式下纵坡由预览自动计算；打开纵断面编辑器查看质量摘要。",
   "plugin.road.vertical_mode_manual_profile_generate_hint": "当前为手动纵断面。请使用「编辑纵断面」调整 PVI；地形风格与坡度预设将在重新计算时生效。",
+  "plugin.road.vertical_path_manual_profile_hint": "手动纵断面 PVI 请在纵断面编辑器中编辑（生成页 → 编辑纵断面）。",
   "plugin.road.elevation_bounds_hint": "世界方块 Y 范围：%d 至 %d",
   "plugin.road.vertical_alignment_none": "未定义纵断面（使用节点标高 / 坡度求解）",
   "plugin.road.vertical_alignment_incomplete": "纵断面至少需要 2 个变坡点（PVI）",

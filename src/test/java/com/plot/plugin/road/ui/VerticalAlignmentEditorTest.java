@@ -1,7 +1,6 @@
 package com.plot.plugin.road.ui;
 
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
-import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -14,24 +13,24 @@ class VerticalAlignmentEditorTest {
 
     @Test
     void buildPvisPreservesDraftOrderAndAppliesCurveOnlyOnMiddlePoints() {
-        List<VerticalAlignmentEditor.PviDraft> drafts = new ArrayList<>();
-        VerticalAlignmentEditor.PviDraft start = new VerticalAlignmentEditor.PviDraft();
+        List<VerticalAlignmentPviDrafts.PviDraft> drafts = new ArrayList<>();
+        VerticalAlignmentPviDrafts.PviDraft start = new VerticalAlignmentPviDrafts.PviDraft();
         start.station = 0f;
         start.elevation = 80f;
         drafts.add(start);
 
-        VerticalAlignmentEditor.PviDraft middle = new VerticalAlignmentEditor.PviDraft();
+        VerticalAlignmentPviDrafts.PviDraft middle = new VerticalAlignmentPviDrafts.PviDraft();
         middle.station = 50f;
         middle.elevation = 110f;
         middle.curveLength = 20f;
         drafts.add(middle);
 
-        VerticalAlignmentEditor.PviDraft end = new VerticalAlignmentEditor.PviDraft();
+        VerticalAlignmentPviDrafts.PviDraft end = new VerticalAlignmentPviDrafts.PviDraft();
         end.station = 100f;
         end.elevation = 100f;
         drafts.add(end);
 
-        List<PointOfVerticalIntersection> pvis = VerticalAlignmentEditor.buildPvis(drafts);
+        List<PointOfVerticalIntersection> pvis = VerticalAlignmentPviDrafts.buildPvis(drafts);
         assertEquals(3, pvis.size());
         assertEquals(0.0, pvis.get(0).getStation(), 1e-6);
         assertEquals(50.0, pvis.get(1).getStation(), 1e-6);
@@ -43,18 +42,18 @@ class VerticalAlignmentEditorTest {
 
     @Test
     void buildPvisDoesNotSortByStation() {
-        List<VerticalAlignmentEditor.PviDraft> drafts = new ArrayList<>();
-        VerticalAlignmentEditor.PviDraft end = new VerticalAlignmentEditor.PviDraft();
+        List<VerticalAlignmentPviDrafts.PviDraft> drafts = new ArrayList<>();
+        VerticalAlignmentPviDrafts.PviDraft end = new VerticalAlignmentPviDrafts.PviDraft();
         end.station = 100f;
         end.elevation = 100f;
         drafts.add(end);
 
-        VerticalAlignmentEditor.PviDraft start = new VerticalAlignmentEditor.PviDraft();
+        VerticalAlignmentPviDrafts.PviDraft start = new VerticalAlignmentPviDrafts.PviDraft();
         start.station = 0f;
         start.elevation = 80f;
         drafts.add(start);
 
-        List<PointOfVerticalIntersection> pvis = VerticalAlignmentEditor.buildPvis(drafts);
+        List<PointOfVerticalIntersection> pvis = VerticalAlignmentPviDrafts.buildPvis(drafts);
         assertEquals(2, pvis.size());
         assertEquals(100.0, pvis.getFirst().getStation(), 1e-6);
         assertEquals(0.0, pvis.getLast().getStation(), 1e-6);
@@ -71,20 +70,20 @@ class VerticalAlignmentEditorTest {
             PointOfVerticalIntersection.withCurve(50.0, 100.0, 30.0),
             PointOfVerticalIntersection.of(100.0, 90.0));
 
-        assertTrue(!VerticalAlignmentEditor.pvisEqual(left, right));
-        assertTrue(VerticalAlignmentEditor.pvisEqual(left, left));
+        assertTrue(!VerticalAlignmentPviDrafts.pvisEqual(left, right));
+        assertTrue(VerticalAlignmentPviDrafts.pvisEqual(left, left));
     }
 
     @Test
     void defaultEntryCreatesRoadEndpointsForSecondPvi() {
-        List<VerticalAlignmentEditor.PviDraft> drafts = new ArrayList<>();
-        VerticalAlignmentEditor.PviDraft first = new VerticalAlignmentEditor.PviDraft();
+        List<VerticalAlignmentPviDrafts.PviDraft> drafts = new ArrayList<>();
+        VerticalAlignmentPviDrafts.PviDraft first = new VerticalAlignmentPviDrafts.PviDraft();
         first.station = 0f;
         first.elevation = 70f;
         drafts.add(first);
 
-        VerticalAlignmentEditor.PviDraft second =
-            VerticalAlignmentEditor.PviDraft.defaultEntry(drafts, 100.0);
+        VerticalAlignmentPviDrafts.PviDraft second =
+            VerticalAlignmentPviDrafts.PviDraft.defaultEntry(drafts, 100.0);
         assertEquals(100f, second.station, 1e-6);
         assertEquals(70f, second.elevation, 1e-6);
     }

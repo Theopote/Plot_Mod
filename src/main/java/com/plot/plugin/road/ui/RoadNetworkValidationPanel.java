@@ -4,6 +4,7 @@ import com.plot.plugin.road.RoadNetworkEngineeringValidator;
 import com.plot.plugin.road.RoadNetworkValidationReport;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.solid.RoadGenerationResult;
+import com.plot.plugin.road.validation.RoadElevationBoundsResolver;
 import com.plot.plugin.road.validation.RoadValidationMessage;
 import com.plot.plugin.road.validation.RoadValidationMessageCatalog;
 import com.plot.plugin.ui.PluginUiColors;
@@ -30,7 +31,8 @@ public final class RoadNetworkValidationPanel {
         return RoadNetworkEngineeringValidator.analyze(
             validationNetwork,
             edgeResults,
-            ctx.networkManager().getConfig());
+            ctx.networkManager().getConfig(),
+            RoadElevationBoundsResolver.resolveClientWorld(ctx.host().coordinates()));
     }
 
     public static void render(RoadNetworkValidationReport report, RoadUiContext ctx) {

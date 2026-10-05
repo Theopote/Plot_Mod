@@ -1,21 +1,25 @@
-package com.plot.plugin.road.vertical;
+package com.plot.plugin.road.validation;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadNetworkEngineeringValidator;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
+import com.plot.plugin.road.vertical.RoadElevationBounds;
+import com.plot.plugin.road.vertical.RoadVerticalAlignment;
+import com.plot.plugin.road.vertical.RoadWorldElevationBounds;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class RoadVerticalBoundsValidatorTest {
+class RoadElevationBoundsResolverTest {
 
     @Test
-    void findsOutOfBoundsPvi() {
+    void customWorldBoundsAreUsedByPreflight() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("road-a");
         RoadNode n1 = network.createNode(new Vec2d(0, 0));
@@ -24,11 +28,12 @@ class RoadVerticalBoundsValidatorTest {
 
         RoadVerticalAlignment alignment = new RoadVerticalAlignment();
         alignment.addPvi(new PointOfVerticalIntersection(0.0, 64.0));
-        alignment.addPvi(new PointOfVerticalIntersection(100.0, 400.0));
+        alignment.addPvi(new PointOfVerticalIntersection(100.0, 200.0));
         road.setVerticalAlignment(alignment);
 
-        RoadElevationBounds bounds = RoadWorldElevationBounds.fallback();
-        assertEquals(1, RoadVerticalBoundsValidator.findViolations(network, bounds).size());
-        assertTrue(RoadNetworkEngineeringValidator.analyzePreGeneration(network, bounds).blocksBuild());
+        RoadElevationBounds custom = new RoadElevationBounds(0, 127);
+        assertTrue(RoadNetworkEngineeringValidator.analyzePreGeneration(network, custom).blocksBuild());
+        assertFalse(RoadNetworkEngineeringValidator.analyzePreGeneration(
+            network, RoadWorldElevationBounds.fallback()).blocksBuild());
     }
 }
