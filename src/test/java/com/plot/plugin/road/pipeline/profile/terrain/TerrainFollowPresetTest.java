@@ -82,11 +82,11 @@ class TerrainFollowPresetTest {
         config.setMaxSlope(8.0f);
         ProfileSolveSupport support = ProfileSolveSupport.fromConfig(config, ignored -> 1.0);
 
-        road.setTerrainFollowPreset(TerrainFollowPreset.GENTLE);
+        road.setTerrainStyle(RoadTerrainStyle.SMOOTH);
         ProfileSolveResult gentle = RoadProfileSolver.solveForEdge(
             segments, terrain, network, edge, config, 2.5, null, null, support);
 
-        road.setTerrainFollowPreset(TerrainFollowPreset.TIGHT);
+        road.setTerrainStyle(RoadTerrainStyle.FOLLOW);
         ProfileSolveResult tight = RoadProfileSolver.solveForEdge(
             segments, terrain, network, edge, config, 2.5, null, null, support);
 

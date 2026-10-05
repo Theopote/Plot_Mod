@@ -9,8 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class RoadConstructionEvaluatorTest {
 
-    private static final RoadConstructionEvaluator.RoadConstructionCostConfig DEFAULT_CONFIG =
-        new RoadConstructionEvaluator.RoadConstructionCostConfig(
+    private static final RoadConstructionEvaluator.RoadConstructionScoreConfig DEFAULT_CONFIG =
+        new RoadConstructionEvaluator.RoadConstructionScoreConfig(
             1.0, 15.0, 0.8, 1.2, 25.0, 1.5, 2.0, 5, 8);
 
     @Test
@@ -76,9 +76,9 @@ class RoadConstructionEvaluatorTest {
     }
 
     @Test
-    void lowBridgeCostPerLengthPrefersBridge() {
-        RoadConstructionEvaluator.RoadConstructionCostConfig cheapBridge =
-            new RoadConstructionEvaluator.RoadConstructionCostConfig(
+    void lowbridgeLengthPenaltyPrefersBridge() {
+        RoadConstructionEvaluator.RoadConstructionScoreConfig cheapBridge =
+            new RoadConstructionEvaluator.RoadConstructionScoreConfig(
                 1.0, 1.0, 0.01, 1.2, 25.0, 1.5, 2.0, 100, 100);
         RoadConstructionType type = RoadConstructionEvaluator.evaluateSegment(
             5.0, 64, 68, cheapBridge);
@@ -105,8 +105,8 @@ class RoadConstructionEvaluatorTest {
         List<Integer> groundHeights = List.of(64, 64, 64);
         List<Integer> targetHeights = List.of(66, 68, 66);
 
-        RoadConstructionEvaluator.RoadConstructionCostConfig config =
-            new RoadConstructionEvaluator.RoadConstructionCostConfig(
+        RoadConstructionEvaluator.RoadConstructionScoreConfig config =
+            new RoadConstructionEvaluator.RoadConstructionScoreConfig(
                 1.0, 10.0, 0.8, 1.2, 25.0, 1.5, 2.0, 100, 100);
 
         List<RoadConstructionType> types = RoadConstructionEvaluator.evaluatePath(
@@ -134,8 +134,8 @@ class RoadConstructionEvaluatorTest {
 
     @Test
     void equivalentThresholdConfigMatchesOldBridgeDetection() {
-        RoadConstructionEvaluator.RoadConstructionCostConfig oldEquivalent =
-            new RoadConstructionEvaluator.RoadConstructionCostConfig(
+        RoadConstructionEvaluator.RoadConstructionScoreConfig oldEquivalent =
+            new RoadConstructionEvaluator.RoadConstructionScoreConfig(
                 1.0, 1000.0, 1000.0, 1.2, 1000.0, 1000.0, 2.0, 5, 8);
 
         assertEquals(

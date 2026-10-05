@@ -51,14 +51,14 @@ public final class RoadConstructionClassifier {
             targetHeights.add(averageHeight(info.targetStart, info.targetEnd));
         }
 
-        RoadConstructionEvaluator.RoadConstructionCostConfig costConfig = terrainStyle != null
+        RoadConstructionEvaluator.RoadConstructionScoreConfig scoreConfig = terrainStyle != null
             ? RoadConstructionHeuristics.constructionConfig(terrainStyle)
-            : RoadConstructionEvaluator.RoadConstructionCostConfig.from(config);
+            : RoadConstructionEvaluator.RoadConstructionScoreConfig.from(config);
         List<RoadConstructionType> constructionTypes = RoadConstructionEvaluator.evaluatePath(
             segmentDistances,
             groundHeights,
             targetHeights,
-            costConfig,
+            scoreConfig,
             RoadConstructionHeuristics.MIN_STRUCTURE_RUN);
 
         List<BridgeSegment> bridges = new ArrayList<>();

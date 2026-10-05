@@ -67,7 +67,7 @@ class FlatElevationOptimizerTest {
         TerrainSampler terrain = new FlatTerrainSampler(64);
         double maxGrade = road.getEffectiveMaxSlope(CONFIG);
         FlatVerticalIntent intent = road.getFlatVerticalIntent().copy();
-        var costConfig = com.plot.plugin.road.RoadConstructionEvaluator.RoadConstructionCostConfig.from(CONFIG);
+        var costConfig = com.plot.plugin.road.RoadConstructionEvaluator.RoadConstructionScoreConfig.from(CONFIG);
         double roadLength = com.plot.plugin.road.station.RoadStationing.canonicalLength(network, road);
 
         FlatElevationCandidate stageB = FlatElevationRefinementEvaluator.refine(

@@ -490,12 +490,6 @@ public class Road {
         return getEffectiveTerrainStyle(config).followPreset();
     }
 
-    /** @deprecated use {@link #getEffectiveTerrainFollowPreset(RoadSystemConfig)} */
-    @Deprecated
-    public TerrainFollowPreset getEffectiveTerrainFollowPreset() {
-        return terrainStyle != null ? terrainStyle.followPreset() : TerrainFollowPreset.STANDARD;
-    }
-
     /** 持久化字段；{@code null} 表示继承全局默认地形风格。 */
     public RoadTerrainStyle getStoredTerrainStyle() {
         return terrainStyle;
@@ -503,15 +497,6 @@ public class Road {
 
     public void setTerrainStyle(RoadTerrainStyle terrainStyle) {
         this.terrainStyle = terrainStyle;
-    }
-
-    /** 兼容旧 API / 测试；映射到统一地形风格。 */
-    public TerrainFollowPreset getStoredTerrainFollowPreset() {
-        return terrainStyle != null ? terrainStyle.followPreset() : null;
-    }
-
-    public void setTerrainFollowPreset(TerrainFollowPreset terrainFollowPreset) {
-        this.terrainStyle = RoadTerrainStyle.fromLegacyFollowPreset(terrainFollowPreset);
     }
 
     public FlatVerticalIntent getFlatVerticalIntent() {

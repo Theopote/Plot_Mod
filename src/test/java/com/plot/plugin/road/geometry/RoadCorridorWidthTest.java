@@ -1,7 +1,6 @@
 package com.plot.plugin.road.geometry;
 
 import com.plot.plugin.config.RoadSystemConfig;
-import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics.TerrainAdaptationPreset;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import org.junit.jupiter.api.Test;
 

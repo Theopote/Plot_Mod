@@ -2,7 +2,7 @@ package com.plot.plugin.road.pipeline.profile.terrain;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
-import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics.TerrainAdaptationPreset;
+import com.plot.plugin.road.terrain.RoadTerrainStyle;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -274,7 +274,7 @@ class FitTerrainSolverInvariantTest {
             Road road = network.createRoad(name().toLowerCase());
             road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
             road.setMaxSlope(maxSlope);
-            road.setTerrainFollowPreset(TerrainFollowPreset.STANDARD);
+            road.setTerrainStyle(RoadTerrainStyle.BALANCED);
             RoadNode start = network.createNode(new Vec2d(0, 0));
             RoadNode end = network.createNode(new Vec2d(lengthMeters, 0));
             RoadEdge edge = network.createEdge(

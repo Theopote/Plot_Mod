@@ -6,8 +6,8 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.terrain.RoadTerrainStyle;
 
 /**
- * Internal construction and terrain-adaptation heuristics. Product UI exposes presets only;
- * numeric thresholds and complexity weights stay here.
+ * Internal construction heuristics keyed by {@link RoadTerrainStyle}.
+ * Product UI exposes presets only; numeric thresholds and complexity weights stay here.
  */
 public final class RoadConstructionHeuristics {
 
@@ -27,52 +27,45 @@ public final class RoadConstructionHeuristics {
 
     public static final double ENVIRONMENT_SAMPLE_SPACING_METERS = 2.0;
 
-    public enum TerrainAdaptationPreset {
-        FOLLOW,
-        BALANCED,
-        FLATTEN
-    }
-
     private RoadConstructionHeuristics() {
     }
 
-    public static TerrainAdaptationPreset presetFromConfig(RoadSystemConfig config) {
-        return presetFromStyle(config != null ? config.getTerrainStyle() : null);
-    }
-
-    public static TerrainAdaptationPreset presetFromStyle(RoadTerrainStyle style) {
-        RoadTerrainStyle effective = style != null ? style : RoadTerrainStyle.BALANCED;
-        return effective.constructionPreset();
-    }
-
-    public static int bridgeThreshold(TerrainAdaptationPreset preset) {
-        return switch (preset != null ? preset : TerrainAdaptationPreset.BALANCED) {
+    public static int bridgeThreshold(RoadTerrainStyle style) {
+        return switch (style != null ? style : RoadTerrainStyle.BALANCED) {
             case FOLLOW -> 6;
             case BALANCED -> 3;
-            case FLATTEN -> 2;
+            case SMOOTH -> 2;
         };
     }
 
-    public static int tunnelThreshold(TerrainAdaptationPreset preset) {
-        return switch (preset != null ? preset : TerrainAdaptationPreset.BALANCED) {
+    public static int tunnelThreshold(RoadTerrainStyle style) {
+        return switch (style != null ? style : RoadTerrainStyle.BALANCED) {
             case FOLLOW -> 8;
             case BALANCED -> 4;
-            case FLATTEN -> 3;
+            case SMOOTH -> 3;
         };
     }
 
     public static int bridgeThreshold(RoadSystemConfig config) {
-        return bridgeThreshold(presetFromConfig(config));
+        return bridgeThreshold(config != null ? config.getTerrainStyle() : null);
     }
 
     public static int tunnelThreshold(RoadSystemConfig config) {
-        return tunnelThreshold(presetFromConfig(config));
+        return tunnelThreshold(config != null ? config.getTerrainStyle() : null);
     }
 
-    public static RoadConstructionEvaluator.RoadConstructionCostConfig constructionConfig(
-            TerrainAdaptationPreset preset) {
-        TerrainAdaptationPreset effective = preset != null ? preset : TerrainAdaptationPreset.BALANCED;
-        return new RoadConstructionEvaluator.RoadConstructionCostConfig(
+    public static int bridgeThreshold(Road road, RoadSystemConfig config) {
+        return bridgeThreshold(RoadTerrainStyle.effective(road, config));
+    }
+
+    public static int tunnelThreshold(Road road, RoadSystemConfig config) {
+        return tunnelThreshold(RoadTerrainStyle.effective(road, config));
+    }
+
+    public static RoadConstructionEvaluator.RoadConstructionScoreConfig constructionConfig(
+            RoadTerrainStyle style) {
+        RoadTerrainStyle effective = style != null ? style : RoadTerrainStyle.BALANCED;
+        return new RoadConstructionEvaluator.RoadConstructionScoreConfig(
             FILL_WEIGHT,
             BRIDGE_PREFERENCE,
             BRIDGE_PREFERENCE_PER_LENGTH,
@@ -84,33 +77,14 @@ public final class RoadConstructionHeuristics {
             tunnelThreshold(effective));
     }
 
-    public static RoadConstructionEvaluator.RoadConstructionCostConfig constructionConfig(RoadSystemConfig config) {
-        return constructionConfig(presetFromConfig(config));
+    public static RoadConstructionEvaluator.RoadConstructionScoreConfig constructionConfig(
+            RoadSystemConfig config) {
+        return constructionConfig(config != null ? config.getTerrainStyle() : null);
     }
 
-    public static RoadConstructionEvaluator.RoadConstructionCostConfig constructionConfig(
+    public static RoadConstructionEvaluator.RoadConstructionScoreConfig constructionConfig(
             Road road,
             RoadSystemConfig config) {
         return constructionConfig(RoadTerrainStyle.effective(road, config));
-    }
-
-    public static RoadConstructionEvaluator.RoadConstructionCostConfig constructionConfig(RoadTerrainStyle style) {
-        return constructionConfig(presetFromStyle(style));
-    }
-
-    public static int bridgeThreshold(Road road, RoadSystemConfig config) {
-        return bridgeThreshold(RoadTerrainStyle.effective(road, config));
-    }
-
-    public static int tunnelThreshold(Road road, RoadSystemConfig config) {
-        return tunnelThreshold(RoadTerrainStyle.effective(road, config));
-    }
-
-    public static int bridgeThreshold(RoadTerrainStyle style) {
-        return bridgeThreshold(presetFromStyle(style));
-    }
-
-    public static int tunnelThreshold(RoadTerrainStyle style) {
-        return tunnelThreshold(presetFromStyle(style));
     }
 }

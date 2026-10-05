@@ -71,8 +71,8 @@ public final class FlatElevationOptimizer {
             searchMax = Math.max(searchMax, constraintBounds[1] + SEARCH_MARGIN);
         }
 
-        RoadConstructionEvaluator.RoadConstructionCostConfig costConfig =
-            RoadConstructionEvaluator.RoadConstructionCostConfig.from(config);
+        RoadConstructionEvaluator.RoadConstructionScoreConfig scoreConfig =
+            RoadConstructionEvaluator.RoadConstructionScoreConfig.from(config);
         List<FlatElevationCandidate> ranked = new ArrayList<>();
         for (int candidateY = searchMin; candidateY <= searchMax; candidateY++) {
             FlatElevationCandidate candidate = evaluateCandidate(
@@ -82,7 +82,7 @@ public final class FlatElevationOptimizer {
                 candidateY,
                 maxGrade,
                 intentTemplate,
-                costConfig,
+                scoreConfig,
                 RoadConstructionHeuristics.MIN_STRUCTURE_RUN,
                 roadLength);
             if (candidate.feasible()) {
@@ -102,12 +102,12 @@ public final class FlatElevationOptimizer {
                 median,
                 maxGrade,
                 intentTemplate,
-                costConfig,
+                scoreConfig,
                 RoadConstructionHeuristics.MIN_STRUCTURE_RUN,
                 RoadStationing.canonicalLength(network, road));
             FlatElevationCandidate best = fallback.feasible()
                 ? fallback
-                : medianFallbackCandidate(samples, median, costConfig, RoadConstructionHeuristics.MIN_STRUCTURE_RUN);
+                : medianFallbackCandidate(samples, median, scoreConfig, RoadConstructionHeuristics.MIN_STRUCTURE_RUN);
             return new FlatElevationRecommendation(best, List.of(best), samples.size());
         }
 
@@ -120,7 +120,7 @@ public final class FlatElevationOptimizer {
             stageA,
             maxGrade,
             intentTemplate,
-            costConfig,
+            scoreConfig,
             roadLength,
             median);
         List<FlatElevationCandidate> displayed = refined.stream().limit(DISPLAY_TOP_K).toList();
@@ -135,13 +135,13 @@ public final class FlatElevationOptimizer {
             List<FlatElevationCandidate> stageA,
             double maxGrade,
             FlatVerticalIntent intentTemplate,
-            RoadConstructionEvaluator.RoadConstructionCostConfig costConfig,
+            RoadConstructionEvaluator.RoadConstructionScoreConfig scoreConfig,
             double roadLength,
             int median) {
         List<FlatElevationCandidate> refined = new ArrayList<>(stageA.size());
         for (FlatElevationCandidate candidate : stageA) {
             double junctionPenalty = junctionAlignmentPenalty(
-                network, road, candidate.elevation(), intentTemplate, maxGrade, costConfig, roadLength);
+                network, road, candidate.elevation(), intentTemplate, maxGrade, scoreConfig, roadLength);
             FlatElevationCandidate stageB = FlatElevationRefinementEvaluator.refine(
                 network,
                 road,
@@ -150,7 +150,7 @@ public final class FlatElevationOptimizer {
                 candidate.elevation(),
                 maxGrade,
                 intentTemplate,
-                costConfig,
+                scoreConfig,
                 roadLength,
                 junctionPenalty);
             refined.add(stageB.feasible() ? stageB : candidate);
@@ -176,10 +176,10 @@ public final class FlatElevationOptimizer {
     private static FlatElevationCandidate medianFallbackCandidate(
             List<TerrainSegmentSample> samples,
             int median,
-            RoadConstructionEvaluator.RoadConstructionCostConfig costConfig,
+            RoadConstructionEvaluator.RoadConstructionScoreConfig scoreConfig,
             double minimumRunLength) {
         FlatElevationCandidate candidate = scoreSamples(
-            samples, median, costConfig, minimumRunLength, 0.0);
+            samples, median, scoreConfig, minimumRunLength, 0.0);
         return new FlatElevationCandidate(
             median,
             candidate.score(),
@@ -198,16 +198,16 @@ public final class FlatElevationOptimizer {
             int candidateY,
             double maxGrade,
             FlatVerticalIntent intentTemplate,
-            RoadConstructionEvaluator.RoadConstructionCostConfig costConfig,
+            RoadConstructionEvaluator.RoadConstructionScoreConfig scoreConfig,
             double minimumRunLength,
             double roadLength) {
         if (!isJunctionFeasible(network, road, candidateY, maxGrade, intentTemplate, roadLength)) {
             return FlatElevationCandidate.infeasible(candidateY);
         }
         double junctionPenalty = junctionAlignmentPenalty(
-            network, road, candidateY, intentTemplate, maxGrade, costConfig, roadLength);
+            network, road, candidateY, intentTemplate, maxGrade, scoreConfig, roadLength);
         FlatElevationCandidate scored = scoreSamples(
-            samples, candidateY, costConfig, minimumRunLength, junctionPenalty);
+            samples, candidateY, scoreConfig, minimumRunLength, junctionPenalty);
         return new FlatElevationCandidate(
             candidateY,
             scored.score(),
@@ -222,7 +222,7 @@ public final class FlatElevationOptimizer {
     private static FlatElevationCandidate scoreSamples(
             List<TerrainSegmentSample> samples,
             int candidateY,
-            RoadConstructionEvaluator.RoadConstructionCostConfig costConfig,
+            RoadConstructionEvaluator.RoadConstructionScoreConfig scoreConfig,
             double minimumRunLength,
             double junctionPenalty) {
         List<Double> distances = new ArrayList<>(samples.size());
@@ -238,7 +238,7 @@ public final class FlatElevationOptimizer {
             distances,
             groundHeights,
             targetHeights,
-            costConfig,
+            scoreConfig,
             minimumRunLength);
 
         int cutVolume = 0;
@@ -258,7 +258,7 @@ public final class FlatElevationOptimizer {
 
         FlatElevationConstructionMetrics.Metrics metrics = FlatElevationConstructionMetrics.fromStageA(
             types, cutVolume, fillVolume, bridgeLength, tunnelLength);
-        double score = FlatElevationConstructionMetrics.score(metrics, costConfig, junctionPenalty);
+        double score = FlatElevationConstructionMetrics.score(metrics, scoreConfig, junctionPenalty);
         return new FlatElevationCandidate(
             candidateY,
             score,
@@ -310,7 +310,7 @@ public final class FlatElevationOptimizer {
             int candidateY,
             FlatVerticalIntent intentTemplate,
             double maxGrade,
-            RoadConstructionEvaluator.RoadConstructionCostConfig costConfig,
+            RoadConstructionEvaluator.RoadConstructionScoreConfig scoreConfig,
             double roadLength) {
         double penalty = 0.0;
         for (Map.Entry<String, Double> entry
@@ -339,8 +339,8 @@ public final class FlatElevationOptimizer {
             double transitionLength = Math.min(required, available);
             double volume = transitionLength * delta;
             penalty += volume * (candidateY >= target
-                ? costConfig.cutCostPerVolume()
-                : costConfig.fillCostPerVolume());
+                ? scoreConfig.cutWeight()
+                : scoreConfig.fillWeight());
         }
         return penalty;
     }

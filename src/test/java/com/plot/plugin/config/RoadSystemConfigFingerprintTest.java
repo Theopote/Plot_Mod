@@ -22,7 +22,7 @@ class RoadSystemConfigFingerprintTest {
     }
 
     @Test
-    void terrainAdaptationDefaultsToBalanced() {
+    void terrainStyleDefaultsToBalanced() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         assertEquals(com.plot.plugin.road.terrain.RoadTerrainStyle.BALANCED, config.getTerrainStyle());
     }

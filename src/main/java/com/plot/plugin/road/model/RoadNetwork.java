@@ -1065,7 +1065,6 @@ public class RoadNetwork {
         VerticalAlignmentData verticalAlignment;
         String verticalMode;
         String terrainStyle;
-        String terrainFollowPreset;
         FlatVerticalIntentPersistence.FlatVerticalIntentData flatVerticalIntent;
         VariableCrossSectionsData variableCrossSections;
         StationFacilitiesData stationFacilities;
@@ -1250,9 +1249,6 @@ public class RoadNetwork {
                     if (roadData.terrainStyle != null && !roadData.terrainStyle.isBlank()) {
                         road.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle
                             .fromStored(roadData.terrainStyle));
-                    } else if (roadData.terrainFollowPreset != null && !roadData.terrainFollowPreset.isBlank()) {
-                        road.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle
-                            .fromStored(roadData.terrainFollowPreset));
                     }
                     road.setFlatVerticalIntent(FlatVerticalIntentPersistence.fromData(roadData.flatVerticalIntent));
                     road.setVariableCrossSections(VariableCrossSectionPersistence.fromData(roadData.variableCrossSections));

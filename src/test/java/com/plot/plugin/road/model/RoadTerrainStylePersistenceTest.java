@@ -10,7 +10,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class RoadTerrainFollowPresetPersistenceTest {
+class RoadTerrainStylePersistenceTest {
 
     @Test
     void jsonRoundTripPreservesTerrainStyle() {
@@ -29,28 +29,5 @@ class RoadTerrainFollowPresetPersistenceTest {
         Road restored = RoadNetwork.parseSnapshot(json).getRoad("terrain-style");
         assertEquals(RoadTerrainStyle.FOLLOW, restored.getStoredTerrainStyle());
         assertEquals(RoadTerrainStyle.FOLLOW, restored.getEffectiveTerrainStyle(null));
-    }
-
-    @Test
-    void legacyTerrainFollowPresetMigratesToTerrainStyle() {
-        String json = """
-            {
-              "schemaVersion": 1,
-              "roads": [{
-                "id": "legacy",
-                "name": "legacy",
-                "crossSection": {},
-                "segmentIds": [],
-                "verticalMode": "FIT_TERRAIN",
-                "terrainFollowPreset": "TIGHT"
-              }],
-              "nodes": [],
-              "edges": [],
-              "crossings": []
-            }
-            """;
-
-        Road restored = RoadNetwork.parseSnapshot(json).getRoad("legacy");
-        assertEquals(RoadTerrainStyle.FOLLOW, restored.getStoredTerrainStyle());
     }
 }

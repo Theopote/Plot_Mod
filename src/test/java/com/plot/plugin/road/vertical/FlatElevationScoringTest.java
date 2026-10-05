@@ -43,9 +43,9 @@ class FlatElevationScoringTest {
         assertEquals(20.0, metrics.bridgeLength(), 1e-6);
         assertEquals(1, metrics.bridgeRunCount());
 
-        var costConfig = RoadConstructionEvaluator.RoadConstructionCostConfig.from(CONFIG);
+        var costConfig = RoadConstructionEvaluator.RoadConstructionScoreConfig.from(CONFIG);
         double score = FlatElevationConstructionMetrics.score(metrics, costConfig, 0.0);
-        double expected = costConfig.bridgeBaseCost() + costConfig.bridgeCostPerLength() * 20.0;
+        double expected = costConfig.bridgeBasePenalty() + costConfig.bridgeLengthPenalty() * 20.0;
         assertEquals(expected, score, 1e-6);
     }
 
@@ -75,9 +75,9 @@ class FlatElevationScoringTest {
         assertEquals(2, metrics.bridgeRunCount());
         assertEquals(40.0, metrics.bridgeLength(), 1e-6);
 
-        var costConfig = RoadConstructionEvaluator.RoadConstructionCostConfig.from(CONFIG);
+        var costConfig = RoadConstructionEvaluator.RoadConstructionScoreConfig.from(CONFIG);
         double score = FlatElevationConstructionMetrics.score(metrics, costConfig, 0.0);
-        double expected = 2 * costConfig.bridgeBaseCost() + costConfig.bridgeCostPerLength() * 40.0;
+        double expected = 2 * costConfig.bridgeBasePenalty() + costConfig.bridgeLengthPenalty() * 40.0;
         assertEquals(expected, score, 1e-6);
     }
 
@@ -105,9 +105,9 @@ class FlatElevationScoringTest {
         assertEquals(2, metrics.tunnelRunCount());
         assertEquals(40.0, metrics.tunnelLength(), 1e-6);
 
-        var costConfig = RoadConstructionEvaluator.RoadConstructionCostConfig.from(CONFIG);
+        var costConfig = RoadConstructionEvaluator.RoadConstructionScoreConfig.from(CONFIG);
         double score = FlatElevationConstructionMetrics.score(metrics, costConfig, 0.0);
-        double expected = 2 * costConfig.tunnelBaseCost() + costConfig.tunnelCostPerLength() * 40.0;
+        double expected = 2 * costConfig.tunnelBasePenalty() + costConfig.tunnelLengthPenalty() * 40.0;
         assertEquals(expected, score, 1e-6);
     }
 
@@ -128,9 +128,9 @@ class FlatElevationScoringTest {
         assertEquals(15.0, metrics.tunnelLength(), 1e-6);
         assertEquals(1, metrics.tunnelRunCount());
 
-        var costConfig = RoadConstructionEvaluator.RoadConstructionCostConfig.from(CONFIG);
+        var costConfig = RoadConstructionEvaluator.RoadConstructionScoreConfig.from(CONFIG);
         double score = FlatElevationConstructionMetrics.score(metrics, costConfig, 0.0);
-        double expected = costConfig.tunnelBaseCost() + costConfig.tunnelCostPerLength() * 15.0;
+        double expected = costConfig.tunnelBasePenalty() + costConfig.tunnelLengthPenalty() * 15.0;
         assertEquals(expected, score, 1e-6);
     }
 
@@ -170,7 +170,7 @@ class FlatElevationScoringTest {
 
         double maxGrade = road.getEffectiveMaxSlope(CONFIG);
         FlatVerticalIntent intent = road.getFlatVerticalIntent().copy();
-        var costConfig = RoadConstructionEvaluator.RoadConstructionCostConfig.from(CONFIG);
+        var costConfig = RoadConstructionEvaluator.RoadConstructionScoreConfig.from(CONFIG);
         double roadLength = RoadStationing.canonicalLength(network, road);
 
         boolean reorderObserved = false;
@@ -206,7 +206,7 @@ class FlatElevationScoringTest {
             int candidateY,
             double maxGrade,
             FlatVerticalIntent intent,
-            RoadConstructionEvaluator.RoadConstructionCostConfig costConfig,
+            RoadConstructionEvaluator.RoadConstructionScoreConfig costConfig,
             double roadLength) {
         if (!FlatElevationOptimizer.isJunctionFeasible(
                 network, road, candidateY, maxGrade, intent, roadLength)) {

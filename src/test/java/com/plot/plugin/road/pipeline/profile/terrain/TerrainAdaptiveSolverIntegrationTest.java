@@ -2,7 +2,7 @@ package com.plot.plugin.road.pipeline.profile.terrain;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
-import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics.TerrainAdaptationPreset;
+import com.plot.plugin.road.terrain.RoadTerrainStyle;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -178,7 +178,7 @@ class TerrainAdaptiveSolverIntegrationTest {
         Road road = network.createRoad("ascending");
         road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
         road.setMaxSlope(maxSlope);
-        road.setTerrainFollowPreset(TerrainFollowPreset.STANDARD);
+        road.setTerrainStyle(RoadTerrainStyle.BALANCED);
         RoadNode start = network.createNode(new Vec2d(0, 0));
         RoadNode end = network.createNode(new Vec2d(lengthMeters, 0));
         RoadEdge edge = network.createEdge(
@@ -231,7 +231,7 @@ class TerrainAdaptiveSolverIntegrationTest {
         Road road = network.createRoad("mountain");
         road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
         road.setMaxSlope(10.0f);
-        road.setTerrainFollowPreset(TerrainFollowPreset.STANDARD);
+        road.setTerrainStyle(RoadTerrainStyle.BALANCED);
         RoadNode start = network.createNode(new Vec2d(0, 0));
         RoadNode end = network.createNode(new Vec2d(lengthMeters, 0));
         RoadEdge edge = network.createEdge(
@@ -256,7 +256,7 @@ class TerrainAdaptiveSolverIntegrationTest {
         Road road = network.createRoad("step");
         road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
         road.setMaxSlope(maxSlope);
-        road.setTerrainFollowPreset(TerrainFollowPreset.STANDARD);
+        road.setTerrainStyle(RoadTerrainStyle.BALANCED);
         RoadNode start = network.createNode(new Vec2d(0, 0));
         RoadNode end = network.createNode(new Vec2d(lengthMeters, 0));
         RoadEdge edge = network.createEdge(
@@ -371,7 +371,11 @@ class TerrainAdaptiveSolverIntegrationTest {
         }
 
         Fixture withPreset(TerrainFollowPreset newPreset) {
-            road.setTerrainFollowPreset(newPreset);
+            road.setTerrainStyle(switch (newPreset) {
+                case GENTLE -> com.plot.plugin.road.terrain.RoadTerrainStyle.SMOOTH;
+                case STANDARD -> com.plot.plugin.road.terrain.RoadTerrainStyle.BALANCED;
+                case TIGHT -> com.plot.plugin.road.terrain.RoadTerrainStyle.FOLLOW;
+            });
             return new Fixture(network, road, edge, config, segments, terrain, newPreset);
         }
     }

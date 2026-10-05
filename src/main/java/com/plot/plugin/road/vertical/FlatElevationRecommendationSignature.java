@@ -28,7 +28,7 @@ public final class FlatElevationRecommendationSignature {
         hash = 31 * hash + Float.hashCode(road.getEffectiveMaxSlope(config));
         hash = 31 * hash + intentSignature(FlatVerticalIntentSupport.resolveIntent(network, road));
         hash = 31 * hash + junctionSignature(network, road);
-        hash = 31 * hash + costConfigSignature(config);
+        hash = 31 * hash + scoreConfigSignature(config);
         return hash;
     }
 
@@ -77,7 +77,7 @@ public final class FlatElevationRecommendationSignature {
         return hash;
     }
 
-    private static int costConfigSignature(RoadSystemConfig config) {
+    private static int scoreConfigSignature(RoadSystemConfig config) {
         int hash = 1;
         hash = 31 * hash + Double.hashCode(RoadConstructionHeuristics.FILL_WEIGHT);
         hash = 31 * hash + Double.hashCode(RoadConstructionHeuristics.BRIDGE_PREFERENCE);

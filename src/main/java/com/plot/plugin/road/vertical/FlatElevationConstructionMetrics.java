@@ -127,14 +127,14 @@ final class FlatElevationConstructionMetrics {
 
     static double score(
             Metrics metrics,
-            RoadConstructionEvaluator.RoadConstructionCostConfig costConfig,
+            RoadConstructionEvaluator.RoadConstructionScoreConfig scoreConfig,
             double junctionPenalty) {
-        return costConfig.cutCostPerVolume() * metrics.cutVolume()
-            + costConfig.fillCostPerVolume() * metrics.fillVolume()
-            + costConfig.bridgeBaseCost() * metrics.bridgeRunCount()
-            + costConfig.bridgeCostPerLength() * metrics.bridgeLength()
-            + costConfig.tunnelBaseCost() * metrics.tunnelRunCount()
-            + costConfig.tunnelCostPerLength() * metrics.tunnelLength()
+        return scoreConfig.cutWeight() * metrics.cutVolume()
+            + scoreConfig.fillWeight() * metrics.fillVolume()
+            + scoreConfig.bridgeBasePenalty() * metrics.bridgeRunCount()
+            + scoreConfig.bridgeLengthPenalty() * metrics.bridgeLength()
+            + scoreConfig.tunnelBasePenalty() * metrics.tunnelRunCount()
+            + scoreConfig.tunnelLengthPenalty() * metrics.tunnelLength()
             + junctionPenalty;
     }
 

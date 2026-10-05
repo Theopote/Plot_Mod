@@ -45,8 +45,6 @@ public class RoadSystemConfig {
     // 新增参数
     private float maxSlope = 10.0f; // 最大坡度（百分比）
     private RoadTerrainStyle terrainStyle = RoadTerrainStyle.BALANCED;
-    /** Legacy Gson field; migrated to {@link #terrainStyle} on load. */
-    private RoadConstructionHeuristics.TerrainAdaptationPreset terrainAdaptation;
     private boolean generateBridgePillars = true;
     private boolean includeBridgeGuardrail = false;
     private String bridgeGuardrailMaterial = "minecraft:oak_fence";
@@ -145,13 +143,6 @@ public class RoadSystemConfig {
         }
         if (config.roadThemeId == null || config.roadThemeId.isBlank()) {
             config.roadThemeId = RoadThemeCatalog.MODERN_ID;
-        }
-        if (config.terrainAdaptation != null) {
-            RoadTerrainStyle migrated = RoadTerrainStyle.fromLegacyAdaptation(config.terrainAdaptation);
-            if (migrated != null) {
-                config.terrainStyle = migrated;
-            }
-            config.terrainAdaptation = null;
         }
     }
 

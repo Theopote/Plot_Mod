@@ -42,7 +42,7 @@ final class FlatElevationRefinementEvaluator {
             int candidateY,
             double maxGrade,
             FlatVerticalIntent intentTemplate,
-            RoadConstructionEvaluator.RoadConstructionCostConfig costConfig,
+            RoadConstructionEvaluator.RoadConstructionScoreConfig scoreConfig,
             double roadLength,
             double junctionPenalty) {
         if (!FlatElevationOptimizer.isJunctionFeasible(
@@ -76,7 +76,7 @@ final class FlatElevationRefinementEvaluator {
             totals = totals.add(edgeMetrics);
         }
 
-        double score = FlatElevationConstructionMetrics.score(totals, costConfig, junctionPenalty);
+        double score = FlatElevationConstructionMetrics.score(totals, scoreConfig, junctionPenalty);
         return new FlatElevationCandidate(
             candidateY,
             score,
