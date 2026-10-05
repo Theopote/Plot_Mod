@@ -57,19 +57,6 @@ public final class RoadConstructionHeuristics {
         };
     }
 
-    /** Cut-to-fill balance ratio for profile offset search (replaces legacy fillFactor). */
-    public static float cutToFillBalanceRatio(TerrainAdaptationPreset preset) {
-        return switch (preset != null ? preset : TerrainAdaptationPreset.BALANCED) {
-            case FOLLOW -> 1.02f;
-            case BALANCED -> 1.1f;
-            case FLATTEN -> 1.35f;
-        };
-    }
-
-    public static float cutToFillBalanceRatio(RoadSystemConfig config) {
-        return cutToFillBalanceRatio(presetFromConfig(config));
-    }
-
     public static int bridgeThreshold(RoadSystemConfig config) {
         return bridgeThreshold(presetFromConfig(config));
     }

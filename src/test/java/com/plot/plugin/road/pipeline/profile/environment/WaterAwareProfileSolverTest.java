@@ -39,7 +39,6 @@ class WaterAwareProfileSolverTest {
             null,
             null,
             preset,
-            1.0f,
             bounds);
 
         for (int i = 0; i < solved.designElevations().size(); i++) {
@@ -79,7 +78,6 @@ class WaterAwareProfileSolverTest {
             null,
             null,
             preset,
-            1.0f,
             bounds);
         assertTrue(solved.designElevations().get(2) >= 63.0 - 1e-6,
             "causeway road surface must stay at or above water surface");
@@ -205,7 +203,6 @@ class WaterAwareProfileSolverTest {
             null,
             null,
             preset,
-            1.0f,
             bounds);
 
         for (int i = 0; i < solved.designElevations().size(); i++) {

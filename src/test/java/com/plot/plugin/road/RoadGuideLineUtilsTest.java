@@ -15,7 +15,7 @@ class RoadGuideLineUtilsTest {
         List<Integer> ground = List.of(60, 61, 62, 68, 72, 76, 80);
         List<Double> distances = List.of(0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0);
 
-        List<Integer> guideLine = RoadGuideLineUtils.computeGuideLine(ground, distances, 1.1f);
+        List<Integer> guideLine = RoadGuideLineUtils.computeGuideLine(ground, distances);
 
         assertEquals(7, guideLine.size());
         assertTrue(guideLine.getFirst() < guideLine.get(3));
@@ -31,7 +31,7 @@ class RoadGuideLineUtilsTest {
         List<Integer> ground = List.of(64, 70, 76);
         List<Double> distances = List.of(0.0, 5.0, 10.0);
 
-        List<Integer> guideLine = RoadGuideLineUtils.computeGuideLine(ground, distances, 1.1f);
+        List<Integer> guideLine = RoadGuideLineUtils.computeGuideLine(ground, distances);
 
         assertEquals(3, guideLine.size());
         assertEquals(guideLine.getFirst(), guideLine.get(1));
@@ -48,7 +48,7 @@ class RoadGuideLineUtilsTest {
         }
 
         List<Integer> guideLine = RoadGuideLineUtils.computeGuideLine(
-            ground, distances, 1.1f, 88, 72);
+            ground, distances, 88, 72);
 
         assertEquals(88, guideLine.getFirst());
         assertEquals(72, guideLine.getLast());
@@ -59,7 +59,7 @@ class RoadGuideLineUtilsTest {
         List<Integer> ground = List.of(64, 66, 68);
         List<Double> distances = List.of(0.0, 4.0, 8.0);
 
-        List<Integer> guideLine = RoadGuideLineUtils.computeGuideLine(ground, distances, 1.1f, 90, null);
+        List<Integer> guideLine = RoadGuideLineUtils.computeGuideLine(ground, distances, 90, null);
 
         assertTrue(guideLine.stream().allMatch(height -> height == 90));
     }

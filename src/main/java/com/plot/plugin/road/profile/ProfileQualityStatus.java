@@ -28,7 +28,8 @@ public final class ProfileQualityStatus {
         }
     }
 
-    private static final double TERRAIN_MODIFICATION_RATIO = 0.35;
+    private static final double TERRAIN_MODIFICATION_WARNING_BLOCKS = 1.5;
+    private static final double MIN_ROAD_LENGTH = 1e-6;
 
     private ProfileQualityStatus() {
     }
@@ -46,7 +47,7 @@ public final class ProfileQualityStatus {
         }
         double maxGradeLimit = resolveMaxGrade(road, config);
         double maxGradeChangeLimit = resolveMaxGradeChange(road);
-        int sampleCount = Math.max(1, chart.stations().size());
+        double roadLength = Math.max(MIN_ROAD_LENGTH, chart.totalStation());
 
         List<Dimension> dimensions = new ArrayList<>(3);
         dimensions.add(new Dimension(
@@ -56,8 +57,8 @@ public final class ProfileQualityStatus {
             smoothnessLabelKey(metrics, maxGradeChangeLimit),
             smoothnessLevel(metrics, maxGradeChangeLimit)));
         dimensions.add(new Dimension(
-            terrainLabelKey(metrics, sampleCount),
-            terrainLevel(metrics, sampleCount)));
+            terrainLabelKey(metrics, roadLength),
+            terrainLevel(metrics, roadLength)));
 
         boolean hasWarnings = dimensions.stream().anyMatch(d -> d.level() == Level.WARNING);
         return new Summary(dimensions, hasWarnings);
@@ -144,14 +145,13 @@ public final class ProfileQualityStatus {
             : "plugin.road.profile_status_smoothness_good";
     }
 
-    private static Level terrainLevel(RoadProfileQualityMetrics metrics, int sampleCount) {
-        int earthwork = metrics.terrain().earthworkBlockColumns();
-        double threshold = sampleCount * TERRAIN_MODIFICATION_RATIO;
-        return earthwork > threshold ? Level.WARNING : Level.GOOD;
+    private static Level terrainLevel(RoadProfileQualityMetrics metrics, double roadLength) {
+        double averageModification = metrics.terrain().earthworkBlockColumns() / roadLength;
+        return averageModification > TERRAIN_MODIFICATION_WARNING_BLOCKS ? Level.WARNING : Level.GOOD;
     }
 
-    private static String terrainLabelKey(RoadProfileQualityMetrics metrics, int sampleCount) {
-        return terrainLevel(metrics, sampleCount) == Level.WARNING
+    private static String terrainLabelKey(RoadProfileQualityMetrics metrics, double roadLength) {
+        return terrainLevel(metrics, roadLength) == Level.WARNING
             ? "plugin.road.profile_status_terrain_warning"
             : "plugin.road.profile_status_terrain_good";
     }

@@ -195,7 +195,7 @@ public final class RoadProfileSolver {
         EnvironmentProfile solverEnvironment = worldDenseEnvironment != null
             ? worldDenseEnvironment.resampleAtStations(worldCumulativeDistances)
             : null;
-        WaterCrossingSettings waterSettings = WaterCrossingSettings.fromConfig(config);
+        WaterCrossingSettings waterSettings = WaterCrossingSettings.defaults();
         List<Integer> waterHeights = extractWaterHeights(solverEnvironment);
         List<WaterCrossing> waterCrossings = classifyWaterCrossings(
             worldDenseEnvironment,
@@ -226,7 +226,6 @@ public final class RoadProfileSolver {
             guideLine = RoadGuideLineUtils.computeGuideLine(
                 sampleData.groundSamples(),
                 worldCumulativeDistances,
-                support.cutToFillBalanceRatio(),
                 manualStartHeight,
                 manualEndHeight);
         }
@@ -262,7 +261,6 @@ public final class RoadProfileSolver {
                     manualStartHeight,
                     manualEndHeight,
                     effectiveTerrainPreset,
-                    support.cutToFillBalanceRatio(),
                     elevationBounds);
             designElevations = terrainSolve.designElevations();
             manualEndpointConstraintFeasible = terrainSolve.manualEndpointsFeasible();

@@ -1,8 +1,6 @@
 package com.plot.plugin.road.pipeline.profile.environment;
 
-/**
- * Thresholds for water-crossing classification (from {@link com.plot.plugin.config.RoadSystemConfig}).
- */
+/** Internal thresholds for water-crossing classification. */
 public record WaterCrossingSettings(
         int waterRoadClearanceBlocks,
         double causewayMaxLengthMeters,
@@ -15,9 +13,5 @@ public record WaterCrossingSettings(
 
     public static WaterCrossingSettings defaults() {
         return new WaterCrossingSettings(1, 6.0, 2, 6.0, DEFAULT_LONG_BRIDGE_LENGTH_METERS, false);
-    }
-
-    public static WaterCrossingSettings fromConfig(com.plot.plugin.config.RoadSystemConfig config) {
-        return defaults();
     }
 }

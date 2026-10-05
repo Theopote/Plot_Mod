@@ -153,9 +153,7 @@ public final class VerticalAlignmentProfileSolver {
         EnvironmentProfile solverEnvironment = worldDenseEnvironment != null
             ? worldDenseEnvironment.resampleAtStations(worldCumulativeDistances)
             : null;
-        WaterCrossingSettings waterSettings = config != null
-            ? WaterCrossingSettings.fromConfig(config)
-            : WaterCrossingSettings.defaults();
+        WaterCrossingSettings waterSettings = WaterCrossingSettings.defaults();
         TerrainFollowPreset effectivePreset = terrainFollowPreset != null
             ? terrainFollowPreset
             : TerrainFollowPreset.STANDARD;

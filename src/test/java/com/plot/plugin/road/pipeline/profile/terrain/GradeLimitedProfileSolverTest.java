@@ -241,10 +241,10 @@ class GradeLimitedProfileSolverTest {
         List<Float> slopes = constantSlopes(4, 8.0f);
 
         List<Double> trendOnly = GradeLimitedProfileSolver.solveDesignProfile(
-            trend, null, distances, slopes, null, null, TerrainFollowPreset.STANDARD, 1.1f)
+            trend, null, distances, slopes, null, null, TerrainFollowPreset.STANDARD)
             .designElevations();
         List<Double> blended = GradeLimitedProfileSolver.solveDesignProfile(
-            trend, ground, distances, slopes, null, null, TerrainFollowPreset.STANDARD, 1.1f)
+            trend, ground, distances, slopes, null, null, TerrainFollowPreset.STANDARD)
             .designElevations();
 
         assertTrue(average(blended) > average(trendOnly),
@@ -262,10 +262,10 @@ class GradeLimitedProfileSolverTest {
         List<Float> slopes = constantSlopes(4, 8.0f);
 
         List<Double> withoutBalance = GradeLimitedProfileSolver.solveDesignProfile(
-            trend, null, distances, slopes, null, null, TerrainFollowPreset.STANDARD, 1.1f)
+            trend, null, distances, slopes, null, null, TerrainFollowPreset.STANDARD)
             .designElevations();
         List<Double> withBalance = GradeLimitedProfileSolver.solveDesignProfile(
-            trend, ground, distances, slopes, null, null, TerrainFollowPreset.STANDARD, 1.1f)
+            trend, ground, distances, slopes, null, null, TerrainFollowPreset.STANDARD)
             .designElevations();
 
         assertTrue(average(withBalance) > average(withoutBalance),
@@ -282,10 +282,10 @@ class GradeLimitedProfileSolverTest {
         List<Float> slopes = constantSlopes(4, 8.0f);
 
         List<Double> withoutBalance = GradeLimitedProfileSolver.solveDesignProfile(
-            trend, null, distances, slopes, null, null, TerrainFollowPreset.STANDARD, 1.1f)
+            trend, null, distances, slopes, null, null, TerrainFollowPreset.STANDARD)
             .designElevations();
         List<Double> withBalance = GradeLimitedProfileSolver.solveDesignProfile(
-            trend, ground, distances, slopes, null, null, TerrainFollowPreset.STANDARD, 1.1f)
+            trend, ground, distances, slopes, null, null, TerrainFollowPreset.STANDARD)
             .designElevations();
 
         assertTrue(average(withBalance) < average(withoutBalance),
@@ -300,10 +300,10 @@ class GradeLimitedProfileSolverTest {
         List<Float> slopes = constantSlopes(4, 8.0f);
 
         List<Double> gentle = GradeLimitedProfileSolver.solveDesignProfile(
-            trend, ground, distances, slopes, null, null, TerrainFollowPreset.GENTLE, 1.1f)
+            trend, ground, distances, slopes, null, null, TerrainFollowPreset.GENTLE)
             .designElevations();
         List<Double> tight = GradeLimitedProfileSolver.solveDesignProfile(
-            trend, ground, distances, slopes, null, null, TerrainFollowPreset.TIGHT, 1.1f)
+            trend, ground, distances, slopes, null, null, TerrainFollowPreset.TIGHT)
             .designElevations();
 
         double gentleShift = average(gentle) - average(trend);
@@ -321,7 +321,7 @@ class GradeLimitedProfileSolverTest {
         List<Float> slopes = constantSlopes(4, 8.0f);
 
         List<Double> balanced = GradeLimitedProfileSolver.solveDesignProfile(
-            trend, ground, distances, slopes, 64, null, TerrainFollowPreset.STANDARD, 1.1f)
+            trend, ground, distances, slopes, 64, null, TerrainFollowPreset.STANDARD)
             .designElevations();
 
         assertEquals(64.0, balanced.getFirst(), 1e-6);
@@ -335,7 +335,7 @@ class GradeLimitedProfileSolverTest {
         List<Float> slopes = constantSlopes(4, 8.0f);
 
         List<Double> balanced = GradeLimitedProfileSolver.solveDesignProfile(
-            trend, ground, distances, slopes, null, 70, TerrainFollowPreset.STANDARD, 1.1f)
+            trend, ground, distances, slopes, null, 70, TerrainFollowPreset.STANDARD)
             .designElevations();
 
         assertEquals(70.0, balanced.getLast(), 1e-6);
@@ -349,7 +349,7 @@ class GradeLimitedProfileSolverTest {
         List<Float> slopes = constantSlopes(8, 8.0f);
 
         List<Double> balanced = GradeLimitedProfileSolver.solveDesignProfile(
-            trend, ground, distances, slopes, 64, 70, TerrainFollowPreset.STANDARD, 1.1f)
+            trend, ground, distances, slopes, 64, 70, TerrainFollowPreset.STANDARD)
             .designElevations();
 
         assertEquals(64.0, balanced.getFirst(), 1e-6);
@@ -366,7 +366,7 @@ class GradeLimitedProfileSolverTest {
         List<Float> slopes = constantSlopes(9, 8.0f);
 
         List<Double> balanced = GradeLimitedProfileSolver.solveDesignProfile(
-            trend, ground, distances, slopes, 64, 70, preset, 1.1f)
+            trend, ground, distances, slopes, 64, 70, preset)
             .designElevations();
 
         assertEquals(64.0, balanced.getFirst(), 1e-6);

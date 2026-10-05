@@ -14,7 +14,6 @@ class RoadConstructionHeuristicsTest {
 
         assertEquals(3, RoadConstructionHeuristics.bridgeThreshold(config));
         assertEquals(4, RoadConstructionHeuristics.tunnelThreshold(config));
-        assertEquals(1.1f, RoadConstructionHeuristics.cutToFillBalanceRatio(config), 0.01f);
     }
 
     @Test
@@ -23,7 +22,5 @@ class RoadConstructionHeuristicsTest {
             RoadConstructionHeuristics.TerrainAdaptationPreset.FLATTEN));
         assertEquals(3, RoadConstructionHeuristics.tunnelThreshold(
             RoadConstructionHeuristics.TerrainAdaptationPreset.FLATTEN));
-        assertEquals(1.35f, RoadConstructionHeuristics.cutToFillBalanceRatio(
-            RoadConstructionHeuristics.TerrainAdaptationPreset.FLATTEN), 0.01f);
     }
 }

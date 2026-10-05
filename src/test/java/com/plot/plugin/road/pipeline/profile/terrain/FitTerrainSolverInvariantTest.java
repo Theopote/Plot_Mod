@@ -53,8 +53,7 @@ class FitTerrainSolverInvariantTest {
                 slopes,
                 62,
                 68,
-                preset,
-                1.35f);
+                preset);
 
         FitTerrainProfileInvariants.assertDesignProfileInvariants(
             solved.designElevations(),
@@ -111,7 +110,6 @@ class FitTerrainSolverInvariantTest {
             70,
             70,
             preset,
-            1.35f,
             bounds);
 
         FitTerrainProfileInvariants.assertDesignProfileInvariants(
@@ -142,13 +140,11 @@ class FitTerrainSolverInvariantTest {
             64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74);
         List<Double> distances = constantDistances(trend.size() - 1, 15.0);
         List<Float> slopes = constantSlopes(distances.size(), 8.0f);
-        float fillFactor = 1.35f;
-
         List<Double> withoutCutFill = GradeLimitedProfileSolver.solveDesignProfile(
-            trend, null, distances, slopes, 60, 72, preset, fillFactor).designElevations();
+            trend, null, distances, slopes, 60, 72, preset).designElevations();
         GradeLimitedProfileSolver.DesignSolveResult solved =
             GradeLimitedProfileSolver.solveDesignProfile(
-                trend, ground, distances, slopes, 60, 72, preset, fillFactor);
+                trend, ground, distances, slopes, 60, 72, preset);
 
         FitTerrainProfileInvariants.assertDesignProfileInvariants(
             solved.designElevations(),
@@ -161,9 +157,9 @@ class FitTerrainSolverInvariantTest {
             solved.manualEndpointsFeasible());
 
         long imbalanceWithout = Math.abs(FitTerrainProfileInvariants.cutFillImbalance(
-            ground, withoutCutFill, fillFactor));
+            ground, withoutCutFill));
         long imbalanceWith = Math.abs(FitTerrainProfileInvariants.cutFillImbalance(
-            ground, solved.designElevations(), fillFactor));
+            ground, solved.designElevations()));
         assertTrue(imbalanceWith <= imbalanceWithout,
             () -> "cut/fill objective should not worsen imbalance: "
                 + imbalanceWith + " vs " + imbalanceWithout);

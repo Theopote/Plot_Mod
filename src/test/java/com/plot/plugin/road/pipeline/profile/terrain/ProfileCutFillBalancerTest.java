@@ -14,25 +14,25 @@ class ProfileCutFillBalancerTest {
     private static final double EPSILON = 1e-9;
 
     @Test
-    void computeBalanceDiffDetectsCutDominance() {
+    void computeTerrainModificationBiasDetectsCutDominance() {
         List<Integer> ground = List.of(70, 70, 70, 70, 70);
         List<Double> design = List.of(64.0, 64.0, 64.0, 64.0, 64.0);
 
-        long imbalance = ProfileCutFillBalancer.computeBalanceDiff(
-            ground, design, 0, 1.1f);
+        long imbalance = ProfileCutFillBalancer.computeTerrainModificationBias(
+            ground, design, 0);
 
-        assertTrue(imbalance > 0, "cut-heavy profile should report positive supply surplus");
+        assertTrue(imbalance > 0, "cut-heavy profile should report positive bias");
     }
 
     @Test
-    void computeBalanceDiffDetectsFillDominance() {
+    void computeTerrainModificationBiasDetectsFillDominance() {
         List<Integer> ground = List.of(60, 60, 60, 60, 60);
         List<Double> design = List.of(68.0, 68.0, 68.0, 68.0, 68.0);
 
-        long imbalance = ProfileCutFillBalancer.computeBalanceDiff(
-            ground, design, 0, 1.1f);
+        long imbalance = ProfileCutFillBalancer.computeTerrainModificationBias(
+            ground, design, 0);
 
-        assertTrue(imbalance < 0, "fill-heavy profile should report negative supply surplus");
+        assertTrue(imbalance < 0, "fill-heavy profile should report negative bias");
     }
 
     @Test
@@ -40,7 +40,7 @@ class ProfileCutFillBalancerTest {
         List<Integer> ground = List.of(70, 70, 70, 70, 70);
         List<Double> design = List.of(64.0, 64.0, 64.0, 64.0, 64.0);
 
-        double offset = ProfileCutFillBalancer.findBalancingOffset(ground, design, 1.1f);
+        double offset = ProfileCutFillBalancer.findBalancingOffset(ground, design);
 
         assertTrue(offset > 0.0, "cut-heavy profile should search for a positive offset");
     }

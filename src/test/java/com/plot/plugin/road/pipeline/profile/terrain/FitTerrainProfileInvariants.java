@@ -80,15 +80,8 @@ final class FitTerrainProfileInvariants {
         }
     }
 
-    static long cutFillImbalance(
-            List<Integer> ground,
-            List<Double> design,
-            float cutToFillBalanceRatio) {
-        return ProfileCutFillBalancer.computeBalanceDiff(
-            ground,
-            design,
-            0,
-            cutToFillBalanceRatio);
+    static long cutFillImbalance(List<Integer> ground, List<Double> design) {
+        return ProfileCutFillBalancer.computeTerrainModificationBias(ground, design, 0);
     }
 
     static List<Double> segmentDistancesFromCumulative(List<Double> cumulativeDistances) {
@@ -137,7 +130,6 @@ final class FitTerrainProfileInvariants {
             TerrainFollowPreset preset,
             Integer manualStartHeight,
             Integer manualEndHeight,
-            float fillFactor,
             int waterClearanceBlocks) {
         assertDesignProfileInvariants(
             result.profileDesignElevations(),

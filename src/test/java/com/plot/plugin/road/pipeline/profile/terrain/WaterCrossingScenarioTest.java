@@ -107,7 +107,6 @@ class WaterCrossingScenarioTest {
             fixture.preset(),
             manualStart,
             manualEnd,
-            RoadConstructionHeuristics.cutToFillBalanceRatio(fixture.config()),
             com.plot.plugin.road.pipeline.profile.environment.WaterCrossingSettings.defaults().waterRoadClearanceBlocks());
     }
 

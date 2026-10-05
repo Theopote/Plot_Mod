@@ -78,7 +78,7 @@ public final class GradeLimitedProfileSolver {
             manualStartHeight,
             manualEndHeight,
             preset,
-            1.0f);
+            null);
     }
 
     public static DesignSolveResult solveDesignProfile(
@@ -88,8 +88,7 @@ public final class GradeLimitedProfileSolver {
             List<Float> maxSlopePercents,
             Integer manualStartHeight,
             Integer manualEndHeight,
-            TerrainFollowPreset preset,
-            float cutToFillBalanceRatio) {
+            TerrainFollowPreset preset) {
         return solveDesignProfile(
             trendElevations,
             groundSamples,
@@ -98,7 +97,6 @@ public final class GradeLimitedProfileSolver {
             manualStartHeight,
             manualEndHeight,
             preset,
-            cutToFillBalanceRatio,
             null);
     }
 
@@ -110,7 +108,6 @@ public final class GradeLimitedProfileSolver {
             Integer manualStartHeight,
             Integer manualEndHeight,
             TerrainFollowPreset preset,
-            float cutToFillBalanceRatio,
             VerticalStationConstraints.StationElevationBounds elevationBounds) {
         double[] stations = solveStationElevations(
             trendElevations,
@@ -120,7 +117,6 @@ public final class GradeLimitedProfileSolver {
             manualStartHeight,
             manualEndHeight,
             preset,
-            cutToFillBalanceRatio,
             elevationBounds);
         List<Double> designElevations = toDesignList(stations);
         int profileStart = manualStartHeight != null
@@ -277,10 +273,10 @@ public final class GradeLimitedProfileSolver {
             TerrainFollowPreset preset) {
         return solveStationElevations(
             trendElevations,
-                segmentDistances,
+            segmentDistances,
             maxSlopePercents,
-                preset,
-            1.0f);
+            preset,
+            null);
     }
 
     static double[] solveStationElevations(
@@ -288,17 +284,16 @@ public final class GradeLimitedProfileSolver {
             List<Double> segmentDistances,
             List<Float> maxSlopePercents,
             TerrainFollowPreset preset,
-            float cutToFillBalanceRatio) {
+            VerticalStationConstraints.StationElevationBounds elevationBounds) {
         return solveStationElevations(
             trendElevations,
-                null,
+            null,
             segmentDistances,
             maxSlopePercents,
-                null,
-                null,
+            null,
+            null,
             preset,
-            cutToFillBalanceRatio,
-            null);
+            elevationBounds);
     }
 
     static double[] solveStationElevations(
@@ -309,7 +304,6 @@ public final class GradeLimitedProfileSolver {
             Integer manualStartHeight,
             Integer manualEndHeight,
             TerrainFollowPreset preset,
-            float cutToFillBalanceRatio,
             VerticalStationConstraints.StationElevationBounds elevationBounds) {
         double[] minElevations = elevationMinArray(elevationBounds);
         double[] maxElevations = elevationMaxArray(elevationBounds);
@@ -364,7 +358,6 @@ public final class GradeLimitedProfileSolver {
             segmentDistances,
             maxSlopePercents,
             effectivePreset,
-            cutToFillBalanceRatio,
             lockStart,
             lockEnd,
             startTarget,
@@ -473,7 +466,6 @@ public final class GradeLimitedProfileSolver {
             List<Double> segmentDistances,
             List<Float> maxSlopePercents,
             TerrainFollowPreset preset,
-            float cutToFillBalanceRatio,
             boolean lockStart,
             boolean lockEnd,
             double startLock,
@@ -491,15 +483,14 @@ public final class GradeLimitedProfileSolver {
                 beta /= total;
             }
         }
-        float balanceRatio = cutFillEnabled ? cutToFillBalanceRatio : 1.0f;
         int stationCount = current.length;
 
         for (int iteration = 0; iteration < preset.relaxationIterations(); iteration++) {
             boolean applyCutFill = cutFillEnabled;
             long imbalance = 0L;
             if (applyCutFill) {
-                imbalance = ProfileCutFillBalancer.computeBalanceDiff(
-                    groundSamples, toDesignList(current), 0, balanceRatio);
+                imbalance = ProfileCutFillBalancer.computeTerrainModificationBias(
+                    groundSamples, toDesignList(current), 0);
                 applyCutFill = Math.abs(imbalance) >= MIN_IMBALANCE_TO_CORRECT;
             }
             double iterationBeta = applyCutFill ? beta : 0.0;

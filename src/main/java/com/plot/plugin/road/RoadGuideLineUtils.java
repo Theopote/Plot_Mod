@@ -1,5 +1,6 @@
 package com.plot.plugin.road;
 
+import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.solver.EarthworkBalanceUtils;
 
 import java.util.ArrayList;
@@ -17,9 +18,8 @@ public final class RoadGuideLineUtils {
 
     public static List<Integer> computeGuideLine(
             List<Integer> groundHeightSamples,
-            List<Double> cumulativeDistances,
-            float fillFactor) {
-        return computeGuideLine(groundHeightSamples, cumulativeDistances, fillFactor, null, null);
+            List<Double> cumulativeDistances) {
+        return computeGuideLine(groundHeightSamples, cumulativeDistances, null, null);
     }
 
     /**
@@ -29,7 +29,6 @@ public final class RoadGuideLineUtils {
     public static List<Integer> computeGuideLine(
             List<Integer> groundHeightSamples,
             List<Double> cumulativeDistances,
-            float fillFactor,
             Integer startAnchorOverride,
             Integer endAnchorOverride) {
         if (groundHeightSamples == null
@@ -44,7 +43,7 @@ public final class RoadGuideLineUtils {
         boolean shortPath = totalLength < MAX_ANCHOR_WINDOW * 2.0;
         if (shortPath) {
             int constant = resolveShortPathAnchor(
-                groundHeightSamples, fillFactor, startAnchorOverride, endAnchorOverride);
+                groundHeightSamples, startAnchorOverride, endAnchorOverride);
             List<Integer> guideLine = new ArrayList<>(groundHeightSamples.size());
             for (int i = 0; i < groundHeightSamples.size(); i++) {
                 guideLine.add(constant);
@@ -54,12 +53,10 @@ public final class RoadGuideLineUtils {
 
         int startAnchor = resolveAnchor(
             collectWindowSamples(groundHeightSamples, cumulativeDistances, 0.0, anchorWindow),
-            fillFactor,
             startAnchorOverride);
         int endAnchor = resolveAnchor(
             collectWindowSamples(
                 groundHeightSamples, cumulativeDistances, totalLength - anchorWindow, totalLength),
-            fillFactor,
             endAnchorOverride);
 
         List<Integer> guideLine = new ArrayList<>(groundHeightSamples.size());
@@ -73,7 +70,6 @@ public final class RoadGuideLineUtils {
 
     private static int resolveShortPathAnchor(
             List<Integer> allSamples,
-            float fillFactor,
             Integer startAnchorOverride,
             Integer endAnchorOverride) {
         if (startAnchorOverride != null && endAnchorOverride != null) {
@@ -85,17 +81,17 @@ public final class RoadGuideLineUtils {
         if (endAnchorOverride != null) {
             return endAnchorOverride;
         }
-        return EarthworkBalanceUtils.findBalancedElevation(allSamples, fillFactor);
+        return EarthworkBalanceUtils.findBalancedElevation(allSamples, MaterialConversionModel.DEFAULT);
     }
 
-    private static int resolveAnchor(List<Integer> windowSamples, float fillFactor, Integer override) {
+    private static int resolveAnchor(List<Integer> windowSamples, Integer override) {
         if (override != null) {
             return override;
         }
         if (windowSamples.isEmpty()) {
-            return EarthworkBalanceUtils.findBalancedElevation(List.of(), fillFactor);
+            return EarthworkBalanceUtils.findBalancedElevation(List.of(), MaterialConversionModel.DEFAULT);
         }
-        return EarthworkBalanceUtils.findBalancedElevation(windowSamples, fillFactor);
+        return EarthworkBalanceUtils.findBalancedElevation(windowSamples, MaterialConversionModel.DEFAULT);
     }
 
     private static List<Integer> collectWindowSamples(
