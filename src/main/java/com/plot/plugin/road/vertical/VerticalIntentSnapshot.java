@@ -2,7 +2,7 @@ package com.plot.plugin.road.vertical;
 
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
-import com.plot.plugin.road.pipeline.profile.terrain.TerrainFollowPreset;
+import com.plot.plugin.road.terrain.RoadTerrainStyle;
 
 import java.util.Set;
 
@@ -11,15 +11,15 @@ public final class VerticalIntentSnapshot {
 
     private final RoadVerticalMode verticalMode;
     private final FlatVerticalIntent flatIntent;
-    private final TerrainFollowPreset terrainFollowPreset;
+    private final RoadTerrainStyle terrainStyle;
 
     private VerticalIntentSnapshot(
             RoadVerticalMode verticalMode,
             FlatVerticalIntent flatIntent,
-            TerrainFollowPreset terrainFollowPreset) {
+            RoadTerrainStyle terrainStyle) {
         this.verticalMode = verticalMode;
         this.flatIntent = flatIntent;
-        this.terrainFollowPreset = terrainFollowPreset;
+        this.terrainStyle = terrainStyle;
     }
 
     public static VerticalIntentSnapshot capture(Road road) {
@@ -33,11 +33,11 @@ public final class VerticalIntentSnapshot {
         FlatVerticalIntent intent = road.getFlatVerticalIntent() != null
             ? road.getFlatVerticalIntent().copy()
             : null;
-        return new VerticalIntentSnapshot(mode, intent, road.getStoredTerrainFollowPreset());
+        return new VerticalIntentSnapshot(mode, intent, road.getStoredTerrainStyle());
     }
 
     public void applyTo(RoadNetwork network, Road road, Set<String> edgeIds) {
         RoadVerticalIntentTransforms.applyCapturedIntent(
-            road, verticalMode, flatIntent, terrainFollowPreset, network, edgeIds);
+            road, verticalMode, flatIntent, terrainStyle, network, edgeIds);
     }
 }

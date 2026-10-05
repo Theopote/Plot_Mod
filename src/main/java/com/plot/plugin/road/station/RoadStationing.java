@@ -600,7 +600,7 @@ public final class RoadStationing {
         if (Math.abs(canonicalTotal - instanceTotal) <= STATION_EPSILON) {
             return canonicalChainage;
         }
-        double ratio = Math.max(0.0, Math.min(1.0, canonicalChainage / canonicalTotal));
+        double ratio = Math.clamp(canonicalChainage / canonicalTotal, 0.0, 1.0);
         return ratio * instanceTotal;
     }
 
@@ -616,7 +616,7 @@ public final class RoadStationing {
         if (Math.abs(canonicalTotal - instanceTotal) <= STATION_EPSILON) {
             return instanceChainage;
         }
-        double ratio = Math.max(0.0, Math.min(1.0, instanceChainage / instanceTotal));
+        double ratio = Math.clamp(instanceChainage / instanceTotal, 0.0, 1.0);
         return ratio * canonicalTotal;
     }
 

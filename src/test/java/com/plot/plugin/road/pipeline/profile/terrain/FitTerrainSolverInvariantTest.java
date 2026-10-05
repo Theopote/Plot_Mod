@@ -284,7 +284,7 @@ class FitTerrainSolverInvariantTest {
                 road.getId());
             RoadSystemConfig config = new RoadSystemConfig("test");
             config.setMaxSlope(maxSlope);
-            config.setTerrainAdaptation(TerrainAdaptationPreset.FLATTEN);
+            config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.SMOOTH);
             return new ScenarioFixture(
                 network,
                 road,

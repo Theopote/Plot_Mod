@@ -78,7 +78,7 @@ public final class RoadGeneratorProfileContext implements ProfileEdgeContext {
               profileSupport,
               config,
               road.getVerticalMode(),
-              road.getEffectiveTerrainFollowPreset()))
+              road.getEffectiveTerrainFollowPreset(config)))
           .orElseGet(() -> RoadProfileSolver.solveForEdge(
               segments,
               terrain,

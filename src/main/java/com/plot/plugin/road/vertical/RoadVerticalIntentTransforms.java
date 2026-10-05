@@ -3,7 +3,7 @@ package com.plot.plugin.road.vertical;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
-import com.plot.plugin.road.pipeline.profile.terrain.TerrainFollowPreset;
+import com.plot.plugin.road.terrain.RoadTerrainStyle;
 import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
 
@@ -36,8 +36,8 @@ public final class RoadVerticalIntentTransforms {
                 target.setVerticalMode(effective);
             }
         }
-        if (source.getStoredTerrainFollowPreset() != null) {
-            target.setTerrainFollowPreset(source.getStoredTerrainFollowPreset());
+        if (source.getStoredTerrainStyle() != null) {
+            target.setTerrainStyle(source.getStoredTerrainStyle());
         }
         if (source.getFlatVerticalIntent() != null) {
             target.setFlatVerticalIntent(source.getFlatVerticalIntent());
@@ -89,7 +89,7 @@ public final class RoadVerticalIntentTransforms {
             Road target,
             RoadVerticalMode capturedMode,
             FlatVerticalIntent capturedFlatIntent,
-            TerrainFollowPreset capturedTerrainFollowPreset,
+            RoadTerrainStyle capturedTerrainStyle,
             RoadNetwork network,
             Set<String> edgeIds) {
         if (target == null) {
@@ -98,8 +98,8 @@ public final class RoadVerticalIntentTransforms {
         if (capturedMode != null) {
             target.setVerticalMode(capturedMode);
         }
-        if (capturedTerrainFollowPreset != null) {
-            target.setTerrainFollowPreset(capturedTerrainFollowPreset);
+        if (capturedTerrainStyle != null) {
+            target.setTerrainStyle(capturedTerrainStyle);
         }
         if (capturedFlatIntent == null) {
             target.setFlatVerticalIntent(null);

@@ -46,7 +46,7 @@ public final class ProfileQualityStatus {
             return Summary.empty();
         }
         double maxGradeLimit = resolveMaxGrade(road, config);
-        double maxGradeChangeLimit = resolveMaxGradeChange(road);
+        double maxGradeChangeLimit = resolveMaxGradeChange(road, config);
         double roadLength = Math.max(MIN_ROAD_LENGTH, chart.totalStation());
 
         List<Dimension> dimensions = new ArrayList<>(3);
@@ -163,10 +163,12 @@ public final class ProfileQualityStatus {
         return config != null ? config.getMaxSlope() : 8.0f;
     }
 
-    private static double resolveMaxGradeChange(Road road) {
+    private static double resolveMaxGradeChange(Road road, RoadSystemConfig config) {
         if (road != null && road.getVerticalMode() == RoadVerticalMode.FIT_TERRAIN) {
-            return road.getEffectiveTerrainFollowPreset().maxGradeChangePercent();
+            return road.getEffectiveTerrainFollowPreset(config).maxGradeChangePercent();
         }
-        return TerrainFollowPreset.STANDARD.maxGradeChangePercent();
+        return config != null
+            ? config.getTerrainStyle().followPreset().maxGradeChangePercent()
+            : TerrainFollowPreset.STANDARD.maxGradeChangePercent();
     }
 }

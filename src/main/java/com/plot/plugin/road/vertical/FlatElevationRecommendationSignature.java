@@ -89,7 +89,7 @@ public final class FlatElevationRecommendationSignature {
         hash = 31 * hash + RoadConstructionHeuristics.bridgeThreshold(config);
         hash = 31 * hash + RoadConstructionHeuristics.tunnelThreshold(config);
         hash = 31 * hash + Double.hashCode(RoadConstructionHeuristics.MIN_STRUCTURE_RUN);
-        hash = 31 * hash + Objects.hashCode(config.getTerrainAdaptation());
+        hash = 31 * hash + Objects.hashCode(config.getTerrainStyle());
         hash = 31 * hash + Double.hashCode(config.getPathSampleDistance());
         return hash;
     }

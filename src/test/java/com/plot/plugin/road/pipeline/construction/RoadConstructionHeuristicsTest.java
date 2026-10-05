@@ -10,7 +10,7 @@ class RoadConstructionHeuristicsTest {
     @Test
     void balancedPresetMatchesLegacyDefaults() {
         RoadSystemConfig config = new RoadSystemConfig("test");
-        config.setTerrainAdaptation(RoadConstructionHeuristics.TerrainAdaptationPreset.BALANCED);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.BALANCED);
 
         assertEquals(3, RoadConstructionHeuristics.bridgeThreshold(config));
         assertEquals(4, RoadConstructionHeuristics.tunnelThreshold(config));

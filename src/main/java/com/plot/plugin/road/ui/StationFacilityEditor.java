@@ -84,7 +84,7 @@ public final class StationFacilityEditor {
             Runnable onHistory) {
         ImGui.pushID(index);
 
-        float[] start = {(float) draft.startStation};
+        float[] start = {draft.startStation};
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
         ImGui.sliderFloat(PlotI18n.tr("plugin.road.station_facility_start") + "##start", start, 0, roadLength, "%.1fm");
         if (ImGui.isItemActivated() && onHistory != null) {
@@ -342,8 +342,8 @@ public final class StationFacilityEditor {
         static FacilityRunDraft defaultRun(double roadLength) {
             FacilityRunDraft draft = new FacilityRunDraft();
             draft.startStation = 0f;
-            draft.endStation = (float) Math.min(roadLength, Math.max(10.0, roadLength * 0.25));
-            draft.openEnded = roadLength <= 0.0;
+            draft.endStation = (float) Math.clamp(roadLength * 0.25, 10.0, roadLength);
+            draft.openEnded = false;
             draft.kind = RoadFacilityKind.GUARDRAIL;
             draft.side = RoadFacilitySide.BOTH;
             return draft;

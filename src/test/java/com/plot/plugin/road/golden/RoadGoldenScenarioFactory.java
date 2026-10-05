@@ -112,7 +112,7 @@ public final class RoadGoldenScenarioFactory {
             }
         };
         RoadSystemConfig config = baseConfig();
-        config.setTerrainAdaptation(TerrainAdaptationPreset.FLATTEN);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.SMOOTH);
         config.setIncludeShoulder(true);
         return scenario("R08", "bridge", r01StraightFlat().network(), valley, config);
     }
@@ -130,7 +130,7 @@ public final class RoadGoldenScenarioFactory {
             @Override public boolean isSolidBlock(int x, int y, int z) { return y <= 72; }
         };
         RoadSystemConfig config = baseConfig();
-        config.setTerrainAdaptation(TerrainAdaptationPreset.FLATTEN);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.SMOOTH);
         return scenario("R09", "tunnel", network, mountain, config);
     }
 
@@ -148,7 +148,7 @@ public final class RoadGoldenScenarioFactory {
             @Override public boolean isSolidBlock(int x, int y, int z) { return y <= 50; }
         };
         RoadSystemConfig config = baseConfig();
-        config.setTerrainAdaptation(TerrainAdaptationPreset.BALANCED);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.BALANCED);
         config.setIncludeShoulder(true);
         return scenario("R10", "water crossing", network, water, config);
     }

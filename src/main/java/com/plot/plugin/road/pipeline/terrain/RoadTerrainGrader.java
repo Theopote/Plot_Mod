@@ -12,6 +12,7 @@ import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
+import com.plot.plugin.road.terrain.RoadTerrainStyle;
 import com.plot.plugin.road.pipeline.construction.WaterCrossingConstructionResolver;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
@@ -44,7 +45,7 @@ public final class RoadTerrainGrader {
             ctx.request().designElevation(),
             ctx.buildProfile(),
             ctx.request().profileWaterCrossings(),
-            GradingHost.from(host));
+            GradingHost.from(host, ctx.request().terrainStyle()));
     }
 
     private interface GradingHost {
@@ -56,8 +57,15 @@ public final class RoadTerrainGrader {
 
         RoadTerrainClearanceUtils.BlockColumnResolver columnResolver();
 
-        static GradingHost from(RoadGenerationPipelineContext.Host host) {
+        RoadTerrainStyle terrainStyle();
+
+        static GradingHost from(RoadGenerationPipelineContext.Host host, RoadTerrainStyle terrainStyle) {
             return new GradingHost() {
+                @Override
+                public RoadTerrainStyle terrainStyle() {
+                    return terrainStyle;
+                }
+
                 @Override
                 public RoadSystemConfig config() {
                     return host.config();
@@ -105,8 +113,13 @@ public final class RoadTerrainGrader {
             List<WaterCrossing> profileWaterCrossings,
             GradingHost host) {
         RoadSystemConfig config = host.config();
-        int tunnelThreshold = RoadConstructionHeuristics.tunnelThreshold(config);
-        int bridgeThreshold = RoadConstructionHeuristics.bridgeThreshold(config);
+        RoadTerrainStyle terrainStyle = host.terrainStyle();
+        int tunnelThreshold = terrainStyle != null
+            ? RoadConstructionHeuristics.tunnelThreshold(terrainStyle)
+            : RoadConstructionHeuristics.tunnelThreshold(config);
+        int bridgeThreshold = terrainStyle != null
+            ? RoadConstructionHeuristics.bridgeThreshold(terrainStyle)
+            : RoadConstructionHeuristics.bridgeThreshold(config);
 
         RoadRoadbedGradingUtils.GradingVolumes total = RoadRoadbedGradingUtils.GradingVolumes.ZERO;
         boolean chainForward = crossSections.samplingOriented().forward();

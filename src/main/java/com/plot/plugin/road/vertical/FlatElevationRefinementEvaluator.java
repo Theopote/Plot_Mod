@@ -129,7 +129,7 @@ final class FlatElevationRefinementEvaluator {
             profileSupport,
             config,
             RoadVerticalMode.FLAT,
-            road.getEffectiveTerrainFollowPreset());
+            road.getEffectiveTerrainFollowPreset(config));
         if (solved.heightInfos().isEmpty()) {
             return FlatElevationConstructionMetrics.Metrics.empty();
         }
@@ -139,6 +139,7 @@ final class FlatElevationRefinementEvaluator {
             solved.heightInfos(),
             terrain,
             config,
+            road.getEffectiveTerrainStyle(config),
             CANVAS_RESOLVER);
         return FlatElevationConstructionMetrics.aggregate(detection, solved.heightInfos());
     }

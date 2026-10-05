@@ -23,9 +23,7 @@ import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import net.minecraft.world.World;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 道路生成 Tab：预览计算、投影与世界落地。
@@ -127,7 +125,8 @@ public final class RoadGeneratePanel {
                 && RoadGenerationSettingsPanel.showsTerrainAdaptiveControls(ctx)) {
             RoadStyleProductControls.renderRoadMaxSlopePresets(
                 ctx, road, ctx.networkManager()::pushHistory);
-            TerrainFollowPresetControls.render(ctx, road, ctx.networkManager()::pushHistory);
+            RoadStyleProductControls.renderRoadTerrainStylePresets(
+                ctx, road, ctx.networkManager()::pushHistory);
         }
         ChainageDisplayContext chainageDisplay = chainageContextOrNull(network, road);
         verticalAlignmentEditor.render(

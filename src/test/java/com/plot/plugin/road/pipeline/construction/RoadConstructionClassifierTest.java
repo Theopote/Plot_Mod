@@ -21,7 +21,7 @@ class RoadConstructionClassifierTest {
     @Test
     void classifyMarksBridgeWhenTargetIsHighAboveGround() {
         RoadSystemConfig config = new RoadSystemConfig("test");
-        config.setTerrainAdaptation(TerrainAdaptationPreset.FLATTEN);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.SMOOTH);
 
         PathSegment segment = new PathSegment(new Vec2d(0, 0), new Vec2d(10, 0));
         SegmentHeightInfo heightInfo = new SegmentHeightInfo(segment, 64, 64, 70, 70, 0.0);

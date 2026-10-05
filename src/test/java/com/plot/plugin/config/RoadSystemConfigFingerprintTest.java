@@ -1,6 +1,6 @@
 package com.plot.plugin.config;
 
-import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics.TerrainAdaptationPreset;
+import com.plot.plugin.road.terrain.RoadTerrainStyle;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -13,17 +13,17 @@ class RoadSystemConfigFingerprintTest {
         RoadSystemConfig config = new RoadSystemConfig("test");
         long baseline = config.generationInputsFingerprint();
 
-        config.setTerrainAdaptation(TerrainAdaptationPreset.FOLLOW);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.FOLLOW);
         assertNotEquals(baseline, config.generationInputsFingerprint());
         baseline = config.generationInputsFingerprint();
 
-        config.setTerrainAdaptation(TerrainAdaptationPreset.FLATTEN);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.SMOOTH);
         assertNotEquals(baseline, config.generationInputsFingerprint());
     }
 
     @Test
     void terrainAdaptationDefaultsToBalanced() {
         RoadSystemConfig config = new RoadSystemConfig("test");
-        assertEquals(TerrainAdaptationPreset.BALANCED, config.getTerrainAdaptation());
+        assertEquals(com.plot.plugin.road.terrain.RoadTerrainStyle.BALANCED, config.getTerrainStyle());
     }
 }

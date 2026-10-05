@@ -50,6 +50,7 @@ public final class RoadGenerationPipeline {
             request.heightInfos(),
             request.terrain(),
             host.config(),
+            request.terrainStyle(),
             host::canvasToBlockPos);
         detection = WaterCrossingConstructionResolver.apply(
             detection,

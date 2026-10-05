@@ -4,7 +4,9 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.alignment.RoadPlanGeometry;
+import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.terrain.RoadTerrainStyle;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -105,6 +107,8 @@ public final class RoadEdgeBuildOrchestrator {
                 segments, terrain, network, edge, startNode, endNode, true, networkNodeElevations);
             DesignElevationSource designElevation = DesignElevationSource.forEdge(network, edge, segments);
             double pathLength = RoadGeometryUtils.calculatePathLength(pathPoints);
+            Road road = network.getRoadForEdge(edge);
+            RoadTerrainStyle terrainStyle = RoadTerrainStyle.effective(road, host.config());
             RoadGenerationResult result = buildFromCenterline(
                 pathPoints,
                 terrain,
@@ -123,6 +127,7 @@ public final class RoadEdgeBuildOrchestrator {
                 designElevation,
                 heightCalculation.buildProfile(),
                 heightCalculation.profileWaterCrossings(),
+                terrainStyle,
                 host);
             result.edgeId = edge.getId();
             result.copyProfileFrom(RoadProfileSolver.toProfileSnapshot(heightCalculation));
@@ -154,6 +159,7 @@ public final class RoadEdgeBuildOrchestrator {
             DesignElevationSource.inactive(),
             heightCalculation.buildProfile(),
             heightCalculation.profileWaterCrossings(),
+            null,
             host);
         result.copyProfileFrom(RoadProfileSolver.toProfileSnapshot(heightCalculation));
         return result;
@@ -172,6 +178,7 @@ public final class RoadEdgeBuildOrchestrator {
             DesignElevationSource designElevation,
             BuildHeightProfile buildProfile,
             List<com.plot.plugin.road.pipeline.profile.environment.WaterCrossing> profileWaterCrossings,
+            RoadTerrainStyle terrainStyle,
             RoadGenerationPipelineHost host) {
         return pipeline.execute(
             new RoadGenerationBuildRequest(
@@ -186,7 +193,8 @@ public final class RoadEdgeBuildOrchestrator {
                 stationFacilities,
                 designElevation,
                 buildProfile,
-                profileWaterCrossings),
+                profileWaterCrossings,
+                terrainStyle),
             host);
     }
 

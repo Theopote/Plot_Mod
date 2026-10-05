@@ -143,6 +143,9 @@ public class RoadNetwork {
     }
 
     public Road getRoad(String roadId) {
+        if (roadId == null) {
+            return null;
+        }
         return roads.get(roadId);
     }
 
@@ -1061,6 +1064,7 @@ public class RoadNetwork {
         AlignmentData horizontalAlignment;
         VerticalAlignmentData verticalAlignment;
         String verticalMode;
+        String terrainStyle;
         String terrainFollowPreset;
         FlatVerticalIntentPersistence.FlatVerticalIntentData flatVerticalIntent;
         VariableCrossSectionsData variableCrossSections;
@@ -1142,8 +1146,8 @@ public class RoadNetwork {
                 if (road.getStoredVerticalMode() != null) {
                     roadData.verticalMode = road.getStoredVerticalMode().name();
                 }
-                if (road.getStoredTerrainFollowPreset() != null) {
-                    roadData.terrainFollowPreset = road.getStoredTerrainFollowPreset().name();
+                if (road.getStoredTerrainStyle() != null) {
+                    roadData.terrainStyle = road.getStoredTerrainStyle().name();
                 }
                 roadData.flatVerticalIntent = FlatVerticalIntentPersistence.toData(road.getFlatVerticalIntent());
                 roadData.variableCrossSections = VariableCrossSectionPersistence.toData(road.getVariableCrossSections());
@@ -1243,8 +1247,13 @@ public class RoadNetwork {
                     road.setVerticalAlignment(VerticalAlignmentPersistence.fromData(roadData.verticalAlignment));
                     road.setVerticalMode(com.plot.plugin.road.vertical.RoadVerticalMode.fromStored(
                         roadData.verticalMode));
-                    road.setTerrainFollowPreset(com.plot.plugin.road.pipeline.profile.terrain.TerrainFollowPreset
-                        .fromStored(roadData.terrainFollowPreset));
+                    if (roadData.terrainStyle != null && !roadData.terrainStyle.isBlank()) {
+                        road.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle
+                            .fromStored(roadData.terrainStyle));
+                    } else if (roadData.terrainFollowPreset != null && !roadData.terrainFollowPreset.isBlank()) {
+                        road.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle
+                            .fromStored(roadData.terrainFollowPreset));
+                    }
                     road.setFlatVerticalIntent(FlatVerticalIntentPersistence.fromData(roadData.flatVerticalIntent));
                     road.setVariableCrossSections(VariableCrossSectionPersistence.fromData(roadData.variableCrossSections));
                     road.setStationFacilities(StationFacilityPersistence.fromData(roadData.stationFacilities));

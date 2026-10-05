@@ -73,7 +73,7 @@ class LongBridgeMultiSegmentIntegrationTest {
         config.setRoadWidth(5);
         config.setIncludeSidewalk(false);
         config.setIncludeShoulder(false);
-        config.setTerrainAdaptation(TerrainAdaptationPreset.BALANCED);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.BALANCED);
         config.setPathSampleDistance(2.0);
         return config;
     }

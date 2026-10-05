@@ -2,6 +2,8 @@ package com.plot.plugin.road.pipeline.construction;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionEvaluator;
+import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.terrain.RoadTerrainStyle;
 
 /**
  * Internal construction and terrain-adaptation heuristics. Product UI exposes presets only;
@@ -35,10 +37,12 @@ public final class RoadConstructionHeuristics {
     }
 
     public static TerrainAdaptationPreset presetFromConfig(RoadSystemConfig config) {
-        if (config == null || config.getTerrainAdaptation() == null) {
-            return TerrainAdaptationPreset.BALANCED;
-        }
-        return config.getTerrainAdaptation();
+        return presetFromStyle(config != null ? config.getTerrainStyle() : null);
+    }
+
+    public static TerrainAdaptationPreset presetFromStyle(RoadTerrainStyle style) {
+        RoadTerrainStyle effective = style != null ? style : RoadTerrainStyle.BALANCED;
+        return effective.constructionPreset();
     }
 
     public static int bridgeThreshold(TerrainAdaptationPreset preset) {
@@ -82,5 +86,31 @@ public final class RoadConstructionHeuristics {
 
     public static RoadConstructionEvaluator.RoadConstructionCostConfig constructionConfig(RoadSystemConfig config) {
         return constructionConfig(presetFromConfig(config));
+    }
+
+    public static RoadConstructionEvaluator.RoadConstructionCostConfig constructionConfig(
+            Road road,
+            RoadSystemConfig config) {
+        return constructionConfig(RoadTerrainStyle.effective(road, config));
+    }
+
+    public static RoadConstructionEvaluator.RoadConstructionCostConfig constructionConfig(RoadTerrainStyle style) {
+        return constructionConfig(presetFromStyle(style));
+    }
+
+    public static int bridgeThreshold(Road road, RoadSystemConfig config) {
+        return bridgeThreshold(RoadTerrainStyle.effective(road, config));
+    }
+
+    public static int tunnelThreshold(Road road, RoadSystemConfig config) {
+        return tunnelThreshold(RoadTerrainStyle.effective(road, config));
+    }
+
+    public static int bridgeThreshold(RoadTerrainStyle style) {
+        return bridgeThreshold(presetFromStyle(style));
+    }
+
+    public static int tunnelThreshold(RoadTerrainStyle style) {
+        return tunnelThreshold(presetFromStyle(style));
     }
 }

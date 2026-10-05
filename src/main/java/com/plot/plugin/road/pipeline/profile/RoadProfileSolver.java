@@ -139,8 +139,8 @@ public final class RoadProfileSolver {
                 ? owningRoad.getVerticalMode()
                 : RoadVerticalMode.AUTO_SMOOTH,
             owningRoad != null
-                ? owningRoad.getEffectiveTerrainFollowPreset()
-                : TerrainFollowPreset.STANDARD,
+                ? owningRoad.getEffectiveTerrainFollowPreset(config)
+                : config.getTerrainStyle().followPreset(),
             config,
             environment);
     }

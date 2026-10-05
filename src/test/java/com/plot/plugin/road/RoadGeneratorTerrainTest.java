@@ -140,7 +140,7 @@ class RoadGeneratorTerrainTest {
         config.setRoadWidth(5);
         config.setIncludeSidewalk(false);
         config.setIncludeShoulder(true);
-        config.setTerrainAdaptation(TerrainAdaptationPreset.FLATTEN);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.SMOOTH);
         RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         TerrainSampler valley = new TerrainSampler() {
             @Override
@@ -178,7 +178,7 @@ class RoadGeneratorTerrainTest {
         config.setRoadWidth(3);
         config.setIncludeSidewalk(false);
         config.setIncludeShoulder(false);
-        config.setTerrainAdaptation(TerrainAdaptationPreset.FLATTEN);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.SMOOTH);
         RoadGenerator generator = new RoadGenerator(
             config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
 
@@ -201,7 +201,7 @@ class RoadGeneratorTerrainTest {
         config.setRoadWidth(3);
         config.setIncludeSidewalk(false);
         config.setIncludeShoulder(false);
-        config.setTerrainAdaptation(TerrainAdaptationPreset.BALANCED);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.BALANCED);
         TerrainSampler water = new TerrainSampler() {
             @Override public int sampleSurfaceY(Vec2d point) { return 50; }
             @Override public int sampleColumnTopY(Vec2d point) { return 63; }

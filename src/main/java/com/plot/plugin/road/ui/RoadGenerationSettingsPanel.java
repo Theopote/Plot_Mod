@@ -35,7 +35,7 @@ public final class RoadGenerationSettingsPanel {
 
         if (showsTerrainAdaptiveControls(ctx)) {
             RoadStyleProductControls.renderConfigMaxSlopePresets(ctx);
-            RoadStyleProductControls.renderTerrainAdaptationPresets(ctx);
+            RoadStyleProductControls.renderTerrainStylePresets(ctx);
         } else {
             RoadUiWidgets.textWrappedColored(
                 com.plot.plugin.ui.PluginUiColors.HINT_GRAY,

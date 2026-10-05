@@ -10,6 +10,7 @@ import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.ProfileSolveResult;
 import com.plot.plugin.road.pipeline.profile.ProfileSolveSupport;
 import com.plot.plugin.road.pipeline.profile.RoadProfileSolver;
+import com.plot.plugin.road.terrain.RoadTerrainStyle;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.core.terrain.TerrainSampler;
 import org.junit.jupiter.api.Test;
@@ -32,10 +33,12 @@ class TerrainFollowPresetTest {
     }
 
     @Test
-    void roadDefaultsToStandardWhenUnset() {
+    void roadInheritsConfigTerrainStyleWhenUnset() {
         Road road = new Road("road-1");
-        assertNull(road.getStoredTerrainFollowPreset());
-        assertEquals(TerrainFollowPreset.STANDARD, road.getEffectiveTerrainFollowPreset());
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        assertNull(road.getStoredTerrainStyle());
+        assertEquals(RoadTerrainStyle.BALANCED, road.getEffectiveTerrainStyle(config));
+        assertEquals(TerrainFollowPreset.STANDARD, road.getEffectiveTerrainFollowPreset(config));
     }
 
     @Test

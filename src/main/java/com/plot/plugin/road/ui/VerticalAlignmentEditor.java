@@ -104,7 +104,7 @@ public final class VerticalAlignmentEditor {
                 PlotI18n.tr("plugin.road.vertical_alignment_none"));
         }
 
-        if (!drafts.isEmpty() && drafts.size() < 2) {
+        if (drafts.size() == 1) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.vertical_alignment_incomplete"));

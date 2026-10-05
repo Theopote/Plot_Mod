@@ -34,7 +34,7 @@ public final class RoadGoldenExpectations {
         373, 45, 130, 0, 0, 85, 0, 130, 45, 248, 0, 0, List.of());
 
     public static final RoadGoldenMetrics R08 = new RoadGoldenMetrics(
-        470, 0, 3808, 0, 176, 2584, 0, 3808, 0, 1783, 1, 2, List.of());
+        474, 0, 3864, 0, 173, 2649, 0, 3864, 0, 1854, 1, 2, List.of());
 
     public static final RoadGoldenMetrics R09 = new RoadGoldenMetrics(
         325, 0, 6480, 0, 0, 4087, 0, 6480, 0, 2268, 0, 1, List.of());

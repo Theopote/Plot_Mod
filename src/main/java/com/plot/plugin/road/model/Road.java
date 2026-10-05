@@ -7,6 +7,7 @@ import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
 import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.pipeline.profile.terrain.TerrainFollowPreset;
+import com.plot.plugin.road.terrain.RoadTerrainStyle;
 import com.plot.plugin.road.vertical.RoadVerticalIntentTransforms;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.model.section.CenterLineStyle;
@@ -56,7 +57,7 @@ public class Road {
     private RoadHorizontalAlignment horizontalAlignment;
     private RoadVerticalAlignment verticalAlignment;
     private RoadVerticalMode verticalMode;
-    private TerrainFollowPreset terrainFollowPreset;
+    private RoadTerrainStyle terrainStyle;
     private FlatVerticalIntent flatVerticalIntent;
     private RoadVariableCrossSections variableCrossSections;
     private RoadStationFacilities stationFacilities;
@@ -481,17 +482,36 @@ public class Road {
         this.verticalMode = verticalMode;
     }
 
-    public TerrainFollowPreset getEffectiveTerrainFollowPreset() {
-        return terrainFollowPreset != null ? terrainFollowPreset : TerrainFollowPreset.STANDARD;
+    public RoadTerrainStyle getEffectiveTerrainStyle(RoadSystemConfig config) {
+        return RoadTerrainStyle.effective(this, config);
     }
 
-    /** 持久化字段；{@code null} 表示未显式设置（有效值默认为 {@link TerrainFollowPreset#STANDARD}）。 */
+    public TerrainFollowPreset getEffectiveTerrainFollowPreset(RoadSystemConfig config) {
+        return getEffectiveTerrainStyle(config).followPreset();
+    }
+
+    /** @deprecated use {@link #getEffectiveTerrainFollowPreset(RoadSystemConfig)} */
+    @Deprecated
+    public TerrainFollowPreset getEffectiveTerrainFollowPreset() {
+        return terrainStyle != null ? terrainStyle.followPreset() : TerrainFollowPreset.STANDARD;
+    }
+
+    /** 持久化字段；{@code null} 表示继承全局默认地形风格。 */
+    public RoadTerrainStyle getStoredTerrainStyle() {
+        return terrainStyle;
+    }
+
+    public void setTerrainStyle(RoadTerrainStyle terrainStyle) {
+        this.terrainStyle = terrainStyle;
+    }
+
+    /** 兼容旧 API / 测试；映射到统一地形风格。 */
     public TerrainFollowPreset getStoredTerrainFollowPreset() {
-        return terrainFollowPreset;
+        return terrainStyle != null ? terrainStyle.followPreset() : null;
     }
 
     public void setTerrainFollowPreset(TerrainFollowPreset terrainFollowPreset) {
-        this.terrainFollowPreset = terrainFollowPreset;
+        this.terrainStyle = RoadTerrainStyle.fromLegacyFollowPreset(terrainFollowPreset);
     }
 
     public FlatVerticalIntent getFlatVerticalIntent() {
@@ -658,7 +678,7 @@ public class Road {
         copy.horizontalAlignment = horizontalAlignment != null ? horizontalAlignment.copy() : null;
         copy.verticalAlignment = verticalAlignment != null ? verticalAlignment.copy() : null;
         copy.verticalMode = verticalMode;
-        copy.terrainFollowPreset = terrainFollowPreset;
+        copy.terrainStyle = terrainStyle;
         copy.flatVerticalIntent = flatVerticalIntent != null ? flatVerticalIntent.copy() : null;
         copy.variableCrossSections = variableCrossSections != null ? variableCrossSections.copy() : null;
         copy.stationFacilities = stationFacilities != null ? stationFacilities.copy() : null;

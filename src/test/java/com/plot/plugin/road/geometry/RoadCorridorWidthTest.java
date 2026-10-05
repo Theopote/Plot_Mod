@@ -36,7 +36,7 @@ class RoadCorridorWidthTest {
         config.setIncludeSidewalk(true);
         config.setSidewalkWidth(2);
         config.setIncludeSlopeBatter(true);
-        config.setTerrainAdaptation(TerrainAdaptationPreset.BALANCED);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.BALANCED);
         config.setCutSlopeRatio(1.0f);
 
         ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);
@@ -72,7 +72,7 @@ class RoadCorridorWidthTest {
         config.setIncludeSidewalk(true);
         config.setSidewalkWidth(1);
         config.setIncludeSlopeBatter(true);
-        config.setTerrainAdaptation(TerrainAdaptationPreset.BALANCED);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.BALANCED);
         config.setCutSlopeRatio(1.0f);
 
         ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);

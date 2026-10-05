@@ -1,7 +1,7 @@
 package com.plot.plugin.config;
 
 import com.google.gson.Gson;
-import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics.TerrainAdaptationPreset;
+import com.plot.plugin.road.terrain.RoadTerrainStyle;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -50,7 +50,7 @@ class RoadSystemConfigTest {
         config.setGenerateBridgePillars(false);
         config.setIncludeBridgeGuardrail(true);
         config.setBridgeGuardrailMaterial("minecraft:dark_oak_fence");
-        config.setTerrainAdaptation(TerrainAdaptationPreset.FOLLOW);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.FOLLOW);
         config.setTunnelLiningMaterial("minecraft:deepslate_bricks");
         config.setTunnelAccentMaterial("minecraft:polished_andesite");
         config.setTunnelAccentSpacing(6);
@@ -67,7 +67,7 @@ class RoadSystemConfigTest {
         assertFalse(loaded.isGenerateBridgePillars());
         assertTrue(loaded.isIncludeBridgeGuardrail());
         assertEquals("minecraft:dark_oak_fence", loaded.getBridgeGuardrailMaterial());
-        assertEquals(TerrainAdaptationPreset.FOLLOW, loaded.getTerrainAdaptation());
+        assertEquals(com.plot.plugin.road.terrain.RoadTerrainStyle.FOLLOW, loaded.getTerrainStyle());
         assertEquals("minecraft:deepslate_bricks", loaded.getTunnelLiningMaterial());
         assertEquals("minecraft:polished_andesite", loaded.getTunnelAccentMaterial());
         assertEquals(6, loaded.getTunnelAccentSpacing());

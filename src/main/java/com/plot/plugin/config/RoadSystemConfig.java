@@ -9,7 +9,7 @@ import com.plot.core.material.MaterialMixTypeAdapter;
 import com.plot.core.persistence.AtomicFileWriter;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
-import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics.TerrainAdaptationPreset;
+import com.plot.plugin.road.terrain.RoadTerrainStyle;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.section.CenterLineStyle;
@@ -44,7 +44,9 @@ public class RoadSystemConfig {
     
     // 新增参数
     private float maxSlope = 10.0f; // 最大坡度（百分比）
-    private TerrainAdaptationPreset terrainAdaptation = TerrainAdaptationPreset.BALANCED;
+    private RoadTerrainStyle terrainStyle = RoadTerrainStyle.BALANCED;
+    /** Legacy Gson field; migrated to {@link #terrainStyle} on load. */
+    private RoadConstructionHeuristics.TerrainAdaptationPreset terrainAdaptation;
     private boolean generateBridgePillars = true;
     private boolean includeBridgeGuardrail = false;
     private String bridgeGuardrailMaterial = "minecraft:oak_fence";
@@ -143,6 +145,13 @@ public class RoadSystemConfig {
         }
         if (config.roadThemeId == null || config.roadThemeId.isBlank()) {
             config.roadThemeId = RoadThemeCatalog.MODERN_ID;
+        }
+        if (config.terrainAdaptation != null) {
+            RoadTerrainStyle migrated = RoadTerrainStyle.fromLegacyAdaptation(config.terrainAdaptation);
+            if (migrated != null) {
+                config.terrainStyle = migrated;
+            }
+            config.terrainAdaptation = null;
         }
     }
 
@@ -267,14 +276,12 @@ public class RoadSystemConfig {
         this.maxSlope = RoadParameterLimits.clampGradePercent(maxSlope);
     }
 
-    public TerrainAdaptationPreset getTerrainAdaptation() {
-        return terrainAdaptation != null ? terrainAdaptation : TerrainAdaptationPreset.BALANCED;
+    public RoadTerrainStyle getTerrainStyle() {
+        return terrainStyle != null ? terrainStyle : RoadTerrainStyle.BALANCED;
     }
 
-    public void setTerrainAdaptation(TerrainAdaptationPreset terrainAdaptation) {
-        this.terrainAdaptation = terrainAdaptation != null
-            ? terrainAdaptation
-            : TerrainAdaptationPreset.BALANCED;
+    public void setTerrainStyle(RoadTerrainStyle terrainStyle) {
+        this.terrainStyle = terrainStyle != null ? terrainStyle : RoadTerrainStyle.BALANCED;
     }
 
     public boolean isGenerateBridgePillars() {
@@ -553,7 +560,7 @@ public class RoadSystemConfig {
     public long generationInputsFingerprint() {
         return java.util.Objects.hash(
             maxSlope,
-            terrainAdaptation,
+            terrainStyle,
             pathSampleDistance,
             maxContinuousSlopeLength,
             relaxedSlopeLength,

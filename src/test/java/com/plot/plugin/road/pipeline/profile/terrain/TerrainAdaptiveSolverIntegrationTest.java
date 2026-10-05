@@ -139,7 +139,7 @@ class TerrainAdaptiveSolverIntegrationTest {
     @Test
     void cutFillBalanceReducesFillBiasOnAscendingTerrain() {
         Fixture fixture = ascendingTerrainFixture(100.0, 10.0, 8.0f);
-        fixture.config().setTerrainAdaptation(TerrainAdaptationPreset.FLATTEN);
+        fixture.config().setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.SMOOTH);
 
         ProfileSolveResult gentle = solve(fixture.withPreset(TerrainFollowPreset.GENTLE));
         ProfileSolveResult tight = solve(fixture.withPreset(TerrainFollowPreset.TIGHT));
@@ -188,7 +188,7 @@ class TerrainAdaptiveSolverIntegrationTest {
             road.getId());
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setMaxSlope(maxSlope);
-        config.setTerrainAdaptation(TerrainAdaptationPreset.FLATTEN);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.SMOOTH);
         return new Fixture(
             network,
             road,

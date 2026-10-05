@@ -2,8 +2,9 @@ package com.plot.plugin.road.pipeline.construction;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
-import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.RoadConstructionEvaluator;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
+import com.plot.plugin.road.terrain.RoadTerrainStyle;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
@@ -27,6 +28,16 @@ public final class RoadConstructionClassifier {
             TerrainSampler terrain,
             RoadSystemConfig config,
             CanvasBlockPosResolver canvasToBlockPos) {
+        return classify(segments, heightInfos, terrain, config, null, canvasToBlockPos);
+    }
+
+    public static ConstructionDetection classify(
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            TerrainSampler terrain,
+            RoadSystemConfig config,
+            RoadTerrainStyle terrainStyle,
+            CanvasBlockPosResolver canvasToBlockPos) {
         List<Double> segmentDistances = new ArrayList<>();
         List<Integer> groundHeights = new ArrayList<>();
         List<Integer> targetHeights = new ArrayList<>();
@@ -40,8 +51,9 @@ public final class RoadConstructionClassifier {
             targetHeights.add(averageHeight(info.targetStart, info.targetEnd));
         }
 
-        RoadConstructionEvaluator.RoadConstructionCostConfig costConfig =
-            RoadConstructionEvaluator.RoadConstructionCostConfig.from(config);
+        RoadConstructionEvaluator.RoadConstructionCostConfig costConfig = terrainStyle != null
+            ? RoadConstructionHeuristics.constructionConfig(terrainStyle)
+            : RoadConstructionEvaluator.RoadConstructionCostConfig.from(config);
         List<RoadConstructionType> constructionTypes = RoadConstructionEvaluator.evaluatePath(
             segmentDistances,
             groundHeights,

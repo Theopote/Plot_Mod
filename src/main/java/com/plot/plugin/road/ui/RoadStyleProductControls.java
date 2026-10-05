@@ -2,13 +2,13 @@ package com.plot.plugin.road.ui;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
-import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics.TerrainAdaptationPreset;
+import com.plot.plugin.road.terrain.RoadTerrainStyle;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
 /**
- * 样式 / 建造 Tab 的产品化控件（坡度预设、地形适应预设），隐藏底层工程参数。
+ * 样式 / 建造 Tab 的产品化控件（坡度预设、地形风格预设），隐藏底层工程参数。
  */
 public final class RoadStyleProductControls {
     /** 平缓：园区、步行友好纵坡。 */
@@ -55,31 +55,84 @@ public final class RoadStyleProductControls {
         ImGui.spacing();
     }
 
-    public static void renderTerrainAdaptationPresets(RoadUiContext ctx) {
+    public static void renderTerrainStylePresets(RoadUiContext ctx) {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         if (config == null) {
             return;
         }
-        ImGui.text(PlotI18n.tr("plugin.road.build.terrain_adaptation"));
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.build.terrain_adaptation_hint"));
+        renderTerrainStyleButtons(
+            config.getTerrainStyle(),
+            style -> {
+                config.setTerrainStyle(style);
+                markConfigChanged(ctx);
+            });
+    }
+
+    public static void renderRoadTerrainStylePresets(RoadUiContext ctx, Road road, Runnable onHistory) {
+        if (road == null) {
+            return;
         }
-        TerrainAdaptationPreset active = config.getTerrainAdaptation();
-        renderTerrainPresetButton(
-            TerrainAdaptationPreset.FOLLOW,
-            active,
-            () -> applyTerrainPreset(ctx, config, TerrainAdaptationPreset.FOLLOW));
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        renderTerrainStyleButtons(
+            road.getEffectiveTerrainStyle(config),
+            style -> {
+                if (onHistory != null) {
+                    onHistory.run();
+                }
+                road.setTerrainStyle(style);
+                ctx.onGenerationConfigChanged();
+            });
+    }
+
+    private static void renderTerrainStyleButtons(
+            RoadTerrainStyle active,
+            java.util.function.Consumer<RoadTerrainStyle> onSelect) {
+        ImGui.text(PlotI18n.tr("plugin.road.terrain_style"));
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.road.terrain_style.hint"));
+        }
+        RoadTerrainStyle effective = active != null ? active : RoadTerrainStyle.BALANCED;
+        renderTerrainStyleButton(RoadTerrainStyle.FOLLOW, effective, () -> onSelect.accept(RoadTerrainStyle.FOLLOW));
         ImGui.sameLine();
-        renderTerrainPresetButton(
-            TerrainAdaptationPreset.BALANCED,
-            active,
-            () -> applyTerrainPreset(ctx, config, TerrainAdaptationPreset.BALANCED));
+        renderTerrainStyleButton(RoadTerrainStyle.BALANCED, effective, () -> onSelect.accept(RoadTerrainStyle.BALANCED));
         ImGui.sameLine();
-        renderTerrainPresetButton(
-            TerrainAdaptationPreset.FLATTEN,
-            active,
-            () -> applyTerrainPreset(ctx, config, TerrainAdaptationPreset.FLATTEN));
+        renderTerrainStyleButton(RoadTerrainStyle.SMOOTH, effective, () -> onSelect.accept(RoadTerrainStyle.SMOOTH));
         ImGui.spacing();
+    }
+
+    private static void renderTerrainStyleButton(
+            RoadTerrainStyle style,
+            RoadTerrainStyle active,
+            Runnable onClick) {
+        boolean selected = style == active;
+        if (selected) {
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, PluginUiColors.ACCENT_BLUE);
+        }
+        if (ImGui.button(PlotI18n.tr(terrainStyleLabelKey(style)) + "##road_terrain_style_" + style.name())) {
+            onClick.run();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr(terrainStyleHintKey(style)));
+        }
+        if (selected) {
+            ImGui.popStyleColor();
+        }
+    }
+
+    private static String terrainStyleLabelKey(RoadTerrainStyle style) {
+        return switch (style) {
+            case FOLLOW -> "plugin.road.terrain_style.follow";
+            case BALANCED -> "plugin.road.terrain_style.balanced";
+            case SMOOTH -> "plugin.road.terrain_style.smooth";
+        };
+    }
+
+    private static String terrainStyleHintKey(RoadTerrainStyle style) {
+        return switch (style) {
+            case FOLLOW -> "plugin.road.terrain_style.follow.hint";
+            case BALANCED -> "plugin.road.terrain_style.balanced.hint";
+            case SMOOTH -> "plugin.road.terrain_style.smooth.hint";
+        };
     }
 
     private static void renderSlopePresetButtons(float current, java.util.function.Consumer<Float> onSelect) {
@@ -105,49 +158,6 @@ public final class RoadStyleProductControls {
         if (selected) {
             ImGui.popStyleColor();
         }
-    }
-
-    private static void renderTerrainPresetButton(
-            TerrainAdaptationPreset preset,
-            TerrainAdaptationPreset active,
-            Runnable onClick) {
-        boolean selected = preset == active;
-        if (selected) {
-            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, PluginUiColors.ACCENT_BLUE);
-        }
-        if (ImGui.button(PlotI18n.tr(terrainLabelKey(preset)) + "##road_terrain_" + preset.name())) {
-            onClick.run();
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr(terrainHintKey(preset)));
-        }
-        if (selected) {
-            ImGui.popStyleColor();
-        }
-    }
-
-    private static String terrainLabelKey(TerrainAdaptationPreset preset) {
-        return switch (preset) {
-            case FOLLOW -> "plugin.road.terrain_preset.follow";
-            case BALANCED -> "plugin.road.terrain_preset.balanced";
-            case FLATTEN -> "plugin.road.terrain_preset.flatten";
-        };
-    }
-
-    private static String terrainHintKey(TerrainAdaptationPreset preset) {
-        return switch (preset) {
-            case FOLLOW -> "plugin.road.terrain_preset.follow.hint";
-            case BALANCED -> "plugin.road.terrain_preset.balanced.hint";
-            case FLATTEN -> "plugin.road.terrain_preset.flatten.hint";
-        };
-    }
-
-    private static void applyTerrainPreset(
-            RoadUiContext ctx,
-            RoadSystemConfig config,
-            TerrainAdaptationPreset preset) {
-        config.setTerrainAdaptation(preset);
-        markConfigChanged(ctx);
     }
 
     private static SlopePreset detectSlopePreset(float value) {

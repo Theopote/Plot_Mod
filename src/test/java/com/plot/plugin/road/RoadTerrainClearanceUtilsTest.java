@@ -84,7 +84,7 @@ class RoadTerrainClearanceUtilsTest {
     void generatorClearsOverheadWhenRoadPassesThroughTerrain() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setRoadWidth(3);
-        config.setTerrainAdaptation(TerrainAdaptationPreset.FOLLOW);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.FOLLOW);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
 
@@ -111,7 +111,7 @@ class RoadTerrainClearanceUtilsTest {
     void generatorKeepsTunnelClassificationWhenSolidTerrainStartsAtRoadLevel() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setRoadWidth(3);
-        config.setTerrainAdaptation(TerrainAdaptationPreset.FOLLOW);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.FOLLOW);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
 
@@ -141,7 +141,7 @@ class RoadTerrainClearanceUtilsTest {
     void generatorFullyExcavatesShallowOverburden() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setRoadWidth(3);
-        config.setTerrainAdaptation(TerrainAdaptationPreset.FOLLOW);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.FOLLOW);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
 

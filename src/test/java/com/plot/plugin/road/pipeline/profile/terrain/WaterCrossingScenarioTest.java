@@ -204,8 +204,7 @@ class WaterCrossingScenarioTest {
                 road.getId());
             RoadSystemConfig config = new RoadSystemConfig("test");
             config.setMaxSlope(maxSlope);
-            config.setTerrainAdaptation(
-                com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics.TerrainAdaptationPreset.FLATTEN);
+            config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.SMOOTH);
             return new ScenarioFixture(
                 network,
                 road,
