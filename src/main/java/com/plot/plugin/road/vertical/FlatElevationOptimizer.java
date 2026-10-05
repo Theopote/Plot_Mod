@@ -450,7 +450,7 @@ public final class FlatElevationOptimizer {
             }
             while (nextSampleAt <= accumulated + segLen + EPSILON) {
                 double t = (nextSampleAt - accumulated) / segLen;
-                t = Math.max(0.0, Math.min(1.0, t));
+                t = Math.clamp(t, 0.0, 1.0);
                 Vec2d point = a.lerp(b, t);
                 appendSample(point, b.subtract(a), halfWidth, terrain, seenCells, samples, spacing);
                 nextSampleAt += spacing;

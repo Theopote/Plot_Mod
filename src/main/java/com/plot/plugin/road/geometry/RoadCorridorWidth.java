@@ -86,6 +86,6 @@ public final class RoadCorridorWidth {
             ? section.cutSlopeRatio
             : 1.0f;
         ratio = Math.max(0.5f, ratio);
-        return Math.min(16, Math.max(2, (int) Math.ceil(maxCutHeight * ratio) + 2));
+        return Math.clamp((int) Math.ceil(maxCutHeight * ratio) + 2, 2, 16);
     }
 }
