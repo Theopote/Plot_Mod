@@ -311,41 +311,109 @@ public final class VerticalProfileControlPoints {
     }
 
     /** 在已有纵断面中插入变坡点；要求至少已有两个端点。 */
-    public static RoadVerticalAlignment insertAt(
+    public enum InsertFailureReason {
+        INVALID_INPUT,
+        DUPLICATE_STATION,
+        INSUFFICIENT_SPACE,
+        ROAD_TOO_SHORT
+    }
+
+    public record InsertResult(
+            boolean success,
+            RoadVerticalAlignment alignment,
+            InsertFailureReason reason) {
+
+        public static InsertResult ok(RoadVerticalAlignment alignment) {
+            return new InsertResult(true, alignment, null);
+        }
+
+        public static InsertResult fail(InsertFailureReason reason) {
+            return new InsertResult(false, null, reason);
+        }
+    }
+
+    public static boolean canInsertAt(
+            RoadVerticalAlignment source,
+            double station,
+            double roadLength) {
+        if (!Double.isFinite(station) || !Double.isFinite(roadLength) || roadLength <= EPSILON) {
+            return false;
+        }
+        if (!VerticalProfileDesignRules.slopeAllowed(roadLength)) {
+            return true;
+        }
+        if (source == null || source.pviCount() < 2) {
+            return canBootstrapInteriorPoint(station, roadLength);
+        }
+        return analyzeInsertRoom(source, station) == null;
+    }
+
+    public static InsertResult tryInsertAt(
             RoadVerticalAlignment source,
             double station,
             double elevation,
             double roadLength) {
         if (source == null || source.pviCount() < 2
-                || !Double.isFinite(station) || !Double.isFinite(elevation)) {
-            throw new IllegalArgumentException("invalid PVI insert");
+                || !Double.isFinite(station) || !Double.isFinite(elevation)
+                || !Double.isFinite(roadLength) || roadLength <= EPSILON) {
+            return InsertResult.fail(InsertFailureReason.INVALID_INPUT);
+        }
+        InsertFailureReason room = analyzeInsertRoom(source, station);
+        if (room != null) {
+            return InsertResult.fail(room);
         }
         List<PointOfVerticalIntersection> pvis = new ArrayList<>(source.getPvis());
-        int insertIndex = pvis.size() - 1;
-        for (int i = 1; i < pvis.size(); i++) {
-            if (station + EPSILON < pvis.get(i).getStation()) {
-                insertIndex = i;
-                break;
-            }
-            if (Math.abs(station - pvis.get(i).getStation()) <= EPSILON) {
-                throw new IllegalArgumentException("duplicate PVI station");
-            }
+        int insertIndex = resolveInsertIndex(pvis, station);
+        if (insertIndex < 0) {
+            return InsertResult.fail(InsertFailureReason.DUPLICATE_STATION);
         }
         double minimum = pvis.get(insertIndex - 1).getStation()
             + VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH;
         double maximum = pvis.get(insertIndex).getStation()
             - VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH;
-        if (minimum > maximum) {
-            throw new IllegalArgumentException("insufficient room for PVI insert");
-        }
         station = Math.max(minimum, Math.min(maximum, station));
         pvis.add(insertIndex, PointOfVerticalIntersection.of(station, elevation));
-        return new RoadVerticalAlignment(pvis);
+        return InsertResult.ok(new RoadVerticalAlignment(pvis));
     }
 
-    /**
-     * 无有效纵断面时从端点标高引导创建，否则插入新变坡点。
-     */
+    public static InsertResult tryBootstrapOrInsert(
+            RoadVerticalAlignment source,
+            double roadLength,
+            double startElevation,
+            double endElevation,
+            double insertStation,
+            double insertElevation) {
+        if (!Double.isFinite(roadLength) || roadLength <= EPSILON
+                || !Double.isFinite(insertStation) || !Double.isFinite(insertElevation)) {
+            return InsertResult.fail(InsertFailureReason.INVALID_INPUT);
+        }
+        if (!VerticalProfileDesignRules.slopeAllowed(roadLength)) {
+            return InsertResult.ok(VerticalProfileDesignRules.flatAlignment(roadLength, insertElevation));
+        }
+        if (source != null && source.pviCount() >= 2) {
+            return tryInsertAt(source, insertStation, insertElevation, roadLength);
+        }
+        if (!canBootstrapInteriorPoint(insertStation, roadLength)) {
+            return InsertResult.fail(InsertFailureReason.INSUFFICIENT_SPACE);
+        }
+        return InsertResult.ok(bootstrapAlignment(
+            roadLength, startElevation, endElevation, insertStation, insertElevation));
+    }
+
+    public static RoadVerticalAlignment insertAt(
+            RoadVerticalAlignment source,
+            double station,
+            double elevation,
+            double roadLength) {
+        InsertResult result = tryInsertAt(source, station, elevation, roadLength);
+        if (!result.success()) {
+            throw new IllegalArgumentException(result.reason() != null
+                ? result.reason().name()
+                : "invalid PVI insert");
+        }
+        return result.alignment();
+    }
+
     public static RoadVerticalAlignment bootstrapOrInsert(
             RoadVerticalAlignment source,
             double roadLength,
@@ -353,24 +421,78 @@ public final class VerticalProfileControlPoints {
             double endElevation,
             double insertStation,
             double insertElevation) {
-        if (!Double.isFinite(roadLength) || roadLength <= EPSILON) {
-            throw new IllegalArgumentException("invalid road length");
+        InsertResult result = tryBootstrapOrInsert(
+            source, roadLength, startElevation, endElevation, insertStation, insertElevation);
+        if (!result.success()) {
+            throw new IllegalArgumentException(result.reason() != null
+                ? result.reason().name()
+                : "invalid PVI insert");
         }
-        if (!VerticalProfileDesignRules.slopeAllowed(roadLength)) {
-            return VerticalProfileDesignRules.flatAlignment(roadLength, insertElevation);
+        return result.alignment();
+    }
+
+    private static InsertFailureReason analyzeInsertRoom(
+            RoadVerticalAlignment source,
+            double station) {
+        if (source == null || source.pviCount() < 2 || !Double.isFinite(station)) {
+            return InsertFailureReason.INVALID_INPUT;
         }
-        if (source != null && source.pviCount() >= 2) {
-            return insertAt(source, insertStation, insertElevation, roadLength);
+        List<PointOfVerticalIntersection> pvis = source.getPvis();
+        if (resolveInsertIndex(pvis, station) < 0) {
+            return InsertFailureReason.DUPLICATE_STATION;
         }
+        int insertIndex = pvis.size() - 1;
+        for (int i = 1; i < pvis.size(); i++) {
+            if (station + EPSILON < pvis.get(i).getStation()) {
+                insertIndex = i;
+                break;
+            }
+        }
+        double minimum = pvis.get(insertIndex - 1).getStation()
+            + VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH;
+        double maximum = pvis.get(insertIndex).getStation()
+            - VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH;
+        if (minimum > maximum) {
+            return InsertFailureReason.INSUFFICIENT_SPACE;
+        }
+        return null;
+    }
+
+    private static int resolveInsertIndex(List<PointOfVerticalIntersection> pvis, double station) {
+        int insertIndex = pvis.size() - 1;
+        for (int i = 1; i < pvis.size(); i++) {
+            if (station + EPSILON < pvis.get(i).getStation()) {
+                insertIndex = i;
+                break;
+            }
+            if (Math.abs(station - pvis.get(i).getStation()) <= EPSILON) {
+                return -1;
+            }
+        }
+        return insertIndex;
+    }
+
+    private static boolean canBootstrapInteriorPoint(double insertStation, double roadLength) {
         double minRun = VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH;
-        boolean hasInteriorRoom = roadLength >= 2.0 * minRun - EPSILON;
+        if (roadLength < 2.0 * minRun - EPSILON) {
+            return false;
+        }
+        double station = Math.max(minRun, Math.min(roadLength - minRun, insertStation));
+        return station > EPSILON && roadLength - station > EPSILON;
+    }
+
+    private static RoadVerticalAlignment bootstrapAlignment(
+            double roadLength,
+            double startElevation,
+            double endElevation,
+            double insertStation,
+            double insertElevation) {
+        double minRun = VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH;
         List<PointOfVerticalIntersection> pvis = new ArrayList<>();
         pvis.add(PointOfVerticalIntersection.of(0.0, startElevation));
-        if (hasInteriorRoom) {
-            double station = Math.max(minRun, Math.min(roadLength - minRun, insertStation));
-            if (station > EPSILON && roadLength - station > EPSILON) {
-                pvis.add(PointOfVerticalIntersection.of(station, insertElevation));
-            }
+        double station = Math.max(minRun, Math.min(roadLength - minRun, insertStation));
+        if (station > EPSILON && roadLength - station > EPSILON) {
+            pvis.add(PointOfVerticalIntersection.of(station, insertElevation));
         }
         pvis.add(PointOfVerticalIntersection.of(roadLength, endElevation));
         return new RoadVerticalAlignment(pvis);

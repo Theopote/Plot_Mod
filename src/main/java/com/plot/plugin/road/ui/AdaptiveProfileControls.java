@@ -34,7 +34,8 @@ final class AdaptiveProfileControls {
             float maxGrade,
             ProfileEditorState state,
             Runnable propagateJunctionGrades,
-            Runnable onAlignmentCommitted) {
+            Runnable onAlignmentCommitted,
+            Runnable deleteSelectedPvi) {
         if (road == null || RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT) {
             return;
         }
@@ -100,6 +101,20 @@ final class AdaptiveProfileControls {
                 : "plugin.road.vertical_alignment_auto_smooth_no_space");
             ctx.finishNetworkEdit();
             ctx.previewManager().markBuildPreviewStalePreservingProfile();
+        }
+        boolean canDelete = VerticalProfileEditor.canDeleteProfilePvi(road, state.selectedProfilePvi);
+        if (!canDelete) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.road.profile_pvi_delete"))) {
+            deleteSelectedPvi.run();
+            state.profileAutoFixMessage = "";
+        }
+        if (!canDelete) {
+            ImGui.endDisabled();
+            if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
+                ImGui.setTooltip(PlotI18n.tr("plugin.road.profile_pvi_delete_disabled"));
+            }
         }
         if (!state.profileAutoFixMessage.isBlank()) {
             RoadUiWidgets.textWrappedColored(

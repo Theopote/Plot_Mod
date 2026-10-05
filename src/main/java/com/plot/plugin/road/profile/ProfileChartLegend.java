@@ -158,20 +158,14 @@ public final class ProfileChartLegend {
             return;
         }
         boolean hasGradeSeparated = intersections.stream().anyMatch(RoadProfileIntersection::gradeSeparated);
-        boolean hasAtGrade = intersections.stream().anyMatch(intersection -> !intersection.gradeSeparated());
-        if (hasAtGrade) {
-            ImGui.textColored(0xFF66CCFF, "\u25CF " + PlotI18n.tr("plugin.road.profile_intersection_marker"));
+        if (!hasGradeSeparated) {
+            return;
         }
-        if (hasGradeSeparated) {
-            if (hasAtGrade) {
-                ImGui.sameLine();
-            }
-            ImGui.textColored(0xFFFF9966, "\u25CE " + PlotI18n.tr(
-                "plugin.road.profile_intersection_marker_current"));
-            ImGui.sameLine();
-            ImGui.textColored(0xFFCC99FF, "\u25C7 " + PlotI18n.tr(
-                "plugin.road.profile_intersection_marker_grade"));
-        }
+        ImGui.textColored(0xFFFF9966, "\u25CE " + PlotI18n.tr(
+            "plugin.road.profile_intersection_marker_current"));
+        ImGui.sameLine();
+        ImGui.textColored(0xFFCC99FF, "\u25C7 " + PlotI18n.tr(
+            "plugin.road.profile_intersection_marker_grade"));
     }
 
     private static String buildProfileLabel(boolean buildPreviewStale) {

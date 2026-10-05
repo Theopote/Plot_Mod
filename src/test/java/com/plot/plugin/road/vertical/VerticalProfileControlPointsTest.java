@@ -7,6 +7,7 @@ import com.plot.plugin.road.profile.ProfileControlPoint;
 import com.plot.plugin.road.profile.ProfilePointRole;
 import com.plot.plugin.road.vertical.VerticalAlignmentJunctionSynchronizer;
 import com.plot.plugin.road.vertical.VerticalControlPointConstraint;
+import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
@@ -216,6 +217,20 @@ class VerticalProfileControlPointsTest {
             PointOfVerticalIntersection.of(100, 70)));
         RoadVerticalAlignment edited = VerticalProfileControlPoints.withCurveLength(source, 1, 40);
         assertEquals(40, edited.getPvis().get(1).getCurveLength(), 1e-6);
+    }
+
+    @Test void tryInsertAtInsufficientSpaceReturnsReason() {
+        double minRun = VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH;
+        RoadVerticalAlignment tight = new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 70),
+            PointOfVerticalIntersection.of(minRun * 1.25, 75),
+            PointOfVerticalIntersection.of(100, 70)));
+        VerticalProfileControlPoints.InsertResult result = VerticalProfileControlPoints.tryInsertAt(
+            tight, minRun * 0.625, 73, 100);
+        assertFalse(result.success());
+        assertEquals(
+            VerticalProfileControlPoints.InsertFailureReason.INSUFFICIENT_SPACE,
+            result.reason());
     }
 
     @Test void movingEitherEndpointOfShortRoadKeepsWholeProfileFlat() {
