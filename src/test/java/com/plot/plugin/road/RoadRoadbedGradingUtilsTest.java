@@ -143,7 +143,6 @@ class RoadRoadbedGradingUtilsTest {
         config.setBridgeBaseCost(1_000.0);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
-        config.setIncludeDrainage(false);
 
         TerrainSampler terrain = columnTerrain(60, 64, 100);
         RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());

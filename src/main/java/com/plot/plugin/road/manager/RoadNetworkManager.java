@@ -80,7 +80,6 @@ public final class RoadNetworkManager {
     private int batchEditShoulderWidth = 1;
     private boolean batchIncludeSidewalk = true;
     private int batchEditSidewalkWidth = 1;
-    private boolean batchIncludeDrainage = false;
     private boolean batchIncludeBikeLane = false;
     private int batchEditBikeLaneWidth = 1;
     private boolean batchIncludeMedian = false;
@@ -1254,7 +1253,6 @@ public final class RoadNetworkManager {
         batchEditSidewalkMaterial = road.getSidewalkMaterial() != null
             ? road.getSidewalkMaterial()
             : config.getSelectedSidewalkMaterial();
-        batchIncludeDrainage = road.getEffectiveIncludeDrainage(config);
         batchIncludeBikeLane = road.getEffectiveIncludeBikeLane(config);
         batchEditBikeLaneWidth = road.getBikeLaneWidth() != null
             ? road.getBikeLaneWidth()
@@ -1304,7 +1302,6 @@ public final class RoadNetworkManager {
             batchIncludeSidewalk,
             batchEditSidewalkWidth,
             batchEditSidewalkMaterial,
-            batchIncludeDrainage,
             batchIncludeBikeLane,
             batchEditBikeLaneWidth,
             batchIncludeMedian,
@@ -1331,7 +1328,6 @@ public final class RoadNetworkManager {
         batchIncludeSidewalk = draft.includeSidewalk();
         batchEditSidewalkWidth = draft.sidewalkWidth();
         batchEditSidewalkMaterial = draft.sidewalkMaterial();
-        batchIncludeDrainage = draft.includeDrainage();
         batchIncludeBikeLane = draft.includeBikeLane();
         batchEditBikeLaneWidth = draft.bikeLaneWidth();
         batchIncludeMedian = draft.includeMedian();
@@ -1390,7 +1386,6 @@ public final class RoadNetworkManager {
             road.setSidewalkWidth(draft.sidewalkWidth());
             road.setSidewalkMaterial(draft.sidewalkMaterial());
         }
-        road.setIncludeDrainage(draft.includeDrainage());
         road.setIncludeBikeLane(draft.includeBikeLane());
         if (draft.includeBikeLane()) {
             road.setBikeLaneWidth(draft.bikeLaneWidth());
@@ -1491,7 +1486,6 @@ public final class RoadNetworkManager {
             boolean includeSidewalk,
             int sidewalkWidth,
             String sidewalkMaterial,
-            boolean includeDrainage,
             boolean includeBikeLane,
             int bikeLaneWidth,
             boolean includeMedian,
@@ -1517,7 +1511,6 @@ public final class RoadNetworkManager {
                 includeSidewalk,
                 sidewalkWidth,
                 sidewalkMaterial,
-                includeDrainage,
                 includeBikeLane,
                 bikeLaneWidth,
                 includeMedian,
@@ -1544,7 +1537,6 @@ public final class RoadNetworkManager {
                 includeSidewalk,
                 sidewalkWidth,
                 sidewalkMaterial,
-                includeDrainage,
                 includeBikeLane,
                 bikeLaneWidth,
                 includeMedian,
@@ -1572,7 +1564,6 @@ public final class RoadNetworkManager {
             section.getSidewalk().setEnabled(includeSidewalk);
             section.getSidewalk().setWidth(sidewalkWidth);
             section.getSidewalk().setMaterial(sidewalkMaterial);
-            section.getDrain().setEnabled(includeDrainage);
             section.getBikeLane().setEnabled(includeBikeLane);
             section.getBikeLane().setWidth(bikeLaneWidth);
             section.getMedian().setEnabled(includeMedian);

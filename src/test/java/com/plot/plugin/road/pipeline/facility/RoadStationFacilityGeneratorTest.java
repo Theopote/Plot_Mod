@@ -65,31 +65,8 @@ class RoadStationFacilityGeneratorTest {
     }
 
     @Test
-    void generateEdgeUsesStationGatedDrainageRange() {
-        RoadSystemConfig config = new RoadSystemConfig("test");
-        config.setIncludeDrainage(true);
-        config.setIncludeShoulder(false);
-        config.setIncludeSidewalk(false);
-        config.setPathSampleDistance(5.0);
-
-        RoadGenerator generator = new RoadGenerator(
-            config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
-        FlatTerrainSampler terrain = new FlatTerrainSampler(64);
-
-        RoadNetwork partialNetwork = buildRoadWithDrainageRange(30.0, 60.0);
-        RoadNetwork fullNetwork = buildRoadWithDrainageRange(0.0, 100.0);
-
-        RoadGenerationResult partial = generateSingleEdge(generator, partialNetwork, terrain);
-        RoadGenerationResult full = generateSingleEdge(generator, fullNetwork, terrain);
-
-        assertTrue(partial.sidewalkBlocks.size() > 0);
-        assertTrue(full.sidewalkBlocks.size() > partial.sidewalkBlocks.size());
-    }
-
-    @Test
     void generateEdgePlacesGuardrailBlocks() {
         RoadSystemConfig config = new RoadSystemConfig("test");
-        config.setIncludeDrainage(false);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
         config.setPathSampleDistance(5.0);
@@ -127,25 +104,11 @@ class RoadStationFacilityGeneratorTest {
         return generator.generateEdge(network, edge, start, end, terrain, null);
     }
 
-    private static RoadNetwork buildRoadWithDrainageRange(double startStation, Double endStation) {
-        RoadNetwork network = new RoadNetwork();
-        RoadNode start = network.createNode(new Vec2d(0, 0));
-        RoadNode end = network.createNode(new Vec2d(100, 0));
-        Road road = network.createRoad("drain");
-        road.setStationFacilities(new RoadStationFacilities(List.of(
-            StationFacilityRun.of(startStation, endStation, RoadFacilityKind.DRAINAGE, RoadFacilitySide.BOTH)
-        )));
-        network.createEdge(
-            start.getId(), end.getId(), List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
-        return network;
-    }
-
     private static ResolvedCrossSection sectionWithoutExtras() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setRoadWidth(6);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
-        config.setIncludeDrainage(false);
         return ResolvedCrossSection.fromConfig(config);
     }
 }

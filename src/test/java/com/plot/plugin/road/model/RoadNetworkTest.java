@@ -588,7 +588,6 @@ class RoadNetworkTest {
         road.setWidth(7);
         road.setIncludeShoulder(true);
         road.setShoulderWidth(2);
-        road.setIncludeDrainage(true);
         road.setStreetlightSpacing(12);
         road.getCrossSection().getCarriageway().setLaneCount(2);
         network.createEdge(start.getId(), end.getId(), List.of(
@@ -603,7 +602,6 @@ class RoadNetworkTest {
         assertEquals(2, restoredRoad.getCrossSection().getCarriageway().getLaneCount());
         assertEquals(true, restoredRoad.getIncludeShoulder());
         assertEquals(2, restoredRoad.getShoulderWidth());
-        assertEquals(true, restoredRoad.getIncludeDrainage());
         assertEquals(12, restoredRoad.getStreetlightSpacing());
     }
 

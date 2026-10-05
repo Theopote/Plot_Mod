@@ -19,7 +19,6 @@ public final class RoadCrossSectionPreviewRenderer {
     private static final float PREVIEW_HEIGHT = 72f;
     private static final int COLOR_GROUND = 0xFF5C8A48;
     private static final int COLOR_GROUND_LINE = 0xFF3D5C32;
-    private static final int COLOR_DRAINAGE = 0xFF4A4A4A;
     private static final int COLOR_LABEL = 0xFFAAAAAA;
     private static final int COLOR_BORDER = 0xFF606060;
     private static final int COLOR_BG = 0xFF2A2A2A;
@@ -127,9 +126,6 @@ public final class RoadCrossSectionPreviewRenderer {
         drawList.addLine(groundLeft, groundY, groundRight, groundY, COLOR_GROUND_LINE, 1.5f);
         drawList.addRectFilled(groundLeft, groundY, groundRight, groundBottom, COLOR_GROUND);
 
-        if (renderOptions.drawDrainage) {
-            cursorX = drawBand(drawList, layout.drainageBlocks, cursorX, deckBottom, groundY, scale, COLOR_DRAINAGE);
-        }
         cursorX = drawBand(drawList, layout.leftSidewalkBlocks, cursorX, deckY, deckBottom, scale, layout.sidewalkColor);
         cursorX = drawBand(drawList, layout.leftBikeBlocks, cursorX, deckY, deckBottom, scale, layout.bikeColor);
         cursorX = drawBand(drawList, layout.leftShoulderBlocks, cursorX, deckY, deckBottom, scale, layout.shoulderColor);
@@ -140,9 +136,6 @@ public final class RoadCrossSectionPreviewRenderer {
         cursorX = drawBand(drawList, layout.rightShoulderBlocks, cursorX, deckY, deckBottom, scale, layout.shoulderColor);
         cursorX = drawBand(drawList, layout.rightBikeBlocks, cursorX, deckY, deckBottom, scale, layout.bikeColor);
         cursorX = drawBand(drawList, layout.rightSidewalkBlocks, cursorX, deckY, deckBottom, scale, layout.sidewalkColor);
-        if (renderOptions.drawDrainage) {
-            drawBand(drawList, layout.drainageBlocks, cursorX, deckBottom, groundY, scale, COLOR_DRAINAGE);
-        }
 
         if (layout.includeSlopeBatter) {
             float leftEdgeX = roadCenterX - layout.leftOuterHardEdgeFromCenterBlocks() * scale;
@@ -251,8 +244,8 @@ public final class RoadCrossSectionPreviewRenderer {
                 float width,
                 float height,
                 MiniRenderOptions options) {
-            float leftFromCenter = layout.leftDisplayedFromCenterBlocks(options.drawDrainage);
-            float rightFromCenter = layout.rightDisplayedFromCenterBlocks(options.drawDrainage);
+            float leftFromCenter = layout.leftDisplayedFromCenterBlocks();
+            float rightFromCenter = layout.rightDisplayedFromCenterBlocks();
             float totalBlocks = leftFromCenter + rightFromCenter;
             if (totalBlocks <= 0f || width <= 0f || height <= 0f) {
                 return null;
@@ -624,14 +617,13 @@ public final class RoadCrossSectionPreviewRenderer {
             float shoulder = section.includeShoulder ? Math.max(0, section.shoulderWidth) : 0f;
             float bike = section.includeBikeLane ? Math.max(0, section.bikeLaneWidth) : 0f;
             float sidewalk = section.includeSidewalk ? Math.max(0, section.sidewalkWidth) : 0f;
-            float drainage = section.includeDrain ? 0.5f : 0f;
             List<Float> markingRatios = buildMarkingRatios(section, road);
             return new CrossSectionLayout(
                 road,
                 shoulder, shoulder,
                 sidewalk, sidewalk,
                 bike, bike,
-                drainage,
+                0f,
                 section.includeShoulder,
                 shoulder,
                 section.includeSlopeBatter ? section.fillSlopeRatio : 0f,
@@ -692,16 +684,11 @@ public final class RoadCrossSectionPreviewRenderer {
         }
 
         public float totalWidthBlocks() {
-            return displayedWidthBlocks(true);
-        }
-
-        public float displayedWidthBlocks(boolean includeDrainage) {
-            return leftDisplayedFromCenterBlocks(includeDrainage)
-                + rightDisplayedFromCenterBlocks(includeDrainage);
+            return leftDisplayedFromCenterBlocks() + rightDisplayedFromCenterBlocks();
         }
 
         public float centerOffsetBlocks(float scale) {
-            float left = drainageBlocks + leftSidewalkBlocks + leftBikeBlocks + leftShoulderBlocks;
+            float left = leftSidewalkBlocks + leftBikeBlocks + leftShoulderBlocks;
             return left * scale;
         }
 
@@ -715,12 +702,12 @@ public final class RoadCrossSectionPreviewRenderer {
             return roadBlocks / 2f + rightShoulderBlocks + rightBikeBlocks + rightSidewalkBlocks;
         }
 
-        float leftDisplayedFromCenterBlocks(boolean includeDrainage) {
-            return leftOuterHardEdgeFromCenterBlocks() + (includeDrainage ? drainageBlocks : 0f);
+        float leftDisplayedFromCenterBlocks() {
+            return leftOuterHardEdgeFromCenterBlocks();
         }
 
-        float rightDisplayedFromCenterBlocks(boolean includeDrainage) {
-            return rightOuterHardEdgeFromCenterBlocks() + (includeDrainage ? drainageBlocks : 0f);
+        float rightDisplayedFromCenterBlocks() {
+            return rightOuterHardEdgeFromCenterBlocks();
         }
     }
 

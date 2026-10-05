@@ -13,7 +13,6 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -43,13 +42,13 @@ class StationFacilityResolverTest {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("r1");
         road.setStationFacilities(new RoadStationFacilities(List.of(
-            StationFacilityRun.of(10.0, 30.0, RoadFacilityKind.DRAINAGE, RoadFacilitySide.BOTH)
+            StationFacilityRun.of(10.0, 30.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.BOTH)
         )));
 
-        assertFalse(StationFacilityResolver.hasActiveKind(network, road, 9.0, RoadFacilityKind.DRAINAGE));
-        assertTrue(StationFacilityResolver.hasActiveKind(network, road, 20.0, RoadFacilityKind.DRAINAGE));
-        assertTrue(StationFacilityResolver.hasActiveKind(network, road, 30.0, RoadFacilityKind.DRAINAGE));
-        assertFalse(StationFacilityResolver.hasActiveKind(network, road, 30.1, RoadFacilityKind.DRAINAGE));
+        assertFalse(StationFacilityResolver.hasActiveKind(network, road, 9.0, RoadFacilityKind.GUARDRAIL));
+        assertTrue(StationFacilityResolver.hasActiveKind(network, road, 20.0, RoadFacilityKind.GUARDRAIL));
+        assertTrue(StationFacilityResolver.hasActiveKind(network, road, 30.0, RoadFacilityKind.GUARDRAIL));
+        assertFalse(StationFacilityResolver.hasActiveKind(network, road, 30.1, RoadFacilityKind.GUARDRAIL));
     }
 
     @Test
@@ -83,28 +82,12 @@ class StationFacilityResolverTest {
         Road road = network.createRoad("r1");
         road.setStationFacilities(new RoadStationFacilities(List.of(
             StationFacilityRun.of(0.0, 100.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT),
-            StationFacilityRun.of(0.0, 100.0, RoadFacilityKind.DRAINAGE, RoadFacilitySide.BOTH)
+            StationFacilityRun.of(0.0, 100.0, RoadFacilityKind.RETAINING_WALL, RoadFacilitySide.BOTH)
         )));
 
         EnumSet<RoadFacilityKind> kinds = StationFacilityResolver.activeKindsAt(network, road, 50.0);
         assertTrue(kinds.contains(RoadFacilityKind.GUARDRAIL));
-        assertTrue(kinds.contains(RoadFacilityKind.DRAINAGE));
-    }
-
-    @Test
-    void usesStationGatedDrainageWhenDrainageRunsExist() {
-        Road road = new Road("r1");
-        assertFalse(StationFacilityResolver.usesStationGatedDrainage(road));
-
-        road.setStationFacilities(new RoadStationFacilities(List.of(
-            StationFacilityRun.of(0.0, 10.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT)
-        )));
-        assertFalse(StationFacilityResolver.usesStationGatedDrainage(road));
-
-        road.setStationFacilities(new RoadStationFacilities(List.of(
-            StationFacilityRun.of(0.0, 10.0, RoadFacilityKind.DRAINAGE, RoadFacilitySide.BOTH)
-        )));
-        assertTrue(StationFacilityResolver.usesStationGatedDrainage(road));
+        assertTrue(kinds.contains(RoadFacilityKind.RETAINING_WALL));
     }
 
     @Test
@@ -131,7 +114,7 @@ class StationFacilityResolverTest {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("fac");
         road.setStationFacilities(new RoadStationFacilities(List.of(
-            StationFacilityRun.of(15.0, 45.0, RoadFacilityKind.DRAINAGE, RoadFacilitySide.BOTH)
+            StationFacilityRun.of(15.0, 45.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.BOTH)
         )));
 
         RoadNetwork restored = RoadNetwork.parseSnapshot(network.toJson());
@@ -140,7 +123,7 @@ class StationFacilityResolverTest {
         assertNotNull(restoredRoad.getStationFacilities());
         assertEquals(1, restoredRoad.getStationFacilities().runCount());
         assertEquals(
-            RoadFacilityKind.DRAINAGE,
+            RoadFacilityKind.GUARDRAIL,
             restoredRoad.getStationFacilities().sortedRuns().getFirst().getKind());
     }
 }

@@ -65,7 +65,6 @@ class RoadPhase2WorkflowTest {
         config.setRoadWidth(TYPICAL_WIDTH);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
-        config.setIncludeDrainage(false);
         config.setPathSampleDistance(10.0);
         generator = new RoadGenerator(
             config,

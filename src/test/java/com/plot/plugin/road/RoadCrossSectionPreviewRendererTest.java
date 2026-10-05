@@ -20,14 +20,13 @@ class RoadCrossSectionPreviewRendererTest {
         RoadCrossSectionPreviewRenderer.MiniRenderOptions.presetCard();
 
     @Test
-    void layoutIncludesShoulderSidewalkAndDrainage() {
+    void layoutIncludesShoulderAndSidewalk() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         config.setRoadWidth(7);
         config.setIncludeSidewalk(true);
         config.setSidewalkWidth(2);
         config.setIncludeShoulder(true);
         config.setShoulderWidth(1);
-        config.setIncludeDrainage(true);
 
         RoadCrossSectionPreviewRenderer.CrossSectionLayout layout =
             RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromConfig(config);
@@ -35,8 +34,8 @@ class RoadCrossSectionPreviewRendererTest {
         assertEquals(7f, layout.roadBlocks);
         assertEquals(1f, layout.leftShoulderBlocks);
         assertEquals(2f, layout.leftSidewalkBlocks);
-        assertEquals(0.5f, layout.drainageBlocks);
-        assertEquals(14f, layout.totalWidthBlocks());
+        assertEquals(0f, layout.drainageBlocks);
+        assertEquals(13f, layout.totalWidthBlocks());
     }
 
     @Test
@@ -172,17 +171,6 @@ class RoadCrossSectionPreviewRendererTest {
         assertNotEquals(highway.roadColor, cityMain.roadColor);
         assertNotEquals(park.roadColor, cyberpunk.roadColor);
         assertNotEquals(park.bikeColor, cyberpunk.bikeColor);
-    }
-
-    @Test
-    void hiddenDrainageIsExcludedFromDisplayedWidth() {
-        var layout = RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(
-            RoadStyleCatalog.highway());
-        assertTrue(layout.drainageBlocks > 0f);
-        assertEquals(layout.totalWidthBlocks(), layout.displayedWidthBlocks(true));
-        assertEquals(
-            layout.totalWidthBlocks() - layout.drainageBlocks * 2f,
-            layout.displayedWidthBlocks(false));
     }
 
     @Test

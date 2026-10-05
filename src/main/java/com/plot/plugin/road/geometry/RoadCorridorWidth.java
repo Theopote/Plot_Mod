@@ -11,16 +11,12 @@ public final class RoadCorridorWidth {
     private RoadCorridorWidth() {
     }
 
-    /** 硬质路面半宽（行车道 + 外侧条带 + 排水沟）。 */
+    /** 硬质路面半宽（行车道 + 外侧条带）。 */
     public static double pavementHalfWidthBlocks(ResolvedCrossSection section) {
         if (section == null) {
             return 0.0;
         }
-        double halfWidth = section.carriagewayHalfWidth() + section.outerBandWidth();
-        if (section.includeDrain) {
-            halfWidth += 1.0;
-        }
-        return Math.max(0.5, halfWidth);
+        return Math.max(0.5, section.carriagewayHalfWidth() + section.outerBandWidth());
     }
 
     /** 画布路径预览半宽：行车道 + 自行车道/人行道（如有），不含路肩/排水沟/边坡。 */
@@ -68,11 +64,7 @@ public final class RoadCorridorWidth {
         if (section == null) {
             return 0;
         }
-        int width = section.carriagewayWidth + section.outerBandBlockCount() * 2;
-        if (section.includeDrain) {
-            width += 2;
-        }
-        return Math.max(1, width);
+        return Math.max(1, section.carriagewayWidth + section.outerBandBlockCount() * 2);
     }
 
     /** 植被/附着物清理包络总宽（方块数）。 */

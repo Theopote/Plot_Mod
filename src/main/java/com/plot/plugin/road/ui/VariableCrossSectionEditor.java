@@ -251,7 +251,6 @@ public final class VariableCrossSectionEditor {
             && left.includeSidewalk() == right.includeSidewalk()
             && left.sidewalkWidth() == right.sidewalkWidth()
             && Objects.equals(left.sidewalkMaterial(), right.sidewalkMaterial())
-            && left.includeDrainage() == right.includeDrainage()
             && left.includeBikeLane() == right.includeBikeLane()
             && left.bikeLaneWidth() == right.bikeLaneWidth()
             && left.includeMedian() == right.includeMedian()

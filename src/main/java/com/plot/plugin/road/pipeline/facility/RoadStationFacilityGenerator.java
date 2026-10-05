@@ -23,13 +23,12 @@ import com.plot.plugin.road.solid.RoadSolidModel;
 import java.util.List;
 
 /**
- * 沿桩号采样放置挡土墙、护栏、排水等附属设施 voxel。
+ * 沿桩号采样放置挡土墙、护栏等附属设施 voxel。
  */
 public final class RoadStationFacilityGenerator {
 
     private static final String DEFAULT_GUARDRAIL_MATERIAL = "minecraft:oak_fence";
     private static final String DEFAULT_RETAINING_WALL_MATERIAL = "minecraft:cobblestone";
-    private static final String DEFAULT_DRAINAGE_MATERIAL = "material.plot.gravel";
     private static final double DEFAULT_RETAINING_WALL_HEIGHT = 2.0;
 
     private RoadStationFacilityGenerator() {
@@ -112,7 +111,6 @@ public final class RoadStationFacilityGenerator {
                 if (!trim.shouldPlace(geometryLocal, edgeLength)) {
                     continue;
                 }
-                double drainageOffset = crossSection.outerDrainageOffset() * scale;
                 double outerOffset = (RoadDimensionUtils.maxLateralOffset(crossSection.carriagewayWidth)
                     + crossSection.outerBandBlockCount()
                     + 0.5) * scale;
@@ -124,9 +122,7 @@ public final class RoadStationFacilityGenerator {
                     chainage,
                     road,
                     roadEndStation,
-                    drainageOffset,
                     outerOffset,
-                    scale,
                     materialResolver);
             }
             geometryLocalBase += segment.distance;
@@ -141,9 +137,7 @@ public final class RoadStationFacilityGenerator {
             double chainage,
             Road road,
             double roadEndStation,
-            double drainageOffset,
             double outerOffset,
-            double unitsPerBlock,
             MaterialResolver materialResolver) {
         for (StationFacilityRun run : StationFacilityResolver.activeAt(road, chainage, roadEndStation)) {
             switch (run.getKind()) {
@@ -151,8 +145,6 @@ public final class RoadStationFacilityGenerator {
                     solids, center, leftNormal, targetY, run, outerOffset, materialResolver);
                 case RETAINING_WALL -> placeRetainingWall(
                     solids, center, leftNormal, targetY, run, outerOffset, materialResolver);
-                case DRAINAGE -> placeDrainage(
-                    solids, center, leftNormal, targetY, run, drainageOffset, unitsPerBlock, materialResolver);
                 default -> {
                 }
             }
@@ -201,37 +193,6 @@ public final class RoadStationFacilityGenerator {
                 outerOffset,
                 RoadSolidLayer.RETAINING_WALL,
                 blockId);
-        }
-    }
-
-    private static void placeDrainage(
-            RoadSolidModel solids,
-            Vec2d center,
-            Vec2d leftNormal,
-            int targetY,
-            StationFacilityRun run,
-            double drainageOffset,
-            double unitsPerBlock,
-            MaterialResolver materialResolver) {
-        String blockId = resolveMaterial(run, DEFAULT_DRAINAGE_MATERIAL, materialResolver);
-        int drainY = targetY - 1;
-        switch (run.getSide()) {
-            case LEFT -> {
-                Vec2d left = center.add(leftNormal.multiply(drainageOffset));
-                solids.addLateralStrip(left, leftNormal, 1, drainY, RoadSolidLayer.DRAIN, blockId, unitsPerBlock);
-            }
-            case RIGHT -> {
-                Vec2d right = center.subtract(leftNormal.multiply(drainageOffset));
-                solids.addLateralStrip(right, leftNormal, 1, drainY, RoadSolidLayer.DRAIN, blockId, unitsPerBlock);
-            }
-            case BOTH -> {
-                Vec2d left = center.add(leftNormal.multiply(drainageOffset));
-                Vec2d right = center.subtract(leftNormal.multiply(drainageOffset));
-                solids.addLateralStrip(left, leftNormal, 1, drainY, RoadSolidLayer.DRAIN, blockId, unitsPerBlock);
-                solids.addLateralStrip(right, leftNormal, 1, drainY, RoadSolidLayer.DRAIN, blockId, unitsPerBlock);
-            }
-            default -> {
-            }
         }
     }
 

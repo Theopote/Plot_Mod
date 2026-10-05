@@ -86,7 +86,7 @@ class RoadStationMirroringTest {
 
     @Test
     void mirrorOpenEndedFacilityRun() {
-        StationFacilityRun run = StationFacilityRun.of(50.0, null, RoadFacilityKind.DRAINAGE, RoadFacilitySide.BOTH);
+        StationFacilityRun run = StationFacilityRun.of(50.0, null, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.BOTH);
 
         StationFacilityRun mirrored = RoadStationMirroring.mirrorFacilityRun(run, 100.0);
 

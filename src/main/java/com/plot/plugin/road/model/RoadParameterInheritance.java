@@ -90,9 +90,6 @@ public final class RoadParameterInheritance {
         if (road.getIncludeMedian() == null || road.getMedianWidth() == null) {
             return true;
         }
-        if (road.getIncludeDrainage() == null) {
-            return true;
-        }
         if (road.getLaneDividers() == null || road.getCenterLineStyle() == null
             || road.getMarkingMaterial() == null) {
             return true;

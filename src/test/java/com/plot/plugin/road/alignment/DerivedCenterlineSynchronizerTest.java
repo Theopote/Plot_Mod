@@ -54,7 +54,6 @@ class DerivedCenterlineSynchronizerTest {
         config.setRoadWidth(6);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
-        config.setIncludeDrainage(false);
         config.setPathSampleDistance(4.0);
 
         RoadGenerator generator = new RoadGenerator(

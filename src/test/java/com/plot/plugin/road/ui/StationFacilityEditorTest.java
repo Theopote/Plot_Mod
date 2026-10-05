@@ -44,8 +44,8 @@ class StationFacilityEditorTest {
 
     @Test
     void runsEqualComparesAllFields() {
-        StationFacilityRun left = StationFacilityRun.of(10.0, 30.0, RoadFacilityKind.DRAINAGE, RoadFacilitySide.BOTH);
-        StationFacilityRun right = StationFacilityRun.of(10.0, 30.0, RoadFacilityKind.DRAINAGE, RoadFacilitySide.BOTH);
+        StationFacilityRun left = StationFacilityRun.of(10.0, 30.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.BOTH);
+        StationFacilityRun right = StationFacilityRun.of(10.0, 30.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.BOTH);
         assertTrue(StationFacilityEditor.runsEqual(List.of(left), List.of(right)));
     }
 }

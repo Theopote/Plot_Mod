@@ -63,7 +63,6 @@ public class RoadSystemConfig {
     private double minimumConstructionRunLength = 3.0;
     private boolean includeShoulder = true; // 是否包含路肩 - 从false改为true，默认启用路肩和边坡填充
     private int shoulderWidth = 1; // 路肩宽度
-    private boolean includeDrainage = false; // 是否包含排水沟
     private int laneCount = 1;
     private List<Integer> laneWidths = new ArrayList<>();
     private boolean includeBikeLane = false;
@@ -567,14 +566,6 @@ public class RoadSystemConfig {
         this.includeSlopeBatter = includeSlopeBatter;
     }
 
-    public boolean isIncludeDrainage() {
-        return includeDrainage;
-    }
-    
-    public void setIncludeDrainage(boolean includeDrainage) {
-        this.includeDrainage = includeDrainage;
-    }
-    
     public double getPathLength() {
         return pathLength;
     }
@@ -782,7 +773,6 @@ public class RoadSystemConfig {
         }
         this.includeShoulder = effective.includeShoulder;
         setShoulderWidth(effective.shoulderWidth);
-        this.includeDrainage = effective.includeDrainage;
         this.includeBikeLane = effective.includeBikeLane;
         if (effective.includeBikeLane) {
             setBikeLaneWidth(effective.bikeLaneWidth);

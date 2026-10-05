@@ -120,18 +120,6 @@ public final class StationFacilityResolver {
         return kinds;
     }
 
-    public static boolean usesStationGatedDrainage(Road road) {
-        if (!hasStationFacilities(road)) {
-            return false;
-        }
-        for (StationFacilityRun run : road.getStationFacilities().sortedRuns()) {
-            if (run.getKind() == RoadFacilityKind.DRAINAGE) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     public static String describe(StationFacilityRun run, RoadStationFormat format) {
         if (run == null) {
             return "";

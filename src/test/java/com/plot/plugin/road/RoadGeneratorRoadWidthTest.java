@@ -23,7 +23,6 @@ class RoadGeneratorRoadWidthTest {
         config.setRoadWidth(5);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
-        config.setIncludeDrainage(false);
 
         RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         RoadGenerationResult result = generator.generateFromPathPoints(
@@ -46,7 +45,6 @@ class RoadGeneratorRoadWidthTest {
         config.setRoadWidth(6);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
-        config.setIncludeDrainage(false);
 
         RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         RoadGenerationResult result = generator.generateFromPathPoints(
@@ -69,7 +67,6 @@ class RoadGeneratorRoadWidthTest {
         config.setRoadWidth(3);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
-        config.setIncludeDrainage(false);
 
         RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         RoadGenerationResult result = generator.generateFromPathPoints(

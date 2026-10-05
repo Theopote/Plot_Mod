@@ -202,7 +202,6 @@ class StationFacilityJunctionTrimTest {
         config.setRoadWidth(6);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
-        config.setIncludeDrainage(false);
         return ResolvedCrossSection.fromConfig(config);
     }
 }

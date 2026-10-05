@@ -168,7 +168,6 @@ public final class RoadStyleCatalog {
         style.hasSidewalk = false;
         style.includeShoulder = true;
         style.shoulderWidth = 2;
-        style.includeDrainage = true;
         style.includeMedian = true;
         style.medianWidth = 1;
         style.includeSlopeBatter = true;
@@ -188,7 +187,6 @@ public final class RoadStyleCatalog {
         style.hasSidewalk = false;
         style.includeShoulder = true;
         style.shoulderWidth = 2;
-        style.includeDrainage = true;
         style.includeSlopeBatter = true;
         style.fillSlopeRatio = 1.2f;
         style.cutSlopeRatio = 0.8f;
@@ -328,7 +326,6 @@ public final class RoadStyleCatalog {
         style.includeShoulder = false;
         style.shoulderWidth = 0;
         style.includeBikeLane = false;
-        style.includeDrainage = false;
         style.includeMedian = false;
         style.includeSlopeBatter = null;
         style.fillSlopeRatio = 0f;

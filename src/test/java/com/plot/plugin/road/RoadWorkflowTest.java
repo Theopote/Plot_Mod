@@ -225,7 +225,6 @@ class RoadWorkflowTest {
             true,
             Math.max(2, baseline.sidewalkWidth()),
             baseline.sidewalkMaterial(),
-            baseline.includeDrainage(),
             baseline.includeBikeLane(),
             baseline.bikeLaneWidth(),
             baseline.includeMedian(),

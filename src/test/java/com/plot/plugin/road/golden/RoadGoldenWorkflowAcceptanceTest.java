@@ -50,7 +50,7 @@ class RoadGoldenWorkflowAcceptanceTest {
         draft = new RoadNetworkManager.BatchEditDefaults(
             draft.width(), 4, draft.material(), draft.includeShoulder(), draft.shoulderWidth(),
             true, Math.max(2, draft.sidewalkWidth()), draft.sidewalkMaterial(),
-            draft.includeDrainage(), draft.includeBikeLane(), draft.bikeLaneWidth(),
+            draft.includeBikeLane(), draft.bikeLaneWidth(),
             draft.includeMedian(), draft.medianWidth(), draft.streetlightSpacing(),
             true, draft.centerLineStyle(), draft.markingMaterial(),
             draft.includeSlopeBatter(), draft.fillSlopeRatio(), draft.cutSlopeRatio(),

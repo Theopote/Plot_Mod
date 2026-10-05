@@ -86,7 +86,6 @@ class RoadTerrainClearanceUtilsTest {
         config.setTunnelClearanceHeight(8);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
-        config.setIncludeDrainage(false);
 
         TerrainSampler terrain = columnTerrain(100, 64, 100);
         RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
@@ -114,7 +113,6 @@ class RoadTerrainClearanceUtilsTest {
         config.setTunnelThreshold(8);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
-        config.setIncludeDrainage(false);
 
         TerrainSampler terrain = new TerrainSampler() {
             @Override
@@ -145,7 +143,6 @@ class RoadTerrainClearanceUtilsTest {
         config.setTunnelThreshold(8);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
-        config.setIncludeDrainage(false);
 
         TerrainSampler terrain = columnTerrain(70, 64, 100);
         RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());

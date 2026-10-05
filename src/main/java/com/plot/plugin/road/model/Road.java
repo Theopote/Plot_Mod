@@ -414,14 +414,6 @@ public class Road {
         crossSection.getBikeLane().setMaterial(bikeLaneMaterial);
     }
 
-    public Boolean getIncludeDrainage() {
-        return crossSection.getDrain().getEnabled();
-    }
-
-    public void setIncludeDrainage(Boolean includeDrainage) {
-        crossSection.getDrain().setEnabled(includeDrainage);
-    }
-
     public Integer getStreetlightSpacing() {
         return crossSection.getStreetFurniture().getStreetlightSpacing();
     }
@@ -651,10 +643,6 @@ public class Road {
 
     public String getEffectiveShoulderMaterial(RoadSystemConfig defaults) {
         return crossSection.resolve(defaults).shoulderMaterial;
-    }
-
-    public boolean getEffectiveIncludeDrainage(RoadSystemConfig defaults) {
-        return crossSection.resolve(defaults).includeDrain;
     }
 
     public float getEffectiveMaxSlope(RoadSystemConfig defaults) {

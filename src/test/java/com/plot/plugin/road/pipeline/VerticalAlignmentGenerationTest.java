@@ -26,7 +26,6 @@ class VerticalAlignmentGenerationTest {
         config.setRoadWidth(6);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
-        config.setIncludeDrainage(false);
         config.setPathSampleDistance(10.0);
 
         RoadGenerator generator = new RoadGenerator(

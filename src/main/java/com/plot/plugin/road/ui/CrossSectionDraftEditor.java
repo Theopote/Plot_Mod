@@ -420,15 +420,6 @@ public final class CrossSectionDraftEditor {
         boolean roadEdit = editor.roadEdit;
         String id = editor.id;
 
-        ImBoolean drainRef = new ImBoolean(draft.includeDrainage());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_drainage") + "##" + id + "_drain", drainRef)) {
-            if (roadEdit) {
-                hooks.onItemActivated();
-            }
-            mutator.setIncludeDrainage(drainRef.get());
-        }
-        mutator.afterDrainField();
-
         ImBoolean laneDividersRef = new ImBoolean(draft.laneDividers());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.lane_dividers") + "##" + id + "_dividers", laneDividersRef)) {
             if (roadEdit) {

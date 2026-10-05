@@ -199,7 +199,6 @@ class BridgeGuardrailGeneratorTest {
     private static void assertGuardrailUsesBridgeDeckEdge(java.util.function.Consumer<RoadSystemConfig> configure) {
         RoadSystemConfig config = new RoadSystemConfig("bridge-guardrail");
         config.setRoadWidth(5);
-        config.setIncludeDrainage(true);
         configure.accept(config);
         ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);
         double deckEdge = RoadCorridorWidth.bridgeDeckHalfWidthBlocks(section);

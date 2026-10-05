@@ -9,20 +9,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class RoadCorridorWidthTest {
 
     @Test
-    void pavementHalfWidthIncludesOuterBandsAndDrain() {
+    void pavementHalfWidthIncludesOuterBands() {
         RoadSystemConfig config = new RoadSystemConfig("road_test");
         config.setRoadWidth(7);
         config.setIncludeShoulder(true);
         config.setShoulderWidth(1);
         config.setIncludeSidewalk(true);
         config.setSidewalkWidth(2);
-        config.setIncludeDrainage(true);
         config.setIncludeSlopeBatter(false);
 
         ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);
 
-        assertEquals(7.5, RoadCorridorWidth.pavementHalfWidthBlocks(section), 0.01);
-        assertEquals(15, RoadCorridorWidth.gradingEnvelopeWidthBlocks(section));
+        assertEquals(6.5, RoadCorridorWidth.pavementHalfWidthBlocks(section), 0.01);
+        assertEquals(13, RoadCorridorWidth.gradingEnvelopeWidthBlocks(section));
     }
 
     @Test
@@ -35,7 +34,6 @@ class RoadCorridorWidthTest {
         config.setBikeLaneWidth(2);
         config.setIncludeSidewalk(true);
         config.setSidewalkWidth(2);
-        config.setIncludeDrainage(true);
         config.setIncludeSlopeBatter(true);
         config.setTunnelThreshold(4);
         config.setCutSlopeRatio(1.0f);
@@ -43,11 +41,11 @@ class RoadCorridorWidthTest {
         ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);
 
         assertEquals(7.5, RoadCorridorWidth.canvasPreviewHalfWidthBlocks(section), 0.01);
-        assertEquals(9.5, RoadCorridorWidth.pavementHalfWidthBlocks(section), 0.01);
+        assertEquals(8.5, RoadCorridorWidth.pavementHalfWidthBlocks(section), 0.01);
     }
 
     @Test
-    void bridgeDeckWidthIncludesOuterBandsButNotDrain() {
+    void bridgeDeckWidthIncludesOuterBands() {
         RoadSystemConfig config = new RoadSystemConfig("road_test");
         config.setRoadWidth(5);
         config.setIncludeShoulder(true);
@@ -56,13 +54,12 @@ class RoadCorridorWidthTest {
         config.setBikeLaneWidth(2);
         config.setIncludeSidewalk(true);
         config.setSidewalkWidth(2);
-        config.setIncludeDrainage(true);
 
         ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);
 
         assertEquals(15, RoadCorridorWidth.bridgeDeckWidthBlocks(section));
         assertEquals(7.5, RoadCorridorWidth.bridgeDeckHalfWidthBlocks(section), 0.01);
-        assertEquals(17, RoadCorridorWidth.gradingEnvelopeWidthBlocks(section));
+        assertEquals(15, RoadCorridorWidth.gradingEnvelopeWidthBlocks(section));
     }
 
     @Test

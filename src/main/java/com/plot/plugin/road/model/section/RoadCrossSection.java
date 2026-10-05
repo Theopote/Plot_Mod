@@ -17,7 +17,6 @@ public class RoadCrossSection {
     private Shoulder shoulder = new Shoulder();
     private BikeLane bikeLane = new BikeLane();
     private Sidewalk sidewalk = new Sidewalk();
-    private Drain drain = new Drain();
     private SlopeBatter slopeBatter = new SlopeBatter();
     private StreetFurniture streetFurniture = new StreetFurniture();
 
@@ -52,7 +51,6 @@ public class RoadCrossSection {
         section.sidewalk.setEnabled(defaults.isIncludeSidewalk());
         section.sidewalk.setWidth(defaults.getSidewalkWidth());
         section.sidewalk.setMaterial(defaults.getSelectedSidewalkMaterial());
-        section.drain.setEnabled(defaults.isIncludeDrainage());
         section.bikeLane.setEnabled(defaults.isIncludeBikeLane());
         section.bikeLane.setWidth(defaults.getBikeLaneWidth());
         section.median.setEnabled(defaults.isIncludeMedian());
@@ -142,14 +140,6 @@ public class RoadCrossSection {
         this.sidewalk = sidewalk != null ? sidewalk : new Sidewalk();
     }
 
-    public Drain getDrain() {
-        return drain;
-    }
-
-    public void setDrain(Drain drain) {
-        this.drain = drain != null ? drain : new Drain();
-    }
-
     public SlopeBatter getSlopeBatter() {
         return slopeBatter;
     }
@@ -176,7 +166,6 @@ public class RoadCrossSection {
         shoulder = new Shoulder();
         bikeLane = new BikeLane();
         sidewalk = new Sidewalk();
-        drain = new Drain();
         slopeBatter = new SlopeBatter();
         streetFurniture = new StreetFurniture();
     }
@@ -199,7 +188,6 @@ public class RoadCrossSection {
         shoulder = source.shoulder.copy();
         bikeLane = source.bikeLane.copy();
         sidewalk = source.sidewalk.copy();
-        drain = source.drain.copy();
         slopeBatter = source.slopeBatter.copy();
         streetFurniture = source.streetFurniture.copy();
     }
@@ -216,7 +204,6 @@ public class RoadCrossSection {
         copy.shoulder = shoulder.copy();
         copy.bikeLane = bikeLane.copy();
         copy.sidewalk = sidewalk.copy();
-        copy.drain = drain.copy();
         copy.slopeBatter = slopeBatter.copy();
         copy.streetFurniture = streetFurniture.copy();
         return copy;
@@ -232,7 +219,6 @@ public class RoadCrossSection {
             Boolean includeShoulder,
             Integer shoulderWidth,
             String shoulderMaterial,
-            Boolean includeDrainage,
             Integer streetlightSpacing) {
         if (section == null) {
             return;
@@ -260,9 +246,6 @@ public class RoadCrossSection {
         }
         if (shoulderMaterial != null) {
             section.shoulder.setMaterial(RoadMaterialUtils.normalizeStoredMaterial(shoulderMaterial));
-        }
-        if (includeDrainage != null) {
-            section.drain.setEnabled(includeDrainage);
         }
         if (streetlightSpacing != null) {
             section.streetFurniture.setStreetlightSpacing(streetlightSpacing);

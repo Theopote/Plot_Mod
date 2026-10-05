@@ -25,7 +25,6 @@ import com.plot.plugin.road.station.CenterlineEditOperation;
 import com.plot.plugin.road.station.RoadStationDataTransforms;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.model.section.BikeLane;
-import com.plot.plugin.road.model.section.Drain;
 import com.plot.plugin.road.model.section.Lane;
 import com.plot.plugin.road.model.section.LaneGroup;
 import com.plot.plugin.road.model.section.CenterLineStyle;
@@ -859,10 +858,6 @@ public class RoadNetwork {
         String material;
     }
 
-    static class DrainData {
-        Boolean enabled;
-    }
-
     static class BikeLaneData {
         Boolean enabled;
         Integer width;
@@ -889,7 +884,6 @@ public class RoadNetwork {
         ShoulderData shoulder;
         BikeLaneData bikeLane;
         SidewalkData sidewalk;
-        DrainData drain;
         SlopeBatterData slopeBatter;
         StreetFurnitureData streetFurniture;
 
@@ -948,11 +942,6 @@ public class RoadNetwork {
                 data.sidewalk.enabled = sidewalk.getEnabled();
                 data.sidewalk.width = sidewalk.getWidth();
                 data.sidewalk.material = sidewalk.getMaterial();
-            }
-            Drain drain = section.getDrain();
-            if (drain != null) {
-                data.drain = new DrainData();
-                data.drain.enabled = drain.getEnabled();
             }
             SlopeBatter slopeBatter = section.getSlopeBatter();
             if (slopeBatter != null) {
@@ -1034,11 +1023,6 @@ public class RoadNetwork {
                 sidewalkComponent.setWidth(sidewalk.width);
                 sidewalkComponent.setMaterial(RoadMaterialUtils.normalizeStoredMaterial(sidewalk.material));
                 section.setSidewalk(sidewalkComponent);
-            }
-            if (drain != null) {
-                Drain drainComponent = new Drain();
-                drainComponent.setEnabled(drain.enabled);
-                section.setDrain(drainComponent);
             }
             if (slopeBatter != null) {
                 SlopeBatter slopeComponent = new SlopeBatter();

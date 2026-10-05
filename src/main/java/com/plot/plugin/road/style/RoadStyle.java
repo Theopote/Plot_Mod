@@ -24,7 +24,6 @@ public class RoadStyle {
     public int shoulderWidth;
     public boolean includeBikeLane;
     public int bikeLaneWidth = 1;
-    public boolean includeDrainage;
     public boolean includeMedian;
     public int medianWidth;
     public Boolean includeSlopeBatter;
@@ -107,7 +106,6 @@ public class RoadStyle {
         copy.shoulderWidth = shoulderWidth;
         copy.includeBikeLane = includeBikeLane;
         copy.bikeLaneWidth = bikeLaneWidth;
-        copy.includeDrainage = includeDrainage;
         copy.includeMedian = includeMedian;
         copy.medianWidth = medianWidth;
         copy.includeSlopeBatter = includeSlopeBatter;
@@ -160,8 +158,6 @@ public class RoadStyle {
         section.getSidewalk().setEnabled(style.hasSidewalk);
         section.getSidewalk().setWidth(style.hasSidewalk ? Math.max(1, style.sidewalkWidth) : 0);
         section.getSidewalk().setMaterial(sidewalkMat);
-
-        section.getDrain().setEnabled(style.includeDrainage);
 
         section.getMedian().setEnabled(style.includeMedian);
         section.getMedian().setWidth(style.includeMedian ? Math.max(1, style.medianWidth) : 0);

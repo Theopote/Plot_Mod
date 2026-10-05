@@ -56,7 +56,6 @@ class CrossSectionDraftTest {
             2,
             "material.plot.stone",
             true,
-            true,
             1,
             false,
             1,

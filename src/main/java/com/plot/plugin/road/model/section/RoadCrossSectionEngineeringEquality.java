@@ -26,7 +26,6 @@ public final class RoadCrossSectionEngineeringEquality {
             && equalsEnabledWidthMaterial(left.getShoulder(), right.getShoulder())
             && equalsEnabledWidthMaterial(left.getBikeLane(), right.getBikeLane())
             && equalsEnabledWidthMaterial(left.getSidewalk(), right.getSidewalk())
-            && equalsDrain(left.getDrain(), right.getDrain())
             && equalsSlopeBatter(left.getSlopeBatter(), right.getSlopeBatter())
             && equalsStreetFurniture(left.getStreetFurniture(), right.getStreetFurniture());
     }
@@ -70,16 +69,6 @@ public final class RoadCrossSectionEngineeringEquality {
             && Objects.equals(left.getCenterLine(), right.getCenterLine())
             && left.getCenterLineStyle() == right.getCenterLineStyle()
             && Objects.equals(left.getMaterial(), right.getMaterial());
-    }
-
-    private static boolean equalsDrain(Drain left, Drain right) {
-        if (left == right) {
-            return true;
-        }
-        if (left == null || right == null) {
-            return false;
-        }
-        return Objects.equals(left.getEnabled(), right.getEnabled());
     }
 
     private static boolean equalsSlopeBatter(SlopeBatter left, SlopeBatter right) {

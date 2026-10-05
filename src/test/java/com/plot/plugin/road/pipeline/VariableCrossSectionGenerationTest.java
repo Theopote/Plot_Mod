@@ -26,7 +26,6 @@ class VariableCrossSectionGenerationTest {
         config.setRoadWidth(6);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
-        config.setIncludeDrainage(false);
         config.setPathSampleDistance(5.0);
 
         RoadGenerator generator = new RoadGenerator(

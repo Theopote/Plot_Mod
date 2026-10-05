@@ -207,14 +207,6 @@ public final class CrossSectionDraftMutator {
         notifyChanged();
     }
 
-    public void setIncludeDrainage(boolean includeDrainage) {
-        draft.setIncludeDrainage(includeDrainage);
-        if (road != null) {
-            road.setIncludeDrainage(includeDrainage);
-        }
-        notifyChanged();
-    }
-
     public void setLaneDividers(boolean laneDividers) {
         draft.setLaneDividers(laneDividers);
         if (road != null) {
@@ -473,19 +465,6 @@ public final class CrossSectionDraftMutator {
             road.getSidewalkWidth() == null,
             PlotI18n.tr("plugin.road.inherit_default_int", config.getSidewalkWidth()),
             () -> road.setSidewalkWidth(null));
-    }
-
-    public void afterDrainField() {
-        if (road == null || config == null) {
-            return;
-        }
-        hooks.afterField(
-            "road_drain",
-            road.getIncludeDrainage() == null,
-            PlotI18n.tr(config.isIncludeDrainage()
-                ? "plugin.road.inherit_default_enabled"
-                : "plugin.road.inherit_default_disabled"),
-            () -> road.setIncludeDrainage(null));
     }
 
     public void afterMedianIncludeField() {

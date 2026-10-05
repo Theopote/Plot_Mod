@@ -21,7 +21,6 @@ public final class CrossSectionDraft {
     private boolean includeSidewalk;
     private int sidewalkWidth;
     private String sidewalkMaterial;
-    private boolean includeDrainage;
     private boolean includeBikeLane;
     private int bikeLaneWidth;
     private boolean includeMedian;
@@ -52,7 +51,6 @@ public final class CrossSectionDraft {
         draft.includeSidewalk = config.isIncludeSidewalk();
         draft.sidewalkWidth = config.getSidewalkWidth();
         draft.sidewalkMaterial = config.getSelectedSidewalkMaterial();
-        draft.includeDrainage = config.isIncludeDrainage();
         draft.includeBikeLane = config.isIncludeBikeLane();
         draft.bikeLaneWidth = config.getBikeLaneWidth();
         draft.includeMedian = config.isIncludeMedian();
@@ -84,7 +82,6 @@ public final class CrossSectionDraft {
         config.setIncludeSidewalk(includeSidewalk);
         config.setSidewalkWidth(sidewalkWidth);
         config.setSelectedSidewalkMaterial(sidewalkMaterial);
-        config.setIncludeDrainage(includeDrainage);
         config.setIncludeBikeLane(includeBikeLane);
         config.setBikeLaneWidth(bikeLaneWidth);
         config.setIncludeMedian(includeMedian);
@@ -114,7 +111,6 @@ public final class CrossSectionDraft {
         draft.includeSidewalk = defaults.includeSidewalk();
         draft.sidewalkWidth = defaults.sidewalkWidth();
         draft.sidewalkMaterial = defaults.sidewalkMaterial();
-        draft.includeDrainage = defaults.includeDrainage();
         draft.includeBikeLane = defaults.includeBikeLane();
         draft.bikeLaneWidth = defaults.bikeLaneWidth();
         draft.includeMedian = defaults.includeMedian();
@@ -143,7 +139,6 @@ public final class CrossSectionDraft {
             includeSidewalk,
             sidewalkWidth,
             sidewalkMaterial,
-            includeDrainage,
             includeBikeLane,
             bikeLaneWidth,
             includeMedian,
@@ -179,7 +174,6 @@ public final class CrossSectionDraft {
         section.getSidewalk().setEnabled(includeSidewalk);
         section.getSidewalk().setWidth(sidewalkWidth);
         section.getSidewalk().setMaterial(sidewalkMaterial);
-        section.getDrain().setEnabled(includeDrainage);
         section.getBikeLane().setEnabled(includeBikeLane);
         section.getBikeLane().setWidth(bikeLaneWidth);
         section.getMedian().setEnabled(includeMedian);
@@ -233,11 +227,6 @@ public final class CrossSectionDraft {
         }
         if (road.getSidewalkMaterial() != null) {
             draft.sidewalkMaterial = road.getSidewalkMaterial();
-        }
-        if (road.getIncludeDrainage() != null) {
-            draft.includeDrainage = road.getIncludeDrainage();
-        } else {
-            draft.includeDrainage = road.getEffectiveIncludeDrainage(defaults);
         }
         if (road.getIncludeBikeLane() != null) {
             draft.includeBikeLane = road.getIncludeBikeLane();
@@ -320,7 +309,6 @@ public final class CrossSectionDraft {
         draft.includeSidewalk = resolved.includeSidewalk;
         draft.sidewalkWidth = resolved.sidewalkWidth;
         draft.sidewalkMaterial = resolved.sidewalkMaterial;
-        draft.includeDrainage = resolved.includeDrain;
         draft.includeBikeLane = resolved.includeBikeLane;
         draft.bikeLaneWidth = resolved.bikeLaneWidth;
         draft.includeMedian = resolved.includeMedian;
@@ -362,7 +350,6 @@ public final class CrossSectionDraft {
             road.setSidewalkWidth(sidewalkWidth);
             road.setSidewalkMaterial(sidewalkMaterial);
         }
-        road.setIncludeDrainage(includeDrainage);
         road.setIncludeBikeLane(includeBikeLane);
         if (includeBikeLane) {
             road.setBikeLaneWidth(bikeLaneWidth);
@@ -459,14 +446,6 @@ public final class CrossSectionDraft {
 
     public void setSidewalkMaterial(String sidewalkMaterial) {
         this.sidewalkMaterial = sidewalkMaterial;
-    }
-
-    public boolean includeDrainage() {
-        return includeDrainage;
-    }
-
-    public void setIncludeDrainage(boolean includeDrainage) {
-        this.includeDrainage = includeDrainage;
     }
 
     public boolean includeBikeLane() {

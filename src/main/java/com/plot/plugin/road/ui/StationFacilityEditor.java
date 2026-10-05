@@ -224,8 +224,7 @@ public final class StationFacilityEditor {
     private static String[] kindLabels() {
         return new String[] {
             PlotI18n.tr("plugin.road.station_facility_kind.retaining_wall"),
-            PlotI18n.tr("plugin.road.station_facility_kind.guardrail"),
-            PlotI18n.tr("plugin.road.station_facility_kind.drainage")
+            PlotI18n.tr("plugin.road.station_facility_kind.guardrail")
         };
     }
 

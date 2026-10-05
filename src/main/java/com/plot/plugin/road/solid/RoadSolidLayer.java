@@ -10,7 +10,6 @@ public enum RoadSolidLayer {
     BIKE_LANE,
     SHOULDER,
     MEDIAN,
-    DRAIN,
     GUARDRAIL,
     RETAINING_WALL,
     BRIDGE,

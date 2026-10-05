@@ -43,7 +43,6 @@ class RoadProfileSamplingCrossingTest {
         config.setRoadWidth(6);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
-        config.setIncludeDrainage(false);
         config.setPathSampleDistance(4.0);
         config.setDefaultCrossingClearance(3.0);
 

@@ -117,11 +117,10 @@ class ResolvedCrossSectionTest {
     void nullRoadFieldsFallBackToConfig() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         config.setRoadWidth(6);
-        config.setIncludeDrainage(true);
 
         ResolvedCrossSection resolved = RoadCrossSection.fromConfig(config).resolve(config);
 
         assertEquals(6, resolved.carriagewayWidth);
-        assertTrue(resolved.includeDrain);
+        assertTrue(resolved.includeSidewalk);
     }
 }

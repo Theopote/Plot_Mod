@@ -5,6 +5,5 @@ package com.plot.plugin.road.model.facility;
  */
 public enum RoadFacilityKind {
     RETAINING_WALL,
-    GUARDRAIL,
-    DRAINAGE
+    GUARDRAIL
 }

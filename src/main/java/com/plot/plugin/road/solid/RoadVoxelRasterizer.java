@@ -221,7 +221,7 @@ public final class RoadVoxelRasterizer {
             BlockPos pos) {
         switch (layer) {
             case ROAD, MEDIAN, MARKING -> result.roadBlocks.add(pos);
-            case SIDEWALK, BIKE_LANE, SHOULDER, DRAIN, GUARDRAIL, RETAINING_WALL, SUBGRADE -> result.sidewalkBlocks.add(pos);
+            case SIDEWALK, BIKE_LANE, SHOULDER, GUARDRAIL, RETAINING_WALL, SUBGRADE -> result.sidewalkBlocks.add(pos);
             case BRIDGE -> result.bridgeBlocks.add(pos);
             case TUNNEL -> result.tunnelBlocks.add(pos);
             case STREETLIGHT -> result.streetlightBlocks.add(pos);

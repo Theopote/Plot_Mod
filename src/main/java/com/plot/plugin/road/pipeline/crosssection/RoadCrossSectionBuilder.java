@@ -7,11 +7,9 @@ import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.RoadSlopeUtils;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
-import com.plot.plugin.road.model.facility.StationFacilityResolver;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
 import com.plot.plugin.road.pipeline.RoadPathStationSampler;
-import com.plot.plugin.road.pipeline.StationFacilityBuildContext;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
 import com.plot.plugin.road.pipeline.construction.ConstructionDetection;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
@@ -29,7 +27,7 @@ import net.minecraft.util.math.BlockPos;
 import java.util.List;
 
 /**
- * Builds cross-section layers: Carriageway, Shoulder, BikeLane, Median, Sidewalk, drainage, slope batter.
+ * Builds cross-section layers: Carriageway, Shoulder, BikeLane, Median, Sidewalk, slope batter.
  */
 public final class RoadCrossSectionBuilder {
     private RoadCrossSectionBuilder() {
@@ -98,11 +96,6 @@ public final class RoadCrossSectionBuilder {
             crossSectionHost, solids, segments, heightInfos, crossSections, unitsPerBlock, designElevation, buildProfile);
         generateSidewalkBlocks(
             crossSectionHost, solids, segments, heightInfos, crossSections, unitsPerBlock, designElevation, buildProfile);
-
-        if (!usesStationGatedDrainage(ctx.request().stationFacilities())) {
-            generateDrainageChannels(
-                crossSectionHost, solids, segments, heightInfos, crossSections, unitsPerBlock, designElevation, buildProfile);
-        }
 
         generateSlopeBatterBlocks(
             crossSectionHost,
@@ -373,38 +366,6 @@ public final class RoadCrossSectionBuilder {
             });
     }
 
-    private static void generateDrainageChannels(
-            CrossSectionHost host,
-            RoadSolidModel solids,
-            List<PathSegment> segments,
-            List<SegmentHeightInfo> heightInfos,
-            CrossSectionBuildContext crossSections,
-            double unitsPerBlock,
-            DesignElevationSource designElevation,
-            BuildHeightProfile buildProfile) {
-        String blockId = host.resolveBlockId("material.plot.gravel");
-        RoadPathStationSampler.forEach(
-            segments,
-            heightInfos,
-            crossSections.samplingOriented(),
-            unitsPerBlock,
-            designElevation,
-            buildProfile,
-            host::snapEndpointElevation,
-            (center, leftNormal, targetY, chainage) -> {
-                ResolvedCrossSection crossSection = crossSections.resolve(chainage);
-                if (!crossSection.includeDrain) {
-                    return;
-                }
-                int drainY = targetY - 1;
-                double drainageOffset = crossSection.outerDrainageOffset() * unitsPerBlock;
-                Vec2d left = center.add(leftNormal.multiply(drainageOffset));
-                Vec2d right = center.subtract(leftNormal.multiply(drainageOffset));
-                solids.addLateralStrip(left, leftNormal, 1, drainY, RoadSolidLayer.DRAIN, blockId, unitsPerBlock);
-                solids.addLateralStrip(right, leftNormal, 1, drainY, RoadSolidLayer.DRAIN, blockId, unitsPerBlock);
-            });
-    }
-
     private static void generateSlopeBatterBlocks(
             CrossSectionHost host,
             RoadSolidModel solids,
@@ -639,10 +600,4 @@ public final class RoadCrossSectionBuilder {
             host.bridgeGuardrailMaterial());
     }
 
-    private static boolean usesStationGatedDrainage(StationFacilityBuildContext stationFacilities) {
-        if (stationFacilities == null || !stationFacilities.isActive()) {
-            return false;
-        }
-        return StationFacilityResolver.usesStationGatedDrainage(stationFacilities.road());
-    }
 }

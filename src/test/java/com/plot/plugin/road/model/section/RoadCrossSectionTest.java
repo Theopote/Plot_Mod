@@ -34,7 +34,6 @@ class RoadCrossSectionTest {
         assertEquals(7, section.getCarriageway().getWidth());
         assertFalse(section.getShoulder().getEnabled());
         assertTrue(section.getSidewalk().getEnabled());
-        assertFalse(section.getDrain().getEnabled());
         assertFalse(section.getMedian().getEnabled());
         assertFalse(section.getBikeLane().getEnabled());
         assertNull(section.getStreetFurniture().getStreetlightSpacing());

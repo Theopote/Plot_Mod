@@ -49,7 +49,6 @@ class RoadOverlayGeometryTest {
         config.setBikeLaneWidth(2);
         config.setIncludeSidewalk(true);
         config.setSidewalkWidth(2);
-        config.setIncludeDrainage(true);
         config.setIncludeSlopeBatter(true);
 
         double corridorHalfWidth = RoadOverlayGeometry.resolveConfigCorridorHalfWidth(
@@ -57,7 +56,7 @@ class RoadOverlayGeometryTest {
         double pavementHalfWidth = RoadOverlayGeometry.resolveConfigPavementHalfWidthBlocks(config);
 
         assertEquals(7.5, corridorHalfWidth, 0.01);
-        assertEquals(9.5, pavementHalfWidth, 0.01);
+        assertEquals(8.5, pavementHalfWidth, 0.01);
         assertTrue(pavementHalfWidth > corridorHalfWidth);
     }
 
@@ -86,7 +85,6 @@ class RoadOverlayGeometryTest {
         config.setRoadWidth(6);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
-        config.setIncludeDrainage(false);
         config.setIncludeSlopeBatter(false);
 
         RoadNetwork network = new RoadNetwork();
@@ -135,7 +133,6 @@ class RoadOverlayGeometryTest {
         config.setRoadWidth(6);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
-        config.setIncludeDrainage(false);
         config.setIncludeSlopeBatter(false);
 
         RoadNetwork network = new RoadNetwork();

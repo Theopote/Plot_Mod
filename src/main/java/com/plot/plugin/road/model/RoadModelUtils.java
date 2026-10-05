@@ -71,10 +71,6 @@ public final class RoadModelUtils {
         return resolveCrossSection(network, edge, defaults).shoulderMaterial;
     }
 
-    public static boolean getEffectiveIncludeDrainage(RoadNetwork network, RoadEdge edge, RoadSystemConfig defaults) {
-        return resolveCrossSection(network, edge, defaults).includeDrain;
-    }
-
     public static Integer getStreetlightSpacing(RoadNetwork network, RoadEdge edge) {
         Road road = resolveRoad(network, edge);
         return road != null ? road.getStreetlightSpacing() : null;

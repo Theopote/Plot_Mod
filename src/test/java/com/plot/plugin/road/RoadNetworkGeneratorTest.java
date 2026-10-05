@@ -107,7 +107,6 @@ class RoadNetworkGeneratorTest {
         config.setRoadWidth(6);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
-        config.setIncludeDrainage(false);
         config.setPathSampleDistance(4.0);
 
         RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
@@ -142,7 +141,6 @@ class RoadNetworkGeneratorTest {
         config.setRoadWidth(6);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
-        config.setIncludeDrainage(false);
         config.setPathSampleDistance(4.0);
         config.setDefaultCrossingClearance(3.0);
 
@@ -195,7 +193,6 @@ class RoadNetworkGeneratorTest {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
-        config.setIncludeDrainage(false);
 
         RoadGenerator generator = new RoadGenerator(
             config,
@@ -233,7 +230,6 @@ class RoadNetworkGeneratorTest {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
-        config.setIncludeDrainage(false);
 
         RoadGenerator generator = new RoadGenerator(
             config,

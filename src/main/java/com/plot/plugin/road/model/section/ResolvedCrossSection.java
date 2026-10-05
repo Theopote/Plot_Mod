@@ -36,7 +36,6 @@ public final class ResolvedCrossSection {
     public final boolean includeSidewalk;
     public final int sidewalkWidth;
     public final String sidewalkMaterial;
-    public final boolean includeDrain;
     public final Integer streetlightSpacing;
     public final String streetlightBlock;
     public final boolean includeSlopeBatter;
@@ -66,7 +65,6 @@ public final class ResolvedCrossSection {
             boolean includeSidewalk,
             int sidewalkWidth,
             String sidewalkMaterial,
-            boolean includeDrain,
             Integer streetlightSpacing,
             String streetlightBlock,
             boolean includeSlopeBatter,
@@ -94,7 +92,6 @@ public final class ResolvedCrossSection {
         this.includeSidewalk = includeSidewalk;
         this.sidewalkWidth = sidewalkWidth;
         this.sidewalkMaterial = sidewalkMaterial;
-        this.includeDrain = includeDrain;
         this.streetlightSpacing = streetlightSpacing;
         this.streetlightBlock = streetlightBlock;
         this.includeSlopeBatter = includeSlopeBatter;
@@ -118,7 +115,6 @@ public final class ResolvedCrossSection {
         Shoulder shoulder = source.getShoulder();
         BikeLane bikeLane = source.getBikeLane();
         Sidewalk sidewalk = source.getSidewalk();
-        Drain drain = source.getDrain();
         SlopeBatter slopeBatter = source.getSlopeBatter();
         StreetFurniture furniture = source.getStreetFurniture();
 
@@ -171,8 +167,6 @@ public final class ResolvedCrossSection {
             ? sidewalk.getMaterial()
             : config.getSelectedSidewalkMaterial();
 
-        boolean includeDrain = drain.getEnabled() != null ? drain.getEnabled() : config.isIncludeDrainage();
-
         String streetlightBlock = furniture.getStreetlightBlock() != null
             ? furniture.getStreetlightBlock()
             : DEFAULT_STREETLIGHT_BLOCK;
@@ -215,7 +209,6 @@ public final class ResolvedCrossSection {
             includeSidewalk,
             Math.max(0, sidewalkWidth),
             RoadMaterialUtils.normalizeStoredMaterial(sidewalkMaterial),
-            includeDrain,
             furniture.getStreetlightSpacing(),
             RoadMaterialUtils.normalizeStoredMaterial(streetlightBlock),
             includeSlopeBatter,
@@ -320,10 +313,5 @@ public final class ResolvedCrossSection {
 
     public double outerSidewalkOffset() {
         return sidewalkCenterOffset();
-    }
-
-    public double outerDrainageOffset() {
-        int outer = RoadDimensionUtils.maxLateralOffset(carriagewayWidth) + outerBandBlockCount() + 1;
-        return outer;
     }
 }
