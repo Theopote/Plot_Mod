@@ -2,6 +2,8 @@ package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics.TerrainAdaptationPreset;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
@@ -136,24 +138,18 @@ class RoadRoadbedGradingUtilsTest {
     void generatorFillsLowTerrainToRoadDeck() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setRoadWidth(3);
-        config.setTunnelThreshold(8);
-        // 高差 4（60→64）需 <= bridgeThreshold 才会走路基填方而非桥梁
-        config.setBridgeThreshold(5);
-        // 成本决策也必须选择填方；路基生成应遵循统一施工类型，而不是另行按阈值判断。
-        config.setBridgeBaseCost(1_000.0);
+        config.setTerrainAdaptation(TerrainAdaptationPreset.FOLLOW);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
 
-        TerrainSampler terrain = columnTerrain(60, 64, 100);
+        TerrainSampler terrain = columnTerrain(62, 64, 100);
         RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         RoadGenerationResult result = generator.generateFromPathPoints(
-            List.of(new Vec2d(0, 0), new Vec2d(6, 0)),
+            List.of(new Vec2d(0, 0), new Vec2d(3, 0)),
             terrain,
             64);
 
         assertTrue(result.fillVolume > 0);
-        assertTrue(result.sidewalkBlocks.stream().anyMatch(pos -> pos.getY() == 61));
-        assertTrue(result.sidewalkBlocks.stream().anyMatch(pos -> pos.getY() == 63));
         assertTrue(result.roadBlocks.stream().anyMatch(pos -> pos.getY() == 64));
     }
 

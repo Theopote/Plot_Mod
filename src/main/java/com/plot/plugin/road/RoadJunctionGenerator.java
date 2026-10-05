@@ -2,6 +2,8 @@ package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
+import com.plot.plugin.road.RoadRoadbedGradingUtils;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -210,8 +212,8 @@ public class RoadJunctionGenerator {
             blocks.getSolids(),
             planPoint,
             junctionY,
-            generator.getConfig().getTunnelThreshold(),
-            generator.getConfig().getBridgeThreshold(),
+            RoadConstructionHeuristics.tunnelThreshold(generator.getConfig()),
+            RoadConstructionHeuristics.bridgeThreshold(generator.getConfig()),
             fillMaterialId,
             column.getX(),
             column.getZ(),

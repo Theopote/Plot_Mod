@@ -2,6 +2,8 @@ package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics.TerrainAdaptationPreset;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -138,8 +140,7 @@ class RoadGeneratorTerrainTest {
         config.setRoadWidth(5);
         config.setIncludeSidewalk(false);
         config.setIncludeShoulder(true);
-        config.setBridgeThreshold(2);
-        config.setMinimumConsiderationHeight(0.0);
+        config.setTerrainAdaptation(TerrainAdaptationPreset.FLATTEN);
         RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         TerrainSampler valley = new TerrainSampler() {
             @Override
@@ -177,11 +178,7 @@ class RoadGeneratorTerrainTest {
         config.setRoadWidth(3);
         config.setIncludeSidewalk(false);
         config.setIncludeShoulder(false);
-        config.setBridgeThreshold(3);
-        config.setMinimumConsiderationHeight(0.0);
-        config.setMinimumConstructionRunLength(1.0);
-        config.setBridgeBaseCost(0.0);
-        config.setBridgeCostPerLength(0.0);
+        config.setTerrainAdaptation(TerrainAdaptationPreset.FLATTEN);
         RoadGenerator generator = new RoadGenerator(
             config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
 
@@ -204,8 +201,7 @@ class RoadGeneratorTerrainTest {
         config.setRoadWidth(3);
         config.setIncludeSidewalk(false);
         config.setIncludeShoulder(false);
-        config.setBridgeThreshold(3);
-        config.setMinimumConstructionRunLength(1.0);
+        config.setTerrainAdaptation(TerrainAdaptationPreset.BALANCED);
         TerrainSampler water = new TerrainSampler() {
             @Override public int sampleSurfaceY(Vec2d point) { return 50; }
             @Override public int sampleColumnTopY(Vec2d point) { return 63; }

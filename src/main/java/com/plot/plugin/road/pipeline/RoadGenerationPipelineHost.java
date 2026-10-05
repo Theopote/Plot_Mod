@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.core.geometry.WorldProjectionMath;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadMaterialUtils;
@@ -79,7 +80,7 @@ public final class RoadGenerationPipelineHost implements RoadGenerationPipelineC
 
     @Override
     public int bridgeThreshold() {
-        return config.getBridgeThreshold();
+        return RoadConstructionHeuristics.bridgeThreshold(config);
     }
 
     @Override

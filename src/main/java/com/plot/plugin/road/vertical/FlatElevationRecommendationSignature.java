@@ -2,6 +2,7 @@ package com.plot.plugin.road.vertical;
 
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -78,16 +79,17 @@ public final class FlatElevationRecommendationSignature {
 
     private static int costConfigSignature(RoadSystemConfig config) {
         int hash = 1;
-        hash = 31 * hash + Double.hashCode(config.getFillCostPerVolume());
-        hash = 31 * hash + Double.hashCode(config.getBridgeBaseCost());
-        hash = 31 * hash + Double.hashCode(config.getBridgeCostPerLength());
-        hash = 31 * hash + Double.hashCode(config.getCutCostPerVolume());
-        hash = 31 * hash + Double.hashCode(config.getTunnelBaseCost());
-        hash = 31 * hash + Double.hashCode(config.getTunnelCostPerLength());
-        hash = 31 * hash + Double.hashCode(config.getMinimumConsiderationHeight());
-        hash = 31 * hash + config.getBridgeThreshold();
-        hash = 31 * hash + config.getTunnelThreshold();
-        hash = 31 * hash + Double.hashCode(config.getMinimumConstructionRunLength());
+        hash = 31 * hash + Double.hashCode(RoadConstructionHeuristics.FILL_WEIGHT);
+        hash = 31 * hash + Double.hashCode(RoadConstructionHeuristics.BRIDGE_PREFERENCE);
+        hash = 31 * hash + Double.hashCode(RoadConstructionHeuristics.BRIDGE_PREFERENCE_PER_LENGTH);
+        hash = 31 * hash + Double.hashCode(RoadConstructionHeuristics.CUT_WEIGHT);
+        hash = 31 * hash + Double.hashCode(RoadConstructionHeuristics.TUNNEL_PREFERENCE);
+        hash = 31 * hash + Double.hashCode(RoadConstructionHeuristics.TUNNEL_PREFERENCE_PER_LENGTH);
+        hash = 31 * hash + Double.hashCode(RoadConstructionHeuristics.MIN_CONSIDERATION_HEIGHT);
+        hash = 31 * hash + RoadConstructionHeuristics.bridgeThreshold(config);
+        hash = 31 * hash + RoadConstructionHeuristics.tunnelThreshold(config);
+        hash = 31 * hash + Double.hashCode(RoadConstructionHeuristics.MIN_STRUCTURE_RUN);
+        hash = 31 * hash + Objects.hashCode(config.getTerrainAdaptation());
         hash = 31 * hash + Double.hashCode(config.getPathSampleDistance());
         return hash;
     }

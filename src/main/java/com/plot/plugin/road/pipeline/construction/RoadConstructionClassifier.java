@@ -2,6 +2,7 @@ package com.plot.plugin.road.pipeline.construction;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.RoadConstructionEvaluator;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
@@ -46,7 +47,7 @@ public final class RoadConstructionClassifier {
             groundHeights,
             targetHeights,
             costConfig,
-            config.getMinimumConstructionRunLength());
+            RoadConstructionHeuristics.MIN_STRUCTURE_RUN);
 
         List<BridgeSegment> bridges = new ArrayList<>();
         List<TunnelSegment> tunnels = new ArrayList<>();

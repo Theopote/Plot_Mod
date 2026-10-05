@@ -452,7 +452,6 @@ public final class RoadCrossSectionPreviewRenderer {
         public final boolean drawOverlayLabels;
         public final boolean drawSlopeLabels;
         public final boolean compactSlopes;
-        public final boolean drawDrainage;
         public final boolean drawCutSlope;
         public final float deckYRatio;
         public final float deckHRatio;
@@ -463,7 +462,6 @@ public final class RoadCrossSectionPreviewRenderer {
                 boolean drawOverlayLabels,
                 boolean drawSlopeLabels,
                 boolean compactSlopes,
-                boolean drawDrainage,
                 boolean drawCutSlope,
                 float deckYRatio,
                 float deckHRatio,
@@ -472,7 +470,6 @@ public final class RoadCrossSectionPreviewRenderer {
             this.drawOverlayLabels = drawOverlayLabels;
             this.drawSlopeLabels = drawSlopeLabels;
             this.compactSlopes = compactSlopes;
-            this.drawDrainage = drawDrainage;
             this.drawCutSlope = drawCutSlope;
             this.deckYRatio = deckYRatio;
             this.deckHRatio = deckHRatio;
@@ -480,12 +477,12 @@ public final class RoadCrossSectionPreviewRenderer {
         }
 
         public static MiniRenderOptions standard() {
-            return new MiniRenderOptions(8f, true, true, false, true, true, 0.28f, 0.22f, 0.72f);
+            return new MiniRenderOptions(8f, true, true, false, true, 0.28f, 0.22f, 0.72f);
         }
 
-        /** 预设卡片：画排水沟与短挖方三角，边坡外扩压到卡片内。 */
+        /** 预设卡片：短挖方三角，边坡外扩压到卡片内。 */
         public static MiniRenderOptions presetCard() {
-            return new MiniRenderOptions(2f, false, false, true, true, true, 0.06f, 0.42f, 0.72f);
+            return new MiniRenderOptions(2f, false, false, true, true, 0.06f, 0.42f, 0.72f);
         }
     }
 
@@ -497,7 +494,6 @@ public final class RoadCrossSectionPreviewRenderer {
         public final float rightSidewalkBlocks;
         public final float leftBikeBlocks;
         public final float rightBikeBlocks;
-        public final float drainageBlocks;
         public final boolean includeShoulder;
         public final float shoulderBlocks;
         public final float fillSlopeRatio;
@@ -523,7 +519,6 @@ public final class RoadCrossSectionPreviewRenderer {
                 float rightSidewalkBlocks,
                 float leftBikeBlocks,
                 float rightBikeBlocks,
-                float drainageBlocks,
                 boolean includeShoulder,
                 float shoulderBlocks,
                 float fillSlopeRatio,
@@ -547,7 +542,6 @@ public final class RoadCrossSectionPreviewRenderer {
             this.rightSidewalkBlocks = rightSidewalkBlocks;
             this.leftBikeBlocks = leftBikeBlocks;
             this.rightBikeBlocks = rightBikeBlocks;
-            this.drainageBlocks = drainageBlocks;
             this.includeShoulder = includeShoulder;
             this.shoulderBlocks = shoulderBlocks;
             this.fillSlopeRatio = fillSlopeRatio;
@@ -574,7 +568,6 @@ public final class RoadCrossSectionPreviewRenderer {
                 float rightSidewalkBlocks,
                 float leftBikeBlocks,
                 float rightBikeBlocks,
-                float drainageBlocks,
                 boolean includeShoulder,
                 float shoulderBlocks,
                 float fillSlopeRatio,
@@ -592,7 +585,6 @@ public final class RoadCrossSectionPreviewRenderer {
                 rightSidewalkBlocks,
                 leftBikeBlocks,
                 rightBikeBlocks,
-                drainageBlocks,
                 includeShoulder,
                 shoulderBlocks,
                 fillSlopeRatio,
@@ -623,7 +615,6 @@ public final class RoadCrossSectionPreviewRenderer {
                 shoulder, shoulder,
                 sidewalk, sidewalk,
                 bike, bike,
-                0f,
                 section.includeShoulder,
                 shoulder,
                 section.includeSlopeBatter ? section.fillSlopeRatio : 0f,

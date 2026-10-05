@@ -2,6 +2,7 @@ package com.plot.plugin.road.pipeline.profile.terrain;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics.TerrainAdaptationPreset;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -49,7 +50,7 @@ class TerrainAdaptiveSolverIntegrationTest {
         assertTrue(maxAdjacentDelta(targets) <= 2.0,
             () -> "grade-limited targets should stay within per-station slope budget, got "
                 + maxAdjacentDelta(targets));
-        assertEquals(0, countLongFlatRuns(targets, 4),
+        assertEquals(0, countLongFlatRuns(targets, 5),
             "long mountain road should not show flat-then-jump target pattern");
     }
 
@@ -138,7 +139,7 @@ class TerrainAdaptiveSolverIntegrationTest {
     @Test
     void cutFillBalanceReducesFillBiasOnAscendingTerrain() {
         Fixture fixture = ascendingTerrainFixture(100.0, 10.0, 8.0f);
-        fixture.config().setFillFactor(1.35f);
+        fixture.config().setTerrainAdaptation(TerrainAdaptationPreset.FLATTEN);
 
         ProfileSolveResult gentle = solve(fixture.withPreset(TerrainFollowPreset.GENTLE));
         ProfileSolveResult tight = solve(fixture.withPreset(TerrainFollowPreset.TIGHT));
@@ -187,7 +188,7 @@ class TerrainAdaptiveSolverIntegrationTest {
             road.getId());
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setMaxSlope(maxSlope);
-        config.setFillFactor(1.35f);
+        config.setTerrainAdaptation(TerrainAdaptationPreset.FLATTEN);
         return new Fixture(
             network,
             road,

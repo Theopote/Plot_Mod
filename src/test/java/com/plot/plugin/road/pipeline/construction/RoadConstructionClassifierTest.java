@@ -2,6 +2,7 @@ package com.plot.plugin.road.pipeline.construction;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics.TerrainAdaptationPreset;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
@@ -20,9 +21,7 @@ class RoadConstructionClassifierTest {
     @Test
     void classifyMarksBridgeWhenTargetIsHighAboveGround() {
         RoadSystemConfig config = new RoadSystemConfig("test");
-        config.setBridgeThreshold(2);
-        config.setTunnelThreshold(2);
-        config.setMinimumConstructionRunLength(1.0);
+        config.setTerrainAdaptation(TerrainAdaptationPreset.FLATTEN);
 
         PathSegment segment = new PathSegment(new Vec2d(0, 0), new Vec2d(10, 0));
         SegmentHeightInfo heightInfo = new SegmentHeightInfo(segment, 64, 64, 70, 70, 0.0);

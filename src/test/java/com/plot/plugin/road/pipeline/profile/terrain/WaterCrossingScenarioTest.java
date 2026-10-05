@@ -2,6 +2,7 @@ package com.plot.plugin.road.pipeline.profile.terrain;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -106,8 +107,8 @@ class WaterCrossingScenarioTest {
             fixture.preset(),
             manualStart,
             manualEnd,
-            fixture.config().getFillFactor(),
-            fixture.config().getWaterRoadClearanceBlocks());
+            RoadConstructionHeuristics.cutToFillBalanceRatio(fixture.config()),
+            com.plot.plugin.road.pipeline.profile.environment.WaterCrossingSettings.defaults().waterRoadClearanceBlocks());
     }
 
     private enum ScenarioId {
@@ -204,7 +205,8 @@ class WaterCrossingScenarioTest {
                 road.getId());
             RoadSystemConfig config = new RoadSystemConfig("test");
             config.setMaxSlope(maxSlope);
-            config.setFillFactor(1.35f);
+            config.setTerrainAdaptation(
+                com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics.TerrainAdaptationPreset.FLATTEN);
             return new ScenarioFixture(
                 network,
                 road,

@@ -18,15 +18,6 @@ public record WaterCrossingSettings(
     }
 
     public static WaterCrossingSettings fromConfig(com.plot.plugin.config.RoadSystemConfig config) {
-        if (config == null) {
-            return defaults();
-        }
-        return new WaterCrossingSettings(
-            config.getWaterRoadClearanceBlocks(),
-            config.getCausewayMaxLengthMeters(),
-            config.getCausewayMaxDepthBlocks(),
-            config.getBridgePreferredMinLengthMeters(),
-            config.getLongBridgeLengthMeters(),
-            config.isAllowUnderwaterRoad());
+        return defaults();
     }
 }

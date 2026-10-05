@@ -28,7 +28,10 @@ public final class RoadValidationMessageCatalog {
         if (template != null) {
             return template.toMessage(item.level(), item.args());
         }
-        return RoadValidationMessage.of(item.level(), fallbackIssueId(item.messageKey()), item.args());
+        return RoadValidationMessage.of(
+            item.level(),
+            productIssueId(fallbackIssueId(item.messageKey())),
+            item.args());
     }
 
     public static RoadValidationMessage fromTopologyKind(RoadTopologyViolationKind kind) {
@@ -54,14 +57,10 @@ public final class RoadValidationMessageCatalog {
 
     public static RoadValidationMessage fromVerticalKind(VerticalAlignmentViolationKind kind) {
         return switch (kind) {
-            case PVI_STATION_DUPLICATE -> RoadValidationMessage.of(
-                RoadNetworkValidationReport.Level.WARNING, "vertical_pvi_duplicate");
-            case PVI_STATION_NOT_INCREASING -> RoadValidationMessage.of(
-                RoadNetworkValidationReport.Level.WARNING, "vertical_pvi_order");
-            case VERTICAL_CURVE_OVERLAP -> RoadValidationMessage.of(
-                RoadNetworkValidationReport.Level.WARNING, "vertical_curve_overlap");
-            case VERTICAL_CURVE_OUT_OF_RANGE -> RoadValidationMessage.of(
-                RoadNetworkValidationReport.Level.WARNING, "vertical_curve_out_of_range");
+            case PVI_STATION_DUPLICATE, PVI_STATION_NOT_INCREASING, VERTICAL_CURVE_OVERLAP,
+                 VERTICAL_CURVE_OUT_OF_RANGE ->
+                RoadValidationMessage.of(
+                    RoadNetworkValidationReport.Level.WARNING, "vertical_profile_conflict");
         };
     }
 
@@ -149,11 +148,11 @@ public final class RoadValidationMessageCatalog {
         map.put("plugin.road.validation.vertical_alignment_length_ok",
             IssueTemplate.ok("vertical_length_ok"));
         map.put("plugin.road.validation.vertical_alignment_length_mismatch",
-            IssueTemplate.warning("vertical_length_mismatch"));
+            IssueTemplate.warning("geometry_needs_recalc"));
         map.put("plugin.road.validation.vertical_alignment_grade_ok",
             IssueTemplate.ok("vertical_grade_ok"));
         map.put("plugin.road.validation.vertical_alignment_grade_exceeds",
-            IssueTemplate.warning("vertical_grade_exceeds", RoadValidationAction.SMOOTH_GRADE));
+            IssueTemplate.warning("local_grade_steep", RoadValidationAction.SMOOTH_GRADE));
         map.put("plugin.road.validation.vertical_alignment_elevation_change_not_visible",
             IssueTemplate.warning("vertical_elevation_change_not_visible"));
         map.put("plugin.road.validation.short_road_non_flat",
@@ -167,25 +166,25 @@ public final class RoadValidationMessageCatalog {
         map.put("plugin.road.validation.vertical_alignment_curve_ok",
             IssueTemplate.ok("vertical_curve_ok"));
         map.put("plugin.road.validation.vertical_alignment_curve_overlap",
-            IssueTemplate.warning("vertical_curve_overlap"));
+            IssueTemplate.warning("vertical_profile_conflict"));
         map.put("plugin.road.validation.vertical_alignment_curve_range_ok",
             IssueTemplate.ok("vertical_curve_range_ok"));
         map.put("plugin.road.validation.vertical_alignment_curve_out_of_range",
-            IssueTemplate.warning("vertical_curve_out_of_range"));
+            IssueTemplate.warning("vertical_profile_conflict"));
         map.put("plugin.road.validation.vertical_alignment_station_order_ok",
             IssueTemplate.ok("vertical_pvi_order_ok"));
         map.put("plugin.road.validation.vertical_alignment_station_order_invalid",
-            IssueTemplate.warning("vertical_pvi_order_invalid"));
+            IssueTemplate.warning("vertical_profile_conflict"));
         map.put("plugin.road.validation.horizontal_alignment_length_ok",
             IssueTemplate.ok("horizontal_length_ok"));
         map.put("plugin.road.validation.horizontal_alignment_length_mismatch",
-            IssueTemplate.warning("horizontal_length_mismatch"));
+            IssueTemplate.warning("geometry_needs_recalc"));
         map.put("plugin.road.validation.horizontal_alignment_centerline_ok",
             IssueTemplate.ok("horizontal_centerline_ok"));
         map.put("plugin.road.validation.horizontal_alignment_centerline_deviation",
             IssueTemplate.warning("horizontal_centerline_deviation", RoadValidationAction.MATERIALIZE_ALIGNMENT));
         map.put("plugin.road.validation.horizontal_alignment_centerline_unresolved",
-            IssueTemplate.error("horizontal_centerline_unresolved", RoadValidationAction.MATERIALIZE_ALIGNMENT));
+            IssueTemplate.error("geometry_needs_recalc", RoadValidationAction.MATERIALIZE_ALIGNMENT));
         map.put("plugin.road.validation.horizontal_alignment_junction_ok",
             IssueTemplate.ok("horizontal_junction_ok"));
         map.put("plugin.road.validation.horizontal_alignment_junction_conflict",
@@ -193,8 +192,23 @@ public final class RoadValidationMessageCatalog {
         map.put("plugin.road.validation.horizontal_alignment_topology_ok",
             IssueTemplate.ok("horizontal_topology_ok"));
         map.put("plugin.road.validation.horizontal_alignment_topology_mismatch",
-            IssueTemplate.warning("alignment_topology_mismatch"));
+            IssueTemplate.warning("geometry_needs_recalc"));
         return Map.copyOf(map);
+    }
+
+    static String productIssueId(String issueId) {
+        if (issueId == null || issueId.isBlank()) {
+            return issueId;
+        }
+        return switch (issueId) {
+            case "vertical_pvi_duplicate", "vertical_pvi_order", "vertical_curve_overlap",
+                 "vertical_curve_out_of_range", "vertical_pvi_order_invalid", "vertical_length_mismatch" ->
+                "vertical_profile_conflict";
+            case "alignment_topology_mismatch", "horizontal_centerline_unresolved",
+                 "horizontal_length_mismatch" ->
+                "geometry_needs_recalc";
+            default -> issueId;
+        };
     }
 
     private static String fallbackIssueId(String messageKey) {
@@ -231,10 +245,11 @@ public final class RoadValidationMessageCatalog {
 
         RoadValidationMessage toMessage(RoadNetworkValidationReport.Level itemLevel, Object[] args) {
             RoadNetworkValidationReport.Level severity = itemLevel != null ? itemLevel : level;
+            String productId = productIssueId(issueId);
             if (action != null) {
-                return RoadValidationMessage.of(severity, issueId, action, args);
+                return RoadValidationMessage.of(severity, productId, action, args);
             }
-            return RoadValidationMessage.of(severity, issueId, args);
+            return RoadValidationMessage.of(severity, productId, args);
         }
     }
 }

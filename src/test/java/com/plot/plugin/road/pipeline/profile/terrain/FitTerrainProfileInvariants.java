@@ -1,6 +1,5 @@
 package com.plot.plugin.road.pipeline.profile.terrain;
 
-import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.road.pipeline.profile.ProfileSolveResult;
 import java.util.ArrayList;
 import java.util.List;
@@ -84,12 +83,12 @@ final class FitTerrainProfileInvariants {
     static long cutFillImbalance(
             List<Integer> ground,
             List<Double> design,
-            float fillFactor) {
+            float cutToFillBalanceRatio) {
         return ProfileCutFillBalancer.computeBalanceDiff(
             ground,
             design,
             0,
-            MaterialConversionModel.fromLegacyFillFactor(fillFactor));
+            cutToFillBalanceRatio);
     }
 
     static List<Double> segmentDistancesFromCumulative(List<Double> cumulativeDistances) {

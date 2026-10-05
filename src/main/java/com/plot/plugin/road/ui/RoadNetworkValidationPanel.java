@@ -10,8 +10,9 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 /**
  * Generate Tab：预览与落地之间的路网工程检查摘要。
@@ -25,7 +26,7 @@ public final class RoadNetworkValidationPanel {
         RoadNetwork liveNetwork = ctx.networkManager().getNetwork();
         RoadNetwork profileNetwork = ctx.previewManager().getLastProfileNetwork();
         RoadNetwork validationNetwork = profileNetwork != null ? profileNetwork : liveNetwork;
-        Map<String, RoadGenerationResult> edgeResults = ctx.previewManager().getLastEdgeResults();
+        java.util.Map<String, RoadGenerationResult> edgeResults = ctx.previewManager().getLastEdgeResults();
         return RoadNetworkEngineeringValidator.analyze(
             validationNetwork,
             edgeResults,
@@ -37,14 +38,30 @@ public final class RoadNetworkValidationPanel {
             return;
         }
 
+        List<RoadNetworkValidationReport.Item> issues = report.nonOkItems();
+        if (issues.isEmpty() && !report.blocksBuild()) {
+            ImGui.textColored(PluginUiColors.LEGEND, PlotI18n.tr("plugin.road.validation_ready"));
+            ImGui.spacing();
+            return;
+        }
+        if (issues.isEmpty()) {
+            return;
+        }
+
         ImGui.text(PlotI18n.tr("plugin.road.validation_section"));
+        Set<String> renderedIssueIds = new LinkedHashSet<>();
         int index = 0;
-        for (RoadNetworkValidationReport.Item item : report.items()) {
+        for (RoadNetworkValidationReport.Item item : issues) {
             RoadValidationMessage message = RoadValidationMessageCatalog.fromReportItem(item);
-            if (message != null) {
-                RoadValidationMessageUi.render(
-                    message, ctx, ctx.networkManager().getNetwork(), null, "##val_gen_" + index++);
+            if (message == null) {
+                continue;
             }
+            String issueId = message.issueId();
+            if (issueId != null && !renderedIssueIds.add(issueId)) {
+                continue;
+            }
+            RoadValidationMessageUi.render(
+                message, ctx, ctx.networkManager().getNetwork(), null, "##val_gen_" + index++);
         }
         if (report.blocksBuild()) {
             ImGui.textColored(
@@ -63,11 +80,17 @@ public final class RoadNetworkValidationPanel {
             return;
         }
         ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.road.build_confirm_validation_header"));
+        Set<String> renderedIssueIds = new LinkedHashSet<>();
         for (RoadNetworkValidationReport.Item item : warnings) {
             RoadValidationMessage message = RoadValidationMessageCatalog.fromReportItem(item);
-            if (message != null) {
-                RoadValidationMessageUi.render(message);
+            if (message == null) {
+                continue;
             }
+            String issueId = message.issueId();
+            if (issueId != null && !renderedIssueIds.add(issueId)) {
+                continue;
+            }
+            RoadValidationMessageUi.render(message);
         }
         ImGui.spacing();
     }

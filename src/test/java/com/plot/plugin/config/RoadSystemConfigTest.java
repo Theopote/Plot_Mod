@@ -1,6 +1,7 @@
 package com.plot.plugin.config;
 
 import com.google.gson.Gson;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics.TerrainAdaptationPreset;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -49,9 +50,7 @@ class RoadSystemConfigTest {
         config.setGenerateBridgePillars(false);
         config.setIncludeBridgeGuardrail(true);
         config.setBridgeGuardrailMaterial("minecraft:dark_oak_fence");
-        config.setTunnelClearanceHeight(7);
-        config.setTunnelSideClearance(2);
-        config.setTunnelLiningThickness(2);
+        config.setTerrainAdaptation(TerrainAdaptationPreset.FOLLOW);
         config.setTunnelLiningMaterial("minecraft:deepslate_bricks");
         config.setTunnelAccentMaterial("minecraft:polished_andesite");
         config.setTunnelAccentSpacing(6);
@@ -68,25 +67,18 @@ class RoadSystemConfigTest {
         assertFalse(loaded.isGenerateBridgePillars());
         assertTrue(loaded.isIncludeBridgeGuardrail());
         assertEquals("minecraft:dark_oak_fence", loaded.getBridgeGuardrailMaterial());
-        assertEquals(7, loaded.getTunnelClearanceHeight());
-        assertEquals(2, loaded.getTunnelSideClearance());
-        assertEquals(2, loaded.getTunnelLiningThickness());
+        assertEquals(TerrainAdaptationPreset.FOLLOW, loaded.getTerrainAdaptation());
         assertEquals("minecraft:deepslate_bricks", loaded.getTunnelLiningMaterial());
         assertEquals("minecraft:polished_andesite", loaded.getTunnelAccentMaterial());
         assertEquals(6, loaded.getTunnelAccentSpacing());
     }
 
     @Test
-    void tunnelGeometrySettingsClampAndNullMaterialsRemainSafe() {
+    void tunnelAccentSettingsClampAndNullMaterialsRemainSafe() {
         RoadSystemConfig config = new Gson().fromJson(
-            "{\"tunnelClearanceHeight\":99,\"tunnelSideClearance\":-2,"
-                + "\"tunnelLiningThickness\":0,\"tunnelLiningMaterial\":null,"
-                + "\"tunnelAccentMaterial\":null,\"tunnelAccentSpacing\":99}",
+            "{\"tunnelLiningMaterial\":null,\"tunnelAccentMaterial\":null,\"tunnelAccentSpacing\":99}",
             RoadSystemConfig.class);
 
-        assertEquals(12, config.getTunnelClearanceHeight());
-        assertEquals(0, config.getTunnelSideClearance());
-        assertEquals(1, config.getTunnelLiningThickness());
         assertEquals("minecraft:stone_bricks", config.getTunnelLiningMaterial());
         assertEquals("", config.getTunnelAccentMaterial());
         assertEquals(32, config.getTunnelAccentSpacing());

@@ -77,7 +77,6 @@ public final class RoadGeneratePanel {
 
         RoadUiSections.section("plugin.road.section.generation_settings");
         RoadGenerationSettingsPanel.renderPrimary(ctx);
-        RoadGenerationSettingsPanel.renderAdvanced(ctx);
         ImGui.separator();
 
         renderPreviewActions(network, preflight, buildReadiness);
@@ -388,8 +387,6 @@ public final class RoadGeneratePanel {
         if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.build.preview_details"))) {
             return;
         }
-        ImGui.text(PlotI18n.tr("plugin.road.cut_volume_result", lastGenerationResult.cutVolume));
-        ImGui.text(PlotI18n.tr("plugin.road.fill_volume_result", lastGenerationResult.fillVolume));
         ImGui.text(PlotI18n.tr("plugin.road.construction_length_result",
             lastGenerationResult.normalRoadLength,
             lastGenerationResult.bridgeLength,
@@ -431,12 +428,12 @@ public final class RoadGeneratePanel {
         ImGui.text(String.format(PlotI18n.tr("plugin.road.build_confirm"), blockCount));
 
             if (lastGenerationResult != null) {
+                int totalBlocks = lastGenerationResult.placementRecords.size();
                 RoadUiWidgets.textWrappedColored(
                     PluginUiColors.HINT_GRAY,
                     PlotI18n.tr(
-                        "plugin.road.build_confirm_volumes",
-                        lastGenerationResult.cutVolume,
-                        lastGenerationResult.fillVolume,
+                        "plugin.road.build_confirm_summary",
+                        totalBlocks,
                         lastGenerationResult.bridgeCount,
                         lastGenerationResult.tunnelCount));
             }

@@ -1,6 +1,6 @@
 package com.plot.plugin.road;
 
-import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -15,7 +15,7 @@ public final class RoadConstructionEvaluator {
     }
 
     /**
-     * 施工成本配置（字段存于 {@link RoadSystemConfig}，此处为评估用值对象）。
+     * 施工复杂度权重（内部启发式，非工程成本模型）。
      */
     public record RoadConstructionCostConfig(
             double fillCostPerVolume,
@@ -28,18 +28,8 @@ public final class RoadConstructionEvaluator {
             int bridgeThreshold,
             int tunnelThreshold) {
 
-        public static RoadConstructionCostConfig from(RoadSystemConfig config) {
-            return new RoadConstructionCostConfig(
-                config.getFillCostPerVolume(),
-                config.getBridgeBaseCost(),
-                config.getBridgeCostPerLength(),
-                config.getCutCostPerVolume(),
-                config.getTunnelBaseCost(),
-                config.getTunnelCostPerLength(),
-                config.getMinimumConsiderationHeight(),
-                config.getBridgeThreshold(),
-                config.getTunnelThreshold()
-            );
+        public static RoadConstructionCostConfig from(com.plot.plugin.config.RoadSystemConfig config) {
+            return RoadConstructionHeuristics.constructionConfig(config);
         }
     }
 

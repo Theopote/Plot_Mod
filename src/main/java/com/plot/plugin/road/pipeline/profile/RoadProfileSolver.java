@@ -1,6 +1,7 @@
 package com.plot.plugin.road.pipeline.profile;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.RoadGuideLineUtils;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.Road;
@@ -225,7 +226,7 @@ public final class RoadProfileSolver {
             guideLine = RoadGuideLineUtils.computeGuideLine(
                 sampleData.groundSamples(),
                 worldCumulativeDistances,
-                support.fillFactor(),
+                support.cutToFillBalanceRatio(),
                 manualStartHeight,
                 manualEndHeight);
         }
@@ -261,7 +262,7 @@ public final class RoadProfileSolver {
                     manualStartHeight,
                     manualEndHeight,
                     effectiveTerrainPreset,
-                    support.fillFactor(),
+                    support.cutToFillBalanceRatio(),
                     elevationBounds);
             designElevations = terrainSolve.designElevations();
             manualEndpointConstraintFeasible = terrainSolve.manualEndpointsFeasible();
@@ -334,7 +335,7 @@ public final class RoadProfileSolver {
         double canvasUnitsPerBlock = support.canvasUnitsPerBlock(segments);
         double pathSampleDistance = config != null ? config.getPathSampleDistance() : 1.0;
         double environmentSpacing = config != null
-            ? config.getEnvironmentSampleSpacingMeters()
+            ? RoadConstructionHeuristics.ENVIRONMENT_SAMPLE_SPACING_METERS
             : 2.0;
         return ProfileEnvironmentSampler.collectDense(
             segments,

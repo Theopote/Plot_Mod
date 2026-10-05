@@ -2,6 +2,7 @@ package com.plot.plugin.road.pipeline.profile.terrain;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics.TerrainAdaptationPreset;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -287,7 +288,7 @@ class FitTerrainSolverInvariantTest {
                 road.getId());
             RoadSystemConfig config = new RoadSystemConfig("test");
             config.setMaxSlope(maxSlope);
-            config.setFillFactor(1.35f);
+            config.setTerrainAdaptation(TerrainAdaptationPreset.FLATTEN);
             return new ScenarioFixture(
                 network,
                 road,

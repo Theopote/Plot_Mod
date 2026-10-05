@@ -10,6 +10,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.pipeline.construction.ConstructionDetection;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.station.RoadStationing;
@@ -217,7 +218,7 @@ class FlatElevationScoringTest {
             samples.stream().map(FlatElevationOptimizer.TerrainSegmentSample::groundY).toList(),
             samples.stream().map(sample -> candidateY).toList(),
             costConfig,
-            CONFIG.getMinimumConstructionRunLength());
+            RoadConstructionHeuristics.MIN_STRUCTURE_RUN);
         int cutVolume = 0;
         int fillVolume = 0;
         double bridgeLength = 0.0;

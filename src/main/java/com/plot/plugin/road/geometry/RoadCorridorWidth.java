@@ -1,6 +1,7 @@
 package com.plot.plugin.road.geometry;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 
@@ -77,7 +78,10 @@ public final class RoadCorridorWidth {
     }
 
     static int slopeBatterMarginBlocks(ResolvedCrossSection section, RoadSystemConfig config) {
-        int maxCutHeight = config != null ? Math.max(1, config.getTunnelThreshold()) : 4;
+        int maxCutHeight = config != null
+            ? Math.max(1, RoadConstructionHeuristics.tunnelThreshold(config))
+            : RoadConstructionHeuristics.tunnelThreshold(
+                RoadConstructionHeuristics.TerrainAdaptationPreset.BALANCED);
         float ratio = section != null && section.cutSlopeRatio > 0f
             ? section.cutSlopeRatio
             : 1.0f;

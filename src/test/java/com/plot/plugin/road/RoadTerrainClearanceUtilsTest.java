@@ -2,6 +2,8 @@ package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics.TerrainAdaptationPreset;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
@@ -82,8 +84,7 @@ class RoadTerrainClearanceUtilsTest {
     void generatorClearsOverheadWhenRoadPassesThroughTerrain() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setRoadWidth(3);
-        config.setTunnelThreshold(8);
-        config.setTunnelClearanceHeight(8);
+        config.setTerrainAdaptation(TerrainAdaptationPreset.FOLLOW);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
 
@@ -96,21 +97,21 @@ class RoadTerrainClearanceUtilsTest {
 
         assertTrue(result.tunnelBlocks.size() > 0);
         assertTrue(result.tunnelBlocks.stream().anyMatch(pos -> pos.getY() == 65));
-        assertTrue(result.tunnelBlocks.stream().anyMatch(pos -> pos.getY() == 72));
-        assertTrue(result.tunnelBlocks.stream().anyMatch(pos -> pos.getY() == 73),
+        assertTrue(result.tunnelBlocks.stream().anyMatch(pos -> pos.getY() == 69));
+        assertTrue(result.tunnelBlocks.stream().anyMatch(pos -> pos.getY() == 70),
             "one-block lining should cap the tunnel clearance");
-        assertTrue(result.tunnelBlocks.stream().noneMatch(pos -> pos.getY() > 73));
+        assertTrue(result.tunnelBlocks.stream().noneMatch(pos -> pos.getY() > 70));
         assertTrue(result.placementRecords.values().stream().anyMatch(record ->
-            record.pos.getY() == 72 && record.newBlockId.equals("minecraft:air")));
+            record.pos.getY() == 69 && record.newBlockId.equals("minecraft:air")));
         assertTrue(result.placementRecords.values().stream().anyMatch(record ->
-            record.pos.getY() == 73 && record.newBlockId.equals("minecraft:stone_bricks")));
+            record.pos.getY() == 70 && record.newBlockId.equals("minecraft:stone_bricks")));
     }
 
     @Test
     void generatorKeepsTunnelClassificationWhenSolidTerrainStartsAtRoadLevel() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setRoadWidth(3);
-        config.setTunnelThreshold(8);
+        config.setTerrainAdaptation(TerrainAdaptationPreset.FOLLOW);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
 
@@ -140,7 +141,7 @@ class RoadTerrainClearanceUtilsTest {
     void generatorFullyExcavatesShallowOverburden() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setRoadWidth(3);
-        config.setTunnelThreshold(8);
+        config.setTerrainAdaptation(TerrainAdaptationPreset.FOLLOW);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
 

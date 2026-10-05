@@ -3,6 +3,7 @@ package com.plot.plugin.road.vertical;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.RoadConstructionEvaluator;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadDimensionUtils;
@@ -82,7 +83,7 @@ public final class FlatElevationOptimizer {
                 maxGrade,
                 intentTemplate,
                 costConfig,
-                config.getMinimumConstructionRunLength(),
+                RoadConstructionHeuristics.MIN_STRUCTURE_RUN,
                 roadLength);
             if (candidate.feasible()) {
                 ranked.add(candidate);
@@ -102,11 +103,11 @@ public final class FlatElevationOptimizer {
                 maxGrade,
                 intentTemplate,
                 costConfig,
-                config.getMinimumConstructionRunLength(),
+                RoadConstructionHeuristics.MIN_STRUCTURE_RUN,
                 RoadStationing.canonicalLength(network, road));
             FlatElevationCandidate best = fallback.feasible()
                 ? fallback
-                : medianFallbackCandidate(samples, median, costConfig, config.getMinimumConstructionRunLength());
+                : medianFallbackCandidate(samples, median, costConfig, RoadConstructionHeuristics.MIN_STRUCTURE_RUN);
             return new FlatElevationRecommendation(best, List.of(best), samples.size());
         }
 

@@ -3,6 +3,8 @@ package com.plot.plugin.road;
 import com.plot.api.geometry.Vec2d;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics.TerrainAdaptationPreset;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -71,10 +73,8 @@ class LongBridgeMultiSegmentIntegrationTest {
         config.setRoadWidth(5);
         config.setIncludeSidewalk(false);
         config.setIncludeShoulder(false);
-        config.setBridgeThreshold(3);
-        config.setMinimumConstructionRunLength(2.0);
+        config.setTerrainAdaptation(TerrainAdaptationPreset.BALANCED);
         config.setPathSampleDistance(2.0);
-        config.setLongBridgeLengthMeters(60.0);
         return config;
     }
 

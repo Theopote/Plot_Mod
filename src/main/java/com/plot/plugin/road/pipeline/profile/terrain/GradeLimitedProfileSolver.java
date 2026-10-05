@@ -1,6 +1,5 @@
 package com.plot.plugin.road.pipeline.profile.terrain;
 
-import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.road.pipeline.profile.RoadHeightRasterizer;
 import com.plot.plugin.road.pipeline.profile.environment.VerticalStationConstraints;
 import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
@@ -90,7 +89,7 @@ public final class GradeLimitedProfileSolver {
             Integer manualStartHeight,
             Integer manualEndHeight,
             TerrainFollowPreset preset,
-            float fillFactor) {
+            float cutToFillBalanceRatio) {
         return solveDesignProfile(
             trendElevations,
             groundSamples,
@@ -99,7 +98,7 @@ public final class GradeLimitedProfileSolver {
             manualStartHeight,
             manualEndHeight,
             preset,
-            fillFactor,
+            cutToFillBalanceRatio,
             null);
     }
 
@@ -111,7 +110,7 @@ public final class GradeLimitedProfileSolver {
             Integer manualStartHeight,
             Integer manualEndHeight,
             TerrainFollowPreset preset,
-            float fillFactor,
+            float cutToFillBalanceRatio,
             VerticalStationConstraints.StationElevationBounds elevationBounds) {
         double[] stations = solveStationElevations(
             trendElevations,
@@ -121,7 +120,7 @@ public final class GradeLimitedProfileSolver {
             manualStartHeight,
             manualEndHeight,
             preset,
-            fillFactor,
+            cutToFillBalanceRatio,
             elevationBounds);
         List<Double> designElevations = toDesignList(stations);
         int profileStart = manualStartHeight != null
@@ -289,7 +288,7 @@ public final class GradeLimitedProfileSolver {
             List<Double> segmentDistances,
             List<Float> maxSlopePercents,
             TerrainFollowPreset preset,
-            float fillFactor) {
+            float cutToFillBalanceRatio) {
         return solveStationElevations(
             trendElevations,
                 null,
@@ -298,7 +297,7 @@ public final class GradeLimitedProfileSolver {
                 null,
                 null,
             preset,
-            fillFactor,
+            cutToFillBalanceRatio,
             null);
     }
 
@@ -310,7 +309,7 @@ public final class GradeLimitedProfileSolver {
             Integer manualStartHeight,
             Integer manualEndHeight,
             TerrainFollowPreset preset,
-            float fillFactor,
+            float cutToFillBalanceRatio,
             VerticalStationConstraints.StationElevationBounds elevationBounds) {
         double[] minElevations = elevationMinArray(elevationBounds);
         double[] maxElevations = elevationMaxArray(elevationBounds);
@@ -365,7 +364,7 @@ public final class GradeLimitedProfileSolver {
             segmentDistances,
             maxSlopePercents,
             effectivePreset,
-            fillFactor,
+            cutToFillBalanceRatio,
             lockStart,
             lockEnd,
             startTarget,
@@ -474,7 +473,7 @@ public final class GradeLimitedProfileSolver {
             List<Double> segmentDistances,
             List<Float> maxSlopePercents,
             TerrainFollowPreset preset,
-            float fillFactor,
+            float cutToFillBalanceRatio,
             boolean lockStart,
             boolean lockEnd,
             double startLock,
@@ -492,9 +491,7 @@ public final class GradeLimitedProfileSolver {
                 beta /= total;
             }
         }
-        MaterialConversionModel materials = cutFillEnabled
-            ? MaterialConversionModel.fromLegacyFillFactor(fillFactor)
-            : null;
+        float balanceRatio = cutFillEnabled ? cutToFillBalanceRatio : 1.0f;
         int stationCount = current.length;
 
         for (int iteration = 0; iteration < preset.relaxationIterations(); iteration++) {
@@ -502,7 +499,7 @@ public final class GradeLimitedProfileSolver {
             long imbalance = 0L;
             if (applyCutFill) {
                 imbalance = ProfileCutFillBalancer.computeBalanceDiff(
-                    groundSamples, toDesignList(current), 0, materials);
+                    groundSamples, toDesignList(current), 0, balanceRatio);
                 applyCutFill = Math.abs(imbalance) >= MIN_IMBALANCE_TO_CORRECT;
             }
             double iterationBeta = applyCutFill ? beta : 0.0;

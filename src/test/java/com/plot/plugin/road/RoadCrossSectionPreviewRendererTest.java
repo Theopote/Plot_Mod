@@ -34,7 +34,6 @@ class RoadCrossSectionPreviewRendererTest {
         assertEquals(7f, layout.roadBlocks);
         assertEquals(1f, layout.leftShoulderBlocks);
         assertEquals(2f, layout.leftSidewalkBlocks);
-        assertEquals(0f, layout.drainageBlocks);
         assertEquals(13f, layout.totalWidthBlocks());
     }
 

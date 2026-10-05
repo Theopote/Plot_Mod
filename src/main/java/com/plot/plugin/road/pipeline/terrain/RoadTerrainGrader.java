@@ -11,6 +11,7 @@ import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.pipeline.construction.WaterCrossingConstructionResolver;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
@@ -104,8 +105,8 @@ public final class RoadTerrainGrader {
             List<WaterCrossing> profileWaterCrossings,
             GradingHost host) {
         RoadSystemConfig config = host.config();
-        int tunnelThreshold = config.getTunnelThreshold();
-        int bridgeThreshold = config.getBridgeThreshold();
+        int tunnelThreshold = RoadConstructionHeuristics.tunnelThreshold(config);
+        int bridgeThreshold = RoadConstructionHeuristics.bridgeThreshold(config);
 
         RoadRoadbedGradingUtils.GradingVolumes total = RoadRoadbedGradingUtils.GradingVolumes.ZERO;
         boolean chainForward = crossSections.samplingOriented().forward();
@@ -159,8 +160,9 @@ public final class RoadTerrainGrader {
                     }
                     total = total.add(RoadRoadbedGradingUtils.gradeTunnelCrossSection(
                         solids, center, leftNormal, envelopeWidth, targetY,
-                        config.getTunnelClearanceHeight(), config.getTunnelSideClearance(),
-                        config.getTunnelLiningThickness(), host.resolveBlockId(liningMaterial),
+                        RoadConstructionHeuristics.TUNNEL_CLEARANCE_HEIGHT,
+                        RoadConstructionHeuristics.TUNNEL_SIDE_CLEARANCE,
+                        RoadConstructionHeuristics.TUNNEL_LINING_THICKNESS, host.resolveBlockId(liningMaterial),
                         terrain, host.columnResolver(), unitsPerBlock));
                 } else {
                     total = total.add(RoadRoadbedGradingUtils.gradeCrossSectionEnvelope(

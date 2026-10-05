@@ -8,6 +8,8 @@ import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
 import com.plot.core.persistence.AtomicFileWriter;
 import com.plot.plugin.road.RoadMaterialUtils;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics.TerrainAdaptationPreset;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.section.CenterLineStyle;
@@ -42,25 +44,13 @@ public class RoadSystemConfig {
     
     // 新增参数
     private float maxSlope = 10.0f; // 最大坡度（百分比）
-    private int bridgeThreshold = 3; // 桥阈值（方块高度差）- 从5改为3，更容易触发桥梁
+    private TerrainAdaptationPreset terrainAdaptation = TerrainAdaptationPreset.BALANCED;
     private boolean generateBridgePillars = true;
     private boolean includeBridgeGuardrail = false;
     private String bridgeGuardrailMaterial = "minecraft:oak_fence";
-    private int tunnelThreshold = 4; // 隧道阈值（方块高度差）- 从8改为4，山体覆盖4格即形成隧道
-    private int tunnelClearanceHeight = 5;
-    private int tunnelSideClearance = 1;
-    private int tunnelLiningThickness = 1;
     private String tunnelLiningMaterial = "minecraft:stone_bricks";
     private String tunnelAccentMaterial = "";
     private int tunnelAccentSpacing = 0;
-    private double fillCostPerVolume = 1.0;
-    private double bridgeBaseCost = 15.0;
-    private double bridgeCostPerLength = 0.8;
-    private double cutCostPerVolume = 1.2;
-    private double tunnelBaseCost = 25.0;
-    private double tunnelCostPerLength = 1.5;
-    private double minimumConsiderationHeight = 2.0;
-    private double minimumConstructionRunLength = 3.0;
     private boolean includeShoulder = true; // 是否包含路肩 - 从false改为true，默认启用路肩和边坡填充
     private int shoulderWidth = 1; // 路肩宽度
     private int laneCount = 1;
@@ -86,15 +76,7 @@ public class RoadSystemConfig {
     private double relaxedSlopeLength = 5.0;
     private float relaxedSlopePercent = 1.0f;
     private float defaultCornerRadius = (float) RoadNode.DEFAULT_CORNER_RADIUS;
-    private float fillFactor = 1.1f;
     private double defaultCrossingClearance = 3.0;
-    private int waterRoadClearanceBlocks = 1;
-    private double causewayMaxLengthMeters = 6.0;
-    private int causewayMaxDepthBlocks = 2;
-    private double bridgePreferredMinLengthMeters = 6.0;
-    private double longBridgeLengthMeters = 60.0;
-    private boolean allowUnderwaterRoad = false;
-    private double environmentSampleSpacingMeters = 2.0;
 
     public RoadSystemConfig(String pluginId) {
         this.pluginId = pluginId;
@@ -284,14 +266,15 @@ public class RoadSystemConfig {
     public void setMaxSlope(float maxSlope) {
         this.maxSlope = RoadParameterLimits.clampGradePercent(maxSlope);
     }
-    
-    public int getBridgeThreshold() {
-        return bridgeThreshold;
+
+    public TerrainAdaptationPreset getTerrainAdaptation() {
+        return terrainAdaptation != null ? terrainAdaptation : TerrainAdaptationPreset.BALANCED;
     }
-    
-    public void setBridgeThreshold(int bridgeThreshold) {
-        this.bridgeThreshold = Math.clamp(bridgeThreshold,
-                RoadParameterLimits.MIN_BRIDGE_THRESHOLD, RoadParameterLimits.MAX_BRIDGE_THRESHOLD);
+
+    public void setTerrainAdaptation(TerrainAdaptationPreset terrainAdaptation) {
+        this.terrainAdaptation = terrainAdaptation != null
+            ? terrainAdaptation
+            : TerrainAdaptationPreset.BALANCED;
     }
 
     public boolean isGenerateBridgePillars() {
@@ -319,39 +302,6 @@ public class RoadSystemConfig {
     public void setBridgeGuardrailMaterial(String bridgeGuardrailMaterial) {
         this.bridgeGuardrailMaterial = bridgeGuardrailMaterial;
     }
-    
-    public int getTunnelThreshold() {
-        return tunnelThreshold;
-    }
-    
-    public void setTunnelThreshold(int tunnelThreshold) {
-        this.tunnelThreshold = Math.clamp(tunnelThreshold,
-                RoadParameterLimits.MIN_TUNNEL_THRESHOLD, RoadParameterLimits.MAX_TUNNEL_THRESHOLD);
-    }
-
-    public int getTunnelClearanceHeight() {
-        return Math.clamp(tunnelClearanceHeight, 3, 12);
-    }
-
-    public void setTunnelClearanceHeight(int tunnelClearanceHeight) {
-        this.tunnelClearanceHeight = Math.clamp(tunnelClearanceHeight, 3, 12);
-    }
-
-    public int getTunnelSideClearance() {
-        return Math.clamp(tunnelSideClearance, 0, 4);
-    }
-
-    public void setTunnelSideClearance(int tunnelSideClearance) {
-        this.tunnelSideClearance = Math.clamp(tunnelSideClearance, 0, 4);
-    }
-
-    public int getTunnelLiningThickness() {
-        return Math.clamp(tunnelLiningThickness, 1, 3);
-    }
-
-    public void setTunnelLiningThickness(int tunnelLiningThickness) {
-        this.tunnelLiningThickness = Math.clamp(tunnelLiningThickness, 1, 3);
-    }
 
     public String getTunnelLiningMaterial() {
         return tunnelLiningMaterial == null || tunnelLiningMaterial.isBlank()
@@ -377,70 +327,6 @@ public class RoadSystemConfig {
 
     public void setTunnelAccentSpacing(int tunnelAccentSpacing) {
         this.tunnelAccentSpacing = Math.clamp(tunnelAccentSpacing, 0, 32);
-    }
-
-    public double getFillCostPerVolume() {
-        return fillCostPerVolume;
-    }
-
-    public void setFillCostPerVolume(double fillCostPerVolume) {
-        this.fillCostPerVolume = Math.max(0.0, fillCostPerVolume);
-    }
-
-    public double getBridgeBaseCost() {
-        return bridgeBaseCost;
-    }
-
-    public void setBridgeBaseCost(double bridgeBaseCost) {
-        this.bridgeBaseCost = Math.max(0.0, bridgeBaseCost);
-    }
-
-    public double getBridgeCostPerLength() {
-        return bridgeCostPerLength;
-    }
-
-    public void setBridgeCostPerLength(double bridgeCostPerLength) {
-        this.bridgeCostPerLength = Math.max(0.0, bridgeCostPerLength);
-    }
-
-    public double getCutCostPerVolume() {
-        return cutCostPerVolume;
-    }
-
-    public void setCutCostPerVolume(double cutCostPerVolume) {
-        this.cutCostPerVolume = Math.max(0.0, cutCostPerVolume);
-    }
-
-    public double getTunnelBaseCost() {
-        return tunnelBaseCost;
-    }
-
-    public void setTunnelBaseCost(double tunnelBaseCost) {
-        this.tunnelBaseCost = Math.max(0.0, tunnelBaseCost);
-    }
-
-    public double getTunnelCostPerLength() {
-        return tunnelCostPerLength;
-    }
-
-    public void setTunnelCostPerLength(double tunnelCostPerLength) {
-        this.tunnelCostPerLength = Math.max(0.0, tunnelCostPerLength);
-    }
-
-    public double getMinimumConsiderationHeight() {
-        return minimumConsiderationHeight;
-    }
-
-    public void setMinimumConsiderationHeight(double minimumConsiderationHeight) {
-        this.minimumConsiderationHeight = Math.max(0.0, minimumConsiderationHeight);
-    }
-
-    public double getMinimumConstructionRunLength() {
-        return minimumConstructionRunLength;
-    }
-
-    public void setMinimumConstructionRunLength(double minimumConstructionRunLength) {
-        this.minimumConstructionRunLength = Math.max(0.0, minimumConstructionRunLength);
     }
 
     public double getPathSampleDistance() {
@@ -653,19 +539,6 @@ public class RoadSystemConfig {
                 RoadNode.MIN_CORNER_RADIUS, RoadNode.MAX_CORNER_RADIUS);
     }
 
-    public float getFillFactor() {
-        return fillFactor;
-    }
-
-    public void setFillFactor(float fillFactor) {
-        this.fillFactor = Math.clamp(fillFactor, 1.0f, 2.0f);
-    }
-
-    /** 纵断面平衡用的材料换算模型（与土方 {@link com.plot.core.material.MaterialConversionModel} 同语义）。 */
-    public com.plot.core.material.MaterialConversionModel getProfileBalanceMaterial() {
-        return com.plot.core.material.MaterialConversionModel.fromLegacyFillFactor(fillFactor);
-    }
-
     public double getDefaultCrossingClearance() {
         return defaultCrossingClearance;
     }
@@ -674,82 +547,17 @@ public class RoadSystemConfig {
         this.defaultCrossingClearance = RoadParameterLimits.clampCrossingClearance(defaultCrossingClearance);
     }
 
-    public int getWaterRoadClearanceBlocks() {
-        return waterRoadClearanceBlocks;
-    }
-
-    public void setWaterRoadClearanceBlocks(int waterRoadClearanceBlocks) {
-        this.waterRoadClearanceBlocks = Math.max(0, waterRoadClearanceBlocks);
-    }
-
-    public double getCausewayMaxLengthMeters() {
-        return causewayMaxLengthMeters;
-    }
-
-    public void setCausewayMaxLengthMeters(double causewayMaxLengthMeters) {
-        this.causewayMaxLengthMeters = Math.max(0.0, causewayMaxLengthMeters);
-    }
-
-    public int getCausewayMaxDepthBlocks() {
-        return causewayMaxDepthBlocks;
-    }
-
-    public void setCausewayMaxDepthBlocks(int causewayMaxDepthBlocks) {
-        this.causewayMaxDepthBlocks = Math.max(0, causewayMaxDepthBlocks);
-    }
-
-    public double getBridgePreferredMinLengthMeters() {
-        return bridgePreferredMinLengthMeters;
-    }
-
-    public void setBridgePreferredMinLengthMeters(double bridgePreferredMinLengthMeters) {
-        this.bridgePreferredMinLengthMeters = Math.max(0.0, bridgePreferredMinLengthMeters);
-    }
-
-    public double getLongBridgeLengthMeters() {
-        return longBridgeLengthMeters;
-    }
-
-    public void setLongBridgeLengthMeters(double longBridgeLengthMeters) {
-        this.longBridgeLengthMeters = Math.max(0.0, longBridgeLengthMeters);
-    }
-
-    public boolean isAllowUnderwaterRoad() {
-        return allowUnderwaterRoad;
-    }
-
-    public void setAllowUnderwaterRoad(boolean allowUnderwaterRoad) {
-        this.allowUnderwaterRoad = allowUnderwaterRoad;
-    }
-
-    public double getEnvironmentSampleSpacingMeters() {
-        return environmentSampleSpacingMeters;
-    }
-
-    public void setEnvironmentSampleSpacingMeters(double environmentSampleSpacingMeters) {
-        this.environmentSampleSpacingMeters = Math.max(0.5, environmentSampleSpacingMeters);
-    }
-
     /**
      * 影响纵断面/自然高度推算的全局参数指纹，供 UI 缓存失效。
      */
     public long generationInputsFingerprint() {
         return java.util.Objects.hash(
             maxSlope,
-            fillFactor,
+            terrainAdaptation,
             pathSampleDistance,
-            bridgeThreshold,
-            tunnelThreshold,
             maxContinuousSlopeLength,
             relaxedSlopeLength,
-            relaxedSlopePercent,
-            waterRoadClearanceBlocks,
-            causewayMaxLengthMeters,
-            causewayMaxDepthBlocks,
-            bridgePreferredMinLengthMeters,
-            longBridgeLengthMeters,
-            allowUnderwaterRoad,
-            environmentSampleSpacingMeters);
+            relaxedSlopePercent);
     }
     
     /**

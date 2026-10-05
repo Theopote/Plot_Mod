@@ -160,7 +160,6 @@ class WaterCrossingConstructionResolverTest {
             heightInfo(12.0, 17.0, 68, 68, 69, 69, 64, 64),
             heightInfo(17.0, 28.0, 68, 68, 69, 69, 64, 64));
         RoadSystemConfig config = new RoadSystemConfig("test");
-        config.setAllowUnderwaterRoad(true);
 
         ConstructionDetection resolved = WaterCrossingConstructionResolver.apply(
             base,

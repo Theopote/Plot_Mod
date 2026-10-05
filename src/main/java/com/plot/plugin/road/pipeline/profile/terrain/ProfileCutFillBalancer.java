@@ -1,12 +1,9 @@
 package com.plot.plugin.road.pipeline.profile.terrain;
 
-import com.plot.core.material.MaterialConversionModel;
-
 import java.util.List;
 
 /**
  * Cut/fill balance metrics shared by {@link GradeLimitedProfileSolver}.
- * Uses the same fillFactor material model as {@link com.plot.plugin.road.RoadGuideLineUtils}.
  */
 public final class ProfileCutFillBalancer {
 
@@ -31,23 +28,22 @@ public final class ProfileCutFillBalancer {
     static double findBalancingOffset(
             List<Integer> groundSamples,
             List<Double> designElevations,
-            float fillFactor) {
-        MaterialConversionModel materials = MaterialConversionModel.fromLegacyFillFactor(fillFactor);
+            float cutToFillBalanceRatio) {
         int lo = -INITIAL_SEARCH_RADIUS;
         int hi = INITIAL_SEARCH_RADIUS;
         while (lo > -MAX_SEARCH_RADIUS
-                && computeBalanceDiff(groundSamples, designElevations, lo, materials) < 0) {
+                && computeBalanceDiff(groundSamples, designElevations, lo, cutToFillBalanceRatio) < 0) {
             lo--;
         }
         while (hi < MAX_SEARCH_RADIUS
-                && computeBalanceDiff(groundSamples, designElevations, hi, materials) > 0) {
+                && computeBalanceDiff(groundSamples, designElevations, hi, cutToFillBalanceRatio) > 0) {
             hi++;
         }
         lo = Math.max(lo, -MAX_SEARCH_RADIUS);
         hi = Math.min(hi, MAX_SEARCH_RADIUS);
         while (lo < hi) {
             int mid = lo + (hi - lo) / 2;
-            if (computeBalanceDiff(groundSamples, designElevations, mid, materials) > 0) {
+            if (computeBalanceDiff(groundSamples, designElevations, mid, cutToFillBalanceRatio) > 0) {
                 lo = mid + 1;
             } else {
                 hi = mid;
@@ -60,10 +56,8 @@ public final class ProfileCutFillBalancer {
             List<Integer> groundSamples,
             List<Double> designElevations,
             int offsetBlocks,
-            MaterialConversionModel materials) {
-        MaterialConversionModel safeMaterials = materials != null
-            ? materials
-            : MaterialConversionModel.DEFAULT;
+            float cutToFillBalanceRatio) {
+        float ratio = cutToFillBalanceRatio > 0f ? cutToFillBalanceRatio : 1.0f;
         long cutVolume = 0L;
         long fillVolume = 0L;
         for (int i = 0; i < groundSamples.size(); i++) {
@@ -75,7 +69,7 @@ public final class ProfileCutFillBalancer {
                 fillVolume += design - ground;
             }
         }
-        long supply = Math.round(cutVolume * safeMaterials.effectiveCutToCompactedFillRatio());
+        long supply = Math.round(cutVolume * ratio);
         return supply - fillVolume;
     }
 

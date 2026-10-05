@@ -1,6 +1,7 @@
 package com.plot.plugin.road.pipeline.profile;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 
 import java.util.List;
@@ -9,7 +10,7 @@ import java.util.List;
  * Configuration and coordinate scaling inputs for {@link RoadProfileSolver}.
  */
 public interface ProfileSolveSupport {
-    float fillFactor();
+    float cutToFillBalanceRatio();
 
     double maxContinuousSlopeLength();
 
@@ -26,8 +27,8 @@ public interface ProfileSolveSupport {
             CanvasUnitsPerBlockEstimator canvasUnitsPerBlock) {
         return new ProfileSolveSupport() {
             @Override
-            public float fillFactor() {
-                return config.getFillFactor();
+            public float cutToFillBalanceRatio() {
+                return RoadConstructionHeuristics.cutToFillBalanceRatio(config);
             }
 
             @Override

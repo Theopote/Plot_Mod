@@ -1,6 +1,5 @@
 package com.plot.plugin.road.pipeline.profile.terrain;
 
-import com.plot.core.material.MaterialConversionModel;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -20,7 +19,7 @@ class ProfileCutFillBalancerTest {
         List<Double> design = List.of(64.0, 64.0, 64.0, 64.0, 64.0);
 
         long imbalance = ProfileCutFillBalancer.computeBalanceDiff(
-            ground, design, 0, MaterialConversionModel.DEFAULT);
+            ground, design, 0, 1.1f);
 
         assertTrue(imbalance > 0, "cut-heavy profile should report positive supply surplus");
     }
@@ -31,7 +30,7 @@ class ProfileCutFillBalancerTest {
         List<Double> design = List.of(68.0, 68.0, 68.0, 68.0, 68.0);
 
         long imbalance = ProfileCutFillBalancer.computeBalanceDiff(
-            ground, design, 0, MaterialConversionModel.DEFAULT);
+            ground, design, 0, 1.1f);
 
         assertTrue(imbalance < 0, "fill-heavy profile should report negative supply surplus");
     }

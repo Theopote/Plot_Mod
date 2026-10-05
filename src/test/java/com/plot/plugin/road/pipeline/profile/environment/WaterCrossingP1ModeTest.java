@@ -48,7 +48,9 @@ class WaterCrossingP1ModeTest {
             Integer water = result.profileWaterHeights().get(i);
             if (water != null) {
                 assertTrue(
-                    result.profileDesignElevations().get(i) >= water + config.getWaterRoadClearanceBlocks() - 1e-6,
+                    result.profileDesignElevations().get(i) >= water
+                        + com.plot.plugin.road.pipeline.profile.environment.WaterCrossingSettings
+                            .defaults().waterRoadClearanceBlocks() - 1e-6,
                     "AUTO_SMOOTH must clear water at station " + i);
             }
         }

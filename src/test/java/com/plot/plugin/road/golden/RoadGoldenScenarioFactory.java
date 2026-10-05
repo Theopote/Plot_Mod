@@ -2,6 +2,7 @@ package com.plot.plugin.road.golden;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics.TerrainAdaptationPreset;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -111,7 +112,7 @@ public final class RoadGoldenScenarioFactory {
             }
         };
         RoadSystemConfig config = baseConfig();
-        config.setBridgeThreshold(2);
+        config.setTerrainAdaptation(TerrainAdaptationPreset.FLATTEN);
         config.setIncludeShoulder(true);
         return scenario("R08", "bridge", r01StraightFlat().network(), valley, config);
     }
@@ -129,9 +130,7 @@ public final class RoadGoldenScenarioFactory {
             @Override public boolean isSolidBlock(int x, int y, int z) { return y <= 72; }
         };
         RoadSystemConfig config = baseConfig();
-        config.setTunnelThreshold(4);
-        config.setBridgeThreshold(2);
-        config.setMinimumConstructionRunLength(2.0);
+        config.setTerrainAdaptation(TerrainAdaptationPreset.FLATTEN);
         return scenario("R09", "tunnel", network, mountain, config);
     }
 
@@ -149,7 +148,7 @@ public final class RoadGoldenScenarioFactory {
             @Override public boolean isSolidBlock(int x, int y, int z) { return y <= 50; }
         };
         RoadSystemConfig config = baseConfig();
-        config.setBridgeThreshold(3);
+        config.setTerrainAdaptation(TerrainAdaptationPreset.BALANCED);
         config.setIncludeShoulder(true);
         return scenario("R10", "water crossing", network, water, config);
     }

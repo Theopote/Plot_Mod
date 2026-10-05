@@ -1,6 +1,7 @@
 package com.plot.plugin.road.geometry;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics.TerrainAdaptationPreset;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import org.junit.jupiter.api.Test;
 
@@ -35,7 +36,7 @@ class RoadCorridorWidthTest {
         config.setIncludeSidewalk(true);
         config.setSidewalkWidth(2);
         config.setIncludeSlopeBatter(true);
-        config.setTunnelThreshold(4);
+        config.setTerrainAdaptation(TerrainAdaptationPreset.BALANCED);
         config.setCutSlopeRatio(1.0f);
 
         ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);
@@ -71,7 +72,7 @@ class RoadCorridorWidthTest {
         config.setIncludeSidewalk(true);
         config.setSidewalkWidth(1);
         config.setIncludeSlopeBatter(true);
-        config.setTunnelThreshold(4);
+        config.setTerrainAdaptation(TerrainAdaptationPreset.BALANCED);
         config.setCutSlopeRatio(1.0f);
 
         ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);

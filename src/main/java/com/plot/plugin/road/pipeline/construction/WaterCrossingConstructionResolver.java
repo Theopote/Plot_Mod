@@ -4,6 +4,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.pipeline.profile.environment.WaterCrossing;
+import com.plot.plugin.road.pipeline.profile.environment.WaterCrossingSettings;
 import com.plot.plugin.road.pipeline.profile.environment.WaterCrossingStrategy;
 import com.plot.core.terrain.TerrainSampler;
 
@@ -166,7 +167,7 @@ public final class WaterCrossingConstructionResolver {
                     selected.crossingEndStation()) > EPSILON
                 ? RoadConstructionType.BRIDGE
                 : baseType;
-            case TUNNEL_CANDIDATE -> config != null && config.isAllowUnderwaterRoad()
+            case TUNNEL_CANDIDATE -> WaterCrossingSettings.defaults().allowUnderwaterRoad()
                 && overlapLength(
                     segmentStart,
                     segmentEnd,
