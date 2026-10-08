@@ -9,6 +9,7 @@ import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
 import com.plot.plugin.road.pipeline.construction.ConstructionDetection;
+import com.plot.plugin.road.pipeline.construction.ConstructionRun;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
 import com.plot.plugin.road.pipeline.construction.WaterCrossingConstructionResolver;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
@@ -105,10 +106,12 @@ public final class TunnelStructureGenerator {
                     continue;
                 }
                 boolean portalFrame = TunnelPortalPlanner.findPortalNear(portals, worldStation) != null;
+                double structureStation = structureStationAt(
+                    tunnelRunContaining(detection != null ? detection.runs() : null, worldStation),
+                    worldStation);
                 boolean accentRing = tunnelStyle.accentRings()
                     && !tunnelStyle.accentMaterial().isBlank()
-                    && tunnelStyle.accentSpacing() > 0
-                    && Math.floorMod((int) Math.round(chainage), tunnelStyle.accentSpacing()) == 0;
+                    && hitsStructureSpacing(structureStation, tunnelStyle.accentSpacing());
                 String liningMaterial = accentRing
                     ? tunnelStyle.accentMaterial()
                     : tunnelStyle.liningMaterial();
@@ -132,7 +135,7 @@ public final class TunnelStructureGenerator {
                     leftNormal,
                     envelopeWidth,
                     targetY,
-                    chainage,
+                    structureStation,
                     columnResolver,
                     unitsPerBlock);
             }
@@ -203,6 +206,9 @@ public final class TunnelStructureGenerator {
         return new RoadRoadbedGradingUtils.GradingVolumes(cutHolder[0], 0);
     }
 
+    /**
+     * Places lighting using tunnel-run-local structure station (0 at run start), not road chainage.
+     */
     static void placeLighting(
             Host host,
             RoadSolidModel solids,
@@ -211,14 +217,14 @@ public final class TunnelStructureGenerator {
             Vec2d leftNormal,
             int roadEnvelopeWidth,
             int roadY,
-            double chainage,
+            double structureStation,
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
             double canvasUnitsPerBlock) {
         TunnelLightingMode mode = tunnelStyle.lightingMode();
         if (mode == TunnelLightingMode.NONE || tunnelStyle.lightSpacing() <= 0) {
             return;
         }
-        if (Math.floorMod((int) Math.round(chainage), tunnelStyle.lightSpacing()) != 0) {
+        if (!hitsStructureSpacing(structureStation, tunnelStyle.lightSpacing())) {
             return;
         }
         String lightMaterial = host.resolveBlockId(tunnelStyle.lightMaterial());
@@ -377,5 +383,34 @@ public final class TunnelStructureGenerator {
             return RoadConstructionType.FILL;
         }
         return segmentType;
+    }
+
+    static ConstructionRun tunnelRunContaining(List<ConstructionRun> runs, double worldStation) {
+        if (runs == null || runs.isEmpty()) {
+            return null;
+        }
+        for (ConstructionRun run : runs) {
+            if (run.type() != RoadConstructionType.TUNNEL) {
+                continue;
+            }
+            if (worldStation + EPSILON >= run.startStation() && worldStation - EPSILON <= run.endStation()) {
+                return run;
+            }
+        }
+        return null;
+    }
+
+    static double structureStationAt(ConstructionRun run, double worldStation) {
+        if (run == null) {
+            return worldStation;
+        }
+        return Math.max(0.0, worldStation - run.startStation());
+    }
+
+    static boolean hitsStructureSpacing(double structureStation, int spacing) {
+        if (spacing <= 0) {
+            return false;
+        }
+        return Math.floorMod((int) Math.round(structureStation), spacing) == 0;
     }
 }

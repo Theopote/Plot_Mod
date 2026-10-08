@@ -4,7 +4,9 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadTerrainClearanceUtils;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
+import com.plot.plugin.road.pipeline.construction.ConstructionRun;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
@@ -21,6 +23,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -102,7 +105,7 @@ class TunnelStructureGeneratorTest {
     }
 
     @Test
-    void wallBandLightingSkipsOffSpacingChainage() {
+    void wallBandLightingSkipsOffSpacingStructureStation() {
         RoadSolidModel solids = new RoadSolidModel();
         ResolvedTunnelStyle style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.WALL_BANDS);
 
@@ -120,6 +123,30 @@ class TunnelStructureGeneratorTest {
 
         assertTrue(solids.primitives().stream().noneMatch(p ->
             p.materialId().equals("minecraft:sea_lantern")));
+    }
+
+    @Test
+    void structureSpacingUsesTunnelRunLocalStation() {
+        ConstructionRun runA = new ConstructionRun(
+            RoadConstructionType.TUNNEL, 0, 1, 103.0, 140.0, 10, 10.0);
+        ConstructionRun runB = new ConstructionRun(
+            RoadConstructionType.TUNNEL, 2, 3, 200.0, 240.0, 10, 10.0);
+        List<ConstructionRun> runs = List.of(runA, runB);
+
+        assertEquals(0.0, TunnelStructureGenerator.structureStationAt(
+            TunnelStructureGenerator.tunnelRunContaining(runs, 103.0), 103.0), 1e-9);
+        assertEquals(8.0, TunnelStructureGenerator.structureStationAt(
+            TunnelStructureGenerator.tunnelRunContaining(runs, 111.0), 111.0), 1e-9);
+        assertEquals(0.0, TunnelStructureGenerator.structureStationAt(
+            TunnelStructureGenerator.tunnelRunContaining(runs, 200.0), 200.0), 1e-9);
+
+        // Absolute chainage 103 % 8 != 0, but run-local station 0 hits spacing 8.
+        assertTrue(TunnelStructureGenerator.hitsStructureSpacing(0.0, 8));
+        assertTrue(TunnelStructureGenerator.hitsStructureSpacing(8.0, 8));
+        assertFalse(TunnelStructureGenerator.hitsStructureSpacing(3.0, 8));
+        // Second tunnel restarts phase independently at its own start.
+        assertTrue(TunnelStructureGenerator.hitsStructureSpacing(
+            TunnelStructureGenerator.structureStationAt(runB, 200.0), 8));
     }
 
     @Test
