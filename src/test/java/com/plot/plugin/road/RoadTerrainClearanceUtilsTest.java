@@ -86,6 +86,7 @@ class RoadTerrainClearanceUtilsTest {
         config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.FOLLOW);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
+        config.getTunnelStyle().setShape(com.plot.plugin.road.tunnel.TunnelShape.RECTANGULAR);
 
         TerrainSampler terrain = columnTerrain(100, 64, 100);
         RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
@@ -99,7 +100,8 @@ class RoadTerrainClearanceUtilsTest {
         assertTrue(result.tunnelBlocks.stream().anyMatch(pos -> pos.getY() == 69));
         assertTrue(result.tunnelBlocks.stream().anyMatch(pos -> pos.getY() == 70),
             "one-block lining should cap the tunnel clearance");
-        assertTrue(result.tunnelBlocks.stream().noneMatch(pos -> pos.getY() > 70));
+        assertTrue(result.tunnelBlocks.stream().noneMatch(pos -> pos.getY() > 71),
+            "portal frames may extend one block above the standard lining cap");
         assertTrue(result.placementRecords.values().stream().anyMatch(record ->
             record.pos.getY() == 69 && record.newBlockId.equals("minecraft:air")));
         assertTrue(result.placementRecords.values().stream().anyMatch(record ->
@@ -143,6 +145,7 @@ class RoadTerrainClearanceUtilsTest {
         config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.FOLLOW);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
+        config.getTunnelStyle().setShape(com.plot.plugin.road.tunnel.TunnelShape.RECTANGULAR);
 
         TerrainSampler terrain = columnTerrain(70, 64, 100);
         RoadGenerator generator = new RoadGenerator(config, com.plot.test.world.IdentityCoordinateService.INSTANCE, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
@@ -152,7 +155,7 @@ class RoadTerrainClearanceUtilsTest {
             64);
 
         assertTrue(result.tunnelBlocks.stream().anyMatch(pos -> pos.getY() == 70));
-        assertTrue(result.tunnelBlocks.stream().noneMatch(pos -> pos.getY() > 70));
+        assertTrue(result.tunnelBlocks.stream().noneMatch(pos -> pos.getY() > 71));
     }
 
     @Test

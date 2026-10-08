@@ -2,6 +2,7 @@ package com.plot.plugin.config;
 
 import com.google.gson.Gson;
 import com.plot.plugin.road.terrain.RoadTerrainStyle;
+import com.plot.plugin.road.tunnel.TunnelShape;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -74,14 +75,33 @@ class RoadSystemConfigTest {
     }
 
     @Test
-    void tunnelAccentSettingsClampAndNullMaterialsRemainSafe() {
-        RoadSystemConfig config = new Gson().fromJson(
-            "{\"tunnelLiningMaterial\":null,\"tunnelAccentMaterial\":null,\"tunnelAccentSpacing\":99}",
-            RoadSystemConfig.class);
+    void tunnelAccentSettingsClampAndNullMaterialsRemainSafe(@TempDir Path dir) throws IOException {
+        Path file = dir.resolve("road_system.json");
+        Files.writeString(file, "{\"tunnelLiningMaterial\":null,\"tunnelAccentMaterial\":null,\"tunnelAccentSpacing\":99}");
+        RoadSystemConfig config = RoadSystemConfig.loadFrom(file, RoadSystemConfig.class, "road_system");
 
         assertEquals("minecraft:stone_bricks", config.getTunnelLiningMaterial());
         assertEquals("", config.getTunnelAccentMaterial());
         assertEquals(32, config.getTunnelAccentSpacing());
+    }
+
+    @Test
+    void legacyTunnelFieldsMigrateIntoTunnelStyle(@TempDir Path dir) throws IOException {
+        Path file = dir.resolve("road_system.json");
+        Files.writeString(file, """
+            {
+              "tunnelLiningMaterial": "minecraft:deepslate_bricks",
+              "tunnelAccentMaterial": "minecraft:polished_andesite",
+              "tunnelAccentSpacing": 6
+            }
+            """);
+        RoadSystemConfig config = RoadSystemConfig.loadFrom(file, RoadSystemConfig.class, "road_system");
+
+        assertEquals("minecraft:deepslate_bricks", config.getTunnelLiningMaterial());
+        assertEquals("minecraft:polished_andesite", config.getTunnelAccentMaterial());
+        assertEquals(6, config.getTunnelAccentSpacing());
+        assertTrue(config.getTunnelStyle().isAccentRings());
+        assertEquals(TunnelShape.ARCH, config.getTunnelStyle().getShape());
     }
 
     @Test

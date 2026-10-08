@@ -8,6 +8,7 @@ import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.pipeline.profile.terrain.TerrainFollowPreset;
 import com.plot.plugin.road.terrain.RoadTerrainStyle;
+import com.plot.plugin.road.tunnel.TunnelStyle;
 import com.plot.plugin.road.vertical.RoadVerticalIntentTransforms;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.model.section.CenterLineStyle;
@@ -58,6 +59,7 @@ public class Road {
     private RoadVerticalAlignment verticalAlignment;
     private RoadVerticalMode verticalMode;
     private RoadTerrainStyle terrainStyle;
+    private TunnelStyle tunnelStyle;
     private FlatVerticalIntent flatVerticalIntent;
     private RoadVariableCrossSections variableCrossSections;
     private RoadStationFacilities stationFacilities;
@@ -125,6 +127,8 @@ public class Road {
         maxSlope = null;
         styleId = null;
         themeId = null;
+        terrainStyle = null;
+        tunnelStyle = null;
     }
 
     public void applyStyle(RoadStyle style) {
@@ -499,6 +503,19 @@ public class Road {
         this.terrainStyle = terrainStyle;
     }
 
+    public TunnelStyle getEffectiveTunnelStyle(RoadSystemConfig config) {
+        return TunnelStyle.effective(this, config);
+    }
+
+    /** 持久化字段；{@code null} 表示继承全局默认隧道样式。 */
+    public TunnelStyle getStoredTunnelStyle() {
+        return tunnelStyle;
+    }
+
+    public void setTunnelStyle(TunnelStyle tunnelStyle) {
+        this.tunnelStyle = tunnelStyle != null ? tunnelStyle.copy() : null;
+    }
+
     public FlatVerticalIntent getFlatVerticalIntent() {
         return flatVerticalIntent;
     }
@@ -664,6 +681,7 @@ public class Road {
         copy.verticalAlignment = verticalAlignment != null ? verticalAlignment.copy() : null;
         copy.verticalMode = verticalMode;
         copy.terrainStyle = terrainStyle;
+        copy.tunnelStyle = tunnelStyle != null ? tunnelStyle.copy() : null;
         copy.flatVerticalIntent = flatVerticalIntent != null ? flatVerticalIntent.copy() : null;
         copy.variableCrossSections = variableCrossSections != null ? variableCrossSections.copy() : null;
         copy.stationFacilities = stationFacilities != null ? stationFacilities.copy() : null;
@@ -679,6 +697,8 @@ public class Road {
         maxSlope = source.maxSlope;
         styleId = source.styleId;
         themeId = source.themeId;
+        terrainStyle = source.terrainStyle;
+        tunnelStyle = source.tunnelStyle != null ? source.tunnelStyle.copy() : null;
         RoadVerticalIntentTransforms.copyIntentFrom(this, source);
     }
 }

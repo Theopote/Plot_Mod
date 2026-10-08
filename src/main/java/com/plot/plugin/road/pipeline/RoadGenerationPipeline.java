@@ -4,6 +4,7 @@ import com.plot.plugin.road.pipeline.construction.ConstructionDetection;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
 import com.plot.plugin.road.pipeline.construction.WaterCrossingConstructionResolver;
 import com.plot.plugin.road.pipeline.crosssection.RoadCrossSectionBuilder;
+import com.plot.plugin.road.pipeline.crosssection.TunnelStructureGenerator;
 import com.plot.plugin.road.pipeline.furniture.RoadFurnitureGenerator;
 import com.plot.plugin.road.pipeline.facility.RoadStationFacilityGenerator;
 import com.plot.plugin.road.pipeline.geometry.RoadGeometrySampler;
@@ -26,6 +27,7 @@ import com.plot.plugin.road.solid.RoadGenerationResult;
  *    ├─ RoadFurnitureGenerator
  *    ├─ RoadStationFacilityGenerator
  *    ├─ RoadTerrainGrader
+ *    ├─ TunnelStructureGenerator
  *    └─ RoadVoxelRasterizerPass
  * </pre>
  *
@@ -33,6 +35,47 @@ import com.plot.plugin.road.solid.RoadGenerationResult;
  * {@link RoadGenerationPipelineHost} implements {@link RoadGenerationPipelineContext.Host}.
  */
 public final class RoadGenerationPipeline {
+    private static void generateTunnelStructures(
+            RoadGenerationPipelineContext ctx,
+            RoadGenerationPipelineContext.Host host) {
+        TunnelStructureGenerator.generate(
+            new TunnelStructureGenerator.Host() {
+                @Override
+                public String resolveBlockId(String material) {
+                    return host.resolveBlockId(material);
+                }
+
+                @Override
+                public int snapEndpointElevation(com.plot.api.geometry.Vec2d center, int targetY) {
+                    return host.snapEndpointElevation(center, targetY);
+                }
+            },
+            ctx.solids(),
+            ctx.metrics(),
+            ctx.request().tunnelStyle(),
+            ctx.segments(),
+            ctx.heightInfos(),
+            ctx.request().crossSections(),
+            ctx.terrain(),
+            ctx.unitsPerBlock(),
+            ctx.detection().constructionTypes(),
+            ctx.request().designElevation(),
+            ctx.buildProfile(),
+            ctx.request().profileWaterCrossings(),
+            ctx.detection(),
+            new com.plot.plugin.road.RoadTerrainClearanceUtils.BlockColumnResolver() {
+                @Override
+                public int worldX(com.plot.api.geometry.Vec2d planPoint) {
+                    return host.canvasToBlockPos(planPoint).getX();
+                }
+
+                @Override
+                public int worldZ(com.plot.api.geometry.Vec2d planPoint) {
+                    return host.canvasToBlockPos(planPoint).getZ();
+                }
+            });
+    }
+
     public RoadGenerationResult execute(
             RoadGenerationBuildRequest request,
             RoadGenerationPipelineContext.Host host) {
@@ -70,6 +113,7 @@ public final class RoadGenerationPipeline {
             RoadFurnitureGenerator.generate(ctx, host);
             RoadStationFacilityGenerator.generate(ctx, host);
             RoadTerrainGrader.grade(ctx, host);
+            generateTunnelStructures(ctx, host);
             return RoadVoxelRasterizerPass.rasterize(ctx, host);
         } finally {
             host.clearEndpointSnaps();

@@ -10,6 +10,7 @@ import com.plot.core.persistence.AtomicFileWriter;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.terrain.RoadTerrainStyle;
 import com.plot.plugin.road.RoadParameterLimits;
+import com.plot.plugin.road.tunnel.TunnelStyle;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.style.RoadStyle;
@@ -47,9 +48,11 @@ public class RoadSystemConfig {
     private boolean generateBridgePillars = true;
     private boolean includeBridgeGuardrail = false;
     private String bridgeGuardrailMaterial = "minecraft:oak_fence";
-    private String tunnelLiningMaterial = "minecraft:stone_bricks";
-    private String tunnelAccentMaterial = "";
-    private int tunnelAccentSpacing = 0;
+    private TunnelStyle tunnelStyle = new TunnelStyle();
+    /** Legacy JSON fields; migrated into {@link #tunnelStyle} on load. */
+    private String tunnelLiningMaterial;
+    private String tunnelAccentMaterial;
+    private int tunnelAccentSpacing;
     private boolean includeShoulder = true; // 是否包含路肩 - 从false改为true，默认启用路肩和边坡填充
     private int shoulderWidth = 1; // 路肩宽度
     private int laneCount = 1;
@@ -143,6 +146,27 @@ public class RoadSystemConfig {
         if (config.roadThemeId == null || config.roadThemeId.isBlank()) {
             config.roadThemeId = RoadThemeCatalog.MODERN_ID;
         }
+        config.migrateLegacyTunnelFields();
+    }
+
+    private void migrateLegacyTunnelFields() {
+        if (tunnelStyle == null) {
+            tunnelStyle = new TunnelStyle();
+        }
+        if (tunnelLiningMaterial != null && !tunnelLiningMaterial.isBlank()) {
+            tunnelStyle.setLiningMaterial(tunnelLiningMaterial);
+        }
+        if (tunnelAccentMaterial != null && !tunnelAccentMaterial.isBlank()) {
+            tunnelStyle.setAccentMaterial(tunnelAccentMaterial);
+        }
+        if (tunnelAccentSpacing > 0) {
+            tunnelStyle.setAccentSpacing(tunnelAccentSpacing);
+            tunnelStyle.setAccentRings(true);
+        }
+        tunnelStyle.clamp();
+        tunnelLiningMaterial = null;
+        tunnelAccentMaterial = null;
+        tunnelAccentSpacing = 0;
     }
 
     private static void mergeMissingBuiltinStyles(RoadSystemConfig config) {
@@ -300,30 +324,42 @@ public class RoadSystemConfig {
         this.bridgeGuardrailMaterial = bridgeGuardrailMaterial;
     }
 
+    public TunnelStyle getTunnelStyle() {
+        if (tunnelStyle == null) {
+            tunnelStyle = new TunnelStyle();
+        }
+        return tunnelStyle;
+    }
+
+    public void setTunnelStyle(TunnelStyle tunnelStyle) {
+        this.tunnelStyle = tunnelStyle != null ? tunnelStyle : new TunnelStyle();
+        this.tunnelStyle.clamp();
+    }
+
     public String getTunnelLiningMaterial() {
-        return tunnelLiningMaterial == null || tunnelLiningMaterial.isBlank()
-            ? "minecraft:stone_bricks"
-            : tunnelLiningMaterial;
+        return getTunnelStyle().getLiningMaterial();
     }
 
     public void setTunnelLiningMaterial(String tunnelLiningMaterial) {
-        this.tunnelLiningMaterial = tunnelLiningMaterial;
+        getTunnelStyle().setLiningMaterial(tunnelLiningMaterial);
     }
 
     public String getTunnelAccentMaterial() {
-        return tunnelAccentMaterial == null ? "" : tunnelAccentMaterial;
+        return getTunnelStyle().getAccentMaterial();
     }
 
     public void setTunnelAccentMaterial(String tunnelAccentMaterial) {
-        this.tunnelAccentMaterial = tunnelAccentMaterial;
+        getTunnelStyle().setAccentMaterial(tunnelAccentMaterial);
     }
 
     public int getTunnelAccentSpacing() {
-        return Math.clamp(tunnelAccentSpacing, 0, 32);
+        return getTunnelStyle().isAccentRings() ? getTunnelStyle().getAccentSpacing() : 0;
     }
 
     public void setTunnelAccentSpacing(int tunnelAccentSpacing) {
-        this.tunnelAccentSpacing = Math.clamp(tunnelAccentSpacing, 0, 32);
+        TunnelStyle style = getTunnelStyle();
+        style.setAccentSpacing(Math.clamp(tunnelAccentSpacing, 0, TunnelStyle.MAX_ACCENT_SPACING));
+        style.setAccentRings(tunnelAccentSpacing > 0);
     }
 
     public double getPathSampleDistance() {
@@ -554,7 +590,8 @@ public class RoadSystemConfig {
             pathSampleDistance,
             maxContinuousSlopeLength,
             relaxedSlopeLength,
-            relaxedSlopePercent);
+            relaxedSlopePercent,
+            getTunnelStyle());
     }
     
     /**

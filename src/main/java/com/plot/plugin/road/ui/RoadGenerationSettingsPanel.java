@@ -68,6 +68,24 @@ public final class RoadGenerationSettingsPanel {
             config.setIncludeBridgeGuardrail(bridgeGuardrail.get());
             markChanged(ctx);
         }
+
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr("plugin.road.section.structure"));
+        ImGui.indent();
+        TunnelStyleControls.renderGlobal(ctx);
+        ImGui.unindent();
+    }
+
+    /** 单选道路时可在纵断面工作区展示道路级隧道覆盖。 */
+    public static void renderRoadTunnelOverride(RoadUiContext ctx, Road road, Runnable onHistory) {
+        if (road == null) {
+            return;
+        }
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr("plugin.road.tunnel.road_override_section"));
+        ImGui.indent();
+        TunnelStyleControls.renderRoadOverride(ctx, road, onHistory);
+        ImGui.unindent();
     }
 
     private static void markChanged(RoadUiContext ctx) {

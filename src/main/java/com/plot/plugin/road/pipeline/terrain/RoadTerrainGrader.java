@@ -162,21 +162,9 @@ public final class RoadTerrainGrader {
                     type,
                     profileWaterCrossings,
                     worldStation);
-                if (sampleType == RoadConstructionType.BRIDGE) {
+                if (sampleType == RoadConstructionType.BRIDGE
+                        || sampleType == RoadConstructionType.TUNNEL) {
                     continue;
-                } else if (sampleType == RoadConstructionType.TUNNEL) {
-                    String liningMaterial = config.getTunnelLiningMaterial();
-                    int accentSpacing = config.getTunnelAccentSpacing();
-                    if (accentSpacing > 0 && !config.getTunnelAccentMaterial().isBlank()
-                            && Math.floorMod((int) Math.round(chainage), accentSpacing) == 0) {
-                        liningMaterial = config.getTunnelAccentMaterial();
-                    }
-                    total = total.add(RoadRoadbedGradingUtils.gradeTunnelCrossSection(
-                        solids, center, leftNormal, envelopeWidth, targetY,
-                        RoadConstructionHeuristics.TUNNEL_CLEARANCE_HEIGHT,
-                        RoadConstructionHeuristics.TUNNEL_SIDE_CLEARANCE,
-                        RoadConstructionHeuristics.TUNNEL_LINING_THICKNESS, host.resolveBlockId(liningMaterial),
-                        terrain, host.columnResolver(), unitsPerBlock));
                 } else {
                     total = total.add(RoadRoadbedGradingUtils.gradeCrossSectionEnvelope(
                         solids, center, leftNormal, envelopeWidth, targetY,

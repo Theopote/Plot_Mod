@@ -118,6 +118,10 @@ public final class RoadGeneratePanel {
             RoadStyleProductControls.renderRoadTerrainStylePresets(
                 ctx, road, ctx.networkManager()::pushHistory);
         }
+        if (ctx.networkManager().getSelectedRoadIds().size() == 1) {
+            RoadGenerationSettingsPanel.renderRoadTunnelOverride(
+                ctx, road, ctx.networkManager()::pushHistory);
+        }
         ImGui.spacing();
         verticalModeControls.render(
             ctx,

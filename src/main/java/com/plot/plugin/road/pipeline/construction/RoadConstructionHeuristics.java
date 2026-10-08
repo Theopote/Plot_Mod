@@ -21,10 +21,6 @@ public final class RoadConstructionHeuristics {
     public static final double TUNNEL_PREFERENCE = 25.0;
     public static final double TUNNEL_PREFERENCE_PER_LENGTH = 1.5;
 
-    public static final int TUNNEL_CLEARANCE_HEIGHT = 5;
-    public static final int TUNNEL_SIDE_CLEARANCE = 1;
-    public static final int TUNNEL_LINING_THICKNESS = 1;
-
     public static final double ENVIRONMENT_SAMPLE_SPACING_METERS = 2.0;
 
     private RoadConstructionHeuristics() {

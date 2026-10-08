@@ -5,6 +5,8 @@ import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.plugin.road.tunnel.TunnelShape;
+import com.plot.plugin.road.tunnel.TunnelStyle;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -126,6 +128,22 @@ class RoadInheritanceTest {
         assertNull(road.getIncludeShoulder());
         assertEquals(7, road.getEffectiveWidth(config));
         assertTrue(road.getEffectiveIncludeShoulder(config));
+    }
+
+    @Test
+    void tunnelStyleOverrideAndInheritAllDefaults() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        config.getTunnelStyle().setShape(TunnelShape.RECTANGULAR);
+        Road road = new Road();
+        TunnelStyle override = new TunnelStyle();
+        override.setShape(TunnelShape.HORSESHOE);
+        road.setTunnelStyle(override);
+
+        assertEquals(TunnelShape.HORSESHOE, road.getEffectiveTunnelStyle(config).getShape());
+
+        road.inheritAllDefaults();
+        assertNull(road.getStoredTunnelStyle());
+        assertEquals(TunnelShape.RECTANGULAR, road.getEffectiveTunnelStyle(config).getShape());
     }
 
     @Test
