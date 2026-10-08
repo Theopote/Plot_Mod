@@ -68,7 +68,8 @@ public final class TunnelStyleEditor {
         String[] lightingLabels = {
             PlotI18n.tr("plugin.road.tunnel.lighting.none"),
             PlotI18n.tr("plugin.road.tunnel.lighting.wall_bands"),
-            PlotI18n.tr("plugin.road.tunnel.lighting.ceiling_band")
+            PlotI18n.tr("plugin.road.tunnel.lighting.ceiling_band"),
+            PlotI18n.tr("plugin.road.tunnel.lighting.wall_and_ceiling")
         };
         if (ImGui.combo(PlotI18n.tr("plugin.road.tunnel.lighting_mode"), lightingIndex, lightingLabels)) {
             style.setLightingMode(uiLightingModes()[lightingIndex.get()]);
@@ -126,7 +127,8 @@ public final class TunnelStyleEditor {
         return new TunnelLightingMode[] {
             TunnelLightingMode.NONE,
             TunnelLightingMode.WALL_BANDS,
-            TunnelLightingMode.CEILING_BAND
+            TunnelLightingMode.CEILING_BAND,
+            TunnelLightingMode.WALL_AND_CEILING
         };
     }
 

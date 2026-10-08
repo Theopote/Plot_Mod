@@ -27,8 +27,6 @@ import com.plot.plugin.road.tunnel.TunnelProfile;
 import com.plot.core.terrain.TerrainSampler;
 
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Generates tunnel cavities, lining, lighting, accent rings, and portal frames.
@@ -66,7 +64,7 @@ public final class TunnelStructureGenerator {
                 || constructionTypes.stream().noneMatch(type -> type == RoadConstructionType.TUNNEL)) {
             return;
         }
-        Set<Double> portalStations = planPortalStations(
+        List<TunnelPortalPlanner.PortalStation> portals = planPortalStations(
             detection, segments, heightInfos, constructionTypes, crossSections, terrain, unitsPerBlock,
             tunnelStyle, designElevation, buildProfile, profileWaterCrossings, columnResolver, host);
 
@@ -106,7 +104,7 @@ public final class TunnelStructureGenerator {
                 if (sampleType != RoadConstructionType.TUNNEL) {
                     continue;
                 }
-                boolean portalFrame = isPortalStation(portalStations, worldStation);
+                boolean portalFrame = TunnelPortalPlanner.findPortalNear(portals, worldStation) != null;
                 boolean accentRing = tunnelStyle.accentRings()
                     && !tunnelStyle.accentMaterial().isBlank()
                     && tunnelStyle.accentSpacing() > 0
@@ -149,12 +147,10 @@ public final class TunnelStructureGenerator {
             crossSections,
             terrain,
             unitsPerBlock,
-            detection,
             designElevation,
             buildProfile,
-            profileWaterCrossings,
             columnResolver,
-            portalStations));
+            portals));
         if (metrics != null) {
             metrics.cutVolume += total.cutVolume();
         }
@@ -263,7 +259,7 @@ public final class TunnelStructureGenerator {
         solids.add(point, y, RoadSolidLayer.TUNNEL, lightMaterial);
     }
 
-    private static Set<Double> planPortalStations(
+    private static List<TunnelPortalPlanner.PortalStation> planPortalStations(
             ConstructionDetection detection,
             List<PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
@@ -278,7 +274,7 @@ public final class TunnelStructureGenerator {
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
             Host host) {
         if (detection == null || detection.runs() == null) {
-            return Set.of();
+            return List.of();
         }
         return TunnelPortalPlanner.planPortals(
             detection.runs(),
@@ -293,22 +289,14 @@ public final class TunnelStructureGenerator {
             buildProfile,
             profileWaterCrossings,
             columnResolver,
-            host::snapEndpointElevation)
-            .stream()
-            .map(TunnelPortalPlanner.PortalStation::worldStation)
-            .collect(Collectors.toSet());
+            host::snapEndpointElevation);
     }
 
-    private static boolean isPortalStation(Set<Double> portalStations, double worldStation) {
-        for (double station : portalStations) {
-            if (Math.abs(station - worldStation) < 0.75) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static RoadRoadbedGradingUtils.GradingVolumes placePortals(
+    /**
+     * Places thickened portal frames extending into the tunnel interior.
+     * Entry frames grow along +station; exit frames grow along -station.
+     */
+    static RoadRoadbedGradingUtils.GradingVolumes placePortals(
             Host host,
             RoadSolidModel solids,
             ResolvedTunnelStyle tunnelStyle,
@@ -317,26 +305,28 @@ public final class TunnelStructureGenerator {
             CrossSectionBuildContext crossSections,
             TerrainSampler terrain,
             double unitsPerBlock,
-            ConstructionDetection detection,
             DesignElevationSource designElevation,
             BuildHeightProfile buildProfile,
-            List<WaterCrossing> profileWaterCrossings,
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
-            Set<Double> portalStations) {
-        if (portalStations == null || portalStations.isEmpty()) {
+            List<TunnelPortalPlanner.PortalStation> portals) {
+        if (portals == null || portals.isEmpty()) {
             return RoadRoadbedGradingUtils.GradingVolumes.ZERO;
         }
         double scale = unitsPerBlock > EPSILON ? unitsPerBlock : 1.0;
         RoadRoadbedGradingUtils.GradingVolumes total = RoadRoadbedGradingUtils.GradingVolumes.ZERO;
         boolean chainForward = crossSections.samplingOriented().forward();
-        for (double worldStation : portalStations) {
+        for (TunnelPortalPlanner.PortalStation portal : portals) {
             BridgeStructureGenerator.StationLocation location =
-                BridgeStructureGenerator.locateStationOnPath(segments, scale, worldStation * scale);
+                BridgeStructureGenerator.locateStationOnPath(segments, scale, portal.worldStation() * scale);
             if (location == null) {
                 continue;
             }
+            double direction = portal.entry() ? 1.0 : -1.0;
             for (int depth = 0; depth < PORTAL_FRAME_DEPTH_BLOCKS; depth++) {
-                double geometryLocal = location.geometryLocal() + depth * scale;
+                double geometryLocal = location.geometryLocal() + direction * depth * scale;
+                if (geometryLocal < -EPSILON) {
+                    continue;
+                }
                 BridgeStructureGenerator.StationLocation depthLocation =
                     BridgeStructureGenerator.locateStationOnPath(segments, scale, geometryLocal);
                 if (depthLocation == null || depthLocation.segmentIndex() >= segments.size()) {

@@ -722,6 +722,7 @@
   "plugin.road.tunnel.lighting.none": "None",
   "plugin.road.tunnel.lighting.wall_bands": "Wall bands",
   "plugin.road.tunnel.lighting.ceiling_band": "Ceiling",
+  "plugin.road.tunnel.lighting.wall_and_ceiling": "Walls + ceiling",
   "plugin.road.tunnel.light_material": "Light material",
   "plugin.road.tunnel.light_spacing": "Light spacing",
   "plugin.road.tunnel.decoration_section": "Decoration",

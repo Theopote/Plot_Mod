@@ -59,7 +59,7 @@ public final class TunnelFeasibilityChecker {
             return TunnelFeasibility.invalid();
         }
         double ratio = (double) coveredColumns / checkedColumns;
-        boolean valid = minCover >= TunnelFeasibility.MINIMUM_COVER_BLOCKS && ratio >= 0.75;
+        boolean valid = minCover >= TunnelFeasibility.MINIMUM_COVER_BLOCKS;
         return new TunnelFeasibility(valid, minCover == Integer.MAX_VALUE ? 0 : minCover, ratio);
     }
 

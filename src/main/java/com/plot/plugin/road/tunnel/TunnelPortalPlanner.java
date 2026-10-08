@@ -61,15 +61,27 @@ public final class TunnelPortalPlanner {
                 continue;
             }
             addPortal(portals, dedupe, findPortalStation(
-                run.startStation(), run.endStation(), true,
+                run.startStation(), run.endStation(), true, run.length(),
                 segments, heightInfos, constructionTypes, crossSections, terrain, scale, style,
                 designElevation, buildProfile, profileWaterCrossings, columnResolver, elevationSnapper));
             addPortal(portals, dedupe, findPortalStation(
-                run.endStation(), run.startStation(), false,
+                run.endStation(), run.startStation(), false, run.length(),
                 segments, heightInfos, constructionTypes, crossSections, terrain, scale, style,
                 designElevation, buildProfile, profileWaterCrossings, columnResolver, elevationSnapper));
         }
         return List.copyOf(portals);
+    }
+
+    public static PortalStation findPortalNear(List<PortalStation> portals, double worldStation) {
+        if (portals == null || portals.isEmpty()) {
+            return null;
+        }
+        for (PortalStation portal : portals) {
+            if (Math.abs(portal.worldStation() - worldStation) < 0.75) {
+                return portal;
+            }
+        }
+        return null;
     }
 
     private static void addPortal(List<PortalStation> portals, Set<String> dedupe, PortalStation station) {
@@ -82,10 +94,11 @@ public final class TunnelPortalPlanner {
         }
     }
 
-    private static PortalStation findPortalStation(
+    static PortalStation findPortalStation(
             double boundaryStation,
             double inwardTargetStation,
             boolean entry,
+            double runLength,
             List<PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
             List<RoadConstructionType> constructionTypes,
@@ -100,7 +113,10 @@ public final class TunnelPortalPlanner {
             PortalElevationSnapper elevationSnapper) {
         double direction = inwardTargetStation >= boundaryStation ? 1.0 : -1.0;
         double step = Math.max(scale, 1.0);
-        for (int i = 0; i <= MAX_PORTAL_SEARCH_STEPS; i++) {
+        int maxSteps = Math.min(
+            MAX_PORTAL_SEARCH_STEPS,
+            (int) Math.floor(Math.max(0.0, runLength) / (2.0 * step)));
+        for (int i = 0; i <= maxSteps; i++) {
             double station = boundaryStation + direction * step * i;
             if (direction > 0 && station > inwardTargetStation + EPSILON) {
                 break;
@@ -114,7 +130,7 @@ public final class TunnelPortalPlanner {
                 return new PortalStation(station, entry);
             }
         }
-        return new PortalStation(boundaryStation, entry);
+        return null;
     }
 
     private static boolean isFeasiblePortalStation(

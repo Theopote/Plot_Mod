@@ -722,6 +722,7 @@
   "plugin.road.tunnel.lighting.none": "无",
   "plugin.road.tunnel.lighting.wall_bands": "侧墙",
   "plugin.road.tunnel.lighting.ceiling_band": "顶部",
+  "plugin.road.tunnel.lighting.wall_and_ceiling": "侧墙 + 顶部",
   "plugin.road.tunnel.light_material": "灯光材质",
   "plugin.road.tunnel.light_spacing": "灯带间距",
   "plugin.road.tunnel.decoration_section": "装饰",

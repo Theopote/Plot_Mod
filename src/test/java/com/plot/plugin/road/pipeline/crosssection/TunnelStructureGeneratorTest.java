@@ -1,11 +1,19 @@
 package com.plot.plugin.road.pipeline.crosssection;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadTerrainClearanceUtils;
+import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
+import com.plot.plugin.road.pipeline.geometry.PathSegment;
+import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
+import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
+import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.solid.RoadSolidPrimitive;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.plugin.road.tunnel.TunnelLightingMode;
+import com.plot.plugin.road.tunnel.TunnelPortalPlanner;
 import com.plot.plugin.road.tunnel.TunnelShape;
 import com.plot.plugin.road.tunnel.TunnelStyle;
 import com.plot.core.terrain.TerrainSampler;
@@ -112,6 +120,47 @@ class TunnelStructureGeneratorTest {
 
         assertTrue(solids.primitives().stream().noneMatch(p ->
             p.materialId().equals("minecraft:sea_lantern")));
+    }
+
+    @Test
+    void entryPortalFrameExtendsTowardTunnelInterior() {
+        RoadSolidModel solids = placePortalFrames(new TunnelPortalPlanner.PortalStation(0.0, true));
+        assertTrue(solids.primitives().stream().anyMatch(p ->
+            p.materialId().equals("minecraft:stone_bricks") && p.planPoint().x >= -0.1 && p.planPoint().x <= 1.1));
+        assertTrue(solids.primitives().stream().noneMatch(p ->
+            p.materialId().equals("minecraft:stone_bricks") && p.planPoint().x < -0.5));
+    }
+
+    @Test
+    void exitPortalFrameExtendsTowardTunnelInterior() {
+        RoadSolidModel solids = placePortalFrames(new TunnelPortalPlanner.PortalStation(40.0, false));
+        assertTrue(solids.primitives().stream().anyMatch(p ->
+            p.materialId().equals("minecraft:stone_bricks")
+                && p.planPoint().x >= 38.5
+                && p.planPoint().x <= 40.1));
+        assertTrue(solids.primitives().stream().noneMatch(p ->
+            p.materialId().equals("minecraft:stone_bricks") && p.planPoint().x > 40.5),
+            "exit portal must not thicken outward past the tunnel end");
+    }
+
+    private static RoadSolidModel placePortalFrames(TunnelPortalPlanner.PortalStation portal) {
+        PathSegment segment = new PathSegment(new Vec2d(0, 0), new Vec2d(40, 0));
+        ResolvedTunnelStyle style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.NONE);
+        RoadSolidModel solids = new RoadSolidModel();
+        TunnelStructureGenerator.placePortals(
+            testHost(),
+            solids,
+            style,
+            List.of(segment),
+            List.of(new SegmentHeightInfo(segment, 80, 80, 64, 64, 0.0)),
+            CrossSectionBuildContext.fixed(ResolvedCrossSection.fromConfig(new RoadSystemConfig("portal-dir"))),
+            columnTerrain(100, 64, 100),
+            1.0,
+            DesignElevationSource.inactive(),
+            BuildHeightProfile.inactive(),
+            columnResolver(),
+            List.of(portal));
+        return solids;
     }
 
     private static ResolvedTunnelStyle resolved(
