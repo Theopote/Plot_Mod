@@ -109,8 +109,8 @@ public final class RoadEdgeBuildOrchestrator {
             double pathLength = RoadGeometryUtils.calculatePathLength(pathPoints);
             Road road = network.getRoadForEdge(edge);
             RoadTerrainStyle terrainStyle = RoadTerrainStyle.effective(road, host.config());
-            com.plot.plugin.road.tunnel.TunnelStyle tunnelStyle =
-                com.plot.plugin.road.tunnel.TunnelStyle.effective(road, host.config());
+            com.plot.plugin.road.tunnel.ResolvedTunnelStyle tunnelStyle =
+                com.plot.plugin.road.tunnel.TunnelStyle.resolve(road, host.config());
             RoadGenerationResult result = buildFromCenterline(
                 pathPoints,
                 terrain,
@@ -163,7 +163,7 @@ public final class RoadEdgeBuildOrchestrator {
             heightCalculation.buildProfile(),
             heightCalculation.profileWaterCrossings(),
             null,
-            com.plot.plugin.road.tunnel.TunnelStyle.effective(null, host.config()),
+            com.plot.plugin.road.tunnel.ResolvedTunnelStyle.defaults(),
             host);
         result.copyProfileFrom(RoadProfileSolver.toProfileSnapshot(heightCalculation));
         return result;
@@ -183,7 +183,7 @@ public final class RoadEdgeBuildOrchestrator {
             BuildHeightProfile buildProfile,
             List<com.plot.plugin.road.pipeline.profile.environment.WaterCrossing> profileWaterCrossings,
             RoadTerrainStyle terrainStyle,
-            com.plot.plugin.road.tunnel.TunnelStyle tunnelStyle,
+            com.plot.plugin.road.tunnel.ResolvedTunnelStyle tunnelStyle,
             RoadGenerationPipelineHost host) {
         return pipeline.execute(
             new RoadGenerationBuildRequest(

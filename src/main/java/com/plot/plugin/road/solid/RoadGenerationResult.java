@@ -4,6 +4,7 @@ import com.plot.core.command.BlockRecord;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.BuildHeightSample;
+import com.plot.plugin.road.profile.ConstructionRunChartMarker;
 import com.plot.plugin.road.profile.WaterCrossingChartMarker;
 import net.minecraft.util.math.BlockPos;
 
@@ -45,6 +46,7 @@ public class RoadGenerationResult {
     public List<BuildHeightSample> profileBuildSamples = new ArrayList<>();
     public List<Integer> profileWaterHeights = new ArrayList<>();
     public List<WaterCrossingChartMarker> profileWaterCrossingMarkers = new ArrayList<>();
+    public List<ConstructionRunChartMarker> profileConstructionRuns = new ArrayList<>();
     /** False when a pinned start/end elevation cannot be reached within max slope. */
     public boolean manualEndpointConstraintFeasible = true;
     /** False when a fixed flat or manual elevation cannot clear water minimums. */
@@ -103,6 +105,7 @@ public class RoadGenerationResult {
         profileBuildSamples = new ArrayList<>(source.profileBuildSamples);
         profileWaterHeights = new ArrayList<>(source.profileWaterHeights);
         profileWaterCrossingMarkers = new ArrayList<>(source.profileWaterCrossingMarkers);
+        profileConstructionRuns = new ArrayList<>(source.profileConstructionRuns);
         manualEndpointConstraintFeasible = source.manualEndpointConstraintFeasible;
         waterConstraintFeasible = source.waterConstraintFeasible;
     }

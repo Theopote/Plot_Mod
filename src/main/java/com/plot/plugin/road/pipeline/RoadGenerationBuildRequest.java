@@ -3,7 +3,7 @@ package com.plot.plugin.road.pipeline;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.terrain.RoadTerrainStyle;
-import com.plot.plugin.road.tunnel.TunnelStyle;
+import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnaps;
@@ -30,7 +30,7 @@ public record RoadGenerationBuildRequest(
         BuildHeightProfile buildProfile,
         List<WaterCrossing> profileWaterCrossings,
         RoadTerrainStyle terrainStyle,
-        TunnelStyle tunnelStyle) {
+        ResolvedTunnelStyle tunnelStyle) {
 
     public RoadGenerationBuildRequest {
         if (stationFacilities == null) {
@@ -49,7 +49,7 @@ public record RoadGenerationBuildRequest(
             profileWaterCrossings = List.of();
         }
         if (tunnelStyle == null) {
-            tunnelStyle = new TunnelStyle();
+            tunnelStyle = ResolvedTunnelStyle.defaults();
         }
     }
 

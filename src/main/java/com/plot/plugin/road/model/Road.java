@@ -8,6 +8,7 @@ import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.pipeline.profile.terrain.TerrainFollowPreset;
 import com.plot.plugin.road.terrain.RoadTerrainStyle;
+import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.plugin.road.tunnel.TunnelStyle;
 import com.plot.plugin.road.vertical.RoadVerticalIntentTransforms;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
@@ -503,8 +504,8 @@ public class Road {
         this.terrainStyle = terrainStyle;
     }
 
-    public TunnelStyle getEffectiveTunnelStyle(RoadSystemConfig config) {
-        return TunnelStyle.effective(this, config);
+    public ResolvedTunnelStyle getResolvedTunnelStyle(RoadSystemConfig config) {
+        return TunnelStyle.resolve(this, config);
     }
 
     /** 持久化字段；{@code null} 表示继承全局默认隧道样式。 */

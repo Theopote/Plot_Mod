@@ -643,11 +643,27 @@ public final class RoadProfileChartRenderer {
             return;
         }
         float top = layout.plotTop();
-        float bottom = layout.plotBottom();
         for (WaterCrossingChartMarker marker : chart.waterCrossings()) {
             float x0 = layout.plotX(marker.startStation(), range.totalStation());
             float x1 = layout.plotX(marker.endStation(), range.totalStation());
             int color = crossingMarkerColor(marker.strategy());
+            drawList.addRectFilled(x0, top + 2f, x1, top + 8f, color);
+        }
+    }
+
+    private static void drawConstructionRunMarkers(
+            ImDrawList drawList,
+            ProfileChartLayout layout,
+            RoadProfilePlotRange range,
+            RoadProfileChartData chart) {
+        if (chart.constructionRuns() == null || chart.constructionRuns().isEmpty()) {
+            return;
+        }
+        float top = layout.plotTop();
+        for (ConstructionRunChartMarker marker : chart.constructionRuns()) {
+            float x0 = layout.plotX(marker.startStation(), range.totalStation());
+            float x1 = layout.plotX(marker.endStation(), range.totalStation());
+            int color = constructionRunColor(marker.type());
             drawList.addRectFilled(x0, top + 2f, x1, top + 8f, color);
         }
     }
@@ -658,6 +674,14 @@ public final class RoadProfileChartRenderer {
             case CAUSEWAY -> 0x66FFE066;
             case BRIDGE, LONG_BRIDGE -> 0x66FF9966;
             case TUNNEL_CANDIDATE -> 0x66CC99FF;
+        };
+    }
+
+    private static int constructionRunColor(com.plot.plugin.road.RoadConstructionType type) {
+        return switch (type) {
+            case BRIDGE -> 0x66FF9966;
+            case TUNNEL -> 0x66CC99FF;
+            default -> 0x00000000;
         };
     }
 
@@ -760,6 +784,7 @@ public final class RoadProfileChartRenderer {
                 true);
         }
         drawWaterCrossingMarkers(drawList, layout, range, chart);
+        drawConstructionRunMarkers(drawList, layout, range, chart);
         if (mode.showGuideLine()
                 && guideSemantics != ProfileChartGuideSemantics.NONE
                 && !chart.guideElevations().isEmpty()) {

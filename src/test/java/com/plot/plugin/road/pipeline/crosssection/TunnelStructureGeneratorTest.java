@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadTerrainClearanceUtils;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.solid.RoadSolidPrimitive;
+import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.plugin.road.tunnel.TunnelLightingMode;
 import com.plot.plugin.road.tunnel.TunnelShape;
 import com.plot.plugin.road.tunnel.TunnelStyle;
@@ -20,14 +21,9 @@ class TunnelStructureGeneratorTest {
     @Test
     void rectangularCrossSectionCreatesAirCavityAndLining() {
         RoadSolidModel solids = new RoadSolidModel();
-        TunnelStyle style = new TunnelStyle();
-        style.setShape(TunnelShape.RECTANGULAR);
-        style.setClearHeight(5);
-        style.setSideClearance(1);
-        style.setLiningThickness(1);
+        ResolvedTunnelStyle style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.NONE);
 
         TunnelStructureGenerator.placeCrossSection(
-            testHost(),
             solids,
             style,
             new Vec2d(0, 0),
@@ -49,14 +45,9 @@ class TunnelStructureGeneratorTest {
     @Test
     void archShapeLowersCeilingNearWalls() {
         RoadSolidModel solids = new RoadSolidModel();
-        TunnelStyle style = new TunnelStyle();
-        style.setShape(TunnelShape.ARCH);
-        style.setClearHeight(5);
-        style.setSideClearance(1);
-        style.setLiningThickness(1);
+        ResolvedTunnelStyle style = resolved(TunnelShape.ARCH, 5, 1, 1, TunnelLightingMode.NONE);
 
         TunnelStructureGenerator.placeCrossSection(
-            testHost(),
             solids,
             style,
             new Vec2d(0, 0),
@@ -80,12 +71,7 @@ class TunnelStructureGeneratorTest {
     @Test
     void wallBandLightingPlacesLightsOnSidewallsOnly() {
         RoadSolidModel solids = new RoadSolidModel();
-        TunnelStyle style = new TunnelStyle();
-        style.setShape(TunnelShape.RECTANGULAR);
-        style.setLightingMode(TunnelLightingMode.WALL_BANDS);
-        style.setLightMaterial("minecraft:sea_lantern");
-        style.setLightSpacing(6);
-        style.setSideClearance(1);
+        ResolvedTunnelStyle style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.WALL_BANDS);
 
         TunnelStructureGenerator.placeLighting(
             testHost(),
@@ -110,9 +96,7 @@ class TunnelStructureGeneratorTest {
     @Test
     void wallBandLightingSkipsOffSpacingChainage() {
         RoadSolidModel solids = new RoadSolidModel();
-        TunnelStyle style = new TunnelStyle();
-        style.setLightingMode(TunnelLightingMode.WALL_BANDS);
-        style.setLightSpacing(6);
+        ResolvedTunnelStyle style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.WALL_BANDS);
 
         TunnelStructureGenerator.placeLighting(
             testHost(),
@@ -128,6 +112,24 @@ class TunnelStructureGeneratorTest {
 
         assertTrue(solids.primitives().stream().noneMatch(p ->
             p.materialId().equals("minecraft:sea_lantern")));
+    }
+
+    private static ResolvedTunnelStyle resolved(
+            TunnelShape shape,
+            int clearHeight,
+            int sideClearance,
+            int liningThickness,
+            TunnelLightingMode lightingMode) {
+        TunnelStyle style = new TunnelStyle();
+        style.setShape(shape);
+        style.setClearHeight(clearHeight);
+        style.setSideClearance(sideClearance);
+        style.setLiningThickness(liningThickness);
+        style.setLightingMode(lightingMode);
+        style.setLightMaterial("minecraft:sea_lantern");
+        style.setLightSpacing(6);
+        style.ensureConfigDefaults();
+        return ResolvedTunnelStyle.from(style);
     }
 
     private static TerrainSampler columnTerrain(int topY, int surfaceY, int solidBelowY) {

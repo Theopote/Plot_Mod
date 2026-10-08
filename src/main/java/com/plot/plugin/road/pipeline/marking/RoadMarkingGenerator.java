@@ -60,7 +60,7 @@ public final class RoadMarkingGenerator {
             designElevation,
             buildProfile,
             null,
-            (center, leftNormal, targetY, chainage) -> {
+            (center, leftNormal, targetY, chainage, segmentIndex) -> {
                 int index = sampleIndex.getAndIncrement();
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
                 if (!crossSection.laneDividers && crossSection.centerLineStyle == CenterLineStyle.NONE) {

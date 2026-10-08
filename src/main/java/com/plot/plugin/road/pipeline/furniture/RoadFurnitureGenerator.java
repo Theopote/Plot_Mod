@@ -1,7 +1,9 @@
 package com.plot.plugin.road.pipeline.furniture;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadDimensionUtils;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
@@ -37,7 +39,8 @@ public final class RoadFurnitureGenerator {
             spacing,
             ctx.unitsPerBlock(),
             ctx.request().designElevation(),
-            ctx.buildProfile());
+            ctx.buildProfile(),
+            ctx.detection() != null ? ctx.detection().constructionTypes() : null);
     }
 
     static void generateStreetlights(
@@ -48,7 +51,8 @@ public final class RoadFurnitureGenerator {
             int spacing,
             double unitsPerBlock,
             DesignElevationSource designElevation,
-            BuildHeightProfile buildProfile) {
+            BuildHeightProfile buildProfile,
+            List<RoadConstructionType> constructionTypes) {
         Vec2d[] previous = {null};
         double[] traveledHolder = {0.0};
         double[] nextPlacementHolder = {0.0};
@@ -62,7 +66,13 @@ public final class RoadFurnitureGenerator {
             designElevation,
             buildProfile,
             null,
-            (center, leftNormal, targetY, chainage) -> {
+            (center, leftNormal, targetY, chainage, segmentIndex) -> {
+                RoadConstructionType constructionType = RoadConstructionClassifier.constructionTypeAt(
+                    constructionTypes, segmentIndex);
+                if (constructionType == RoadConstructionType.TUNNEL
+                        || constructionType == RoadConstructionType.BRIDGE) {
+                    return;
+                }
                 if (previous[0] != null) {
                     traveledHolder[0] += previous[0].distance(center);
                 }

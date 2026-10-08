@@ -35,6 +35,7 @@ import com.plot.plugin.road.model.section.Shoulder;
 import com.plot.plugin.road.model.section.Sidewalk;
 import com.plot.plugin.road.model.section.SlopeBatter;
 import com.plot.plugin.road.model.section.StreetFurniture;
+import com.plot.plugin.road.tunnel.TunnelStylePersistence;
 
 import com.plot.plugin.road.graph.RoadGraphQueries;
 import com.plot.core.persistence.AtomicFileWriter;
@@ -1065,6 +1066,7 @@ public class RoadNetwork {
         VerticalAlignmentData verticalAlignment;
         String verticalMode;
         String terrainStyle;
+        TunnelStylePersistence tunnelStyle;
         FlatVerticalIntentPersistence.FlatVerticalIntentData flatVerticalIntent;
         VariableCrossSectionsData variableCrossSections;
         StationFacilitiesData stationFacilities;
@@ -1148,6 +1150,7 @@ public class RoadNetwork {
                 if (road.getStoredTerrainStyle() != null) {
                     roadData.terrainStyle = road.getStoredTerrainStyle().name();
                 }
+                roadData.tunnelStyle = TunnelStylePersistence.from(road.getStoredTunnelStyle());
                 roadData.flatVerticalIntent = FlatVerticalIntentPersistence.toData(road.getFlatVerticalIntent());
                 roadData.variableCrossSections = VariableCrossSectionPersistence.toData(road.getVariableCrossSections());
                 roadData.stationFacilities = StationFacilityPersistence.toData(road.getStationFacilities());
@@ -1250,6 +1253,7 @@ public class RoadNetwork {
                         road.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle
                             .fromStored(roadData.terrainStyle));
                     }
+                    road.setTunnelStyle(TunnelStylePersistence.fromData(roadData.tunnelStyle));
                     road.setFlatVerticalIntent(FlatVerticalIntentPersistence.fromData(roadData.flatVerticalIntent));
                     road.setVariableCrossSections(VariableCrossSectionPersistence.fromData(roadData.variableCrossSections));
                     road.setStationFacilities(StationFacilityPersistence.fromData(roadData.stationFacilities));

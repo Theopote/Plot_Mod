@@ -2,6 +2,7 @@ package com.plot.plugin.road.pipeline.furniture;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
@@ -40,12 +41,39 @@ class RoadFurnitureGeneratorTest {
             4,
             1.0,
             elevations,
-            BuildHeightProfile.inactive());
+            BuildHeightProfile.inactive(),
+            null);
 
         var lights = solids.byLayer(RoadSolidLayer.STREETLIGHT);
         assertFalse(lights.isEmpty());
         assertTrue(lights.stream().allMatch(light -> light.elevation() >= 71));
         assertTrue(lights.stream().allMatch(light ->
             light.elevation() == elevations.elevationAtLocalDistance(light.planPoint().x) + 1));
+    }
+
+    @Test
+    void streetlightsSkippedOnTunnelAndBridgeSegments() {
+        PathSegment segment = new PathSegment(new Vec2d(0, 0), new Vec2d(20, 0));
+        RoadVerticalAlignment alignment = new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 70),
+            PointOfVerticalIntersection.of(20, 70)));
+        DesignElevationSource elevations = new DesignElevationSource(alignment, 0, 20, 20);
+        ResolvedCrossSection section = ResolvedCrossSection.fromConfig(
+            new RoadSystemConfig("furniture-mute"));
+
+        for (RoadConstructionType type : List.of(RoadConstructionType.TUNNEL, RoadConstructionType.BRIDGE)) {
+            RoadSolidModel solids = new RoadSolidModel();
+            RoadFurnitureGenerator.generateStreetlights(
+                solids,
+                List.of(segment),
+                List.of(new SegmentHeightInfo(segment, 20, 20, 20, 20, 0)),
+                CrossSectionBuildContext.fixed(section),
+                4,
+                1.0,
+                elevations,
+                BuildHeightProfile.inactive(),
+                List.of(type));
+            assertTrue(solids.byLayer(RoadSolidLayer.STREETLIGHT).isEmpty(), type.name());
+        }
     }
 }

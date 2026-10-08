@@ -28,7 +28,7 @@ class TunnelStyleTest {
     }
 
     @Test
-    void effectiveUsesRoadOverrideBeforeConfig() {
+    void resolveUsesRoadOverrideBeforeConfig() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         config.getTunnelStyle().setClearHeight(5);
         Road road = new Road();
@@ -36,17 +36,32 @@ class TunnelStyleTest {
         override.setClearHeight(8);
         road.setTunnelStyle(override);
 
-        assertEquals(8, TunnelStyle.effective(road, config).getClearHeight());
+        assertEquals(8, TunnelStyle.resolve(road, config).clearHeight());
     }
 
     @Test
-    void effectiveFallsBackToConfigWhenRoadInherits() {
+    void resolveFallsBackToConfigWhenRoadInherits() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         config.getTunnelStyle().setShape(TunnelShape.HORSESHOE);
         Road road = new Road();
 
-        assertEquals(TunnelShape.HORSESHOE, TunnelStyle.effective(road, config).getShape());
+        assertEquals(TunnelShape.HORSESHOE, TunnelStyle.resolve(road, config).shape());
         assertNull(road.getStoredTunnelStyle());
+    }
+
+    @Test
+    void fieldLevelOverrideMergesWithConfigDefaults() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        config.getTunnelStyle().setShape(TunnelShape.ARCH);
+        config.getTunnelStyle().setClearHeight(5);
+        Road road = new Road();
+        TunnelStyle override = new TunnelStyle();
+        override.setClearHeight(8);
+        road.setTunnelStyle(override);
+
+        ResolvedTunnelStyle resolved = TunnelStyle.resolve(road, config);
+        assertEquals(TunnelShape.ARCH, resolved.shape());
+        assertEquals(8, resolved.clearHeight());
     }
 
     @Test

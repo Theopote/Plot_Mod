@@ -5,10 +5,13 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionEvaluator;
 import com.plot.plugin.road.terrain.RoadTerrainStyle;
 import com.plot.plugin.road.RoadConstructionType;
-import com.plot.plugin.road.pipeline.geometry.PathSegment;
+import com.plot.plugin.road.RoadTerrainClearanceUtils;
+import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
+import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
+import com.plot.plugin.road.tunnel.TunnelFeasibility;
+import com.plot.plugin.road.tunnel.TunnelFeasibilityChecker;
 import com.plot.core.terrain.TerrainSampler;
-import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,21 +25,36 @@ public final class RoadConstructionClassifier {
     }
 
     public static ConstructionDetection classify(
-            List<PathSegment> segments,
+            List<com.plot.plugin.road.pipeline.geometry.PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
             TerrainSampler terrain,
             RoadSystemConfig config,
             CanvasBlockPosResolver canvasToBlockPos) {
-        return classify(segments, heightInfos, terrain, config, null, canvasToBlockPos);
+        return classify(segments, heightInfos, terrain, config, null, canvasToBlockPos, 0,
+            ResolvedTunnelStyle.defaults(), null);
     }
 
     public static ConstructionDetection classify(
-            List<PathSegment> segments,
+            List<com.plot.plugin.road.pipeline.geometry.PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
             TerrainSampler terrain,
             RoadSystemConfig config,
             RoadTerrainStyle terrainStyle,
             CanvasBlockPosResolver canvasToBlockPos) {
+        return classify(segments, heightInfos, terrain, config, terrainStyle, canvasToBlockPos, 0,
+            ResolvedTunnelStyle.defaults(), null);
+    }
+
+    public static ConstructionDetection classify(
+            List<com.plot.plugin.road.pipeline.geometry.PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            TerrainSampler terrain,
+            RoadSystemConfig config,
+            RoadTerrainStyle terrainStyle,
+            CanvasBlockPosResolver canvasToBlockPos,
+            int gradingEnvelopeWidth,
+            ResolvedTunnelStyle tunnelStyle,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver) {
         List<Double> segmentDistances = new ArrayList<>();
         List<Integer> groundHeights = new ArrayList<>();
         List<Integer> targetHeights = new ArrayList<>();
@@ -44,9 +62,7 @@ public final class RoadConstructionClassifier {
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             SegmentHeightInfo info = heightInfos.get(i);
             segmentDistances.add(info.segment.distance);
-            groundHeights.add(averageHeight(
-                effectiveGround(info.groundStart, info.waterStart),
-                effectiveGround(info.groundEnd, info.waterEnd)));
+            groundHeights.add(averageHeight(info.groundStart, info.groundEnd));
             targetHeights.add(averageHeight(info.targetStart, info.targetEnd));
         }
 
@@ -63,6 +79,7 @@ public final class RoadConstructionClassifier {
         List<BridgeSegment> bridges = new ArrayList<>();
         List<TunnelSegment> tunnels = new ArrayList<>();
         List<RoadConstructionType> resolvedTypes = new ArrayList<>(constructionTypes);
+        boolean chainForward = true;
 
         for (int i = 0; i < resolvedTypes.size() && i < heightInfos.size(); i++) {
             SegmentHeightInfo info = heightInfos.get(i);
@@ -73,16 +90,14 @@ public final class RoadConstructionClassifier {
                     info.targetEnd - info.groundEnd);
                 bridges.add(new BridgeSegment(info.segment, Math.max(0, heightDifference)));
             } else if (type == RoadConstructionType.TUNNEL) {
-                Vec2d mid = info.segment.start.lerp(info.segment.end, 0.5);
-                int targetY = Math.round((info.targetStart + info.targetEnd) / 2.0f);
-                BlockPos pos = canvasToBlockPos.resolve(mid).withY(targetY);
-                if (terrain.isSolidBlock(pos.getX(), pos.getY(), pos.getZ())) {
+                if (isSubmerged(info) || !validateTunnelSegment(
+                    info, terrain, canvasToBlockPos, gradingEnvelopeWidth, tunnelStyle, columnResolver, chainForward)) {
+                    resolvedTypes.set(i, RoadConstructionType.CUT);
+                } else {
                     int heightDifference = Math.max(
                         info.groundStart - info.targetStart,
                         info.groundEnd - info.targetEnd);
                     tunnels.add(new TunnelSegment(info.segment, Math.max(0, heightDifference)));
-                } else {
-                    resolvedTypes.set(i, RoadConstructionType.CUT);
                 }
             }
         }
@@ -107,9 +122,7 @@ public final class RoadConstructionClassifier {
         List<Integer> targetHeights = new ArrayList<>();
         for (int i = 0; i < resolvedTypes.size() && i < heightInfos.size(); i++) {
             SegmentHeightInfo info = heightInfos.get(i);
-            groundHeights.add(averageHeight(
-                effectiveGround(info.groundStart, info.waterStart),
-                effectiveGround(info.groundEnd, info.waterEnd)));
+            groundHeights.add(averageHeight(info.groundStart, info.groundEnd));
             targetHeights.add(averageHeight(info.targetStart, info.targetEnd));
             RoadConstructionType type = resolvedTypes.get(i);
             if (type == RoadConstructionType.BRIDGE) {
@@ -118,16 +131,14 @@ public final class RoadConstructionClassifier {
                     info.targetEnd - info.groundEnd);
                 bridges.add(new BridgeSegment(info.segment, Math.max(0, heightDifference)));
             } else if (type == RoadConstructionType.TUNNEL && terrain != null && canvasToBlockPos != null) {
-                Vec2d mid = info.segment.start.lerp(info.segment.end, 0.5);
-                int targetY = Math.round((info.targetStart + info.targetEnd) / 2.0f);
-                BlockPos pos = canvasToBlockPos.resolve(mid).withY(targetY);
-                if (terrain.isSolidBlock(pos.getX(), pos.getY(), pos.getZ())) {
+                if (isSubmerged(info) || !validateTunnelSegment(
+                    info, terrain, canvasToBlockPos, 0, ResolvedTunnelStyle.defaults(), null, true)) {
+                    resolvedTypes.set(i, RoadConstructionType.CUT);
+                } else {
                     int heightDifference = Math.max(
                         info.groundStart - info.targetStart,
                         info.groundEnd - info.targetEnd);
                     tunnels.add(new TunnelSegment(info.segment, Math.max(0, heightDifference)));
-                } else {
-                    resolvedTypes.set(i, RoadConstructionType.CUT);
                 }
             }
         }
@@ -139,11 +150,41 @@ public final class RoadConstructionClassifier {
             buildRuns(resolvedTypes, segmentDistances, groundHeights, targetHeights));
     }
 
-    private static int effectiveGround(int terrainY, Integer waterSurfaceY) {
-        if (waterSurfaceY == null) {
-            return terrainY;
+    private static boolean isSubmerged(SegmentHeightInfo info) {
+        return info.waterStart != null || info.waterEnd != null;
+    }
+
+    private static boolean validateTunnelSegment(
+            SegmentHeightInfo info,
+            TerrainSampler terrain,
+            CanvasBlockPosResolver canvasToBlockPos,
+            int gradingEnvelopeWidth,
+            ResolvedTunnelStyle tunnelStyle,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
+            boolean chainForward) {
+        if (terrain == null || canvasToBlockPos == null || tunnelStyle == null) {
+            return false;
         }
-        return Math.max(terrainY, waterSurfaceY);
+        Vec2d mid = info.segment.start.lerp(info.segment.end, 0.5);
+        int targetY = Math.round((info.targetStart + info.targetEnd) / 2.0f);
+        var pos = canvasToBlockPos.resolve(mid).withY(targetY);
+        if (!terrain.isSolidBlock(pos.getX(), pos.getY(), pos.getZ())) {
+            return false;
+        }
+        if (gradingEnvelopeWidth <= 0 || columnResolver == null) {
+            return true;
+        }
+        Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(info.segment, chainForward);
+        TunnelFeasibility feasibility = TunnelFeasibilityChecker.check(
+            terrain,
+            mid,
+            leftNormal,
+            targetY,
+            gradingEnvelopeWidth,
+            tunnelStyle,
+            columnResolver,
+            1.0);
+        return feasibility.valid();
     }
 
     private static List<ConstructionRun> buildRuns(
@@ -193,6 +234,6 @@ public final class RoadConstructionClassifier {
 
     @FunctionalInterface
     public interface CanvasBlockPosResolver {
-        BlockPos resolve(Vec2d canvasPos);
+        net.minecraft.util.math.BlockPos resolve(Vec2d canvasPos);
     }
 }

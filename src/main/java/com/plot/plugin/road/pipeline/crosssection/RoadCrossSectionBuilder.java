@@ -278,7 +278,7 @@ public final class RoadCrossSectionBuilder {
             designElevation,
             buildProfile,
             host::snapEndpointElevation,
-            (center, leftNormal, targetY, chainage) -> {
+            (center, leftNormal, targetY, chainage, segmentIndex) -> {
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
                 if (!crossSection.includeShoulder || crossSection.shoulderWidth <= 0) {
                     return;
@@ -313,7 +313,7 @@ public final class RoadCrossSectionBuilder {
             designElevation,
             buildProfile,
             host::snapEndpointElevation,
-            (center, leftNormal, targetY, chainage) -> {
+            (center, leftNormal, targetY, chainage, segmentIndex) -> {
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
                 if (!crossSection.includeBikeLane || crossSection.bikeLaneWidth <= 0) {
                     return;
@@ -348,7 +348,7 @@ public final class RoadCrossSectionBuilder {
             designElevation,
             buildProfile,
             host::snapEndpointElevation,
-            (center, leftNormal, targetY, chainage) -> {
+            (center, leftNormal, targetY, chainage, segmentIndex) -> {
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
                 if (!crossSection.includeSidewalk || crossSection.sidewalkWidth <= 0) {
                     return;
@@ -510,7 +510,7 @@ public final class RoadCrossSectionBuilder {
             designElevation,
             buildProfile,
             host::snapEndpointElevation,
-            (center, leftNormal, targetY, chainage) -> {
+            (center, leftNormal, targetY, chainage, segmentIndex) -> {
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
                 if (!crossSection.includeMedian || crossSection.medianWidth <= 0) {
                     return;

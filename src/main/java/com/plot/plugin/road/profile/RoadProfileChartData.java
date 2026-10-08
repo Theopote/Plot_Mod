@@ -24,7 +24,8 @@ public record RoadProfileChartData(
         boolean manualEndpointConstraintFeasible,
         boolean waterConstraintFeasible,
         List<Double> waterElevations,
-        List<WaterCrossingChartMarker> waterCrossings) {
+        List<WaterCrossingChartMarker> waterCrossings,
+        List<ConstructionRunChartMarker> constructionRuns) {
 
     public RoadProfileChartData(
             String roadId,
@@ -49,6 +50,7 @@ public record RoadProfileChartData(
             true,
             true,
             List.of(),
+            List.of(),
             List.of());
     }
 
@@ -77,6 +79,7 @@ public record RoadProfileChartData(
             manualEndpointConstraintFeasible,
             waterConstraintFeasible,
             List.of(),
+            List.of(),
             List.of());
     }
 
@@ -103,6 +106,7 @@ public record RoadProfileChartData(
             intersections,
             manualEndpointConstraintFeasible,
             true,
+            List.of(),
             List.of(),
             List.of());
     }
@@ -134,6 +138,7 @@ public record RoadProfileChartData(
             manualEndpointConstraintFeasible,
             waterConstraintFeasible,
             List.of(),
+            List.of(),
             List.of());
     }
 
@@ -163,6 +168,40 @@ public record RoadProfileChartData(
             manualEndpointConstraintFeasible,
             true,
             List.of(),
+            List.of(),
+            List.of());
+    }
+
+    public RoadProfileChartData(
+            String roadId,
+            double totalStation,
+            List<Double> stations,
+            List<Double> groundElevations,
+            List<Double> previewElevations,
+            List<Double> buildElevations,
+            List<BuildHeightSample> buildSamples,
+            List<Double> guideElevations,
+            List<ProfileControlPoint> controlPoints,
+            List<RoadProfileIntersection> intersections,
+            boolean manualEndpointConstraintFeasible,
+            boolean waterConstraintFeasible,
+            List<Double> waterElevations,
+            List<WaterCrossingChartMarker> waterCrossings) {
+        this(
+            roadId,
+            totalStation,
+            stations,
+            groundElevations,
+            previewElevations,
+            buildElevations,
+            buildSamples,
+            guideElevations,
+            controlPoints,
+            intersections,
+            manualEndpointConstraintFeasible,
+            waterConstraintFeasible,
+            waterElevations,
+            waterCrossings,
             List.of());
     }
 

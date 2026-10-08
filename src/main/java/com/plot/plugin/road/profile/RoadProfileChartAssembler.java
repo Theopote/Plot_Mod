@@ -81,6 +81,7 @@ public final class RoadProfileChartAssembler {
         List<Double> guideElevations = new ArrayList<>();
         List<Double> waterElevations = new ArrayList<>();
         List<WaterCrossingChartMarker> waterCrossings = new ArrayList<>();
+        List<ConstructionRunChartMarker> constructionRuns = new ArrayList<>();
 
         for (OrientedRoadSegment segment : segments) {
             RoadGenerationResult edgeResult = edgeResults.get(segment.edgeId());
@@ -96,6 +97,7 @@ public final class RoadProfileChartAssembler {
                 guideElevations,
                 waterElevations);
             appendWaterCrossings(network, road, segment, edgeResult, waterCrossings);
+            appendConstructionRuns(network, road, segment, edgeResult, constructionRuns);
             appendBuildSamples(network, road, segment, edgeResult, buildSamples);
         }
         if (stations.size() < 2) {
@@ -134,7 +136,8 @@ public final class RoadProfileChartAssembler {
             manualEndpointConstraintFeasible,
             waterConstraintFeasible,
             new ArrayList<>(waterElevations),
-            List.copyOf(waterCrossings));
+            List.copyOf(waterCrossings),
+            List.copyOf(constructionRuns));
         if (!chart.hasCompleteRoadProfile()) {
             return Optional.empty();
         }
@@ -236,6 +239,40 @@ public final class RoadProfileChartAssembler {
             double roadEnd = RoadStationing.toCanonicalChainage(
                 network, road, segment.startStation() + endChain);
             waterCrossings.add(new WaterCrossingChartMarker(roadStart, roadEnd, marker.strategy()));
+        }
+    }
+
+    private static void appendConstructionRuns(
+            RoadNetwork network,
+            Road road,
+            OrientedRoadSegment segment,
+            RoadGenerationResult edgeResult,
+            List<ConstructionRunChartMarker> constructionRuns) {
+        if (edgeResult.profileConstructionRuns == null || edgeResult.profileConstructionRuns.isEmpty()) {
+            return;
+        }
+        List<Double> profileDistances = edgeResult.profileDistances;
+        double profileSpan = profileDistances.getLast() - profileDistances.getFirst();
+        if (profileSpan <= 1e-9) {
+            profileSpan = segment.length();
+        }
+        for (ConstructionRunChartMarker marker : edgeResult.profileConstructionRuns) {
+            double startGeometry = marker.startStation();
+            double endGeometry = marker.endStation();
+            if (!segment.forward()) {
+                double total = profileDistances.getLast() - profileDistances.getFirst();
+                startGeometry = total - marker.endStation();
+                endGeometry = total - marker.startStation();
+            }
+            double startChain = segment.chainLocalFromGeometryLocal(
+                startGeometry * (segment.length() / profileSpan));
+            double endChain = segment.chainLocalFromGeometryLocal(
+                endGeometry * (segment.length() / profileSpan));
+            double roadStart = RoadStationing.toCanonicalChainage(
+                network, road, segment.startStation() + startChain);
+            double roadEnd = RoadStationing.toCanonicalChainage(
+                network, road, segment.startStation() + endChain);
+            constructionRuns.add(new ConstructionRunChartMarker(roadStart, roadEnd, marker.type()));
         }
     }
 

@@ -181,5 +181,16 @@ public final class RoadGenerationResultAssembler {
                 case ROAD, CUT, FILL -> result.normalRoadLength += distance;
             }
         }
+        result.profileConstructionRuns.clear();
+        if (detection.runs() == null) {
+            return;
+        }
+        for (var run : detection.runs()) {
+            if (run.type() == com.plot.plugin.road.RoadConstructionType.BRIDGE
+                    || run.type() == com.plot.plugin.road.RoadConstructionType.TUNNEL) {
+                result.profileConstructionRuns.add(new com.plot.plugin.road.profile.ConstructionRunChartMarker(
+                    run.startStation(), run.endStation(), run.type()));
+            }
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.plot.plugin.road.pipeline;
 
+import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.pipeline.construction.ConstructionDetection;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
 import com.plot.plugin.road.pipeline.construction.WaterCrossingConstructionResolver;
@@ -88,13 +89,27 @@ public final class RoadGenerationPipeline {
 
         ctx.setUnitsPerBlock(host.estimateCanvasUnitsPerBlock(request.pathPoints(), ctx.segments()));
 
+        int gradingEnvelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(request.crossSection());
         ConstructionDetection detection = RoadConstructionClassifier.classify(
             ctx.segments(),
             request.heightInfos(),
             request.terrain(),
             host.config(),
             request.terrainStyle(),
-            host::canvasToBlockPos);
+            host::canvasToBlockPos,
+            gradingEnvelopeWidth,
+            request.tunnelStyle(),
+            new com.plot.plugin.road.RoadTerrainClearanceUtils.BlockColumnResolver() {
+                @Override
+                public int worldX(com.plot.api.geometry.Vec2d planPoint) {
+                    return host.canvasToBlockPos(planPoint).getX();
+                }
+
+                @Override
+                public int worldZ(com.plot.api.geometry.Vec2d planPoint) {
+                    return host.canvasToBlockPos(planPoint).getZ();
+                }
+            });
         detection = WaterCrossingConstructionResolver.apply(
             detection,
             request.profileWaterCrossings(),

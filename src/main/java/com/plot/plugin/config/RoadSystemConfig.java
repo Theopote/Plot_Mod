@@ -163,7 +163,7 @@ public class RoadSystemConfig {
             tunnelStyle.setAccentSpacing(tunnelAccentSpacing);
             tunnelStyle.setAccentRings(true);
         }
-        tunnelStyle.clamp();
+        tunnelStyle.ensureConfigDefaults();
         tunnelLiningMaterial = null;
         tunnelAccentMaterial = null;
         tunnelAccentSpacing = 0;
@@ -328,12 +328,13 @@ public class RoadSystemConfig {
         if (tunnelStyle == null) {
             tunnelStyle = new TunnelStyle();
         }
+        tunnelStyle.ensureConfigDefaults();
         return tunnelStyle;
     }
 
     public void setTunnelStyle(TunnelStyle tunnelStyle) {
         this.tunnelStyle = tunnelStyle != null ? tunnelStyle : new TunnelStyle();
-        this.tunnelStyle.clamp();
+        this.tunnelStyle.ensureConfigDefaults();
     }
 
     public String getTunnelLiningMaterial() {

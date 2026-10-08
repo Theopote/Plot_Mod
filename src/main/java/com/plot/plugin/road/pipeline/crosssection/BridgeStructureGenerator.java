@@ -56,7 +56,7 @@ public final class BridgeStructureGenerator {
             boolean heavyPier) {
     }
 
-    record StationLocation(
+    public record StationLocation(
             int segmentIndex,
             double t,
             double geometryLocal,
@@ -528,7 +528,7 @@ public final class BridgeStructureGenerator {
         }
     }
 
-    static StationLocation locateStationOnPath(
+    public static StationLocation locateStationOnPath(
             List<PathSegment> segments,
             double unitsPerBlock,
             double geometryDistance) {

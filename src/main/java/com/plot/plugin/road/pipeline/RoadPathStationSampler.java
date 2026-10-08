@@ -20,7 +20,7 @@ public final class RoadPathStationSampler {
 
     @FunctionalInterface
     public interface StationSampleConsumer {
-        void accept(Vec2d center, Vec2d leftNormal, int targetY, double chainage);
+        void accept(Vec2d center, Vec2d leftNormal, int targetY, double chainage, int segmentIndex);
     }
 
     @FunctionalInterface
@@ -100,7 +100,7 @@ public final class RoadPathStationSampler {
                     targetY = elevationSnapper.snap(center, targetY);
                 }
                 double chainage = oriented.roadStationAtGeometryLocal(geometryLocal);
-                consumer.accept(center, leftNormal, targetY, chainage);
+                consumer.accept(center, leftNormal, targetY, chainage, i);
             }
             geometryLocalBase += segment.distance;
         }

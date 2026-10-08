@@ -139,11 +139,11 @@ class RoadInheritanceTest {
         override.setShape(TunnelShape.HORSESHOE);
         road.setTunnelStyle(override);
 
-        assertEquals(TunnelShape.HORSESHOE, road.getEffectiveTunnelStyle(config).getShape());
+        assertEquals(TunnelShape.HORSESHOE, road.getResolvedTunnelStyle(config).shape());
 
         road.inheritAllDefaults();
         assertNull(road.getStoredTunnelStyle());
-        assertEquals(TunnelShape.RECTANGULAR, road.getEffectiveTunnelStyle(config).getShape());
+        assertEquals(TunnelShape.RECTANGULAR, road.getResolvedTunnelStyle(config).shape());
     }
 
     @Test

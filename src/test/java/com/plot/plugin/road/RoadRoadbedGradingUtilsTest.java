@@ -39,27 +39,6 @@ class RoadRoadbedGradingUtilsTest {
     }
 
     @Test
-    void tunnelCrossSectionCreatesAirCavityAndSolidLining() {
-        RoadSolidModel solids = new RoadSolidModel();
-        TerrainSampler mountain = columnTerrain(100, 64, 100);
-
-        RoadRoadbedGradingUtils.gradeTunnelCrossSection(
-            solids, new Vec2d(0, 0), new Vec2d(0, 1),
-            3, 64, 5, 1, 1, "minecraft:stone_bricks",
-            mountain, new RoadTerrainClearanceUtils.BlockColumnResolver() {
-                @Override public int worldX(Vec2d point) { return (int) Math.round(point.x); }
-                @Override public int worldZ(Vec2d point) { return (int) Math.round(point.y); }
-            }, 1.0);
-
-        assertTrue(solids.primitives().stream().anyMatch(p ->
-            p.materialId().equals("minecraft:air") && p.elevation() == 69));
-        assertTrue(solids.primitives().stream().anyMatch(p ->
-            p.materialId().equals("minecraft:stone_bricks") && p.elevation() == 70));
-        assertTrue(solids.primitives().stream().anyMatch(p ->
-            p.materialId().equals("minecraft:stone_bricks") && Math.abs(p.planPoint().y) >= 3));
-    }
-
-    @Test
     void roadEnvelopeClearsNaturalDecorationsAboveEngineeringGround() {
         RoadSolidModel solids = new RoadSolidModel();
         TerrainSampler woodedColumn = new TerrainSampler() {
