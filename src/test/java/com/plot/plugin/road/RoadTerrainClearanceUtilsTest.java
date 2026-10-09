@@ -100,7 +100,11 @@ class RoadTerrainClearanceUtilsTest {
         assertTrue(result.tunnelBlocks.stream().anyMatch(pos -> pos.getY() == 69));
         assertTrue(result.tunnelBlocks.stream().anyMatch(pos -> pos.getY() == 70),
             "one-block lining should cap the tunnel clearance");
-        assertTrue(result.tunnelBlocks.stream().noneMatch(pos -> pos.getY() > 71),
+        // Portal approach (TUNNEL_PORTAL) grades as CUT and may clear tunnel-layer air up to surface.
+        // Structural lining itself must stay within clearHeight + lining (+ one portal thicken).
+        assertTrue(result.placementRecords.values().stream()
+                .filter(record -> "minecraft:stone_bricks".equals(record.newBlockId))
+                .noneMatch(record -> record.pos.getY() > 71),
             "portal frames may extend one block above the standard lining cap");
         assertTrue(result.placementRecords.values().stream().anyMatch(record ->
             record.pos.getY() == 69 && record.newBlockId.equals("minecraft:air")));

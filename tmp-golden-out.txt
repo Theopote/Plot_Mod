@@ -1,0 +1,127 @@
+
+> Configure project :
+Fabric Loom: 1.15.5
+
+> Task :compileJava
+> Task :processResources
+> Task :classes
+
+> Task :compileTestJava
+D:\development\PL\plot\src\test\java\com\plot\plugin\config\EarthworkConfigTest.java:53: 璀﹀憡: [deprecation] EarthworkConfig涓殑getTargetElevation()宸茶繃鏃?        assertEquals(0.0f, config.getTargetElevation());
+                                 ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\config\EarthworkConfigTest.java:54: 璀﹀憡: [deprecation] EarthworkConfig涓殑getCutVolume()宸茶繃鏃?        assertEquals(0.0f, config.getCutVolume());
+                                 ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\config\EarthworkConfigTest.java:55: 璀﹀憡: [deprecation] EarthworkConfig涓殑getFillVolume()宸茶繃鏃?        assertEquals(0.0f, config.getFillVolume());
+                                 ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\config\EarthworkConfigTest.java:62: 璀﹀憡: [deprecation] EarthworkConfig涓殑setCutVolume(float)宸茶繃鏃?        config.setCutVolume(999f);
+              ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\config\EarthworkConfigTest.java:63: 璀﹀憡: [deprecation] EarthworkConfig涓殑setFillVolume(float)宸茶繃鏃?        config.setFillVolume(888f);
+              ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\config\EarthworkConfigTest.java:64: 璀﹀憡: [deprecation] EarthworkConfig涓殑setTargetElevation(float)宸茶繃鏃?        config.setTargetElevation(12f);
+              ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\EarthworkTestFixtures.java:107: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_SCOPE_PER_ZONE宸茶繃鏃?        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:68: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_SCOPE_PER_ZONE宸茶繃鏃?        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:161: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_SCOPE_PER_ZONE宸茶繃鏃?        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:176: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_SCOPE_SITE_WIDE宸茶繃鏃?        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:177: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_METHOD_EARTHWORK_OPTIMIZATION宸茶繃鏃?        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_EARTHWORK_OPTIMIZATION);
+                                                                      ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:177: 璀﹀憡: [deprecation] CompositionPolicy涓殑setBalanceMethod(String)宸茶繃鏃?        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_EARTHWORK_OPTIMIZATION);
+                                   ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:208: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_SCOPE_SITE_WIDE宸茶繃鏃?        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:209: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_METHOD_NONE宸茶繃鏃?        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_NONE);
+                                                                      ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:209: 璀﹀憡: [deprecation] CompositionPolicy涓殑setBalanceMethod(String)宸茶繃鏃?        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_NONE);
+                                   ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:236: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_SCOPE_SITE_WIDE宸茶繃鏃?        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:237: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_METHOD_UNIFORM宸茶繃鏃?        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                                                      ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:237: 璀﹀憡: [deprecation] CompositionPolicy涓殑setBalanceMethod(String)宸茶繃鏃?        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                   ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:265: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_SCOPE_PER_ZONE宸茶繃鏃?        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:320: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_SCOPE_SITE_WIDE宸茶繃鏃?        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:321: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_METHOD_UNIFORM宸茶繃鏃?        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                                                      ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:321: 璀﹀憡: [deprecation] CompositionPolicy涓殑setBalanceMethod(String)宸茶繃鏃?        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                   ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:359: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_SCOPE_SITE_WIDE宸茶繃鏃?        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:360: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_METHOD_UNIFORM宸茶繃鏃?        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                                                      ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:360: 璀﹀憡: [deprecation] CompositionPolicy涓殑setBalanceMethod(String)宸茶繃鏃?        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                   ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:397: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_SCOPE_PER_ZONE宸茶繃鏃?        perZone.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+                                                                        ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:403: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_SCOPE_SITE_WIDE宸茶繃鏃?        siteWide.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                                         ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:404: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_METHOD_UNIFORM宸茶繃鏃?        siteWide.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                                                          ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:404: 璀﹀憡: [deprecation] CompositionPolicy涓殑setBalanceMethod(String)宸茶繃鏃?        siteWide.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                       ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:440: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_SCOPE_SITE_WIDE宸茶繃鏃?        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:441: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_METHOD_UNIFORM宸茶繃鏃?        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                                                      ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:441: 璀﹀憡: [deprecation] CompositionPolicy涓殑setBalanceMethod(String)宸茶繃鏃?        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                   ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:462: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_SCOPE_SITE_WIDE宸茶繃鏃?        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:463: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_METHOD_UNIFORM宸茶繃鏃?        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                                                      ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:463: 璀﹀憡: [deprecation] CompositionPolicy涓殑setBalanceMethod(String)宸茶繃鏃?        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                   ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:497: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_SCOPE_SITE_WIDE宸茶繃鏃?        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:498: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_METHOD_UNIFORM宸茶繃鏃?        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                                                      ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:498: 璀﹀憡: [deprecation] CompositionPolicy涓殑setBalanceMethod(String)宸茶繃鏃?        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                   ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\DesignTerrainComposerTest.java:539: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_SCOPE_PER_ZONE宸茶繃鏃?        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\EarthworkAnalyticalBenchmarkTest.java:177: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_SCOPE_PER_ZONE宸茶繃鏃?    site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+                                                                 ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\EarthworkValidatorTest.java:170: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_SCOPE_SITE_WIDE宸茶繃鏃?        policy.setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\EarthworkValidatorTest.java:171: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_METHOD_UNIFORM宸茶繃鏃?        policy.setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+                                                 ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\EarthworkValidatorTest.java:171: 璀﹀憡: [deprecation] CompositionPolicy涓殑setBalanceMethod(String)宸茶繃鏃?        policy.setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+              ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\EarthworkValidatorTest.java:193: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_SCOPE_SITE_WIDE宸茶繃鏃?        policy.setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+                                                ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\EarthworkValidatorTest.java:194: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_METHOD_EARTHWORK_OPTIMIZATION宸茶繃鏃?        policy.setBalanceMethod(CompositionPolicy.BALANCE_METHOD_EARTHWORK_OPTIMIZATION);
+                                                 ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\EarthworkValidatorTest.java:194: 璀﹀憡: [deprecation] CompositionPolicy涓殑setBalanceMethod(String)宸茶繃鏃?        policy.setBalanceMethod(CompositionPolicy.BALANCE_METHOD_EARTHWORK_OPTIMIZATION);
+              ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\model\CompositionPolicyBalanceSemanticsTest.java:37: 璀﹀憡: [deprecation] CompositionPolicy涓殑setBalanceMethod(String)宸茶繃鏃?        policy.setBalanceMethod("UNIFORM_OFFSET");
+              ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\model\CompositionPolicyBalanceSemanticsTest.java:49: 璀﹀憡: [deprecation] CompositionPolicy涓殑setBalanceMethod(String)宸茶繃鏃?        policy.setBalanceMethod("ZONE_ALLOCATION");
+              ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\PhaseDCompositionTest.java:81: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_SCOPE_PER_ZONE宸茶繃鏃?        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+                                                                     ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\PhaseDCompositionTest.java:140: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_SCOPE_PER_ZONE宸茶繃鏃?        policy.setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+                                                ^
+D:\development\PL\plot\src\test\java\com\plot\plugin\earthwork\PhaseDPlusCompositionTest.java:121: 璀﹀憡: [deprecation] CompositionPolicy涓殑BALANCE_SCOPE_PER_ZONE宸茶繃鏃?        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+                                                                     ^
+51 涓鍛?
+
+> Task :processTestResources
+> Task :testClasses
+> Task :test
+
+[Incubating] Problems report is available at: file:///D:/development/PL/plot/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.8.0/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 16s
+5 actionable tasks: 5 executed
