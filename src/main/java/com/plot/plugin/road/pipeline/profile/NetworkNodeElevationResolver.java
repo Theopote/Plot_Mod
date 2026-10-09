@@ -58,6 +58,9 @@ public final class NetworkNodeElevationResolver {
             }
             List<Integer> samples = naturalHeightsByNode.getOrDefault(node.getId(), List.of());
             if (samples.isEmpty()) {
+                if (!terrain.isChunkLoaded(node.getPosition())) {
+                    continue;
+                }
                 resolved.put(node.getId(), context.groundHeightAtNode(terrain, node, network));
                 continue;
             }

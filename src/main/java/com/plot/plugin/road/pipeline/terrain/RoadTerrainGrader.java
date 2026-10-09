@@ -128,8 +128,6 @@ public final class RoadTerrainGrader {
         double geometryLocalBase = 0.0;
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             RoadConstructionType type = RoadConstructionClassifier.constructionTypeAt(constructionTypes, i);
-            boolean portalStart = RoadConstructionClassifier.isStructureRunStart(constructionTypes, i);
-            boolean portalEnd = RoadConstructionClassifier.isStructureRunEnd(constructionTypes, i);
             PathSegment segment = segments.get(i);
             SegmentHeightInfo info = heightInfos.get(i);
             Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, chainForward);
@@ -169,21 +167,19 @@ public final class RoadTerrainGrader {
                     type,
                     profileWaterCrossings,
                     worldStation);
-                boolean portalSample = (j == 0 && portalStart) || (j == samples && portalEnd);
-                if (sampleType == RoadConstructionType.BRIDGE
-                        || (sampleType == RoadConstructionType.TUNNEL && !portalSample)) {
+                if (sampleType.isStructureInterior()) {
                     previousCenter = null;
                     previousTargetY = null;
                     continue;
                 }
-                RoadConstructionType gradeType = sampleType == RoadConstructionType.TUNNEL
+                RoadConstructionType gradeType = sampleType == RoadConstructionType.TUNNEL_PORTAL
                     ? RoadConstructionType.CUT
                     : sampleType;
                 total = total.add(RoadRoadbedGradingUtils.gradeCrossSectionEnvelope(
                     solids, center, leftNormal, envelopeWidth, targetY,
                     tunnelThreshold, bridgeThreshold, fillMaterialId,
                     terrain, host.columnResolver(), unitsPerBlock, gradeType));
-                if (gradeType == RoadConstructionType.CUT && sampleType == RoadConstructionType.TUNNEL) {
+                if (sampleType == RoadConstructionType.TUNNEL_PORTAL) {
                     previousCenter = null;
                     previousTargetY = null;
                     continue;

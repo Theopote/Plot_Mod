@@ -1,7 +1,9 @@
 package com.plot.plugin.road.solid;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.road.RoadDimensionUtils;
+import net.minecraft.util.math.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +34,7 @@ public final class RoadSolidModel {
     private final List<RoadSolidPrimitive> primitives = new ArrayList<>();
     private final Set<String> dedupKeys = new LinkedHashSet<>();
     private OverflowHandler overflowHandler;
+    private ICoordinateService coordinateService;
     private int droppedDueToLimit;
     private int overflowFlushCount;
     private boolean limitLogged;
@@ -47,6 +50,11 @@ public final class RoadSolidModel {
 
     public void setOverflowHandler(OverflowHandler overflowHandler) {
         this.overflowHandler = overflowHandler;
+    }
+
+    /** 去重键按投影后的世界格计算；null 时回退为画布 round。 */
+    public void setCoordinateService(ICoordinateService coordinateService) {
+        this.coordinateService = coordinateService;
     }
 
     public boolean add(RoadSolidPrimitive primitive) {
@@ -69,11 +77,23 @@ public final class RoadSolidModel {
             return false;
         }
 
-        if (!dedupKeys.add(primitive.dedupKey())) {
+        if (!dedupKeys.add(dedupKey(primitive))) {
             return false;
         }
         primitives.add(primitive);
         return true;
+    }
+
+    private String dedupKey(RoadSolidPrimitive primitive) {
+        if (coordinateService == null) {
+            return primitive.dedupKey();
+        }
+        BlockPos pos = RoadVoxelRasterizer.toBlockPos(
+            primitive.planPoint(), primitive.elevation(), coordinateService);
+        return primitive.layer().name()
+            + '@' + pos.getX()
+            + ',' + pos.getY()
+            + ',' + pos.getZ();
     }
 
     private void flushOverflowChunk() {

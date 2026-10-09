@@ -679,8 +679,8 @@ public final class RoadProfileChartRenderer {
 
     private static int constructionRunColor(com.plot.plugin.road.RoadConstructionType type) {
         return switch (type) {
-            case BRIDGE -> 0x66FF9966;
-            case TUNNEL -> 0x66CC99FF;
+            case BRIDGE, BRIDGE_ABUTMENT -> 0x66FF9966;
+            case TUNNEL, TUNNEL_PORTAL -> 0x66CC99FF;
             default -> 0x00000000;
         };
     }

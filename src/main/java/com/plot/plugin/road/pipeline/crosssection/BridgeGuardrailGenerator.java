@@ -46,7 +46,7 @@ public final class BridgeGuardrailGenerator {
             BuildHeightProfile buildProfile,
             List<WaterCrossing> profileWaterCrossings,
             String guardrailMaterial) {
-        if (constructionTypes.stream().noneMatch(type -> type == RoadConstructionType.BRIDGE)) {
+        if (constructionTypes.stream().noneMatch(RoadConstructionType::isBridgeFamily)) {
             return;
         }
         String blockId = host.resolveBlockId(
@@ -57,7 +57,7 @@ public final class BridgeGuardrailGenerator {
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         double geometryLocalBase = 0.0;
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
-            if (RoadConstructionClassifier.constructionTypeAt(constructionTypes, i) != RoadConstructionType.BRIDGE) {
+            if (!RoadConstructionClassifier.constructionTypeAt(constructionTypes, i).isBridgeFamily()) {
                 geometryLocalBase += segments.get(i).distance;
                 continue;
             }

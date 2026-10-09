@@ -69,8 +69,7 @@ public final class RoadFurnitureGenerator {
             (center, leftNormal, targetY, chainage, segmentIndex) -> {
                 RoadConstructionType constructionType = RoadConstructionClassifier.constructionTypeAt(
                     constructionTypes, segmentIndex);
-                if (constructionType == RoadConstructionType.TUNNEL
-                        || constructionType == RoadConstructionType.BRIDGE) {
+                if (constructionType.isStructure()) {
                     return;
                 }
                 if (previous[0] != null) {

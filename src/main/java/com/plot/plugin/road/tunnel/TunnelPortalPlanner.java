@@ -161,7 +161,7 @@ public final class TunnelPortalPlanner {
             : heightInfos.getLast();
         RoadConstructionType type = RoadConstructionClassifier.constructionTypeAt(
             constructionTypes, location.segmentIndex());
-        if (type != RoadConstructionType.TUNNEL) {
+        if (!type.isTunnelFamily()) {
             return false;
         }
         boolean chainForward = crossSections.samplingOriented().forward();

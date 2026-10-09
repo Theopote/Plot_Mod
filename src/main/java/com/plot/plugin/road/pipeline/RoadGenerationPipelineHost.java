@@ -41,6 +41,7 @@ public final class RoadGenerationPipelineHost implements RoadGenerationPipelineC
         return config;
     }
 
+    @Override
     public ICoordinateService coordinateTransformer() {
         return coordinateTransformer;
     }

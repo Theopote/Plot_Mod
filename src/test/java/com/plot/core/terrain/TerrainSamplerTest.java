@@ -49,4 +49,29 @@ class TerrainSamplerTest {
         assertTrue(terrain.isChunkLoaded(0, 0));
         assertTrue(terrain.isChunkLoaded(new Vec2d(10, 20)));
     }
+
+    @Test
+    void loadedCrossSectionSkipsUnloadedColumns() {
+        TerrainSampler terrain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return planPoint.x >= 0 ? 80 : 64;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return true;
+            }
+
+            @Override
+            public boolean isChunkLoaded(Vec2d planPoint) {
+                return planPoint.x >= 0;
+            }
+        };
+
+        assertTrue(terrain.sampleLoadedSurfaceY(new Vec2d(-1, 0)).isEmpty());
+        assertEquals(80, terrain.sampleLoadedSurfaceY(new Vec2d(1, 0)).orElseThrow());
+        assertEquals(80, terrain.sampleLoadedCrossSectionGroundY(new Vec2d(0, 0), new Vec2d(1, 0), 1.0).orElseThrow());
+        assertTrue(terrain.sampleLoadedCrossSectionGroundY(new Vec2d(-2, 0), new Vec2d(1, 0), 0).isEmpty());
+    }
 }

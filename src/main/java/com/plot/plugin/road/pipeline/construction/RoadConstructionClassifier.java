@@ -102,6 +102,7 @@ public final class RoadConstructionClassifier {
             }
         }
 
+        markPortalAndAbutmentSegments(resolvedTypes);
         return new ConstructionDetection(
             bridges,
             tunnels,
@@ -142,12 +143,36 @@ public final class RoadConstructionClassifier {
                 }
             }
         }
+        markPortalAndAbutmentSegments(resolvedTypes);
         return new ConstructionDetection(
             bridges,
             tunnels,
             List.copyOf(resolvedTypes),
             segmentDistances,
             buildRuns(resolvedTypes, segmentDistances, groundHeights, targetHeights));
+    }
+
+    /** 将桥隧成段的首尾标为桥台 / 洞门，供土方与边坡按类型处理而不再依赖 run 边界探测。 */
+    static void markPortalAndAbutmentSegments(List<RoadConstructionType> types) {
+        if (types == null || types.isEmpty()) {
+            return;
+        }
+        int index = 0;
+        while (index < types.size()) {
+            RoadConstructionType family = types.get(index).family();
+            int start = index;
+            while (index < types.size() && types.get(index).family() == family) {
+                index++;
+            }
+            int end = index - 1;
+            if (family == RoadConstructionType.BRIDGE) {
+                types.set(start, RoadConstructionType.BRIDGE_ABUTMENT);
+                types.set(end, RoadConstructionType.BRIDGE_ABUTMENT);
+            } else if (family == RoadConstructionType.TUNNEL) {
+                types.set(start, RoadConstructionType.TUNNEL_PORTAL);
+                types.set(end, RoadConstructionType.TUNNEL_PORTAL);
+            }
+        }
     }
 
     private static boolean isSubmerged(SegmentHeightInfo info) {
@@ -201,8 +226,8 @@ public final class RoadConstructionClassifier {
             int maximum = 0;
             double weightedDifference = 0.0;
             double length = 0.0;
-            RoadConstructionType type = types.get(index);
-            while (index < types.size() && types.get(index) == type) {
+            RoadConstructionType type = types.get(index).family();
+            while (index < types.size() && types.get(index).family() == type) {
                 double distance = distances.get(index);
                 int difference = targetHeights.get(index) - groundHeights.get(index);
                 maximum = Math.max(maximum, Math.abs(difference));
@@ -229,7 +254,7 @@ public final class RoadConstructionClassifier {
     }
 
     public static boolean isStructureType(RoadConstructionType type) {
-        return type == RoadConstructionType.BRIDGE || type == RoadConstructionType.TUNNEL;
+        return type != null && type.isStructure();
     }
 
     /** 桥隧构造段的起点（洞门 / 桥台）。 */
@@ -238,7 +263,8 @@ public final class RoadConstructionClassifier {
         if (!isStructureType(type)) {
             return false;
         }
-        return segmentIndex <= 0 || constructionTypeAt(constructionTypes, segmentIndex - 1) != type;
+        return segmentIndex <= 0
+            || constructionTypeAt(constructionTypes, segmentIndex - 1).family() != type.family();
     }
 
     /** 桥隧构造段的终点（洞门 / 桥台）。 */
@@ -249,7 +275,7 @@ public final class RoadConstructionClassifier {
         }
         return constructionTypes == null
             || segmentIndex >= constructionTypes.size() - 1
-            || constructionTypeAt(constructionTypes, segmentIndex + 1) != type;
+            || constructionTypeAt(constructionTypes, segmentIndex + 1).family() != type.family();
     }
 
     private static int averageHeight(int a, int b) {

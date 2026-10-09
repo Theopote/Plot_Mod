@@ -69,6 +69,9 @@ public class RoadJunctionGenerator {
             TerrainSampler terrain,
             Map<String, Integer> networkNodeElevations) {
         JunctionBlocks blocks = new JunctionBlocks();
+        if (generator != null) {
+            blocks.getSolids().setCoordinateService(generator.coordinateTransformer());
+        }
         if (node == null || network == null || generator == null || terrain == null) {
             return blocks;
         }

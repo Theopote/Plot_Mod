@@ -95,7 +95,7 @@ final class FlatElevationConstructionMetrics {
         int count = 0;
         RoadConstructionType previous = null;
         for (RoadConstructionType type : types) {
-            if (type == target && previous != target) {
+            if (type != null && type.family() == target && (previous == null || previous.family() != target)) {
                 count++;
             }
             previous = type;
@@ -112,8 +112,8 @@ final class FlatElevationConstructionMetrics {
         switch (type) {
             case CUT -> cutVolume += Math.abs(diff) * roundedDistance;
             case FILL -> fillVolume += diff * roundedDistance;
-            case BRIDGE -> bridgeLength += distance;
-            case TUNNEL -> tunnelLength += distance;
+            case BRIDGE, BRIDGE_ABUTMENT -> bridgeLength += distance;
+            case TUNNEL, TUNNEL_PORTAL -> tunnelLength += distance;
             case ROAD -> {
                 if (diff > 1) {
                     fillVolume += diff * roundedDistance;

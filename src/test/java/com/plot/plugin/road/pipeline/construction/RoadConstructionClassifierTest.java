@@ -34,7 +34,7 @@ class RoadConstructionClassifierTest {
             config,
             canvas -> BlockPos.ORIGIN);
 
-        assertEquals(RoadConstructionType.BRIDGE, detection.constructionTypes().getFirst());
+        assertEquals(RoadConstructionType.BRIDGE_ABUTMENT, detection.constructionTypes().getFirst());
         assertEquals(1, detection.bridges().size());
         assertTrue(detection.tunnels().isEmpty());
         assertEquals(1, detection.runCount(RoadConstructionType.BRIDGE));
@@ -57,5 +57,30 @@ class RoadConstructionClassifierTest {
         assertFalse(RoadConstructionClassifier.isStructureRunEnd(types, 2));
         assertTrue(RoadConstructionClassifier.isStructureRunEnd(types, 3));
         assertFalse(RoadConstructionClassifier.isStructureRunEnd(types, 4));
+    }
+
+    @Test
+    void markPortalAndAbutmentRewritesStructureRunEnds() {
+        List<RoadConstructionType> types = new java.util.ArrayList<>(List.of(
+            RoadConstructionType.CUT,
+            RoadConstructionType.TUNNEL,
+            RoadConstructionType.TUNNEL,
+            RoadConstructionType.TUNNEL,
+            RoadConstructionType.BRIDGE,
+            RoadConstructionType.BRIDGE,
+            RoadConstructionType.FILL));
+
+        RoadConstructionClassifier.markPortalAndAbutmentSegments(types);
+
+        assertEquals(RoadConstructionType.CUT, types.get(0));
+        assertEquals(RoadConstructionType.TUNNEL_PORTAL, types.get(1));
+        assertEquals(RoadConstructionType.TUNNEL, types.get(2));
+        assertEquals(RoadConstructionType.TUNNEL_PORTAL, types.get(3));
+        assertEquals(RoadConstructionType.BRIDGE_ABUTMENT, types.get(4));
+        assertEquals(RoadConstructionType.BRIDGE_ABUTMENT, types.get(5));
+        assertEquals(RoadConstructionType.FILL, types.get(6));
+        assertTrue(RoadConstructionClassifier.isStructureRunStart(types, 1));
+        assertFalse(RoadConstructionClassifier.isStructureRunStart(types, 2));
+        assertTrue(RoadConstructionClassifier.isStructureRunEnd(types, 3));
     }
 }

@@ -21,6 +21,19 @@ class RoadSolidModelTest {
     }
 
     @Test
+    void addDeduplicatesWorldBlockPosWhenTransformerIsSet() {
+        RoadSolidModel model = new RoadSolidModel();
+        model.setCoordinateService(com.plot.test.scale.ScaleInvarianceProjections.FAR);
+
+        assertTrue(model.add(new Vec2d(0.1, 0.0), 64, RoadSolidLayer.ROAD, "minecraft:stone"));
+        assertTrue(model.add(new Vec2d(0.4, 0.0), 64, RoadSolidLayer.ROAD, "minecraft:dirt"),
+            "scale-4 world cells 0 and 2 must not collapse to the same canvas round key");
+        assertEquals(2, model.count(RoadSolidLayer.ROAD));
+        assertFalse(model.add(new Vec2d(0.12, 0.0), 64, RoadSolidLayer.ROAD, "minecraft:sand"));
+        assertEquals(2, model.count(RoadSolidLayer.ROAD));
+    }
+
+    @Test
     void addDeduplicatesRoundedGridCellInsteadOfExactFloat() {
         RoadSolidModel model = new RoadSolidModel();
 

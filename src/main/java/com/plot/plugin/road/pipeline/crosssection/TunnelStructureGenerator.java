@@ -62,7 +62,7 @@ public final class TunnelStructureGenerator {
             ConstructionDetection detection,
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver) {
         if (tunnelStyle == null
-                || constructionTypes.stream().noneMatch(type -> type == RoadConstructionType.TUNNEL)) {
+                || constructionTypes.stream().noneMatch(RoadConstructionType::isTunnelFamily)) {
             return;
         }
         List<TunnelPortalPlanner.PortalStation> portals = planPortalStations(
@@ -102,7 +102,7 @@ public final class TunnelStructureGenerator {
                     type,
                     profileWaterCrossings,
                     worldStation);
-                if (sampleType != RoadConstructionType.TUNNEL) {
+                if (!sampleType.isTunnelFamily()) {
                     continue;
                 }
                 boolean portalFrame = TunnelPortalPlanner.findPortalNear(portals, worldStation) != null;

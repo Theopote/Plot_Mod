@@ -15,8 +15,8 @@ public record RoadSolidPrimitive(Vec2d planPoint, int elevation, RoadSolidLayer 
     }
 
     /**
-     * 同一层、同一世界格、同一标高只保留先写入的图元。
-     * 用四舍五入后的画布格，与 {@link RoadVoxelRasterizer#toBlockPos} 在 1:1 变换下一致。
+     * 无坐标变换时的去重键：同一层、同一画布 round 格、同一标高。
+     * 生成路径应通过 {@link RoadSolidModel#setCoordinateService} 改用世界 BlockPos。
      */
     public String dedupKey() {
         return layer.name()

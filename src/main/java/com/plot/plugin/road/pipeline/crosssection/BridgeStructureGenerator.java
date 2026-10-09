@@ -81,7 +81,7 @@ public final class BridgeStructureGenerator {
             DesignElevationSource designElevation,
             BuildHeightProfile buildProfile,
             List<WaterCrossing> profileWaterCrossings) {
-        if (constructionTypes.stream().noneMatch(type -> type == RoadConstructionType.BRIDGE)) {
+        if (constructionTypes.stream().noneMatch(RoadConstructionType::isBridgeFamily)) {
             return;
         }
         String pierBlockId = host.resolveBlockId(PIER_MATERIAL);
@@ -252,7 +252,7 @@ public final class BridgeStructureGenerator {
         boolean inBridgeRun = false;
         for (int i = 0; i < segments.size(); i++) {
             PathSegment segment = segments.get(i);
-            if (RoadConstructionClassifier.constructionTypeAt(constructionTypes, i) != RoadConstructionType.BRIDGE) {
+            if (!RoadConstructionClassifier.constructionTypeAt(constructionTypes, i).isBridgeFamily()) {
                 inBridgeRun = false;
                 accumulated += segment.distance;
                 continue;

@@ -529,6 +529,12 @@ class RoadGeneratorTerrainTest {
             }
 
             @Override
+            public java.util.OptionalInt sampleLoadedCrossSectionGroundY(
+                    Vec2d center, Vec2d tangent, double halfWidth) {
+                return java.util.OptionalInt.of(sampleCrossSectionGroundY(center, tangent, halfWidth));
+            }
+
+            @Override
             public boolean isSolidBlock(int worldX, int y, int worldZ) {
                 return true;
             }

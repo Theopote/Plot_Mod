@@ -80,22 +80,42 @@ public interface TerrainSampler {
     }
 
     /**
-     * 沿横断面采样地表高度并取平均（覆盖 [-halfWidth, +halfWidth]）。
+     * 已加载列的地表高度；未加载列为空，调用方不得把 {@link #DEFAULT_SEA_LEVEL} 当成真实地面。
      */
-    default int sampleCrossSectionGroundY(Vec2d center, Vec2d tangent, double halfWidth) {
+    default OptionalInt sampleLoadedSurfaceY(Vec2d planPoint) {
+        if (planPoint == null || !isChunkLoaded(planPoint)) {
+            return OptionalInt.empty();
+        }
+        return OptionalInt.of(sampleSurfaceY(planPoint));
+    }
+
+    /**
+     * 沿横断面只平均已加载列；全部未加载时为空。
+     */
+    default OptionalInt sampleLoadedCrossSectionGroundY(Vec2d center, Vec2d tangent, double halfWidth) {
         if (center == null) {
-            return DEFAULT_SEA_LEVEL;
+            return OptionalInt.empty();
         }
         if (halfWidth <= 0) {
-            return sampleSurfaceY(center);
+            return sampleLoadedSurfaceY(center);
         }
-
         Vec2d normal = leftNormal(tangent);
         List<Integer> heights = new ArrayList<>();
         for (int offset : crossSectionSampleOffsets(halfWidth)) {
-            heights.add(sampleSurfaceY(center.add(normal.multiply(offset))));
+            sampleLoadedSurfaceY(center.add(normal.multiply(offset))).ifPresent(heights::add);
         }
-        return averageHeight(heights);
+        if (heights.isEmpty()) {
+            return OptionalInt.empty();
+        }
+        return OptionalInt.of(averageHeight(heights));
+    }
+
+    /**
+     * 沿横断面采样地表高度并取平均（覆盖 [-halfWidth, +halfWidth]）。
+     * 未加载列不计入平均；全部未加载时回退 {@link #DEFAULT_SEA_LEVEL}。
+     */
+    default int sampleCrossSectionGroundY(Vec2d center, Vec2d tangent, double halfWidth) {
+        return sampleLoadedCrossSectionGroundY(center, tangent, halfWidth).orElse(DEFAULT_SEA_LEVEL);
     }
 
     private static Vec2d leftNormal(Vec2d direction) {

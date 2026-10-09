@@ -176,8 +176,8 @@ public final class RoadGenerationResultAssembler {
         for (int i = 0; i < detection.constructionTypes().size(); i++) {
             double distance = detection.segmentDistances().get(i);
             switch (detection.constructionTypes().get(i)) {
-                case BRIDGE -> result.bridgeLength += distance;
-                case TUNNEL -> result.tunnelLength += distance;
+                case BRIDGE, BRIDGE_ABUTMENT -> result.bridgeLength += distance;
+                case TUNNEL, TUNNEL_PORTAL -> result.tunnelLength += distance;
                 case ROAD, CUT, FILL -> result.normalRoadLength += distance;
             }
         }

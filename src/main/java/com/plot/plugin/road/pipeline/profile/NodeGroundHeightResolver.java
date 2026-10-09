@@ -10,6 +10,7 @@ import com.plot.plugin.road.model.RoadNode;
 import com.plot.core.terrain.TerrainSampler;
 
 import java.util.List;
+import java.util.OptionalInt;
 
 /**
  * Samples ground elevation at a network node using the widest connected edge for tangent / half-width.
@@ -22,10 +23,15 @@ public final class NodeGroundHeightResolver {
     }
 
     public int groundHeightAtNode(TerrainSampler terrain, RoadNode node, RoadNetwork network) {
+        return loadedGroundHeightAtNode(terrain, node, network)
+            .orElse(TerrainSampler.DEFAULT_SEA_LEVEL);
+    }
+
+    public OptionalInt loadedGroundHeightAtNode(TerrainSampler terrain, RoadNode node, RoadNetwork network) {
         if (node == null || terrain == null) {
-            return TerrainSampler.DEFAULT_SEA_LEVEL;
+            return OptionalInt.empty();
         }
-        return terrain.sampleCrossSectionGroundY(
+        return terrain.sampleLoadedCrossSectionGroundY(
             node.getPosition(),
             nodeTangent(node, network),
             nodeHalfWidth(node, network));

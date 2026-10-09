@@ -195,7 +195,7 @@ public final class RoadCrossSectionBuilder {
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             PathSegment segment = segments.get(i);
             boolean bridgeSegment = RoadConstructionClassifier.constructionTypeAt(
-                constructionTypes, i) == RoadConstructionType.BRIDGE;
+                constructionTypes, i).isBridgeFamily();
             SegmentHeightInfo info = heightInfos.get(i);
             Vec2d normal = PathSegmentGeometry.chainLeftNormal(segment, chainForward);
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
@@ -384,10 +384,7 @@ public final class RoadCrossSectionBuilder {
         double geometryLocalBase = 0.0;
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             RoadConstructionType type = RoadConstructionClassifier.constructionTypeAt(constructionTypes, i);
-            boolean structure = RoadConstructionClassifier.isStructureType(type);
-            boolean portalStart = RoadConstructionClassifier.isStructureRunStart(constructionTypes, i);
-            boolean portalEnd = RoadConstructionClassifier.isStructureRunEnd(constructionTypes, i);
-            if (structure && !portalStart && !portalEnd) {
+            if (type.isStructureInterior()) {
                 geometryLocalBase += segments.get(i).distance;
                 continue;
             }
@@ -396,11 +393,6 @@ public final class RoadCrossSectionBuilder {
             Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, chainForward);
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
             for (int j = 0; j <= samples; j++) {
-                if (structure
-                        && !(portalStart && j == 0)
-                        && !(portalEnd && j == samples)) {
-                    continue;
-                }
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
                 double geometryLocal = geometryLocalBase + segment.distance * t;

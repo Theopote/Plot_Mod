@@ -57,7 +57,7 @@ class WaterCrossingConstructionResolverTest {
             null,
             canvas -> new net.minecraft.util.math.BlockPos(0, 0, 0));
 
-        assertEquals(RoadConstructionType.BRIDGE, resolved.constructionTypes().getFirst());
+        assertEquals(RoadConstructionType.BRIDGE_ABUTMENT, resolved.constructionTypes().getFirst());
         assertTrue(resolved.bridges().size() >= 1);
     }
 

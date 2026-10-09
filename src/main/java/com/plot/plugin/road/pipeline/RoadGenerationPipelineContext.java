@@ -1,6 +1,7 @@
 package com.plot.plugin.road.pipeline;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.pipeline.construction.ConstructionDetection;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
@@ -117,6 +118,10 @@ public final class RoadGenerationPipelineContext {
         double estimateCanvasUnitsPerBlock(List<Vec2d> pathPoints, List<PathSegment> segments);
 
         BlockPos canvasToBlockPos(Vec2d canvasPos);
+
+        default ICoordinateService coordinateTransformer() {
+            return null;
+        }
 
         void setEndpointSnaps(EndpointElevationSnaps endpointSnaps);
 
