@@ -91,6 +91,42 @@ class RoadCrossingWorkflowIntegrationTest {
     }
 
     @Test
+    void deleteRoad_removesOrphanCrossingFromRegistryAndOverlay() {
+        manager.adoptSelectedPaths(List.of(
+            new PolylineShape(List.of(new Vec2d(0, 5), new Vec2d(10, 5)), false),
+            new PolylineShape(List.of(new Vec2d(5, 0), new Vec2d(5, 10)), false)));
+
+        RoadNetwork network = manager.getNetwork();
+        assertEquals(1, network.getCrossings().size());
+        String roadToDelete = network.getRoads().keySet().iterator().next();
+
+        manager.deleteRoad(roadToDelete);
+
+        assertTrue(network.getCrossings().isEmpty());
+        List<RoadJunctionOverlayEntry> entries = RoadJunctionOverlayController.snapshot(
+            network,
+            builder,
+            "",
+            "");
+        assertTrue(entries.stream().noneMatch(e -> e.source() == IntersectionOverlaySource.CROSSING));
+    }
+
+    @Test
+    void deleteEdge_removesOrphanCrossingFromRegistry() {
+        manager.adoptSelectedPaths(List.of(
+            new PolylineShape(List.of(new Vec2d(0, 5), new Vec2d(10, 5)), false),
+            new PolylineShape(List.of(new Vec2d(5, 0), new Vec2d(5, 10)), false)));
+
+        RoadNetwork network = manager.getNetwork();
+        assertEquals(1, network.getCrossings().size());
+        String edgeToDelete = network.getEdges().keySet().iterator().next();
+
+        manager.deleteEdge(edgeToDelete);
+
+        assertTrue(network.getCrossings().isEmpty());
+    }
+
+    @Test
     void reconcilePreservesGradeSeparationDesign() {
         manager.adoptSelectedPaths(List.of(
             new PolylineShape(List.of(new Vec2d(0, 5), new Vec2d(10, 5)), false),

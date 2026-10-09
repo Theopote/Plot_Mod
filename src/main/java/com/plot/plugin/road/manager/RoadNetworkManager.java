@@ -700,6 +700,8 @@ public final class RoadNetworkManager {
                 lastSelectedEdgeId = getPrimarySelectedEdgeId();
             }
             ensureSelectionValid();
+            // Geometry gone → drop orphan RoadCrossing markers from the registry/overlay.
+            reconcileCrossingsInPlace();
         });
     }
 
@@ -716,6 +718,8 @@ public final class RoadNetworkManager {
                 lastSelectedEdgeId = "";
             }
             ensureSelectionValid();
+            // Geometry gone → drop orphan RoadCrossing markers from the registry/overlay.
+            reconcileCrossingsInPlace();
         });
     }
 
