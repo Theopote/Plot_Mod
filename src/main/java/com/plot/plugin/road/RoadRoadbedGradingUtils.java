@@ -52,6 +52,9 @@ public final class RoadRoadbedGradingUtils {
         if (solids == null || planPoint == null || terrain == null) {
             return GradingVolumes.ZERO;
         }
+        if (!terrain.isChunkLoaded(worldX, worldZ)) {
+            return GradingVolumes.ZERO;
+        }
         int groundY = terrain.sampleSurfaceY(planPoint);
         if (constructionType == RoadConstructionType.BRIDGE
                 || constructionType == RoadConstructionType.TUNNEL) {
@@ -171,6 +174,9 @@ public final class RoadRoadbedGradingUtils {
             Vec2d point = center.add(normal.multiply(lateral * scale));
             int worldX = columnResolver.worldX(point);
             int worldZ = columnResolver.worldZ(point);
+            if (!terrain.isChunkLoaded(worldX, worldZ)) {
+                continue;
+            }
             int groundY = terrain.sampleSurfaceY(point);
             int topY = terrain.sampleColumnTopY(point);
             for (int y = groundY + 1; y <= topY; y++) {

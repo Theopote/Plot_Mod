@@ -17,26 +17,53 @@ import java.util.stream.Collectors;
  */
 public final class RoadSolidModel {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadSolidModel");
-    private static final int MAX_DEDUP_KEYS = 100000; // 限制去重键最大数量，防止内存泄漏
+    static final int DEFAULT_MAX_DEDUP_KEYS = 100_000;
 
+    /**
+     * 去重表达到上限时的分块回调：调用方应先把当前图元落地，再 {@link #clear()}。
+     * 未设置时超限图元会被丢弃。
+     */
+    @FunctionalInterface
+    public interface OverflowHandler {
+        void onCapacityReached(RoadSolidModel model);
+    }
+
+    private final int maxDedupKeys;
     private final List<RoadSolidPrimitive> primitives = new ArrayList<>();
     private final Set<String> dedupKeys = new LinkedHashSet<>();
+    private OverflowHandler overflowHandler;
     private int droppedDueToLimit;
+    private int overflowFlushCount;
     private boolean limitLogged;
+
+    public RoadSolidModel() {
+        this(DEFAULT_MAX_DEDUP_KEYS);
+    }
+
+    /** 测试与分块验证可传入更小上限。 */
+    RoadSolidModel(int maxDedupKeys) {
+        this.maxDedupKeys = Math.max(1, maxDedupKeys);
+    }
+
+    public void setOverflowHandler(OverflowHandler overflowHandler) {
+        this.overflowHandler = overflowHandler;
+    }
 
     public boolean add(RoadSolidPrimitive primitive) {
         if (primitive == null) {
             return false;
         }
 
-        // 超限后停止继续添加，避免 clear 键表导致重复图元
-        if (dedupKeys.size() >= MAX_DEDUP_KEYS) {
+        if (dedupKeys.size() >= maxDedupKeys) {
+            flushOverflowChunk();
+        }
+        if (dedupKeys.size() >= maxDedupKeys) {
             droppedDueToLimit++;
             if (!limitLogged) {
                 limitLogged = true;
                 LOGGER.error(
                     "道路实体图元达到上限 {}，后续方块将被丢弃（已丢弃 {} 个）",
-                    MAX_DEDUP_KEYS,
+                    maxDedupKeys,
                     droppedDueToLimit);
             }
             return false;
@@ -47,6 +74,18 @@ public final class RoadSolidModel {
         }
         primitives.add(primitive);
         return true;
+    }
+
+    private void flushOverflowChunk() {
+        if (overflowHandler == null || primitives.isEmpty()) {
+            return;
+        }
+        overflowFlushCount++;
+        LOGGER.info(
+            "道路实体图元达到上限 {}，分块落地后继续（第 {} 块）",
+            maxDedupKeys,
+            overflowFlushCount);
+        overflowHandler.onCapacityReached(this);
     }
 
     public boolean add(Vec2d planPoint, int elevation, RoadSolidLayer layer) {
@@ -128,11 +167,16 @@ public final class RoadSolidModel {
     }
 
     public boolean isAtCapacity() {
-        return dedupKeys.size() >= MAX_DEDUP_KEYS;
+        return dedupKeys.size() >= maxDedupKeys;
+    }
+
+    /** 因超限而分块落地的次数（不含最终一次 flush）。 */
+    public int getOverflowFlushCount() {
+        return overflowFlushCount;
     }
 
     /**
-     * 清空所有图元和去重键，释放内存
+     * 清空所有图元和去重键，释放内存。保留 overflow handler，便于后续分块继续写入。
      */
     public void clear() {
         primitives.clear();

@@ -314,6 +314,38 @@ class RoadGeneratorTerrainTest {
     }
 
     @Test
+    void junctionFillCoversWorldCellsWhenProjectionIsScaled() {
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        var identity = com.plot.test.world.IdentityCoordinateService.INSTANCE;
+        var far = com.plot.test.scale.ScaleInvarianceProjections.FAR;
+        RoadGenerator identityGenerator = new RoadGenerator(
+            config, identity, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        RoadGenerator farGenerator = new RoadGenerator(
+            config, far, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        TerrainSampler terrain = new FlatTerrainSampler(65);
+
+        RoadNetwork network = new RoadNetwork();
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        RoadNode north = network.createNode(new Vec2d(0, 10));
+        RoadNode east = network.createNode(new Vec2d(10, 0));
+        RoadNode west = network.createNode(new Vec2d(-10, 0));
+        network.createEdge(junction.getId(), north.getId(), List.of(new Vec2d(0, 0), new Vec2d(0, 10)));
+        network.createEdge(junction.getId(), east.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
+        network.createEdge(junction.getId(), west.getId(), List.of(new Vec2d(0, 0), new Vec2d(-10, 0)));
+
+        var identityBlocks = new RoadJunctionGenerator(identityGenerator).generateJunction(junction, network, terrain);
+        var farBlocks = new RoadJunctionGenerator(farGenerator).generateJunction(junction, network, terrain);
+        var identityPos = com.plot.plugin.road.solid.RoadVoxelRasterizer.rasterize(
+            identityBlocks.getSolids().primitives(), identity);
+        var farPos = com.plot.plugin.road.solid.RoadVoxelRasterizer.rasterize(
+            farBlocks.getSolids().primitives(), far);
+
+        assertFalse(identityPos.isEmpty());
+        assertTrue(farPos.size() > identityPos.size(),
+            "scaled projection must fill more world cells than canvas integer scan");
+    }
+
+    @Test
     void gradeSeparationElevatesCrossingRoadByClearance() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setDefaultCrossingClearance(3.0);

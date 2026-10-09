@@ -182,19 +182,15 @@ public class RoadJunctionGenerator {
             Vec2d center,
             int junctionY,
             TerrainSampler terrain) {
-        double minX = polygon.stream().mapToDouble(p -> p.x).min().orElse(center.x);
-        double maxX = polygon.stream().mapToDouble(p -> p.x).max().orElse(center.x);
-        double minY = polygon.stream().mapToDouble(p -> p.y).min().orElse(center.y);
-        double maxY = polygon.stream().mapToDouble(p -> p.y).max().orElse(center.y);
-
-        for (int x = (int) Math.floor(minX); x <= (int) Math.ceil(maxX); x++) {
-            for (int z = (int) Math.floor(minY); z <= (int) Math.ceil(maxY); z++) {
-                Vec2d point = new Vec2d(x, z);
-                if (RoadGeometryUtils.pointInPolygon(point, polygon)) {
-                    blocks.getSolids().add(point, junctionY, RoadSolidLayer.ROAD);
-                    gradeJunctionColumn(blocks, point, junctionY, terrain);
-                }
-            }
+        List<Vec2d> cells = RoadGeometryUtils.collectWorldCellPlanPoints(
+            polygon,
+            generator.coordinateTransformer());
+        if (cells.isEmpty() && center != null) {
+            cells = List.of(center);
+        }
+        for (Vec2d point : cells) {
+            blocks.getSolids().add(point, junctionY, RoadSolidLayer.ROAD);
+            gradeJunctionColumn(blocks, point, junctionY, terrain);
         }
     }
 
@@ -207,6 +203,9 @@ public class RoadJunctionGenerator {
             return;
         }
         BlockPos column = generator.toBlockPos(planPoint, 0);
+        if (!terrain.isChunkLoaded(column.getX(), column.getZ())) {
+            return;
+        }
         String fillMaterialId = generator.getBlockIdFromMaterial(generator.getConfig().getFillSlopeMaterial());
         RoadRoadbedGradingUtils.gradeColumn(
             blocks.getSolids(),

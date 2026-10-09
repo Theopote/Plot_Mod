@@ -123,6 +123,10 @@ public final class RoadGenerationPipeline {
         host.setEndpointSnaps(request.endpointSnaps());
         try {
             ctx.initBuildState();
+            ctx.solids().setOverflowHandler(model -> {
+                host.flushEdgeSolids(ctx.result(), model);
+                model.clear();
+            });
             RoadCrossSectionBuilder.build(ctx, host);
             RoadMarkingGenerator.generate(ctx, host);
             RoadFurnitureGenerator.generate(ctx, host);

@@ -458,6 +458,9 @@ public final class RoadCrossSectionBuilder {
             ? outwardNormal.normalize()
             : new Vec2d(0, 1);
         Vec2d outerEdge = shoulderCenter.add(normal.multiply(outerOffset));
+        if (!terrain.isChunkLoaded(outerEdge)) {
+            return;
+        }
 
         int groundAtEdge = terrain.sampleSurfaceY(outerEdge);
         if (targetY == groundAtEdge) {
@@ -474,8 +477,13 @@ public final class RoadCrossSectionBuilder {
         List<int[]> profile = RoadSlopeUtils.computeSlopeProfile(
             targetY,
             profileDirection,
-            horizontalOffset -> terrain.sampleSurfaceY(
-                outerEdge.add(normal.multiply(horizontalOffset * scale))),
+            horizontalOffset -> {
+                Vec2d samplePoint = outerEdge.add(normal.multiply(horizontalOffset * scale));
+                if (!terrain.isChunkLoaded(samplePoint)) {
+                    return targetY;
+                }
+                return terrain.sampleSurfaceY(samplePoint);
+            },
             slopeRatio,
             usefulHorizontalRun
         );
@@ -485,6 +493,9 @@ public final class RoadCrossSectionBuilder {
             int horizontalOffset = point[0];
             int slopeHeight = point[1];
             Vec2d sample = outerEdge.add(normal.multiply(horizontalOffset * scale));
+            if (!terrain.isChunkLoaded(sample)) {
+                continue;
+            }
             int groundY = terrain.sampleSurfaceY(sample);
 
             if (isFill) {

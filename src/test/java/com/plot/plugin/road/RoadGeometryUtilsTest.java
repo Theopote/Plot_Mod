@@ -225,6 +225,29 @@ class RoadGeometryUtilsTest {
     }
 
     @Test
+    void collectWorldCellPlanPointsUsesWorldGridNotCanvasIntegers() {
+        List<Vec2d> square = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(4, 0),
+            new Vec2d(4, 4),
+            new Vec2d(0, 4)
+        );
+
+        List<Vec2d> identityCells = RoadGeometryUtils.collectWorldCellPlanPoints(
+            square, com.plot.test.world.IdentityCoordinateService.INSTANCE);
+        List<Vec2d> farCells = RoadGeometryUtils.collectWorldCellPlanPoints(
+            square, com.plot.test.scale.ScaleInvarianceProjections.FAR);
+
+        assertFalse(identityCells.isEmpty());
+        assertTrue(farCells.size() > identityCells.size() * 8,
+            "scale 4 world scan should cover far more block cells than canvas integers");
+
+        net.minecraft.util.math.BlockPos farCorner = com.plot.core.geometry.WorldCoordinateUtils.canvasToBlockXZ(
+            farCells.getLast(), com.plot.test.scale.ScaleInvarianceProjections.FAR);
+        assertTrue(Math.abs(farCorner.getX()) >= 8 || Math.abs(farCorner.getZ()) >= 8);
+    }
+
+    @Test
     void pointAlongPolylineFromRespectsMaxDistance() {
         List<Vec2d> path = List.of(
             new Vec2d(0, 0),

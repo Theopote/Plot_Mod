@@ -104,6 +104,11 @@ public class RoadNetworkGenerator {
                 case FAILED -> {
                     failedEdgeIds.add(edgeId);
                     errors.add("edge " + edgeId + ": " + outcome.message());
+                    RoadGenerationResult geometry = outcome.geometry();
+                    if (geometry != null
+                            && (geometry.droppedSolidCount > 0 || !geometry.placementRecords.isEmpty())) {
+                        edgeResults.put(edgeId, geometry);
+                    }
                 }
             }
         }

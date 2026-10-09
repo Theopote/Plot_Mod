@@ -24,6 +24,7 @@ public final class RoadGenerationPipelineContext {
     private double unitsPerBlock;
     private RoadSolidModel solids;
     private RoadEdgeBuildMetrics metrics;
+    private RoadGenerationResult result;
 
     public RoadGenerationPipelineContext(RoadGenerationBuildRequest request) {
         this.request = request;
@@ -96,10 +97,18 @@ public final class RoadGenerationPipelineContext {
     public void initBuildState() {
         this.solids = new RoadSolidModel();
         this.metrics = new RoadEdgeBuildMetrics();
+        this.result = new RoadGenerationResult(pathLength());
+    }
+
+    public RoadGenerationResult result() {
+        return result;
     }
 
     public RoadGenerationResult createResult() {
-        return new RoadGenerationResult(pathLength());
+        if (result == null) {
+            result = new RoadGenerationResult(pathLength());
+        }
+        return result;
     }
 
     public interface Host {

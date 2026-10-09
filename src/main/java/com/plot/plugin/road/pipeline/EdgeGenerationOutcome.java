@@ -8,6 +8,6 @@ public enum EdgeGenerationOutcome {
     SUCCESS,
     /** 前置条件不满足而跳过（如中心线过短、输入为空） */
     SKIPPED,
-    /** 生成过程中抛错 */
+    /** 生成过程中抛错，或落地不完整（例如实体图元超限仍有丢块） */
     FAILED
 }

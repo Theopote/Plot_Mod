@@ -135,7 +135,7 @@ public final class RoadEdgeBuildOrchestrator {
                 host);
             result.edgeId = edge.getId();
             result.copyProfileFrom(RoadProfileSolver.toProfileSnapshot(heightCalculation));
-            return EdgeGenerationResult.success(result);
+            return completeOutcome(result);
         } catch (Exception e) {
             LOGGER.error("生成道路边失败: {}", e.getMessage(), e);
             return EdgeGenerationResult.failed(e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
@@ -203,6 +203,15 @@ public final class RoadEdgeBuildOrchestrator {
                 terrainStyle,
                 tunnelStyle),
             host);
+    }
+
+    static EdgeGenerationResult completeOutcome(RoadGenerationResult result) {
+        if (result != null && result.droppedSolidCount > 0) {
+            return EdgeGenerationResult.failed(
+                result,
+                "solid capacity exceeded, dropped " + result.droppedSolidCount);
+        }
+        return EdgeGenerationResult.success(result);
     }
 
     private static List<PathSegment> samplePath(List<Vec2d> pathPoints, RoadGenerationPipelineHost host) {

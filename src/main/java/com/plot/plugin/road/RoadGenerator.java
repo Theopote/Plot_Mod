@@ -80,6 +80,10 @@ public class RoadGenerator {
         return MinecraftTerrainSampler.of(world, pipelineHost.coordinateTransformer());
     }
 
+    public ICoordinateService coordinateTransformer() {
+        return pipelineHost.coordinateTransformer();
+    }
+
     /**
      * 基于路网边生成道路；{@code networkNodeElevations} 为路网统一节点标高（两遍求解第二遍使用）。
      */

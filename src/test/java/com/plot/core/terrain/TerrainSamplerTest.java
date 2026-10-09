@@ -42,4 +42,11 @@ class TerrainSamplerTest {
         assertTrue(new FlatTerrainSampler(64, true).isSolidBlock(0, 0, 0));
         assertFalse(new FlatTerrainSampler(64, false).isSolidBlock(0, 0, 0));
     }
+
+    @Test
+    void defaultChunkLoadedIsTrue() {
+        TerrainSampler terrain = new FlatTerrainSampler(64);
+        assertTrue(terrain.isChunkLoaded(0, 0));
+        assertTrue(terrain.isChunkLoaded(new Vec2d(10, 20)));
+    }
 }

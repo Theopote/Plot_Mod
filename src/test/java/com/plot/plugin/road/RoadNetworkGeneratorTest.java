@@ -102,6 +102,23 @@ class RoadNetworkGeneratorTest {
     }
 
     @Test
+    void failedEdgeWithDroppedSolidsKeepsGeometryForPreview() {
+        RoadGenerationResult partial = new RoadGenerationResult(20);
+        partial.droppedSolidCount = 4;
+        partial.recordPlacementIfAbsent(
+            new net.minecraft.util.math.BlockPos(1, 64, 1), "minecraft:air", "minecraft:stone");
+
+        var networkResult = new RoadNetworkGenerator.NetworkGenerationResult();
+        networkResult.recordEdgeOutcome("partial", EdgeGenerationResult.failed(partial, "solid capacity exceeded, dropped 4"));
+
+        assertTrue(networkResult.getFailedEdgeIds().contains("partial"));
+        assertEquals(1, networkResult.getEdgeResults().size());
+        assertEquals(4, networkResult.getEdgeResults().get("partial").droppedSolidCount);
+        assertTrue(networkResult.hasPartialFailure());
+        assertEquals(0, networkResult.successEdgeCount());
+    }
+
+    @Test
     void generateAllDoesNotMutateLiveDerivedCenterline() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         config.setRoadWidth(6);

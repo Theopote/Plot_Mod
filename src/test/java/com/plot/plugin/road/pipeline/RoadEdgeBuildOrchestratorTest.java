@@ -6,6 +6,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.core.terrain.FlatTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
 import org.junit.jupiter.api.Test;
@@ -60,5 +61,23 @@ class RoadEdgeBuildOrchestratorTest {
 
         assertEquals(EdgeGenerationOutcome.FAILED, outcome.outcome());
         assertTrue(outcome.message().contains("terrain unavailable"));
+    }
+
+    @Test
+    void droppedSolidsFailTheEdgeAndKeepGeometry() {
+        RoadGenerationResult geometry = new RoadGenerationResult(12);
+        geometry.droppedSolidCount = 7;
+
+        EdgeGenerationResult outcome = RoadEdgeBuildOrchestrator.completeOutcome(geometry);
+
+        assertEquals(EdgeGenerationOutcome.FAILED, outcome.outcome());
+        assertEquals(7, outcome.geometry().droppedSolidCount);
+        assertTrue(outcome.message().contains("dropped 7"));
+    }
+
+    @Test
+    void completeGeometryIsSuccess() {
+        EdgeGenerationResult outcome = RoadEdgeBuildOrchestrator.completeOutcome(new RoadGenerationResult(8));
+        assertEquals(EdgeGenerationOutcome.SUCCESS, outcome.outcome());
     }
 }

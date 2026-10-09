@@ -68,6 +68,18 @@ public interface TerrainSampler {
     }
 
     /**
+     * 该世界列所在区块是否已加载。未加载时不得把默认地面 64 当成真实地形做挖填。
+     * 无世界上下文的实现默认视为已加载。
+     */
+    default boolean isChunkLoaded(int worldX, int worldZ) {
+        return true;
+    }
+
+    default boolean isChunkLoaded(Vec2d planPoint) {
+        return true;
+    }
+
+    /**
      * 沿横断面采样地表高度并取平均（覆盖 [-halfWidth, +halfWidth]）。
      */
     default int sampleCrossSectionGroundY(Vec2d center, Vec2d tangent, double halfWidth) {

@@ -24,7 +24,11 @@ public record EdgeGenerationResult(
     }
 
     public static EdgeGenerationResult failed(String message) {
-        return new EdgeGenerationResult(EdgeGenerationOutcome.FAILED, new RoadGenerationResult(0), message);
+        return failed(new RoadGenerationResult(0), message);
+    }
+
+    public static EdgeGenerationResult failed(RoadGenerationResult geometry, String message) {
+        return new EdgeGenerationResult(EdgeGenerationOutcome.FAILED, geometry, message);
     }
 
     public boolean isSuccess() {

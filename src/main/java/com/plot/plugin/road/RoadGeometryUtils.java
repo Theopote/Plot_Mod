@@ -18,6 +18,7 @@ import com.plot.core.geometry.shapes.SpiralShape;
 import com.plot.core.geometry.shapes.TextShape;
 import com.plot.core.model.Shape;
 import com.plot.api.world.ICoordinateService;
+import com.plot.api.world.WorldProjectionSnapshot;
 import com.plot.core.geometry.WorldProjectionMath;
 import net.minecraft.util.math.BlockPos;
 
@@ -701,6 +702,94 @@ public final class RoadGeometryUtils {
             }
         }
         return inside;
+    }
+
+    /**
+     * 按 Minecraft 世界方块格扫描多边形：顶点投影到世界 XZ，对整数格做点在多边形内测试，
+     * 再反变换成可 round-trip 到该格的画布点（供 solids.planPoint / canvasToBlockXZ 使用）。
+     * 投影不可用时回退为画布整数格扫描。
+     */
+    public static List<Vec2d> collectWorldCellPlanPoints(
+            List<Vec2d> canvasPolygon,
+            ICoordinateService transformer) {
+        if (canvasPolygon == null || canvasPolygon.size() < 3) {
+            return List.of();
+        }
+        WorldProjectionSnapshot snapshot = transformer != null ? transformer.captureProjection() : null;
+        if (snapshot == null || !snapshot.isValid()) {
+            return collectIntegerCanvasCells(canvasPolygon);
+        }
+        try {
+            List<Vec2d> worldPolygon = new ArrayList<>(canvasPolygon.size());
+            double minX = Double.POSITIVE_INFINITY;
+            double minZ = Double.POSITIVE_INFINITY;
+            double maxX = Double.NEGATIVE_INFINITY;
+            double maxZ = Double.NEGATIVE_INFINITY;
+            for (Vec2d canvas : canvasPolygon) {
+                if (canvas == null) {
+                    continue;
+                }
+                Vec2d world = snapshot.toWorld(canvas);
+                worldPolygon.add(world);
+                minX = Math.min(minX, world.x);
+                minZ = Math.min(minZ, world.y);
+                maxX = Math.max(maxX, world.x);
+                maxZ = Math.max(maxZ, world.y);
+            }
+            if (worldPolygon.size() < 3) {
+                return collectIntegerCanvasCells(canvasPolygon);
+            }
+            int minWx = (int) Math.floor(minX);
+            int maxWx = (int) Math.ceil(maxX);
+            int minWz = (int) Math.floor(minZ);
+            int maxWz = (int) Math.ceil(maxZ);
+            long spanX = (long) maxWx - minWx + 1L;
+            long spanZ = (long) maxWz - minWz + 1L;
+            if (spanX <= 0 || spanZ <= 0 || spanX * spanZ > 200_000L) {
+                return collectIntegerCanvasCells(canvasPolygon);
+            }
+            List<Vec2d> planPoints = new ArrayList<>();
+            for (int wx = minWx; wx <= maxWx; wx++) {
+                for (int wz = minWz; wz <= maxWz; wz++) {
+                    if (!pointInPolygon(new Vec2d(wx, wz), worldPolygon)) {
+                        continue;
+                    }
+                    planPoints.add(snapshot.toCanvas(new Vec2d(wx, wz)));
+                }
+            }
+            return planPoints;
+        } catch (RuntimeException ignored) {
+            return collectIntegerCanvasCells(canvasPolygon);
+        }
+    }
+
+    private static List<Vec2d> collectIntegerCanvasCells(List<Vec2d> polygon) {
+        double minX = Double.POSITIVE_INFINITY;
+        double minY = Double.POSITIVE_INFINITY;
+        double maxX = Double.NEGATIVE_INFINITY;
+        double maxY = Double.NEGATIVE_INFINITY;
+        for (Vec2d point : polygon) {
+            if (point == null) {
+                continue;
+            }
+            minX = Math.min(minX, point.x);
+            minY = Math.min(minY, point.y);
+            maxX = Math.max(maxX, point.x);
+            maxY = Math.max(maxY, point.y);
+        }
+        if (!Double.isFinite(minX)) {
+            return List.of();
+        }
+        List<Vec2d> points = new ArrayList<>();
+        for (int x = (int) Math.floor(minX); x <= (int) Math.ceil(maxX); x++) {
+            for (int z = (int) Math.floor(minY); z <= (int) Math.ceil(maxY); z++) {
+                Vec2d cell = new Vec2d(x, z);
+                if (pointInPolygon(cell, polygon)) {
+                    points.add(cell);
+                }
+            }
+        }
+        return points;
     }
 
     /**

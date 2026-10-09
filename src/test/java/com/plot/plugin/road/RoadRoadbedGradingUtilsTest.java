@@ -39,6 +39,22 @@ class RoadRoadbedGradingUtilsTest {
     }
 
     @Test
+    void unloadedChunkDoesNotGradeUsingDefaultGround() {
+        TerrainSampler unloaded = new TerrainSampler() {
+            @Override public int sampleSurfaceY(Vec2d point) { return 64; }
+            @Override public boolean isSolidBlock(int x, int y, int z) { return y <= 64; }
+            @Override public boolean isChunkLoaded(int worldX, int worldZ) { return false; }
+        };
+        RoadSolidModel solids = new RoadSolidModel();
+        var volumes = RoadRoadbedGradingUtils.gradeColumnForType(
+            solids, new Vec2d(0, 0), 80, 4, 3, "minecraft:gravel",
+            0, 0, unloaded, RoadConstructionType.FILL);
+        assertEquals(0, volumes.fillVolume());
+        assertEquals(0, volumes.cutVolume());
+        assertTrue(solids.isEmpty());
+    }
+
+    @Test
     void roadEnvelopeClearsNaturalDecorationsAboveEngineeringGround() {
         RoadSolidModel solids = new RoadSolidModel();
         TerrainSampler woodedColumn = new TerrainSampler() {

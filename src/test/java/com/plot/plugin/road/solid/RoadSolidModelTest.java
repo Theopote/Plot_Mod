@@ -56,27 +56,46 @@ class RoadSolidModelTest {
     }
 
     @Test
-    void droppedCountIsTrackedWhenAtCapacity() {
-        RoadSolidModel solids = new RoadSolidModel();
-        // 填满硬顶后继续添加应计入丢弃数（不 flush 全量，避免测试过慢）
-        for (int i = 0; i < 100_000; i++) {
+    void droppedCountIsTrackedWhenAtCapacityWithoutOverflowHandler() {
+        RoadSolidModel solids = new RoadSolidModel(4);
+        for (int i = 0; i < 4; i++) {
             assertTrue(solids.add(new Vec2d(i, 0), 64, RoadSolidLayer.ROAD, "minecraft:stone"));
         }
         assertTrue(solids.isAtCapacity());
-        assertFalse(solids.add(new Vec2d(999_999, 0), 64, RoadSolidLayer.ROAD, "minecraft:stone"));
-        assertFalse(solids.add(new Vec2d(999_998, 0), 64, RoadSolidLayer.ROAD, "minecraft:stone"));
+        assertFalse(solids.add(new Vec2d(999, 0), 64, RoadSolidLayer.ROAD, "minecraft:stone"));
+        assertFalse(solids.add(new Vec2d(998, 0), 64, RoadSolidLayer.ROAD, "minecraft:stone"));
         assertEquals(2, solids.getDroppedDueToLimit());
+        assertEquals(0, solids.getOverflowFlushCount());
 
         RoadGenerationResult result = new RoadGenerationResult(0);
-        // 仅验证丢弃计数传播：构造一个小模型并手动设置场景
-        RoadSolidModel tiny = new RoadSolidModel();
-        tiny.add(new Vec2d(1, 1), 64, RoadSolidLayer.ROAD, "minecraft:stone");
-        // 通过 addAll 合并带丢弃计数的模型
         RoadSolidModel emptyWithDrops = new RoadSolidModel();
-        // 模拟：将 solids 的 dropped 合并
         emptyWithDrops.addAll(solids);
-        assertTrue(emptyWithDrops.getDroppedDueToLimit() >= 2);
-        RoadVoxelRasterizer.flushEdgeSolids(result, emptyWithDrops, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
-        assertTrue(result.droppedSolidCount >= 2);
+        assertEquals(2, emptyWithDrops.getDroppedDueToLimit());
+        RoadVoxelRasterizer.flushEdgeSolids(
+            result, emptyWithDrops, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        assertEquals(2, result.droppedSolidCount);
+    }
+
+    @Test
+    void overflowHandlerFlushesChunksInsteadOfDropping() {
+        RoadSolidModel solids = new RoadSolidModel(4);
+        RoadGenerationResult result = new RoadGenerationResult(0);
+        solids.setOverflowHandler(model -> {
+            RoadVoxelRasterizer.flushEdgeSolids(
+                result, model, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+            model.clear();
+        });
+
+        for (int i = 0; i < 10; i++) {
+            assertTrue(solids.add(new Vec2d(i, 0), 64, RoadSolidLayer.ROAD, "minecraft:stone"));
+        }
+        assertEquals(0, solids.getDroppedDueToLimit());
+        assertEquals(2, solids.getOverflowFlushCount());
+        assertEquals(2, solids.primitives().size());
+
+        RoadVoxelRasterizer.flushEdgeSolids(
+            result, solids, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        assertEquals(0, result.droppedSolidCount);
+        assertEquals(10, result.placementRecords.size());
     }
 }

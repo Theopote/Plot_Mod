@@ -78,4 +78,18 @@ public final class MinecraftTerrainSampler implements TerrainSampler {
     public boolean isRoadClearableDecoration(int worldX, int y, int worldZ) {
         return terrainService.isClearableNaturalDecoration(worldX, y, worldZ);
     }
+
+    @Override
+    public boolean isChunkLoaded(int worldX, int worldZ) {
+        return terrainService.isChunkLoaded(worldX, worldZ);
+    }
+
+    @Override
+    public boolean isChunkLoaded(Vec2d planPoint) {
+        if (planPoint == null) {
+            return false;
+        }
+        BlockPos column = WorldCoordinateUtils.canvasToBlockXZ(planPoint, transformer);
+        return terrainService.isChunkLoaded(column.getX(), column.getZ());
+    }
 }
