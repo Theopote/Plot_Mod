@@ -24,17 +24,18 @@ public final class PluginTabScrollUi {
             body.run();
             return;
         }
-        if (ImGui.beginChild(
-                childId,
-                0,
-                0,
-                false,
-                ImGuiWindowFlags.AlwaysVerticalScrollbar)) {
-            try {
+        boolean childOpen = ImGui.beginChild(
+            childId,
+            0,
+            0,
+            false,
+            ImGuiWindowFlags.AlwaysVerticalScrollbar);
+        try {
+            if (childOpen) {
                 body.run();
-            } finally {
-                ImGui.endChild();
             }
+        } finally {
+            ImGui.endChild();
         }
     }
 

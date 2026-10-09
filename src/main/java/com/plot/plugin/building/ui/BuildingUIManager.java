@@ -34,8 +34,9 @@ public final class BuildingUIManager {
 
         float tabHeight = Math.max(80f, ImGui.getContentRegionAvailY());
         boolean footprintsTabOpen = false;
-        if (ImGui.beginChild("##building_tab_area", 0, tabHeight, false, ImGuiWindowFlags.NoScrollbar)) {
-            if (ImGui.beginTabBar("##building_tabs", ImGuiTabBarFlags.None)) {
+        boolean tabAreaOpen = ImGui.beginChild("##building_tab_area", 0, tabHeight, false, ImGuiWindowFlags.NoScrollbar);
+        try {
+            if (tabAreaOpen && ImGui.beginTabBar("##building_tabs", ImGuiTabBarFlags.None)) {
                 footprintsTabOpen = PluginTabScrollUi.renderTab(
                     "plugin.building.tab.footprints",
                     "##building_tab_footprints",
@@ -50,6 +51,7 @@ public final class BuildingUIManager {
                     generatePanel::render);
                 ImGui.endTabBar();
             }
+        } finally {
             ImGui.endChild();
         }
 

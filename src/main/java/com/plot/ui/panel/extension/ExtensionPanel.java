@@ -113,18 +113,21 @@ public class ExtensionPanel implements UIComponent {
 
                 float contentW = ImGui.getContentRegionAvailX();
                 float contentH = ImGui.getContentRegionAvailY();
-                if (contentW >= 24f && contentH >= 24f && ImGui.beginChild(
+                if (contentW >= 24f && contentH >= 24f) {
+                    boolean childOpen = ImGui.beginChild(
                         "##plugin_content",
                         0,
                         0,
                         false,
-                        ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)) {
+                        ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
                     try {
-                        if (currentActivePlugin.isEnabled()) {
-                            currentActivePlugin.render();
-                        } else {
-                            ImGui.textWrapped(PlotI18n.tr(
-                                "panel.plot.extension_enable_first", currentActivePlugin.getName()));
+                        if (childOpen) {
+                            if (currentActivePlugin.isEnabled()) {
+                                currentActivePlugin.render();
+                            } else {
+                                ImGui.textWrapped(PlotI18n.tr(
+                                    "panel.plot.extension_enable_first", currentActivePlugin.getName()));
+                            }
                         }
                     } catch (Exception e) {
                         PlotMod.LOGGER.error("渲染插件界面失败: {}", e.getMessage(), e);
