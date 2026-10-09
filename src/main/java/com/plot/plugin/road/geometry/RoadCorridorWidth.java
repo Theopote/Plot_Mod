@@ -10,6 +10,9 @@ import com.plot.plugin.road.model.section.ResolvedCrossSection;
  * 道路走廊横向包络（方块数）：画布叠加、土方与路基清理共用。
  */
 public final class RoadCorridorWidth {
+    /** 边坡水平外扩与走廊裕量上限（格）。 */
+    public static final int MAX_SLOPE_BATTER_RUN_BLOCKS = 32;
+
     private RoadCorridorWidth() {
     }
 
@@ -86,6 +89,6 @@ public final class RoadCorridorWidth {
             ? section.cutSlopeRatio
             : 1.0f;
         ratio = Math.max(0.5f, ratio);
-        return Math.clamp((int) Math.ceil(maxCutHeight * ratio) + 2, 2, 16);
+        return Math.clamp((int) Math.ceil(maxCutHeight * ratio) + 2, 2, MAX_SLOPE_BATTER_RUN_BLOCKS);
     }
 }

@@ -119,6 +119,45 @@ class RoadGeneratorTerrainTest {
     }
 
     @Test
+    void overpassRoadBlocksStayAtElevatedSnapNotUnderpassNodeY() {
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        config.setMaxSlope(100.0f);
+        config.setDefaultCrossingClearance(3.0);
+        config.setIncludeSidewalk(false);
+        RoadGenerator generator = new RoadGenerator(
+            config,
+            com.plot.test.world.IdentityCoordinateService.INSTANCE,
+            com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        TerrainSampler terrain = new FlatTerrainSampler(70);
+
+        SimpleCrossFixture fixture = SimpleCrossFixture.create();
+        fixture.network().setNodeGradeSeparation(fixture.junction().getId(), true, fixture.roadB().getId(), 3.0);
+
+        var nodeElevations = generator.resolveNetworkNodeElevations(fixture.network(), terrain);
+        int underpassY = nodeElevations.get(fixture.junction().getId());
+        var elevatedEdge = fixture.edgeForRoad(fixture.roadB());
+        RoadNode farNode = fixture.network().getNode(elevatedEdge.getEndNodeId());
+        if (farNode.getId().equals(fixture.junction().getId())) {
+            farNode = fixture.network().getNode(elevatedEdge.getStartNodeId());
+        }
+
+        RoadGenerationResult elevated = generator.generateEdge(
+            fixture.network(), elevatedEdge, fixture.junction(), farNode, terrain, nodeElevations);
+
+        int elevatedY = (int) elevated.profileBuildHeights.getFirst();
+        assertTrue(elevatedY > underpassY, "solver should lift the overpass above the underpass layer");
+        assertFalse(elevated.roadBlocks.isEmpty());
+
+        int nearJunctionY = elevated.roadBlocks.stream()
+            .filter(pos -> Math.abs(pos.getX()) <= 1 && Math.abs(pos.getZ()) <= 1)
+            .mapToInt(net.minecraft.util.math.BlockPos::getY)
+            .max()
+            .orElseThrow();
+        assertEquals(elevatedY, nearJunctionY);
+        assertTrue(nearJunctionY > underpassY);
+    }
+
+    @Test
     void generateFromPathPointsPlacesRoadAtFlatTerrainElevation() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setIncludeSidewalk(false);

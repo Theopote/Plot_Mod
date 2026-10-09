@@ -21,6 +21,7 @@ import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.pipeline.profile.environment.WaterCrossing;
 import com.plot.plugin.road.solid.RoadSolidModel;
+import com.plot.plugin.road.solid.RoadVoxelRasterizer;
 import com.plot.core.terrain.TerrainSampler;
 
 import java.util.List;
@@ -131,6 +132,8 @@ public final class RoadTerrainGrader {
             SegmentHeightInfo info = heightInfos.get(i);
             Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, chainForward);
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
+            Vec2d previousCenter = null;
+            Integer previousTargetY = null;
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
@@ -149,6 +152,8 @@ public final class RoadTerrainGrader {
                 int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
                 int decorationWidth = RoadCorridorWidth.decorationClearWidthBlocks(crossSection, config);
                 if (envelopeWidth <= 0) {
+                    previousCenter = null;
+                    previousTargetY = null;
                     continue;
                 }
                 RoadRoadbedGradingUtils.clearRoadDecorations(
@@ -164,18 +169,59 @@ public final class RoadTerrainGrader {
                     worldStation);
                 if (sampleType == RoadConstructionType.BRIDGE
                         || sampleType == RoadConstructionType.TUNNEL) {
+                    previousCenter = null;
+                    previousTargetY = null;
                     continue;
-                } else {
-                    total = total.add(RoadRoadbedGradingUtils.gradeCrossSectionEnvelope(
-                        solids, center, leftNormal, envelopeWidth, targetY,
-                        tunnelThreshold, bridgeThreshold, fillMaterialId,
-                        terrain, host.columnResolver(), unitsPerBlock, sampleType));
                 }
+                total = total.add(RoadRoadbedGradingUtils.gradeCrossSectionEnvelope(
+                    solids, center, leftNormal, envelopeWidth, targetY,
+                    tunnelThreshold, bridgeThreshold, fillMaterialId,
+                    terrain, host.columnResolver(), unitsPerBlock, sampleType));
+                if (previousCenter != null && previousTargetY != null) {
+                    total = total.add(gradeSpanBetweenStations(
+                        solids, previousCenter, center, leftNormal, envelopeWidth,
+                        previousTargetY, targetY, tunnelThreshold, bridgeThreshold,
+                        fillMaterialId, terrain, host.columnResolver(), unitsPerBlock, sampleType));
+                }
+                previousCenter = center;
+                previousTargetY = targetY;
             }
             geometryLocalBase += segment.distance;
         }
         metrics.cutVolume = total.cutVolume();
         metrics.fillVolume = total.fillVolume();
+    }
+
+    private static RoadRoadbedGradingUtils.GradingVolumes gradeSpanBetweenStations(
+            RoadSolidModel solids,
+            Vec2d from,
+            Vec2d to,
+            Vec2d leftNormal,
+            int envelopeWidth,
+            int fromY,
+            int toY,
+            int tunnelThreshold,
+            int bridgeThreshold,
+            String fillMaterialId,
+            TerrainSampler terrain,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
+            double unitsPerBlock,
+            RoadConstructionType constructionType) {
+        List<Vec2d> span = RoadVoxelRasterizer.sampleSpanPoints(from, to);
+        if (span.size() <= 2) {
+            return RoadRoadbedGradingUtils.GradingVolumes.ZERO;
+        }
+        RoadRoadbedGradingUtils.GradingVolumes total = RoadRoadbedGradingUtils.GradingVolumes.ZERO;
+        int last = span.size() - 1;
+        for (int s = 1; s < last; s++) {
+            double t = (double) s / last;
+            int y = (int) Math.round(fromY * (1.0 - t) + toY * t);
+            total = total.add(RoadRoadbedGradingUtils.gradeCrossSectionEnvelope(
+                solids, span.get(s), leftNormal, envelopeWidth, y,
+                tunnelThreshold, bridgeThreshold, fillMaterialId,
+                terrain, columnResolver, unitsPerBlock, constructionType));
+        }
+        return total;
     }
 
     private static RoadConstructionType effectiveConstructionType(

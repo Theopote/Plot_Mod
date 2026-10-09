@@ -25,24 +25,36 @@ public final class EndpointElevationSnapResolver {
         if (networkNodeElevations == null || networkNodeElevations.isEmpty()) {
             return null;
         }
+        Integer startElevation = startNode == null ? null : networkNodeElevations.get(startNode.getId());
+        Integer endElevation = endNode == null ? null : networkNodeElevations.get(endNode.getId());
+        return resolveForEdge(startNode, endNode, startElevation, endElevation, blendRadius);
+    }
 
-        EndpointElevationSnap start = snapForNode(startNode, networkNodeElevations, blendRadius);
-        EndpointElevationSnap end = snapForNode(endNode, networkNodeElevations, blendRadius);
+    /**
+     * Snap toward this edge's solved build elevations.
+     * Grade-separated nodes store the underpass layer in the network map; overpass
+     * edges must pass their elevated endpoint Y here so nearby samples are not
+     * pulled down to the underpass.
+     */
+    public static EndpointElevationSnaps resolveForEdge(
+            RoadNode startNode,
+            RoadNode endNode,
+            Integer startBuildElevation,
+            Integer endBuildElevation,
+            double blendRadius) {
+        EndpointElevationSnap start = snapForElevation(startNode, startBuildElevation, blendRadius);
+        EndpointElevationSnap end = snapForElevation(endNode, endBuildElevation, blendRadius);
         if (start == null && end == null) {
             return null;
         }
         return new EndpointElevationSnaps(start, end);
     }
 
-    private static EndpointElevationSnap snapForNode(
+    private static EndpointElevationSnap snapForElevation(
             RoadNode node,
-            Map<String, Integer> networkNodeElevations,
+            Integer elevation,
             double blendRadius) {
-        if (node == null) {
-            return null;
-        }
-        Integer elevation = networkNodeElevations.get(node.getId());
-        if (elevation == null) {
+        if (node == null || elevation == null) {
             return null;
         }
         return new EndpointElevationSnap(node.getPosition(), elevation, blendRadius);

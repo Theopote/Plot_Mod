@@ -79,4 +79,23 @@ class RoadCorridorWidthTest {
         assertEquals(9, RoadCorridorWidth.gradingEnvelopeWidthBlocks(section));
         assertEquals(21, RoadCorridorWidth.decorationClearWidthBlocks(section, config));
     }
+
+    @Test
+    void slopeBatterMarginAllowsRunsBeyondSixteenBlocks() {
+        RoadSystemConfig config = new RoadSystemConfig("road_test");
+        config.setRoadWidth(5);
+        config.setIncludeShoulder(true);
+        config.setShoulderWidth(1);
+        config.setIncludeSidewalk(true);
+        config.setSidewalkWidth(1);
+        config.setIncludeSlopeBatter(true);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.FOLLOW);
+        config.setCutSlopeRatio(2.0f);
+
+        ResolvedCrossSection section = ResolvedCrossSection.fromConfig(config);
+
+        assertEquals(18, RoadCorridorWidth.slopeBatterMarginBlocks(section, config));
+        assertEquals(9, RoadCorridorWidth.gradingEnvelopeWidthBlocks(section));
+        assertEquals(45, RoadCorridorWidth.decorationClearWidthBlocks(section, config));
+    }
 }

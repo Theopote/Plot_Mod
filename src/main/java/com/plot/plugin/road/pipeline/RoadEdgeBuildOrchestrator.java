@@ -121,6 +121,7 @@ public final class RoadEdgeBuildOrchestrator {
                 resolveEndpointSnaps(
                     startNode,
                     endNode,
+                    heightCalculation.heightInfos(),
                     networkNodeElevations,
                     crossSection,
                     host.estimateCanvasUnitsPerBlock(pathPoints, segments)),
@@ -214,14 +215,25 @@ public final class RoadEdgeBuildOrchestrator {
     private static EndpointElevationSnaps resolveEndpointSnaps(
             RoadNode startNode,
             RoadNode endNode,
+            List<SegmentHeightInfo> heightInfos,
             Map<String, Integer> networkNodeElevations,
             ResolvedCrossSection crossSection,
             double unitsPerBlock) {
+        if (networkNodeElevations == null || networkNodeElevations.isEmpty()) {
+            return null;
+        }
         double halfWidth = RoadDimensionUtils.halfExtentFromCenter(crossSection.carriagewayWidth) * unitsPerBlock;
-        return EndpointElevationSnapResolver.resolve(
+        Integer startY = null;
+        Integer endY = null;
+        if (heightInfos != null && !heightInfos.isEmpty()) {
+            startY = heightInfos.getFirst().targetStart;
+            endY = heightInfos.getLast().targetEnd;
+        }
+        return EndpointElevationSnapResolver.resolveForEdge(
             startNode,
             endNode,
-            networkNodeElevations,
+            startY,
+            endY,
             EndpointElevationSnapResolver.blendRadius(halfWidth));
     }
 }

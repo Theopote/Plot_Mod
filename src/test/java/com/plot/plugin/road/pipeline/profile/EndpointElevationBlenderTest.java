@@ -51,4 +51,34 @@ class EndpointElevationSnapResolverTest {
         assertEquals(72, snaps.end().elevation());
         assertEquals(6.0, snaps.start().blendRadius(), 1e-9);
     }
+
+    @Test
+    void resolveForEdgeUsesBuildElevationsInsteadOfUnderpassNodeMap() {
+        RoadNode start = new RoadNode(new Vec2d(0, 0));
+        RoadNode end = new RoadNode(new Vec2d(20, 0));
+        int underpassY = 70;
+        int overpassY = 73;
+
+        EndpointElevationSnaps fromNodeMap = EndpointElevationSnapResolver.resolve(
+            start,
+            end,
+            Map.of(start.getId(), underpassY, end.getId(), 64),
+            6.0);
+        assertEquals(underpassY, fromNodeMap.start().elevation());
+
+        EndpointElevationSnaps fromBuild = EndpointElevationSnapResolver.resolveForEdge(
+            start, end, overpassY, 64, 6.0);
+        assertEquals(overpassY, fromBuild.start().elevation());
+        assertEquals(64, fromBuild.end().elevation());
+        assertEquals(
+            overpassY,
+            EndpointElevationBlender.blend(start.getPosition(), fromBuild.start(), overpassY));
+    }
+
+    @Test
+    void resolveForEdgeReturnsNullWhenBothBuildElevationsMissing() {
+        RoadNode node = new RoadNode(new Vec2d(0, 0));
+
+        assertNull(EndpointElevationSnapResolver.resolveForEdge(node, node, null, null, 5.0));
+    }
 }

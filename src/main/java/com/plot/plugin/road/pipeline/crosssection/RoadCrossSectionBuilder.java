@@ -6,6 +6,7 @@ import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.RoadSlopeUtils;
+import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
@@ -377,7 +378,7 @@ public final class RoadCrossSectionBuilder {
             List<RoadConstructionType> constructionTypes,
             DesignElevationSource designElevation,
             BuildHeightProfile buildProfile) {
-        int maxHorizontalRun = 16;
+        int maxHorizontalRun = RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS;
         boolean chainForward = crossSections.samplingOriented().forward();
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         double geometryLocalBase = 0.0;
@@ -391,7 +392,7 @@ public final class RoadCrossSectionBuilder {
             SegmentHeightInfo info = heightInfos.get(i);
             Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, chainForward);
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
-            for (int j = 1; j < samples; j++) {
+            for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
                 double geometryLocal = geometryLocalBase + segment.distance * t;
