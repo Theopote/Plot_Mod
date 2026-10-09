@@ -122,17 +122,23 @@ public class ExtensionPanel implements UIComponent {
                         ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
                     try {
                         if (childOpen) {
-                            if (currentActivePlugin.isEnabled()) {
-                                currentActivePlugin.render();
-                            } else {
-                                ImGui.textWrapped(PlotI18n.tr(
-                                    "panel.plot.extension_enable_first", currentActivePlugin.getName()));
+                            // 隔离插件 UI 的 ID 栈，避免插件内部 PushID/TreeNode 泄漏影响扩展面板窗口
+                            ImGui.pushID("plugin_body_" + currentActivePlugin.getId());
+                            try {
+                                if (currentActivePlugin.isEnabled()) {
+                                    currentActivePlugin.render();
+                                } else {
+                                    textWrappedSafe(PlotI18n.tr(
+                                        "panel.plot.extension_enable_first", currentActivePlugin.getName()));
+                                }
+                            } finally {
+                                ImGui.popID();
                             }
                         }
                     } catch (Exception e) {
                         PlotMod.LOGGER.error("渲染插件界面失败: {}", e.getMessage(), e);
                         ImGui.pushStyleColor(ImGuiCol.Text, theme.errorText);
-                        ImGui.textWrapped(PlotI18n.tr("panel.plot.extension_render_error", e.getMessage()));
+                        textWrappedSafe(PlotI18n.tr("panel.plot.extension_render_error", e.getMessage()));
                         ImGui.popStyleColor();
                     } finally {
                         ImGui.endChild();
@@ -141,9 +147,9 @@ public class ExtensionPanel implements UIComponent {
             } else {
                 // 没有激活的插件，显示提示信息
                 ImGui.pushStyleColor(ImGuiCol.Text, theme.mutedText);
-                ImGui.textWrapped(PlotI18n.tr("panel.plot.extension_select_plugin"));
+                textWrappedSafe(PlotI18n.tr("panel.plot.extension_select_plugin"));
                 ImGui.popStyleColor();
-                ImGui.textWrapped(PlotI18n.tr("panel.plot.extension_select_hint"));
+                textWrappedSafe(PlotI18n.tr("panel.plot.extension_select_hint"));
             }
         } catch (Exception e) {
             PlotMod.LOGGER.error("ExtensionPanel渲染失败: {}", e.getMessage(), e);
@@ -166,27 +172,49 @@ public class ExtensionPanel implements UIComponent {
 
         for (int i = 0; i < plugins.size(); i++) {
             IPlugin plugin = plugins.get(i);
-            boolean isActive = activePlugin != null && plugin.getId().equals(activePlugin.getId());
+            String pluginId = plugin.getId();
+            boolean isActive = activePlugin != null
+                && pluginId != null
+                && pluginId.equals(activePlugin.getId());
             Identifier icon = resolvePluginIcon(plugin);
 
-            ImGui.pushID(plugin.getId());
-
-            ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
+            // 使用循环下标保证 ID 唯一；popID 必须在 finally 中，避免异常导致 ID 栈泄漏
+            ImGui.pushID(i);
             try {
-                if (UIUtils.imageButton(icon, plugin.getName(), buttonSize, isActive)) {
-                    pluginManager.setActivePlugin(isActive ? null : plugin);
+                ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
+                ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
+                try {
+                    if (UIUtils.imageButton(icon, plugin.getName(), buttonSize, isActive)) {
+                        pluginManager.setActivePlugin(isActive ? null : plugin);
+                    }
+                } finally {
+                    ImGui.popStyleColor();
+                    ImGui.popStyleVar();
                 }
             } finally {
-                ImGui.popStyleColor();
-                ImGui.popStyleVar();
+                ImGui.popID();
             }
-
-            ImGui.popID();
 
             if ((i + 1) % buttonsPerRow != 0 && i < plugins.size() - 1) {
                 ImGui.sameLine(0, buttonSpacing);
             }
+        }
+    }
+
+    /**
+     * 安全换行文本：imgui-java 的 {@code textWrapped} 走 printf，已格式化字符串中的 {@code %} 会破坏栈。
+     */
+    private static void textWrappedSafe(String text) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+        float wrap = ImGui.getContentRegionAvailX();
+        if (wrap >= 8f) {
+            ImGui.pushTextWrapPos(ImGui.getCursorPosX() + wrap);
+            ImGui.textUnformatted(text);
+            ImGui.popTextWrapPos();
+        } else {
+            ImGui.textUnformatted(text);
         }
     }
 

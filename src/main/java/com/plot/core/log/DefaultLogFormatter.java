@@ -9,6 +9,8 @@ import java.time.format.DateTimeFormatter;
 
 /**
  * 默认日志格式化器（项目内唯一实现）。
+ * <p>
+ * 支持 SLF4J 风格 {@code {}} 占位符，以及 {@link String#format} 的 {@code %s}/{@code %d} 等格式。
  */
 public class DefaultLogFormatter implements ILogFormatter {
     private static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
@@ -47,17 +49,53 @@ public class DefaultLogFormatter implements ILogFormatter {
             sb.append("] ");
         }
 
-        String message = record.getMessage();
-        Object[] parameters = record.getParameters();
-        if (parameters != null && parameters.length > 0) {
-            message = String.format(message, parameters);
-        }
-        sb.append(message);
+        sb.append(formatMessage(record.getMessage(), record.getParameters()));
 
         if (record.getThrowable() != null) {
             sb.append('\n').append(formatThrowable(record.getThrowable()));
         }
 
+        return sb.toString();
+    }
+
+    /**
+     * 优先按 SLF4J {@code {}} 逐个替换；否则回退到 {@link String#format}。
+     */
+    static String formatMessage(String message, Object[] parameters) {
+        if (message == null) {
+            return "";
+        }
+        if (parameters == null || parameters.length == 0) {
+            return message;
+        }
+        if (message.contains("{}")) {
+            return formatSlf4jStyle(message, parameters);
+        }
+        try {
+            return String.format(message, parameters);
+        } catch (Exception e) {
+            return message + " " + java.util.Arrays.toString(parameters);
+        }
+    }
+
+    private static String formatSlf4jStyle(String message, Object[] parameters) {
+        StringBuilder sb = new StringBuilder(message.length() + 32);
+        int paramIndex = 0;
+        int i = 0;
+        while (i < message.length()) {
+            int idx = message.indexOf("{}", i);
+            if (idx < 0) {
+                sb.append(message, i, message.length());
+                break;
+            }
+            sb.append(message, i, idx);
+            if (paramIndex < parameters.length) {
+                sb.append(parameters[paramIndex++]);
+            } else {
+                sb.append("{}");
+            }
+            i = idx + 2;
+        }
         return sb.toString();
     }
 

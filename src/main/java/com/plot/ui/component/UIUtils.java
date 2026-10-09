@@ -164,9 +164,14 @@ public class UIUtils {
                 clicked = true;
             }
             
-            // 如果鼠标悬停，显示提示
+            // 悬停提示：避免 setTooltip 的 printf 路径（名称中含 % 时会破坏 ImGui 状态）
             if (ImGui.isItemHovered() && tooltip != null && !tooltip.isEmpty()) {
-                ImGui.setTooltip(tooltip);
+                ImGui.beginTooltip();
+                try {
+                    ImGui.textUnformatted(tooltip);
+                } finally {
+                    ImGui.endTooltip();
+                }
             }
             
         } catch (Exception e) {

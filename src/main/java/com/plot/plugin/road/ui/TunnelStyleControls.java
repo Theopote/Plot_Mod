@@ -97,8 +97,11 @@ public final class TunnelStyleControls {
             return;
         }
         if (ImGui.beginPopup(popupId)) {
-            TunnelStyleEditor.render(ctx, style, onChanged);
-            ImGui.endPopup();
+            try {
+                TunnelStyleEditor.render(ctx, style, onChanged);
+            } finally {
+                ImGui.endPopup();
+            }
         }
     }
 
