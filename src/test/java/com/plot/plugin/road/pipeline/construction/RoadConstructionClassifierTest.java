@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadConstructionClassifierTest {
@@ -39,5 +40,22 @@ class RoadConstructionClassifierTest {
         assertEquals(1, detection.runCount(RoadConstructionType.BRIDGE));
         assertEquals(0.0, detection.runs().getFirst().startStation(), 1e-6);
         assertEquals(10.0, detection.runs().getFirst().endStation(), 1e-6);
+    }
+
+    @Test
+    void structureRunFlagsMarkOnlyPortalSegments() {
+        List<RoadConstructionType> types = List.of(
+            RoadConstructionType.CUT,
+            RoadConstructionType.TUNNEL,
+            RoadConstructionType.TUNNEL,
+            RoadConstructionType.TUNNEL,
+            RoadConstructionType.FILL);
+
+        assertFalse(RoadConstructionClassifier.isStructureRunStart(types, 0));
+        assertTrue(RoadConstructionClassifier.isStructureRunStart(types, 1));
+        assertFalse(RoadConstructionClassifier.isStructureRunStart(types, 2));
+        assertFalse(RoadConstructionClassifier.isStructureRunEnd(types, 2));
+        assertTrue(RoadConstructionClassifier.isStructureRunEnd(types, 3));
+        assertFalse(RoadConstructionClassifier.isStructureRunEnd(types, 4));
     }
 }

@@ -24,15 +24,45 @@ public final class RoadVoxelRasterizer {
     }
 
     public static List<Vec2d> sampleSpanPoints(Vec2d left, Vec2d right) {
+        return sampleConnectedPlanPoints(left, right);
+    }
+
+    /**
+     * 平面 4-连通折线（每步只走 X 或 Z 一格），斜向路面不会留下对角缺口。
+     */
+    public static List<Vec2d> sampleConnectedPlanPoints(Vec2d left, Vec2d right) {
         if (left == null || right == null) {
             return List.of();
         }
-        double span = left.distance(right);
-        int steps = Math.max(1, (int) Math.ceil(span * 2.0));
+        int x = (int) Math.round(left.x);
+        int z = (int) Math.round(left.y);
+        int x1 = (int) Math.round(right.x);
+        int z1 = (int) Math.round(right.y);
+        int dx = x1 - x;
+        int dz = z1 - z;
+        int ax = Math.abs(dx);
+        int az = Math.abs(dz);
+        int sx = Integer.signum(dx);
+        int sz = Integer.signum(dz);
+        int steps = ax + az;
+        if (steps == 0) {
+            return List.of(new Vec2d(x, z));
+        }
         List<Vec2d> points = new ArrayList<>(steps + 1);
-        for (int i = 0; i <= steps; i++) {
-            double t = (double) i / steps;
-            points.add(left.lerp(right, t));
+        points.add(new Vec2d(x, z));
+        int errX = steps / 2;
+        int errZ = steps / 2;
+        for (int i = 0; i < steps; i++) {
+            errX -= ax;
+            errZ -= az;
+            if (errX <= errZ) {
+                x += sx;
+                errX += steps;
+            } else {
+                z += sz;
+                errZ += steps;
+            }
+            points.add(new Vec2d(x, z));
         }
         return points;
     }

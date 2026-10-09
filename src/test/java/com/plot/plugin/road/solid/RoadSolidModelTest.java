@@ -21,6 +21,17 @@ class RoadSolidModelTest {
     }
 
     @Test
+    void addDeduplicatesRoundedGridCellInsteadOfExactFloat() {
+        RoadSolidModel model = new RoadSolidModel();
+
+        assertTrue(model.add(new Vec2d(0.1, 0.0), 64, RoadSolidLayer.ROAD, "minecraft:stone"));
+        assertFalse(model.add(new Vec2d(0.4, 0.0), 64, RoadSolidLayer.ROAD, "minecraft:dirt"));
+        assertEquals(1, model.count(RoadSolidLayer.ROAD));
+        assertTrue(model.add(new Vec2d(0.4, 0.0), 64, RoadSolidLayer.TUNNEL, "minecraft:air"));
+        assertEquals(1, model.count(RoadSolidLayer.TUNNEL));
+    }
+
+    @Test
     void rasterizerMapsPlanPointToBlockPos() {
         BlockPos pos = RoadVoxelRasterizer.toBlockPos(new Vec2d(4.2, 9.8), 65, null);
         assertEquals(4, pos.getX());

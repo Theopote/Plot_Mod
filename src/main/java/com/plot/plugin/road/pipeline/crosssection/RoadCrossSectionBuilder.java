@@ -384,7 +384,10 @@ public final class RoadCrossSectionBuilder {
         double geometryLocalBase = 0.0;
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             RoadConstructionType type = RoadConstructionClassifier.constructionTypeAt(constructionTypes, i);
-            if (type == RoadConstructionType.BRIDGE || type == RoadConstructionType.TUNNEL) {
+            boolean structure = RoadConstructionClassifier.isStructureType(type);
+            boolean portalStart = RoadConstructionClassifier.isStructureRunStart(constructionTypes, i);
+            boolean portalEnd = RoadConstructionClassifier.isStructureRunEnd(constructionTypes, i);
+            if (structure && !portalStart && !portalEnd) {
                 geometryLocalBase += segments.get(i).distance;
                 continue;
             }
@@ -393,6 +396,11 @@ public final class RoadCrossSectionBuilder {
             Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, chainForward);
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
             for (int j = 0; j <= samples; j++) {
+                if (structure
+                        && !(portalStart && j == 0)
+                        && !(portalEnd && j == samples)) {
+                    continue;
+                }
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
                 double geometryLocal = geometryLocalBase + segment.distance * t;

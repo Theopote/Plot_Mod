@@ -228,6 +228,30 @@ public final class RoadConstructionClassifier {
         return type != null ? type : RoadConstructionType.ROAD;
     }
 
+    public static boolean isStructureType(RoadConstructionType type) {
+        return type == RoadConstructionType.BRIDGE || type == RoadConstructionType.TUNNEL;
+    }
+
+    /** 桥隧构造段的起点（洞门 / 桥台）。 */
+    public static boolean isStructureRunStart(List<RoadConstructionType> constructionTypes, int segmentIndex) {
+        RoadConstructionType type = constructionTypeAt(constructionTypes, segmentIndex);
+        if (!isStructureType(type)) {
+            return false;
+        }
+        return segmentIndex <= 0 || constructionTypeAt(constructionTypes, segmentIndex - 1) != type;
+    }
+
+    /** 桥隧构造段的终点（洞门 / 桥台）。 */
+    public static boolean isStructureRunEnd(List<RoadConstructionType> constructionTypes, int segmentIndex) {
+        RoadConstructionType type = constructionTypeAt(constructionTypes, segmentIndex);
+        if (!isStructureType(type)) {
+            return false;
+        }
+        return constructionTypes == null
+            || segmentIndex >= constructionTypes.size() - 1
+            || constructionTypeAt(constructionTypes, segmentIndex + 1) != type;
+    }
+
     private static int averageHeight(int a, int b) {
         return (int) Math.round((a + b) / 2.0);
     }

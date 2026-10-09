@@ -69,10 +69,15 @@ class RoadGeneratorPlacementRecordTest {
             64
         );
 
-        assertTrue(positions.size() <= 6,
-            "diagonal span should not expand to a dense bbox-like fill");
+        assertEquals(7, positions.size(), "4-connected (3,3) diagonal is manhattan 6 + endpoints");
+        assertTrue(positions.size() < 16, "diagonal span should not expand to a dense bbox-like fill");
         assertTrue(positions.stream().anyMatch(pos -> pos.getX() == 0 && pos.getZ() == 0));
         assertTrue(positions.stream().anyMatch(pos -> pos.getX() == 3 && pos.getZ() == 3));
+        for (int i = 1; i < positions.size(); i++) {
+            int manhattan = Math.abs(positions.get(i).getX() - positions.get(i - 1).getX())
+                + Math.abs(positions.get(i).getZ() - positions.get(i - 1).getZ());
+            assertEquals(1, manhattan, "consecutive span cells must be 4-connected");
+        }
     }
 
     @Test
