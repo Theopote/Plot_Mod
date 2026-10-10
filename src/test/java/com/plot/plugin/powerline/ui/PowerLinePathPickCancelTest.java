@@ -109,6 +109,21 @@ class PowerLinePathPickCancelTest {
     }
 
     @Test
+    void lineNameRenamePreservesLongUtf8Name() {
+        PowerLinePluginState state = new PowerLinePluginState();
+        PowerLineFootprint line = sampleLine("Line A");
+        attachLine(state, line);
+        PowerLineUiContext ctx = uiContext(state);
+        String expected = "输电线路名称测试".repeat(12);
+
+        ctx.beginLineNameRename(line);
+        state.getLineNameBuffer().set(expected);
+        ctx.commitLineNameRename(line);
+
+        assertEquals(expected, line.getName());
+    }
+
+    @Test
     void pathReplacePickTracksTargetLine() {
         PowerLinePluginState state = new PowerLinePluginState();
         assertFalse(state.isPathReplacePending());

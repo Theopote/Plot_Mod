@@ -9,6 +9,7 @@ import imgui.flag.ImGuiKey;
 /** 区域列表内联重命名：双击进入、Enter/失焦提交、Esc 取消。 */
 public final class PatternFootprintRenameController {
     private final PatternUiContext ctx;
+    private String editorActivatedFootprintId = "";
 
     public PatternFootprintRenameController(PatternUiContext ctx) {
         this.ctx = ctx;
@@ -16,6 +17,9 @@ public final class PatternFootprintRenameController {
 
     public void tickFrame() {
         ctx.tickFootprintNameRenameCooldown();
+        if (ctx.footprintNameEditingId().isBlank()) {
+            editorActivatedFootprintId = "";
+        }
     }
 
     public boolean isRenaming(String footprintId) {
@@ -24,6 +28,7 @@ public final class PatternFootprintRenameController {
 
     public void beginRename(PatternFootprint footprint) {
         ctx.beginFootprintNameRename(footprint);
+        editorActivatedFootprintId = "";
     }
 
     public void cancelActive() {
@@ -33,15 +38,18 @@ public final class PatternFootprintRenameController {
         PatternFootprint footprint = ctx.selection().primary(ctx.project());
         if (footprint != null && footprint.getId().equals(ctx.footprintNameEditingId())) {
             ctx.cancelFootprintNameRename(footprint);
+            editorActivatedFootprintId = "";
             return;
         }
         for (PatternFootprint candidate : ctx.project().getFootprints().values()) {
             if (candidate.getId().equals(ctx.footprintNameEditingId())) {
                 ctx.cancelFootprintNameRename(candidate);
+                editorActivatedFootprintId = "";
                 return;
             }
         }
         ctx.setFootprintNameEditingId("");
+        editorActivatedFootprintId = "";
     }
 
     /**
@@ -88,16 +96,32 @@ public final class PatternFootprintRenameController {
             ctx.footprintNameBuffer(),
             ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll);
 
+        if (ImGui.isItemActivated()) {
+            editorActivatedFootprintId = footprint.getId();
+        }
+
         if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
             ctx.cancelFootprintNameRename(footprint);
+            editorActivatedFootprintId = "";
             return;
         }
-        if (enterPressed || shouldCommitOnDeactivate()) {
+        if (enterPressed || shouldCommitOnDeactivate(footprint.getId())) {
             ctx.commitFootprintNameRename(footprint);
+            editorActivatedFootprintId = "";
+            return;
+        }
+        if (!footprint.getId().equals(editorActivatedFootprintId)
+                && ctx.isFootprintNameOutsideClickReady()
+                && ImGui.isMouseClicked(0)
+                && !ImGui.isItemHovered()) {
+            ctx.cancelFootprintNameRename(footprint);
+            editorActivatedFootprintId = "";
         }
     }
 
-    private boolean shouldCommitOnDeactivate() {
-        return ctx.isFootprintNameOutsideClickReady() && ImGui.isItemDeactivated();
+    private boolean shouldCommitOnDeactivate(String footprintId) {
+        return footprintId.equals(editorActivatedFootprintId)
+            && ctx.isFootprintNameOutsideClickReady()
+            && ImGui.isItemDeactivated();
     }
 }

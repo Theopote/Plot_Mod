@@ -53,7 +53,7 @@ public final class BuildingPluginState {
 
     private final ImBoolean manualElevationRef = new ImBoolean(false);
     private final ImBoolean showFootprintOverlay = new ImBoolean(true);
-    private final ImString buildingNameBuffer = new ImString(64);
+    private final ImString buildingNameBuffer = createBuildingNameBuffer();
 
     private final List<String> pendingDeleteBuildingIds = new ArrayList<>();
     private boolean deleteConfirmPending = false;
@@ -68,6 +68,13 @@ public final class BuildingPluginState {
     private volatile String projectStatus = "";
     private String currentProjectFile = "default.json";
     private final ContentFingerprint.Tracker contentFingerprint = new ContentFingerprint.Tracker();
+
+    private static ImString createBuildingNameBuffer() {
+        ImString buffer = new ImString(256);
+        buffer.inputData.isResizable = true;
+        buffer.inputData.resizeFactor = 256;
+        return buffer;
+    }
 
     public BuildingProject getProject() {
         return project;

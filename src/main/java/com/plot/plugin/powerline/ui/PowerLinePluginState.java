@@ -36,7 +36,7 @@ public final class PowerLinePluginState {
     private PowerLinePreviewKey previewKey;
     private int buildRegionWorldFingerprint;
     private boolean previewAutoRefreshEnabled;
-    private final ImString lineNameBuffer = new ImString(64);
+    private final ImString lineNameBuffer = createLineNameBuffer();
     private String lineNameEditingId = "";
     private String lineNameBeforeRename = "";
     private boolean lineNameFocusPending;
@@ -62,6 +62,13 @@ public final class PowerLinePluginState {
     private String pendingDeleteUserTemplateId = "";
     /** 取消拾取后短暂屏蔽「拾取路径」，避免按钮换位误触。 */
     private int pathPickActivationBlockFrames;
+
+    private static ImString createLineNameBuffer() {
+        ImString buffer = new ImString(256);
+        buffer.inputData.isResizable = true;
+        buffer.inputData.resizeFactor = 256;
+        return buffer;
+    }
 
     public PowerLineDesignProject getDesignProject() {
         return designProject;

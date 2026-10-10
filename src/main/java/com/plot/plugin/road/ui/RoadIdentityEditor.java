@@ -6,6 +6,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadTopologyMode;
 import com.plot.plugin.ui.PluginUiColors;
+import com.plot.ui.utils.ImStringUtf8;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
@@ -18,10 +19,15 @@ import java.util.Objects;
  * 逻辑道路标识编辑（名称；后续可扩展等级、标签等元数据）。
  */
 public final class RoadIdentityEditor {
-    private static final int MAX_NAME_LENGTH = 128;
-
     private String syncedRoadId = "";
-    private final ImString nameBuffer = new ImString(MAX_NAME_LENGTH);
+    private final ImString nameBuffer = createNameBuffer();
+
+    private static ImString createNameBuffer() {
+        ImString buffer = new ImString(256);
+        buffer.inputData.isResizable = true;
+        buffer.inputData.resizeFactor = 256;
+        return buffer;
+    }
 
     public void render(RoadNetwork network, Road road, RoadNetworkManager networkManager, Runnable onHistory) {
         if (road == null || network == null) {
@@ -143,7 +149,7 @@ public final class RoadIdentityEditor {
     }
 
     private void commitName(Road road, Runnable onHistory) {
-        String committed = normalizeDraftName(nameBuffer.get());
+        String committed = normalizeDraftName(ImStringUtf8.read(nameBuffer));
         String current = road.getName();
         if (Objects.equals(current, committed)) {
             return;
@@ -163,6 +169,6 @@ public final class RoadIdentityEditor {
         if (trimmed.isEmpty()) {
             return null;
         }
-        return trimmed.length() > MAX_NAME_LENGTH ? trimmed.substring(0, MAX_NAME_LENGTH) : trimmed;
+        return trimmed;
     }
 }

@@ -26,7 +26,7 @@ public final class PatternPluginState {
     private long projectRevision;
     private String footprintNameEditingId = "";
     private String footprintNameBeforeRename = "";
-    private final ImString footprintNameBuffer = new ImString(64);
+    private final ImString footprintNameBuffer = createFootprintNameBuffer();
     private boolean footprintNameFocusPending = false;
     private int footprintNameIgnoreOutsideClickFrames = 0;
 
@@ -37,6 +37,13 @@ public final class PatternPluginState {
     private String currentProjectFile = "default.json";
     private final ContentFingerprint.Tracker contentFingerprint = new ContentFingerprint.Tracker();
     private PatternPresetLibrary presetLibrary;
+
+    private static ImString createFootprintNameBuffer() {
+        ImString buffer = new ImString(256);
+        buffer.inputData.isResizable = true;
+        buffer.inputData.resizeFactor = 256;
+        return buffer;
+    }
 
     public PatternProject getProject() {
         return project;

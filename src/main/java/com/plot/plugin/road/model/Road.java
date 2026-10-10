@@ -196,7 +196,7 @@ public class Road {
             return;
         }
         String trimmed = name.trim();
-        this.name = trimmed.length() > 128 ? trimmed.substring(0, 128) : trimmed;
+        this.name = trimmed;
     }
 
     public RoadCrossSection getCrossSection() {

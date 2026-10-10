@@ -49,11 +49,18 @@ public final class RoadUiContext {
     private boolean overlayForegroundDirty;
 
     private final RoadListRenameController roadListRename = new RoadListRenameController(this);
-    private final ImString roadNameBuffer = new ImString(128);
+    private final ImString roadNameBuffer = createRoadNameBuffer();
     private String roadNameEditingId = "";
     private String roadNameBeforeRename = "";
     private boolean roadNameFocusPending;
     private int roadNameIgnoreOutsideClickFrames;
+
+    private static ImString createRoadNameBuffer() {
+        ImString buffer = new ImString(256);
+        buffer.inputData.isResizable = true;
+        buffer.inputData.resizeFactor = 256;
+        return buffer;
+    }
 
     public RoadUiContext(
             RoadNetworkManager networkManager,

@@ -7,8 +7,6 @@ import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiKey;
 /** 路径 Tab 道路列表内联重命名：双击进入、Enter/失焦提交、Esc 取消。 */
 public final class RoadListRenameController {
-    private static final int MAX_NAME_LENGTH = 128;
-
     private final RoadUiContext ctx;
     /** 输入框已成功获得焦点后才允许“失焦提交”，避免刚进入编辑态就被误判为结束。 */
     private String editorActivatedRoadId = "";
@@ -134,6 +132,6 @@ public final class RoadListRenameController {
         if (trimmed.isEmpty()) {
             return null;
         }
-        return trimmed.length() > MAX_NAME_LENGTH ? trimmed.substring(0, MAX_NAME_LENGTH) : trimmed;
+        return trimmed;
     }
 }

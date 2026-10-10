@@ -50,9 +50,16 @@ public final class EarthworkUiContext {
     private final ImBoolean autoBalanceRef = new ImBoolean(true);
     private final ImBoolean showGridRef = new ImBoolean(true);
     private final ImBoolean showEdgeTreatmentOverlayRef = new ImBoolean(true);
-    private final ImString regionNameBuffer = new ImString(64);
+    private final ImString regionNameBuffer = createRegionNameBuffer();
     private final imgui.type.ImInt workModeIndex = new imgui.type.ImInt(0);
     private final imgui.type.ImInt regionIndex = new imgui.type.ImInt(0);
+
+    private static ImString createRegionNameBuffer() {
+        ImString buffer = new ImString(256);
+        buffer.inputData.isResizable = true;
+        buffer.inputData.resizeFactor = 256;
+        return buffer;
+    }
 
     public EarthworkUiContext(
             PluginContext host,

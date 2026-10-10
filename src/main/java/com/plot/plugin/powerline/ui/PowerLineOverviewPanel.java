@@ -10,6 +10,7 @@ import imgui.flag.ImGuiKey;
 /** Route Tab 中的项目线路管理组件。 */
 public final class PowerLineOverviewPanel {
     private final PowerLineUiContext ctx;
+    private String editorActivatedLineId = "";
 
     public PowerLineOverviewPanel(PowerLineUiContext ctx) {
         this.ctx = ctx;
@@ -17,6 +18,9 @@ public final class PowerLineOverviewPanel {
 
     public void renderProjectSection() {
         ctx.tickLineNameRenameCooldown();
+        if (ctx.lineNameEditingId().isBlank()) {
+            editorActivatedLineId = "";
+        }
 
         PowerLineUiWidgets.text(PlotI18n.tr(
             "plugin.powerline.project_stats",
@@ -139,6 +143,7 @@ public final class PowerLineOverviewPanel {
                 ImGui.setTooltip(PlotI18n.tr("plugin.powerline.overview_rename_hint"));
                 if (ImGui.isMouseDoubleClicked(0)) {
                     ctx.beginLineNameRename(line);
+                    editorActivatedLineId = "";
                 }
             }
             return;
@@ -156,6 +161,9 @@ public final class PowerLineOverviewPanel {
 
         boolean inputActive = ImGui.isItemActive();
         boolean inputHovered = ImGui.isItemHovered();
+        if (ImGui.isItemActivated()) {
+            editorActivatedLineId = line.getId();
+        }
         boolean finished = false;
         boolean canceled = false;
 
@@ -163,8 +171,14 @@ public final class PowerLineOverviewPanel {
             finished = true;
         } else if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
             canceled = true;
-        } else if (ImGui.isItemDeactivated()) {
+        } else if (line.getId().equals(editorActivatedLineId)
+                && ImGui.isItemDeactivated()) {
             finished = true;
+        } else if (!line.getId().equals(editorActivatedLineId)
+                && ctx.isLineNameOutsideClickReady()
+                && ImGui.isMouseClicked(0)
+                && !inputHovered) {
+            canceled = true;
         } else if (ctx.isLineNameOutsideClickReady()
                 && ImGui.isMouseClicked(0)
                 && !inputHovered
@@ -178,8 +192,10 @@ public final class PowerLineOverviewPanel {
 
         if (canceled) {
             ctx.cancelLineNameRename(line);
+            editorActivatedLineId = "";
         } else if (finished) {
             ctx.commitLineNameRename(line);
+            editorActivatedLineId = "";
         }
     }
 

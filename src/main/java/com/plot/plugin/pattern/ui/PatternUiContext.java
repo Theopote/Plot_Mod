@@ -15,6 +15,7 @@ import com.plot.plugin.pattern.model.PatternProject;
 import com.plot.plugin.pattern.model.PatternProjectHistory;
 import com.plot.plugin.pattern.model.PatternPreset;
 import com.plot.plugin.pattern.model.PatternPresetLibrary;
+import com.plot.ui.utils.ImStringUtf8;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -177,7 +178,7 @@ public final class PatternUiContext {
             state.endFootprintNameRename();
             return;
         }
-        String trimmed = state.getFootprintNameBuffer().get().trim();
+        String trimmed = ImStringUtf8.read(state.getFootprintNameBuffer()).trim();
         if (!trimmed.isEmpty() && !trimmed.equals(footprint.getName())) {
             pushProjectHistory();
             footprint.setName(trimmed);

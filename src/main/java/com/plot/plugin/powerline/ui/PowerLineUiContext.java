@@ -12,6 +12,7 @@ import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerLineProject;
 import com.plot.plugin.powerline.model.PowerLineProjectHistory;
 import com.plot.plugin.powerline.model.PowerLineWorkspaceSnapshot;
+import com.plot.ui.utils.ImStringUtf8;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -335,7 +336,7 @@ public final class PowerLineUiContext {
             state.endLineNameRename();
             return;
         }
-        String trimmed = state.getLineNameBuffer().get().trim();
+        String trimmed = ImStringUtf8.read(state.getLineNameBuffer()).trim();
         if (!trimmed.isEmpty() && !trimmed.equals(line.getName())) {
             pushWorkspaceSnapshot();
             line.setName(trimmed);

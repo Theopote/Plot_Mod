@@ -86,4 +86,16 @@ class RoadListRenameTest {
         assertEquals(null, road.getName());
         assertTrue(networkManager.canUndo());
     }
+
+    @Test
+    void commitRoadNameRenameDoesNotTruncateLongNames() {
+        Road road = networkManager.getNetwork().getRoads().values().iterator().next();
+        String expected = "道路路径名称测试".repeat(30);
+
+        ctx.beginRoadNameRename(road);
+        ctx.roadNameBuffer().set(expected);
+        ctx.commitRoadNameRename(road);
+
+        assertEquals(expected, road.getName());
+    }
 }
