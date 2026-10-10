@@ -1,10 +1,14 @@
 package com.plot.core.command.commands;
 
 import com.plot.core.context.ApplicationContext;
+import com.plot.api.geometry.Vec2d;
+import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.state.AppState;
 import com.plot.ui.panel.layer.LayerStructureSnapshot;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -52,5 +56,27 @@ class LayerStructureEditCommandTest {
 
         command.execute();
         assertEquals(countBeforeAdd + 1, layerManager.getLayerCount());
+    }
+
+    @Test
+    void removingTransferredShapeUsesItsCurrentLayerMapping() {
+        AppState appState = ApplicationContext.getInstance().getAppState();
+        var layerManager = appState.getLayerManager();
+        var targetResult = layerManager.createLayer("Mapping transfer target");
+        var sourceResult = layerManager.createLayer("Mapping transfer source");
+        assertTrue(targetResult.isSuccess());
+        assertTrue(sourceResult.isSuccess());
+
+        var targetLayer = targetResult.getLayer();
+        var sourceLayer = sourceResult.getLayer();
+        var shape = new PolylineShape(List.of(new Vec2d(0, 0), new Vec2d(10, 0)), false);
+        appState.setActiveLayer(sourceLayer);
+        appState.addShape(shape);
+        targetLayer.addShape(shape);
+
+        assertTrue(layerManager.removeLayer(sourceLayer));
+        appState.removeShape(shape);
+
+        assertFalse(targetLayer.getShapes().contains(shape));
     }
 }

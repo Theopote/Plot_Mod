@@ -44,7 +44,7 @@ public class ChamferToolOptionRenderer extends AbstractToolOptionRenderer {
     private boolean resourcesInitialized;
     
     // 默认图标路径
-    private static final String DEFAULT_ICON_PATH = "textures/gui/tooloptionspanel/default.png";
+    private static final String DEFAULT_ICON_PATH = "textures/gui/toolpanel/select.png";
 
     public ChamferToolOptionRenderer() {
         super("chamfer");
@@ -61,9 +61,9 @@ public class ChamferToolOptionRenderer extends AbstractToolOptionRenderer {
      */
     private int loadTexture() {
         try {
-            return ImGuiUtils.getTextureId(Identifier.of("plot", "textures/gui/tooloptionspanel/chamfer.png"));
+            return ImGuiUtils.getTextureId(Identifier.of("plot", "textures/gui/toolpanel/chamfer.png"));
         } catch (Exception e) {
-            LOGGER.error("加载图标失败: {}, 使用默认图标", "textures/gui/tooloptionspanel/chamfer.png", e);
+            LOGGER.error("加载图标失败: {}, 使用默认图标", "textures/gui/toolpanel/chamfer.png", e);
             try {
                 return ImGuiUtils.getTextureId(Identifier.of("plot", DEFAULT_ICON_PATH));
             } catch (Exception fallbackException) {

@@ -64,7 +64,7 @@ public final class LayerService {
         if (currentActive == removedLayer) {
             this.activeLayer.set(null);
         }
-        shapeToLayerMap.entrySet().removeIf(entry -> entry.getValue() == removedLayer);
+        rebuildShapeToLayerMap();
     }
 
     private void handleSelectAllElementsInLayer(Event event) {
