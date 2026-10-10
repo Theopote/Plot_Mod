@@ -3,6 +3,7 @@ package com.plot.ui.panel.layer;
 import com.plot.core.layer.Layer;
 import com.plot.core.layer.LayerManager;
 import com.plot.ui.dialog.TextDialogUtil;
+import com.plot.ui.utils.ImStringUtf8;
 import com.plot.utils.PlotI18n;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
@@ -28,7 +29,7 @@ public class LayerNameRenderer {
     private static final long DOUBLE_CLICK_THRESHOLD = 500;
     /** ImString 缓冲区大小（字节） */
     private static final int MAX_BUFFER_SIZE = 512;
-    private static final int MAX_NAME_LENGTH = 50;
+    private static final int MAX_NAME_LENGTH = LayerNameRules.MAX_LENGTH;
 
     private final ImString nameBuffer = createNameBuffer();
     private String currentEditingLayerId = null;
@@ -293,7 +294,7 @@ public class LayerNameRenderer {
             }
 
             if (finished) {
-                applyNameChange(layer, nameBuffer.get());
+                applyNameChange(layer, ImStringUtf8.read(nameBuffer));
             } else if (canceled) {
                 cancelEditing(layer.getId());
             }
@@ -365,7 +366,7 @@ public class LayerNameRenderer {
     }
 
     private void applyNameChange(Layer layer, String rawName) {
-        String newName = rawName != null ? rawName.trim() : "";
+        String newName = LayerNameRules.normalize(rawName);
 
         if (newName.isEmpty()) {
             showWarningDialog.accept(PlotI18n.tr("layer.plot.name_empty"));
@@ -373,9 +374,13 @@ public class LayerNameRenderer {
             return;
         }
 
-        // 按字符数限制，避免把中文按“显示宽度 *2”误判为过长
-        if (newName.length() > MAX_NAME_LENGTH) {
+        if (!LayerNameRules.isWithinLength(newName)) {
             showWarningDialog.accept(PlotI18n.tr("layer.plot.name_too_long"));
+            cancelEditing(layer.getId());
+            return;
+        }
+        if (!LayerNameRules.hasNoControlCharacters(newName)) {
+            showWarningDialog.accept(PlotI18n.tr("layer.plot.name_invalid_chars"));
             cancelEditing(layer.getId());
             return;
         }

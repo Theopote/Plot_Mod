@@ -9,6 +9,7 @@ import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.ui.dialog.TextDialogUtil;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
+import com.plot.ui.utils.ImStringUtf8;
 import com.plot.utils.PlotI18n;
 
 import imgui.ImGui;
@@ -21,10 +22,6 @@ import imgui.type.ImString;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.nio.charset.CharsetEncoder;
-import java.nio.charset.StandardCharsets;
-import java.nio.CharBuffer;
-import java.nio.charset.CharacterCodingException;
 import java.util.Arrays;
 import java.util.function.Consumer;
 import java.awt.Color;
@@ -35,8 +32,7 @@ public class NewLayerDialog {
 
     // === 常量定义 ===
     private static final String DIALOG_TITLE = PlotI18n.tr("screen.plot.new_layer");
-    private static final String LAYER_NAME_PATTERN = "[a-zA-Z0-9_\u4E00-\u9FFF]+";
-    private static final int MAX_NAME_LENGTH = 32;  // 最大名称长度（字符）
+    private static final int MAX_NAME_LENGTH = LayerNameRules.MAX_LENGTH;
     private static final int MAX_BUFFER_SIZE = 512; // ImString 缓冲区大小（字节，足够支持长中文输入）
 
     // === 状态字段 ===
@@ -81,7 +77,7 @@ public class NewLayerDialog {
         popupOpenRequested = true;
         resetNativeInputState();
 
-        if (layerName.get().isEmpty()) {
+        if (ImStringUtf8.read(layerName).isEmpty()) {
             layerName.set(generateDefaultName());
         }
     }
@@ -99,11 +95,11 @@ public class NewLayerDialog {
     }
 
     private void createNewLayer() {
-        String rawName = layerName.get();
+        String rawName = ImStringUtf8.read(layerName);
         LOGGER.info("创建图层 - 原始名称: '{}', 字节长度: {}, 字符长度: {}",
                 rawName, rawName.getBytes().length, rawName.length());
 
-        String name = sanitizeChineseText(rawName).trim();
+        String name = LayerNameRules.normalize(rawName);
         LOGGER.info("创建图层 - 处理后名称: '{}', 字节长度: {}, 字符长度: {}",
                 name, name.getBytes().length, name.length());
 
@@ -113,12 +109,12 @@ public class NewLayerDialog {
             nameInputInvalid = true;
             return;
         }
-        if (name.length() > MAX_NAME_LENGTH) {
+        if (!LayerNameRules.isWithinLength(name)) {
             showWarningDialog.accept(PlotI18n.tr("layer.plot.name_too_long_max", MAX_NAME_LENGTH));
             nameInputInvalid = true;
             return;
         }
-        if (!name.matches(LAYER_NAME_PATTERN)) {
+        if (!LayerNameRules.hasNoControlCharacters(name)) {
             showWarningDialog.accept(PlotI18n.tr("layer.plot.name_invalid_chars"));
             nameInputInvalid = true;
             return;
@@ -170,26 +166,6 @@ public class NewLayerDialog {
             } else {
                 showWarningDialog.accept(result.getMessage());
             }
-        }
-    }
-
-    private String sanitizeChineseText(String text) {
-        if (text == null || text.isEmpty()) {
-            return "";
-        }
-        try {
-            CharsetEncoder encoder = StandardCharsets.UTF_8.newEncoder();
-            encoder.encode(CharBuffer.wrap(text));
-
-            String cleaned = text.replace("\uFFFD", "").trim();
-            String normalized = cleaned.replaceAll("[^a-zA-Z0-9_\u4E00-\u9FFF]", "");
-            if (normalized.length() > MAX_NAME_LENGTH) {
-                return normalized.substring(0, MAX_NAME_LENGTH);
-            }
-            return normalized;
-        } catch (CharacterCodingException e) {
-            LOGGER.error("无效字符编码: {}", text, e);
-            return "";
         }
     }
 
@@ -277,9 +253,8 @@ public class NewLayerDialog {
                             ImGui.setKeyboardFocusHere();
                         }
                         if (ImGui.inputText("##new_layer_name", layerName,
-                                ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll |
-                                        ImGuiInputTextFlags.CharsNoBlank)) {
-                            String currentInput = layerName.get();
+                            ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll)) {
+                            String currentInput = ImStringUtf8.read(layerName);
                             LOGGER.debug("输入完成 - 当前输入: '{}', 字节长度: {}, 字符长度: {}",
                                     currentInput, currentInput.getBytes().length, currentInput.length());
                             nameInputInvalid = false;
@@ -361,7 +336,7 @@ public class NewLayerDialog {
         nativeInputRequested = true;
         TextDialogUtil.showSingleLineTextInputAsync(
                 DIALOG_TITLE,
-                layerName.get(),
+                ImStringUtf8.read(layerName),
                 MAX_NAME_LENGTH,
                 result -> {
                     nativeInputText = result;
