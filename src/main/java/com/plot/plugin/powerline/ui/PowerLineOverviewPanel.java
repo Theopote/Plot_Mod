@@ -106,7 +106,7 @@ public final class PowerLineOverviewPanel {
         }
         ImGui.sameLine();
 
-        float columnWidth = Math.max(120f, ImGui.getContentRegionAvailX() - 8f);
+        float columnWidth = Math.max(1f, ImGui.getContentRegionAvailX() - 8f);
         ImGui.beginGroup();
         renderLineNameLabel(line, columnWidth, selected, selectionFrozen);
         if (!renaming) {

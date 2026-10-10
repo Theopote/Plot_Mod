@@ -308,7 +308,6 @@ public final class RoadEdgeListPanel {
 
         Road road = hasRoadId ? network.getRoad(group.roadId()) : null;
         boolean renaming = road != null && ctx.roadListRename().isRenaming(road.getId());
-        float columnWidth = Math.max(120f, ImGui.getContentRegionAvailX() - 68f);
 
         if (renderRoadThumbnail(network, group.edges(), selected, scopeId)) {
             if (!renaming) {
@@ -322,6 +321,7 @@ public final class RoadEdgeListPanel {
             }
         }
         ImGui.sameLine();
+        float columnWidth = Math.max(1f, ImGui.getContentRegionAvailX() - 8f);
 
         RoadSystemConfig config = ctx.networkManager().getConfig();
         ImGui.beginGroup();

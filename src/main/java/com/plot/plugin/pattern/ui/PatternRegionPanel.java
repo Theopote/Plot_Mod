@@ -131,7 +131,6 @@ public final class PatternRegionPanel {
     private void renderFootprintRow(PatternFootprint footprint, WorldProjectionSnapshot projection) {
         ImGui.pushID(footprint.getId());
         boolean selected = ctx.selection().contains(footprint.getId());
-        float columnWidth = Math.max(120f, ImGui.getContentRegionAvailX() - 68f);
         boolean renaming = ctx.footprintRename().isRenaming(footprint.getId());
 
         if (PatternOverviewRenderer.renderFootprintThumbnail(footprint, selected)) {
@@ -140,6 +139,7 @@ public final class PatternRegionPanel {
             }
         }
         ImGui.sameLine();
+        float columnWidth = Math.max(1f, ImGui.getContentRegionAvailX() - 8f);
 
         ImGui.beginGroup();
         renaming = ctx.footprintRename().renderNameField(
