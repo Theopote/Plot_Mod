@@ -5,9 +5,18 @@ import com.plot.api.geometry.Vec2d;
 /**
  * 平面坐标 + 标高 + 层类型 + 材质（体素蓝图，不含 BlockPos）。
  */
-public record RoadSolidPrimitive(Vec2d planPoint, int elevation, RoadSolidLayer layer, String materialId) {
+public record RoadSolidPrimitive(
+        Vec2d planPoint,
+        int elevation,
+        RoadSolidLayer layer,
+        String materialId,
+        int materialPriority) {
     public RoadSolidPrimitive(Vec2d planPoint, int elevation, RoadSolidLayer layer) {
-        this(planPoint, elevation, layer, null);
+        this(planPoint, elevation, layer, null, RoadSolidMaterialPriority.DEFAULT);
+    }
+
+    public RoadSolidPrimitive(Vec2d planPoint, int elevation, RoadSolidLayer layer, String materialId) {
+        this(planPoint, elevation, layer, materialId, RoadSolidMaterialPriority.DEFAULT);
     }
 
     public RoadSolidPrimitive {

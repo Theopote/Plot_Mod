@@ -11,8 +11,13 @@ import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
+import com.plot.plugin.road.solid.RoadGenerationResult;
+import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.solid.RoadSolidPrimitive;
+import com.plot.plugin.road.solid.RoadVoxelRasterizer;
+import com.plot.plugin.road.tunnel.TunnelProfile;
+import net.minecraft.util.math.BlockPos;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.plugin.road.tunnel.TunnelLightingMode;
 import com.plot.plugin.road.tunnel.TunnelPortalPlanner;
@@ -77,6 +82,105 @@ class TunnelStructureGeneratorTest {
             p.materialId().equals("minecraft:stone_bricks")
                 && p.elevation() == 69
                 && Math.abs(p.planPoint().y) >= 3));
+    }
+
+    @Test
+    void crossSectionThenLightingKeepsSeaLanternAtWallPositions() {
+        RoadSolidModel solids = new RoadSolidModel();
+        ResolvedTunnelStyle style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.WALL_BANDS);
+        RoadTerrainClearanceUtils.BlockColumnResolver resolver = columnResolver();
+        int roadY = 64;
+        int sideClearance = 1;
+        int envelopeWidth = 3;
+        int cavityWidth = envelopeWidth + sideClearance * 2;
+        int cavityMin = com.plot.plugin.road.RoadDimensionUtils.minLateralOffset(cavityWidth);
+        int cavityMax = com.plot.plugin.road.RoadDimensionUtils.maxLateralOffset(cavityWidth);
+        int wallLightY = roadY + 2;
+
+        TunnelStructureGenerator.placeCrossSection(
+            solids,
+            style,
+            new Vec2d(0, 0),
+            new Vec2d(0, 1),
+            envelopeWidth,
+            roadY,
+            "minecraft:stone_bricks",
+            columnTerrain(100, 64, 100),
+            resolver,
+            1.0,
+            false);
+        TunnelStructureGenerator.placeLighting(
+            testHost(),
+            solids,
+            style,
+            new Vec2d(0, 0),
+            new Vec2d(0, 1),
+            envelopeWidth,
+            roadY,
+            0.0,
+            resolver,
+            1.0);
+
+        RoadGenerationResult result = new RoadGenerationResult(0);
+        RoadVoxelRasterizer.flushEdgeSolids(
+            result,
+            solids,
+            null,
+            com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+
+        assertEquals(
+            "minecraft:sea_lantern",
+            result.placementRecords.get(new BlockPos(0, wallLightY, cavityMin)).newBlockId);
+        assertEquals(
+            "minecraft:sea_lantern",
+            result.placementRecords.get(new BlockPos(0, wallLightY, cavityMax)).newBlockId);
+    }
+
+    @Test
+    void crossSectionThenCeilingLightingKeepsSeaLanternAtCeiling() {
+        RoadSolidModel solids = new RoadSolidModel();
+        ResolvedTunnelStyle style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.WALL_AND_CEILING);
+        RoadTerrainClearanceUtils.BlockColumnResolver resolver = columnResolver();
+        int roadY = 64;
+        int envelopeWidth = 3;
+        int halfCavityWidth = (envelopeWidth + style.sideClearance() * 2) / 2;
+        int ceilingY = TunnelProfile.ceilingY(
+            style.shape(), 0, halfCavityWidth, roadY, style.clearHeight());
+
+        TunnelStructureGenerator.placeCrossSection(
+            solids,
+            style,
+            new Vec2d(0, 0),
+            new Vec2d(0, 1),
+            envelopeWidth,
+            roadY,
+            "minecraft:stone_bricks",
+            columnTerrain(100, 64, 100),
+            resolver,
+            1.0,
+            false);
+        TunnelStructureGenerator.placeLighting(
+            testHost(),
+            solids,
+            style,
+            new Vec2d(0, 0),
+            new Vec2d(0, 1),
+            envelopeWidth,
+            roadY,
+            0.0,
+            resolver,
+            1.0);
+
+        RoadGenerationResult result = new RoadGenerationResult(0);
+        RoadVoxelRasterizer.flushEdgeSolids(
+            result,
+            solids,
+            null,
+            com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+
+        assertEquals(
+            "minecraft:sea_lantern",
+            result.placementRecords.get(new BlockPos(0, ceilingY, 0)).newBlockId);
     }
 
     @Test

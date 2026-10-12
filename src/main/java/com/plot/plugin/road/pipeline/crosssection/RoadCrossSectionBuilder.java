@@ -21,6 +21,7 @@ import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.solid.RoadSolidLayer;
+import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
@@ -496,7 +497,7 @@ public final class RoadCrossSectionBuilder {
                 }
             } else {
                 for (int y = slopeHeight + 1; y <= groundY; y++) {
-                    solids.add(sample, y, RoadSolidLayer.TUNNEL, "minecraft:air");
+                    solids.add(sample, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
                 }
                 if (cutBlockId != null) {
                     solids.add(sample, slopeHeight, RoadSolidLayer.SHOULDER, cutBlockId);

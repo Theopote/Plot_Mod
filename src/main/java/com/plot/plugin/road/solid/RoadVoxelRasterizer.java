@@ -7,6 +7,7 @@ import com.plot.plugin.road.RoadGeometryUtils;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -107,9 +108,8 @@ public final class RoadVoxelRasterizer {
         }
         java.util.Objects.requireNonNull(projectionHandler, "projectionHandler");
 
-        // 提取公共逻辑：先处理非隧道，再处理隧道
         flushSolidsByLayer(result, solids, transformer, projectionHandler,
-                RoadVoxelRasterizer::writePlacementRecord);
+            RoadVoxelRasterizer::writePlacementRecord);
 
         result.streetlightCount = result.streetlightBlocks.size();
     }
@@ -132,13 +132,13 @@ public final class RoadVoxelRasterizer {
 
         // 提取公共逻辑：先处理非隧道，再处理隧道
         flushSolidsByLayer(result, solids, transformer, projectionHandler,
-            (res, prim, trans, handler, overrideExisting) ->
+            (res, prim, trans, handler) ->
                 writeJunctionPlacementRecord(res, prim, trans, handler,
-                    roadBlockId, sidewalkBlockId, markingBlockId, overrideExisting));
+                    roadBlockId, sidewalkBlockId, markingBlockId));
     }
 
     /**
-     * 通用的按层刷新逻辑：先处理非隧道层，再处理隧道层（覆盖）
+     * 通用的按层刷新逻辑：按固定图层优先级升序写入，高优先级层覆盖低优先级层。
      */
     private static void flushSolidsByLayer(
             RoadGenerationResult result,
@@ -146,20 +146,17 @@ public final class RoadVoxelRasterizer {
             ICoordinateService transformer,
             IBlockProjectionService projectionHandler,
             SolidWriter writer) {
-        // 第一遍：非隧道层
-        for (RoadSolidPrimitive primitive : solids.primitives()) {
-            if (primitive.layer() == RoadSolidLayer.TUNNEL) {
-                continue;
-            }
-            writer.write(result, primitive, transformer, projectionHandler, false);
+        List<RoadSolidPrimitive> primitives = solids.primitives();
+        List<Integer> insertionOrder = new ArrayList<>(primitives.size());
+        for (int i = 0; i < primitives.size(); i++) {
+            insertionOrder.add(i);
         }
+        insertionOrder.sort(Comparator
+            .comparingInt((Integer index) -> RoadSolidLayerPriority.of(primitives.get(index).layer()))
+            .thenComparingInt(index -> index));
 
-        // 第二遍：隧道层（覆盖已有方块）
-        for (RoadSolidPrimitive primitive : solids.primitives()) {
-            if (primitive.layer() != RoadSolidLayer.TUNNEL) {
-                continue;
-            }
-            writer.write(result, primitive, transformer, projectionHandler, true);
+        for (int index : insertionOrder) {
+            writer.write(result, primitives.get(index), transformer, projectionHandler);
         }
     }
 
@@ -172,32 +169,25 @@ public final class RoadVoxelRasterizer {
             RoadGenerationResult result,
             RoadSolidPrimitive primitive,
             ICoordinateService transformer,
-            IBlockProjectionService projectionHandler,
-            boolean overrideExisting);
+            IBlockProjectionService projectionHandler);
     }
 
     private static void writePlacementRecord(
             RoadGenerationResult result,
             RoadSolidPrimitive primitive,
             ICoordinateService transformer,
-            IBlockProjectionService projectionHandler,
-            boolean overrideExisting) {
+            IBlockProjectionService projectionHandler) {
         BlockPos pos = toBlockPos(primitive.planPoint(), primitive.elevation(), transformer);
         appendToResultBucket(result, primitive.layer(), pos);
         if (primitive.materialId() == null) {
             return;
         }
-        if (overrideExisting) {
-            result.recordPlacementOverride(
-                pos,
-                projectionHandler.getBlockIdAt(pos),
-                primitive.materialId());
-        } else {
-            result.recordPlacementIfAbsent(
-                pos,
-                projectionHandler.getBlockIdAt(pos),
-                primitive.materialId());
-        }
+        result.recordPlacementByLayerPriority(
+            pos,
+            projectionHandler.getBlockIdAt(pos),
+            primitive.materialId(),
+            primitive.layer(),
+            primitive.materialPriority());
     }
 
     private static void writeJunctionPlacementRecord(
@@ -207,8 +197,7 @@ public final class RoadVoxelRasterizer {
             IBlockProjectionService projectionHandler,
             String roadBlockId,
             String sidewalkBlockId,
-            String markingBlockId,
-            boolean overrideExisting) {
+            String markingBlockId) {
         String blockId = resolveJunctionMaterialOverride(
             primitive.layer(), roadBlockId, sidewalkBlockId, markingBlockId);
         if (blockId == null) {
@@ -219,17 +208,12 @@ public final class RoadVoxelRasterizer {
         }
         BlockPos pos = toBlockPos(primitive.planPoint(), primitive.elevation(), transformer);
         appendToResultBucket(result, primitive.layer(), pos);
-        if (overrideExisting) {
-            result.recordPlacementOverride(
-                pos,
-                projectionHandler.getBlockIdAt(pos),
-                blockId);
-        } else {
-            result.recordPlacementIfAbsent(
-                pos,
-                projectionHandler.getBlockIdAt(pos),
-                blockId);
-        }
+        result.recordPlacementByLayerPriority(
+            pos,
+            projectionHandler.getBlockIdAt(pos),
+            blockId,
+            primitive.layer(),
+            primitive.materialPriority());
     }
 
     private static String resolveJunctionMaterialOverride(

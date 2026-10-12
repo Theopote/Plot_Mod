@@ -96,7 +96,11 @@ public final class RoadGenerationPipelineContext {
     }
 
     public void initBuildState() {
-        this.solids = new RoadSolidModel();
+        initBuildState(RoadSolidModel.defaultMaxDedupKeys());
+    }
+
+    public void initBuildState(int maxDedupKeys) {
+        this.solids = new RoadSolidModel(maxDedupKeys);
         this.metrics = new RoadEdgeBuildMetrics();
         this.result = new RoadGenerationResult(pathLength());
     }
@@ -134,5 +138,10 @@ public final class RoadGenerationPipelineContext {
         int bridgeThreshold();
 
         void flushEdgeSolids(RoadGenerationResult result, RoadSolidModel solids);
+
+        /** 实体图元去重表容量；默认 {@link RoadSolidModel#defaultMaxDedupKeys()}。 */
+        default int maxDedupKeys() {
+            return RoadSolidModel.defaultMaxDedupKeys();
+        }
     }
 }

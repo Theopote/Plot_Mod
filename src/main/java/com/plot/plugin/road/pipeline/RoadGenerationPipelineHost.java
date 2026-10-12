@@ -27,6 +27,7 @@ public final class RoadGenerationPipelineHost implements RoadGenerationPipelineC
     private final ICoordinateService coordinateTransformer;
     private final IBlockProjectionService projectionHandler;
     private final EndpointElevationSession endpointElevationSession = new EndpointElevationSession();
+    private int maxDedupKeysOverride = -1;
 
     public RoadGenerationPipelineHost(
             RoadSystemConfig config,
@@ -39,6 +40,16 @@ public final class RoadGenerationPipelineHost implements RoadGenerationPipelineC
 
     public RoadSystemConfig config() {
         return config;
+    }
+
+    /** 测试专用：强制更小去重上限以验证分块 flush 结果一致性。 */
+    public void setMaxDedupKeysForTesting(int maxDedupKeys) {
+        this.maxDedupKeysOverride = maxDedupKeys;
+    }
+
+    @Override
+    public int maxDedupKeys() {
+        return maxDedupKeysOverride > 0 ? maxDedupKeysOverride : RoadSolidModel.defaultMaxDedupKeys();
     }
 
     @Override

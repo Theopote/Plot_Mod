@@ -23,6 +23,10 @@ public class RoadGenerationResult {
     public final List<BlockPos> tunnelBlocks = new ArrayList<>();
     public final List<BlockPos> streetlightBlocks = new ArrayList<>();
     public final Map<BlockPos, BlockRecord> placementRecords = new LinkedHashMap<>();
+    /** 与 {@link #placementRecords} 同步：记录各 BlockPos 当前生效的图层优先级。 */
+    public final Map<BlockPos, RoadSolidLayer> placementLayers = new LinkedHashMap<>();
+    /** 与 {@link #placementRecords} 同步：记录各 BlockPos 当前生效的同层材质优先级。 */
+    public final Map<BlockPos, Integer> placementMaterialPriorities = new LinkedHashMap<>();
     public int cutVolume;
     public int fillVolume;
     public int bridgeCount;
@@ -62,6 +66,23 @@ public class RoadGenerationResult {
 
     public void recordPlacementOverride(BlockPos pos, String previousBlockId, String newBlockId) {
         RoadPlacementRecorder.recordOverride(placementRecords, pos, previousBlockId, newBlockId);
+    }
+
+    public void recordPlacementByLayerPriority(
+            BlockPos pos,
+            String previousBlockId,
+            String newBlockId,
+            RoadSolidLayer layer,
+            int materialPriority) {
+        RoadPlacementRecorder.recordByLayerPriority(
+            placementRecords,
+            placementLayers,
+            placementMaterialPriorities,
+            pos,
+            previousBlockId,
+            newBlockId,
+            layer,
+            materialPriority);
     }
 
     public void mergeFrom(RoadGenerationResult source) {

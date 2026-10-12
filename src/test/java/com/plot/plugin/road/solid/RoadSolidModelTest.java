@@ -34,6 +34,30 @@ class RoadSolidModelTest {
     }
 
     @Test
+    void higherMaterialPriorityReplacesSameLayerBlockPos() {
+        RoadSolidModel model = new RoadSolidModel();
+        Vec2d point = new Vec2d(0, 2);
+
+        assertTrue(model.add(point, 66, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR));
+        assertTrue(model.add(point, 66, RoadSolidLayer.TUNNEL, "minecraft:sea_lantern", RoadSolidMaterialPriority.DECORATIVE));
+        assertEquals(1, model.count(RoadSolidLayer.TUNNEL));
+        assertEquals("minecraft:sea_lantern", model.primitives().getFirst().materialId());
+
+        assertFalse(model.add(point, 66, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR));
+        assertEquals("minecraft:sea_lantern", model.primitives().getFirst().materialId());
+    }
+
+    @Test
+    void equalMaterialPriorityKeepsFirstWriter() {
+        RoadSolidModel model = new RoadSolidModel();
+        Vec2d point = new Vec2d(0, 2);
+
+        assertTrue(model.add(point, 64, RoadSolidLayer.ROAD, "minecraft:stone"));
+        assertFalse(model.add(point, 64, RoadSolidLayer.ROAD, "minecraft:dirt"));
+        assertEquals("minecraft:stone", model.primitives().getFirst().materialId());
+    }
+
+    @Test
     void addDeduplicatesRoundedGridCellInsteadOfExactFloat() {
         RoadSolidModel model = new RoadSolidModel();
 
@@ -87,6 +111,25 @@ class RoadSolidModelTest {
         RoadVoxelRasterizer.flushEdgeSolids(
             result, emptyWithDrops, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         assertEquals(2, result.droppedSolidCount);
+    }
+
+    @Test
+    void removeNonTunnelLayersKeepsTunnelPrimitivesAndDedupKeys() {
+        RoadSolidModel solids = new RoadSolidModel();
+        solids.add(new Vec2d(0, 0), 64, RoadSolidLayer.ROAD, "minecraft:stone");
+        solids.add(new Vec2d(0, 0), 65, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
+        solids.add(new Vec2d(0, 0), 66, RoadSolidLayer.TUNNEL, "minecraft:sea_lantern", RoadSolidMaterialPriority.DECORATIVE);
+
+        solids.removeNonTunnelLayers();
+
+        assertEquals(2, solids.primitives().size());
+        assertEquals(0, solids.count(RoadSolidLayer.ROAD));
+        assertEquals(2, solids.count(RoadSolidLayer.TUNNEL));
+        assertEquals("minecraft:sea_lantern", solids.primitives().stream()
+            .filter(p -> p.elevation() == 66)
+            .findFirst()
+            .orElseThrow()
+            .materialId());
     }
 
     @Test

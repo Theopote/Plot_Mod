@@ -9,8 +9,10 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -33,6 +35,7 @@ public final class RoadSolidModel {
     private final int maxDedupKeys;
     private final List<RoadSolidPrimitive> primitives = new ArrayList<>();
     private final Set<String> dedupKeys = new LinkedHashSet<>();
+    private final Map<String, Integer> keyToIndex = new HashMap<>();
     private OverflowHandler overflowHandler;
     private ICoordinateService coordinateService;
     private int droppedDueToLimit;
@@ -43,8 +46,12 @@ public final class RoadSolidModel {
         this(DEFAULT_MAX_DEDUP_KEYS);
     }
 
+    public static int defaultMaxDedupKeys() {
+        return DEFAULT_MAX_DEDUP_KEYS;
+    }
+
     /** 测试与分块验证可传入更小上限。 */
-    RoadSolidModel(int maxDedupKeys) {
+    public RoadSolidModel(int maxDedupKeys) {
         this.maxDedupKeys = Math.max(1, maxDedupKeys);
     }
 
@@ -77,9 +84,19 @@ public final class RoadSolidModel {
             return false;
         }
 
-        if (!dedupKeys.add(dedupKey(primitive))) {
+        String key = dedupKey(primitive);
+        Integer existingIndex = keyToIndex.get(key);
+        if (existingIndex != null) {
+            RoadSolidPrimitive existing = primitives.get(existingIndex);
+            if (primitive.materialPriority() > existing.materialPriority()) {
+                primitives.set(existingIndex, primitive);
+                return true;
+            }
             return false;
         }
+
+        dedupKeys.add(key);
+        keyToIndex.put(key, primitives.size());
         primitives.add(primitive);
         return true;
     }
@@ -114,6 +131,15 @@ public final class RoadSolidModel {
 
     public boolean add(Vec2d planPoint, int elevation, RoadSolidLayer layer, String materialId) {
         return add(new RoadSolidPrimitive(planPoint, elevation, layer, materialId));
+    }
+
+    public boolean add(
+            Vec2d planPoint,
+            int elevation,
+            RoadSolidLayer layer,
+            String materialId,
+            int materialPriority) {
+        return add(new RoadSolidPrimitive(planPoint, elevation, layer, materialId, materialPriority));
     }
 
     public void addSpan(Vec2d left, Vec2d right, int elevation, RoadSolidLayer layer, String materialId) {
@@ -201,8 +227,27 @@ public final class RoadSolidModel {
     public void clear() {
         primitives.clear();
         dedupKeys.clear();
+        keyToIndex.clear();
         droppedDueToLimit = 0;
         limitLogged = false;
+    }
+
+    /**
+     * 分块 overflow 时移除非隧道图元，保留隧道层以便同层材质优先级在整条边内解析。
+     */
+    public void removeNonTunnelLayers() {
+        primitives.removeIf(primitive -> primitive.layer() != RoadSolidLayer.TUNNEL);
+        rebuildDedupIndex();
+    }
+
+    private void rebuildDedupIndex() {
+        dedupKeys.clear();
+        keyToIndex.clear();
+        for (int i = 0; i < primitives.size(); i++) {
+            String key = dedupKey(primitives.get(i));
+            dedupKeys.add(key);
+            keyToIndex.put(key, i);
+        }
     }
 
     public void addAll(RoadSolidModel other) {

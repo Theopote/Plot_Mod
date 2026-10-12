@@ -76,6 +76,11 @@ public class RoadGenerator {
         return pipelineHost.config();
     }
 
+    /** 测试专用：访问 pipeline host 以注入分块容量等参数。 */
+    public RoadGenerationPipelineHost testPipelineHost() {
+        return pipelineHost;
+    }
+
     public TerrainSampler createTerrainSampler(World world) {
         return MinecraftTerrainSampler.of(world, pipelineHost.coordinateTransformer());
     }

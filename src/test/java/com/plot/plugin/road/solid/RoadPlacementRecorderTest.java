@@ -1,6 +1,8 @@
 package com.plot.plugin.road.solid;
 
 import com.plot.core.command.BlockRecord;
+import com.plot.plugin.road.solid.RoadSolidLayer;
+import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
@@ -51,6 +53,27 @@ class RoadPlacementRecorderTest {
         assertEquals(1, aggregate.placementRecords.size());
         assertEquals("minecraft:stone", aggregate.placementRecords.get(pos).newBlockId);
         assertEquals("minecraft:grass_block", aggregate.placementRecords.get(pos).previousBlockId);
+    }
+
+    @Test
+    void recordByLayerPriorityOverridesLowerLayerAndMaterialPriority() {
+        Map<BlockPos, BlockRecord> records = new LinkedHashMap<>();
+        Map<BlockPos, RoadSolidLayer> layers = new LinkedHashMap<>();
+        Map<BlockPos, Integer> materialPriorities = new LinkedHashMap<>();
+        BlockPos pos = new BlockPos(0, 64, 0);
+
+        RoadPlacementRecorder.recordByLayerPriority(
+            records, layers, materialPriorities, pos, "minecraft:grass_block",
+            "minecraft:stone", RoadSolidLayer.ROAD, RoadSolidMaterialPriority.DEFAULT);
+        RoadPlacementRecorder.recordByLayerPriority(
+            records, layers, materialPriorities, pos, "minecraft:dirt",
+            "minecraft:air", RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.AIR);
+        RoadPlacementRecorder.recordByLayerPriority(
+            records, layers, materialPriorities, pos, "minecraft:dirt",
+            "minecraft:sea_lantern", RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.DECORATIVE);
+
+        assertEquals("minecraft:sea_lantern", records.get(pos).newBlockId);
+        assertEquals(RoadSolidLayer.TUNNEL, layers.get(pos));
     }
 
     @Test

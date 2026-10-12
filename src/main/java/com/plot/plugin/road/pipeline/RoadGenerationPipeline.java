@@ -122,7 +122,7 @@ public final class RoadGenerationPipeline {
 
         host.setEndpointSnaps(request.endpointSnaps());
         try {
-            ctx.initBuildState();
+            ctx.initBuildState(host.maxDedupKeys());
             ctx.solids().setCoordinateService(host.coordinateTransformer());
             ctx.solids().setOverflowHandler(model -> {
                 host.flushEdgeSolids(ctx.result(), model);

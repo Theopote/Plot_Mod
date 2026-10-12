@@ -2,6 +2,7 @@ package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.solid.RoadSolidLayer;
+import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.core.terrain.TerrainSampler;
 
@@ -55,7 +56,7 @@ public final class RoadTerrainClearanceUtils {
             case CUT -> {
                 for (int y = roadY + 1; y <= surfaceY; y++) {
                     if (terrain.isSolidBlock(worldX, y, worldZ)) {
-                        solids.add(planPoint, y, RoadSolidLayer.TUNNEL, "minecraft:air");
+                        solids.add(planPoint, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
                     }
                 }
             }
@@ -63,7 +64,7 @@ public final class RoadTerrainClearanceUtils {
                 int top = roadY + tunnelThreshold;
                 for (int y = roadY + 1; y <= top; y++) {
                     if (terrain.isSolidBlock(worldX, y, worldZ)) {
-                        solids.add(planPoint, y, RoadSolidLayer.TUNNEL, "minecraft:air");
+                        solids.add(planPoint, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
                     }
                 }
             }

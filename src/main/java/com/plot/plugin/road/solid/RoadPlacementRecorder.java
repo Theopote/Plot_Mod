@@ -44,4 +44,51 @@ public final class RoadPlacementRecorder {
             : previousBlockId;
         placementRecords.put(pos, new BlockRecord(pos, originalPrevious, newBlockId));
     }
+
+    /**
+     * 按图层固定优先级写入：更高优先级层可覆盖较低优先级层，与 flush 批次无关。
+     * 同层优先级时使用 materialPriority，再使用 newBlockId 字典序作为最终 tie-break。
+     */
+    public static void recordByLayerPriority(
+            Map<BlockPos, BlockRecord> placementRecords,
+            Map<BlockPos, RoadSolidLayer> placementLayers,
+            Map<BlockPos, Integer> placementMaterialPriorities,
+            BlockPos pos,
+            String previousBlockId,
+            String newBlockId,
+            RoadSolidLayer layer,
+            int materialPriority) {
+        if (placementRecords == null || placementLayers == null || placementMaterialPriorities == null
+                || pos == null || newBlockId == null || layer == null) {
+            return;
+        }
+        RoadSolidLayer existingLayer = placementLayers.get(pos);
+        if (existingLayer != null) {
+            int layerCompare = RoadSolidLayerPriority.compare(layer, existingLayer);
+            if (layerCompare < 0) {
+                return;
+            }
+            if (layerCompare == 0) {
+                int existingMaterialPriority = placementMaterialPriorities.getOrDefault(
+                    pos, RoadSolidMaterialPriority.DEFAULT);
+                if (materialPriority < existingMaterialPriority) {
+                    return;
+                }
+                if (materialPriority == existingMaterialPriority) {
+                    BlockRecord existingRecord = placementRecords.get(pos);
+                    String existingBlockId = existingRecord != null ? existingRecord.newBlockId : null;
+                    if (existingBlockId != null && newBlockId.compareTo(existingBlockId) <= 0) {
+                        return;
+                    }
+                }
+            }
+        }
+        placementLayers.put(pos, layer);
+        placementMaterialPriorities.put(pos, materialPriority);
+        if (existingLayer == null) {
+            recordIfAbsent(placementRecords, pos, previousBlockId, newBlockId);
+        } else {
+            recordOverride(placementRecords, pos, previousBlockId, newBlockId);
+        }
+    }
 }

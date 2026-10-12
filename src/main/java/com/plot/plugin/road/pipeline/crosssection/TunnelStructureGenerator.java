@@ -19,6 +19,7 @@ import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.pipeline.profile.environment.WaterCrossing;
 import com.plot.plugin.road.solid.RoadSolidLayer;
+import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.plugin.road.tunnel.TunnelCrossSectionMask;
@@ -198,9 +199,9 @@ public final class TunnelStructureGenerator {
                 cutHolder[0]++;
             }
             if (kind == TunnelCrossSectionMask.CellKind.AIR) {
-                solids.add(point, y, RoadSolidLayer.TUNNEL, "minecraft:air");
+                solids.add(point, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
             } else if (kind == TunnelCrossSectionMask.CellKind.LINING) {
-                solids.add(point, y, RoadSolidLayer.TUNNEL, liningMaterialId);
+                solids.add(point, y, RoadSolidLayer.TUNNEL, liningMaterialId, RoadSolidMaterialPriority.STRUCTURAL);
             }
         });
         return new RoadRoadbedGradingUtils.GradingVolumes(cutHolder[0], 0);
@@ -262,7 +263,7 @@ public final class TunnelStructureGenerator {
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
             String lightMaterial) {
         Vec2d point = center.add(normal.multiply(lateral * scale));
-        solids.add(point, y, RoadSolidLayer.TUNNEL, lightMaterial);
+        solids.add(point, y, RoadSolidLayer.TUNNEL, lightMaterial, RoadSolidMaterialPriority.DECORATIVE);
     }
 
     private static List<TunnelPortalPlanner.PortalStation> planPortalStations(
