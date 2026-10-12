@@ -1,9 +1,12 @@
 package com.plot.plugin.road.pipeline.corridor;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.terrain.RoadTerrainStyle;
+import com.plot.test.world.IdentityCoordinateService;
 import net.minecraft.util.math.BlockPos;
 
 final class CorridorTestFixtures {
@@ -15,7 +18,23 @@ final class CorridorTestFixtures {
     }
 
     static RoadCorridorPlanBuilder.PlanHost planHost(RoadSystemConfig config, RoadTerrainStyle terrainStyle) {
+        return planHost(config, terrainStyle, IdentityCoordinateService.INSTANCE);
+    }
+
+    static RoadCorridorPlanBuilder.PlanHost planHost(
+            RoadSystemConfig config,
+            ICoordinateService coordinates) {
+        return planHost(config, RoadTerrainStyle.BALANCED, coordinates);
+    }
+
+    static RoadCorridorPlanBuilder.PlanHost planHost(
+            RoadSystemConfig config,
+            RoadTerrainStyle terrainStyle,
+            ICoordinateService coordinates) {
         int tunnelThreshold = RoadConstructionHeuristics.tunnelThreshold(terrainStyle);
+        ICoordinateService resolvedCoordinates = coordinates != null
+            ? coordinates
+            : IdentityCoordinateService.INSTANCE;
         return new RoadCorridorPlanBuilder.PlanHost() {
             @Override
             public RoadSystemConfig config() {
@@ -34,17 +53,17 @@ final class CorridorTestFixtures {
 
             @Override
             public BlockPos canvasToBlockPos(Vec2d canvasPos) {
-                return new BlockPos((int) Math.round(canvasPos.x), 0, (int) Math.round(canvasPos.y));
+                return RoadGeometryUtils.canvasToBlockXZ(canvasPos, resolvedCoordinates);
             }
 
             @Override
             public int worldX(Vec2d planPoint) {
-                return (int) Math.round(planPoint.x);
+                return canvasToBlockPos(planPoint).getX();
             }
 
             @Override
             public int worldZ(Vec2d planPoint) {
-                return (int) Math.round(planPoint.y);
+                return canvasToBlockPos(planPoint).getZ();
             }
 
             @Override

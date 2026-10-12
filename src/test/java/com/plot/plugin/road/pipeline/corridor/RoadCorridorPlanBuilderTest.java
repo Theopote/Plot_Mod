@@ -1,8 +1,10 @@
 package com.plot.plugin.road.pipeline.corridor;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.ICoordinateService;
 import com.plot.core.terrain.FlatTerrainSampler;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.test.scale.ScaleInvarianceProjections;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
@@ -14,6 +16,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadCorridorPlanBuilderTest {
@@ -46,5 +49,40 @@ class RoadCorridorPlanBuilderTest {
             "surface mask must cover at least one cell per block along a 20-block segment");
         assertTrue(plan.clearanceEntries().size() >= plan.surfaceMask().size(),
             "clearance envelope must cover at least the road surface columns");
+    }
+
+    @Test
+    void surfaceMaskUsesWorldColumnKeysUnderScaledProjection() {
+        RoadSystemConfig config = CorridorTestFixtures.baseConfig();
+        ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);
+        CrossSectionBuildContext crossSections = CrossSectionBuildContext.fixed(crossSection);
+        ICoordinateService coordinates = ScaleInvarianceProjections.FAR;
+        RoadCorridorPlanBuilder.PlanHost host = CorridorTestFixtures.planHost(config, coordinates);
+
+        Vec2d canvasStart = new Vec2d(1, 0);
+        Vec2d canvasEnd = new Vec2d(6, 0);
+        PathSegment segment = new PathSegment(canvasStart, canvasEnd);
+        List<PathSegment> segments = List.of(segment);
+        List<SegmentHeightInfo> heightInfos = List.of(
+            new SegmentHeightInfo(segment, 64, 64, 64, 64, 0.0));
+        List<RoadConstructionType> constructionTypes = List.of(RoadConstructionType.ROAD);
+
+        RoadCorridorPlan plan = RoadCorridorPlanBuilder.build(
+            segments,
+            heightInfos,
+            crossSections,
+            constructionTypes,
+            DesignElevationSource.inactive(),
+            BuildHeightProfile.inactive(),
+            new FlatTerrainSampler(64),
+            ScaleInvarianceProjections.worldBlocksPerCanvasUnit(coordinates),
+            "scaled-seed",
+            host);
+
+        int expectedWorldX = host.canvasToBlockPos(new Vec2d(2, 0)).getX();
+        assertTrue(plan.surfaceMask().get(new ColumnKey(expectedWorldX, 0)) != null,
+            "surface mask must key columns by projected world XZ, not canvas coordinates");
+        assertFalse(plan.surfaceMask().get(new ColumnKey(2, 0)) != null,
+            "canvas coordinate 2 must not be used as a world column key under 4:1 projection");
     }
 }

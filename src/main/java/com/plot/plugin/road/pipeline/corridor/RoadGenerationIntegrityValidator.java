@@ -1,6 +1,5 @@
 package com.plot.plugin.road.pipeline.corridor;
 
-import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.BlockRecord;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
@@ -99,7 +98,7 @@ public final class RoadGenerationIntegrityValidator {
             if (!plan.surfaceMask().isRoadSurfaceLayer(cell.layer())) {
                 continue;
             }
-            if (!index.hasSurfaceMaterial(cell.planPoint(), cell.surfaceY(), cell.layer())) {
+            if (!index.hasSurfaceMaterial(entry.getKey(), cell.surfaceY(), cell.layer(), cell.materialId())) {
                 missing++;
             }
         }
@@ -110,14 +109,10 @@ public final class RoadGenerationIntegrityValidator {
         int missing = 0;
         for (var entry : plan.surfaceMask().entries()) {
             SurfaceCell cell = entry.getValue();
-            ClearanceCell clearance = plan.clearanceCell(entry.getKey());
-            if (clearance != null && clearance.mode() == RoadCorridorConstructionMode.TUNNEL) {
-                continue;
-            }
             if (!plan.surfaceMask().isRoadSurfaceLayer(cell.layer())) {
                 continue;
             }
-            if (!index.hasSurfaceMaterial(cell.planPoint(), cell.surfaceY(), cell.layer())) {
+            if (!index.hasSurfaceMaterial(entry.getKey(), cell.surfaceY(), cell.layer(), cell.materialId())) {
                 missing++;
             }
         }
@@ -143,7 +138,7 @@ public final class RoadGenerationIntegrityValidator {
                 if (!RoadCorridorClearancePass.hasObstruction(terrain, key.worldX(), y, key.worldZ())) {
                     continue;
                 }
-                if (!index.hasAir(cell.planPoint(), y)) {
+                if (!index.obstructionClearanceResolved(key, y)) {
                     uncleared++;
                 }
             }
@@ -170,7 +165,7 @@ public final class RoadGenerationIntegrityValidator {
                 if (!RoadCorridorClearancePass.hasObstruction(terrain, key.worldX(), y, key.worldZ())) {
                     continue;
                 }
-                if (!index.hasAir(cell.planPoint(), y)) {
+                if (!index.obstructionClearanceResolved(key, y)) {
                     uncleared++;
                 }
             }
@@ -217,81 +212,137 @@ public final class RoadGenerationIntegrityValidator {
         {1, 0}, {-1, 0}, {0, 1}, {0, -1}
     };
 
+    private static BlockPos columnPos(ColumnKey column, int y) {
+        return new BlockPos(column.worldX(), y, column.worldZ());
+    }
+
+    private static boolean isRoadSurfaceLayer(RoadSolidLayer layer) {
+        return layer == RoadSolidLayer.ROAD
+            || layer == RoadSolidLayer.SHOULDER
+            || layer == RoadSolidLayer.SIDEWALK
+            || layer == RoadSolidLayer.BIKE_LANE;
+    }
+
+    private static boolean matchesPlannedSurface(
+            String placedMaterialId,
+            RoadSolidLayer placedLayer,
+            RoadSolidLayer expectedLayer,
+            String expectedMaterialId) {
+        if (expectedMaterialId == null || placedMaterialId == null || placedMaterialId.isBlank()) {
+            return false;
+        }
+        if ("minecraft:air".equals(placedMaterialId)) {
+            return false;
+        }
+        if (expectedMaterialId.equals(placedMaterialId)
+                && (placedLayer == null || placedLayer == expectedLayer)) {
+            return true;
+        }
+        if (!isRoadSurfaceLayer(expectedLayer)) {
+            return false;
+        }
+        // 标线 / 桥面 / 桥台等结构在栅格化阶段会覆盖同高路面，材质与图层可能不同。
+        if (placedLayer == RoadSolidLayer.MARKING || placedLayer == RoadSolidLayer.BRIDGE) {
+            return true;
+        }
+        return placedLayer == RoadSolidLayer.TUNNEL;
+    }
+
+    private static boolean isStructuralClearanceReplacement(RoadSolidLayer layer) {
+        return layer == RoadSolidLayer.TUNNEL
+            || layer == RoadSolidLayer.BRIDGE
+            || layer == RoadSolidLayer.MARKING;
+    }
+
     private static final class SolidIndex {
-        private final Map<Long, RoadSolidPrimitive> byPosition = new HashMap<>();
-        private final Set<Long> airPositions = new HashSet<>();
+        private final Map<BlockPos, RoadSolidPrimitive> byPosition = new HashMap<>();
+        private final Set<BlockPos> airPositions = new HashSet<>();
 
         static SolidIndex from(RoadSolidModel solids) {
             SolidIndex index = new SolidIndex();
             for (RoadSolidPrimitive primitive : solids.primitives()) {
-                long key = posKey(primitive.planPoint(), primitive.elevation());
-                index.byPosition.put(key, primitive);
+                BlockPos pos = new BlockPos(
+                    (int) Math.round(primitive.planPoint().x),
+                    primitive.elevation(),
+                    (int) Math.round(primitive.planPoint().y));
+                index.byPosition.put(pos, primitive);
                 if ("minecraft:air".equals(primitive.materialId())
                         && primitive.materialPriority() == com.plot.plugin.road.solid.RoadSolidMaterialPriority.AIR) {
-                    index.airPositions.add(key);
+                    index.airPositions.add(pos);
                 }
             }
             return index;
         }
 
-        boolean hasSurfaceMaterial(Vec2d planPoint, int y, RoadSolidLayer layer) {
-            RoadSolidPrimitive primitive = byPosition.get(posKey(planPoint, y));
+        boolean hasSurfaceMaterial(
+                ColumnKey column,
+                int y,
+                RoadSolidLayer expectedLayer,
+                String expectedMaterialId) {
+            RoadSolidPrimitive primitive = byPosition.get(columnPos(column, y));
             return primitive != null
-                && primitive.layer() == layer
-                && primitive.materialId() != null
-                && !"minecraft:air".equals(primitive.materialId());
+                && matchesPlannedSurface(
+                    primitive.materialId(), primitive.layer(), expectedLayer, expectedMaterialId);
         }
 
-        boolean hasAir(Vec2d planPoint, int y) {
-            return airPositions.contains(posKey(planPoint, y));
+        boolean hasAir(ColumnKey column, int y) {
+            return airPositions.contains(columnPos(column, y));
         }
 
-        private static long posKey(Vec2d planPoint, int y) {
-            return PlacementIndex.posKey(planPoint, y);
+        boolean obstructionClearanceResolved(ColumnKey column, int y) {
+            if (hasAir(column, y)) {
+                return true;
+            }
+            RoadSolidPrimitive primitive = byPosition.get(columnPos(column, y));
+            return primitive != null && isStructuralClearanceReplacement(primitive.layer());
         }
     }
 
     private static final class PlacementIndex {
-        private final Map<Long, BlockRecord> records = new HashMap<>();
-        private final Map<Long, RoadSolidLayer> layers = new HashMap<>();
+        private final Map<BlockPos, BlockRecord> records = new HashMap<>();
+        private final Map<BlockPos, RoadSolidLayer> layers = new HashMap<>();
 
         static PlacementIndex from(RoadGenerationResult result) {
             PlacementIndex index = new PlacementIndex();
             for (Map.Entry<BlockPos, BlockRecord> entry : result.placementRecords.entrySet()) {
                 BlockPos pos = entry.getKey();
-                long key = posKey(pos);
-                index.records.put(key, entry.getValue());
+                index.records.put(pos, entry.getValue());
                 RoadSolidLayer layer = result.placementLayers.get(pos);
                 if (layer != null) {
-                    index.layers.put(key, layer);
+                    index.layers.put(pos, layer);
                 }
             }
             return index;
         }
 
-        boolean hasSurfaceMaterial(Vec2d planPoint, int y, RoadSolidLayer layer) {
-            long key = posKey(planPoint, y);
-            BlockRecord record = records.get(key);
+        boolean hasSurfaceMaterial(
+                ColumnKey column,
+                int y,
+                RoadSolidLayer expectedLayer,
+                String expectedMaterialId) {
+            BlockPos pos = columnPos(column, y);
+            BlockRecord record = records.get(pos);
+            RoadSolidLayer placedLayer = layers.get(pos);
             return record != null
-                && record.newBlockId != null
-                && !"minecraft:air".equals(record.newBlockId);
+                && matchesPlannedSurface(
+                    record.newBlockId, placedLayer, expectedLayer, expectedMaterialId);
         }
 
-        boolean hasAir(Vec2d planPoint, int y) {
-            BlockRecord record = records.get(posKey(planPoint, y));
-            return record != null
-                && record.newBlockId != null
-                && !record.newBlockId.isBlank();
+        boolean hasAir(ColumnKey column, int y) {
+            BlockRecord record = records.get(columnPos(column, y));
+            return record != null && "minecraft:air".equals(record.newBlockId);
         }
 
-        private static long posKey(BlockPos pos) {
-            return ((long) pos.getX() << 32) ^ (pos.getZ() & 0xFFFFFFFFL) ^ ((long) pos.getY() << 16);
-        }
-
-        private static long posKey(Vec2d planPoint, int y) {
-            int x = (int) Math.round(planPoint.x);
-            int z = (int) Math.round(planPoint.y);
-            return ((long) x << 32) ^ (z & 0xFFFFFFFFL) ^ ((long) y << 16);
+        boolean obstructionClearanceResolved(ColumnKey column, int y) {
+            if (hasAir(column, y)) {
+                return true;
+            }
+            BlockPos pos = columnPos(column, y);
+            BlockRecord record = records.get(pos);
+            if (record == null) {
+                return false;
+            }
+            return isStructuralClearanceReplacement(layers.get(pos));
         }
     }
 }

@@ -199,19 +199,19 @@ public final class RoadCorridorPlanBuilder {
             rasterizeLateralBand(plan, fromCenter, toCenter, normal, fromY, toY, scale,
                 crossSection.shoulderWidth, crossSection.shoulderCenterOffset() * scale,
                 RoadSolidLayer.SHOULDER, host.resolveBlockId(crossSection.shoulderMaterial),
-                terrain, constructionType, tunnelThreshold);
+                host, terrain, constructionType, tunnelThreshold);
         }
         if (crossSection.includeBikeLane && crossSection.bikeLaneWidth > 0) {
             rasterizeLateralBand(plan, fromCenter, toCenter, normal, fromY, toY, scale,
                 crossSection.bikeLaneWidth, crossSection.bikeLaneCenterOffset() * scale,
                 RoadSolidLayer.BIKE_LANE, host.resolveBlockId(crossSection.bikeLaneMaterial),
-                terrain, constructionType, tunnelThreshold);
+                host, terrain, constructionType, tunnelThreshold);
         }
         if (crossSection.includeSidewalk && crossSection.sidewalkWidth > 0) {
             rasterizeLateralBand(plan, fromCenter, toCenter, normal, fromY, toY, scale,
                 crossSection.sidewalkWidth, crossSection.sidewalkCenterOffset() * scale,
                 RoadSolidLayer.SIDEWALK, host.resolveBlockId(crossSection.sidewalkMaterial),
-                terrain, constructionType, tunnelThreshold);
+                host, terrain, constructionType, tunnelThreshold);
         }
         expandClearanceEnvelope(plan, fromCenter, toCenter, normal, fromY, toY, scale,
             crossSection, terrain, constructionType, config, tunnelThreshold, host);
@@ -318,6 +318,7 @@ public final class RoadCorridorPlanBuilder {
             double centerOffset,
             RoadSolidLayer layer,
             String materialId,
+            PlanHost host,
             TerrainSampler terrain,
             RoadConstructionType constructionType,
             int tunnelThreshold) {
@@ -328,7 +329,7 @@ public final class RoadCorridorPlanBuilder {
         int maxOffset = RoadDimensionUtils.maxLateralOffset(widthBlocks);
         rasterizeOffsetBand(
             plan, fromCenter, toCenter, leftNormal, fromY, toY, scale,
-            minOffset, maxOffset, centerOffset, true, layer, materialId,
+            minOffset, maxOffset, centerOffset, true, layer, materialId, host,
             terrain, constructionType, tunnelThreshold);
     }
 
@@ -378,16 +379,17 @@ public final class RoadCorridorPlanBuilder {
             boolean mirrorToOppositeSide,
             RoadSolidLayer layer,
             String materialId,
+            PlanHost host,
             TerrainSampler terrain,
             RoadConstructionType constructionType,
             int tunnelThreshold) {
         for (int lateral = minOffset; lateral <= maxOffset; lateral++) {
             double offset = lateral * scale;
             writeLateralSpan(plan, fromCenter, toCenter, leftNormal, fromY, toY, scale,
-                centerOffset + offset, layer, materialId, terrain, constructionType, tunnelThreshold);
+                centerOffset + offset, layer, materialId, host, terrain, constructionType, tunnelThreshold);
             if (mirrorToOppositeSide) {
                 writeLateralSpan(plan, fromCenter, toCenter, leftNormal, fromY, toY, scale,
-                    -(centerOffset + offset), layer, materialId, terrain, constructionType, tunnelThreshold);
+                    -(centerOffset + offset), layer, materialId, host, terrain, constructionType, tunnelThreshold);
             }
         }
     }
@@ -420,7 +422,7 @@ public final class RoadCorridorPlanBuilder {
             BlockPos pos = host.canvasToBlockPos(planPoint).withY(surfaceY);
             String materialId = MaterialMixResolver.resolve(
                 materialMix, pos, seedKey, host::resolveBlockId);
-            writeSurfaceAndClearance(plan, planPoint, surfaceY, layer, materialId,
+            writeSurfaceAndClearance(plan, planPoint, surfaceY, layer, materialId, host,
                 terrain, constructionType, tunnelThreshold);
         }
     }
@@ -436,6 +438,7 @@ public final class RoadCorridorPlanBuilder {
             double lateralOffset,
             RoadSolidLayer layer,
             String materialId,
+            PlanHost host,
             TerrainSampler terrain,
             RoadConstructionType constructionType,
             int tunnelThreshold) {
@@ -448,7 +451,7 @@ public final class RoadCorridorPlanBuilder {
             int surfaceY = last == 0
                 ? fromY
                 : (int) Math.round(fromY + (toY - fromY) * ((double) i / last));
-            writeSurfaceAndClearance(plan, planPoint, surfaceY, layer, materialId,
+            writeSurfaceAndClearance(plan, planPoint, surfaceY, layer, materialId, host,
                 terrain, constructionType, tunnelThreshold);
         }
     }
@@ -459,11 +462,13 @@ public final class RoadCorridorPlanBuilder {
             int surfaceY,
             RoadSolidLayer layer,
             String materialId,
+            PlanHost host,
             TerrainSampler terrain,
             RoadConstructionType constructionType,
             int tunnelThreshold) {
-        int worldX = (int) Math.round(planPoint.x);
-        int worldZ = (int) Math.round(planPoint.y);
+        BlockPos worldPos = host.canvasToBlockPos(planPoint);
+        int worldX = worldPos.getX();
+        int worldZ = worldPos.getZ();
         if (!terrain.isChunkLoaded(worldX, worldZ)) {
             return;
         }
