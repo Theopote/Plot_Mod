@@ -55,6 +55,10 @@ public class RoadGenerationResult {
     public boolean manualEndpointConstraintFeasible = true;
     /** False when a fixed flat or manual elevation cannot clear water minimums. */
     public boolean waterConstraintFeasible = true;
+    /** {@link com.plot.plugin.road.pipeline.corridor.RoadGenerationIntegrityValidator} 指标。 */
+    public int missingRoadSurfaceCount;
+    public int unclearedObstructionCount;
+    public int orphanSlopePillarCount;
 
     public RoadGenerationResult(double pathLength) {
         this.pathLength = pathLength;
@@ -105,6 +109,9 @@ public class RoadGenerationResult {
         tunnelCount += source.tunnelCount;
         streetlightCount += source.streetlightCount;
         droppedSolidCount += source.droppedSolidCount;
+        missingRoadSurfaceCount += source.missingRoadSurfaceCount;
+        unclearedObstructionCount += source.unclearedObstructionCount;
+        orphanSlopePillarCount += source.orphanSlopePillarCount;
         pathLength += source.pathLength;
         constructionTypes.addAll(source.constructionTypes);
         bridgeLength += source.bridgeLength;

@@ -34,19 +34,9 @@ public final class RoadTerrainGrader {
     }
 
     public static void grade(RoadGenerationPipelineContext ctx, RoadGenerationPipelineContext.Host host) {
-        gradeRoadEnvelope(
-            ctx.solids(),
-            ctx.metrics(),
-            ctx.segments(),
-            ctx.heightInfos(),
-            ctx.request().crossSections(),
-            ctx.terrain(),
-            ctx.unitsPerBlock(),
-            ctx.detection().constructionTypes(),
-            ctx.request().designElevation(),
-            ctx.buildProfile(),
-            ctx.request().profileWaterCrossings(),
-            GradingHost.from(host, ctx.request().terrainStyle()));
+        // Grading and clearance are handled by the corridor plan pipeline
+        // ({@link com.plot.plugin.road.pipeline.corridor.RoadCorridorClearancePass} +
+        // {@link com.plot.plugin.road.pipeline.corridor.RoadCorridorSolidEmitter}).
     }
 
     private interface GradingHost {

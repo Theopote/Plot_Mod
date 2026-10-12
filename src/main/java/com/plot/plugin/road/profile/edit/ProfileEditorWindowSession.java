@@ -159,8 +159,6 @@ public final class ProfileEditorWindowSession {
         if (networkAfterPropagate == null) {
             return;
         }
-        for (String roadId : ProfileEditorNetworkApplier.collectChangedRoadIds(openSnapshot, networkAfterPropagate)) {
-            touchedRoadIds.add(roadId);
-        }
+        touchedRoadIds.addAll(ProfileEditorNetworkApplier.collectChangedRoadIds(openSnapshot, networkAfterPropagate));
     }
 }

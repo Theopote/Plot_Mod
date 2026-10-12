@@ -40,6 +40,35 @@ class RoadFlushDeterminismTest {
         }
     }
 
+    static Stream<RoadGoldenScenario> integrityFlushScenarios() {
+        return Stream.of(
+            RoadGoldenScenarioFactory.r04CrossJunction(),
+            RoadGoldenScenarioFactory.r08Bridge());
+    }
+
+    @ParameterizedTest
+    @MethodSource("integrityFlushScenarios")
+    void flushThresholdDoesNotChangeIntegrityMetrics(RoadGoldenScenario scenario) {
+        RoadGenerator generator = new RoadGenerator(
+            scenario.config(),
+            IdentityCoordinateService.INSTANCE,
+            BlockProjectionHandler.getInstance());
+
+        for (int threshold : List.of(100, 1_000, 100_000)) {
+            generator.testPipelineHost().setMaxDedupKeysForTesting(threshold);
+            RoadBenchmarkHarness.PreviewRun preview = RoadBenchmarkHarness.generatePreview(
+                scenario.network(),
+                generator,
+                scenario.terrain());
+            for (var edgeResult : preview.edgeResults().values()) {
+                assertEquals(0, edgeResult.missingRoadSurfaceCount,
+                    scenario.id() + " missing surface at maxDedupKeys=" + threshold);
+                assertEquals(0, edgeResult.unclearedObstructionCount,
+                    scenario.id() + " uncleared obstruction at maxDedupKeys=" + threshold);
+            }
+        }
+    }
+
     private static Map<BlockPos, String> generatePlacementMap(RoadGoldenScenario scenario, int maxDedupKeys) {
         RoadGenerator generator = new RoadGenerator(
             scenario.config(),

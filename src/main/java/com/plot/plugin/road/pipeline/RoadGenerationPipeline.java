@@ -4,6 +4,10 @@ import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.pipeline.construction.ConstructionDetection;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
 import com.plot.plugin.road.pipeline.construction.WaterCrossingConstructionResolver;
+import com.plot.plugin.road.pipeline.corridor.RoadCorridorClearancePass;
+import com.plot.plugin.road.pipeline.corridor.RoadCorridorPlanBuilder;
+import com.plot.plugin.road.pipeline.corridor.RoadCorridorSolidEmitter;
+import com.plot.plugin.road.pipeline.corridor.RoadGenerationIntegrityValidator;
 import com.plot.plugin.road.pipeline.crosssection.RoadCrossSectionBuilder;
 import com.plot.plugin.road.pipeline.crosssection.TunnelStructureGenerator;
 import com.plot.plugin.road.pipeline.furniture.RoadFurnitureGenerator;
@@ -11,7 +15,6 @@ import com.plot.plugin.road.pipeline.facility.RoadStationFacilityGenerator;
 import com.plot.plugin.road.pipeline.geometry.RoadGeometrySampler;
 import com.plot.plugin.road.pipeline.marking.RoadMarkingGenerator;
 import com.plot.plugin.road.pipeline.raster.RoadVoxelRasterizerPass;
-import com.plot.plugin.road.pipeline.terrain.RoadTerrainGrader;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 
 /**
@@ -128,13 +131,25 @@ public final class RoadGenerationPipeline {
                 host.flushEdgeSolids(ctx.result(), model);
                 model.clear();
             });
+            var planHost = RoadCorridorPlanBuilder.PlanHost.from(host, ctx.request().terrainStyle());
+            var plan = RoadCorridorPlanBuilder.build(ctx, host);
+            ctx.setCorridorPlan(plan);
+            RoadCorridorClearancePass.apply(ctx.solids(), plan, ctx.terrain(), planHost, ctx.metrics());
+            RoadCorridorSolidEmitter.emit(
+                ctx.solids(),
+                plan,
+                ctx.terrain(),
+                planHost,
+                ctx.metrics(),
+                host.resolveBlockId(host.config().getFillSlopeMaterial()));
             RoadCrossSectionBuilder.build(ctx, host);
             RoadMarkingGenerator.generate(ctx, host);
             RoadFurnitureGenerator.generate(ctx, host);
             RoadStationFacilityGenerator.generate(ctx, host);
-            RoadTerrainGrader.grade(ctx, host);
             generateTunnelStructures(ctx, host);
-            return RoadVoxelRasterizerPass.rasterize(ctx, host);
+            RoadGenerationResult result = RoadVoxelRasterizerPass.rasterize(ctx, host);
+            RoadGenerationIntegrityValidator.applyPlacementsToResult(result, plan, ctx.terrain());
+            return result;
         } finally {
             host.clearEndpointSnaps();
         }

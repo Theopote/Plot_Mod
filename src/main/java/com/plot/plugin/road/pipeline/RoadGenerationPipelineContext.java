@@ -8,6 +8,7 @@ import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnaps;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
+import com.plot.plugin.road.pipeline.corridor.RoadCorridorPlan;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.core.terrain.TerrainSampler;
@@ -26,6 +27,7 @@ public final class RoadGenerationPipelineContext {
     private RoadSolidModel solids;
     private RoadEdgeBuildMetrics metrics;
     private RoadGenerationResult result;
+    private RoadCorridorPlan corridorPlan;
 
     public RoadGenerationPipelineContext(RoadGenerationBuildRequest request) {
         this.request = request;
@@ -107,6 +109,14 @@ public final class RoadGenerationPipelineContext {
 
     public RoadGenerationResult result() {
         return result;
+    }
+
+    public RoadCorridorPlan corridorPlan() {
+        return corridorPlan;
+    }
+
+    public void setCorridorPlan(RoadCorridorPlan corridorPlan) {
+        this.corridorPlan = corridorPlan;
     }
 
     public RoadGenerationResult createResult() {

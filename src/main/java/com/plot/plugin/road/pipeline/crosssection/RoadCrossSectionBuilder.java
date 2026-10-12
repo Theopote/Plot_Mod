@@ -1,12 +1,8 @@
 package com.plot.plugin.road.pipeline.crosssection;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.core.material.MaterialMix;
-import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadDimensionUtils;
-import com.plot.plugin.road.RoadSlopeUtils;
-import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
@@ -21,7 +17,6 @@ import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.solid.RoadSolidLayer;
-import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
@@ -29,7 +24,8 @@ import net.minecraft.util.math.BlockPos;
 import java.util.List;
 
 /**
- * Builds cross-section layers: Carriageway, Shoulder, BikeLane, Median, Sidewalk, slope batter.
+ * Builds cross-section layers not covered by {@link com.plot.plugin.road.pipeline.corridor.RoadCorridorPlanBuilder}:
+ * bridge deck underlays, bridge structures, guardrails, median.
  */
 public final class RoadCrossSectionBuilder {
     private RoadCrossSectionBuilder() {
@@ -54,7 +50,7 @@ public final class RoadCrossSectionBuilder {
             ? detection.tunnels().size()
             : (int) detection.runCount(RoadConstructionType.TUNNEL);
 
-        generateCarriagewayBlocks(
+        generateBridgeDeckUnderlays(
             crossSectionHost,
             solids,
             segments,
@@ -62,7 +58,6 @@ public final class RoadCrossSectionBuilder {
             detection.constructionTypes(),
             terrain,
             crossSections,
-            ctx.carriagewaySeedKey(),
             unitsPerBlock,
             designElevation,
             buildProfile);
@@ -91,25 +86,6 @@ public final class RoadCrossSectionBuilder {
             designElevation,
             buildProfile,
             ctx.request().profileWaterCrossings());
-
-        generateShoulderBlocks(
-            crossSectionHost, solids, segments, heightInfos, crossSections, unitsPerBlock, designElevation, buildProfile);
-        generateBikeLaneBlocks(
-            crossSectionHost, solids, segments, heightInfos, crossSections, unitsPerBlock, designElevation, buildProfile);
-        generateSidewalkBlocks(
-            crossSectionHost, solids, segments, heightInfos, crossSections, unitsPerBlock, designElevation, buildProfile);
-
-        generateSlopeBatterBlocks(
-            crossSectionHost,
-            solids,
-            segments,
-            heightInfos,
-            crossSections,
-            terrain,
-            unitsPerBlock,
-            detection.constructionTypes(),
-            designElevation,
-            buildProfile);
 
         generateMedianBlocks(
             crossSectionHost, solids, segments, heightInfos, crossSections, unitsPerBlock, designElevation, buildProfile);
@@ -177,7 +153,7 @@ public final class RoadCrossSectionBuilder {
         }
     }
 
-    private static void generateCarriagewayBlocks(
+    private static void generateBridgeDeckUnderlays(
             CrossSectionHost host,
             RoadSolidModel solids,
             List<PathSegment> segments,
@@ -185,7 +161,6 @@ public final class RoadCrossSectionBuilder {
             List<RoadConstructionType> constructionTypes,
             TerrainSampler terrain,
             CrossSectionBuildContext crossSections,
-            String seedKey,
             double unitsPerBlock,
             DesignElevationSource designElevation,
             BuildHeightProfile buildProfile) {
@@ -197,13 +172,13 @@ public final class RoadCrossSectionBuilder {
             PathSegment segment = segments.get(i);
             boolean bridgeSegment = RoadConstructionClassifier.constructionTypeAt(
                 constructionTypes, i).isBridgeFamily();
+            if (!bridgeSegment) {
+                geometryLocalBase += segment.distance;
+                continue;
+            }
             SegmentHeightInfo info = heightInfos.get(i);
             Vec2d normal = PathSegmentGeometry.chainLeftNormal(segment, chainForward);
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
-            Vec2d previousCenter = null;
-            MaterialMix previousMaterial = null;
-            int previousMinOffset = 0;
-            int previousMaxOffset = 0;
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
@@ -220,289 +195,20 @@ public final class RoadCrossSectionBuilder {
                 double chainage = crossSections.chainageAtGeometryLocal(geometryLocal);
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
                 int carriagewayWidth = crossSection.carriagewayWidth;
-                MaterialMix carriagewayMaterial = crossSection.carriagewayMaterial;
                 int minOffset = RoadDimensionUtils.minLateralOffset(carriagewayWidth);
                 int maxOffset = RoadDimensionUtils.maxLateralOffset(carriagewayWidth);
                 for (int lateral = minOffset; lateral <= maxOffset; lateral++) {
                     Vec2d planPoint = center.add(normal.multiply(lateral * scale));
-                    BlockPos pos = host.canvasToBlockPos(planPoint).withY(targetY);
-                    String blockId = MaterialMixResolver.resolve(
-                        carriagewayMaterial, pos, seedKey, host::resolveBlockId);
-                    solids.add(planPoint, targetY, RoadSolidLayer.ROAD, blockId);
-                    // A shallow, cost-selected bridge may sit directly on existing ground at
-                    // individual voxels. Only add a structural deck plate where a real gap
-                    // exceeds the hard bridge threshold; pillars still follow the finalized
-                    // construction run. This also keeps output stable when an edge is split.
-                    if (bridgeSegment
-                            && targetY - terrain.sampleSurfaceY(planPoint) > host.bridgeThreshold()) {
+                    if (targetY - terrain.sampleSurfaceY(planPoint) > host.bridgeThreshold()) {
                         solids.add(
                             planPoint,
                             targetY - 1,
                             RoadSolidLayer.BRIDGE,
                             bridgeStructureBlockId);
                     }
-                    if (previousCenter != null
-                        && lateral >= previousMinOffset
-                        && lateral <= previousMaxOffset
-                        && carriagewayMaterial == previousMaterial) {
-                        Vec2d previousPoint = previousCenter.add(normal.multiply(lateral * scale));
-                        solids.addSpan(
-                            previousPoint,
-                            planPoint,
-                            targetY,
-                            RoadSolidLayer.ROAD,
-                            blockId);
-                    }
                 }
-                previousCenter = center;
-                previousMaterial = carriagewayMaterial;
-                previousMinOffset = minOffset;
-                previousMaxOffset = maxOffset;
             }
             geometryLocalBase += segment.distance;
-        }
-    }
-
-    private static void generateShoulderBlocks(
-            CrossSectionHost host,
-            RoadSolidModel solids,
-            List<PathSegment> segments,
-            List<SegmentHeightInfo> heightInfos,
-            CrossSectionBuildContext crossSections,
-            double unitsPerBlock,
-            DesignElevationSource designElevation,
-            BuildHeightProfile buildProfile) {
-        RoadPathStationSampler.forEach(
-            segments,
-            heightInfos,
-            crossSections.samplingOriented(),
-            unitsPerBlock,
-            designElevation,
-            buildProfile,
-            host::snapEndpointElevation,
-            (center, leftNormal, targetY, chainage, segmentIndex) -> {
-                ResolvedCrossSection crossSection = crossSections.resolve(chainage);
-                if (!crossSection.includeShoulder || crossSection.shoulderWidth <= 0) {
-                    return;
-                }
-                double centerOffset = crossSection.shoulderCenterOffset() * unitsPerBlock;
-                String blockId = host.resolveBlockId(crossSection.shoulderMaterial);
-                Vec2d left = center.add(leftNormal.multiply(centerOffset));
-                Vec2d right = center.subtract(leftNormal.multiply(centerOffset));
-                solids.addLateralStrip(
-                    left, leftNormal, crossSection.shoulderWidth, targetY,
-                    RoadSolidLayer.SHOULDER, blockId, unitsPerBlock);
-                solids.addLateralStrip(
-                    right, leftNormal, crossSection.shoulderWidth, targetY,
-                    RoadSolidLayer.SHOULDER, blockId, unitsPerBlock);
-            });
-    }
-
-    private static void generateBikeLaneBlocks(
-            CrossSectionHost host,
-            RoadSolidModel solids,
-            List<PathSegment> segments,
-            List<SegmentHeightInfo> heightInfos,
-            CrossSectionBuildContext crossSections,
-            double unitsPerBlock,
-            DesignElevationSource designElevation,
-            BuildHeightProfile buildProfile) {
-        RoadPathStationSampler.forEach(
-            segments,
-            heightInfos,
-            crossSections.samplingOriented(),
-            unitsPerBlock,
-            designElevation,
-            buildProfile,
-            host::snapEndpointElevation,
-            (center, leftNormal, targetY, chainage, segmentIndex) -> {
-                ResolvedCrossSection crossSection = crossSections.resolve(chainage);
-                if (!crossSection.includeBikeLane || crossSection.bikeLaneWidth <= 0) {
-                    return;
-                }
-                double centerOffset = crossSection.bikeLaneCenterOffset() * unitsPerBlock;
-                String blockId = host.resolveBlockId(crossSection.bikeLaneMaterial);
-                Vec2d left = center.add(leftNormal.multiply(centerOffset));
-                Vec2d right = center.subtract(leftNormal.multiply(centerOffset));
-                solids.addLateralStrip(
-                    left, leftNormal, crossSection.bikeLaneWidth, targetY,
-                    RoadSolidLayer.BIKE_LANE, blockId, unitsPerBlock);
-                solids.addLateralStrip(
-                    right, leftNormal, crossSection.bikeLaneWidth, targetY,
-                    RoadSolidLayer.BIKE_LANE, blockId, unitsPerBlock);
-            });
-    }
-
-    private static void generateSidewalkBlocks(
-            CrossSectionHost host,
-            RoadSolidModel solids,
-            List<PathSegment> segments,
-            List<SegmentHeightInfo> heightInfos,
-            CrossSectionBuildContext crossSections,
-            double unitsPerBlock,
-            DesignElevationSource designElevation,
-            BuildHeightProfile buildProfile) {
-        RoadPathStationSampler.forEach(
-            segments,
-            heightInfos,
-            crossSections.samplingOriented(),
-            unitsPerBlock,
-            designElevation,
-            buildProfile,
-            host::snapEndpointElevation,
-            (center, leftNormal, targetY, chainage, segmentIndex) -> {
-                ResolvedCrossSection crossSection = crossSections.resolve(chainage);
-                if (!crossSection.includeSidewalk || crossSection.sidewalkWidth <= 0) {
-                    return;
-                }
-                double centerOffset = crossSection.sidewalkCenterOffset() * unitsPerBlock;
-                String blockId = host.resolveBlockId(crossSection.sidewalkMaterial);
-                Vec2d left = center.add(leftNormal.multiply(centerOffset));
-                Vec2d right = center.subtract(leftNormal.multiply(centerOffset));
-                solids.addLateralStrip(
-                    left, leftNormal, crossSection.sidewalkWidth, targetY,
-                    RoadSolidLayer.SIDEWALK, blockId, unitsPerBlock);
-                solids.addLateralStrip(
-                    right, leftNormal, crossSection.sidewalkWidth, targetY,
-                    RoadSolidLayer.SIDEWALK, blockId, unitsPerBlock);
-            });
-    }
-
-    private static void generateSlopeBatterBlocks(
-            CrossSectionHost host,
-            RoadSolidModel solids,
-            List<PathSegment> segments,
-            List<SegmentHeightInfo> heightInfos,
-            CrossSectionBuildContext crossSections,
-            TerrainSampler terrain,
-            double unitsPerBlock,
-            List<RoadConstructionType> constructionTypes,
-            DesignElevationSource designElevation,
-            BuildHeightProfile buildProfile) {
-        int maxHorizontalRun = RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS;
-        boolean chainForward = crossSections.samplingOriented().forward();
-        double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
-        double geometryLocalBase = 0.0;
-        for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
-            RoadConstructionType type = RoadConstructionClassifier.constructionTypeAt(constructionTypes, i);
-            if (type.isStructureInterior()) {
-                geometryLocalBase += segments.get(i).distance;
-                continue;
-            }
-            PathSegment segment = segments.get(i);
-            SegmentHeightInfo info = heightInfos.get(i);
-            Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, chainForward);
-            int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
-            for (int j = 0; j <= samples; j++) {
-                double t = (double) j / samples;
-                Vec2d center = segment.start.lerp(segment.end, t);
-                double geometryLocal = geometryLocalBase + segment.distance * t;
-                double worldStation = geometryLocal / scale;
-                int targetY = DesignElevationSource.resolveTargetElevation(
-                    designElevation,
-                    buildProfile,
-                    info,
-                    geometryLocal,
-                    t,
-                    worldStation);
-                targetY = host.snapEndpointElevation(center, targetY);
-                double chainage = crossSections.chainageAtGeometryLocal(geometryLocal);
-                ResolvedCrossSection crossSection = crossSections.resolve(chainage);
-                if (!crossSection.includeSlopeBatter) {
-                    continue;
-                }
-                String fillBlockId = host.resolveBlockId(crossSection.fillSlopeMaterial);
-                String cutBlockId = crossSection.cutSlopeMaterial == null || crossSection.cutSlopeMaterial.isBlank()
-                    ? null
-                    : host.resolveBlockId(crossSection.cutSlopeMaterial);
-                float fillRatio = crossSection.fillSlopeRatio;
-                float cutRatio = crossSection.cutSlopeRatio;
-                double shoulderCenterOffset = crossSection.slopeAnchorCenterOffset() * unitsPerBlock;
-                double outerOffset = RoadDimensionUtils.halfExtentFromCenter(
-                    crossSection.slopeAnchorBandWidth()) * unitsPerBlock;
-                Vec2d left = center.add(leftNormal.multiply(shoulderCenterOffset));
-                Vec2d right = center.subtract(leftNormal.multiply(shoulderCenterOffset));
-                placeSlopeBatterAtPoint(solids, left, targetY, outerOffset, terrain,
-                    fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
-                    leftNormal, unitsPerBlock);
-                placeSlopeBatterAtPoint(solids, right, targetY, outerOffset, terrain,
-                    fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
-                    leftNormal.multiply(-1), unitsPerBlock);
-            }
-            geometryLocalBase += segment.distance;
-        }
-    }
-
-    private static void placeSlopeBatterAtPoint(
-            RoadSolidModel solids,
-            Vec2d shoulderCenter,
-            int targetY,
-            double outerOffset,
-            TerrainSampler terrain,
-            float fillRatio,
-            float cutRatio,
-            String fillBlockId,
-            String cutBlockId,
-            int maxHorizontalRun,
-            Vec2d outwardNormal,
-            double unitsPerBlock) {
-        double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
-        Vec2d normal = outwardNormal != null && outwardNormal.lengthSquared() > 1e-12
-            ? outwardNormal.normalize()
-            : new Vec2d(0, 1);
-        Vec2d outerEdge = shoulderCenter.add(normal.multiply(outerOffset));
-        if (!terrain.isChunkLoaded(outerEdge)) {
-            return;
-        }
-
-        int groundAtEdge = terrain.sampleSurfaceY(outerEdge);
-        if (targetY == groundAtEdge) {
-            return;
-        }
-
-        boolean isFill = targetY > groundAtEdge;
-        int profileDirection = isFill ? -1 : 1;
-        float slopeRatio = isFill ? fillRatio : cutRatio;
-        int heightDifference = Math.abs(targetY - groundAtEdge);
-        int usefulHorizontalRun = Math.clamp((int) Math.ceil(heightDifference * Math.max(0.5f, slopeRatio)) + 2, 2,
-                maxHorizontalRun);
-
-        List<int[]> profile = RoadSlopeUtils.computeSlopeProfile(
-            targetY,
-            profileDirection,
-            horizontalOffset -> {
-                Vec2d samplePoint = outerEdge.add(normal.multiply(horizontalOffset * scale));
-                if (!terrain.isChunkLoaded(samplePoint)) {
-                    return targetY;
-                }
-                return terrain.sampleSurfaceY(samplePoint);
-            },
-            slopeRatio,
-            usefulHorizontalRun
-        );
-
-        for (int step = 1; step < profile.size(); step++) {
-            int[] point = profile.get(step);
-            int horizontalOffset = point[0];
-            int slopeHeight = point[1];
-            Vec2d sample = outerEdge.add(normal.multiply(horizontalOffset * scale));
-            if (!terrain.isChunkLoaded(sample)) {
-                continue;
-            }
-            int groundY = terrain.sampleSurfaceY(sample);
-
-            if (isFill) {
-                for (int y = groundY + 1; y <= slopeHeight; y++) {
-                    solids.add(sample, y, RoadSolidLayer.SHOULDER, fillBlockId);
-                }
-            } else {
-                for (int y = slopeHeight + 1; y <= groundY; y++) {
-                    solids.add(sample, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
-                }
-                if (cutBlockId != null) {
-                    solids.add(sample, slopeHeight, RoadSolidLayer.SHOULDER, cutBlockId);
-                }
-            }
         }
     }
 
