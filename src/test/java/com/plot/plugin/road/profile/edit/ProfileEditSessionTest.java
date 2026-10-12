@@ -82,6 +82,25 @@ class ProfileEditSessionTest {
     }
 
     @Test
+    void commitEditWritesWorkingCopyWithoutMutatingLiveRoad() {
+        ProfileEditorWindowSession windowSession = ProfileEditorWindowSession.open(network, 0L);
+        RoadNetwork working = windowSession.editingNetwork();
+        Road workingRoad = working.getRoad(road.getId());
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        double originalMid = road.getVerticalAlignment().getPvis().get(1).getElevation();
+
+        session.beginPviEdit(workingRoad);
+        ProfileControlPoint midPoint = new ProfileControlPoint(
+            1, 50.0, 68.0, ProfilePointRole.INTERIOR_PVI, null, null, false, true);
+        session.updatePviDrag(working, workingRoad, midPoint, 1, 50.0, 73.0);
+        session.commitEdit(working, workingRoad, config, windowSession, null, null);
+
+        assertEquals(originalMid, road.getVerticalAlignment().getPvis().get(1).getElevation());
+        assertEquals(73.0, workingRoad.getVerticalAlignment().getPvis().get(1).getElevation());
+        assertTrue(windowSession.isDirty());
+    }
+
+    @Test
     void curveDragUpdatesDraftAlignmentOnly() {
         session.beginCurveEdit(road, 1);
         session.updateCurveLength(24.0);

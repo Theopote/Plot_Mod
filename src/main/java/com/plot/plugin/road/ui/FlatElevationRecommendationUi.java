@@ -11,6 +11,7 @@ import com.plot.plugin.road.vertical.FlatElevationCandidate;
 import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
 import com.plot.plugin.road.vertical.FlatElevationRecommendation;
 import com.plot.plugin.road.vertical.FlatElevationRecommendationSignature;
+import com.plot.plugin.road.profile.edit.ProfileEditorWindowSession;
 import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.plugin.ui.PluginUiColors;
@@ -118,7 +119,7 @@ final class FlatElevationRecommendationUi {
             best.estimatedEarthworkBlocks()));
         if (ImGui.button(PlotI18n.tr("plugin.road.flat_elevation.adopt_recommended"),
                 ImGui.getContentRegionAvailX(), 0)) {
-            applyElevation(ctx, network, road, best.elevation(), onHistory);
+            applyElevation(ctx, network, road, best.elevation(), null, onHistory);
             session.markStale();
         }
     }
@@ -127,6 +128,7 @@ final class FlatElevationRecommendationUi {
             RoadUiContext ctx,
             RoadNetwork network,
             Road road,
+            ProfileEditorWindowSession windowSession,
             Runnable onHistory,
             Supplier<TerrainSampler> terrainSupplier) {
         if (RoadVerticalStrategy.fromRoad(road) != RoadVerticalStrategy.FLAT) {
@@ -157,7 +159,7 @@ final class FlatElevationRecommendationUi {
             best.estimatedTunnelLength(),
             best.estimatedEarthworkBlocks()));
         if (ImGui.button(PlotI18n.tr("plugin.road.flat_elevation.adopt_recommended"))) {
-            applyElevation(ctx, network, road, best.elevation(), onHistory);
+            applyElevation(ctx, network, road, best.elevation(), windowSession, onHistory);
             session.markStale();
         }
         if (!recommendation.alternatives().isEmpty()) {
@@ -173,7 +175,7 @@ final class FlatElevationRecommendationUi {
                 ImGui.sameLine();
                 if (ImGui.smallButton(PlotI18n.tr("plugin.road.flat_elevation.adopt_y",
                         candidate.elevation()) + "##flat_alt_" + candidate.elevation())) {
-                    applyElevation(ctx, network, road, candidate.elevation(), onHistory);
+                    applyElevation(ctx, network, road, candidate.elevation(), windowSession, onHistory);
                     session.markStale();
                 }
             }
@@ -229,8 +231,11 @@ final class FlatElevationRecommendationUi {
             RoadNetwork network,
             Road road,
             double elevation,
+            ProfileEditorWindowSession windowSession,
             Runnable onHistory) {
-        if (onHistory != null) {
+        if (windowSession != null) {
+            windowSession.markTouched(road);
+        } else if (onHistory != null) {
             onHistory.run();
         }
         FlatVerticalIntentSupport.setBaseElevation(

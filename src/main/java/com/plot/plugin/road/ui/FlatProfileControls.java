@@ -8,6 +8,7 @@ import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
 import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
+import com.plot.plugin.road.profile.edit.ProfileEditorWindowSession;
 import com.plot.plugin.road.vertical.RoadWorldElevationBounds;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -27,15 +28,34 @@ final class FlatProfileControls {
             Road road,
             Runnable onHistory,
             Supplier<com.plot.core.terrain.TerrainSampler> terrainSupplier) {
+        render(ctx, network, road, null, onHistory, terrainSupplier);
+    }
+
+    void render(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road,
+            ProfileEditorWindowSession windowSession,
+            Supplier<com.plot.core.terrain.TerrainSampler> terrainSupplier) {
+        render(ctx, network, road, windowSession, null, terrainSupplier);
+    }
+
+    private void render(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road,
+            ProfileEditorWindowSession windowSession,
+            Runnable onHistory,
+            Supplier<com.plot.core.terrain.TerrainSampler> terrainSupplier) {
         if (road == null || RoadVerticalStrategy.fromRoad(road) != RoadVerticalStrategy.FLAT) {
             return;
         }
         RoadSystemConfig config = ctx.networkManager().getConfig();
         syncFlatElevation(network, road, config);
         RoadUiSections.section("plugin.road.profile_flat_editor_section");
-        renderBaseElevationField(ctx, network, road, config, onHistory, terrainSupplier);
+        renderBaseElevationField(ctx, network, road, config, windowSession, onHistory, terrainSupplier);
         ImGui.spacing();
-        recommendationUi.renderGenerateControls(ctx, network, road, onHistory, terrainSupplier);
+        recommendationUi.renderGenerateControls(ctx, network, road, windowSession, onHistory, terrainSupplier);
         RoadUiWidgets.textWrappedColored(
             com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.vertical_strategy_flat_profile_hint"));
@@ -83,6 +103,7 @@ final class FlatProfileControls {
             RoadNetwork network,
             Road road,
             RoadSystemConfig config,
+            ProfileEditorWindowSession windowSession,
             Runnable onHistory,
             Supplier<com.plot.core.terrain.TerrainSampler> terrainSupplier) {
         RoadElevationBounds bounds = resolveElevationBounds(terrainSupplier);
@@ -96,7 +117,7 @@ final class FlatProfileControls {
             flatElevation = elevation[0];
         }
         if (ImGui.isItemDeactivatedAfterEdit()) {
-            applyBaseElevation(ctx, network, road, config, onHistory, flatElevation);
+            applyBaseElevation(ctx, network, road, config, windowSession, onHistory, flatElevation);
         }
     }
 
@@ -105,9 +126,12 @@ final class FlatProfileControls {
             RoadNetwork network,
             Road road,
             RoadSystemConfig config,
+            ProfileEditorWindowSession windowSession,
             Runnable onHistory,
             float elevation) {
-        if (onHistory != null) {
+        if (windowSession != null) {
+            windowSession.markTouched(road);
+        } else if (onHistory != null) {
             onHistory.run();
         }
         FlatVerticalIntentSupport.setBaseElevation(

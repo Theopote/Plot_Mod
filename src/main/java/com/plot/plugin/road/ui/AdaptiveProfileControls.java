@@ -4,6 +4,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.profile.edit.ProfileEditSession;
+import com.plot.plugin.road.profile.edit.ProfileEditorWindowSession;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
@@ -30,6 +31,7 @@ final class AdaptiveProfileControls {
             Road road,
             RoadSystemConfig config,
             ProfileEditSession session,
+            ProfileEditorWindowSession windowSession,
             List<VerticalProfileControlPoints.ControlPoint> points,
             float maxGrade,
             ProfileEditorState state,
@@ -76,31 +78,31 @@ final class AdaptiveProfileControls {
         if (VerticalProfileControlPoints.isEditablePvi(network, road, selectedPoint)
                 && VerticalProfileControlPoints.exceedsGradeLimit(selectedPoint, maxGrade)
                 && ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_auto_fix_grade"))) {
-            ctx.beginNetworkEdit(com.plot.plugin.road.manager.RoadChangeKind.VERTICAL_PROFILE);
             VerticalProfileAutoFixer.Result fixed = VerticalProfileAutoFixer.extendAdjacentRuns(
                 road.getVerticalAlignment(), state.selectedProfilePvi,
                 RoadStationing.canonicalLength(network, road), maxGrade);
             road.setVerticalAlignment(fixed.alignment());
             road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+            if (windowSession != null) {
+                windowSession.markTouched(road);
+            }
             state.profileAutoFixMessage = PlotI18n.tr(fixed.fullyResolved()
                 ? "plugin.road.vertical_alignment_auto_fix_success"
                 : "plugin.road.vertical_alignment_auto_fix_insufficient");
-            ctx.finishNetworkEdit();
             propagateJunctionGrades.run();
-            ctx.previewManager().markBuildPreviewStalePreservingProfile();
         }
         if (VerticalProfileControlPoints.canAutoSmooth(network, road, selectedPoint)
                 && ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_auto_smooth"))) {
-            ctx.beginNetworkEdit(com.plot.plugin.road.manager.RoadChangeKind.VERTICAL_PROFILE);
             VerticalProfileCurveFitter.Result fitted = VerticalProfileCurveFitter.fitAt(
                 road.getVerticalAlignment(), state.selectedProfilePvi);
             road.setVerticalAlignment(fitted.alignment());
             road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+            if (windowSession != null) {
+                windowSession.markTouched(road);
+            }
             state.profileAutoFixMessage = PlotI18n.tr(fitted.hasSpace()
                 ? "plugin.road.vertical_alignment_auto_smooth_success"
                 : "plugin.road.vertical_alignment_auto_smooth_no_space");
-            ctx.finishNetworkEdit();
-            ctx.previewManager().markBuildPreviewStalePreservingProfile();
         }
         boolean canDelete = VerticalProfileControlPoints.canDelete(
             network, road, state.selectedProfilePvi);
@@ -148,7 +150,7 @@ final class AdaptiveProfileControls {
         }
         if (ImGui.isItemDeactivatedAfterEdit() && state.elevationEditPending) {
             session.commitEdit(
-                ctx, network, road, config, propagateJunctionGrades, onAlignmentCommitted);
+                network, road, config, windowSession, propagateJunctionGrades, onAlignmentCommitted);
             state.elevationEditPending = false;
             state.profileAutoFixMessage = "";
         }

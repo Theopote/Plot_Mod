@@ -1,7 +1,6 @@
 package com.plot.plugin.road.profile.edit;
 
 import com.plot.plugin.config.RoadSystemConfig;
-import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadTopologyMode;
@@ -10,7 +9,6 @@ import com.plot.plugin.road.profile.ProfilePointRole;
 import com.plot.plugin.road.profile.RoadProfileIntersection;
 import com.plot.plugin.road.profile.RoadProfileIntersectionDragEditor;
 import com.plot.plugin.road.station.RoadStationing;
-import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
@@ -163,10 +161,10 @@ public final class ProfileEditSession {
     }
 
     public void commitEdit(
-            RoadUiContext ctx,
-            RoadNetwork network,
+            RoadNetwork workingNetwork,
             Road road,
             RoadSystemConfig config,
+            ProfileEditorWindowSession windowSession,
             Runnable propagatePrimary,
             Runnable afterCommit) {
         if (!draft.isActive()) {
@@ -176,17 +174,36 @@ public final class ProfileEditSession {
             cancelEdit();
             return;
         }
-        ctx.beginNetworkEdit(RoadChangeKind.VERTICAL_PROFILE);
-        applyDraftToNetwork(network, road, config);
+        applyDraftToNetwork(workingNetwork, road, config);
+        if (windowSession != null) {
+            windowSession.markTouched(road);
+            if (draft.kind() == ProfileEditDraft.Kind.INTERSECTION) {
+                markIntersectionTouched(windowSession, workingNetwork, road);
+            }
+        }
         if (propagatePrimary != null) {
             propagatePrimary.run();
         }
-        ctx.previewManager().markBuildPreviewStalePreservingProfile();
-        ctx.finishNetworkEdit();
         if (afterCommit != null) {
             afterCommit.run();
         }
         cancelEdit();
+    }
+
+    private void markIntersectionTouched(
+            ProfileEditorWindowSession windowSession,
+            RoadNetwork network,
+            Road road) {
+        int index = draft.intersectionIndex();
+        if (index < 0 || index >= draft.draftIntersections().size()) {
+            return;
+        }
+        RoadProfileIntersection intersection = draft.draftIntersections().get(index);
+        windowSession.markTouchedIntersection(intersection);
+        Road otherRoad = network.getRoad(intersection.otherRoadId());
+        if (otherRoad != null) {
+            windowSession.markTouched(otherRoad);
+        }
     }
 
     private void applyDraftToNetwork(RoadNetwork network, Road road, RoadSystemConfig config) {

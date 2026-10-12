@@ -13,6 +13,7 @@ import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.profile.edit.ProfileEditorWindowSession;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -33,6 +34,7 @@ public final class RoadGradeSeparationControls {
     private final RoadUiContext ctx;
     private final AutoGradeSeparationRecommendationCache autoGradeSeparationCache =
         new AutoGradeSeparationRecommendationCache();
+    private ProfileEditorWindowSession deferredSession;
 
     public RoadGradeSeparationControls(RoadUiContext ctx) {
         this.ctx = ctx;
@@ -48,9 +50,19 @@ public final class RoadGradeSeparationControls {
             RoadNetwork network,
             RoadSystemConfig config,
             Layout layout) {
+        return renderCrossing(crossing, network, config, layout, null);
+    }
+
+    public boolean renderCrossing(
+            RoadCrossing crossing,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            Layout layout,
+            ProfileEditorWindowSession windowSession) {
         if (crossing == null || network == null || config == null) {
             return false;
         }
+        deferredSession = windowSession;
         List<String> roadIds = List.of(crossing.roadAId(), crossing.roadBId());
 
         ImGui.pushID(crossing.id());
@@ -72,6 +84,7 @@ public final class RoadGradeSeparationControls {
                 PlotI18n.tr("plugin.road.grade_separation_manual_override"));
         }
         ImGui.popID();
+        deferredSession = null;
         if (changed) {
             ctx.requestOverlayRefresh();
         }
@@ -86,9 +99,19 @@ public final class RoadGradeSeparationControls {
             RoadNetwork network,
             RoadSystemConfig config,
             Layout layout) {
+        return renderLegacyJunction(node, network, config, layout, null);
+    }
+
+    public boolean renderLegacyJunction(
+            RoadNode node,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            Layout layout,
+            ProfileEditorWindowSession windowSession) {
         if (node == null || network == null || config == null) {
             return false;
         }
+        deferredSession = windowSession;
         if (!RoadGraphQueries.isSimpleCrossing(node, network)) {
             if (layout == Layout.PROFILE) {
                 RoadUiWidgets.textWrappedColored(
@@ -111,7 +134,7 @@ public final class RoadGradeSeparationControls {
         changed |= renderCrossingTypeForNode(node, network, config, layout);
         if (node.isGradeSeparated()) {
             changed |= renderPassModeForNode(node, network, config, roadIds, layout);
-            changed |= renderClearanceSliderForNode(node, config, layout == Layout.INLINE);
+            changed |= renderClearanceSliderForNode(node, network, config, layout == Layout.INLINE);
             renderRecommendationForNode(node, network, config);
         }
 
@@ -121,6 +144,7 @@ public final class RoadGradeSeparationControls {
                 PlotI18n.tr("plugin.road.grade_separation_manual_override"));
         }
         ImGui.popID();
+        deferredSession = null;
         if (changed) {
             ctx.requestOverlayRefresh();
         }
@@ -319,20 +343,57 @@ public final class RoadGradeSeparationControls {
         return roadIndex >= 0 ? roadIndex + 1 : 0;
     }
 
-    private void applyAtGrade(RoadCrossing crossing, RoadNetwork network) {
+    private void beginCrossingEdit(RoadCrossing crossing, RoadNetwork network) {
+        if (deferredSession != null) {
+            deferredSession.markTouchedCrossing(crossing.id());
+            markCrossingRoads(crossing, network);
+            return;
+        }
         ctx.networkManager().pushHistory(RoadChangeKind.JUNCTION);
+    }
+
+    private void beginNodeEdit(RoadNode node, RoadNetwork network) {
+        if (deferredSession != null) {
+            deferredSession.markTouchedNode(node.getId());
+            for (String roadId : network.getDistinctRoadIdsAtNode(node.getId())) {
+                Road road = network.getRoad(roadId);
+                if (road != null) {
+                    deferredSession.markTouched(road);
+                }
+            }
+            return;
+        }
+        ctx.networkManager().pushHistory(RoadChangeKind.JUNCTION);
+    }
+
+    private void markCrossingRoads(RoadCrossing crossing, RoadNetwork network) {
+        if (deferredSession == null || crossing == null || network == null) {
+            return;
+        }
+        Road roadA = network.getRoad(crossing.roadAId());
+        Road roadB = network.getRoad(crossing.roadBId());
+        if (roadA != null) {
+            deferredSession.markTouched(roadA);
+        }
+        if (roadB != null) {
+            deferredSession.markTouched(roadB);
+        }
+    }
+
+    private void applyAtGrade(RoadCrossing crossing, RoadNetwork network) {
+        beginCrossingEdit(crossing, network);
         network.setCrossingGradeSeparation(
             crossing.id(), CrossingType.AT_GRADE, null, null);
         network.setCrossingSharedElevation(crossing.id(), null);
     }
 
     private void applyAtGrade(RoadNode node, RoadNetwork network) {
-        ctx.networkManager().pushHistory(RoadChangeKind.JUNCTION);
+        beginNodeEdit(node, network);
         network.setNodeGradeSeparation(node.getId(), false, null, null);
     }
 
     private void applyGradeSeparatedAuto(RoadCrossing crossing, RoadNetwork network, RoadSystemConfig config) {
-        ctx.networkManager().pushHistory(RoadChangeKind.JUNCTION);
+        beginCrossingEdit(crossing, network);
         double clearance = crossing.crossingClearance() != null
             ? crossing.crossingClearance()
             : config.getDefaultCrossingClearance();
@@ -341,7 +402,7 @@ public final class RoadGradeSeparationControls {
     }
 
     private void applyGradeSeparatedAuto(RoadNode node, RoadNetwork network, RoadSystemConfig config) {
-        ctx.networkManager().pushHistory(RoadChangeKind.JUNCTION);
+        beginNodeEdit(node, network);
         double clearance = node.getCrossingClearance() != null
             ? node.getCrossingClearance()
             : config.getDefaultCrossingClearance();
@@ -354,7 +415,7 @@ public final class RoadGradeSeparationControls {
             RoadSystemConfig config,
             List<String> roadIds,
             int index) {
-        ctx.networkManager().pushHistory(RoadChangeKind.JUNCTION);
+        beginCrossingEdit(crossing, network);
         double clearance = crossing.crossingClearance() != null
             ? crossing.crossingClearance()
             : config.getDefaultCrossingClearance();
@@ -373,7 +434,7 @@ public final class RoadGradeSeparationControls {
             RoadSystemConfig config,
             List<String> roadIds,
             int index) {
-        ctx.networkManager().pushHistory(RoadChangeKind.JUNCTION);
+        beginNodeEdit(node, network);
         double clearance = node.getCrossingClearance() != null
             ? node.getCrossingClearance()
             : config.getDefaultCrossingClearance();
@@ -392,7 +453,7 @@ public final class RoadGradeSeparationControls {
         if (elevatedRoadId == null) {
             return;
         }
-        ctx.networkManager().pushHistory(RoadChangeKind.JUNCTION);
+        beginCrossingEdit(crossing, network);
         double clearance = crossing.crossingClearance() != null
             ? crossing.crossingClearance()
             : config.getDefaultCrossingClearance();
@@ -408,7 +469,7 @@ public final class RoadGradeSeparationControls {
         if (elevatedRoadId == null) {
             return;
         }
-        ctx.networkManager().pushHistory(RoadChangeKind.JUNCTION);
+        beginNodeEdit(node, network);
         double clearance = node.getCrossingClearance() != null
             ? node.getCrossingClearance()
             : config.getDefaultCrossingClearance();
@@ -434,7 +495,7 @@ public final class RoadGradeSeparationControls {
             RoadParameterLimits.MAX_CROSSING_CLEARANCE,
             "%d");
         if (ImGui.isItemActivated()) {
-            ctx.networkManager().pushHistory(RoadChangeKind.JUNCTION);
+            beginCrossingEdit(crossing, network);
         }
         if (clearanceChanged) {
             network.setCrossingGradeSeparation(
@@ -446,7 +507,11 @@ public final class RoadGradeSeparationControls {
         return clearanceChanged;
     }
 
-    private boolean renderClearanceSliderForNode(RoadNode node, RoadSystemConfig config, boolean inline) {
+    private boolean renderClearanceSliderForNode(
+            RoadNode node,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            boolean inline) {
         double currentClearance = node.getCrossingClearance() != null
             ? node.getCrossingClearance()
             : config.getDefaultCrossingClearance();
@@ -461,7 +526,7 @@ public final class RoadGradeSeparationControls {
             RoadParameterLimits.MAX_CROSSING_CLEARANCE,
             "%d");
         if (ImGui.isItemActivated()) {
-            ctx.networkManager().pushHistory(RoadChangeKind.JUNCTION);
+            beginNodeEdit(node, network);
         }
         if (clearanceChanged) {
             node.setCrossingClearance((double) clearance[0]);
