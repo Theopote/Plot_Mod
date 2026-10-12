@@ -121,6 +121,18 @@ public record DesignElevationSource(
         return elevationAtChainage(mapLocalToChainage(localCanvasDistance));
     }
 
+    /**
+     * Build-height priority for corridor / cross-section sampling:
+     * <ol>
+     *   <li>{@link BuildHeightProfile} when active (compiled each generate from MANUAL_PROFILE
+     *       via {@code VerticalAlignmentProfileSolver}, or from AUTO_SMOOTH terrain follow)</li>
+     *   <li>{@link DesignElevationSource} when active (raw alignment sample; AUTO_SMOOTH roads
+     *       typically leave this inactive via {@code VerticalAlignmentProfileSupport})</li>
+     *   <li>Linear interpolation of {@link SegmentHeightInfo} targets</li>
+     * </ol>
+     * PVI edits only affect build when the road is {@code MANUAL_PROFILE} and generate re-solves
+     * a fresh {@code buildProfile} from the updated alignment.
+     */
     public static int resolveTargetElevation(
             DesignElevationSource designElevation,
             BuildHeightProfile buildProfile,

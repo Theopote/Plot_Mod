@@ -82,9 +82,6 @@ public final class RoadCorridorPlanBuilder {
         for (int i = 0; i < stations.size(); i++) {
             StationSample sample = stations.get(i);
             ResolvedCrossSection crossSection = crossSections.resolve(sample.chainage());
-            if (sample.constructionType() == RoadConstructionType.BRIDGE) {
-                continue;
-            }
             rasterizeStation(plan, sample, crossSection, terrain, unitsPerBlock,
                 carriagewaySeedKey, host, config, tunnelThreshold);
             if (i > 0) {
@@ -153,10 +150,6 @@ public final class RoadCorridorPlanBuilder {
             PlanHost host,
             RoadSystemConfig config,
             int tunnelThreshold) {
-        if (from.constructionType() == RoadConstructionType.BRIDGE
-                || to.constructionType() == RoadConstructionType.BRIDGE) {
-            return;
-        }
         ResolvedCrossSection toSection = crossSection;
         rasterizeSurfaceBands(plan, from.center(), to.center(), to.leftNormal(),
             from.targetY(), to.targetY(), toSection, terrain, unitsPerBlock,
@@ -181,9 +174,6 @@ public final class RoadCorridorPlanBuilder {
             RoadConstructionType constructionType,
             RoadSystemConfig config,
             int tunnelThreshold) {
-        if (constructionType == RoadConstructionType.BRIDGE) {
-            return;
-        }
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         Vec2d normal = normalize(leftNormal);
 
@@ -591,7 +581,9 @@ public final class RoadCorridorPlanBuilder {
             TerrainSampler terrain,
             int tunnelThreshold) {
         return switch (mode) {
-            case BRIDGE -> designSurfaceY;
+            case BRIDGE -> Math.max(
+                designSurfaceY + 1,
+                Math.max(terrain.sampleColumnTopY(planPoint), designSurfaceY + 1));
             case TUNNEL -> designSurfaceY + tunnelThreshold;
             case OPEN -> Math.max(terrain.sampleColumnTopY(planPoint), designSurfaceY + 1);
         };

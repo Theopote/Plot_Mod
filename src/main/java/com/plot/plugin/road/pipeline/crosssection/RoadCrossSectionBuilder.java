@@ -153,6 +153,11 @@ public final class RoadCrossSectionBuilder {
         }
     }
 
+    /**
+     * Places bridge deck structure at {@code targetY - 1} only.
+     * Continuous road surface at {@code targetY} is owned by
+     * {@link com.plot.plugin.road.pipeline.corridor.RoadCorridorPlanBuilder}.
+     */
     private static void generateBridgeDeckUnderlays(
             CrossSectionHost host,
             RoadSolidModel solids,

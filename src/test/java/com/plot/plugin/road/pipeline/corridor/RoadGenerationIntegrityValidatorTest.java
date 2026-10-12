@@ -184,6 +184,7 @@ class RoadGenerationIntegrityValidatorTest {
         RoadGenerationIntegrityValidator.IntegrityReport report =
             RoadGenerationIntegrityValidator.validatePlacements(plan, result, elevatedColumn(66));
 
+        // y=65 has non-air stone (not structural clearance); only clearTop range is checked
         assertEquals(1, report.unclearedObstructionCount());
     }
 

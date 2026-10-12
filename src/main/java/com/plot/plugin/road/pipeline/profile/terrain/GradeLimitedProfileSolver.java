@@ -255,6 +255,40 @@ public final class GradeLimitedProfileSolver {
                 minElevations,
                 maxElevations);
         }
+        // Always damp short zig-zags and spread crest/sag transitions (incl. unbounded bounds).
+        dampenShortDistanceSlopeReversals(
+            elevations,
+            segmentDistances,
+            maxSlopePercents,
+            effectivePreset,
+            lockStart,
+            lockEnd,
+            startLock,
+            endLock,
+            minElevations,
+            maxElevations);
+        enforceGradeTransitionLengths(
+            elevations,
+            segmentDistances,
+            maxSlopePercents,
+            effectivePreset,
+            lockStart,
+            lockEnd,
+            startLock,
+            endLock,
+            minElevations,
+            maxElevations);
+        projectFeasible(
+            elevations,
+            segmentDistances,
+            maxSlopePercents,
+            effectivePreset.maxGradeChangePercent(),
+            lockStart,
+            lockEnd,
+            startLock,
+            endLock,
+            minElevations,
+            maxElevations);
         return toDesignList(elevations);
     }
 
@@ -365,6 +399,17 @@ public final class GradeLimitedProfileSolver {
             minElevations,
             maxElevations);
         smoothGradeChanges(
+            current,
+            segmentDistances,
+            maxSlopePercents,
+            effectivePreset,
+            lockStart,
+            lockEnd,
+            startTarget,
+            endTarget,
+            minElevations,
+            maxElevations);
+        dampenShortDistanceSlopeReversals(
             current,
             segmentDistances,
             maxSlopePercents,
@@ -610,6 +655,72 @@ public final class GradeLimitedProfileSolver {
                 maxElevations);
             System.arraycopy(updated, 0, elevations, 0, elevations.length);
         }
+    }
+
+    /**
+     * Reduce short-distance slope sign flips (zig-zag ╮╭ patterns) by blending interior
+     * vertices toward equal-grade when consecutive grade signs reverse within the preset
+     * minimum grade-transition length. Max-slope constraints are reapplied afterward.
+     */
+    static void dampenShortDistanceSlopeReversals(
+            double[] elevations,
+            List<Double> segmentDistances,
+            List<Float> maxSlopePercents,
+            TerrainFollowPreset preset,
+            boolean lockStart,
+            boolean lockEnd,
+            double startLock,
+            double endLock,
+            double[] minElevations,
+            double[] maxElevations) {
+        if (elevations == null || elevations.length < 4 || segmentDistances == null
+                || segmentDistances.size() < 3) {
+            return;
+        }
+        TerrainFollowPreset effectivePreset = preset != null ? preset : TerrainFollowPreset.STANDARD;
+        double windowMeters = Math.max(
+            VerticalProfileDesignRules.MIN_VERTICAL_TRANSITION_LENGTH,
+            effectivePreset.minGradeTransitionMeters());
+        double[] updated = elevations.clone();
+        int firstInterior = lockStart ? 2 : 1;
+        int lastInterior = lockEnd ? elevations.length - 3 : elevations.length - 2;
+        for (int vertex = firstInterior; vertex <= lastInterior; vertex++) {
+            double leftDist = segmentDistances.get(vertex - 1);
+            double rightDist = segmentDistances.get(vertex);
+            if (leftDist + rightDist > windowMeters + EPSILON) {
+                continue;
+            }
+            double leftGrade = gradeAtSegment(
+                elevations[vertex - 1], elevations[vertex], leftDist);
+            double rightGrade = gradeAtSegment(
+                elevations[vertex], elevations[vertex + 1], rightDist);
+            if (leftGrade * rightGrade >= -EPSILON) {
+                continue;
+            }
+            if (Math.abs(leftGrade) < 0.5 && Math.abs(rightGrade) < 0.5) {
+                continue;
+            }
+            double equalGrade = equalGradeElevationAt(
+                elevations[vertex - 1],
+                elevations[vertex + 1],
+                leftDist,
+                rightDist);
+            double blend = Math.min(1.0, effectivePreset.gradeChangeSmoothingWeight() + 0.25);
+            updated[vertex] = (1.0 - blend) * elevations[vertex] + blend * equalGrade;
+        }
+        applyEndpointLocks(updated, lockStart, lockEnd, startLock, endLock);
+        projectFeasible(
+            updated,
+            segmentDistances,
+            maxSlopePercents,
+            effectivePreset.maxGradeChangePercent(),
+            lockStart,
+            lockEnd,
+            startLock,
+            endLock,
+            minElevations,
+            maxElevations);
+        System.arraycopy(updated, 0, elevations, 0, elevations.length);
     }
 
     /**

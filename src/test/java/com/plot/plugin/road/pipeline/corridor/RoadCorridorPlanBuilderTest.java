@@ -3,10 +3,12 @@ package com.plot.plugin.road.pipeline.corridor;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.terrain.FlatTerrainSampler;
+import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.test.scale.ScaleInvarianceProjections;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
@@ -84,5 +86,51 @@ class RoadCorridorPlanBuilderTest {
             "surface mask must key columns by projected world XZ, not canvas coordinates");
         assertFalse(plan.surfaceMask().get(new ColumnKey(2, 0)) != null,
             "canvas coordinate 2 must not be used as a world column key under 4:1 projection");
+    }
+
+    @Test
+    void bridgeSpanProducesContinuousSurfaceMask() {
+        RoadSystemConfig config = CorridorTestFixtures.baseConfig();
+        ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);
+        CrossSectionBuildContext crossSections = CrossSectionBuildContext.fixed(crossSection);
+
+        PathSegment approach = new PathSegment(new Vec2d(0, 0), new Vec2d(8, 0));
+        PathSegment bridge = new PathSegment(new Vec2d(8, 0), new Vec2d(22, 0));
+        PathSegment exit = new PathSegment(new Vec2d(22, 0), new Vec2d(30, 0));
+        List<PathSegment> segments = List.of(approach, bridge, exit);
+        List<SegmentHeightInfo> heightInfos = List.of(
+            new SegmentHeightInfo(approach, 64, 64, 64, 64, 0.0),
+            new SegmentHeightInfo(bridge, 64, 64, 64, 64, 0.0),
+            new SegmentHeightInfo(exit, 64, 64, 64, 64, 0.0));
+        List<RoadConstructionType> constructionTypes = List.of(
+            RoadConstructionType.ROAD,
+            RoadConstructionType.BRIDGE,
+            RoadConstructionType.ROAD);
+
+        RoadCorridorPlan plan = RoadCorridorPlanBuilder.build(
+            segments,
+            heightInfos,
+            crossSections,
+            constructionTypes,
+            DesignElevationSource.inactive(),
+            BuildHeightProfile.inactive(),
+            new FlatTerrainSampler(50),
+            1.0,
+            "bridge-seed",
+            CorridorTestFixtures.planHost(config));
+
+        int bridgeSurfaceColumns = 0;
+        for (int x = 8; x <= 22; x++) {
+            SurfaceCell cell = plan.surfaceMask().get(new ColumnKey(x, 0));
+            if (cell != null && cell.layer() == RoadSolidLayer.ROAD) {
+                bridgeSurfaceColumns++;
+            }
+        }
+        assertTrue(bridgeSurfaceColumns >= 14,
+            "bridge span must keep continuous ROAD surface mask, found " + bridgeSurfaceColumns);
+        ClearanceCell midBridge = plan.clearanceCell(new ColumnKey(15, 0));
+        assertTrue(midBridge != null, "bridge columns must still record clearance metadata");
+        assertTrue(midBridge.clearTopY() > midBridge.designSurfaceY(),
+            "bridge clearance envelope must have positive overhead height");
     }
 }

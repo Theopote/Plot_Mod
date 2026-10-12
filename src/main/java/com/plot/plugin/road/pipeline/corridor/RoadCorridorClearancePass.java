@@ -49,12 +49,12 @@ public final class RoadCorridorClearancePass {
             ClearanceCell cell,
             ColumnKey key,
             TerrainSampler terrain) {
-        if (cell.mode() == RoadCorridorConstructionMode.BRIDGE) {
-            return 0;
-        }
+        // Clear overhead only (designY+1..top). Design-Y pavement is owned by SurfaceCell emit;
+        // TUNNEL-layer AIR outranks ROAD and must not be written at designY.
+        // BRIDGE columns still clear overhead (no longer a no-op).
         int cleared = 0;
         int designY = cell.designSurfaceY();
-        int topY = cell.clearTopY();
+        int topY = Math.max(cell.clearTopY(), designY);
         for (int y = designY + 1; y <= topY; y++) {
             if (!hasObstruction(terrain, key.worldX(), y, key.worldZ())) {
                 continue;

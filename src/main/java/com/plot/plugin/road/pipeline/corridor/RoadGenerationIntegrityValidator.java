@@ -127,18 +127,19 @@ public final class RoadGenerationIntegrityValidator {
         for (var entry : plan.clearanceEntries()) {
             ColumnKey key = entry.getKey();
             ClearanceCell cell = entry.getValue();
-            if (cell.mode() == RoadCorridorConstructionMode.BRIDGE
-                    || cell.mode() == RoadCorridorConstructionMode.TUNNEL) {
+            if (cell.mode() == RoadCorridorConstructionMode.TUNNEL) {
                 continue;
             }
             if (!terrain.isChunkLoaded(key.worldX(), key.worldZ())) {
                 continue;
             }
-            for (int y = cell.designSurfaceY() + 1; y <= cell.clearTopY(); y++) {
+            int topY = Math.max(cell.clearTopY(), cell.designSurfaceY());
+            for (int y = cell.designSurfaceY() + 1; y <= topY; y++) {
+                RoadBlockExpectation expectation = RoadBlockExpectation.clearance(key, y);
                 if (!RoadCorridorClearancePass.hasObstruction(terrain, key.worldX(), y, key.worldZ())) {
                     continue;
                 }
-                if (!index.obstructionClearanceResolved(key, y)) {
+                if (!index.expectationResolved(expectation)) {
                     uncleared++;
                 }
             }
@@ -154,18 +155,19 @@ public final class RoadGenerationIntegrityValidator {
         for (var entry : plan.clearanceEntries()) {
             ColumnKey key = entry.getKey();
             ClearanceCell cell = entry.getValue();
-            if (cell.mode() == RoadCorridorConstructionMode.BRIDGE
-                    || cell.mode() == RoadCorridorConstructionMode.TUNNEL) {
+            if (cell.mode() == RoadCorridorConstructionMode.TUNNEL) {
                 continue;
             }
             if (!terrain.isChunkLoaded(key.worldX(), key.worldZ())) {
                 continue;
             }
-            for (int y = cell.designSurfaceY() + 1; y <= cell.clearTopY(); y++) {
+            int topY = Math.max(cell.clearTopY(), cell.designSurfaceY());
+            for (int y = cell.designSurfaceY() + 1; y <= topY; y++) {
+                RoadBlockExpectation expectation = RoadBlockExpectation.clearance(key, y);
                 if (!RoadCorridorClearancePass.hasObstruction(terrain, key.worldX(), y, key.worldZ())) {
                     continue;
                 }
-                if (!index.obstructionClearanceResolved(key, y)) {
+                if (!index.expectationResolved(expectation)) {
                     uncleared++;
                 }
             }
@@ -296,6 +298,18 @@ public final class RoadGenerationIntegrityValidator {
             RoadSolidPrimitive primitive = byPosition.get(columnPos(column, y));
             return primitive != null && isStructuralClearanceReplacement(primitive.layer());
         }
+
+        boolean expectationResolved(RoadBlockExpectation expectation) {
+            BlockPos pos = expectation.position();
+            ColumnKey column = new ColumnKey(pos.getX(), pos.getZ());
+            int y = pos.getY();
+            if (expectation.role() == RoadBlockExpectation.ExpectedRole.SURFACE) {
+                return hasSurfaceMaterial(
+                    column, y, expectation.expectedLayer(), expectation.expectedMaterialId())
+                    || obstructionClearanceResolved(column, y);
+            }
+            return obstructionClearanceResolved(column, y);
+        }
     }
 
     private static final class PlacementIndex {
@@ -343,6 +357,18 @@ public final class RoadGenerationIntegrityValidator {
                 return false;
             }
             return isStructuralClearanceReplacement(layers.get(pos));
+        }
+
+        boolean expectationResolved(RoadBlockExpectation expectation) {
+            BlockPos pos = expectation.position();
+            ColumnKey column = new ColumnKey(pos.getX(), pos.getZ());
+            int y = pos.getY();
+            if (expectation.role() == RoadBlockExpectation.ExpectedRole.SURFACE) {
+                return hasSurfaceMaterial(
+                    column, y, expectation.expectedLayer(), expectation.expectedMaterialId())
+                    || obstructionClearanceResolved(column, y);
+            }
+            return obstructionClearanceResolved(column, y);
         }
     }
 }

@@ -208,6 +208,37 @@ class GradeLimitedProfileSolverTest {
     }
 
     @Test
+    void shortDistanceSlopeReversalsAreDampenedInFeasibleProjection() {
+        // Zig-zag ╮╭ pattern over short segments — should lose consecutive sign flips.
+        List<Double> zigzag = List.of(
+            64.0, 66.0, 64.0, 66.0, 64.0, 66.0, 64.0);
+        List<Double> distances = constantDistances(zigzag.size() - 1, 8.0);
+        List<Float> slopes = constantSlopes(distances.size(), 12.0f);
+
+        int reversalsBefore = countGradeSignReversals(zigzag, distances);
+        List<Double> projected = GradeLimitedProfileSolver.projectOntoFeasibleDomain(
+            zigzag,
+            distances,
+            slopes,
+            TerrainFollowPreset.STANDARD,
+            null,
+            null,
+            com.plot.plugin.road.pipeline.profile.environment.VerticalStationConstraints
+                .StationElevationBounds.unbounded(zigzag.size()),
+            true);
+        int reversalsAfter = countGradeSignReversals(projected, distances);
+        assertTrue(reversalsAfter < reversalsBefore,
+            () -> "short-distance slope reversals should decrease from "
+                + reversalsBefore + " to " + reversalsAfter);
+        for (int i = 0; i < distances.size(); i++) {
+            double rise = Math.abs(projected.get(i + 1) - projected.get(i));
+            double maxRise = distances.get(i) * slopes.get(i) / 100.0;
+            assertTrue(rise <= maxRise + 1e-6,
+                "max slope must still hold after reversal damping");
+        }
+    }
+
+    @Test
     void gradeTransitionSoftensSharpCrestInDesignProfile() {
         List<Double> trend = List.of(
             60.0, 60.5, 61.0, 61.5, 62.0,
@@ -496,6 +527,24 @@ class GradeLimitedProfileSolverTest {
         }
         longest = Math.max(longest, current);
         return longest >= minRunLength ? longest : 0;
+    }
+
+    private static int countGradeSignReversals(List<Double> elevations, List<Double> distances) {
+        int reversals = 0;
+        Double previousSign = null;
+        for (int i = 0; i < distances.size(); i++) {
+            double grade = GradeLimitedProfileSolver.gradeAtSegment(
+                elevations.get(i), elevations.get(i + 1), distances.get(i));
+            double sign = Math.signum(grade);
+            if (Math.abs(sign) < 1e-9) {
+                continue;
+            }
+            if (previousSign != null && previousSign * sign < 0) {
+                reversals++;
+            }
+            previousSign = sign;
+        }
+        return reversals;
     }
 
     private static double meanAbsoluteError(List<Integer> actual, List<Double> desired) {
