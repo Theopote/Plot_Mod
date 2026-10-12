@@ -16,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -56,7 +57,7 @@ class ProfileEditSessionTest {
 
         assertEquals(originalMid, road.getVerticalAlignment().getPvis().get(1).getElevation());
         assertTrue(session.isDirty());
-        assertEquals(72.0, session.effectiveAlignment(road).getPvis().get(1).getElevation());
+        assertEquals(72.0, Objects.requireNonNull(session.effectiveAlignment(road)).getPvis().get(1).getElevation());
 
         session.cancelEdit();
         assertFalse(session.isActive());
@@ -70,7 +71,7 @@ class ProfileEditSessionTest {
         ProfileControlPoint midPoint = new ProfileControlPoint(
             1, 50.0, 68.0, ProfilePointRole.INTERIOR_PVI, null, null, false, true);
         session.updatePviDrag(network, road, midPoint, 1, 50.0, 500.0);
-        assertEquals(319.0, session.effectiveAlignment(road).getPvis().get(1).getElevation());
+        assertEquals(319.0, Objects.requireNonNull(session.effectiveAlignment(road)).getPvis().get(1).getElevation());
     }
 
     @Test
@@ -78,7 +79,7 @@ class ProfileEditSessionTest {
         session.setElevationBounds(RoadWorldElevationBounds.fallback());
         session.beginNumericEdit(road);
         session.updatePviElevation(network, road, 1, 400.0);
-        assertEquals(319.0, session.effectiveAlignment(road).getPvis().get(1).getElevation());
+        assertEquals(319.0, Objects.requireNonNull(session.effectiveAlignment(road)).getPvis().get(1).getElevation());
     }
 
     @Test
@@ -107,7 +108,7 @@ class ProfileEditSessionTest {
 
         assertNotEquals(
             road.getVerticalAlignment().getPvis().get(1).getCurveLength(),
-            session.effectiveAlignment(road).getPvis().get(1).getCurveLength());
+            Objects.requireNonNull(session.effectiveAlignment(road)).getPvis().get(1).getCurveLength());
         session.cancelEdit();
         assertFalse(session.isDirty());
     }

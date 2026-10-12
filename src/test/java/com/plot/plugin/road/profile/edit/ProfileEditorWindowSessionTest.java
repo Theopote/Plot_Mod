@@ -191,6 +191,83 @@ class ProfileEditorWindowSessionTest {
     }
 
     @Test
+    void editBackToOriginalValueIsNotDirty() {
+        ProfileEditorWindowSession session = openSession();
+        Road workingRoad = session.editingNetwork().getRoad(road.getId());
+
+        mutatePvi(workingRoad, 1, 75.0);
+        assertTrue(session.isDirty());
+
+        mutatePvi(workingRoad, 1, 68.0);
+        assertFalse(session.isDirty());
+
+        ProfileEditorWindowSession.ConfirmResult result =
+            session.confirm(testContext(), live, config);
+        assertEquals(ProfileEditorWindowSession.ConfirmResult.NO_CHANGES, result);
+        assertFalse(manager.canUndo());
+    }
+
+    @Test
+    void confirmAppliesPropagationAdjustedConnectedRoad() {
+        Road eastWest = live.createRoad("east-west");
+        Road northSouth = live.createRoad("north-south");
+        eastWest.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            new PointOfVerticalIntersection(0.0, 70.0),
+            new PointOfVerticalIntersection(100.0, 76.0),
+            new PointOfVerticalIntersection(200.0, 70.0))));
+        northSouth.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            new PointOfVerticalIntersection(0.0, 70.0),
+            new PointOfVerticalIntersection(60.0, 70.0),
+            new PointOfVerticalIntersection(140.0, 70.0),
+            new PointOfVerticalIntersection(200.0, 70.0))));
+        eastWest.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        northSouth.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+
+        RoadNode west = live.createNode(new Vec2d(-100, 0));
+        RoadNode junction = live.createNode(new Vec2d(0, 0));
+        RoadNode east = live.createNode(new Vec2d(100, 0));
+        RoadNode south = live.createNode(new Vec2d(0, -100));
+        RoadNode north = live.createNode(new Vec2d(0, 100));
+        live.createEdge(west.getId(), junction.getId(),
+            List.of(new Vec2d(-100, 0), new Vec2d(0, 0)), eastWest.getId());
+        live.createEdge(junction.getId(), east.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(100, 0)), eastWest.getId());
+        live.createEdge(south.getId(), junction.getId(),
+            List.of(new Vec2d(0, -100), new Vec2d(0, 0)), northSouth.getId());
+        live.createEdge(junction.getId(), north.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(0, 100)), northSouth.getId());
+
+        ProfileEditorWindowSession session = openSession();
+        Road workingEastWest = session.editingNetwork().getRoad(eastWest.getId());
+        mutatePvi(workingEastWest, 1, 80.0);
+        session.markTouched(workingEastWest);
+
+        session.confirm(testContext(), live, config);
+
+        Road liveNorthSouth = manager.getNetwork().getRoad(northSouth.getId());
+        boolean hasPropagatedJunctionElevation = liveNorthSouth.getVerticalAlignment().getPvis().stream()
+            .anyMatch(pvi -> Math.abs(pvi.getElevation() - 80.0) < 1e-3);
+        assertTrue(hasPropagatedJunctionElevation);
+        assertTrue(ProfileEditorNetworkApplier.alignmentPvisEqual(
+            session.editingNetwork().getRoad(northSouth.getId()).getVerticalAlignment(),
+            liveNorthSouth.getVerticalAlignment()));
+    }
+
+    @Test
+    void intersectionElevationRestoreRevertsWorkingCopy() {
+        RoadNode junction = live.getNodes().values().iterator().next();
+        junction.setManualElevation(64.0);
+
+        ProfileEditorWindowSession session = openSession();
+        session.editingNetwork().getNode(junction.getId()).setManualElevation(72.0);
+
+        assertTrue(session.isDirty());
+        session.restore();
+        assertFalse(session.isDirty());
+        assertEquals(64.0, session.editingNetwork().getNode(junction.getId()).getManualElevation());
+    }
+
+    @Test
     void insertAndDeletePviInWorkingCopyCancelRestoresLive() {
         ProfileEditorWindowSession session = openSession();
         Road workingRoad = session.editingNetwork().getRoad(road.getId());

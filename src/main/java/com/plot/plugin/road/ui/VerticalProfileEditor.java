@@ -82,7 +82,7 @@ final class VerticalProfileEditor {
     private boolean closeConfirmPending;
     private boolean roadSwitchConfirmPending;
     private String pendingRoadSwitchId = "";
-    private Runnable onAlignmentCommitted;
+    private Runnable onProfileConfirmed;
     private int selectedIntersectionIndex = -1;
     private RoadGradeSeparationControls gradeSeparationControls;
     private int activeIntersectionDragIndex = -1;
@@ -150,8 +150,8 @@ final class VerticalProfileEditor {
         renderMissingProfileActions(ctx, network, road);
     }
 
-    void setOnAlignmentCommitted(Runnable onAlignmentCommitted) {
-        this.onAlignmentCommitted = onAlignmentCommitted;
+    void setOnAlignmentCommitted(Runnable onProfileConfirmed) {
+        this.onProfileConfirmed = onProfileConfirmed;
     }
 
     void setFlatOverlayResolver(Function<Road, FlatElevationProfileOverlay> flatOverlayResolver) {
@@ -371,8 +371,8 @@ final class VerticalProfileEditor {
             ctx.status().warning(PlotI18n.tr("plugin.road.profile_editor_confirm_conflict"));
             return false;
         }
-        if (notifyCommitted && onAlignmentCommitted != null) {
-            onAlignmentCommitted.run();
+        if (notifyCommitted && onProfileConfirmed != null) {
+            onProfileConfirmed.run();
         }
         ctx.requestOverlayRefresh();
         return true;
@@ -823,7 +823,7 @@ final class VerticalProfileEditor {
             profileEditSession.commitEdit(
                 editingNetwork, road, config, windowSession,
                 () -> propagateJunctionGrades(ctx, editingNetwork, road),
-                onAlignmentCommitted);
+                this::notifyWorkingProfileChanged);
             editorState.activeCurveHandlePvi = -1;
             editorState.activeCurveHandle =
                 RoadLongitudinalProfileRenderer.ControlInteraction.CurveHandleSide.NONE;
@@ -832,7 +832,7 @@ final class VerticalProfileEditor {
             profileEditSession.commitEdit(
                 editingNetwork, road, config, windowSession,
                 () -> propagateJunctionGrades(ctx, editingNetwork, road),
-                onAlignmentCommitted);
+                this::notifyWorkingProfileChanged);
             editorState.activeCurveHandlePvi = -1;
             editorState.activeCurveHandle =
                 RoadLongitudinalProfileRenderer.ControlInteraction.CurveHandleSide.NONE;
@@ -856,7 +856,7 @@ final class VerticalProfileEditor {
                     if (otherRoad != null) {
                         propagateJunctionGrades(ctx, editingNetwork, otherRoad);
                     }
-                    invalidateIntersectionCache();
+                    notifyWorkingProfileChanged();
                     ctx.requestOverlayRefresh();
                 });
             activeIntersectionDragIndex = -1;
@@ -892,7 +892,7 @@ final class VerticalProfileEditor {
                 maxGrade,
                 editorState,
                 () -> propagateJunctionGrades(ctx, editingNetwork, road),
-                onAlignmentCommitted,
+                this::notifyWorkingProfileChanged,
                 () -> deleteProfilePvi(ctx, editingNetwork, road, editorState.selectedProfilePvi));
         }
         renderBuildPreviewStaleBar(ctx, liveNetwork);
@@ -1360,6 +1360,11 @@ final class VerticalProfileEditor {
             }
         }
         return nearest;
+    }
+
+    private void notifyWorkingProfileChanged() {
+        profileRenderCache = null;
+        invalidateIntersectionCache();
     }
 
     private void propagateJunctionGrades(RoadUiContext ctx, RoadNetwork network, Road road) {

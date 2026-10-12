@@ -1,12 +1,10 @@
 package com.plot.plugin.road.profile.edit;
 
 import com.plot.plugin.config.RoadSystemConfig;
-import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.crossing.RoadCrossingRef;
 import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
-import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.profile.RoadProfileIntersection;
 import com.plot.plugin.road.ui.RoadUiContext;
 
@@ -31,7 +29,6 @@ public final class ProfileEditorWindowSession {
     private final RoadNetwork openSnapshot;
     private final long openRevision;
     private RoadNetwork workingNetwork;
-    private boolean dirty;
     private final Set<String> touchedRoadIds = new LinkedHashSet<>();
     private final Set<String> touchedNodeIds = new LinkedHashSet<>();
     private final Set<String> touchedCrossingIds = new LinkedHashSet<>();
@@ -61,7 +58,7 @@ public final class ProfileEditorWindowSession {
     }
 
     public boolean isDirty() {
-        return dirty;
+        return ProfileEditorNetworkApplier.hasVerticalStateChanges(openSnapshot, workingNetwork);
     }
 
     public Set<String> touchedRoadIds() {
@@ -79,21 +76,18 @@ public final class ProfileEditorWindowSession {
     public void markTouched(Road road) {
         if (road != null && road.getId() != null) {
             touchedRoadIds.add(road.getId());
-            dirty = true;
         }
     }
 
     public void markTouchedNode(String nodeId) {
         if (nodeId != null && !nodeId.isBlank()) {
             touchedNodeIds.add(nodeId);
-            dirty = true;
         }
     }
 
     public void markTouchedCrossing(String crossingId) {
         if (crossingId != null && !crossingId.isBlank()) {
             touchedCrossingIds.add(crossingId);
-            dirty = true;
         }
     }
 
@@ -116,7 +110,6 @@ public final class ProfileEditorWindowSession {
         touchedRoadIds.clear();
         touchedNodeIds.clear();
         touchedCrossingIds.clear();
-        dirty = false;
     }
 
     public void cancel() {
@@ -126,30 +119,42 @@ public final class ProfileEditorWindowSession {
     public ConfirmResult confirm(RoadUiContext ctx, RoadNetwork live, RoadSystemConfig config) {
         Objects.requireNonNull(ctx, "ctx");
         Objects.requireNonNull(live, "live");
-        if (!dirty) {
+        if (!isDirty()) {
             return ConfirmResult.NO_CHANGES;
         }
         if (ctx.networkManager().getNetworkRevision() != openRevision) {
             return ConfirmResult.CONFLICT;
         }
+        Set<String> propagateSeeds = new LinkedHashSet<>(
+            ProfileEditorNetworkApplier.collectChangedRoadIds(openSnapshot, workingNetwork));
+        propagateSeeds.addAll(touchedRoadIds);
         ProfileEditorNetworkApplier.propagateTouchedRoads(
-            workingNetwork, touchedRoadIds, config);
+            workingNetwork, propagateSeeds, config);
+
+        ProfileEditorNetworkApplier.VerticalStateDiff diff =
+            ProfileEditorNetworkApplier.collectChangedEntities(openSnapshot, workingNetwork);
+        if (!diff.hasAnyChanges()) {
+            return ConfirmResult.NO_CHANGES;
+        }
+
         ctx.beginNetworkEdit(RoadChangeKind.VERTICAL_PROFILE);
         ProfileEditorNetworkApplier.apply(
             workingNetwork,
             live,
-            touchedRoadIds,
-            touchedNodeIds,
-            touchedCrossingIds);
+            diff.roadIds(),
+            diff.nodeIds(),
+            diff.crossingIds());
         ctx.finishNetworkEdit();
         if (ctx.previewManager() != null) {
             ctx.previewManager().markBuildPreviewStalePreservingProfile();
         }
-        dirty = false;
+        touchedRoadIds.clear();
+        touchedNodeIds.clear();
+        touchedCrossingIds.clear();
         return ConfirmResult.APPLIED;
     }
 
-    /** 传播后可能调整相邻道路，将其加入 touched 集。 */
+    /** 传播后可能调整相邻道路，将其加入 touched 集（供编辑期中间传播使用）。 */
     public void markPropagationAdjustedRoads(RoadNetwork networkAfterPropagate) {
         if (networkAfterPropagate == null) {
             return;

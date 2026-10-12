@@ -36,7 +36,7 @@ final class AdaptiveProfileControls {
             float maxGrade,
             ProfileEditorState state,
             Runnable propagateJunctionGrades,
-            Runnable onAlignmentCommitted,
+            Runnable onWorkingProfileChanged,
             Runnable deleteSelectedPvi) {
         if (road == null || RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT) {
             return;
@@ -150,7 +150,7 @@ final class AdaptiveProfileControls {
         }
         if (ImGui.isItemDeactivatedAfterEdit() && state.elevationEditPending) {
             session.commitEdit(
-                network, road, config, windowSession, propagateJunctionGrades, onAlignmentCommitted);
+                network, road, config, windowSession, propagateJunctionGrades, onWorkingProfileChanged);
             state.elevationEditPending = false;
             state.profileAutoFixMessage = "";
         }

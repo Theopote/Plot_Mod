@@ -8,7 +8,6 @@ import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
-import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalProfileNetworkPropagator;
 
 import java.util.LinkedHashSet;
@@ -101,6 +100,39 @@ public final class ProfileEditorNetworkApplier {
             source.elevatedRoadId(),
             source.crossingClearance());
         liveNetwork.setCrossingSharedElevation(crossingId, source.sharedElevation());
+    }
+
+    public record VerticalStateDiff(
+            Set<String> roadIds,
+            Set<String> nodeIds,
+            Set<String> crossingIds) {
+        public boolean hasAnyChanges() {
+            return !roadIds.isEmpty() || !nodeIds.isEmpty() || !crossingIds.isEmpty();
+        }
+    }
+
+    public static boolean hasVerticalStateChanges(RoadNetwork baseline, RoadNetwork working) {
+        return collectChangedEntities(baseline, working).hasAnyChanges();
+    }
+
+    public static VerticalStateDiff collectChangedEntities(RoadNetwork baseline, RoadNetwork working) {
+        Set<String> roadIds = collectChangedRoadIds(baseline, working);
+        Set<String> nodeIds = new LinkedHashSet<>();
+        Set<String> crossingIds = new LinkedHashSet<>();
+        if (baseline == null || working == null) {
+            return new VerticalStateDiff(Set.copyOf(roadIds), Set.of(), Set.of());
+        }
+        for (RoadNode workingNode : working.getNodes().values()) {
+            if (nodeVerticalStateDiffers(baseline.getNode(workingNode.getId()), workingNode)) {
+                nodeIds.add(workingNode.getId());
+            }
+        }
+        for (RoadCrossing workingCrossing : working.getCrossings().values()) {
+            if (crossingStateDiffers(baseline.getCrossing(workingCrossing.id()), workingCrossing)) {
+                crossingIds.add(workingCrossing.id());
+            }
+        }
+        return new VerticalStateDiff(Set.copyOf(roadIds), Set.copyOf(nodeIds), Set.copyOf(crossingIds));
     }
 
     /** 工作副本相对 baseline 发生纵断面字段变化的道路 ID。 */
