@@ -28,6 +28,7 @@ public final class RoadProfileChartRenderer {
     private static final int COLOR_GROUND = ProfileChartSeriesStyle.RAW_TERRAIN;
     private static final int COLOR_DESIGN = ProfileChartSeriesStyle.DESIGN_PROFILE;
     private static final int COLOR_BUILD = ProfileChartSeriesStyle.BUILD_PROFILE;
+    private static final int COLOR_BUILD_STALE = ProfileChartSeriesStyle.BUILD_PROFILE_STALE;
     private static final int COLOR_LABEL = 0x88AAAAAA;
     private static final int COLOR_WORLD_BOUND = 0x66FFB84D;
     private static final int COLOR_GRID = 0x18FFFFFF;
@@ -173,6 +174,40 @@ public final class RoadProfileChartRenderer {
             RoadVerticalMode verticalMode,
             RoadElevationBounds elevationBounds,
             RoadVerticalAlignment insertAlignment) {
+        return renderInteractive(
+            chart, design, controls, selectedPviIndex, activePviIndex, maxGradePercent,
+            intersections, selectedIntersectionIndex, chartHeight,
+            activeIntersectionDragIndex, activeIntersectionDragTarget, flatOverlay,
+            curveHandles, pendingPviIndex, pendingClickX, pendingClickY,
+            activeCurveHandlePvi, activeCurveHandle, mode, renderCache, verticalMode,
+            elevationBounds, insertAlignment, false);
+    }
+
+    public static RoadLongitudinalProfileRenderer.ControlInteraction renderInteractive(
+            RoadProfileChartData chart,
+            VerticalAlignmentProfileOverlay design,
+            List<ProfileControlPoint> controls,
+            int selectedPviIndex,
+            int activePviIndex,
+            double maxGradePercent,
+            List<RoadProfileIntersection> intersections,
+            int selectedIntersectionIndex,
+            float chartHeight,
+            int activeIntersectionDragIndex,
+            RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget activeIntersectionDragTarget,
+            FlatElevationProfileOverlay flatOverlay,
+            List<RoadLongitudinalProfileRenderer.CurveHandle> curveHandles,
+            int pendingPviIndex,
+            float pendingClickX,
+            float pendingClickY,
+            int activeCurveHandlePvi,
+            RoadLongitudinalProfileRenderer.ControlInteraction.CurveHandleSide activeCurveHandle,
+            ProfileChartRenderMode mode,
+            ProfileRenderCache renderCache,
+            RoadVerticalMode verticalMode,
+            RoadElevationBounds elevationBounds,
+            RoadVerticalAlignment insertAlignment,
+            boolean buildProfileStale) {
         if (chart == null || !chart.hasProfileData()) {
             return new RoadLongitudinalProfileRenderer.ControlInteraction(
                 selectedPviIndex, -1, null, null, false, false);
@@ -192,7 +227,8 @@ public final class RoadProfileChartRenderer {
         drawAxesAndGrid(drawList, layout, range, mode);
         drawSeries(
             drawList, layout, range, chart, design, flatOverlay, mode,
-            ProfileChartGuideSemantics.fromVerticalMode(verticalMode));
+            ProfileChartGuideSemantics.fromVerticalMode(verticalMode),
+            buildProfileStale);
         if (mode == ProfileChartRenderMode.EDITOR) {
             drawWorldElevationBounds(drawList, layout, range, elevationBounds);
         }
@@ -769,6 +805,20 @@ public final class RoadProfileChartRenderer {
             FlatElevationProfileOverlay flatOverlay,
             ProfileChartRenderMode mode,
             ProfileChartGuideSemantics guideSemantics) {
+        drawSeries(
+            drawList, layout, range, chart, design, flatOverlay, mode, guideSemantics, false);
+    }
+
+    private static void drawSeries(
+            ImDrawList drawList,
+            ProfileChartLayout layout,
+            RoadProfilePlotRange range,
+            RoadProfileChartData chart,
+            VerticalAlignmentProfileOverlay design,
+            FlatElevationProfileOverlay flatOverlay,
+            ProfileChartRenderMode mode,
+            ProfileChartGuideSemantics guideSemantics,
+            boolean buildProfileStale) {
         drawPolyline(
             drawList, layout, range, chart.stations(), chart.groundElevations(),
             COLOR_GROUND, mode.groundLineWidth(), false);
@@ -807,18 +857,20 @@ public final class RoadProfileChartRenderer {
                     COLOR_DESIGN, mode.roadLineWidth(), false);
             }
         }
+        int buildColor = buildProfileStale ? COLOR_BUILD_STALE : COLOR_BUILD;
         if (mode == ProfileChartRenderMode.EDITOR && chart.hasBuildSamples()) {
             drawBuildStairStep(
                 drawList,
                 layout,
                 range,
                 chart.buildSamples(),
-                COLOR_BUILD,
-                Math.max(1.4f, mode.roadLineWidth() - 0.4f));
+                buildColor,
+                Math.max(1.4f, mode.roadLineWidth() - 0.4f),
+                buildProfileStale);
         } else if (chart.buildElevations() != null && !chart.buildElevations().isEmpty()) {
             drawPolyline(
                 drawList, layout, range, chart.stations(), chart.buildElevations(),
-                COLOR_BUILD, Math.max(1.4f, mode.roadLineWidth() - 0.4f), false);
+                buildColor, Math.max(1.4f, mode.roadLineWidth() - 0.4f), buildProfileStale);
         }
         if (design != null && !design.isEmpty()) {
             drawPolyline(
@@ -857,6 +909,17 @@ public final class RoadProfileChartRenderer {
             List<BuildHeightSample> samples,
             int color,
             float thickness) {
+        drawBuildStairStep(drawList, layout, range, samples, color, thickness, false);
+    }
+
+    private static void drawBuildStairStep(
+            ImDrawList drawList,
+            ProfileChartLayout layout,
+            RoadProfilePlotRange range,
+            List<BuildHeightSample> samples,
+            int color,
+            float thickness,
+            boolean dashed) {
         if (samples == null || samples.size() < 2) {
             return;
         }
@@ -867,9 +930,17 @@ public final class RoadProfileChartRenderer {
             float y0 = layout.plotY(current.buildY(), range.minElevation(), range.maxElevation());
             float x1 = layout.plotX(next.station(), range.totalStation());
             float y1 = layout.plotY(next.buildY(), range.minElevation(), range.maxElevation());
-            drawList.addLine(x0, y0, x1, y0, color, thickness);
+            if (dashed) {
+                drawDashedLine(drawList, x0, y0, x1, y0, color, thickness);
+            } else {
+                drawList.addLine(x0, y0, x1, y0, color, thickness);
+            }
             if (next.buildY() != current.buildY()) {
-                drawList.addLine(x1, y0, x1, y1, color, thickness);
+                if (dashed) {
+                    drawDashedLine(drawList, x1, y0, x1, y1, color, thickness);
+                } else {
+                    drawList.addLine(x1, y0, x1, y1, color, thickness);
+                }
             }
         }
     }

@@ -1,5 +1,7 @@
 package com.plot.plugin.road.pipeline.profile.terrain;
 
+import com.plot.plugin.road.pipeline.profile.BuildHeightRasterPostProcessor;
+import com.plot.plugin.road.pipeline.profile.ProfileCompileOptions;
 import com.plot.plugin.road.pipeline.profile.RoadHeightRasterizer;
 import com.plot.plugin.road.pipeline.profile.environment.VerticalStationConstraints;
 import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
@@ -128,11 +130,14 @@ public final class GradeLimitedProfileSolver {
             segmentDistances,
             maxSlopePercents,
             profileStart);
-        RoadHeightRasterizer.RasterizationResult raster = RoadHeightRasterizer.rasterize(
-            designElevations,
+        RoadHeightRasterizer.RasterizationResult raster = BuildHeightRasterPostProcessor.smooth(
+            RoadHeightRasterizer.rasterize(
+                designElevations,
+                segmentDistances,
+                maxSlopePercents,
+                manualStartHeight),
             segmentDistances,
-            maxSlopePercents,
-            manualStartHeight);
+            ProfileCompileOptions.defaults());
         return new DesignSolveResult(
             designElevations,
             raster,

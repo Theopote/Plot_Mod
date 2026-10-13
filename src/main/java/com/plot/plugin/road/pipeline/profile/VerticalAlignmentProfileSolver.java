@@ -186,11 +186,14 @@ public final class VerticalAlignmentProfileSolver {
         boolean manualEndpointConstraintFeasible = envResult.manualEndpointsFeasible();
         boolean waterConstraintFeasible = envResult.waterConstraintFeasible();
 
-        RoadHeightRasterizer.RasterizationResult raster = RoadHeightRasterizer.rasterize(
-            designElevations,
+        RoadHeightRasterizer.RasterizationResult raster = BuildHeightRasterPostProcessor.smooth(
+            RoadHeightRasterizer.rasterize(
+                designElevations,
+                segmentDistances,
+                maxSlopePercents,
+                manualStartHeight),
             segmentDistances,
-            maxSlopePercents,
-            manualStartHeight);
+            ProfileCompileOptions.defaults());
 
         List<Integer> guideLine = toIntegerGuideLine(designElevations);
         List<SegmentHeightInfo> heightInfos = new ArrayList<>();

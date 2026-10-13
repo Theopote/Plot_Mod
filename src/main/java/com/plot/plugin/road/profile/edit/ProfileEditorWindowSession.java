@@ -5,10 +5,13 @@ import com.plot.plugin.road.crossing.RoadCrossingRef;
 import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.pipeline.profile.VoxelProfileCompileResult;
 import com.plot.plugin.road.profile.RoadProfileIntersection;
 import com.plot.plugin.road.ui.RoadUiContext;
 
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -32,6 +35,7 @@ public final class ProfileEditorWindowSession {
     private final Set<String> touchedRoadIds = new LinkedHashSet<>();
     private final Set<String> touchedNodeIds = new LinkedHashSet<>();
     private final Set<String> touchedCrossingIds = new LinkedHashSet<>();
+    private final Map<String, VoxelProfilePreviewSlot> voxelPreviews = new LinkedHashMap<>();
 
     private ProfileEditorWindowSession(RoadNetwork openSnapshot, long openRevision) {
         this.openSnapshot = Objects.requireNonNull(openSnapshot, "openSnapshot");
@@ -110,10 +114,67 @@ public final class ProfileEditorWindowSession {
         touchedRoadIds.clear();
         touchedNodeIds.clear();
         touchedCrossingIds.clear();
+        invalidateAllVoxelPreviews();
     }
 
     public void cancel() {
-        restore();
+        workingNetwork = openSnapshot.snapshot();
+        touchedRoadIds.clear();
+        touchedNodeIds.clear();
+        touchedCrossingIds.clear();
+        clearVoxelPreviews();
+    }
+
+    public VoxelProfilePreviewSlot voxelPreview(String roadId) {
+        if (roadId == null || roadId.isBlank()) {
+            return new VoxelProfilePreviewSlot();
+        }
+        return voxelPreviews.computeIfAbsent(roadId, ignored -> new VoxelProfilePreviewSlot());
+    }
+
+    public void markVoxelPreviewStale(String roadId) {
+        if (roadId == null || roadId.isBlank()) {
+            return;
+        }
+        VoxelProfilePreviewSlot slot = voxelPreviews.get(roadId);
+        if (slot != null) {
+            slot.markStale();
+        } else {
+            VoxelProfilePreviewSlot created = new VoxelProfilePreviewSlot();
+            created.markStale();
+            voxelPreviews.put(roadId, created);
+        }
+    }
+
+    public void markAllVoxelPreviewsStale() {
+        for (VoxelProfilePreviewSlot slot : voxelPreviews.values()) {
+            slot.markStale();
+        }
+    }
+
+    public void storeVoxelPreview(
+            String roadId,
+            VoxelProfilePreviewKey key,
+            VoxelProfileCompileResult result) {
+        if (roadId == null || roadId.isBlank()) {
+            return;
+        }
+        VoxelProfilePreviewSlot slot = voxelPreview(roadId);
+        if (result == null || !result.feasible() || !result.hasSamples()) {
+            slot.markFailed(key, result != null ? result.failureReason() : "empty result");
+            return;
+        }
+        slot.markReady(key, result);
+    }
+
+    public void invalidateAllVoxelPreviews() {
+        for (VoxelProfilePreviewSlot slot : voxelPreviews.values()) {
+            slot.markStale();
+        }
+    }
+
+    public void clearVoxelPreviews() {
+        voxelPreviews.clear();
     }
 
     public ConfirmResult confirm(RoadUiContext ctx, RoadNetwork live, RoadSystemConfig config) {

@@ -222,6 +222,28 @@ public record RoadProfileChartData(
         return buildSamples != null && buildSamples.size() >= 2;
     }
 
+    /** Replace voxel build series while retaining terrain / design / water chart series. */
+    public RoadProfileChartData withBuildProfile(
+            List<Double> newBuildElevations,
+            List<BuildHeightSample> newBuildSamples) {
+        return new RoadProfileChartData(
+            roadId,
+            totalStation,
+            stations,
+            groundElevations,
+            previewElevations,
+            newBuildElevations != null ? List.copyOf(newBuildElevations) : List.of(),
+            newBuildSamples != null ? List.copyOf(newBuildSamples) : List.of(),
+            guideElevations,
+            controlPoints,
+            intersections,
+            manualEndpointConstraintFeasible,
+            waterConstraintFeasible,
+            waterElevations,
+            waterCrossings,
+            constructionRuns);
+    }
+
     public boolean hasWaterElevations() {
         if (waterElevations == null || waterElevations.isEmpty()) {
             return false;

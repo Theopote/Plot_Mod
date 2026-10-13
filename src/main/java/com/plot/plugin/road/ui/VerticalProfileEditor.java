@@ -26,8 +26,15 @@ import com.plot.plugin.road.profile.RoadProfileIntersection;
 import com.plot.plugin.road.profile.RoadProfileIntersectionDragEditor;
 import com.plot.plugin.road.profile.RoadProfileIntersectionResolver;
 import com.plot.plugin.road.profile.RoadProfileIntersectionWarningResolver;
+import com.plot.plugin.road.pipeline.profile.ProfileCompileOptions;
+import com.plot.plugin.road.pipeline.profile.RoadVoxelProfileCompiler;
+import com.plot.plugin.road.pipeline.profile.VoxelProfileCompileResult;
 import com.plot.plugin.road.profile.edit.ProfileEditSession;
 import com.plot.plugin.road.profile.edit.ProfileEditorWindowSession;
+import com.plot.plugin.road.profile.edit.VoxelProfilePreviewKey;
+import com.plot.plugin.road.profile.edit.VoxelProfilePreviewSlot;
+import com.plot.plugin.road.profile.edit.VoxelProfilePreviewState;
+import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.core.terrain.FlatTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.world.World;
@@ -622,11 +629,24 @@ final class VerticalProfileEditor {
             RoadProfileChartData chartData,
             FlatElevationProfileOverlay flatOverlay,
             List<RoadProfileIntersection> intersections) {
+        return resolveRenderCache(ctx, network, road, chartData, flatOverlay, intersections, null);
+    }
+
+    private ProfileRenderCache resolveRenderCache(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road,
+            RoadProfileChartData chartData,
+            FlatElevationProfileOverlay flatOverlay,
+            List<RoadProfileIntersection> intersections,
+            VoxelProfilePreviewSlot voxelSlot) {
         long cacheKey = ProfileRenderCache.computeKey(
             road.getId(),
             ctx.networkManager().getNetworkRevision(),
             ctx.previewManager().getTerrainRevision(),
-            chartData);
+            chartData,
+            voxelSlot != null ? voxelSlot.state().ordinal() : -1,
+            voxelSlot != null && voxelSlot.key() != null ? voxelSlot.key().hashCode() : 0);
         if (profileRenderCache != null
                 && profileRenderCache.cacheKey() == cacheKey
                 && road.getId().equals(editorRoadId)) {
@@ -693,6 +713,103 @@ final class VerticalProfileEditor {
             flatMode,
             ctx.previewManager().needsPreviewRecalc());
         ProfileChartLegend.renderIntersectionLegend(intersections);
+        renderVoxelProfileControls(ctx, road);
+    }
+
+    private void renderVoxelProfileControls(RoadUiContext ctx, Road road) {
+        if (windowSession == null || road == null) {
+            return;
+        }
+        VoxelProfilePreviewSlot slot = windowSession.voxelPreview(road.getId());
+        ImGui.spacing();
+        String statusKey = switch (slot.state()) {
+            case READY -> "plugin.road.voxel_profile_ready";
+            case STALE, NOT_COMPUTED -> "plugin.road.voxel_profile_stale";
+            case COMPUTING -> "plugin.road.voxel_profile_computing";
+            case FAILED -> "plugin.road.voxel_profile_failed";
+        };
+        int statusColor = slot.state() == VoxelProfilePreviewState.READY
+            ? PluginUiColors.STATUS_OK
+            : slot.state() == VoxelProfilePreviewState.FAILED
+                ? PluginUiColors.WARNING
+                : PluginUiColors.HINT_GRAY;
+        ImGui.textColored(statusColor, PlotI18n.tr(statusKey));
+        if (slot.state() == VoxelProfilePreviewState.FAILED && !slot.failureReason().isBlank()) {
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, slot.failureReason());
+        }
+        if (ImGui.button(
+                PlotI18n.tr("plugin.road.update_voxel_profile") + "##update_voxel_profile")) {
+            updateVoxelProfilePreview(ctx, road);
+        }
+    }
+
+    private void updateVoxelProfilePreview(RoadUiContext ctx, Road road) {
+        if (windowSession == null || road == null) {
+            return;
+        }
+        RoadNetwork editingNetwork = windowSession.editingNetwork();
+        Road editingRoad = editingNetwork.getRoad(road.getId());
+        if (editingRoad == null) {
+            return;
+        }
+        // Ensure draft alignment is visible on the working copy for sampling.
+        RoadVerticalAlignment effective = profileEditSession.effectiveAlignment(editingRoad);
+        if (effective != null) {
+            editingRoad.setVerticalAlignment(effective);
+        }
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        ProfileCompileOptions options = ProfileCompileOptions.defaults();
+        FlatVerticalIntent flatIntent = editingRoad.getFlatVerticalIntent();
+        Double flatY = flatIntent != null ? flatIntent.getBaseElevation() : null;
+        VoxelProfilePreviewKey key = VoxelProfilePreviewKey.of(
+            editingRoad.getId(),
+            effective,
+            editingRoad.getVerticalMode(),
+            flatY,
+            options);
+        VoxelProfilePreviewSlot slot = windowSession.voxelPreview(editingRoad.getId());
+        slot.markComputing(key);
+        try {
+            RoadGenerator generator = gradeSeparationGenerator(
+                ctx, config, System.identityHashCode(config) ^ editingRoad.getId().hashCode());
+            TerrainSampler terrain = resolveTerrainSampler(generator);
+            VoxelProfileCompileResult result = RoadVoxelProfileCompiler.compile(
+                editingNetwork,
+                editingRoad,
+                config,
+                generator,
+                terrain,
+                ctx.previewManager().getLastNodeElevations(),
+                options);
+            windowSession.storeVoxelPreview(editingRoad.getId(), key, result);
+            profileRenderCache = null;
+        } catch (RuntimeException ex) {
+            slot.markFailed(key, ex.getMessage() != null ? ex.getMessage() : "compile error");
+        }
+    }
+
+    private RoadProfileChartData resolveEffectiveChartData(Road road, RoadProfileChartData base) {
+        if (base == null || road == null || windowSession == null) {
+            return base;
+        }
+        VoxelProfilePreviewSlot slot = windowSession.voxelPreview(road.getId());
+        if (slot.result() != null
+                && slot.result().chartOverlay() != null
+                && slot.result().chartOverlay().hasBuildSamples()
+                && (slot.isReady() || slot.isStale() || slot.state() == VoxelProfilePreviewState.FAILED)) {
+            return slot.result().chartOverlay();
+        }
+        return base;
+    }
+
+    private boolean isVoxelBuildProfileStale(Road road) {
+        if (windowSession == null || road == null) {
+            return false;
+        }
+        VoxelProfilePreviewSlot slot = windowSession.voxelPreview(road.getId());
+        return slot.state() == VoxelProfilePreviewState.STALE
+            || slot.state() == VoxelProfilePreviewState.NOT_COMPUTED
+            || slot.state() == VoxelProfilePreviewState.FAILED;
     }
 
     private void renderInteractiveEditor(
@@ -707,6 +824,8 @@ final class VerticalProfileEditor {
         design = profileEditSession.effectiveDesignOverlay(editingNetwork, road).orElse(null);
         boolean flatMode = RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT;
         RoadVerticalAlignment effectiveAlignment = profileEditSession.effectiveAlignment(road);
+        RoadProfileChartData effectiveChart = resolveEffectiveChartData(road, chartData);
+        boolean buildProfileStale = isVoxelBuildProfileStale(road);
         List<ProfileControlPoint> points = flatMode
             ? List.of()
             : VerticalProfileControlPoints.forAlignment(editingNetwork, road, effectiveAlignment);
@@ -718,11 +837,12 @@ final class VerticalProfileEditor {
             : ctx.networkManager().getConfig().getMaxSlope();
         RoadSystemConfig config = ctx.networkManager().getConfig();
         List<RoadProfileIntersection> baseIntersections = resolveIntersections(
-            ctx, editingNetwork, road, config, chartData, activeIntersectionDragIndex < 0);
+            ctx, editingNetwork, road, config, effectiveChart, activeIntersectionDragIndex < 0);
         List<RoadProfileIntersection> intersections =
             profileEditSession.effectiveIntersections(baseIntersections);
         ProfileRenderCache renderCache = resolveRenderCache(
-            ctx, liveNetwork, road, chartData, flatOverlay, baseIntersections);
+            ctx, liveNetwork, road, effectiveChart, flatOverlay, baseIntersections,
+            windowSession != null ? windowSession.voxelPreview(road.getId()) : null);
         int chartSelectedPvi = flatMode ? -1 : editorState.selectedProfilePvi;
         int chartActivePvi = flatMode ? -1 : editorState.activeProfilePvi;
         List<RoadLongitudinalProfileRenderer.CurveHandle> curveHandles = flatMode
@@ -731,13 +851,13 @@ final class VerticalProfileEditor {
         if (!flatMode) {
             renderProfileInteractionHint();
         }
-        renderManualEndpointConstraintWarning(chartData);
-        renderWaterConstraintWarning(chartData);
+        renderManualEndpointConstraintWarning(effectiveChart);
+        renderWaterConstraintWarning(effectiveChart);
         RoadElevationBounds elevationBounds = resolveElevationBounds(ctx);
         profileEditSession.setElevationBounds(elevationBounds);
         RoadLongitudinalProfileRenderer.ControlInteraction interaction =
             RoadProfileChartRenderer.renderInteractive(
-                chartData, design, points, chartSelectedPvi, chartActivePvi, maxGrade,
+                effectiveChart, design, points, chartSelectedPvi, chartActivePvi, maxGrade,
                 intersections, selectedIntersectionIndex, chartHeight,
                 activeIntersectionDragIndex, activeIntersectionDragTarget, flatOverlay,
                 curveHandles,
@@ -750,7 +870,8 @@ final class VerticalProfileEditor {
                 renderCache,
                 road.getVerticalMode(),
                 elevationBounds,
-                effectiveAlignment);
+                effectiveAlignment,
+                buildProfileStale);
         if (interaction.intersectionDragStarted()) {
             profileEditSession.beginIntersectionEdit(baseIntersections);
         }
@@ -1365,6 +1486,9 @@ final class VerticalProfileEditor {
     private void notifyWorkingProfileChanged() {
         profileRenderCache = null;
         invalidateIntersectionCache();
+        if (windowSession != null && editorRoadId != null && !editorRoadId.isBlank()) {
+            windowSession.markVoxelPreviewStale(editorRoadId);
+        }
     }
 
     private void propagateJunctionGrades(RoadUiContext ctx, RoadNetwork network, Road road) {

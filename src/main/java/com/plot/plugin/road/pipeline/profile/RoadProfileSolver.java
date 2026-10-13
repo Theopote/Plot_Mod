@@ -272,11 +272,8 @@ public final class RoadProfileSolver {
                 manualStartHeight,
                 manualEndHeight,
                 flattenPolicy);
-            raster = RoadHeightRasterizer.rasterize(
-                designElevations,
-                distances,
-                effectiveMaxSlopes,
-                manualStartHeight);
+            // GradeLimitedProfileSolver already applies BuildHeightRasterPostProcessor.
+            raster = terrainSolve.rasterization();
         } else {
             EnvironmentFeasibilityProjector.EnvironmentFeasibilityResult envResult =
                 EnvironmentFeasibilityProjector.project(
@@ -293,11 +290,14 @@ public final class RoadProfileSolver {
             designElevations = envResult.designElevations();
             manualEndpointConstraintFeasible = envResult.manualEndpointsFeasible();
             waterConstraintFeasible = envResult.waterConstraintFeasible();
-            raster = RoadHeightRasterizer.rasterize(
-                designElevations,
+            raster = BuildHeightRasterPostProcessor.smooth(
+                RoadHeightRasterizer.rasterize(
+                    designElevations,
+                    distances,
+                    effectiveMaxSlopes,
+                    manualStartHeight),
                 distances,
-                effectiveMaxSlopes,
-                manualStartHeight);
+                ProfileCompileOptions.defaults());
         }
 
         List<SegmentHeightInfo> heightInfos = buildHeightInfos(

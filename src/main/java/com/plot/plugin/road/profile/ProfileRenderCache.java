@@ -28,6 +28,16 @@ public record ProfileRenderCache(
             long networkRevision,
             long terrainRevision,
             RoadProfileChartData chart) {
+        return computeKey(roadId, networkRevision, terrainRevision, chart, -1, 0);
+    }
+
+    public static long computeKey(
+            String roadId,
+            long networkRevision,
+            long terrainRevision,
+            RoadProfileChartData chart,
+            int voxelPreviewStateOrdinal,
+            int voxelPreviewKeyHash) {
         Objects.requireNonNull(roadId, "roadId");
         int chartFingerprint = chart == null ? 0 : Objects.hash(
             chart.totalStation(),
@@ -36,7 +46,13 @@ public record ProfileRenderCache(
             chart.previewElevations() != null ? chart.previewElevations().hashCode() : 0,
             chart.buildElevations() != null ? chart.buildElevations().hashCode() : 0,
             chart.buildSamples() != null ? chart.buildSamples().hashCode() : 0);
-        return Objects.hash(roadId, networkRevision, terrainRevision, chartFingerprint);
+        return Objects.hash(
+            roadId,
+            networkRevision,
+            terrainRevision,
+            chartFingerprint,
+            voxelPreviewStateOrdinal,
+            voxelPreviewKeyHash);
     }
 
     public static ProfileRenderCache build(
