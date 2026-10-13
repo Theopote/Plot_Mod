@@ -4,11 +4,19 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 /**
- * Traces outward from outer shoulder surface columns toward natural terrain,
- * checking that slope mask columns exist while cut/fill is still required.
+ * Traces outward from outer shoulder surface columns along the local shoulder normal
+ * (away from the road surface centroid) toward natural terrain.
  */
 public final class SlopeShoulderTerrainTraceValidator {
+
+    private static final double DIRECTION_EPSILON = 1e-6;
+    private static final double LOCAL_CENTER_RADIUS = 4.0;
 
     private SlopeShoulderTerrainTraceValidator() {
     }
@@ -17,86 +25,112 @@ public final class SlopeShoulderTerrainTraceValidator {
         if (plan == null || terrain == null || plan.slopeEntries().isEmpty()) {
             return 0;
         }
-        Bounds bounds = Bounds.from(plan);
-        if (bounds == null) {
+        List<SurfaceSample> surfaceSamples = collectSurfaceSamples(plan);
+        if (surfaceSamples.isEmpty()) {
             return 0;
         }
-        if (bounds.spanX() >= bounds.spanZ()) {
-            return traceEastWestRoad(plan, terrain, bounds);
-        }
-        return traceNorthSouthRoad(plan, terrain, bounds);
-    }
-
-    private static int traceEastWestRoad(RoadCorridorPlan plan, TerrainSampler terrain, Bounds bounds) {
         int gaps = 0;
-        for (int x = bounds.minX(); x <= bounds.maxX(); x++) {
-            Integer roadY = roadYOnColumn(plan, x, bounds.minZ(), bounds.maxZ());
-            if (roadY == null) {
+        Set<String> tracedRays = new HashSet<>();
+        for (SurfaceSample outer : outerShoulderSamples(plan, surfaceSamples)) {
+            Vec2d localCenter = localSurfaceCenter(surfaceSamples, outer.planPoint());
+            Vec2d outward = outer.planPoint().subtract(localCenter);
+            if (outward.lengthSquared() < DIRECTION_EPSILON) {
                 continue;
             }
-            gaps += traceLine(plan, terrain, x, bounds.minZ(), 0, -1, roadY);
-            gaps += traceLine(plan, terrain, x, bounds.maxZ(), 0, 1, roadY);
+            Vec2d direction = outward.normalize();
+            String rayKey = rayKey(outer.planPoint(), direction);
+            if (!tracedRays.add(rayKey)) {
+                continue;
+            }
+            gaps += traceRay(plan, terrain, outer.planPoint(), direction, outer.roadY());
         }
         return gaps;
     }
 
-    private static int traceNorthSouthRoad(RoadCorridorPlan plan, TerrainSampler terrain, Bounds bounds) {
-        int gaps = 0;
-        for (int z = bounds.minZ(); z <= bounds.maxZ(); z++) {
-            Integer roadY = roadYOnRow(plan, bounds.minX(), bounds.maxX(), z);
-            if (roadY == null) {
+    private static List<SurfaceSample> collectSurfaceSamples(RoadCorridorPlan plan) {
+        List<SurfaceSample> samples = new ArrayList<>();
+        for (var entry : plan.surfaceMask().entries()) {
+            SurfaceCell cell = entry.getValue();
+            if (!plan.surfaceMask().isRoadSurfaceLayer(cell.layer())) {
                 continue;
             }
-            gaps += traceLine(plan, terrain, bounds.minX(), z, -1, 0, roadY);
-            gaps += traceLine(plan, terrain, bounds.maxX(), z, 1, 0, roadY);
+            samples.add(new SurfaceSample(cell.planPoint(), cell.surfaceY(), entry.getKey()));
         }
-        return gaps;
+        return samples;
     }
 
-    private static Integer roadYOnColumn(RoadCorridorPlan plan, int x, int minZ, int maxZ) {
-        for (int z = minZ; z <= maxZ; z++) {
-            SurfaceCell cell = plan.surfaceMask().get(new ColumnKey(x, z));
-            if (cell != null && plan.surfaceMask().isRoadSurfaceLayer(cell.layer())) {
-                return cell.surfaceY();
+    private static List<SurfaceSample> outerShoulderSamples(
+            RoadCorridorPlan plan,
+            List<SurfaceSample> surfaceSamples) {
+        List<SurfaceSample> outer = new ArrayList<>();
+        for (SurfaceSample sample : surfaceSamples) {
+            if (isExposedShoulderEdge(plan, sample.columnKey())) {
+                outer.add(sample);
             }
         }
-        return null;
+        return outer;
     }
 
-    private static Integer roadYOnRow(RoadCorridorPlan plan, int minX, int maxX, int z) {
-        for (int x = minX; x <= maxX; x++) {
-            SurfaceCell cell = plan.surfaceMask().get(new ColumnKey(x, z));
-            if (cell != null && plan.surfaceMask().isRoadSurfaceLayer(cell.layer())) {
-                return cell.surfaceY();
+    private static boolean isExposedShoulderEdge(RoadCorridorPlan plan, ColumnKey key) {
+        int[][] offsets = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int[] offset : offsets) {
+            ColumnKey neighbor = new ColumnKey(key.worldX() + offset[0], key.worldZ() + offset[1]);
+            SurfaceCell cell = plan.surfaceMask().get(neighbor);
+            if (cell == null || !plan.surfaceMask().isRoadSurfaceLayer(cell.layer())) {
+                return true;
             }
         }
-        return null;
+        return false;
     }
 
-    private static int traceLine(
+    private static Vec2d localSurfaceCenter(List<SurfaceSample> samples, Vec2d point) {
+        double sumX = 0;
+        double sumY = 0;
+        int count = 0;
+        double radiusSq = LOCAL_CENTER_RADIUS * LOCAL_CENTER_RADIUS;
+        for (SurfaceSample sample : samples) {
+            if (sample.planPoint().distanceSquared(point) <= radiusSq + DIRECTION_EPSILON) {
+                sumX += sample.planPoint().x;
+                sumY += sample.planPoint().y;
+                count++;
+            }
+        }
+        if (count == 0) {
+            return point;
+        }
+        return new Vec2d(sumX / count, sumY / count);
+    }
+
+    private static String rayKey(Vec2d origin, Vec2d direction) {
+        int octant = (int) Math.round(Math.atan2(direction.y, direction.x) * 4.0 / Math.PI);
+        int station = (int) Math.floor(origin.x + origin.y * 0.01);
+        return station + ":" + octant;
+    }
+
+    private static int traceRay(
             RoadCorridorPlan plan,
             TerrainSampler terrain,
-            int startX,
-            int startZ,
-            int dx,
-            int dz,
+            Vec2d shoulderPoint,
+            Vec2d direction,
             int roadY) {
         int maxRun = RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS;
-        int x = startX;
-        int z = startZ;
+        double x = shoulderPoint.x;
+        double y = shoulderPoint.y;
         for (int step = 0; step < maxRun; step++) {
-            x += dx;
-            z += dz;
-            Vec2d planPoint = new Vec2d(x, z);
-            if (!terrain.isChunkLoaded(planPoint) && !terrain.isChunkLoaded(x, z)) {
+            x += direction.x;
+            y += direction.y;
+            Vec2d planPoint = new Vec2d(x, y);
+            int worldX = (int) Math.round(x);
+            int worldZ = (int) Math.round(y);
+            if (!terrain.isChunkLoaded(planPoint) && !terrain.isChunkLoaded(worldX, worldZ)) {
                 return 0;
             }
             int groundY = terrain.sampleSurfaceY(planPoint);
             if (groundY <= roadY + 1) {
                 return 0;
             }
-            if (plan.slopeCell(new ColumnKey(x, z)) == null) {
-                if (!hasSlopeFurtherOut(plan, x, z, dx, dz)) {
+            if (plan.slopeCell(new ColumnKey(worldX, worldZ)) == null) {
+                if (!hasSlopeFurtherOut(plan, x, y, direction)) {
                     return 0;
                 }
                 return 1;
@@ -107,48 +141,21 @@ public final class SlopeShoulderTerrainTraceValidator {
 
     private static boolean hasSlopeFurtherOut(
             RoadCorridorPlan plan,
-            int x,
-            int z,
-            int dx,
-            int dz) {
+            double x,
+            double y,
+            Vec2d direction) {
         for (int i = 0; i < 8; i++) {
-            x += dx;
-            z += dz;
-            if (plan.slopeCell(new ColumnKey(x, z)) != null) {
+            x += direction.x;
+            y += direction.y;
+            int worldX = (int) Math.round(x);
+            int worldZ = (int) Math.round(y);
+            if (plan.slopeCell(new ColumnKey(worldX, worldZ)) != null) {
                 return true;
             }
         }
         return false;
     }
 
-    private record Bounds(int minX, int maxX, int minZ, int maxZ) {
-        int spanX() {
-            return maxX - minX;
-        }
-
-        int spanZ() {
-            return maxZ - minZ;
-        }
-
-        static Bounds from(RoadCorridorPlan plan) {
-            int minX = Integer.MAX_VALUE;
-            int maxX = Integer.MIN_VALUE;
-            int minZ = Integer.MAX_VALUE;
-            int maxZ = Integer.MIN_VALUE;
-            boolean any = false;
-            for (var entry : plan.surfaceMask().entries()) {
-                SurfaceCell cell = entry.getValue();
-                if (!plan.surfaceMask().isRoadSurfaceLayer(cell.layer())) {
-                    continue;
-                }
-                any = true;
-                ColumnKey key = entry.getKey();
-                minX = Math.min(minX, key.worldX());
-                maxX = Math.max(maxX, key.worldX());
-                minZ = Math.min(minZ, key.worldZ());
-                maxZ = Math.max(maxZ, key.worldZ());
-            }
-            return any ? new Bounds(minX, maxX, minZ, maxZ) : null;
-        }
+    private record SurfaceSample(Vec2d planPoint, int roadY, ColumnKey columnKey) {
     }
 }

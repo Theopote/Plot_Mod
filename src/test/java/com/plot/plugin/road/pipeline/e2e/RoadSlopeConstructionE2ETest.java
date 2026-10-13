@@ -56,6 +56,23 @@ class RoadSlopeConstructionE2ETest {
     }
 
     @Test
+    void descendingTerrainHasFewerShoulderTraceGapsThanFlatPlateau() {
+        RoadNetwork network = straightRoad("trace-compare", 64, 64);
+        RoadSystemConfig config = slopeEnabledConfig();
+
+        RoadGenerationResult flat = singleEdgePreview(
+            network, config, new FlatTerrainSampler(90));
+        RoadGenerationResult descending = singleEdgePreview(
+            network, config, descendingGroundSampler());
+
+        assertEquals(0, flat.missingRoadSurfaceCount);
+        assertEquals(0, descending.missingRoadSurfaceCount);
+        assertTrue(descending.shoulderTraceGapCount <= flat.shoulderTraceGapCount,
+            "descending ground should not increase shoulder trace gaps vs flat plateau, flat="
+                + flat.shoulderTraceGapCount + " descending=" + descending.shoulderTraceGapCount);
+    }
+
+    @Test
     void straightCutRoadPopulatesShoulderTraceMetricAfterPipeline() {
         RoadNetwork network = straightRoad("trace-straight", 64, 64);
         RoadGenerationResult edge = singleEdgePreview(
@@ -340,6 +357,20 @@ class RoadSlopeConstructionE2ETest {
             }
         }
         return count;
+    }
+
+    private static TerrainSampler descendingGroundSampler() {
+        return new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return (int) Math.max(64, 90 - Math.abs(planPoint.y) * 3);
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= sampleSurfaceY(new Vec2d(x, z));
+            }
+        };
     }
 
     private static BlockPos findRoadSurface(RoadGenerationResult edge, int x, int z) {

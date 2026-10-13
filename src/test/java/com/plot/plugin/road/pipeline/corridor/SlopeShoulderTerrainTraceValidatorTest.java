@@ -35,14 +35,17 @@ class SlopeShoulderTerrainTraceValidatorTest {
         RoadCorridorPlan plan = new RoadCorridorPlan();
         Vec2d point = new Vec2d(0, 0);
         for (int x = 0; x <= 20; x++) {
-            plan.surfaceMask().put(
-                new ColumnKey(x, 0),
-                new SurfaceCell(new Vec2d(x, 0), 64, com.plot.plugin.road.solid.RoadSolidLayer.ROAD, "minecraft:stone"));
-            for (int z = -20; z <= -1; z++) {
+            for (int z = -1; z <= 1; z++) {
+                plan.surfaceMask().put(
+                    new ColumnKey(x, z),
+                    new SurfaceCell(new Vec2d(x, z), 64,
+                        com.plot.plugin.road.solid.RoadSolidLayer.ROAD, "minecraft:stone"));
+            }
+            for (int z = -20; z <= -2; z++) {
                 plan.slopeCellOrCreate(new ColumnKey(x, z), new Vec2d(x, z))
                     .mergeCut(64 - z, "minecraft:stone");
             }
-            for (int z = 1; z <= 20; z++) {
+            for (int z = 2; z <= 20; z++) {
                 plan.slopeCellOrCreate(new ColumnKey(x, z), new Vec2d(x, z))
                     .mergeCut(64 + z, "minecraft:stone");
             }
