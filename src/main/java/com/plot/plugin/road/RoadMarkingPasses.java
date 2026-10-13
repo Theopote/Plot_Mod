@@ -1,5 +1,6 @@
 package com.plot.plugin.road;
 
+import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 
@@ -21,13 +22,22 @@ public final class RoadMarkingPasses {
         if (crossSection == null) {
             return passes;
         }
-        switch (crossSection.centerLineStyle) {
-            case SINGLE_DASHED -> passes.add(new Pass(0.0, false));
-            case DOUBLE_SOLID -> {
-                passes.add(new Pass(-0.3, true));
-                passes.add(new Pass(0.3, true));
+        if (crossSection.includeMedian && crossSection.medianWidth > 0) {
+            // Place just outside the median band so markings do not overwrite median columns.
+            double edge = RoadDimensionUtils.halfExtentFromCenter(crossSection.medianWidth) + 0.5;
+            if (crossSection.centerLineStyle == CenterLineStyle.DOUBLE_SOLID) {
+                passes.add(new Pass(-edge, true));
+                passes.add(new Pass(edge, true));
             }
-            default -> {
+        } else {
+            switch (crossSection.centerLineStyle) {
+                case SINGLE_DASHED -> passes.add(new Pass(0.0, false));
+                case DOUBLE_SOLID -> {
+                    passes.add(new Pass(-0.3, true));
+                    passes.add(new Pass(0.3, true));
+                }
+                default -> {
+                }
             }
         }
         if (crossSection.laneDividers) {

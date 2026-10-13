@@ -72,6 +72,7 @@ public final class RoadCorridorClearancePass {
 
     static boolean hasObstruction(TerrainSampler terrain, int worldX, int y, int worldZ) {
         return terrain.isConstructionVolumeObstruction(worldX, y, worldZ)
+            || terrain.isSolidBlock(worldX, y, worldZ)
             || terrain.isRoadClearableDecoration(worldX, y, worldZ);
     }
 }

@@ -129,7 +129,7 @@ public final class RoadThemeCatalog {
         RoadTheme theme = new RoadTheme("snow");
         theme.roadMaterial = "minecraft:packed_ice";
         theme.sidewalkMaterial = "minecraft:snow_block";
-        theme.shoulderMaterial = "minecraft:powder_snow";
+        theme.shoulderMaterial = "minecraft:snow_block";
         theme.markingMaterial = "minecraft:blue_ice";
         theme.fillSlopeMaterial = "minecraft:snow_block";
         theme.cutSlopeMaterial = "minecraft:ice";

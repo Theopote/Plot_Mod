@@ -85,7 +85,7 @@ public final class RoadMaterialUtils {
         return switch (material) {
             case "material.plot.concrete", "混凝土" -> "minecraft:white_concrete";
             case "material.plot.gravel" -> DEFAULT_SLOPE_FILL_BLOCK;
-            case "砂砾" -> "minecraft:gravel";
+            case "砂砾" -> DEFAULT_SLOPE_FILL_BLOCK;
             case "material.plot.planks", "木板" -> "minecraft:oak_planks";
             case "material.plot.stone", "石头" -> "minecraft:stone";
             default -> null;

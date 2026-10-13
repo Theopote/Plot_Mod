@@ -2,6 +2,7 @@ package com.plot.plugin.road.pipeline.corridor;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadConstructionType;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy.MaterialRole;
 import com.plot.plugin.road.pipeline.construction.RoadEarthworkPolicy;
 import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
 import com.plot.plugin.road.solid.RoadSolidLayer;
@@ -31,7 +32,7 @@ public final class RoadCorridorSolidEmitter {
         }
         String fillMaterial = defaultFillMaterialId != null && !defaultFillMaterialId.isBlank()
             ? defaultFillMaterialId
-            : host.resolveBlockId(host.config().getFillSlopeMaterial());
+            : host.resolveBlockId(host.config().getFillSlopeMaterial(), MaterialRole.FILL_SLOPE);
 
         Set<ColumnKey> columns = new HashSet<>();
         for (var entry : plan.surfaceMask().entries()) {
@@ -73,10 +74,10 @@ public final class RoadCorridorSolidEmitter {
             : slope != null ? slope.planPoint() : new Vec2d(key.worldX(), key.worldZ());
         int groundY = terrain.sampleSurfaceY(planPoint);
         Integer surfaceY = surface != null ? surface.surfaceY() : null;
-        RoadConstructionType constructionType = resolveConstructionType(plan, key, clearance);
+        RoadConstructionType constructionType = clearance != null ? clearance.constructionType() : null;
 
         if (slope != null && slope.hasFill()
-                && RoadEarthworkPolicy.of(constructionType).allowsOpenSubgradeFill()) {
+                && allowsOpenCorridorEarthwork(constructionType)) {
             int fillTop = surfaceY != null
                 ? Math.min(slope.fillSurfaceY(), surfaceY - 1)
                 : slope.fillSurfaceY();
@@ -97,7 +98,7 @@ public final class RoadCorridorSolidEmitter {
         }
 
         if (slope != null && slope.hasCut() && groundY > slope.cutSurfaceY()
-                && RoadEarthworkPolicy.of(constructionType).allowsCorridorBatter()) {
+                && allowsOpenCorridorEarthwork(constructionType)) {
             for (int y = slope.cutSurfaceY() + 1; y <= groundY; y++) {
                 solids.add(
                     planPoint,
@@ -124,7 +125,7 @@ public final class RoadCorridorSolidEmitter {
             int surfaceY,
             int groundY,
             int bridgeThreshold) {
-        if (!RoadEarthworkPolicy.of(constructionType).allowsOpenSubgradeFill()) {
+        if (!allowsOpenCorridorEarthwork(constructionType)) {
             return false;
         }
         if (constructionType == RoadConstructionType.FILL) {
@@ -133,43 +134,8 @@ public final class RoadCorridorSolidEmitter {
         return surfaceY - groundY <= bridgeThreshold;
     }
 
-    /**
-     * Prefer same-column clearance; structure-interior on the same longitudinal station wins
-     * so lateral batter beside a deck/tunnel does not fill as ordinary embankment.
-     */
-    private static RoadConstructionType resolveConstructionType(
-            RoadCorridorPlan plan,
-            ColumnKey key,
-            ClearanceCell clearance) {
-        if (clearance != null
-                && clearance.constructionType() != null
-                && clearance.constructionType().isStructureInterior()) {
-            return clearance.constructionType();
-        }
-        RoadConstructionType structure = null;
-        int structureDist = Integer.MAX_VALUE;
-        RoadConstructionType best = clearance != null ? clearance.constructionType() : null;
-        int bestDist = best != null ? 0 : Integer.MAX_VALUE;
-        int maxReach = com.plot.plugin.road.geometry.RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS;
-        for (var entry : plan.clearanceEntries()) {
-            ColumnKey other = entry.getKey();
-            if (other.worldX() != key.worldX() && other.worldZ() != key.worldZ()) {
-                continue;
-            }
-            RoadConstructionType type = entry.getValue().constructionType();
-            if (type == null) {
-                continue;
-            }
-            int dist = Math.abs(other.worldX() - key.worldX()) + Math.abs(other.worldZ() - key.worldZ());
-            if (type.isStructureInterior() && dist <= maxReach && dist < structureDist) {
-                structureDist = dist;
-                structure = type;
-            }
-            if (dist < bestDist) {
-                bestDist = dist;
-                best = type;
-            }
-        }
-        return structure != null ? structure : best;
+    private static boolean allowsOpenCorridorEarthwork(RoadConstructionType constructionType) {
+        return constructionType == null
+            || RoadEarthworkPolicy.of(constructionType).allowsOpenSubgradeFill();
     }
 }

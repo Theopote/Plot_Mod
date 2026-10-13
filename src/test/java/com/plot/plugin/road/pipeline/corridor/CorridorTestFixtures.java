@@ -42,7 +42,7 @@ final class CorridorTestFixtures {
             }
 
             @Override
-            public String resolveBlockId(String material) {
+            public String resolveBlockId(String material, com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy.MaterialRole role) {
                 return material != null && !material.isBlank() ? material : "minecraft:stone";
             }
 

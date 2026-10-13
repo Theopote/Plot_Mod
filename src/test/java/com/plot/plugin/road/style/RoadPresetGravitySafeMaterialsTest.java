@@ -1,47 +1,54 @@
 package com.plot.plugin.road.style;
 
+import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy;
 import org.junit.jupiter.api.Test;
-
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
- * Built-in presets should not place gravity-affected blocks (sand/gravel) on shoulders or slopes.
+ * Built-in presets and themes must resolve to gravity-safe materials across all roles.
  */
 class RoadPresetGravitySafeMaterialsTest {
 
-    private static final Set<String> GRAVITY_BLOCKS = Set.of(
-        "minecraft:gravel",
-        "minecraft:sand",
-        "minecraft:red_sand",
-        "minecraft:suspicious_sand",
-        "minecraft:suspicious_gravel");
-
     @Test
-    void builtinStylesAvoidGravityBlocksOnShoulderAndSlopes() {
+    void builtinStylesAvoidGravityBlocksOnAllRoles() {
+        RoadSystemConfig defaults = new RoadSystemConfig("gravity-safe");
         for (RoadStyle style : RoadStyleCatalog.defaultStyles()) {
-            assertNotGravity(style.shoulderMaterial, style.id + " shoulder");
-            assertNotGravity(style.fillSlopeMaterial, style.id + " fillSlope");
-            assertNotGravity(style.cutSlopeMaterial, style.id + " cutSlope");
+            ResolvedCrossSection resolved = ResolvedCrossSection.resolve(style.toCrossSection(), defaults);
+            assertSafe(resolved.carriagewayMaterial.getPrimaryMaterial(), style.id + " carriageway");
+            assertSafe(resolved.shoulderMaterial, style.id + " shoulder");
+            assertSafe(resolved.sidewalkMaterial, style.id + " sidewalk");
+            assertSafe(resolved.bikeLaneMaterial, style.id + " bike");
+            assertSafe(resolved.medianMaterial, style.id + " median");
+            assertSafe(resolved.markingMaterial, style.id + " marking");
+            assertSafe(resolved.fillSlopeMaterial, style.id + " fillSlope");
+            assertSafe(resolved.cutSlopeMaterial, style.id + " cutSlope");
+            assertSafe(style.roadMaterial, style.id + " roadMaterial raw");
         }
     }
 
     @Test
-    void builtinThemesAvoidGravityBlocksOnShoulderAndSlopes() {
+    void builtinThemesAvoidGravityBlocksOnAllRoles() {
         for (RoadTheme theme : RoadThemeCatalog.defaultThemes()) {
-            assertNotGravity(theme.shoulderMaterial, theme.id + " shoulder");
-            assertNotGravity(theme.fillSlopeMaterial, theme.id + " fillSlope");
-            assertNotGravity(theme.cutSlopeMaterial, theme.id + " cutSlope");
+            assertSafe(theme.roadMaterial, theme.id + " road");
+            assertSafe(theme.sidewalkMaterial, theme.id + " sidewalk");
+            assertSafe(theme.shoulderMaterial, theme.id + " shoulder");
+            assertSafe(theme.markingMaterial, theme.id + " marking");
+            assertSafe(theme.fillSlopeMaterial, theme.id + " fillSlope");
+            assertSafe(theme.cutSlopeMaterial, theme.id + " cutSlope");
         }
     }
 
-    private static void assertNotGravity(String material, String label) {
+    private static void assertSafe(String material, String label) {
         if (material == null || material.isBlank()) {
             return;
         }
         String normalized = com.plot.plugin.road.RoadMaterialUtils.normalizeStoredMaterial(material);
         String blockId = normalized != null ? normalized : material;
-        assertFalse(GRAVITY_BLOCKS.contains(blockId), label + " must not use " + blockId);
+        assertFalse(
+            RoadConstructionMaterialPolicy.isGravityUnsafe(blockId),
+            label + " must not use " + blockId);
     }
 }

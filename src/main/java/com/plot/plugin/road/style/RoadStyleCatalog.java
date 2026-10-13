@@ -63,13 +63,15 @@ public final class RoadStyleCatalog {
 
     public static RoadStyle residential() {
         RoadStyle style = base("residential");
-        style.width = 5;
-        style.laneCount = 1;
+        style.width = 6;
+        style.laneCount = 2;
         style.hasSidewalk = true;
         style.sidewalkWidth = 1;
         style.includeShoulder = false;
         style.roadMaterial = "minecraft:gray_concrete";
         style.sidewalkMaterial = "minecraft:stone";
+        style.laneDividers = false;
+        style.centerLineStyle = CenterLineStyle.NONE.name();
         style.streetlightSpacing = 16;
         return style;
     }
@@ -92,10 +94,10 @@ public final class RoadStyleCatalog {
     /** 13 格林荫大道：中央分隔 + 宽人行道。 */
     public static RoadStyle avenue() {
         RoadStyle style = base("avenue");
-        style.width = 8;
+        style.width = 11;
         style.laneCount = 2;
         style.hasSidewalk = true;
-        style.sidewalkWidth = 1;
+        style.sidewalkWidth = 2;
         style.includeShoulder = false;
         style.includeMedian = true;
         style.medianWidth = 1;
@@ -110,13 +112,13 @@ public final class RoadStyleCatalog {
     /** 宽人行道 + 路灯，适合城市景观主轴。 */
     public static RoadStyle boulevard() {
         RoadStyle style = base("boulevard");
-        style.width = 7;
+        style.width = 8;
         style.laneCount = 2;
         style.hasSidewalk = true;
         style.sidewalkWidth = 2;
         style.includeShoulder = false;
         style.roadMaterial = "minecraft:gray_concrete";
-        style.sidewalkMaterial = "minecraft:grass_block";
+        style.sidewalkMaterial = "minecraft:smooth_stone";
         style.streetlightSpacing = 10;
         style.centerLineStyle = CenterLineStyle.SINGLE_DASHED.name();
         return style;
@@ -124,12 +126,12 @@ public final class RoadStyleCatalog {
 
     public static RoadStyle cityMain() {
         RoadStyle style = base("city_main");
-        style.width = 7;
+        style.width = 10;
         style.laneCount = 2;
         style.hasSidewalk = true;
         style.sidewalkWidth = 2;
         style.includeShoulder = false;
-        style.roadMaterial = "minecraft:white_concrete";
+        style.roadMaterial = "minecraft:gray_concrete";
         style.sidewalkMaterial = "minecraft:smooth_stone";
         style.streetlightSpacing = 12;
         style.centerLineStyle = CenterLineStyle.SINGLE_DASHED.name();
@@ -163,7 +165,7 @@ public final class RoadStyleCatalog {
 
     public static RoadStyle highway() {
         RoadStyle style = base("highway");
-        style.width = 9;
+        style.width = 11;
         style.laneCount = 2;
         style.hasSidewalk = false;
         style.includeShoulder = true;
@@ -198,16 +200,14 @@ public final class RoadStyleCatalog {
 
     public static RoadStyle park() {
         RoadStyle style = base("park");
-        style.width = 3;
+        style.width = 4;
         style.laneCount = 1;
         style.hasSidewalk = true;
         style.sidewalkWidth = 1;
         style.includeShoulder = false;
-        style.includeBikeLane = true;
-        style.bikeLaneWidth = 1;
+        style.includeBikeLane = false;
         style.roadMaterial = "minecraft:dirt_path";
         style.sidewalkMaterial = "minecraft:grass_block";
-        style.bikeLaneMaterial = "minecraft:light_blue_concrete";
         style.laneDividers = false;
         style.centerLineStyle = CenterLineStyle.NONE.name();
         return style;
@@ -215,11 +215,11 @@ public final class RoadStyleCatalog {
 
     public static RoadStyle mountain() {
         RoadStyle style = base("mountain");
-        style.width = 5;
-        style.laneCount = 1;
+        style.width = 6;
+        style.laneCount = 2;
         style.hasSidewalk = false;
         style.includeShoulder = true;
-        style.shoulderWidth = 2;
+        style.shoulderWidth = 1;
         style.includeSlopeBatter = true;
         style.fillSlopeRatio = 2.5f;
         style.cutSlopeRatio = 2.0f;
@@ -267,10 +267,10 @@ public final class RoadStyleCatalog {
     /** 深色路面 + 霓虹标线 + 密集路灯。 */
     public static RoadStyle cyberpunkStreet() {
         RoadStyle style = base("cyberpunk_street");
-        style.width = 7;
+        style.width = 8;
         style.laneCount = 2;
         style.hasSidewalk = true;
-        style.sidewalkWidth = 1;
+        style.sidewalkWidth = 2;
         style.includeBikeLane = true;
         style.bikeLaneWidth = 1;
         style.roadMaterial = "minecraft:black_concrete";

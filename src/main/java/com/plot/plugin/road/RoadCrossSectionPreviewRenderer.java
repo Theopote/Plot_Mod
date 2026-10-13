@@ -79,11 +79,11 @@ public final class RoadCrossSectionPreviewRenderer {
             return "";
         }
         int lanes = style.resolveLaneCount();
-        int carriagewayWidth = Math.round(layout.roadBlocks);
+        int totalHardWidth = Math.round(layout.totalWidthBlocks());
         if (lanes > 1) {
-            return PlotI18n.tr("plugin.road.preset_cross_section_caption", lanes, carriagewayWidth);
+            return PlotI18n.tr("plugin.road.preset_cross_section_caption", lanes, totalHardWidth);
         }
-        return PlotI18n.tr("plugin.road.preset_carriageway_width", carriagewayWidth);
+        return PlotI18n.tr("plugin.road.preset_carriageway_width", totalHardWidth);
     }
 
     private static void drawCrossSection(
@@ -644,7 +644,13 @@ public final class RoadCrossSectionPreviewRenderer {
                     }
                 }
             }
-            if (section.centerLineStyle == CenterLineStyle.SINGLE_DASHED) {
+            if (section.includeMedian && section.medianWidth > 0) {
+                if (section.centerLineStyle == CenterLineStyle.DOUBLE_SOLID) {
+                    double edge = RoadDimensionUtils.halfExtentFromCenter(section.medianWidth) + 0.5;
+                    ratios.add((float) ((half - edge) / roadWidth));
+                    ratios.add((float) ((half + edge) / roadWidth));
+                }
+            } else if (section.centerLineStyle == CenterLineStyle.SINGLE_DASHED) {
                 ratios.add(0.5f);
             } else if (section.centerLineStyle == CenterLineStyle.DOUBLE_SOLID) {
                 ratios.add(0.45f);

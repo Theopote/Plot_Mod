@@ -102,31 +102,6 @@ public final class RoadGenerationIntegrityValidator {
             structureInteriorSlopes);
     }
 
-    static int countStructureInteriorSlopeCells(RoadCorridorPlan plan) {
-        if (plan == null) {
-            return 0;
-        }
-        int count = 0;
-        for (var entry : plan.slopeEntries()) {
-            if (isStructureInteriorSlopeColumn(plan, entry.getKey())) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    private static boolean isStructureInteriorSlopeColumn(RoadCorridorPlan plan, ColumnKey key) {
-        RoadConstructionType type = constructionTypeForColumn(plan, key);
-        return type != null && RoadEarthworkPolicy.of(type) == RoadEarthworkPolicy.STRUCTURE_ONLY;
-    }
-
-    private static RoadConstructionType constructionTypeForColumn(RoadCorridorPlan plan, ColumnKey key) {
-        // Only same-column clearance: lateral batter next to a bridge deck must not
-        // inherit STRUCTURE_ONLY from the centerline (that produced false positives).
-        ClearanceCell at = plan.clearanceCell(key);
-        return at != null ? at.constructionType() : null;
-    }
-
     public static void applyToResult(
             RoadGenerationResult result,
             RoadCorridorPlan plan,
@@ -160,6 +135,18 @@ public final class RoadGenerationIntegrityValidator {
         result.unresolvedSlopeConstructionCount = report.unresolvedSlopeConstructionCount();
         result.shoulderTraceGapCount = report.shoulderTraceGapCount();
         result.structureInteriorSlopeCellCount = report.structureInteriorSlopeCellCount();
+    }
+
+    private static int countStructureInteriorSlopeCells(RoadCorridorPlan plan) {
+        int count = 0;
+        for (var entry : plan.slopeEntries()) {
+            ClearanceCell clearance = plan.clearanceCell(entry.getKey());
+            RoadConstructionType type = clearance != null ? clearance.constructionType() : null;
+            if (type != null && RoadEarthworkPolicy.of(type) == RoadEarthworkPolicy.STRUCTURE_ONLY) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private static int countMissingRoadSurfaces(RoadCorridorPlan plan, SolidIndex index) {

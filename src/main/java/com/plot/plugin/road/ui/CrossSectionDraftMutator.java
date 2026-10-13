@@ -3,6 +3,8 @@ package com.plot.plugin.road.ui;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.SlopeFormatUtils;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy.MaterialRole;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.CrossSectionDraft;
@@ -17,6 +19,7 @@ public final class CrossSectionDraftMutator {
     private final CrossSectionDraftFieldHooks hooks;
     private final Road road;
     private final RoadSystemConfig config;
+    private String lastMaterialWarning;
 
     private CrossSectionDraftMutator(
             CrossSectionDraft draft,
@@ -55,6 +58,10 @@ public final class CrossSectionDraftMutator {
         return draft;
     }
 
+    public String lastMaterialWarning() {
+        return lastMaterialWarning;
+    }
+
     public CrossSectionDraftFieldHooks hooks() {
         return hooks;
     }
@@ -88,9 +95,13 @@ public final class CrossSectionDraftMutator {
     }
 
     public void setMaterial(MaterialMix material) {
-        draft.setMaterial(material);
+        MaterialMix safe = RoadConstructionMaterialPolicy.resolve(
+            material,
+            MaterialRole.CARRIAGEWAY,
+            this::noteMaterialReplacement);
+        draft.setMaterial(safe);
         if (road != null) {
-            road.setMaterial(material);
+            road.setMaterial(safe);
         }
         notifyChanged();
     }
@@ -136,17 +147,19 @@ public final class CrossSectionDraftMutator {
     }
 
     public void setFillSlopeMaterial(String fillSlopeMaterial) {
-        draft.setFillSlopeMaterial(fillSlopeMaterial);
+        String safe = sanitizeStoredMaterial(fillSlopeMaterial, MaterialRole.FILL_SLOPE);
+        draft.setFillSlopeMaterial(safe);
         if (road != null) {
-            road.setFillSlopeMaterial(fillSlopeMaterial);
+            road.setFillSlopeMaterial(safe);
         }
         notifyChanged();
     }
 
     public void setCutSlopeMaterial(String cutSlopeMaterial) {
-        draft.setCutSlopeMaterial(cutSlopeMaterial);
+        String safe = sanitizeStoredMaterial(cutSlopeMaterial, MaterialRole.CUT_SLOPE);
+        draft.setCutSlopeMaterial(safe);
         if (road != null) {
-            road.setCutSlopeMaterial(cutSlopeMaterial);
+            road.setCutSlopeMaterial(safe);
         }
         notifyChanged();
     }
@@ -168,9 +181,10 @@ public final class CrossSectionDraftMutator {
     }
 
     public void setSidewalkMaterial(String sidewalkMaterial) {
-        draft.setSidewalkMaterial(sidewalkMaterial);
+        String safe = sanitizeStoredMaterial(sidewalkMaterial, MaterialRole.SIDEWALK);
+        draft.setSidewalkMaterial(safe);
         if (road != null) {
-            road.setSidewalkMaterial(sidewalkMaterial);
+            road.setSidewalkMaterial(safe);
         }
         notifyChanged();
     }
@@ -224,9 +238,10 @@ public final class CrossSectionDraftMutator {
     }
 
     public void setMarkingMaterial(String markingMaterial) {
-        draft.setMarkingMaterial(markingMaterial);
+        String safe = sanitizeStoredMaterial(markingMaterial, MaterialRole.MARKING);
+        draft.setMarkingMaterial(safe);
         if (road != null) {
-            road.setMarkingMaterial(markingMaterial);
+            road.setMarkingMaterial(safe);
         }
         notifyChanged();
     }
@@ -513,6 +528,19 @@ public final class CrossSectionDraftMutator {
             road.getStreetlightSpacing() == null,
             PlotI18n.tr("plugin.road.inherit_default_disabled"),
             () -> road.setStreetlightSpacing(null));
+    }
+
+    private String sanitizeStoredMaterial(String material, MaterialRole role) {
+        if (material == null || material.isBlank()) {
+            return material;
+        }
+        return RoadConstructionMaterialPolicy.resolveStored(material, role, this::noteMaterialReplacement);
+    }
+
+    private void noteMaterialReplacement(String requested, String resolved) {
+        if (requested != null && resolved != null && !requested.equals(resolved)) {
+            lastMaterialWarning = PlotI18n.tr("plugin.road.material_gravity_unsafe_replaced", requested, resolved);
+        }
     }
 
     private void notifyChanged() {

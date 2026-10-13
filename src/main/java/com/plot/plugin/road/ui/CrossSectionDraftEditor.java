@@ -362,6 +362,7 @@ public final class CrossSectionDraftEditor {
             hooks.pushHistoryOnPicker()
         );
         mutator.afterMaterialField();
+        renderMaterialWarning(mutator);
 
         if (draft.includeSidewalk()) {
             final String[] sidewalkMaterial = {draft.sidewalkMaterial()};
@@ -411,6 +412,15 @@ public final class CrossSectionDraftEditor {
             hooks.pushHistoryOnPicker()
         );
         mutator.afterMarkingMaterialField();
+        renderMaterialWarning(mutator);
+    }
+
+    private static void renderMaterialWarning(CrossSectionDraftMutator mutator) {
+        String warning = mutator.lastMaterialWarning();
+        if (warning == null || warning.isBlank()) {
+            return;
+        }
+        RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING, warning);
     }
 
     private static void renderFurniture(EditorContext editor) {

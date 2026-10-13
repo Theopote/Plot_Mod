@@ -34,7 +34,10 @@ public final class SlopeShoulderTerrainTraceValidator {
         int gaps = 0;
         Set<String> tracedRays = new HashSet<>();
         for (SurfaceSample outer : outerShoulderSamples(plan, surfaceSamples)) {
-            if (skipShoulderTraceForColumn(plan, outer.columnKey())) {
+            ClearanceCell clearance = plan.clearanceCell(outer.columnKey());
+            RoadConstructionType constructionType = clearance != null ? clearance.constructionType() : null;
+            if (constructionType != null
+                    && RoadEarthworkPolicy.of(constructionType) == RoadEarthworkPolicy.STRUCTURE_ONLY) {
                 continue;
             }
             Vec2d localCenter = localSurfaceCenter(surfaceSamples, outer.planPoint());
@@ -50,15 +53,6 @@ public final class SlopeShoulderTerrainTraceValidator {
             gaps += traceRay(plan, terrain, outer.planPoint(), direction, outer.roadY());
         }
         return gaps;
-    }
-
-    private static boolean skipShoulderTraceForColumn(RoadCorridorPlan plan, ColumnKey key) {
-        ClearanceCell clearance = plan.clearanceCell(key);
-        if (clearance == null) {
-            return false;
-        }
-        RoadConstructionType type = clearance.constructionType();
-        return type != null && RoadEarthworkPolicy.of(type) == RoadEarthworkPolicy.STRUCTURE_ONLY;
     }
 
     private static List<SurfaceSample> collectSurfaceSamples(RoadCorridorPlan plan) {

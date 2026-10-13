@@ -25,12 +25,13 @@ class RoadStyleTest {
     }
 
     @Test
-    void parkStyleIncludesBikeLaneWithoutSlopeBatter() {
+    void parkStyleIncludesSidewalkWithoutSlopeBatter() {
         RoadStyle style = RoadStyleCatalog.park();
         RoadCrossSection section = style.toCrossSection();
 
-        assertTrue(section.getBikeLane().getEnabled());
-        assertEquals(1, section.getBikeLane().getWidth());
+        assertTrue(section.getSidewalk().getEnabled());
+        assertEquals(1, section.getSidewalk().getWidth());
+        assertFalse(Boolean.TRUE.equals(section.getBikeLane().getEnabled()));
         assertFalse(Boolean.TRUE.equals(section.getSlopeBatter().getEnabled()));
     }
 

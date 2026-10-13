@@ -10,7 +10,9 @@ class RoadMaterialUtilsTest {
     @Test
     void normalizeLegacyMaterialKeys() {
         assertEquals("minecraft:white_concrete", RoadMaterialUtils.normalizeStoredMaterial("material.plot.concrete"));
-        assertEquals("minecraft:gravel", RoadMaterialUtils.normalizeStoredMaterial("砂砾"));
+        assertEquals(
+            RoadMaterialUtils.DEFAULT_SLOPE_FILL_BLOCK,
+            RoadMaterialUtils.normalizeStoredMaterial("砂砾"));
         assertEquals(
             RoadMaterialUtils.DEFAULT_SLOPE_FILL_BLOCK,
             RoadMaterialUtils.normalizeStoredMaterial("material.plot.gravel"));

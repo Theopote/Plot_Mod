@@ -140,25 +140,23 @@ public final class RoadTerrainGrader {
                 double chainage = crossSections.chainageAtGeometryLocal(geometryLocal);
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
                 int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
+                int decorationWidth = RoadCorridorWidth.decorationClearWidthBlocks(crossSection, config);
                 if (envelopeWidth <= 0) {
                     previousCenter = null;
                     previousTargetY = null;
                     continue;
                 }
-                RoadConstructionType sampleType = effectiveConstructionType(
-                    type,
-                    profileWaterCrossings,
-                    worldStation);
-                if (!sampleType.isStructureInterior()) {
-                    int decorationWidth = RoadCorridorWidth.decorationClearWidthBlocks(crossSection, config);
-                    RoadRoadbedGradingUtils.clearRoadDecorations(
-                        solids, center, leftNormal, decorationWidth,
-                        terrain, host.columnResolver(), unitsPerBlock);
-                }
+                RoadRoadbedGradingUtils.clearRoadDecorations(
+                    solids, center, leftNormal, decorationWidth,
+                    terrain, host.columnResolver(), unitsPerBlock);
                 String fillMaterialId = host.resolveBlockId(
                     crossSection.fillSlopeMaterial != null && !crossSection.fillSlopeMaterial.isBlank()
                         ? crossSection.fillSlopeMaterial
                         : config.getFillSlopeMaterial());
+                RoadConstructionType sampleType = effectiveConstructionType(
+                    type,
+                    profileWaterCrossings,
+                    worldStation);
                 if (sampleType.isStructureInterior()) {
                     previousCenter = null;
                     previousTargetY = null;

@@ -7,7 +7,8 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.core.geometry.WorldProjectionMath;
 import com.plot.plugin.road.RoadGeometryUtils;
-import com.plot.plugin.road.RoadMaterialUtils;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy.MaterialRole;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSession;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnaps;
@@ -87,7 +88,12 @@ public final class RoadGenerationPipelineHost implements RoadGenerationPipelineC
 
     @Override
     public String resolveBlockId(String material) {
-        return RoadMaterialUtils.resolveBlockId(material);
+        return resolveBlockId(material, MaterialRole.CARRIAGEWAY);
+    }
+
+    @Override
+    public String resolveBlockId(String material, MaterialRole role) {
+        return RoadConstructionMaterialPolicy.resolve(material, role);
     }
 
     @Override

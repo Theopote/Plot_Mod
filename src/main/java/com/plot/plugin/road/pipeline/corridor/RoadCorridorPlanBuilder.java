@@ -10,11 +10,13 @@ import com.plot.plugin.road.RoadSlopeUtils;
 import com.plot.plugin.road.RoadTerrainClearanceUtils;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
 import com.plot.plugin.road.pipeline.RoadPathStationSampler;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy.MaterialRole;
 import com.plot.plugin.road.pipeline.construction.RoadEarthworkPolicy;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
@@ -87,22 +89,10 @@ public final class RoadCorridorPlanBuilder {
                 carriagewaySeedKey, host, config, tunnelThreshold);
             if (i > 0) {
                 rasterizeSpan(plan, stations.get(i - 1), sample, crossSection, terrain,
-                    unitsPerBlock, carriagewaySeedKey, host, config, tunnelThreshold,
-                    segments, constructionTypes);
+                    unitsPerBlock, carriagewaySeedKey, host, config, tunnelThreshold);
             }
         }
-        stripStructureInteriorSlopes(plan);
         return plan;
-    }
-
-    /** Drop residual batter on bridge/tunnel interior columns (order can leave orphans). */
-    private static void stripStructureInteriorSlopes(RoadCorridorPlan plan) {
-        for (var entry : plan.clearanceEntries()) {
-            RoadConstructionType type = entry.getValue().constructionType();
-            if (type != null && type.isStructureInterior()) {
-                plan.removeSlopeCell(entry.getKey());
-            }
-        }
     }
 
     private static List<StationSample> collectStations(
@@ -163,9 +153,7 @@ public final class RoadCorridorPlanBuilder {
             String seedKey,
             PlanHost host,
             RoadSystemConfig config,
-            int tunnelThreshold,
-            List<PathSegment> segments,
-            List<RoadConstructionType> constructionTypes) {
+            int tunnelThreshold) {
         ResolvedCrossSection toSection = crossSection;
         rasterizeSurfaceBands(plan, from.center(), to.center(), to.leftNormal(),
             from.targetY(), to.targetY(), toSection, terrain, unitsPerBlock,
@@ -173,8 +161,7 @@ public final class RoadCorridorPlanBuilder {
         if (toSection.includeSlopeBatter
                 && (RoadEarthworkPolicy.of(from.constructionType()).allowsCorridorBatter()
                     || RoadEarthworkPolicy.of(to.constructionType()).allowsCorridorBatter())) {
-            mergeSlopeSpan(plan, from, to, toSection, terrain, unitsPerBlock, host,
-                segments, constructionTypes);
+            mergeSlopeSpan(plan, from, to, toSection, terrain, unitsPerBlock, host);
         }
     }
 
@@ -202,24 +189,24 @@ public final class RoadCorridorPlanBuilder {
             plan, fromCenter, toCenter, normal, fromY, toY, scale,
             minOffset, maxOffset, 0.0, false,
             RoadSolidLayer.ROAD, crossSection.carriagewayMaterial, seedKey, host,
-            terrain, constructionType, tunnelThreshold);
+            terrain, constructionType, tunnelThreshold, crossSection);
 
         if (crossSection.includeShoulder && crossSection.shoulderWidth > 0) {
             rasterizeLateralBand(plan, fromCenter, toCenter, normal, fromY, toY, scale,
                 crossSection.shoulderWidth, crossSection.shoulderCenterOffset() * scale,
-                RoadSolidLayer.SHOULDER, host.resolveBlockId(crossSection.shoulderMaterial),
+                RoadSolidLayer.SHOULDER, host.resolveBlockId(crossSection.shoulderMaterial, MaterialRole.SHOULDER),
                 host, terrain, constructionType, tunnelThreshold);
         }
         if (crossSection.includeBikeLane && crossSection.bikeLaneWidth > 0) {
             rasterizeLateralBand(plan, fromCenter, toCenter, normal, fromY, toY, scale,
                 crossSection.bikeLaneWidth, crossSection.bikeLaneCenterOffset() * scale,
-                RoadSolidLayer.BIKE_LANE, host.resolveBlockId(crossSection.bikeLaneMaterial),
+                RoadSolidLayer.BIKE_LANE, host.resolveBlockId(crossSection.bikeLaneMaterial, MaterialRole.BIKE_LANE),
                 host, terrain, constructionType, tunnelThreshold);
         }
         if (crossSection.includeSidewalk && crossSection.sidewalkWidth > 0) {
             rasterizeLateralBand(plan, fromCenter, toCenter, normal, fromY, toY, scale,
                 crossSection.sidewalkWidth, crossSection.sidewalkCenterOffset() * scale,
-                RoadSolidLayer.SIDEWALK, host.resolveBlockId(crossSection.sidewalkMaterial),
+                RoadSolidLayer.SIDEWALK, host.resolveBlockId(crossSection.sidewalkMaterial, MaterialRole.SIDEWALK),
                 host, terrain, constructionType, tunnelThreshold);
         }
         expandClearanceEnvelope(plan, fromCenter, toCenter, normal, fromY, toY, scale,
@@ -240,10 +227,7 @@ public final class RoadCorridorPlanBuilder {
             RoadSystemConfig config,
             int tunnelThreshold,
             PlanHost host) {
-        if (!RoadEarthworkPolicy.of(constructionType).allowsOpenCorridorClearance()) {
-            return;
-        }
-        int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
+        int envelopeWidth = RoadCorridorWidth.decorationClearWidthBlocks(crossSection, config);
         if (envelopeWidth <= 0) {
             return;
         }
@@ -315,7 +299,7 @@ public final class RoadCorridorPlanBuilder {
         rasterizeOffsetBand(
             plan, fromCenter, toCenter, leftNormal, fromY, toY, scale,
             minOffset, maxOffset, centerOffset, true, layer, materialMix, seedKey, host,
-            terrain, constructionType, tunnelThreshold);
+            terrain, constructionType, tunnelThreshold, null);
     }
 
     private static void rasterizeLateralBand(
@@ -363,18 +347,34 @@ public final class RoadCorridorPlanBuilder {
             PlanHost host,
             TerrainSampler terrain,
             RoadConstructionType constructionType,
-            int tunnelThreshold) {
+            int tunnelThreshold,
+            ResolvedCrossSection crossSection) {
         for (int lateral = minOffset; lateral <= maxOffset; lateral++) {
+            if (shouldSkipMedianColumn(crossSection, layer, lateral)) {
+                continue;
+            }
             double offset = lateral * scale;
             writeLateralSpan(plan, fromCenter, toCenter, leftNormal, fromY, toY, scale,
                 centerOffset + offset, layer, materialMix, seedKey, host,
                 terrain, constructionType, tunnelThreshold);
             if (mirrorToOppositeSide) {
+                if (shouldSkipMedianColumn(crossSection, layer, -lateral)) {
+                    continue;
+                }
                 writeLateralSpan(plan, fromCenter, toCenter, leftNormal, fromY, toY, scale,
                     -(centerOffset + offset), layer, materialMix, seedKey, host,
                     terrain, constructionType, tunnelThreshold);
             }
         }
+    }
+
+    private static boolean shouldSkipMedianColumn(
+            ResolvedCrossSection crossSection,
+            RoadSolidLayer layer,
+            int lateralOffset) {
+        return crossSection != null
+            && layer == RoadSolidLayer.ROAD
+            && crossSection.occupiesMedianColumn(lateralOffset);
     }
 
     private static void rasterizeOffsetBand(
@@ -433,7 +433,10 @@ public final class RoadCorridorPlanBuilder {
                 : (int) Math.round(fromY + (toY - fromY) * ((double) i / last));
             BlockPos pos = host.canvasToBlockPos(planPoint).withY(surfaceY);
             String materialId = MaterialMixResolver.resolve(
-                materialMix, pos, seedKey, host::resolveBlockId);
+                materialMix,
+                pos,
+                seedKey,
+                id -> host.resolveBlockId(id, MaterialRole.CARRIAGEWAY));
             writeSurfaceAndClearance(plan, planPoint, surfaceY, layer, materialId, host,
                 terrain, constructionType, tunnelThreshold);
         }
@@ -510,19 +513,16 @@ public final class RoadCorridorPlanBuilder {
             ResolvedCrossSection crossSection,
             TerrainSampler terrain,
             double unitsPerBlock,
-            PlanHost host,
-            List<PathSegment> segments,
-            List<RoadConstructionType> constructionTypes) {
+            PlanHost host) {
         List<Vec2d> span = RoadVoxelRasterizer.sampleSpanPoints(from.center(), to.center());
         int last = span.size() - 1;
         for (int i = 0; i <= last; i++) {
             double t = last == 0 ? 1.0 : (double) i / last;
-            Vec2d center = span.get(i);
-            RoadConstructionType stepType = resolveStepConstructionType(
-                from, to, t, center, segments, constructionTypes);
+            RoadConstructionType stepType = resolveStepConstructionType(from, to, t);
             if (!RoadEarthworkPolicy.of(stepType).allowsCorridorBatter()) {
                 continue;
             }
+            Vec2d center = span.get(i);
             int targetY = last == 0
                 ? to.targetY()
                 : (int) Math.round(from.targetY() + (to.targetY() - from.targetY()) * t);
@@ -536,45 +536,11 @@ public final class RoadCorridorPlanBuilder {
     private static RoadConstructionType resolveStepConstructionType(
             StationSample from,
             StationSample to,
-            double t,
-            Vec2d center,
-            List<PathSegment> segments,
-            List<RoadConstructionType> constructionTypes) {
-        RoadConstructionType fromType = from.constructionType();
-        RoadConstructionType toType = to.constructionType();
-        if (fromType == toType) {
-            return fromType;
+            double t) {
+        if (from.constructionType() == to.constructionType()) {
+            return from.constructionType();
         }
-        if (segments != null && constructionTypes != null && !segments.isEmpty()) {
-            int segmentIndex = segmentIndexForPoint(segments, center);
-            return RoadConstructionClassifier.constructionTypeAt(constructionTypes, segmentIndex);
-        }
-        return t <= 0.5 ? fromType : toType;
-    }
-
-    private static int segmentIndexForPoint(List<PathSegment> segments, Vec2d point) {
-        int bestIndex = 0;
-        double bestDistSq = Double.MAX_VALUE;
-        for (int i = 0; i < segments.size(); i++) {
-            double distSq = distanceSquaredToSegment(point, segments.get(i));
-            if (distSq < bestDistSq) {
-                bestDistSq = distSq;
-                bestIndex = i;
-            }
-        }
-        return bestIndex;
-    }
-
-    private static double distanceSquaredToSegment(Vec2d point, PathSegment segment) {
-        Vec2d ab = segment.end.subtract(segment.start);
-        double lengthSq = ab.lengthSquared();
-        if (lengthSq < 1e-12) {
-            return point.distanceSquared(segment.start);
-        }
-        double param = point.subtract(segment.start).dot(ab) / lengthSq;
-        double clamped = Math.clamp(param, 0.0, 1.0);
-        Vec2d closest = segment.start.add(ab.multiply(clamped));
-        return point.distanceSquared(closest);
+        return t <= 0.5 ? from.constructionType() : to.constructionType();
     }
 
     private static void mergeSlopeAtCenter(
@@ -592,10 +558,10 @@ public final class RoadCorridorPlanBuilder {
         double shoulderCenterOffset = crossSection.slopeAnchorCenterOffset() * scale;
         double outerOffset = RoadDimensionUtils.halfExtentFromCenter(
             crossSection.slopeAnchorBandWidth()) * scale;
-        String fillBlockId = host.resolveBlockId(crossSection.fillSlopeMaterial);
+        String fillBlockId = host.resolveBlockId(crossSection.fillSlopeMaterial, MaterialRole.FILL_SLOPE);
         String cutBlockId = crossSection.cutSlopeMaterial == null || crossSection.cutSlopeMaterial.isBlank()
             ? null
-            : host.resolveBlockId(crossSection.cutSlopeMaterial);
+            : host.resolveBlockId(crossSection.cutSlopeMaterial, MaterialRole.CUT_SLOPE);
         float fillRatio = crossSection.fillSlopeRatio;
         float cutRatio = crossSection.cutSlopeRatio;
 
@@ -667,9 +633,10 @@ public final class RoadCorridorPlanBuilder {
             int worldX = host.worldX(sample);
             int worldZ = host.worldZ(sample);
             ColumnKey key = new ColumnKey(worldX, worldZ);
-            ClearanceCell existingClearance = plan.clearanceCell(key);
-            if (existingClearance != null
-                    && !RoadEarthworkPolicy.of(existingClearance.constructionType()).allowsCorridorBatter()) {
+            ClearanceCell clearance = plan.clearanceCell(key);
+            if (clearance != null
+                    && clearance.constructionType() != null
+                    && !RoadEarthworkPolicy.of(clearance.constructionType()).allowsCorridorBatter()) {
                 continue;
             }
             SlopeColumnCell cell = plan.slopeCellOrCreate(key, sample);
@@ -742,7 +709,11 @@ public final class RoadCorridorPlanBuilder {
     public interface PlanHost {
         RoadSystemConfig config();
 
-        String resolveBlockId(String material);
+        String resolveBlockId(String material, MaterialRole role);
+
+        default String resolveBlockId(String material) {
+            return resolveBlockId(material, MaterialRole.CARRIAGEWAY);
+        }
 
         int snapEndpointElevation(Vec2d center, int targetY);
 
@@ -779,8 +750,8 @@ public final class RoadCorridorPlanBuilder {
                 }
 
                 @Override
-                public String resolveBlockId(String material) {
-                    return host.resolveBlockId(material);
+                public String resolveBlockId(String material, MaterialRole role) {
+                    return host.resolveBlockId(material, role);
                 }
 
                 @Override

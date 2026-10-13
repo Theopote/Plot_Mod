@@ -5,7 +5,10 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.RoadMaterialMixUtils;
 import com.plot.plugin.road.RoadMaterialUtils;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy.MaterialRole;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -20,6 +23,8 @@ public final class ResolvedCrossSection {
     public final List<Integer> laneWidths;
     public final List<Double> laneDividerOffsets;
     public final int carriagewayWidth;
+    /** Paved width excluding center median when {@link #includeMedian}. */
+    public final int laneOnlyWidth;
     public final MaterialMix carriagewayMaterial;
     public final boolean includeMedian;
     public final int medianWidth;
@@ -49,6 +54,7 @@ public final class ResolvedCrossSection {
             List<Integer> laneWidths,
             List<Double> laneDividerOffsets,
             int carriagewayWidth,
+            int laneOnlyWidth,
             MaterialMix carriagewayMaterial,
             boolean includeMedian,
             int medianWidth,
@@ -76,6 +82,7 @@ public final class ResolvedCrossSection {
         this.laneWidths = List.copyOf(laneWidths);
         this.laneDividerOffsets = List.copyOf(laneDividerOffsets);
         this.carriagewayWidth = carriagewayWidth;
+        this.laneOnlyWidth = laneOnlyWidth;
         this.carriagewayMaterial = carriagewayMaterial;
         this.includeMedian = includeMedian;
         this.medianWidth = medianWidth;
@@ -121,16 +128,22 @@ public final class ResolvedCrossSection {
         int width = carriageway.getWidth() != null ? carriageway.getWidth() : config.getRoadWidth();
         int safeWidth = Math.max(1, width);
         int laneCount = carriageway.getEffectiveLaneCount();
-        List<Integer> laneWidths = carriageway.resolveLaneWidths(safeWidth);
-        List<Double> laneDividerOffsets = carriageway.resolveLaneDividerOffsets(safeWidth);
-        MaterialMix roadMaterial = MaterialMix.orDefault(
-            carriageway.getMaterial(),
-            config.getSelectedMaterial());
 
         boolean includeMedian = median.getEnabled() != null && median.getEnabled();
         int medianWidth = includeMedian
             ? Math.max(1, median.getWidth() != null ? median.getWidth() : 1)
             : 0;
+        int laneOnlyWidth = safeWidth;
+        if (includeMedian && medianWidth > 0) {
+            laneOnlyWidth = Math.max(laneCount, safeWidth - medianWidth);
+        }
+        List<Integer> laneWidths = carriageway.resolveLaneWidths(laneOnlyWidth);
+        List<Double> laneDividerOffsets = filterLaneDividerOffsets(
+            carriageway.resolveLaneDividerOffsets(laneOnlyWidth),
+            medianWidth);
+        MaterialMix roadMaterial = MaterialMix.orDefault(
+            carriageway.getMaterial(),
+            config.getSelectedMaterial());
         String medianMaterial = median.getMaterial() != null
             ? median.getMaterial()
             : "material.plot.grass_block";
@@ -193,32 +206,67 @@ public final class ResolvedCrossSection {
             laneWidths,
             laneDividerOffsets,
             safeWidth,
-            RoadMaterialMixUtils.normalizeStored(roadMaterial),
+            laneOnlyWidth,
+            RoadConstructionMaterialPolicy.resolve(
+                RoadMaterialMixUtils.normalizeStored(roadMaterial),
+                MaterialRole.CARRIAGEWAY,
+                null),
             includeMedian,
             medianWidth,
-            RoadMaterialUtils.normalizeStoredMaterial(medianMaterial),
+            RoadConstructionMaterialPolicy.resolveStored(medianMaterial, MaterialRole.MEDIAN, null),
             laneDividers,
             centerLineStyle,
-            RoadMaterialUtils.normalizeStoredMaterial(markingMaterial),
+            RoadConstructionMaterialPolicy.resolveStored(markingMaterial, MaterialRole.MARKING, null),
             includeShoulder,
             Math.max(0, shoulderWidth),
-            RoadMaterialUtils.normalizeStoredMaterial(shoulderMaterial),
+            RoadConstructionMaterialPolicy.resolveStored(shoulderMaterial, MaterialRole.SHOULDER, null),
             includeBikeLane,
             bikeLaneWidth,
-            RoadMaterialUtils.normalizeStoredMaterial(bikeLaneMaterial),
+            RoadConstructionMaterialPolicy.resolveStored(bikeLaneMaterial, MaterialRole.BIKE_LANE, null),
             includeSidewalk,
             Math.max(0, sidewalkWidth),
-            RoadMaterialUtils.normalizeStoredMaterial(sidewalkMaterial),
+            RoadConstructionMaterialPolicy.resolveStored(sidewalkMaterial, MaterialRole.SIDEWALK, null),
             furniture.getStreetlightSpacing(),
             RoadMaterialUtils.normalizeStoredMaterial(streetlightBlock),
             includeSlopeBatter,
             includeSlopeBatter ? fillRatio : 0f,
             includeSlopeBatter ? cutRatio : 0f,
-            RoadMaterialUtils.normalizeStoredMaterial(fillSlopeMaterial),
+            RoadConstructionMaterialPolicy.resolveStored(fillSlopeMaterial, MaterialRole.FILL_SLOPE, null),
             cutSlopeMaterial != null && !cutSlopeMaterial.isBlank()
-                ? RoadMaterialUtils.normalizeStoredMaterial(cutSlopeMaterial)
+                ? RoadConstructionMaterialPolicy.resolveStored(cutSlopeMaterial, MaterialRole.CUT_SLOPE, null)
                 : null
         );
+    }
+
+    private static List<Double> filterLaneDividerOffsets(List<Double> offsets, int medianWidth) {
+        if (offsets == null || offsets.isEmpty() || medianWidth <= 0) {
+            return offsets != null ? List.copyOf(offsets) : List.of();
+        }
+        double halfMedian = medianWidth / 2.0;
+        List<Double> filtered = new ArrayList<>(offsets.size());
+        for (Double offset : offsets) {
+            if (offset == null) {
+                continue;
+            }
+            if (Math.abs(offset) < halfMedian - 1e-6) {
+                continue;
+            }
+            filtered.add(offset);
+        }
+        return List.copyOf(filtered);
+    }
+
+    public int totalHardSurfaceWidthBlocks() {
+        return carriagewayWidth + 2 * outerBandBlockCount();
+    }
+
+    public boolean occupiesMedianColumn(int lateralOffset) {
+        if (!includeMedian || medianWidth <= 0) {
+            return false;
+        }
+        int min = RoadDimensionUtils.minLateralOffset(medianWidth);
+        int max = RoadDimensionUtils.maxLateralOffset(medianWidth);
+        return lateralOffset >= min && lateralOffset <= max;
     }
 
     public double carriagewayHalfWidth() {

@@ -84,7 +84,7 @@ class RoadCrossSectionPreviewRendererTest {
             PlotI18n.tr(
                 "plugin.road.preset_cross_section_caption",
                 highway.resolveLaneCount(),
-                Math.round(layout.roadBlocks)),
+                Math.round(layout.totalWidthBlocks())),
             caption);
         assertFalse(caption.contains("纵坡"));
         assertFalse(caption.toLowerCase().contains("grade"));
@@ -96,7 +96,7 @@ class RoadCrossSectionPreviewRendererTest {
         var layout = RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(path);
         String caption = RoadCrossSectionPreviewRenderer.formatPresetCaption(path, layout);
         assertEquals(
-            PlotI18n.tr("plugin.road.preset_carriageway_width", Math.round(layout.roadBlocks)),
+            PlotI18n.tr("plugin.road.preset_carriageway_width", Math.round(layout.totalWidthBlocks())),
             caption);
     }
 
@@ -153,7 +153,7 @@ class RoadCrossSectionPreviewRendererTest {
             RoadCrossSectionPreviewRenderer.colorForMaterial("minecraft:black_concrete", 0),
             highway.roadColor);
         assertEquals(
-            RoadCrossSectionPreviewRenderer.colorForMaterial("minecraft:white_concrete", 0),
+            RoadCrossSectionPreviewRenderer.colorForMaterial("minecraft:gray_concrete", 0),
             cityMain.roadColor);
         assertEquals(
             RoadCrossSectionPreviewRenderer.colorForMaterial("minecraft:gray_concrete", 0),
@@ -162,14 +162,10 @@ class RoadCrossSectionPreviewRendererTest {
             RoadCrossSectionPreviewRenderer.colorForMaterial("minecraft:dirt_path", 0),
             park.roadColor);
         assertEquals(
-            RoadCrossSectionPreviewRenderer.colorForMaterial("minecraft:light_blue_concrete", 0),
-            park.bikeColor);
-        assertEquals(
             RoadCrossSectionPreviewRenderer.colorForMaterial("minecraft:cyan_concrete", 0),
             cyberpunk.sidewalkColor);
         assertNotEquals(highway.roadColor, cityMain.roadColor);
         assertNotEquals(park.roadColor, cyberpunk.roadColor);
-        assertNotEquals(park.bikeColor, cyberpunk.bikeColor);
     }
 
     @Test
