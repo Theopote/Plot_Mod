@@ -1,51 +1,55 @@
 package com.plot.plugin.road.profile.edit;
 
+import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.pipeline.profile.ProfileCompileInputsFingerprint;
 import com.plot.plugin.road.pipeline.profile.ProfileCompileOptions;
-import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
+import com.plot.plugin.road.pipeline.profile.VoxelProfileConstraints;
+import com.plot.plugin.road.profile.RoadProfileIntersection;
+import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
-import com.plot.plugin.road.vertical.RoadVerticalMode;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
- * Fingerprint of voxel-preview inputs. Must not rely solely on live network revision because
- * window working-copy edits do not bump that revision.
+ * Fingerprint of voxel-preview inputs. Delegates to {@link ProfileCompileInputsFingerprint}
+ * so geometry, intersections, terrain revision, and bounds invalidate the grey preview.
  */
-public record VoxelProfilePreviewKey(
-        String roadId,
-        int alignmentHash,
-        RoadVerticalMode verticalMode,
-        Double flatElevation,
-        int compileAlgorithmVersion,
-        int optionsHash) {
+public record VoxelProfilePreviewKey(ProfileCompileInputsFingerprint fingerprint) {
 
-    public static VoxelProfilePreviewKey of(
-            String roadId,
-            RoadVerticalAlignment alignment,
-            RoadVerticalMode mode,
-            Double flatElevation,
-            ProfileCompileOptions options) {
-        ProfileCompileOptions effective = options != null ? options : ProfileCompileOptions.defaults();
-        return new VoxelProfilePreviewKey(
-            roadId != null ? roadId : "",
-            contentHash(alignment),
-            mode,
-            flatElevation,
-            effective.algorithmVersion(),
-            Objects.hash(effective.minEffectiveRunBlocks(), effective.algorithmVersion()));
+    public VoxelProfilePreviewKey {
+        Objects.requireNonNull(fingerprint, "fingerprint");
     }
 
-    static int contentHash(RoadVerticalAlignment alignment) {
-        if (alignment == null || alignment.isEmpty()) {
-            return 0;
-        }
-        int hash = 1;
-        for (PointOfVerticalIntersection pvi : alignment.getPvis()) {
-            hash = 31 * hash + Objects.hash(
-                pvi.getStation(),
-                pvi.getElevation(),
-                pvi.getCurveLength());
-        }
-        return hash;
+    public String roadId() {
+        return fingerprint.roadId();
+    }
+
+    public static VoxelProfilePreviewKey of(ProfileCompileInputsFingerprint fingerprint) {
+        return new VoxelProfilePreviewKey(fingerprint);
+    }
+
+    public static VoxelProfilePreviewKey of(
+            RoadNetwork network,
+            Road road,
+            RoadVerticalAlignment alignment,
+            List<RoadProfileIntersection> intersections,
+            VoxelProfileConstraints constraints,
+            RoadElevationBounds elevationBounds,
+            long terrainRevision,
+            RoadSystemConfig config,
+            ProfileCompileOptions options) {
+        return new VoxelProfilePreviewKey(ProfileCompileInputsFingerprint.of(
+            network,
+            road,
+            alignment,
+            intersections,
+            constraints,
+            elevationBounds,
+            terrainRevision,
+            config,
+            options));
     }
 }

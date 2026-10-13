@@ -34,7 +34,6 @@ import com.plot.plugin.road.profile.edit.ProfileEditorWindowSession;
 import com.plot.plugin.road.profile.edit.VoxelProfilePreviewKey;
 import com.plot.plugin.road.profile.edit.VoxelProfilePreviewSlot;
 import com.plot.plugin.road.profile.edit.VoxelProfilePreviewState;
-import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.core.terrain.FlatTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.world.World;
@@ -752,20 +751,33 @@ final class VerticalProfileEditor {
         if (editingRoad == null) {
             return;
         }
-        // Ensure draft alignment is visible on the working copy for sampling.
+        // Compile against a disposable snapshot so an active Draft is never written into the
+        // window working copy by the preview button itself.
+        RoadNetwork compileNetwork = editingNetwork.snapshot();
+        Road compileRoad = compileNetwork.getRoad(road.getId());
+        if (compileRoad == null) {
+            return;
+        }
         RoadVerticalAlignment effective = profileEditSession.effectiveAlignment(editingRoad);
         if (effective != null) {
-            editingRoad.setVerticalAlignment(effective);
+            compileRoad.setVerticalAlignment(effective);
         }
         RoadSystemConfig config = ctx.networkManager().getConfig();
         ProfileCompileOptions options = ProfileCompileOptions.defaults();
-        FlatVerticalIntent flatIntent = editingRoad.getFlatVerticalIntent();
-        Double flatY = flatIntent != null ? flatIntent.getBaseElevation() : null;
+        RoadElevationBounds elevationBounds = resolveElevationBounds(ctx);
+        RoadProfileChartData baseChart = resolveChartData(ctx, editingNetwork, editingRoad);
+        List<RoadProfileIntersection> intersections = resolveIntersections(
+            ctx, compileNetwork, compileRoad, config, baseChart, true);
+        intersections = profileEditSession.effectiveIntersections(intersections);
         VoxelProfilePreviewKey key = VoxelProfilePreviewKey.of(
-            editingRoad.getId(),
+            compileNetwork,
+            compileRoad,
             effective,
-            editingRoad.getVerticalMode(),
-            flatY,
+            intersections,
+            com.plot.plugin.road.pipeline.profile.VoxelProfileConstraints.empty(),
+            elevationBounds,
+            ctx.previewManager().getTerrainRevision(),
+            config,
             options);
         VoxelProfilePreviewSlot slot = windowSession.voxelPreview(editingRoad.getId());
         slot.markComputing(key);
@@ -774,13 +786,15 @@ final class VerticalProfileEditor {
                 ctx, config, System.identityHashCode(config) ^ editingRoad.getId().hashCode());
             TerrainSampler terrain = resolveTerrainSampler(generator);
             VoxelProfileCompileResult result = RoadVoxelProfileCompiler.compile(
-                editingNetwork,
-                editingRoad,
+                compileNetwork,
+                compileRoad,
                 config,
                 generator,
                 terrain,
                 ctx.previewManager().getLastNodeElevations(),
-                options);
+                options,
+                elevationBounds,
+                effective);
             windowSession.storeVoxelPreview(editingRoad.getId(), key, result);
             profileRenderCache = null;
         } catch (RuntimeException ex) {
@@ -793,11 +807,9 @@ final class VerticalProfileEditor {
             return base;
         }
         VoxelProfilePreviewSlot slot = windowSession.voxelPreview(road.getId());
-        if (slot.result() != null
-                && slot.result().chartOverlay() != null
-                && slot.result().chartOverlay().hasBuildSamples()
-                && (slot.isReady() || slot.isStale() || slot.state() == VoxelProfilePreviewState.FAILED)) {
-            return slot.result().chartOverlay();
+        RoadProfileChartData overlay = slot.displayOverlay();
+        if (overlay != null && overlay.hasBuildSamples()) {
+            return overlay;
         }
         return base;
     }

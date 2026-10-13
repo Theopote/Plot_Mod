@@ -243,7 +243,7 @@ public final class RoadProfileSolver {
 
         List<Double> designElevations;
         boolean manualEndpointConstraintFeasible;
-        boolean waterConstraintFeasible = true;
+        boolean waterConstraintFeasible;
         RoadHeightRasterizer.RasterizationResult raster;
         if (useTerrainAdaptiveSolver) {
             VerticalStationConstraints.StationElevationBounds elevationBounds =
@@ -355,7 +355,6 @@ public final class RoadProfileSolver {
             return EnvironmentFeasibilityProjector.FlattenPolicy.AUTO_RAISE_UNIFORM;
         }
         if (manualStartHeight != null
-                && manualEndHeight != null
                 && manualStartHeight.equals(manualEndHeight)) {
             return EnvironmentFeasibilityProjector.FlattenPolicy.STRICT_MANUAL;
         }

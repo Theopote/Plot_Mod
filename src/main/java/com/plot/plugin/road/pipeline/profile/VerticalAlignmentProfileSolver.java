@@ -294,7 +294,6 @@ public final class VerticalAlignmentProfileSolver {
             return EnvironmentFeasibilityProjector.FlattenPolicy.AUTO_RAISE_UNIFORM;
         }
         if (manualStartHeight != null
-                && manualEndHeight != null
                 && manualStartHeight.equals(manualEndHeight)) {
             return EnvironmentFeasibilityProjector.FlattenPolicy.STRICT_MANUAL;
         }

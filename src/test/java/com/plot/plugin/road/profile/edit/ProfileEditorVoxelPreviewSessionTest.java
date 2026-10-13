@@ -1,14 +1,16 @@
 package com.plot.plugin.road.profile.edit;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
-import com.plot.plugin.road.pipeline.profile.BuildHeightSample;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
+import com.plot.plugin.road.pipeline.profile.BuildHeightSample;
 import com.plot.plugin.road.pipeline.profile.BuildHeightSequenceSmoother;
 import com.plot.plugin.road.pipeline.profile.ProfileCompileOptions;
 import com.plot.plugin.road.pipeline.profile.VoxelProfileCompileResult;
+import com.plot.plugin.road.pipeline.profile.VoxelProfileConstraints;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
@@ -18,6 +20,8 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -26,17 +30,13 @@ class ProfileEditorVoxelPreviewSessionTest {
     @Test
     void previewCompilationDoesNotMutateLiveNetwork() {
         RoadNetwork live = networkWithRoad("r1");
-        long revision = 1L;
-        ProfileEditorWindowSession session = ProfileEditorWindowSession.open(live, revision);
+        ProfileEditorWindowSession session = ProfileEditorWindowSession.open(live, 1L);
         Road working = session.editingNetwork().getRoad("r1");
         working.setVerticalAlignment(new RoadVerticalAlignment(List.of(
             new PointOfVerticalIntersection(0.0, 65.0),
             new PointOfVerticalIntersection(30.0, 65.0))));
 
-        VoxelProfilePreviewKey key = VoxelProfilePreviewKey.of(
-            "r1", working.getVerticalAlignment(), RoadVerticalMode.MANUAL_PROFILE, null,
-            ProfileCompileOptions.defaults());
-        session.storeVoxelPreview("r1", key, readyResult());
+        session.storeVoxelPreview("r1", keyFor(session.editingNetwork(), working), readyResult());
 
         assertEquals(64.0, live.getRoad("r1").getVerticalAlignment().getPvis().getFirst().getElevation());
         assertTrue(session.voxelPreview("r1").isReady());
@@ -46,12 +46,8 @@ class ProfileEditorVoxelPreviewSessionTest {
     void cancelDiscardsCompiledPreview() {
         RoadNetwork live = networkWithRoad("r1");
         ProfileEditorWindowSession session = ProfileEditorWindowSession.open(live, 1L);
-        session.storeVoxelPreview(
-            "r1",
-            VoxelProfilePreviewKey.of(
-                "r1", live.getRoad("r1").getVerticalAlignment(), RoadVerticalMode.MANUAL_PROFILE,
-                null, ProfileCompileOptions.defaults()),
-            readyResult());
+        Road road = session.editingNetwork().getRoad("r1");
+        session.storeVoxelPreview("r1", keyFor(session.editingNetwork(), road), readyResult());
         assertTrue(session.voxelPreview("r1").isReady());
 
         session.cancel();
@@ -63,12 +59,8 @@ class ProfileEditorVoxelPreviewSessionTest {
     void restoreInvalidatesEditedPreview() {
         RoadNetwork live = networkWithRoad("r1");
         ProfileEditorWindowSession session = ProfileEditorWindowSession.open(live, 1L);
-        session.storeVoxelPreview(
-            "r1",
-            VoxelProfilePreviewKey.of(
-                "r1", live.getRoad("r1").getVerticalAlignment(), RoadVerticalMode.MANUAL_PROFILE,
-                null, ProfileCompileOptions.defaults()),
-            readyResult());
+        Road road = session.editingNetwork().getRoad("r1");
+        session.storeVoxelPreview("r1", keyFor(session.editingNetwork(), road), readyResult());
         session.restore();
         assertEquals(VoxelProfilePreviewState.STALE, session.voxelPreview("r1").state());
     }
@@ -77,12 +69,8 @@ class ProfileEditorVoxelPreviewSessionTest {
     void pviElevationChangeInvalidatesVoxelPreview() {
         RoadNetwork live = networkWithRoad("r1");
         ProfileEditorWindowSession session = ProfileEditorWindowSession.open(live, 1L);
-        session.storeVoxelPreview(
-            "r1",
-            VoxelProfilePreviewKey.of(
-                "r1", live.getRoad("r1").getVerticalAlignment(), RoadVerticalMode.MANUAL_PROFILE,
-                null, ProfileCompileOptions.defaults()),
-            readyResult());
+        Road road = session.editingNetwork().getRoad("r1");
+        session.storeVoxelPreview("r1", keyFor(session.editingNetwork(), road), readyResult());
         session.markVoxelPreviewStale("r1");
         assertTrue(session.voxelPreview("r1").isStale());
     }
@@ -100,12 +88,8 @@ class ProfileEditorVoxelPreviewSessionTest {
         live.createEdge(a.getId(), b.getId(), List.of(a.getPosition(), b.getPosition()), "r2");
 
         ProfileEditorWindowSession session = ProfileEditorWindowSession.open(live, 1L);
-        session.storeVoxelPreview(
-            "r1",
-            VoxelProfilePreviewKey.of(
-                "r1", live.getRoad("r1").getVerticalAlignment(), RoadVerticalMode.MANUAL_PROFILE,
-                null, ProfileCompileOptions.defaults()),
-            readyResult());
+        Road road1 = session.editingNetwork().getRoad("r1");
+        session.storeVoxelPreview("r1", keyFor(session.editingNetwork(), road1), readyResult());
 
         VoxelProfilePreviewSlot slotR2 = session.voxelPreview("r2");
         assertEquals(VoxelProfilePreviewState.NOT_COMPUTED, slotR2.state());
@@ -117,14 +101,76 @@ class ProfileEditorVoxelPreviewSessionTest {
     void hoverDoesNotInvalidateVoxelPreview() {
         RoadNetwork live = networkWithRoad("r1");
         ProfileEditorWindowSession session = ProfileEditorWindowSession.open(live, 1L);
-        session.storeVoxelPreview(
-            "r1",
-            VoxelProfilePreviewKey.of(
-                "r1", live.getRoad("r1").getVerticalAlignment(), RoadVerticalMode.MANUAL_PROFILE,
-                null, ProfileCompileOptions.defaults()),
-            readyResult());
-        // No markStale — selection / hover must leave READY intact.
+        Road road = session.editingNetwork().getRoad("r1");
+        session.storeVoxelPreview("r1", keyFor(session.editingNetwork(), road), readyResult());
         assertTrue(session.voxelPreview("r1").isReady());
+    }
+
+    @Test
+    void failedCompileKeepsLastGoodPreviewStale() {
+        RoadNetwork live = networkWithRoad("r1");
+        ProfileEditorWindowSession session = ProfileEditorWindowSession.open(live, 1L);
+        Road road = session.editingNetwork().getRoad("r1");
+        VoxelProfilePreviewKey key = keyFor(session.editingNetwork(), road);
+        session.storeVoxelPreview("r1", key, readyResult());
+        assertTrue(session.voxelPreview("r1").isReady());
+
+        session.storeVoxelPreview("r1", key, VoxelProfileCompileResult.failed("boom"));
+        VoxelProfilePreviewSlot slot = session.voxelPreview("r1");
+        assertEquals(VoxelProfilePreviewState.FAILED, slot.state());
+        assertNotNull(slot.lastGoodResult());
+        assertTrue(slot.lastGoodResult().feasible());
+        assertTrue(slot.hasLastGoodSamples(), "failed compile must keep previous successful samples");
+        assertEquals("boom", slot.failureReason());
+        // Failed payload must not replace last-good.
+        assertTrue(slot.lastGoodResult().hasSamples());
+    }
+
+    @Test
+    void previewKeyChangesOnIntersectionConstraint() {
+        RoadNetwork network = networkWithRoad("r1");
+        Road road = network.getRoad("r1");
+        VoxelProfilePreviewKey before = keyFor(network, road);
+
+        com.plot.plugin.road.profile.RoadProfileIntersection intersection =
+            new com.plot.plugin.road.profile.RoadProfileIntersection(
+                "node-x",
+                "r1",
+                "r2",
+                "other",
+                15.0,
+                15.0,
+                65.0,
+                65.0,
+                null,
+                false,
+                false,
+                0.0,
+                false);
+        VoxelProfilePreviewKey after = VoxelProfilePreviewKey.of(
+            network,
+            road,
+            road.getVerticalAlignment(),
+            List.of(intersection),
+            VoxelProfileConstraints.empty(),
+            null,
+            0L,
+            new RoadSystemConfig("fp"),
+            ProfileCompileOptions.defaults());
+        assertNotEquals(before, after);
+    }
+
+    private static VoxelProfilePreviewKey keyFor(RoadNetwork network, Road road) {
+        return VoxelProfilePreviewKey.of(
+            network,
+            road,
+            road.getVerticalAlignment(),
+            List.of(),
+            VoxelProfileConstraints.empty(),
+            null,
+            0L,
+            new RoadSystemConfig("fp"),
+            ProfileCompileOptions.defaults());
     }
 
     private static RoadNetwork networkWithRoad(String roadId) {
