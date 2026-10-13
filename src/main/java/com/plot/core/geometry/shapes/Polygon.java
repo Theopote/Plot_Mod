@@ -286,7 +286,7 @@ public class Polygon extends Shape {
         double t = toPoint.dot(segment) / segmentLengthSq;
         
         // 限制 t 在 [0, 1] 范围内
-        t = Math.max(0, Math.min(1, t));
+        t = Math.clamp(t, 0, 1);
         
         // 计算投影点
         return segmentStart.add(segment.multiply(t));
@@ -448,7 +448,7 @@ public class Polygon extends Shape {
         if (denom <= 1e-12) {
             return p.distance(a);
         }
-        double t = Math.max(0.0, Math.min(1.0, ap.dot(ab) / denom));
+        double t = Math.clamp(ap.dot(ab) / denom, 0.0, 1.0);
         Vec2d projection = a.add(ab.multiply(t));
         return p.distance(projection);
     }

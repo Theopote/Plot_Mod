@@ -2,7 +2,9 @@ package com.plot.plugin.road.pipeline.corridor;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.terrain.TerrainSampler;
+import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
+import com.plot.plugin.road.pipeline.construction.RoadEarthworkPolicy;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -32,6 +34,9 @@ public final class SlopeShoulderTerrainTraceValidator {
         int gaps = 0;
         Set<String> tracedRays = new HashSet<>();
         for (SurfaceSample outer : outerShoulderSamples(plan, surfaceSamples)) {
+            if (skipShoulderTraceForColumn(plan, outer.columnKey())) {
+                continue;
+            }
             Vec2d localCenter = localSurfaceCenter(surfaceSamples, outer.planPoint());
             Vec2d outward = outer.planPoint().subtract(localCenter);
             if (outward.lengthSquared() < DIRECTION_EPSILON) {
@@ -45,6 +50,15 @@ public final class SlopeShoulderTerrainTraceValidator {
             gaps += traceRay(plan, terrain, outer.planPoint(), direction, outer.roadY());
         }
         return gaps;
+    }
+
+    private static boolean skipShoulderTraceForColumn(RoadCorridorPlan plan, ColumnKey key) {
+        ClearanceCell clearance = plan.clearanceCell(key);
+        if (clearance == null) {
+            return false;
+        }
+        RoadConstructionType type = clearance.constructionType();
+        return type != null && RoadEarthworkPolicy.of(type) == RoadEarthworkPolicy.STRUCTURE_ONLY;
     }
 
     private static List<SurfaceSample> collectSurfaceSamples(RoadCorridorPlan plan) {

@@ -15,6 +15,7 @@ import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
 import com.plot.plugin.road.pipeline.RoadPathStationSampler;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
+import com.plot.plugin.road.pipeline.construction.RoadEarthworkPolicy;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
@@ -86,10 +87,22 @@ public final class RoadCorridorPlanBuilder {
                 carriagewaySeedKey, host, config, tunnelThreshold);
             if (i > 0) {
                 rasterizeSpan(plan, stations.get(i - 1), sample, crossSection, terrain,
-                    unitsPerBlock, carriagewaySeedKey, host, config, tunnelThreshold);
+                    unitsPerBlock, carriagewaySeedKey, host, config, tunnelThreshold,
+                    segments, constructionTypes);
             }
         }
+        stripStructureInteriorSlopes(plan);
         return plan;
+    }
+
+    /** Drop residual batter on bridge/tunnel interior columns (order can leave orphans). */
+    private static void stripStructureInteriorSlopes(RoadCorridorPlan plan) {
+        for (var entry : plan.clearanceEntries()) {
+            RoadConstructionType type = entry.getValue().constructionType();
+            if (type != null && type.isStructureInterior()) {
+                plan.removeSlopeCell(entry.getKey());
+            }
+        }
     }
 
     private static List<StationSample> collectStations(
@@ -134,7 +147,8 @@ public final class RoadCorridorPlanBuilder {
         rasterizeSurfaceBands(plan, sample.center(), sample.center(), sample.leftNormal(),
             sample.targetY(), sample.targetY(), crossSection, terrain, unitsPerBlock,
             seedKey, host, sample.constructionType(), config, tunnelThreshold);
-        if (crossSection.includeSlopeBatter && !sample.constructionType().isBridgeFamily()) {
+        if (crossSection.includeSlopeBatter
+                && RoadEarthworkPolicy.of(sample.constructionType()).allowsCorridorBatter()) {
             mergeSlopeWedge(plan, sample, crossSection, terrain, unitsPerBlock, host);
         }
     }
@@ -149,13 +163,18 @@ public final class RoadCorridorPlanBuilder {
             String seedKey,
             PlanHost host,
             RoadSystemConfig config,
-            int tunnelThreshold) {
+            int tunnelThreshold,
+            List<PathSegment> segments,
+            List<RoadConstructionType> constructionTypes) {
         ResolvedCrossSection toSection = crossSection;
         rasterizeSurfaceBands(plan, from.center(), to.center(), to.leftNormal(),
             from.targetY(), to.targetY(), toSection, terrain, unitsPerBlock,
             seedKey, host, to.constructionType(), config, tunnelThreshold);
-        if (toSection.includeSlopeBatter && !to.constructionType().isBridgeFamily()) {
-            mergeSlopeSpan(plan, from, to, toSection, terrain, unitsPerBlock, host);
+        if (toSection.includeSlopeBatter
+                && (RoadEarthworkPolicy.of(from.constructionType()).allowsCorridorBatter()
+                    || RoadEarthworkPolicy.of(to.constructionType()).allowsCorridorBatter())) {
+            mergeSlopeSpan(plan, from, to, toSection, terrain, unitsPerBlock, host,
+                segments, constructionTypes);
         }
     }
 
@@ -488,12 +507,19 @@ public final class RoadCorridorPlanBuilder {
             ResolvedCrossSection crossSection,
             TerrainSampler terrain,
             double unitsPerBlock,
-            PlanHost host) {
+            PlanHost host,
+            List<PathSegment> segments,
+            List<RoadConstructionType> constructionTypes) {
         List<Vec2d> span = RoadVoxelRasterizer.sampleSpanPoints(from.center(), to.center());
         int last = span.size() - 1;
         for (int i = 0; i <= last; i++) {
             double t = last == 0 ? 1.0 : (double) i / last;
             Vec2d center = span.get(i);
+            RoadConstructionType stepType = resolveStepConstructionType(
+                from, to, t, center, segments, constructionTypes);
+            if (!RoadEarthworkPolicy.of(stepType).allowsCorridorBatter()) {
+                continue;
+            }
             int targetY = last == 0
                 ? to.targetY()
                 : (int) Math.round(from.targetY() + (to.targetY() - from.targetY()) * t);
@@ -502,6 +528,50 @@ public final class RoadCorridorPlanBuilder {
                 : normalize(from.leftNormal().multiply(1.0 - t).add(to.leftNormal().multiply(t)));
             mergeSlopeAtCenter(plan, center, leftNormal, targetY, crossSection, terrain, unitsPerBlock, host);
         }
+    }
+
+    private static RoadConstructionType resolveStepConstructionType(
+            StationSample from,
+            StationSample to,
+            double t,
+            Vec2d center,
+            List<PathSegment> segments,
+            List<RoadConstructionType> constructionTypes) {
+        RoadConstructionType fromType = from.constructionType();
+        RoadConstructionType toType = to.constructionType();
+        if (fromType == toType) {
+            return fromType;
+        }
+        if (segments != null && constructionTypes != null && !segments.isEmpty()) {
+            int segmentIndex = segmentIndexForPoint(segments, center);
+            return RoadConstructionClassifier.constructionTypeAt(constructionTypes, segmentIndex);
+        }
+        return t <= 0.5 ? fromType : toType;
+    }
+
+    private static int segmentIndexForPoint(List<PathSegment> segments, Vec2d point) {
+        int bestIndex = 0;
+        double bestDistSq = Double.MAX_VALUE;
+        for (int i = 0; i < segments.size(); i++) {
+            double distSq = distanceSquaredToSegment(point, segments.get(i));
+            if (distSq < bestDistSq) {
+                bestDistSq = distSq;
+                bestIndex = i;
+            }
+        }
+        return bestIndex;
+    }
+
+    private static double distanceSquaredToSegment(Vec2d point, PathSegment segment) {
+        Vec2d ab = segment.end.subtract(segment.start);
+        double lengthSq = ab.lengthSquared();
+        if (lengthSq < 1e-12) {
+            return point.distanceSquared(segment.start);
+        }
+        double param = point.subtract(segment.start).dot(ab) / lengthSq;
+        double clamped = Math.clamp(param, 0.0, 1.0);
+        Vec2d closest = segment.start.add(ab.multiply(clamped));
+        return point.distanceSquared(closest);
     }
 
     private static void mergeSlopeAtCenter(
@@ -594,6 +664,11 @@ public final class RoadCorridorPlanBuilder {
             int worldX = host.worldX(sample);
             int worldZ = host.worldZ(sample);
             ColumnKey key = new ColumnKey(worldX, worldZ);
+            ClearanceCell existingClearance = plan.clearanceCell(key);
+            if (existingClearance != null
+                    && !RoadEarthworkPolicy.of(existingClearance.constructionType()).allowsCorridorBatter()) {
+                continue;
+            }
             SlopeColumnCell cell = plan.slopeCellOrCreate(key, sample);
             if (isFill) {
                 cell.mergeFill(slopeHeight, fillBlockId);

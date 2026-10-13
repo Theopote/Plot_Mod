@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -132,5 +133,44 @@ class RoadCorridorPlanBuilderTest {
         assertTrue(midBridge != null, "bridge columns must still record clearance metadata");
         assertTrue(midBridge.clearTopY() > midBridge.designSurfaceY(),
             "bridge clearance envelope must have positive overhead height");
+
+        int slopeUnderBridge = RoadGenerationIntegrityValidator.countStructureInteriorSlopeCells(plan);
+        assertEquals(0, slopeUnderBridge,
+            "bridge interior must not receive corridor slope cells");
+    }
+
+    @Test
+    void tunnelInteriorHasNoCorridorSlopeCells() {
+        RoadSystemConfig config = CorridorTestFixtures.baseConfig();
+        ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);
+        CrossSectionBuildContext crossSections = CrossSectionBuildContext.fixed(crossSection);
+
+        PathSegment approach = new PathSegment(new Vec2d(0, 0), new Vec2d(8, 0));
+        PathSegment tunnel = new PathSegment(new Vec2d(8, 0), new Vec2d(22, 0));
+        PathSegment exit = new PathSegment(new Vec2d(22, 0), new Vec2d(30, 0));
+        List<PathSegment> segments = List.of(approach, tunnel, exit);
+        List<SegmentHeightInfo> heightInfos = List.of(
+            new SegmentHeightInfo(approach, 64, 64, 64, 64, 0.0),
+            new SegmentHeightInfo(tunnel, 64, 64, 64, 64, 0.0),
+            new SegmentHeightInfo(exit, 64, 64, 64, 64, 0.0));
+        List<RoadConstructionType> constructionTypes = List.of(
+            RoadConstructionType.ROAD,
+            RoadConstructionType.TUNNEL,
+            RoadConstructionType.ROAD);
+
+        RoadCorridorPlan plan = RoadCorridorPlanBuilder.build(
+            segments,
+            heightInfos,
+            crossSections,
+            constructionTypes,
+            DesignElevationSource.inactive(),
+            BuildHeightProfile.inactive(),
+            new FlatTerrainSampler(72),
+            1.0,
+            "tunnel-seed",
+            CorridorTestFixtures.planHost(config));
+
+        assertEquals(0, RoadGenerationIntegrityValidator.countStructureInteriorSlopeCells(plan),
+            "tunnel interior must not receive corridor slope cells");
     }
 }

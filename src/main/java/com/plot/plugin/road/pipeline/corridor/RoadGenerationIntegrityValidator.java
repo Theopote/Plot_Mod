@@ -1,6 +1,8 @@
 package com.plot.plugin.road.pipeline.corridor;
 
 import com.plot.core.command.BlockRecord;
+import com.plot.plugin.road.RoadConstructionType;
+import com.plot.plugin.road.pipeline.construction.RoadEarthworkPolicy;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
@@ -28,8 +30,9 @@ public final class RoadGenerationIntegrityValidator {
             int slopeBatterWidthCapCount,
             int brokenSlopeSurfaceCount,
             int unresolvedSlopeConstructionCount,
-            int shoulderTraceGapCount) {
-        public static final IntegrityReport ZERO = new IntegrityReport(0, 0, 0, 0, 0, 0, 0);
+            int shoulderTraceGapCount,
+            int structureInteriorSlopeCellCount) {
+        public static final IntegrityReport ZERO = new IntegrityReport(0, 0, 0, 0, 0, 0, 0, 0);
 
         public boolean isClean() {
             return missingRoadSurfaceCount == 0
@@ -59,6 +62,7 @@ public final class RoadGenerationIntegrityValidator {
         int brokenSlopes = countBrokenSlopeSurfaces(plan);
         int lateralGaps = countSlopeLateralGaps(plan);
         int traceGaps = SlopeShoulderTerrainTraceValidator.countShoulderToTerrainGaps(plan, terrain);
+        int structureInteriorSlopes = countStructureInteriorSlopeCells(plan);
         plan.setBrokenSlopeSurfaceCount(brokenSlopes + lateralGaps);
         return new IntegrityReport(
             missingSurface,
@@ -67,7 +71,8 @@ public final class RoadGenerationIntegrityValidator {
             plan.slopeBatterWidthCapCount(),
             brokenSlopes + lateralGaps,
             plan.unresolvedSlopeConstructionCount(),
-            traceGaps);
+            traceGaps,
+            structureInteriorSlopes);
     }
 
     public static IntegrityReport validatePlacements(
@@ -84,6 +89,7 @@ public final class RoadGenerationIntegrityValidator {
         int brokenSlopes = countBrokenSlopeSurfaces(plan);
         int lateralGaps = countSlopeLateralGaps(plan);
         int traceGaps = SlopeShoulderTerrainTraceValidator.countShoulderToTerrainGaps(plan, terrain);
+        int structureInteriorSlopes = countStructureInteriorSlopeCells(plan);
         plan.setBrokenSlopeSurfaceCount(brokenSlopes + lateralGaps);
         return new IntegrityReport(
             missingSurface,
@@ -92,7 +98,33 @@ public final class RoadGenerationIntegrityValidator {
             plan.slopeBatterWidthCapCount(),
             brokenSlopes + lateralGaps,
             plan.unresolvedSlopeConstructionCount(),
-            traceGaps);
+            traceGaps,
+            structureInteriorSlopes);
+    }
+
+    static int countStructureInteriorSlopeCells(RoadCorridorPlan plan) {
+        if (plan == null) {
+            return 0;
+        }
+        int count = 0;
+        for (var entry : plan.slopeEntries()) {
+            if (isStructureInteriorSlopeColumn(plan, entry.getKey())) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static boolean isStructureInteriorSlopeColumn(RoadCorridorPlan plan, ColumnKey key) {
+        RoadConstructionType type = constructionTypeForColumn(plan, key);
+        return type != null && RoadEarthworkPolicy.of(type) == RoadEarthworkPolicy.STRUCTURE_ONLY;
+    }
+
+    private static RoadConstructionType constructionTypeForColumn(RoadCorridorPlan plan, ColumnKey key) {
+        // Only same-column clearance: lateral batter next to a bridge deck must not
+        // inherit STRUCTURE_ONLY from the centerline (that produced false positives).
+        ClearanceCell at = plan.clearanceCell(key);
+        return at != null ? at.constructionType() : null;
     }
 
     public static void applyToResult(
@@ -127,6 +159,7 @@ public final class RoadGenerationIntegrityValidator {
         result.brokenSlopeSurfaceCount = report.brokenSlopeSurfaceCount();
         result.unresolvedSlopeConstructionCount = report.unresolvedSlopeConstructionCount();
         result.shoulderTraceGapCount = report.shoulderTraceGapCount();
+        result.structureInteriorSlopeCellCount = report.structureInteriorSlopeCellCount();
     }
 
     private static int countMissingRoadSurfaces(RoadCorridorPlan plan, SolidIndex index) {

@@ -2,6 +2,7 @@ package com.plot.plugin.road.pipeline.corridor;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadConstructionType;
+import com.plot.plugin.road.pipeline.construction.RoadEarthworkPolicy;
 import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
@@ -72,10 +73,10 @@ public final class RoadCorridorSolidEmitter {
             : slope != null ? slope.planPoint() : new Vec2d(key.worldX(), key.worldZ());
         int groundY = terrain.sampleSurfaceY(planPoint);
         Integer surfaceY = surface != null ? surface.surfaceY() : null;
-        RoadConstructionType constructionType = clearance != null ? clearance.constructionType() : null;
+        RoadConstructionType constructionType = resolveConstructionType(plan, key, clearance);
 
         if (slope != null && slope.hasFill()
-                && (constructionType == null || !constructionType.isBridgeFamily())) {
+                && RoadEarthworkPolicy.of(constructionType).allowsOpenSubgradeFill()) {
             int fillTop = surfaceY != null
                 ? Math.min(slope.fillSurfaceY(), surfaceY - 1)
                 : slope.fillSurfaceY();
@@ -95,7 +96,8 @@ public final class RoadCorridorSolidEmitter {
             }
         }
 
-        if (slope != null && slope.hasCut() && groundY > slope.cutSurfaceY()) {
+        if (slope != null && slope.hasCut() && groundY > slope.cutSurfaceY()
+                && RoadEarthworkPolicy.of(constructionType).allowsCorridorBatter()) {
             for (int y = slope.cutSurfaceY() + 1; y <= groundY; y++) {
                 solids.add(
                     planPoint,
@@ -122,12 +124,52 @@ public final class RoadCorridorSolidEmitter {
             int surfaceY,
             int groundY,
             int bridgeThreshold) {
-        if (constructionType != null && constructionType.isBridgeFamily()) {
+        if (!RoadEarthworkPolicy.of(constructionType).allowsOpenSubgradeFill()) {
             return false;
         }
         if (constructionType == RoadConstructionType.FILL) {
             return true;
         }
         return surfaceY - groundY <= bridgeThreshold;
+    }
+
+    /**
+     * Prefer same-column clearance; structure-interior on the same longitudinal station wins
+     * so lateral batter beside a deck/tunnel does not fill as ordinary embankment.
+     */
+    private static RoadConstructionType resolveConstructionType(
+            RoadCorridorPlan plan,
+            ColumnKey key,
+            ClearanceCell clearance) {
+        if (clearance != null
+                && clearance.constructionType() != null
+                && clearance.constructionType().isStructureInterior()) {
+            return clearance.constructionType();
+        }
+        RoadConstructionType structure = null;
+        int structureDist = Integer.MAX_VALUE;
+        RoadConstructionType best = clearance != null ? clearance.constructionType() : null;
+        int bestDist = best != null ? 0 : Integer.MAX_VALUE;
+        int maxReach = com.plot.plugin.road.geometry.RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS;
+        for (var entry : plan.clearanceEntries()) {
+            ColumnKey other = entry.getKey();
+            if (other.worldX() != key.worldX() && other.worldZ() != key.worldZ()) {
+                continue;
+            }
+            RoadConstructionType type = entry.getValue().constructionType();
+            if (type == null) {
+                continue;
+            }
+            int dist = Math.abs(other.worldX() - key.worldX()) + Math.abs(other.worldZ() - key.worldZ());
+            if (type.isStructureInterior() && dist <= maxReach && dist < structureDist) {
+                structureDist = dist;
+                structure = type;
+            }
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = type;
+            }
+        }
+        return structure != null ? structure : best;
     }
 }

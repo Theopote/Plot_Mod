@@ -67,6 +67,8 @@ public class RoadGenerationResult {
     public int unresolvedSlopeConstructionCount;
     /** Outward shoulder trace found a missing slope column while cut/fill still required. */
     public int shoulderTraceGapCount;
+    /** Slope mask columns under bridge/tunnel interior construction types. */
+    public int structureInteriorSlopeCellCount;
 
     public RoadGenerationResult(double pathLength) {
         this.pathLength = pathLength;
@@ -124,6 +126,7 @@ public class RoadGenerationResult {
         brokenSlopeSurfaceCount += source.brokenSlopeSurfaceCount;
         unresolvedSlopeConstructionCount += source.unresolvedSlopeConstructionCount;
         shoulderTraceGapCount += source.shoulderTraceGapCount;
+        structureInteriorSlopeCellCount += source.structureInteriorSlopeCellCount;
         pathLength += source.pathLength;
         constructionTypes.addAll(source.constructionTypes);
         bridgeLength += source.bridgeLength;
