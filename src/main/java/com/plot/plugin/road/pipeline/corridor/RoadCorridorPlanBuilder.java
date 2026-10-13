@@ -155,7 +155,7 @@ public final class RoadCorridorPlanBuilder {
             from.targetY(), to.targetY(), toSection, terrain, unitsPerBlock,
             seedKey, host, to.constructionType(), config, tunnelThreshold);
         if (toSection.includeSlopeBatter && !to.constructionType().isBridgeFamily()) {
-            mergeSlopeWedge(plan, to, toSection, terrain, unitsPerBlock, host);
+            mergeSlopeSpan(plan, from, to, toSection, terrain, unitsPerBlock, host);
         }
     }
 
@@ -477,9 +477,45 @@ public final class RoadCorridorPlanBuilder {
             TerrainSampler terrain,
             double unitsPerBlock,
             PlanHost host) {
+        mergeSlopeAtCenter(plan, sample.center(), sample.leftNormal(), sample.targetY(),
+            crossSection, terrain, unitsPerBlock, host);
+    }
+
+    private static void mergeSlopeSpan(
+            RoadCorridorPlan plan,
+            StationSample from,
+            StationSample to,
+            ResolvedCrossSection crossSection,
+            TerrainSampler terrain,
+            double unitsPerBlock,
+            PlanHost host) {
+        List<Vec2d> span = RoadVoxelRasterizer.sampleSpanPoints(from.center(), to.center());
+        int last = span.size() - 1;
+        for (int i = 0; i <= last; i++) {
+            double t = last == 0 ? 1.0 : (double) i / last;
+            Vec2d center = span.get(i);
+            int targetY = last == 0
+                ? to.targetY()
+                : (int) Math.round(from.targetY() + (to.targetY() - from.targetY()) * t);
+            Vec2d leftNormal = last == 0
+                ? normalize(to.leftNormal())
+                : normalize(from.leftNormal().multiply(1.0 - t).add(to.leftNormal().multiply(t)));
+            mergeSlopeAtCenter(plan, center, leftNormal, targetY, crossSection, terrain, unitsPerBlock, host);
+        }
+    }
+
+    private static void mergeSlopeAtCenter(
+            RoadCorridorPlan plan,
+            Vec2d center,
+            Vec2d leftNormal,
+            int targetY,
+            ResolvedCrossSection crossSection,
+            TerrainSampler terrain,
+            double unitsPerBlock,
+            PlanHost host) {
         int maxHorizontalRun = RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS;
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
-        Vec2d leftNormal = normalize(sample.leftNormal());
+        Vec2d normal = normalize(leftNormal);
         double shoulderCenterOffset = crossSection.slopeAnchorCenterOffset() * scale;
         double outerOffset = RoadDimensionUtils.halfExtentFromCenter(
             crossSection.slopeAnchorBandWidth()) * scale;
@@ -490,14 +526,14 @@ public final class RoadCorridorPlanBuilder {
         float fillRatio = crossSection.fillSlopeRatio;
         float cutRatio = crossSection.cutSlopeRatio;
 
-        Vec2d left = sample.center().add(leftNormal.multiply(shoulderCenterOffset));
-        Vec2d right = sample.center().subtract(leftNormal.multiply(shoulderCenterOffset));
-        mergeSlopeAtShoulder(plan, left, sample.targetY(), outerOffset, terrain,
+        Vec2d left = center.add(normal.multiply(shoulderCenterOffset));
+        Vec2d right = center.subtract(normal.multiply(shoulderCenterOffset));
+        mergeSlopeAtShoulder(plan, left, targetY, outerOffset, terrain,
             fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
-            leftNormal, scale, host);
-        mergeSlopeAtShoulder(plan, right, sample.targetY(), outerOffset, terrain,
+            normal, scale, host);
+        mergeSlopeAtShoulder(plan, right, targetY, outerOffset, terrain,
             fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
-            leftNormal.multiply(-1), scale, host);
+            normal.multiply(-1), scale, host);
     }
 
     private static void mergeSlopeAtShoulder(
@@ -528,8 +564,11 @@ public final class RoadCorridorPlanBuilder {
         int profileDirection = isFill ? -1 : 1;
         float slopeRatio = isFill ? fillRatio : cutRatio;
         int heightDifference = Math.abs(targetY - groundAtEdge);
-        int usefulHorizontalRun = Math.clamp(
-            (int) Math.ceil(heightDifference * Math.max(0.5f, slopeRatio)) + 2, 2, maxHorizontalRun);
+        int unconstrainedRun = (int) Math.ceil(heightDifference * Math.max(0.5f, slopeRatio)) + 2;
+        if (unconstrainedRun > maxHorizontalRun) {
+            plan.noteSlopeBatterWidthCap();
+        }
+        int usefulHorizontalRun = Math.clamp(unconstrainedRun, 2, maxHorizontalRun);
 
         List<int[]> profile = RoadSlopeUtils.computeSlopeProfile(
             targetY,

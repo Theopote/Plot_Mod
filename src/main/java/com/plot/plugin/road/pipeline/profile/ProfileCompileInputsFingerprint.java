@@ -66,11 +66,14 @@ public record ProfileCompileInputsFingerprint(
             terrainRevision,
             worldBoundsHash(elevationBounds),
             effective.algorithmVersion(),
-            Objects.hash(effective.minEffectiveRunBlocks(), effective.algorithmVersion()));
+            Objects.hash(
+                effective.minEffectiveRunBlocks(),
+                effective.maxReversalSpanBlocks(),
+                effective.algorithmVersion()));
     }
 
     static int geometryHash(RoadNetwork network, Road road) {
-        if (network == null || road == null || !RoadStationing.isStationable(network, road)) {
+        if (road == null || !RoadStationing.isStationable(network, road)) {
             return 0;
         }
         int hash = Double.hashCode(RoadStationing.canonicalLength(network, road));

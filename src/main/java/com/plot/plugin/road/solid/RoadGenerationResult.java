@@ -59,6 +59,10 @@ public class RoadGenerationResult {
     public int missingRoadSurfaceCount;
     public int unclearedObstructionCount;
     public int orphanSlopePillarCount;
+    /** Batter horizontal run capped at corridor max; deep cut/fill may be incomplete. */
+    public int slopeBatterWidthCapCount;
+    /** Slope mask columns that do not connect smoothly to adjacent batter columns. */
+    public int brokenSlopeSurfaceCount;
 
     public RoadGenerationResult(double pathLength) {
         this.pathLength = pathLength;
@@ -112,6 +116,8 @@ public class RoadGenerationResult {
         missingRoadSurfaceCount += source.missingRoadSurfaceCount;
         unclearedObstructionCount += source.unclearedObstructionCount;
         orphanSlopePillarCount += source.orphanSlopePillarCount;
+        slopeBatterWidthCapCount += source.slopeBatterWidthCapCount;
+        brokenSlopeSurfaceCount += source.brokenSlopeSurfaceCount;
         pathLength += source.pathLength;
         constructionTypes.addAll(source.constructionTypes);
         bridgeLength += source.bridgeLength;

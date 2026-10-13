@@ -31,6 +31,52 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RoadVoxelProfileCompilerIntegrationTest {
 
     @Test
+    void manualFlatDesignCompileTracksDesignWithinOneBlock() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("manual-flat");
+        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        road.setMaxSlope(40.0f);
+        RoadVerticalAlignment alignment = new RoadVerticalAlignment(java.util.List.of(
+            new PointOfVerticalIntersection(0.0, 78.0),
+            new PointOfVerticalIntersection(120.0, 78.0)));
+        road.setVerticalAlignment(alignment);
+
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(120, 0));
+        network.createEdge(a.getId(), b.getId(), java.util.List.of(a.getPosition(), b.getPosition()), road.getId());
+
+        RoadSystemConfig config = new RoadSystemConfig("manual-flat");
+        config.setRoadWidth(5);
+        config.setIncludeShoulder(false);
+        config.setIncludeSlopeBatter(false);
+        config.setMaxSlope(40.0f);
+
+        RoadGenerator generator = new RoadGenerator(
+            config,
+            IdentityCoordinateService.INSTANCE,
+            BlockProjectionHandler.getInstance());
+        FlatTerrainSampler terrain = new FlatTerrainSampler(64);
+
+        VoxelProfileCompileResult preview = RoadVoxelProfileCompiler.compile(
+            network,
+            road,
+            config,
+            generator,
+            terrain,
+            Map.of(),
+            ProfileCompileOptions.defaults(),
+            null,
+            alignment);
+        assertTrue(preview.feasible(), preview.failureReason());
+        assertTrue(preview.hasSamples());
+        for (BuildHeightSample sample : preview.samples()) {
+            assertTrue(Math.abs(sample.buildY() - 78) <= 1,
+                "manual flat design at Y=78 must compile near design, station=" + sample.station()
+                    + " buildY=" + sample.buildY());
+        }
+    }
+
+    @Test
     void editorVoxelPreviewMatchesActualGeneratedRoad() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("voxel-match");

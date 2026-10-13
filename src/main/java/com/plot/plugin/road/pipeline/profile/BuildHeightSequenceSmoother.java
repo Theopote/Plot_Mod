@@ -54,8 +54,43 @@ public final class BuildHeightSequenceSmoother {
 
         int before = countShortReversals(buildY);
         int minRun = options != null ? options.minEffectiveRunBlocks() : 12;
+        int maxReversalSpan = options != null
+            ? options.maxReversalSpanBlocks()
+            : ProfileCompileOptions.DEFAULT_MAX_REVERSAL_SPAN_BLOCKS;
         int adjustments = 0;
 
+        adjustments += flattenLocalExtrema(
+            buildY, design, station, locked, n, minRun, maxReversalSpan, false);
+        adjustments += flattenLocalExtrema(
+            buildY, design, station, locked, n, minRun, maxReversalSpan, true);
+
+        int after = countShortReversals(buildY);
+        List<BuildHeightSample> smoothed = new ArrayList<>(n);
+        for (int i = 0; i < n; i++) {
+            smoothed.add(new BuildHeightSample(station[i], design[i], buildY[i]));
+        }
+        return new SmoothingResult(
+            List.copyOf(smoothed),
+            new SmoothingDiagnostics(before, after, adjustments));
+    }
+
+    /**
+     * Removes local crests/sags when the continuous design does not require them.
+     *
+     * @param longSpanPass when false, only spans up to {@code minRun}; when true, up to
+     *     {@code maxReversalSpan} (covers sparse sampling and single-block spikes).
+     */
+    private static int flattenLocalExtrema(
+            int[] buildY,
+            double[] design,
+            double[] station,
+            BitSet locked,
+            int n,
+            int minRun,
+            int maxReversalSpan,
+            boolean longSpanPass) {
+        int spanLimit = longSpanPass ? maxReversalSpan : minRun;
+        int adjustments = 0;
         boolean changed = true;
         int guard = 0;
         while (changed && guard++ < n * 4) {
@@ -79,9 +114,10 @@ public final class BuildHeightSequenceSmoother {
                     int left = buildY[runStart - 1];
                     int right = buildY[runEnd + 1];
                     double span = station[runEnd + 1] - station[runStart - 1];
-                    if (span <= minRun + EPSILON) {
+                    int designWindow = longSpanPass ? maxReversalSpan : minRun;
+                    if (span <= spanLimit + EPSILON) {
                         if (height > left && height > right
-                                && designSupportsFlattening(design, station, runStart, runEnd, minRun)) {
+                                && designSupportsFlattening(design, station, runStart, runEnd, designWindow)) {
                             int target = Math.min(left, right);
                             if (target != height) {
                                 for (int j = runStart; j <= runEnd; j++) {
@@ -91,7 +127,7 @@ public final class BuildHeightSequenceSmoother {
                                 changed = true;
                             }
                         } else if (height < left && height < right
-                                && designSupportsFlattening(design, station, runStart, runEnd, minRun)) {
+                                && designSupportsFlattening(design, station, runStart, runEnd, designWindow)) {
                             int target = Math.max(left, right);
                             if (target != height) {
                                 for (int j = runStart; j <= runEnd; j++) {
@@ -106,15 +142,7 @@ public final class BuildHeightSequenceSmoother {
                 i = Math.max(runEnd + 1, i + 1);
             }
         }
-
-        int after = countShortReversals(buildY);
-        List<BuildHeightSample> smoothed = new ArrayList<>(n);
-        for (int i = 0; i < n; i++) {
-            smoothed.add(new BuildHeightSample(station[i], design[i], buildY[i]));
-        }
-        return new SmoothingResult(
-            List.copyOf(smoothed),
-            new SmoothingDiagnostics(before, after, adjustments));
+        return adjustments;
     }
 
     static int countShortReversals(int[] buildY) {

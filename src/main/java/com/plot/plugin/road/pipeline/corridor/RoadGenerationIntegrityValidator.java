@@ -23,8 +23,10 @@ public final class RoadGenerationIntegrityValidator {
     public record IntegrityReport(
             int missingRoadSurfaceCount,
             int unclearedObstructionCount,
-            int orphanSlopePillarCount) {
-        public static final IntegrityReport ZERO = new IntegrityReport(0, 0, 0);
+            int orphanSlopePillarCount,
+            int slopeBatterWidthCapCount,
+            int brokenSlopeSurfaceCount) {
+        public static final IntegrityReport ZERO = new IntegrityReport(0, 0, 0, 0, 0);
 
         public boolean isClean() {
             return missingRoadSurfaceCount == 0
@@ -44,7 +46,14 @@ public final class RoadGenerationIntegrityValidator {
         int missingSurface = countMissingRoadSurfaces(plan, index);
         int uncleared = countUnclearedObstructions(plan, index, terrain);
         int orphanPillars = countOrphanSlopePillars(plan);
-        return new IntegrityReport(missingSurface, uncleared, orphanPillars);
+        int brokenSlopes = countBrokenSlopeSurfaces(plan);
+        plan.setBrokenSlopeSurfaceCount(brokenSlopes);
+        return new IntegrityReport(
+            missingSurface,
+            uncleared,
+            orphanPillars,
+            plan.slopeBatterWidthCapCount(),
+            brokenSlopes);
     }
 
     public static IntegrityReport validatePlacements(
@@ -58,7 +67,14 @@ public final class RoadGenerationIntegrityValidator {
         int missingSurface = countMissingRoadSurfaces(plan, index);
         int uncleared = countUnclearedObstructions(plan, index, terrain);
         int orphanPillars = countOrphanSlopePillars(plan);
-        return new IntegrityReport(missingSurface, uncleared, orphanPillars);
+        int brokenSlopes = countBrokenSlopeSurfaces(plan);
+        plan.setBrokenSlopeSurfaceCount(brokenSlopes);
+        return new IntegrityReport(
+            missingSurface,
+            uncleared,
+            orphanPillars,
+            plan.slopeBatterWidthCapCount(),
+            brokenSlopes);
     }
 
     public static void applyToResult(
@@ -89,6 +105,8 @@ public final class RoadGenerationIntegrityValidator {
         result.missingRoadSurfaceCount = report.missingRoadSurfaceCount();
         result.unclearedObstructionCount = report.unclearedObstructionCount();
         result.orphanSlopePillarCount = report.orphanSlopePillarCount();
+        result.slopeBatterWidthCapCount = report.slopeBatterWidthCapCount();
+        result.brokenSlopeSurfaceCount = report.brokenSlopeSurfaceCount();
     }
 
     private static int countMissingRoadSurfaces(RoadCorridorPlan plan, SolidIndex index) {
@@ -173,6 +191,44 @@ public final class RoadGenerationIntegrityValidator {
             }
         }
         return uncleared;
+    }
+
+    /**
+     * Slope columns whose height differs by more than one block from every neighboring slope column.
+     */
+    private static int countBrokenSlopeSurfaces(RoadCorridorPlan plan) {
+        Map<ColumnKey, Integer> columnHeights = new HashMap<>();
+        for (var entry : plan.slopeEntries()) {
+            SlopeColumnCell cell = entry.getValue();
+            int height = cell.hasCut()
+                ? cell.cutSurfaceY()
+                : cell.hasFill() ? cell.fillSurfaceY() : Integer.MIN_VALUE;
+            if (height != Integer.MIN_VALUE) {
+                columnHeights.put(entry.getKey(), height);
+            }
+        }
+        int broken = 0;
+        for (var entry : columnHeights.entrySet()) {
+            ColumnKey key = entry.getKey();
+            int height = entry.getValue();
+            int neighborCount = 0;
+            int connectedNeighbors = 0;
+            for (int[] offset : NEIGHBOR_OFFSETS) {
+                ColumnKey neighborKey = new ColumnKey(key.worldX() + offset[0], key.worldZ() + offset[1]);
+                Integer neighborHeight = columnHeights.get(neighborKey);
+                if (neighborHeight == null) {
+                    continue;
+                }
+                neighborCount++;
+                if (Math.abs(neighborHeight - height) <= 1) {
+                    connectedNeighbors++;
+                }
+            }
+            if (neighborCount > 0 && connectedNeighbors == 0) {
+                broken++;
+            }
+        }
+        return broken;
     }
 
     private static int countOrphanSlopePillars(RoadCorridorPlan plan) {

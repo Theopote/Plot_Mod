@@ -9,6 +9,10 @@ public final class RoadCorridorPlan {
     private final RoadSurfaceMask surfaceMask = new RoadSurfaceMask();
     private final Map<ColumnKey, ClearanceCell> clearanceCells = new LinkedHashMap<>();
     private final Map<ColumnKey, SlopeColumnCell> slopeCells = new LinkedHashMap<>();
+    /** Shoulder batter horizontal run hit {@link com.plot.plugin.road.geometry.RoadCorridorWidth#MAX_SLOPE_BATTER_RUN_BLOCKS}. */
+    private int slopeBatterWidthCapCount;
+    /** Outward slope columns that fail to connect smoothly to neighbors along the batter. */
+    private int brokenSlopeSurfaceCount;
 
     public RoadSurfaceMask surfaceMask() {
         return surfaceMask;
@@ -45,5 +49,21 @@ public final class RoadCorridorPlan {
 
     SlopeColumnCell slopeCellOrCreate(ColumnKey key, com.plot.api.geometry.Vec2d planPoint) {
         return slopeCells.computeIfAbsent(key, ignored -> new SlopeColumnCell(planPoint));
+    }
+
+    public int slopeBatterWidthCapCount() {
+        return slopeBatterWidthCapCount;
+    }
+
+    public int brokenSlopeSurfaceCount() {
+        return brokenSlopeSurfaceCount;
+    }
+
+    void noteSlopeBatterWidthCap() {
+        slopeBatterWidthCapCount++;
+    }
+
+    void setBrokenSlopeSurfaceCount(int count) {
+        brokenSlopeSurfaceCount = Math.max(0, count);
     }
 }
