@@ -601,6 +601,33 @@ public final class RoadCorridorPlanBuilder {
                 cell.mergeCut(slopeHeight, cutBlockId);
             }
         }
+        if (!slopeProfileMeetsTerrain(profile, isFill, outerEdge, normal, scale, terrain)) {
+            plan.noteUnresolvedSlopeConstruction();
+        }
+    }
+
+    private static boolean slopeProfileMeetsTerrain(
+            List<int[]> profile,
+            boolean isFill,
+            Vec2d outerEdge,
+            Vec2d outwardNormal,
+            double scale,
+            TerrainSampler terrain) {
+        if (profile == null || profile.size() <= 1) {
+            return true;
+        }
+        int[] last = profile.getLast();
+        int horizontalOffset = last[0];
+        int slopeHeight = last[1];
+        Vec2d samplePoint = outerEdge.add(outwardNormal.multiply(horizontalOffset * scale));
+        if (!terrain.isChunkLoaded(samplePoint)) {
+            return false;
+        }
+        int groundHeight = terrain.sampleSurfaceY(samplePoint);
+        if (isFill) {
+            return slopeHeight <= groundHeight + 1;
+        }
+        return slopeHeight >= groundHeight - 1;
     }
 
     private static RoadCorridorConstructionMode toMode(RoadConstructionType type) {

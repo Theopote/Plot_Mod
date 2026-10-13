@@ -63,6 +63,10 @@ public class RoadGenerationResult {
     public int slopeBatterWidthCapCount;
     /** Slope mask columns that do not connect smoothly to adjacent batter columns. */
     public int brokenSlopeSurfaceCount;
+    /** Batter profile stopped before meeting natural ground. */
+    public int unresolvedSlopeConstructionCount;
+    /** Outward shoulder trace found a missing slope column while cut/fill still required. */
+    public int shoulderTraceGapCount;
 
     public RoadGenerationResult(double pathLength) {
         this.pathLength = pathLength;
@@ -118,6 +122,8 @@ public class RoadGenerationResult {
         orphanSlopePillarCount += source.orphanSlopePillarCount;
         slopeBatterWidthCapCount += source.slopeBatterWidthCapCount;
         brokenSlopeSurfaceCount += source.brokenSlopeSurfaceCount;
+        unresolvedSlopeConstructionCount += source.unresolvedSlopeConstructionCount;
+        shoulderTraceGapCount += source.shoulderTraceGapCount;
         pathLength += source.pathLength;
         constructionTypes.addAll(source.constructionTypes);
         bridgeLength += source.bridgeLength;

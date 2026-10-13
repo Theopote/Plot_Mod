@@ -188,6 +188,22 @@ class RoadGenerationIntegrityValidatorTest {
         assertEquals(1, report.unclearedObstructionCount());
     }
 
+    @Test
+    void slopeLateralGapIsDetected() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        Vec2d point = new Vec2d(0, 0);
+        plan.slopeCellOrCreate(new ColumnKey(10, 5), point).mergeCut(64, "minecraft:stone");
+        plan.slopeCellOrCreate(new ColumnKey(11, 5), point).mergeCut(64, "minecraft:stone");
+        plan.slopeCellOrCreate(new ColumnKey(13, 5), point).mergeCut(64, "minecraft:stone");
+        plan.slopeCellOrCreate(new ColumnKey(14, 5), point).mergeCut(64, "minecraft:stone");
+
+        RoadGenerationIntegrityValidator.IntegrityReport report =
+            RoadGenerationIntegrityValidator.validate(plan, new RoadSolidModel(), new FlatTerrainSampler(64));
+
+        assertTrue(report.brokenSlopeSurfaceCount() > 0);
+        assertTrue(report.hasUnresolvedSlopeConstruction());
+    }
+
     private static TerrainSampler elevatedColumn(int topY) {
         return new TerrainSampler() {
             @Override

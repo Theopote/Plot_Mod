@@ -13,6 +13,8 @@ public final class RoadCorridorPlan {
     private int slopeBatterWidthCapCount;
     /** Outward slope columns that fail to connect smoothly to neighbors along the batter. */
     private int brokenSlopeSurfaceCount;
+    /** Batter ended before connecting to natural ground (often after width cap). */
+    private int unresolvedSlopeConstructionCount;
 
     public RoadSurfaceMask surfaceMask() {
         return surfaceMask;
@@ -61,6 +63,14 @@ public final class RoadCorridorPlan {
 
     void noteSlopeBatterWidthCap() {
         slopeBatterWidthCapCount++;
+    }
+
+    public int unresolvedSlopeConstructionCount() {
+        return unresolvedSlopeConstructionCount;
+    }
+
+    void noteUnresolvedSlopeConstruction() {
+        unresolvedSlopeConstructionCount++;
     }
 
     void setBrokenSlopeSurfaceCount(int count) {

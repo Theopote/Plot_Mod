@@ -10,6 +10,7 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -25,13 +26,22 @@ public final class RoadGenerationIntegrityValidator {
             int unclearedObstructionCount,
             int orphanSlopePillarCount,
             int slopeBatterWidthCapCount,
-            int brokenSlopeSurfaceCount) {
-        public static final IntegrityReport ZERO = new IntegrityReport(0, 0, 0, 0, 0);
+            int brokenSlopeSurfaceCount,
+            int unresolvedSlopeConstructionCount,
+            int shoulderTraceGapCount) {
+        public static final IntegrityReport ZERO = new IntegrityReport(0, 0, 0, 0, 0, 0, 0);
 
         public boolean isClean() {
             return missingRoadSurfaceCount == 0
                 && unclearedObstructionCount == 0
                 && orphanSlopePillarCount == 0;
+        }
+
+        /** Slope did not reach terrain or left a lateral gap in the batter mask. */
+        public boolean hasUnresolvedSlopeConstruction() {
+            return unresolvedSlopeConstructionCount > 0
+                || brokenSlopeSurfaceCount > 0
+                || shoulderTraceGapCount > 0;
         }
     }
 
@@ -47,13 +57,17 @@ public final class RoadGenerationIntegrityValidator {
         int uncleared = countUnclearedObstructions(plan, index, terrain);
         int orphanPillars = countOrphanSlopePillars(plan);
         int brokenSlopes = countBrokenSlopeSurfaces(plan);
-        plan.setBrokenSlopeSurfaceCount(brokenSlopes);
+        int lateralGaps = countSlopeLateralGaps(plan);
+        int traceGaps = SlopeShoulderTerrainTraceValidator.countShoulderToTerrainGaps(plan, terrain);
+        plan.setBrokenSlopeSurfaceCount(brokenSlopes + lateralGaps);
         return new IntegrityReport(
             missingSurface,
             uncleared,
             orphanPillars,
             plan.slopeBatterWidthCapCount(),
-            brokenSlopes);
+            brokenSlopes + lateralGaps,
+            plan.unresolvedSlopeConstructionCount(),
+            traceGaps);
     }
 
     public static IntegrityReport validatePlacements(
@@ -68,13 +82,17 @@ public final class RoadGenerationIntegrityValidator {
         int uncleared = countUnclearedObstructions(plan, index, terrain);
         int orphanPillars = countOrphanSlopePillars(plan);
         int brokenSlopes = countBrokenSlopeSurfaces(plan);
-        plan.setBrokenSlopeSurfaceCount(brokenSlopes);
+        int lateralGaps = countSlopeLateralGaps(plan);
+        int traceGaps = SlopeShoulderTerrainTraceValidator.countShoulderToTerrainGaps(plan, terrain);
+        plan.setBrokenSlopeSurfaceCount(brokenSlopes + lateralGaps);
         return new IntegrityReport(
             missingSurface,
             uncleared,
             orphanPillars,
             plan.slopeBatterWidthCapCount(),
-            brokenSlopes);
+            brokenSlopes + lateralGaps,
+            plan.unresolvedSlopeConstructionCount(),
+            traceGaps);
     }
 
     public static void applyToResult(
@@ -107,6 +125,8 @@ public final class RoadGenerationIntegrityValidator {
         result.orphanSlopePillarCount = report.orphanSlopePillarCount();
         result.slopeBatterWidthCapCount = report.slopeBatterWidthCapCount();
         result.brokenSlopeSurfaceCount = report.brokenSlopeSurfaceCount();
+        result.unresolvedSlopeConstructionCount = report.unresolvedSlopeConstructionCount();
+        result.shoulderTraceGapCount = report.shoulderTraceGapCount();
     }
 
     private static int countMissingRoadSurfaces(RoadCorridorPlan plan, SolidIndex index) {
@@ -224,11 +244,52 @@ public final class RoadGenerationIntegrityValidator {
                     connectedNeighbors++;
                 }
             }
-            if (neighborCount > 0 && connectedNeighbors == 0) {
+            if (neighborCount == 0) {
+                broken++;
+                continue;
+            }
+            if (connectedNeighbors == 0) {
                 broken++;
             }
         }
         return broken;
+    }
+
+    /**
+     * Detects a horizontal gap between two slope runs along the same row or column
+     * (common when span batter was missing before mergeSlopeSpan).
+     */
+    private static int countSlopeLateralGaps(RoadCorridorPlan plan) {
+        Map<Integer, Set<Integer>> slopeXsByZ = new HashMap<>();
+        Map<Integer, Set<Integer>> slopeZsByX = new HashMap<>();
+        for (var entry : plan.slopeEntries()) {
+            ColumnKey key = entry.getKey();
+            slopeXsByZ.computeIfAbsent(key.worldZ(), ignored -> new HashSet<>()).add(key.worldX());
+            slopeZsByX.computeIfAbsent(key.worldX(), ignored -> new HashSet<>()).add(key.worldZ());
+        }
+        int gaps = 0;
+        for (Set<Integer> xs : slopeXsByZ.values()) {
+            gaps += countIntegerGaps(xs);
+        }
+        for (Set<Integer> zs : slopeZsByX.values()) {
+            gaps += countIntegerGaps(zs);
+        }
+        return gaps;
+    }
+
+    private static int countIntegerGaps(Set<Integer> values) {
+        if (values == null || values.size() < 4) {
+            return 0;
+        }
+        List<Integer> sorted = values.stream().sorted().toList();
+        int gaps = 0;
+        for (int i = 1; i < sorted.size(); i++) {
+            int delta = sorted.get(i) - sorted.get(i - 1);
+            if (delta > 1 && delta <= 6) {
+                gaps++;
+            }
+        }
+        return gaps;
     }
 
     private static int countOrphanSlopePillars(RoadCorridorPlan plan) {
