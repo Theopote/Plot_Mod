@@ -3,17 +3,19 @@ package com.plot.ui.tools.impl.modify.helper;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.CircleShape;
 import com.plot.core.geometry.shapes.LineShape;
+import com.plot.core.geometry.shapes.Polygon;
 import com.plot.core.model.Shape;
 import com.plot.core.context.ApplicationContext;
-import com.plot.core.state.AppState;
 import com.plot.ui.tools.impl.modify.dto.ModifyParameters;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OffsetHandlerTest {
@@ -88,5 +90,40 @@ class OffsetHandlerTest {
                 new ModifyParameters());
 
         assertFalse(result.isValid());
+    }
+
+    @Test
+    void createOffsetExpandsRegularPolygonWhenDistancePositive() {
+        Polygon hexagon = regularPolygon(6, 10.0);
+        double originalRadius = hexagon.getPoints().getFirst().distance(new Vec2d(0, 0));
+
+        Shape offset = hexagon.createOffset(2.0);
+
+        assertInstanceOf(Polygon.class, offset);
+        double offsetRadius = ((Polygon) offset).getPoints().getFirst().distance(new Vec2d(0, 0));
+        assertTrue(offsetRadius > originalRadius + 1.0,
+                "正距离应外扩：original=" + originalRadius + ", offset=" + offsetRadius);
+    }
+
+    @Test
+    void createOffsetInsetsRegularPolygonWhenDistanceNegative() {
+        Polygon hexagon = regularPolygon(6, 10.0);
+        double originalRadius = hexagon.getPoints().getFirst().distance(new Vec2d(0, 0));
+
+        Shape offset = hexagon.createOffset(-2.0);
+
+        assertInstanceOf(Polygon.class, offset);
+        double offsetRadius = ((Polygon) offset).getPoints().getFirst().distance(new Vec2d(0, 0));
+        assertTrue(offsetRadius < originalRadius - 1.0,
+                "负距离应内缩：original=" + originalRadius + ", offset=" + offsetRadius);
+    }
+
+    private static Polygon regularPolygon(int sides, double radius) {
+        List<Vec2d> points = new ArrayList<>(sides);
+        for (int i = 0; i < sides; i++) {
+            double angle = i * 2.0 * Math.PI / sides;
+            points.add(new Vec2d(radius * Math.cos(angle), radius * Math.sin(angle)));
+        }
+        return new Polygon(points, true);
     }
 }

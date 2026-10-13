@@ -6,6 +6,8 @@ import com.plot.api.shape.IExtendableShape;
 import com.plot.core.geometry.BoundingBox;
 import com.plot.core.geometry.GeometryUtils;
 import com.plot.core.geometry.AffineTransform;
+import com.plot.core.geometry.polygon.PolygonOffset;
+import com.plot.core.geometry.polygon.PolygonUtils;
 import com.plot.core.model.Shape;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.graphics.style.LineStyle;
@@ -498,50 +500,66 @@ public class PolylineShape extends Shape implements IExtendableShape {
     
     @Override
     public Shape createOffset(double distance) {
-        // 简化的偏移实现：只支持简单的法线偏移
-        // 复杂的等距偏移算法应该使用专业的计算几何库（如JTS）
-        if (points == null || points.size() < 2) return clone();
-        
+        if (points == null || points.size() < 2) {
+            return clone();
+        }
+        if (Math.abs(distance) < 1e-12) {
+            return clone();
+        }
+
+        // 闭合折线：与 Polygon 相同，正距离外扩、负距离内缩
+        if (closed && points.size() >= 3) {
+            PolygonOffset.OffsetResult result = distance > 0
+                ? PolygonOffset.offsetOutward(points, distance)
+                : PolygonOffset.offsetInward(points, -distance);
+            if (result.success() && result.points() != null && result.points().size() >= 3) {
+                PolylineShape offsetPolyline = new PolylineShape(result.points(), true);
+                if (getStyle() != null) {
+                    offsetPolyline.setStyle(getStyle().clone());
+                }
+                return offsetPolyline;
+            }
+            LOGGER.debug("闭合折线 PolygonOffset 失败，回退到绕向修正法线偏移: {}", result.warnings());
+        }
+
+        // 开放折线：正距离 = 行进方向左侧；闭合回退时再按绕向修正
+        double applied = distance;
+        if (closed && points.size() >= 3 && PolygonUtils.isCounterClockwise(points)) {
+            applied = -distance;
+        }
+
         List<Vec2d> offsetPoints = new ArrayList<>();
         int n = points.size();
-        
+
         for (int i = 0; i < n; i++) {
             Vec2d prev = points.get(i == 0 ? (closed ? n - 1 : 0) : i - 1);
             Vec2d curr = points.get(i);
             Vec2d next = points.get(i == n - 1 ? (closed ? 0 : n - 1) : i + 1);
 
-            // 计算相邻边的方向向量
             Vec2d dir1 = curr.subtract(prev);
             Vec2d dir2 = next.subtract(curr);
-            
-            // 处理退化情况
+
             if (dir1.length() < 1e-8 || dir2.length() < 1e-8) {
-                // 退化点，使用相邻有效方向
                 Vec2d validDir = dir1.length() >= 1e-8 ? dir1 : dir2;
                 if (validDir.length() < 1e-8) {
-                    // 如果都退化，使用默认方向
                     validDir = new Vec2d(1, 0);
                 }
                 Vec2d normal = new Vec2d(-validDir.y, validDir.x).normalize();
-                offsetPoints.add(curr.add(normal.multiply(distance)));
+                offsetPoints.add(curr.add(normal.multiply(applied)));
                 continue;
             }
 
-            // 计算法线向量
             Vec2d n1 = new Vec2d(-dir1.y, dir1.x).normalize();
             Vec2d n2 = new Vec2d(-dir2.y, dir2.x).normalize();
-            
-            // 简单的法线平均
+
             Vec2d bisector = n1.add(n2);
             if (bisector.length() < 1e-8) {
-                bisector = n1; // 备用法线
+                bisector = n1;
             } else {
                 bisector = bisector.normalize();
             }
-            
-            // 应用偏移
-            Vec2d offsetPoint = curr.add(bisector.multiply(distance));
-            offsetPoints.add(offsetPoint);
+
+            offsetPoints.add(curr.add(bisector.multiply(applied)));
         }
 
         PolylineShape offsetPolyline = new PolylineShape(offsetPoints, closed);

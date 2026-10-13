@@ -5,6 +5,8 @@ import com.plot.core.geometry.visitor.IRenderVisitor;
 import com.plot.core.geometry.BoundingBox;
 import com.plot.core.geometry.GeometryUtils;
 import com.plot.core.geometry.AffineTransform;
+import com.plot.core.geometry.polygon.PolygonOffset;
+import com.plot.core.geometry.polygon.PolygonUtils;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.graphics.style.ShapeStyle;
@@ -473,28 +475,58 @@ public class Polygon extends Shape {
 
     @Override
     public Shape createOffset(double distance) {
-        // 简化的偏移实现：只支持简单的法线偏移
-        // 复杂的等距偏移算法应该使用专业的计算几何库（如JTS）
-        if (points == null || points.size() < 2) return clone();
-        
+        // CAD 约定：正距离 = 外扩，负距离 = 内缩（与 getSignedDistance / 圆 / 矩形一致）
+        // 左法线偏移在 CCW 环上等价于内缩，因此不能直接把正距离交给左法线算法。
+        if (points == null || points.size() < 2) {
+            return clone();
+        }
+        if (Math.abs(distance) < 1e-12) {
+            return clone();
+        }
+
+        if (closed && points.size() >= 3) {
+            PolygonOffset.OffsetResult result = distance > 0
+                ? PolygonOffset.offsetOutward(points, distance)
+                : PolygonOffset.offsetInward(points, -distance);
+            if (result.success() && result.points() != null && result.points().size() >= 3) {
+                Polygon offsetPolygon = new Polygon(result.points(), true);
+                if (getStyle() != null) {
+                    offsetPolygon.setStyle(getStyle().clone());
+                }
+                return offsetPolygon;
+            }
+            LOGGER.debug("PolygonOffset 失败，回退到绕向修正的法线偏移: {}", result.warnings());
+        }
+
+        // 回退：左法线 + 绕向修正，使正距离始终外扩
+        double applied = PolygonUtils.isCounterClockwise(points) ? -distance : distance;
+        List<Vec2d> offsetPoints = offsetPointsByLeftNormals(applied);
+
+        Polygon offsetPolygon = new Polygon(offsetPoints, closed);
+        if (getStyle() != null) {
+            offsetPolygon.setStyle(getStyle().clone());
+        }
+        return offsetPolygon;
+    }
+
+    /**
+     * 沿边的左法线（及角平分）偏移顶点。distance 符号遵循左法线约定，不自动按绕向翻转。
+     */
+    private List<Vec2d> offsetPointsByLeftNormals(double distance) {
         List<Vec2d> offsetPoints = new ArrayList<>();
         int n = points.size();
-        
+
         for (int i = 0; i < n; i++) {
             Vec2d prev = points.get(i == 0 ? (closed ? n - 1 : 0) : i - 1);
             Vec2d curr = points.get(i);
             Vec2d next = points.get(i == n - 1 ? (closed ? 0 : n - 1) : i + 1);
 
-            // 计算相邻边的方向向量
             Vec2d dir1 = curr.subtract(prev);
             Vec2d dir2 = next.subtract(curr);
-            
-            // 处理退化情况
+
             if (dir1.length() < 1e-8 || dir2.length() < 1e-8) {
-                // 退化点，使用相邻有效方向
                 Vec2d validDir = dir1.length() >= 1e-8 ? dir1 : dir2;
                 if (validDir.length() < 1e-8) {
-                    // 如果都退化，使用默认方向
                     validDir = new Vec2d(1, 0);
                 }
                 Vec2d normal = new Vec2d(-validDir.y, validDir.x).normalize();
@@ -502,28 +534,19 @@ public class Polygon extends Shape {
                 continue;
             }
 
-            // 计算法线向量
             Vec2d n1 = new Vec2d(-dir1.y, dir1.x).normalize();
             Vec2d n2 = new Vec2d(-dir2.y, dir2.x).normalize();
-            
-            // 简单的法线平均
+
             Vec2d bisector = n1.add(n2);
             if (bisector.length() < 1e-8) {
-                bisector = n1; // 备用法线
+                bisector = n1;
             } else {
                 bisector = bisector.normalize();
             }
-            
-            // 应用偏移
-            Vec2d offsetPoint = curr.add(bisector.multiply(distance));
-            offsetPoints.add(offsetPoint);
-        }
 
-        Polygon offsetPolygon = new Polygon(offsetPoints, closed);
-        if (getStyle() != null) {
-            offsetPolygon.setStyle(getStyle().clone());
+            offsetPoints.add(curr.add(bisector.multiply(distance)));
         }
-        return offsetPolygon;
+        return offsetPoints;
     }
 
 
