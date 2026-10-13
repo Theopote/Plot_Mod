@@ -117,6 +117,16 @@ public interface IModifyStrategy {
     default ModifyResult onKeyUp(int keyCode, ModifyToolContext context) {
         return ModifyResult.IGNORED;
     }
+
+    /**
+     * 处理键盘字符输入（用于旋转角度等数值直输）
+     * @param character 输入字符
+     * @param context 修改工具上下文
+     * @return 修改结果，告知上下文如何响应
+     */
+    default ModifyResult onKeyTyped(char character, ModifyToolContext context) {
+        return ModifyResult.IGNORED;
+    }
     
     /**
      * 处理鼠标滚轮事件

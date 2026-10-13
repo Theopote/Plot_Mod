@@ -1186,6 +1186,21 @@ public class PlotScreen extends Screen {
                 }
             }
         }
+
+        // Enter / 小键盘 Enter / Backspace：转发给活动工具（旋转角度确认、退格等）
+        if (keyCode == 257 || keyCode == 335 || keyCode == 259) {
+            BaseTool activeTool = appState.getCurrentTool();
+            if (activeTool != null) {
+                try {
+                    if (activeTool.onKeyDown(keyCode)) {
+                        return true;
+                    }
+                } catch (Throwable t) {
+                    LOGGER.error("工具 {} 处理特殊键({})时发生异常",
+                        activeTool.getClass().getSimpleName(), keyCode, t);
+                }
+            }
+        }
         
         return super.keyPressed(keyInput);
     }
@@ -1227,6 +1242,15 @@ public class PlotScreen extends Screen {
             }
             return true;
         }
+
+        // 工具数值输入优先于单键快捷键（例如旋转时输入角度）
+        BaseTool currentTool = ApplicationContext.getInstance().getAppState().getCurrentTool();
+        if (currentTool != null && chr != '\0' && currentTool.onKeyTyped(chr)) {
+            PlotMod.LOGGER.debug("工具处理字符输入: text='{}', tool={}",
+                text, currentTool.getClass().getSimpleName());
+            return true;
+        }
+
         // 单键工具快捷键仅处理 ASCII，避免把中文/IME 提交文本误当成快捷键吞掉。
         try {
             String s = null;
@@ -1247,14 +1271,6 @@ public class PlotScreen extends Screen {
                 }
             }
         } catch (Exception e) { ExceptionDebug.log("PlotScreen: handle character shortcut", e); }
-
-        // 如果ImGui没有捕获，尝试传递给当前工具
-        BaseTool currentTool = ApplicationContext.getInstance().getAppState().getCurrentTool();
-        if (currentTool != null && chr != '\0' && currentTool.onKeyTyped(chr)) {
-            PlotMod.LOGGER.debug("工具处理字符输入: text='{}', tool={}", 
-                text, currentTool.getClass().getSimpleName());
-            return true;
-        }
         
         return super.charTyped(charInput);
     }

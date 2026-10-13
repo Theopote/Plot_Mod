@@ -392,10 +392,11 @@ public class RotateTool extends ModifyTool {
      * @param degrees 角度步长（度）
      */
     public void setAngleStep(double degrees) {
-        RotateStrategy rotateStrategy = getRotateStrategy();
-        if (rotateStrategy != null) {
-            double radians = Math.toRadians(degrees);
+        double radians = Math.toRadians(degrees);
+        if (modifyStrategy instanceof RotateStrategy rotateStrategy) {
             rotateStrategy.getRotateConstraints().setAngleStep(radians);
+        } else if (modifyStrategy instanceof RotateWithSelectionStrategy rotateWithSelection) {
+            rotateWithSelection.getRotateConstraints().setAngleStep(radians);
         }
     }
 
@@ -404,10 +405,11 @@ public class RotateTool extends ModifyTool {
      * @return 角度步长（度）
      */
     public double getAngleStep() {
-        RotateStrategy rotateStrategy = getRotateStrategy();
-        if (rotateStrategy != null) {
-            double radians = rotateStrategy.getRotateConstraints().getAngleStep();
-            return Math.toDegrees(radians);
+        if (modifyStrategy instanceof RotateStrategy rotateStrategy) {
+            return Math.toDegrees(rotateStrategy.getRotateConstraints().getAngleStep());
+        }
+        if (modifyStrategy instanceof RotateWithSelectionStrategy rotateWithSelection) {
+            return Math.toDegrees(rotateWithSelection.getRotateConstraints().getAngleStep());
         }
         return 15.0; // 默认15度
     }

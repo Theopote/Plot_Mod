@@ -306,6 +306,23 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
             return super.onKeyUp(keyCode);
         }
     }
+
+    @Override
+    public boolean onKeyTyped(char character) {
+        IModifyStrategy strategy = getStrategy();
+        if (strategy == null) {
+            return super.onKeyTyped(character);
+        }
+
+        try {
+            IModifyStrategy.ModifyResult result = strategy.onKeyTyped(character, this);
+            boolean handled = handleModifyResult(result, "字符输入");
+            return handled || super.onKeyTyped(character);
+        } catch (Exception e) {
+            LOGGER.error("ModifyTool [{}] 字符输入处理失败: {}", toolId, e.getMessage(), e);
+            return super.onKeyTyped(character);
+        }
+    }
     
     @Override
     public boolean onMouseWheel(Vec2d pos, double delta) {

@@ -109,7 +109,8 @@ Phase 0–360° (preset buttons); amplitude/wavelength set by mouse.
 Click base -> destination, or drag directly. Hold **Shift** for orthogonal constraint.
 
 ### Rotate
-Angle step 1–90°; angle snap toggle; preset buttons. Ctrl for temporary copy.
+Angle step 1–90° (slider + numeric input); angle snap toggle; preset buttons. Ctrl for temporary copy.
+While rotating: type an angle and press **Enter** or **right-click** to finish; Esc clears the typed value first, then cancels.
 
 ### Scale
 Center chosen during interaction.

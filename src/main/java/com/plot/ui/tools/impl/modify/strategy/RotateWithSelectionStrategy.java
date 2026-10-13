@@ -75,7 +75,11 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
 
     // 常量
     private static final double DEFAULT_ANGLE_STEP = Math.PI / 12.0; // 15度
-    private static final int ESC_KEY = 27;
+    private static final int ESC_KEY_AWT = 27;
+    private static final int ESC_KEY_GLFW = 256;
+    private static final int ENTER_KEY_GLFW = 257;
+    private static final int KP_ENTER_KEY_GLFW = 335;
+    private static final int BACKSPACE_KEY_GLFW = 259;
     private static final int SHIFT_KEY = 16;
     private static final int CTRL_KEY = 17;
 
@@ -96,6 +100,9 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
     private double baseAngle = 0.0; // 参考角度
     // 约束后用于渲染的当前点（当启用角度约束时使用）
     private Vec2d constrainedCurrentPoint;
+
+    /** 旋转过程中用户手动输入的角度（度），例如 "45" / "-30.5" */
+    private final StringBuilder angleInputBuffer = new StringBuilder();
 
     // 旋转处理器和参数
     private RotateHandler rotateHandler;
@@ -127,7 +134,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
 
     /**
      * 处理右键按下
-     * 用于在选择模式和旋转模式之间切换
+     * 用于在选择模式和旋转模式之间切换；旋转中若已输入角度则完成旋转
      */
     private ModifyResult handleRightMouseDown(Vec2d pos, ModifyToolContext context) {
         if (currentMode == StrategyMode.SELECTION) {
@@ -142,14 +149,19 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
                 context.setStatusMessage("status.plot.rotate.initial_select");
                 return ModifyResult.NEED_SELECTION;
             }
-        } else {
-            // 在旋转模式下右键：取消旋转，返回选择模式
-            resetRotateState();
-            currentMode = StrategyMode.SELECTION;
-            context.setStatusMessage("status.plot.rotate.cancelled");
-            LOGGER.info("从旋转模式返回选择模式");
-            return ModifyResult.CANCEL;
         }
+
+        // 旋转中已输入角度：右键确认完成
+        if (currentState == RotateState.ROTATING && hasTypedAngle()) {
+            return confirmTypedAngle(context);
+        }
+
+        // 在旋转模式下右键：取消旋转，返回选择模式
+        resetRotateState();
+        currentMode = StrategyMode.SELECTION;
+        context.setStatusMessage("status.plot.rotate.cancelled");
+        LOGGER.info("从旋转模式返回选择模式");
+        return ModifyResult.CANCEL;
     }
 
     /**
@@ -195,6 +207,10 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
                 return setReferencePoint(snappedPoint, context);
             }
             case ROTATING -> {
+                // 已输入角度时，左键也按输入角度完成
+                if (hasTypedAngle()) {
+                    return confirmTypedAngle(context);
+                }
                 return completeRotation(snappedPoint, context);
             }
             default -> {
@@ -232,56 +248,12 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
                 return ModifyResult.CONTINUE;
             }
 
-            // 计算旋转角度
-            double currentAngle = rotateHandler.calculateAngle(centerPoint, currentPoint);
-            double rotationAngle = rotateHandler.calculateAngleDifference(baseAngle, currentAngle);
-
-            // 更新旋转参数
-            rotateParameters.setCenterPoint(centerPoint);
-            rotateParameters.setRotationAngle(rotationAngle);
-
-            // 应用约束
-            updateConstraints();
-            IModifyHandler.ModifyParameters constrainedParameters = rotateHandler.applyConstraints(rotateParameters, rotateConstraints);
-
-            // 创建预览图形
-            previewShapes = rotateHandler.createPreviewShapes(selectedShapes, constrainedParameters);
-
-            // 计算并保存约束后的当前点，用于渲染辅助线与角度弧线
-            try {
-                if (constrainedParameters instanceof ModifyParameters mp) {
-                    double constrainedAngle = mp.getDouble("rotationAngle", 0.0);
-                    // 当前角度 = baseAngle + constrainedAngle
-                    double effectiveAngle = baseAngle + constrainedAngle;
-                    double radius = centerPoint.distance(currentPoint);
-                    constrainedCurrentPoint = new Vec2d(
-                        centerPoint.x + radius * Math.cos(effectiveAngle),
-                        centerPoint.y + radius * Math.sin(effectiveAngle)
-                    );
-                } else {
-                    constrainedCurrentPoint = currentPoint;
-                }
-            } catch (Exception e) {
-                ExceptionDebug.log("RotateWithSelectionStrategy: constrain rotation angle", e);
-                constrainedCurrentPoint = currentPoint;
+            // 已输入角度时，鼠标移动只更新参考点位置，角度仍以输入值为准
+            if (hasTypedAngle()) {
+                return updatePreviewFromTypedAngle(context);
             }
 
-            // 更新状态消息
-            String statusMessage;
-            if (constrainedParameters instanceof ModifyParameters) {
-                statusMessage = rotateHandler.getStatusMessage((ModifyParameters) constrainedParameters);
-            } else {
-                statusMessage = PlotI18n.status("status.plot.rotate.previewing");
-            }
-            if (isCtrlPressed) {
-                statusMessage += PlotI18n.status("status.plot.common.copy_mode_suffix");
-            }
-            context.setStatusMessage(PlotI18n.status("status.plot.common.click_finish_suffix", PlotI18n.localizeStatus(statusMessage)));
-
-            // 启用预览
-            context.setPreviewEnabled(true);
-
-            return ModifyResult.CONTINUE;
+            return updatePreviewFromMouseAngle(context);
 
         } catch (Exception e) {
             LOGGER.error("旋转策略鼠标移动处理失败: {}", e.getMessage(), e);
@@ -313,31 +285,70 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
 
     @Override
     public ModifyResult onKeyDown(int keyCode, ModifyToolContext context) {
-        switch (keyCode) {
-            case SHIFT_KEY -> {
-                isShiftPressed = true;
-                if (currentState == RotateState.ROTATING) {
-                    // 重新计算旋转预览以应用角度约束
-                    return onMouseMove(currentPoint, context);
-                }
-                return ModifyResult.CONTINUE;
+        if (keyCode == SHIFT_KEY) {
+            isShiftPressed = true;
+            if (currentState == RotateState.ROTATING && currentPoint != null && !hasTypedAngle()) {
+                return onMouseMove(currentPoint, context);
             }
-            case CTRL_KEY -> {
-                isCtrlPressed = true;
-                if (currentState == RotateState.ROTATING) {
-                    return onMouseMove(currentPoint, context);
-                }
-                return ModifyResult.CONTINUE;
-            }
-            case ESC_KEY -> {
-                reset();
-                context.setStatusMessage("status.plot.common.operation_cancelled");
-                return ModifyResult.CANCEL;
-            }
-            default -> {
-                return ModifyResult.IGNORED;
-            }
+            return ModifyResult.CONTINUE;
         }
+        if (keyCode == CTRL_KEY) {
+            isCtrlPressed = true;
+            if (currentState == RotateState.ROTATING && currentPoint != null && !hasTypedAngle()) {
+                return onMouseMove(currentPoint, context);
+            }
+            return ModifyResult.CONTINUE;
+        }
+        if (keyCode == ESC_KEY_AWT || keyCode == ESC_KEY_GLFW) {
+            if (currentState == RotateState.ROTATING && hasTypedAngle()) {
+                clearAngleInput();
+                if (currentPoint != null) {
+                    return updatePreviewFromMouseAngle(context);
+                }
+                context.setStatusMessage("status.plot.rotate.move_finish_input");
+                return ModifyResult.CONTINUE;
+            }
+            reset();
+            context.setStatusMessage("status.plot.common.operation_cancelled");
+            return ModifyResult.CANCEL;
+        }
+        if (keyCode == BACKSPACE_KEY_GLFW) {
+            if (currentState == RotateState.ROTATING && !angleInputBuffer.isEmpty()) {
+                angleInputBuffer.deleteCharAt(angleInputBuffer.length() - 1);
+                if (hasTypedAngle()) {
+                    return updatePreviewFromTypedAngle(context);
+                }
+                if (currentPoint != null) {
+                    return updatePreviewFromMouseAngle(context);
+                }
+                context.setStatusMessage("status.plot.rotate.move_finish_input");
+                return ModifyResult.CONTINUE;
+            }
+            return ModifyResult.IGNORED;
+        }
+        if (keyCode == ENTER_KEY_GLFW || keyCode == KP_ENTER_KEY_GLFW) {
+            if (currentState == RotateState.ROTATING) {
+                if (hasTypedAngle()) {
+                    return confirmTypedAngle(context);
+                }
+                if (currentPoint != null) {
+                    return completeRotation(currentPoint, context);
+                }
+            }
+            return ModifyResult.IGNORED;
+        }
+        return ModifyResult.IGNORED;
+    }
+
+    @Override
+    public ModifyResult onKeyTyped(char character, ModifyToolContext context) {
+        if (currentMode != StrategyMode.ROTATE || currentState != RotateState.ROTATING) {
+            return ModifyResult.IGNORED;
+        }
+        if (!appendAngleInputChar(character)) {
+            return ModifyResult.IGNORED;
+        }
+        return updatePreviewFromTypedAngle(context);
     }
 
     @Override
@@ -375,7 +386,8 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
         referencePoint = point;
         baseAngle = rotateHandler.calculateAngle(centerPoint, referencePoint);
         currentState = RotateState.ROTATING;
-        context.setStatusMessage("status.plot.rotate.move_finish");
+        clearAngleInput();
+        context.setStatusMessage("status.plot.rotate.move_finish_input");
 
         LOGGER.debug("设置参考点: {}, 基准角度: {}°", referencePoint, Math.toDegrees(baseAngle));
         return ModifyResult.CONTINUE;
@@ -391,35 +403,212 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
         double currentAngle = rotateHandler.calculateAngle(centerPoint, currentPoint);
         double rotationAngle = rotateHandler.calculateAngleDifference(baseAngle, currentAngle);
 
+        return completeRotationWithRadians(rotationAngle, true, context);
+    }
+
+    /**
+     * 使用用户输入的角度（度）完成旋转
+     */
+    private ModifyResult confirmTypedAngle(ModifyToolContext context) {
+        Double angleDegrees = parseTypedAngleDegrees();
+        if (angleDegrees == null) {
+            context.setStatusMessage(PlotI18n.status("status.plot.rotate.invalid_angle_input", angleInputBuffer.toString()));
+            return ModifyResult.CONTINUE;
+        }
+        LOGGER.debug("使用输入角度完成旋转: {}°", angleDegrees);
+        return completeRotationWithRadians(Math.toRadians(angleDegrees), false, context);
+    }
+
+    /**
+     * @param applySnapConstraints true 时应用角度吸附；手动输入角度时为 false
+     */
+    private ModifyResult completeRotationWithRadians(double rotationAngle,
+                                                     boolean applySnapConstraints,
+                                                     ModifyToolContext context) {
         rotateParameters.setCenterPoint(centerPoint);
         rotateParameters.setRotationAngle(rotationAngle);
-
-        // 设置复制模式
         rotateParameters.setCopyMode(isCtrlPressed);
 
-        // 应用约束
-        updateConstraints();
-        IModifyHandler.ModifyParameters constrainedParameters = rotateHandler.applyConstraints(rotateParameters, rotateConstraints);
+        IModifyHandler.ModifyParameters constrainedParameters;
+        if (applySnapConstraints) {
+            updateConstraints();
+            constrainedParameters = rotateHandler.applyConstraints(rotateParameters, rotateConstraints);
+        } else {
+            constrainedParameters = rotateParameters;
+        }
 
-        // 验证旋转操作
         IModifyHandler.ValidationResult validation = rotateHandler.validateModification(selectedShapes, constrainedParameters);
         if (!validation.isValid()) {
             context.setStatusMessage(PlotI18n.status("status.plot.rotate.invalid", validation.getLocalizedErrorMessage()));
             return ModifyResult.CONTINUE;
         }
 
-        // 创建旋转命令
         List<Shape> modifiedShapes = rotateHandler.calculateModifiedShapes(selectedShapes, constrainedParameters);
         pendingCommand = rotateHandler.createModifyCommand(selectedShapes, modifiedShapes, constrainedParameters);
 
         if (pendingCommand != null) {
-            LOGGER.debug("旋转操作完成，角度: {}°", Math.toDegrees(rotationAngle));
+            double finalAngle = constrainedParameters instanceof ModifyParameters mp
+                ? mp.getDouble("rotationAngle", rotationAngle)
+                : rotationAngle;
+            LOGGER.debug("旋转操作完成，角度: {}°", Math.toDegrees(finalAngle));
+            clearAngleInput();
             context.setStatusMessage("status.plot.rotate.complete");
             return ModifyResult.COMPLETE;
         }
 
         context.setStatusMessage("status.plot.rotate.command_failed");
         return ModifyResult.CANCEL;
+    }
+
+    private ModifyResult updatePreviewFromMouseAngle(ModifyToolContext context) {
+        if (centerPoint == null || currentPoint == null || rotateHandler == null) {
+            return ModifyResult.CONTINUE;
+        }
+
+        double currentAngle = rotateHandler.calculateAngle(centerPoint, currentPoint);
+        double rotationAngle = rotateHandler.calculateAngleDifference(baseAngle, currentAngle);
+
+        rotateParameters.setCenterPoint(centerPoint);
+        rotateParameters.setRotationAngle(rotationAngle);
+
+        updateConstraints();
+        IModifyHandler.ModifyParameters constrainedParameters =
+            rotateHandler.applyConstraints(rotateParameters, rotateConstraints);
+
+        previewShapes = rotateHandler.createPreviewShapes(selectedShapes, constrainedParameters);
+        updateConstrainedCurrentPoint(constrainedParameters);
+
+        String statusMessage;
+        if (constrainedParameters instanceof ModifyParameters) {
+            statusMessage = rotateHandler.getStatusMessage((ModifyParameters) constrainedParameters);
+        } else {
+            statusMessage = PlotI18n.status("status.plot.rotate.previewing");
+        }
+        statusMessage = PlotI18n.localizeStatus(statusMessage)
+            + PlotI18n.status("status.plot.rotate.input_hint_suffix");
+        if (isCtrlPressed) {
+            statusMessage += PlotI18n.status("status.plot.common.copy_mode_suffix");
+        }
+        context.setStatusMessage(statusMessage);
+        context.setPreviewEnabled(true);
+        return ModifyResult.CONTINUE;
+    }
+
+    private ModifyResult updatePreviewFromTypedAngle(ModifyToolContext context) {
+        if (centerPoint == null || rotateHandler == null) {
+            return ModifyResult.CONTINUE;
+        }
+
+        Double angleDegrees = parseTypedAngleDegrees();
+        if (angleDegrees == null) {
+            context.setStatusMessage(PlotI18n.status(
+                "status.plot.rotate.typing_angle", angleInputBuffer.toString()));
+            context.setPreviewEnabled(true);
+            return ModifyResult.CONTINUE;
+        }
+
+        double rotationAngle = Math.toRadians(angleDegrees);
+        rotateParameters.setCenterPoint(centerPoint);
+        rotateParameters.setRotationAngle(rotationAngle);
+
+        previewShapes = rotateHandler.createPreviewShapes(selectedShapes, rotateParameters);
+        updateConstrainedCurrentPoint(rotateParameters);
+
+        String statusMessage = PlotI18n.status("status.plot.rotate.typing_angle_ready",
+            formatAngleForDisplay(angleDegrees));
+        if (isCtrlPressed) {
+            statusMessage += PlotI18n.status("status.plot.common.copy_mode_suffix");
+        }
+        context.setStatusMessage(statusMessage);
+        context.setPreviewEnabled(true);
+        return ModifyResult.CONTINUE;
+    }
+
+    private static String formatAngleForDisplay(double angleDegrees) {
+        if (Math.abs(angleDegrees - Math.rint(angleDegrees)) < 1e-6) {
+            return String.valueOf((long) Math.rint(angleDegrees));
+        }
+        return String.format("%.2f", angleDegrees);
+    }
+
+    private void updateConstrainedCurrentPoint(IModifyHandler.ModifyParameters constrainedParameters) {
+        try {
+            if (centerPoint == null) {
+                return;
+            }
+            double constrainedAngle = rotationAngleFromParameters(constrainedParameters);
+            double effectiveAngle = baseAngle + constrainedAngle;
+            double radius = 50.0;
+            if (currentPoint != null) {
+                radius = Math.max(1.0, centerPoint.distance(currentPoint));
+            } else if (referencePoint != null) {
+                radius = Math.max(1.0, centerPoint.distance(referencePoint));
+            }
+            constrainedCurrentPoint = new Vec2d(
+                centerPoint.x + radius * Math.cos(effectiveAngle),
+                centerPoint.y + radius * Math.sin(effectiveAngle)
+            );
+            if (currentPoint == null) {
+                currentPoint = constrainedCurrentPoint;
+            }
+        } catch (Exception e) {
+            ExceptionDebug.log("RotateWithSelectionStrategy: constrain rotation angle", e);
+            constrainedCurrentPoint = currentPoint;
+        }
+    }
+
+    private double rotationAngleFromParameters(IModifyHandler.ModifyParameters parameters) {
+        if (parameters instanceof ModifyParameters mp) {
+            return mp.getDouble("rotationAngle", 0.0);
+        }
+        return 0.0;
+    }
+
+    private boolean hasTypedAngle() {
+        return !angleInputBuffer.isEmpty();
+    }
+
+    private void clearAngleInput() {
+        angleInputBuffer.setLength(0);
+    }
+
+    private boolean appendAngleInputChar(char character) {
+        if (Character.isDigit(character)) {
+            angleInputBuffer.append(character);
+            return true;
+        }
+        if (character == '.' || character == ',') {
+            String current = angleInputBuffer.toString().replace(',', '.');
+            if (current.contains(".")) {
+                return false;
+            }
+            angleInputBuffer.append('.');
+            return true;
+        }
+        if (character == '-' || character == '+') {
+            if (!angleInputBuffer.isEmpty()) {
+                return false;
+            }
+            angleInputBuffer.append(character);
+            return true;
+        }
+        return false;
+    }
+
+    private Double parseTypedAngleDegrees() {
+        if (angleInputBuffer.isEmpty()) {
+            return null;
+        }
+        String text = angleInputBuffer.toString().trim().replace(',', '.');
+        if (text.isEmpty() || "-".equals(text) || "+".equals(text) || ".".equals(text)
+            || "-.".equals(text) || "+.".equals(text)) {
+            return null;
+        }
+        try {
+            return Double.parseDouble(text);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /**
@@ -447,6 +636,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
         previewShapes = null;
         pendingCommand = null;
         constrainedCurrentPoint = null;
+        clearAngleInput();
 
         if (rotateParameters != null) {
             rotateParameters.clear();

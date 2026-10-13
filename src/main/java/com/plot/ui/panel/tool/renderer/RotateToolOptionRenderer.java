@@ -60,31 +60,44 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
             // 获取当前主题
             UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
             
-            // 角度步长设置
+            // 角度步长设置：滑动条 + 手动输入
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
             ImGui.text(PlotI18n.tr("option.plot.angle_step"));
             
             ImGui.tableNextColumn();
-            ImGui.pushItemWidth(-1);
-            
-            // 使用整数滑动条
+            float availableWidth = ImGui.getContentRegionAvailX();
+            float inputWidth = 56.0f;
+            float spacing = ImGui.getStyle().getItemSpacingX();
+            float sliderWidth = Math.max(40.0f, availableWidth - inputWidth - spacing);
+
+            ImGui.pushItemWidth(sliderWidth);
             if (ImGui.sliderInt("##angle_step", angleStep, 1, 90, "%d°")) {
-                updateToolConfig(CONFIG_KEY_ANGLE_STEP, String.valueOf(angleStep[0]));
-                PlotMod.LOGGER.debug("角度步长已更新为: {}°", angleStep[0]);
+                applyAngleStepValue(angleStep[0], "滑动条");
             }
-            
-            // 双击输入功能
+            // 双击滑动条仍可打开弹窗输入
             if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
                 ImGui.openPopup("angle_step_input");
             }
-            
-            ImGui.popItemWidth();
-            
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip(PlotI18n.tr("hint.plot.rotate.angle_step"));
             }
+            ImGui.popItemWidth();
+
+            ImGui.sameLine();
+            ImGui.pushItemWidth(inputWidth);
+            ImInt angleStepInput = new ImInt(angleStep[0]);
+            if (ImGui.inputInt("##angle_step_input", angleStepInput, 0, 0)) {
+                applyAngleStepValue(angleStepInput.get(), "输入框");
+            }
+            if (ImGui.isItemDeactivatedAfterEdit()) {
+                applyAngleStepValue(angleStepInput.get(), "输入框确认");
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.rotate.angle_step_input"));
+            }
+            ImGui.popItemWidth();
             
             height += ImGui.getFrameHeightWithSpacing();
             
@@ -149,22 +162,30 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
      */
     private void syncToolState() {
         try {
-            RotateTool tool = getCurrentTool();
-            if (tool != null && tool.getRotateStrategy() != null) {
-                RotateStrategy strategy = tool.getRotateStrategy();
-                
-                // 同步角度步长
-                double angleStepDegrees = Math.toDegrees(strategy.getRotateConstraints().getAngleStep());
-                angleStep[0] = (int) Math.max(1, Math.min(90, Math.round(angleStepDegrees)));
-                
-                // 同步角度吸附状态
-                snapToAngle.set(strategy.isSnapToAngleEnabledByUI());
-                
-                PlotMod.LOGGER.debug("RotateToolOptionRenderer: 同步状态完成，角度步长={}°，角度吸附={}", 
-                    angleStep[0], snapToAngle.get());
-            } else {
-                PlotMod.LOGGER.debug("RotateToolOptionRenderer: 无法获取工具状态，使用默认值");
+            // 正在编辑输入框时不要覆盖用户输入
+            if (ImGui.isAnyItemActive()) {
+                return;
             }
+        } catch (Exception e) {
+            // ImGui 尚未就绪时忽略
+        }
+        try {
+            RotateTool tool = getCurrentTool();
+            if (tool == null) {
+                PlotMod.LOGGER.debug("RotateToolOptionRenderer: 无法获取工具状态，使用默认值");
+                return;
+            }
+
+            double angleStepDegrees = tool.getAngleStep();
+            angleStep[0] = (int) Math.max(1, Math.min(90, Math.round(angleStepDegrees)));
+
+            RotateStrategy strategy = tool.getRotateStrategy();
+            if (strategy != null) {
+                snapToAngle.set(strategy.isSnapToAngleEnabledByUI());
+            }
+
+            PlotMod.LOGGER.debug("RotateToolOptionRenderer: 同步状态完成，角度步长={}°，角度吸附={}",
+                angleStep[0], snapToAngle.get());
         } catch (Exception e) {
             PlotMod.LOGGER.warn("RotateToolOptionRenderer: 同步工具状态失败: {}", e.getMessage());
             // 如果获取工具状态失败，使用默认值
