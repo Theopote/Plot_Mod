@@ -249,4 +249,18 @@ public class Canvas implements ICanvas, UIComponent {
         return core.getCanvasScreenH();
     }
 
+    /**
+     * 同步画布网格可见性（供网格开关直接调用，不依赖事件总线）。
+     */
+    public void setGridVisible(boolean visible) {
+        if (grid != null) {
+            grid.setVisible(visible);
+            core.markDirty(CanvasCore.DirtyType.CONTENT);
+        }
+    }
+
+    public boolean isGridVisible() {
+        return grid != null && grid.isVisible();
+    }
+
 }

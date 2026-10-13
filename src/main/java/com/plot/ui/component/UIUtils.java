@@ -158,10 +158,15 @@ public class UIUtils {
             ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, rounded ? currentTheme.toolbarControlRounding : 0);
             styleVarCount++;
             
-            // 获取纹理ID并渲染按钮
+            // 获取纹理ID并渲染按钮；PushID 避免同纹理按钮 ID 冲突导致点击无效
             int textureId = ImGuiUtils.getTextureId(icon);
-            if (ImGui.imageButton(textureId, width, height, 0, 0, 1, 1)) {
-                clicked = true;
+            ImGui.pushID(icon != null ? icon.toString() : "image_button");
+            try {
+                if (ImGui.imageButton(textureId, width, height, 0, 0, 1, 1)) {
+                    clicked = true;
+                }
+            } finally {
+                ImGui.popID();
             }
             
             // 悬停提示：避免 setTooltip 的 printf 路径（名称中含 % 时会破坏 ImGui 状态）

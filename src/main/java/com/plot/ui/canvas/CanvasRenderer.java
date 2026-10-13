@@ -508,9 +508,24 @@ public class CanvasRenderer implements EventListener {
 
     /**
      * 渲染网格（优化版本）
+     * <p>以 {@link com.plot.ui.grid.GridManager} 开关为权威状态，并同步到 CanvasGrid，
+     * 避免事件未送达时网格无法关闭。
      */
     private void renderGrid(ImDrawList drawList) {
-        if (grid != null && grid.isVisible()) {
+        if (grid == null || drawList == null) {
+            return;
+        }
+        boolean enabled = true;
+        try {
+            enabled = com.plot.ui.grid.GridManager.getInstance().isEnabled();
+        } catch (Exception e) {
+            ExceptionDebug.log("CanvasRenderer: read GridManager enabled state", e);
+            enabled = grid.isVisible();
+        }
+        if (grid.isVisible() != enabled) {
+            grid.setVisible(enabled);
+        }
+        if (enabled) {
             grid.render(drawList, core.getCamera());
         }
     }

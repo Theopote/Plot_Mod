@@ -29,9 +29,12 @@ public class GridManager {
     private GridManager() {
         this.eventBus = ApplicationContext.getInstance().getEventBus();
         this.settings = new GridSettings();
+        this.isEnabled = true;
         LOGGER.debug("GridManager初始化完成，默认启用状态：{}", true);
+
+        // 直接同步一次，再发事件（兼容已有监听器）
+        applyVisibilityToCanvas(true);
         
-        // 不需要延迟，直接发送初始事件
         try {
             GridToggleEvent event = new GridToggleEvent(
                     true,
@@ -46,7 +49,7 @@ public class GridManager {
         }
     }
 
-    public static GridManager getInstance() {
+    public static synchronized GridManager getInstance() {
         if (INSTANCE == null) {
             INSTANCE = new GridManager();
             LOGGER.debug("创建了GridManager的新实例");
@@ -72,6 +75,9 @@ public class GridManager {
         if (this.isEnabled != enabled) {
             // 更新状态
             this.isEnabled = enabled;
+
+            // 直接同步画布网格可见性，避免仅依赖事件总线时开关失效
+            applyVisibilityToCanvas(enabled);
             
             try {
                 // 创建事件对象，包含完整的网格设置信息
@@ -89,6 +95,23 @@ public class GridManager {
             }
         } else {
             LOGGER.debug("网格状态未变化，不发布事件");
+        }
+    }
+
+    /**
+     * 将网格开关状态直接应用到当前画布（事件路径的兜底）。
+     */
+    private void applyVisibilityToCanvas(boolean enabled) {
+        try {
+            com.plot.ui.canvas.Canvas canvas = com.plot.ui.canvas.CanvasAccess.get();
+            if (canvas != null) {
+                canvas.setGridVisible(enabled);
+                LOGGER.debug("已直接同步 Canvas 网格可见性: {}", enabled);
+            } else {
+                LOGGER.warn("CanvasAccess 为空，无法直接同步网格可见性");
+            }
+        } catch (Exception e) {
+            LOGGER.error("直接同步画布网格可见性失败", e);
         }
     }
 
