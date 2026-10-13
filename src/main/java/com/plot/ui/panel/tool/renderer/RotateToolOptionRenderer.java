@@ -1,6 +1,5 @@
 package com.plot.ui.panel.tool.renderer;
 
-import com.plot.core.context.ApplicationContext;
 import com.plot.ui.tools.impl.modify.RotateTool;
 import com.plot.ui.tools.impl.modify.strategy.RotateStrategy;
 import com.plot.ui.dialog.DialogLayoutHelper;
@@ -13,7 +12,7 @@ import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
-import imgui.type.ImInt;
+import imgui.type.ImFloat;
 import com.plot.PlotMod;
 import com.plot.utils.PlotI18n;
 
@@ -25,14 +24,17 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
     // 配置键常量
     private static final String CONFIG_KEY_ANGLE_STEP = "angleStep";
     private static final String CONFIG_KEY_SNAP_ANGLE = "snapAngle";
-    // 已移除：复制模式和增强吸附的显式开关，复制通过 Ctrl 临时开启
+    
+    private static final float MIN_ANGLE_STEP = 0.01f;
+    private static final float MAX_ANGLE_STEP = 90.0f;
+    private static final float ANGLE_STEP_EPSILON = 0.001f;
     
     // 当前配置状态 - 使用ImBoolean以支持ImGui的引用传递
-    private final int[] angleStep = {15}; // 改为整数数组
+    private final float[] angleStep = {15.00f};
     private final ImBoolean snapToAngle = new ImBoolean(true);
     
     // 预设角度步长值
-    private static final int[] PRESET_ANGLE_STEPS = {15, 30, 45, 60, 90};
+    private static final float[] PRESET_ANGLE_STEPS = {15f, 30f, 45f, 60f, 90f};
     
     public RotateToolOptionRenderer() {
         super("rotate");
@@ -60,7 +62,7 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
             // 获取当前主题
             UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
             
-            // 角度步长设置：滑动条 + 手动输入
+            // 角度步长设置：滑动条 + 手动输入（保留两位小数）
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
@@ -68,12 +70,12 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
             
             ImGui.tableNextColumn();
             float availableWidth = ImGui.getContentRegionAvailX();
-            float inputWidth = 56.0f;
+            float inputWidth = 72.0f;
             float spacing = ImGui.getStyle().getItemSpacingX();
             float sliderWidth = Math.max(40.0f, availableWidth - inputWidth - spacing);
 
             ImGui.pushItemWidth(sliderWidth);
-            if (ImGui.sliderInt("##angle_step", angleStep, 1, 90, "%d°")) {
+            if (ImGui.sliderFloat("##angle_step", angleStep, MIN_ANGLE_STEP, MAX_ANGLE_STEP, "%.2f°")) {
                 applyAngleStepValue(angleStep[0], "滑动条");
             }
             // 双击滑动条仍可打开弹窗输入
@@ -87,8 +89,8 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
 
             ImGui.sameLine();
             ImGui.pushItemWidth(inputWidth);
-            ImInt angleStepInput = new ImInt(angleStep[0]);
-            if (ImGui.inputInt("##angle_step_input", angleStepInput, 0, 0)) {
+            ImFloat angleStepInput = new ImFloat(angleStep[0]);
+            if (ImGui.inputFloat("##angle_step_input", angleStepInput, 0.0f, 0.0f, "%.2f")) {
                 applyAngleStepValue(angleStepInput.get(), "输入框");
             }
             if (ImGui.isItemDeactivatedAfterEdit()) {
@@ -176,8 +178,7 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
                 return;
             }
 
-            double angleStepDegrees = tool.getAngleStep();
-            angleStep[0] = (int) Math.max(1, Math.min(90, Math.round(angleStepDegrees)));
+            angleStep[0] = clampAndRoundAngleStep((float) tool.getAngleStep());
 
             RotateStrategy strategy = tool.getRotateStrategy();
             if (strategy != null) {
@@ -255,11 +256,11 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
         for (int i = 0; i < PRESET_ANGLE_STEPS.length; i++) {
             if (i > 0) ImGui.sameLine();
             
-            int presetValue = PRESET_ANGLE_STEPS[i];
-            String buttonLabel = presetValue + "°";
+            float presetValue = PRESET_ANGLE_STEPS[i];
+            String buttonLabel = formatAngleStep(presetValue) + "°";
             
             // 为每个按钮单独设置样式，避免样式栈问题
-            if (angleStep[0] == presetValue) {
+            if (Math.abs(angleStep[0] - presetValue) < ANGLE_STEP_EPSILON) {
                 // 当前选中的按钮使用高亮样式
                 ImGui.pushStyleColor(ImGuiCol.Button, currentTheme.buttonSelected);
                 ImGui.pushStyleColor(ImGuiCol.ButtonHovered, currentTheme.buttonSelectedHovered);
@@ -275,9 +276,7 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
             
             ImGui.pushItemWidth(buttonWidth);
             if (ImGui.button(buttonLabel + "##preset_" + presetValue, buttonWidth, buttonHeight)) {
-                angleStep[0] = presetValue;
-                updateToolConfig(CONFIG_KEY_ANGLE_STEP, String.valueOf(angleStep[0]));
-                PlotMod.LOGGER.debug("角度步长已设置为预设值: {}°", presetValue);
+                applyAngleStepValue(presetValue, "预设值");
             }
             ImGui.popItemWidth();
             
@@ -285,7 +284,7 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.popStyleColor(4);
             
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("hint.plot.rotate.preset_step", presetValue));
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.rotate.preset_step", formatAngleStep(presetValue)));
             }
         }
         
@@ -295,11 +294,20 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
         height[0] += buttonHeight + ImGui.getStyle().getItemSpacingY();
     }
     
-    private void applyAngleStepValue(int value, String source) {
-        int clampedValue = Math.max(1, Math.min(90, value));
+    private void applyAngleStepValue(float value, String source) {
+        float clampedValue = clampAndRoundAngleStep(value);
         angleStep[0] = clampedValue;
-        updateToolConfig(CONFIG_KEY_ANGLE_STEP, String.valueOf(clampedValue));
-        PlotMod.LOGGER.debug("角度步长已通过{}更新为: {}°", source, clampedValue);
+        updateToolConfig(CONFIG_KEY_ANGLE_STEP, formatAngleStep(clampedValue));
+        PlotMod.LOGGER.debug("角度步长已通过{}更新为: {}°", source, formatAngleStep(clampedValue));
+    }
+
+    private static float clampAndRoundAngleStep(float value) {
+        float clamped = Math.max(MIN_ANGLE_STEP, Math.min(MAX_ANGLE_STEP, value));
+        return Math.round(clamped * 100.0f) / 100.0f;
+    }
+
+    private static String formatAngleStep(float value) {
+        return String.format("%.2f", clampAndRoundAngleStep(value));
     }
 
     /**
@@ -325,13 +333,13 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
                     DialogLayoutHelper.helpText(PlotI18n.tr("dialog.plot.angle_step_help"));
                     DialogLayoutHelper.endSection();
 
-                    ImInt tempInput = new ImInt(angleStep[0]);
+                    ImFloat tempInput = new ImFloat(angleStep[0]);
                     ImGui.pushItemWidth(-1);
-                    boolean inputChanged = ImGui.inputInt("##angle_input", tempInput, 1, 5);
+                    boolean inputChanged = ImGui.inputFloat("##angle_input", tempInput, 0.1f, 1.0f, "%.2f");
                     ImGui.popItemWidth();
 
                     if (inputChanged) {
-                        int newValue = Math.max(1, Math.min(90, tempInput.get()));
+                        float newValue = clampAndRoundAngleStep(tempInput.get());
                         tempInput.set(newValue);
                         applyAngleStepValue(newValue, "输入");
                     }

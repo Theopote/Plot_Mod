@@ -295,17 +295,18 @@ public class RotateTool extends ModifyTool {
                         LOGGER.warn("角度步长值为空");
                         return;
                     }
-                    double angleStep = Math.toRadians(Double.parseDouble(value));
-                    if (angleStep <= 0 || angleStep > Math.PI / 2) {
-                        LOGGER.warn("角度步长无效: {} (应在1°-90°范围内)", value);
+                    double degrees = Math.round(Double.parseDouble(value) * 100.0) / 100.0;
+                    if (degrees < 0.01 || degrees > 90.0) {
+                        LOGGER.warn("角度步长无效: {} (应在0.01°-90°范围内)", value);
                         return;
                     }
+                    double angleStep = Math.toRadians(degrees);
                     if (modifyStrategy instanceof RotateStrategy rotateStrategy) {
                         rotateStrategy.getRotateConstraints().setAngleStep(angleStep);
-                        LOGGER.debug("角度步长已设置为: {}", value);
+                        LOGGER.debug("角度步长已设置为: {}°", String.format("%.2f", degrees));
                     } else if (modifyStrategy instanceof RotateWithSelectionStrategy rotateWithSelection) {
                         rotateWithSelection.getRotateConstraints().setAngleStep(angleStep);
-                        LOGGER.debug("角度步长已设置为: {} (RotateWithSelectionStrategy)", value);
+                        LOGGER.debug("角度步长已设置为: {}° (RotateWithSelectionStrategy)", String.format("%.2f", degrees));
                     }
                 } catch (NumberFormatException e) {
                     LOGGER.warn("无效的角度步长格式: {}", value);
