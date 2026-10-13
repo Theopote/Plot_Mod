@@ -149,7 +149,7 @@ public final class ResolvedCrossSection {
             ? shoulder.getMaterial()
             : (config.getFillSlopeMaterial() != null && !config.getFillSlopeMaterial().isBlank()
                 ? config.getFillSlopeMaterial()
-                : "material.plot.gravel");
+                : com.plot.plugin.road.RoadMaterialUtils.DEFAULT_SLOPE_FILL_BLOCK);
 
         boolean includeBikeLane = bikeLane.getEnabled() != null && bikeLane.getEnabled();
         int bikeLaneWidth = includeBikeLane

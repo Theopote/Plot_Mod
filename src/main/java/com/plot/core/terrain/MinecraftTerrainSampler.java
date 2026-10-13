@@ -80,6 +80,11 @@ public final class MinecraftTerrainSampler implements TerrainSampler {
     }
 
     @Override
+    public boolean isConstructionVolumeObstruction(int worldX, int y, int worldZ) {
+        return terrainService.isConstructionVolumeObstruction(worldX, y, worldZ);
+    }
+
+    @Override
     public boolean isChunkLoaded(int worldX, int worldZ) {
         return terrainService.isChunkLoaded(worldX, worldZ);
     }

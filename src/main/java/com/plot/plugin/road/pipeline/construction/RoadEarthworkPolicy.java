@@ -33,4 +33,9 @@ public enum RoadEarthworkPolicy {
     public boolean allowsOpenSubgradeFill() {
         return this != STRUCTURE_ONLY;
     }
+
+    /** Whether expandClearanceEnvelope may write open corridor ClearanceCell columns. */
+    public boolean allowsOpenCorridorClearance() {
+        return this != STRUCTURE_ONLY;
+    }
 }

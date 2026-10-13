@@ -7,6 +7,7 @@ import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.manager.RoadProjectStatus;
 import com.plot.plugin.road.RoadGeometryUtils;
+import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.style.RoadStyle;
 import com.plot.plugin.road.style.RoadStyleCatalog;
@@ -838,7 +839,7 @@ class RoadNetworkTest {
 
         assertNotNull(material);
         // 旧 abstract key 在加载时规范为 block id
-        assertEquals("minecraft:gravel", material.getPrimaryMaterial());
+        assertEquals(RoadMaterialUtils.DEFAULT_SLOPE_FILL_BLOCK, material.getPrimaryMaterial());
         assertFalse(material.hasAccent());
     }
 

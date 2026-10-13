@@ -68,6 +68,14 @@ public interface TerrainSampler {
     }
 
     /**
+     * Any non-air, non-fluid block inside an approved road-body clearance volume that must be removed.
+     * Defaults to {@link #isWireObstruction}; world-backed samplers include logs, ores, and other solids.
+     */
+    default boolean isConstructionVolumeObstruction(int worldX, int y, int worldZ) {
+        return isWireObstruction(worldX, y, worldZ);
+    }
+
+    /**
      * 该世界列所在区块是否已加载。未加载时不得把默认地面 64 当成真实地形做挖填。
      * 无世界上下文的实现默认视为已加载。
      */

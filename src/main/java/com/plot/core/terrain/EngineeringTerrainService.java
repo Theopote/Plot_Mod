@@ -246,6 +246,11 @@ public final class EngineeringTerrainService {
         }
     }
 
+    /** Road-body clearance: remove any solid block in the approved volume (logs, ores, terrain, etc.). */
+    public boolean isConstructionVolumeObstruction(int worldX, int y, int worldZ) {
+        return isWireObstruction(worldX, y, worldZ);
+    }
+
     public boolean isClearableNaturalDecoration(int worldX, int y, int worldZ) {
         if (world == null || !isChunkLoaded(worldX, worldZ)) {
             return false;

@@ -240,7 +240,10 @@ public final class RoadCorridorPlanBuilder {
             RoadSystemConfig config,
             int tunnelThreshold,
             PlanHost host) {
-        int envelopeWidth = RoadCorridorWidth.decorationClearWidthBlocks(crossSection, config);
+        if (!RoadEarthworkPolicy.of(constructionType).allowsOpenCorridorClearance()) {
+            return;
+        }
+        int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
         if (envelopeWidth <= 0) {
             return;
         }

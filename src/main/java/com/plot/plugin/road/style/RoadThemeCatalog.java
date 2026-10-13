@@ -44,7 +44,7 @@ public final class RoadThemeCatalog {
         RoadTheme theme = new RoadTheme("medieval");
         theme.roadMaterial = "minecraft:cobblestone";
         theme.sidewalkMaterial = "minecraft:stone_bricks";
-        theme.shoulderMaterial = "minecraft:gravel";
+        theme.shoulderMaterial = "minecraft:cobblestone";
         theme.markingMaterial = "minecraft:smooth_stone";
         theme.fillSlopeMaterial = "minecraft:cobblestone";
         theme.cutSlopeMaterial = "minecraft:stone";
@@ -56,7 +56,7 @@ public final class RoadThemeCatalog {
         RoadTheme theme = new RoadTheme("japanese");
         theme.roadMaterial = "minecraft:polished_andesite";
         theme.sidewalkMaterial = "minecraft:stone_bricks";
-        theme.shoulderMaterial = "minecraft:gravel";
+        theme.shoulderMaterial = "minecraft:polished_andesite";
         theme.markingMaterial = "minecraft:white_concrete";
         theme.fillSlopeMaterial = "minecraft:coarse_dirt";
         theme.cutSlopeMaterial = "minecraft:andesite";
@@ -68,9 +68,9 @@ public final class RoadThemeCatalog {
         RoadTheme theme = new RoadTheme("industrial");
         theme.roadMaterial = "minecraft:gray_concrete";
         theme.sidewalkMaterial = "minecraft:iron_block";
-        theme.shoulderMaterial = "material.plot.gravel";
+        theme.shoulderMaterial = "minecraft:coarse_dirt";
         theme.markingMaterial = "minecraft:yellow_concrete";
-        theme.fillSlopeMaterial = "minecraft:gravel";
+        theme.fillSlopeMaterial = "minecraft:coarse_dirt";
         theme.cutSlopeMaterial = "minecraft:deepslate_bricks";
         theme.streetlightBlock = "minecraft:iron_bars";
         return theme;
@@ -117,9 +117,9 @@ public final class RoadThemeCatalog {
         RoadTheme theme = new RoadTheme("desert");
         theme.roadMaterial = "minecraft:smooth_sandstone";
         theme.sidewalkMaterial = "minecraft:sandstone";
-        theme.shoulderMaterial = "minecraft:sand";
+        theme.shoulderMaterial = "minecraft:sandstone";
         theme.markingMaterial = "minecraft:cut_sandstone";
-        theme.fillSlopeMaterial = "minecraft:sand";
+        theme.fillSlopeMaterial = "minecraft:smooth_sandstone";
         theme.cutSlopeMaterial = "minecraft:red_sandstone";
         theme.streetlightBlock = "minecraft:soul_lantern";
         return theme;

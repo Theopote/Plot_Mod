@@ -12,6 +12,7 @@ import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
+import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import org.junit.jupiter.api.Test;
@@ -90,6 +91,46 @@ class RoadCorridorPlanBuilderTest {
     }
 
     @Test
+    void openClearanceEnvelopeUsesGradingWidthNotSlopeMargin() {
+        RoadSystemConfig config = CorridorTestFixtures.baseConfig();
+        config.setIncludeSlopeBatter(true);
+        config.setTerrainStyle(com.plot.plugin.road.terrain.RoadTerrainStyle.BALANCED);
+        config.setCutSlopeRatio(1.0f);
+        ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);
+        CrossSectionBuildContext crossSections = CrossSectionBuildContext.fixed(crossSection);
+
+        PathSegment segment = new PathSegment(new Vec2d(0, 0), new Vec2d(20, 0));
+        List<PathSegment> segments = List.of(segment);
+        List<SegmentHeightInfo> heightInfos = List.of(
+            new SegmentHeightInfo(segment, 64, 64, 64, 64, 0.0));
+        List<RoadConstructionType> constructionTypes = List.of(RoadConstructionType.CUT);
+
+        RoadCorridorPlan plan = RoadCorridorPlanBuilder.build(
+            segments,
+            heightInfos,
+            crossSections,
+            constructionTypes,
+            DesignElevationSource.inactive(),
+            BuildHeightProfile.inactive(),
+            new FlatTerrainSampler(90),
+            1.0,
+            "grading-width-seed",
+            CorridorTestFixtures.planHost(config));
+
+        int gradingHalf = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection) / 2;
+        int decorationHalf = RoadCorridorWidth.decorationClearWidthBlocks(crossSection, config) / 2;
+        assertTrue(decorationHalf > gradingHalf, "test setup must have slope margin wider than grading");
+
+        int maxAbsZ = 0;
+        for (var entry : plan.clearanceEntries()) {
+            maxAbsZ = Math.max(maxAbsZ, Math.abs(entry.getKey().worldZ()));
+        }
+        assertTrue(maxAbsZ <= gradingHalf + 1,
+            "clearance lateral extent must track grading envelope, not decoration margin, maxZ="
+                + maxAbsZ + " gradingHalf=" + gradingHalf);
+    }
+
+    @Test
     void bridgeSpanProducesContinuousSurfaceMask() {
         RoadSystemConfig config = CorridorTestFixtures.baseConfig();
         ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);
@@ -133,6 +174,8 @@ class RoadCorridorPlanBuilderTest {
         assertTrue(midBridge != null, "bridge columns must still record clearance metadata");
         assertTrue(midBridge.clearTopY() > midBridge.designSurfaceY(),
             "bridge clearance envelope must have positive overhead height");
+        assertTrue(plan.clearanceCell(new ColumnKey(15, 8)) == null,
+            "bridge interior must not get wide open corridor clearance at slope margin");
 
         int slopeUnderBridge = RoadGenerationIntegrityValidator.countStructureInteriorSlopeCells(plan);
         assertEquals(0, slopeUnderBridge,

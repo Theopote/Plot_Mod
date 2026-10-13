@@ -155,7 +155,7 @@ public final class RoadStyleCatalog {
         style.includeSlopeBatter = true;
         style.fillSlopeRatio = 1.5f;
         style.cutSlopeRatio = 1.0f;
-        style.roadMaterial = "minecraft:gravel";
+        style.roadMaterial = "minecraft:dirt";
         style.shoulderMaterial = "minecraft:coarse_dirt";
         style.fillSlopeMaterial = "minecraft:coarse_dirt";
         return style;
@@ -174,7 +174,7 @@ public final class RoadStyleCatalog {
         style.fillSlopeRatio = 2.0f;
         style.cutSlopeRatio = 1.5f;
         style.roadMaterial = "minecraft:black_concrete";
-        style.shoulderMaterial = "material.plot.gravel";
+        style.shoulderMaterial = "minecraft:stone";
         style.centerLineStyle = CenterLineStyle.DOUBLE_SOLID.name();
         style.laneDividers = true;
         return style;
@@ -191,8 +191,8 @@ public final class RoadStyleCatalog {
         style.fillSlopeRatio = 1.2f;
         style.cutSlopeRatio = 0.8f;
         style.roadMaterial = "minecraft:gray_concrete";
-        style.shoulderMaterial = "minecraft:gravel";
-        style.fillSlopeMaterial = "minecraft:gravel";
+        style.shoulderMaterial = "minecraft:coarse_dirt";
+        style.fillSlopeMaterial = "minecraft:coarse_dirt";
         return style;
     }
 
@@ -223,7 +223,7 @@ public final class RoadStyleCatalog {
         style.includeSlopeBatter = true;
         style.fillSlopeRatio = 2.5f;
         style.cutSlopeRatio = 2.0f;
-        style.roadMaterial = "minecraft:gravel";
+        style.roadMaterial = "minecraft:coarse_dirt";
         style.shoulderMaterial = "minecraft:stone";
         style.fillSlopeMaterial = "minecraft:stone";
         style.cutSlopeMaterial = "minecraft:cobblestone";
@@ -242,7 +242,7 @@ public final class RoadStyleCatalog {
         style.fillSlopeRatio = 1.5f;
         style.cutSlopeRatio = 1.0f;
         style.roadMaterial = "minecraft:dirt";
-        style.shoulderMaterial = "minecraft:gravel";
+        style.shoulderMaterial = "minecraft:coarse_dirt";
         style.fillSlopeMaterial = "minecraft:coarse_dirt";
         style.laneDividers = false;
         style.centerLineStyle = CenterLineStyle.NONE.name();

@@ -11,6 +11,8 @@ import net.minecraft.util.Identifier;
 public final class RoadMaterialUtils {
     public static final String DEFAULT_ROAD_BLOCK = "minecraft:white_concrete";
     public static final String DEFAULT_FALLBACK_BLOCK = "minecraft:stone";
+    /** Stable fill/shoulder default (no gravity). */
+    public static final String DEFAULT_SLOPE_FILL_BLOCK = "minecraft:coarse_dirt";
 
     private RoadMaterialUtils() {
     }
@@ -82,7 +84,8 @@ public final class RoadMaterialUtils {
     private static String resolveLegacyMaterial(String material) {
         return switch (material) {
             case "material.plot.concrete", "混凝土" -> "minecraft:white_concrete";
-            case "material.plot.gravel", "砂砾" -> "minecraft:gravel";
+            case "material.plot.gravel" -> DEFAULT_SLOPE_FILL_BLOCK;
+            case "砂砾" -> "minecraft:gravel";
             case "material.plot.planks", "木板" -> "minecraft:oak_planks";
             case "material.plot.stone", "石头" -> "minecraft:stone";
             default -> null;

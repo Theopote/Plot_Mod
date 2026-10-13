@@ -24,6 +24,8 @@ class RoadEarthworkPolicyTest {
         assertEquals(RoadEarthworkPolicy.STRUCTURE_ONLY, RoadEarthworkPolicy.of(RoadConstructionType.TUNNEL));
         assertFalse(RoadEarthworkPolicy.of(RoadConstructionType.BRIDGE).allowsCorridorBatter());
         assertFalse(RoadEarthworkPolicy.of(RoadConstructionType.TUNNEL).allowsOpenSubgradeFill());
+        assertFalse(RoadEarthworkPolicy.of(RoadConstructionType.BRIDGE).allowsOpenCorridorClearance());
+        assertTrue(RoadEarthworkPolicy.of(RoadConstructionType.TUNNEL_PORTAL).allowsOpenCorridorClearance());
     }
 
     @Test

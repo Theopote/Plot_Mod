@@ -2025,7 +2025,7 @@
   "plugin.road.history.generate.detail": "在世界中放置 %d 个道路方块",
   "material.plot.concrete": "混凝土",
   "material.plot.stone": "石头",
-  "material.plot.gravel": "砂砾",
+  "material.plot.gravel": "粗土（路肩填方默认）",
   "material.plot.planks": "木板",
   "path.plot.polyline": "折线",
   "path.plot.line": "直线",

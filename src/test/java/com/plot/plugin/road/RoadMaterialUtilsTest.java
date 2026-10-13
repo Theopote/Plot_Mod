@@ -11,6 +11,9 @@ class RoadMaterialUtilsTest {
     void normalizeLegacyMaterialKeys() {
         assertEquals("minecraft:white_concrete", RoadMaterialUtils.normalizeStoredMaterial("material.plot.concrete"));
         assertEquals("minecraft:gravel", RoadMaterialUtils.normalizeStoredMaterial("砂砾"));
+        assertEquals(
+            RoadMaterialUtils.DEFAULT_SLOPE_FILL_BLOCK,
+            RoadMaterialUtils.normalizeStoredMaterial("material.plot.gravel"));
         assertEquals("minecraft:oak_planks", RoadMaterialUtils.normalizeStoredMaterial("material.plot.planks"));
         assertEquals("minecraft:stone", RoadMaterialUtils.normalizeStoredMaterial("石头"));
     }

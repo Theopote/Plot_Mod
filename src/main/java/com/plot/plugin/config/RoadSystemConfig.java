@@ -30,7 +30,7 @@ public class RoadSystemConfig {
         .setPrettyPrinting()
         .registerTypeAdapter(MaterialMix.class, new MaterialMixTypeAdapter())
         .create();
-    private static final String DEFAULT_FILL_SLOPE_MATERIAL = "material.plot.gravel";
+    private static final String DEFAULT_FILL_SLOPE_MATERIAL = RoadMaterialUtils.DEFAULT_SLOPE_FILL_BLOCK;
     private String pluginId;
 
     private int roadWidth = 5;

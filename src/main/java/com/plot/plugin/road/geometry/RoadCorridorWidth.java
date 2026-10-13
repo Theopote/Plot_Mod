@@ -72,7 +72,11 @@ public final class RoadCorridorWidth {
         return Math.max(1, section.carriagewayWidth + section.outerBandBlockCount() * 2);
     }
 
-    /** 植被/附着物清理包络总宽（方块数）。 */
+    /**
+     * 植被/附着物清理包络总宽（方块数）。
+     * 仅用于 {@link com.plot.plugin.road.RoadRoadbedGradingUtils#clearRoadDecorations} 等装饰清理，
+     * 不得作为 {@link com.plot.plugin.road.pipeline.corridor.ClearanceCell} 的横向挖方依据。
+     */
     public static int decorationClearWidthBlocks(ResolvedCrossSection section, RoadSystemConfig config) {
         int width = gradingEnvelopeWidthBlocks(section);
         if (section != null && section.includeSlopeBatter) {

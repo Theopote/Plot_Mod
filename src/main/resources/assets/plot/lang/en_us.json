@@ -2025,7 +2025,7 @@
   "plugin.road.history.generate.detail": "Place %d road blocks in world",
   "material.plot.concrete": "Concrete",
   "material.plot.stone": "Stone",
-  "material.plot.gravel": "Gravel",
+  "material.plot.gravel": "Coarse dirt (default fill)",
   "material.plot.planks": "Wood Planks",
   "path.plot.polyline": "Polyline",
   "path.plot.line": "Line",

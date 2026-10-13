@@ -135,7 +135,7 @@ public class RoadStyle {
             : roadMat;
         String shoulderMat = style.shoulderMaterial != null && !style.shoulderMaterial.isBlank()
             ? style.shoulderMaterial
-            : "material.plot.gravel";
+            : RoadMaterialUtils.DEFAULT_SLOPE_FILL_BLOCK;
         String bikeMat = style.bikeLaneMaterial != null && !style.bikeLaneMaterial.isBlank()
             ? style.bikeLaneMaterial
             : ResolvedCrossSection.DEFAULT_BIKE_LANE_MATERIAL;
