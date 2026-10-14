@@ -113,6 +113,13 @@ public final class ResolvedCrossSection {
     }
 
     public static ResolvedCrossSection resolve(RoadCrossSection section, RoadSystemConfig defaults) {
+        return resolveWithReport(section, defaults).section();
+    }
+
+    public static CrossSectionResolveReport.ResolveResult resolveWithReport(
+            RoadCrossSection section,
+            RoadSystemConfig defaults) {
+        CrossSectionResolveReport report = new CrossSectionResolveReport();
         RoadCrossSection source = section != null ? section : new RoadCrossSection();
         RoadSystemConfig config = defaults != null ? defaults : new RoadSystemConfig("road_system");
 
@@ -130,13 +137,23 @@ public final class ResolvedCrossSection {
         int laneCount = carriageway.getEffectiveLaneCount();
 
         boolean includeMedian = median.getEnabled() != null && median.getEnabled();
-        int medianWidth = includeMedian
+        int requestedMedian = includeMedian
             ? Math.max(1, median.getWidth() != null ? median.getWidth() : 1)
             : 0;
-        int laneOnlyWidth = safeWidth;
-        if (includeMedian && medianWidth > 0) {
-            laneOnlyWidth = Math.max(laneCount, safeWidth - medianWidth);
+        int medianWidth = requestedMedian;
+        if (includeMedian && requestedMedian > 0) {
+            medianWidth = CrossSectionGeometryRules.clampMedianWidth(safeWidth, laneCount, requestedMedian);
+            if (medianWidth < requestedMedian) {
+                report.noteGeometry(
+                    "median_clamped:" + requestedMedian + "->" + medianWidth
+                        + " width=" + safeWidth + " lanes=" + laneCount);
+            }
+            if (medianWidth <= 0) {
+                includeMedian = false;
+                medianWidth = 0;
+            }
         }
+        int laneOnlyWidth = CrossSectionGeometryRules.laneOnlyWidth(safeWidth, laneCount, medianWidth);
         List<Integer> laneWidths = carriageway.resolveLaneWidths(laneOnlyWidth);
         List<Double> laneDividerOffsets = filterLaneDividerOffsets(
             carriageway.resolveLaneDividerOffsets(laneOnlyWidth),
@@ -201,41 +218,59 @@ public final class ResolvedCrossSection {
             : config.getCutSlopeMaterial();
         boolean includeSlopeBatter = slopeEnabled && (fillRatio > 0f || cutRatio > 0f);
 
-        return new ResolvedCrossSection(
+        ResolvedCrossSection resolved = new ResolvedCrossSection(
             laneCount,
             laneWidths,
             laneDividerOffsets,
             safeWidth,
             laneOnlyWidth,
-            RoadConstructionMaterialPolicy.resolve(
-                RoadMaterialMixUtils.normalizeStored(roadMaterial),
-                MaterialRole.CARRIAGEWAY,
-                null),
+            resolveMix(roadMaterial, MaterialRole.CARRIAGEWAY, report),
             includeMedian,
             medianWidth,
-            RoadConstructionMaterialPolicy.resolveStored(medianMaterial, MaterialRole.MEDIAN, null),
+            resolveMaterial(medianMaterial, MaterialRole.MEDIAN, report),
             laneDividers,
             centerLineStyle,
-            RoadConstructionMaterialPolicy.resolveStored(markingMaterial, MaterialRole.MARKING, null),
+            resolveMaterial(markingMaterial, MaterialRole.MARKING, report),
             includeShoulder,
             Math.max(0, shoulderWidth),
-            RoadConstructionMaterialPolicy.resolveStored(shoulderMaterial, MaterialRole.SHOULDER, null),
+            resolveMaterial(shoulderMaterial, MaterialRole.SHOULDER, report),
             includeBikeLane,
             bikeLaneWidth,
-            RoadConstructionMaterialPolicy.resolveStored(bikeLaneMaterial, MaterialRole.BIKE_LANE, null),
+            resolveMaterial(bikeLaneMaterial, MaterialRole.BIKE_LANE, report),
             includeSidewalk,
             Math.max(0, sidewalkWidth),
-            RoadConstructionMaterialPolicy.resolveStored(sidewalkMaterial, MaterialRole.SIDEWALK, null),
+            resolveMaterial(sidewalkMaterial, MaterialRole.SIDEWALK, report),
             furniture.getStreetlightSpacing(),
             RoadMaterialUtils.normalizeStoredMaterial(streetlightBlock),
             includeSlopeBatter,
             includeSlopeBatter ? fillRatio : 0f,
             includeSlopeBatter ? cutRatio : 0f,
-            RoadConstructionMaterialPolicy.resolveStored(fillSlopeMaterial, MaterialRole.FILL_SLOPE, null),
+            resolveMaterial(fillSlopeMaterial, MaterialRole.FILL_SLOPE, report),
             cutSlopeMaterial != null && !cutSlopeMaterial.isBlank()
-                ? RoadConstructionMaterialPolicy.resolveStored(cutSlopeMaterial, MaterialRole.CUT_SLOPE, null)
+                ? resolveMaterial(cutSlopeMaterial, MaterialRole.CUT_SLOPE, report)
                 : null
         );
+        return new CrossSectionResolveReport.ResolveResult(resolved, report);
+    }
+
+    private static MaterialMix resolveMix(
+            MaterialMix mix,
+            MaterialRole role,
+            CrossSectionResolveReport report) {
+        return RoadConstructionMaterialPolicy.resolve(
+            RoadMaterialMixUtils.normalizeStored(mix),
+            role,
+            (requested, resolved) -> report.noteMaterialReplacement(requested, resolved, role.name()));
+    }
+
+    private static String resolveMaterial(
+            String material,
+            MaterialRole role,
+            CrossSectionResolveReport report) {
+        return RoadConstructionMaterialPolicy.resolveStored(
+            material,
+            role,
+            (requested, resolved) -> report.noteMaterialReplacement(requested, resolved, role.name()));
     }
 
     private static List<Double> filterLaneDividerOffsets(List<Double> offsets, int medianWidth) {

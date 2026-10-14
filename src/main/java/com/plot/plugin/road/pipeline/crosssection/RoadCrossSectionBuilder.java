@@ -96,12 +96,6 @@ public final class RoadCrossSectionBuilder {
 
         String resolveBlockId(String material);
 
-        default String resolveBlockId(
-                String material,
-                com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy.MaterialRole role) {
-            return com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy.resolve(material, role);
-        }
-
         int snapEndpointElevation(Vec2d center, int targetY);
 
         double estimateCanvasUnitsPerBlock(List<Vec2d> pathPoints, List<PathSegment> segments);
@@ -124,13 +118,6 @@ public final class RoadCrossSectionBuilder {
                 @Override
                 public String resolveBlockId(String material) {
                     return host.resolveBlockId(material);
-                }
-
-                @Override
-                public String resolveBlockId(
-                        String material,
-                        com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy.MaterialRole role) {
-                    return host.resolveBlockId(material, role);
                 }
 
                 @Override
@@ -255,9 +242,7 @@ public final class RoadCrossSectionBuilder {
                 double halfMedian = RoadDimensionUtils.halfExtentFromCenter(crossSection.medianWidth) * unitsPerBlock;
                 Vec2d left = center.add(leftNormal.multiply(-halfMedian));
                 Vec2d right = center.add(leftNormal.multiply(halfMedian));
-                String blockId = host.resolveBlockId(
-                    crossSection.medianMaterial,
-                    com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy.MaterialRole.MEDIAN);
+                String blockId = host.resolveBlockId(crossSection.medianMaterial);
                 solids.addSpan(left, right, targetY, RoadSolidLayer.MEDIAN, blockId);
             });
     }

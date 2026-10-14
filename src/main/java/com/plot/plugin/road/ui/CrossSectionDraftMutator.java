@@ -3,6 +3,7 @@ package com.plot.plugin.road.ui;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.SlopeFormatUtils;
+import com.plot.plugin.road.model.section.CrossSectionGeometryRules;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy.MaterialRole;
 import com.plot.plugin.road.model.Road;
@@ -20,6 +21,7 @@ public final class CrossSectionDraftMutator {
     private final Road road;
     private final RoadSystemConfig config;
     private String lastMaterialWarning;
+    private String lastGeometryWarning;
 
     private CrossSectionDraftMutator(
             CrossSectionDraft draft,
@@ -62,6 +64,10 @@ public final class CrossSectionDraftMutator {
         return lastMaterialWarning;
     }
 
+    public String lastGeometryWarning() {
+        return lastGeometryWarning;
+    }
+
     public CrossSectionDraftFieldHooks hooks() {
         return hooks;
     }
@@ -75,6 +81,7 @@ public final class CrossSectionDraftMutator {
         if (road != null) {
             road.setLaneCount(laneCount);
         }
+        enforceMedianFit();
         notifyChanged();
     }
 
@@ -83,6 +90,7 @@ public final class CrossSectionDraftMutator {
         if (road != null) {
             road.setWidth(width);
         }
+        enforceMedianFit();
         notifyChanged();
     }
 
@@ -210,6 +218,7 @@ public final class CrossSectionDraftMutator {
         if (road != null) {
             road.setIncludeMedian(includeMedian);
         }
+        enforceMedianFit();
         notifyChanged();
     }
 
@@ -218,6 +227,7 @@ public final class CrossSectionDraftMutator {
         if (road != null) {
             road.setMedianWidth(medianWidth);
         }
+        enforceMedianFit();
         notifyChanged();
     }
 
@@ -541,6 +551,36 @@ public final class CrossSectionDraftMutator {
         if (requested != null && resolved != null && !requested.equals(resolved)) {
             lastMaterialWarning = PlotI18n.tr("plugin.road.material_gravity_unsafe_replaced", requested, resolved);
         }
+    }
+
+    private void enforceMedianFit() {
+        lastGeometryWarning = null;
+        if (!draft.includeMedian()) {
+            return;
+        }
+        int requested = Math.max(1, draft.medianWidth());
+        int clamped = CrossSectionGeometryRules.clampMedianWidth(
+            draft.width(), draft.laneCount(), requested);
+        if (clamped == requested) {
+            return;
+        }
+        draft.setMedianWidth(clamped);
+        if (road != null) {
+            if (clamped <= 0) {
+                road.setIncludeMedian(false);
+                draft.setIncludeMedian(false);
+            } else {
+                road.setMedianWidth(clamped);
+            }
+        } else if (clamped <= 0) {
+            draft.setIncludeMedian(false);
+        }
+        lastGeometryWarning = PlotI18n.tr(
+            "plugin.road.median_width_clamped",
+            requested,
+            draft.laneCount(),
+            draft.width(),
+            Math.max(0, clamped));
     }
 
     private void notifyChanged() {

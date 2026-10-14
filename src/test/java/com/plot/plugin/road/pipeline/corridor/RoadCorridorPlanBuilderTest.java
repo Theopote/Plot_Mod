@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -132,5 +133,7 @@ class RoadCorridorPlanBuilderTest {
         assertTrue(midBridge != null, "bridge columns must still record clearance metadata");
         assertTrue(midBridge.clearTopY() > midBridge.designSurfaceY(),
             "bridge clearance envelope must have positive overhead height");
+        assertEquals(0, RoadGenerationIntegrityValidator.countStructureInteriorSlopeCells(plan),
+            "bridge interior must not retain corridor slope cells");
     }
 }

@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.terrain.FlatTerrainSampler;
 import com.plot.core.terrain.TerrainSampler;
+import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
@@ -186,6 +187,21 @@ class RoadGenerationIntegrityValidatorTest {
 
         // y=65 has non-air stone (not structural clearance); only clearTop range is checked
         assertEquals(1, report.unclearedObstructionCount());
+    }
+
+    @Test
+    void structureInteriorSlopeCellIsCounted() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        Vec2d point = new Vec2d(15, 0);
+        ColumnKey key = new ColumnKey(15, 0);
+        plan.putClearance(key, new ClearanceCell(
+            point, 64, 80, RoadCorridorConstructionMode.BRIDGE, RoadConstructionType.BRIDGE));
+        plan.slopeCellOrCreate(key, point).mergeFill(60, "minecraft:dirt");
+
+        RoadGenerationIntegrityValidator.IntegrityReport report =
+            RoadGenerationIntegrityValidator.validate(plan, new RoadSolidModel(), new FlatTerrainSampler(50));
+
+        assertEquals(1, report.structureInteriorSlopeCellCount());
     }
 
     @Test

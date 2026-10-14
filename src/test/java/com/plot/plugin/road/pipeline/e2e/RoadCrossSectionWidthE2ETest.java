@@ -17,23 +17,26 @@ import com.plot.plugin.road.style.RoadStyleCatalog;
 import com.plot.test.world.IdentityCoordinateService;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadCrossSectionWidthE2ETest {
 
-    @Test
-    void highwayHardSurfaceWidthMatchesResolvedHalfWidth() {
-        assertHardWidthWithinOneBlock(RoadStyleCatalog.highway());
+    static Stream<RoadStyle> builtinStyles() {
+        return RoadStyleCatalog.defaultStyles().stream();
     }
 
-    @Test
-    void avenueHardSurfaceWidthMatchesResolvedHalfWidth() {
-        assertHardWidthWithinOneBlock(RoadStyleCatalog.avenue());
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("builtinStyles")
+    void builtinPresetHardSurfaceWidthMatchesResolvedHalfWidth(RoadStyle style) {
+        assertHardWidthWithinOneBlock(style);
     }
 
     @Test
@@ -58,6 +61,25 @@ class RoadCrossSectionWidthE2ETest {
         }
         assertTrue(medianColumns > 0, "highway must place median columns");
         assertEquals(0, markingOnMedian, "markings must not occupy median columns");
+    }
+
+    @Test
+    void avenueMedianColumnHasNoMarkingOverlay() {
+        RoadStyle style = RoadStyleCatalog.avenue();
+        Preview preview = previewWithStyle(style);
+        ResolvedCrossSection resolved = preview.resolved();
+
+        int markingOnMedian = 0;
+        for (Map.Entry<BlockPos, RoadSolidLayer> entry : preview.edge().placementLayers.entrySet()) {
+            BlockPos pos = entry.getKey();
+            if (Math.abs(pos.getX() - 20) > 8) {
+                continue;
+            }
+            if (entry.getValue() == RoadSolidLayer.MARKING && resolved.occupiesMedianColumn(pos.getZ())) {
+                markingOnMedian++;
+            }
+        }
+        assertEquals(0, markingOnMedian, "avenue markings must not occupy median columns");
     }
 
     private static void assertHardWidthWithinOneBlock(RoadStyle style) {

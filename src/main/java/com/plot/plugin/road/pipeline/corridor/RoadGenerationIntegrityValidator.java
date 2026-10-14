@@ -137,7 +137,7 @@ public final class RoadGenerationIntegrityValidator {
         result.structureInteriorSlopeCellCount = report.structureInteriorSlopeCellCount();
     }
 
-    private static int countStructureInteriorSlopeCells(RoadCorridorPlan plan) {
+    static int countStructureInteriorSlopeCells(RoadCorridorPlan plan) {
         int count = 0;
         for (var entry : plan.slopeEntries()) {
             ClearanceCell clearance = plan.clearanceCell(entry.getKey());

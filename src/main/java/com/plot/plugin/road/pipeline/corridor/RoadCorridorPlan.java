@@ -1,5 +1,7 @@
 package com.plot.plugin.road.pipeline.corridor;
 
+import com.plot.plugin.road.pipeline.construction.RoadEarthworkPolicy;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -40,24 +42,16 @@ public final class RoadCorridorPlan {
         if (key == null || cell == null) {
             return;
         }
+        if (cell.constructionType() != null
+                && RoadEarthworkPolicy.of(cell.constructionType()) == RoadEarthworkPolicy.STRUCTURE_ONLY) {
+            slopeCells.remove(key);
+        }
         ClearanceCell existing = clearanceCells.get(key);
         if (existing == null || cell.clearTopY() > existing.clearTopY()) {
             clearanceCells.put(key, cell);
         } else if (cell.clearTopY() == existing.clearTopY()
                 && cell.designSurfaceY() > existing.designSurfaceY()) {
             clearanceCells.put(key, cell);
-        } else if (cell.constructionType() != null
-                && cell.constructionType().isStructureInterior()
-                && (existing.constructionType() == null
-                    || !existing.constructionType().isStructureInterior())) {
-            // Prefer structure-interior clearance so open batter cannot linger under deck/tunnel.
-            clearanceCells.put(key, cell);
-        }
-        ClearanceCell effective = clearanceCells.get(key);
-        if (effective != null
-                && effective.constructionType() != null
-                && effective.constructionType().isStructureInterior()) {
-            slopeCells.remove(key);
         }
     }
 

@@ -2,7 +2,6 @@ package com.plot.plugin.road.pipeline.corridor;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadConstructionType;
-import com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy.MaterialRole;
 import com.plot.plugin.road.pipeline.construction.RoadEarthworkPolicy;
 import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
 import com.plot.plugin.road.solid.RoadSolidLayer;
@@ -32,7 +31,7 @@ public final class RoadCorridorSolidEmitter {
         }
         String fillMaterial = defaultFillMaterialId != null && !defaultFillMaterialId.isBlank()
             ? defaultFillMaterialId
-            : host.resolveBlockId(host.config().getFillSlopeMaterial(), MaterialRole.FILL_SLOPE);
+            : host.resolveBlockId(host.config().getFillSlopeMaterial());
 
         Set<ColumnKey> columns = new HashSet<>();
         for (var entry : plan.surfaceMask().entries()) {
@@ -77,7 +76,8 @@ public final class RoadCorridorSolidEmitter {
         RoadConstructionType constructionType = clearance != null ? clearance.constructionType() : null;
 
         if (slope != null && slope.hasFill()
-                && allowsOpenCorridorEarthwork(constructionType)) {
+                && (constructionType == null
+                    || RoadEarthworkPolicy.of(constructionType).allowsOpenSubgradeFill())) {
             int fillTop = surfaceY != null
                 ? Math.min(slope.fillSurfaceY(), surfaceY - 1)
                 : slope.fillSurfaceY();
@@ -98,7 +98,8 @@ public final class RoadCorridorSolidEmitter {
         }
 
         if (slope != null && slope.hasCut() && groundY > slope.cutSurfaceY()
-                && allowsOpenCorridorEarthwork(constructionType)) {
+                && (constructionType == null
+                    || RoadEarthworkPolicy.of(constructionType).allowsCorridorBatter())) {
             for (int y = slope.cutSurfaceY() + 1; y <= groundY; y++) {
                 solids.add(
                     planPoint,
@@ -125,17 +126,13 @@ public final class RoadCorridorSolidEmitter {
             int surfaceY,
             int groundY,
             int bridgeThreshold) {
-        if (!allowsOpenCorridorEarthwork(constructionType)) {
+        if (constructionType != null
+                && !RoadEarthworkPolicy.of(constructionType).allowsOpenSubgradeFill()) {
             return false;
         }
         if (constructionType == RoadConstructionType.FILL) {
             return true;
         }
         return surfaceY - groundY <= bridgeThreshold;
-    }
-
-    private static boolean allowsOpenCorridorEarthwork(RoadConstructionType constructionType) {
-        return constructionType == null
-            || RoadEarthworkPolicy.of(constructionType).allowsOpenSubgradeFill();
     }
 }

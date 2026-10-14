@@ -2,8 +2,10 @@ package com.plot.plugin.road.ui;
 
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.road.RoadParameterLimits;
+import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.CrossSectionDraft;
+import com.plot.plugin.road.model.section.CrossSectionResolveReport;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.EngineeringSlopeInput;
@@ -270,6 +272,7 @@ public final class CrossSectionDraftEditor {
         if (editor.options.showMaxSlope()) {
             renderMaxSlopeField(editor);
         }
+        renderGeometryWarning(mutator);
     }
 
     private static void renderSlopeBatterFields(EditorContext editor) {
@@ -413,6 +416,15 @@ public final class CrossSectionDraftEditor {
         );
         mutator.afterMarkingMaterialField();
         renderMaterialWarning(mutator);
+        renderResolveReportWarnings(editor);
+    }
+
+    private static void renderGeometryWarning(CrossSectionDraftMutator mutator) {
+        String warning = mutator.lastGeometryWarning();
+        if (warning == null || warning.isBlank()) {
+            return;
+        }
+        RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING, warning);
     }
 
     private static void renderMaterialWarning(CrossSectionDraftMutator mutator) {
@@ -421,6 +433,33 @@ public final class CrossSectionDraftEditor {
             return;
         }
         RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING, warning);
+    }
+
+    private static void renderResolveReportWarnings(EditorContext editor) {
+        RoadSystemConfig defaults = editor.ctx != null && editor.ctx.networkManager() != null
+            ? editor.ctx.networkManager().getConfig()
+            : new RoadSystemConfig("cross-section-ui");
+        CrossSectionResolveReport report = ResolvedCrossSection.resolveWithReport(
+            editor.draft.toCrossSection(),
+            defaults).report();
+        if (report == null || report.isEmpty()) {
+            return;
+        }
+        for (CrossSectionResolveReport.MaterialReplacement replacement : report.materialReplacements()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr(
+                    "plugin.road.material_gravity_unsafe_replaced",
+                    replacement.requested(),
+                    replacement.resolved()));
+        }
+        if (!report.geometryNotes().isEmpty()
+                && (editor.mutator.lastGeometryWarning() == null
+                    || editor.mutator.lastGeometryWarning().isBlank())) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.WARNING,
+                PlotI18n.tr("plugin.road.median_fit_adjusted"));
+        }
     }
 
     private static void renderFurniture(EditorContext editor) {

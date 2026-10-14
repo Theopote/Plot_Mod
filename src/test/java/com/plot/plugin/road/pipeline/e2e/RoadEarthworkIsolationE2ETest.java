@@ -61,6 +61,9 @@ class RoadEarthworkIsolationE2ETest {
             "tunnel body must not retain corridor slope cells");
         assertTrue(edge.tunnelCount > 0 || edge.tunnelLength > 0 || !edge.tunnelBlocks.isEmpty(),
             "R09 must produce tunnel structure");
+        // Cross-section preset changes must not reintroduce open corridor fill into the tunnel body.
+        assertEquals(0, edge.fillVolume,
+            "tunnel interior must not accumulate open corridor fill volume");
     }
 
     @Test
@@ -84,4 +87,5 @@ class RoadEarthworkIsolationE2ETest {
         assertEquals(1, preview.edgeResults().size());
         return preview.edgeResults().values().iterator().next();
     }
+
 }

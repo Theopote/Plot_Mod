@@ -67,7 +67,7 @@ public class RoadGenerationResult {
     public int unresolvedSlopeConstructionCount;
     /** Outward shoulder trace found a missing slope column while cut/fill still required. */
     public int shoulderTraceGapCount;
-    /** Corridor slope cells under bridge/tunnel interior (must stay 0). */
+    /** Corridor slope cells under bridge/tunnel interior (must stay zero). */
     public int structureInteriorSlopeCellCount;
 
     public RoadGenerationResult(double pathLength) {

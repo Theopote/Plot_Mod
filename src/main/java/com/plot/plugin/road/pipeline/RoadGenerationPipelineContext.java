@@ -143,12 +143,6 @@ public final class RoadGenerationPipelineContext {
 
         String resolveBlockId(String material);
 
-        default String resolveBlockId(
-                String material,
-                com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy.MaterialRole role) {
-            return com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy.resolve(material, role);
-        }
-
         int snapEndpointElevation(Vec2d center, int targetY);
 
         int bridgeThreshold();

@@ -4,7 +4,6 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
-import com.plot.plugin.road.pipeline.construction.RoadEarthworkPolicy;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -34,10 +33,7 @@ public final class SlopeShoulderTerrainTraceValidator {
         int gaps = 0;
         Set<String> tracedRays = new HashSet<>();
         for (SurfaceSample outer : outerShoulderSamples(plan, surfaceSamples)) {
-            ClearanceCell clearance = plan.clearanceCell(outer.columnKey());
-            RoadConstructionType constructionType = clearance != null ? clearance.constructionType() : null;
-            if (constructionType != null
-                    && RoadEarthworkPolicy.of(constructionType) == RoadEarthworkPolicy.STRUCTURE_ONLY) {
+            if (isStructureInteriorColumn(plan, outer.columnKey())) {
                 continue;
             }
             Vec2d localCenter = localSurfaceCenter(surfaceSamples, outer.planPoint());
@@ -77,6 +73,15 @@ public final class SlopeShoulderTerrainTraceValidator {
             }
         }
         return outer;
+    }
+
+    private static boolean isStructureInteriorColumn(RoadCorridorPlan plan, ColumnKey key) {
+        ClearanceCell clearance = plan.clearanceCell(key);
+        if (clearance == null) {
+            return false;
+        }
+        RoadConstructionType type = clearance.constructionType();
+        return type == RoadConstructionType.BRIDGE || type == RoadConstructionType.TUNNEL;
     }
 
     private static boolean isExposedShoulderEdge(RoadCorridorPlan plan, ColumnKey key) {
