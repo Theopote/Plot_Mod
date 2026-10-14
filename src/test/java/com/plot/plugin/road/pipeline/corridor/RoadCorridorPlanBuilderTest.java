@@ -207,10 +207,10 @@ class RoadCorridorPlanBuilderTest {
             "portal half of PORTAL→TUNNEL span must not be retagged as TUNNEL");
         assertEquals(RoadCorridorConstructionMode.PORTAL, portal.mode(),
             "portal clearance must use portal cavity mode, not open terrain-top");
-        int portalRoofCap = 64 + CorridorTestFixtures.planHost(config).tunnelStyle().roofTopOffset() + 1;
-        assertTrue(portal.clearTopY() <= portalRoofCap,
-            "portal clearTop must not exceed designed roof, cap=" + portalRoofCap
-                + " was " + portal.clearTopY());
+        int portalRoofCap = RoadCorridorPlanBuilder.portalRoofTopY(
+            CorridorTestFixtures.planHost(config), 64);
+        assertEquals(portalRoofCap, portal.clearTopY(),
+            "portal clearTop must match designed portal-frame roof");
         boolean portalHasLateralTag = plan.clearanceEntries().stream()
             .anyMatch(entry -> entry.getValue().constructionType() == RoadConstructionType.TUNNEL_PORTAL
                 && entry.getValue().corridorLateral() != null);

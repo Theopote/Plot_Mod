@@ -34,7 +34,6 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadShoulderSeamContinuityTest {
 
@@ -105,8 +104,7 @@ class RoadShoulderSeamContinuityTest {
     }
 
     private static List<Vec2d> straightSegment(Vec2d from, Vec2d to) {
-        List<Vec2d> points = RoadVoxelRasterizerHelper.sample(from, to);
-        return points;
+        return RoadVoxelRasterizerHelper.sample(from, to);
     }
 
     private static RoadNetwork straightNetwork(String id, int elevation) {

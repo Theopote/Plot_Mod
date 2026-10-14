@@ -11,7 +11,7 @@ import com.plot.plugin.road.RoadTerrainClearanceUtils;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
-import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
+import com.plot.plugin.road.tunnel.TunnelPortalExcavationMask;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
 import com.plot.plugin.road.pipeline.RoadPathStationSampler;
@@ -236,7 +236,8 @@ public final class RoadCorridorPlanBuilder {
         if (!RoadEarthworkPolicy.of(constructionType).allowsOpenCorridorClearance()) {
             return;
         }
-        int envelopeWidth = RoadCorridorWidth.decorationClearWidthBlocks(crossSection, config);
+        // Hard-surface envelope only; cut/fill beyond shoulder is handled by slope batter rays.
+        int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
         if (constructionType == RoadConstructionType.TUNNEL_PORTAL
                 || constructionType == RoadConstructionType.BRIDGE_ABUTMENT) {
             envelopeWidth = Math.min(envelopeWidth, RoadCorridorWidth.PORTAL_TRANSITION_CLEAR_BAND_BLOCKS);
@@ -705,9 +706,16 @@ public final class RoadCorridorPlanBuilder {
                 designSurfaceY + 1,
                 Math.max(terrain.sampleColumnTopY(planPoint), designSurfaceY + 1));
             case TUNNEL -> designSurfaceY + tunnelThreshold;
-            case PORTAL -> designSurfaceY + host.tunnelStyle().roofTopOffset() + 1;
+            case PORTAL -> portalRoofTopY(host, designSurfaceY);
             case OPEN -> Math.max(terrain.sampleColumnTopY(planPoint), designSurfaceY + 1);
         };
+    }
+
+    static int portalRoofTopY(PlanHost host, int designSurfaceY) {
+        ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
+        int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
+        return TunnelPortalExcavationMask.forPortal(
+            host.tunnelStyle(), envelopeWidth, designSurfaceY).roofTopY();
     }
 
     private static Vec2d normalize(Vec2d vector) {

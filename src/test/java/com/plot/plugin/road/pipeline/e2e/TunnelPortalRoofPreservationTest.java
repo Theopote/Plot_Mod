@@ -7,7 +7,10 @@ import com.plot.plugin.road.benchmark.RoadBenchmarkHarness;
 import com.plot.plugin.road.golden.RoadGoldenScenario;
 import com.plot.plugin.road.golden.RoadGoldenScenarioFactory;
 import com.plot.plugin.road.solid.RoadGenerationResult;
+import com.plot.plugin.road.geometry.RoadCorridorWidth;
+import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
+import com.plot.plugin.road.tunnel.TunnelPortalExcavationMask;
 import com.plot.test.world.IdentityCoordinateService;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
@@ -27,7 +30,7 @@ class TunnelPortalRoofPreservationTest {
     void r09PortalRoofDoesNotClearSolidMountainAboveCavity() {
         RoadGoldenScenario scenario = RoadGoldenScenarioFactory.r09Tunnel();
         ResolvedTunnelStyle style = ResolvedTunnelStyle.defaults();
-        int roofTop = ROAD_Y + style.roofTopOffset();
+        int roofTop = portalRoofTop(scenario, style);
         int terrainTop = 80;
 
         List<BlockPos> preserveSamples = new ArrayList<>();
@@ -59,9 +62,9 @@ class TunnelPortalRoofPreservationTest {
 
     @Test
     void r09PortalVerticalExcavationStaysBelowRoof() {
-        RoadGenerationResult edge = preview(RoadGoldenScenarioFactory.r09Tunnel());
-        ResolvedTunnelStyle style = ResolvedTunnelStyle.defaults();
-        int roofTop = ROAD_Y + style.roofTopOffset() + 1;
+        RoadGoldenScenario scenario = RoadGoldenScenarioFactory.r09Tunnel();
+        int roofTop = portalRoofTop(scenario, ResolvedTunnelStyle.defaults());
+        RoadGenerationResult edge = preview(scenario);
         int airAboveRoofOutsideEnvelope = 0;
         for (Map.Entry<BlockPos, BlockRecord> entry : edge.placementRecords.entrySet()) {
             BlockPos pos = entry.getKey();
@@ -91,6 +94,12 @@ class TunnelPortalRoofPreservationTest {
         return RoadBenchmarkHarness.generatePreview(
             scenario.network(), generator, scenario.terrain())
             .edgeResults().values().iterator().next();
+    }
+
+    private static int portalRoofTop(RoadGoldenScenario scenario, ResolvedTunnelStyle style) {
+        ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(scenario.config());
+        int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
+        return TunnelPortalExcavationMask.forPortal(style, envelopeWidth, ROAD_Y).roofTopY();
     }
 
     private static boolean isAirPlacement(RoadGenerationResult edge, BlockPos pos) {

@@ -39,14 +39,19 @@ public final class TunnelPortalBackfillPass {
             int canvasX = (int) Math.round(cell.planPoint().x);
             portalDesignYByCanvasX.putIfAbsent(canvasX, cell.designSurfaceY());
         }
+        int transitionBand = RoadCorridorWidth.PORTAL_TRANSITION_CLEAR_BAND_BLOCKS;
         for (var portalEntry : portalDesignYByCanvasX.entrySet()) {
-            int canvasX = portalEntry.getKey();
+            int portalCanvasX = portalEntry.getKey();
             int designY = portalEntry.getValue();
             TunnelPortalExcavationMask mask = TunnelPortalExcavationMask.forPortal(
                 host.tunnelStyle(), envelopeWidth, designY);
-            int minLateral = mask.crossSection().roadMin() - RoadCorridorWidth.PORTAL_TRANSITION_CLEAR_BAND_BLOCKS;
-            int maxLateral = mask.crossSection().roadMax() + RoadCorridorWidth.PORTAL_TRANSITION_CLEAR_BAND_BLOCKS;
-            int terrainTop = terrain.sampleColumnTopY(new Vec2d(canvasX, 0));
+            int minLateral = mask.crossSection().roadMin() - transitionBand;
+            int maxLateral = mask.crossSection().roadMax() + transitionBand;
+            for (int canvasX = portalCanvasX - transitionBand; canvasX <= portalCanvasX + transitionBand; canvasX++) {
+                Vec2d columnOrigin = new Vec2d(canvasX, 0);
+                if (!terrain.isChunkLoaded(host.worldX(columnOrigin), host.worldZ(columnOrigin))) {
+                    continue;
+                }
             for (int lateral = minLateral; lateral <= maxLateral; lateral++) {
                 Vec2d planPoint = new Vec2d(canvasX, lateral);
                 int worldX = host.worldX(planPoint);
@@ -54,8 +59,10 @@ public final class TunnelPortalBackfillPass {
                 if (!terrain.isChunkLoaded(worldX, worldZ)) {
                     continue;
                 }
-                for (int y = designY + 1; y <= terrainTop; y++) {
-                    if (!mask.shouldPreserve(lateral, y)) {
+                int columnTop = terrain.sampleColumnTopY(planPoint);
+                for (int y = designY + 1; y <= columnTop; y++) {
+                    boolean aboveRoof = y > mask.roofTopY();
+                    if (!aboveRoof && !mask.shouldPreserve(lateral, y)) {
                         continue;
                     }
                     if (!terrain.isSolidBlock(worldX, y, worldZ)) {
@@ -68,6 +75,7 @@ public final class TunnelPortalBackfillPass {
                         "minecraft:stone",
                         RoadSolidMaterialPriority.STRUCTURAL);
                 }
+            }
             }
         }
     }

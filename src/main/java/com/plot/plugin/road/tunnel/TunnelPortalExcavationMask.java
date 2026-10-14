@@ -30,7 +30,7 @@ public final class TunnelPortalExcavationMask {
             style.liningThickness(),
             roadY,
             true);
-        return new TunnelPortalExcavationMask(section, roadY, roadY + style.roofTopOffset());
+        return new TunnelPortalExcavationMask(section, roadY, section.maxY());
     }
 
     public int roofTopY() {

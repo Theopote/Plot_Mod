@@ -2,6 +2,9 @@ package com.plot.plugin.road.pipeline.corridor;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadConstructionType;
+import com.plot.plugin.road.RoadDimensionUtils;
+import com.plot.plugin.road.geometry.RoadCorridorWidth;
+import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.construction.RoadEarthworkPolicy;
 import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
 import com.plot.plugin.road.solid.RoadSolidLayer;
@@ -42,6 +45,10 @@ public final class RoadCorridorSolidEmitter {
         }
 
         int bridgeThreshold = host.bridgeThreshold();
+        PortalTransitionGuard portalGuard = PortalTransitionGuard.from(plan);
+        int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(
+            ResolvedCrossSection.fromConfig(host.config()));
+        int roadHalfWidth = Math.abs(RoadDimensionUtils.maxLateralOffset(envelopeWidth));
         for (ColumnKey key : columns) {
             emitColumn(
                 solids,
@@ -50,7 +57,10 @@ public final class RoadCorridorSolidEmitter {
                 key,
                 fillMaterial,
                 bridgeThreshold,
-                metrics);
+                metrics,
+                portalGuard,
+                roadHalfWidth,
+                host);
         }
     }
 
@@ -61,7 +71,10 @@ public final class RoadCorridorSolidEmitter {
             ColumnKey key,
             String defaultFillMaterialId,
             int bridgeThreshold,
-            RoadEdgeBuildMetrics metrics) {
+            RoadEdgeBuildMetrics metrics,
+            PortalTransitionGuard portalGuard,
+            int roadHalfWidth,
+            RoadCorridorPlanBuilder.PlanHost host) {
         if (!terrain.isChunkLoaded(key.worldX(), key.worldZ())) {
             return;
         }
@@ -107,7 +120,8 @@ public final class RoadCorridorSolidEmitter {
         if (slope != null && slope.hasCut() && groundY > slope.cutSurfaceY()
                 && (constructionType == null
                     || RoadEarthworkPolicy.of(constructionType).allowsCorridorBatter())) {
-            for (int y = slope.cutSurfaceY() + 1; y <= groundY; y++) {
+            int cutTopY = portalGuard.capCutTopY(planPoint, groundY, host, roadHalfWidth);
+            for (int y = slope.cutSurfaceY() + 1; y <= cutTopY; y++) {
                 solids.add(
                     planPoint,
                     y,
