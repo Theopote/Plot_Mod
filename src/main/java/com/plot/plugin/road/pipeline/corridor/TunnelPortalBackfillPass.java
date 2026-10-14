@@ -38,7 +38,7 @@ public final class TunnelPortalBackfillPass {
                 continue;
             }
             int canvasX = (int) Math.round(cell.planPoint().x);
-            portalDesignYByCanvasX.putIfAbsent(canvasX, cell.designSurfaceY());
+            portalDesignYByCanvasX.merge(canvasX, cell.designSurfaceY(), Math::max);
         }
         int transitionBand = RoadCorridorWidth.PORTAL_TRANSITION_CLEAR_BAND_BLOCKS;
         for (var portalEntry : portalDesignYByCanvasX.entrySet()) {

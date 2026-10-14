@@ -70,6 +70,11 @@ public final class RoadCorridorPlan {
         if (incomingRank < existingRank) {
             return preferWithExpandedEnvelope(existing, incoming);
         }
+        ClearanceCell portalPreferred = portalPreferred(existing, incoming);
+        if (portalPreferred != null) {
+            ClearanceCell other = portalPreferred == existing ? incoming : existing;
+            return preferWithExpandedEnvelope(portalPreferred, other);
+        }
         if (incoming.clearTopY() > existing.clearTopY()) {
             return withMergedLateral(incoming, existing);
         }
@@ -78,6 +83,16 @@ public final class RoadCorridorPlan {
             return withMergedLateral(incoming, existing);
         }
         return withMergedLateral(existing, incoming);
+    }
+
+    private static ClearanceCell portalPreferred(ClearanceCell a, ClearanceCell b) {
+        if (a.mode() == RoadCorridorConstructionMode.PORTAL) {
+            return a;
+        }
+        if (b.mode() == RoadCorridorConstructionMode.PORTAL) {
+            return b;
+        }
+        return null;
     }
 
     private static ClearanceCell preferWithExpandedEnvelope(ClearanceCell preferred, ClearanceCell other) {

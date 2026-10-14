@@ -82,6 +82,27 @@ class TunnelPortalRoofPreservationTest {
     }
 
     @Test
+    void r09PortalCrownHasNoAirGapAboveRoofShell() {
+        RoadGoldenScenario scenario = RoadGoldenScenarioFactory.r09Tunnel();
+        int roofTop = portalRoofTop(scenario, ResolvedTunnelStyle.defaults());
+        RoadGenerationResult edge = preview(scenario);
+
+        int airAboveRoof = 0;
+        for (int x = 0; x <= 6; x++) {
+            for (int z = -4; z <= 4; z++) {
+                for (int y = roofTop + 1; y <= roofTop + 3; y++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    if (isAirPlacement(edge, pos)) {
+                        airAboveRoof++;
+                    }
+                }
+            }
+        }
+        assertEquals(0, airAboveRoof,
+            "portal crown must not leave air above roof shell, gaps=" + airAboveRoof);
+    }
+
+    @Test
     void r09PortalVerticalExcavationStaysBelowRoof() {
         RoadGoldenScenario scenario = RoadGoldenScenarioFactory.r09Tunnel();
         int roofTop = portalRoofTop(scenario, ResolvedTunnelStyle.defaults());

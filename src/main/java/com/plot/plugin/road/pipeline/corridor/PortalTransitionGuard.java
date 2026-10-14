@@ -26,7 +26,7 @@ final class PortalTransitionGuard {
                     continue;
                 }
                 int canvasX = (int) Math.round(cell.planPoint().x);
-                designYByCanvasX.putIfAbsent(canvasX, cell.designSurfaceY());
+                designYByCanvasX.merge(canvasX, cell.designSurfaceY(), Math::max);
             }
         }
         return new PortalTransitionGuard(designYByCanvasX);
@@ -49,6 +49,30 @@ final class PortalTransitionGuard {
             nearest = entry.getValue();
         }
         return nearest;
+    }
+
+    int capClearTopY(
+            Vec2d planPoint,
+            int requestedTopY,
+            RoadCorridorPlanBuilder.PlanHost host,
+            int roadHalfWidth) {
+        if (planPoint == null || host == null || designYByCanvasX.isEmpty()) {
+            return requestedTopY;
+        }
+        int canvasX = (int) Math.round(planPoint.x);
+        Integer designY = designSurfaceYNear(canvasX);
+        if (designY == null) {
+            return requestedTopY;
+        }
+        int lateral = (int) Math.round(planPoint.y);
+        int band = Math.max(
+            RoadCorridorWidth.PORTAL_TRANSITION_CLEAR_BAND_BLOCKS,
+            roadHalfWidth + RoadCorridorWidth.PORTAL_TRANSITION_CLEAR_BAND_BLOCKS);
+        if (Math.abs(lateral) > band) {
+            return requestedTopY;
+        }
+        int roofTop = RoadCorridorPlanBuilder.portalRoofTopY(host, designY);
+        return Math.min(requestedTopY, roofTop);
     }
 
     int capCutTopY(

@@ -84,6 +84,24 @@ class RoadCorridorPlanClearanceMergeTest {
     }
 
     @Test
+    void portalModeOutranksOpenRoadAtSameRankEvenWithLowerClearTop() {
+        ClearanceCell open = new ClearanceCell(
+            new Vec2d(0, 0), 64, 80,
+            RoadCorridorConstructionMode.OPEN,
+            RoadConstructionType.CUT);
+        ClearanceCell portal = new ClearanceCell(
+            new Vec2d(0, 0), 64, 71,
+            RoadCorridorConstructionMode.PORTAL,
+            RoadConstructionType.TUNNEL_PORTAL,
+            0);
+
+        ClearanceCell merged = RoadCorridorPlan.mergeClearance(open, portal);
+        assertEquals(RoadCorridorConstructionMode.PORTAL, merged.mode());
+        assertEquals(RoadConstructionType.TUNNEL_PORTAL, merged.constructionType());
+        assertEquals(80, merged.clearTopY());
+    }
+
+    @Test
     void sameRankStillPrefersHigherClearTop() {
         ClearanceCell low = new ClearanceCell(
             new Vec2d(0, 0), 64, 66,

@@ -35,13 +35,14 @@ public final class RoadCorridorClearancePass {
         if (solids == null || plan == null || terrain == null) {
             return;
         }
+        PortalTransitionGuard portalGuard = PortalTransitionGuard.from(plan);
         for (var entry : plan.clearanceEntries()) {
             ColumnKey key = entry.getKey();
             ClearanceCell cell = entry.getValue();
             if (!terrain.isChunkLoaded(key.worldX(), key.worldZ())) {
                 continue;
             }
-            int cleared = clearColumn(solids, cell, key, terrain, host);
+            int cleared = clearColumn(solids, cell, key, terrain, host, portalGuard);
             if (metrics != null) {
                 metrics.cutVolume += cleared;
             }
@@ -53,17 +54,29 @@ public final class RoadCorridorClearancePass {
             ClearanceCell cell,
             ColumnKey key,
             TerrainSampler terrain,
-            RoadCorridorPlanBuilder.PlanHost host) {
+            RoadCorridorPlanBuilder.PlanHost host,
+            PortalTransitionGuard portalGuard) {
         int cleared = 0;
+        if (cell.mode() == RoadCorridorConstructionMode.TUNNEL) {
+            return cleared;
+        }
         int designY = cell.designSurfaceY();
         int topY = Math.max(cell.clearTopY(), designY);
-        if (cell.mode() == RoadCorridorConstructionMode.PORTAL && cell.corridorLateral() != null && host != null) {
+        if (host != null && portalGuard != null) {
+            ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
+            int roadHalfWidth = Math.abs(
+                com.plot.plugin.road.RoadDimensionUtils.maxLateralOffset(
+                    RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection)));
+            topY = portalGuard.capClearTopY(cell.planPoint(), topY, host, roadHalfWidth);
+        }
+        if (cell.mode() == RoadCorridorConstructionMode.PORTAL && host != null) {
             ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
             int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
             TunnelPortalExcavationMask mask = TunnelPortalExcavationMask.forPortal(
                 host.tunnelStyle(), envelopeWidth, designY);
+            topY = Math.min(topY, mask.roofTopY());
             for (int y = designY + 1; y <= topY; y++) {
-                if (!mask.allowsClearance(cell.corridorLateral(), y)) {
+                if (cell.corridorLateral() != null && !mask.allowsClearance(cell.corridorLateral(), y)) {
                     continue;
                 }
                 cleared += clearObstruction(solids, cell, key, terrain, y);

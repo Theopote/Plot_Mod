@@ -43,18 +43,15 @@ public final class TunnelRoofGapSealer {
             : DEFAULT_TERRAIN_RESTORE;
         int cavityWidth = roadEnvelopeWidth + sideClearance * 2;
         int outerWidth = cavityWidth + liningThickness * 2;
-        int cavityMin = RoadDimensionUtils.minLateralOffset(cavityWidth);
-        int cavityMax = RoadDimensionUtils.maxLateralOffset(cavityWidth);
         int outerMin = RoadDimensionUtils.minLateralOffset(outerWidth);
         int outerMax = RoadDimensionUtils.maxLateralOffset(outerWidth);
-        int halfCavityWidth = cavityWidth / 2;
         int roofTop = mask.maxY();
         Vec2d normal = leftNormal.lengthSquared() > 1e-12
             ? leftNormal.normalize()
             : new Vec2d(0, 1);
 
         for (int lateral = outerMin; lateral <= outerMax; lateral++) {
-            if (mask.kindAt(lateral, roofTop) != TunnelCrossSectionMask.CellKind.LINING) {
+            if (mask.kindAt(lateral, roofTop) == TunnelCrossSectionMask.CellKind.OUTSIDE) {
                 continue;
             }
             Vec2d point = center.add(normal.multiply(lateral * scale));
@@ -64,12 +61,7 @@ public final class TunnelRoofGapSealer {
                 continue;
             }
             int columnTop = terrain.sampleColumnTopY(point);
-            boolean cavityColumn = lateral >= cavityMin && lateral <= cavityMax;
             for (int y = roofTop + 1; y <= columnTop; y++) {
-                if (cavityColumn
-                        && TunnelProfile.isCavityAir(shape, lateral, y, roadY, halfCavityWidth, clearHeight)) {
-                    continue;
-                }
                 if (terrain.isSolidBlock(worldX, y, worldZ)) {
                     solids.add(
                         point,
