@@ -150,6 +150,133 @@ class RoadCorridorPlanBuilderTest {
     }
 
     @Test
+    void roadPortalTunnelPortalKeepsTransitionClearanceAndSlope() {
+        RoadSystemConfig config = CorridorTestFixtures.baseConfig();
+        config.setIncludeSlopeBatter(true);
+        ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);
+        CrossSectionBuildContext crossSections = CrossSectionBuildContext.fixed(crossSection);
+
+        // One segment per type so stations land on portal columns (x≈4, 12, 20, 28 midpoints).
+        PathSegment approach = new PathSegment(new Vec2d(0, 0), new Vec2d(8, 0));
+        PathSegment portalIn = new PathSegment(new Vec2d(8, 0), new Vec2d(12, 0));
+        PathSegment tunnel = new PathSegment(new Vec2d(12, 0), new Vec2d(20, 0));
+        PathSegment portalOut = new PathSegment(new Vec2d(20, 0), new Vec2d(24, 0));
+        PathSegment exit = new PathSegment(new Vec2d(24, 0), new Vec2d(32, 0));
+        List<PathSegment> segments = List.of(approach, portalIn, tunnel, portalOut, exit);
+        List<SegmentHeightInfo> heightInfos = List.of(
+            new SegmentHeightInfo(approach, 64, 64, 64, 64, 0.0),
+            new SegmentHeightInfo(portalIn, 64, 64, 64, 64, 0.0),
+            new SegmentHeightInfo(tunnel, 64, 64, 64, 64, 0.0),
+            new SegmentHeightInfo(portalOut, 64, 64, 64, 64, 0.0),
+            new SegmentHeightInfo(exit, 64, 64, 64, 64, 0.0));
+        List<RoadConstructionType> constructionTypes = List.of(
+            RoadConstructionType.ROAD,
+            RoadConstructionType.TUNNEL_PORTAL,
+            RoadConstructionType.TUNNEL,
+            RoadConstructionType.TUNNEL_PORTAL,
+            RoadConstructionType.ROAD);
+
+        TerrainSampler mountain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d p) {
+                return 72;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d p) {
+                return 72;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= 72;
+            }
+        };
+
+        RoadCorridorPlan plan = RoadCorridorPlanBuilder.build(
+            segments,
+            heightInfos,
+            crossSections,
+            constructionTypes,
+            DesignElevationSource.inactive(),
+            BuildHeightProfile.inactive(),
+            mountain,
+            1.0,
+            "portal-seed",
+            CorridorTestFixtures.planHost(config));
+
+        ClearanceCell portal = plan.clearanceCell(new ColumnKey(10, 0));
+        assertTrue(portal != null, "portal station must write clearance");
+        assertEquals(RoadConstructionType.TUNNEL_PORTAL, portal.constructionType(),
+            "portal half of PORTAL→TUNNEL span must not be retagged as TUNNEL");
+        assertEquals(RoadCorridorConstructionMode.OPEN, portal.mode(),
+            "portal clearance must use open (terrain-top) mode, not tunnel cavity");
+        assertTrue(portal.clearTopY() >= 72,
+            "portal clearTop must reach mountain surface, was " + portal.clearTopY());
+
+        ClearanceCell interior = plan.clearanceCell(new ColumnKey(16, 0));
+        assertTrue(interior != null);
+        assertEquals(RoadConstructionType.TUNNEL, interior.constructionType());
+        assertEquals(RoadCorridorConstructionMode.TUNNEL, interior.mode());
+
+        assertEquals(0, RoadGenerationIntegrityValidator.countStructureInteriorSlopeCells(plan),
+            "tunnel interior must not retain corridor slope cells");
+        assertTrue(plan.slopeEntries().stream().anyMatch(e -> {
+            int x = e.getKey().worldX();
+            return x >= 8 && x <= 12;
+        }), "portal zone must keep transition batter / cut slope cells");
+    }
+
+    @Test
+    void roadAbutmentBridgeAbutmentKeepsDeckStructureType() {
+        RoadSystemConfig config = CorridorTestFixtures.baseConfig();
+        config.setIncludeSlopeBatter(true);
+        ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);
+        CrossSectionBuildContext crossSections = CrossSectionBuildContext.fixed(crossSection);
+
+        PathSegment approach = new PathSegment(new Vec2d(0, 0), new Vec2d(8, 0));
+        PathSegment abutmentIn = new PathSegment(new Vec2d(8, 0), new Vec2d(12, 0));
+        PathSegment deck = new PathSegment(new Vec2d(12, 0), new Vec2d(20, 0));
+        PathSegment abutmentOut = new PathSegment(new Vec2d(20, 0), new Vec2d(24, 0));
+        PathSegment exit = new PathSegment(new Vec2d(24, 0), new Vec2d(32, 0));
+        List<PathSegment> segments = List.of(approach, abutmentIn, deck, abutmentOut, exit);
+        List<SegmentHeightInfo> heightInfos = List.of(
+            new SegmentHeightInfo(approach, 64, 64, 64, 64, 0.0),
+            new SegmentHeightInfo(abutmentIn, 64, 64, 64, 64, 0.0),
+            new SegmentHeightInfo(deck, 64, 64, 64, 64, 0.0),
+            new SegmentHeightInfo(abutmentOut, 64, 64, 64, 64, 0.0),
+            new SegmentHeightInfo(exit, 64, 64, 64, 64, 0.0));
+        List<RoadConstructionType> constructionTypes = List.of(
+            RoadConstructionType.ROAD,
+            RoadConstructionType.BRIDGE_ABUTMENT,
+            RoadConstructionType.BRIDGE,
+            RoadConstructionType.BRIDGE_ABUTMENT,
+            RoadConstructionType.ROAD);
+
+        RoadCorridorPlan plan = RoadCorridorPlanBuilder.build(
+            segments,
+            heightInfos,
+            crossSections,
+            constructionTypes,
+            DesignElevationSource.inactive(),
+            BuildHeightProfile.inactive(),
+            new FlatTerrainSampler(50),
+            1.0,
+            "abutment-seed",
+            CorridorTestFixtures.planHost(config));
+
+        ClearanceCell abutment = plan.clearanceCell(new ColumnKey(10, 0));
+        assertTrue(abutment != null);
+        assertEquals(RoadConstructionType.BRIDGE_ABUTMENT, abutment.constructionType(),
+            "abutment half must not be overwritten as BRIDGE by deck-bound span");
+
+        ClearanceCell midDeck = plan.clearanceCell(new ColumnKey(16, 0));
+        assertTrue(midDeck != null);
+        assertEquals(RoadConstructionType.BRIDGE, midDeck.constructionType());
+        assertEquals(0, RoadGenerationIntegrityValidator.countStructureInteriorSlopeCells(plan));
+    }
+
+    @Test
     void tunnelSpanKeepsStructureClearanceAgainstOpenRoadMerge() {
         RoadSystemConfig config = CorridorTestFixtures.baseConfig();
         ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);

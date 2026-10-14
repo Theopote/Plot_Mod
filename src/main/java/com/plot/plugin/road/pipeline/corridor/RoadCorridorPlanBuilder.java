@@ -153,12 +153,28 @@ public final class RoadCorridorPlanBuilder {
             RoadSystemConfig config,
             int tunnelThreshold) {
         ResolvedCrossSection toSection = crossSection;
-        rasterizeSurfaceBands(plan, from.center(), to.center(), to.leftNormal(),
-            from.targetY(), to.targetY(), toSection, terrain, unitsPerBlock,
-            seedKey, host, to.constructionType(), config, tunnelThreshold);
+        RoadConstructionType fromType = from.constructionType();
+        RoadConstructionType toType = to.constructionType();
+        // Split type-boundary spans so PORTAL→TUNNEL / ROAD→BRIDGE does not tag the
+        // transition half as STRUCTURE_ONLY (which strips slope and skips open clearance).
+        if (fromType == toType) {
+            rasterizeSurfaceBands(plan, from.center(), to.center(), to.leftNormal(),
+                from.targetY(), to.targetY(), toSection, terrain, unitsPerBlock,
+                seedKey, host, toType, config, tunnelThreshold);
+        } else {
+            Vec2d midCenter = from.center().lerp(to.center(), 0.5);
+            int midY = (int) Math.round(from.targetY() + (to.targetY() - from.targetY()) * 0.5);
+            Vec2d midNormal = normalize(from.leftNormal().lerp(to.leftNormal(), 0.5));
+            rasterizeSurfaceBands(plan, from.center(), midCenter, midNormal,
+                from.targetY(), midY, toSection, terrain, unitsPerBlock,
+                seedKey, host, fromType, config, tunnelThreshold);
+            rasterizeSurfaceBands(plan, midCenter, to.center(), to.leftNormal(),
+                midY, to.targetY(), toSection, terrain, unitsPerBlock,
+                seedKey, host, toType, config, tunnelThreshold);
+        }
         if (toSection.includeSlopeBatter
-                && (RoadEarthworkPolicy.of(from.constructionType()).allowsCorridorBatter()
-                    || RoadEarthworkPolicy.of(to.constructionType()).allowsCorridorBatter())) {
+                && (RoadEarthworkPolicy.of(fromType).allowsCorridorBatter()
+                    || RoadEarthworkPolicy.of(toType).allowsCorridorBatter())) {
             mergeSlopeSpan(plan, from, to, toSection, terrain, unitsPerBlock, host);
         }
     }
@@ -654,10 +670,14 @@ public final class RoadCorridorPlanBuilder {
     }
 
     private static RoadCorridorConstructionMode toMode(RoadConstructionType type) {
+        // Portals are open cut mouths: clear to terrain top like ROAD/CUT, not tunnel cavity height.
+        if (type == RoadConstructionType.TUNNEL_PORTAL) {
+            return RoadCorridorConstructionMode.OPEN;
+        }
         if (type != null && type.isBridgeFamily()) {
             return RoadCorridorConstructionMode.BRIDGE;
         }
-        if (type == RoadConstructionType.TUNNEL || type == RoadConstructionType.TUNNEL_PORTAL) {
+        if (type == RoadConstructionType.TUNNEL) {
             return RoadCorridorConstructionMode.TUNNEL;
         }
         return RoadCorridorConstructionMode.OPEN;
