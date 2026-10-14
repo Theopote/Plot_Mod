@@ -23,21 +23,21 @@ public final class TunnelStyleEditor {
         ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.editor_hint"));
         ImGui.spacing();
         ImGui.text(PlotI18n.tr("plugin.road.tunnel.cross_section_section"));
-        ImInt shapeIndex = new ImInt(shapeOrdinal(style.getShape()));
-        String[] shapeLabels = {
-            PlotI18n.tr("plugin.road.tunnel.shape.rectangular"),
-            PlotI18n.tr("plugin.road.tunnel.shape.arch"),
-            PlotI18n.tr("plugin.road.tunnel.shape.horseshoe")
-        };
-        if (ImGui.combo(PlotI18n.tr("plugin.road.tunnel.shape"), shapeIndex, shapeLabels)) {
-            style.setShape(TunnelShape.values()[shapeIndex.get()]);
+        ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.shape_presets_hint"));
+        if (TunnelCrossSectionPreviewRenderer.renderShapePresetRow(style.getShape(), shape -> {
+            style.setShape(shape);
             onChanged.run();
+        })) {
+            // selection handled in callback
         }
-        TunnelCrossSectionPreviewRenderer.render(
+        ImGui.spacing();
+        TunnelCrossSectionPreviewRenderer.renderLivePreview(
             style.getShape(),
             style.getClearHeight(),
             style.getSideClearance(),
             style.getLiningThickness());
+        ImGui.spacing();
+
         int[] clearHeight = {style.getClearHeight()};
         if (ImGui.sliderInt(PlotI18n.tr("plugin.road.tunnel.clear_height"), clearHeight,
                 TunnelStyle.MIN_CLEAR_HEIGHT, TunnelStyle.MAX_CLEAR_HEIGHT)) {
@@ -148,9 +148,5 @@ public final class TunnelStyleEditor {
             }
         }
         return 0;
-    }
-
-    private static int shapeOrdinal(TunnelShape shape) {
-        return shape != null ? shape.ordinal() : TunnelShape.ARCH.ordinal();
     }
 }
