@@ -46,6 +46,7 @@ class SlopeSurfaceContinuityTest {
             highGround,
             1.0,
             "slope-span",
+            JunctionCorridorBuildContext.NONE,
             host);
 
         int missingAlongPath = 0;
@@ -88,6 +89,7 @@ class SlopeSurfaceContinuityTest {
             cliff,
             1.0,
             "deep-cut",
+            JunctionCorridorBuildContext.NONE,
             CorridorTestFixtures.planHost(config));
 
         int requiredRun = (int) Math.ceil(56 * Math.max(0.5f, crossSection.cutSlopeRatio)) + 2;

@@ -3,6 +3,7 @@ package com.plot.plugin.road;
 import com.plot.plugin.road.crossing.RoadCrossingMaterializer;
 import com.plot.plugin.road.pipeline.EdgeGenerationOutcome;
 import com.plot.plugin.road.pipeline.EdgeGenerationResult;
+import com.plot.plugin.road.pipeline.RoadEdgeGenerationOrdering;
 import com.plot.plugin.road.pipeline.RoadGenerationResultAssembler;
 import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.profile.RoadProfileSamplingAssembler;
@@ -196,7 +197,9 @@ public class RoadNetworkGenerator {
             return RoadNetworkPreviewSession.empty(network);
         }
         RoadNetwork generationNetwork = RoadCrossingMaterializer.materializeForSnapshot(network);
-        List<RoadEdge> edges = new ArrayList<>(generationNetwork.getEdges().values());
+        List<RoadEdge> edges = RoadEdgeGenerationOrdering.sortForGeneration(
+            generationNetwork,
+            new ArrayList<>(generationNetwork.getEdges().values()));
         List<RoadNode> junctionNodes = RoadNetworkPreviewSession.collectJunctionNodes(generationNetwork);
         return new RoadNetworkPreviewSession(
             network,

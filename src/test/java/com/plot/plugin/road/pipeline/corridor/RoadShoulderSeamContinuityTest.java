@@ -100,6 +100,7 @@ class RoadShoulderSeamContinuityTest {
             new FlatTerrainSampler(64),
             1.0,
             "seam-test",
+            JunctionCorridorBuildContext.NONE,
             CorridorTestFixtures.planHost(config));
     }
 

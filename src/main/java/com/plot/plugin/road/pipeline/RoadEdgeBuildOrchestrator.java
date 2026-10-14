@@ -14,7 +14,11 @@ import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
+import com.plot.plugin.road.pipeline.corridor.GradeSeparationBuildContext;
+import com.plot.plugin.road.pipeline.corridor.GradeSeparationBuildContextFactory;
+import com.plot.plugin.road.pipeline.corridor.JunctionCorridorTrim;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnapResolver;
+import com.plot.plugin.road.pipeline.profile.JunctionEndpointSnapTargets;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnaps;
 import com.plot.plugin.road.pipeline.profile.ProfileSolveResult;
 import com.plot.plugin.road.pipeline.profile.RoadProfileSolveCoordinator;
@@ -111,6 +115,7 @@ public final class RoadEdgeBuildOrchestrator {
             RoadTerrainStyle terrainStyle = RoadTerrainStyle.effective(road, host.config());
             com.plot.plugin.road.tunnel.ResolvedTunnelStyle tunnelStyle =
                 com.plot.plugin.road.tunnel.TunnelStyle.resolve(road, host.config());
+            double unitsPerBlock = host.estimateCanvasUnitsPerBlock(pathPoints, segments);
             RoadGenerationResult result = buildFromCenterline(
                 pathPoints,
                 terrain,
@@ -119,12 +124,15 @@ public final class RoadEdgeBuildOrchestrator {
                 heightCalculation.heightInfos(),
                 pathLength,
                 resolveEndpointSnaps(
+                    network,
+                    edge,
                     startNode,
                     endNode,
                     heightCalculation.heightInfos(),
                     networkNodeElevations,
                     crossSection,
-                    host.estimateCanvasUnitsPerBlock(pathPoints, segments)),
+                    unitsPerBlock,
+                    host),
                 edge.getId(),
                 StationFacilityBuildContext.forEdge(network, edge),
                 designElevation,
@@ -132,6 +140,13 @@ public final class RoadEdgeBuildOrchestrator {
                 heightCalculation.profileWaterCrossings(),
                 terrainStyle,
                 tunnelStyle,
+                JunctionCorridorTrim.forEdge(network, edge, crossSection, host.config(), unitsPerBlock),
+                GradeSeparationBuildContextFactory.forEdge(
+                    network,
+                    edge,
+                    networkNodeElevations,
+                    host.config(),
+                    host::resolveElevatedRoadId),
                 host);
             result.edgeId = edge.getId();
             result.copyProfileFrom(RoadProfileSolver.toProfileSnapshot(heightCalculation));
@@ -165,6 +180,8 @@ public final class RoadEdgeBuildOrchestrator {
             heightCalculation.profileWaterCrossings(),
             null,
             com.plot.plugin.road.tunnel.ResolvedTunnelStyle.defaults(),
+            com.plot.plugin.road.pipeline.corridor.JunctionCorridorBuildContext.NONE,
+            GradeSeparationBuildContext.NONE,
             host);
         result.copyProfileFrom(RoadProfileSolver.toProfileSnapshot(heightCalculation));
         return result;
@@ -185,6 +202,8 @@ public final class RoadEdgeBuildOrchestrator {
             List<com.plot.plugin.road.pipeline.profile.environment.WaterCrossing> profileWaterCrossings,
             RoadTerrainStyle terrainStyle,
             com.plot.plugin.road.tunnel.ResolvedTunnelStyle tunnelStyle,
+            com.plot.plugin.road.pipeline.corridor.JunctionCorridorBuildContext junctionCorridor,
+            GradeSeparationBuildContext gradeSeparation,
             RoadGenerationPipelineHost host) {
         return pipeline.execute(
             new RoadGenerationBuildRequest(
@@ -201,7 +220,9 @@ public final class RoadEdgeBuildOrchestrator {
                 buildProfile,
                 profileWaterCrossings,
                 terrainStyle,
-                tunnelStyle),
+                tunnelStyle,
+                junctionCorridor,
+                gradeSeparation),
             host);
     }
 
@@ -222,22 +243,24 @@ public final class RoadEdgeBuildOrchestrator {
     }
 
     private static EndpointElevationSnaps resolveEndpointSnaps(
+            RoadNetwork network,
+            RoadEdge edge,
             RoadNode startNode,
             RoadNode endNode,
             List<SegmentHeightInfo> heightInfos,
             Map<String, Integer> networkNodeElevations,
             ResolvedCrossSection crossSection,
-            double unitsPerBlock) {
+            double unitsPerBlock,
+            RoadGenerationPipelineHost host) {
         if (networkNodeElevations == null || networkNodeElevations.isEmpty()) {
             return null;
         }
         double halfWidth = RoadDimensionUtils.halfExtentFromCenter(crossSection.carriagewayWidth) * unitsPerBlock;
-        Integer startY = null;
-        Integer endY = null;
-        if (heightInfos != null && !heightInfos.isEmpty()) {
-            startY = heightInfos.getFirst().targetStart;
-            endY = heightInfos.getLast().targetEnd;
-        }
+        JunctionEndpointSnapTargets.ElevatedRoadIdResolver elevatedResolver = host::resolveElevatedRoadId;
+        Integer startY = JunctionEndpointSnapTargets.snapTargetY(
+            startNode, edge, network, networkNodeElevations, heightInfos, true, elevatedResolver);
+        Integer endY = JunctionEndpointSnapTargets.snapTargetY(
+            endNode, edge, network, networkNodeElevations, heightInfos, false, elevatedResolver);
         return EndpointElevationSnapResolver.resolveForEdge(
             startNode,
             endNode,

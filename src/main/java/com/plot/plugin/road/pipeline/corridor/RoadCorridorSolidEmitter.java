@@ -29,8 +29,22 @@ public final class RoadCorridorSolidEmitter {
             RoadCorridorPlanBuilder.PlanHost host,
             RoadEdgeBuildMetrics metrics,
             String defaultFillMaterialId) {
+        emit(solids, plan, terrain, host, metrics, defaultFillMaterialId, GradeSeparationBuildContext.NONE);
+    }
+
+    public static void emit(
+            RoadSolidModel solids,
+            RoadCorridorPlan plan,
+            TerrainSampler terrain,
+            RoadCorridorPlanBuilder.PlanHost host,
+            RoadEdgeBuildMetrics metrics,
+            String defaultFillMaterialId,
+            GradeSeparationBuildContext gradeSeparation) {
         if (solids == null || plan == null || terrain == null) {
             return;
+        }
+        if (gradeSeparation == null) {
+            gradeSeparation = GradeSeparationBuildContext.NONE;
         }
         String fillMaterial = defaultFillMaterialId != null && !defaultFillMaterialId.isBlank()
             ? defaultFillMaterialId
@@ -60,7 +74,8 @@ public final class RoadCorridorSolidEmitter {
                 metrics,
                 portalGuard,
                 roadHalfWidth,
-                host);
+                host,
+                gradeSeparation);
         }
     }
 
@@ -74,7 +89,8 @@ public final class RoadCorridorSolidEmitter {
             RoadEdgeBuildMetrics metrics,
             PortalTransitionGuard portalGuard,
             int roadHalfWidth,
-            RoadCorridorPlanBuilder.PlanHost host) {
+            RoadCorridorPlanBuilder.PlanHost host,
+            GradeSeparationBuildContext gradeSeparation) {
         if (!terrain.isChunkLoaded(key.worldX(), key.worldZ())) {
             return;
         }
@@ -104,12 +120,18 @@ public final class RoadCorridorSolidEmitter {
             if (shouldFillSubgrade(constructionType, fillTop, groundY, bridgeThreshold)) {
                 String fillId = slope.fillMaterialId() != null ? slope.fillMaterialId() : defaultFillMaterialId;
                 for (int y = groundY + 1; y <= fillTop; y++) {
+                    if (gradeSeparation.protects(planPoint, y)) {
+                        continue;
+                    }
                     solids.add(planPoint, y, RoadSolidLayer.SUBGRADE, fillId);
                 }
             }
         } else if (!bridgeClearance && surfaceY != null && groundY < surfaceY - 1 && shouldFillSubgrade(
                 constructionType, surfaceY, groundY, bridgeThreshold)) {
             for (int y = groundY + 1; y < surfaceY; y++) {
+                if (gradeSeparation.protects(planPoint, y)) {
+                    continue;
+                }
                 solids.add(planPoint, y, RoadSolidLayer.SUBGRADE, defaultFillMaterialId);
                 if (metrics != null) {
                     metrics.fillVolume++;
@@ -122,6 +144,9 @@ public final class RoadCorridorSolidEmitter {
                     || RoadEarthworkPolicy.of(constructionType).allowsCorridorBatter())) {
             int cutTopY = portalGuard.capCutTopY(planPoint, groundY, host, roadHalfWidth);
             for (int y = slope.cutSurfaceY() + 1; y <= cutTopY; y++) {
+                if (gradeSeparation.protects(planPoint, y)) {
+                    continue;
+                }
                 solids.add(
                     planPoint,
                     y,

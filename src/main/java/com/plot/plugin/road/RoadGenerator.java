@@ -100,6 +100,8 @@ public class RoadGenerator {
             TerrainSampler terrain,
             Map<String, Integer> networkNodeElevations) {
         synchronizeDerivedCenterline(network, edge);
+        pipelineHost.setElevatedRoadIdResolver(
+            (node, net) -> resolveElevatedRoadId(node, net, terrain));
         return edgeBuild.generateEdge(
             network, edge, startNode, endNode, terrain, networkNodeElevations, pipelineHost);
     }

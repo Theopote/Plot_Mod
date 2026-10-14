@@ -140,7 +140,8 @@ public final class RoadGenerationPipeline {
             if (host instanceof RoadGenerationPipelineHost pipelineHost) {
                 pipelineHost.captureCorridorPlanForTesting(plan);
             }
-            RoadCorridorClearancePass.apply(ctx.solids(), plan, ctx.terrain(), planHost, ctx.metrics());
+            RoadCorridorClearancePass.apply(
+                ctx.solids(), plan, ctx.terrain(), planHost, ctx.metrics(), ctx.request().gradeSeparation());
             TunnelInteriorClearancePass.apply(
                 ctx.solids(),
                 ctx.segments(),
@@ -171,7 +172,8 @@ public final class RoadGenerationPipeline {
                 ctx.terrain(),
                 planHost,
                 ctx.metrics(),
-                host.resolveBlockId(host.config().getFillSlopeMaterial()));
+                host.resolveBlockId(host.config().getFillSlopeMaterial()),
+                ctx.request().gradeSeparation());
             RoadCrossSectionBuilder.build(ctx, host);
             RoadMarkingGenerator.generate(ctx, host);
             RoadFurnitureGenerator.generate(ctx, host);

@@ -303,7 +303,7 @@ public final class RoadJunctionGeometry {
         return new Vec2d(0, 0);
     }
 
-    static double resolveEffectiveJunctionRadius(
+    public static double resolveEffectiveJunctionRadius(
             List<RoadEdge> edges,
             ToDoubleFunction<RoadEdge> halfWidthResolver,
             double baseRadius) {

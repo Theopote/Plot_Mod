@@ -44,6 +44,7 @@ class RoadCorridorPlanBuilderTest {
             new FlatTerrainSampler(64),
             1.0,
             "test-seed",
+            JunctionCorridorBuildContext.NONE,
             CorridorTestFixtures.planHost(config));
 
         assertTrue(plan.surfaceMask().size() >= 20,
@@ -78,6 +79,7 @@ class RoadCorridorPlanBuilderTest {
             new FlatTerrainSampler(64),
             ScaleInvarianceProjections.worldBlocksPerCanvasUnit(coordinates),
             "scaled-seed",
+            JunctionCorridorBuildContext.NONE,
             host);
 
         int expectedWorldX = host.canvasToBlockPos(new Vec2d(2, 0)).getX();
@@ -114,6 +116,7 @@ class RoadCorridorPlanBuilderTest {
             new FlatTerrainSampler(50),
             1.0,
             "bridge-seed",
+            JunctionCorridorBuildContext.NONE,
             CorridorTestFixtures.planHost(config));
 
         int bridgeSurfaceColumns = 0;
@@ -199,6 +202,7 @@ class RoadCorridorPlanBuilderTest {
             mountain,
             1.0,
             "portal-seed",
+            JunctionCorridorBuildContext.NONE,
             CorridorTestFixtures.planHost(config));
 
         ClearanceCell portal = plan.clearanceCell(new ColumnKey(10, 0));
@@ -265,6 +269,7 @@ class RoadCorridorPlanBuilderTest {
             new FlatTerrainSampler(50),
             1.0,
             "abutment-seed",
+            JunctionCorridorBuildContext.NONE,
             CorridorTestFixtures.planHost(config));
 
         ClearanceCell abutment = plan.clearanceCell(new ColumnKey(10, 0));
@@ -319,6 +324,7 @@ class RoadCorridorPlanBuilderTest {
             mountain,
             1.0,
             "tunnel-seed",
+            JunctionCorridorBuildContext.NONE,
             CorridorTestFixtures.planHost(config));
 
         ClearanceCell midTunnel = plan.clearanceCell(new ColumnKey(15, 0));

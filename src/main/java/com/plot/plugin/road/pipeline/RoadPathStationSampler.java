@@ -3,6 +3,7 @@ package com.plot.plugin.road.pipeline;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
+import com.plot.plugin.road.pipeline.facility.StationFacilityJunctionTrim;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
@@ -74,10 +75,36 @@ public final class RoadPathStationSampler {
             BuildHeightProfile buildProfile,
             ElevationSnapper elevationSnapper,
             StationSampleConsumer consumer) {
+        forEach(
+            segments,
+            heightInfos,
+            oriented,
+            unitsPerBlock,
+            designElevation,
+            buildProfile,
+            elevationSnapper,
+            null,
+            consumer);
+    }
+
+    public static void forEach(
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            OrientedRoadSegment oriented,
+            double unitsPerBlock,
+            DesignElevationSource designElevation,
+            BuildHeightProfile buildProfile,
+            ElevationSnapper elevationSnapper,
+            StationFacilityJunctionTrim.FacilityEndpointTrim endpointTrim,
+            StationSampleConsumer consumer) {
         if (segments == null || heightInfos == null || consumer == null || oriented == null) {
             return;
         }
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
+        double edgeLength = 0.0;
+        for (PathSegment segment : segments) {
+            edgeLength += segment.distance;
+        }
         double geometryLocalBase = 0.0;
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             PathSegment segment = segments.get(i);
@@ -88,6 +115,9 @@ public final class RoadPathStationSampler {
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
                 double geometryLocal = geometryLocalBase + segment.distance * t;
+                if (endpointTrim != null && !endpointTrim.shouldPlace(geometryLocal, edgeLength)) {
+                    continue;
+                }
                 double worldStation = geometryLocal / scale;
                 int targetY = DesignElevationSource.resolveTargetElevation(
                     designElevation,

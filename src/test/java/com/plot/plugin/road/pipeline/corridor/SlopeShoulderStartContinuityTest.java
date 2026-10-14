@@ -63,6 +63,7 @@ class SlopeShoulderStartContinuityTest {
             new FlatTerrainSampler(terrainY),
             1.0,
             "start-continuity",
+            JunctionCorridorBuildContext.NONE,
             CorridorTestFixtures.planHost(config));
     }
 

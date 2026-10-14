@@ -3,6 +3,7 @@ package com.plot.plugin.road;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
+import com.plot.plugin.road.pipeline.corridor.JunctionTerrainClearance;
 import com.plot.plugin.road.RoadRoadbedGradingUtils;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
@@ -173,10 +174,30 @@ public class RoadJunctionGenerator {
             return;
         }
 
-        for (Vec2d point : envelopePoints) {
-            blocks.getSolids().add(point, junctionY, RoadSolidLayer.ROAD);
-            gradeJunctionColumn(blocks, point, junctionY, terrain);
+        List<Vec2d> cells = RoadGeometryUtils.collectWorldCellPlanPoints(
+            approximateCirclePolygon(center, radius),
+            generator.coordinateTransformer());
+        List<Vec2d> circle = approximateCirclePolygon(center, radius);
+        if (cells.isEmpty()) {
+            fillJunctionCells(blocks, envelopePoints, circle, junctionY, terrain);
+            return;
         }
+        fillJunctionCells(blocks, cells, circle, junctionY, terrain);
+    }
+
+    private static List<Vec2d> approximateCirclePolygon(Vec2d center, int radius) {
+        if (center == null || radius <= 0) {
+            return List.of();
+        }
+        int segments = Math.max(12, radius * 4);
+        List<Vec2d> polygon = new ArrayList<>(segments);
+        for (int i = 0; i < segments; i++) {
+            double angle = (Math.PI * 2.0 * i) / segments;
+            polygon.add(new Vec2d(
+                center.x + radius * Math.cos(angle),
+                center.y + radius * Math.sin(angle)));
+        }
+        return polygon;
     }
 
     private void fillPolygon(
@@ -191,9 +212,31 @@ public class RoadJunctionGenerator {
         if (cells.isEmpty() && center != null) {
             cells = List.of(center);
         }
+        fillJunctionCells(blocks, cells, polygon, junctionY, terrain);
+    }
+
+    private void fillJunctionCells(
+            JunctionBlocks blocks,
+            List<Vec2d> cells,
+            List<Vec2d> clearancePolygon,
+            int junctionY,
+            TerrainSampler terrain) {
+        int tunnelThreshold = RoadConstructionHeuristics.tunnelThreshold(generator.getConfig());
         for (Vec2d point : cells) {
             blocks.getSolids().add(point, junctionY, RoadSolidLayer.ROAD);
             gradeJunctionColumn(blocks, point, junctionY, terrain);
+            if (clearancePolygon != null && clearancePolygon.size() >= 3) {
+                BlockPos column = generator.toBlockPos(point, 0);
+                JunctionTerrainClearance.clearOverheadInPolygon(
+                    blocks.getSolids(),
+                    clearancePolygon,
+                    junctionY,
+                    tunnelThreshold,
+                    terrain,
+                    column.getX(),
+                    column.getZ(),
+                    point);
+            }
         }
     }
 

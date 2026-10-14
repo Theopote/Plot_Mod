@@ -6,6 +6,8 @@ import com.plot.plugin.road.terrain.RoadTerrainStyle;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
+import com.plot.plugin.road.pipeline.corridor.GradeSeparationBuildContext;
+import com.plot.plugin.road.pipeline.corridor.JunctionCorridorBuildContext;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnaps;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.pipeline.profile.environment.WaterCrossing;
@@ -30,11 +32,19 @@ public record RoadGenerationBuildRequest(
         BuildHeightProfile buildProfile,
         List<WaterCrossing> profileWaterCrossings,
         RoadTerrainStyle terrainStyle,
-        ResolvedTunnelStyle tunnelStyle) {
+        ResolvedTunnelStyle tunnelStyle,
+        JunctionCorridorBuildContext junctionCorridor,
+        GradeSeparationBuildContext gradeSeparation) {
 
     public RoadGenerationBuildRequest {
         if (stationFacilities == null) {
             stationFacilities = StationFacilityBuildContext.EMPTY;
+        }
+        if (junctionCorridor == null) {
+            junctionCorridor = JunctionCorridorBuildContext.NONE;
+        }
+        if (gradeSeparation == null) {
+            gradeSeparation = GradeSeparationBuildContext.NONE;
         }
         if (crossSections == null) {
             crossSections = CrossSectionBuildContext.fixed(crossSection);
@@ -79,6 +89,8 @@ public record RoadGenerationBuildRequest(
             buildProfile,
             List.of(),
             null,
+            null,
+            null,
             null);
     }
 
@@ -105,6 +117,8 @@ public record RoadGenerationBuildRequest(
             DesignElevationSource.inactive(),
             BuildHeightProfile.inactive(),
             List.of(),
+            null,
+            null,
             null,
             null);
     }

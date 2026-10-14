@@ -39,4 +39,10 @@ public final class RoadSurfaceMask {
             || layer == RoadSolidLayer.SIDEWALK
             || layer == RoadSolidLayer.BIKE_LANE;
     }
+
+    void remove(ColumnKey key) {
+        if (key != null) {
+            cells.remove(key);
+        }
+    }
 }

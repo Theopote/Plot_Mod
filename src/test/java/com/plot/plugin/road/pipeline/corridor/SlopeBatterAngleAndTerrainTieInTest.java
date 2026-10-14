@@ -141,6 +141,7 @@ class SlopeBatterAngleAndTerrainTieInTest {
             terrain,
             1.0,
             "angle-test",
+            JunctionCorridorBuildContext.NONE,
             CorridorTestFixtures.planHost(config));
     }
 }

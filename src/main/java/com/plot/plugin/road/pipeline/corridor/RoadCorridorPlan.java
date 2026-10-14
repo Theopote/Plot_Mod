@@ -195,4 +195,14 @@ public final class RoadCorridorPlan {
     void setBrokenSlopeSurfaceCount(int count) {
         brokenSlopeSurfaceCount = Math.max(0, count);
     }
+
+    void removeColumn(ColumnKey key) {
+        if (key == null) {
+            return;
+        }
+        surfaceMask.remove(key);
+        clearanceCells.remove(key);
+        slopeCells.remove(key);
+        incompleteSlopeColumns.remove(key);
+    }
 }

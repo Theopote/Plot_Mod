@@ -11,6 +11,8 @@ import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSession;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnaps;
+import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.pipeline.corridor.RoadCorridorPlan;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidModel;
@@ -19,6 +21,7 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.function.BiFunction;
 
 /**
  * Default {@link RoadGenerationPipelineContext.Host} backed by coordinate transform and projection services.
@@ -30,6 +33,8 @@ public final class RoadGenerationPipelineHost implements RoadGenerationPipelineC
     private final EndpointElevationSession endpointElevationSession = new EndpointElevationSession();
     private int maxDedupKeysOverride = -1;
     private RoadCorridorPlan lastCorridorPlanForTesting;
+    private BiFunction<RoadNode, RoadNetwork, String> elevatedRoadIdResolver = (node, network) ->
+        node != null ? node.getElevatedRoadId() : null;
 
     public RoadGenerationPipelineHost(
             RoadSystemConfig config,
@@ -42,6 +47,16 @@ public final class RoadGenerationPipelineHost implements RoadGenerationPipelineC
 
     public RoadSystemConfig config() {
         return config;
+    }
+
+    public void setElevatedRoadIdResolver(BiFunction<RoadNode, RoadNetwork, String> elevatedRoadIdResolver) {
+        this.elevatedRoadIdResolver = elevatedRoadIdResolver != null
+            ? elevatedRoadIdResolver
+            : (node, network) -> node != null ? node.getElevatedRoadId() : null;
+    }
+
+    public String resolveElevatedRoadId(RoadNode node, RoadNetwork network) {
+        return elevatedRoadIdResolver.apply(node, network);
     }
 
     /** 测试专用：强制更小去重上限以验证分块 flush 结果一致性。 */

@@ -33,8 +33,21 @@ public final class RoadCorridorClearancePass {
             TerrainSampler terrain,
             RoadCorridorPlanBuilder.PlanHost host,
             RoadEdgeBuildMetrics metrics) {
+        apply(solids, plan, terrain, host, metrics, GradeSeparationBuildContext.NONE);
+    }
+
+    public static void apply(
+            RoadSolidModel solids,
+            RoadCorridorPlan plan,
+            TerrainSampler terrain,
+            RoadCorridorPlanBuilder.PlanHost host,
+            RoadEdgeBuildMetrics metrics,
+            GradeSeparationBuildContext gradeSeparation) {
         if (solids == null || plan == null || terrain == null) {
             return;
+        }
+        if (gradeSeparation == null) {
+            gradeSeparation = GradeSeparationBuildContext.NONE;
         }
         PortalTransitionGuard portalGuard = PortalTransitionGuard.from(plan);
         for (var entry : plan.clearanceEntries()) {
@@ -43,7 +56,7 @@ public final class RoadCorridorClearancePass {
             if (!terrain.isChunkLoaded(key.worldX(), key.worldZ())) {
                 continue;
             }
-            int cleared = clearColumn(solids, cell, key, terrain, host, portalGuard);
+            int cleared = clearColumn(solids, cell, key, terrain, host, portalGuard, gradeSeparation);
             if (metrics != null) {
                 metrics.cutVolume += cleared;
             }
@@ -56,7 +69,8 @@ public final class RoadCorridorClearancePass {
             ColumnKey key,
             TerrainSampler terrain,
             RoadCorridorPlanBuilder.PlanHost host,
-            PortalTransitionGuard portalGuard) {
+            PortalTransitionGuard portalGuard,
+            GradeSeparationBuildContext gradeSeparation) {
         int cleared = 0;
         int designY = cell.designSurfaceY();
         int topY = Math.max(cell.clearTopY(), designY);
@@ -80,12 +94,12 @@ public final class RoadCorridorClearancePass {
                 if (cell.corridorLateral() != null && !mask.allowsClearance(cell.corridorLateral(), y)) {
                     continue;
                 }
-                cleared += clearObstruction(solids, cell, key, terrain, y);
+                cleared += clearObstruction(solids, cell, key, terrain, y, gradeSeparation);
             }
             return cleared;
         }
         for (int y = designY + 1; y <= topY; y++) {
-            cleared += clearObstruction(solids, cell, key, terrain, y);
+            cleared += clearObstruction(solids, cell, key, terrain, y, gradeSeparation);
         }
         return cleared;
     }
@@ -117,7 +131,7 @@ public final class RoadCorridorClearancePass {
             if (lateral != null && mask.kindAt(lateral, y) != TunnelCrossSectionMask.CellKind.AIR) {
                 continue;
             }
-            cleared += clearObstruction(solids, cell, key, terrain, y);
+            cleared += clearObstruction(solids, cell, key, terrain, y, GradeSeparationBuildContext.NONE);
         }
         return cleared;
     }
@@ -127,7 +141,11 @@ public final class RoadCorridorClearancePass {
             ClearanceCell cell,
             ColumnKey key,
             TerrainSampler terrain,
-            int y) {
+            int y,
+            GradeSeparationBuildContext gradeSeparation) {
+        if (gradeSeparation != null && gradeSeparation.protects(cell.planPoint(), y)) {
+            return 0;
+        }
         if (!hasObstruction(terrain, key.worldX(), y, key.worldZ())) {
             return 0;
         }

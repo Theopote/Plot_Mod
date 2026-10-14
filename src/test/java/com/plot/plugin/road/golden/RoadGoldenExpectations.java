@@ -19,13 +19,13 @@ public final class RoadGoldenExpectations {
         213, 0, 0, 0, 0, 0, 0, 0, 0, 213, 0, 0, List.of());
 
     public static final RoadGoldenMetrics R03 = new RoadGoldenMetrics(
-        462, 0, 0, 36, 0, 0, 147, 0, 0, 349, 0, 0, List.of());
+        361, 0, 0, 36, 0, 0, 147, 0, 0, 338, 0, 0, List.of());
 
     public static final RoadGoldenMetrics R04 = new RoadGoldenMetrics(
-        583, 0, 0, 52, 0, 0, 163, 0, 0, 429, 0, 0, List.of());
+        449, 0, 0, 52, 0, 0, 163, 0, 0, 423, 0, 0, List.of());
 
     public static final RoadGoldenMetrics R05 = new RoadGoldenMetrics(
-        706, 0, 0, 58, 0, 0, 199, 0, 0, 495, 0, 0, List.of());
+        529, 0, 0, 58, 0, 0, 199, 0, 0, 492, 0, 0, List.of());
 
     public static final RoadGoldenMetrics R06 = new RoadGoldenMetrics(
         197, 18, 0, 0, 0, 0, 0, 0, 18, 197, 0, 0, List.of());
@@ -43,7 +43,7 @@ public final class RoadGoldenExpectations {
         265, 0, 0, 0, 380, 0, 0, 0, 0, 635, 1, 0, List.of());
 
     public static final RoadGoldenMetrics R11 = new RoadGoldenMetrics(
-        612, 21, 0, 0, 16, 0, 111, 0, 21, 555, 1, 0, List.of());
+        535, 21, 0, 0, 16, 0, 111, 0, 21, 534, 1, 0, List.of());
 
     public static final RoadGoldenMetrics R12 = new RoadGoldenMetrics(
         370, 0, 0, 0, 0, 0, 0, 0, 0, 334, 0, 0, List.of());

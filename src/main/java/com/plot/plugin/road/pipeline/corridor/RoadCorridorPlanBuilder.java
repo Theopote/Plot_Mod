@@ -51,7 +51,7 @@ public final class RoadCorridorPlanBuilder {
     public static RoadCorridorPlan build(RoadGenerationPipelineContext ctx, RoadGenerationPipelineContext.Host host) {
         PlanHost planHost = PlanHost.from(
             host, ctx.request().terrainStyle(), ctx.request().tunnelStyle());
-        return build(
+        RoadCorridorPlan plan = build(
             ctx.segments(),
             ctx.heightInfos(),
             ctx.request().crossSections(),
@@ -61,7 +61,10 @@ public final class RoadCorridorPlanBuilder {
             ctx.terrain(),
             ctx.unitsPerBlock(),
             ctx.carriagewaySeedKey(),
+            ctx.request().junctionCorridor(),
             planHost);
+        JunctionCorridorPlanFilter.apply(plan, ctx.request().junctionCorridor());
+        return plan;
     }
 
     static RoadCorridorPlan build(
@@ -74,11 +77,13 @@ public final class RoadCorridorPlanBuilder {
             TerrainSampler terrain,
             double unitsPerBlock,
             String carriagewaySeedKey,
+            JunctionCorridorBuildContext junctionCorridor,
             PlanHost host) {
         RoadCorridorPlan plan = new RoadCorridorPlan();
         List<StationSample> stations = collectStations(
             segments, heightInfos, crossSections, constructionTypes,
-            designElevation, buildProfile, host::snapEndpointElevation, unitsPerBlock);
+            designElevation, buildProfile, host::snapEndpointElevation, unitsPerBlock,
+            junctionCorridor != null ? junctionCorridor.endpointTrim() : null);
         if (stations.isEmpty()) {
             return plan;
         }
@@ -109,7 +114,8 @@ public final class RoadCorridorPlanBuilder {
             DesignElevationSource designElevation,
             BuildHeightProfile buildProfile,
             RoadPathStationSampler.ElevationSnapper snapper,
-            double unitsPerBlock) {
+            double unitsPerBlock,
+            com.plot.plugin.road.pipeline.facility.StationFacilityJunctionTrim.FacilityEndpointTrim endpointTrim) {
         List<StationSample> stations = new ArrayList<>();
         RoadPathStationSampler.forEach(
             segments,
@@ -119,6 +125,7 @@ public final class RoadCorridorPlanBuilder {
             designElevation,
             buildProfile,
             snapper,
+            endpointTrim,
             (center, leftNormal, targetY, chainage, segmentIndex) -> stations.add(
                 new StationSample(
                     center,
