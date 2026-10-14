@@ -11,6 +11,7 @@ import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSession;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnaps;
+import com.plot.plugin.road.pipeline.corridor.RoadCorridorPlan;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.solid.RoadVoxelRasterizer;
@@ -28,6 +29,7 @@ public final class RoadGenerationPipelineHost implements RoadGenerationPipelineC
     private final IBlockProjectionService projectionHandler;
     private final EndpointElevationSession endpointElevationSession = new EndpointElevationSession();
     private int maxDedupKeysOverride = -1;
+    private RoadCorridorPlan lastCorridorPlanForTesting;
 
     public RoadGenerationPipelineHost(
             RoadSystemConfig config,
@@ -45,6 +47,15 @@ public final class RoadGenerationPipelineHost implements RoadGenerationPipelineC
     /** 测试专用：强制更小去重上限以验证分块 flush 结果一致性。 */
     public void setMaxDedupKeysForTesting(int maxDedupKeys) {
         this.maxDedupKeysOverride = maxDedupKeys;
+    }
+
+    /** 测试专用：读取最近一次 corridor plan。 */
+    public RoadCorridorPlan lastCorridorPlanForTesting() {
+        return lastCorridorPlanForTesting;
+    }
+
+    void captureCorridorPlanForTesting(RoadCorridorPlan plan) {
+        this.lastCorridorPlanForTesting = plan;
     }
 
     @Override

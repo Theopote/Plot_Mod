@@ -2,7 +2,10 @@ package com.plot.plugin.road.pipeline.corridor;
 
 import com.plot.core.command.BlockRecord;
 import com.plot.plugin.road.RoadConstructionType;
+import com.plot.plugin.road.geometry.RoadCorridorWidth;
+import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.construction.RoadEarthworkPolicy;
+import com.plot.plugin.road.tunnel.TunnelPortalExcavationMask;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
@@ -10,6 +13,7 @@ import com.plot.plugin.road.solid.RoadSolidPrimitive;
 import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -85,12 +89,20 @@ public final class RoadGenerationIntegrityValidator {
             RoadCorridorPlan plan,
             RoadGenerationResult result,
             TerrainSampler terrain) {
+        return validatePlacements(plan, result, terrain, null);
+    }
+
+    public static IntegrityReport validatePlacements(
+            RoadCorridorPlan plan,
+            RoadGenerationResult result,
+            TerrainSampler terrain,
+            RoadCorridorPlanBuilder.PlanHost host) {
         if (plan == null || result == null || terrain == null) {
             return IntegrityReport.ZERO;
         }
         PlacementIndex index = PlacementIndex.from(result);
         int missingSurface = countMissingRoadSurfaces(plan, index);
-        int uncleared = countUnclearedObstructions(plan, index, terrain);
+        int uncleared = countUnclearedObstructions(plan, index, terrain, host);
         int orphanPillars = countOrphanSlopePillars(plan);
         int brokenSlopes = countBrokenSlopeSurfaces(plan);
         int lateralGaps = countSlopeLateralGaps(plan);
@@ -127,10 +139,55 @@ public final class RoadGenerationIntegrityValidator {
             RoadGenerationResult result,
             RoadCorridorPlan plan,
             TerrainSampler terrain) {
+        applyPlacementsToResult(result, plan, terrain, null);
+    }
+
+    public static void applyPlacementsToResult(
+            RoadGenerationResult result,
+            RoadCorridorPlan plan,
+            TerrainSampler terrain,
+            RoadCorridorPlanBuilder.PlanHost host) {
         if (result == null) {
             return;
         }
-        applyReportToResult(result, validatePlacements(plan, result, terrain));
+        applyReportToResult(result, validatePlacements(plan, result, terrain, host));
+    }
+
+    /** 测试诊断：列出未清除的妨碍体坐标。 */
+    static List<String> describeUnclearedPlacements(
+            RoadCorridorPlan plan,
+            RoadGenerationResult result,
+            TerrainSampler terrain,
+            RoadCorridorPlanBuilder.PlanHost host) {
+        if (plan == null || result == null || terrain == null) {
+            return List.of();
+        }
+        PlacementIndex index = PlacementIndex.from(result);
+        List<String> lines = new ArrayList<>();
+        for (var entry : plan.clearanceEntries()) {
+            ColumnKey key = entry.getKey();
+            ClearanceCell cell = entry.getValue();
+            if (cell.mode() == RoadCorridorConstructionMode.TUNNEL) {
+                continue;
+            }
+            if (!terrain.isChunkLoaded(key.worldX(), key.worldZ())) {
+                continue;
+            }
+            for (int y : clearanceYsToValidate(cell, host)) {
+                RoadBlockExpectation expectation = RoadBlockExpectation.clearance(key, y);
+                if (!RoadCorridorClearancePass.hasObstruction(terrain, key.worldX(), y, key.worldZ())) {
+                    continue;
+                }
+                if (!index.expectationResolved(expectation)) {
+                    BlockPos pos = columnPos(key, y);
+                    lines.add(pos + " mode=" + cell.mode() + " type=" + cell.constructionType()
+                        + " designY=" + cell.designSurfaceY() + " clearTop=" + cell.clearTopY()
+                        + " placed=" + result.placementRecords.getOrDefault(pos, null)
+                        + " layer=" + result.placementLayers.get(pos));
+                }
+            }
+        }
+        return lines;
     }
 
     public static void applyReportToResult(RoadGenerationResult result, IntegrityReport report) {
@@ -300,6 +357,21 @@ public final class RoadGenerationIntegrityValidator {
             RoadCorridorPlan plan,
             SolidIndex index,
             TerrainSampler terrain) {
+        return countUnclearedObstructions(plan, index, terrain, null);
+    }
+
+    private static int countUnclearedObstructions(
+            RoadCorridorPlan plan,
+            PlacementIndex index,
+            TerrainSampler terrain) {
+        return countUnclearedObstructions(plan, index, terrain, null);
+    }
+
+    private static int countUnclearedObstructions(
+            RoadCorridorPlan plan,
+            SolidIndex index,
+            TerrainSampler terrain,
+            RoadCorridorPlanBuilder.PlanHost host) {
         int uncleared = 0;
         for (var entry : plan.clearanceEntries()) {
             ColumnKey key = entry.getKey();
@@ -310,8 +382,7 @@ public final class RoadGenerationIntegrityValidator {
             if (!terrain.isChunkLoaded(key.worldX(), key.worldZ())) {
                 continue;
             }
-            int topY = Math.max(cell.clearTopY(), cell.designSurfaceY());
-            for (int y = cell.designSurfaceY() + 1; y <= topY; y++) {
+            for (int y : clearanceYsToValidate(cell, host)) {
                 RoadBlockExpectation expectation = RoadBlockExpectation.clearance(key, y);
                 if (!RoadCorridorClearancePass.hasObstruction(terrain, key.worldX(), y, key.worldZ())) {
                     continue;
@@ -327,7 +398,8 @@ public final class RoadGenerationIntegrityValidator {
     private static int countUnclearedObstructions(
             RoadCorridorPlan plan,
             PlacementIndex index,
-            TerrainSampler terrain) {
+            TerrainSampler terrain,
+            RoadCorridorPlanBuilder.PlanHost host) {
         int uncleared = 0;
         for (var entry : plan.clearanceEntries()) {
             ColumnKey key = entry.getKey();
@@ -338,8 +410,7 @@ public final class RoadGenerationIntegrityValidator {
             if (!terrain.isChunkLoaded(key.worldX(), key.worldZ())) {
                 continue;
             }
-            int topY = Math.max(cell.clearTopY(), cell.designSurfaceY());
-            for (int y = cell.designSurfaceY() + 1; y <= topY; y++) {
+            for (int y : clearanceYsToValidate(cell, host)) {
                 RoadBlockExpectation expectation = RoadBlockExpectation.clearance(key, y);
                 if (!RoadCorridorClearancePass.hasObstruction(terrain, key.worldX(), y, key.worldZ())) {
                     continue;
@@ -350,6 +421,35 @@ public final class RoadGenerationIntegrityValidator {
             }
         }
         return uncleared;
+    }
+
+    /**
+     * Portal clearance only removes cavity AIR cells; preserve zones above the lining roof
+     * must match {@link RoadCorridorClearancePass}.
+     */
+    private static List<Integer> clearanceYsToValidate(
+            ClearanceCell cell,
+            RoadCorridorPlanBuilder.PlanHost host) {
+        int topY = Math.max(cell.clearTopY(), cell.designSurfaceY());
+        List<Integer> ys = new ArrayList<>();
+        if (cell.mode() == RoadCorridorConstructionMode.PORTAL
+                && cell.corridorLateral() != null
+                && host != null) {
+            ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
+            int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
+            TunnelPortalExcavationMask mask = TunnelPortalExcavationMask.forPortal(
+                host.tunnelStyle(), envelopeWidth, cell.designSurfaceY());
+            for (int y = cell.designSurfaceY() + 1; y <= topY; y++) {
+                if (mask.allowsClearance(cell.corridorLateral(), y)) {
+                    ys.add(y);
+                }
+            }
+            return ys;
+        }
+        for (int y = cell.designSurfaceY() + 1; y <= topY; y++) {
+            ys.add(y);
+        }
+        return ys;
     }
 
     /**

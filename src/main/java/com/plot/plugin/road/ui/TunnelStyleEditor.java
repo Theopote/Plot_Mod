@@ -20,6 +20,9 @@ public final class TunnelStyleEditor {
         if (style == null) {
             return;
         }
+        ImGui.textDisabled(PlotI18n.tr("plugin.road.tunnel.editor_hint"));
+        ImGui.spacing();
+        ImGui.text(PlotI18n.tr("plugin.road.tunnel.cross_section_section"));
         ImInt shapeIndex = new ImInt(shapeOrdinal(style.getShape()));
         String[] shapeLabels = {
             PlotI18n.tr("plugin.road.tunnel.shape.rectangular"),
@@ -119,7 +122,7 @@ public final class TunnelStyleEditor {
                     },
                     false);
                 int[] accentSpacing = {style.getAccentSpacing()};
-                if (ImGui.sliderInt(PlotI18n.tr("plugin.road.tunnel_accent_spacing"), accentSpacing,
+                if (ImGui.sliderInt(PlotI18n.tr("plugin.road.tunnel.accent_spacing"), accentSpacing,
                         TunnelStyle.MIN_ACCENT_SPACING, TunnelStyle.MAX_ACCENT_SPACING)) {
                     style.setAccentSpacing(accentSpacing[0]);
                     onChanged.run();

@@ -136,6 +136,9 @@ public final class RoadGenerationPipeline {
                 host, ctx.request().terrainStyle(), ctx.request().tunnelStyle());
             var plan = RoadCorridorPlanBuilder.build(ctx, host);
             ctx.setCorridorPlan(plan);
+            if (host instanceof RoadGenerationPipelineHost pipelineHost) {
+                pipelineHost.captureCorridorPlanForTesting(plan);
+            }
             RoadCorridorClearancePass.apply(ctx.solids(), plan, ctx.terrain(), planHost, ctx.metrics());
             RoadCorridorSolidEmitter.emit(
                 ctx.solids(),
@@ -151,7 +154,7 @@ public final class RoadGenerationPipeline {
             generateTunnelStructures(ctx, host);
             TunnelPortalBackfillPass.apply(ctx.solids(), plan, ctx.terrain(), planHost);
             RoadGenerationResult result = RoadVoxelRasterizerPass.rasterize(ctx, host);
-            RoadGenerationIntegrityValidator.applyPlacementsToResult(result, plan, ctx.terrain());
+            RoadGenerationIntegrityValidator.applyPlacementsToResult(result, plan, ctx.terrain(), planHost);
             return result;
         } finally {
             host.clearEndpointSnaps();

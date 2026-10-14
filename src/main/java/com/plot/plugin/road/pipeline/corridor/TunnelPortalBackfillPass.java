@@ -4,10 +4,9 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
-import com.plot.plugin.road.solid.RoadSolidLayer;
-import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
-import com.plot.plugin.road.solid.RoadSolidModel;
+import com.plot.plugin.road.tunnel.TunnelCrossSectionMask;
 import com.plot.plugin.road.tunnel.TunnelPortalExcavationMask;
+import com.plot.plugin.road.tunnel.TunnelRoofGapSealer;
 import com.plot.core.terrain.TerrainSampler;
 
 import java.util.LinkedHashMap;
@@ -21,7 +20,7 @@ public final class TunnelPortalBackfillPass {
     }
 
     public static void apply(
-            RoadSolidModel solids,
+            com.plot.plugin.road.solid.RoadSolidModel solids,
             RoadCorridorPlan plan,
             TerrainSampler terrain,
             RoadCorridorPlanBuilder.PlanHost host) {
@@ -30,6 +29,8 @@ public final class TunnelPortalBackfillPass {
         }
         ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
         int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
+        var tunnelStyle = host.tunnelStyle();
+        String liningMaterialId = host.resolveBlockId(tunnelStyle.liningMaterial());
         Map<Integer, Integer> portalDesignYByCanvasX = new LinkedHashMap<>();
         for (var entry : plan.clearanceEntries()) {
             ClearanceCell cell = entry.getValue();
@@ -43,39 +44,43 @@ public final class TunnelPortalBackfillPass {
         for (var portalEntry : portalDesignYByCanvasX.entrySet()) {
             int portalCanvasX = portalEntry.getKey();
             int designY = portalEntry.getValue();
-            TunnelPortalExcavationMask mask = TunnelPortalExcavationMask.forPortal(
-                host.tunnelStyle(), envelopeWidth, designY);
-            int minLateral = mask.crossSection().roadMin() - transitionBand;
-            int maxLateral = mask.crossSection().roadMax() + transitionBand;
+            TunnelPortalExcavationMask portalMask = TunnelPortalExcavationMask.forPortal(
+                tunnelStyle, envelopeWidth, designY);
+            TunnelCrossSectionMask section = portalMask.crossSection();
+            int lining = Math.min(
+                com.plot.plugin.road.tunnel.TunnelStyle.MAX_LINING_THICKNESS,
+                tunnelStyle.liningThickness() + 1);
             for (int canvasX = portalCanvasX - transitionBand; canvasX <= portalCanvasX + transitionBand; canvasX++) {
-                Vec2d columnOrigin = new Vec2d(canvasX, 0);
-                if (!terrain.isChunkLoaded(host.worldX(columnOrigin), host.worldZ(columnOrigin))) {
+                Vec2d center = new Vec2d(canvasX, 0);
+                if (!terrain.isChunkLoaded(host.worldX(center), host.worldZ(center))) {
                     continue;
                 }
-            for (int lateral = minLateral; lateral <= maxLateral; lateral++) {
-                Vec2d planPoint = new Vec2d(canvasX, lateral);
-                int worldX = host.worldX(planPoint);
-                int worldZ = host.worldZ(planPoint);
-                if (!terrain.isChunkLoaded(worldX, worldZ)) {
-                    continue;
-                }
-                int columnTop = terrain.sampleColumnTopY(planPoint);
-                for (int y = designY + 1; y <= columnTop; y++) {
-                    boolean aboveRoof = y > mask.roofTopY();
-                    if (!aboveRoof && !mask.shouldPreserve(lateral, y)) {
-                        continue;
-                    }
-                    if (!terrain.isSolidBlock(worldX, y, worldZ)) {
-                        continue;
-                    }
-                    solids.add(
-                        planPoint,
-                        y,
-                        RoadSolidLayer.TUNNEL,
-                        "minecraft:stone",
-                        RoadSolidMaterialPriority.STRUCTURAL);
-                }
-            }
+                TunnelRoofGapSealer.sealAboveRoofShell(
+                    solids,
+                    section,
+                    tunnelStyle.shape(),
+                    designY,
+                    tunnelStyle.clearHeight(),
+                    envelopeWidth,
+                    tunnelStyle.sideClearance(),
+                    lining,
+                    center,
+                    new Vec2d(0, 1),
+                    1.0,
+                    new com.plot.plugin.road.RoadTerrainClearanceUtils.BlockColumnResolver() {
+                        @Override
+                        public int worldX(Vec2d planPoint) {
+                            return host.worldX(planPoint);
+                        }
+
+                        @Override
+                        public int worldZ(Vec2d planPoint) {
+                            return host.worldZ(planPoint);
+                        }
+                    },
+                    terrain,
+                    liningMaterialId,
+                    "minecraft:stone");
             }
         }
     }
