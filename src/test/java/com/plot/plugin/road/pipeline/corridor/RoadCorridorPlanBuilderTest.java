@@ -133,7 +133,76 @@ class RoadCorridorPlanBuilderTest {
         assertTrue(midBridge != null, "bridge columns must still record clearance metadata");
         assertTrue(midBridge.clearTopY() > midBridge.designSurfaceY(),
             "bridge clearance envelope must have positive overhead height");
+        assertEquals(RoadConstructionType.BRIDGE, midBridge.constructionType(),
+            "mid-span clearance must stay BRIDGE after ROAD approach/exit spans merge");
         assertEquals(0, RoadGenerationIntegrityValidator.countStructureInteriorSlopeCells(plan),
             "bridge interior must not retain corridor slope cells");
+
+        // Simulate later open-road envelope overlapping the deck column (higher clearTop).
+        plan.putClearance(new ColumnKey(15, 0), new ClearanceCell(
+            new Vec2d(15, 0), 64, midBridge.clearTopY() + 20,
+            RoadCorridorConstructionMode.OPEN,
+            RoadConstructionType.ROAD));
+        ClearanceCell afterOverlap = plan.clearanceCell(new ColumnKey(15, 0));
+        assertEquals(RoadConstructionType.BRIDGE, afterOverlap.constructionType(),
+            "open ROAD clearance must not overwrite structure interior type");
+        assertEquals(midBridge.clearTopY() + 20, afterOverlap.clearTopY());
+    }
+
+    @Test
+    void tunnelSpanKeepsStructureClearanceAgainstOpenRoadMerge() {
+        RoadSystemConfig config = CorridorTestFixtures.baseConfig();
+        ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);
+        CrossSectionBuildContext crossSections = CrossSectionBuildContext.fixed(crossSection);
+
+        PathSegment approach = new PathSegment(new Vec2d(0, 0), new Vec2d(8, 0));
+        PathSegment tunnel = new PathSegment(new Vec2d(8, 0), new Vec2d(22, 0));
+        PathSegment exit = new PathSegment(new Vec2d(22, 0), new Vec2d(30, 0));
+        List<PathSegment> segments = List.of(approach, tunnel, exit);
+        List<SegmentHeightInfo> heightInfos = List.of(
+            new SegmentHeightInfo(approach, 64, 64, 64, 64, 0.0),
+            new SegmentHeightInfo(tunnel, 64, 64, 64, 64, 0.0),
+            new SegmentHeightInfo(exit, 64, 64, 64, 64, 0.0));
+        List<RoadConstructionType> constructionTypes = List.of(
+            RoadConstructionType.ROAD,
+            RoadConstructionType.TUNNEL,
+            RoadConstructionType.ROAD);
+
+        TerrainSampler mountain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d p) {
+                return 72;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= 72;
+            }
+        };
+
+        RoadCorridorPlan plan = RoadCorridorPlanBuilder.build(
+            segments,
+            heightInfos,
+            crossSections,
+            constructionTypes,
+            DesignElevationSource.inactive(),
+            BuildHeightProfile.inactive(),
+            mountain,
+            1.0,
+            "tunnel-seed",
+            CorridorTestFixtures.planHost(config));
+
+        ClearanceCell midTunnel = plan.clearanceCell(new ColumnKey(15, 0));
+        assertTrue(midTunnel != null, "tunnel columns must record clearance metadata");
+        assertEquals(RoadConstructionType.TUNNEL, midTunnel.constructionType(),
+            "mid-tunnel clearance must stay TUNNEL after ROAD approaches merge");
+        assertEquals(0, RoadGenerationIntegrityValidator.countStructureInteriorSlopeCells(plan));
+
+        plan.putClearance(new ColumnKey(15, 0), new ClearanceCell(
+            new Vec2d(15, 0), 64, midTunnel.clearTopY() + 30,
+            RoadCorridorConstructionMode.OPEN,
+            RoadConstructionType.CUT));
+        assertEquals(RoadConstructionType.TUNNEL,
+            plan.clearanceCell(new ColumnKey(15, 0)).constructionType());
     }
 }

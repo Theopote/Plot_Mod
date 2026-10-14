@@ -73,6 +73,35 @@ class RoadEarthworkIsolationE2ETest {
         assertEquals(0, edge.structureInteriorSlopeCellCount);
         assertTrue(edge.bridgeCount > 0 || edge.bridgeLength > 0,
             "R08 scenario should classify bridge construction");
+        assertEquals(0, edge.fillVolume,
+            "ROAD→BRIDGE→ROAD must not fill the valley as open subgrade");
+        assertEquals(0, edge.orphanSlopePillarCount);
+        assertTrue(countRoadSurfaceInXBand(edge, 10, 20) >= 5,
+            "bridge deck ROAD surface must remain across the valley");
+    }
+
+    @Test
+    void roadTunnelRoadCompositeIntegrity() {
+        RoadGenerationResult edge = previewEdge(RoadGoldenScenarioFactory.r09Tunnel());
+        assertEquals(0, edge.structureInteriorSlopeCellCount,
+            "ROAD→TUNNEL→ROAD tunnel body must not keep corridor slope cells");
+        assertEquals(0, edge.fillVolume,
+            "tunnel body must not accumulate open corridor fill");
+        assertTrue(edge.tunnelCount > 0 || edge.tunnelLength > 0 || !edge.tunnelBlocks.isEmpty(),
+            "R09 must produce tunnel structure for composite path");
+        assertEquals(0, edge.orphanSlopePillarCount);
+    }
+
+    private static int countRoadSurfaceInXBand(RoadGenerationResult edge, int minX, int maxX) {
+        int road = 0;
+        for (Map.Entry<BlockPos, RoadSolidLayer> entry : edge.placementLayers.entrySet()) {
+            BlockPos pos = entry.getKey();
+            if (pos.getX() >= minX && pos.getX() <= maxX
+                    && entry.getValue() == RoadSolidLayer.ROAD) {
+                road++;
+            }
+        }
+        return road;
     }
 
     private static RoadGenerationResult previewEdge(RoadGoldenScenario scenario) {

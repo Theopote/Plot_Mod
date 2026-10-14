@@ -42,17 +42,58 @@ public final class RoadCorridorPlan {
         if (key == null || cell == null) {
             return;
         }
-        if (cell.constructionType() != null
-                && RoadEarthworkPolicy.of(cell.constructionType()) == RoadEarthworkPolicy.STRUCTURE_ONLY) {
+        ClearanceCell existing = clearanceCells.get(key);
+        ClearanceCell merged = existing == null ? cell : mergeClearance(existing, cell);
+        if (merged.constructionType() != null
+                && RoadEarthworkPolicy.of(merged.constructionType()) == RoadEarthworkPolicy.STRUCTURE_ONLY) {
             slopeCells.remove(key);
         }
-        ClearanceCell existing = clearanceCells.get(key);
-        if (existing == null || cell.clearTopY() > existing.clearTopY()) {
-            clearanceCells.put(key, cell);
-        } else if (cell.clearTopY() == existing.clearTopY()
-                && cell.designSurfaceY() > existing.designSurfaceY()) {
-            clearanceCells.put(key, cell);
+        clearanceCells.put(key, merged);
+    }
+
+    /**
+     * Structure interiors outrank open road so overlapping columns keep bridge/tunnel
+     * construction type; clearTopY still expands to the larger envelope.
+     */
+    static ClearanceCell mergeClearance(ClearanceCell existing, ClearanceCell incoming) {
+        int existingRank = clearanceMergeRank(existing.constructionType());
+        int incomingRank = clearanceMergeRank(incoming.constructionType());
+        if (incomingRank > existingRank) {
+            return preferWithExpandedEnvelope(incoming, existing);
         }
+        if (incomingRank < existingRank) {
+            return preferWithExpandedEnvelope(existing, incoming);
+        }
+        if (incoming.clearTopY() > existing.clearTopY()) {
+            return incoming;
+        }
+        if (incoming.clearTopY() == existing.clearTopY()
+                && incoming.designSurfaceY() > existing.designSurfaceY()) {
+            return incoming;
+        }
+        return existing;
+    }
+
+    private static ClearanceCell preferWithExpandedEnvelope(ClearanceCell preferred, ClearanceCell other) {
+        int clearTopY = Math.max(preferred.clearTopY(), other.clearTopY());
+        if (clearTopY == preferred.clearTopY()) {
+            return preferred;
+        }
+        return new ClearanceCell(
+            preferred.planPoint(),
+            preferred.designSurfaceY(),
+            clearTopY,
+            preferred.mode(),
+            preferred.constructionType());
+    }
+
+    /** Higher rank wins when open corridor and structure volumes share a world column. */
+    static int clearanceMergeRank(com.plot.plugin.road.RoadConstructionType type) {
+        return switch (RoadEarthworkPolicy.of(type)) {
+            case STRUCTURE_ONLY -> 2;
+            case TRANSITION_BATTER -> 1;
+            case NORMAL_BATTER -> 0;
+        };
     }
 
     SlopeColumnCell slopeCellOrCreate(ColumnKey key, com.plot.api.geometry.Vec2d planPoint) {
