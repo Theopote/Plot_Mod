@@ -41,16 +41,16 @@ public final class SlopeFormatUtils {
     }
 
     public static float clampGradePercent(float percent) {
-        return Math.max(MIN_GRADE_PERCENT, Math.min(MAX_GRADE_PERCENT, percent));
+        return Math.clamp(percent, MIN_GRADE_PERCENT, MAX_GRADE_PERCENT);
     }
 
     public static float clampBatterRatio(float ratio) {
-        return Math.max(MIN_BATTER_RATIO, Math.min(MAX_BATTER_RATIO, ratio));
+        return Math.clamp(ratio, MIN_BATTER_RATIO, MAX_BATTER_RATIO);
     }
 
     /** Horizontal run per 1 vertical block: ratio = 1 / tan(angle). */
     public static float angleDegreesToBatterRatio(float angleDegrees) {
-        float clamped = Math.max(MIN_BATTER_ANGLE_DEGREES, Math.min(MAX_BATTER_ANGLE_DEGREES, angleDegrees));
+        float clamped = Math.clamp(angleDegrees, MIN_BATTER_ANGLE_DEGREES, MAX_BATTER_ANGLE_DEGREES);
         return clampBatterRatio(1.0f / (float) Math.tan(Math.toRadians(clamped)));
     }
 

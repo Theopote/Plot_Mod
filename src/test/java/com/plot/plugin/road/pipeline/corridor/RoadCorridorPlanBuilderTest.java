@@ -18,9 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class RoadCorridorPlanBuilderTest {
 
@@ -83,10 +81,8 @@ class RoadCorridorPlanBuilderTest {
             host);
 
         int expectedWorldX = host.canvasToBlockPos(new Vec2d(2, 0)).getX();
-        assertTrue(plan.surfaceMask().get(new ColumnKey(expectedWorldX, 0)) != null,
-            "surface mask must key columns by projected world XZ, not canvas coordinates");
-        assertFalse(plan.surfaceMask().get(new ColumnKey(2, 0)) != null,
-            "canvas coordinate 2 must not be used as a world column key under 4:1 projection");
+        assertNotNull(plan.surfaceMask().get(new ColumnKey(expectedWorldX, 0)), "surface mask must key columns by projected world XZ, not canvas coordinates");
+        assertNull(plan.surfaceMask().get(new ColumnKey(2, 0)), "canvas coordinate 2 must not be used as a world column key under 4:1 projection");
     }
 
     @Test
@@ -130,7 +126,7 @@ class RoadCorridorPlanBuilderTest {
         assertTrue(bridgeSurfaceColumns >= 14,
             "bridge span must keep continuous ROAD surface mask, found " + bridgeSurfaceColumns);
         ClearanceCell midBridge = plan.clearanceCell(new ColumnKey(15, 0));
-        assertTrue(midBridge != null, "bridge columns must still record clearance metadata");
+        assertNotNull(midBridge, "bridge columns must still record clearance metadata");
         assertTrue(midBridge.clearTopY() > midBridge.designSurfaceY(),
             "bridge clearance envelope must have positive overhead height");
         assertEquals(RoadConstructionType.BRIDGE, midBridge.constructionType(),
@@ -206,7 +202,7 @@ class RoadCorridorPlanBuilderTest {
             CorridorTestFixtures.planHost(config));
 
         ClearanceCell portal = plan.clearanceCell(new ColumnKey(10, 0));
-        assertTrue(portal != null, "portal station must write clearance");
+        assertNotNull(portal, "portal station must write clearance");
         assertEquals(RoadConstructionType.TUNNEL_PORTAL, portal.constructionType(),
             "portal half of PORTAL→TUNNEL span must not be retagged as TUNNEL");
         assertEquals(RoadCorridorConstructionMode.OPEN, portal.mode(),
@@ -215,7 +211,7 @@ class RoadCorridorPlanBuilderTest {
             "portal clearTop must reach mountain surface, was " + portal.clearTopY());
 
         ClearanceCell interior = plan.clearanceCell(new ColumnKey(16, 0));
-        assertTrue(interior != null);
+        assertNotNull(interior);
         assertEquals(RoadConstructionType.TUNNEL, interior.constructionType());
         assertEquals(RoadCorridorConstructionMode.TUNNEL, interior.mode());
 
@@ -266,12 +262,12 @@ class RoadCorridorPlanBuilderTest {
             CorridorTestFixtures.planHost(config));
 
         ClearanceCell abutment = plan.clearanceCell(new ColumnKey(10, 0));
-        assertTrue(abutment != null);
+        assertNotNull(abutment);
         assertEquals(RoadConstructionType.BRIDGE_ABUTMENT, abutment.constructionType(),
             "abutment half must not be overwritten as BRIDGE by deck-bound span");
 
         ClearanceCell midDeck = plan.clearanceCell(new ColumnKey(16, 0));
-        assertTrue(midDeck != null);
+        assertNotNull(midDeck);
         assertEquals(RoadConstructionType.BRIDGE, midDeck.constructionType());
         assertEquals(0, RoadGenerationIntegrityValidator.countStructureInteriorSlopeCells(plan));
     }
@@ -320,7 +316,7 @@ class RoadCorridorPlanBuilderTest {
             CorridorTestFixtures.planHost(config));
 
         ClearanceCell midTunnel = plan.clearanceCell(new ColumnKey(15, 0));
-        assertTrue(midTunnel != null, "tunnel columns must record clearance metadata");
+        assertNotNull(midTunnel, "tunnel columns must record clearance metadata");
         assertEquals(RoadConstructionType.TUNNEL, midTunnel.constructionType(),
             "mid-tunnel clearance must stay TUNNEL after ROAD approaches merge");
         assertEquals(0, RoadGenerationIntegrityValidator.countStructureInteriorSlopeCells(plan));

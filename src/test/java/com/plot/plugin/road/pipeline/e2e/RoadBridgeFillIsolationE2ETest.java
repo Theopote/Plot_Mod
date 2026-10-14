@@ -39,6 +39,21 @@ class RoadBridgeFillIsolationE2ETest {
             "bridge span must not accumulate open corridor fill volume");
     }
 
+    @Test
+    void r08BridgeOpenSpanHasNoShoulderOrSubgradeFillWalls() {
+        RoadGenerationResult edge = preview(RoadGoldenScenarioFactory.r08Bridge());
+        assertZeroFillUnderDeck(edge, 10, 20);
+        assertEquals(0, countOpenSpanEmbankmentWalls(edge, 10, 20, 51, 62),
+            "bridge open span must not emit continuous shoulder/subgrade walls under deck");
+    }
+
+    @Test
+    void r10WaterCrossingOpenSpanHasNoShoulderOrSubgradeFillWalls() {
+        RoadGenerationResult edge = preview(RoadGoldenScenarioFactory.r10WaterCrossing());
+        assertEquals(0, countOpenSpanEmbankmentWalls(edge, 8, 22, 51, 62),
+            "water crossing bridge span must not emit shoulder/subgrade walls under deck");
+    }
+
     private static void assertZeroFillUnderDeck(RoadGenerationResult edge, int minX, int maxX) {
         int subgradeInValley = 0;
         for (Map.Entry<BlockPos, RoadSolidLayer> entry : edge.placementLayers.entrySet()) {
@@ -51,6 +66,53 @@ class RoadBridgeFillIsolationE2ETest {
             }
         }
         assertEquals(0, subgradeInValley, "bridge deck must not have subgrade fill below");
+    }
+
+    /**
+     * Counts world columns in the open span that contain a tall stack of shoulder/subgrade fill.
+     * Bridge piers ({@link RoadSolidLayer#BRIDGE}) are excluded.
+     */
+    private static int countOpenSpanEmbankmentWalls(
+            RoadGenerationResult edge,
+            int minX,
+            int maxX,
+            int minY,
+            int maxY) {
+        int walls = 0;
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = -6; z <= 6; z++) {
+                if (isEmbankmentWallColumn(edge, x, z, minY, maxY)) {
+                    walls++;
+                }
+            }
+        }
+        return walls;
+    }
+
+    private static boolean isEmbankmentWallColumn(
+            RoadGenerationResult edge,
+            int x,
+            int z,
+            int minY,
+            int maxY) {
+        int consecutive = 0;
+        boolean pierColumn = false;
+        for (int y = minY; y <= maxY; y++) {
+            BlockPos pos = new BlockPos(x, y, z);
+            RoadSolidLayer layer = edge.placementLayers.get(pos);
+            if (layer == RoadSolidLayer.BRIDGE) {
+                pierColumn = true;
+            }
+            if (layer == RoadSolidLayer.SHOULDER || layer == RoadSolidLayer.SUBGRADE) {
+                consecutive++;
+            } else {
+                consecutive = 0;
+            }
+            if (consecutive >= 4) {
+                return !pierColumn;
+            }
+        }
+        return false;
     }
 
     private static RoadGenerationResult preview(RoadGoldenScenario scenario) {
