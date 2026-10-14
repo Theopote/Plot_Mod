@@ -7,6 +7,7 @@ import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.solid.RoadSolidModel;
+import com.plot.plugin.road.tunnel.TunnelCrossSectionMask;
 import com.plot.plugin.road.tunnel.TunnelPortalExcavationMask;
 import com.plot.core.terrain.TerrainSampler;
 
@@ -57,11 +58,11 @@ public final class RoadCorridorClearancePass {
             RoadCorridorPlanBuilder.PlanHost host,
             PortalTransitionGuard portalGuard) {
         int cleared = 0;
-        if (cell.mode() == RoadCorridorConstructionMode.TUNNEL) {
-            return cleared;
-        }
         int designY = cell.designSurfaceY();
         int topY = Math.max(cell.clearTopY(), designY);
+        if (cell.mode() == RoadCorridorConstructionMode.TUNNEL && host != null) {
+            return clearTunnelInterior(solids, cell, key, terrain, host, designY, topY);
+        }
         if (host != null && portalGuard != null) {
             ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
             int roadHalfWidth = Math.abs(
@@ -84,6 +85,38 @@ public final class RoadCorridorClearancePass {
             return cleared;
         }
         for (int y = designY + 1; y <= topY; y++) {
+            cleared += clearObstruction(solids, cell, key, terrain, y);
+        }
+        return cleared;
+    }
+
+    private static int clearTunnelInterior(
+            RoadSolidModel solids,
+            ClearanceCell cell,
+            ColumnKey key,
+            TerrainSampler terrain,
+            RoadCorridorPlanBuilder.PlanHost host,
+            int designY,
+            int topY) {
+        ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
+        int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
+        var tunnelStyle = host.tunnelStyle();
+        TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
+            tunnelStyle.shape(),
+            envelopeWidth,
+            tunnelStyle.sideClearance(),
+            tunnelStyle.clearHeight(),
+            tunnelStyle.liningThickness(),
+            designY,
+            false);
+        int roofTop = mask.maxY();
+        topY = Math.min(topY, roofTop);
+        int cleared = 0;
+        Integer lateral = cell.corridorLateral();
+        for (int y = designY + 1; y <= topY; y++) {
+            if (lateral != null && mask.kindAt(lateral, y) != TunnelCrossSectionMask.CellKind.AIR) {
+                continue;
+            }
             cleared += clearObstruction(solids, cell, key, terrain, y);
         }
         return cleared;

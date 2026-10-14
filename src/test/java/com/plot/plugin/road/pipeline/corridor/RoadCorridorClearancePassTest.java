@@ -114,6 +114,46 @@ class RoadCorridorClearancePassTest {
     }
 
     @Test
+    void tunnelModeClearsCavityAirButNotAboveRoofShell() {
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        Vec2d point = new Vec2d(0, 0);
+        int roofTop = RoadCorridorPlanBuilder.tunnelInteriorRoofTopY(
+            CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig()), 64);
+        plan.putClearance(
+            new ColumnKey(0, 0),
+            new ClearanceCell(
+                point, 64, roofTop, RoadCorridorConstructionMode.TUNNEL, null, 0));
+
+        TerrainSampler mountain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return 72;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d planPoint) {
+                return 72;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return y <= 72;
+            }
+        };
+
+        RoadCorridorClearancePass.apply(
+            solids, plan, mountain, CorridorTestFixtures.planHost(CorridorTestFixtures.baseConfig()));
+
+        assertTrue(solids.primitives().stream()
+            .anyMatch(p -> p.elevation() == 65 && "minecraft:air".equals(p.materialId())),
+            "tunnel cavity must clear native rock");
+        assertTrue(solids.primitives().stream()
+            .noneMatch(p -> p.elevation() > roofTop && "minecraft:air".equals(p.materialId())),
+            "tunnel clearance must not carve air above roof shell");
+    }
+
+    @Test
     void bridgeModeStillClearsOverheadAboveDeck() {
         RoadSolidModel solids = new RoadSolidModel();
         RoadCorridorPlan plan = new RoadCorridorPlan();

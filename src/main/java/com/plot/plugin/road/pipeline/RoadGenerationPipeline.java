@@ -8,6 +8,7 @@ import com.plot.plugin.road.pipeline.corridor.RoadCorridorClearancePass;
 import com.plot.plugin.road.pipeline.corridor.RoadCorridorPlanBuilder;
 import com.plot.plugin.road.pipeline.corridor.RoadCorridorSolidEmitter;
 import com.plot.plugin.road.pipeline.corridor.RoadGenerationIntegrityValidator;
+import com.plot.plugin.road.pipeline.corridor.TunnelInteriorClearancePass;
 import com.plot.plugin.road.pipeline.corridor.TunnelPortalBackfillPass;
 import com.plot.plugin.road.pipeline.crosssection.RoadCrossSectionBuilder;
 import com.plot.plugin.road.pipeline.crosssection.TunnelStructureGenerator;
@@ -140,6 +141,30 @@ public final class RoadGenerationPipeline {
                 pipelineHost.captureCorridorPlanForTesting(plan);
             }
             RoadCorridorClearancePass.apply(ctx.solids(), plan, ctx.terrain(), planHost, ctx.metrics());
+            TunnelInteriorClearancePass.apply(
+                ctx.solids(),
+                ctx.segments(),
+                ctx.heightInfos(),
+                ctx.detection().constructionTypes(),
+                ctx.request().crossSections(),
+                ctx.request().designElevation(),
+                ctx.buildProfile(),
+                ctx.terrain(),
+                ctx.unitsPerBlock(),
+                ctx.request().tunnelStyle(),
+                planHost,
+                new com.plot.plugin.road.RoadTerrainClearanceUtils.BlockColumnResolver() {
+                    @Override
+                    public int worldX(com.plot.api.geometry.Vec2d planPoint) {
+                        return host.canvasToBlockPos(planPoint).getX();
+                    }
+
+                    @Override
+                    public int worldZ(com.plot.api.geometry.Vec2d planPoint) {
+                        return host.canvasToBlockPos(planPoint).getZ();
+                    }
+                },
+                ctx.metrics());
             RoadCorridorSolidEmitter.emit(
                 ctx.solids(),
                 plan,

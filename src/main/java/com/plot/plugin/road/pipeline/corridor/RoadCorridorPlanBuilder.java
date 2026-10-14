@@ -11,6 +11,7 @@ import com.plot.plugin.road.RoadTerrainClearanceUtils;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
+import com.plot.plugin.road.tunnel.TunnelCrossSectionMask;
 import com.plot.plugin.road.tunnel.TunnelPortalExcavationMask;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
@@ -705,7 +706,7 @@ public final class RoadCorridorPlanBuilder {
             case BRIDGE -> Math.max(
                 designSurfaceY + 1,
                 Math.max(terrain.sampleColumnTopY(planPoint), designSurfaceY + 1));
-            case TUNNEL -> designSurfaceY + tunnelThreshold;
+            case TUNNEL -> tunnelInteriorRoofTopY(host, designSurfaceY);
             case PORTAL -> portalRoofTopY(host, designSurfaceY);
             case OPEN -> Math.max(terrain.sampleColumnTopY(planPoint), designSurfaceY + 1);
         };
@@ -716,6 +717,20 @@ public final class RoadCorridorPlanBuilder {
         int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
         return TunnelPortalExcavationMask.forPortal(
             host.tunnelStyle(), envelopeWidth, designSurfaceY).roofTopY();
+    }
+
+    static int tunnelInteriorRoofTopY(PlanHost host, int designSurfaceY) {
+        ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
+        int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
+        ResolvedTunnelStyle tunnelStyle = host.tunnelStyle();
+        return TunnelCrossSectionMask.build(
+            tunnelStyle.shape(),
+            envelopeWidth,
+            tunnelStyle.sideClearance(),
+            tunnelStyle.clearHeight(),
+            tunnelStyle.liningThickness(),
+            designSurfaceY,
+            false).maxY();
     }
 
     private static Vec2d normalize(Vec2d vector) {
