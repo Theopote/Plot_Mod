@@ -10,6 +10,8 @@ import com.plot.plugin.road.RoadSlopeUtils;
 import com.plot.plugin.road.RoadTerrainClearanceUtils;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
+import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
 import com.plot.plugin.road.pipeline.RoadPathStationSampler;
@@ -46,7 +48,8 @@ public final class RoadCorridorPlanBuilder {
     }
 
     public static RoadCorridorPlan build(RoadGenerationPipelineContext ctx, RoadGenerationPipelineContext.Host host) {
-        PlanHost planHost = PlanHost.from(host, ctx.request().terrainStyle());
+        PlanHost planHost = PlanHost.from(
+            host, ctx.request().terrainStyle(), ctx.request().tunnelStyle());
         return build(
             ctx.segments(),
             ctx.heightInfos(),
@@ -246,7 +249,7 @@ public final class RoadCorridorPlanBuilder {
         for (int lateral = minOffset; lateral <= maxOffset; lateral++) {
             double offset = lateral * scale;
             writeClearanceSpan(plan, fromCenter, toCenter, leftNormal, offset, fromY, toY,
-                terrain, constructionType, tunnelThreshold, host);
+                terrain, constructionType, tunnelThreshold, host, lateral);
         }
     }
 
@@ -261,7 +264,8 @@ public final class RoadCorridorPlanBuilder {
             TerrainSampler terrain,
             RoadConstructionType constructionType,
             int tunnelThreshold,
-            PlanHost host) {
+            PlanHost host,
+            int corridorLateral) {
         Vec2d fromPoint = fromCenter.add(leftNormal.multiply(lateralOffset));
         Vec2d toPoint = toCenter.add(leftNormal.multiply(lateralOffset));
         List<Vec2d> span = RoadVoxelRasterizer.sampleSpanPoints(fromPoint, toPoint);
@@ -278,8 +282,12 @@ public final class RoadCorridorPlanBuilder {
             }
             ColumnKey key = new ColumnKey(worldX, worldZ);
             RoadCorridorConstructionMode mode = toMode(constructionType);
-            int clearTopY = computeClearTopY(mode, surfaceY, planPoint, terrain, tunnelThreshold);
-            plan.putClearance(key, new ClearanceCell(planPoint, surfaceY, clearTopY, mode, constructionType));
+            int clearTopY = computeClearTopY(mode, surfaceY, planPoint, terrain, tunnelThreshold, host);
+            Integer lateralTag = constructionType == RoadConstructionType.TUNNEL_PORTAL
+                ? corridorLateral
+                : null;
+            plan.putClearance(key, new ClearanceCell(
+                planPoint, surfaceY, clearTopY, mode, constructionType, lateralTag));
         }
     }
 
@@ -482,7 +490,7 @@ public final class RoadCorridorPlanBuilder {
         plan.surfaceMask().put(key, new SurfaceCell(planPoint, surfaceY, layer, materialId));
 
         RoadCorridorConstructionMode mode = toMode(constructionType);
-        int clearTopY = computeClearTopY(mode, surfaceY, planPoint, terrain, tunnelThreshold);
+        int clearTopY = computeClearTopY(mode, surfaceY, planPoint, terrain, tunnelThreshold, host);
         plan.putClearance(key, new ClearanceCell(planPoint, surfaceY, clearTopY, mode, constructionType));
     }
 
@@ -554,9 +562,6 @@ public final class RoadCorridorPlanBuilder {
         int maxHorizontalRun = RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS;
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         Vec2d normal = normalize(leftNormal);
-        double shoulderCenterOffset = crossSection.slopeAnchorCenterOffset() * scale;
-        double outerOffset = RoadDimensionUtils.halfExtentFromCenter(
-            crossSection.slopeAnchorBandWidth()) * scale;
         String fillBlockId = host.resolveBlockId(crossSection.fillSlopeMaterial);
         String cutBlockId = crossSection.cutSlopeMaterial == null || crossSection.cutSlopeMaterial.isBlank()
             ? null
@@ -564,37 +569,37 @@ public final class RoadCorridorPlanBuilder {
         float fillRatio = crossSection.fillSlopeRatio;
         float cutRatio = crossSection.cutSlopeRatio;
 
-        Vec2d left = center.add(normal.multiply(shoulderCenterOffset));
-        Vec2d right = center.subtract(normal.multiply(shoulderCenterOffset));
         List<SlopeProfileSample> samples = new ArrayList<>();
-        samples.addAll(mergeSlopeAtShoulder(plan, left, targetY, outerOffset, terrain,
+        samples.addAll(mergeSlopeAtShoulder(plan, center, targetY, crossSection.maxSurfaceLateral(), terrain,
             fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
-            normal, scale, host, new SlopeRayId(stationSampleId, SlopeRayId.ShoulderSide.LEFT)));
-        samples.addAll(mergeSlopeAtShoulder(plan, right, targetY, outerOffset, terrain,
+            normal, normal, scale, host, new SlopeRayId(stationSampleId, SlopeRayId.ShoulderSide.LEFT)));
+        samples.addAll(mergeSlopeAtShoulder(plan, center, targetY, crossSection.minSurfaceLateral(), terrain,
             fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
-            normal.multiply(-1), scale, host, new SlopeRayId(stationSampleId, SlopeRayId.ShoulderSide.RIGHT)));
+            normal, normal.multiply(-1), scale, host, new SlopeRayId(stationSampleId, SlopeRayId.ShoulderSide.RIGHT)));
         return samples;
     }
 
     private static List<SlopeProfileSample> mergeSlopeAtShoulder(
             RoadCorridorPlan plan,
-            Vec2d shoulderCenter,
+            Vec2d center,
             int targetY,
-            double outerOffset,
+            int signedOuterLateral,
             TerrainSampler terrain,
             float fillRatio,
             float cutRatio,
             String fillBlockId,
             String cutBlockId,
             int maxHorizontalRun,
+            Vec2d corridorLeftNormal,
             Vec2d outwardNormal,
             double unitsPerBlock,
             PlanHost host,
             SlopeRayId rayId) {
         List<SlopeProfileSample> samples = new ArrayList<>();
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
+        Vec2d leftNormal = normalize(corridorLeftNormal);
         Vec2d normal = normalize(outwardNormal);
-        Vec2d outerEdge = shoulderCenter.add(normal.multiply(outerOffset));
+        Vec2d outerEdge = center.add(leftNormal.multiply(signedOuterLateral * scale));
         if (!terrain.isChunkLoaded(outerEdge)) {
             return samples;
         }
@@ -626,11 +631,16 @@ public final class RoadCorridorPlanBuilder {
             slopeRatio,
             usefulHorizontalRun);
 
+        if (profile.size() <= 1) {
+            plan.noteUnresolvedSlopeConstruction();
+            return samples;
+        }
+
         boolean meetsTerrain = slopeProfileMeetsTerrain(profile, isFill, outerEdge, normal, scale, terrain);
         SlopeConstructionOutcome outcome = SlopeConstructionOutcome.classify(meetsTerrain, widthCapped);
         String materialId = isFill ? fillBlockId : cutBlockId;
 
-        for (int step = 1; step < profile.size(); step++) {
+        for (int step = 0; step < profile.size(); step++) {
             int[] point = profile.get(step);
             int horizontalOffset = point[0];
             int slopeHeight = point[1];
@@ -671,9 +681,8 @@ public final class RoadCorridorPlanBuilder {
     }
 
     private static RoadCorridorConstructionMode toMode(RoadConstructionType type) {
-        // Portals are open cut mouths: clear to terrain top like ROAD/CUT, not tunnel cavity height.
         if (type == RoadConstructionType.TUNNEL_PORTAL) {
-            return RoadCorridorConstructionMode.OPEN;
+            return RoadCorridorConstructionMode.PORTAL;
         }
         if (type != null && type.isBridgeFamily()) {
             return RoadCorridorConstructionMode.BRIDGE;
@@ -689,12 +698,14 @@ public final class RoadCorridorPlanBuilder {
             int designSurfaceY,
             Vec2d planPoint,
             TerrainSampler terrain,
-            int tunnelThreshold) {
+            int tunnelThreshold,
+            PlanHost host) {
         return switch (mode) {
             case BRIDGE -> Math.max(
                 designSurfaceY + 1,
                 Math.max(terrain.sampleColumnTopY(planPoint), designSurfaceY + 1));
             case TUNNEL -> designSurfaceY + tunnelThreshold;
+            case PORTAL -> designSurfaceY + host.tunnelStyle().roofTopOffset() + 1;
             case OPEN -> Math.max(terrain.sampleColumnTopY(planPoint), designSurfaceY + 1);
         };
     }
@@ -722,7 +733,12 @@ public final class RoadCorridorPlanBuilder {
 
         int bridgeThreshold();
 
-        static PlanHost from(RoadGenerationPipelineContext.Host host, RoadTerrainStyle terrainStyle) {
+        ResolvedTunnelStyle tunnelStyle();
+
+        static PlanHost from(
+                RoadGenerationPipelineContext.Host host,
+                RoadTerrainStyle terrainStyle,
+                ResolvedTunnelStyle tunnelStyle) {
             RoadTerrainClearanceUtils.BlockColumnResolver resolver =
                 new RoadTerrainClearanceUtils.BlockColumnResolver() {
                     @Override
@@ -777,6 +793,11 @@ public final class RoadCorridorPlanBuilder {
                 @Override
                 public int bridgeThreshold() {
                     return host.bridgeThreshold();
+                }
+
+                @Override
+                public ResolvedTunnelStyle tunnelStyle() {
+                    return tunnelStyle != null ? tunnelStyle : ResolvedTunnelStyle.defaults();
                 }
             };
         }

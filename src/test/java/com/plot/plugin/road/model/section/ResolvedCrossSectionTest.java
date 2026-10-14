@@ -41,7 +41,7 @@ class ResolvedCrossSectionTest {
         section.getShoulder().setEnabled(true);
         section.getSlopeBatter().setFillRatio(1.2f);
         section.getSlopeBatter().setCutRatio(0.8f);
-        section.getSlopeBatter().setFillMaterial("minecraft:gravel");
+        section.getSlopeBatter().setFillMaterial("minecraft:stone");
         section.getBikeLane().setEnabled(true);
         section.getBikeLane().setWidth(2);
 
@@ -52,7 +52,7 @@ class ResolvedCrossSectionTest {
         assertEquals(0.8f, resolved.cutSlopeRatio, 1e-3);
         assertTrue(resolved.includeBikeLane);
         assertEquals(2, resolved.bikeLaneWidth);
-        assertEquals("minecraft:gravel", resolved.fillSlopeMaterial);
+        assertEquals("minecraft:stone", resolved.fillSlopeMaterial);
     }
 
     @Test

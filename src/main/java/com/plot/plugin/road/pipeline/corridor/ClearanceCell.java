@@ -9,5 +9,15 @@ public record ClearanceCell(
         int designSurfaceY,
         int clearTopY,
         RoadCorridorConstructionMode mode,
-        RoadConstructionType constructionType) {
+        RoadConstructionType constructionType,
+        Integer corridorLateral) {
+
+    public ClearanceCell(
+            Vec2d planPoint,
+            int designSurfaceY,
+            int clearTopY,
+            RoadCorridorConstructionMode mode,
+            RoadConstructionType constructionType) {
+        this(planPoint, designSurfaceY, clearTopY, mode, constructionType, null);
+    }
 }

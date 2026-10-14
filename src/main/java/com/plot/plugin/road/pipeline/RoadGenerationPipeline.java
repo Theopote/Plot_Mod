@@ -8,6 +8,7 @@ import com.plot.plugin.road.pipeline.corridor.RoadCorridorClearancePass;
 import com.plot.plugin.road.pipeline.corridor.RoadCorridorPlanBuilder;
 import com.plot.plugin.road.pipeline.corridor.RoadCorridorSolidEmitter;
 import com.plot.plugin.road.pipeline.corridor.RoadGenerationIntegrityValidator;
+import com.plot.plugin.road.pipeline.corridor.TunnelPortalBackfillPass;
 import com.plot.plugin.road.pipeline.crosssection.RoadCrossSectionBuilder;
 import com.plot.plugin.road.pipeline.crosssection.TunnelStructureGenerator;
 import com.plot.plugin.road.pipeline.furniture.RoadFurnitureGenerator;
@@ -131,7 +132,8 @@ public final class RoadGenerationPipeline {
                 host.flushEdgeSolids(ctx.result(), model);
                 model.clear();
             });
-            var planHost = RoadCorridorPlanBuilder.PlanHost.from(host, ctx.request().terrainStyle());
+            var planHost = RoadCorridorPlanBuilder.PlanHost.from(
+                host, ctx.request().terrainStyle(), ctx.request().tunnelStyle());
             var plan = RoadCorridorPlanBuilder.build(ctx, host);
             ctx.setCorridorPlan(plan);
             RoadCorridorClearancePass.apply(ctx.solids(), plan, ctx.terrain(), planHost, ctx.metrics());
@@ -147,6 +149,7 @@ public final class RoadGenerationPipeline {
             RoadFurnitureGenerator.generate(ctx, host);
             RoadStationFacilityGenerator.generate(ctx, host);
             generateTunnelStructures(ctx, host);
+            TunnelPortalBackfillPass.apply(ctx.solids(), plan, ctx.terrain(), planHost);
             RoadGenerationResult result = RoadVoxelRasterizerPass.rasterize(ctx, host);
             RoadGenerationIntegrityValidator.applyPlacementsToResult(result, plan, ctx.terrain());
             return result;

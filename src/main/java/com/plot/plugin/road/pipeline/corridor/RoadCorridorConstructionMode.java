@@ -4,5 +4,7 @@ package com.plot.plugin.road.pipeline.corridor;
 public enum RoadCorridorConstructionMode {
     OPEN,
     BRIDGE,
-    TUNNEL
+    TUNNEL,
+    /** Tunnel portal mouth: clearance capped to designed cavity, not terrain top. */
+    PORTAL
 }

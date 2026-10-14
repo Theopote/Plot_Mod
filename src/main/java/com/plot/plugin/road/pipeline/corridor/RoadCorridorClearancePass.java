@@ -1,9 +1,13 @@
 package com.plot.plugin.road.pipeline.corridor;
 
+import com.plot.plugin.road.RoadConstructionType;
+import com.plot.plugin.road.geometry.RoadCorridorWidth;
+import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.solid.RoadSolidModel;
+import com.plot.plugin.road.tunnel.TunnelPortalExcavationMask;
 import com.plot.core.terrain.TerrainSampler;
 
 /**
@@ -37,7 +41,7 @@ public final class RoadCorridorClearancePass {
             if (!terrain.isChunkLoaded(key.worldX(), key.worldZ())) {
                 continue;
             }
-            int cleared = clearColumn(solids, cell, key, terrain);
+            int cleared = clearColumn(solids, cell, key, terrain, host);
             if (metrics != null) {
                 metrics.cutVolume += cleared;
             }
@@ -48,26 +52,46 @@ public final class RoadCorridorClearancePass {
             RoadSolidModel solids,
             ClearanceCell cell,
             ColumnKey key,
-            TerrainSampler terrain) {
-        // Clear overhead only (designY+1..top). Design-Y pavement is owned by SurfaceCell emit;
-        // TUNNEL-layer AIR outranks ROAD and must not be written at designY.
-        // BRIDGE columns still clear overhead (no longer a no-op).
+            TerrainSampler terrain,
+            RoadCorridorPlanBuilder.PlanHost host) {
         int cleared = 0;
         int designY = cell.designSurfaceY();
         int topY = Math.max(cell.clearTopY(), designY);
-        for (int y = designY + 1; y <= topY; y++) {
-            if (!hasObstruction(terrain, key.worldX(), y, key.worldZ())) {
-                continue;
+        if (cell.mode() == RoadCorridorConstructionMode.PORTAL && cell.corridorLateral() != null && host != null) {
+            ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
+            int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection);
+            TunnelPortalExcavationMask mask = TunnelPortalExcavationMask.forPortal(
+                host.tunnelStyle(), envelopeWidth, designY);
+            for (int y = designY + 1; y <= topY; y++) {
+                if (!mask.allowsClearance(cell.corridorLateral(), y)) {
+                    continue;
+                }
+                cleared += clearObstruction(solids, cell, key, terrain, y);
             }
-            solids.add(
-                cell.planPoint(),
-                y,
-                RoadSolidLayer.TUNNEL,
-                "minecraft:air",
-                RoadSolidMaterialPriority.AIR);
-            cleared++;
+            return cleared;
+        }
+        for (int y = designY + 1; y <= topY; y++) {
+            cleared += clearObstruction(solids, cell, key, terrain, y);
         }
         return cleared;
+    }
+
+    private static int clearObstruction(
+            RoadSolidModel solids,
+            ClearanceCell cell,
+            ColumnKey key,
+            TerrainSampler terrain,
+            int y) {
+        if (!hasObstruction(terrain, key.worldX(), y, key.worldZ())) {
+            return 0;
+        }
+        solids.add(
+            cell.planPoint(),
+            y,
+            RoadSolidLayer.TUNNEL,
+            "minecraft:air",
+            RoadSolidMaterialPriority.AIR);
+        return 1;
     }
 
     static boolean hasObstruction(TerrainSampler terrain, int worldX, int y, int worldZ) {

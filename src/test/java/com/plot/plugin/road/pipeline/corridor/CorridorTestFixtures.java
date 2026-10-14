@@ -6,6 +6,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.terrain.RoadTerrainStyle;
+import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.test.world.IdentityCoordinateService;
 import net.minecraft.util.math.BlockPos;
 
@@ -74,6 +75,11 @@ final class CorridorTestFixtures {
             @Override
             public int bridgeThreshold() {
                 return RoadConstructionHeuristics.bridgeThreshold(terrainStyle);
+            }
+
+            @Override
+            public ResolvedTunnelStyle tunnelStyle() {
+                return ResolvedTunnelStyle.defaults();
             }
         };
     }

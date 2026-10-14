@@ -211,6 +211,51 @@ public final class RoadGenerationIntegrityValidator {
         return false;
     }
 
+    /**
+     * Counts outer SHOULDER columns that lack a slope cell on the same column or a cardinal neighbor.
+     */
+    static int countShoulderToSlopeStartGaps(RoadCorridorPlan plan) {
+        int gaps = 0;
+        for (var entry : plan.surfaceMask().entries()) {
+            SurfaceCell cell = entry.getValue();
+            if (cell.layer() != RoadSolidLayer.SHOULDER) {
+                continue;
+            }
+            if (!isExposedOuterShoulder(plan, entry.getKey())) {
+                continue;
+            }
+            if (hasAdjacentSlopeCell(plan, entry.getKey())) {
+                continue;
+            }
+            gaps++;
+        }
+        return gaps;
+    }
+
+    private static boolean isExposedOuterShoulder(RoadCorridorPlan plan, ColumnKey key) {
+        for (int[] offset : NEIGHBOR_OFFSETS) {
+            ColumnKey neighbor = new ColumnKey(key.worldX() + offset[0], key.worldZ() + offset[1]);
+            SurfaceCell cell = plan.surfaceMask().get(neighbor);
+            if (cell == null || !plan.surfaceMask().isRoadSurfaceLayer(cell.layer())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasAdjacentSlopeCell(RoadCorridorPlan plan, ColumnKey key) {
+        if (plan.slopeCell(key) != null) {
+            return true;
+        }
+        for (int[] offset : NEIGHBOR_OFFSETS) {
+            ColumnKey neighbor = new ColumnKey(key.worldX() + offset[0], key.worldZ() + offset[1]);
+            if (plan.slopeCell(neighbor) != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     static int countStructureInteriorSlopeCells(RoadCorridorPlan plan) {
         int count = 0;
         for (var entry : plan.slopeEntries()) {

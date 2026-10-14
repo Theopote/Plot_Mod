@@ -47,7 +47,7 @@ class SlopeSurfaceConsolidatorTest {
     }
 
     @Test
-    void unresolvedRayDoesNotEmitSlopeCells() {
+    void unresolvedRayStillEmitsPartialSlopeCells() {
         RoadCorridorPlan plan = new RoadCorridorPlan();
         ColumnKey key = new ColumnKey(20, 0);
         SlopeSurfaceConsolidator.apply(plan, List.of(
@@ -56,8 +56,9 @@ class SlopeSurfaceConsolidatorTest {
                 SlopeConstructionOutcome.UNRESOLVED)),
             new FlatTerrainSampler(120));
 
-        assertNull(plan.slopeCell(key));
-        assertTrue(plan.isSlopeColumnIncomplete(key));
+        assertEquals(70, plan.slopeCell(key).cutSurfaceY());
+        assertEquals(1, plan.unresolvedSlopeConstructionCount());
+        assertFalse(plan.isSlopeColumnIncomplete(key));
     }
 
     @Test

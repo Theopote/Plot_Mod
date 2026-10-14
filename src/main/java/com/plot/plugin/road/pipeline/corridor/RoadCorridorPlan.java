@@ -71,26 +71,45 @@ public final class RoadCorridorPlan {
             return preferWithExpandedEnvelope(existing, incoming);
         }
         if (incoming.clearTopY() > existing.clearTopY()) {
-            return incoming;
+            return withMergedLateral(incoming, existing);
         }
         if (incoming.clearTopY() == existing.clearTopY()
                 && incoming.designSurfaceY() > existing.designSurfaceY()) {
-            return incoming;
+            return withMergedLateral(incoming, existing);
         }
-        return existing;
+        return withMergedLateral(existing, incoming);
     }
 
     private static ClearanceCell preferWithExpandedEnvelope(ClearanceCell preferred, ClearanceCell other) {
         int clearTopY = Math.max(preferred.clearTopY(), other.clearTopY());
         if (clearTopY == preferred.clearTopY()) {
-            return preferred;
+            return withMergedLateral(preferred, other);
         }
         return new ClearanceCell(
             preferred.planPoint(),
             preferred.designSurfaceY(),
             clearTopY,
             preferred.mode(),
-            preferred.constructionType());
+            preferred.constructionType(),
+            mergedLateral(preferred, other));
+    }
+
+    private static ClearanceCell withMergedLateral(ClearanceCell primary, ClearanceCell secondary) {
+        Integer lateral = mergedLateral(primary, secondary);
+        if (lateral == primary.corridorLateral()) {
+            return primary;
+        }
+        return new ClearanceCell(
+            primary.planPoint(),
+            primary.designSurfaceY(),
+            primary.clearTopY(),
+            primary.mode(),
+            primary.constructionType(),
+            lateral);
+    }
+
+    private static Integer mergedLateral(ClearanceCell a, ClearanceCell b) {
+        return a.corridorLateral() != null ? a.corridorLateral() : b.corridorLateral();
     }
 
     /** Higher rank wins when open corridor and structure volumes share a world column. */

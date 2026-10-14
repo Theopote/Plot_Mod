@@ -1,6 +1,7 @@
 package com.plot.plugin.road.pipeline.corridor;
 
 import com.plot.core.terrain.TerrainSampler;
+import com.plot.plugin.road.pipeline.construction.RoadEarthworkPolicy;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -44,14 +45,12 @@ public final class SlopeSurfaceConsolidator {
                 for (SlopeProfileSample sample : raySamples) {
                     touchedByUnresolvedRay.add(sample.columnKey());
                 }
-                continue;
-            }
-
-            if (rayOutcome == SlopeConstructionOutcome.NEEDS_RETAINING_WALL) {
+            } else if (rayOutcome == SlopeConstructionOutcome.NEEDS_RETAINING_WALL) {
                 plan.noteNeedsRetainingWall();
             }
 
             List<RayStep> steps = new ArrayList<>(raySamples.size());
+            SlopeConstructionOutcome rayOutcomeForSteps = rayOutcome;
             for (SlopeProfileSample sample : raySamples) {
                 steps.add(new RayStep(
                     sample.columnKey(),
@@ -60,20 +59,24 @@ public final class SlopeSurfaceConsolidator {
                     sample.fill(),
                     sample.materialId(),
                     sample.horizontalOffset(),
-                    sample.slopeRatio()));
+                    sample.slopeRatio(),
+                    sample.outcome()));
             }
             enforceMonotonicRay(steps);
 
             for (RayStep step : steps) {
                 columnCandidates
                     .computeIfAbsent(step.columnKey(), ignored -> new ArrayList<>())
-                    .add(new ColumnCandidate(step, rayEntry.getKey()));
+                    .add(new ColumnCandidate(step, rayEntry.getKey(), rayOutcomeForSteps));
             }
         }
 
         Set<ColumnKey> written = new HashSet<>();
         for (var entry : columnCandidates.entrySet()) {
             ColumnKey key = entry.getKey();
+            if (isStructureInteriorColumn(plan, key)) {
+                continue;
+            }
             ColumnResolution resolution = resolveColumnWinner(key, entry.getValue(), terrain);
             if (resolution == null) {
                 continue;
@@ -105,6 +108,14 @@ public final class SlopeSurfaceConsolidator {
         return grouped;
     }
 
+    private static boolean isStructureInteriorColumn(RoadCorridorPlan plan, ColumnKey key) {
+        ClearanceCell clearance = plan.clearanceCell(key);
+        if (clearance == null || clearance.constructionType() == null) {
+            return false;
+        }
+        return RoadEarthworkPolicy.of(clearance.constructionType()) == RoadEarthworkPolicy.STRUCTURE_ONLY;
+    }
+
     private static ColumnResolution resolveColumnWinner(
             ColumnKey key,
             List<ColumnCandidate> candidates,
@@ -116,11 +127,22 @@ public final class SlopeSurfaceConsolidator {
             return ColumnResolution.from(candidates.getFirst().step(), false);
         }
 
-        int minOffset = candidates.stream()
+        SlopeConstructionOutcome bestOutcome = candidates.stream()
+            .map(ColumnCandidate::rayOutcome)
+            .min(Comparator.comparingInt(SlopeConstructionOutcome::ordinal))
+            .orElse(SlopeConstructionOutcome.COMPLETE);
+        List<ColumnCandidate> preferredOutcome = candidates.stream()
+            .filter(candidate -> candidate.rayOutcome() == bestOutcome)
+            .toList();
+        if (preferredOutcome.size() == 1) {
+            return ColumnResolution.from(preferredOutcome.getFirst().step(), false);
+        }
+
+        int minOffset = preferredOutcome.stream()
             .mapToInt(candidate -> candidate.step().horizontalOffset())
             .min()
             .orElse(Integer.MAX_VALUE);
-        List<ColumnCandidate> closest = candidates.stream()
+        List<ColumnCandidate> closest = preferredOutcome.stream()
             .filter(candidate -> candidate.step().horizontalOffset() == minOffset)
             .toList();
 
@@ -221,7 +243,7 @@ public final class SlopeSurfaceConsolidator {
         return step.slopeSurfaceY() - direction * Math.round(step.horizontalOffset() / ratio);
     }
 
-    private record ColumnCandidate(RayStep step, SlopeRayId rayId) {
+    private record ColumnCandidate(RayStep step, SlopeRayId rayId, SlopeConstructionOutcome rayOutcome) {
     }
 
     private record RayStep(
@@ -231,10 +253,11 @@ public final class SlopeSurfaceConsolidator {
             boolean fill,
             String materialId,
             int horizontalOffset,
-            float slopeRatio) {
+            float slopeRatio,
+            SlopeConstructionOutcome outcome) {
 
         RayStep withSlopeSurfaceY(int y) {
-            return new RayStep(columnKey, planPoint, y, fill, materialId, horizontalOffset, slopeRatio);
+            return new RayStep(columnKey, planPoint, y, fill, materialId, horizontalOffset, slopeRatio, outcome);
         }
     }
 
