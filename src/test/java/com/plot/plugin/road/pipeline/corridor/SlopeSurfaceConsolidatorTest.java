@@ -13,14 +13,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SlopeSurfaceConsolidatorTest {
 
+    private static final SlopeRayId RAY = new SlopeRayId(1L, SlopeRayId.ShoulderSide.LEFT);
+
     @Test
     void consolidatesCutRayWithMonotonicSteps() {
         RoadCorridorPlan plan = new RoadCorridorPlan();
-        String ray = SlopeSurfaceConsolidator.rayId(new Vec2d(10, 0), new Vec2d(1, 0));
         List<SlopeProfileSample> samples = List.of(
-            new SlopeProfileSample(new ColumnKey(11, 0), new Vec2d(11, 0), 94, false, "minecraft:stone", ray, 1),
-            new SlopeProfileSample(new ColumnKey(12, 0), new Vec2d(12, 0), 95, false, "minecraft:stone", ray, 2),
-            new SlopeProfileSample(new ColumnKey(13, 0), new Vec2d(13, 0), 97, false, "minecraft:stone", ray, 3));
+            new SlopeProfileSample(new ColumnKey(11, 0), new Vec2d(11, 0), 94, false, "minecraft:stone", RAY, 1),
+            new SlopeProfileSample(new ColumnKey(12, 0), new Vec2d(12, 0), 95, false, "minecraft:stone", RAY, 2),
+            new SlopeProfileSample(new ColumnKey(13, 0), new Vec2d(13, 0), 97, false, "minecraft:stone", RAY, 3));
 
         SlopeSurfaceConsolidator.apply(plan, samples, new FlatTerrainSampler(100));
 
@@ -31,13 +32,12 @@ class SlopeSurfaceConsolidatorTest {
     }
 
     @Test
-    void incompleteSamplesDoNotEmitSlopeCells() {
+    void incompleteRayDoesNotEmitSlopeCells() {
         RoadCorridorPlan plan = new RoadCorridorPlan();
         ColumnKey key = new ColumnKey(20, 0);
-        String ray = SlopeSurfaceConsolidator.rayId(new Vec2d(18, 0), new Vec2d(1, 0));
         SlopeSurfaceConsolidator.apply(plan, List.of(
             new SlopeProfileSample(
-                key, new Vec2d(20, 0), 70, false, "minecraft:stone", ray, 32, true)),
+                key, new Vec2d(20, 0), 70, false, "minecraft:stone", RAY, 32, true)),
             new FlatTerrainSampler(120));
 
         assertNull(plan.slopeCell(key));
@@ -47,7 +47,7 @@ class SlopeSurfaceConsolidatorTest {
     @Test
     void ratioOneCutProducesOneBlockStepHeights() {
         RoadCorridorPlan plan = new RoadCorridorPlan();
-        String ray = SlopeSurfaceConsolidator.rayId(new Vec2d(5, 0), new Vec2d(0, 1));
+        SlopeRayId ray = new SlopeRayId(2L, SlopeRayId.ShoulderSide.RIGHT);
         SlopeSurfaceConsolidator.apply(plan, List.of(
             new SlopeProfileSample(new ColumnKey(5, 1), new Vec2d(5, 1), 63, false, "dirt", ray, 1),
             new SlopeProfileSample(new ColumnKey(5, 2), new Vec2d(5, 2), 64, false, "dirt", ray, 2)),
@@ -56,5 +56,57 @@ class SlopeSurfaceConsolidatorTest {
         assertFalse(plan.slopeCell(new ColumnKey(5, 1)).hasFill());
         assertEquals(63, plan.slopeCell(new ColumnKey(5, 1)).cutSurfaceY());
         assertEquals(64, plan.slopeCell(new ColumnKey(5, 2)).cutSurfaceY());
+    }
+
+    @Test
+    void differentStationRaysDoNotCrossAdjustMonotonicSteps() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        SlopeRayId rayA = new SlopeRayId(10L, SlopeRayId.ShoulderSide.LEFT);
+        SlopeRayId rayB = new SlopeRayId(11L, SlopeRayId.ShoulderSide.LEFT);
+
+        SlopeSurfaceConsolidator.apply(plan, List.of(
+            new SlopeProfileSample(new ColumnKey(11, 0), new Vec2d(11, 0), 94, false, "stone", rayA, 1),
+            new SlopeProfileSample(new ColumnKey(12, 0), new Vec2d(12, 0), 95, false, "stone", rayA, 2),
+            new SlopeProfileSample(new ColumnKey(13, 0), new Vec2d(13, 0), 97, false, "stone", rayA, 3),
+            new SlopeProfileSample(new ColumnKey(21, 0), new Vec2d(21, 0), 70, false, "stone", rayB, 1),
+            new SlopeProfileSample(new ColumnKey(22, 0), new Vec2d(22, 0), 71, false, "stone", rayB, 2),
+            new SlopeProfileSample(new ColumnKey(23, 0), new Vec2d(23, 0), 97, false, "stone", rayB, 3)),
+            new FlatTerrainSampler(100));
+
+        assertEquals(96, plan.slopeCell(new ColumnKey(13, 0)).cutSurfaceY(),
+            "station A ray keeps its own monotonic cap");
+        assertEquals(72, plan.slopeCell(new ColumnKey(23, 0)).cutSurfaceY(),
+            "station B ray is not pulled by station A monotonic enforcement");
+    }
+
+    @Test
+    void incompleteRayDoesNotRemoveCompleteRayOnSameColumn() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        ColumnKey key = new ColumnKey(30, 0);
+        SlopeRayId completeRay = new SlopeRayId(20L, SlopeRayId.ShoulderSide.LEFT);
+        SlopeRayId incompleteRay = new SlopeRayId(21L, SlopeRayId.ShoulderSide.LEFT);
+
+        SlopeSurfaceConsolidator.apply(plan, List.of(
+            new SlopeProfileSample(key, new Vec2d(30, 0), 68, false, "stone", completeRay, 2),
+            new SlopeProfileSample(key, new Vec2d(30, 0), 55, false, "stone", incompleteRay, 1, true)),
+            new FlatTerrainSampler(80));
+
+        assertEquals(68, plan.slopeCell(key).cutSurfaceY());
+        assertFalse(plan.isSlopeColumnIncomplete(key));
+    }
+
+    @Test
+    void overlappingColumnsPreferClosestShoulderOffset() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        ColumnKey key = new ColumnKey(40, 0);
+        SlopeRayId nearRay = new SlopeRayId(30L, SlopeRayId.ShoulderSide.LEFT);
+        SlopeRayId farRay = new SlopeRayId(31L, SlopeRayId.ShoulderSide.LEFT);
+
+        SlopeSurfaceConsolidator.apply(plan, List.of(
+            new SlopeProfileSample(key, new Vec2d(40, 0), 72, false, "stone", nearRay, 2),
+            new SlopeProfileSample(key, new Vec2d(40, 0), 60, false, "stone", farRay, 8)),
+            new FlatTerrainSampler(80));
+
+        assertEquals(72, plan.slopeCell(key).cutSurfaceY());
     }
 }

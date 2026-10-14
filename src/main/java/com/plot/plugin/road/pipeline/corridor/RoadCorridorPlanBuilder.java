@@ -81,14 +81,16 @@ public final class RoadCorridorPlanBuilder {
         RoadSystemConfig config = host.config();
         int tunnelThreshold = host.tunnelThreshold();
         List<SlopeProfileSample> slopeSamples = new ArrayList<>();
+        long[] stationSampleSeq = {0L};
         for (int i = 0; i < stations.size(); i++) {
             StationSample sample = stations.get(i);
             ResolvedCrossSection crossSection = crossSections.resolve(sample.chainage());
             rasterizeStation(plan, sample, crossSection, terrain, unitsPerBlock,
-                carriagewaySeedKey, host, config, tunnelThreshold, slopeSamples);
+                carriagewaySeedKey, host, config, tunnelThreshold, slopeSamples, stationSampleSeq);
             if (i > 0) {
                 rasterizeSpan(plan, stations.get(i - 1), sample, crossSection, terrain,
-                    unitsPerBlock, carriagewaySeedKey, host, config, tunnelThreshold, slopeSamples);
+                    unitsPerBlock, carriagewaySeedKey, host, config, tunnelThreshold, slopeSamples,
+                    stationSampleSeq);
             }
         }
         SlopeSurfaceConsolidator.apply(plan, slopeSamples, terrain);
@@ -134,13 +136,15 @@ public final class RoadCorridorPlanBuilder {
             PlanHost host,
             RoadSystemConfig config,
             int tunnelThreshold,
-            List<SlopeProfileSample> slopeSamples) {
+            List<SlopeProfileSample> slopeSamples,
+            long[] stationSampleSeq) {
         rasterizeSurfaceBands(plan, sample.center(), sample.center(), sample.leftNormal(),
             sample.targetY(), sample.targetY(), crossSection, terrain, unitsPerBlock,
             seedKey, host, sample.constructionType(), config, tunnelThreshold);
         if (crossSection.includeSlopeBatter
                 && RoadEarthworkPolicy.of(sample.constructionType()).allowsCorridorBatter()) {
-            slopeSamples.addAll(mergeSlopeWedge(plan, sample, crossSection, terrain, unitsPerBlock, host));
+            slopeSamples.addAll(mergeSlopeWedge(
+                plan, sample, crossSection, terrain, unitsPerBlock, host, stationSampleSeq));
         }
     }
 
@@ -155,7 +159,8 @@ public final class RoadCorridorPlanBuilder {
             PlanHost host,
             RoadSystemConfig config,
             int tunnelThreshold,
-            List<SlopeProfileSample> slopeSamples) {
+            List<SlopeProfileSample> slopeSamples,
+            long[] stationSampleSeq) {
         ResolvedCrossSection toSection = crossSection;
         RoadConstructionType fromType = from.constructionType();
         RoadConstructionType toType = to.constructionType();
@@ -179,7 +184,8 @@ public final class RoadCorridorPlanBuilder {
         if (toSection.includeSlopeBatter
                 && (RoadEarthworkPolicy.of(fromType).allowsCorridorBatter()
                     || RoadEarthworkPolicy.of(toType).allowsCorridorBatter())) {
-            slopeSamples.addAll(mergeSlopeSpan(plan, from, to, toSection, terrain, unitsPerBlock, host));
+            slopeSamples.addAll(mergeSlopeSpan(
+                plan, from, to, toSection, terrain, unitsPerBlock, host, stationSampleSeq));
         }
     }
 
@@ -507,9 +513,10 @@ public final class RoadCorridorPlanBuilder {
             ResolvedCrossSection crossSection,
             TerrainSampler terrain,
             double unitsPerBlock,
-            PlanHost host) {
+            PlanHost host,
+            long[] stationSampleSeq) {
         return mergeSlopeAtCenter(plan, sample.center(), sample.leftNormal(), sample.targetY(),
-            crossSection, terrain, unitsPerBlock, host);
+            crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++);
     }
 
     private static List<SlopeProfileSample> mergeSlopeSpan(
@@ -519,7 +526,8 @@ public final class RoadCorridorPlanBuilder {
             ResolvedCrossSection crossSection,
             TerrainSampler terrain,
             double unitsPerBlock,
-            PlanHost host) {
+            PlanHost host,
+            long[] stationSampleSeq) {
         List<SlopeProfileSample> samples = new ArrayList<>();
         List<Vec2d> span = RoadVoxelRasterizer.sampleSpanPoints(from.center(), to.center());
         int last = span.size() - 1;
@@ -537,7 +545,7 @@ public final class RoadCorridorPlanBuilder {
                 continue;
             }
             samples.addAll(mergeSlopeAtCenter(plan, center, leftNormal, targetY,
-                crossSection, terrain, unitsPerBlock, host));
+                crossSection, terrain, unitsPerBlock, host, stationSampleSeq[0]++));
         }
         return samples;
     }
@@ -562,7 +570,8 @@ public final class RoadCorridorPlanBuilder {
             ResolvedCrossSection crossSection,
             TerrainSampler terrain,
             double unitsPerBlock,
-            PlanHost host) {
+            PlanHost host,
+            long stationSampleId) {
         int maxHorizontalRun = RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS;
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         Vec2d normal = normalize(leftNormal);
@@ -581,10 +590,10 @@ public final class RoadCorridorPlanBuilder {
         List<SlopeProfileSample> samples = new ArrayList<>();
         samples.addAll(mergeSlopeAtShoulder(plan, left, targetY, outerOffset, terrain,
             fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
-            normal, scale, host));
+            normal, scale, host, new SlopeRayId(stationSampleId, SlopeRayId.ShoulderSide.LEFT)));
         samples.addAll(mergeSlopeAtShoulder(plan, right, targetY, outerOffset, terrain,
             fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
-            normal.multiply(-1), scale, host));
+            normal.multiply(-1), scale, host, new SlopeRayId(stationSampleId, SlopeRayId.ShoulderSide.RIGHT)));
         return samples;
     }
 
@@ -601,7 +610,8 @@ public final class RoadCorridorPlanBuilder {
             int maxHorizontalRun,
             Vec2d outwardNormal,
             double unitsPerBlock,
-            PlanHost host) {
+            PlanHost host,
+            SlopeRayId rayId) {
         List<SlopeProfileSample> samples = new ArrayList<>();
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         Vec2d normal = normalize(outwardNormal);
@@ -642,7 +652,6 @@ public final class RoadCorridorPlanBuilder {
             plan.noteUnresolvedSlopeConstruction();
         }
         boolean incomplete = widthCapped && !meetsTerrain;
-        String rayId = SlopeSurfaceConsolidator.rayId(outerEdge, normal);
         String materialId = isFill ? fillBlockId : cutBlockId;
 
         for (int step = 1; step < profile.size(); step++) {

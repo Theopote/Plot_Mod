@@ -1,10 +1,10 @@
 package com.plot.plugin.road.pipeline.corridor;
 
-import com.plot.api.geometry.Vec2d;
 import com.plot.core.terrain.TerrainSampler;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +12,7 @@ import java.util.Set;
 
 /**
  * Merges per-cross-section slope samples into one continuous batter surface per world column.
+ * Processing order: group by explicit {@link SlopeRayId}, monotonic fix per ray, then merge columns.
  */
 public final class SlopeSurfaceConsolidator {
     private SlopeSurfaceConsolidator() {
@@ -25,112 +26,152 @@ public final class SlopeSurfaceConsolidator {
             return;
         }
         plan.clearSlopeCells();
-        Map<ColumnKey, List<SlopeProfileSample>> byColumn = groupByColumn(samples);
-        Map<String, List<ResolvedRayStep>> rays = new LinkedHashMap<>();
 
-        for (var entry : byColumn.entrySet()) {
-            ColumnKey key = entry.getKey();
-            List<SlopeProfileSample> columnSamples = entry.getValue();
-            ResolvedRayStep resolved = resolveColumn(key, columnSamples, terrain);
-            if (resolved == null) {
+        Map<SlopeRayId, List<SlopeProfileSample>> byRay = groupByRay(samples);
+        Map<ColumnKey, List<ColumnCandidate>> columnCandidates = new LinkedHashMap<>();
+        Set<ColumnKey> touchedByIncompleteRay = new HashSet<>();
+
+        for (var rayEntry : byRay.entrySet()) {
+            List<SlopeProfileSample> raySamples = new ArrayList<>(rayEntry.getValue());
+            raySamples.sort(Comparator.comparingInt(SlopeProfileSample::horizontalOffset));
+
+            boolean rayIncomplete = raySamples.stream().anyMatch(SlopeProfileSample::incomplete);
+            if (rayIncomplete) {
+                plan.noteUnresolvedSlopeConstruction();
+                for (SlopeProfileSample sample : raySamples) {
+                    touchedByIncompleteRay.add(sample.columnKey());
+                }
                 continue;
             }
-            rays.computeIfAbsent(resolved.rayId(), ignored -> new ArrayList<>()).add(resolved);
+
+            List<RayStep> steps = new ArrayList<>(raySamples.size());
+            for (SlopeProfileSample sample : raySamples) {
+                steps.add(new RayStep(
+                    sample.columnKey(),
+                    sample.planPoint(),
+                    sample.slopeSurfaceY(),
+                    sample.fill(),
+                    sample.materialId(),
+                    sample.horizontalOffset()));
+            }
+            enforceMonotonicRay(steps);
+
+            for (RayStep step : steps) {
+                columnCandidates
+                    .computeIfAbsent(step.columnKey(), ignored -> new ArrayList<>())
+                    .add(new ColumnCandidate(step, rayEntry.getKey()));
+            }
         }
 
-        for (List<ResolvedRayStep> raySteps : rays.values()) {
-            enforceMonotonicRay(raySteps);
+        Set<ColumnKey> written = new HashSet<>();
+        for (var entry : columnCandidates.entrySet()) {
+            ColumnKey key = entry.getKey();
+            ColumnResolution resolution = resolveColumnWinner(key, entry.getValue(), terrain);
+            if (resolution == null) {
+                continue;
+            }
+            if (resolution.hadConflict()) {
+                plan.noteUnresolvedSlopeConstruction();
+            }
+            SlopeColumnCell cell = plan.slopeCellOrCreate(key, resolution.planPoint());
+            if (resolution.fill()) {
+                cell.mergeFill(resolution.slopeSurfaceY(), resolution.materialId());
+            } else {
+                cell.mergeCut(resolution.slopeSurfaceY(), resolution.materialId());
+            }
+            written.add(key);
         }
 
-        for (List<ResolvedRayStep> raySteps : rays.values()) {
-            for (ResolvedRayStep step : raySteps) {
-                if (step.incomplete()) {
-                    plan.markSlopeColumnIncomplete(step.columnKey());
-                    continue;
-                }
-                SlopeColumnCell cell = plan.slopeCellOrCreate(step.columnKey(), step.planPoint());
-                if (step.fill()) {
-                    cell.mergeFill(step.slopeSurfaceY(), step.materialId());
-                } else {
-                    cell.mergeCut(step.slopeSurfaceY(), step.materialId());
-                }
+        for (ColumnKey key : touchedByIncompleteRay) {
+            if (!written.contains(key)) {
+                plan.markSlopeColumnIncomplete(key);
             }
         }
     }
 
-    static String rayId(Vec2d outerEdge, Vec2d outwardNormal) {
-        int octant = (int) Math.round(Math.atan2(outwardNormal.y, outwardNormal.x) * 4.0 / Math.PI);
-        int origin = (int) Math.floor(outerEdge.x * 0.7 + outerEdge.y * 0.3);
-        return origin + ":" + octant;
-    }
-
-    private static Map<ColumnKey, List<SlopeProfileSample>> groupByColumn(List<SlopeProfileSample> samples) {
-        Map<ColumnKey, List<SlopeProfileSample>> grouped = new LinkedHashMap<>();
+    private static Map<SlopeRayId, List<SlopeProfileSample>> groupByRay(List<SlopeProfileSample> samples) {
+        Map<SlopeRayId, List<SlopeProfileSample>> grouped = new LinkedHashMap<>();
         for (SlopeProfileSample sample : samples) {
-            grouped.computeIfAbsent(sample.columnKey(), ignored -> new ArrayList<>()).add(sample);
+            grouped.computeIfAbsent(sample.rayId(), ignored -> new ArrayList<>()).add(sample);
         }
         return grouped;
     }
 
-    private static ResolvedRayStep resolveColumn(
+    /**
+     * Prefer the candidate closest to its shoulder (smallest horizontal offset).
+     * Resolve fill/cut conflicts using natural ground at the column.
+     */
+    private static ColumnResolution resolveColumnWinner(
             ColumnKey key,
-            List<SlopeProfileSample> columnSamples,
+            List<ColumnCandidate> candidates,
             TerrainSampler terrain) {
-        if (columnSamples.isEmpty()) {
+        if (candidates == null || candidates.isEmpty()) {
             return null;
         }
-        int fillVotes = 0;
-        int cutVotes = 0;
-        for (SlopeProfileSample sample : columnSamples) {
-            if (sample.fill()) {
-                fillVotes++;
-            } else {
-                cutVotes++;
-            }
+        if (candidates.size() == 1) {
+            return ColumnResolution.from(candidates.getFirst().step(), false);
         }
-        boolean fillMode = fillVotes >= cutVotes;
-        if (fillVotes > 0 && cutVotes > 0) {
-            Vec2d planPoint = columnSamples.getFirst().planPoint();
-            int groundY = terrain != null && terrain.isChunkLoaded(key.worldX(), key.worldZ())
-                ? terrain.sampleSurfaceY(planPoint)
-                : columnSamples.getFirst().slopeSurfaceY();
-            int representativeY = columnSamples.stream()
-                .mapToInt(SlopeProfileSample::slopeSurfaceY)
-                .max()
-                .orElse(groundY);
-            fillMode = representativeY > groundY;
+
+        int minOffset = candidates.stream()
+            .mapToInt(candidate -> candidate.step().horizontalOffset())
+            .min()
+            .orElse(Integer.MAX_VALUE);
+        List<ColumnCandidate> closest = candidates.stream()
+            .filter(candidate -> candidate.step().horizontalOffset() == minOffset)
+            .toList();
+
+        if (closest.size() == 1) {
+            return ColumnResolution.from(closest.getFirst().step(), false);
         }
-        final boolean fill = fillMode;
 
-        SlopeProfileSample anchor = columnSamples.stream()
-            .filter(sample -> sample.fill() == fill)
-            .max(Comparator.comparingInt(SlopeProfileSample::horizontalOffset))
-            .orElse(columnSamples.getFirst());
+        boolean mixedFillCut = closest.stream().anyMatch(c -> c.step().fill())
+            && closest.stream().anyMatch(c -> !c.step().fill());
+        if (!mixedFillCut) {
+            RayStep merged = closest.getFirst().step().fill()
+                ? closest.stream().map(ColumnCandidate::step)
+                    .max(Comparator.comparingInt(RayStep::slopeSurfaceY))
+                    .orElse(closest.getFirst().step())
+                : closest.stream().map(ColumnCandidate::step)
+                    .min(Comparator.comparingInt(RayStep::slopeSurfaceY))
+                    .orElse(closest.getFirst().step());
+            return ColumnResolution.from(merged, false);
+        }
 
-        int slopeY = fill
-            ? columnSamples.stream().filter(SlopeProfileSample::fill).mapToInt(SlopeProfileSample::slopeSurfaceY).max().orElse(anchor.slopeSurfaceY())
-            : columnSamples.stream().filter(sample -> !sample.fill()).mapToInt(SlopeProfileSample::slopeSurfaceY).min().orElse(anchor.slopeSurfaceY());
+        int groundY = sampleGroundY(key, closest.getFirst().step().planPoint(), terrain);
+        List<ColumnCandidate> fillCandidates = closest.stream().filter(c -> c.step().fill()).toList();
+        List<ColumnCandidate> cutCandidates = closest.stream().filter(c -> !c.step().fill()).toList();
 
-        boolean incomplete = columnSamples.stream().anyMatch(SlopeProfileSample::incomplete);
-        return new ResolvedRayStep(
-            key,
-            anchor.planPoint(),
-            slopeY,
-            fill,
-            anchor.materialId(),
-            anchor.rayId(),
-            anchor.horizontalOffset(),
-            incomplete);
+        if (!fillCandidates.isEmpty() && !cutCandidates.isEmpty()) {
+            RayStep bestFill = fillCandidates.stream()
+                .map(ColumnCandidate::step)
+                .max(Comparator.comparingInt(RayStep::slopeSurfaceY))
+                .orElseThrow();
+            RayStep bestCut = cutCandidates.stream()
+                .map(ColumnCandidate::step)
+                .min(Comparator.comparingInt(RayStep::slopeSurfaceY))
+                .orElseThrow();
+            RayStep chosen = bestFill.slopeSurfaceY() > groundY ? bestFill : bestCut;
+            return ColumnResolution.from(chosen, true);
+        }
+
+        RayStep fallback = closest.getFirst().step();
+        return ColumnResolution.from(fallback, true);
     }
 
-    private static void enforceMonotonicRay(List<ResolvedRayStep> raySteps) {
-        raySteps.sort(Comparator.comparingInt(ResolvedRayStep::horizontalOffset));
+    private static int sampleGroundY(ColumnKey key, com.plot.api.geometry.Vec2d planPoint, TerrainSampler terrain) {
+        if (terrain != null && terrain.isChunkLoaded(key.worldX(), key.worldZ())) {
+            return terrain.sampleSurfaceY(planPoint);
+        }
+        return planPoint != null ? (int) Math.round(planPoint.y) : 64;
+    }
+
+    private static void enforceMonotonicRay(List<RayStep> raySteps) {
         if (raySteps.size() < 2) {
             return;
         }
-        ResolvedRayStep previous = raySteps.getFirst();
+        RayStep previous = raySteps.getFirst();
         for (int i = 1; i < raySteps.size(); i++) {
-            ResolvedRayStep current = raySteps.get(i);
+            RayStep current = raySteps.get(i);
             if (previous.fill() != current.fill()) {
                 previous = current;
                 continue;
@@ -141,24 +182,42 @@ public final class SlopeSurfaceConsolidator {
                 continue;
             }
             int adjustedY = previous.slopeSurfaceY() + (delta > 0 ? 1 : -1);
-            raySteps.set(i, current.withSlopeSurfaceY(adjustedY));
-            previous = raySteps.get(i);
+            RayStep adjusted = current.withSlopeSurfaceY(adjustedY);
+            raySteps.set(i, adjusted);
+            previous = adjusted;
         }
     }
 
-    private record ResolvedRayStep(
+    private record ColumnCandidate(RayStep step, SlopeRayId rayId) {
+    }
+
+    private record RayStep(
             ColumnKey columnKey,
-            Vec2d planPoint,
+            com.plot.api.geometry.Vec2d planPoint,
             int slopeSurfaceY,
             boolean fill,
             String materialId,
-            String rayId,
-            int horizontalOffset,
-            boolean incomplete) {
+            int horizontalOffset) {
 
-        ResolvedRayStep withSlopeSurfaceY(int y) {
-            return new ResolvedRayStep(
-                columnKey, planPoint, y, fill, materialId, rayId, horizontalOffset, incomplete);
+        RayStep withSlopeSurfaceY(int y) {
+            return new RayStep(columnKey, planPoint, y, fill, materialId, horizontalOffset);
+        }
+    }
+
+    private record ColumnResolution(
+            com.plot.api.geometry.Vec2d planPoint,
+            int slopeSurfaceY,
+            boolean fill,
+            String materialId,
+            boolean hadConflict) {
+
+        static ColumnResolution from(RayStep step, boolean hadConflict) {
+            return new ColumnResolution(
+                step.planPoint(),
+                step.slopeSurfaceY(),
+                step.fill(),
+                step.materialId(),
+                hadConflict);
         }
     }
 }

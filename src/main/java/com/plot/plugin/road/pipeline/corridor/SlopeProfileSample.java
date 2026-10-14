@@ -9,7 +9,7 @@ public record SlopeProfileSample(
         int slopeSurfaceY,
         boolean fill,
         String materialId,
-        String rayId,
+        SlopeRayId rayId,
         int horizontalOffset,
         boolean incomplete) {
 
@@ -19,7 +19,7 @@ public record SlopeProfileSample(
             int slopeSurfaceY,
             boolean fill,
             String materialId,
-            String rayId,
+            SlopeRayId rayId,
             int horizontalOffset) {
         this(columnKey, planPoint, slopeSurfaceY, fill, materialId, rayId, horizontalOffset, false);
     }
