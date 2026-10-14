@@ -65,6 +65,10 @@ public class RoadGenerationResult {
     public int brokenSlopeSurfaceCount;
     /** Batter profile stopped before meeting natural ground. */
     public int unresolvedSlopeConstructionCount;
+    /** Width-capped batter that did not reach terrain; partial slope may still be placed. */
+    public int needsRetainingWallCount;
+    /** ROAD columns missing expected adjacent shoulder coverage. */
+    public int roadShoulderSeamGapCount;
     /** Outward shoulder trace found a missing slope column while cut/fill still required. */
     public int shoulderTraceGapCount;
     /** Corridor slope cells under bridge/tunnel interior (must stay zero). */
@@ -125,6 +129,8 @@ public class RoadGenerationResult {
         slopeBatterWidthCapCount += source.slopeBatterWidthCapCount;
         brokenSlopeSurfaceCount += source.brokenSlopeSurfaceCount;
         unresolvedSlopeConstructionCount += source.unresolvedSlopeConstructionCount;
+        needsRetainingWallCount += source.needsRetainingWallCount;
+        roadShoulderSeamGapCount += source.roadShoulderSeamGapCount;
         shoulderTraceGapCount += source.shoulderTraceGapCount;
         structureInteriorSlopeCellCount += source.structureInteriorSlopeCellCount;
         pathLength += source.pathLength;

@@ -7,9 +7,11 @@ import com.plot.plugin.road.RoadMaterialMixUtils;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionMaterialPolicy.MaterialRole;
+import com.plot.plugin.road.solid.RoadSolidLayer;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 横断面解析结果：道路级覆盖与全局默认合并后的有效值，供生成器与预览使用。
@@ -396,5 +398,63 @@ public final class ResolvedCrossSection {
 
     public double outerSidewalkOffset() {
         return sidewalkCenterOffset();
+    }
+
+    /** Resolved surface layer and material for one signed lateral block offset from centerline. */
+    public record SurfaceBandSpec(
+            RoadSolidLayer layer,
+            MaterialMix materialMix,
+            String materialId) {
+    }
+
+    public int minSurfaceLateral() {
+        return RoadDimensionUtils.minLateralOffset(totalHardSurfaceWidthBlocks());
+    }
+
+    public int maxSurfaceLateral() {
+        return RoadDimensionUtils.maxLateralOffset(totalHardSurfaceWidthBlocks());
+    }
+
+    public Optional<SurfaceBandSpec> surfaceBandAtLateral(int lateral) {
+        int roadMin = RoadDimensionUtils.minLateralOffset(carriagewayWidth);
+        int roadMax = RoadDimensionUtils.maxLateralOffset(carriagewayWidth);
+        if (lateral >= roadMin && lateral <= roadMax) {
+            return Optional.of(new SurfaceBandSpec(RoadSolidLayer.ROAD, carriagewayMaterial, null));
+        }
+        if (lateral > roadMax) {
+            return outerBandAtDistance(lateral - roadMax);
+        }
+        if (lateral < roadMin) {
+            return outerBandAtDistance(roadMin - lateral);
+        }
+        return Optional.empty();
+    }
+
+    private Optional<SurfaceBandSpec> outerBandAtDistance(int distanceFromRoadEdge) {
+        if (distanceFromRoadEdge <= 0) {
+            return Optional.empty();
+        }
+        int cursor = 0;
+        if (includeShoulder && shoulderWidth > 0) {
+            cursor += shoulderWidth;
+            if (distanceFromRoadEdge <= cursor) {
+                return Optional.of(new SurfaceBandSpec(RoadSolidLayer.SHOULDER, null, shoulderMaterial));
+            }
+        }
+        if (includeBikeLane && bikeLaneWidth > 0) {
+            int bandStart = cursor;
+            cursor += bikeLaneWidth;
+            if (distanceFromRoadEdge <= cursor) {
+                return Optional.of(new SurfaceBandSpec(RoadSolidLayer.BIKE_LANE, null, bikeLaneMaterial));
+            }
+        }
+        if (includeSidewalk && sidewalkWidth > 0) {
+            int bandStart = cursor;
+            cursor += sidewalkWidth;
+            if (distanceFromRoadEdge <= cursor) {
+                return Optional.of(new SurfaceBandSpec(RoadSolidLayer.SIDEWALK, null, sidewalkMaterial));
+            }
+        }
+        return Optional.empty();
     }
 }

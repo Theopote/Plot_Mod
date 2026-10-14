@@ -138,7 +138,7 @@ public final class RoadCorridorPlanBuilder {
             int tunnelThreshold,
             List<SlopeProfileSample> slopeSamples,
             long[] stationSampleSeq) {
-        rasterizeSurfaceBands(plan, sample.center(), sample.center(), sample.leftNormal(),
+        rasterizeSurfaceBands(plan, sample.center(), sample.center(), sample.leftNormal(), sample.leftNormal(),
             sample.targetY(), sample.targetY(), crossSection, terrain, unitsPerBlock,
             seedKey, host, sample.constructionType(), config, tunnelThreshold);
         if (crossSection.includeSlopeBatter
@@ -167,17 +167,17 @@ public final class RoadCorridorPlanBuilder {
         // Split type-boundary spans so PORTAL→TUNNEL / ROAD→BRIDGE does not tag the
         // transition half as STRUCTURE_ONLY (which strips slope and skips open clearance).
         if (fromType == toType) {
-            rasterizeSurfaceBands(plan, from.center(), to.center(), to.leftNormal(),
+            rasterizeSurfaceBands(plan, from.center(), to.center(), from.leftNormal(), to.leftNormal(),
                 from.targetY(), to.targetY(), toSection, terrain, unitsPerBlock,
                 seedKey, host, toType, config, tunnelThreshold);
         } else {
             Vec2d midCenter = from.center().lerp(to.center(), 0.5);
             int midY = (int) Math.round(from.targetY() + (to.targetY() - from.targetY()) * 0.5);
             Vec2d midNormal = normalize(from.leftNormal().lerp(to.leftNormal(), 0.5));
-            rasterizeSurfaceBands(plan, from.center(), midCenter, midNormal,
+            rasterizeSurfaceBands(plan, from.center(), midCenter, from.leftNormal(), midNormal,
                 from.targetY(), midY, toSection, terrain, unitsPerBlock,
                 seedKey, host, fromType, config, tunnelThreshold);
-            rasterizeSurfaceBands(plan, midCenter, to.center(), to.leftNormal(),
+            rasterizeSurfaceBands(plan, midCenter, to.center(), midNormal, to.leftNormal(),
                 midY, to.targetY(), toSection, terrain, unitsPerBlock,
                 seedKey, host, toType, config, tunnelThreshold);
         }
@@ -193,7 +193,8 @@ public final class RoadCorridorPlanBuilder {
             RoadCorridorPlan plan,
             Vec2d fromCenter,
             Vec2d toCenter,
-            Vec2d leftNormal,
+            Vec2d fromNormal,
+            Vec2d toNormal,
             int fromY,
             int toY,
             ResolvedCrossSection crossSection,
@@ -205,35 +206,13 @@ public final class RoadCorridorPlanBuilder {
             RoadSystemConfig config,
             int tunnelThreshold) {
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
-        Vec2d normal = normalize(leftNormal);
+        Vec2d startNormal = normalize(fromNormal);
+        Vec2d endNormal = normalize(toNormal);
 
-        int minOffset = RoadDimensionUtils.minLateralOffset(crossSection.carriagewayWidth);
-        int maxOffset = RoadDimensionUtils.maxLateralOffset(crossSection.carriagewayWidth);
-        rasterizeOffsetBand(
-            plan, fromCenter, toCenter, normal, fromY, toY, scale,
-            minOffset, maxOffset, 0.0, false,
-            RoadSolidLayer.ROAD, crossSection.carriagewayMaterial, seedKey, host,
-            terrain, constructionType, tunnelThreshold);
-
-        if (crossSection.includeShoulder && crossSection.shoulderWidth > 0) {
-            rasterizeLateralBand(plan, fromCenter, toCenter, normal, fromY, toY, scale,
-                crossSection.shoulderWidth, crossSection.shoulderCenterOffset() * scale,
-                RoadSolidLayer.SHOULDER, host.resolveBlockId(crossSection.shoulderMaterial),
-                host, terrain, constructionType, tunnelThreshold);
-        }
-        if (crossSection.includeBikeLane && crossSection.bikeLaneWidth > 0) {
-            rasterizeLateralBand(plan, fromCenter, toCenter, normal, fromY, toY, scale,
-                crossSection.bikeLaneWidth, crossSection.bikeLaneCenterOffset() * scale,
-                RoadSolidLayer.BIKE_LANE, host.resolveBlockId(crossSection.bikeLaneMaterial),
-                host, terrain, constructionType, tunnelThreshold);
-        }
-        if (crossSection.includeSidewalk && crossSection.sidewalkWidth > 0) {
-            rasterizeLateralBand(plan, fromCenter, toCenter, normal, fromY, toY, scale,
-                crossSection.sidewalkWidth, crossSection.sidewalkCenterOffset() * scale,
-                RoadSolidLayer.SIDEWALK, host.resolveBlockId(crossSection.sidewalkMaterial),
-                host, terrain, constructionType, tunnelThreshold);
-        }
-        expandClearanceEnvelope(plan, fromCenter, toCenter, normal, fromY, toY, scale,
+        CrossSectionSpanRasterizer.rasterizeSpan(
+            plan, fromCenter, toCenter, startNormal, endNormal, fromY, toY, scale, crossSection,
+            seedKey, host, terrain, constructionType, tunnelThreshold);
+        expandClearanceEnvelope(plan, fromCenter, toCenter, startNormal, fromY, toY, scale,
             crossSection, terrain, constructionType, config, tunnelThreshold, host);
     }
 
@@ -483,7 +462,7 @@ public final class RoadCorridorPlanBuilder {
         }
     }
 
-    private static void writeSurfaceAndClearance(
+    static void writeSurfaceAndClearance(
             RoadCorridorPlan plan,
             Vec2d planPoint,
             int surfaceY,
@@ -648,10 +627,7 @@ public final class RoadCorridorPlanBuilder {
             usefulHorizontalRun);
 
         boolean meetsTerrain = slopeProfileMeetsTerrain(profile, isFill, outerEdge, normal, scale, terrain);
-        if (!meetsTerrain) {
-            plan.noteUnresolvedSlopeConstruction();
-        }
-        boolean incomplete = widthCapped && !meetsTerrain;
+        SlopeConstructionOutcome outcome = SlopeConstructionOutcome.classify(meetsTerrain, widthCapped);
         String materialId = isFill ? fillBlockId : cutBlockId;
 
         for (int step = 1; step < profile.size(); step++) {
@@ -663,13 +639,9 @@ public final class RoadCorridorPlanBuilder {
                 continue;
             }
             ColumnKey key = new ColumnKey(host.worldX(samplePoint), host.worldZ(samplePoint));
-            if (incomplete) {
-                samples.add(new SlopeProfileSample(
-                    key, samplePoint, slopeHeight, isFill, materialId, rayId, horizontalOffset, true));
-            } else {
-                samples.add(new SlopeProfileSample(
-                    key, samplePoint, slopeHeight, isFill, materialId, rayId, horizontalOffset));
-            }
+            samples.add(new SlopeProfileSample(
+                key, samplePoint, slopeHeight, isFill, materialId, rayId,
+                horizontalOffset, slopeRatio, outcome));
         }
         return samples;
     }

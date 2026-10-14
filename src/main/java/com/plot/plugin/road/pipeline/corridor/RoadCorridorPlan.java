@@ -19,6 +19,10 @@ public final class RoadCorridorPlan {
     private int brokenSlopeSurfaceCount;
     /** Batter ended before connecting to natural ground (often after width cap). */
     private int unresolvedSlopeConstructionCount;
+    /** Batter stopped at width cap before terrain; partial slope may still be emitted. */
+    private int needsRetainingWallCount;
+    /** ROAD columns missing adjacent shoulder coverage at the same elevation. */
+    private int roadShoulderSeamGapCount;
 
     public RoadSurfaceMask surfaceMask() {
         return surfaceMask;
@@ -136,6 +140,22 @@ public final class RoadCorridorPlan {
 
     void noteUnresolvedSlopeConstruction() {
         unresolvedSlopeConstructionCount++;
+    }
+
+    public int needsRetainingWallCount() {
+        return needsRetainingWallCount;
+    }
+
+    void noteNeedsRetainingWall() {
+        needsRetainingWallCount++;
+    }
+
+    public int roadShoulderSeamGapCount() {
+        return roadShoulderSeamGapCount;
+    }
+
+    void setRoadShoulderSeamGapCount(int count) {
+        roadShoulderSeamGapCount = Math.max(0, count);
     }
 
     void setBrokenSlopeSurfaceCount(int count) {

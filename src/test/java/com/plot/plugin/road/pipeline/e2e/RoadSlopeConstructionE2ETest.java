@@ -193,8 +193,10 @@ class RoadSlopeConstructionE2ETest {
 
         assertTrue(edge.slopeBatterWidthCapCount > 0,
             "deep cut must surface width-cap diagnostic on edge result");
-        assertTrue(edge.unresolvedSlopeConstructionCount > 0,
-            "deep cut must report batter that did not reach natural ground");
+        assertTrue(edge.needsRetainingWallCount > 0,
+            "deep cut must report width-capped batter needing a retaining wall");
+        assertEquals(0, edge.unresolvedSlopeConstructionCount,
+            "width-capped cut should emit partial slope instead of unresolved construction");
         assertTrue(edge.cutVolume > 0);
         assertEquals(0, edge.missingRoadSurfaceCount);
     }

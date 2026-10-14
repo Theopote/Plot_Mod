@@ -29,19 +29,26 @@ public final class SlopeSurfaceConsolidator {
 
         Map<SlopeRayId, List<SlopeProfileSample>> byRay = groupByRay(samples);
         Map<ColumnKey, List<ColumnCandidate>> columnCandidates = new LinkedHashMap<>();
-        Set<ColumnKey> touchedByIncompleteRay = new HashSet<>();
+        Set<ColumnKey> touchedByUnresolvedRay = new HashSet<>();
 
         for (var rayEntry : byRay.entrySet()) {
             List<SlopeProfileSample> raySamples = new ArrayList<>(rayEntry.getValue());
             raySamples.sort(Comparator.comparingInt(SlopeProfileSample::horizontalOffset));
 
-            boolean rayIncomplete = raySamples.stream().anyMatch(SlopeProfileSample::incomplete);
-            if (rayIncomplete) {
+            SlopeConstructionOutcome rayOutcome = raySamples.stream()
+                .map(SlopeProfileSample::outcome)
+                .reduce(SlopeConstructionOutcome.COMPLETE, SlopeConstructionOutcome::merge);
+
+            if (rayOutcome == SlopeConstructionOutcome.UNRESOLVED) {
                 plan.noteUnresolvedSlopeConstruction();
                 for (SlopeProfileSample sample : raySamples) {
-                    touchedByIncompleteRay.add(sample.columnKey());
+                    touchedByUnresolvedRay.add(sample.columnKey());
                 }
                 continue;
+            }
+
+            if (rayOutcome == SlopeConstructionOutcome.NEEDS_RETAINING_WALL) {
+                plan.noteNeedsRetainingWall();
             }
 
             List<RayStep> steps = new ArrayList<>(raySamples.size());
@@ -52,7 +59,8 @@ public final class SlopeSurfaceConsolidator {
                     sample.slopeSurfaceY(),
                     sample.fill(),
                     sample.materialId(),
-                    sample.horizontalOffset()));
+                    sample.horizontalOffset(),
+                    sample.slopeRatio()));
             }
             enforceMonotonicRay(steps);
 
@@ -82,7 +90,7 @@ public final class SlopeSurfaceConsolidator {
             written.add(key);
         }
 
-        for (ColumnKey key : touchedByIncompleteRay) {
+        for (ColumnKey key : touchedByUnresolvedRay) {
             if (!written.contains(key)) {
                 plan.markSlopeColumnIncomplete(key);
             }
@@ -97,10 +105,6 @@ public final class SlopeSurfaceConsolidator {
         return grouped;
     }
 
-    /**
-     * Prefer the candidate closest to its shoulder (smallest horizontal offset).
-     * Resolve fill/cut conflicts using natural ground at the column.
-     */
     private static ColumnResolution resolveColumnWinner(
             ColumnKey key,
             List<ColumnCandidate> candidates,
@@ -165,27 +169,56 @@ public final class SlopeSurfaceConsolidator {
         return planPoint != null ? (int) Math.round(planPoint.y) : 64;
     }
 
+    /**
+     * Snap each step toward the angle-aware target height derived from cumulative horizontal offset.
+     */
     private static void enforceMonotonicRay(List<RayStep> raySteps) {
-        if (raySteps.size() < 2) {
+        if (raySteps.isEmpty()) {
             return;
         }
-        RayStep previous = raySteps.getFirst();
-        for (int i = 1; i < raySteps.size(); i++) {
+        RayStep anchor = raySteps.getFirst();
+        int startY = shoulderEdgeY(anchor);
+        boolean fill = anchor.fill();
+        float ratio = Math.max(0.5f, anchor.slopeRatio());
+        int direction = fill ? -1 : 1;
+        int prevY = startY;
+
+        for (int i = 0; i < raySteps.size(); i++) {
             RayStep current = raySteps.get(i);
-            if (previous.fill() != current.fill()) {
-                previous = current;
-                continue;
+            if (current.fill() != fill) {
+                anchor = current;
+                startY = shoulderEdgeY(current);
+                fill = current.fill();
+                ratio = Math.max(0.5f, current.slopeRatio());
+                direction = fill ? -1 : 1;
+                prevY = startY;
             }
-            int delta = current.slopeSurfaceY() - previous.slopeSurfaceY();
-            if (Math.abs(delta) <= 1) {
-                previous = current;
-                continue;
+            int expectedY = startY + direction * Math.round(current.horizontalOffset() / ratio);
+            int adjustedY = current.slopeSurfaceY();
+            if (Math.abs(adjustedY - expectedY) > 1) {
+                adjustedY = expectedY;
             }
-            int adjustedY = previous.slopeSurfaceY() + (delta > 0 ? 1 : -1);
-            RayStep adjusted = current.withSlopeSurfaceY(adjustedY);
-            raySteps.set(i, adjusted);
-            previous = adjusted;
+            if (i > 0) {
+                if (fill) {
+                    adjustedY = Math.min(adjustedY, prevY);
+                    adjustedY = Math.max(adjustedY, prevY - 1);
+                } else {
+                    adjustedY = Math.max(adjustedY, prevY);
+                    adjustedY = Math.min(adjustedY, prevY + 1);
+                }
+            }
+            if (adjustedY != current.slopeSurfaceY()) {
+                raySteps.set(i, current.withSlopeSurfaceY(adjustedY));
+            }
+            prevY = adjustedY;
         }
+    }
+
+    /** Shoulder-edge height at horizontal offset zero, backtracked from the first outward step. */
+    private static int shoulderEdgeY(RayStep step) {
+        int direction = step.fill() ? -1 : 1;
+        float ratio = Math.max(0.5f, step.slopeRatio());
+        return step.slopeSurfaceY() - direction * Math.round(step.horizontalOffset() / ratio);
     }
 
     private record ColumnCandidate(RayStep step, SlopeRayId rayId) {
@@ -197,10 +230,11 @@ public final class SlopeSurfaceConsolidator {
             int slopeSurfaceY,
             boolean fill,
             String materialId,
-            int horizontalOffset) {
+            int horizontalOffset,
+            float slopeRatio) {
 
         RayStep withSlopeSurfaceY(int y) {
-            return new RayStep(columnKey, planPoint, y, fill, materialId, horizontalOffset);
+            return new RayStep(columnKey, planPoint, y, fill, materialId, horizontalOffset, slopeRatio);
         }
     }
 

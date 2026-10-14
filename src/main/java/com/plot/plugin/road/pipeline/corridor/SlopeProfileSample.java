@@ -11,7 +11,8 @@ public record SlopeProfileSample(
         String materialId,
         SlopeRayId rayId,
         int horizontalOffset,
-        boolean incomplete) {
+        float slopeRatio,
+        SlopeConstructionOutcome outcome) {
 
     public SlopeProfileSample(
             ColumnKey columnKey,
@@ -20,7 +21,30 @@ public record SlopeProfileSample(
             boolean fill,
             String materialId,
             SlopeRayId rayId,
-            int horizontalOffset) {
-        this(columnKey, planPoint, slopeSurfaceY, fill, materialId, rayId, horizontalOffset, false);
+            int horizontalOffset,
+            float slopeRatio,
+            SlopeConstructionOutcome outcome) {
+        this.columnKey = columnKey;
+        this.planPoint = planPoint;
+        this.slopeSurfaceY = slopeSurfaceY;
+        this.fill = fill;
+        this.materialId = materialId;
+        this.rayId = rayId;
+        this.horizontalOffset = horizontalOffset;
+        this.slopeRatio = slopeRatio;
+        this.outcome = outcome != null ? outcome : SlopeConstructionOutcome.COMPLETE;
+    }
+
+    public SlopeProfileSample(
+            ColumnKey columnKey,
+            Vec2d planPoint,
+            int slopeSurfaceY,
+            boolean fill,
+            String materialId,
+            SlopeRayId rayId,
+            int horizontalOffset,
+            float slopeRatio) {
+        this(columnKey, planPoint, slopeSurfaceY, fill, materialId, rayId, horizontalOffset,
+            slopeRatio, SlopeConstructionOutcome.COMPLETE);
     }
 }

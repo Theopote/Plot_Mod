@@ -30,9 +30,11 @@ public final class RoadGenerationIntegrityValidator {
             int slopeBatterWidthCapCount,
             int brokenSlopeSurfaceCount,
             int unresolvedSlopeConstructionCount,
+            int needsRetainingWallCount,
+            int roadShoulderSeamGapCount,
             int shoulderTraceGapCount,
             int structureInteriorSlopeCellCount) {
-        public static final IntegrityReport ZERO = new IntegrityReport(0, 0, 0, 0, 0, 0, 0, 0);
+        public static final IntegrityReport ZERO = new IntegrityReport(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
         public boolean isClean() {
             return missingRoadSurfaceCount == 0
@@ -63,7 +65,9 @@ public final class RoadGenerationIntegrityValidator {
         int lateralGaps = countSlopeLateralGaps(plan);
         int traceGaps = SlopeShoulderTerrainTraceValidator.countShoulderToTerrainGaps(plan, terrain);
         int structureInteriorSlopes = countStructureInteriorSlopeCells(plan);
+        int seamGaps = countRoadShoulderSeamGaps(plan);
         plan.setBrokenSlopeSurfaceCount(brokenSlopes + lateralGaps);
+        plan.setRoadShoulderSeamGapCount(seamGaps);
         return new IntegrityReport(
             missingSurface,
             uncleared,
@@ -71,6 +75,8 @@ public final class RoadGenerationIntegrityValidator {
             plan.slopeBatterWidthCapCount(),
             brokenSlopes + lateralGaps,
             plan.unresolvedSlopeConstructionCount(),
+            plan.needsRetainingWallCount(),
+            seamGaps,
             traceGaps,
             structureInteriorSlopes);
     }
@@ -90,7 +96,9 @@ public final class RoadGenerationIntegrityValidator {
         int lateralGaps = countSlopeLateralGaps(plan);
         int traceGaps = SlopeShoulderTerrainTraceValidator.countShoulderToTerrainGaps(plan, terrain);
         int structureInteriorSlopes = countStructureInteriorSlopeCells(plan);
+        int seamGaps = countRoadShoulderSeamGaps(plan);
         plan.setBrokenSlopeSurfaceCount(brokenSlopes + lateralGaps);
+        plan.setRoadShoulderSeamGapCount(seamGaps);
         return new IntegrityReport(
             missingSurface,
             uncleared,
@@ -98,6 +106,8 @@ public final class RoadGenerationIntegrityValidator {
             plan.slopeBatterWidthCapCount(),
             brokenSlopes + lateralGaps,
             plan.unresolvedSlopeConstructionCount(),
+            plan.needsRetainingWallCount(),
+            seamGaps,
             traceGaps,
             structureInteriorSlopes);
     }
@@ -133,8 +143,72 @@ public final class RoadGenerationIntegrityValidator {
         result.slopeBatterWidthCapCount = report.slopeBatterWidthCapCount();
         result.brokenSlopeSurfaceCount = report.brokenSlopeSurfaceCount();
         result.unresolvedSlopeConstructionCount = report.unresolvedSlopeConstructionCount();
+        result.needsRetainingWallCount = report.needsRetainingWallCount();
+        result.roadShoulderSeamGapCount = report.roadShoulderSeamGapCount();
         result.shoulderTraceGapCount = report.shoulderTraceGapCount();
         result.structureInteriorSlopeCellCount = report.structureInteriorSlopeCellCount();
+    }
+
+    /**
+     * Detects holes in the lateral road surface band where a ROAD column lacks an adjacent
+     * surface cell despite facing another covered column across the gap.
+     */
+    static int countRoadShoulderSeamGaps(RoadCorridorPlan plan) {
+        int gaps = 0;
+        for (var entry : plan.surfaceMask().entries()) {
+            SurfaceCell cell = entry.getValue();
+            if (cell.layer() != RoadSolidLayer.ROAD) {
+                continue;
+            }
+            ColumnKey key = entry.getKey();
+            for (int[] offset : NEIGHBOR_OFFSETS) {
+                ColumnKey neighborKey = new ColumnKey(key.worldX() + offset[0], key.worldZ() + offset[1]);
+                if (plan.surfaceMask().get(neighborKey) != null) {
+                    continue;
+                }
+                ColumnKey oppositeKey = new ColumnKey(key.worldX() - offset[0], key.worldZ() - offset[1]);
+                SurfaceCell opposite = plan.surfaceMask().get(oppositeKey);
+                if (opposite == null || !plan.surfaceMask().isRoadSurfaceLayer(opposite.layer())) {
+                    continue;
+                }
+                if (!isLateralBandHole(plan, neighborKey, offset)) {
+                    continue;
+                }
+                if (!touchesShoulderBand(plan, neighborKey)) {
+                    continue;
+                }
+                gaps++;
+            }
+        }
+        return gaps;
+    }
+
+    /**
+     * True when the empty cell sits in a lateral band (both along-road neighbors covered),
+     * as opposed to an open end of the corridor trace.
+     */
+    private static boolean isLateralBandHole(RoadCorridorPlan plan, ColumnKey emptyKey, int[] gapOffset) {
+        int alongDx = gapOffset[1];
+        int alongDz = gapOffset[0];
+        ColumnKey before = new ColumnKey(emptyKey.worldX() - alongDx, emptyKey.worldZ() - alongDz);
+        ColumnKey after = new ColumnKey(emptyKey.worldX() + alongDx, emptyKey.worldZ() + alongDz);
+        return hasRoadBandSurface(plan, before) && hasRoadBandSurface(plan, after);
+    }
+
+    private static boolean hasRoadBandSurface(RoadCorridorPlan plan, ColumnKey key) {
+        SurfaceCell cell = plan.surfaceMask().get(key);
+        return cell != null && plan.surfaceMask().isRoadSurfaceLayer(cell.layer());
+    }
+
+    private static boolean touchesShoulderBand(RoadCorridorPlan plan, ColumnKey emptyKey) {
+        for (int[] offset : NEIGHBOR_OFFSETS) {
+            ColumnKey neighbor = new ColumnKey(emptyKey.worldX() + offset[0], emptyKey.worldZ() + offset[1]);
+            SurfaceCell cell = plan.surfaceMask().get(neighbor);
+            if (cell != null && cell.layer() == RoadSolidLayer.SHOULDER) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static int countStructureInteriorSlopeCells(RoadCorridorPlan plan) {

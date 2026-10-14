@@ -50,19 +50,28 @@ class RoadSlopeCurvedContinuityE2ETest {
         RoadNetwork network = straightRoad("deep-wall", 64, 64);
         RoadGenerationResult edge = preview(network, slopeEnabledConfig(), new FlatTerrainSampler(120));
 
-        assertTrue(edge.unresolvedSlopeConstructionCount > 0);
-        int tallShoulderWalls = 0;
+        assertTrue(edge.needsRetainingWallCount > 0);
+        assertEquals(0, edge.unresolvedSlopeConstructionCount);
+        Map<Long, Integer> stackedByColumn = new java.util.HashMap<>();
         for (Map.Entry<BlockPos, RoadSolidLayer> entry : edge.placementLayers.entrySet()) {
             BlockPos pos = entry.getKey();
             if (entry.getValue() != RoadSolidLayer.SHOULDER && entry.getValue() != RoadSolidLayer.SUBGRADE) {
                 continue;
             }
-            if (pos.getY() > 70 && pos.getY() < 115) {
-                tallShoulderWalls++;
+            if (pos.getY() <= 70 || pos.getY() >= 115) {
+                continue;
+            }
+            long columnKey = ((long) pos.getX() << 32) ^ (pos.getZ() & 0xffffffffL);
+            stackedByColumn.merge(columnKey, 1, Integer::sum);
+        }
+        int verticalFillColumns = 0;
+        for (int stackHeight : stackedByColumn.values()) {
+            if (stackHeight > 2) {
+                verticalFillColumns++;
             }
         }
-        assertTrue(tallShoulderWalls <= 8,
-            "width-capped deep cut must not emit long vertical fill walls, count=" + tallShoulderWalls);
+        assertTrue(verticalFillColumns <= 8,
+            "width-capped deep cut must not emit long vertical fill walls, columns=" + verticalFillColumns);
     }
 
     private static RoadSystemConfig slopeEnabledConfig() {
