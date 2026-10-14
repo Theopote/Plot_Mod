@@ -80,16 +80,18 @@ public final class RoadCorridorPlanBuilder {
         }
         RoadSystemConfig config = host.config();
         int tunnelThreshold = host.tunnelThreshold();
+        List<SlopeProfileSample> slopeSamples = new ArrayList<>();
         for (int i = 0; i < stations.size(); i++) {
             StationSample sample = stations.get(i);
             ResolvedCrossSection crossSection = crossSections.resolve(sample.chainage());
             rasterizeStation(plan, sample, crossSection, terrain, unitsPerBlock,
-                carriagewaySeedKey, host, config, tunnelThreshold);
+                carriagewaySeedKey, host, config, tunnelThreshold, slopeSamples);
             if (i > 0) {
                 rasterizeSpan(plan, stations.get(i - 1), sample, crossSection, terrain,
-                    unitsPerBlock, carriagewaySeedKey, host, config, tunnelThreshold);
+                    unitsPerBlock, carriagewaySeedKey, host, config, tunnelThreshold, slopeSamples);
             }
         }
+        SlopeSurfaceConsolidator.apply(plan, slopeSamples, terrain);
         return plan;
     }
 
@@ -131,13 +133,14 @@ public final class RoadCorridorPlanBuilder {
             String seedKey,
             PlanHost host,
             RoadSystemConfig config,
-            int tunnelThreshold) {
+            int tunnelThreshold,
+            List<SlopeProfileSample> slopeSamples) {
         rasterizeSurfaceBands(plan, sample.center(), sample.center(), sample.leftNormal(),
             sample.targetY(), sample.targetY(), crossSection, terrain, unitsPerBlock,
             seedKey, host, sample.constructionType(), config, tunnelThreshold);
         if (crossSection.includeSlopeBatter
                 && RoadEarthworkPolicy.of(sample.constructionType()).allowsCorridorBatter()) {
-            mergeSlopeWedge(plan, sample, crossSection, terrain, unitsPerBlock, host);
+            slopeSamples.addAll(mergeSlopeWedge(plan, sample, crossSection, terrain, unitsPerBlock, host));
         }
     }
 
@@ -151,7 +154,8 @@ public final class RoadCorridorPlanBuilder {
             String seedKey,
             PlanHost host,
             RoadSystemConfig config,
-            int tunnelThreshold) {
+            int tunnelThreshold,
+            List<SlopeProfileSample> slopeSamples) {
         ResolvedCrossSection toSection = crossSection;
         RoadConstructionType fromType = from.constructionType();
         RoadConstructionType toType = to.constructionType();
@@ -175,7 +179,7 @@ public final class RoadCorridorPlanBuilder {
         if (toSection.includeSlopeBatter
                 && (RoadEarthworkPolicy.of(fromType).allowsCorridorBatter()
                     || RoadEarthworkPolicy.of(toType).allowsCorridorBatter())) {
-            mergeSlopeSpan(plan, from, to, toSection, terrain, unitsPerBlock, host);
+            slopeSamples.addAll(mergeSlopeSpan(plan, from, to, toSection, terrain, unitsPerBlock, host));
         }
     }
 
@@ -245,6 +249,10 @@ public final class RoadCorridorPlanBuilder {
             return;
         }
         int envelopeWidth = RoadCorridorWidth.decorationClearWidthBlocks(crossSection, config);
+        if (constructionType == RoadConstructionType.TUNNEL_PORTAL
+                || constructionType == RoadConstructionType.BRIDGE_ABUTMENT) {
+            envelopeWidth = Math.min(envelopeWidth, RoadCorridorWidth.PORTAL_TRANSITION_CLEAR_BAND_BLOCKS);
+        }
         if (envelopeWidth <= 0) {
             return;
         }
@@ -493,18 +501,18 @@ public final class RoadCorridorPlanBuilder {
         plan.putClearance(key, new ClearanceCell(planPoint, surfaceY, clearTopY, mode, constructionType));
     }
 
-    private static void mergeSlopeWedge(
+    private static List<SlopeProfileSample> mergeSlopeWedge(
             RoadCorridorPlan plan,
             StationSample sample,
             ResolvedCrossSection crossSection,
             TerrainSampler terrain,
             double unitsPerBlock,
             PlanHost host) {
-        mergeSlopeAtCenter(plan, sample.center(), sample.leftNormal(), sample.targetY(),
+        return mergeSlopeAtCenter(plan, sample.center(), sample.leftNormal(), sample.targetY(),
             crossSection, terrain, unitsPerBlock, host);
     }
 
-    private static void mergeSlopeSpan(
+    private static List<SlopeProfileSample> mergeSlopeSpan(
             RoadCorridorPlan plan,
             StationSample from,
             StationSample to,
@@ -512,6 +520,7 @@ public final class RoadCorridorPlanBuilder {
             TerrainSampler terrain,
             double unitsPerBlock,
             PlanHost host) {
+        List<SlopeProfileSample> samples = new ArrayList<>();
         List<Vec2d> span = RoadVoxelRasterizer.sampleSpanPoints(from.center(), to.center());
         int last = span.size() - 1;
         for (int i = 0; i <= last; i++) {
@@ -527,8 +536,10 @@ public final class RoadCorridorPlanBuilder {
             if (!RoadEarthworkPolicy.of(stepType).allowsCorridorBatter()) {
                 continue;
             }
-            mergeSlopeAtCenter(plan, center, leftNormal, targetY, crossSection, terrain, unitsPerBlock, host);
+            samples.addAll(mergeSlopeAtCenter(plan, center, leftNormal, targetY,
+                crossSection, terrain, unitsPerBlock, host));
         }
+        return samples;
     }
 
     private static RoadConstructionType resolveStepConstructionType(
@@ -543,7 +554,7 @@ public final class RoadCorridorPlanBuilder {
         return t <= 0.5 ? fromType : toType;
     }
 
-    private static void mergeSlopeAtCenter(
+    private static List<SlopeProfileSample> mergeSlopeAtCenter(
             RoadCorridorPlan plan,
             Vec2d center,
             Vec2d leftNormal,
@@ -567,15 +578,17 @@ public final class RoadCorridorPlanBuilder {
 
         Vec2d left = center.add(normal.multiply(shoulderCenterOffset));
         Vec2d right = center.subtract(normal.multiply(shoulderCenterOffset));
-        mergeSlopeAtShoulder(plan, left, targetY, outerOffset, terrain,
+        List<SlopeProfileSample> samples = new ArrayList<>();
+        samples.addAll(mergeSlopeAtShoulder(plan, left, targetY, outerOffset, terrain,
             fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
-            normal, scale, host);
-        mergeSlopeAtShoulder(plan, right, targetY, outerOffset, terrain,
+            normal, scale, host));
+        samples.addAll(mergeSlopeAtShoulder(plan, right, targetY, outerOffset, terrain,
             fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
-            normal.multiply(-1), scale, host);
+            normal.multiply(-1), scale, host));
+        return samples;
     }
 
-    private static void mergeSlopeAtShoulder(
+    private static List<SlopeProfileSample> mergeSlopeAtShoulder(
             RoadCorridorPlan plan,
             Vec2d shoulderCenter,
             int targetY,
@@ -589,22 +602,24 @@ public final class RoadCorridorPlanBuilder {
             Vec2d outwardNormal,
             double unitsPerBlock,
             PlanHost host) {
+        List<SlopeProfileSample> samples = new ArrayList<>();
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         Vec2d normal = normalize(outwardNormal);
         Vec2d outerEdge = shoulderCenter.add(normal.multiply(outerOffset));
         if (!terrain.isChunkLoaded(outerEdge)) {
-            return;
+            return samples;
         }
         int groundAtEdge = terrain.sampleSurfaceY(outerEdge);
         if (targetY == groundAtEdge) {
-            return;
+            return samples;
         }
         boolean isFill = targetY > groundAtEdge;
         int profileDirection = isFill ? -1 : 1;
         float slopeRatio = isFill ? fillRatio : cutRatio;
         int heightDifference = Math.abs(targetY - groundAtEdge);
         int unconstrainedRun = (int) Math.ceil(heightDifference * Math.max(0.5f, slopeRatio)) + 2;
-        if (unconstrainedRun > maxHorizontalRun) {
+        boolean widthCapped = unconstrainedRun > maxHorizontalRun;
+        if (widthCapped) {
             plan.noteSlopeBatterWidthCap();
         }
         int usefulHorizontalRun = Math.clamp(unconstrainedRun, 2, maxHorizontalRun);
@@ -622,27 +637,32 @@ public final class RoadCorridorPlanBuilder {
             slopeRatio,
             usefulHorizontalRun);
 
+        boolean meetsTerrain = slopeProfileMeetsTerrain(profile, isFill, outerEdge, normal, scale, terrain);
+        if (!meetsTerrain) {
+            plan.noteUnresolvedSlopeConstruction();
+        }
+        boolean incomplete = widthCapped && !meetsTerrain;
+        String rayId = SlopeSurfaceConsolidator.rayId(outerEdge, normal);
+        String materialId = isFill ? fillBlockId : cutBlockId;
+
         for (int step = 1; step < profile.size(); step++) {
             int[] point = profile.get(step);
             int horizontalOffset = point[0];
             int slopeHeight = point[1];
-            Vec2d sample = outerEdge.add(normal.multiply(horizontalOffset * scale));
-            if (!terrain.isChunkLoaded(sample)) {
+            Vec2d samplePoint = outerEdge.add(normal.multiply(horizontalOffset * scale));
+            if (!terrain.isChunkLoaded(samplePoint)) {
                 continue;
             }
-            int worldX = host.worldX(sample);
-            int worldZ = host.worldZ(sample);
-            ColumnKey key = new ColumnKey(worldX, worldZ);
-            SlopeColumnCell cell = plan.slopeCellOrCreate(key, sample);
-            if (isFill) {
-                cell.mergeFill(slopeHeight, fillBlockId);
+            ColumnKey key = new ColumnKey(host.worldX(samplePoint), host.worldZ(samplePoint));
+            if (incomplete) {
+                samples.add(new SlopeProfileSample(
+                    key, samplePoint, slopeHeight, isFill, materialId, rayId, horizontalOffset, true));
             } else {
-                cell.mergeCut(slopeHeight, cutBlockId);
+                samples.add(new SlopeProfileSample(
+                    key, samplePoint, slopeHeight, isFill, materialId, rayId, horizontalOffset));
             }
         }
-        if (!slopeProfileMeetsTerrain(profile, isFill, outerEdge, normal, scale, terrain)) {
-            plan.noteUnresolvedSlopeConstruction();
-        }
+        return samples;
     }
 
     private static boolean slopeProfileMeetsTerrain(

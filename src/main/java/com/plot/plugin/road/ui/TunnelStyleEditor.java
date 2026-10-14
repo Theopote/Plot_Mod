@@ -30,6 +30,11 @@ public final class TunnelStyleEditor {
             style.setShape(TunnelShape.values()[shapeIndex.get()]);
             onChanged.run();
         }
+        TunnelCrossSectionPreviewRenderer.render(
+            style.getShape(),
+            style.getClearHeight(),
+            style.getSideClearance(),
+            style.getLiningThickness());
         int[] clearHeight = {style.getClearHeight()};
         if (ImGui.sliderInt(PlotI18n.tr("plugin.road.tunnel.clear_height"), clearHeight,
                 TunnelStyle.MIN_CLEAR_HEIGHT, TunnelStyle.MAX_CLEAR_HEIGHT)) {

@@ -70,9 +70,13 @@ public final class RoadConstructionEvaluator {
         }
 
         RoadConstructionType[] result = new RoadConstructionType[size];
+        boolean[] hardThreshold = new boolean[size];
         for (int i = 0; i < size; i++) {
             int heightDifference = targetHeights.get(i) - groundHeights.get(i);
             result[i] = classifyImmediate(heightDifference, scoreConfig);
+            if (result[i] == RoadConstructionType.BRIDGE || result[i] == RoadConstructionType.TUNNEL) {
+                hardThreshold[i] = true;
+            }
         }
 
         int index = 0;
@@ -103,15 +107,16 @@ public final class RoadConstructionEvaluator {
             }
         }
 
-        normalizeShortStructureRuns(result, segmentDistances, minimumRunLength);
+        normalizeShortStructureRuns(result, segmentDistances, minimumRunLength, hardThreshold);
         return List.of(result);
     }
 
-    /** Applies minimum length to every bridge/tunnel run, including hard-threshold decisions. */
+    /** Soft-scored short bridge/tunnel runs may fold back to earthwork; hard thresholds stay structural. */
     private static void normalizeShortStructureRuns(
             RoadConstructionType[] types,
             List<Double> distances,
-            double minimumRunLength) {
+            double minimumRunLength,
+            boolean[] hardThreshold) {
         if (minimumRunLength <= 0.0) {
             return;
         }
@@ -125,14 +130,23 @@ public final class RoadConstructionEvaluator {
                 end++;
             }
             if (length + 1e-9 < minimumRunLength) {
-                RoadConstructionType replacement = switch (type) {
-                    case BRIDGE -> RoadConstructionType.FILL;
-                    case TUNNEL -> RoadConstructionType.CUT;
-                    default -> null;
-                };
-                if (replacement != null) {
-                    for (int i = index; i < end; i++) {
-                        types[i] = replacement;
+                boolean anyHard = false;
+                for (int i = index; i < end; i++) {
+                    if (hardThreshold != null && hardThreshold[i]) {
+                        anyHard = true;
+                        break;
+                    }
+                }
+                if (!anyHard) {
+                    RoadConstructionType replacement = switch (type) {
+                        case BRIDGE -> RoadConstructionType.FILL;
+                        case TUNNEL -> RoadConstructionType.CUT;
+                        default -> null;
+                    };
+                    if (replacement != null) {
+                        for (int i = index; i < end; i++) {
+                            types[i] = replacement;
+                        }
                     }
                 }
             }

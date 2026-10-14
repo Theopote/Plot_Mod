@@ -74,6 +74,13 @@ public final class RoadCorridorSolidEmitter {
         int groundY = terrain.sampleSurfaceY(planPoint);
         Integer surfaceY = surface != null ? surface.surfaceY() : null;
         RoadConstructionType constructionType = clearance != null ? clearance.constructionType() : null;
+        boolean bridgeClearance = clearance != null && clearance.mode() == RoadCorridorConstructionMode.BRIDGE;
+        if (plan.isSlopeColumnIncomplete(key)) {
+            if (surface != null) {
+                solids.add(planPoint, surface.surfaceY(), surface.layer(), surface.materialId());
+            }
+            return;
+        }
 
         if (slope != null && slope.hasFill()
                 && (constructionType == null
@@ -87,7 +94,7 @@ public final class RoadCorridorSolidEmitter {
                     solids.add(planPoint, y, RoadSolidLayer.SHOULDER, fillId);
                 }
             }
-        } else if (surfaceY != null && groundY < surfaceY - 1 && shouldFillSubgrade(
+        } else if (!bridgeClearance && surfaceY != null && groundY < surfaceY - 1 && shouldFillSubgrade(
                 constructionType, surfaceY, groundY, bridgeThreshold)) {
             for (int y = groundY + 1; y < surfaceY; y++) {
                 solids.add(planPoint, y, RoadSolidLayer.SUBGRADE, defaultFillMaterialId);

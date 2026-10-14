@@ -69,7 +69,7 @@ public class RoadSystemConfig {
     private double pathLength = 0.0; // 当前路径长度（米）
     private double pathSampleDistance = 1.0; // 路径采样密度（米/点），用于控制路径细分精度
 
-    private float fillSlopeRatio = 1.5f;
+    private float fillSlopeRatio = 1.0f;
     private float cutSlopeRatio = 1.0f;
     private String fillSlopeMaterial = DEFAULT_FILL_SLOPE_MATERIAL;
     private String cutSlopeMaterial = "";

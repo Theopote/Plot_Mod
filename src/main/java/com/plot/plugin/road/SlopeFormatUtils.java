@@ -6,6 +6,9 @@ package com.plot.plugin.road;
 public final class SlopeFormatUtils {
     public static final float MIN_BATTER_RATIO = 0.5f;
     public static final float MAX_BATTER_RATIO = 5.0f;
+    public static final float MIN_BATTER_ANGLE_DEGREES = 20.0f;
+    public static final float MAX_BATTER_ANGLE_DEGREES = 70.0f;
+    public static final float DEFAULT_BATTER_ANGLE_DEGREES = 45.0f;
     public static final float MIN_GRADE_PERCENT = 0.0f;
     public static final float MAX_GRADE_PERCENT = 45.0f;
 
@@ -43,6 +46,27 @@ public final class SlopeFormatUtils {
 
     public static float clampBatterRatio(float ratio) {
         return Math.max(MIN_BATTER_RATIO, Math.min(MAX_BATTER_RATIO, ratio));
+    }
+
+    /** Horizontal run per 1 vertical block: ratio = 1 / tan(angle). */
+    public static float angleDegreesToBatterRatio(float angleDegrees) {
+        float clamped = Math.max(MIN_BATTER_ANGLE_DEGREES, Math.min(MAX_BATTER_ANGLE_DEGREES, angleDegrees));
+        return clampBatterRatio(1.0f / (float) Math.tan(Math.toRadians(clamped)));
+    }
+
+    public static float batterRatioToAngleDegrees(float ratio) {
+        if (ratio <= 0.0f) {
+            return DEFAULT_BATTER_ANGLE_DEGREES;
+        }
+        return (float) Math.toDegrees(Math.atan(1.0 / ratio));
+    }
+
+    public static String formatBatterAngle(float angleDegrees) {
+        return String.format("%.0f°", angleDegrees);
+    }
+
+    public static String formatHorizontalRunPerBlock(float ratio) {
+        return String.format("%.2f", ratio);
     }
 
     public static String formatPercent(float percent) {

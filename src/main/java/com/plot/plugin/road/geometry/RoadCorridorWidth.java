@@ -12,6 +12,8 @@ import com.plot.plugin.road.model.section.ResolvedCrossSection;
 public final class RoadCorridorWidth {
     /** 边坡水平外扩与走廊裕量上限（格）。 */
     public static final int MAX_SLOPE_BATTER_RUN_BLOCKS = 32;
+    /** 洞门/桥台过渡段 OPEN 清障最大半宽（格）。 */
+    public static final int PORTAL_TRANSITION_CLEAR_BAND_BLOCKS = 8;
 
     private RoadCorridorWidth() {
     }

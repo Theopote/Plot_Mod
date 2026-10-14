@@ -122,14 +122,14 @@ class RoadConstructionEvaluatorTest {
     }
 
     @Test
-    void shortHardThresholdBridgeAndTunnelRunsAreAlsoAbsorbed() {
+    void shortHardThresholdBridgeAndTunnelRunsStayStructural() {
         List<RoadConstructionType> bridge = RoadConstructionEvaluator.evaluatePath(
             List.of(1.0), List.of(60), List.of(70), DEFAULT_CONFIG, 3.0);
         List<RoadConstructionType> tunnel = RoadConstructionEvaluator.evaluatePath(
             List.of(1.0), List.of(80), List.of(64), DEFAULT_CONFIG, 3.0);
 
-        assertEquals(RoadConstructionType.FILL, bridge.getFirst());
-        assertEquals(RoadConstructionType.CUT, tunnel.getFirst());
+        assertEquals(RoadConstructionType.BRIDGE, bridge.getFirst());
+        assertEquals(RoadConstructionType.TUNNEL, tunnel.getFirst());
     }
 
     @Test

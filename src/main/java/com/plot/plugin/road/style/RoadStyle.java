@@ -27,7 +27,7 @@ public class RoadStyle {
     public boolean includeMedian;
     public int medianWidth;
     public Boolean includeSlopeBatter;
-    public float fillSlopeRatio = 1.5f;
+    public float fillSlopeRatio = 1.0f;
     public float cutSlopeRatio = 1.0f;
     public String roadMaterial;
     public String sidewalkMaterial;
