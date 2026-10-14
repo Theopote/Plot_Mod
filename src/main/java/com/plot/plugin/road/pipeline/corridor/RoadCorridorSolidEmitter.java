@@ -104,7 +104,7 @@ public final class RoadCorridorSolidEmitter {
             if (shouldFillSubgrade(constructionType, fillTop, groundY, bridgeThreshold)) {
                 String fillId = slope.fillMaterialId() != null ? slope.fillMaterialId() : defaultFillMaterialId;
                 for (int y = groundY + 1; y <= fillTop; y++) {
-                    solids.add(planPoint, y, RoadSolidLayer.SHOULDER, fillId);
+                    solids.add(planPoint, y, RoadSolidLayer.SUBGRADE, fillId);
                 }
             }
         } else if (!bridgeClearance && surfaceY != null && groundY < surfaceY - 1 && shouldFillSubgrade(
@@ -132,8 +132,13 @@ public final class RoadCorridorSolidEmitter {
                     metrics.cutVolume++;
                 }
             }
-            if (slope.cutMaterialId() != null && !slope.cutMaterialId().isBlank()) {
-                solids.add(planPoint, slope.cutSurfaceY(), RoadSolidLayer.SHOULDER, slope.cutMaterialId());
+            if (surface == null || slope.cutSurfaceY() < surface.surfaceY()) {
+                String batterId = slope.cutMaterialId() != null && !slope.cutMaterialId().isBlank()
+                    ? slope.cutMaterialId()
+                    : defaultFillMaterialId;
+                if (batterId != null && !batterId.isBlank()) {
+                    solids.add(planPoint, slope.cutSurfaceY(), RoadSolidLayer.SUBGRADE, batterId);
+                }
             }
         }
 

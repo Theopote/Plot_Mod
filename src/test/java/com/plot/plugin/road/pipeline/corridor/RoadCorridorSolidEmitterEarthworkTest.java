@@ -61,6 +61,50 @@ class RoadCorridorSolidEmitterEarthworkTest {
             "bridge interior must not emit open shoulder/subgrade fill");
     }
 
+    @Test
+    void cutBatterFaceUsesSubgradeNotShoulderAboveRoadSurface() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        ColumnKey slopeColumn = new ColumnKey(12, 3);
+        SlopeColumnCell slope = plan.slopeCellOrCreate(slopeColumn, new Vec2d(12, 3));
+        slope.mergeCut(65, "minecraft:stone");
+        plan.surfaceMask().put(new ColumnKey(12, 2), new SurfaceCell(
+            new Vec2d(12, 2), 64, RoadSolidLayer.SHOULDER, "minecraft:coarse_dirt"));
+
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadSystemConfig config = CorridorTestFixtures.baseConfig();
+        RoadCorridorSolidEmitter.emit(
+            solids,
+            plan,
+            mountainTerrain(),
+            CorridorTestFixtures.planHost(config),
+            null,
+            "minecraft:gravel");
+
+        for (var primitive : solids.primitives()) {
+            if (primitive.layer() != RoadSolidLayer.SHOULDER) {
+                continue;
+            }
+            if (primitive.elevation() > 64 && primitive.planPoint().x == 12 && primitive.planPoint().y == 3) {
+                org.junit.jupiter.api.Assertions.fail(
+                    "cut batter must not emit shoulder-layer blocks above road surface on slope columns");
+            }
+        }
+    }
+
+    private static TerrainSampler mountainTerrain() {
+        return new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(com.plot.api.geometry.Vec2d p) {
+                return 80;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= 80;
+            }
+        };
+    }
+
     private static TerrainSampler valleyTerrain() {
         return new TerrainSampler() {
             @Override

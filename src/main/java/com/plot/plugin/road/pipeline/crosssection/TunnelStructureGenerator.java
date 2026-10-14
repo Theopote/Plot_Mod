@@ -21,11 +21,14 @@ import com.plot.plugin.road.pipeline.profile.environment.WaterCrossing;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.solid.RoadSolidModel;
+import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.plugin.road.tunnel.TunnelCrossSectionMask;
 import com.plot.plugin.road.tunnel.TunnelLightingMode;
 import com.plot.plugin.road.tunnel.TunnelPortalPlanner;
 import com.plot.plugin.road.tunnel.TunnelProfile;
+import com.plot.plugin.road.tunnel.TunnelShape;
+import com.plot.plugin.road.tunnel.TunnelStyle;
 import com.plot.core.terrain.TerrainSampler;
 
 import java.util.List;
@@ -204,7 +207,62 @@ public final class TunnelStructureGenerator {
                 solids.add(point, y, RoadSolidLayer.TUNNEL, liningMaterialId, RoadSolidMaterialPriority.STRUCTURAL);
             }
         });
+        int lining = portalFrame
+            ? Math.min(TunnelStyle.MAX_LINING_THICKNESS, tunnelStyle.liningThickness() + 1)
+            : tunnelStyle.liningThickness();
+        sealRoofCrown(
+            solids,
+            mask,
+            tunnelStyle.shape(),
+            roadY,
+            tunnelStyle.clearHeight(),
+            roadEnvelopeWidth,
+            tunnelStyle.sideClearance(),
+            lining,
+            center,
+            normal,
+            scale,
+            liningMaterialId);
         return new RoadRoadbedGradingUtils.GradingVolumes(cutHolder[0], 0);
+    }
+
+    /**
+     * Closes the one-block gap between the lining shell roof and natural terrain above.
+     */
+    private static void sealRoofCrown(
+            RoadSolidModel solids,
+            TunnelCrossSectionMask mask,
+            TunnelShape shape,
+            int roadY,
+            int clearHeight,
+            int roadEnvelopeWidth,
+            int sideClearance,
+            int liningThickness,
+            Vec2d center,
+            Vec2d normal,
+            double scale,
+            String liningMaterialId) {
+        int cavityWidth = roadEnvelopeWidth + sideClearance * 2;
+        int outerWidth = cavityWidth + liningThickness * 2;
+        int cavityMin = RoadDimensionUtils.minLateralOffset(cavityWidth);
+        int cavityMax = RoadDimensionUtils.maxLateralOffset(cavityWidth);
+        int outerMin = RoadDimensionUtils.minLateralOffset(outerWidth);
+        int outerMax = RoadDimensionUtils.maxLateralOffset(outerWidth);
+        int halfCavityWidth = cavityWidth / 2;
+        int roofTop = mask.maxY();
+        int crownY = roofTop + 1;
+        for (int lateral = outerMin; lateral <= outerMax; lateral++) {
+            if (mask.kindAt(lateral, roofTop) != TunnelCrossSectionMask.CellKind.LINING) {
+                continue;
+            }
+            boolean cavityColumn = lateral >= cavityMin && lateral <= cavityMax;
+            if (cavityColumn
+                    && TunnelProfile.isCavityAir(shape, lateral, crownY, roadY, halfCavityWidth, clearHeight)) {
+                continue;
+            }
+            Vec2d point = center.add(normal.multiply(lateral * scale));
+            solids.add(point, crownY, RoadSolidLayer.TUNNEL, liningMaterialId, RoadSolidMaterialPriority.STRUCTURAL);
+        }
     }
 
     /**

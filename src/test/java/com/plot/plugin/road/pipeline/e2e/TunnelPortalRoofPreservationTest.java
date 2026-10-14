@@ -58,6 +58,26 @@ class TunnelPortalRoofPreservationTest {
         }
         assertEquals(0, unexpectedAir,
             "blocks above portal roof must not become air, violations=" + unexpectedAir);
+
+        int crownY = roofTop + 1;
+        int missingCrownSeal = 0;
+        for (int x = 0; x <= 6; x++) {
+            for (int z = -4; z <= 4; z++) {
+                if (Math.abs(z) < 3) {
+                    continue;
+                }
+                BlockPos crown = new BlockPos(x, crownY, z);
+                if (!scenario.terrain().isSolidBlock(x, crownY, z)) {
+                    continue;
+                }
+                BlockRecord record = edge.placementRecords.get(crown);
+                if (record == null || "minecraft:air".equals(record.newBlockId)) {
+                    missingCrownSeal++;
+                }
+            }
+        }
+        assertEquals(0, missingCrownSeal,
+            "portal crown must seal lining to mountain, gaps=" + missingCrownSeal);
     }
 
     @Test
