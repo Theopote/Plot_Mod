@@ -2,10 +2,7 @@ package com.plot.plugin.road.pipeline.corridor;
 
 import com.plot.plugin.road.pipeline.construction.RoadEarthworkPolicy;
 
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /** 单次 edge 构建的不可变施工计划（mask + envelope）。 */
 public final class RoadCorridorPlan {
@@ -111,7 +108,7 @@ public final class RoadCorridorPlan {
 
     private static ClearanceCell withMergedLateral(ClearanceCell primary, ClearanceCell secondary) {
         Integer lateral = mergedLateral(primary, secondary);
-        if (lateral == primary.corridorLateral()) {
+        if (Objects.equals(lateral, primary.corridorLateral())) {
             return primary;
         }
         return new ClearanceCell(

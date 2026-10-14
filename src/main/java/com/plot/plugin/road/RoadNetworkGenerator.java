@@ -1,10 +1,10 @@
 package com.plot.plugin.road;
 
 import com.plot.plugin.road.crossing.RoadCrossingMaterializer;
-import com.plot.plugin.road.pipeline.EdgeGenerationOutcome;
 import com.plot.plugin.road.pipeline.EdgeGenerationResult;
 import com.plot.plugin.road.pipeline.RoadEdgeGenerationOrdering;
 import com.plot.plugin.road.pipeline.RoadGenerationResultAssembler;
+import com.plot.plugin.road.pipeline.corridor.TunnelJunctionConnectivityPass;
 import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.profile.RoadProfileSamplingAssembler;
 import com.plot.plugin.road.solid.RoadGenerationResult;
@@ -180,6 +180,7 @@ public class RoadNetworkGenerator {
         while (session.hasMoreEdges()) {
             tickPreviewSessionEdges(session, Integer.MAX_VALUE);
         }
+        applyTunnelJunctionConnectivity(session);
         while (session.hasMoreJunctions()) {
             tickPreviewSessionJunctions(session, Integer.MAX_VALUE);
         }
@@ -391,6 +392,7 @@ public class RoadNetworkGenerator {
     }
 
     private PreviewResult buildPreviewResult(RoadNetworkPreviewSession session) {
+        applyTunnelJunctionConnectivity(session);
         RoadNetwork profileNetwork = session.generationNetwork();
         NetworkGenerationResult networkResult = session.networkResult();
         Map<String, RoadGenerationResult> edgeResults = networkResult.getEdgeResults();
@@ -442,6 +444,19 @@ public class RoadNetworkGenerator {
         public boolean isEmpty() {
             return edgeResults.isEmpty();
         }
+    }
+
+    private void applyTunnelJunctionConnectivity(RoadNetworkPreviewSession session) {
+        if (session == null || !session.isPrepared()) {
+            return;
+        }
+        TunnelJunctionConnectivityPass.apply(
+            session.generationNetwork(),
+            session.networkResult().getEdgeResults(),
+            session.nodeElevations(),
+            roadGenerator.getConfig(),
+            roadGenerator.coordinateTransformer(),
+            roadGenerator::estimateCanvasUnitsPerBlock);
     }
 
     private RoadGenerationResult aggregateNetworkResult(

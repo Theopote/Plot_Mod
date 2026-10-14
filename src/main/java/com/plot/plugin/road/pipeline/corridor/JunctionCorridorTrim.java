@@ -45,11 +45,11 @@ public final class JunctionCorridorTrim {
         double skipEnd = 0.0;
         List<List<Vec2d>> polygons = new ArrayList<>();
 
-        if (startNode != null && shouldTrimAtEndpoint(network, edge, startNode)) {
+        if (shouldTrimAtEndpoint(network, edge, startNode)) {
             skipStart = skipDistanceAtNode(network, startNode, crossSection, config) * scale;
             exclusionPolygon(network, startNode, config).ifPresent(polygons::add);
         }
-        if (endNode != null && shouldTrimAtEndpoint(network, edge, endNode)) {
+        if (shouldTrimAtEndpoint(network, edge, endNode)) {
             skipEnd = skipDistanceAtNode(network, endNode, crossSection, config) * scale;
             exclusionPolygon(network, endNode, config).ifPresent(polygons::add);
         }
@@ -73,9 +73,7 @@ public final class JunctionCorridorTrim {
         if (node.isGradeSeparated()) {
             String elevatedRoadId = node.getElevatedRoadId();
             String edgeRoadId = edge.getRoadId();
-            if (elevatedRoadId != null && edgeRoadId != null && elevatedRoadId.equals(edgeRoadId)) {
-                return false;
-            }
+            return elevatedRoadId == null || !elevatedRoadId.equals(edgeRoadId);
         }
         return true;
     }

@@ -1,6 +1,5 @@
 package com.plot.plugin.road.pipeline.corridor;
 
-import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
