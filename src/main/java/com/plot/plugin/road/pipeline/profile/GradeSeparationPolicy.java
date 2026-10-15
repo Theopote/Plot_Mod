@@ -75,7 +75,17 @@ public final class GradeSeparationPolicy {
             TerrainSampler terrain,
             NaturalRoadHeightAtNode naturalRoadHeight,
             NaturalEdgeHeightAtNode naturalEdgeHeight) {
-        if (node == null || edge == null || network == null || !node.isGradeSeparated()) {
+        if (node == null || edge == null || network == null) {
+            return null;
+        }
+        if (node.isStackGradeSeparated()) {
+            if (!node.isStackUpperEdge(edge.getId())) {
+                return null;
+            }
+            int baseHeight = computeStackCrossingBaseHeight(node, network, terrain, naturalEdgeHeight);
+            return baseHeight + (int) Math.round(resolveStackCrossingClearance(node));
+        }
+        if (!node.isGradeSeparated()) {
             return null;
         }
         String elevatedRoadId = resolveElevatedRoadId(node, network, terrain, naturalRoadHeight);
@@ -119,7 +129,13 @@ public final class GradeSeparationPolicy {
             RoadNetwork network,
             TerrainSampler terrain,
             NaturalRoadHeightAtNode naturalRoadHeight) {
-        if (node == null || edge == null || !node.isGradeSeparated()) {
+        if (node == null || edge == null) {
+            return false;
+        }
+        if (node.isStackGradeSeparated()) {
+            return node.isStackUpperEdge(edge.getId());
+        }
+        if (!node.isGradeSeparated()) {
             return false;
         }
         String elevatedRoadId = resolveElevatedRoadId(node, network, terrain, naturalRoadHeight);
@@ -149,9 +165,38 @@ public final class GradeSeparationPolicy {
         return RoadSlopeUtils.averageJunctionHeight(heights);
     }
 
+    private int computeStackCrossingBaseHeight(
+            RoadNode node,
+            RoadNetwork network,
+            TerrainSampler terrain,
+            NaturalEdgeHeightAtNode naturalEdgeHeight) {
+        if (node.getManualElevation() != null) {
+            return node.getManualElevation().intValue();
+        }
+        List<Integer> heights = new ArrayList<>();
+        for (String edgeId : node.getStackLowerEdgeIds()) {
+            RoadEdge connectedEdge = network.getEdge(edgeId);
+            if (connectedEdge == null) {
+                continue;
+            }
+            heights.add(naturalEdgeHeight.sample(connectedEdge, node, network, terrain));
+        }
+        if (heights.isEmpty()) {
+            return context.groundHeightAtNode(terrain, node, network);
+        }
+        return RoadSlopeUtils.averageJunctionHeight(heights);
+    }
+
     private double resolveCrossingClearance(RoadNode node) {
         if (node.getCrossingClearance() != null) {
             return node.getCrossingClearance();
+        }
+        return context.defaultCrossingClearance();
+    }
+
+    private double resolveStackCrossingClearance(RoadNode node) {
+        if (node.getStackCrossingClearance() != null) {
+            return node.getStackCrossingClearance();
         }
         return context.defaultCrossingClearance();
     }

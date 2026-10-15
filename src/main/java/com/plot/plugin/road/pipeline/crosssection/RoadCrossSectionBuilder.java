@@ -73,7 +73,8 @@ public final class RoadCrossSectionBuilder {
             unitsPerBlock,
             designElevation,
             buildProfile,
-            ctx.request().profileWaterCrossings());
+            ctx.request().profileWaterCrossings(),
+            ctx.request().gradeSeparation());
 
         generateBridgeGuardrails(
             crossSectionHost,
@@ -258,7 +259,8 @@ public final class RoadCrossSectionBuilder {
             double unitsPerBlock,
             DesignElevationSource designElevation,
             BuildHeightProfile buildProfile,
-            List<WaterCrossing> profileWaterCrossings) {
+            List<WaterCrossing> profileWaterCrossings,
+            com.plot.plugin.road.pipeline.corridor.GradeSeparationBuildContext gradeSeparation) {
         if (!host.generateBridgePillars()) {
             return;
         }
@@ -283,7 +285,8 @@ public final class RoadCrossSectionBuilder {
             unitsPerBlock,
             designElevation,
             buildProfile,
-            profileWaterCrossings);
+            profileWaterCrossings,
+            gradeSeparation);
     }
 
     private static void generateBridgeGuardrails(

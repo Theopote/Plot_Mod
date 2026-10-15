@@ -12,7 +12,9 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GradeSeparationPolicyTest {
 
@@ -73,5 +75,44 @@ class GradeSeparationPolicyTest {
 
         assertNull(policy.resolveElevatedRoadId(
             node, null, null, (n, network, terrain, roadId) -> 64));
+    }
+
+    @Test
+    void stackGradeSeparatedUpperArmGetsForcedClearanceHeight() {
+        RoadNetwork network = new RoadNetwork();
+        var road = network.createRoad("loop");
+        RoadNode junction = network.createNode(new Vec2d(5, 5));
+        junction.setManualElevation(64.0);
+        junction.setStackGradeSeparated(true);
+        junction.setStackCrossingClearance(4.0);
+        RoadNode farA = network.createNode(new Vec2d(0, 0));
+        RoadNode farB = network.createNode(new Vec2d(10, 0));
+        RoadEdge lower = network.createEdge(
+            junction.getId(), farA.getId(),
+            List.of(new Vec2d(5, 5), new Vec2d(0, 0)), road.getId());
+        RoadEdge upper = network.createEdge(
+            junction.getId(), farB.getId(),
+            List.of(new Vec2d(5, 5), new Vec2d(10, 0)), road.getId());
+        junction.addStackLowerEdgeId(lower.getId());
+        junction.addStackUpperEdgeId(upper.getId());
+
+        GradeSeparationPolicy policy = new GradeSeparationPolicy(STUB_CONTEXT);
+        TerrainSampler terrain = new FlatTerrainSampler(64);
+
+        assertEquals(
+            68,
+            policy.resolveElevatedCrossingHeight(
+                upper, junction, network, terrain,
+                (n, net, t, roadId) -> 64,
+                (edge, node, net, t) -> 64));
+        assertNull(
+            policy.resolveElevatedCrossingHeight(
+                lower, junction, network, terrain,
+                (n, net, t, roadId) -> 64,
+                (edge, node, net, t) -> 64));
+        assertTrue(policy.shouldExcludeElevatedRoadFromNaturalConsensus(
+            junction, upper, network, terrain, (n, net, t, roadId) -> 64));
+        assertFalse(policy.shouldExcludeElevatedRoadFromNaturalConsensus(
+            junction, lower, network, terrain, (n, net, t, roadId) -> 64));
     }
 }

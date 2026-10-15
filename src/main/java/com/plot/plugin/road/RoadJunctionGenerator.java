@@ -5,6 +5,7 @@ import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.pipeline.corridor.JunctionCrossSectionFill;
 import com.plot.plugin.road.pipeline.corridor.JunctionTerrainClearance;
+import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -87,19 +88,9 @@ public class RoadJunctionGenerator {
         } else {
             junctionY = generator.computeJunctionTargetHeight(node, network, terrain);
         }
-        List<RoadEdge> connectedEdges = new ArrayList<>();
-        String elevatedRoadId = node.isGradeSeparated()
-            ? generator.resolveElevatedRoadId(node, network, terrain)
-            : null;
-        for (String edgeId : node.getConnectedEdgeIds()) {
-            RoadEdge edge = network.getEdge(edgeId);
-            if (edge == null) {
-                continue;
-            }
-            if (elevatedRoadId != null && elevatedRoadId.equals(edge.getRoadId())) {
-                continue;
-            }
-            connectedEdges.add(edge);
+        List<RoadEdge> connectedEdges = collectUnderpassJunctionEdges(node, network, terrain);
+        if (connectedEdges.isEmpty()) {
+            return blocks;
         }
 
         if (degree >= 5) {
@@ -258,7 +249,7 @@ public class RoadJunctionGenerator {
                     return generator.toBlockPos(planPoint, 0).getZ();
                 }
             };
-        double unitsPerBlock = 1.0;
+        double unitsPerBlock = estimateUnitsPerBlock(network, edges);
 
         for (Vec2d point : cells) {
             JunctionCrossSectionFill.fillCell(
@@ -303,6 +294,47 @@ public class RoadJunctionGenerator {
             unitsPerBlock,
             terrain,
             bridgeThreshold);
+    }
+
+    private List<RoadEdge> collectUnderpassJunctionEdges(
+            RoadNode node,
+            RoadNetwork network,
+            TerrainSampler terrain) {
+        List<RoadEdge> connectedEdges = new ArrayList<>();
+        String elevatedRoadId = node.isGradeSeparated()
+            ? generator.resolveElevatedRoadId(node, network, terrain)
+            : null;
+        for (String edgeId : node.getConnectedEdgeIds()) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge == null) {
+                continue;
+            }
+            // Self-intersect overpass arms keep their own corridor; only fill underpass.
+            if (node.isStackGradeSeparated() && node.isStackUpperEdge(edgeId)) {
+                continue;
+            }
+            if (elevatedRoadId != null && elevatedRoadId.equals(edge.getRoadId())) {
+                continue;
+            }
+            connectedEdges.add(edge);
+        }
+        return connectedEdges;
+    }
+
+    private double estimateUnitsPerBlock(RoadNetwork network, List<RoadEdge> edges) {
+        if (generator == null || edges == null || edges.isEmpty()) {
+            return 1.0;
+        }
+        for (RoadEdge edge : edges) {
+            List<Vec2d> centerline = RoadJunctionCenterlineResolver.forNetwork(network).apply(edge);
+            if (centerline != null && centerline.size() >= 2) {
+                double units = generator.estimateCanvasUnitsPerBlock(centerline, List.<PathSegment>of());
+                if (Double.isFinite(units) && units > 1e-9) {
+                    return units;
+                }
+            }
+        }
+        return 1.0;
     }
 
     private double hardSurfaceHalfExtent(RoadNetwork network, RoadEdge edge) {

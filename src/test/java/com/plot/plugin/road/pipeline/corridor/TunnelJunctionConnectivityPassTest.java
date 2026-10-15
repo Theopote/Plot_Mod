@@ -123,7 +123,7 @@ class TunnelJunctionConnectivityPassTest {
     }
 
     @Test
-    void skipsGradeSeparatedJunction() {
+    void gradeSeparatedJunctionStillOpensUnderpassTunnelVolume() {
         RoadNetwork network = tunnelCrossNetwork();
         RoadNode junction = network.getNodes().values().stream()
             .filter(node -> node.getDegree() >= 3)
@@ -135,10 +135,16 @@ class TunnelJunctionConnectivityPassTest {
         BlockPos lining = new BlockPos(0, 66, 0);
         for (var edge : network.getEdges().values()) {
             RoadGenerationResult result = new RoadGenerationResult(edge.getLength());
-            result.constructionTypes.add(RoadConstructionType.TUNNEL);
-            result.recordPlacementOverride(lining, "minecraft:stone", "minecraft:stone_bricks");
-            result.placementLayers.put(lining, RoadSolidLayer.TUNNEL);
-            result.placementMaterialPriorities.put(lining, RoadSolidMaterialPriority.STRUCTURAL);
+            // Only underpass road is a tunnel; elevated road is a bridge deck.
+            if ("roadA".equals(edge.getRoadId())) {
+                result.constructionTypes.add(RoadConstructionType.BRIDGE);
+            } else {
+                result.constructionTypes.add(RoadConstructionType.TUNNEL);
+                result.recordPlacementOverride(lining, "minecraft:stone", "minecraft:stone_bricks");
+                result.placementLayers.put(lining, RoadSolidLayer.TUNNEL);
+                result.placementMaterialPriorities.put(lining, RoadSolidMaterialPriority.STRUCTURAL);
+                result.tunnelBlocks.add(lining);
+            }
             edgeResults.put(edge.getId(), result);
         }
 
@@ -150,10 +156,19 @@ class TunnelJunctionConnectivityPassTest {
             IdentityCoordinateService.INSTANCE,
             (path, segments) -> 1.0);
 
-        assertTrue(edgeResults.values().stream()
-            .allMatch(result -> "minecraft:stone_bricks".equals(
-                result.placementRecords.get(lining).newBlockId)),
-            "grade-separated junction must not open tunnel connectivity");
+        long underpassAir = edgeResults.entrySet().stream()
+            .filter(entry -> {
+                var edge = network.getEdge(entry.getKey());
+                return edge != null && "roadB".equals(edge.getRoadId());
+            })
+            .map(Map.Entry::getValue)
+            .filter(result -> {
+                BlockRecord record = result.placementRecords.get(lining);
+                return record != null && "minecraft:air".equals(record.newBlockId);
+            })
+            .count();
+        assertTrue(underpassAir > 0,
+            "grade-separated underpass tunnels must still clear crossing lining");
     }
 
     private static RoadNetwork tunnelTJunctionNetwork() {

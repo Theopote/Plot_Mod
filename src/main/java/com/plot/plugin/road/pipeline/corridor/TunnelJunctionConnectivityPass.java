@@ -86,10 +86,9 @@ public final class TunnelJunctionConnectivityPass {
     }
 
     private static boolean qualifiesForConnectivity(RoadNode node) {
-        return node != null
-            && node.getDegree() >= 3
-            && !node.isGradeSeparated()
-            && !node.isStackGradeSeparated();
+        // Grade-separated / stack overpasses still need underpass tunnel arms connected;
+        // elevated approaches are filtered in collectTunnelApproaches.
+        return node != null && node.getDegree() >= 3;
     }
 
     private static List<TunnelApproach> collectTunnelApproaches(
@@ -108,10 +107,19 @@ public final class TunnelJunctionConnectivityPass {
         if (nodeCenter == null) {
             return approaches;
         }
+        String elevatedRoadId = node.isGradeSeparated() ? node.getElevatedRoadId() : null;
         for (String edgeId : node.getConnectedEdgeIds()) {
             RoadEdge edge = network.getEdge(edgeId);
             RoadGenerationResult result = edgeResults.get(edgeId);
             if (edge == null || result == null || !tunnelAtNode(edge, node, result)) {
+                continue;
+            }
+            if (node.isStackGradeSeparated() && node.isStackUpperEdge(edgeId)) {
+                continue;
+            }
+            if (elevatedRoadId != null
+                    && edge.getRoadId() != null
+                    && elevatedRoadId.equals(edge.getRoadId())) {
                 continue;
             }
             List<Vec2d> centerline = RoadPlanGeometry.resolveEdgeCenterline(

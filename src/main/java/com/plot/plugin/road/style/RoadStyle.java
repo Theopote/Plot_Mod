@@ -170,18 +170,24 @@ public class RoadStyle {
                 : "material.plot.white_concrete"
         );
 
-        boolean slopeBatter = style.resolveIncludeSlopeBatter();
-        section.getSlopeBatter().setEnabled(slopeBatter);
-        if (slopeBatter) {
-            section.getSlopeBatter().setFillRatio(style.fillSlopeRatio);
-            section.getSlopeBatter().setCutRatio(style.cutSlopeRatio);
-            section.getSlopeBatter().setFillMaterial(
-                style.fillSlopeMaterial != null && !style.fillSlopeMaterial.isBlank()
-                    ? style.fillSlopeMaterial
-                    : shoulderMat
-            );
-            if (style.cutSlopeMaterial != null && !style.cutSlopeMaterial.isBlank()) {
-                section.getSlopeBatter().setCutMaterial(style.cutSlopeMaterial);
+        // Urban presets leave includeSlopeBatter null with zero ratios ("silent"):
+        // do not write enabled=false — inherit global slope defaults on resolve.
+        if (style.includeSlopeBatter != null
+                || style.fillSlopeRatio > 0f
+                || style.cutSlopeRatio > 0f) {
+            boolean slopeBatter = style.resolveIncludeSlopeBatter();
+            section.getSlopeBatter().setEnabled(slopeBatter);
+            if (slopeBatter) {
+                section.getSlopeBatter().setFillRatio(style.fillSlopeRatio);
+                section.getSlopeBatter().setCutRatio(style.cutSlopeRatio);
+                section.getSlopeBatter().setFillMaterial(
+                    style.fillSlopeMaterial != null && !style.fillSlopeMaterial.isBlank()
+                        ? style.fillSlopeMaterial
+                        : shoulderMat
+                );
+                if (style.cutSlopeMaterial != null && !style.cutSlopeMaterial.isBlank()) {
+                    section.getSlopeBatter().setCutMaterial(style.cutSlopeMaterial);
+                }
             }
         }
 

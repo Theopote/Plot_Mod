@@ -633,7 +633,13 @@ public class RoadSystemConfig {
         if (effective.streetlightSpacing != null) {
             setStreetlightSpacing(effective.streetlightSpacing);
         }
-        this.includeSlopeBatter = effective.resolveIncludeSlopeBatter();
+        // Silent presets (includeSlopeBatter == null and ratios 0) must not turn off
+        // global slope batter — city styles inherit the user's slope defaults.
+        if (effective.includeSlopeBatter != null) {
+            this.includeSlopeBatter = effective.includeSlopeBatter;
+        } else if (effective.fillSlopeRatio > 0f || effective.cutSlopeRatio > 0f) {
+            this.includeSlopeBatter = true;
+        }
         if (effective.fillSlopeRatio > 0f) {
             this.fillSlopeRatio = effective.fillSlopeRatio;
         }

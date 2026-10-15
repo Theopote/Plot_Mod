@@ -8,6 +8,7 @@ import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.tunnel.TunnelLightingMode;
 import com.plot.plugin.road.tunnel.TunnelShape;
@@ -39,6 +40,70 @@ class RoadStackCrossingGenerationTest {
         assertTrue(resolved.includeSlopeBatter);
         assertEquals(1.5f, resolved.fillSlopeRatio, 1e-3f);
         assertEquals(1.0f, resolved.cutSlopeRatio, 1e-3f);
+    }
+
+    @Test
+    void applyingSilentUrbanPresetKeepsGlobalSlopeBatterEnabled() {
+        RoadSystemConfig config = new RoadSystemConfig("urban-slope");
+        config.setIncludeSlopeBatter(true);
+        config.setFillSlopeRatio(1.5f);
+        config.setCutSlopeRatio(1.0f);
+
+        config.applyStyle(com.plot.plugin.road.style.RoadStyleCatalog.cityMain());
+
+        assertTrue(config.isIncludeSlopeBatter());
+        assertEquals(1.5f, config.getFillSlopeRatio(), 1e-3f);
+        assertEquals(1.0f, config.getCutSlopeRatio(), 1e-3f);
+
+        RoadNetwork network = new RoadNetwork();
+        network.createRoadForAdopt(config);
+        ResolvedCrossSection resolved = network.getRoads().values().iterator().next()
+            .getCrossSection().resolve(config);
+        assertTrue(resolved.includeSlopeBatter);
+        assertEquals(1.5f, resolved.fillSlopeRatio, 1e-3f);
+    }
+
+    @Test
+    void gradeSeparatedStackCrossingKeepsUpperSurfaceAboveUnderpass() {
+        RoadNetwork network = figureEightNetwork();
+        RoadStackCrossingReconciler.reconcileStackCrossings(network);
+        RoadStackCrossing stack = network.getStackCrossings().values().iterator().next();
+        network.setStackCrossingGradeSeparation(
+            stack.id(),
+            CrossingType.GRADE_SEPARATED,
+            stack.stationA(),
+            stack.stationB(),
+            4.0);
+
+        RoadNetworkGenerator generator = previewGenerator();
+        RoadNetworkGenerator.PreviewResult preview = generator.generatePreview(
+            network,
+            flatTerrain(64));
+
+        RoadNetwork profileNetwork = preview.profileNetwork();
+        RoadNode junction = profileNetwork.getNodes().values().stream()
+            .filter(node -> node.isStackGradeSeparated())
+            .findFirst()
+            .orElseThrow();
+        Integer underpassY = preview.nodeElevations().get(junction.getId());
+        assertTrue(underpassY != null);
+
+        int upperSurfaceAtCrossing = 0;
+        int expectedUpperY = underpassY + 4;
+        for (var edgeResult : preview.edgeResults().values()) {
+            for (var entry : edgeResult.placementRecords.entrySet()) {
+                var pos = entry.getKey();
+                if (Math.abs(pos.getX() - 5) > 2 || Math.abs(pos.getZ() - 5) > 2) {
+                    continue;
+                }
+                if (pos.getY() == expectedUpperY
+                        && edgeResult.placementLayers.get(pos) == com.plot.plugin.road.solid.RoadSolidLayer.ROAD) {
+                    upperSurfaceAtCrossing++;
+                }
+            }
+        }
+        assertTrue(upperSurfaceAtCrossing > 0,
+            "stack overpass must place road surface near crossing at underpassY+clearance");
     }
 
     @Test
