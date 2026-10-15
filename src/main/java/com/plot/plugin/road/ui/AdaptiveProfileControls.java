@@ -35,6 +35,7 @@ final class AdaptiveProfileControls {
             List<VerticalProfileControlPoints.ControlPoint> points,
             float maxGrade,
             ProfileEditorState state,
+            Runnable recordUndoPointBeforeEdit,
             Runnable propagateJunctionGrades,
             Runnable onWorkingProfileChanged,
             Runnable deleteSelectedPvi) {
@@ -78,6 +79,7 @@ final class AdaptiveProfileControls {
         if (VerticalProfileControlPoints.isEditablePvi(network, road, selectedPoint)
                 && VerticalProfileControlPoints.exceedsGradeLimit(selectedPoint, maxGrade)
                 && ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_auto_fix_grade"))) {
+            recordUndoPointBeforeEdit.run();
             VerticalProfileAutoFixer.Result fixed = VerticalProfileAutoFixer.extendAdjacentRuns(
                 road.getVerticalAlignment(), state.selectedProfilePvi,
                 RoadStationing.canonicalLength(network, road), maxGrade);
@@ -94,6 +96,7 @@ final class AdaptiveProfileControls {
         }
         if (VerticalProfileControlPoints.canAutoSmooth(network, road, selectedPoint)
                 && ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_auto_smooth"))) {
+            recordUndoPointBeforeEdit.run();
             VerticalProfileCurveFitter.Result fitted = VerticalProfileCurveFitter.fitAt(
                 road.getVerticalAlignment(), state.selectedProfilePvi);
             road.setVerticalAlignment(fitted.alignment());

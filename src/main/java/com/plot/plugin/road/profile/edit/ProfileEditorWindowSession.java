@@ -36,6 +36,7 @@ public final class ProfileEditorWindowSession {
     private final Set<String> touchedNodeIds = new LinkedHashSet<>();
     private final Set<String> touchedCrossingIds = new LinkedHashSet<>();
     private final Map<String, VoxelProfilePreviewSlot> voxelPreviews = new LinkedHashMap<>();
+    private final ProfileEditorUndoHistory undoHistory = new ProfileEditorUndoHistory();
 
     private ProfileEditorWindowSession(RoadNetwork openSnapshot, long openRevision) {
         this.openSnapshot = Objects.requireNonNull(openSnapshot, "openSnapshot");
@@ -114,6 +115,7 @@ public final class ProfileEditorWindowSession {
         touchedRoadIds.clear();
         touchedNodeIds.clear();
         touchedCrossingIds.clear();
+        undoHistory.clear();
         invalidateAllVoxelPreviews();
     }
 
@@ -122,7 +124,41 @@ public final class ProfileEditorWindowSession {
         touchedRoadIds.clear();
         touchedNodeIds.clear();
         touchedCrossingIds.clear();
+        undoHistory.clear();
         clearVoxelPreviews();
+    }
+
+    public void recordUndoPoint() {
+        undoHistory.record(workingNetwork);
+    }
+
+    public boolean canUndo() {
+        return undoHistory.canUndo();
+    }
+
+    public boolean canRedo() {
+        return undoHistory.canRedo();
+    }
+
+    public void undo() {
+        workingNetwork = undoHistory.undo(workingNetwork);
+        invalidateAllVoxelPreviews();
+    }
+
+    public void redo() {
+        workingNetwork = undoHistory.redo(workingNetwork);
+        invalidateAllVoxelPreviews();
+    }
+
+    public boolean hasUnconfirmedEditsForRoad(String roadId) {
+        if (roadId == null || roadId.isBlank() || !isDirty()) {
+            return false;
+        }
+        if (touchedRoadIds.contains(roadId)) {
+            return true;
+        }
+        return ProfileEditorNetworkApplier.collectChangedRoadIds(openSnapshot, workingNetwork)
+            .contains(roadId);
     }
 
     public VoxelProfilePreviewSlot voxelPreview(String roadId) {
@@ -212,6 +248,7 @@ public final class ProfileEditorWindowSession {
         touchedRoadIds.clear();
         touchedNodeIds.clear();
         touchedCrossingIds.clear();
+        undoHistory.clear();
         return ConfirmResult.APPLIED;
     }
 

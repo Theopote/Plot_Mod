@@ -268,6 +268,43 @@ class ProfileEditorWindowSessionTest {
     }
 
     @Test
+    void undoRedoRoundTripRestoresPriorWorkingCopy() {
+        ProfileEditorWindowSession session = openSession();
+        Road workingRoad = session.editingNetwork().getRoad(road.getId());
+        double originalElevation =
+            workingRoad.getVerticalAlignment().getPvis().get(1).getElevation();
+
+        session.recordUndoPoint();
+        mutatePvi(workingRoad, 1, 75.0);
+        assertEquals(75.0, workingRoad.getVerticalAlignment().getPvis().get(1).getElevation());
+        assertTrue(session.canUndo());
+        assertFalse(session.canRedo());
+
+        session.undo();
+        assertEquals(
+            originalElevation,
+            session.editingNetwork().getRoad(road.getId()).getVerticalAlignment().getPvis().get(1).getElevation());
+        assertFalse(session.canUndo());
+        assertTrue(session.canRedo());
+
+        session.redo();
+        assertEquals(75.0, session.editingNetwork().getRoad(road.getId()).getVerticalAlignment().getPvis().get(1).getElevation());
+    }
+
+    @Test
+    void hasUnconfirmedEditsForRoadTracksTouchedRoadOnly() {
+        ProfileEditorWindowSession session = openSession();
+        assertFalse(session.hasUnconfirmedEditsForRoad(road.getId()));
+
+        Road workingRoad = session.editingNetwork().getRoad(road.getId());
+        mutatePvi(workingRoad, 1, 73.0);
+        session.markTouched(workingRoad);
+
+        assertTrue(session.hasUnconfirmedEditsForRoad(road.getId()));
+        assertFalse(session.hasUnconfirmedEditsForRoad("missing-road"));
+    }
+
+    @Test
     void insertAndDeletePviInWorkingCopyCancelRestoresLive() {
         ProfileEditorWindowSession session = openSession();
         Road workingRoad = session.editingNetwork().getRoad(road.getId());

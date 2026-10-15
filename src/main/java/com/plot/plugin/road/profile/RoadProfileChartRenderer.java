@@ -19,7 +19,7 @@ import imgui.flag.ImGuiMouseCursor;
 import java.util.List;
 
 /**
- * 道路级纵断面图渲染与交互（canonical road station 0…L）。
+ * Road-level profile chart rendering and interaction (canonical road station 0...L).
  */
 public final class RoadProfileChartRenderer {
 
@@ -95,7 +95,7 @@ public final class RoadProfileChartRenderer {
         ImGui.invisibleButton("##road_profile_overview_surface", width, chartHeight);
     }
 
-    public static RoadLongitudinalProfileRenderer.ControlInteraction renderInteractive(
+    public static ProfileChartInteraction.ControlInteraction renderInteractive(
             RoadProfileChartData chart,
             VerticalAlignmentProfileOverlay design,
             List<ProfileControlPoint> controls,
@@ -106,14 +106,14 @@ public final class RoadProfileChartRenderer {
             int selectedIntersectionIndex,
             float chartHeight,
             int activeIntersectionDragIndex,
-            RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget activeIntersectionDragTarget,
+            ProfileChartInteraction.IntersectionDragTarget activeIntersectionDragTarget,
             FlatElevationProfileOverlay flatOverlay,
-            List<RoadLongitudinalProfileRenderer.CurveHandle> curveHandles,
+            List<ProfileChartInteraction.CurveHandle> curveHandles,
             int pendingPviIndex,
             float pendingClickX,
             float pendingClickY,
             int activeCurveHandlePvi,
-            RoadLongitudinalProfileRenderer.ControlInteraction.CurveHandleSide activeCurveHandle) {
+            ProfileChartInteraction.CurveHandleSide activeCurveHandle) {
         return renderInteractive(
             chart, design, controls, selectedPviIndex, activePviIndex, maxGradePercent,
             intersections, selectedIntersectionIndex, chartHeight,
@@ -122,7 +122,7 @@ public final class RoadProfileChartRenderer {
             activeCurveHandlePvi, activeCurveHandle, null);
     }
 
-    public static RoadLongitudinalProfileRenderer.ControlInteraction renderInteractive(
+    public static ProfileChartInteraction.ControlInteraction renderInteractive(
             RoadProfileChartData chart,
             VerticalAlignmentProfileOverlay design,
             List<ProfileControlPoint> controls,
@@ -133,14 +133,14 @@ public final class RoadProfileChartRenderer {
             int selectedIntersectionIndex,
             float chartHeight,
             int activeIntersectionDragIndex,
-            RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget activeIntersectionDragTarget,
+            ProfileChartInteraction.IntersectionDragTarget activeIntersectionDragTarget,
             FlatElevationProfileOverlay flatOverlay,
-            List<RoadLongitudinalProfileRenderer.CurveHandle> curveHandles,
+            List<ProfileChartInteraction.CurveHandle> curveHandles,
             int pendingPviIndex,
             float pendingClickX,
             float pendingClickY,
             int activeCurveHandlePvi,
-            RoadLongitudinalProfileRenderer.ControlInteraction.CurveHandleSide activeCurveHandle,
+            ProfileChartInteraction.CurveHandleSide activeCurveHandle,
             ProfileRenderCache renderCache) {
         return renderInteractive(
             chart, design, controls, selectedPviIndex, activePviIndex, maxGradePercent,
@@ -150,7 +150,7 @@ public final class RoadProfileChartRenderer {
             activeCurveHandlePvi, activeCurveHandle, ProfileChartRenderMode.EDITOR, renderCache, null, null, null);
     }
 
-    public static RoadLongitudinalProfileRenderer.ControlInteraction renderInteractive(
+    public static ProfileChartInteraction.ControlInteraction renderInteractive(
             RoadProfileChartData chart,
             VerticalAlignmentProfileOverlay design,
             List<ProfileControlPoint> controls,
@@ -161,14 +161,14 @@ public final class RoadProfileChartRenderer {
             int selectedIntersectionIndex,
             float chartHeight,
             int activeIntersectionDragIndex,
-            RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget activeIntersectionDragTarget,
+            ProfileChartInteraction.IntersectionDragTarget activeIntersectionDragTarget,
             FlatElevationProfileOverlay flatOverlay,
-            List<RoadLongitudinalProfileRenderer.CurveHandle> curveHandles,
+            List<ProfileChartInteraction.CurveHandle> curveHandles,
             int pendingPviIndex,
             float pendingClickX,
             float pendingClickY,
             int activeCurveHandlePvi,
-            RoadLongitudinalProfileRenderer.ControlInteraction.CurveHandleSide activeCurveHandle,
+            ProfileChartInteraction.CurveHandleSide activeCurveHandle,
             ProfileChartRenderMode mode,
             ProfileRenderCache renderCache,
             RoadVerticalMode verticalMode,
@@ -183,7 +183,7 @@ public final class RoadProfileChartRenderer {
             elevationBounds, insertAlignment, false);
     }
 
-    public static RoadLongitudinalProfileRenderer.ControlInteraction renderInteractive(
+    public static ProfileChartInteraction.ControlInteraction renderInteractive(
             RoadProfileChartData chart,
             VerticalAlignmentProfileOverlay design,
             List<ProfileControlPoint> controls,
@@ -194,14 +194,14 @@ public final class RoadProfileChartRenderer {
             int selectedIntersectionIndex,
             float chartHeight,
             int activeIntersectionDragIndex,
-            RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget activeIntersectionDragTarget,
+            ProfileChartInteraction.IntersectionDragTarget activeIntersectionDragTarget,
             FlatElevationProfileOverlay flatOverlay,
-            List<RoadLongitudinalProfileRenderer.CurveHandle> curveHandles,
+            List<ProfileChartInteraction.CurveHandle> curveHandles,
             int pendingPviIndex,
             float pendingClickX,
             float pendingClickY,
             int activeCurveHandlePvi,
-            RoadLongitudinalProfileRenderer.ControlInteraction.CurveHandleSide activeCurveHandle,
+            ProfileChartInteraction.CurveHandleSide activeCurveHandle,
             ProfileChartRenderMode mode,
             ProfileRenderCache renderCache,
             RoadVerticalMode verticalMode,
@@ -209,12 +209,12 @@ public final class RoadProfileChartRenderer {
             RoadVerticalAlignment insertAlignment,
             boolean buildProfileStale) {
         if (chart == null || !chart.hasProfileData()) {
-            return new RoadLongitudinalProfileRenderer.ControlInteraction(
+            return new ProfileChartInteraction.ControlInteraction(
                 selectedPviIndex, -1, null, null, false, false);
         }
         float width = ImGui.getContentRegionAvail().x;
         if (width < 40f) {
-            return new RoadLongitudinalProfileRenderer.ControlInteraction(
+            return new ProfileChartInteraction.ControlInteraction(
                 selectedPviIndex, activePviIndex, null, null, false, false);
         }
         ImVec2 origin = ImGui.getCursorScreenPos();
@@ -248,7 +248,7 @@ public final class RoadProfileChartRenderer {
             activeCurveHandlePvi, activeCurveHandle, elevationBounds, insertAlignment);
     }
 
-    private static RoadLongitudinalProfileRenderer.ControlInteraction handleInteraction(
+    private static ProfileChartInteraction.ControlInteraction handleInteraction(
             RoadProfileChartData chart,
             List<ProfileControlPoint> controls,
             List<RoadProfileIntersection> intersections,
@@ -259,13 +259,13 @@ public final class RoadProfileChartRenderer {
             double maxGradePercent,
             int selectedIntersectionIndex,
             int activeIntersectionDragIndex,
-            RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget activeIntersectionDragTarget,
-            List<RoadLongitudinalProfileRenderer.CurveHandle> curveHandles,
+            ProfileChartInteraction.IntersectionDragTarget activeIntersectionDragTarget,
+            List<ProfileChartInteraction.CurveHandle> curveHandles,
             int pendingPviIndex,
             float pendingClickX,
             float pendingClickY,
             int activeCurveHandlePvi,
-            RoadLongitudinalProfileRenderer.ControlInteraction.CurveHandleSide activeCurveHandle,
+            ProfileChartInteraction.CurveHandleSide activeCurveHandle,
             RoadElevationBounds elevationBounds,
             RoadVerticalAlignment insertAlignment) {
         float mouseX = ImGui.getMousePosX();
@@ -282,10 +282,10 @@ public final class RoadProfileChartRenderer {
         int hoveredIntersection = -1;
         int selectedIntersection = selectedIntersectionIndex;
         int activeIntersectionDrag = activeIntersectionDragIndex;
-        RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget activeIntersectionTarget =
+        ProfileChartInteraction.IntersectionDragTarget activeIntersectionTarget =
             activeIntersectionDragTarget != null
                 ? activeIntersectionDragTarget
-                : RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget.NONE;
+                : ProfileChartInteraction.IntersectionDragTarget.NONE;
         Double intersectionElevation = null;
         boolean intersectionStarted = false;
         boolean intersectionFinished = false;
@@ -294,15 +294,15 @@ public final class RoadProfileChartRenderer {
         Double addPointElevation = null;
         int contextMenuPvi = -1;
         int activeCurvePvi = activeCurveHandlePvi;
-        RoadLongitudinalProfileRenderer.ControlInteraction.CurveHandleSide activeCurveSide =
+        ProfileChartInteraction.CurveHandleSide activeCurveSide =
             activeCurveHandle != null ? activeCurveHandle
-                : RoadLongitudinalProfileRenderer.ControlInteraction.CurveHandleSide.NONE;
+                : ProfileChartInteraction.CurveHandleSide.NONE;
         Double draggedCurveLength = null;
         boolean curveHandleStarted = false;
         boolean curveHandleFinished = false;
 
         if (ImGui.isItemHovered()) {
-            RoadLongitudinalProfileRenderer.IntersectionHit hoveredHit =
+            ProfileChartInteraction.IntersectionHit hoveredHit =
                 ProfileChartHitTester.hitIntersection(
                     intersections, layout, range, mouseX, mouseY);
             if (hoveredHit != null) {
@@ -328,7 +328,7 @@ public final class RoadProfileChartRenderer {
         if (activeCurvePvi >= 0 && ImGui.isMouseReleased(0)) {
             curveHandleFinished = true;
             activeCurvePvi = -1;
-            activeCurveSide = RoadLongitudinalProfileRenderer.ControlInteraction.CurveHandleSide.NONE;
+            activeCurveSide = ProfileChartInteraction.CurveHandleSide.NONE;
         }
 
         if (activeCurvePvi < 0 && activeIntersectionDrag < 0 && active < 0
@@ -336,7 +336,7 @@ public final class RoadProfileChartRenderer {
             ProfileChartHitTester.CurveHandleHit curveHit = ProfileChartHitTester.hitCurveHandle(
                 curveHandles, layout, range, mouseX, mouseY,
                 ProfileChartHitTester.DEFAULT_CURVE_HANDLE_HIT_RADIUS_PX);
-            RoadLongitudinalProfileRenderer.IntersectionHit intersectionHit =
+            ProfileChartInteraction.IntersectionHit intersectionHit =
                 ProfileChartHitTester.hitIntersection(intersections, layout, range, mouseX, mouseY);
             int nearest = ProfileChartHitTester.hitPviIndex(
                 controls, layout, range, mouseX, mouseY,
@@ -344,7 +344,7 @@ public final class RoadProfileChartRenderer {
             if (nearest < 0 && curveHit == null
                     && (intersectionHit == null
                         || intersectionHit.target()
-                            == RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget.NONE)) {
+                            == ProfileChartInteraction.IntersectionDragTarget.NONE)) {
                 double insertStation = layout.stationAtMouseX(mouseX, range.totalStation());
                 if (VerticalProfileControlPoints.canInsertAt(
                         insertAlignment, insertStation, range.totalStation())) {
@@ -371,7 +371,7 @@ public final class RoadProfileChartRenderer {
 
         if (activeCurvePvi < 0 && activeIntersectionDrag < 0 && active < 0
                 && ImGui.isItemHovered() && ImGui.isMouseClicked(0)) {
-            RoadLongitudinalProfileRenderer.IntersectionHit hit =
+            ProfileChartInteraction.IntersectionHit hit =
                 ProfileChartHitTester.hitIntersection(intersections, layout, range, mouseX, mouseY);
             ProfileChartHitTester.CurveHandleHit curveHit = ProfileChartHitTester.hitCurveHandle(
                 curveHandles, layout, range, mouseX, mouseY,
@@ -380,7 +380,7 @@ public final class RoadProfileChartRenderer {
                 controls, layout, range, mouseX, mouseY,
                 ProfileChartHitTester.DEFAULT_PVI_HIT_RADIUS_PX);
             if (hit != null && hit.target()
-                    != RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget.NONE) {
+                    != ProfileChartInteraction.IntersectionDragTarget.NONE) {
                 activeIntersectionDrag = hit.index();
                 activeIntersectionTarget = hit.target();
                 selectedIntersection = hit.index();
@@ -433,7 +433,7 @@ public final class RoadProfileChartRenderer {
             intersectionFinished = true;
             activeIntersectionDrag = -1;
             activeIntersectionTarget =
-                RoadLongitudinalProfileRenderer.ControlInteraction.IntersectionDragTarget.NONE;
+                ProfileChartInteraction.IntersectionDragTarget.NONE;
         }
         if (active >= 0 && ImGui.isMouseDown(0)) {
             ProfileControlPoint activePoint = findControlPoint(controls, active);
@@ -460,7 +460,7 @@ public final class RoadProfileChartRenderer {
             active = -1;
             pending = -1;
         }
-        return new RoadLongitudinalProfileRenderer.ControlInteraction(
+        return new ProfileChartInteraction.ControlInteraction(
             selected, active, elevation, roadStation, started, finished,
             hoveredIntersection, selectedIntersection,
             activeIntersectionDrag, activeIntersectionTarget, intersectionElevation,
@@ -1045,15 +1045,15 @@ public final class RoadProfileChartRenderer {
     private static void drawRoadCurveHandles(
             ImDrawList drawList,
             List<ProfileControlPoint> controls,
-            List<RoadLongitudinalProfileRenderer.CurveHandle> handles,
+            List<ProfileChartInteraction.CurveHandle> handles,
             int activePvi,
-            RoadLongitudinalProfileRenderer.ControlInteraction.CurveHandleSide activeSide,
+            ProfileChartInteraction.CurveHandleSide activeSide,
             ProfileChartLayout layout,
             RoadProfilePlotRange range) {
         if (handles == null) {
             return;
         }
-        for (RoadLongitudinalProfileRenderer.CurveHandle handle : handles) {
+        for (ProfileChartInteraction.CurveHandle handle : handles) {
             float x = layout.plotX(handle.localDistance(), range.totalStation());
             float y = layout.plotY(handle.elevation(), range.minElevation(), range.maxElevation());
             int color = handle.pviIndex() == activePvi ? 0xFFFFFFFF : 0xFF88DDFF;

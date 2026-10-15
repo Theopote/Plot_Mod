@@ -1,6 +1,5 @@
 package com.plot.plugin.road.profile;
 
-import com.plot.plugin.road.RoadLongitudinalProfileRenderer;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
@@ -47,9 +46,9 @@ class ProfileChartHitTesterTest {
     void clickCurveHandleStartsCurveDrag() {
         ProfileChartLayout layout = ProfileChartLayout.fromOuterRect(0f, 0f, 400f, 200f);
         RoadProfilePlotRange range = new RoadProfilePlotRange(100.0, 60.0, 80.0);
-        List<RoadLongitudinalProfileRenderer.CurveHandle> handles = List.of(
-            new RoadLongitudinalProfileRenderer.CurveHandle(1, 40, 72, true),
-            new RoadLongitudinalProfileRenderer.CurveHandle(1, 60, 72, false));
+        List<ProfileChartInteraction.CurveHandle> handles = List.of(
+            new ProfileChartInteraction.CurveHandle(1, 40, 72, true),
+            new ProfileChartInteraction.CurveHandle(1, 60, 72, false));
         float mouseX = layout.plotX(40, range.totalStation());
         float mouseY = layout.plotY(72, range.minElevation(), range.maxElevation());
 
@@ -59,7 +58,7 @@ class ProfileChartHitTesterTest {
         assertNotNull(hit);
         assertEquals(1, hit.pviIndex());
         assertEquals(
-            RoadLongitudinalProfileRenderer.ControlInteraction.CurveHandleSide.LEFT,
+            ProfileChartInteraction.CurveHandleSide.LEFT,
             hit.side());
     }
 

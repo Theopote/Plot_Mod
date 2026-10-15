@@ -15,7 +15,7 @@ public final class ProfileChartHitTester {
 
     public record CurveHandleHit(
             int pviIndex,
-            RoadLongitudinalProfileRenderer.ControlInteraction.CurveHandleSide side) {
+            ProfileChartInteraction.CurveHandleSide side) {
     }
 
     public static ProfileControlPoint hitPvi(
@@ -62,7 +62,7 @@ public final class ProfileChartHitTester {
     }
 
     public static CurveHandleHit hitCurveHandle(
-            List<RoadLongitudinalProfileRenderer.CurveHandle> handles,
+            List<ProfileChartInteraction.CurveHandle> handles,
             ProfileChartLayout layout,
             RoadProfilePlotRange range,
             float mouseX,
@@ -73,7 +73,7 @@ public final class ProfileChartHitTester {
         }
         double best = maxDistancePx * maxDistancePx;
         CurveHandleHit nearest = null;
-        for (RoadLongitudinalProfileRenderer.CurveHandle handle : handles) {
+        for (ProfileChartInteraction.CurveHandle handle : handles) {
             float x = layout.plotX(handle.localDistance(), range.totalStation());
             float y = layout.plotY(handle.elevation(), range.minElevation(), range.maxElevation());
             double distance = (mouseX - x) * (mouseX - x) + (mouseY - y) * (mouseY - y);
@@ -82,21 +82,28 @@ public final class ProfileChartHitTester {
                 nearest = new CurveHandleHit(
                     handle.pviIndex(),
                     handle.leftSide()
-                        ? RoadLongitudinalProfileRenderer.ControlInteraction.CurveHandleSide.LEFT
-                        : RoadLongitudinalProfileRenderer.ControlInteraction.CurveHandleSide.RIGHT);
+                        ? ProfileChartInteraction.CurveHandleSide.LEFT
+                        : ProfileChartInteraction.CurveHandleSide.RIGHT);
             }
         }
         return nearest;
     }
 
-    public static RoadLongitudinalProfileRenderer.IntersectionHit hitIntersection(
+    public static ProfileChartInteraction.IntersectionHit hitIntersection(
             List<RoadProfileIntersection> intersections,
             ProfileChartLayout layout,
             RoadProfilePlotRange range,
             float mouseX,
             float mouseY) {
-        return RoadLongitudinalProfileRenderer.hitIntersectionRoad(
-            intersections, layout, range, mouseX, mouseY);
+        RoadLongitudinalProfileRenderer.IntersectionHit legacy =
+            RoadLongitudinalProfileRenderer.hitIntersectionRoad(
+                intersections, layout, range, mouseX, mouseY);
+        if (legacy == null) {
+            return null;
+        }
+        return new ProfileChartInteraction.IntersectionHit(
+            legacy.index(),
+            ProfileChartInteraction.IntersectionDragTarget.valueOf(legacy.target().name()));
     }
 
     /** Endpoints may open menu (delete disabled); junction-fixed points do not. */
