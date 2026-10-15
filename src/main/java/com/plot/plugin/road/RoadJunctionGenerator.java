@@ -3,8 +3,11 @@ package com.plot.plugin.road;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
+import com.plot.plugin.road.pipeline.corridor.JunctionConstructionReport;
 import com.plot.plugin.road.pipeline.corridor.JunctionCrossSectionFill;
+import com.plot.plugin.road.pipeline.corridor.JunctionSurfaceMask;
 import com.plot.plugin.road.pipeline.corridor.JunctionTerrainClearance;
+import com.plot.plugin.road.pipeline.corridor.ColumnKey;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
@@ -32,9 +35,18 @@ public class RoadJunctionGenerator {
      */
     public static class JunctionBlocks {
         private final RoadSolidModel solids = new RoadSolidModel();
+        private JunctionConstructionReport report = JunctionConstructionReport.empty("");
 
         public RoadSolidModel getSolids() {
             return solids;
+        }
+
+        public JunctionConstructionReport report() {
+            return report;
+        }
+
+        void setReport(JunctionConstructionReport report) {
+            this.report = report != null ? report : JunctionConstructionReport.empty("");
         }
 
         public boolean isEmpty() {
@@ -250,9 +262,13 @@ public class RoadJunctionGenerator {
                 }
             };
         double unitsPerBlock = estimateUnitsPerBlock(network, edges);
+        JunctionSurfaceMask surfaceMask = new JunctionSurfaceMask();
+        int unresolvedClearance = 0;
 
         for (Vec2d point : cells) {
-            JunctionCrossSectionFill.fillCell(
+            ColumnKey columnKey = new ColumnKey(columnResolver.worldX(point), columnResolver.worldZ(point));
+            surfaceMask.expectColumn(columnKey);
+            boolean stamped = JunctionCrossSectionFill.fillCell(
                 blocks.getSolids(),
                 point,
                 junctionY,
@@ -267,19 +283,33 @@ public class RoadJunctionGenerator {
                 tunnelThreshold,
                 bridgeThreshold,
                 fillMaterialId);
-            if (clearancePolygon != null && clearancePolygon.size() >= 3) {
-                BlockPos column = generator.toBlockPos(point, 0);
-                JunctionTerrainClearance.clearOverheadInPolygon(
-                    blocks.getSolids(),
-                    clearancePolygon,
-                    junctionY,
-                    tunnelThreshold,
-                    terrain,
-                    column.getX(),
-                    column.getZ(),
-                    point);
+            if (stamped) {
+                surfaceMask.markStamped(columnKey);
+                if (clearancePolygon != null && clearancePolygon.size() >= 3) {
+                    BlockPos column = generator.toBlockPos(point, 0);
+                    JunctionTerrainClearance.clearOverheadInPolygon(
+                        blocks.getSolids(),
+                        clearancePolygon,
+                        junctionY,
+                        tunnelThreshold,
+                        terrain,
+                        column.getX(),
+                        column.getZ(),
+                        point);
+                }
+            } else if (clearancePolygon != null && clearancePolygon.size() >= 3) {
+                unresolvedClearance++;
             }
         }
+
+        blocks.setReport(new JunctionConstructionReport(
+            node.getId(),
+            surfaceMask.expectedColumnCount(),
+            surfaceMask.missingColumnCount(),
+            0,
+            0,
+            unresolvedClearance,
+            false));
 
         JunctionCrossSectionFill.stampApproachSlopeBatters(
             blocks.getSolids(),

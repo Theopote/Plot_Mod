@@ -40,7 +40,10 @@ public final class JunctionCrossSectionFill {
         BlockPos canvasToBlockPos(Vec2d planPoint);
     }
 
-    public static void fillCell(
+    /**
+     * @return true when a surface layer was stamped at {@code junctionY}
+     */
+    public static boolean fillCell(
             RoadSolidModel solids,
             Vec2d cellPoint,
             int junctionY,
@@ -57,7 +60,7 @@ public final class JunctionCrossSectionFill {
             String fillMaterialId) {
         if (solids == null || cellPoint == null || nodeId == null || edges == null || edges.isEmpty()
                 || network == null || config == null || materials == null || terrain == null) {
-            return;
+            return false;
         }
 
         Function<RoadEdge, List<Vec2d>> centerlineResolver = RoadJunctionCenterlineResolver.forNetwork(network);
@@ -66,7 +69,7 @@ public final class JunctionCrossSectionFill {
             solids.add(cellPoint, junctionY, RoadSolidLayer.ROAD);
             gradeColumn(
                 solids, cellPoint, junctionY, fillMaterialId, columnResolver, terrain, tunnelThreshold, bridgeThreshold);
-            return;
+            return true;
         }
 
         ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(network, projection.edge(), config);
@@ -76,21 +79,19 @@ public final class JunctionCrossSectionFill {
         int lateral = (int) Math.round(lateralDistance / scale);
 
         Optional<ResolvedCrossSection.SurfaceBandSpec> band = crossSection.surfaceBandAtLateral(lateral);
-        boolean stamped = false;
         if (band.isPresent()) {
             stampSurfaceBand(
                 solids, cellPoint, junctionY, band.get(), projection.edge().getId(), materials);
-            stamped = true;
         } else if (lateral >= crossSection.minSurfaceLateral()
                 && lateral <= crossSection.maxSurfaceLateral()) {
             solids.add(cellPoint, junctionY, RoadSolidLayer.ROAD);
-            stamped = true;
+        } else {
+            // Polygon cell outside nearest approach band: still pave the junction interior.
+            solids.add(cellPoint, junctionY, RoadSolidLayer.ROAD);
         }
-
-        if (stamped) {
-            gradeColumn(
-                solids, cellPoint, junctionY, fillMaterialId, columnResolver, terrain, tunnelThreshold, bridgeThreshold);
-        }
+        gradeColumn(
+            solids, cellPoint, junctionY, fillMaterialId, columnResolver, terrain, tunnelThreshold, bridgeThreshold);
+        return true;
     }
 
     public static void stampApproachSlopeBatters(

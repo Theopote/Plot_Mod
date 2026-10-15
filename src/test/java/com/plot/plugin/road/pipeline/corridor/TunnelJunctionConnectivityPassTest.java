@@ -9,8 +9,10 @@ import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
@@ -26,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TunnelJunctionConnectivityPassTest {
@@ -319,6 +322,71 @@ class TunnelJunctionConnectivityPassTest {
     }
 
     @Test
+    void distantTunnelOnEdgeDoesNotQualifyNodeApproach() {
+        RoadNetwork network = crossWithLongArm();
+        RoadNode junction = network.getNodes().values().stream()
+            .filter(node -> node.getDegree() >= 3)
+            .findFirst()
+            .orElseThrow();
+        RoadEdge longEdge = network.getEdges().values().stream()
+            .filter(edge -> edge.getLength() > 100)
+            .findFirst()
+            .orElseThrow();
+
+        RoadGenerationResult result = new RoadGenerationResult(longEdge.getLength());
+        result.constructionTypes.add(RoadConstructionType.ROAD);
+        result.constructionTypes.add(RoadConstructionType.ROAD);
+        result.constructionTypes.add(RoadConstructionType.TUNNEL);
+
+        assertFalse(TunnelJunctionConnectivityPass.tunnelAtNode(
+            network,
+            junction,
+            longEdge,
+            result,
+            new RoadSystemConfig("tunnel-local"),
+            List.of(junction.getPosition(), new Vec2d(50, 0), new Vec2d(100, 0), new Vec2d(150, 0)),
+            List.of(new PathSegment(junction.getPosition(), new Vec2d(50, 0))),
+            1.0));
+    }
+
+    @Test
+    void protectedRoadInOpenVolumeIsNotCarvedToAir() {
+        RoadNetwork network = tunnelTJunctionNetwork();
+        RoadNode junction = network.getNodes().values().stream()
+            .filter(node -> node.getDegree() >= 3)
+            .findFirst()
+            .orElseThrow();
+
+        Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
+        BlockPos roadDeck = new BlockPos(0, 64, 0);
+        BlockPos lining = new BlockPos(0, 66, 0);
+        for (var edge : network.getEdges().values()) {
+            RoadGenerationResult result = new RoadGenerationResult(edge.getLength());
+            result.constructionTypes.add(RoadConstructionType.TUNNEL);
+            result.tunnelCount = 1;
+            result.recordPlacementOverride(roadDeck, "minecraft:grass_block", "minecraft:black_concrete");
+            result.placementLayers.put(roadDeck, RoadSolidLayer.ROAD);
+            result.recordPlacementOverride(lining, "minecraft:stone", "minecraft:stone_bricks");
+            result.placementLayers.put(lining, RoadSolidLayer.TUNNEL);
+            result.tunnelBlocks.add(lining);
+            edgeResults.put(edge.getId(), result);
+        }
+
+        TunnelJunctionConnectivityPass.apply(
+            network,
+            edgeResults,
+            Map.of(junction.getId(), 64),
+            new RoadSystemConfig("tunnel-protect-road"),
+            IdentityCoordinateService.INSTANCE,
+            (path, segments) -> 1.0);
+
+        for (RoadGenerationResult result : edgeResults.values()) {
+            BlockRecord deck = result.placementRecords.get(roadDeck);
+            assertTrue(deck != null && "minecraft:black_concrete".equals(deck.newBlockId));
+        }
+    }
+
+    @Test
     void gradeSeparatedJunctionStillOpensUnderpassTunnelVolume() {
         RoadNetwork network = tunnelCrossNetwork();
         RoadNode junction = network.getNodes().values().stream()
@@ -365,6 +433,25 @@ class TunnelJunctionConnectivityPassTest {
             .count();
         assertTrue(underpassAir > 0,
             "grade-separated underpass tunnels must still clear crossing lining");
+    }
+
+    private static RoadNetwork crossWithLongArm() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("roadA");
+        Road roadB = network.createRoad("roadB");
+        Road roadC = network.createRoad("roadC");
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        junction.setManualElevation(64.0);
+        RoadNode north = network.createNode(new Vec2d(0, 40));
+        RoadNode east = network.createNode(new Vec2d(150, 0));
+        RoadNode south = network.createNode(new Vec2d(0, -40));
+        network.createEdge(junction.getId(), north.getId(),
+            List.of(junction.getPosition(), north.getPosition()), roadA.getId());
+        network.createEdge(junction.getId(), east.getId(),
+            List.of(junction.getPosition(), new Vec2d(50, 0), new Vec2d(100, 0), east.getPosition()), roadB.getId());
+        network.createEdge(junction.getId(), south.getId(),
+            List.of(junction.getPosition(), south.getPosition()), roadC.getId());
+        return network;
     }
 
     private static RoadNetwork tunnelTJunctionNetwork() {

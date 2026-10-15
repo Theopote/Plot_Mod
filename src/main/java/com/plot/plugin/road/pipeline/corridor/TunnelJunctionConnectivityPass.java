@@ -17,6 +17,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
+import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
 import com.plot.plugin.road.solid.RoadGenerationResult;
@@ -29,11 +30,14 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 
 /**
@@ -41,6 +45,7 @@ import java.util.function.BiFunction;
  */
 public final class TunnelJunctionConnectivityPass {
     private static final double EPSILON = 1e-9;
+    private static final Map<String, JunctionConstructionReport> LAST_REPORTS = new ConcurrentHashMap<>();
 
     /**
      * Resolves the pre-construction block id at a world position (typically
@@ -53,6 +58,14 @@ public final class TunnelJunctionConnectivityPass {
     }
 
     private TunnelJunctionConnectivityPass() {
+    }
+
+    public static Map<String, JunctionConstructionReport> lastReports() {
+        return Map.copyOf(LAST_REPORTS);
+    }
+
+    public static void clearReports() {
+        LAST_REPORTS.clear();
     }
 
     public static void apply(
@@ -73,6 +86,7 @@ public final class TunnelJunctionConnectivityPass {
             ICoordinateService coordinateTransformer,
             BiFunction<List<Vec2d>, List<PathSegment>, Double> unitsPerBlockEstimator,
             PreviousBlockResolver previousBlockResolver) {
+        LAST_REPORTS.clear();
         if (network == null || edgeResults == null || edgeResults.isEmpty() || config == null) {
             return;
         }
@@ -89,23 +103,58 @@ public final class TunnelJunctionConnectivityPass {
                 config,
                 unitsPerBlockEstimator);
             if (approaches.size() < 2) {
+                LAST_REPORTS.put(node.getId(), JunctionConstructionReport.empty(node.getId()));
                 continue;
             }
             List<Vec2d> polygon = buildJunctionPolygon(network, node, config);
             if (polygon.size() < 3) {
+                LAST_REPORTS.put(node.getId(), JunctionConstructionReport.empty(node.getId()));
                 continue;
             }
-            Collection<RoadGenerationResult> approachResults = approachEdgeResults(approaches, edgeResults);
-            Set<BlockPos> openVolume = collectOpenVolume(
-                approaches,
-                polygon,
-                approachResults,
-                coordinateTransformer);
-            if (openVolume.isEmpty()) {
-                continue;
+
+            int blockedAir = 0;
+            int protectedConflicts = 0;
+            boolean connectivityApplied = false;
+
+            Map<Integer, List<TunnelApproach>> byElevation = groupApproachesByRoadY(approaches);
+            for (List<TunnelApproach> layerApproaches : byElevation.values()) {
+                if (layerApproaches.size() < 2) {
+                    continue;
+                }
+                Collection<RoadGenerationResult> approachResults =
+                    approachEdgeResults(layerApproaches, edgeResults);
+                Set<BlockPos> openVolume = collectOpenVolume(
+                    layerApproaches,
+                    polygon,
+                    approachResults,
+                    coordinateTransformer);
+                if (openVolume.isEmpty()) {
+                    continue;
+                }
+                connectivityApplied = true;
+                OpenVolumeStats stats = openVolume(
+                    approachResults, openVolume, previousBlockResolver);
+                blockedAir += stats.blockedByProtection;
+                protectedConflicts += stats.protectedConflicts;
             }
-            openVolume(approachResults, openVolume, previousBlockResolver);
+
+            LAST_REPORTS.put(node.getId(), new JunctionConstructionReport(
+                node.getId(),
+                0,
+                0,
+                blockedAir,
+                protectedConflicts,
+                0,
+                connectivityApplied));
         }
+    }
+
+    private static Map<Integer, List<TunnelApproach>> groupApproachesByRoadY(List<TunnelApproach> approaches) {
+        Map<Integer, List<TunnelApproach>> grouped = new LinkedHashMap<>();
+        for (TunnelApproach approach : approaches) {
+            grouped.computeIfAbsent(approach.roadY(), ignored -> new ArrayList<>()).add(approach);
+        }
+        return grouped;
     }
 
     private static Collection<RoadGenerationResult> approachEdgeResults(
@@ -122,8 +171,6 @@ public final class TunnelJunctionConnectivityPass {
     }
 
     private static boolean qualifiesForConnectivity(RoadNode node) {
-        // Grade-separated / stack overpasses still need underpass tunnel arms connected;
-        // elevated approaches are filtered in collectTunnelApproaches.
         return node != null && node.getDegree() >= 3;
     }
 
@@ -147,7 +194,22 @@ public final class TunnelJunctionConnectivityPass {
         for (String edgeId : node.getConnectedEdgeIds()) {
             RoadEdge edge = network.getEdge(edgeId);
             RoadGenerationResult result = edgeResults.get(edgeId);
-            if (edge == null || result == null || !tunnelAtNode(edge, node, result)) {
+            if (edge == null || result == null) {
+                continue;
+            }
+            List<Vec2d> centerline = RoadPlanGeometry.resolveEdgeCenterline(
+                network, edge, config.getPathSampleDistance());
+            if (centerline.size() < 2) {
+                continue;
+            }
+            List<PathSegment> segments = segmentsFromNode(centerline, edge, node.getId());
+            double unitsPerBlock = unitsPerBlockEstimator != null
+                ? unitsPerBlockEstimator.apply(centerline, segments)
+                : 1.0;
+            if (!Double.isFinite(unitsPerBlock) || unitsPerBlock <= EPSILON) {
+                unitsPerBlock = 1.0;
+            }
+            if (!tunnelAtNode(network, node, edge, result, config, centerline, segments, unitsPerBlock)) {
                 continue;
             }
             if (node.isStackGradeSeparated() && node.isStackUpperEdge(edgeId)) {
@@ -158,22 +220,10 @@ public final class TunnelJunctionConnectivityPass {
                     && elevatedRoadId.equals(edge.getRoadId())) {
                 continue;
             }
-            List<Vec2d> centerline = RoadPlanGeometry.resolveEdgeCenterline(
-                network, edge, config.getPathSampleDistance());
-            if (centerline.size() < 2) {
-                continue;
-            }
             CrossSectionBuildContext crossSections = CrossSectionBuildContext.forEdge(network, edge, config);
             ResolvedCrossSection crossSection = crossSections.resolve(crossSections.segmentStartStation());
             Road road = RoadModelUtils.resolveRoad(network, edge);
             ResolvedTunnelStyle tunnelStyle = TunnelStyle.resolve(road, config);
-            List<PathSegment> segments = segmentsFromNode(centerline, edge, node.getId());
-            double unitsPerBlock = unitsPerBlockEstimator != null
-                ? unitsPerBlockEstimator.apply(centerline, segments)
-                : 1.0;
-            if (!Double.isFinite(unitsPerBlock) || unitsPerBlock <= EPSILON) {
-                unitsPerBlock = 1.0;
-            }
             approaches.add(new TunnelApproach(
                 edge,
                 node.getId(),
@@ -206,17 +256,57 @@ public final class TunnelJunctionConnectivityPass {
         return segments;
     }
 
-    private static boolean tunnelAtNode(RoadEdge edge, RoadNode node, RoadGenerationResult result) {
-        if (result.tunnelLength <= EPSILON && result.tunnelCount <= 0 && result.tunnelBlocks.isEmpty()) {
+    /**
+     * True only when tunnel-family construction exists within the node approach window,
+     * not merely anywhere on the edge.
+     */
+    static boolean tunnelAtNode(
+            RoadNetwork network,
+            RoadNode node,
+            RoadEdge edge,
+            RoadGenerationResult result,
+            RoadSystemConfig config,
+            List<Vec2d> centerline,
+            List<PathSegment> approachSegments,
+            double unitsPerBlock) {
+        if (node == null || edge == null || result == null || centerline == null || approachSegments.isEmpty()) {
             return false;
         }
-        if (result.constructionTypes.isEmpty()) {
-            return result.tunnelLength > EPSILON || result.tunnelCount > 0;
+        double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
+            List.of(edge),
+            e -> RoadModelUtils.getEffectiveWidth(network, e, config) / 2.0,
+            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
+        double window = Math.max(
+            junctionRadius,
+            Math.max(
+                RoadCorridorWidth.PORTAL_TRANSITION_CLEAR_BAND_BLOCKS * unitsPerBlock,
+                approachSegments.getFirst().distance));
+
+        boolean fromStart = edge.getStartNodeId().equals(node.getId());
+        double accumulated = 0.0;
+        if (!result.constructionTypes.isEmpty()) {
+            for (int i = 0; i < approachSegments.size() && accumulated <= window + EPSILON; i++) {
+                accumulated += approachSegments.get(i).distance;
+                int typeIndex = fromStart ? i : (centerline.size() - 2 - i);
+                RoadConstructionType type = RoadConstructionClassifier.constructionTypeAt(
+                    result.constructionTypes, typeIndex);
+                if (type.isTunnelFamily()) {
+                    return true;
+                }
+            }
         }
-        if (result.constructionTypes.stream().anyMatch(RoadConstructionType::isTunnelFamily)) {
-            return true;
+
+        Vec2d nodeCenter = node.getPosition();
+        if (nodeCenter != null && !result.tunnelBlocks.isEmpty()) {
+            double planWindow = window + unitsPerBlock * 2.0;
+            for (BlockPos pos : result.tunnelBlocks) {
+                Vec2d planPoint = new Vec2d(pos.getX(), pos.getZ());
+                if (nodeCenter.distance(planPoint) <= planWindow) {
+                    return true;
+                }
+            }
         }
-        return !result.tunnelBlocks.isEmpty();
+        return false;
     }
 
     private static List<Vec2d> buildJunctionPolygon(
@@ -257,12 +347,34 @@ public final class TunnelJunctionConnectivityPass {
             List<Vec2d> polygon,
             Collection<RoadGenerationResult> edgeResults,
             ICoordinateService coordinateTransformer) {
-        Set<BlockPos> openVolume = new HashSet<>();
+        Set<BlockPos> sampledAir = new HashSet<>();
         for (TunnelApproach approach : approaches) {
-            openVolume.addAll(collectSampledApproachAir(approach, polygon, coordinateTransformer));
+            sampledAir.addAll(collectSampledApproachAir(approach, polygon, coordinateTransformer));
         }
-        openVolume.addAll(collectBlockingLining(approaches, polygon, edgeResults, coordinateTransformer));
+        Set<BlockPos> dilatedAir = dilateBlockPositions(sampledAir);
+        Set<BlockPos> openVolume = new HashSet<>(sampledAir);
+        openVolume.addAll(collectBlockingLining(
+            approaches, polygon, edgeResults, dilatedAir, coordinateTransformer));
         return openVolume;
+    }
+
+    private static Set<BlockPos> dilateBlockPositions(Set<BlockPos> positions) {
+        if (positions == null || positions.isEmpty()) {
+            return Set.of();
+        }
+        Set<BlockPos> dilated = new HashSet<>(positions);
+        int[][] offsets = {
+            {-1, 0, 0}, {1, 0, 0}, {0, -1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1},
+            {-1, -1, 0}, {-1, 1, 0}, {1, -1, 0}, {1, 1, 0},
+            {-1, 0, -1}, {-1, 0, 1}, {1, 0, -1}, {1, 0, 1},
+            {0, -1, -1}, {0, -1, 1}, {0, 1, -1}, {0, 1, 1}
+        };
+        for (BlockPos pos : positions) {
+            for (int[] offset : offsets) {
+                dilated.add(pos.add(offset[0], offset[1], offset[2]));
+            }
+        }
+        return dilated;
     }
 
     private static Set<BlockPos> collectSampledApproachAir(
@@ -300,25 +412,20 @@ public final class TunnelJunctionConnectivityPass {
             List<TunnelApproach> approaches,
             List<Vec2d> polygon,
             Collection<RoadGenerationResult> edgeResults,
+            Set<BlockPos> dilatedAir,
             ICoordinateService coordinateTransformer) {
         Set<BlockPos> positions = new HashSet<>();
-        int minY = Integer.MAX_VALUE;
-        int maxY = Integer.MIN_VALUE;
-        for (TunnelApproach approach : approaches) {
-            TunnelCrossSectionMask mask = buildMask(approach);
-            if (mask == null) {
-                continue;
-            }
-            minY = Math.min(minY, mask.minY());
-            maxY = Math.max(maxY, mask.maxY());
-        }
-        if (minY > maxY) {
+        if (dilatedAir.isEmpty()) {
             return positions;
         }
+        Map<Integer, int[]> yBandByRoadY = yBandsByRoadY(approaches);
         for (RoadGenerationResult result : edgeResults) {
             for (Map.Entry<BlockPos, BlockRecord> entry : result.placementRecords.entrySet()) {
                 BlockPos pos = entry.getKey();
-                if (pos.getY() < minY || pos.getY() > maxY) {
+                if (!dilatedAir.contains(pos)) {
+                    continue;
+                }
+                if (!matchesAnyApproachYBand(approaches, yBandByRoadY, pos.getY())) {
                     continue;
                 }
                 if (!isTunnelLining(result, pos, entry.getValue())) {
@@ -332,6 +439,34 @@ public final class TunnelJunctionConnectivityPass {
             }
         }
         return positions;
+    }
+
+    private static Map<Integer, int[]> yBandsByRoadY(List<TunnelApproach> approaches) {
+        Map<Integer, int[]> bands = new HashMap<>();
+        for (TunnelApproach approach : approaches) {
+            TunnelCrossSectionMask mask = buildMask(approach);
+            if (mask == null) {
+                continue;
+            }
+            bands.merge(
+                approach.roadY(),
+                new int[] {mask.minY(), mask.maxY()},
+                (a, b) -> new int[] {Math.min(a[0], b[0]), Math.max(a[1], b[1])});
+        }
+        return bands;
+    }
+
+    private static boolean matchesAnyApproachYBand(
+            List<TunnelApproach> approaches,
+            Map<Integer, int[]> yBandByRoadY,
+            int y) {
+        for (TunnelApproach approach : approaches) {
+            int[] band = yBandByRoadY.get(approach.roadY());
+            if (band != null && y >= band[0] && y <= band[1]) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static TunnelCrossSectionMask buildMask(TunnelApproach approach) {
@@ -390,14 +525,24 @@ public final class TunnelJunctionConnectivityPass {
         return new Vec2d(pos.getX(), pos.getZ());
     }
 
-    private static void openVolume(
+    private record OpenVolumeStats(int blockedByProtection, int protectedConflicts) {
+    }
+
+    private static OpenVolumeStats openVolume(
             Collection<RoadGenerationResult> edgeResults,
             Set<BlockPos> openVolume,
             PreviousBlockResolver previousBlockResolver) {
         if (edgeResults.isEmpty()) {
-            return;
+            return new OpenVolumeStats(0, 0);
         }
+        int blocked = 0;
+        int protectedConflicts = 0;
         for (BlockPos pos : openVolume) {
+            if (hasProtectedPlacement(edgeResults, pos)) {
+                protectedConflicts++;
+                blocked++;
+                continue;
+            }
             boolean hasAir = false;
             for (RoadGenerationResult result : edgeResults) {
                 if (replaceTunnelLiningWithAir(result, pos, edgeResults, previousBlockResolver)) {
@@ -421,12 +566,9 @@ public final class TunnelJunctionConnectivityPass {
                 carrier.tunnelBlocks.add(pos);
             }
         }
+        return new OpenVolumeStats(blocked, protectedConflicts);
     }
 
-    /**
-     * Prefer an already-captured previous id, then any edge record at the same
-     * position, then a world/projection resolver. Never invent a material id.
-     */
     static String resolvePreviousBlockId(
             BlockPos pos,
             BlockRecord existing,
@@ -471,7 +613,6 @@ public final class TunnelJunctionConnectivityPass {
             return "minecraft:air".equals(existing.newBlockId);
         }
         String previous = resolvePreviousBlockId(pos, existing, edgeResults, previousBlockResolver);
-        // recordOverride keeps the first previous; if it was null, write the resolved id directly.
         if (validPrevious(existing.previousBlockId) == null && previous != null) {
             result.placementRecords.put(pos, new BlockRecord(pos, previous, "minecraft:air"));
         } else {
@@ -480,6 +621,33 @@ public final class TunnelJunctionConnectivityPass {
         result.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
         result.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.AIR);
         return true;
+    }
+
+    static boolean hasProtectedPlacement(Collection<RoadGenerationResult> edgeResults, BlockPos pos) {
+        if (edgeResults == null) {
+            return false;
+        }
+        for (RoadGenerationResult result : edgeResults) {
+            BlockRecord record = result.placementRecords.get(pos);
+            if (record == null || "minecraft:air".equals(record.newBlockId)) {
+                continue;
+            }
+            RoadSolidLayer layer = result.placementLayers.get(pos);
+            if (layer == null) {
+                continue;
+            }
+            if (layer == RoadSolidLayer.ROAD
+                    || layer == RoadSolidLayer.BRIDGE
+                    || layer == RoadSolidLayer.MARKING
+                    || layer == RoadSolidLayer.SIDEWALK
+                    || layer == RoadSolidLayer.SHOULDER
+                    || layer == RoadSolidLayer.BIKE_LANE
+                    || layer == RoadSolidLayer.MEDIAN
+                    || layer == RoadSolidLayer.GUARDRAIL) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isTunnelLining(
@@ -496,7 +664,8 @@ public final class TunnelJunctionConnectivityPass {
                 || layer == RoadSolidLayer.SIDEWALK
                 || layer == RoadSolidLayer.SHOULDER
                 || layer == RoadSolidLayer.BIKE_LANE
-                || layer == RoadSolidLayer.MEDIAN) {
+                || layer == RoadSolidLayer.MEDIAN
+                || layer == RoadSolidLayer.GUARDRAIL) {
             return false;
         }
         Integer priority = result.placementMaterialPriorities.get(pos);
