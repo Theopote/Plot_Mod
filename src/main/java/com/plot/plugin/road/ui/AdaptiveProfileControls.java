@@ -90,6 +90,7 @@ final class AdaptiveProfileControls {
                 ? "plugin.road.vertical_alignment_auto_fix_success"
                 : "plugin.road.vertical_alignment_auto_fix_insufficient");
             propagateJunctionGrades.run();
+            onWorkingProfileChanged.run();
         }
         if (VerticalProfileControlPoints.canAutoSmooth(network, road, selectedPoint)
                 && ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_auto_smooth"))) {
@@ -103,6 +104,8 @@ final class AdaptiveProfileControls {
             state.profileAutoFixMessage = PlotI18n.tr(fitted.hasSpace()
                 ? "plugin.road.vertical_alignment_auto_smooth_success"
                 : "plugin.road.vertical_alignment_auto_smooth_no_space");
+            propagateJunctionGrades.run();
+            onWorkingProfileChanged.run();
         }
         boolean canDelete = VerticalProfileControlPoints.canDelete(
             network, road, state.selectedProfilePvi);
