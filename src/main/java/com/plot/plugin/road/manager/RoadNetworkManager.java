@@ -846,6 +846,7 @@ public final class RoadNetworkManager {
     /** 内联刷新 Crossing 注册表（不推入额外 Undo 帧）。 */
     void reconcileCrossingsInPlace() {
         com.plot.plugin.road.crossing.RoadCrossingReconciler.reconcileCrossings(network);
+        com.plot.plugin.road.crossing.RoadStackCrossingReconciler.reconcileStackCrossings(network);
     }
 
     /** 校验一键修复：同步可维护道路的分段存储顺序。 */

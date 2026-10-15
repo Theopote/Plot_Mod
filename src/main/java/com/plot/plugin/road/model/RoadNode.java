@@ -31,6 +31,13 @@ public class RoadNode {
     private JunctionMarkingSetting continuedMarkings = JunctionMarkingSetting.AUTO;
     private JunctionMarkingSetting crosswalks = JunctionMarkingSetting.AUTO;
     private JunctionMarkingSetting turnArrows = JunctionMarkingSetting.AUTO;
+    /** 自交叠交注册表 ID（物化后写入，供生成识别）。 */
+    private String stackCrossingId;
+    /** 同路自交立交：上下层由 {@link #stackUpperEdgeIds} 区分。 */
+    private boolean stackGradeSeparated;
+    private Double stackCrossingClearance;
+    private final Set<String> stackLowerEdgeIds = new LinkedHashSet<>();
+    private final Set<String> stackUpperEdgeIds = new LinkedHashSet<>();
     private final Set<String> connectedEdgeIds;
 
     public RoadNode(Vec2d position) {
@@ -104,6 +111,62 @@ public class RoadNode {
         this.gradeSeparated = false;
         this.elevatedRoadId = null;
         this.crossingClearance = null;
+    }
+
+    public String getStackCrossingId() {
+        return stackCrossingId;
+    }
+
+    public void setStackCrossingId(String stackCrossingId) {
+        this.stackCrossingId = stackCrossingId;
+    }
+
+    public boolean isStackGradeSeparated() {
+        return stackGradeSeparated;
+    }
+
+    public void setStackGradeSeparated(boolean stackGradeSeparated) {
+        this.stackGradeSeparated = stackGradeSeparated;
+    }
+
+    public Double getStackCrossingClearance() {
+        return stackCrossingClearance;
+    }
+
+    public void setStackCrossingClearance(Double stackCrossingClearance) {
+        this.stackCrossingClearance = RoadParameterLimits.clampCrossingClearanceNullable(stackCrossingClearance);
+    }
+
+    public Set<String> getStackLowerEdgeIds() {
+        return Collections.unmodifiableSet(stackLowerEdgeIds);
+    }
+
+    public Set<String> getStackUpperEdgeIds() {
+        return Collections.unmodifiableSet(stackUpperEdgeIds);
+    }
+
+    public void addStackLowerEdgeId(String edgeId) {
+        if (edgeId != null) {
+            stackLowerEdgeIds.add(edgeId);
+        }
+    }
+
+    public void addStackUpperEdgeId(String edgeId) {
+        if (edgeId != null) {
+            stackUpperEdgeIds.add(edgeId);
+        }
+    }
+
+    public void clearStackCrossingMetadata() {
+        stackCrossingId = null;
+        stackGradeSeparated = false;
+        stackCrossingClearance = null;
+        stackLowerEdgeIds.clear();
+        stackUpperEdgeIds.clear();
+    }
+
+    public boolean isStackUpperEdge(String edgeId) {
+        return edgeId != null && stackUpperEdgeIds.contains(edgeId);
     }
 
     public Double getCornerRadius() {
@@ -186,6 +249,11 @@ public class RoadNode {
         copy.continuedMarkings = continuedMarkings;
         copy.crosswalks = crosswalks;
         copy.turnArrows = turnArrows;
+        copy.stackCrossingId = stackCrossingId;
+        copy.stackGradeSeparated = stackGradeSeparated;
+        copy.stackCrossingClearance = stackCrossingClearance;
+        copy.stackLowerEdgeIds.addAll(stackLowerEdgeIds);
+        copy.stackUpperEdgeIds.addAll(stackUpperEdgeIds);
         return copy;
     }
 

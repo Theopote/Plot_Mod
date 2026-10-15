@@ -146,6 +146,30 @@ public final class RoadGraphEdits {
         return splitEdgeInternal(edgeId, nodeId, splitPoint, tolerance);
     }
 
+    /**
+     * 在指定线段上分割边，允许分割节点已是边的端点（用于自交叠点二次穿越）。
+     */
+    public Optional<SplitResult> splitEdgeAtInteriorSegment(
+            String edgeId,
+            String nodeId,
+            int segmentIndex,
+            Vec2d splitPoint,
+            double tolerance) {
+        RoadEdge edge = network.getEdge(edgeId);
+        RoadNode splitNode = network.getNode(nodeId);
+        if (edge == null || splitNode == null || splitPoint == null) {
+            return Optional.empty();
+        }
+        List<List<Vec2d>> parts = RoadGeometryUtils.splitPolylineAtSegment(
+            edge.getCenterlinePoints(),
+            segmentIndex,
+            splitPoint);
+        if (parts.size() != 2) {
+            return Optional.empty();
+        }
+        return finalizeSplit(edge, nodeId, parts.get(0), parts.get(1));
+    }
+
     Optional<SplitResult> splitEdgeInternal(
             String edgeId,
             String nodeId,
@@ -165,14 +189,19 @@ public final class RoadGraphEdits {
         List<List<Vec2d>> parts = RoadGeometryUtils.splitPolylineAt(
             edge.getCenterlinePoints(),
             point,
-                tolerance
+            tolerance
         );
         if (parts.size() != 2) {
             return Optional.empty();
         }
+        return finalizeSplit(edge, nodeId, parts.get(0), parts.get(1));
+    }
 
-        List<Vec2d> firstPart = parts.get(0);
-        List<Vec2d> secondPart = parts.get(1);
+    private Optional<SplitResult> finalizeSplit(
+            RoadEdge edge,
+            String nodeId,
+            List<Vec2d> firstPart,
+            List<Vec2d> secondPart) {
         if (firstPart.size() < 2 || secondPart.size() < 2) {
             return Optional.empty();
         }

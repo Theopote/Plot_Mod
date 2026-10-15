@@ -86,7 +86,10 @@ public final class TunnelJunctionConnectivityPass {
     }
 
     private static boolean qualifiesForConnectivity(RoadNode node) {
-        return node != null && node.getDegree() >= 3 && !node.isGradeSeparated();
+        return node != null
+            && node.getDegree() >= 3
+            && !node.isGradeSeparated()
+            && !node.isStackGradeSeparated();
     }
 
     private static List<TunnelApproach> collectTunnelApproaches(

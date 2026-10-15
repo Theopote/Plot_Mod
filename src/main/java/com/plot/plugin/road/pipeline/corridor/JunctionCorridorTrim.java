@@ -70,6 +70,9 @@ public final class JunctionCorridorTrim {
         if (node == null || node.getDegree() < 3) {
             return false;
         }
+        if (node.isStackGradeSeparated()) {
+            return !node.isStackUpperEdge(edge.getId());
+        }
         if (node.isGradeSeparated()) {
             String elevatedRoadId = node.getElevatedRoadId();
             String edgeRoadId = edge.getRoadId();

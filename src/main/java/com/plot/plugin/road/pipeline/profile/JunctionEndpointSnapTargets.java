@@ -27,6 +27,12 @@ public final class JunctionEndpointSnapTargets {
         }
         Integer networkY = networkNodeElevations != null ? networkNodeElevations.get(node.getId()) : null;
         Integer profileY = profileEndpointY(heightInfos, start);
+        if (node.isStackGradeSeparated()) {
+            if (edge != null && node.isStackUpperEdge(edge.getId())) {
+                return profileY != null ? profileY : networkY;
+            }
+            return networkY != null ? networkY : profileY;
+        }
         if (node.isGradeSeparated()) {
             String elevatedRoadId = elevatedRoadIdResolver != null
                 ? elevatedRoadIdResolver.resolve(node, network)

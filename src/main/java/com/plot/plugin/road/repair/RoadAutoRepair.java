@@ -98,6 +98,7 @@ public final class RoadAutoRepair {
         if (before.contains(RoadRepairIssue.INTERSECTION_INCOMPLETE)
                 || before.contains(RoadRepairIssue.INTERSECTION_PENDING)) {
             RoadCrossingReconciler.reconcileCrossings(network);
+            com.plot.plugin.road.crossing.RoadStackCrossingReconciler.reconcileStackCrossings(network);
             steps++;
             if (onIntersectionReconciled != null) {
                 onIntersectionReconciled.run();

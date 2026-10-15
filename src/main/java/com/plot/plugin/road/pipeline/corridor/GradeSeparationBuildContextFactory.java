@@ -53,7 +53,17 @@ public final class GradeSeparationBuildContextFactory {
             RoadSystemConfig config,
             ElevatedRoadIdResolver elevatedRoadIdResolver,
             List<GradeSeparationBuildContext.ProtectedUnderpassZone> zones) {
-        if (node == null || !node.isGradeSeparated() || node.getDegree() < 3) {
+        if (node == null || node.getDegree() < 3) {
+            return;
+        }
+        if (node.isStackGradeSeparated()) {
+            if (!node.isStackUpperEdge(edge.getId())) {
+                return;
+            }
+            collectStackUnderpassZone(network, node, networkNodeElevations, config, zones);
+            return;
+        }
+        if (!node.isGradeSeparated()) {
             return;
         }
         String elevatedRoadId = elevatedRoadIdResolver != null
@@ -74,6 +84,54 @@ public final class GradeSeparationBuildContextFactory {
         if (polygon.size() >= 3) {
             zones.add(new GradeSeparationBuildContext.ProtectedUnderpassZone(polygon, floorY));
         }
+    }
+
+    private static void collectStackUnderpassZone(
+            RoadNetwork network,
+            RoadNode node,
+            Map<String, Integer> networkNodeElevations,
+            RoadSystemConfig config,
+            List<GradeSeparationBuildContext.ProtectedUnderpassZone> zones) {
+        Integer underpassY = networkNodeElevations.get(node.getId());
+        if (underpassY == null) {
+            return;
+        }
+        double clearance = node.getStackCrossingClearance() != null
+            ? node.getStackCrossingClearance()
+            : config.getDefaultCrossingClearance();
+        int floorY = underpassY + (int) Math.ceil(Math.max(1.0, clearance));
+        List<Vec2d> polygon = stackJunctionPolygon(network, node, config);
+        if (polygon.size() >= 3) {
+            zones.add(new GradeSeparationBuildContext.ProtectedUnderpassZone(polygon, floorY));
+        }
+    }
+
+    private static List<Vec2d> stackJunctionPolygon(
+            RoadNetwork network,
+            RoadNode node,
+            RoadSystemConfig config) {
+        List<RoadEdge> connected = new ArrayList<>();
+        for (String edgeId : node.getConnectedEdgeIds()) {
+            RoadEdge connectedEdge = network.getEdge(edgeId);
+            if (connectedEdge != null) {
+                connected.add(connectedEdge);
+            }
+        }
+        if (connected.isEmpty()) {
+            return List.of();
+        }
+        double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
+            connected,
+            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
+            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
+        double cornerRadius = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
+        return RoadJunctionGeometry.buildJunctionFillPolygon(
+            node.getId(),
+            connected,
+            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
+            junctionRadius,
+            cornerRadius,
+            RoadJunctionCenterlineResolver.forNetwork(network));
     }
 
     private static List<Vec2d> junctionPolygon(

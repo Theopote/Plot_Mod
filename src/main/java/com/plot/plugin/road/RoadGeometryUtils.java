@@ -585,6 +585,22 @@ public final class RoadGeometryUtils {
         if (segmentIndex < 0) {
             return singlePart(points);
         }
+        return splitPolylineAtSegment(points, segmentIndex, splitPoint);
+    }
+
+    /**
+     * 在指定线段上分割折线，允许切点与首尾重合（用于同一点多次经过的路径）。
+     */
+    public static List<List<Vec2d>> splitPolylineAtSegment(
+            List<Vec2d> points,
+            int segmentIndex,
+            Vec2d splitPoint) {
+        if (points == null || points.size() < 2 || splitPoint == null) {
+            return singlePart(points);
+        }
+        if (segmentIndex < 0 || segmentIndex >= points.size() - 1) {
+            return singlePart(points);
+        }
 
         Vec2d projected = projectPointOnSegment(
             points.get(segmentIndex),

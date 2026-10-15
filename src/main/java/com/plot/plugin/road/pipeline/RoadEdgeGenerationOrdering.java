@@ -37,7 +37,13 @@ public final class RoadEdgeGenerationOrdering {
     }
 
     private static int endpointPriority(RoadNetwork network, RoadNode node, RoadEdge edge) {
-        if (node == null || !node.isGradeSeparated() || edge.getRoadId() == null) {
+        if (node == null || edge == null) {
+            return 0;
+        }
+        if (node.isStackGradeSeparated()) {
+            return node.isStackUpperEdge(edge.getId()) ? 100 : 0;
+        }
+        if (!node.isGradeSeparated() || edge.getRoadId() == null) {
             return 0;
         }
         String elevatedRoadId = node.getElevatedRoadId();

@@ -28,13 +28,14 @@ public final class RoadCrossingMaterializer {
         if (source == null) {
             return new RoadNetwork();
         }
-        if (source.getCrossings().isEmpty()) {
+        if (source.getCrossings().isEmpty() && source.getStackCrossings().isEmpty()) {
             return source.snapshot();
         }
         RoadNetwork snapshot = source.snapshot();
         for (RoadCrossing crossing : source.getCrossings().values()) {
             materializeCrossing(snapshot, crossing);
         }
+        RoadStackCrossingMaterializer.materializeAll(snapshot, source.getStackCrossings().values());
         return snapshot;
     }
 

@@ -92,6 +92,9 @@ public class RoadNetwork {
     private final Map<String, Road> roads = new ConcurrentHashMap<>();
     /** 平面交叉注册表（几何关系，非拓扑节点共享）。 */
     private final Map<String, com.plot.plugin.road.crossing.RoadCrossing> crossings = new ConcurrentHashMap<>();
+    /** 单路自交叠交注册表。 */
+    private final Map<String, com.plot.plugin.road.crossing.RoadStackCrossing> stackCrossings =
+        new ConcurrentHashMap<>();
 
     public Map<String, RoadNode> getNodes() {
         return Map.copyOf(nodes);
@@ -132,6 +135,36 @@ public class RoadNetwork {
         }
         return crossings.values().stream()
             .filter(crossing -> crossing.involvesRoad(roadId))
+            .toList();
+    }
+
+    public Map<String, com.plot.plugin.road.crossing.RoadStackCrossing> getStackCrossings() {
+        return Map.copyOf(stackCrossings);
+    }
+
+    public com.plot.plugin.road.crossing.RoadStackCrossing getStackCrossing(String stackCrossingId) {
+        return stackCrossings.get(stackCrossingId);
+    }
+
+    public void registerStackCrossing(com.plot.plugin.road.crossing.RoadStackCrossing stackCrossing) {
+        if (stackCrossing == null || stackCrossing.id() == null) {
+            throw new IllegalArgumentException("stack crossing id required");
+        }
+        stackCrossings.put(stackCrossing.id(), stackCrossing);
+    }
+
+    public void removeStackCrossing(String stackCrossingId) {
+        if (stackCrossingId != null) {
+            stackCrossings.remove(stackCrossingId);
+        }
+    }
+
+    public List<com.plot.plugin.road.crossing.RoadStackCrossing> stackCrossingsForRoad(String roadId) {
+        if (roadId == null) {
+            return List.of();
+        }
+        return stackCrossings.values().stream()
+            .filter(stack -> roadId.equals(stack.roadId()))
             .toList();
     }
 
@@ -568,6 +601,63 @@ public class RoadNetwork {
         }
         crossings.put(crossingId, crossing.withSharedElevation(sharedElevation));
         return true;
+    }
+
+    public boolean setStackCrossingSharedElevation(String stackCrossingId, Double sharedElevation) {
+        com.plot.plugin.road.crossing.RoadStackCrossing stack = stackCrossings.get(stackCrossingId);
+        if (stack == null) {
+            return false;
+        }
+        stackCrossings.put(stackCrossingId, stack.withSharedElevation(sharedElevation));
+        return true;
+    }
+
+    public boolean setStackCrossingGradeSeparation(
+            String stackCrossingId,
+            com.plot.plugin.road.crossing.CrossingType type,
+            Double lowerStation,
+            Double upperStation,
+            Double crossingClearance) {
+        com.plot.plugin.road.crossing.RoadStackCrossing stack = stackCrossings.get(stackCrossingId);
+        if (stack == null) {
+            return false;
+        }
+        if (type == com.plot.plugin.road.crossing.CrossingType.GRADE_SEPARATED) {
+            double lower = lowerStation != null ? lowerStation : stack.stationA();
+            double upper = upperStation != null ? upperStation : stack.stationB();
+            double[] ordered = lower <= upper ? new double[] {lower, upper} : new double[] {upper, lower};
+            stackCrossings.put(stackCrossingId, new com.plot.plugin.road.crossing.RoadStackCrossing(
+                stack.id(),
+                stack.roadId(),
+                stack.position(),
+                ordered[0],
+                ordered[1],
+                com.plot.plugin.road.crossing.CrossingType.GRADE_SEPARATED,
+                ordered[0],
+                ordered[1],
+                crossingClearance != null ? crossingClearance : getDefaultCrossingClearance(stack),
+                stack.sharedElevation()));
+        } else {
+            stackCrossings.put(stackCrossingId, new com.plot.plugin.road.crossing.RoadStackCrossing(
+                stack.id(),
+                stack.roadId(),
+                stack.position(),
+                stack.stationA(),
+                stack.stationB(),
+                com.plot.plugin.road.crossing.CrossingType.AT_GRADE,
+                null,
+                null,
+                null,
+                stack.sharedElevation()));
+        }
+        return true;
+    }
+
+    private static double getDefaultCrossingClearance(com.plot.plugin.road.crossing.RoadStackCrossing stack) {
+        if (stack.crossingClearance() != null) {
+            return stack.crossingClearance();
+        }
+        return 3.0;
     }
 
     public boolean setCrossingGradeSeparation(
@@ -1086,12 +1176,26 @@ public class RoadNetwork {
         Double sharedElevation;
     }
 
+    static class StackCrossingData {
+        String id;
+        String roadId;
+        Vec2dData position;
+        double stationA;
+        double stationB;
+        String type;
+        Double lowerStation;
+        Double upperStation;
+        Double crossingClearance;
+        Double sharedElevation;
+    }
+
     static class NetworkData {
         int schemaVersion = CURRENT_SCHEMA_VERSION;
         List<NodeData> nodes = new ArrayList<>();
         List<EdgeData> edges = new ArrayList<>();
         List<RoadData> roads = new ArrayList<>();
         List<CrossingData> crossings = new ArrayList<>();
+        List<StackCrossingData> stackCrossings = new ArrayList<>();
 
         static NetworkData from(RoadNetwork network) {
             NetworkData data = new NetworkData();
@@ -1171,6 +1275,21 @@ public class RoadNetwork {
                 crossingData.crossingClearance = crossing.crossingClearance();
                 crossingData.sharedElevation = crossing.sharedElevation();
                 data.crossings.add(crossingData);
+            }
+
+            for (com.plot.plugin.road.crossing.RoadStackCrossing stack : network.stackCrossings.values()) {
+                StackCrossingData stackData = new StackCrossingData();
+                stackData.id = stack.id();
+                stackData.roadId = stack.roadId();
+                stackData.position = new Vec2dData(stack.position());
+                stackData.stationA = stack.stationA();
+                stackData.stationB = stack.stationB();
+                stackData.type = stack.type().name();
+                stackData.lowerStation = stack.lowerStation();
+                stackData.upperStation = stack.upperStation();
+                stackData.crossingClearance = stack.crossingClearance();
+                stackData.sharedElevation = stack.sharedElevation();
+                data.stackCrossings.add(stackData);
             }
 
             for (RoadEdge edge : network.edges.values()) {
@@ -1314,6 +1433,25 @@ public class RoadNetwork {
                         crossingData.elevatedRoadId,
                         crossingData.crossingClearance,
                         crossingData.sharedElevation));
+                }
+            }
+
+            if (stackCrossings != null) {
+                for (StackCrossingData stackData : stackCrossings) {
+                    if (stackData == null || stackData.id == null || stackData.position == null) {
+                        continue;
+                    }
+                    network.registerStackCrossing(new com.plot.plugin.road.crossing.RoadStackCrossing(
+                        stackData.id,
+                        stackData.roadId,
+                        stackData.position.toVec2d(),
+                        stackData.stationA,
+                        stackData.stationB,
+                        com.plot.plugin.road.crossing.CrossingType.fromStored(stackData.type),
+                        stackData.lowerStation,
+                        stackData.upperStation,
+                        stackData.crossingClearance,
+                        stackData.sharedElevation));
                 }
             }
 
