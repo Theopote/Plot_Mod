@@ -3,12 +3,12 @@ package com.plot.plugin.road;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
+import com.plot.plugin.road.pipeline.corridor.JunctionCrossSectionFill;
 import com.plot.plugin.road.pipeline.corridor.JunctionTerrainClearance;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
-import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.core.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
@@ -106,7 +106,8 @@ public class RoadJunctionGenerator {
             LOGGER.debug("复杂路口（{}条道路汇聚），使用多边形填充（必要时回退凸包）", degree);
         }
 
-        List<Vec2d> polygon = generatePolygonJunction(blocks, node, network, connectedEdges, junctionY, terrain);
+        List<Vec2d> polygon = generatePolygonJunction(
+            blocks, node, network, connectedEdges, junctionY, terrain);
         markingGenerator.generateStopLines(blocks, node, network, connectedEdges, junctionY);
         markingGenerator.generateMarkings(blocks, node, network, connectedEdges, polygon, junctionY);
         return blocks;
@@ -122,29 +123,30 @@ public class RoadJunctionGenerator {
         Vec2d center = node.getPosition();
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             edges,
-            edge -> RoadModelUtils.getEffectiveWidth(network, edge, generator.getConfig()) / 2.0,
+            edge -> hardSurfaceHalfExtent(network, edge),
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
         );
         double cornerRadius = node.getEffectiveCornerRadius(generator.getConfig().getDefaultCornerRadius());
         List<Vec2d> polygon = RoadJunctionGeometry.buildJunctionFillPolygon(
             node.getId(),
             edges,
-            edge -> RoadModelUtils.getEffectiveWidth(network, edge, generator.getConfig()) / 2.0,
+            edge -> hardSurfaceHalfExtent(network, edge),
             junctionRadius,
             cornerRadius,
             RoadJunctionCenterlineResolver.forNetwork(network));
 
         if (polygon.size() < 3) {
-            generateSimpleEnvelope(blocks, network, center, edges, junctionY, terrain);
+            generateSimpleEnvelope(blocks, node, network, center, edges, junctionY, terrain);
             return List.of();
         }
 
-        fillPolygon(blocks, polygon, center, junctionY, terrain);
+        fillPolygon(blocks, node, network, edges, polygon, center, junctionY, terrain);
         return polygon;
     }
 
     private void generateSimpleEnvelope(
             JunctionBlocks blocks,
+            RoadNode node,
             RoadNetwork network,
             Vec2d center,
             List<RoadEdge> edges,
@@ -153,13 +155,14 @@ public class RoadJunctionGenerator {
         // 边缘情况保护：如果边列表为空，至少生成节点位置的方块
         if (edges.isEmpty()) {
             LOGGER.warn("路口节点边列表为空，生成最小覆盖（中心点）");
-            blocks.getSolids().add(center, junctionY, RoadSolidLayer.ROAD);
-            gradeJunctionColumn(blocks, center, junctionY, terrain);
+            fillJunctionCells(
+                blocks, List.of(center), null, node, network, edges, junctionY, terrain);
             return;
         }
 
         int maxWidth = edges.stream()
-            .mapToInt(edge -> RoadModelUtils.getEffectiveWidth(network, edge, generator.getConfig()))
+            .mapToInt(edge -> RoadModelUtils.resolveCrossSection(network, edge, generator.getConfig())
+                .totalHardSurfaceWidthBlocks())
             .max()
             .orElse(5);
         int radius = maxWidth + 2;
@@ -168,8 +171,8 @@ public class RoadJunctionGenerator {
         // 再次保护：如果包络点为空，至少生成中心点
         if (envelopePoints.isEmpty()) {
             LOGGER.warn("路口简单包络点为空，回退到中心点");
-            blocks.getSolids().add(center, junctionY, RoadSolidLayer.ROAD);
-            gradeJunctionColumn(blocks, center, junctionY, terrain);
+            fillJunctionCells(
+                blocks, List.of(center), null, node, network, edges, junctionY, terrain);
             return;
         }
 
@@ -178,10 +181,10 @@ public class RoadJunctionGenerator {
             generator.coordinateTransformer());
         List<Vec2d> circle = approximateCirclePolygon(center, radius);
         if (cells.isEmpty()) {
-            fillJunctionCells(blocks, envelopePoints, circle, junctionY, terrain);
+            fillJunctionCells(blocks, envelopePoints, circle, node, network, edges, junctionY, terrain);
             return;
         }
-        fillJunctionCells(blocks, cells, circle, junctionY, terrain);
+        fillJunctionCells(blocks, cells, circle, node, network, edges, junctionY, terrain);
     }
 
     private static List<Vec2d> approximateCirclePolygon(Vec2d center, int radius) {
@@ -201,6 +204,9 @@ public class RoadJunctionGenerator {
 
     private void fillPolygon(
             JunctionBlocks blocks,
+            RoadNode node,
+            RoadNetwork network,
+            List<RoadEdge> edges,
             List<Vec2d> polygon,
             Vec2d center,
             int junctionY,
@@ -211,19 +217,65 @@ public class RoadJunctionGenerator {
         if (cells.isEmpty() && center != null) {
             cells = List.of(center);
         }
-        fillJunctionCells(blocks, cells, polygon, junctionY, terrain);
+        fillJunctionCells(blocks, cells, polygon, node, network, edges, junctionY, terrain);
     }
 
     private void fillJunctionCells(
             JunctionBlocks blocks,
             List<Vec2d> cells,
             List<Vec2d> clearancePolygon,
+            RoadNode node,
+            RoadNetwork network,
+            List<RoadEdge> edges,
             int junctionY,
             TerrainSampler terrain) {
+        if (cells == null || cells.isEmpty() || node == null || network == null || edges == null) {
+            return;
+        }
         int tunnelThreshold = RoadConstructionHeuristics.tunnelThreshold(generator.getConfig());
+        int bridgeThreshold = RoadConstructionHeuristics.bridgeThreshold(generator.getConfig());
+        String fillMaterialId = generator.getBlockIdFromMaterial(generator.getConfig().getFillSlopeMaterial());
+        JunctionCrossSectionFill.MaterialResolver materials = new JunctionCrossSectionFill.MaterialResolver() {
+            @Override
+            public String resolve(String materialId) {
+                return generator.getBlockIdFromMaterial(materialId);
+            }
+
+            @Override
+            public BlockPos canvasToBlockPos(Vec2d planPoint) {
+                return generator.toBlockPos(planPoint, 0);
+            }
+        };
+        RoadTerrainClearanceUtils.BlockColumnResolver columnResolver =
+            new RoadTerrainClearanceUtils.BlockColumnResolver() {
+                @Override
+                public int worldX(Vec2d planPoint) {
+                    return generator.toBlockPos(planPoint, 0).getX();
+                }
+
+                @Override
+                public int worldZ(Vec2d planPoint) {
+                    return generator.toBlockPos(planPoint, 0).getZ();
+                }
+            };
+        double unitsPerBlock = 1.0;
+
         for (Vec2d point : cells) {
-            blocks.getSolids().add(point, junctionY, RoadSolidLayer.ROAD);
-            gradeJunctionColumn(blocks, point, junctionY, terrain);
+            JunctionCrossSectionFill.fillCell(
+                blocks.getSolids(),
+                point,
+                junctionY,
+                node.getId(),
+                edges,
+                network,
+                generator.getConfig(),
+                materials,
+                columnResolver,
+                unitsPerBlock,
+                terrain,
+                tunnelThreshold,
+                bridgeThreshold,
+                fillMaterialId);
             if (clearancePolygon != null && clearancePolygon.size() >= 3) {
                 BlockPos column = generator.toBlockPos(point, 0);
                 JunctionTerrainClearance.clearOverheadInPolygon(
@@ -237,30 +289,25 @@ public class RoadJunctionGenerator {
                     point);
             }
         }
+
+        JunctionCrossSectionFill.stampApproachSlopeBatters(
+            blocks.getSolids(),
+            node.getPosition(),
+            junctionY,
+            node.getId(),
+            edges,
+            network,
+            generator.getConfig(),
+            materials,
+            columnResolver,
+            unitsPerBlock,
+            terrain,
+            bridgeThreshold);
     }
 
-    private void gradeJunctionColumn(
-            JunctionBlocks blocks,
-            Vec2d planPoint,
-            int junctionY,
-            TerrainSampler terrain) {
-        if (terrain == null || generator == null) {
-            return;
-        }
-        BlockPos column = generator.toBlockPos(planPoint, 0);
-        if (!terrain.isChunkLoaded(column.getX(), column.getZ())) {
-            return;
-        }
-        String fillMaterialId = generator.getBlockIdFromMaterial(generator.getConfig().getFillSlopeMaterial());
-        RoadRoadbedGradingUtils.gradeColumn(
-            blocks.getSolids(),
-            planPoint,
-            junctionY,
-            RoadConstructionHeuristics.tunnelThreshold(generator.getConfig()),
-            RoadConstructionHeuristics.bridgeThreshold(generator.getConfig()),
-            fillMaterialId,
-            column.getX(),
-            column.getZ(),
-            terrain);
+    private double hardSurfaceHalfExtent(RoadNetwork network, RoadEdge edge) {
+        return RoadDimensionUtils.halfExtentFromCenter(
+            RoadModelUtils.resolveCrossSection(network, edge, generator.getConfig())
+                .totalHardSurfaceWidthBlocks());
     }
 }

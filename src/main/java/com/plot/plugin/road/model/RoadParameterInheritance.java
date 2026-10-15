@@ -3,6 +3,8 @@ package com.plot.plugin.road.model;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.section.CrossSectionFieldResolution;
 import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.plugin.road.style.RoadStyle;
+import com.plot.plugin.road.style.RoadStyleCatalog;
 
 /**
  * 道路工程参数的继承语义（全局默认 ↔ 单条道路覆盖）。
@@ -43,8 +45,34 @@ public final class RoadParameterInheritance {
         String styleId = defaults.getSelectedPreset();
         if (styleId != null && !styleId.isBlank()) {
             road.applyStyle(styleId, defaults);
+            overlaySlopeFromConfigWhenPresetSilent(road, defaults, styleId);
         } else {
             road.setThemeId(defaults.getRoadThemeId());
+        }
+    }
+
+    /**
+     * 城市等预设不在卡片里展示边坡，但认领时仍应快照全局边坡开关与坡比。
+     */
+    private static void overlaySlopeFromConfigWhenPresetSilent(
+            Road road,
+            RoadSystemConfig defaults,
+            String styleId) {
+        RoadStyle style = RoadStyleCatalog.findById(defaults, styleId);
+        if (style == null || style.includeSlopeBatter != null) {
+            return;
+        }
+        road.setIncludeSlopeBatter(defaults.isIncludeSlopeBatter());
+        if (!defaults.isIncludeSlopeBatter()) {
+            return;
+        }
+        road.setFillSlopeRatio(defaults.getFillSlopeRatio());
+        road.setCutSlopeRatio(defaults.getCutSlopeRatio());
+        if (defaults.getFillSlopeMaterial() != null && !defaults.getFillSlopeMaterial().isBlank()) {
+            road.setFillSlopeMaterial(defaults.getFillSlopeMaterial());
+        }
+        if (defaults.getCutSlopeMaterial() != null && !defaults.getCutSlopeMaterial().isBlank()) {
+            road.setCutSlopeMaterial(defaults.getCutSlopeMaterial());
         }
     }
 

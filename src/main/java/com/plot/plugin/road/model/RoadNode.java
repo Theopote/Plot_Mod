@@ -261,6 +261,6 @@ public class RoadNode {
         if (radius == null) {
             return null;
         }
-        return Math.max(MIN_CORNER_RADIUS, Math.min(MAX_CORNER_RADIUS, radius));
+        return Math.clamp(radius, MIN_CORNER_RADIUS, MAX_CORNER_RADIUS);
     }
 }

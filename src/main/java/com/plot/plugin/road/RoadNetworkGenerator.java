@@ -1,6 +1,8 @@
 package com.plot.plugin.road;
 
 import com.plot.plugin.road.crossing.RoadCrossingMaterializer;
+import com.plot.plugin.road.crossing.RoadCrossingReconciler;
+import com.plot.plugin.road.crossing.RoadStackCrossingReconciler;
 import com.plot.plugin.road.pipeline.EdgeGenerationResult;
 import com.plot.plugin.road.pipeline.RoadEdgeGenerationOrdering;
 import com.plot.plugin.road.pipeline.RoadGenerationResultAssembler;
@@ -197,6 +199,7 @@ public class RoadNetworkGenerator {
         if (network == null || terrain == null || network.getEdges().isEmpty()) {
             return RoadNetworkPreviewSession.empty(network);
         }
+        reconcileCrossingsForGeneration(network);
         RoadNetwork generationNetwork = RoadCrossingMaterializer.materializeForSnapshot(network);
         List<RoadEdge> edges = RoadEdgeGenerationOrdering.sortForGeneration(
             generationNetwork,
@@ -444,6 +447,14 @@ public class RoadNetworkGenerator {
         public boolean isEmpty() {
             return edgeResults.isEmpty();
         }
+    }
+
+    private static void reconcileCrossingsForGeneration(RoadNetwork network) {
+        if (network == null) {
+            return;
+        }
+        RoadCrossingReconciler.reconcileCrossings(network);
+        RoadStackCrossingReconciler.reconcileStackCrossings(network);
     }
 
     private void applyTunnelJunctionConnectivity(RoadNetworkPreviewSession session) {

@@ -1001,7 +1001,7 @@ public final class RoadNetworkManager {
 
         RoadTopologyRoadSplitter.RepairResult topologyRepair =
             RoadTopologyRoadSplitter.repairAfterAdopt(network);
-        com.plot.plugin.road.crossing.RoadCrossingReconciler.reconcileCrossings(network);
+        reconcileCrossingsInPlace();
         IntersectionProbeResult crossingProbe =
             com.plot.plugin.road.crossing.RoadCrossingReconciler.probeRegistryCompleteness(network);
         adoptIntersectionRepairPending = intersectionIncomplete || crossingProbe.hasPendingWork();

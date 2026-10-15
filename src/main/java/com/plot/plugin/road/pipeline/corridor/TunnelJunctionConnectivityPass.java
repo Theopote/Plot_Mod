@@ -169,19 +169,10 @@ public final class TunnelJunctionConnectivityPass {
         if (result.constructionTypes.isEmpty()) {
             return result.tunnelLength > EPSILON || result.tunnelCount > 0;
         }
-        boolean atStart = edge.getStartNodeId().equals(node.getId());
-        int probeCount = Math.min(3, result.constructionTypes.size());
-        for (int i = 0; i < probeCount; i++) {
-            int index = atStart ? i : result.constructionTypes.size() - 1 - i;
-            if (index < 0 || index >= result.constructionTypes.size()) {
-                continue;
-            }
-            RoadConstructionType type = result.constructionTypes.get(index);
-            if (type != null && type.isTunnelFamily()) {
-                return true;
-            }
+        if (result.constructionTypes.stream().anyMatch(RoadConstructionType::isTunnelFamily)) {
+            return true;
         }
-        return result.constructionTypes.stream().anyMatch(RoadConstructionType::isTunnelFamily);
+        return !result.tunnelBlocks.isEmpty();
     }
 
     private static List<Vec2d> buildJunctionPolygon(
