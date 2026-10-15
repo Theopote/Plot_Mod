@@ -128,8 +128,7 @@ public final class RoadGeneratePanel {
             network,
             road,
             ctx.networkManager().getConfig(),
-            this::requireTerrainOrNull,
-            () -> ctx.networkManager().pushHistory(RoadChangeKind.VERTICAL_PROFILE));
+            this::requireTerrainOrNull);
     }
 
     private FlatElevationProfileOverlay resolveFlatProfileOverlay(RoadNetwork network) {

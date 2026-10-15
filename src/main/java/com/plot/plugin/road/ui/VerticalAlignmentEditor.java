@@ -38,7 +38,7 @@ public final class VerticalAlignmentEditor {
             Road road,
             RoadSystemConfig config,
             Runnable onStrategyHistory,
-            Runnable onProfileHistory,
+            FlatElevationEditHooks profileHooks,
             RoadVerticalStrategySwitchDialog switchDialog,
             Supplier<TerrainSampler> terrainSupplier) {
         if (road == null || network == null) {
@@ -52,10 +52,10 @@ public final class VerticalAlignmentEditor {
         }
         double roadLength = RoadStationing.canonicalLength(network, road);
         renderVerticalStrategy(
-            network, road, roadLength, config, onStrategyHistory, switchDialog, terrainSupplier);
+            network, road, roadLength, config, onStrategyHistory, profileHooks, switchDialog, terrainSupplier);
         if (RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT) {
             flatElevationRecommendationUi.renderPathControls(
-                ctx, network, road, onProfileHistory, terrainSupplier);
+                ctx, network, road, profileHooks, terrainSupplier);
             return;
         }
         if (road.getVerticalMode() == RoadVerticalMode.MANUAL_PROFILE) {
@@ -71,6 +71,7 @@ public final class VerticalAlignmentEditor {
             double roadLength,
             RoadSystemConfig config,
             Runnable onStrategyHistory,
+            FlatElevationEditHooks profileHooks,
             RoadVerticalStrategySwitchDialog switchDialog,
             Supplier<TerrainSampler> terrainSupplier) {
         RoadVerticalStrategy current = RoadVerticalStrategy.fromRoad(road);
@@ -106,7 +107,7 @@ public final class VerticalAlignmentEditor {
             ImGui.endCombo();
         }
         if (current == RoadVerticalStrategy.FLAT) {
-            renderFlatElevationField(network, road, config, onStrategyHistory, terrainSupplier);
+            renderFlatElevationField(network, road, config, profileHooks, terrainSupplier);
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.vertical_strategy_flat_hint"));
@@ -121,7 +122,7 @@ public final class VerticalAlignmentEditor {
             RoadNetwork network,
             Road road,
             RoadSystemConfig config,
-            Runnable onHistory,
+            FlatElevationEditHooks hooks,
             Supplier<TerrainSampler> terrainSupplier) {
         FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, road);
         if (intent != null) {
@@ -135,19 +136,18 @@ public final class VerticalAlignmentEditor {
                 bounds,
                 0.5f,
                 "%.1f")) {
-            if (ImGui.isItemDeactivatedAfterEdit()) {
-                if (onHistory != null) {
-                    onHistory.run();
-                }
-                flatElevation = elevation[0];
-                FlatVerticalIntentSupport.setBaseElevation(
-                    network,
-                    road,
-                    flatElevation,
-                    road.getEffectiveMaxSlope(config));
-            } else {
-                flatElevation = elevation[0];
-            }
+            flatElevation = elevation[0];
+        }
+        if (ImGui.isItemActivated()) {
+            hooks.recordUndoPointBeforeEdit();
+        }
+        if (ImGui.isItemDeactivatedAfterEdit()) {
+            FlatVerticalIntentSupport.setBaseElevation(
+                network,
+                road,
+                flatElevation,
+                road.getEffectiveMaxSlope(config));
+            hooks.notifyWorkingProfileChanged();
         }
     }
 

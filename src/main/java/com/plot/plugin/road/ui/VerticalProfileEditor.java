@@ -1019,8 +1019,9 @@ final class VerticalProfileEditor {
                 editingNetwork,
                 road,
                 windowSession,
-                this::recordUndoPointBeforeEdit,
-                this::notifyWorkingProfileChanged,
+                FlatElevationEditHooks.forProfileEditor(
+                    this::recordUndoPointBeforeEdit,
+                    this::notifyWorkingProfileChanged),
                 FlatElevationRecommendationUi.terrainSupplier(ctx));
         } else {
             adaptiveProfileControls.render(

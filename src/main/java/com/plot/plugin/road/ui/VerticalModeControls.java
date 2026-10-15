@@ -24,8 +24,7 @@ final class VerticalModeControls {
             RoadNetwork network,
             Road road,
             RoadSystemConfig config,
-            Supplier<TerrainSampler> terrainSupplier,
-            Runnable onHistory) {
+            Supplier<TerrainSampler> terrainSupplier) {
         if (road == null || network == null) {
             return;
         }
@@ -38,7 +37,12 @@ final class VerticalModeControls {
 
         RoadVerticalStrategy strategy = RoadVerticalStrategy.fromRoad(road);
         if (strategy == RoadVerticalStrategy.FLAT) {
-            flatProfileControls.render(ctx, network, road, onHistory, terrainSupplier);
+            flatProfileControls.render(
+                ctx,
+                network,
+                road,
+                FlatElevationEditHooks.forLiveNetwork(ctx),
+                terrainSupplier);
             return;
         }
         if (road.getVerticalMode() == RoadVerticalMode.MANUAL_PROFILE) {

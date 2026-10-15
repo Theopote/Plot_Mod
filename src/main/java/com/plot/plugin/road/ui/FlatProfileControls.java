@@ -26,9 +26,9 @@ final class FlatProfileControls {
             RoadUiContext ctx,
             RoadNetwork network,
             Road road,
-            Runnable onHistory,
+            FlatElevationEditHooks hooks,
             Supplier<com.plot.core.terrain.TerrainSampler> terrainSupplier) {
-        render(ctx, network, road, null, null, null, onHistory, terrainSupplier);
+        render(ctx, network, road, null, hooks, terrainSupplier);
     }
 
     void render(
@@ -36,29 +36,7 @@ final class FlatProfileControls {
             RoadNetwork network,
             Road road,
             ProfileEditorWindowSession windowSession,
-            Supplier<com.plot.core.terrain.TerrainSampler> terrainSupplier) {
-        render(ctx, network, road, windowSession, null, null, terrainSupplier);
-    }
-
-    void render(
-            RoadUiContext ctx,
-            RoadNetwork network,
-            Road road,
-            ProfileEditorWindowSession windowSession,
-            Runnable recordUndoPointBeforeEdit,
-            Runnable onWorkingProfileChanged,
-            Supplier<com.plot.core.terrain.TerrainSampler> terrainSupplier) {
-        render(ctx, network, road, windowSession, recordUndoPointBeforeEdit, onWorkingProfileChanged, null, terrainSupplier);
-    }
-
-    private void render(
-            RoadUiContext ctx,
-            RoadNetwork network,
-            Road road,
-            ProfileEditorWindowSession windowSession,
-            Runnable recordUndoPointBeforeEdit,
-            Runnable onWorkingProfileChanged,
-            Runnable onHistory,
+            FlatElevationEditHooks hooks,
             Supplier<com.plot.core.terrain.TerrainSampler> terrainSupplier) {
         if (road == null || RoadVerticalStrategy.fromRoad(road) != RoadVerticalStrategy.FLAT) {
             return;
@@ -67,12 +45,10 @@ final class FlatProfileControls {
         syncFlatElevation(network, road, config);
         RoadUiSections.section("plugin.road.profile_flat_editor_section");
         renderBaseElevationField(
-            ctx, network, road, config, windowSession,
-            recordUndoPointBeforeEdit, onWorkingProfileChanged, onHistory, terrainSupplier);
+            ctx, network, road, config, windowSession, hooks, terrainSupplier);
         ImGui.spacing();
         recommendationUi.renderGenerateControls(
-            ctx, network, road, windowSession,
-            recordUndoPointBeforeEdit, onWorkingProfileChanged, onHistory, terrainSupplier);
+            ctx, network, road, windowSession, hooks, terrainSupplier);
         RoadUiWidgets.textWrappedColored(
             com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.vertical_strategy_flat_profile_hint"));
@@ -121,9 +97,7 @@ final class FlatProfileControls {
             Road road,
             RoadSystemConfig config,
             ProfileEditorWindowSession windowSession,
-            Runnable recordUndoPointBeforeEdit,
-            Runnable onWorkingProfileChanged,
-            Runnable onHistory,
+            FlatElevationEditHooks hooks,
             Supplier<com.plot.core.terrain.TerrainSampler> terrainSupplier) {
         RoadElevationBounds bounds = resolveElevationBounds(terrainSupplier);
         float[] elevation = {flatElevation};
@@ -135,13 +109,11 @@ final class FlatProfileControls {
                 "%.1f")) {
             flatElevation = elevation[0];
         }
-        if (ImGui.isItemActivated() && recordUndoPointBeforeEdit != null) {
-            recordUndoPointBeforeEdit.run();
+        if (ImGui.isItemActivated()) {
+            hooks.recordUndoPointBeforeEdit();
         }
         if (ImGui.isItemDeactivatedAfterEdit()) {
-            applyBaseElevation(
-                ctx, network, road, config, windowSession,
-                onWorkingProfileChanged, onHistory, flatElevation);
+            applyBaseElevation(ctx, network, road, config, windowSession, hooks, flatElevation);
         }
     }
 
@@ -151,13 +123,10 @@ final class FlatProfileControls {
             Road road,
             RoadSystemConfig config,
             ProfileEditorWindowSession windowSession,
-            Runnable onWorkingProfileChanged,
-            Runnable onHistory,
+            FlatElevationEditHooks hooks,
             float elevation) {
         if (windowSession != null) {
             windowSession.markTouched(road);
-        } else if (onHistory != null) {
-            onHistory.run();
         }
         FlatVerticalIntentSupport.setBaseElevation(
             network,
@@ -168,9 +137,7 @@ final class FlatProfileControls {
         syncedFlatIntentKey = flatIntentKey(
             road,
             FlatVerticalIntentSupport.resolveIntent(network, road));
-        if (onWorkingProfileChanged != null) {
-            onWorkingProfileChanged.run();
-        }
+        hooks.notifyWorkingProfileChanged();
         ctx.requestOverlayRefresh();
     }
 
