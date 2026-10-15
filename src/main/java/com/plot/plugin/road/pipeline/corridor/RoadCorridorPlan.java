@@ -20,6 +20,8 @@ public final class RoadCorridorPlan {
     private int needsRetainingWallCount;
     /** ROAD columns missing adjacent shoulder coverage at the same elevation. */
     private int roadShoulderSeamGapCount;
+    private final List<PortalBackfillSite> portalBackfillSites = new ArrayList<>();
+    private final Set<ColumnKey> portalBackfillSiteKeys = new HashSet<>();
 
     public RoadSurfaceMask surfaceMask() {
         return surfaceMask;
@@ -54,9 +56,26 @@ public final class RoadCorridorPlan {
         clearanceCells.put(key, merged);
     }
 
+    public List<PortalBackfillSite> portalBackfillSites() {
+        return List.copyOf(portalBackfillSites);
+    }
+
+    void registerPortalBackfillSite(PortalBackfillSite site) {
+        if (site == null || site.center() == null) {
+            return;
+        }
+        ColumnKey key = new ColumnKey(
+            (int) Math.round(site.center().x * 1000.0),
+            (int) Math.round(site.center().y * 1000.0));
+        if (!portalBackfillSiteKeys.add(key)) {
+            return;
+        }
+        portalBackfillSites.add(site);
+    }
+
     /**
      * Structure interiors outrank open road so overlapping columns keep bridge/tunnel
-     * construction type; clearTopY still expands to the larger envelope.
+     * construction type. Structure columns keep their own vertical envelope.
      */
     static ClearanceCell mergeClearance(ClearanceCell existing, ClearanceCell incoming) {
         int existingRank = clearanceMergeRank(existing.constructionType());
@@ -93,6 +112,9 @@ public final class RoadCorridorPlan {
     }
 
     private static ClearanceCell preferWithExpandedEnvelope(ClearanceCell preferred, ClearanceCell other) {
+        if (isStructureEnvelope(preferred)) {
+            return withMergedLateral(preferred, other);
+        }
         int clearTopY = Math.max(preferred.clearTopY(), other.clearTopY());
         if (clearTopY == preferred.clearTopY()) {
             return withMergedLateral(preferred, other);
@@ -104,6 +126,10 @@ public final class RoadCorridorPlan {
             preferred.mode(),
             preferred.constructionType(),
             mergedLateral(preferred, other));
+    }
+
+    private static boolean isStructureEnvelope(ClearanceCell cell) {
+        return clearanceMergeRank(cell.constructionType()) >= 1;
     }
 
     private static ClearanceCell withMergedLateral(ClearanceCell primary, ClearanceCell secondary) {

@@ -149,6 +149,18 @@ public final class RoadCorridorPlanBuilder {
             int tunnelThreshold,
             List<SlopeProfileSample> slopeSamples,
             long[] stationSampleSeq) {
+        if (sample.constructionType() == RoadConstructionType.TUNNEL_PORTAL) {
+            Vec2d leftNormal = normalize(sample.leftNormal());
+            // leftNormal = (-fy, fx) for forward (fx, fy) → forward = (ly, -lx)
+            Vec2d forward = new Vec2d(leftNormal.y, -leftNormal.x);
+            plan.registerPortalBackfillSite(new PortalBackfillSite(
+                sample.center(),
+                leftNormal,
+                forward,
+                sample.targetY(),
+                RoadCorridorWidth.gradingEnvelopeWidthBlocks(crossSection),
+                unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0));
+        }
         rasterizeSurfaceBands(plan, sample.center(), sample.center(), sample.leftNormal(), sample.leftNormal(),
             sample.targetY(), sample.targetY(), crossSection, terrain, unitsPerBlock,
             seedKey, host, sample.constructionType(), config, tunnelThreshold);

@@ -20,12 +20,15 @@ import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
 /**
  * Stamps full cross-section surface bands and shoulder batters inside junction fill polygons.
+ * Shoulder batters route through {@link SlopeProfileSample} → {@link SlopeSurfaceConsolidator}
+ * → consolidated column emission (same path as corridor edges).
  */
 public final class JunctionCrossSectionFill {
     private JunctionCrossSectionFill() {
@@ -104,13 +107,16 @@ public final class JunctionCrossSectionFill {
             TerrainSampler terrain,
             int bridgeThreshold) {
         if (solids == null || junctionCenter == null || nodeId == null || edges == null || edges.isEmpty()
-                || network == null || config == null || materials == null || terrain == null) {
+                || network == null || config == null || materials == null || terrain == null
+                || columnResolver == null) {
             return;
         }
 
         Function<RoadEdge, List<Vec2d>> centerlineResolver = RoadJunctionCenterlineResolver.forNetwork(network);
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         int maxHorizontalRun = RoadCorridorWidth.MAX_SLOPE_BATTER_RUN_BLOCKS;
+        List<SlopeProfileSample> samples = new ArrayList<>();
+        long stationSampleId = 0L;
 
         for (RoadEdge edge : edges) {
             ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(network, edge, config);
@@ -126,16 +132,172 @@ public final class JunctionCrossSectionFill {
                 ? materials.resolve(crossSection.cutSlopeMaterial)
                 : null;
 
-            stampShoulderBatter(
-                solids, junctionCenter, leftNormal, junctionY, crossSection.maxSurfaceLateral(),
+            samples.addAll(collectShoulderBatterSamples(
+                junctionCenter, leftNormal, junctionY, crossSection.maxSurfaceLateral(),
                 terrain, scale, leftNormal, fillBlockId, cutBlockId,
                 crossSection.fillSlopeRatio, crossSection.cutSlopeRatio, maxHorizontalRun,
-                columnResolver, bridgeThreshold);
-            stampShoulderBatter(
-                solids, junctionCenter, leftNormal, junctionY, crossSection.minSurfaceLateral(),
+                columnResolver, new SlopeRayId(stationSampleId, SlopeRayId.ShoulderSide.LEFT)));
+            samples.addAll(collectShoulderBatterSamples(
+                junctionCenter, leftNormal, junctionY, crossSection.minSurfaceLateral(),
                 terrain, scale, leftNormal.multiply(-1), fillBlockId, cutBlockId,
                 crossSection.fillSlopeRatio, crossSection.cutSlopeRatio, maxHorizontalRun,
-                columnResolver, bridgeThreshold);
+                columnResolver, new SlopeRayId(stationSampleId, SlopeRayId.ShoulderSide.RIGHT)));
+            stationSampleId++;
+        }
+
+        if (samples.isEmpty()) {
+            return;
+        }
+        RoadCorridorPlan slopePlan = new RoadCorridorPlan();
+        SlopeSurfaceConsolidator.apply(slopePlan, samples, terrain);
+        emitConsolidatedSlopeColumns(solids, slopePlan, terrain, columnResolver, bridgeThreshold);
+    }
+
+    private static List<SlopeProfileSample> collectShoulderBatterSamples(
+            Vec2d center,
+            Vec2d corridorLeftNormal,
+            int targetY,
+            int signedOuterLateral,
+            TerrainSampler terrain,
+            double scale,
+            Vec2d outwardNormal,
+            String fillBlockId,
+            String cutBlockId,
+            float fillRatio,
+            float cutRatio,
+            int maxHorizontalRun,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
+            SlopeRayId rayId) {
+        List<SlopeProfileSample> samples = new ArrayList<>();
+        Vec2d leftNormal = normalize(corridorLeftNormal);
+        Vec2d normal = normalize(outwardNormal);
+        Vec2d outerEdge = center.add(leftNormal.multiply(signedOuterLateral * scale));
+        if (!terrain.isChunkLoaded(outerEdge)) {
+            return samples;
+        }
+        int groundAtEdge = terrain.sampleSurfaceY(outerEdge);
+        if (targetY == groundAtEdge) {
+            return samples;
+        }
+        boolean isFill = targetY > groundAtEdge;
+        int profileDirection = isFill ? -1 : 1;
+        float slopeRatio = isFill ? fillRatio : cutRatio;
+        if (slopeRatio <= 0f) {
+            return samples;
+        }
+        int heightDifference = Math.abs(targetY - groundAtEdge);
+        int unconstrainedRun = (int) Math.ceil(heightDifference * Math.max(0.5f, slopeRatio)) + 2;
+        boolean widthCapped = unconstrainedRun > maxHorizontalRun;
+        int usefulHorizontalRun = Math.clamp(unconstrainedRun, 2, maxHorizontalRun);
+        String materialId = isFill ? fillBlockId : cutBlockId;
+        if (materialId == null || materialId.isBlank()) {
+            return samples;
+        }
+
+        List<int[]> profile = RoadSlopeUtils.computeSlopeProfile(
+            targetY,
+            profileDirection,
+            horizontalOffset -> {
+                Vec2d samplePoint = outerEdge.add(normal.multiply(horizontalOffset * scale));
+                if (!terrain.isChunkLoaded(samplePoint)) {
+                    return targetY;
+                }
+                return terrain.sampleSurfaceY(samplePoint);
+            },
+            slopeRatio,
+            usefulHorizontalRun);
+
+        if (profile.size() <= 1) {
+            return samples;
+        }
+
+        boolean meetsTerrain = slopeProfileMeetsTerrain(profile, isFill, outerEdge, normal, scale, terrain);
+        SlopeConstructionOutcome outcome = SlopeConstructionOutcome.classify(meetsTerrain, widthCapped);
+
+        for (int step = 0; step < profile.size(); step++) {
+            int[] point = profile.get(step);
+            int horizontalOffset = point[0];
+            int slopeHeight = point[1];
+            Vec2d samplePoint = outerEdge.add(normal.multiply(horizontalOffset * scale));
+            if (!terrain.isChunkLoaded(samplePoint)) {
+                continue;
+            }
+            ColumnKey key = new ColumnKey(columnResolver.worldX(samplePoint), columnResolver.worldZ(samplePoint));
+            samples.add(new SlopeProfileSample(
+                key, samplePoint, slopeHeight, isFill, materialId, rayId,
+                horizontalOffset, slopeRatio, outcome));
+        }
+        return samples;
+    }
+
+    private static boolean slopeProfileMeetsTerrain(
+            List<int[]> profile,
+            boolean isFill,
+            Vec2d outerEdge,
+            Vec2d outwardNormal,
+            double scale,
+            TerrainSampler terrain) {
+        if (profile == null || profile.size() <= 1) {
+            return true;
+        }
+        int[] last = profile.getLast();
+        int horizontalOffset = last[0];
+        int slopeHeight = last[1];
+        Vec2d samplePoint = outerEdge.add(outwardNormal.multiply(horizontalOffset * scale));
+        if (!terrain.isChunkLoaded(samplePoint)) {
+            return false;
+        }
+        int groundHeight = terrain.sampleSurfaceY(samplePoint);
+        if (isFill) {
+            return slopeHeight <= groundHeight + 1;
+        }
+        return slopeHeight >= groundHeight - 1;
+    }
+
+    private static void emitConsolidatedSlopeColumns(
+            RoadSolidModel solids,
+            RoadCorridorPlan plan,
+            TerrainSampler terrain,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
+            int bridgeThreshold) {
+        for (var entry : plan.slopeEntries()) {
+            ColumnKey key = entry.getKey();
+            if (plan.isSlopeColumnIncomplete(key)) {
+                continue;
+            }
+            SlopeColumnCell slope = entry.getValue();
+            Vec2d planPoint = slope.planPoint();
+            int worldX = columnResolver.worldX(planPoint);
+            int worldZ = columnResolver.worldZ(planPoint);
+            if (!terrain.isChunkLoaded(worldX, worldZ)) {
+                continue;
+            }
+            int groundY = terrain.sampleSurfaceY(planPoint);
+            if (slope.hasFill()) {
+                int fillTop = slope.fillSurfaceY();
+                if (fillTop - groundY <= bridgeThreshold) {
+                    String fillId = slope.fillMaterialId();
+                    if (fillId != null && !fillId.isBlank()) {
+                        for (int y = groundY + 1; y <= fillTop; y++) {
+                            solids.add(planPoint, y, RoadSolidLayer.SUBGRADE, fillId);
+                        }
+                    }
+                }
+            }
+            if (slope.hasCut() && groundY > slope.cutSurfaceY()) {
+                for (int y = slope.cutSurfaceY() + 1; y <= groundY; y++) {
+                    solids.add(
+                        planPoint,
+                        y,
+                        RoadSolidLayer.TUNNEL,
+                        "minecraft:air",
+                        RoadSolidMaterialPriority.AIR);
+                }
+                String batterId = slope.cutMaterialId();
+                if (batterId != null && !batterId.isBlank()) {
+                    solids.add(planPoint, slope.cutSurfaceY(), RoadSolidLayer.SUBGRADE, batterId);
+                }
+            }
         }
     }
 
@@ -155,104 +317,6 @@ public final class JunctionCrossSectionFill {
             materialId = materials.resolve(spec.materialId());
         }
         solids.add(cellPoint, junctionY, spec.layer(), materialId);
-    }
-
-    private static void stampShoulderBatter(
-            RoadSolidModel solids,
-            Vec2d center,
-            Vec2d leftNormal,
-            int targetY,
-            int signedOuterLateral,
-            TerrainSampler terrain,
-            double scale,
-            Vec2d outwardNormal,
-            String fillBlockId,
-            String cutBlockId,
-            float fillRatio,
-            float cutRatio,
-            int maxHorizontalRun,
-            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
-            int bridgeThreshold) {
-        Vec2d corridorLeftNormal = normalize(leftNormal);
-        Vec2d normal = normalize(outwardNormal);
-        Vec2d outerEdge = center.add(corridorLeftNormal.multiply(signedOuterLateral * scale));
-        if (!terrain.isChunkLoaded(outerEdge)) {
-            return;
-        }
-        int groundAtEdge = terrain.sampleSurfaceY(outerEdge);
-        if (targetY == groundAtEdge) {
-            return;
-        }
-        boolean isFill = targetY > groundAtEdge;
-        int profileDirection = isFill ? -1 : 1;
-        float slopeRatio = isFill ? fillRatio : cutRatio;
-        if (slopeRatio <= 0f) {
-            return;
-        }
-        int heightDifference = Math.abs(targetY - groundAtEdge);
-        int unconstrainedRun = (int) Math.ceil(heightDifference * Math.max(0.5f, slopeRatio)) + 2;
-        int usefulHorizontalRun = Math.clamp(unconstrainedRun, 2, maxHorizontalRun);
-        String materialId = isFill ? fillBlockId : cutBlockId;
-        if (materialId == null || materialId.isBlank()) {
-            return;
-        }
-
-        List<int[]> profile = RoadSlopeUtils.computeSlopeProfile(
-            targetY,
-            profileDirection,
-            horizontalOffset -> {
-                Vec2d samplePoint = outerEdge.add(normal.multiply(horizontalOffset * scale));
-                if (!terrain.isChunkLoaded(samplePoint)) {
-                    return targetY;
-                }
-                return terrain.sampleSurfaceY(samplePoint);
-            },
-            slopeRatio,
-            usefulHorizontalRun);
-
-        for (int step = 1; step < profile.size(); step++) {
-            int[] point = profile.get(step);
-            int horizontalOffset = point[0];
-            int slopeHeight = point[1];
-            Vec2d samplePoint = outerEdge.add(normal.multiply(horizontalOffset * scale));
-            writeSlopeColumn(
-                solids, samplePoint, slopeHeight, isFill, materialId, terrain, columnResolver, bridgeThreshold);
-        }
-    }
-
-    private static void writeSlopeColumn(
-            RoadSolidModel solids,
-            Vec2d planPoint,
-            int slopeSurfaceY,
-            boolean isFill,
-            String materialId,
-            TerrainSampler terrain,
-            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
-            int bridgeThreshold) {
-        if (columnResolver == null) {
-            return;
-        }
-        int worldX = columnResolver.worldX(planPoint);
-        int worldZ = columnResolver.worldZ(planPoint);
-        if (!terrain.isChunkLoaded(worldX, worldZ)) {
-            return;
-        }
-        int groundY = terrain.sampleSurfaceY(planPoint);
-        if (isFill) {
-            for (int y = groundY + 1; y <= slopeSurfaceY; y++) {
-                solids.add(planPoint, y, RoadSolidLayer.SUBGRADE, materialId);
-            }
-        } else if (groundY > slopeSurfaceY) {
-            for (int y = slopeSurfaceY + 1; y <= groundY; y++) {
-                solids.add(
-                    planPoint,
-                    y,
-                    RoadSolidLayer.TUNNEL,
-                    "minecraft:air",
-                    RoadSolidMaterialPriority.AIR);
-            }
-            solids.add(planPoint, slopeSurfaceY, RoadSolidLayer.SUBGRADE, materialId);
-        }
     }
 
     private static void gradeColumn(

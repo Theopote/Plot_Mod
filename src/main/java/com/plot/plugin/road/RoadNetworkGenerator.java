@@ -467,7 +467,8 @@ public class RoadNetworkGenerator {
             session.nodeElevations(),
             roadGenerator.getConfig(),
             roadGenerator.coordinateTransformer(),
-            roadGenerator::estimateCanvasUnitsPerBlock);
+            roadGenerator::estimateCanvasUnitsPerBlock,
+            session.terrain());
     }
 
     private RoadGenerationResult aggregateNetworkResult(

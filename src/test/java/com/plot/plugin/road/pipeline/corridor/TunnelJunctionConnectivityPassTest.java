@@ -123,6 +123,109 @@ class TunnelJunctionConnectivityPassTest {
     }
 
     @Test
+    void openVolumeRecordsNonNullPreviousBlockIdFromTerrain() {
+        RoadNetwork network = tunnelTJunctionNetwork();
+        RoadNode junction = network.getNodes().values().stream()
+            .filter(node -> node.getDegree() >= 3)
+            .findFirst()
+            .orElseThrow();
+
+        Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
+        for (var edge : network.getEdges().values()) {
+            RoadGenerationResult result = new RoadGenerationResult(edge.getLength());
+            result.constructionTypes.add(RoadConstructionType.TUNNEL);
+            result.tunnelCount = 1;
+            result.tunnelLength = edge.getLength();
+            edgeResults.put(edge.getId(), result);
+        }
+
+        TerrainSampler solidTerrain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return 72;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= 72;
+            }
+        };
+
+        TunnelJunctionConnectivityPass.apply(
+            network,
+            edgeResults,
+            Map.of(junction.getId(), 64),
+            new RoadSystemConfig("tunnel-junction-prev"),
+            IdentityCoordinateService.INSTANCE,
+            (path, segments) -> 1.0,
+            solidTerrain);
+
+        boolean foundAirWithPrevious = edgeResults.values().stream()
+            .flatMap(result -> result.placementRecords.values().stream())
+            .anyMatch(record -> "minecraft:air".equals(record.newBlockId)
+                && record.previousBlockId != null
+                && !record.previousBlockId.isBlank());
+        assertTrue(foundAirWithPrevious,
+            "openVolume must record a non-null previousBlockId when carving air");
+    }
+
+    @Test
+    void multiYGradeSeparatedPlacementDoesNotClearElevatedDeck() {
+        RoadNetwork network = tunnelCrossNetwork();
+        RoadNode junction = network.getNodes().values().stream()
+            .filter(node -> node.getDegree() >= 3)
+            .findFirst()
+            .orElseThrow();
+        assertTrue(network.setNodeGradeSeparation(junction.getId(), true, "roadA", 8.0));
+
+        Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
+        BlockPos underpassLining = new BlockPos(0, 66, 0);
+        BlockPos elevatedDeck = new BlockPos(0, 72, 0);
+        for (var edge : network.getEdges().values()) {
+            RoadGenerationResult result = new RoadGenerationResult(edge.getLength());
+            if ("roadA".equals(edge.getRoadId())) {
+                result.constructionTypes.add(RoadConstructionType.BRIDGE);
+                result.recordPlacementOverride(elevatedDeck, "minecraft:air", "minecraft:stone");
+                result.placementLayers.put(elevatedDeck, RoadSolidLayer.BRIDGE);
+                result.placementMaterialPriorities.put(elevatedDeck, RoadSolidMaterialPriority.STRUCTURAL);
+                result.bridgeBlocks.add(elevatedDeck);
+            } else {
+                result.constructionTypes.add(RoadConstructionType.TUNNEL);
+                result.recordPlacementOverride(underpassLining, "minecraft:stone", "minecraft:stone_bricks");
+                result.placementLayers.put(underpassLining, RoadSolidLayer.TUNNEL);
+                result.placementMaterialPriorities.put(underpassLining, RoadSolidMaterialPriority.STRUCTURAL);
+                result.tunnelBlocks.add(underpassLining);
+            }
+            edgeResults.put(edge.getId(), result);
+        }
+
+        TunnelJunctionConnectivityPass.apply(
+            network,
+            edgeResults,
+            Map.of(junction.getId(), 64),
+            new RoadSystemConfig("tunnel-junction-multi-y"),
+            IdentityCoordinateService.INSTANCE,
+            (path, segments) -> 1.0);
+
+        long underpassAir = edgeResults.values().stream()
+            .filter(result -> {
+                BlockRecord record = result.placementRecords.get(underpassLining);
+                return record != null && "minecraft:air".equals(record.newBlockId);
+            })
+            .count();
+        assertTrue(underpassAir > 0, "underpass lining at lower Y must open");
+
+        for (RoadGenerationResult result : edgeResults.values()) {
+            BlockRecord deck = result.placementRecords.get(elevatedDeck);
+            if (deck != null) {
+                assertEquals("minecraft:stone", deck.newBlockId,
+                    "elevated bridge deck at higher Y must not be opened by tunnel connectivity");
+                assertEquals(RoadSolidLayer.BRIDGE, result.placementLayers.get(elevatedDeck));
+            }
+        }
+    }
+
+    @Test
     void gradeSeparatedJunctionStillOpensUnderpassTunnelVolume() {
         RoadNetwork network = tunnelCrossNetwork();
         RoadNode junction = network.getNodes().values().stream()

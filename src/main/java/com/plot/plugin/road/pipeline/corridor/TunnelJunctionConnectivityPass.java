@@ -3,6 +3,7 @@ package com.plot.plugin.road.pipeline.corridor;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.command.BlockRecord;
+import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadGeometryUtils;
@@ -30,6 +31,7 @@ import net.minecraft.util.math.BlockPos;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -51,6 +53,17 @@ public final class TunnelJunctionConnectivityPass {
             RoadSystemConfig config,
             ICoordinateService coordinateTransformer,
             BiFunction<List<Vec2d>, List<PathSegment>, Double> unitsPerBlockEstimator) {
+        apply(network, edgeResults, nodeElevations, config, coordinateTransformer, unitsPerBlockEstimator, null);
+    }
+
+    public static void apply(
+            RoadNetwork network,
+            Map<String, RoadGenerationResult> edgeResults,
+            Map<String, Integer> nodeElevations,
+            RoadSystemConfig config,
+            ICoordinateService coordinateTransformer,
+            BiFunction<List<Vec2d>, List<PathSegment>, Double> unitsPerBlockEstimator,
+            TerrainSampler terrain) {
         if (network == null || edgeResults == null || edgeResults.isEmpty() || config == null) {
             return;
         }
@@ -73,16 +86,30 @@ public final class TunnelJunctionConnectivityPass {
             if (polygon.size() < 3) {
                 continue;
             }
+            Collection<RoadGenerationResult> approachResults = approachEdgeResults(approaches, edgeResults);
             Set<BlockPos> openVolume = collectOpenVolume(
                 approaches,
                 polygon,
-                edgeResults.values(),
+                approachResults,
                 coordinateTransformer);
             if (openVolume.isEmpty()) {
                 continue;
             }
-            openVolume(edgeResults.values(), openVolume);
+            openVolume(approachResults, openVolume, terrain);
         }
+    }
+
+    private static Collection<RoadGenerationResult> approachEdgeResults(
+            List<TunnelApproach> approaches,
+            Map<String, RoadGenerationResult> edgeResults) {
+        Set<RoadGenerationResult> results = new LinkedHashSet<>();
+        for (TunnelApproach approach : approaches) {
+            RoadGenerationResult result = edgeResults.get(approach.edge().getId());
+            if (result != null) {
+                results.add(result);
+            }
+        }
+        return results;
     }
 
     private static boolean qualifiesForConnectivity(RoadNode node) {
@@ -354,7 +381,13 @@ public final class TunnelJunctionConnectivityPass {
         return new Vec2d(pos.getX(), pos.getZ());
     }
 
-    private static void openVolume(Collection<RoadGenerationResult> edgeResults, Set<BlockPos> openVolume) {
+    private static void openVolume(
+            Collection<RoadGenerationResult> edgeResults,
+            Set<BlockPos> openVolume,
+            TerrainSampler terrain) {
+        if (edgeResults.isEmpty()) {
+            return;
+        }
         for (BlockPos pos : openVolume) {
             boolean hasAir = false;
             for (RoadGenerationResult result : edgeResults) {
@@ -371,13 +404,20 @@ public final class TunnelJunctionConnectivityPass {
                 continue;
             }
             RoadGenerationResult carrier = edgeResults.iterator().next();
-            carrier.recordPlacementOverride(pos, null, "minecraft:air");
+            carrier.recordPlacementOverride(pos, previousBlockId(pos, terrain), "minecraft:air");
             carrier.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
             carrier.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.AIR);
             if (!carrier.tunnelBlocks.contains(pos)) {
                 carrier.tunnelBlocks.add(pos);
             }
         }
+    }
+
+    private static String previousBlockId(BlockPos pos, TerrainSampler terrain) {
+        if (terrain != null && terrain.isSolidBlock(pos.getX(), pos.getY(), pos.getZ())) {
+            return "minecraft:stone";
+        }
+        return "minecraft:air";
     }
 
     private static boolean replaceTunnelLiningWithAir(RoadGenerationResult result, BlockPos pos) {
@@ -388,7 +428,8 @@ public final class TunnelJunctionConnectivityPass {
         if (!isTunnelLining(result, pos, existing)) {
             return "minecraft:air".equals(existing.newBlockId);
         }
-        result.recordPlacementOverride(pos, existing.previousBlockId, "minecraft:air");
+        String previous = existing.previousBlockId != null ? existing.previousBlockId : "minecraft:stone";
+        result.recordPlacementOverride(pos, previous, "minecraft:air");
         result.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
         result.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.AIR);
         return true;
@@ -401,11 +442,20 @@ public final class TunnelJunctionConnectivityPass {
         if (record == null || "minecraft:air".equals(record.newBlockId)) {
             return false;
         }
+        RoadSolidLayer layer = result.placementLayers.get(pos);
+        if (layer == RoadSolidLayer.ROAD
+                || layer == RoadSolidLayer.BRIDGE
+                || layer == RoadSolidLayer.MARKING
+                || layer == RoadSolidLayer.SIDEWALK
+                || layer == RoadSolidLayer.SHOULDER
+                || layer == RoadSolidLayer.BIKE_LANE
+                || layer == RoadSolidLayer.MEDIAN) {
+            return false;
+        }
         Integer priority = result.placementMaterialPriorities.get(pos);
         if (priority != null && priority >= RoadSolidMaterialPriority.DECORATIVE) {
             return false;
         }
-        RoadSolidLayer layer = result.placementLayers.get(pos);
         if (layer == RoadSolidLayer.TUNNEL) {
             return true;
         }

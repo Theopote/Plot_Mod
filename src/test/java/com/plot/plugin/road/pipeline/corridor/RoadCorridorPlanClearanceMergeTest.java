@@ -24,7 +24,8 @@ class RoadCorridorPlanClearanceMergeTest {
         ClearanceCell merged = RoadCorridorPlan.mergeClearance(open, tunnel);
         assertEquals(RoadConstructionType.TUNNEL, merged.constructionType());
         assertEquals(RoadCorridorConstructionMode.TUNNEL, merged.mode());
-        assertEquals(80, merged.clearTopY(), "envelope height must expand to the larger clearTop");
+        assertEquals(72, merged.clearTopY(),
+            "structure interior keeps its own clearTop; open envelope must not expand it");
     }
 
     @Test
@@ -40,7 +41,8 @@ class RoadCorridorPlanClearanceMergeTest {
 
         ClearanceCell merged = RoadCorridorPlan.mergeClearance(bridge, open);
         assertEquals(RoadConstructionType.BRIDGE, merged.constructionType());
-        assertEquals(90, merged.clearTopY());
+        assertEquals(65, merged.clearTopY(),
+            "bridge keeps its own vertical envelope when open road overlaps");
     }
 
     @Test
@@ -98,7 +100,8 @@ class RoadCorridorPlanClearanceMergeTest {
         ClearanceCell merged = RoadCorridorPlan.mergeClearance(open, portal);
         assertEquals(RoadCorridorConstructionMode.PORTAL, merged.mode());
         assertEquals(RoadConstructionType.TUNNEL_PORTAL, merged.constructionType());
-        assertEquals(80, merged.clearTopY());
+        assertEquals(71, merged.clearTopY(),
+            "portal keeps its roof envelope; open clearance must not raise clearTop through it");
     }
 
     @Test

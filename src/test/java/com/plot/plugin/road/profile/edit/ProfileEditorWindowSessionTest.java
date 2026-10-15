@@ -10,6 +10,12 @@ import com.plot.plugin.road.manager.RoadProjectStatus;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
+import com.plot.plugin.road.pipeline.profile.BuildHeightSample;
+import com.plot.plugin.road.pipeline.profile.BuildHeightSequenceSmoother;
+import com.plot.plugin.road.pipeline.profile.ProfileCompileOptions;
+import com.plot.plugin.road.pipeline.profile.VoxelProfileCompileResult;
+import com.plot.plugin.road.pipeline.profile.VoxelProfileConstraints;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
@@ -322,6 +328,49 @@ class ProfileEditorWindowSessionTest {
     }
 
     @Test
+    void undoMarksVoxelPreviewStaleAndKeepsTouchedRoadIds() {
+        ProfileEditorWindowSession session = openSession();
+        Road workingRoad = session.editingNetwork().getRoad(road.getId());
+        session.storeVoxelPreview(
+            road.getId(),
+            voxelKeyFor(session.editingNetwork(), workingRoad),
+            readyVoxelResult());
+        assertTrue(session.voxelPreview(road.getId()).isReady());
+
+        session.recordUndoPoint();
+        mutatePvi(workingRoad, 1, 76.0);
+        session.markTouched(workingRoad);
+        assertTrue(session.touchedRoadIds().contains(road.getId()));
+
+        session.undo();
+        assertTrue(session.voxelPreview(road.getId()).isStale(),
+            "undo must invalidate voxel preview cache");
+        assertTrue(session.touchedRoadIds().contains(road.getId()),
+            "touchedRoadIds survive undo so confirm/cancel still track edited roads");
+    }
+
+    @Test
+    void undoRedoThenConfirmAppliesRedoneState() {
+        ProfileEditorWindowSession session = openSession();
+        Road workingRoad = session.editingNetwork().getRoad(road.getId());
+
+        session.recordUndoPoint();
+        mutatePvi(workingRoad, 1, 79.0);
+        session.markTouched(workingRoad);
+
+        session.undo();
+        session.redo();
+        assertEquals(79.0,
+            session.editingNetwork().getRoad(road.getId()).getVerticalAlignment().getPvis().get(1).getElevation());
+
+        ProfileEditorWindowSession.ConfirmResult result =
+            session.confirm(testContext(), live, config);
+        assertEquals(ProfileEditorWindowSession.ConfirmResult.APPLIED, result);
+        assertEquals(79.0, live.getRoad(road.getId()).getVerticalAlignment().getPvis().get(1).getElevation());
+        assertTrue(session.touchedRoadIds().isEmpty());
+    }
+
+    @Test
     void hasUnconfirmedEditsForRoadTracksTouchedRoadOnly() {
         ProfileEditorWindowSession session = openSession();
         assertFalse(session.hasUnconfirmedEditsForRoad(road.getId()));
@@ -370,6 +419,33 @@ class ProfileEditorWindowSessionTest {
         RoadVerticalAlignment updated = VerticalProfileControlPoints.withElevation(
             road.getVerticalAlignment(), index, elevation, road);
         road.setVerticalAlignment(updated);
+    }
+
+    private static VoxelProfilePreviewKey voxelKeyFor(RoadNetwork network, Road road) {
+        return VoxelProfilePreviewKey.of(
+            network,
+            road,
+            road.getVerticalAlignment(),
+            List.of(),
+            VoxelProfileConstraints.empty(),
+            null,
+            0L,
+            new RoadSystemConfig("fp"),
+            ProfileCompileOptions.defaults());
+    }
+
+    private static VoxelProfileCompileResult readyVoxelResult() {
+        List<BuildHeightSample> samples = List.of(
+            new BuildHeightSample(0.0, 64.0, 64),
+            new BuildHeightSample(1.0, 64.0, 64),
+            new BuildHeightSample(2.0, 64.0, 64));
+        return new VoxelProfileCompileResult(
+            true,
+            samples,
+            BuildHeightProfile.fromSamples(samples),
+            null,
+            null,
+            new BuildHeightSequenceSmoother.SmoothingDiagnostics(0, 0, 0));
     }
 
     private RoadUiContext testContext() {
