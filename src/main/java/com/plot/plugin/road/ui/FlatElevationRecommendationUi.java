@@ -119,7 +119,7 @@ final class FlatElevationRecommendationUi {
             best.estimatedEarthworkBlocks()));
         if (ImGui.button(PlotI18n.tr("plugin.road.flat_elevation.adopt_recommended"),
                 ImGui.getContentRegionAvailX(), 0)) {
-            applyElevation(ctx, network, road, best.elevation(), null, onHistory);
+            applyElevation(ctx, network, road, best.elevation(), null, null, onHistory);
             session.markStale();
         }
     }
@@ -129,6 +129,19 @@ final class FlatElevationRecommendationUi {
             RoadNetwork network,
             Road road,
             ProfileEditorWindowSession windowSession,
+            Runnable onHistory,
+            Supplier<TerrainSampler> terrainSupplier) {
+        renderGenerateControls(
+            ctx, network, road, windowSession, null, null, onHistory, terrainSupplier);
+    }
+
+    void renderGenerateControls(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road,
+            ProfileEditorWindowSession windowSession,
+            Runnable recordUndoPointBeforeEdit,
+            Runnable onWorkingProfileChanged,
             Runnable onHistory,
             Supplier<TerrainSampler> terrainSupplier) {
         if (RoadVerticalStrategy.fromRoad(road) != RoadVerticalStrategy.FLAT) {
@@ -159,7 +172,12 @@ final class FlatElevationRecommendationUi {
             best.estimatedTunnelLength(),
             best.estimatedEarthworkBlocks()));
         if (ImGui.button(PlotI18n.tr("plugin.road.flat_elevation.adopt_recommended"))) {
-            applyElevation(ctx, network, road, best.elevation(), windowSession, onHistory);
+            if (recordUndoPointBeforeEdit != null) {
+                recordUndoPointBeforeEdit.run();
+            }
+            applyElevation(
+                ctx, network, road, best.elevation(),
+                windowSession, onWorkingProfileChanged, onHistory);
             session.markStale();
         }
         if (!recommendation.alternatives().isEmpty()) {
@@ -175,7 +193,12 @@ final class FlatElevationRecommendationUi {
                 ImGui.sameLine();
                 if (ImGui.smallButton(PlotI18n.tr("plugin.road.flat_elevation.adopt_y",
                         candidate.elevation()) + "##flat_alt_" + candidate.elevation())) {
-                    applyElevation(ctx, network, road, candidate.elevation(), windowSession, onHistory);
+                    if (recordUndoPointBeforeEdit != null) {
+                        recordUndoPointBeforeEdit.run();
+                    }
+                    applyElevation(
+                        ctx, network, road, candidate.elevation(),
+                        windowSession, onWorkingProfileChanged, onHistory);
                     session.markStale();
                 }
             }
@@ -232,6 +255,7 @@ final class FlatElevationRecommendationUi {
             Road road,
             double elevation,
             ProfileEditorWindowSession windowSession,
+            Runnable onWorkingProfileChanged,
             Runnable onHistory) {
         if (windowSession != null) {
             windowSession.markTouched(road);
@@ -243,6 +267,9 @@ final class FlatElevationRecommendationUi {
             road,
             elevation,
             road.getEffectiveMaxSlope(ctx.networkManager().getConfig()));
+        if (onWorkingProfileChanged != null) {
+            onWorkingProfileChanged.run();
+        }
         ctx.requestOverlayRefresh();
     }
 

@@ -1,6 +1,5 @@
 package com.plot.plugin.road.profile;
 
-import com.plot.plugin.road.RoadLongitudinalProfileRenderer;
 
 import java.util.List;
 
@@ -95,15 +94,8 @@ public final class ProfileChartHitTester {
             RoadProfilePlotRange range,
             float mouseX,
             float mouseY) {
-        RoadLongitudinalProfileRenderer.IntersectionHit legacy =
-            RoadLongitudinalProfileRenderer.hitIntersectionRoad(
-                intersections, layout, range, mouseX, mouseY);
-        if (legacy == null) {
-            return null;
-        }
-        return new ProfileChartInteraction.IntersectionHit(
-            legacy.index(),
-            ProfileChartInteraction.IntersectionDragTarget.valueOf(legacy.target().name()));
+        return ProfileChartIntersectionSupport.hitIntersection(
+            intersections, layout, range, mouseX, mouseY);
     }
 
     /** Endpoints may open menu (delete disabled); junction-fixed points do not. */

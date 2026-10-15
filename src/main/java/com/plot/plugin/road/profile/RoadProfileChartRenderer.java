@@ -1,6 +1,5 @@
 package com.plot.plugin.road.profile;
 
-import com.plot.plugin.road.RoadLongitudinalProfileRenderer;
 import com.plot.plugin.road.pipeline.profile.BuildHeightSample;
 import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
@@ -89,7 +88,7 @@ public final class RoadProfileChartRenderer {
         drawSeries(
             drawList, layout, range, chart, design, flatOverlay, mode,
             ProfileChartGuideSemantics.fromVerticalMode(verticalMode));
-        RoadLongitudinalProfileRenderer.drawIntersectionMarkersRoad(
+        ProfileChartIntersectionSupport.drawIntersectionMarkers(
             drawList, intersections, -1, layout,
             range.totalStation(), range.minElevation(), range.maxElevation(), mode);
         ImGui.invisibleButton("##road_profile_overview_surface", width, chartHeight);
@@ -235,7 +234,7 @@ public final class RoadProfileChartRenderer {
         drawRoadControlPoints(drawList, controls, selectedPviIndex, maxGradePercent, layout, range);
         drawRoadCurveHandles(
             drawList, controls, curveHandles, activeCurveHandlePvi, activeCurveHandle, layout, range);
-        RoadLongitudinalProfileRenderer.drawIntersectionMarkersRoad(
+        ProfileChartIntersectionSupport.drawIntersectionMarkers(
             drawList, intersections, selectedIntersectionIndex, layout,
             range.totalStation(), range.minElevation(), range.maxElevation(), mode);
         ImGui.invisibleButton("##road_profile_control_surface", width, chartHeight);

@@ -28,7 +28,7 @@ final class FlatProfileControls {
             Road road,
             Runnable onHistory,
             Supplier<com.plot.core.terrain.TerrainSampler> terrainSupplier) {
-        render(ctx, network, road, null, onHistory, terrainSupplier);
+        render(ctx, network, road, null, null, null, onHistory, terrainSupplier);
     }
 
     void render(
@@ -37,7 +37,18 @@ final class FlatProfileControls {
             Road road,
             ProfileEditorWindowSession windowSession,
             Supplier<com.plot.core.terrain.TerrainSampler> terrainSupplier) {
-        render(ctx, network, road, windowSession, null, terrainSupplier);
+        render(ctx, network, road, windowSession, null, null, terrainSupplier);
+    }
+
+    void render(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road,
+            ProfileEditorWindowSession windowSession,
+            Runnable recordUndoPointBeforeEdit,
+            Runnable onWorkingProfileChanged,
+            Supplier<com.plot.core.terrain.TerrainSampler> terrainSupplier) {
+        render(ctx, network, road, windowSession, recordUndoPointBeforeEdit, onWorkingProfileChanged, null, terrainSupplier);
     }
 
     private void render(
@@ -45,6 +56,8 @@ final class FlatProfileControls {
             RoadNetwork network,
             Road road,
             ProfileEditorWindowSession windowSession,
+            Runnable recordUndoPointBeforeEdit,
+            Runnable onWorkingProfileChanged,
             Runnable onHistory,
             Supplier<com.plot.core.terrain.TerrainSampler> terrainSupplier) {
         if (road == null || RoadVerticalStrategy.fromRoad(road) != RoadVerticalStrategy.FLAT) {
@@ -53,9 +66,13 @@ final class FlatProfileControls {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         syncFlatElevation(network, road, config);
         RoadUiSections.section("plugin.road.profile_flat_editor_section");
-        renderBaseElevationField(ctx, network, road, config, windowSession, onHistory, terrainSupplier);
+        renderBaseElevationField(
+            ctx, network, road, config, windowSession,
+            recordUndoPointBeforeEdit, onWorkingProfileChanged, onHistory, terrainSupplier);
         ImGui.spacing();
-        recommendationUi.renderGenerateControls(ctx, network, road, windowSession, onHistory, terrainSupplier);
+        recommendationUi.renderGenerateControls(
+            ctx, network, road, windowSession,
+            recordUndoPointBeforeEdit, onWorkingProfileChanged, onHistory, terrainSupplier);
         RoadUiWidgets.textWrappedColored(
             com.plot.plugin.ui.PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.vertical_strategy_flat_profile_hint"));
@@ -104,6 +121,8 @@ final class FlatProfileControls {
             Road road,
             RoadSystemConfig config,
             ProfileEditorWindowSession windowSession,
+            Runnable recordUndoPointBeforeEdit,
+            Runnable onWorkingProfileChanged,
             Runnable onHistory,
             Supplier<com.plot.core.terrain.TerrainSampler> terrainSupplier) {
         RoadElevationBounds bounds = resolveElevationBounds(terrainSupplier);
@@ -116,8 +135,13 @@ final class FlatProfileControls {
                 "%.1f")) {
             flatElevation = elevation[0];
         }
+        if (ImGui.isItemActivated() && recordUndoPointBeforeEdit != null) {
+            recordUndoPointBeforeEdit.run();
+        }
         if (ImGui.isItemDeactivatedAfterEdit()) {
-            applyBaseElevation(ctx, network, road, config, windowSession, onHistory, flatElevation);
+            applyBaseElevation(
+                ctx, network, road, config, windowSession,
+                onWorkingProfileChanged, onHistory, flatElevation);
         }
     }
 
@@ -127,6 +151,7 @@ final class FlatProfileControls {
             Road road,
             RoadSystemConfig config,
             ProfileEditorWindowSession windowSession,
+            Runnable onWorkingProfileChanged,
             Runnable onHistory,
             float elevation) {
         if (windowSession != null) {
@@ -143,6 +168,9 @@ final class FlatProfileControls {
         syncedFlatIntentKey = flatIntentKey(
             road,
             FlatVerticalIntentSupport.resolveIntent(network, road));
+        if (onWorkingProfileChanged != null) {
+            onWorkingProfileChanged.run();
+        }
         ctx.requestOverlayRefresh();
     }
 

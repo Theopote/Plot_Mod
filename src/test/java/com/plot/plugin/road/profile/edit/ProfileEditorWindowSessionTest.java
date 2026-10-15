@@ -91,6 +91,36 @@ class ProfileEditorWindowSessionTest {
     }
 
     @Test
+    void flatElevationUndoRestoresPriorBaseElevation() {
+        Road flatRoad = live.createRoad("flat-road");
+        RoadNode f1 = live.createNode(new Vec2d(0, 20));
+        RoadNode f2 = live.createNode(new Vec2d(40, 20));
+        live.createEdge(f1.getId(), f2.getId(), List.of(new Vec2d(0, 20), new Vec2d(40, 20)), flatRoad.getId());
+        flatRoad.setVerticalMode(RoadVerticalMode.FLAT);
+        flatRoad.setFlatVerticalIntent(new FlatVerticalIntent(72.0));
+        FlatVerticalIntentSupport.syncCompiledAlignment(live, flatRoad, flatRoad.getEffectiveMaxSlope(config));
+
+        ProfileEditorWindowSession session = openSession();
+        Road workingFlat = session.editingNetwork().getRoad(flatRoad.getId());
+
+        session.recordUndoPoint();
+        FlatVerticalIntentSupport.setBaseElevation(
+            session.editingNetwork(), workingFlat, 88.0, workingFlat.getEffectiveMaxSlope(config));
+        session.markTouched(workingFlat);
+        assertEquals(
+            88.0,
+            FlatVerticalIntentSupport.resolveIntent(session.editingNetwork(), workingFlat)
+                .getBaseElevation());
+
+        session.undo();
+        assertEquals(
+            72.0,
+            FlatVerticalIntentSupport.resolveIntent(
+                session.editingNetwork(),
+                session.editingNetwork().getRoad(flatRoad.getId())).getBaseElevation());
+    }
+
+    @Test
     void flatElevationCancelLeavesLiveIntentUnchanged() {
         Road flatRoad = live.createRoad("flat-road");
         RoadNode f1 = live.createNode(new Vec2d(0, 20));

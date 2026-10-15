@@ -1,5 +1,7 @@
 package com.plot.plugin.road;
 
+import com.plot.plugin.road.profile.ProfileChartInteraction;
+import com.plot.plugin.road.profile.ProfileChartIntersectionSupport;
 import com.plot.plugin.road.profile.ProfileChartLayout;
 import com.plot.plugin.road.profile.ProfileChartRenderMode;
 import com.plot.plugin.road.profile.RoadProfileIntersection;
@@ -38,20 +40,20 @@ public final class RoadLongitudinalProfileRenderer {
     private static final int COLOR_CONTROL = 0xFFFFC04D;
     private static final int COLOR_CONTROL_SELECTED = 0xFFFFFFFF;
     private static final int COLOR_CONTROL_INVALID = PluginUiColors.ERROR;
-    private static final int COLOR_INTERSECTION = 0xFF66CCFF;
-    private static final int COLOR_INTERSECTION_SELECTED = 0xFFFFFFFF;
-    private static final int COLOR_INTERSECTION_GRADE = 0xFFFF9966;
     private static final int COLOR_INTERSECTION_WARNING = 0xFFFF5252;
-    private static final int COLOR_OTHER_ROAD = 0xFFCC99FF;
     private static final int COLOR_FLAT_CURRENT = 0xFF66D9EF;
     private static final int COLOR_FLAT_SUGGESTED = 0xFFFFB84D;
 
+    /** @deprecated Use {@link ProfileChartInteraction.CurveHandle}. */
+    @Deprecated
     public record CurveHandle(
             int pviIndex,
             double localDistance,
             double elevation,
             boolean leftSide) { }
 
+    /** @deprecated Use {@link ProfileChartInteraction.ControlInteraction}. */
+    @Deprecated
     public record ControlInteraction(
             int selectedPviIndex,
             int activePviIndex,
@@ -257,7 +259,19 @@ public final class RoadLongitudinalProfileRenderer {
         drawProfile(drawList, result.profileDistances, result.profileGroundHeights,
             result.profileGuideLine, result.profileBuildHeights, designOverlay, flatOverlay,
             x0, y0, width, chartHeight, range);
-        drawIntersectionMarkers(drawList, intersections, -1, range, x0, y0, width, chartHeight);
+        ProfileChartIntersectionSupport.drawIntersectionMarkersEdgeLocal(
+            drawList,
+            intersections,
+            -1,
+            range.maxDistance(),
+            range.geometryToProfileScale(),
+            range.minHeight(),
+            range.maxHeight(),
+            x0,
+            y0,
+            width,
+            chartHeight,
+            ProfileChartRenderMode.OVERVIEW);
         ImGui.invisibleButton("##road_profile_overview_surface", width, chartHeight);
         if (ImGui.isItemHovered()) {
             renderHoveredIntersectionTooltip(
@@ -367,28 +381,25 @@ public final class RoadLongitudinalProfileRenderer {
         return new PlotRange(result.profileDistances.getLast(), min, max, geometryToProfileScale);
     }
 
-    static final double AT_GRADE_ELEVATION_TOLERANCE = 0.26;
+    /** @deprecated Use {@link ProfileChartIntersectionSupport#AT_GRADE_ELEVATION_TOLERANCE}. */
+    @Deprecated
+    static final double AT_GRADE_ELEVATION_TOLERANCE =
+        ProfileChartIntersectionSupport.AT_GRADE_ELEVATION_TOLERANCE;
 
     static boolean atGradeElevationConflict(RoadProfileIntersection intersection) {
-        if (intersection == null || intersection.gradeSeparated()) {
-            return false;
-        }
-        return Math.abs(intersection.currentRoadElevation() - intersection.otherRoadElevation())
-            > AT_GRADE_ELEVATION_TOLERANCE;
+        return ProfileChartIntersectionSupport.atGradeElevationConflict(intersection);
     }
 
     static double sharedAtGradeElevation(RoadProfileIntersection intersection) {
-        if (intersection == null) {
-            return 0.0;
-        }
-        return (intersection.currentRoadElevation() + intersection.otherRoadElevation()) * 0.5;
+        return ProfileChartIntersectionSupport.sharedAtGradeElevation(intersection);
     }
 
     static boolean otherRoadAboveCurrent(RoadProfileIntersection intersection) {
-        return intersection != null
-            && intersection.otherRoadElevation() > intersection.currentRoadElevation();
+        return ProfileChartIntersectionSupport.otherRoadAboveCurrent(intersection);
     }
 
+    /** @deprecated Use {@link ProfileChartIntersectionSupport#drawIntersectionMarkers}. */
+    @Deprecated
     public static void drawIntersectionMarkersRoad(
             ImDrawList drawList,
             List<RoadProfileIntersection> intersections,
@@ -402,6 +413,8 @@ public final class RoadLongitudinalProfileRenderer {
             totalStation, minElevation, maxElevation, ProfileChartRenderMode.EDITOR);
     }
 
+    /** @deprecated Use {@link ProfileChartIntersectionSupport#drawIntersectionMarkers}. */
+    @Deprecated
     public static void drawIntersectionMarkersRoad(
             ImDrawList drawList,
             List<RoadProfileIntersection> intersections,
@@ -411,245 +424,22 @@ public final class RoadLongitudinalProfileRenderer {
             double minElevation,
             double maxElevation,
             ProfileChartRenderMode mode) {
-        if (intersections == null || intersections.isEmpty()) {
-            return;
-        }
-        for (int i = 0; i < intersections.size(); i++) {
-            RoadProfileIntersection intersection = intersections.get(i);
-            float x = layout.plotX(intersection.roadStation(), totalStation);
-            int markerColor = intersection.gradeSeparated()
-                ? COLOR_INTERSECTION_GRADE
-                : COLOR_INTERSECTION;
-            if (intersection.steepGradeWarning()) {
-                markerColor = COLOR_INTERSECTION_WARNING;
-            }
-            if (i == selectedIndex) {
-                markerColor = COLOR_INTERSECTION_SELECTED;
-            }
-            if (intersection.gradeSeparated()) {
-                float currentY = layout.plotY(
-                    intersection.currentRoadElevation(), minElevation, maxElevation);
-                float otherY = layout.plotY(
-                    intersection.otherRoadElevation(), minElevation, maxElevation);
-                int connectorColor = intersection.steepGradeWarning()
-                    ? COLOR_INTERSECTION_WARNING
-                    : markerColor;
-                if (mode.showIntersectionConnectors()) {
-                    drawList.addLine(x, currentY, x, otherY, connectorColor, 1.6f);
-                }
-                drawList.addCircleFilled(x, currentY, 3.5f, markerColor);
-                drawList.addCircle(x, currentY, 4.5f, COLOR_BG, 12, 1.2f);
-                drawDiamond(drawList, x, otherY, 5.5f, COLOR_OTHER_ROAD);
-                drawList.addCircle(x, otherY, 6.5f, COLOR_BG, 12, 1.2f);
-                if (intersection.steepGradeWarning()) {
-                    drawWarningBadge(drawList, x, otherY, COLOR_INTERSECTION_WARNING);
-                }
-                if (mode.showIntersectionLabels()) {
-                    renderIntersectionLabel(
-                        drawList, intersection, x, otherY, markerColor, otherRoadAboveCurrent(intersection));
-                }
-            } else if (atGradeElevationConflict(intersection)) {
-                float currentY = layout.plotY(
-                    intersection.currentRoadElevation(), minElevation, maxElevation);
-                float otherY = layout.plotY(
-                    intersection.otherRoadElevation(), minElevation, maxElevation);
-                int conflictColor = COLOR_INTERSECTION_WARNING;
-                if (mode.showIntersectionConnectors()) {
-                    drawList.addLine(x, currentY, x, otherY, conflictColor, 1.6f);
-                }
-                drawList.addCircleFilled(x, currentY, 4.5f, conflictColor);
-                drawList.addCircle(x, currentY, 5.5f, COLOR_BG, 12, 1.2f);
-                drawList.addCircleFilled(x, otherY, 4.5f, conflictColor);
-                drawList.addCircle(x, otherY, 5.5f, COLOR_BG, 12, 1.2f);
-                drawWarningBadge(drawList, x, (currentY + otherY) * 0.5f, conflictColor);
-                if (mode.showIntersectionLabels()) {
-                    renderIntersectionLabel(
-                        drawList, intersection, x, (currentY + otherY) * 0.5f, conflictColor, false);
-                }
-            } else {
-                float sharedY = layout.plotY(
-                    sharedAtGradeElevation(intersection), minElevation, maxElevation);
-                drawList.addCircleFilled(x, sharedY, 5.5f, markerColor);
-                drawList.addCircle(x, sharedY, 6.5f, COLOR_BG, 12, 1.5f);
-                if (mode.showIntersectionLabels()) {
-                    renderIntersectionLabel(drawList, intersection, x, sharedY, markerColor, false);
-                }
-            }
-        }
+        ProfileChartIntersectionSupport.drawIntersectionMarkers(
+            drawList, intersections, selectedIndex, layout,
+            totalStation, minElevation, maxElevation, mode);
     }
 
+    /** @deprecated Use {@link ProfileChartIntersectionSupport#hitIntersection}. */
+    @Deprecated
     public static IntersectionHit hitIntersectionRoad(
             List<RoadProfileIntersection> intersections,
             ProfileChartLayout layout,
             com.plot.plugin.road.profile.RoadProfilePlotRange range,
             float mouseX,
             float mouseY) {
-        return hitIntersectionRoad(
-            intersections,
-            layout,
-            range.totalStation(),
-            range.minElevation(),
-            range.maxElevation(),
-            mouseX,
-            mouseY);
-    }
-
-    private static IntersectionHit hitIntersectionRoad(
-            List<RoadProfileIntersection> intersections,
-            ProfileChartLayout layout,
-            double totalStation,
-            double minElevation,
-            double maxElevation,
-            float mouseX,
-            float mouseY) {
-        if (intersections == null || intersections.isEmpty()) {
-            return null;
-        }
-        double bestDist = 12.0 * 12.0;
-        IntersectionHit best = null;
-        for (int i = 0; i < intersections.size(); i++) {
-            RoadProfileIntersection intersection = intersections.get(i);
-            float x = layout.plotX(intersection.roadStation(), totalStation);
-            if (intersection.gradeSeparated()) {
-                float currentY = layout.plotY(
-                    intersection.currentRoadElevation(), minElevation, maxElevation);
-                float otherY = layout.plotY(
-                    intersection.otherRoadElevation(), minElevation, maxElevation);
-                double currentDist = distanceSquared(mouseX, mouseY, x, currentY);
-                double otherDist = distanceSquared(mouseX, mouseY, x, otherY);
-                if (currentDist <= bestDist) {
-                    bestDist = currentDist;
-                    best = new IntersectionHit(i, ControlInteraction.IntersectionDragTarget.CURRENT);
-                }
-                if (otherDist <= bestDist) {
-                    bestDist = otherDist;
-                    best = new IntersectionHit(i, ControlInteraction.IntersectionDragTarget.OTHER);
-                }
-            } else if (atGradeElevationConflict(intersection)) {
-                float currentY = layout.plotY(
-                    intersection.currentRoadElevation(), minElevation, maxElevation);
-                float otherY = layout.plotY(
-                    intersection.otherRoadElevation(), minElevation, maxElevation);
-                double currentDist = distanceSquared(mouseX, mouseY, x, currentY);
-                double otherDist = distanceSquared(mouseX, mouseY, x, otherY);
-                if (currentDist <= bestDist) {
-                    bestDist = currentDist;
-                    best = new IntersectionHit(i, ControlInteraction.IntersectionDragTarget.CURRENT);
-                }
-                if (otherDist <= bestDist) {
-                    bestDist = otherDist;
-                    best = new IntersectionHit(i, ControlInteraction.IntersectionDragTarget.OTHER);
-                }
-            } else {
-                float sharedY = layout.plotY(
-                    sharedAtGradeElevation(intersection), minElevation, maxElevation);
-                double sharedDist = distanceSquared(mouseX, mouseY, x, sharedY);
-                if (sharedDist <= bestDist) {
-                    bestDist = sharedDist;
-                    best = new IntersectionHit(i, ControlInteraction.IntersectionDragTarget.SHARED);
-                }
-            }
-        }
-        return best;
-    }
-
-    private static void drawIntersectionMarkers(
-            ImDrawList drawList,
-            List<RoadProfileIntersection> intersections,
-            int selectedIndex,
-            PlotRange range,
-            float x0,
-            float y0,
-            float width,
-            float height) {
-        if (intersections == null || intersections.isEmpty()) {
-            return;
-        }
-        float padding = 10f;
-        float plotX0 = x0 + padding;
-        float plotY0 = y0 + padding;
-        float plotWidth = width - 2 * padding;
-        float plotHeight = height - 2 * padding;
-        for (int i = 0; i < intersections.size(); i++) {
-            RoadProfileIntersection intersection = intersections.get(i);
-            float x = toPlotX(
-                range.chartDistance(intersection.localDistance()), range.maxDistance(), plotX0, plotWidth);
-            int markerColor = intersection.gradeSeparated()
-                ? COLOR_INTERSECTION_GRADE
-                : COLOR_INTERSECTION;
-            if (intersection.steepGradeWarning()) {
-                markerColor = COLOR_INTERSECTION_WARNING;
-            }
-            if (i == selectedIndex) {
-                markerColor = COLOR_INTERSECTION_SELECTED;
-            }
-            if (intersection.gradeSeparated()) {
-                float currentY = elevationPlotY(
-                    intersection.currentRoadElevation(), range, plotY0, plotHeight);
-                float otherY = elevationPlotY(
-                    intersection.otherRoadElevation(), range, plotY0, plotHeight);
-                int connectorColor = intersection.steepGradeWarning()
-                    ? COLOR_INTERSECTION_WARNING
-                    : markerColor;
-                drawList.addLine(x, currentY, x, otherY, connectorColor, 1.6f);
-                drawList.addCircleFilled(x, currentY, 3.5f, markerColor);
-                drawList.addCircle(x, currentY, 4.5f, COLOR_BG, 12, 1.2f);
-                drawDiamond(drawList, x, otherY, 5.5f, COLOR_OTHER_ROAD);
-                drawList.addCircle(x, otherY, 6.5f, COLOR_BG, 12, 1.2f);
-                if (intersection.steepGradeWarning()) {
-                    drawWarningBadge(drawList, x, otherY, COLOR_INTERSECTION_WARNING);
-                }
-                renderIntersectionLabel(
-                    drawList, intersection, x, otherY, markerColor, otherRoadAboveCurrent(intersection));
-            } else if (atGradeElevationConflict(intersection)) {
-                float currentY = elevationPlotY(
-                    intersection.currentRoadElevation(), range, plotY0, plotHeight);
-                float otherY = elevationPlotY(
-                    intersection.otherRoadElevation(), range, plotY0, plotHeight);
-                int conflictColor = COLOR_INTERSECTION_WARNING;
-                drawList.addLine(x, currentY, x, otherY, conflictColor, 1.6f);
-                drawList.addCircleFilled(x, currentY, 4.5f, conflictColor);
-                drawList.addCircle(x, currentY, 5.5f, COLOR_BG, 12, 1.2f);
-                drawList.addCircleFilled(x, otherY, 4.5f, conflictColor);
-                drawList.addCircle(x, otherY, 5.5f, COLOR_BG, 12, 1.2f);
-                drawWarningBadge(drawList, x, (currentY + otherY) * 0.5f, conflictColor);
-                renderIntersectionLabel(
-                    drawList, intersection, x, (currentY + otherY) * 0.5f, conflictColor, false);
-            } else {
-                float sharedY = elevationPlotY(sharedAtGradeElevation(intersection), range, plotY0, plotHeight);
-                drawList.addCircleFilled(x, sharedY, 5.5f, markerColor);
-                drawList.addCircle(x, sharedY, 6.5f, COLOR_BG, 12, 1.5f);
-                renderIntersectionLabel(drawList, intersection, x, sharedY, markerColor, false);
-            }
-        }
-    }
-
-    private static float elevationPlotY(
-            double elevation,
-            PlotRange range,
-            float plotY0,
-            float plotHeight) {
-        return toPlotY(
-            (int) Math.round(elevation),
-            range.minHeight(),
-            range.maxHeight(),
-            plotY0,
-            plotHeight);
-    }
-
-    private static void renderIntersectionLabel(
-            ImDrawList drawList,
-            RoadProfileIntersection intersection,
-            float x,
-            float anchorY,
-            int markerColor,
-            boolean otherAbove) {
-        String label = intersection.otherRoadLabel();
-        if (label == null || label.isBlank()) {
-            return;
-        }
-        float textY = otherAbove ? anchorY - ImGui.getTextLineHeight() - 2f : anchorY + 4f;
-        drawList.addText(x + 6f, textY, markerColor, label);
+        return IntersectionHit.fromCanonical(
+            ProfileChartIntersectionSupport.hitIntersection(
+                intersections, layout, range, mouseX, mouseY));
     }
 
     private static void renderHoveredIntersectionTooltip(
@@ -661,8 +451,19 @@ public final class RoadLongitudinalProfileRenderer {
             float height,
             float mouseX,
             float mouseY) {
-        IntersectionHit hit = hitIntersection(
-            intersections, range, x0, y0, width, height, mouseX, mouseY);
+        IntersectionHit hit = IntersectionHit.fromCanonical(
+            ProfileChartIntersectionSupport.hitIntersectionEdgeLocal(
+                intersections,
+                range.maxDistance(),
+                range.geometryToProfileScale(),
+                range.minHeight(),
+                range.maxHeight(),
+                x0,
+                y0,
+                width,
+                height,
+                mouseX,
+                mouseY));
         if (hit == null || hit.index() < 0 || hit.index() >= intersections.size()) {
             return;
         }
@@ -699,92 +500,17 @@ public final class RoadLongitudinalProfileRenderer {
         ImGui.endTooltip();
     }
 
-    private static void drawDiamond(ImDrawList drawList, float cx, float cy, float radius, int color) {
-        drawList.addQuadFilled(
-            cx, cy - radius,
-            cx + radius, cy,
-            cx, cy + radius,
-            cx - radius, cy,
-            color);
-    }
-
-    private static void drawWarningBadge(ImDrawList drawList, float cx, float cy, int color) {
-        String badge = "!";
-        drawList.addText(cx + 4f, cy - 11f, color, badge);
-    }
-
-    public record IntersectionHit(int index, ControlInteraction.IntersectionDragTarget target) { }
-
-    private static IntersectionHit hitIntersection(
-            List<RoadProfileIntersection> intersections,
-            PlotRange range,
-            float x0,
-            float y0,
-            float width,
-            float height,
-            float mouseX,
-            float mouseY) {
-        if (intersections == null || intersections.isEmpty()) {
-            return null;
-        }
-        float padding = 10f;
-        float plotX0 = x0 + padding;
-        float plotY0 = y0 + padding;
-        float plotWidth = width - 2 * padding;
-        float plotHeight = height - 2 * padding;
-        double bestDist = 12.0 * 12.0;
-        IntersectionHit best = null;
-        for (int i = 0; i < intersections.size(); i++) {
-            RoadProfileIntersection intersection = intersections.get(i);
-            float x = toPlotX(
-                range.chartDistance(intersection.localDistance()), range.maxDistance(), plotX0, plotWidth);
-            if (intersection.gradeSeparated()) {
-                float currentY = elevationPlotY(
-                    intersection.currentRoadElevation(), range, plotY0, plotHeight);
-                float otherY = elevationPlotY(
-                    intersection.otherRoadElevation(), range, plotY0, plotHeight);
-                double currentDist = distanceSquared(mouseX, mouseY, x, currentY);
-                double otherDist = distanceSquared(mouseX, mouseY, x, otherY);
-                if (currentDist <= bestDist) {
-                    bestDist = currentDist;
-                    best = new IntersectionHit(i, ControlInteraction.IntersectionDragTarget.CURRENT);
-                }
-                if (otherDist <= bestDist) {
-                    bestDist = otherDist;
-                    best = new IntersectionHit(i, ControlInteraction.IntersectionDragTarget.OTHER);
-                }
-            } else if (atGradeElevationConflict(intersection)) {
-                float currentY = elevationPlotY(
-                    intersection.currentRoadElevation(), range, plotY0, plotHeight);
-                float otherY = elevationPlotY(
-                    intersection.otherRoadElevation(), range, plotY0, plotHeight);
-                double currentDist = distanceSquared(mouseX, mouseY, x, currentY);
-                double otherDist = distanceSquared(mouseX, mouseY, x, otherY);
-                if (currentDist <= bestDist) {
-                    bestDist = currentDist;
-                    best = new IntersectionHit(i, ControlInteraction.IntersectionDragTarget.CURRENT);
-                }
-                if (otherDist <= bestDist) {
-                    bestDist = otherDist;
-                    best = new IntersectionHit(i, ControlInteraction.IntersectionDragTarget.OTHER);
-                }
-            } else {
-                float sharedY = elevationPlotY(
-                    sharedAtGradeElevation(intersection), range, plotY0, plotHeight);
-                double sharedDist = distanceSquared(mouseX, mouseY, x, sharedY);
-                if (sharedDist <= bestDist) {
-                    bestDist = sharedDist;
-                    best = new IntersectionHit(i, ControlInteraction.IntersectionDragTarget.SHARED);
-                }
+    /** @deprecated Use {@link ProfileChartInteraction.IntersectionHit}. */
+    @Deprecated
+    public record IntersectionHit(int index, ControlInteraction.IntersectionDragTarget target) {
+        static IntersectionHit fromCanonical(ProfileChartInteraction.IntersectionHit hit) {
+            if (hit == null) {
+                return null;
             }
+            return new IntersectionHit(
+                hit.index(),
+                ControlInteraction.IntersectionDragTarget.valueOf(hit.target().name()));
         }
-        return best;
-    }
-
-    private static double distanceSquared(float mouseX, float mouseY, float x, float y) {
-        double dx = mouseX - x;
-        double dy = mouseY - y;
-        return dx * dx + dy * dy;
     }
 
     private static void drawControlPoints(
