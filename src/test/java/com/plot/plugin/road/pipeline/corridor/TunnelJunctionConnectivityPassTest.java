@@ -66,6 +66,8 @@ class TunnelJunctionConnectivityPassTest {
             BlockRecord record = result.placementRecords.get(blockingLining);
             assertTrue(record != null && "minecraft:air".equals(record.newBlockId),
                 "crossing tunnel lining must become air");
+            assertEquals("minecraft:stone", record.previousBlockId,
+                "existing previousBlockId from lining placement must be preserved for undo");
         }
     }
 
@@ -123,7 +125,7 @@ class TunnelJunctionConnectivityPassTest {
     }
 
     @Test
-    void openVolumeRecordsNonNullPreviousBlockIdFromTerrain() {
+    void openVolumeUsesWorldBlockIdFromResolverNotInventedStone() {
         RoadNetwork network = tunnelTJunctionNetwork();
         RoadNode junction = network.getNodes().values().stream()
             .filter(node -> node.getDegree() >= 3)
@@ -139,17 +141,10 @@ class TunnelJunctionConnectivityPassTest {
             edgeResults.put(edge.getId(), result);
         }
 
-        TerrainSampler solidTerrain = new TerrainSampler() {
-            @Override
-            public int sampleSurfaceY(Vec2d point) {
-                return 72;
-            }
-
-            @Override
-            public boolean isSolidBlock(int x, int y, int z) {
-                return y <= 72;
-            }
-        };
+        Map<BlockPos, String> worldBlocks = Map.of(
+            new BlockPos(0, 66, 0), "minecraft:dirt",
+            new BlockPos(0, 67, 0), "minecraft:granite",
+            new BlockPos(1, 66, 0), "minecraft:deepslate");
 
         TunnelJunctionConnectivityPass.apply(
             network,
@@ -158,15 +153,113 @@ class TunnelJunctionConnectivityPassTest {
             new RoadSystemConfig("tunnel-junction-prev"),
             IdentityCoordinateService.INSTANCE,
             (path, segments) -> 1.0,
-            solidTerrain);
+            pos -> worldBlocks.getOrDefault(pos, "minecraft:air"));
 
-        boolean foundAirWithPrevious = edgeResults.values().stream()
+        List<BlockRecord> airRecords = edgeResults.values().stream()
             .flatMap(result -> result.placementRecords.values().stream())
-            .anyMatch(record -> "minecraft:air".equals(record.newBlockId)
-                && record.previousBlockId != null
-                && !record.previousBlockId.isBlank());
-        assertTrue(foundAirWithPrevious,
-            "openVolume must record a non-null previousBlockId when carving air");
+            .filter(record -> "minecraft:air".equals(record.newBlockId))
+            .toList();
+        assertTrue(!airRecords.isEmpty(), "openVolume must carve air cells");
+        for (BlockRecord record : airRecords) {
+            assertTrue(record.previousBlockId != null && !record.previousBlockId.isBlank(),
+                "previousBlockId must come from resolver/world");
+            assertTrue(!"minecraft:stone".equals(record.previousBlockId)
+                    || "minecraft:stone".equals(worldBlocks.get(record.pos)),
+                "must not invent stone when world block differs: " + record.pos
+                    + " -> " + record.previousBlockId);
+            String expected = worldBlocks.get(record.pos);
+            if (expected != null) {
+                assertEquals(expected, record.previousBlockId,
+                    "carved cell must restore the exact world block id");
+            }
+        }
+    }
+
+    @Test
+    void replaceLiningPrefersExistingPreviousAndBackfillsFromResolverWhenMissing() {
+        RoadNetwork network = tunnelTJunctionNetwork();
+        RoadNode junction = network.getNodes().values().stream()
+            .filter(node -> node.getDegree() >= 3)
+            .findFirst()
+            .orElseThrow();
+
+        BlockPos dirtCell = new BlockPos(0, 66, 0);
+        BlockPos unknownCell = new BlockPos(0, 67, 0);
+        Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
+        int index = 0;
+        for (var edge : network.getEdges().values()) {
+            RoadGenerationResult result = new RoadGenerationResult(edge.getLength());
+            result.constructionTypes.add(RoadConstructionType.TUNNEL);
+            result.tunnelCount = 1;
+            result.tunnelLength = edge.getLength();
+            if (index == 0) {
+                result.recordPlacementOverride(dirtCell, "minecraft:dirt", "minecraft:stone_bricks");
+                result.placementLayers.put(dirtCell, RoadSolidLayer.TUNNEL);
+                result.placementMaterialPriorities.put(dirtCell, RoadSolidMaterialPriority.STRUCTURAL);
+                result.tunnelBlocks.add(dirtCell);
+                // Missing previous — must be recovered from world resolver, not invented stone.
+                result.recordPlacementOverride(unknownCell, null, "minecraft:stone_bricks");
+                result.placementLayers.put(unknownCell, RoadSolidLayer.TUNNEL);
+                result.placementMaterialPriorities.put(unknownCell, RoadSolidMaterialPriority.STRUCTURAL);
+                result.tunnelBlocks.add(unknownCell);
+            }
+            edgeResults.put(edge.getId(), result);
+            index++;
+        }
+
+        TunnelJunctionConnectivityPass.apply(
+            network,
+            edgeResults,
+            Map.of(junction.getId(), 64),
+            new RoadSystemConfig("tunnel-junction-prev-resolve"),
+            IdentityCoordinateService.INSTANCE,
+            (path, segments) -> 1.0,
+            pos -> pos.equals(unknownCell) ? "minecraft:oak_log" : "minecraft:air");
+
+        BlockRecord dirtRecord = edgeResults.values().iterator().next().placementRecords.get(dirtCell);
+        assertTrue(dirtRecord != null && "minecraft:air".equals(dirtRecord.newBlockId));
+        assertEquals("minecraft:dirt", dirtRecord.previousBlockId,
+            "existing previousBlockId must be preserved");
+
+        BlockRecord recovered = edgeResults.values().iterator().next().placementRecords.get(unknownCell);
+        assertTrue(recovered != null && "minecraft:air".equals(recovered.newBlockId));
+        assertEquals("minecraft:oak_log", recovered.previousBlockId,
+            "null previous must be backfilled from world resolver, never stone");
+    }
+
+    @Test
+    void openVolumeDoesNotInventStoneWhenResolverUnavailable() {
+        RoadNetwork network = tunnelTJunctionNetwork();
+        RoadNode junction = network.getNodes().values().stream()
+            .filter(node -> node.getDegree() >= 3)
+            .findFirst()
+            .orElseThrow();
+
+        Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
+        for (var edge : network.getEdges().values()) {
+            RoadGenerationResult result = new RoadGenerationResult(edge.getLength());
+            result.constructionTypes.add(RoadConstructionType.TUNNEL);
+            result.tunnelCount = 1;
+            result.tunnelLength = edge.getLength();
+            edgeResults.put(edge.getId(), result);
+        }
+
+        TunnelJunctionConnectivityPass.apply(
+            network,
+            edgeResults,
+            Map.of(junction.getId(), 64),
+            new RoadSystemConfig("tunnel-junction-no-resolver"),
+            IdentityCoordinateService.INSTANCE,
+            (path, segments) -> 1.0,
+            null);
+
+        for (BlockRecord record : edgeResults.values().stream()
+                .flatMap(result -> result.placementRecords.values().stream())
+                .filter(r -> "minecraft:air".equals(r.newBlockId))
+                .toList()) {
+            assertTrue(record.previousBlockId == null || record.previousBlockId.isBlank(),
+                "without a world resolver or prior record, previousBlockId must stay unset — not invented stone");
+        }
     }
 
     @Test

@@ -3,7 +3,6 @@ package com.plot.plugin.road.pipeline.corridor;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.command.BlockRecord;
-import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadGeometryUtils;
@@ -43,6 +42,16 @@ import java.util.function.BiFunction;
 public final class TunnelJunctionConnectivityPass {
     private static final double EPSILON = 1e-9;
 
+    /**
+     * Resolves the pre-construction block id at a world position (typically
+     * {@link com.plot.api.world.IBlockProjectionService#getBlockIdAt}).
+     * Must return the real world/snapshot id — never invent a material such as stone.
+     */
+    @FunctionalInterface
+    public interface PreviousBlockResolver {
+        String resolve(BlockPos pos);
+    }
+
     private TunnelJunctionConnectivityPass() {
     }
 
@@ -63,7 +72,7 @@ public final class TunnelJunctionConnectivityPass {
             RoadSystemConfig config,
             ICoordinateService coordinateTransformer,
             BiFunction<List<Vec2d>, List<PathSegment>, Double> unitsPerBlockEstimator,
-            TerrainSampler terrain) {
+            PreviousBlockResolver previousBlockResolver) {
         if (network == null || edgeResults == null || edgeResults.isEmpty() || config == null) {
             return;
         }
@@ -95,7 +104,7 @@ public final class TunnelJunctionConnectivityPass {
             if (openVolume.isEmpty()) {
                 continue;
             }
-            openVolume(approachResults, openVolume, terrain);
+            openVolume(approachResults, openVolume, previousBlockResolver);
         }
     }
 
@@ -384,14 +393,14 @@ public final class TunnelJunctionConnectivityPass {
     private static void openVolume(
             Collection<RoadGenerationResult> edgeResults,
             Set<BlockPos> openVolume,
-            TerrainSampler terrain) {
+            PreviousBlockResolver previousBlockResolver) {
         if (edgeResults.isEmpty()) {
             return;
         }
         for (BlockPos pos : openVolume) {
             boolean hasAir = false;
             for (RoadGenerationResult result : edgeResults) {
-                if (replaceTunnelLiningWithAir(result, pos)) {
+                if (replaceTunnelLiningWithAir(result, pos, edgeResults, previousBlockResolver)) {
                     hasAir = true;
                     continue;
                 }
@@ -403,8 +412,9 @@ public final class TunnelJunctionConnectivityPass {
             if (hasAir) {
                 continue;
             }
+            String previous = resolvePreviousBlockId(pos, null, edgeResults, previousBlockResolver);
             RoadGenerationResult carrier = edgeResults.iterator().next();
-            carrier.recordPlacementOverride(pos, previousBlockId(pos, terrain), "minecraft:air");
+            carrier.recordPlacementOverride(pos, previous, "minecraft:air");
             carrier.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
             carrier.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.AIR);
             if (!carrier.tunnelBlocks.contains(pos)) {
@@ -413,14 +423,46 @@ public final class TunnelJunctionConnectivityPass {
         }
     }
 
-    private static String previousBlockId(BlockPos pos, TerrainSampler terrain) {
-        if (terrain != null && terrain.isSolidBlock(pos.getX(), pos.getY(), pos.getZ())) {
-            return "minecraft:stone";
+    /**
+     * Prefer an already-captured previous id, then any edge record at the same
+     * position, then a world/projection resolver. Never invent a material id.
+     */
+    static String resolvePreviousBlockId(
+            BlockPos pos,
+            BlockRecord existing,
+            Collection<RoadGenerationResult> edgeResults,
+            PreviousBlockResolver previousBlockResolver) {
+        String fromExisting = validPrevious(existing != null ? existing.previousBlockId : null);
+        if (fromExisting != null) {
+            return fromExisting;
         }
-        return "minecraft:air";
+        if (edgeResults != null) {
+            for (RoadGenerationResult result : edgeResults) {
+                BlockRecord record = result.placementRecords.get(pos);
+                String fromPeer = validPrevious(record != null ? record.previousBlockId : null);
+                if (fromPeer != null) {
+                    return fromPeer;
+                }
+            }
+        }
+        if (previousBlockResolver != null) {
+            return validPrevious(previousBlockResolver.resolve(pos));
+        }
+        return null;
     }
 
-    private static boolean replaceTunnelLiningWithAir(RoadGenerationResult result, BlockPos pos) {
+    private static String validPrevious(String blockId) {
+        if (blockId == null || blockId.isBlank()) {
+            return null;
+        }
+        return blockId;
+    }
+
+    private static boolean replaceTunnelLiningWithAir(
+            RoadGenerationResult result,
+            BlockPos pos,
+            Collection<RoadGenerationResult> edgeResults,
+            PreviousBlockResolver previousBlockResolver) {
         BlockRecord existing = result.placementRecords.get(pos);
         if (existing == null) {
             return false;
@@ -428,8 +470,13 @@ public final class TunnelJunctionConnectivityPass {
         if (!isTunnelLining(result, pos, existing)) {
             return "minecraft:air".equals(existing.newBlockId);
         }
-        String previous = existing.previousBlockId != null ? existing.previousBlockId : "minecraft:stone";
-        result.recordPlacementOverride(pos, previous, "minecraft:air");
+        String previous = resolvePreviousBlockId(pos, existing, edgeResults, previousBlockResolver);
+        // recordOverride keeps the first previous; if it was null, write the resolved id directly.
+        if (validPrevious(existing.previousBlockId) == null && previous != null) {
+            result.placementRecords.put(pos, new BlockRecord(pos, previous, "minecraft:air"));
+        } else {
+            result.recordPlacementOverride(pos, previous, "minecraft:air");
+        }
         result.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
         result.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.AIR);
         return true;
