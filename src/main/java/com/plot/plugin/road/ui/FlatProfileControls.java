@@ -22,6 +22,24 @@ final class FlatProfileControls {
     private float flatElevation = 64f;
     private long syncedFlatIntentKey = Long.MIN_VALUE;
 
+    /** Path Tab: base Y plus compact flat elevation recommendation controls. */
+    void renderPath(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road,
+            FlatElevationEditHooks hooks,
+            Supplier<com.plot.core.terrain.TerrainSampler> terrainSupplier) {
+        if (road == null || RoadVerticalStrategy.fromRoad(road) != RoadVerticalStrategy.FLAT) {
+            return;
+        }
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        syncFlatElevation(network, road, config);
+        renderBaseElevationField(
+            ctx, network, road, config, null, hooks, terrainSupplier);
+        recommendationUi.renderPathControls(
+            ctx, network, road, hooks, terrainSupplier);
+    }
+
     void render(
             RoadUiContext ctx,
             RoadNetwork network,

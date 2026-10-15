@@ -4,12 +4,8 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.RoadStationing;
-import com.plot.plugin.road.vertical.FlatVerticalIntent;
-import com.plot.plugin.road.vertical.FlatVerticalIntentSupport;
-import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.RoadVerticalStrategy;
-import com.plot.plugin.road.vertical.RoadWorldElevationBounds;
 import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
 import com.plot.core.terrain.TerrainSampler;
 import com.plot.plugin.ui.PluginUiColors;
@@ -26,10 +22,7 @@ import java.util.function.Supplier;
  */
 public final class VerticalAlignmentEditor {
 
-    private float flatElevation = 64f;
-
-    private final FlatElevationRecommendationUi flatElevationRecommendationUi =
-        new FlatElevationRecommendationUi();
+    private final FlatProfileControls flatProfileControls = new FlatProfileControls();
 
     /** 路径 Tab：纵向方式与水平道路基准高程。 */
     public void renderPathProperty(
@@ -52,9 +45,9 @@ public final class VerticalAlignmentEditor {
         }
         double roadLength = RoadStationing.canonicalLength(network, road);
         renderVerticalStrategy(
-            network, road, roadLength, config, onStrategyHistory, profileHooks, switchDialog, terrainSupplier);
+            network, road, roadLength, config, onStrategyHistory, switchDialog, terrainSupplier);
         if (RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT) {
-            flatElevationRecommendationUi.renderPathControls(
+            flatProfileControls.renderPath(
                 ctx, network, road, profileHooks, terrainSupplier);
             return;
         }
@@ -71,7 +64,6 @@ public final class VerticalAlignmentEditor {
             double roadLength,
             RoadSystemConfig config,
             Runnable onStrategyHistory,
-            FlatElevationEditHooks profileHooks,
             RoadVerticalStrategySwitchDialog switchDialog,
             Supplier<TerrainSampler> terrainSupplier) {
         RoadVerticalStrategy current = RoadVerticalStrategy.fromRoad(road);
@@ -97,17 +89,12 @@ public final class VerticalAlignmentEditor {
                             onStrategyHistory.run();
                         }
                         strategy.applyToRoad(network, road, config);
-                        FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, road);
-                        if (intent != null) {
-                            flatElevation = (float) intent.getBaseElevation();
-                        }
                     }
                 }
             }
             ImGui.endCombo();
         }
         if (current == RoadVerticalStrategy.FLAT) {
-            renderFlatElevationField(network, road, config, profileHooks, terrainSupplier);
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.vertical_strategy_flat_hint"));
@@ -118,41 +105,4 @@ public final class VerticalAlignmentEditor {
         }
     }
 
-    private void renderFlatElevationField(
-            RoadNetwork network,
-            Road road,
-            RoadSystemConfig config,
-            FlatElevationEditHooks hooks,
-            Supplier<TerrainSampler> terrainSupplier) {
-        FlatVerticalIntent intent = FlatVerticalIntentSupport.resolveIntent(network, road);
-        if (intent != null) {
-            flatElevation = (float) intent.getBaseElevation();
-        }
-        RoadElevationBounds bounds = resolveElevationBounds(terrainSupplier);
-        float[] elevation = {flatElevation};
-        if (RoadElevationInput.renderDragFloat(
-                PlotI18n.tr("plugin.road.vertical_alignment_flat_elevation"),
-                elevation,
-                bounds,
-                0.5f,
-                "%.1f")) {
-            flatElevation = elevation[0];
-        }
-        if (ImGui.isItemActivated()) {
-            hooks.recordUndoPointBeforeEdit();
-        }
-        if (ImGui.isItemDeactivatedAfterEdit()) {
-            FlatVerticalIntentSupport.setBaseElevation(
-                network,
-                road,
-                flatElevation,
-                road.getEffectiveMaxSlope(config));
-            hooks.notifyWorkingProfileChanged();
-        }
-    }
-
-    private static RoadElevationBounds resolveElevationBounds(Supplier<TerrainSampler> terrainSupplier) {
-        TerrainSampler terrain = terrainSupplier != null ? terrainSupplier.get() : null;
-        return RoadWorldElevationBounds.resolve(terrain);
-    }
 }
