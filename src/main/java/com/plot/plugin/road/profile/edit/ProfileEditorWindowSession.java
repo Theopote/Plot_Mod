@@ -246,6 +246,7 @@ public final class ProfileEditorWindowSession {
             diff.crossingIds());
         ctx.finishNetworkEdit();
         if (ctx.previewManager() != null) {
+            ctx.previewManager().activateManualProfilesForGeneration(diff.roadIds());
             ctx.previewManager().markBuildPreviewStalePreservingProfile();
         }
         touchedRoadIds.clear();

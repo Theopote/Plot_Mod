@@ -10,6 +10,7 @@ import com.plot.plugin.road.pipeline.corridor.JunctionConstructionReport;
 import com.plot.plugin.road.pipeline.corridor.JunctionFinalVoxelValidator;
 import com.plot.plugin.road.pipeline.corridor.PlacementRecordColumnIndex;
 import com.plot.plugin.road.pipeline.corridor.TunnelJunctionConnectivityPass;
+import com.plot.plugin.road.pipeline.profile.VerticalProfileGenerationPolicy;
 import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.profile.RoadProfileSamplingAssembler;
 import com.plot.plugin.road.solid.RoadGenerationResult;
@@ -26,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import com.plot.core.terrain.TerrainSampler;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -168,10 +170,22 @@ public class RoadNetworkGenerator {
 
     private final RoadGenerator roadGenerator;
     private final RoadJunctionGenerator junctionGenerator;
+    /** 本会话已确认、生成快照上仍按 MANUAL_PROFILE 求解的道路。 */
+    private Set<String> activeManualProfileRoadIds = Set.of();
 
     public RoadNetworkGenerator(RoadGenerator roadGenerator) {
         this.roadGenerator = roadGenerator;
         this.junctionGenerator = new RoadJunctionGenerator(roadGenerator);
+    }
+
+    /**
+     * 设置本会话已确认的手动纵断面道路；未在集合内的 MANUAL_PROFILE
+     * 在生成快照上会被降为 FIT_TERRAIN（首次预览按地形自适应）。
+     */
+    public void setActiveManualProfileRoadIds(Collection<String> roadIds) {
+        this.activeManualProfileRoadIds = roadIds == null || roadIds.isEmpty()
+            ? Set.of()
+            : Set.copyOf(roadIds);
     }
 
     public NetworkGenerationResult generateAll(RoadNetwork network, World world) {
@@ -243,6 +257,12 @@ public class RoadNetworkGenerator {
             return;
         }
         RoadNetwork generationNetwork = session.generationNetwork();
+        int demotedManual = VerticalProfileGenerationPolicy.applyTerrainFirstUnlessActive(
+            generationNetwork,
+            activeManualProfileRoadIds);
+        if (demotedManual > 0) {
+            LOGGER.debug("生成快照已将 {} 条未确认 MANUAL_PROFILE 降为 FIT_TERRAIN", demotedManual);
+        }
         int synchronizedRoads = DerivedCenterlineSynchronizer.synchronizeAll(
             generationNetwork,
             roadGenerator.getConfig().getPathSampleDistance());

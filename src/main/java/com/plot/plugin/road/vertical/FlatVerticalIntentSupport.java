@@ -130,9 +130,8 @@ public final class FlatVerticalIntentSupport {
             road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
             return;
         }
-        if (road.getVerticalMode() == RoadVerticalMode.MANUAL_PROFILE) {
-            return;
-        }
+        // MANUAL → FIT_TERRAIN：保留 dormant VA，供编辑器再次打开时作为草稿底线；
+        // 生成侧由 VerticalProfileGenerationPolicy 在未确认前按地形求解。
         road.setVerticalMode(RoadVerticalMode.FIT_TERRAIN);
     }
 

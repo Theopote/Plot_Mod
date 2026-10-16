@@ -21,9 +21,10 @@ class ProfileChartRenderModeTest {
     }
 
     @Test
-    void overviewModeShowsDesignLineInCompactLayout() {
+    void overviewModeHidesSolverDesignLineInCompactLayout() {
         ProfileChartRenderMode mode = ProfileChartRenderMode.OVERVIEW;
-        assertTrue(mode.showDesignProfileLine());
+        // 绿色设计线仅由编辑器 VA overlay 绘制，概览只用地形 + 建造台阶。
+        assertFalse(mode.showDesignProfileLine());
         assertFalse(mode.showGuideLine());
         assertFalse(mode.showElevationAxisLabels());
         assertTrue(mode.useCompactLayout());
@@ -36,5 +37,7 @@ class ProfileChartRenderModeTest {
         assertTrue(mode.showIntersectionLabels());
         assertTrue(mode.showGuideLine());
         assertTrue(mode.showIntersectionConnectors());
+        // 求解器 design 采样不再画绿线；绿线来自 VerticalAlignmentProfileOverlay。
+        assertFalse(mode.showDesignProfileLine());
     }
 }

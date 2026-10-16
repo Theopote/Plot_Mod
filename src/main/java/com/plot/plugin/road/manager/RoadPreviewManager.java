@@ -22,11 +22,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * 道路预览、虚影投影与世界落地。
@@ -47,6 +50,11 @@ public final class RoadPreviewManager {
     private long terrainRevision = 0L;
     private boolean previewNeedsRecalc = false;
     private RoadNetworkPreviewJob previewJob;
+    /**
+     * 本会话纵断面编辑确认后、仍应按玩家曲线生成的道路。
+     * 路网几何失效（{@link #invalidatePreview()}）时清空，使下一次计算回到地形自适应。
+     */
+    private final Set<String> activeManualProfileRoadIds = new LinkedHashSet<>();
 
     public RoadPreviewManager(RoadProjectStatus status, PluginContext host) {
         this.status = status;
@@ -55,6 +63,32 @@ public final class RoadPreviewManager {
 
     public void setNetworkGenerator(RoadNetworkGenerator networkGenerator) {
         this.networkGenerator = networkGenerator;
+        syncActiveManualProfilesToGenerator();
+    }
+
+    /**
+     * 纵断面编辑确认后调用：后续预览/采样在生成快照上保留这些道路的 MANUAL_PROFILE。
+     */
+    public void activateManualProfilesForGeneration(Collection<String> roadIds) {
+        if (roadIds == null || roadIds.isEmpty()) {
+            return;
+        }
+        activeManualProfileRoadIds.addAll(roadIds);
+        syncActiveManualProfilesToGenerator();
+    }
+
+    private void clearActiveManualProfiles() {
+        if (activeManualProfileRoadIds.isEmpty()) {
+            return;
+        }
+        activeManualProfileRoadIds.clear();
+        syncActiveManualProfilesToGenerator();
+    }
+
+    private void syncActiveManualProfilesToGenerator() {
+        if (networkGenerator != null) {
+            networkGenerator.setActiveManualProfileRoadIds(activeManualProfileRoadIds);
+        }
     }
 
     public Map<String, Integer> getLastNodeElevations() {
@@ -503,6 +537,8 @@ public final class RoadPreviewManager {
         lastGenerationResult = null;
         previewNetwork = null;
         clearGhostBlocksSafely();
+        // 几何/拓扑变更后，下一次计算重新按地形自适应，需再次打开编辑器确认才用玩家曲线。
+        clearActiveManualProfiles();
         if (hadPreview) {
             previewNeedsRecalc = true;
             LOGGER.debug("网络已变更，预览结果与虚影已失效");

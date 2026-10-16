@@ -64,7 +64,12 @@ public record VerticalAlignmentProfileOverlay(List<Double> stations, List<Double
         return forAlignment(network, road, alignment);
     }
 
-    /** 从指定 alignment 采样设计纵断面叠加线（Draft 预览）。 */
+    /**
+     * 从指定 alignment 采样设计纵断面叠加线（Draft 预览）。
+     * <p>
+     * 不要求道路当前为 {@code MANUAL_PROFILE}：编辑草稿可能仍挂在
+     * {@code FIT_TERRAIN} 上，只要 alignment 可求值即可显示绿线。
+     */
     public static Optional<VerticalAlignmentProfileOverlay> forAlignment(
             RoadNetwork network,
             Road road,
@@ -73,9 +78,6 @@ public record VerticalAlignmentProfileOverlay(List<Double> stations, List<Double
             return Optional.empty();
         }
         if (!RoadStationing.isStationable(network, road)) {
-            return Optional.empty();
-        }
-        if (!VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(network, road)) {
             return Optional.empty();
         }
         if (!VerticalAlignmentGeometry.isEvaluable(alignment)) {

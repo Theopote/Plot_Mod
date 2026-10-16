@@ -10,7 +10,6 @@ import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.plugin.road.profile.RoadProfileIntersection;
 import com.plot.plugin.road.profile.RoadProfileRoadList;
 import com.plot.plugin.road.vertical.FlatElevationProfileOverlay;
-import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -102,14 +101,13 @@ public final class RoadProfileOverviewSection {
             if (chartData == null || !chartData.hasProfileData()) {
                 profileEditor.renderCompactMissingProfile(ctx, network, road);
             } else {
-                VerticalAlignmentProfileOverlay design =
-                    VerticalAlignmentProfileOverlay.forRoad(network, road).orElse(null);
+                // Generate 概览不显示绿色设计线；玩家曲线仅在纵断面编辑器中出现。
                 List<RoadProfileIntersection> intersections = chartData.intersections();
                 ProfileChartRenderMode mode = ProfileChartRenderMode.MINI;
                 boolean flatMode = RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT;
                 RoadProfileCompactCard.renderOverview(
                     chartData,
-                    design,
+                    null,
                     intersections,
                     chartHeight,
                     flatOverlay,

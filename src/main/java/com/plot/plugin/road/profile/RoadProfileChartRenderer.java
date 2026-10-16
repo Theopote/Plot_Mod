@@ -847,15 +847,7 @@ public final class RoadProfileChartRenderer {
                 1.6f,
                 true);
         }
-        if (mode.showDesignProfileLine()) {
-            boolean skipPreviewDesign = mode == ProfileChartRenderMode.EDITOR
-                && design != null && !design.isEmpty();
-            if (!skipPreviewDesign) {
-                drawPolyline(
-                    drawList, layout, range, chart.stations(), chart.previewElevations(),
-                    COLOR_DESIGN, mode.roadLineWidth(), false);
-            }
-        }
+        // 绿色设计线仅来自玩家 VA overlay（编辑器）；不再用求解器 previewElevations 冒充设计线。
         int buildColor = buildProfileStale ? COLOR_BUILD_STALE : COLOR_BUILD;
         if (mode == ProfileChartRenderMode.EDITOR && chart.hasBuildSamples()) {
             drawBuildStairStep(

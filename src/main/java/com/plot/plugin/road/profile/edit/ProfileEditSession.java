@@ -150,7 +150,14 @@ public final class ProfileEditSession {
         if (draft.draftAlignment() != null) {
             return VerticalAlignmentProfileOverlay.forAlignment(network, road, draft.draftAlignment());
         }
-        return VerticalAlignmentProfileOverlay.forRoad(network, road);
+        Optional<VerticalAlignmentProfileOverlay> active =
+            VerticalAlignmentProfileOverlay.forRoad(network, road);
+        if (active.isPresent()) {
+            return active;
+        }
+        // FIT_TERRAIN 下保留的 dormant VA：打开编辑器时显示绿线，确认前不参与生成。
+        return VerticalAlignmentProfileOverlay.forAlignment(
+            network, road, road != null ? road.getVerticalAlignment() : null);
     }
 
     public List<RoadProfileIntersection> effectiveIntersections(List<RoadProfileIntersection> base) {

@@ -37,9 +37,15 @@ public enum ProfileChartRenderMode {
         return this == MINI || this == OVERVIEW;
     }
 
-    /** 连续设计纵断面；紧凑 Overview 仅显示地形 + 建造台阶。 */
+    /**
+     * 是否用求解器 design 采样画绿色设计线。
+     * <p>
+     * 绿色设计线仅表示玩家在编辑器中的纵断面意图，由
+     * {@link com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay} 绘制；
+     * Generate 概览（MINI/OVERVIEW）只显示地形 + 建造台阶。
+     */
     public boolean showDesignProfileLine() {
-        return this == OVERVIEW || this == EDITOR;
+        return false;
     }
 
     public boolean showGuideLine() {

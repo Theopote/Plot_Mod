@@ -102,6 +102,23 @@ class FlatVerticalIntentSupportBatchTest {
         assertTrue(flat.getVerticalAlignment() == null);
     }
 
+    @Test
+    void manualToAdaptiveKeepsDormantAlignment() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("manual");
+        addStraightRoad(network, road, 100.0);
+        road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 64.0),
+            PointOfVerticalIntersection.of(100.0, 70.0))));
+
+        FlatVerticalIntentSupport.enableTerrainAdaptive(network, road, CONFIG);
+
+        assertEquals(RoadVerticalMode.FIT_TERRAIN, road.getVerticalMode());
+        assertFalse(road.getVerticalAlignment().isEmpty());
+        assertEquals(2, road.getVerticalAlignment().pviCount());
+    }
+
     private static void addStraightRoad(RoadNetwork network, Road road, double length) {
         RoadNode start = network.createNode(new Vec2d(0, 0));
         RoadNode end = network.createNode(new Vec2d(length, 0));
