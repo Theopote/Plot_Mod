@@ -14,6 +14,29 @@ public final class JunctionEndpointSnapTargets {
     private JunctionEndpointSnapTargets() {
     }
 
+    /**
+     * Elevated deck edges must not endpoint-snap at grade-separated nodes.
+     */
+    public static boolean skipSnapForElevatedRoad(
+            RoadNode node,
+            RoadEdge edge,
+            RoadNetwork network,
+            ElevatedRoadIdResolver elevatedRoadIdResolver) {
+        if (node == null || edge == null) {
+            return false;
+        }
+        if (node.isStackGradeSeparated()) {
+            return node.isStackUpperEdge(edge.getId());
+        }
+        if (!node.isGradeSeparated()) {
+            return false;
+        }
+        String elevatedRoadId = elevatedRoadIdResolver != null
+            ? elevatedRoadIdResolver.resolve(node, network)
+            : node.getElevatedRoadId();
+        return elevatedRoadId != null && elevatedRoadId.equals(edge.getRoadId());
+    }
+
     public static Integer snapTargetY(
             RoadNode node,
             RoadEdge edge,

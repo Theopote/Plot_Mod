@@ -117,6 +117,7 @@ public final class RoadCorridorSolidEmitter {
             int fillTop = surfaceY != null
                 ? Math.min(slope.fillSurfaceY(), surfaceY - 1)
                 : slope.fillSurfaceY();
+            fillTop = portalGuard.capSlopeSurfaceY(planPoint, fillTop, host, roadHalfWidth);
             if (shouldFillSubgrade(constructionType, fillTop, groundY, bridgeThreshold)) {
                 String fillId = slope.fillMaterialId() != null ? slope.fillMaterialId() : defaultFillMaterialId;
                 for (int y = groundY + 1; y <= fillTop; y++) {
@@ -143,7 +144,11 @@ public final class RoadCorridorSolidEmitter {
                 && (constructionType == null
                     || RoadEarthworkPolicy.of(constructionType).allowsCorridorBatter())) {
             int cutTopY = portalGuard.capCutTopY(planPoint, groundY, host, roadHalfWidth);
-            for (int y = slope.cutSurfaceY() + 1; y <= cutTopY; y++) {
+            int cutFaceY = portalGuard.capSlopeSurfaceY(planPoint, slope.cutSurfaceY(), host, roadHalfWidth);
+            if (cutFaceY >= cutTopY) {
+                cutFaceY = cutTopY - 1;
+            }
+            for (int y = cutFaceY + 1; y <= cutTopY; y++) {
                 if (gradeSeparation.protects(planPoint, y)) {
                     continue;
                 }
@@ -157,12 +162,12 @@ public final class RoadCorridorSolidEmitter {
                     metrics.cutVolume++;
                 }
             }
-            if (surface == null || slope.cutSurfaceY() < surface.surfaceY()) {
+            if ((surface == null || cutFaceY < surface.surfaceY()) && cutFaceY < cutTopY) {
                 String batterId = slope.cutMaterialId() != null && !slope.cutMaterialId().isBlank()
                     ? slope.cutMaterialId()
                     : defaultFillMaterialId;
                 if (batterId != null && !batterId.isBlank()) {
-                    solids.add(planPoint, slope.cutSurfaceY(), RoadSolidLayer.SUBGRADE, batterId);
+                    solids.add(planPoint, cutFaceY, RoadSolidLayer.SUBGRADE, batterId);
                 }
             }
         }

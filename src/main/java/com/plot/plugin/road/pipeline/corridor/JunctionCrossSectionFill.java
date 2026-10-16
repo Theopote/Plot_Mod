@@ -130,6 +130,25 @@ public final class JunctionCrossSectionFill {
             double unitsPerBlock,
             TerrainSampler terrain,
             int bridgeThreshold) {
+        stampApproachSlopeBatters(
+            solids, junctionCenter, junctionY, nodeId, edges, network, config, materials,
+            columnResolver, unitsPerBlock, terrain, bridgeThreshold, null);
+    }
+
+    public static void stampApproachSlopeBatters(
+            RoadSolidModel solids,
+            Vec2d junctionCenter,
+            int junctionY,
+            String nodeId,
+            List<RoadEdge> edges,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            MaterialResolver materials,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
+            double unitsPerBlock,
+            TerrainSampler terrain,
+            int bridgeThreshold,
+            Integer maxClearY) {
         if (solids == null || junctionCenter == null || nodeId == null || edges == null || edges.isEmpty()
                 || network == null || config == null || materials == null || terrain == null
                 || columnResolver == null) {
@@ -174,7 +193,7 @@ public final class JunctionCrossSectionFill {
         }
         RoadCorridorPlan slopePlan = new RoadCorridorPlan();
         SlopeSurfaceConsolidator.apply(slopePlan, samples, terrain);
-        emitConsolidatedSlopeColumns(solids, slopePlan, terrain, columnResolver, bridgeThreshold);
+        emitConsolidatedSlopeColumns(solids, slopePlan, terrain, columnResolver, bridgeThreshold, maxClearY);
     }
 
     private static List<SlopeProfileSample> collectShoulderBatterSamples(
@@ -284,6 +303,16 @@ public final class JunctionCrossSectionFill {
             TerrainSampler terrain,
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
             int bridgeThreshold) {
+        emitConsolidatedSlopeColumns(solids, plan, terrain, columnResolver, bridgeThreshold, null);
+    }
+
+    private static void emitConsolidatedSlopeColumns(
+            RoadSolidModel solids,
+            RoadCorridorPlan plan,
+            TerrainSampler terrain,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
+            int bridgeThreshold,
+            Integer maxClearY) {
         for (var entry : plan.slopeEntries()) {
             ColumnKey key = entry.getKey();
             if (plan.isSlopeColumnIncomplete(key)) {
@@ -299,7 +328,10 @@ public final class JunctionCrossSectionFill {
             int groundY = terrain.sampleSurfaceY(planPoint);
             if (slope.hasFill()) {
                 int fillTop = slope.fillSurfaceY();
-                if (fillTop - groundY <= bridgeThreshold) {
+                if (maxClearY != null) {
+                    fillTop = Math.min(fillTop, maxClearY);
+                }
+                if (fillTop - groundY <= bridgeThreshold && fillTop > groundY) {
                     String fillId = slope.fillMaterialId();
                     if (fillId != null && !fillId.isBlank()) {
                         for (int y = groundY + 1; y <= fillTop; y++) {
@@ -309,17 +341,23 @@ public final class JunctionCrossSectionFill {
                 }
             }
             if (slope.hasCut() && groundY > slope.cutSurfaceY()) {
-                for (int y = slope.cutSurfaceY() + 1; y <= groundY; y++) {
-                    solids.add(
-                        planPoint,
-                        y,
-                        RoadSolidLayer.TUNNEL,
-                        "minecraft:air",
-                        RoadSolidMaterialPriority.AIR);
-                }
-                String batterId = slope.cutMaterialId();
-                if (batterId != null && !batterId.isBlank()) {
-                    solids.add(planPoint, slope.cutSurfaceY(), RoadSolidLayer.SUBGRADE, batterId);
+                int cutTop = maxClearY != null ? Math.min(groundY, maxClearY) : groundY;
+                int cutFaceY = maxClearY != null
+                    ? Math.min(slope.cutSurfaceY(), maxClearY)
+                    : slope.cutSurfaceY();
+                if (cutTop > cutFaceY) {
+                    for (int y = cutFaceY + 1; y <= cutTop; y++) {
+                        solids.add(
+                            planPoint,
+                            y,
+                            RoadSolidLayer.TUNNEL,
+                            "minecraft:air",
+                            RoadSolidMaterialPriority.AIR);
+                    }
+                    String batterId = slope.cutMaterialId();
+                    if (batterId != null && !batterId.isBlank() && cutFaceY < cutTop) {
+                        solids.add(planPoint, cutFaceY, RoadSolidLayer.SUBGRADE, batterId);
+                    }
                 }
             }
         }
@@ -366,6 +404,12 @@ public final class JunctionCrossSectionFill {
             int cutTop = Math.min(groundY, maxClearY);
             if (cutTop > junctionY) {
                 JunctionTerrainClearance.punchColumn(solids, planPoint, junctionY, cutTop);
+            }
+            int gradingGroundY = Math.min(groundY, maxClearY);
+            if (gradingGroundY < junctionY && junctionY - gradingGroundY <= bridgeThreshold) {
+                for (int y = gradingGroundY + 1; y <= junctionY; y++) {
+                    solids.add(planPoint, y, RoadSolidLayer.SUBGRADE, fillMaterialId);
+                }
             }
             return;
         }

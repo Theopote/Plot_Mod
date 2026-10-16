@@ -96,4 +96,30 @@ final class PortalTransitionGuard {
         int roofTop = RoadCorridorPlanBuilder.portalRoofTopY(host, designY);
         return Math.min(groundY, roofTop);
     }
+
+    /**
+     * Portal approach batter must not stack fill or cut faces above the designed tunnel roof.
+     */
+    int capSlopeSurfaceY(
+            Vec2d planPoint,
+            int requestedSurfaceY,
+            RoadCorridorPlanBuilder.PlanHost host,
+            int roadHalfWidth) {
+        if (planPoint == null || host == null || designYByWorldX.isEmpty()) {
+            return requestedSurfaceY;
+        }
+        Integer designY = designSurfaceYNear(host.worldX(planPoint));
+        if (designY == null) {
+            return requestedSurfaceY;
+        }
+        int lateral = (int) Math.round(planPoint.y);
+        int band = Math.max(
+            RoadCorridorWidth.PORTAL_TRANSITION_CLEAR_BAND_BLOCKS,
+            roadHalfWidth + RoadCorridorWidth.PORTAL_TRANSITION_CLEAR_BAND_BLOCKS);
+        if (Math.abs(lateral) > band) {
+            return requestedSurfaceY;
+        }
+        int roofTop = RoadCorridorPlanBuilder.portalRoofTopY(host, designY);
+        return Math.min(requestedSurfaceY, roofTop);
+    }
 }

@@ -62,6 +62,39 @@ class RoadCorridorSolidEmitterEarthworkTest {
     }
 
     @Test
+    void portalTransitionCapsFillAndCutBatterAboveTunnelRoof() {
+        RoadCorridorPlan plan = new RoadCorridorPlan();
+        ColumnKey portalColumn = new ColumnKey(20, 4);
+        int designY = 64;
+        plan.putClearance(portalColumn, new ClearanceCell(
+            new Vec2d(20, 4), designY, 70,
+            RoadCorridorConstructionMode.PORTAL,
+            RoadConstructionType.TUNNEL_PORTAL));
+        SlopeColumnCell slope = plan.slopeCellOrCreate(portalColumn, new Vec2d(20, 4));
+        slope.mergeFill(78, "minecraft:gravel");
+        slope.mergeCut(76, "minecraft:stone");
+
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadSystemConfig config = CorridorTestFixtures.baseConfig();
+        RoadCorridorSolidEmitter.emit(
+            solids,
+            plan,
+            mountainTerrain(),
+            CorridorTestFixtures.planHost(config),
+            null,
+            "minecraft:gravel");
+
+        int roofTop = RoadCorridorPlanBuilder.portalRoofTopY(CorridorTestFixtures.planHost(config), designY);
+        for (var primitive : solids.primitives()) {
+            if (primitive.planPoint().x == 20 && primitive.planPoint().y == 4
+                    && primitive.elevation() > roofTop) {
+                org.junit.jupiter.api.Assertions.fail(
+                    "portal batter must not emit blocks above tunnel roof at y=" + primitive.elevation());
+            }
+        }
+    }
+
+    @Test
     void cutBatterFaceUsesSubgradeNotShoulderAboveRoadSurface() {
         RoadCorridorPlan plan = new RoadCorridorPlan();
         ColumnKey slopeColumn = new ColumnKey(12, 3);

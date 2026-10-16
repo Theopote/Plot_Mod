@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JunctionEndpointSnapTargetsTest {
 
@@ -67,5 +68,20 @@ class JunctionEndpointSnapTargetsTest {
             (node, net) -> road.getId());
 
         assertEquals(83, snapY);
+    }
+
+    @Test
+    void elevatedRoadSkipsEndpointSnapAtGradeSeparatedNode() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("elevated");
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        junction.setGradeSeparated(true);
+        junction.setElevatedRoadId(road.getId());
+        RoadNode far = network.createNode(new Vec2d(40, 0));
+        RoadEdge edge = network.createEdge(junction.getId(), far.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(40, 0)), road.getId());
+
+        assertTrue(JunctionEndpointSnapTargets.skipSnapForElevatedRoad(
+            junction, edge, network, (node, net) -> road.getId()));
     }
 }

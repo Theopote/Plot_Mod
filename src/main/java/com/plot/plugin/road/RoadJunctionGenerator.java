@@ -283,6 +283,10 @@ public class RoadJunctionGenerator {
         double unitsPerBlock = estimateUnitsPerBlock(network, edges);
         Vec2d nodeCenter = node.getPosition();
         Integer elevatedDeckY = resolveElevatedDeckY(node, junctionY, generator.getConfig());
+        Integer maxClearY = elevatedDeckY != null ? elevatedDeckY - 1 : null;
+        double elevationBlendRadius = elevatedDeckY != null
+            ? 0.0
+            : resolveJunctionElevationBlendRadius(network, node, edges, unitsPerBlock);
         Map<ColumnKey, Integer> leftoverTops = JunctionTerrainClearance.leftoverTopByColumn(edgeResults);
         JunctionSurfaceMask surfaceMask = new JunctionSurfaceMask();
         int unresolvedClearance = 0;
@@ -300,8 +304,7 @@ public class RoadJunctionGenerator {
                 generator.getConfig(),
                 edgeResults,
                 unitsPerBlock,
-                0.0);
-            Integer maxClearY = elevatedDeckY != null ? elevatedDeckY - 1 : null;
+                elevationBlendRadius);
             boolean stamped = JunctionCrossSectionFill.fillCell(
                 blocks.getSolids(),
                 point,
@@ -365,7 +368,25 @@ public class RoadJunctionGenerator {
             columnResolver,
             unitsPerBlock,
             terrain,
-            bridgeThreshold);
+            bridgeThreshold,
+            maxClearY);
+    }
+
+    private double resolveJunctionElevationBlendRadius(
+            RoadNetwork network,
+            RoadNode node,
+            List<RoadEdge> edges,
+            double unitsPerBlock) {
+        if (node == null || edges == null || edges.isEmpty()) {
+            return 0.0;
+        }
+        double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
+        double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
+            edges,
+            edge -> hardSurfaceHalfExtent(network, edge),
+            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
+        double cornerRadius = node.getEffectiveCornerRadius(generator.getConfig().getDefaultCornerRadius());
+        return Math.max(junctionRadius + cornerRadius, RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS) * scale;
     }
 
     private List<RoadEdge> collectUnderpassJunctionEdges(

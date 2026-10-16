@@ -3,6 +3,7 @@ package com.plot.plugin.road.pipeline.corridor;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGeometryUtils;
+import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.solid.RoadGenerationResult;
@@ -12,8 +13,8 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * Junction plaza surface Y. At-grade plazas are a single elevation plane
- * ({@code junctionY}); approach grades attach outside the fill polygon.
+ * Junction plaza surface Y. At-grade cells blend approach profile elevations toward the
+ * unified {@code junctionY} near the node center; grade-separated underpass plazas stay flat.
  */
 public final class JunctionCellElevationResolver {
     private static final double EPSILON = 1e-9;
@@ -32,7 +33,42 @@ public final class JunctionCellElevationResolver {
             Map<String, RoadGenerationResult> edgeResults,
             double unitsPerBlock,
             double blendRadius) {
-        return junctionY;
+        if (cell == null || nodeCenter == null || blendRadius <= EPSILON
+                || edges == null || edges.isEmpty() || edgeResults == null || edgeResults.isEmpty()) {
+            return junctionY;
+        }
+        double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
+        Function<RoadEdge, List<Vec2d>> centerlineResolver = RoadJunctionCenterlineResolver.forNetwork(network);
+
+        double weightedSum = 0.0;
+        double weightTotal = 0.0;
+        for (RoadEdge edge : edges) {
+            RoadGenerationResult result = edgeResults.get(edge.getId());
+            if (result == null) {
+                continue;
+            }
+            StationSample sample = sampleStationAt(cell, nodeId, edge, centerlineResolver, scale);
+            if (sample == null) {
+                continue;
+            }
+            int profileY = elevationAtStation(result, sample.worldStation());
+            if (profileY < 0) {
+                continue;
+            }
+            double weight = 1.0 / (sample.projectionDistance() / scale + 1.0);
+            weightedSum += profileY * weight;
+            weightTotal += weight;
+        }
+        if (weightTotal <= EPSILON) {
+            return junctionY;
+        }
+        int profileBlendY = (int) Math.round(weightedSum / weightTotal);
+        double distanceFromCenter = cell.distance(nodeCenter) / scale;
+        if (distanceFromCenter >= blendRadius) {
+            return profileBlendY;
+        }
+        double t = smoothStep(1.0 - distanceFromCenter / blendRadius);
+        return (int) Math.round(junctionY * t + profileBlendY * (1.0 - t));
     }
 
     record StationSample(double worldStation, double projectionDistance) {
@@ -105,5 +141,15 @@ public final class JunctionCellElevationResolver {
             }
         }
         return heights.getLast();
+    }
+
+    private static double smoothStep(double t) {
+        if (t <= 0.0) {
+            return 0.0;
+        }
+        if (t >= 1.0) {
+            return 1.0;
+        }
+        return t * t * (3.0 - 2.0 * t);
     }
 }

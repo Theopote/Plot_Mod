@@ -43,7 +43,30 @@ class JunctionCellElevationResolverTest {
     }
 
     @Test
-    void peripheralCellUsesNetworkJunctionElevation() {
+    void flatBlendRadiusKeepsPeripheralAtJunctionElevation() {
+        CrossFixture fixture = simpleCross();
+        RoadNetwork network = fixture.network();
+        RoadNode junction = fixture.junction();
+        Map<String, RoadGenerationResult> edgeResults = slopedEdgeResults(network, junction.getId(), 64, 72);
+
+        Vec2d peripheral = new Vec2d(9, 0);
+        int y = JunctionCellElevationResolver.resolve(
+            peripheral,
+            junction.getPosition(),
+            junction.getId(),
+            68,
+            network.getEdges().values().stream().toList(),
+            network,
+            new RoadSystemConfig("cell-y"),
+            edgeResults,
+            1.0,
+            0.0);
+
+        assertEquals(68, y, "zero blend radius keeps a flat plaza plane");
+    }
+
+    @Test
+    void peripheralCellBlendsApproachProfileTowardCenterElevation() {
         CrossFixture fixture = simpleCross();
         RoadNetwork network = fixture.network();
         RoadNode junction = fixture.junction();
@@ -62,7 +85,8 @@ class JunctionCellElevationResolverTest {
             1.0,
             10.0);
 
-        assertEquals(68, y, "at-grade plaza is a single elevation plane");
+        assertTrue(y >= 68 && y <= 72,
+            "peripheral cell should follow approach profile while center stays at junctionY");
     }
 
     @Test

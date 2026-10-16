@@ -76,6 +76,31 @@ class JunctionPlazaClearanceTest {
     }
 
     @Test
+    void gradeSeparatedPlazaGradesSubgradeBelowDeckClearance() {
+        RoadSystemConfig config = new RoadSystemConfig("plaza-subgrade");
+        RoadGenerator generator = new RoadGenerator(
+            config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
+        RoadJunctionGenerator junctionGenerator = new RoadJunctionGenerator(generator);
+        RoadNetwork network = twoRoadCrossNetwork();
+        RoadNode junction = network.getNodes().values().stream()
+            .filter(node -> node.getDegree() >= 3)
+            .findFirst()
+            .orElseThrow();
+        assertTrue(network.setNodeGradeSeparation(junction.getId(), true, "roadA", 4.0));
+
+        var blocks = junctionGenerator.generateJunction(
+            junction, network, hillTerrain(61, 61), Map.of(junction.getId(), 64));
+
+        assertTrue(
+            blocks.getSolids().primitives().stream()
+                .anyMatch(p -> p.layer() == com.plot.plugin.road.solid.RoadSolidLayer.SUBGRADE
+                    && p.elevation() > 61 && p.elevation() <= 64
+                    && Math.abs(p.planPoint().x) <= 2.5
+                    && Math.abs(p.planPoint().y) <= 2.5),
+            "underpass plaza must still receive subgrade fill below deck clearance");
+    }
+
+    @Test
     void gradeSeparatedPlazaStopsPunchBelowElevatedDeck() {
         RoadSystemConfig config = new RoadSystemConfig("plaza-deck");
         RoadGenerator generator = new RoadGenerator(

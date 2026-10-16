@@ -259,9 +259,9 @@ public final class RoadEdgeBuildOrchestrator {
         }
         double halfWidth = RoadDimensionUtils.halfExtentFromCenter(crossSection.carriagewayWidth) * unitsPerBlock;
         JunctionEndpointSnapTargets.ElevatedRoadIdResolver elevatedResolver = host::resolveElevatedRoadId;
-        Integer startY = JunctionEndpointSnapTargets.snapTargetY(
+        Integer startY = endpointSnapElevation(
             startNode, edge, network, networkNodeElevations, heightInfos, true, elevatedResolver);
-        Integer endY = JunctionEndpointSnapTargets.snapTargetY(
+        Integer endY = endpointSnapElevation(
             endNode, edge, network, networkNodeElevations, heightInfos, false, elevatedResolver);
         JunctionCorridorBuildContext trim = JunctionCorridorTrim.forEdge(
             network, edge, crossSection, host.config(), unitsPerBlock);
@@ -283,5 +283,24 @@ public final class RoadEdgeBuildOrchestrator {
             endBlend,
             startCore,
             endCore);
+    }
+
+    /**
+     * Elevated roads keep their solved deck profile through grade-separated nodes;
+     * endpoint snaps would flatten the span toward the underpass network Y.
+     */
+    private static Integer endpointSnapElevation(
+            RoadNode node,
+            RoadEdge edge,
+            RoadNetwork network,
+            Map<String, Integer> networkNodeElevations,
+            List<SegmentHeightInfo> heightInfos,
+            boolean start,
+            JunctionEndpointSnapTargets.ElevatedRoadIdResolver elevatedResolver) {
+        if (JunctionEndpointSnapTargets.skipSnapForElevatedRoad(node, edge, network, elevatedResolver)) {
+            return null;
+        }
+        return JunctionEndpointSnapTargets.snapTargetY(
+            node, edge, network, networkNodeElevations, heightInfos, start, elevatedResolver);
     }
 }
