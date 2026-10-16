@@ -24,7 +24,14 @@ public final class TunnelJunctionAirConnectivityValidator {
     }
 
     public static Result validate(Set<BlockPos> openVolume, List<BlockPos> seeds) {
-        if (openVolume == null || openVolume.isEmpty() || seeds == null || seeds.isEmpty()) {
+        if (seeds == null || seeds.isEmpty()) {
+            return Result.NONE;
+        }
+        if (openVolume == null || openVolume.isEmpty()) {
+            // Two or more portal seeds with no air volume means the tunnel is fully blocked.
+            if (seeds.size() >= 2) {
+                return new Result(seeds.size(), 0, seeds.size());
+            }
             return Result.NONE;
         }
         List<BlockPos> validSeeds = seeds.stream().filter(openVolume::contains).toList();

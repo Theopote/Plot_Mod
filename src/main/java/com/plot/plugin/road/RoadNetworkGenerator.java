@@ -528,6 +528,7 @@ public class RoadNetworkGenerator {
                     roadGenerator.coordinateTransformer());
             networkResult.mergeJunctionReport(JunctionConstructionReport.empty(node.getId()).withPostMerge(
                 postMerge.missingSurfaceColumns(),
+                postMerge.surfaceSemanticMismatches(),
                 postMerge.protectedLosses(),
                 postMerge.disconnectedTunnelComponents(),
                 postMerge.crossLayerLeaks()));

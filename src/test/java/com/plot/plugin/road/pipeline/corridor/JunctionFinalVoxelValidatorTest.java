@@ -39,6 +39,7 @@ class JunctionFinalVoxelValidatorTest {
             IdentityCoordinateService.INSTANCE);
 
         assertEquals(0, report.missingSurfaceColumns());
+        assertEquals(0, report.surfaceSemanticMismatches());
     }
 
     @Test
@@ -223,6 +224,120 @@ class JunctionFinalVoxelValidatorTest {
             PlacementRecordColumnIndex.build(aggregate),
             IdentityCoordinateService.INSTANCE);
         assertEquals(0, connected.disconnectedTunnelComponents());
+    }
+
+    @Test
+    void emptyTunnelAirWithTwoSeedsMustFail() {
+        BlockPos seedA = new BlockPos(0, 64, 0);
+        BlockPos seedB = new BlockPos(10, 64, 0);
+        JunctionValidationManifest manifest = new JunctionValidationManifest(
+            "n1",
+            List.of(),
+            List.of(),
+            List.of(
+                new TunnelPortalSeed("e1", seedA),
+                new TunnelPortalSeed("e2", seedB)),
+            largeFootprint(),
+            64,
+            null,
+            64,
+            64);
+
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        JunctionFinalVoxelValidator.PostMergeReport report = JunctionFinalVoxelValidator.validateNode(
+            manifest,
+            aggregate,
+            PlacementRecordColumnIndex.build(aggregate),
+            IdentityCoordinateService.INSTANCE);
+
+        assertTrue(
+            report.disconnectedTunnelComponents() > 0,
+            "fully blocked underpass with two portal seeds must not report clean");
+        assertEquals(2, report.disconnectedTunnelComponents());
+    }
+
+    @Test
+    void sidewalkReplacedByRoadIsSemanticMismatchNotStructuralGap() {
+        BlockPos sidewalk = new BlockPos(1, 68, 0);
+        JunctionValidationManifest manifest = new JunctionValidationManifest(
+            "n1",
+            List.of(new JunctionSurfaceExpectation(sidewalk, RoadSolidLayer.SIDEWALK)),
+            List.of(),
+            List.of(),
+            squareFootprint(),
+            68,
+            null,
+            0,
+            0);
+
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        aggregate.recordPlacementOverride(sidewalk, "minecraft:air", "minecraft:stone");
+        aggregate.placementLayers.put(sidewalk, RoadSolidLayer.ROAD);
+
+        JunctionFinalVoxelValidator.PostMergeReport report = JunctionFinalVoxelValidator.validateNode(
+            manifest,
+            aggregate,
+            PlacementRecordColumnIndex.build(aggregate),
+            IdentityCoordinateService.INSTANCE);
+
+        assertEquals(0, report.missingSurfaceColumns());
+        assertEquals(1, report.surfaceSemanticMismatches());
+    }
+
+    @Test
+    void markingOverlayOnExpectedRoadPassesSemanticCheck() {
+        BlockPos road = new BlockPos(0, 68, 0);
+        JunctionValidationManifest manifest = new JunctionValidationManifest(
+            "n1",
+            List.of(new JunctionSurfaceExpectation(road, RoadSolidLayer.ROAD)),
+            List.of(),
+            List.of(),
+            squareFootprint(),
+            68,
+            null,
+            0,
+            0);
+
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        aggregate.recordPlacementOverride(road, "minecraft:air", "minecraft:white_concrete");
+        aggregate.placementLayers.put(road, RoadSolidLayer.MARKING);
+
+        JunctionFinalVoxelValidator.PostMergeReport report = JunctionFinalVoxelValidator.validateNode(
+            manifest,
+            aggregate,
+            PlacementRecordColumnIndex.build(aggregate),
+            IdentityCoordinateService.INSTANCE);
+
+        assertEquals(0, report.missingSurfaceColumns());
+        assertEquals(0, report.surfaceSemanticMismatches());
+    }
+
+    @Test
+    void airAtExpectedRoadIsStructuralGap() {
+        BlockPos road = new BlockPos(0, 68, 0);
+        JunctionValidationManifest manifest = new JunctionValidationManifest(
+            "n1",
+            List.of(new JunctionSurfaceExpectation(road, RoadSolidLayer.ROAD)),
+            List.of(),
+            List.of(),
+            squareFootprint(),
+            68,
+            null,
+            0,
+            0);
+
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        aggregate.recordPlacementOverride(road, "minecraft:stone", "minecraft:air");
+        aggregate.placementLayers.put(road, RoadSolidLayer.TUNNEL);
+
+        JunctionFinalVoxelValidator.PostMergeReport report = JunctionFinalVoxelValidator.validateNode(
+            manifest,
+            aggregate,
+            PlacementRecordColumnIndex.build(aggregate),
+            IdentityCoordinateService.INSTANCE);
+
+        assertEquals(1, report.missingSurfaceColumns());
+        assertEquals(0, report.surfaceSemanticMismatches());
     }
 
     private static List<Vec2d> squareFootprint() {

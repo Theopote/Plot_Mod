@@ -13,16 +13,19 @@ public record JunctionConstructionReport(
         int unresolvedClearanceBlocks,
         boolean tunnelConnectivityApplied,
         int postMergeMissingSurfaceColumns,
+        int postMergeSurfaceSemanticMismatches,
         int postMergeProtectedLosses,
         int disconnectedTunnelComponents,
         int crossLayerLeaks) {
 
     public static JunctionConstructionReport empty(String nodeId) {
-        return new JunctionConstructionReport(nodeId, 0, 0, 0, 0, 0, false, 0, 0, 0, 0);
+        return new JunctionConstructionReport(nodeId, 0, 0, 0, 0, 0, false, 0, 0, 0, 0, 0);
     }
 
     public boolean hasSurfaceGaps() {
-        return missingSurfaceColumns > 0 || postMergeMissingSurfaceColumns > 0;
+        return missingSurfaceColumns > 0
+            || postMergeMissingSurfaceColumns > 0
+            || postMergeSurfaceSemanticMismatches > 0;
     }
 
     public boolean hasConflicts() {
@@ -30,6 +33,7 @@ public record JunctionConstructionReport(
             || protectedStructureConflicts > 0
             || unresolvedClearanceBlocks > 0
             || postMergeProtectedLosses > 0
+            || postMergeSurfaceSemanticMismatches > 0
             || disconnectedTunnelComponents > 0
             || crossLayerLeaks > 0;
     }
@@ -47,6 +51,7 @@ public record JunctionConstructionReport(
             unresolvedClearanceBlocks,
             tunnelConnectivityApplied,
             postMergeMissingSurfaceColumns,
+            postMergeSurfaceSemanticMismatches,
             postMergeProtectedLosses,
             disconnectedTunnelComponents,
             crossLayerLeaks);
@@ -66,6 +71,7 @@ public record JunctionConstructionReport(
             unresolvedClearanceBlocks,
             tunnelConnectivityApplied,
             postMergeMissingSurfaceColumns,
+            postMergeSurfaceSemanticMismatches,
             postMergeProtectedLosses,
             disconnectedTunnelComponents,
             crossLayerLeaks);
@@ -73,6 +79,7 @@ public record JunctionConstructionReport(
 
     public JunctionConstructionReport withPostMerge(
             int postMergeMissingSurfaceColumns,
+            int postMergeSurfaceSemanticMismatches,
             int postMergeProtectedLosses,
             int disconnectedTunnelComponents,
             int crossLayerLeaks) {
@@ -85,6 +92,7 @@ public record JunctionConstructionReport(
             unresolvedClearanceBlocks,
             tunnelConnectivityApplied,
             postMergeMissingSurfaceColumns,
+            postMergeSurfaceSemanticMismatches,
             postMergeProtectedLosses,
             disconnectedTunnelComponents,
             crossLayerLeaks);
@@ -111,6 +119,7 @@ public record JunctionConstructionReport(
             Math.max(base.unresolvedClearanceBlocks(), overlay.unresolvedClearanceBlocks()),
             base.tunnelConnectivityApplied() || overlay.tunnelConnectivityApplied(),
             Math.max(base.postMergeMissingSurfaceColumns(), overlay.postMergeMissingSurfaceColumns()),
+            Math.max(base.postMergeSurfaceSemanticMismatches(), overlay.postMergeSurfaceSemanticMismatches()),
             Math.max(base.postMergeProtectedLosses(), overlay.postMergeProtectedLosses()),
             Math.max(base.disconnectedTunnelComponents(), overlay.disconnectedTunnelComponents()),
             Math.max(base.crossLayerLeaks(), overlay.crossLayerLeaks()));

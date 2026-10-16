@@ -389,6 +389,7 @@ public class RoadJunctionGenerator {
             0,
             0,
             0,
+            0,
             0));
 
         JunctionCrossSectionFill.stampApproachSlopeBatters(

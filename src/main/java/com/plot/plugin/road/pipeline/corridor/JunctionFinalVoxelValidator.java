@@ -22,10 +22,11 @@ public final class JunctionFinalVoxelValidator {
 
     public record PostMergeReport(
             int missingSurfaceColumns,
+            int surfaceSemanticMismatches,
             int protectedLosses,
             int disconnectedTunnelComponents,
             int crossLayerLeaks) {
-        public static final PostMergeReport CLEAN = new PostMergeReport(0, 0, 0, 0);
+        public static final PostMergeReport CLEAN = new PostMergeReport(0, 0, 0, 0, 0);
     }
 
     public static PostMergeReport validateNode(
@@ -36,38 +37,67 @@ public final class JunctionFinalVoxelValidator {
         if (manifest == null || aggregate == null || index == null) {
             return PostMergeReport.CLEAN;
         }
-        int missingSurface = countMissingSurfaceExpectations(manifest, aggregate);
+        Set<ColumnKey> footprintColumns = footprintColumns(manifest, coordinateTransformer);
+        SurfaceCounts surface = countSurfaceExpectations(manifest, aggregate);
         int protectedLosses = countProtectedLosses(manifest, aggregate);
-        int crossLayerLeaks = countCrossLayerLeaks(manifest, aggregate, index, coordinateTransformer);
-        int disconnected = countDisconnectedTunnelComponents(manifest, aggregate, index, coordinateTransformer);
-        return new PostMergeReport(missingSurface, protectedLosses, disconnected, crossLayerLeaks);
+        int crossLayerLeaks = countCrossLayerLeaks(
+            manifest, aggregate, index, footprintColumns);
+        int disconnected = countDisconnectedTunnelComponents(
+            manifest, aggregate, index, footprintColumns);
+        return new PostMergeReport(
+            surface.missingColumns(),
+            surface.semanticMismatches(),
+            protectedLosses,
+            disconnected,
+            crossLayerLeaks);
     }
 
-    private static int countMissingSurfaceExpectations(
+    private record SurfaceCounts(int missingColumns, int semanticMismatches) {
+    }
+
+    private static SurfaceCounts countSurfaceExpectations(
             JunctionValidationManifest manifest,
             RoadGenerationResult aggregate) {
         Set<ColumnKey> missingColumns = new HashSet<>();
+        Set<ColumnKey> semanticColumns = new HashSet<>();
         for (JunctionSurfaceExpectation expectation : manifest.surfaceExpectations()) {
             if (expectation == null || expectation.position() == null) {
                 continue;
             }
-            if (!hasMatchingSurface(aggregate, expectation.position(), expectation.expectedLayer())) {
-                missingColumns.add(new ColumnKey(
-                    expectation.position().getX(),
-                    expectation.position().getZ()));
+            BlockPos pos = expectation.position();
+            ColumnKey column = new ColumnKey(pos.getX(), pos.getZ());
+            if (!hasStructuralSurface(aggregate, pos)) {
+                missingColumns.add(column);
+                continue;
+            }
+            if (!hasSemanticSurface(aggregate, pos, expectation.expectedLayer())) {
+                semanticColumns.add(column);
             }
         }
-        return missingColumns.size();
+        return new SurfaceCounts(missingColumns.size(), semanticColumns.size());
     }
 
-    private static boolean hasMatchingSurface(
-            RoadGenerationResult aggregate,
-            BlockPos pos,
-            RoadSolidLayer expectedLayer) {
+    /** Non-air placement in the plaza surface family (including MARKING overlay). */
+    static boolean hasStructuralSurface(RoadGenerationResult aggregate, BlockPos pos) {
         BlockRecord record = aggregate.placementRecords.get(pos);
         if (record == null || "minecraft:air".equals(record.newBlockId)) {
             return false;
         }
+        RoadSolidLayer layer = aggregate.placementLayers.get(pos);
+        if (layer == null) {
+            return true;
+        }
+        return isPlazaSurfaceLayer(layer);
+    }
+
+    /**
+     * Exact expected layer, or MARKING overlay on a plaza surface expectation.
+     * ROAD must not silently substitute for SIDEWALK/SHOULDER/etc.
+     */
+    static boolean hasSemanticSurface(
+            RoadGenerationResult aggregate,
+            BlockPos pos,
+            RoadSolidLayer expectedLayer) {
         RoadSolidLayer layer = aggregate.placementLayers.get(pos);
         if (layer == null) {
             return expectedLayer == RoadSolidLayer.ROAD;
@@ -75,16 +105,15 @@ public final class JunctionFinalVoxelValidator {
         if (layer == expectedLayer) {
             return true;
         }
-        return isSurfaceFamily(layer) && isSurfaceFamily(expectedLayer);
+        return layer == RoadSolidLayer.MARKING && isPlazaSurfaceLayer(expectedLayer);
     }
 
-    private static boolean isSurfaceFamily(RoadSolidLayer layer) {
+    private static boolean isPlazaSurfaceLayer(RoadSolidLayer layer) {
         return layer == RoadSolidLayer.ROAD
             || layer == RoadSolidLayer.SIDEWALK
             || layer == RoadSolidLayer.SHOULDER
             || layer == RoadSolidLayer.BIKE_LANE
             || layer == RoadSolidLayer.MEDIAN
-            // Stop lines / markings overwrite plaza ROAD at the same BlockPos after stamp.
             || layer == RoadSolidLayer.MARKING;
     }
 
@@ -105,8 +134,8 @@ public final class JunctionFinalVoxelValidator {
             JunctionValidationManifest manifest,
             RoadGenerationResult aggregate,
             PlacementRecordColumnIndex index,
-            ICoordinateService coordinateTransformer) {
-        if (!manifest.hasGradeSeparation() || manifest.footprintPolygon().size() < 3) {
+            Set<ColumnKey> footprintColumns) {
+        if (!manifest.hasGradeSeparation() || footprintColumns.isEmpty()) {
             return 0;
         }
         int floorY = manifest.elevatedDeckY() != null
@@ -117,19 +146,17 @@ public final class JunctionFinalVoxelValidator {
             : Integer.MAX_VALUE;
         Set<BlockPos> protectedVolume = new HashSet<>(manifest.expectedProtectedBlocks());
         int leaks = 0;
-        for (BlockPos pos : aggregate.placementRecords.keySet()) {
-            if (pos.getY() <= floorY || pos.getY() > upperBandEnd) {
-                continue;
-            }
-            Vec2d planPoint = blockToPlan(pos, coordinateTransformer);
-            if (!RoadGeometryUtils.pointInPolygon(planPoint, manifest.footprintPolygon())) {
-                continue;
-            }
-            if (!index.isTunnelAir(pos, aggregate)) {
-                continue;
-            }
-            if (protectedVolume.contains(pos) || isInUpperProtectedVolume(pos, protectedVolume, floorY)) {
-                leaks++;
+        for (ColumnKey column : footprintColumns) {
+            for (BlockPos pos : index.positionsInColumn(column.worldX(), column.worldZ())) {
+                if (pos.getY() <= floorY || pos.getY() > upperBandEnd) {
+                    continue;
+                }
+                if (!index.isTunnelAir(pos, aggregate)) {
+                    continue;
+                }
+                if (protectedVolume.contains(pos) || isInUpperProtectedVolume(pos, protectedVolume, floorY)) {
+                    leaks++;
+                }
             }
         }
         return leaks;
@@ -157,59 +184,77 @@ public final class JunctionFinalVoxelValidator {
             JunctionValidationManifest manifest,
             RoadGenerationResult aggregate,
             PlacementRecordColumnIndex index,
-            ICoordinateService coordinateTransformer) {
-        if (!manifest.hasTunnelValidation() || manifest.footprintPolygon().size() < 3) {
-            return 0;
-        }
-        Set<BlockPos> openVolume = collectPostMergeOpenVolume(manifest, aggregate, index, coordinateTransformer);
-        if (openVolume.isEmpty()) {
+            Set<ColumnKey> footprintColumns) {
+        if (!manifest.hasTunnelValidation() || footprintColumns.isEmpty()) {
             return 0;
         }
         List<BlockPos> seeds = new ArrayList<>();
         for (TunnelPortalSeed seed : manifest.tunnelPortalSeeds()) {
-            seeds.add(seed.walkableAirPosition());
+            if (seed != null && seed.walkableAirPosition() != null) {
+                seeds.add(seed.walkableAirPosition());
+            }
         }
-        if (seeds.isEmpty()) {
+        if (seeds.size() < 2) {
             return 0;
         }
+        Set<BlockPos> openVolume = collectPostMergeOpenVolume(
+            manifest, aggregate, index, footprintColumns);
+        if (openVolume.isEmpty()) {
+            return seeds.size();
+        }
+        int invalidSeeds = 0;
+        List<BlockPos> validSeeds = new ArrayList<>();
+        for (BlockPos seed : seeds) {
+            if (openVolume.contains(seed)) {
+                validSeeds.add(seed);
+            } else {
+                invalidSeeds++;
+            }
+        }
+        if (validSeeds.isEmpty()) {
+            return seeds.size();
+        }
         TunnelJunctionAirConnectivityValidator.Result flood =
-            TunnelJunctionAirConnectivityValidator.validate(openVolume, seeds);
-        return flood.disconnectedComponentCount();
+            TunnelJunctionAirConnectivityValidator.validate(openVolume, validSeeds);
+        return flood.disconnectedComponentCount() + invalidSeeds;
     }
 
     private static Set<BlockPos> collectPostMergeOpenVolume(
             JunctionValidationManifest manifest,
             RoadGenerationResult aggregate,
             PlacementRecordColumnIndex index,
-            ICoordinateService coordinateTransformer) {
+            Set<ColumnKey> footprintColumns) {
         Set<BlockPos> openVolume = new HashSet<>();
-        if (manifest.footprintPolygon().size() < 3) {
-            return openVolume;
-        }
-        for (var entry : aggregate.placementRecords.entrySet()) {
-            BlockPos pos = entry.getKey();
-            if (pos.getY() < manifest.underpassYMin() || pos.getY() > manifest.underpassYMax()) {
-                continue;
-            }
-            Vec2d planPoint = blockToPlan(pos, coordinateTransformer);
-            if (!RoadGeometryUtils.pointInPolygon(planPoint, manifest.footprintPolygon())) {
-                continue;
-            }
-            if (index.isTunnelAir(pos, aggregate)) {
-                openVolume.add(pos);
+        for (ColumnKey column : footprintColumns) {
+            for (BlockPos pos : index.positionsInColumn(column.worldX(), column.worldZ())) {
+                if (pos.getY() < manifest.underpassYMin() || pos.getY() > manifest.underpassYMax()) {
+                    continue;
+                }
+                if (index.isTunnelAir(pos, aggregate)) {
+                    openVolume.add(pos);
+                }
             }
         }
         return openVolume;
     }
 
-    private static Vec2d blockToPlan(BlockPos pos, ICoordinateService coordinateTransformer) {
-        if (coordinateTransformer != null) {
-            Vec2d world = new Vec2d(pos.getX(), pos.getZ());
-            var snapshot = coordinateTransformer.captureProjection();
-            if (snapshot != null && snapshot.isValid()) {
-                return snapshot.toCanvas(world);
-            }
+    private static Set<ColumnKey> footprintColumns(
+            JunctionValidationManifest manifest,
+            ICoordinateService coordinateTransformer) {
+        Set<ColumnKey> columns = new HashSet<>();
+        if (manifest.footprintPolygon() == null || manifest.footprintPolygon().size() < 3) {
+            return columns;
         }
-        return new Vec2d(pos.getX(), pos.getZ());
+        List<Vec2d> cells = RoadGeometryUtils.collectWorldCellPlanPoints(
+            manifest.footprintPolygon(), coordinateTransformer);
+        for (Vec2d cell : cells) {
+            if (cell == null) {
+                continue;
+            }
+            BlockPos xz = RoadGeometryUtils.canvasToBlockXZ(cell, coordinateTransformer);
+            columns.add(new ColumnKey(xz.getX(), xz.getZ()));
+        }
+        return columns;
     }
+
 }
