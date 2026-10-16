@@ -56,11 +56,14 @@ public final class TunnelInteriorClearancePass {
         double geometryLocalBase = 0.0;
         int cleared = 0;
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
-            if (RoadConstructionClassifier.constructionTypeAt(constructionTypes, i)
-                    != RoadConstructionType.TUNNEL) {
+            RoadConstructionType segmentType =
+                RoadConstructionClassifier.constructionTypeAt(constructionTypes, i);
+            if (segmentType != RoadConstructionType.TUNNEL
+                    && segmentType != RoadConstructionType.TUNNEL_PORTAL) {
                 geometryLocalBase += segments.get(i).distance;
                 continue;
             }
+            boolean portalFrame = segmentType == RoadConstructionType.TUNNEL_PORTAL;
             PathSegment segment = segments.get(i);
             SegmentHeightInfo info = heightInfos.get(i);
             Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, chainForward);
@@ -93,7 +96,8 @@ public final class TunnelInteriorClearancePass {
                     targetY,
                     terrain,
                     columnResolver,
-                    scale);
+                    scale,
+                    portalFrame);
             }
             geometryLocalBase += segment.distance;
         }
@@ -111,7 +115,8 @@ public final class TunnelInteriorClearancePass {
             int roadY,
             TerrainSampler terrain,
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
-            double scale) {
+            double scale,
+            boolean portalFrame) {
         TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
             tunnelStyle.shape(),
             roadEnvelopeWidth,
@@ -119,7 +124,7 @@ public final class TunnelInteriorClearancePass {
             tunnelStyle.clearHeight(),
             tunnelStyle.liningThickness(),
             roadY,
-            false);
+            portalFrame);
         Vec2d normal = leftNormal.lengthSquared() > 1e-12
             ? leftNormal.normalize()
             : new Vec2d(0, 1);

@@ -17,7 +17,8 @@ public final class EndpointElevationBlender {
         if (distance >= snap.blendRadius()) {
             return currentY;
         }
-        double blend = 1.0 - distance / snap.blendRadius();
+        double t = 1.0 - distance / snap.blendRadius();
+        double blend = smoothStep(t);
         return (int) Math.round(currentY * (1.0 - blend) + snap.elevation() * blend);
     }
 
@@ -28,5 +29,15 @@ public final class EndpointElevationBlender {
             EndpointElevationSnap end) {
         int snapped = blend(center, start, targetY);
         return blend(center, end, snapped);
+    }
+
+    private static double smoothStep(double t) {
+        if (t <= 0.0) {
+            return 0.0;
+        }
+        if (t >= 1.0) {
+            return 1.0;
+        }
+        return t * t * (3.0 - 2.0 * t);
     }
 }

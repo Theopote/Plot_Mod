@@ -266,6 +266,6 @@ public final class RoadEdgeBuildOrchestrator {
             endNode,
             startY,
             endY,
-            EndpointElevationSnapResolver.blendRadius(halfWidth));
+            EndpointElevationSnapResolver.blendRadius(halfWidth, unitsPerBlock));
     }
 }

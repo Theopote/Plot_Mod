@@ -195,15 +195,23 @@ public final class TunnelStructureGenerator {
             : new Vec2d(0, 1);
         final int[] cutHolder = {0};
         mask.forEach((lateral, y, kind) -> {
+            if (kind != TunnelCrossSectionMask.CellKind.AIR
+                    && kind != TunnelCrossSectionMask.CellKind.LINING) {
+                return;
+            }
             Vec2d point = center.add(normal.multiply(lateral * scale));
             int worldX = columnResolver.worldX(point);
             int worldZ = columnResolver.worldZ(point);
-            if (terrain.isSolidBlock(worldX, y, worldZ)) {
+            if (!terrain.isChunkLoaded(worldX, worldZ)) {
+                return;
+            }
+            if (hasTerrainObstruction(terrain, worldX, y, worldZ)) {
                 cutHolder[0]++;
+                solids.add(point, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
             }
             if (kind == TunnelCrossSectionMask.CellKind.AIR) {
                 solids.add(point, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
-            } else if (kind == TunnelCrossSectionMask.CellKind.LINING) {
+            } else {
                 solids.add(point, y, RoadSolidLayer.TUNNEL, liningMaterialId, RoadSolidMaterialPriority.STRUCTURAL);
             }
         });
@@ -437,5 +445,11 @@ public final class TunnelStructureGenerator {
             return false;
         }
         return Math.floorMod((int) Math.round(structureStation), spacing) == 0;
+    }
+
+    private static boolean hasTerrainObstruction(TerrainSampler terrain, int worldX, int y, int worldZ) {
+        return terrain.isSolidBlock(worldX, y, worldZ)
+            || terrain.isRoadClearableDecoration(worldX, y, worldZ)
+            || terrain.isConstructionVolumeObstruction(worldX, y, worldZ);
     }
 }

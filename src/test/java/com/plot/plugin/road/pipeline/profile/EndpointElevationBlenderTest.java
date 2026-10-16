@@ -8,6 +8,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EndpointElevationBlenderTest {
 
@@ -80,5 +81,13 @@ class EndpointElevationSnapResolverTest {
         RoadNode node = new RoadNode(new Vec2d(0, 0));
 
         assertNull(EndpointElevationSnapResolver.resolveForEdge(node, node, null, null, 5.0));
+    }
+
+    @Test
+    void blendRadiusScalesWithUnitsPerBlock() {
+        double narrow = EndpointElevationSnapResolver.blendRadius(4.0, 1.0);
+        double wide = EndpointElevationSnapResolver.blendRadius(4.0, 8.0);
+        assertTrue(wide >= 8.0 * 8.0, "transition band must span at least 8 blocks in canvas units");
+        assertTrue(wide > narrow);
     }
 }

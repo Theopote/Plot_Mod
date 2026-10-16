@@ -16,6 +16,7 @@ import com.plot.plugin.road.alignment.DerivedCenterlineSynchronizer;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.vertical.VerticalAlignmentGradeSmoother;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -247,6 +248,12 @@ public class RoadNetworkGenerator {
         if (synchronizedRoads > 0) {
             LOGGER.debug("生成前已在快照上同步 {} 条道路的设计平面线形到派生中心线", synchronizedRoads);
         }
+        int smoothedRoads = VerticalAlignmentGradeSmoother.smoothAllExceeding(
+            generationNetwork,
+            roadGenerator.getConfig());
+        if (smoothedRoads > 0) {
+            LOGGER.info("生成前已自动平缓 {} 条道路纵断面坡度", smoothedRoads);
+        }
         Map<String, Integer> nodeElevations =
             roadGenerator.resolveNetworkNodeElevations(generationNetwork, session.terrain());
         session.networkResult().setNodeElevations(nodeElevations);
@@ -298,7 +305,11 @@ public class RoadNetworkGenerator {
             }
             RoadJunctionGenerator.JunctionBlocks junctionBlocks =
                 junctionGenerator.generateJunction(
-                    node, generationNetwork, session.terrain(), nodeElevations);
+                    node,
+                    generationNetwork,
+                    session.terrain(),
+                    nodeElevations,
+                    networkResult.getEdgeResults());
             if (!junctionBlocks.isEmpty()) {
                 networkResult.junctionResults.put(node.getId(), junctionBlocks);
             }

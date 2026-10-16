@@ -11,37 +11,37 @@ import java.util.Map;
  * Portal station index for capping cut/clearance above designed tunnel roof.
  */
 final class PortalTransitionGuard {
-    private final Map<Integer, Integer> designYByCanvasX;
+    private final Map<Integer, Integer> designYByWorldX;
 
-    private PortalTransitionGuard(Map<Integer, Integer> designYByCanvasX) {
-        this.designYByCanvasX = designYByCanvasX;
+    private PortalTransitionGuard(Map<Integer, Integer> designYByWorldX) {
+        this.designYByWorldX = designYByWorldX;
     }
 
     static PortalTransitionGuard from(RoadCorridorPlan plan) {
-        Map<Integer, Integer> designYByCanvasX = new LinkedHashMap<>();
+        Map<Integer, Integer> designYByWorldX = new LinkedHashMap<>();
         if (plan != null) {
             for (var entry : plan.clearanceEntries()) {
                 ClearanceCell cell = entry.getValue();
                 if (cell.constructionType() != RoadConstructionType.TUNNEL_PORTAL) {
                     continue;
                 }
-                int canvasX = (int) Math.round(cell.planPoint().x);
-                designYByCanvasX.merge(canvasX, cell.designSurfaceY(), Math::max);
+                int worldX = entry.getKey().worldX();
+                designYByWorldX.merge(worldX, cell.designSurfaceY(), Math::max);
             }
         }
-        return new PortalTransitionGuard(designYByCanvasX);
+        return new PortalTransitionGuard(designYByWorldX);
     }
 
-    Integer designSurfaceYNear(int canvasX) {
-        Integer direct = designYByCanvasX.get(canvasX);
+    Integer designSurfaceYNear(int worldX) {
+        Integer direct = designYByWorldX.get(worldX);
         if (direct != null) {
             return direct;
         }
         int band = RoadCorridorWidth.PORTAL_TRANSITION_CLEAR_BAND_BLOCKS;
         Integer nearest = null;
         int nearestDistance = Integer.MAX_VALUE;
-        for (var entry : designYByCanvasX.entrySet()) {
-            int distance = Math.abs(entry.getKey() - canvasX);
+        for (var entry : designYByWorldX.entrySet()) {
+            int distance = Math.abs(entry.getKey() - worldX);
             if (distance > band || distance >= nearestDistance) {
                 continue;
             }
@@ -56,11 +56,10 @@ final class PortalTransitionGuard {
             int requestedTopY,
             RoadCorridorPlanBuilder.PlanHost host,
             int roadHalfWidth) {
-        if (planPoint == null || host == null || designYByCanvasX.isEmpty()) {
+        if (planPoint == null || host == null || designYByWorldX.isEmpty()) {
             return requestedTopY;
         }
-        int canvasX = (int) Math.round(planPoint.x);
-        Integer designY = designSurfaceYNear(canvasX);
+        Integer designY = designSurfaceYNear(host.worldX(planPoint));
         if (designY == null) {
             return requestedTopY;
         }
@@ -80,11 +79,10 @@ final class PortalTransitionGuard {
             int groundY,
             RoadCorridorPlanBuilder.PlanHost host,
             int roadHalfWidth) {
-        if (planPoint == null || host == null || designYByCanvasX.isEmpty()) {
+        if (planPoint == null || host == null || designYByWorldX.isEmpty()) {
             return groundY;
         }
-        int canvasX = (int) Math.round(planPoint.x);
-        Integer designY = designSurfaceYNear(canvasX);
+        Integer designY = designSurfaceYNear(host.worldX(planPoint));
         if (designY == null) {
             return groundY;
         }

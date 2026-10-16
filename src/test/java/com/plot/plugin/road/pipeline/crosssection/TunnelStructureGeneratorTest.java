@@ -35,6 +35,33 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class TunnelStructureGeneratorTest {
 
     @Test
+    void airCavityClearsEmbeddedTerrain() {
+        RoadSolidModel solids = new RoadSolidModel();
+        ResolvedTunnelStyle style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.NONE);
+        TerrainSampler mountain = columnTerrain(100, 72, 72);
+
+        TunnelStructureGenerator.placeCrossSection(
+            solids,
+            style,
+            new Vec2d(0, 0),
+            new Vec2d(0, 1),
+            3,
+            64,
+            "minecraft:stone_bricks",
+            mountain,
+            columnResolver(),
+            1.0,
+            false);
+
+        assertTrue(solids.primitives().stream().anyMatch(p ->
+            p.elevation() == 66 && "minecraft:air".equals(p.materialId())),
+            "embedded terrain inside cavity must become air");
+        assertTrue(solids.primitives().stream().anyMatch(p ->
+            p.elevation() == 70 && "minecraft:stone_bricks".equals(p.materialId())),
+            "roof lining must still be placed");
+    }
+
+    @Test
     void rectangularCrossSectionCreatesAirCavityAndLining() {
         RoadSolidModel solids = new RoadSolidModel();
         ResolvedTunnelStyle style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.NONE);

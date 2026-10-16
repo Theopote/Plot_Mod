@@ -89,8 +89,12 @@ public final class RoadCorridorClearancePass {
             TunnelPortalExcavationMask mask = TunnelPortalExcavationMask.forPortal(
                 host.tunnelStyle(), envelopeWidth, designY);
             topY = Math.min(topY, mask.roofTopY());
+            Integer lateral = cell.corridorLateral();
             for (int y = designY + 1; y <= topY; y++) {
-                if (cell.corridorLateral() != null && !mask.allowsClearance(cell.corridorLateral(), y)) {
+                if (lateral != null && !mask.allowsClearance(lateral, y)) {
+                    continue;
+                }
+                if (lateral == null && !portalAllowsClearanceAtY(mask, y)) {
                     continue;
                 }
                 cleared += clearObstruction(solids, cell, key, terrain, y, gradeSeparation);
@@ -161,5 +165,22 @@ public final class RoadCorridorClearancePass {
         return terrain.isSolidBlock(worldX, y, worldZ)
             || terrain.isRoadClearableDecoration(worldX, y, worldZ)
             || terrain.isConstructionVolumeObstruction(worldX, y, worldZ);
+    }
+
+    private static boolean portalAllowsClearanceAtY(TunnelPortalExcavationMask mask, int y) {
+        if (mask == null) {
+            return true;
+        }
+        TunnelCrossSectionMask section = mask.crossSection();
+        if (section == null) {
+            return true;
+        }
+        boolean[] allowed = {false};
+        section.forEach((lateral, cellY, kind) -> {
+            if (cellY == y && mask.allowsClearance(lateral, cellY)) {
+                allowed[0] = true;
+            }
+        });
+        return allowed[0];
     }
 }

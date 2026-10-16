@@ -3,11 +3,13 @@ package com.plot.plugin.road;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
+import com.plot.plugin.road.pipeline.corridor.JunctionCellElevationResolver;
 import com.plot.plugin.road.pipeline.corridor.JunctionConstructionReport;
 import com.plot.plugin.road.pipeline.corridor.JunctionCrossSectionFill;
 import com.plot.plugin.road.pipeline.corridor.JunctionSurfaceMask;
 import com.plot.plugin.road.pipeline.corridor.JunctionTerrainClearance;
 import com.plot.plugin.road.pipeline.corridor.ColumnKey;
+import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
@@ -81,6 +83,18 @@ public class RoadJunctionGenerator {
             RoadNetwork network,
             TerrainSampler terrain,
             Map<String, Integer> networkNodeElevations) {
+        return generateJunction(node, network, terrain, networkNodeElevations, null);
+    }
+
+    /**
+     * @param edgeResults connected edge build profiles for per-cell elevation interpolation
+     */
+    public JunctionBlocks generateJunction(
+            RoadNode node,
+            RoadNetwork network,
+            TerrainSampler terrain,
+            Map<String, Integer> networkNodeElevations,
+            Map<String, RoadGenerationResult> edgeResults) {
         JunctionBlocks blocks = new JunctionBlocks();
         if (generator != null) {
             blocks.getSolids().setCoordinateService(generator.coordinateTransformer());
@@ -110,7 +124,7 @@ public class RoadJunctionGenerator {
         }
 
         List<Vec2d> polygon = generatePolygonJunction(
-            blocks, node, network, connectedEdges, junctionY, terrain);
+            blocks, node, network, connectedEdges, junctionY, terrain, edgeResults);
         markingGenerator.generateStopLines(blocks, node, network, connectedEdges, junctionY);
         markingGenerator.generateMarkings(blocks, node, network, connectedEdges, polygon, junctionY);
         return blocks;
@@ -122,7 +136,8 @@ public class RoadJunctionGenerator {
             RoadNetwork network,
             List<RoadEdge> edges,
             int junctionY,
-            TerrainSampler terrain) {
+            TerrainSampler terrain,
+            Map<String, RoadGenerationResult> edgeResults) {
         Vec2d center = node.getPosition();
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             edges,
@@ -139,11 +154,11 @@ public class RoadJunctionGenerator {
             RoadJunctionCenterlineResolver.forNetwork(network));
 
         if (polygon.size() < 3) {
-            generateSimpleEnvelope(blocks, node, network, center, edges, junctionY, terrain);
+            generateSimpleEnvelope(blocks, node, network, center, edges, junctionY, terrain, edgeResults);
             return List.of();
         }
 
-        fillPolygon(blocks, node, network, edges, polygon, center, junctionY, terrain);
+        fillPolygon(blocks, node, network, edges, polygon, center, junctionY, terrain, edgeResults);
         return polygon;
     }
 
@@ -154,12 +169,13 @@ public class RoadJunctionGenerator {
             Vec2d center,
             List<RoadEdge> edges,
             int junctionY,
-            TerrainSampler terrain) {
+            TerrainSampler terrain,
+            Map<String, RoadGenerationResult> edgeResults) {
         // 边缘情况保护：如果边列表为空，至少生成节点位置的方块
         if (edges.isEmpty()) {
             LOGGER.warn("路口节点边列表为空，生成最小覆盖（中心点）");
             fillJunctionCells(
-                blocks, List.of(center), null, node, network, edges, junctionY, terrain);
+                blocks, List.of(center), null, node, network, edges, junctionY, terrain, edgeResults);
             return;
         }
 
@@ -175,7 +191,7 @@ public class RoadJunctionGenerator {
         if (envelopePoints.isEmpty()) {
             LOGGER.warn("路口简单包络点为空，回退到中心点");
             fillJunctionCells(
-                blocks, List.of(center), null, node, network, edges, junctionY, terrain);
+                blocks, List.of(center), null, node, network, edges, junctionY, terrain, edgeResults);
             return;
         }
 
@@ -184,10 +200,10 @@ public class RoadJunctionGenerator {
             generator.coordinateTransformer());
         List<Vec2d> circle = approximateCirclePolygon(center, radius);
         if (cells.isEmpty()) {
-            fillJunctionCells(blocks, envelopePoints, circle, node, network, edges, junctionY, terrain);
+            fillJunctionCells(blocks, envelopePoints, circle, node, network, edges, junctionY, terrain, edgeResults);
             return;
         }
-        fillJunctionCells(blocks, cells, circle, node, network, edges, junctionY, terrain);
+        fillJunctionCells(blocks, cells, circle, node, network, edges, junctionY, terrain, edgeResults);
     }
 
     private static List<Vec2d> approximateCirclePolygon(Vec2d center, int radius) {
@@ -213,14 +229,15 @@ public class RoadJunctionGenerator {
             List<Vec2d> polygon,
             Vec2d center,
             int junctionY,
-            TerrainSampler terrain) {
+            TerrainSampler terrain,
+            Map<String, RoadGenerationResult> edgeResults) {
         List<Vec2d> cells = RoadGeometryUtils.collectWorldCellPlanPoints(
             polygon,
             generator.coordinateTransformer());
         if (cells.isEmpty() && center != null) {
             cells = List.of(center);
         }
-        fillJunctionCells(blocks, cells, polygon, node, network, edges, junctionY, terrain);
+        fillJunctionCells(blocks, cells, polygon, node, network, edges, junctionY, terrain, edgeResults);
     }
 
     private void fillJunctionCells(
@@ -231,7 +248,8 @@ public class RoadJunctionGenerator {
             RoadNetwork network,
             List<RoadEdge> edges,
             int junctionY,
-            TerrainSampler terrain) {
+            TerrainSampler terrain,
+            Map<String, RoadGenerationResult> edgeResults) {
         if (cells == null || cells.isEmpty() || node == null || network == null || edges == null) {
             return;
         }
@@ -262,16 +280,30 @@ public class RoadJunctionGenerator {
                 }
             };
         double unitsPerBlock = estimateUnitsPerBlock(network, edges);
+        Vec2d nodeCenter = node.getPosition();
+        double blendRadius = JunctionCellElevationResolver.blendRadiusForJunction(
+            edges, network, generator.getConfig(), unitsPerBlock);
         JunctionSurfaceMask surfaceMask = new JunctionSurfaceMask();
         int unresolvedClearance = 0;
 
         for (Vec2d point : cells) {
             ColumnKey columnKey = new ColumnKey(columnResolver.worldX(point), columnResolver.worldZ(point));
             surfaceMask.expectColumn(columnKey);
+            int cellY = JunctionCellElevationResolver.resolve(
+                point,
+                nodeCenter,
+                node.getId(),
+                junctionY,
+                edges,
+                network,
+                generator.getConfig(),
+                edgeResults,
+                unitsPerBlock,
+                blendRadius);
             boolean stamped = JunctionCrossSectionFill.fillCell(
                 blocks.getSolids(),
                 point,
-                junctionY,
+                cellY,
                 node.getId(),
                 edges,
                 network,
@@ -285,20 +317,20 @@ public class RoadJunctionGenerator {
                 fillMaterialId);
             if (stamped) {
                 surfaceMask.markStamped(columnKey);
-                if (clearancePolygon != null && clearancePolygon.size() >= 3) {
-                    BlockPos column = generator.toBlockPos(point, 0);
-                    JunctionTerrainClearance.clearOverheadInPolygon(
-                        blocks.getSolids(),
-                        clearancePolygon,
-                        junctionY,
-                        tunnelThreshold,
-                        terrain,
-                        column.getX(),
-                        column.getZ(),
-                        point);
-                }
             } else if (clearancePolygon != null && clearancePolygon.size() >= 3) {
                 unresolvedClearance++;
+            }
+            if (clearancePolygon != null && clearancePolygon.size() >= 3) {
+                BlockPos column = generator.toBlockPos(point, 0);
+                JunctionTerrainClearance.clearOverheadInPolygon(
+                    blocks.getSolids(),
+                    clearancePolygon,
+                    cellY,
+                    tunnelThreshold,
+                    terrain,
+                    column.getX(),
+                    column.getZ(),
+                    point);
             }
         }
 

@@ -2,6 +2,7 @@ package com.plot.plugin.road.pipeline.profile;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadJunctionGeometry;
+import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.RoadNode;
 
 import java.util.Map;
@@ -13,8 +14,24 @@ public final class EndpointElevationSnapResolver {
     private EndpointElevationSnapResolver() {
     }
 
+    /** Minimum transition length in canvas units when {@code unitsPerBlock} is unknown. */
+    private static final double MIN_BLEND_RADIUS = 8.0;
+
     public static double blendRadius(double carriagewayHalfWidthWorldUnits) {
-        return Math.max(carriagewayHalfWidthWorldUnits + 2.0, RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
+        return Math.max(carriagewayHalfWidthWorldUnits + 2.0, MIN_BLEND_RADIUS);
+    }
+
+    /**
+     * Blend radius sized to the junction footprint: at least one portal-transition band
+     * in world blocks so endpoint Y eases into the resolved node elevation.
+     */
+    public static double blendRadius(double carriagewayHalfWidthWorldUnits, double unitsPerBlock) {
+        double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
+        double junctionFootprint = Math.max(
+            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS * scale,
+            carriagewayHalfWidthWorldUnits + 2.0 * scale);
+        double transitionBand = RoadCorridorWidth.PORTAL_TRANSITION_CLEAR_BAND_BLOCKS * scale;
+        return Math.max(junctionFootprint, transitionBand);
     }
 
     public static EndpointElevationSnaps resolve(
