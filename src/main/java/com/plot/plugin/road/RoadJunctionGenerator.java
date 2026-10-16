@@ -1,6 +1,7 @@
 package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.pipeline.corridor.JunctionCellElevationResolver;
@@ -281,8 +282,8 @@ public class RoadJunctionGenerator {
             };
         double unitsPerBlock = estimateUnitsPerBlock(network, edges);
         Vec2d nodeCenter = node.getPosition();
-        double blendRadius = JunctionCellElevationResolver.blendRadiusForJunction(
-            edges, network, generator.getConfig(), unitsPerBlock);
+        Integer elevatedDeckY = resolveElevatedDeckY(node, junctionY, generator.getConfig());
+        Map<ColumnKey, Integer> leftoverTops = JunctionTerrainClearance.leftoverTopByColumn(edgeResults);
         JunctionSurfaceMask surfaceMask = new JunctionSurfaceMask();
         int unresolvedClearance = 0;
 
@@ -299,7 +300,8 @@ public class RoadJunctionGenerator {
                 generator.getConfig(),
                 edgeResults,
                 unitsPerBlock,
-                blendRadius);
+                0.0);
+            Integer maxClearY = elevatedDeckY != null ? elevatedDeckY - 1 : null;
             boolean stamped = JunctionCrossSectionFill.fillCell(
                 blocks.getSolids(),
                 point,
@@ -314,7 +316,8 @@ public class RoadJunctionGenerator {
                 terrain,
                 tunnelThreshold,
                 bridgeThreshold,
-                fillMaterialId);
+                fillMaterialId,
+                maxClearY);
             if (stamped) {
                 surfaceMask.markStamped(columnKey);
             } else if (clearancePolygon != null && clearancePolygon.size() >= 3) {
@@ -322,6 +325,7 @@ public class RoadJunctionGenerator {
             }
             if (clearancePolygon != null && clearancePolygon.size() >= 3) {
                 BlockPos column = generator.toBlockPos(point, 0);
+                int leftoverTop = leftoverTops.getOrDefault(columnKey, cellY);
                 JunctionTerrainClearance.clearOverheadInPolygon(
                     blocks.getSolids(),
                     clearancePolygon,
@@ -330,7 +334,9 @@ public class RoadJunctionGenerator {
                     terrain,
                     column.getX(),
                     column.getZ(),
-                    point);
+                    point,
+                    elevatedDeckY,
+                    leftoverTop);
             }
         }
 
@@ -385,6 +391,25 @@ public class RoadJunctionGenerator {
             connectedEdges.add(edge);
         }
         return connectedEdges;
+    }
+
+    public static Integer resolveElevatedDeckY(RoadNode node, int junctionY, RoadSystemConfig config) {
+        if (node == null) {
+            return null;
+        }
+        double clearance;
+        if (node.isStackGradeSeparated()) {
+            clearance = node.getStackCrossingClearance() != null
+                ? node.getStackCrossingClearance()
+                : (config != null ? config.getDefaultCrossingClearance() : 4.0);
+        } else if (node.isGradeSeparated()) {
+            clearance = node.getCrossingClearance() != null
+                ? node.getCrossingClearance()
+                : (config != null ? config.getDefaultCrossingClearance() : 4.0);
+        } else {
+            return null;
+        }
+        return junctionY + (int) Math.ceil(Math.max(1.0, clearance));
     }
 
     private double estimateUnitsPerBlock(RoadNetwork network, List<RoadEdge> edges) {

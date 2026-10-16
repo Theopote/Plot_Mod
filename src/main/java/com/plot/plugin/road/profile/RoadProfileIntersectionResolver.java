@@ -5,6 +5,8 @@ import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.crossing.CrossingType;
 import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.crossing.RoadCrossingRef;
+import com.plot.plugin.road.crossing.RoadStackCrossing;
+import com.plot.plugin.road.crossing.RoadStackCrossingRef;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -66,6 +68,7 @@ public final class RoadProfileIntersectionResolver {
             }
         }
         collectFromCrossings(network, road, config, intersections);
+        collectFromStackCrossings(network, road, config, intersections);
         intersections.sort(Comparator.comparingDouble(RoadProfileIntersection::roadStation));
         return List.copyOf(intersections);
     }
@@ -117,6 +120,67 @@ public final class RoadProfileIntersectionResolver {
                 clearance,
                 false));
         }
+    }
+
+    private static void collectFromStackCrossings(
+            RoadNetwork network,
+            Road currentRoad,
+            RoadSystemConfig config,
+            List<RoadProfileIntersection> out) {
+        for (RoadStackCrossing stack : network.stackCrossingsForRoad(currentRoad.getId())) {
+            OptionalDouble elevationA = VerticalAlignmentGeometry.elevationAt(
+                currentRoad.getVerticalAlignment(), stack.stationA());
+            OptionalDouble elevationB = VerticalAlignmentGeometry.elevationAt(
+                currentRoad.getVerticalAlignment(), stack.stationB());
+            if (elevationA.isEmpty() || elevationB.isEmpty()) {
+                continue;
+            }
+            boolean gradeSeparated = stack.isGradeSeparated();
+            double clearance = stack.crossingClearance() != null
+                ? stack.crossingClearance()
+                : config.getDefaultCrossingClearance();
+            ResolvedCrossSection otherSection =
+                VariableCrossSectionResolver.resolve(network, currentRoad, stack.stationB(), config);
+            String selfLabel = RoadEdgeListHelper.formatRoadLabel(network, currentRoad);
+            addStackStation(
+                out, stack, currentRoad.getId(), selfLabel, stack.stationA(),
+                elevationA.getAsDouble(), elevationB.getAsDouble(), otherSection,
+                gradeSeparated, clearance);
+            addStackStation(
+                out, stack, currentRoad.getId(), selfLabel, stack.stationB(),
+                elevationB.getAsDouble(), elevationA.getAsDouble(), otherSection,
+                gradeSeparated, clearance);
+        }
+    }
+
+    private static void addStackStation(
+            List<RoadProfileIntersection> out,
+            RoadStackCrossing stack,
+            String roadId,
+            String roadLabel,
+            double station,
+            double elevation,
+            double otherElevation,
+            ResolvedCrossSection otherSection,
+            boolean gradeSeparated,
+            double clearance) {
+        boolean currentElevated = gradeSeparated
+            && Math.abs(station - stack.resolvedUpperStation())
+                <= Math.abs(station - stack.resolvedLowerStation());
+        out.add(new RoadProfileIntersection(
+            RoadStackCrossingRef.toRef(stack.id()),
+            roadId,
+            roadId,
+            roadLabel,
+            station,
+            station,
+            elevation,
+            otherElevation,
+            otherSection,
+            gradeSeparated,
+            currentElevated,
+            clearance,
+            false));
     }
 
     public static List<RoadProfileIntersection> forEdge(

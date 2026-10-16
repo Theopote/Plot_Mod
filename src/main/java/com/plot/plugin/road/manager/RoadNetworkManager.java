@@ -208,12 +208,19 @@ public final class RoadNetworkManager {
         return network.getCrossing(selectedCrossingId);
     }
 
+    public com.plot.plugin.road.crossing.RoadStackCrossing getSelectedStackCrossing() {
+        if (selectedCrossingId == null || selectedCrossingId.isBlank()) {
+            return null;
+        }
+        return network.getStackCrossing(selectedCrossingId);
+    }
+
     public void setSelectedCrossingId(String crossingId) {
         if (crossingId == null || crossingId.isBlank()) {
             selectedCrossingId = "";
             return;
         }
-        if (network.getCrossing(crossingId) == null) {
+        if (network.getCrossing(crossingId) == null && network.getStackCrossing(crossingId) == null) {
             return;
         }
         selectedCrossingId = crossingId;
@@ -240,7 +247,7 @@ public final class RoadNetworkManager {
             return;
         }
         switch (source) {
-            case CROSSING -> setSelectedCrossingId(id);
+            case CROSSING, STACK_CROSSING -> setSelectedCrossingId(id);
             case LEGACY_NODE -> {
                 RoadNode node = network.getNode(id);
                 if (node == null) {
@@ -264,6 +271,13 @@ public final class RoadNetworkManager {
                 return List.of();
             }
             return List.of(crossing.roadAId(), crossing.roadBId());
+        }
+        if (source == com.plot.plugin.road.overlay.IntersectionOverlaySource.STACK_CROSSING) {
+            com.plot.plugin.road.crossing.RoadStackCrossing stack = network.getStackCrossing(id);
+            if (stack == null) {
+                return List.of();
+            }
+            return List.of(stack.roadId());
         }
         return new ArrayList<>(network.getDistinctRoadIdsAtNode(id));
     }
@@ -628,7 +642,9 @@ public final class RoadNetworkManager {
         if (selectedNodeId != null && !selectedNodeId.isBlank() && network.getNode(selectedNodeId) == null) {
             selectedNodeId = "";
         }
-        if (selectedCrossingId != null && !selectedCrossingId.isBlank() && network.getCrossing(selectedCrossingId) == null) {
+        if (selectedCrossingId != null && !selectedCrossingId.isBlank()
+                && network.getCrossing(selectedCrossingId) == null
+                && network.getStackCrossing(selectedCrossingId) == null) {
             selectedCrossingId = "";
         }
     }

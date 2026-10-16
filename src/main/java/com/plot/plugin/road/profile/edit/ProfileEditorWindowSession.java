@@ -2,6 +2,7 @@ package com.plot.plugin.road.profile.edit;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.crossing.RoadCrossingRef;
+import com.plot.plugin.road.crossing.RoadStackCrossingRef;
 import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -105,6 +106,8 @@ public final class ProfileEditorWindowSession {
         }
         if (RoadCrossingRef.isCrossingRef(intersection.nodeId())) {
             markTouchedCrossing(RoadCrossingRef.crossingIdFromRef(intersection.nodeId()));
+        } else if (RoadStackCrossingRef.isStackCrossingRef(intersection.nodeId())) {
+            markTouchedCrossing(RoadStackCrossingRef.stackCrossingIdFromRef(intersection.nodeId()));
         } else {
             markTouchedNode(intersection.nodeId());
         }

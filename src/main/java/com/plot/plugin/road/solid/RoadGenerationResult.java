@@ -112,10 +112,16 @@ public class RoadGenerationResult {
         bridgeBlocks.addAll(source.bridgeBlocks);
         tunnelBlocks.addAll(source.tunnelBlocks);
         streetlightBlocks.addAll(source.streetlightBlocks);
-        // 边与边重叠时 first-claim：保留先写入边的材质，避免后写边覆盖导致预览不稳定
-        // （路口仍通过 recordOverride 单独覆盖）
+        // 边与边重叠时 first-claim：记录、图层、同层材质优先级必须一起拷贝，
+        // 否则 flushJunctionSolids 看到 existingLayer=null，路口清场 AIR 盖不住残留衬砌。
         for (Map.Entry<BlockPos, BlockRecord> entry : source.placementRecords.entrySet()) {
             placementRecords.putIfAbsent(entry.getKey(), entry.getValue());
+        }
+        for (Map.Entry<BlockPos, RoadSolidLayer> entry : source.placementLayers.entrySet()) {
+            placementLayers.putIfAbsent(entry.getKey(), entry.getValue());
+        }
+        for (Map.Entry<BlockPos, Integer> entry : source.placementMaterialPriorities.entrySet()) {
+            placementMaterialPriorities.putIfAbsent(entry.getKey(), entry.getValue());
         }
         cutVolume += source.cutVolume;
         fillVolume += source.fillVolume;

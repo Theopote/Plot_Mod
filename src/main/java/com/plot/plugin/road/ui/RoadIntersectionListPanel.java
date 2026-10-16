@@ -5,6 +5,7 @@ import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.crossing.CrossingType;
 import com.plot.plugin.road.crossing.RoadCrossing;
+import com.plot.plugin.road.crossing.RoadStackCrossing;
 import com.plot.plugin.road.graph.RoadGraphQueries;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.overlay.IntersectionOverlaySource;
@@ -30,8 +31,9 @@ public final class RoadIntersectionListPanel {
     public void render() {
         RoadNetwork network = ctx.networkManager().getNetwork();
         List<RoadCrossing> crossings = new ArrayList<>(network.getCrossings().values());
-        List<RoadNode> legacyJunctions = listLegacyJunctionNodes(network, crossings);
-        if (crossings.isEmpty() && legacyJunctions.isEmpty()) {
+        List<RoadStackCrossing> stackCrossings = new ArrayList<>(network.getStackCrossings().values());
+        List<RoadNode> legacyJunctions = listLegacyJunctionNodes(network, crossings, stackCrossings);
+        if (crossings.isEmpty() && stackCrossings.isEmpty() && legacyJunctions.isEmpty()) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.path.no_intersections"));
             return;
         }
@@ -44,18 +46,26 @@ public final class RoadIntersectionListPanel {
         for (RoadCrossing crossing : crossings) {
             renderCrossingRow(network, crossing, crossing.id().equals(selectedCrossingId));
         }
+        stackCrossings.sort(Comparator.comparing(RoadStackCrossing::roadId));
+        for (RoadStackCrossing stack : stackCrossings) {
+            renderStackRow(network, stack, stack.id().equals(selectedCrossingId));
+        }
         for (RoadNode node : legacyJunctions) {
             renderLegacyRow(network, node, node.getId().equals(selectedNodeId));
         }
     }
 
-    private List<RoadNode> listLegacyJunctionNodes(RoadNetwork network, List<RoadCrossing> crossings) {
+    private List<RoadNode> listLegacyJunctionNodes(
+            RoadNetwork network,
+            List<RoadCrossing> crossings,
+            List<RoadStackCrossing> stackCrossings) {
         List<RoadNode> junctions = new ArrayList<>();
         for (RoadNode node : network.getNodes().values()) {
             if (node == null || node.getDegree() < 2) {
                 continue;
             }
-            if (isCoveredByRegistryCrossing(node, crossings)) {
+            if (isCoveredByRegistryCrossing(node, crossings)
+                    || isCoveredByStackCrossing(node, stackCrossings)) {
                 continue;
             }
             if (node.isJunction() || RoadGraphQueries.isSimpleCrossing(node, network) || node.isGradeSeparated()) {
@@ -64,6 +74,19 @@ public final class RoadIntersectionListPanel {
         }
         junctions.sort(Comparator.comparingInt(RoadNode::getDegree).reversed());
         return junctions;
+    }
+
+    private static boolean isCoveredByStackCrossing(RoadNode node, List<RoadStackCrossing> stacks) {
+        if (node.getPosition() == null || stacks == null) {
+            return false;
+        }
+        for (RoadStackCrossing stack : stacks) {
+            if (stack.position() != null
+                    && RoadGeometryUtils.pointsNear(node.getPosition(), stack.position(), 0.5)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isCoveredByRegistryCrossing(RoadNode node, List<RoadCrossing> crossings) {
@@ -85,6 +108,15 @@ public final class RoadIntersectionListPanel {
         String label = title + "  ·  " + status;
         if (ImGui.selectable(label + "##crossing_" + crossing.id(), selected)) {
             focusCrossing(network, crossing);
+        }
+    }
+
+    private void renderStackRow(RoadNetwork network, RoadStackCrossing stack, boolean selected) {
+        String title = formatStackTitle(network, stack);
+        String status = formatStackStatus(stack);
+        String label = title + "  ·  " + status;
+        if (ImGui.selectable(label + "##stack_" + stack.id(), selected)) {
+            focusStackCrossing(stack);
         }
     }
 
@@ -140,9 +172,27 @@ public final class RoadIntersectionListPanel {
         ctx.requestOverlayRefresh();
     }
 
+    private void focusStackCrossing(RoadStackCrossing stack) {
+        ctx.networkManager().focusIntersection(IntersectionOverlaySource.STACK_CROSSING, stack.id());
+        ctx.requestOverlayRefresh();
+    }
+
     private void focusLegacyJunction(RoadNetwork network, RoadNode node) {
         ctx.networkManager().focusIntersection(IntersectionOverlaySource.LEGACY_NODE, node.getId());
         ctx.requestOverlayRefresh();
+    }
+
+    private static String formatStackStatus(RoadStackCrossing stack) {
+        if (stack.type() == CrossingType.AT_GRADE) {
+            return PlotI18n.tr("plugin.road.path.intersection_status_at_grade");
+        }
+        return PlotI18n.tr("plugin.road.path.intersection_status_stack_grade");
+    }
+
+    private String formatStackTitle(RoadNetwork network, RoadStackCrossing stack) {
+        return PlotI18n.tr(
+            "plugin.road.path.stack_crossing_title",
+            formatRoadLabel(network, stack.roadId()));
     }
 
     private String formatCrossingTitle(RoadNetwork network, RoadCrossing crossing) {

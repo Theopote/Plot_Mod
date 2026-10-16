@@ -107,6 +107,40 @@ class RoadStackCrossingGenerationTest {
     }
 
     @Test
+    void atGradeStackCrossingFillsJunctionOnSharedPlane() {
+        RoadNetwork network = figureEightNetwork();
+        RoadStackCrossingReconciler.reconcileStackCrossings(network);
+
+        RoadNetworkGenerator generator = previewGenerator();
+        RoadNetworkGenerator.PreviewResult preview = generator.generatePreview(
+            network,
+            flatTerrain(64));
+
+        assertFalse(preview.networkResult().getJunctionResults().isEmpty());
+        RoadNode plazaNode = preview.profileNetwork().getNodes().values().stream()
+            .filter(node -> node.getDegree() >= 3)
+            .findFirst()
+            .orElseThrow();
+        int plazaY = preview.nodeElevations().getOrDefault(plazaNode.getId(), 64);
+        long surfaceAtPlaza = 0;
+        long surfaceOffPlane = 0;
+        for (var junction : preview.networkResult().getJunctionResults().values()) {
+            for (var primitive : junction.getSolids().primitives()) {
+                if (primitive.layer() != com.plot.plugin.road.solid.RoadSolidLayer.ROAD) {
+                    continue;
+                }
+                if (primitive.elevation() == plazaY) {
+                    surfaceAtPlaza++;
+                } else {
+                    surfaceOffPlane++;
+                }
+            }
+        }
+        assertTrue(surfaceAtPlaza > 0, "at-grade self-crossing must stamp a plaza");
+        assertEquals(0, surfaceOffPlane, "at-grade self-crossing plaza must share one elevation");
+    }
+
+    @Test
     void figureEightStackCrossingMaterializesBeforePreview() {
         RoadNetwork network = figureEightNetwork();
         RoadStackCrossingReconciler.reconcileStackCrossings(network);

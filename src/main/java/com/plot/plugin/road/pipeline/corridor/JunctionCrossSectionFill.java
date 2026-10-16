@@ -58,6 +58,27 @@ public final class JunctionCrossSectionFill {
             int tunnelThreshold,
             int bridgeThreshold,
             String fillMaterialId) {
+        return fillCell(
+            solids, cellPoint, junctionY, nodeId, edges, network, config, materials, columnResolver,
+            unitsPerBlock, terrain, tunnelThreshold, bridgeThreshold, fillMaterialId, null);
+    }
+
+    public static boolean fillCell(
+            RoadSolidModel solids,
+            Vec2d cellPoint,
+            int junctionY,
+            String nodeId,
+            List<RoadEdge> edges,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            MaterialResolver materials,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
+            double unitsPerBlock,
+            TerrainSampler terrain,
+            int tunnelThreshold,
+            int bridgeThreshold,
+            String fillMaterialId,
+            Integer maxClearY) {
         if (solids == null || cellPoint == null || nodeId == null || edges == null || edges.isEmpty()
                 || network == null || config == null || materials == null || terrain == null) {
             return false;
@@ -68,7 +89,8 @@ public final class JunctionCrossSectionFill {
         if (projection == null) {
             solids.add(cellPoint, junctionY, RoadSolidLayer.ROAD);
             gradeColumn(
-                solids, cellPoint, junctionY, fillMaterialId, columnResolver, terrain, tunnelThreshold, bridgeThreshold);
+                solids, cellPoint, junctionY, fillMaterialId, columnResolver, terrain, tunnelThreshold, bridgeThreshold,
+                maxClearY);
             return true;
         }
 
@@ -90,7 +112,8 @@ public final class JunctionCrossSectionFill {
             solids.add(cellPoint, junctionY, RoadSolidLayer.ROAD);
         }
         gradeColumn(
-            solids, cellPoint, junctionY, fillMaterialId, columnResolver, terrain, tunnelThreshold, bridgeThreshold);
+            solids, cellPoint, junctionY, fillMaterialId, columnResolver, terrain, tunnelThreshold, bridgeThreshold,
+            maxClearY);
         return true;
     }
 
@@ -328,13 +351,22 @@ public final class JunctionCrossSectionFill {
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
             TerrainSampler terrain,
             int tunnelThreshold,
-            int bridgeThreshold) {
+            int bridgeThreshold,
+            Integer maxClearY) {
         if (columnResolver == null) {
             return;
         }
         int worldX = columnResolver.worldX(planPoint);
         int worldZ = columnResolver.worldZ(planPoint);
         if (!terrain.isChunkLoaded(worldX, worldZ)) {
+            return;
+        }
+        if (maxClearY != null) {
+            int groundY = terrain.sampleSurfaceY(planPoint);
+            int cutTop = Math.min(groundY, maxClearY);
+            if (cutTop > junctionY) {
+                JunctionTerrainClearance.punchColumn(solids, planPoint, junctionY, cutTop);
+            }
             return;
         }
         RoadRoadbedGradingUtils.gradeColumn(

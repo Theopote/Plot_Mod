@@ -175,7 +175,7 @@ public final class RoadNetworkOverviewRenderer {
                 intersectionEntries, worldX, worldY, intersectionHitRadius);
             if (intersectionHit != null) {
                 switch (intersectionHit.source()) {
-                    case CROSSING -> {
+                    case CROSSING, STACK_CROSSING -> {
                         if (onCrossingSelected != null) {
                             onCrossingSelected.accept(intersectionHit.id());
                         }

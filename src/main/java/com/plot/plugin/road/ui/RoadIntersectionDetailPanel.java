@@ -3,6 +3,7 @@ package com.plot.plugin.road.ui;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.crossing.RoadCrossing;
+import com.plot.plugin.road.crossing.RoadStackCrossing;
 import com.plot.plugin.road.graph.RoadGraphQueries;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.Road;
@@ -38,6 +39,27 @@ public final class RoadIntersectionDetailPanel {
 
         gradeSeparationControls.renderCrossing(
             crossing,
+            network,
+            ctx.networkManager().getConfig(),
+            RoadGradeSeparationControls.Layout.BLOCK);
+    }
+
+    public void renderStackCrossing(RoadNetwork network, RoadStackCrossing stack) {
+        if (network == null || stack == null) {
+            return;
+        }
+        ImGui.text(PlotI18n.tr("plugin.road.path.selected_intersection"));
+        ImGui.textColored(
+            PluginUiColors.ACCENT_BLUE,
+            PlotI18n.tr(
+                "plugin.road.path.stack_crossing_title",
+                formatRoadLabel(network, stack.roadId())));
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.path.stack_crossing_hint"));
+
+        gradeSeparationControls.renderStackCrossing(
+            stack,
             network,
             ctx.networkManager().getConfig(),
             RoadGradeSeparationControls.Layout.BLOCK);

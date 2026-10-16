@@ -35,6 +35,18 @@ public final class RoadGeneratePanel {
     public RoadGeneratePanel(RoadUiContext ctx) {
         this.ctx = ctx;
         profileEditor.setFlatOverlayResolver(road -> resolveFlatProfileOverlay(ctx.networkManager().getNetwork(), road));
+        profileEditor.setOnAlignmentCommitted(this::recomputePreviewAfterProfileConfirm);
+    }
+
+    private void recomputePreviewAfterProfileConfirm() {
+        RoadNetwork network = ctx.networkManager().getNetwork();
+        if (network == null || network.getEdges().isEmpty()) {
+            return;
+        }
+        if (ctx.previewManager() == null || ctx.previewManager().isPreviewJobRunning()) {
+            return;
+        }
+        ctx.previewManager().startNetworkPreview(network);
     }
 
     /** 从概览等入口跳转时，聚焦指定边的纵断面区块。 */

@@ -3,11 +3,8 @@ package com.plot.plugin.road.pipeline.corridor;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGeometryUtils;
-import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.model.RoadEdge;
-import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
-import com.plot.plugin.road.pipeline.profile.EndpointElevationSnapResolver;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 
 import java.util.List;
@@ -15,8 +12,8 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * Per-cell junction surface Y: inverse-distance blend of connected edge build profiles,
- * smoothed toward the network consensus elevation near the node center.
+ * Junction plaza surface Y. At-grade plazas are a single elevation plane
+ * ({@code junctionY}); approach grades attach outside the fill polygon.
  */
 public final class JunctionCellElevationResolver {
     private static final double EPSILON = 1e-9;
@@ -35,95 +32,10 @@ public final class JunctionCellElevationResolver {
             Map<String, RoadGenerationResult> edgeResults,
             double unitsPerBlock,
             double blendRadius) {
-        if (cell == null || nodeCenter == null) {
-            return junctionY;
-        }
-        if (edges == null || edges.isEmpty() || edgeResults == null || edgeResults.isEmpty()) {
-            return junctionY;
-        }
-        double scale = unitsPerBlock > EPSILON ? unitsPerBlock : 1.0;
-        double effectiveBlend = blendRadius > EPSILON
-            ? blendRadius
-            : EndpointElevationSnapResolver.blendRadius(
-                maxHalfWidthWorldUnits(edges, network, config, scale),
-                scale);
-
-        WeightedElevation profile = weightedProfileElevation(
-            cell, nodeId, edges, network, edgeResults, scale);
-        if (profile.weight <= EPSILON) {
-            return junctionY;
-        }
-        int profileY = (int) Math.round(profile.elevationSum / profile.weight);
-
-        double dist = cell.distance(nodeCenter);
-        if (dist >= effectiveBlend - EPSILON) {
-            return profileY;
-        }
-        double t = dist / effectiveBlend;
-        double blend = smoothStep(t);
-        return (int) Math.round(junctionY * (1.0 - blend) + profileY * blend);
-    }
-
-    public static double blendRadiusForJunction(
-            List<RoadEdge> edges,
-            RoadNetwork network,
-            RoadSystemConfig config,
-            double unitsPerBlock) {
-        double scale = unitsPerBlock > EPSILON ? unitsPerBlock : 1.0;
-        return EndpointElevationSnapResolver.blendRadius(
-            maxHalfWidthWorldUnits(edges, network, config, scale),
-            scale);
-    }
-
-    private static double maxHalfWidthWorldUnits(
-            List<RoadEdge> edges,
-            RoadNetwork network,
-            RoadSystemConfig config,
-            double scale) {
-        double maxHalf = 0.0;
-        for (RoadEdge edge : edges) {
-            maxHalf = Math.max(
-                maxHalf,
-                RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0 * scale);
-        }
-        return maxHalf;
-    }
-
-    private record WeightedElevation(double elevationSum, double weight) {
+        return junctionY;
     }
 
     record StationSample(double worldStation, double projectionDistance) {
-    }
-
-    private static WeightedElevation weightedProfileElevation(
-            Vec2d cell,
-            String nodeId,
-            List<RoadEdge> edges,
-            RoadNetwork network,
-            Map<String, RoadGenerationResult> edgeResults,
-            double scale) {
-        Function<RoadEdge, List<Vec2d>> centerlineResolver =
-            RoadJunctionCenterlineResolver.forNetwork(network);
-        double elevationSum = 0.0;
-        double weight = 0.0;
-        for (RoadEdge edge : edges) {
-            RoadGenerationResult result = edgeResults.get(edge.getId());
-            if (result == null) {
-                continue;
-            }
-            StationSample sample = sampleStationAt(cell, nodeId, edge, centerlineResolver, scale);
-            if (sample == null) {
-                continue;
-            }
-            int y = elevationAtStation(result, sample.worldStation());
-            if (y < 0) {
-                continue;
-            }
-            double w = 1.0 / (sample.projectionDistance() + scale);
-            elevationSum += w * y;
-            weight += w;
-        }
-        return new WeightedElevation(elevationSum, weight);
     }
 
     static StationSample sampleStationAt(
@@ -193,15 +105,5 @@ public final class JunctionCellElevationResolver {
             }
         }
         return heights.getLast();
-    }
-
-    private static double smoothStep(double t) {
-        if (t <= 0.0) {
-            return 0.0;
-        }
-        if (t >= 1.0) {
-            return 1.0;
-        }
-        return t * t * (3.0 - 2.0 * t);
     }
 }

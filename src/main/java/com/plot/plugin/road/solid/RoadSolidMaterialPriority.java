@@ -12,6 +12,8 @@ public final class RoadSolidMaterialPriority {
     public static final int STRUCTURAL = 1;
     /** 隧道灯光、装饰等应覆盖结构/空气的材质。 */
     public static final int DECORATIVE = 2;
+    /** 路口占位清场：压过边残留的衬砌/路面，保证路口柱可通行。 */
+    public static final int CLEARANCE = 3;
 
     private RoadSolidMaterialPriority() {
     }

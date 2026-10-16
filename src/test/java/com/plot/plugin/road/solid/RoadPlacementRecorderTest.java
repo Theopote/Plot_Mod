@@ -56,6 +56,74 @@ class RoadPlacementRecorderTest {
     }
 
     @Test
+    void mergeFromCopiesLayersAndMaterialPrioritiesFirstClaim() {
+        RoadGenerationResult first = new RoadGenerationResult(0);
+        RoadGenerationResult second = new RoadGenerationResult(0);
+        BlockPos pos = new BlockPos(2, 66, 3);
+        first.recordPlacementIfAbsent(pos, "minecraft:stone", "minecraft:stone_bricks");
+        first.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
+        first.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.STRUCTURAL);
+        second.recordPlacementIfAbsent(pos, "minecraft:dirt", "minecraft:air");
+        second.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
+        second.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.CLEARANCE);
+
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        aggregate.mergeFrom(first);
+        aggregate.mergeFrom(second);
+
+        assertEquals("minecraft:stone_bricks", aggregate.placementRecords.get(pos).newBlockId);
+        assertEquals(RoadSolidLayer.TUNNEL, aggregate.placementLayers.get(pos));
+        assertEquals(RoadSolidMaterialPriority.STRUCTURAL, aggregate.placementMaterialPriorities.get(pos));
+    }
+
+    @Test
+    void recordByLayerPriorityOverridesExistingRecordWhenLayerMissing() {
+        Map<BlockPos, BlockRecord> records = new LinkedHashMap<>();
+        Map<BlockPos, RoadSolidLayer> layers = new LinkedHashMap<>();
+        Map<BlockPos, Integer> materialPriorities = new LinkedHashMap<>();
+        BlockPos pos = new BlockPos(0, 66, 0);
+        records.put(pos, new BlockRecord(pos, "minecraft:stone", "minecraft:stone_bricks"));
+
+        RoadPlacementRecorder.recordByLayerPriority(
+            records, layers, materialPriorities, pos, "minecraft:stone",
+            "minecraft:air", RoadSolidLayer.TUNNEL, RoadSolidMaterialPriority.CLEARANCE);
+
+        assertEquals("minecraft:air", records.get(pos).newBlockId);
+        assertEquals(RoadSolidLayer.TUNNEL, layers.get(pos));
+        assertEquals(RoadSolidMaterialPriority.CLEARANCE, materialPriorities.get(pos));
+    }
+
+    @Test
+    void clearanceAirOverridesMergedTunnelLining() {
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        BlockPos pos = new BlockPos(0, 66, 0);
+        RoadGenerationResult edge = new RoadGenerationResult(0);
+        edge.recordPlacementOverride(pos, "minecraft:stone", "minecraft:stone_bricks");
+        edge.placementLayers.put(pos, RoadSolidLayer.TUNNEL);
+        edge.placementMaterialPriorities.put(pos, RoadSolidMaterialPriority.STRUCTURAL);
+        aggregate.mergeFrom(edge);
+
+        RoadSolidModel solids = new RoadSolidModel();
+        solids.add(
+            new com.plot.api.geometry.Vec2d(0, 0),
+            66,
+            RoadSolidLayer.TUNNEL,
+            "minecraft:air",
+            RoadSolidMaterialPriority.CLEARANCE);
+        RoadVoxelRasterizer.flushJunctionSolids(
+            aggregate,
+            solids,
+            null,
+            com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance(),
+            "minecraft:stone",
+            "minecraft:stone",
+            "minecraft:white_concrete");
+
+        assertEquals("minecraft:air", aggregate.placementRecords.get(pos).newBlockId);
+        assertEquals(RoadSolidLayer.TUNNEL, aggregate.placementLayers.get(pos));
+    }
+
+    @Test
     void recordByLayerPriorityOverridesLowerLayerAndMaterialPriority() {
         Map<BlockPos, BlockRecord> records = new LinkedHashMap<>();
         Map<BlockPos, RoadSolidLayer> layers = new LinkedHashMap<>();

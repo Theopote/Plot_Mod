@@ -625,16 +625,15 @@ public class RoadNetwork {
         if (type == com.plot.plugin.road.crossing.CrossingType.GRADE_SEPARATED) {
             double lower = lowerStation != null ? lowerStation : stack.stationA();
             double upper = upperStation != null ? upperStation : stack.stationB();
-            double[] ordered = lower <= upper ? new double[] {lower, upper} : new double[] {upper, lower};
             stackCrossings.put(stackCrossingId, new com.plot.plugin.road.crossing.RoadStackCrossing(
                 stack.id(),
                 stack.roadId(),
                 stack.position(),
-                ordered[0],
-                ordered[1],
+                stack.stationA(),
+                stack.stationB(),
                 com.plot.plugin.road.crossing.CrossingType.GRADE_SEPARATED,
-                ordered[0],
-                ordered[1],
+                lower,
+                upper,
                 crossingClearance != null ? crossingClearance : getDefaultCrossingClearance(stack),
                 stack.sharedElevation()));
         } else {

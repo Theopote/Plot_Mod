@@ -125,11 +125,19 @@ public final class JunctionFinalVoxelValidator {
     }
 
     private static int countCrossLayerLeaks(RoadGenerationResult aggregate, RoadNode node, int junctionY) {
-        if (!node.isGradeSeparated()) {
+        if (!node.isGradeSeparated() && !node.isStackGradeSeparated()) {
             return 0;
         }
         int leaks = 0;
-        int upperBandStart = junctionY + 6;
+        double clearance;
+        if (node.isStackGradeSeparated() && node.getStackCrossingClearance() != null) {
+            clearance = node.getStackCrossingClearance();
+        } else if (node.getCrossingClearance() != null) {
+            clearance = node.getCrossingClearance();
+        } else {
+            clearance = 6.0;
+        }
+        int upperBandStart = junctionY + (int) Math.ceil(Math.max(1.0, clearance));
         for (var entry : aggregate.placementRecords.entrySet()) {
             BlockPos pos = entry.getKey();
             if (pos.getY() < upperBandStart) {

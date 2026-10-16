@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.crossing.CrossingType;
 import com.plot.plugin.road.crossing.RoadCrossing;
+import com.plot.plugin.road.crossing.RoadStackCrossing;
 import com.plot.plugin.road.graph.RoadGraphQueries;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -43,6 +44,20 @@ public final class RoadJunctionOverlayController {
             coveredPositions.add(positionKey(crossing.position()));
         }
 
+        for (RoadStackCrossing stack : network.getStackCrossings().values()) {
+            if (stack == null || stack.position() == null) {
+                continue;
+            }
+            boolean selected = stack.id().equals(selectedCrossingId);
+            entries.add(new RoadJunctionOverlayEntry(
+                IntersectionOverlaySource.STACK_CROSSING,
+                stack.id(),
+                stack.position(),
+                resolveStackKind(stack, selected),
+                selected));
+            coveredPositions.add(positionKey(stack.position()));
+        }
+
         for (RoadNode node : network.getNodes().values()) {
             if (node == null || node.getDegree() < 2) {
                 continue;
@@ -63,6 +78,16 @@ public final class RoadJunctionOverlayController {
                 selected));
         }
         return entries;
+    }
+
+    private static RoadJunctionOverlayKind resolveStackKind(RoadStackCrossing stack, boolean selected) {
+        if (selected) {
+            return RoadJunctionOverlayKind.SELECTED;
+        }
+        if (stack.isGradeSeparated()) {
+            return RoadJunctionOverlayKind.GRADE_SEPARATED;
+        }
+        return RoadJunctionOverlayKind.AT_GRADE;
     }
 
     private static RoadJunctionOverlayKind resolveCrossingKind(RoadCrossing crossing, boolean selected) {

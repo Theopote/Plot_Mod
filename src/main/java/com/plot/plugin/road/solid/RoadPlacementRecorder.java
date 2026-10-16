@@ -85,7 +85,9 @@ public final class RoadPlacementRecorder {
         }
         placementLayers.put(pos, layer);
         placementMaterialPriorities.put(pos, materialPriority);
-        if (existingLayer == null) {
+        // mergeFrom 可能只带了 placementRecords、没带 layer。路口清场已经通过了层/材质比较，
+        // 必须覆盖已有记录，否则会留下「层是 TUNNEL、方块仍是衬砌」的堵塞柱。
+        if (existingLayer == null && !placementRecords.containsKey(pos)) {
             recordIfAbsent(placementRecords, pos, previousBlockId, newBlockId);
         } else {
             recordOverride(placementRecords, pos, previousBlockId, newBlockId);

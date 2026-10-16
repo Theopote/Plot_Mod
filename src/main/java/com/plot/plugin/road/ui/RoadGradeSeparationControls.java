@@ -8,6 +8,7 @@ import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.crossing.CrossingType;
 import com.plot.plugin.road.crossing.RoadCrossing;
+import com.plot.plugin.road.crossing.RoadStackCrossing;
 import com.plot.plugin.road.graph.RoadGraphQueries;
 import com.plot.plugin.road.manager.RoadChangeKind;
 import com.plot.plugin.road.model.Road;
@@ -83,6 +84,48 @@ public final class RoadGradeSeparationControls {
                 PluginUiColors.STATUS_INFO,
                 PlotI18n.tr("plugin.road.grade_separation_manual_override"));
         }
+        ImGui.popID();
+        deferredSession = null;
+        if (changed) {
+            ctx.requestOverlayRefresh();
+        }
+        return changed;
+    }
+
+    /**
+     * 单条道路自交：平交共用一个标高平面，立交指定哪一段上跨及净高。
+     */
+    public boolean renderStackCrossing(
+            RoadStackCrossing stack,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            Layout layout) {
+        return renderStackCrossing(stack, network, config, layout, null);
+    }
+
+    public boolean renderStackCrossing(
+            RoadStackCrossing stack,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            Layout layout,
+            ProfileEditorWindowSession windowSession) {
+        if (stack == null || network == null || config == null) {
+            return false;
+        }
+        deferredSession = windowSession;
+        ImGui.pushID(stack.id());
+        boolean changed = false;
+        if (layout == Layout.PROFILE) {
+            ImGui.text(PlotI18n.tr("plugin.road.profile_intersection_grade_edit"));
+        }
+
+        changed |= renderCrossingTypeForStack(stack, network, config, layout);
+        RoadStackCrossing current = network.getStackCrossing(stack.id());
+        if (current != null && current.isGradeSeparated()) {
+            changed |= renderPassModeForStack(current, network, config, layout);
+            changed |= renderClearanceSliderForStack(current, network, config, layout == Layout.INLINE);
+        }
+
         ImGui.popID();
         deferredSession = null;
         if (changed) {
@@ -532,6 +575,122 @@ public final class RoadGradeSeparationControls {
             node.setCrossingClearance((double) clearance[0]);
         }
         return clearanceChanged;
+    }
+
+    private boolean renderCrossingTypeForStack(
+            RoadStackCrossing stack,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            Layout layout) {
+        if (layout != Layout.INLINE) {
+            ImGui.text(PlotI18n.tr("plugin.road.crossing_type"));
+        }
+        boolean atGrade = stack.type() == CrossingType.AT_GRADE;
+        if (ImGui.radioButton(PlotI18n.tr("plugin.road.crossing_type_at_grade") + "##at_grade", atGrade)) {
+            if (!atGrade) {
+                applyStackAtGrade(stack, network);
+                return true;
+            }
+        }
+        ImGui.sameLine();
+        if (ImGui.radioButton(
+                PlotI18n.tr("plugin.road.crossing_type_grade_separated") + "##grade_sep", !atGrade)) {
+            if (atGrade) {
+                applyStackGradeSeparated(stack, network, config, stack.stationA(), stack.stationB());
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean renderPassModeForStack(
+            RoadStackCrossing stack,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            Layout layout) {
+        String[] labels = {
+            PlotI18n.tr("plugin.road.stack_pass_later_above", String.format("%.0f", stack.stationB())),
+            PlotI18n.tr("plugin.road.stack_pass_earlier_above", String.format("%.0f", stack.stationA()))
+        };
+        int currentIndex = stack.resolvedUpperStation() <= stack.stationA() + 1e-6 ? 1 : 0;
+        if (layout == Layout.INLINE) {
+            ImGui.sameLine();
+        }
+        ImInt index = new ImInt(currentIndex);
+        if (ImGui.combo(PlotI18n.tr("plugin.road.crossing_pass_mode") + "##stack_pass", index, labels)) {
+            if (index.get() == 0) {
+                applyStackGradeSeparated(stack, network, config, stack.stationA(), stack.stationB());
+            } else {
+                applyStackGradeSeparated(stack, network, config, stack.stationB(), stack.stationA());
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private boolean renderClearanceSliderForStack(
+            RoadStackCrossing stack,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            boolean inline) {
+        double currentClearance = stack.crossingClearance() != null
+            ? stack.crossingClearance()
+            : config.getDefaultCrossingClearance();
+        int[] clearance = {(int) Math.round(currentClearance)};
+        if (inline) {
+            ImGui.sameLine();
+        }
+        boolean clearanceChanged = ImGui.sliderInt(
+            PlotI18n.tr("plugin.road.crossing_clearance") + "##clearance",
+            clearance,
+            RoadParameterLimits.MIN_CROSSING_CLEARANCE,
+            RoadParameterLimits.MAX_CROSSING_CLEARANCE,
+            "%d");
+        if (ImGui.isItemActivated()) {
+            beginStackEdit(stack, network);
+        }
+        if (clearanceChanged) {
+            network.setStackCrossingGradeSeparation(
+                stack.id(),
+                CrossingType.GRADE_SEPARATED,
+                stack.resolvedLowerStation(),
+                stack.resolvedUpperStation(),
+                (double) clearance[0]);
+        }
+        return clearanceChanged;
+    }
+
+    private void beginStackEdit(RoadStackCrossing stack, RoadNetwork network) {
+        if (deferredSession != null) {
+            deferredSession.markTouchedCrossing(stack.id());
+            Road road = network.getRoad(stack.roadId());
+            if (road != null) {
+                deferredSession.markTouched(road);
+            }
+            return;
+        }
+        ctx.networkManager().pushHistory(RoadChangeKind.JUNCTION);
+    }
+
+    private void applyStackAtGrade(RoadStackCrossing stack, RoadNetwork network) {
+        beginStackEdit(stack, network);
+        network.setStackCrossingGradeSeparation(
+            stack.id(), CrossingType.AT_GRADE, null, null, null);
+        network.setStackCrossingSharedElevation(stack.id(), null);
+    }
+
+    private void applyStackGradeSeparated(
+            RoadStackCrossing stack,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            double lowerStation,
+            double upperStation) {
+        beginStackEdit(stack, network);
+        double clearance = stack.crossingClearance() != null
+            ? stack.crossingClearance()
+            : config.getDefaultCrossingClearance();
+        network.setStackCrossingGradeSeparation(
+            stack.id(), CrossingType.GRADE_SEPARATED, lowerStation, upperStation, clearance);
     }
 
     private String formatRoadLabel(RoadNetwork network, String roadId) {

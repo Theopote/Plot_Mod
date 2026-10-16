@@ -1237,6 +1237,13 @@ final class VerticalProfileEditor {
                     gradeSeparationControls.renderCrossing(
                         crossing, network, config, RoadGradeSeparationControls.Layout.PROFILE, windowSession);
                 }
+            } else if (com.plot.plugin.road.crossing.RoadStackCrossingRef.isStackCrossingRef(intersection.nodeId())) {
+                com.plot.plugin.road.crossing.RoadStackCrossing stack = network.getStackCrossing(
+                    com.plot.plugin.road.crossing.RoadStackCrossingRef.stackCrossingIdFromRef(intersection.nodeId()));
+                if (stack != null) {
+                    gradeSeparationControls.renderStackCrossing(
+                        stack, network, config, RoadGradeSeparationControls.Layout.PROFILE, windowSession);
+                }
             } else {
                 RoadNode node = network.getNode(intersection.nodeId());
                 if (node != null) {

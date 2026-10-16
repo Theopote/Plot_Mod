@@ -5,6 +5,7 @@ import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.crossing.RoadCrossingReconciler;
+import com.plot.plugin.road.crossing.RoadStackCrossingReconciler;
 import com.plot.plugin.road.model.RoadNetwork;
 import org.junit.jupiter.api.Test;
 
@@ -63,5 +64,28 @@ class RoadJunctionOverlayControllerTest {
         assertEquals(1, entries.size());
         assertEquals(IntersectionOverlaySource.CROSSING, entries.getFirst().source());
         assertNotNull(entries.getFirst().position());
+    }
+
+    @Test
+    void snapshotIncludesRegisteredStackCrossings() {
+        RoadNetwork network = new RoadNetwork();
+        var road = network.createRoad("figure-eight");
+        var n1 = network.createNode(new Vec2d(0, 0));
+        var n2 = network.createNode(new Vec2d(10, 0));
+        network.createEdge(
+            n1.getId(),
+            n2.getId(),
+            List.of(
+                new Vec2d(0, 0),
+                new Vec2d(10, 10),
+                new Vec2d(0, 10),
+                new Vec2d(10, 0)),
+            road.getId());
+        RoadStackCrossingReconciler.reconcileStackCrossings(network);
+
+        List<RoadJunctionOverlayEntry> entries = RoadJunctionOverlayController.snapshot(
+            network, new RoadNetworkBuilder(), "", "");
+
+        assertEquals(1, entries.stream().filter(e -> e.source() == IntersectionOverlaySource.STACK_CROSSING).count());
     }
 }

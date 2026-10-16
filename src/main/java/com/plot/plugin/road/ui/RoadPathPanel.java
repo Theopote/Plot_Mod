@@ -58,6 +58,13 @@ public final class RoadPathPanel {
             ImGui.spacing();
             return;
         }
+        com.plot.plugin.road.crossing.RoadStackCrossing selectedStack =
+            ctx.networkManager().getSelectedStackCrossing();
+        if (selectedStack != null) {
+            intersectionDetailPanel.renderStackCrossing(network, selectedStack);
+            ImGui.spacing();
+            return;
+        }
 
         String selectedNodeId = ctx.networkManager().getSelectedNodeId();
         if (selectedNodeId == null || selectedNodeId.isBlank()) {

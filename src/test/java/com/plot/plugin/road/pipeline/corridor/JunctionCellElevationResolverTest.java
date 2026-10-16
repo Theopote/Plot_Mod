@@ -43,7 +43,7 @@ class JunctionCellElevationResolverTest {
     }
 
     @Test
-    void peripheralCellInterpolatesFromApproachProfiles() {
+    void peripheralCellUsesNetworkJunctionElevation() {
         CrossFixture fixture = simpleCross();
         RoadNetwork network = fixture.network();
         RoadNode junction = fixture.junction();
@@ -62,7 +62,7 @@ class JunctionCellElevationResolverTest {
             1.0,
             10.0);
 
-        assertTrue(y > 68 && y <= 72, "peripheral cell should follow rising east arm profile, got " + y);
+        assertEquals(68, y, "at-grade plaza is a single elevation plane");
     }
 
     @Test

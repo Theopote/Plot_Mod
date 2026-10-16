@@ -2,6 +2,7 @@ package com.plot.plugin.road.profile.edit;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.crossing.RoadCrossing;
+import com.plot.plugin.road.crossing.RoadStackCrossing;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -64,7 +65,11 @@ public final class ProfileEditorNetworkApplier {
             applyNodeVerticalState(workingNetwork.getNode(nodeId), liveNetwork.getNode(nodeId));
         }
         for (String crossingId : crossingIds) {
-            applyCrossingState(workingNetwork.getCrossing(crossingId), liveNetwork, crossingId);
+            if (workingNetwork.getCrossing(crossingId) != null) {
+                applyCrossingState(workingNetwork.getCrossing(crossingId), liveNetwork, crossingId);
+            } else {
+                applyStackCrossingState(workingNetwork.getStackCrossing(crossingId), liveNetwork, crossingId);
+            }
         }
     }
 
@@ -102,6 +107,22 @@ public final class ProfileEditorNetworkApplier {
         liveNetwork.setCrossingSharedElevation(crossingId, source.sharedElevation());
     }
 
+    private static void applyStackCrossingState(
+            RoadStackCrossing source,
+            RoadNetwork liveNetwork,
+            String stackCrossingId) {
+        if (source == null || liveNetwork == null || stackCrossingId == null) {
+            return;
+        }
+        liveNetwork.setStackCrossingGradeSeparation(
+            stackCrossingId,
+            source.type(),
+            source.lowerStation(),
+            source.upperStation(),
+            source.crossingClearance());
+        liveNetwork.setStackCrossingSharedElevation(stackCrossingId, source.sharedElevation());
+    }
+
     public record VerticalStateDiff(
             Set<String> roadIds,
             Set<String> nodeIds,
@@ -130,6 +151,11 @@ public final class ProfileEditorNetworkApplier {
         for (RoadCrossing workingCrossing : working.getCrossings().values()) {
             if (crossingStateDiffers(baseline.getCrossing(workingCrossing.id()), workingCrossing)) {
                 crossingIds.add(workingCrossing.id());
+            }
+        }
+        for (RoadStackCrossing workingStack : working.getStackCrossings().values()) {
+            if (stackCrossingStateDiffers(baseline.getStackCrossing(workingStack.id()), workingStack)) {
+                crossingIds.add(workingStack.id());
             }
         }
         return new VerticalStateDiff(Set.copyOf(roadIds), Set.copyOf(nodeIds), Set.copyOf(crossingIds));
@@ -185,6 +211,19 @@ public final class ProfileEditorNetworkApplier {
             return true;
         }
         return !Objects.equals(baseline.elevatedRoadId(), working.elevatedRoadId())
+            || !Objects.equals(baseline.crossingClearance(), working.crossingClearance())
+            || !Objects.equals(baseline.sharedElevation(), working.sharedElevation());
+    }
+
+    static boolean stackCrossingStateDiffers(RoadStackCrossing baseline, RoadStackCrossing working) {
+        if (baseline == null || working == null) {
+            return baseline != working;
+        }
+        if (baseline.type() != working.type()) {
+            return true;
+        }
+        return !Objects.equals(baseline.lowerStation(), working.lowerStation())
+            || !Objects.equals(baseline.upperStation(), working.upperStation())
             || !Objects.equals(baseline.crossingClearance(), working.crossingClearance())
             || !Objects.equals(baseline.sharedElevation(), working.sharedElevation());
     }
