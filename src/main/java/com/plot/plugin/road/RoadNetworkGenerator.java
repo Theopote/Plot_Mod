@@ -6,6 +6,8 @@ import com.plot.plugin.road.crossing.RoadStackCrossingReconciler;
 import com.plot.plugin.road.pipeline.EdgeGenerationResult;
 import com.plot.plugin.road.pipeline.RoadEdgeGenerationOrdering;
 import com.plot.plugin.road.pipeline.RoadGenerationResultAssembler;
+import com.plot.plugin.road.pipeline.corridor.JunctionConstructionReport;
+import com.plot.plugin.road.pipeline.corridor.JunctionFinalVoxelValidator;
 import com.plot.plugin.road.pipeline.corridor.TunnelJunctionConnectivityPass;
 import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.profile.RoadProfileSamplingAssembler;
@@ -42,6 +44,7 @@ public class RoadNetworkGenerator {
         private final Map<String, EdgeGenerationResult> edgeOutcomes = new LinkedHashMap<>();
         private final Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
         private final Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults = new LinkedHashMap<>();
+        private final Map<String, JunctionConstructionReport> junctionReports = new LinkedHashMap<>();
         private final Set<String> failedEdgeIds = new LinkedHashSet<>();
         private final Set<String> skippedEdgeIds = new LinkedHashSet<>();
         private final Set<String> skippedJunctionIds = new LinkedHashSet<>();
@@ -59,6 +62,17 @@ public class RoadNetworkGenerator {
 
         public Map<String, RoadJunctionGenerator.JunctionBlocks> getJunctionResults() {
             return Collections.unmodifiableMap(junctionResults);
+        }
+
+        public Map<String, JunctionConstructionReport> getJunctionReports() {
+            return Collections.unmodifiableMap(junctionReports);
+        }
+
+        void mergeJunctionReport(JunctionConstructionReport report) {
+            if (report == null || report.nodeId() == null || report.nodeId().isBlank()) {
+                return;
+            }
+            junctionReports.merge(report.nodeId(), report, JunctionConstructionReport::merge);
         }
 
         public Set<String> getFailedEdgeIds() {
@@ -288,6 +302,9 @@ public class RoadNetworkGenerator {
             if (!junctionBlocks.isEmpty()) {
                 networkResult.junctionResults.put(node.getId(), junctionBlocks);
             }
+            if (junctionBlocks.report() != null) {
+                networkResult.mergeJunctionReport(junctionBlocks.report());
+            }
         }
         session.advanceJunctions(batch.size());
         return batch.size();
@@ -404,6 +421,7 @@ public class RoadNetworkGenerator {
             edgeResults,
             roadGenerator.getConfig());
         RoadGenerationResult aggregate = aggregateNetworkResult(session.sourceNetwork(), networkResult);
+        applyPostMergeJunctionValidation(profileNetwork, networkResult, aggregate);
         return new PreviewResult(
             profileNetwork,
             aggregate,
@@ -468,7 +486,39 @@ public class RoadNetworkGenerator {
             roadGenerator.getConfig(),
             roadGenerator.coordinateTransformer(),
             roadGenerator::estimateCanvasUnitsPerBlock,
-            roadGenerator.projectionHandler()::getBlockIdAt);
+            roadGenerator.projectionHandler()::getBlockIdAt,
+            session.networkResult().junctionReports);
+    }
+
+    private void applyPostMergeJunctionValidation(
+            RoadNetwork profileNetwork,
+            NetworkGenerationResult networkResult,
+            RoadGenerationResult aggregate) {
+        if (profileNetwork == null || networkResult == null || aggregate == null) {
+            return;
+        }
+        Map<String, Integer> elevations = networkResult.getNodeElevations();
+        for (RoadNode node : profileNetwork.getNodes().values()) {
+            if (node.getDegree() < 3) {
+                continue;
+            }
+            Integer junctionY = elevations.get(node.getId());
+            if (junctionY == null) {
+                continue;
+            }
+            JunctionFinalVoxelValidator.PostMergeReport postMerge = JunctionFinalVoxelValidator.validateNode(
+                profileNetwork,
+                node,
+                aggregate,
+                junctionY,
+                roadGenerator.getConfig(),
+                roadGenerator.coordinateTransformer());
+            networkResult.mergeJunctionReport(JunctionConstructionReport.empty(node.getId()).withPostMerge(
+                postMerge.missingSurfaceColumns(),
+                postMerge.protectedLosses(),
+                postMerge.disconnectedTunnelComponents(),
+                postMerge.crossLayerLeaks()));
+        }
     }
 
     private RoadGenerationResult aggregateNetworkResult(

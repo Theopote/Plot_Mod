@@ -18,7 +18,6 @@ import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.test.world.IdentityCoordinateService;
 import net.minecraft.util.math.BlockPos;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
@@ -30,11 +29,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JunctionConstructionIntegrityTest {
-
-    @BeforeEach
-    void clearReports() {
-        TunnelJunctionConnectivityPass.clearReports();
-    }
 
     @Test
     void tunnelAtNodeIgnoresDistantTunnelOnSameEdge() {
@@ -99,13 +93,16 @@ class JunctionConstructionIntegrityTest {
             edgeResults.put(edge.getId(), result);
         }
 
+        Map<String, JunctionConstructionReport> reports = new LinkedHashMap<>();
         TunnelJunctionConnectivityPass.apply(
             network,
             edgeResults,
             Map.of(junction.getId(), 64),
             new RoadSystemConfig("distant-tunnel-cross"),
             IdentityCoordinateService.INSTANCE,
-            (path, segments) -> 1.0);
+            (path, segments) -> 1.0,
+            null,
+            reports);
 
         long airPlacements = edgeResults.values().stream()
             .flatMap(r -> r.placementRecords.values().stream())
@@ -113,7 +110,7 @@ class JunctionConstructionIntegrityTest {
             .count();
         assertEquals(0, airPlacements,
             "plain crossing must not carve air when only a distant arm is tunnel");
-        JunctionConstructionReport report = TunnelJunctionConnectivityPass.lastReports().get(junction.getId());
+        JunctionConstructionReport report = reports.get(junction.getId());
         assertTrue(report == null || !report.tunnelConnectivityApplied());
     }
 
@@ -142,20 +139,23 @@ class JunctionConstructionIntegrityTest {
             edgeResults.put(edge.getId(), result);
         }
 
+        Map<String, JunctionConstructionReport> reports = new LinkedHashMap<>();
         TunnelJunctionConnectivityPass.apply(
             network,
             edgeResults,
             Map.of(junction.getId(), 64),
             new RoadSystemConfig("protect-road"),
             IdentityCoordinateService.INSTANCE,
-            (path, segments) -> 1.0);
+            (path, segments) -> 1.0,
+            null,
+            reports);
 
         for (RoadGenerationResult result : edgeResults.values()) {
             BlockRecord road = result.placementRecords.get(protectedInCavity);
             assertTrue(road != null && "minecraft:black_concrete".equals(road.newBlockId),
                 "protected road surface inside cavity must not become air");
         }
-        JunctionConstructionReport report = TunnelJunctionConnectivityPass.lastReports().get(junction.getId());
+        JunctionConstructionReport report = reports.get(junction.getId());
         assertTrue(report != null && report.protectedStructureConflicts() > 0,
             "protected placements inside open volume must be counted");
     }
@@ -211,13 +211,16 @@ class JunctionConstructionIntegrityTest {
             edgeResults.put(edge.getId(), result);
         }
 
+        Map<String, JunctionConstructionReport> reports = new LinkedHashMap<>();
         TunnelJunctionConnectivityPass.apply(
             network,
             edgeResults,
             Map.of(junction.getId(), 64),
             new RoadSystemConfig("two-tunnel-same-y"),
             IdentityCoordinateService.INSTANCE,
-            (path, segments) -> 1.0);
+            (path, segments) -> 1.0,
+            null,
+            reports);
 
         long air = edgeResults.values().stream()
             .filter(r -> {
@@ -226,7 +229,7 @@ class JunctionConstructionIntegrityTest {
             })
             .count();
         assertTrue(air > 0, "same-Y tunnel arms at a node must open crossing lining");
-        JunctionConstructionReport report = TunnelJunctionConnectivityPass.lastReports().get(junction.getId());
+        JunctionConstructionReport report = reports.get(junction.getId());
         assertTrue(report != null && report.tunnelConnectivityApplied());
     }
 

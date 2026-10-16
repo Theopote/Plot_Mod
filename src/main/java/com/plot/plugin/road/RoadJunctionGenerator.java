@@ -309,7 +309,11 @@ public class RoadJunctionGenerator {
             0,
             0,
             unresolvedClearance,
-            false));
+            false,
+            0,
+            0,
+            0,
+            0));
 
         JunctionCrossSectionFill.stampApproachSlopeBatters(
             blocks.getSolids(),
