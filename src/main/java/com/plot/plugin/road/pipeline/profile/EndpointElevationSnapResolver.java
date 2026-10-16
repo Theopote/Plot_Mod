@@ -59,8 +59,24 @@ public final class EndpointElevationSnapResolver {
             Integer startBuildElevation,
             Integer endBuildElevation,
             double blendRadius) {
-        EndpointElevationSnap start = snapForElevation(startNode, startBuildElevation, blendRadius);
-        EndpointElevationSnap end = snapForElevation(endNode, endBuildElevation, blendRadius);
+        return resolveForEdge(
+            startNode, endNode, startBuildElevation, endBuildElevation,
+            blendRadius, blendRadius, 0.0, 0.0);
+    }
+
+    public static EndpointElevationSnaps resolveForEdge(
+            RoadNode startNode,
+            RoadNode endNode,
+            Integer startBuildElevation,
+            Integer endBuildElevation,
+            double startBlendRadius,
+            double endBlendRadius,
+            double startCoreRadius,
+            double endCoreRadius) {
+        EndpointElevationSnap start = snapForElevation(
+            startNode, startBuildElevation, startBlendRadius, startCoreRadius);
+        EndpointElevationSnap end = snapForElevation(
+            endNode, endBuildElevation, endBlendRadius, endCoreRadius);
         if (start == null && end == null) {
             return null;
         }
@@ -71,9 +87,17 @@ public final class EndpointElevationSnapResolver {
             RoadNode node,
             Integer elevation,
             double blendRadius) {
+        return snapForElevation(node, elevation, blendRadius, 0.0);
+    }
+
+    private static EndpointElevationSnap snapForElevation(
+            RoadNode node,
+            Integer elevation,
+            double blendRadius,
+            double coreRadius) {
         if (node == null || elevation == null) {
             return null;
         }
-        return new EndpointElevationSnap(node.getPosition(), elevation, blendRadius);
+        return new EndpointElevationSnap(node.getPosition(), elevation, blendRadius, coreRadius);
     }
 }

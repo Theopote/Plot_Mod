@@ -14,10 +14,16 @@ public final class EndpointElevationBlender {
             return currentY;
         }
         double distance = center.distance(snap.position());
-        if (distance >= snap.blendRadius()) {
+        double coreRadius = snap.coreRadius();
+        double blendRadius = snap.blendRadius();
+        if (distance <= coreRadius) {
+            return snap.elevation();
+        }
+        if (distance >= blendRadius) {
             return currentY;
         }
-        double t = 1.0 - distance / snap.blendRadius();
+        double span = blendRadius - coreRadius;
+        double t = span > 1e-9 ? 1.0 - (distance - coreRadius) / span : 1.0;
         double blend = smoothStep(t);
         return (int) Math.round(currentY * (1.0 - blend) + snap.elevation() * blend);
     }

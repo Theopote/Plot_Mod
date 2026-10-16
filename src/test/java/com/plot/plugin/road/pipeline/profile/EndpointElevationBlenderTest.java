@@ -25,6 +25,17 @@ class EndpointElevationBlenderTest {
 
         assertEquals(64, EndpointElevationBlender.blend(new Vec2d(10, 0), snap, 64));
     }
+
+    @Test
+    void coreRadiusHoldsSnapElevationAcrossPlazaFootprint() {
+        EndpointElevationSnap snap = new EndpointElevationSnap(new Vec2d(0, 0), 68, 20.0, 12.0);
+
+        assertEquals(68, EndpointElevationBlender.blend(new Vec2d(0, 0), snap, 80));
+        assertEquals(68, EndpointElevationBlender.blend(new Vec2d(12, 0), snap, 80));
+        int midTransition = EndpointElevationBlender.blend(new Vec2d(16, 0), snap, 80);
+        assertTrue(midTransition > 68 && midTransition < 80, "got " + midTransition);
+        assertEquals(80, EndpointElevationBlender.blend(new Vec2d(20, 0), snap, 80));
+    }
 }
 
 class EndpointElevationSnapResolverTest {

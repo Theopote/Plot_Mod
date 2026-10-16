@@ -167,33 +167,50 @@ public final class VerticalAlignmentProfileSolver {
             worldCumulativeDistances);
         List<WaterCrossingChartMarker> waterCrossingMarkers = toChartMarkers(waterCrossings);
         List<Integer> waterHeights = extractWaterHeights(solverEnvironment);
-        EnvironmentFeasibilityProjector.FlattenPolicy flattenPolicy =
-            resolveFlattenPolicy(effectiveMode, manualStartHeight, manualEndHeight);
-
-        EnvironmentFeasibilityProjector.EnvironmentFeasibilityResult envResult =
-            EnvironmentFeasibilityProjector.project(
-                candidateDesign,
-                segmentDistances,
-                maxSlopePercents,
+        List<Double> designElevations;
+        boolean manualEndpointConstraintFeasible;
+        boolean waterConstraintFeasible;
+        RoadHeightRasterizer.RasterizationResult raster;
+        if (effectiveMode == RoadVerticalMode.MANUAL_PROFILE) {
+            designElevations = candidateDesign;
+            waterConstraintFeasible = EnvironmentFeasibilityProjector.evaluateWaterFeasibility(
+                designElevations,
                 solverEnvironment,
                 waterCrossings,
                 waterSettings,
-                effectivePreset,
                 manualStartHeight,
                 manualEndHeight,
-                flattenPolicy);
-        List<Double> designElevations = envResult.designElevations();
-        boolean manualEndpointConstraintFeasible = envResult.manualEndpointsFeasible();
-        boolean waterConstraintFeasible = envResult.waterConstraintFeasible();
-
-        RoadHeightRasterizer.RasterizationResult raster = BuildHeightRasterPostProcessor.smooth(
-            RoadHeightRasterizer.rasterize(
-                designElevations,
+                EnvironmentFeasibilityProjector.FlattenPolicy.NONE);
+            manualEndpointConstraintFeasible = true;
+            raster = RoadHeightRasterizer.followDesign(
+                designElevations, segmentDistances, manualStartHeight);
+        } else {
+            EnvironmentFeasibilityProjector.FlattenPolicy flattenPolicy =
+                resolveFlattenPolicy(effectiveMode, manualStartHeight, manualEndHeight);
+            EnvironmentFeasibilityProjector.EnvironmentFeasibilityResult envResult =
+                EnvironmentFeasibilityProjector.project(
+                    candidateDesign,
+                    segmentDistances,
+                    maxSlopePercents,
+                    solverEnvironment,
+                    waterCrossings,
+                    waterSettings,
+                    effectivePreset,
+                    manualStartHeight,
+                    manualEndHeight,
+                    flattenPolicy);
+            designElevations = envResult.designElevations();
+            manualEndpointConstraintFeasible = envResult.manualEndpointsFeasible();
+            waterConstraintFeasible = envResult.waterConstraintFeasible();
+            raster = BuildHeightRasterPostProcessor.smooth(
+                RoadHeightRasterizer.rasterize(
+                    designElevations,
+                    segmentDistances,
+                    maxSlopePercents,
+                    manualStartHeight),
                 segmentDistances,
-                maxSlopePercents,
-                manualStartHeight),
-            segmentDistances,
-            ProfileCompileOptions.defaults());
+                ProfileCompileOptions.defaults());
+        }
 
         List<Integer> guideLine = toIntegerGuideLine(designElevations);
         List<SegmentHeightInfo> heightInfos = new ArrayList<>();

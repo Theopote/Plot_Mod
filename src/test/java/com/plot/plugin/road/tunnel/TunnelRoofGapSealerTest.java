@@ -78,4 +78,72 @@ class TunnelRoofGapSealerTest {
                 && "minecraft:stone".equals(primitive.materialId())),
             "original terrain layer must be restored");
     }
+
+    @Test
+    void doesNotSealLiningThroughTreesAboveSurface() {
+        ResolvedTunnelStyle style = ResolvedTunnelStyle.defaults();
+        int envelopeWidth = 9;
+        TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
+            style.shape(),
+            envelopeWidth,
+            style.sideClearance(),
+            style.clearHeight(),
+            style.liningThickness(),
+            ROAD_Y,
+            true);
+        RoadSolidModel solids = new RoadSolidModel();
+        TerrainSampler wooded = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d p) {
+                return 66;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d p) {
+                return 74;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= 66 || y >= 67;
+            }
+
+            @Override
+            public boolean isRoadClearableDecoration(int x, int y, int z) {
+                return y >= 67;
+            }
+        };
+        TunnelRoofGapSealer.sealAboveRoofShell(
+            solids,
+            mask,
+            style.shape(),
+            ROAD_Y,
+            style.clearHeight(),
+            envelopeWidth,
+            style.sideClearance(),
+            style.liningThickness(),
+            new Vec2d(10, 0),
+            new Vec2d(0, 1),
+            1.0,
+            new RoadTerrainClearanceUtils.BlockColumnResolver() {
+                @Override
+                public int worldX(Vec2d planPoint) {
+                    return (int) Math.round(planPoint.x);
+                }
+
+                @Override
+                public int worldZ(Vec2d planPoint) {
+                    return (int) Math.round(planPoint.y);
+                }
+            },
+            wooded,
+            "minecraft:stone_bricks",
+            "minecraft:stone");
+
+        assertTrue(solids.primitives().stream().noneMatch(primitive ->
+                primitive.elevation() >= 67
+                    && ("minecraft:stone_bricks".equals(primitive.materialId())
+                        || "minecraft:stone".equals(primitive.materialId()))),
+            "portal sealer must not convert trees above the surface");
+    }
 }

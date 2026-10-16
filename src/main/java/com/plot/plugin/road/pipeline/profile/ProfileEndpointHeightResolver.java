@@ -28,6 +28,7 @@ public final class ProfileEndpointHeightResolver {
             TerrainSampler terrain,
             boolean applyGradeSeparation,
             Map<String, Integer> networkNodeElevations) {
+        Integer networkY = lookupNetworkNodeElevation(networkNodeElevations, node);
         Integer forced = gradeSeparation.resolveForcedEndpointHeight(
             node,
             network,
@@ -35,11 +36,12 @@ public final class ProfileEndpointHeightResolver {
             terrain,
             applyGradeSeparation,
             nodeTargetHeights.naturalRoadHeightAtNode(),
-            nodeTargetHeights.naturalEdgeHeightAtNode());
+            nodeTargetHeights.naturalEdgeHeightAtNode(),
+            networkY);
         if (forced != null) {
             return forced;
         }
-        return lookupNetworkNodeElevation(networkNodeElevations, node);
+        return networkY;
     }
 
     private static Integer lookupNetworkNodeElevation(

@@ -60,8 +60,15 @@ public final class TunnelRoofGapSealer {
             if (!terrain.isChunkLoaded(worldX, worldZ)) {
                 continue;
             }
-            int columnTop = terrain.sampleColumnTopY(point);
+            int surfaceY = terrain.sampleSurfaceY(point);
+            if (roofTop >= surfaceY) {
+                continue;
+            }
+            int columnTop = Math.min(terrain.sampleColumnTopY(point), surfaceY);
             for (int y = roofTop + 1; y <= columnTop; y++) {
+                if (terrain.isRoadClearableDecoration(worldX, y, worldZ)) {
+                    continue;
+                }
                 if (terrain.isSolidBlock(worldX, y, worldZ)) {
                     solids.add(
                         point,

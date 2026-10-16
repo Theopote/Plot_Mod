@@ -99,6 +99,75 @@ public final class RoadHeightRasterizer {
             forcedStartHeight);
     }
 
+    /**
+     * MANUAL_PROFILE: integer build Y follows the design line. Grade limits stay
+     * as validation, they do not reshape the user's green profile.
+     */
+    public static RasterizationResult followDesign(
+            List<Double> designElevations,
+            List<Double> segmentDistances,
+            Integer forcedStartHeight) {
+        if (segmentDistances == null || segmentDistances.isEmpty()) {
+            return emptyResult();
+        }
+        if (designElevations == null || designElevations.size() != segmentDistances.size() + 1) {
+            throw new IllegalArgumentException("design elevations must have one more sample than segments");
+        }
+
+        int startHeight = roundedStartHeight(designElevations, forcedStartHeight);
+        List<Double> cumulativeDistances = cumulativeDistances(segmentDistances);
+        double totalLength = cumulativeDistances.getLast();
+        List<BuildHeightSample> samples = followDesignSamples(
+            designElevations,
+            segmentDistances,
+            cumulativeDistances,
+            totalLength,
+            startHeight);
+
+        List<Integer> segmentBuildEnds = segmentBuildEndsFromSamples(
+            samples, cumulativeDistances, segmentDistances.size());
+        List<Integer> buildHeights = buildStationHeights(startHeight, segmentBuildEnds);
+        List<Double> designAtSegmentStations = designAtStations(designElevations, cumulativeDistances);
+        BuildHeightProfile buildProfile = BuildHeightProfile.fromSamples(samples);
+
+        return new RasterizationResult(
+            startHeight,
+            buildHeights,
+            segmentBuildEnds,
+            samples,
+            buildProfile,
+            maxDesignBuildDeviation(designAtSegmentStations, buildHeights),
+            cumulativeGradeError(designAtSegmentStations, buildHeights),
+            longestFlatRun(samples),
+            countSteps(samples));
+    }
+
+    private static List<BuildHeightSample> followDesignSamples(
+            List<Double> designElevations,
+            List<Double> segmentDistances,
+            List<Double> cumulativeDistances,
+            double totalLength,
+            int startHeight) {
+        List<BuildHeightSample> samples = new ArrayList<>();
+        double designAtStart = interpolateDesignElevation(
+            0.0, designElevations, segmentDistances, cumulativeDistances);
+        samples.add(new BuildHeightSample(0.0, designAtStart, startHeight));
+
+        int wholeBlocks = (int) Math.floor(totalLength + EPSILON);
+        for (int block = 1; block <= wholeBlocks; block++) {
+            double designY = interpolateDesignElevation(
+                block, designElevations, segmentDistances, cumulativeDistances);
+            samples.add(new BuildHeightSample(block, designY, (int) Math.round(designY)));
+        }
+
+        if (totalLength - wholeBlocks > EPSILON) {
+            double designY = interpolateDesignElevation(
+                totalLength, designElevations, segmentDistances, cumulativeDistances);
+            samples.add(new BuildHeightSample(totalLength, designY, (int) Math.round(designY)));
+        }
+        return List.copyOf(samples);
+    }
+
     private static RasterizationResult emptyResult() {
         return new RasterizationResult(
             0,

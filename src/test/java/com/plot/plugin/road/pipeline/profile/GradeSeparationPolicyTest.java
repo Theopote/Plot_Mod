@@ -115,4 +115,34 @@ class GradeSeparationPolicyTest {
         assertFalse(policy.shouldExcludeElevatedRoadFromNaturalConsensus(
             junction, lower, network, terrain, (n, net, t, roadId) -> 64));
     }
+
+    @Test
+    void elevatedHeightUsesNetworkUnderpassYNotNaturalSample() {
+        RoadNetwork network = new RoadNetwork();
+        var roadA = network.createRoad("roadA");
+        var roadB = network.createRoad("roadB");
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        junction.setGradeSeparated(true);
+        junction.setElevatedRoadId(roadA.getId());
+        junction.setCrossingClearance(4.0);
+        RoadNode north = network.createNode(new Vec2d(0, 40));
+        RoadNode east = network.createNode(new Vec2d(40, 0));
+        RoadEdge elevated = network.createEdge(
+            junction.getId(), north.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(0, 40)), roadA.getId());
+        network.createEdge(
+            junction.getId(), east.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(40, 0)), roadB.getId());
+
+        GradeSeparationPolicy policy = new GradeSeparationPolicy(STUB_CONTEXT);
+        TerrainSampler terrain = new FlatTerrainSampler(64);
+
+        assertEquals(
+            72,
+            policy.resolveElevatedCrossingHeight(
+                elevated, junction, network, terrain,
+                (n, net, t, roadId) -> 70,
+                (edge, node, net, t) -> 70,
+                68));
+    }
 }

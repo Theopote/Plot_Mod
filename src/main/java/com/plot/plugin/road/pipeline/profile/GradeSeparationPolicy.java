@@ -75,6 +75,18 @@ public final class GradeSeparationPolicy {
             TerrainSampler terrain,
             NaturalRoadHeightAtNode naturalRoadHeight,
             NaturalEdgeHeightAtNode naturalEdgeHeight) {
+        return resolveElevatedCrossingHeight(
+            edge, node, network, terrain, naturalRoadHeight, naturalEdgeHeight, null);
+    }
+
+    public Integer resolveElevatedCrossingHeight(
+            RoadEdge edge,
+            RoadNode node,
+            RoadNetwork network,
+            TerrainSampler terrain,
+            NaturalRoadHeightAtNode naturalRoadHeight,
+            NaturalEdgeHeightAtNode naturalEdgeHeight,
+            Integer networkUnderpassY) {
         if (node == null || edge == null || network == null) {
             return null;
         }
@@ -82,7 +94,9 @@ public final class GradeSeparationPolicy {
             if (!node.isStackUpperEdge(edge.getId())) {
                 return null;
             }
-            int baseHeight = computeStackCrossingBaseHeight(node, network, terrain, naturalEdgeHeight);
+            int baseHeight = networkUnderpassY != null
+                ? networkUnderpassY
+                : computeStackCrossingBaseHeight(node, network, terrain, naturalEdgeHeight);
             return baseHeight + (int) Math.round(resolveStackCrossingClearance(node));
         }
         if (!node.isGradeSeparated()) {
@@ -92,7 +106,9 @@ public final class GradeSeparationPolicy {
         if (elevatedRoadId == null || !elevatedRoadId.equals(edge.getRoadId())) {
             return null;
         }
-        int baseHeight = computeCrossingBaseHeight(node, network, terrain, elevatedRoadId, naturalEdgeHeight);
+        int baseHeight = networkUnderpassY != null
+            ? networkUnderpassY
+            : computeCrossingBaseHeight(node, network, terrain, elevatedRoadId, naturalEdgeHeight);
         return baseHeight + (int) Math.round(resolveCrossingClearance(node));
     }
 
@@ -107,12 +123,26 @@ public final class GradeSeparationPolicy {
             boolean applyGradeSeparation,
             NaturalRoadHeightAtNode naturalRoadHeight,
             NaturalEdgeHeightAtNode naturalEdgeHeight) {
+        return resolveForcedEndpointHeight(
+            node, network, edge, terrain, applyGradeSeparation,
+            naturalRoadHeight, naturalEdgeHeight, null);
+    }
+
+    public Integer resolveForcedEndpointHeight(
+            RoadNode node,
+            RoadNetwork network,
+            RoadEdge edge,
+            TerrainSampler terrain,
+            boolean applyGradeSeparation,
+            NaturalRoadHeightAtNode naturalRoadHeight,
+            NaturalEdgeHeightAtNode naturalEdgeHeight,
+            Integer networkUnderpassY) {
         if (node == null) {
             return null;
         }
         if (applyGradeSeparation) {
             Integer elevated = resolveElevatedCrossingHeight(
-                edge, node, network, terrain, naturalRoadHeight, naturalEdgeHeight);
+                edge, node, network, terrain, naturalRoadHeight, naturalEdgeHeight, networkUnderpassY);
             if (elevated != null) {
                 return elevated;
             }

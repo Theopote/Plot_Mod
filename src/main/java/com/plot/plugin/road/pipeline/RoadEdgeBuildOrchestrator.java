@@ -14,8 +14,10 @@ import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
+import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.pipeline.corridor.GradeSeparationBuildContext;
 import com.plot.plugin.road.pipeline.corridor.GradeSeparationBuildContextFactory;
+import com.plot.plugin.road.pipeline.corridor.JunctionCorridorBuildContext;
 import com.plot.plugin.road.pipeline.corridor.JunctionCorridorTrim;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnapResolver;
 import com.plot.plugin.road.pipeline.profile.JunctionEndpointSnapTargets;
@@ -261,11 +263,25 @@ public final class RoadEdgeBuildOrchestrator {
             startNode, edge, network, networkNodeElevations, heightInfos, true, elevatedResolver);
         Integer endY = JunctionEndpointSnapTargets.snapTargetY(
             endNode, edge, network, networkNodeElevations, heightInfos, false, elevatedResolver);
+        JunctionCorridorBuildContext trim = JunctionCorridorTrim.forEdge(
+            network, edge, crossSection, host.config(), unitsPerBlock);
+        double skipStart = trim.endpointTrim().skipStart();
+        double skipEnd = trim.endpointTrim().skipEnd();
+        double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
+        double transition = RoadCorridorWidth.PORTAL_TRANSITION_CLEAR_BAND_BLOCKS * scale;
+        double fallbackBlend = EndpointElevationSnapResolver.blendRadius(halfWidth, unitsPerBlock);
+        double startCore = skipStart > 1e-9 ? skipStart : 0.0;
+        double endCore = skipEnd > 1e-9 ? skipEnd : 0.0;
+        double startBlend = startCore > 1e-9 ? startCore + transition : fallbackBlend;
+        double endBlend = endCore > 1e-9 ? endCore + transition : fallbackBlend;
         return EndpointElevationSnapResolver.resolveForEdge(
             startNode,
             endNode,
             startY,
             endY,
-            EndpointElevationSnapResolver.blendRadius(halfWidth, unitsPerBlock));
+            startBlend,
+            endBlend,
+            startCore,
+            endCore);
     }
 }

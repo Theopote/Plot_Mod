@@ -35,6 +35,45 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class TunnelStructureGeneratorTest {
 
     @Test
+    void liningDoesNotReplaceTreesOrBlocksAboveSurface() {
+        RoadSolidModel solids = new RoadSolidModel();
+        ResolvedTunnelStyle style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.NONE);
+        TerrainSampler shallowWooded = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return 66;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= 66 || (y >= 67 && y <= 72);
+            }
+
+            @Override
+            public boolean isRoadClearableDecoration(int x, int y, int z) {
+                return y >= 67 && y <= 72;
+            }
+        };
+
+        TunnelStructureGenerator.placeCrossSection(
+            solids,
+            style,
+            new Vec2d(0, 0),
+            new Vec2d(0, 1),
+            3,
+            64,
+            "minecraft:stone_bricks",
+            shallowWooded,
+            columnResolver(),
+            1.0,
+            true);
+
+        assertTrue(solids.primitives().stream().noneMatch(p ->
+                "minecraft:stone_bricks".equals(p.materialId()) && p.elevation() >= 66),
+            "lining must not replace surface or tree canopy");
+    }
+
+    @Test
     void airCavityClearsEmbeddedTerrain() {
         RoadSolidModel solids = new RoadSolidModel();
         ResolvedTunnelStyle style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.NONE);
@@ -74,7 +113,7 @@ class TunnelStructureGeneratorTest {
             3,
             64,
             "minecraft:stone_bricks",
-            columnTerrain(100, 64, 100),
+            columnTerrain(100, 80, 100),
             columnResolver(),
             1.0,
             false);
@@ -98,7 +137,7 @@ class TunnelStructureGeneratorTest {
             3,
             64,
             "minecraft:stone_bricks",
-            columnTerrain(100, 64, 100),
+            columnTerrain(100, 80, 100),
             columnResolver(),
             1.0,
             false);
@@ -132,7 +171,7 @@ class TunnelStructureGeneratorTest {
             envelopeWidth,
             roadY,
             "minecraft:stone_bricks",
-            columnTerrain(100, 64, 100),
+            columnTerrain(100, 80, 100),
             resolver,
             1.0,
             false);
@@ -182,7 +221,7 @@ class TunnelStructureGeneratorTest {
             envelopeWidth,
             roadY,
             "minecraft:stone_bricks",
-            columnTerrain(100, 64, 100),
+            columnTerrain(100, 80, 100),
             resolver,
             1.0,
             false);
@@ -312,7 +351,7 @@ class TunnelStructureGeneratorTest {
             List.of(segment),
             List.of(new SegmentHeightInfo(segment, 80, 80, 64, 64, 0.0)),
             CrossSectionBuildContext.fixed(ResolvedCrossSection.fromConfig(new RoadSystemConfig("portal-dir"))),
-            columnTerrain(100, 64, 100),
+            columnTerrain(100, 80, 100),
             1.0,
             DesignElevationSource.inactive(),
             BuildHeightProfile.inactive(),

@@ -211,7 +211,7 @@ public final class TunnelStructureGenerator {
             }
             if (kind == TunnelCrossSectionMask.CellKind.AIR) {
                 solids.add(point, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
-            } else {
+            } else if (shouldPlaceLining(terrain, worldX, y, worldZ, point)) {
                 solids.add(point, y, RoadSolidLayer.TUNNEL, liningMaterialId, RoadSolidMaterialPriority.STRUCTURAL);
             }
         });
@@ -451,5 +451,28 @@ public final class TunnelStructureGenerator {
         return terrain.isSolidBlock(worldX, y, worldZ)
             || terrain.isRoadClearableDecoration(worldX, y, worldZ)
             || terrain.isConstructionVolumeObstruction(worldX, y, worldZ);
+    }
+
+    /**
+     * Lining belongs in supporting ground below the engineering surface.
+     * Open air, canopy, and clearable decoration (trees) stay uncleared of lining.
+     */
+    static boolean shouldPlaceLining(
+            TerrainSampler terrain,
+            int worldX,
+            int y,
+            int worldZ,
+            Vec2d planPoint) {
+        if (terrain == null || planPoint == null) {
+            return false;
+        }
+        if (terrain.isRoadClearableDecoration(worldX, y, worldZ)) {
+            return false;
+        }
+        int surfaceY = terrain.sampleSurfaceY(planPoint);
+        if (y >= surfaceY) {
+            return false;
+        }
+        return terrain.isSolidBlock(worldX, y, worldZ);
     }
 }
