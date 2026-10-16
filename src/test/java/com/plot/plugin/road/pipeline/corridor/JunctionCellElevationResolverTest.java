@@ -102,6 +102,63 @@ class JunctionCellElevationResolverTest {
         assertTrue(sample != null && Math.abs(sample.worldStation() - 5.0) < 0.5);
     }
 
+    @Test
+    void sampleStationUsesEdgeStartAxisWhenJunctionIsEndNode() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("inbound");
+        RoadNode far = network.createNode(new Vec2d(0, 0));
+        RoadNode junction = network.createNode(new Vec2d(20, 0));
+        RoadEdge edge = network.createEdge(
+            far.getId(), junction.getId(),
+            List.of(far.getPosition(), junction.getPosition()), road.getId());
+
+        var sample = JunctionCellElevationResolver.sampleStationAt(
+            new Vec2d(18, 0),
+            junction.getId(),
+            edge,
+            e -> List.of(new Vec2d(0, 0), new Vec2d(20, 0)),
+            1.0);
+
+        assertTrue(sample != null);
+        assertEquals(18.0, sample.worldStation(), 0.5,
+            "station must be from edge start so end-node approaches read the junction-side profile");
+    }
+
+    @Test
+    void endNodeApproachCellUsesNearJunctionProfileElevation() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("inbound");
+        RoadNode far = network.createNode(new Vec2d(0, 0));
+        RoadNode junction = network.createNode(new Vec2d(20, 0));
+        RoadEdge edge = network.createEdge(
+            far.getId(), junction.getId(),
+            List.of(far.getPosition(), junction.getPosition()), road.getId());
+
+        RoadGenerationResult result = new RoadGenerationResult(20.0);
+        List<BuildHeightSample> samples = new java.util.ArrayList<>();
+        for (int station = 0; station <= 20; station++) {
+            int y = 80 - station; // 80 at far start → 60 at junction end
+            samples.add(new BuildHeightSample(station, y, y));
+        }
+        result.buildProfile = BuildHeightProfile.fromSamples(samples);
+        Map<String, RoadGenerationResult> edgeResults = Map.of(edge.getId(), result);
+
+        int y = JunctionCellElevationResolver.resolve(
+            new Vec2d(18, 0),
+            junction.getPosition(),
+            junction.getId(),
+            60,
+            List.of(edge),
+            network,
+            new RoadSystemConfig("end-node-y"),
+            edgeResults,
+            1.0,
+            4.0);
+
+        assertTrue(y >= 58 && y <= 64,
+            "cell near end-node junction must follow near-junction profile (~62), not far start (80), y=" + y);
+    }
+
     private record CrossFixture(RoadNetwork network, RoadNode junction, RoadEdge eastEdge) {
     }
 

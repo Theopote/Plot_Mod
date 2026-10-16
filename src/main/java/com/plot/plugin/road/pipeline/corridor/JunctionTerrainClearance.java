@@ -80,8 +80,11 @@ public final class JunctionTerrainClearance {
         if (!terrain.isChunkLoaded(worldX, worldZ)) {
             return;
         }
+        // Engineering surface alone misses trees/tall solids above the load-bearing ground;
+        // column top + leftover edge solids are required for a clean at-grade plaza.
         int surfaceY = terrain.sampleSurfaceY(planPoint);
-        int topY = Math.max(surfaceY, leftoverTopY);
+        int columnTopY = terrain.sampleColumnTopY(planPoint);
+        int topY = Math.max(leftoverTopY, Math.max(surfaceY, columnTopY));
         if (elevatedDeckY != null) {
             topY = Math.min(topY, elevatedDeckY - 1);
         }

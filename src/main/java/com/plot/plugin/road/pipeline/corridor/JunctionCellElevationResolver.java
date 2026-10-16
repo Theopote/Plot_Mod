@@ -6,6 +6,7 @@ import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 
 import java.util.List;
@@ -74,6 +75,13 @@ public final class JunctionCellElevationResolver {
     record StationSample(double worldStation, double projectionDistance) {
     }
 
+    /**
+     * Projects {@code cell} onto the edge centerline and returns world-station from the
+     * geometric start of the edge (same axis as {@link BuildHeightProfile} / profileDistances).
+     * <p>
+     * Must not reverse-walk from the junction: when the junction is the edge end node,
+     * approach-local station would read the far-end profile elevation and skew plaza Y.
+     */
     static StationSample sampleStationAt(
             Vec2d cell,
             String nodeId,
@@ -81,26 +89,18 @@ public final class JunctionCellElevationResolver {
             Function<RoadEdge, List<Vec2d>> centerlineResolver,
             double scale) {
         List<Vec2d> centerline = centerlineResolver.apply(edge);
-        if (centerline == null || centerline.size() < 2) {
+        if (centerline == null || centerline.size() < 2 || edge == null) {
             return null;
         }
-        boolean fromStart = edge.getStartNodeId().equals(nodeId);
-        if (!fromStart && !edge.getEndNodeId().equals(nodeId)) {
+        if (!edge.getStartNodeId().equals(nodeId) && !edge.getEndNodeId().equals(nodeId)) {
             return null;
         }
         int segmentCount = centerline.size() - 1;
         StationSample best = null;
         double accumulated = 0.0;
         for (int i = 0; i < segmentCount; i++) {
-            Vec2d segStart;
-            Vec2d segEnd;
-            if (fromStart) {
-                segStart = centerline.get(i);
-                segEnd = centerline.get(i + 1);
-            } else {
-                segStart = centerline.get(centerline.size() - 1 - i);
-                segEnd = centerline.get(centerline.size() - 2 - i);
-            }
+            Vec2d segStart = centerline.get(i);
+            Vec2d segEnd = centerline.get(i + 1);
             double segLen = segStart.distance(segEnd);
             Vec2d projected = RoadGeometryUtils.projectPointOnSegment(segStart, segEnd, cell);
             double perpDist = projected.distance(cell);

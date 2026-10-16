@@ -76,6 +76,47 @@ class JunctionPlazaClearanceTest {
     }
 
     @Test
+    void atGradePlazaPunchesColumnTopAboveEngineeringSurface() {
+        RoadSystemConfig config = new RoadSystemConfig("plaza-canopy");
+        RoadGenerator generator = new RoadGenerator(
+            config, IdentityCoordinateService.INSTANCE, BlockProjectionHandler.getInstance());
+        RoadJunctionGenerator junctionGenerator = new RoadJunctionGenerator(generator);
+        RoadNetwork network = crossNetwork();
+        RoadNode junction = network.getNodes().values().stream()
+            .filter(node -> node.getDegree() >= 3)
+            .findFirst()
+            .orElseThrow();
+
+        TerrainSampler canopy = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return 64;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d point) {
+                if (Math.abs(point.x) <= 2 && Math.abs(point.y) <= 2) {
+                    return 78;
+                }
+                return 64;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= sampleColumnTopY(new Vec2d(x, z));
+            }
+        };
+
+        var blocks = junctionGenerator.generateJunction(
+            junction, network, canopy, Map.of(junction.getId(), 64));
+
+        assertTrue(hasAirNearOrigin(blocks, 78),
+            "plaza must clear column-top solids above engineering surface");
+        assertTrue(hasAirNearOrigin(blocks, 70),
+            "plaza must clear mid column above pavement");
+    }
+
+    @Test
     void gradeSeparatedPlazaGradesSubgradeBelowDeckClearance() {
         RoadSystemConfig config = new RoadSystemConfig("plaza-subgrade");
         RoadGenerator generator = new RoadGenerator(
