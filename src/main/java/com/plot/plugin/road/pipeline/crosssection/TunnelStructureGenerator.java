@@ -21,7 +21,6 @@ import com.plot.plugin.road.pipeline.profile.environment.WaterCrossing;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
 import com.plot.plugin.road.solid.RoadSolidModel;
-import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
 import com.plot.plugin.road.tunnel.TunnelCrossSectionMask;
 import com.plot.plugin.road.tunnel.TunnelLightingMode;

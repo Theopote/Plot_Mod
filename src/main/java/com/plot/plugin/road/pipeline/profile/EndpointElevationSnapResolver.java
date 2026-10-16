@@ -1,6 +1,5 @@
 package com.plot.plugin.road.pipeline.profile;
 
-import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadJunctionGeometry;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
 import com.plot.plugin.road.model.RoadNode;

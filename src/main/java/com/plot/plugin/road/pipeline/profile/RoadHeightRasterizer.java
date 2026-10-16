@@ -197,17 +197,16 @@ public final class RoadHeightRasterizer {
 
         int wholeBlocks = (int) Math.floor(totalLength + EPSILON);
         for (int block = 1; block <= wholeBlocks; block++) {
-            double station = block;
             double designY = interpolateDesignElevation(
-                station, designElevations, segmentDistances, cumulativeDistances);
-            float maxSlope = maxSlopeAt(station, segmentDistances, cumulativeDistances, maxSlopePercents);
+                    block, designElevations, segmentDistances, cumulativeDistances);
+            float maxSlope = maxSlopeAt(block, segmentDistances, cumulativeDistances, maxSlopePercents);
             currentBuild = advanceTowardContinuousElevation(
                 currentBuild,
                 designY,
                 1.0,
                 maxSlope,
                 accumulator);
-            samples.add(new BuildHeightSample(station, designY, currentBuild));
+            samples.add(new BuildHeightSample(block, designY, currentBuild));
         }
 
         if (totalLength - wholeBlocks > EPSILON) {

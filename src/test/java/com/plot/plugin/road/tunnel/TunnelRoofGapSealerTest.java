@@ -38,7 +38,7 @@ class TunnelRoofGapSealerTest {
 
             @Override
             public boolean isSolidBlock(int x, int y, int z) {
-                return y <= 70 || y >= 72;
+                return y != 71;
             }
         };
         TunnelRoofGapSealer.sealAboveRoofShell(
@@ -105,7 +105,7 @@ class TunnelRoofGapSealerTest {
 
             @Override
             public boolean isSolidBlock(int x, int y, int z) {
-                return y <= 66 || y >= 67;
+                return true;
             }
 
             @Override

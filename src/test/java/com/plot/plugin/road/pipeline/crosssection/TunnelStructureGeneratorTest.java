@@ -12,7 +12,6 @@ import com.plot.plugin.road.pipeline.profile.BuildHeightProfile;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.solid.RoadGenerationResult;
-import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.solid.RoadSolidPrimitive;
 import com.plot.plugin.road.solid.RoadVoxelRasterizer;
@@ -46,7 +45,7 @@ class TunnelStructureGeneratorTest {
 
             @Override
             public boolean isSolidBlock(int x, int y, int z) {
-                return y <= 66 || (y >= 67 && y <= 72);
+                return y <= 72;
             }
 
             @Override
