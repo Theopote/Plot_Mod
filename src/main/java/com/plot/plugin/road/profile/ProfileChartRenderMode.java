@@ -12,8 +12,7 @@ public enum ProfileChartRenderMode {
     public int maxStationTicks() {
         return switch (this) {
             case MINI -> 3;
-            case OVERVIEW -> 5;
-            case EDITOR -> 5;
+            case OVERVIEW, EDITOR -> 5;
         };
     }
 
@@ -65,6 +64,6 @@ public enum ProfileChartRenderMode {
     }
 
     public float roadLineWidth() {
-        return this == MINI ? 2.4f : 2.4f;
+        return 2.4f;
     }
 }

@@ -8,8 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class VerticalAlignmentProfileOverlayDraftTest {
 
@@ -31,7 +30,7 @@ class VerticalAlignmentProfileOverlayDraftTest {
             .forAlignment(network, road, draft)
             .orElseThrow();
 
-        assertTrue(!overlay.isEmpty());
+        assertFalse(overlay.isEmpty());
         assertEquals(0.0, overlay.stations().getFirst(), 1e-6);
         assertEquals(80.0, overlay.stations().getLast(), 1e-6);
         assertEquals(60.0, overlay.elevations().getFirst(), 1e-6);

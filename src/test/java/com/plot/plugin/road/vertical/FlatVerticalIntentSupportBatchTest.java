@@ -9,9 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class FlatVerticalIntentSupportBatchTest {
 
@@ -83,8 +81,8 @@ class FlatVerticalIntentSupportBatchTest {
 
         assertEquals(1, changed);
         assertEquals(RoadVerticalMode.FIT_TERRAIN, flat.getVerticalMode());
-        assertTrue(flat.getFlatVerticalIntent() == null);
-        assertTrue(flat.getVerticalAlignment() == null);
+        assertNull(flat.getFlatVerticalIntent());
+        assertNull(flat.getVerticalAlignment());
     }
 
     @Test
@@ -98,8 +96,8 @@ class FlatVerticalIntentSupportBatchTest {
         FlatVerticalIntentSupport.enableTerrainAdaptive(network, flat, CONFIG);
 
         assertEquals(RoadVerticalMode.FIT_TERRAIN, flat.getVerticalMode());
-        assertTrue(flat.getFlatVerticalIntent() == null);
-        assertTrue(flat.getVerticalAlignment() == null);
+        assertNull(flat.getFlatVerticalIntent());
+        assertNull(flat.getVerticalAlignment());
     }
 
     @Test
