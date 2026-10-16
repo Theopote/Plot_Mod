@@ -146,4 +146,70 @@ class TunnelRoofGapSealerTest {
                         || "minecraft:stone".equals(primitive.materialId()))),
             "portal sealer must not convert trees above the surface");
     }
+
+    @Test
+    void stabilizesStackedSolidsAboveRoof() {
+        ResolvedTunnelStyle style = ResolvedTunnelStyle.defaults();
+        int envelopeWidth = 9;
+        TunnelCrossSectionMask mask = TunnelCrossSectionMask.build(
+            style.shape(),
+            envelopeWidth,
+            style.sideClearance(),
+            style.clearHeight(),
+            style.liningThickness(),
+            ROAD_Y,
+            false);
+        RoadSolidModel solids = new RoadSolidModel();
+        int roofTop = mask.maxY();
+        TerrainSampler stacked = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d p) {
+                return roofTop + 5;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d p) {
+                return roofTop + 5;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y > roofTop;
+            }
+        };
+        TunnelRoofGapSealer.sealAboveRoofShell(
+            solids,
+            mask,
+            style.shape(),
+            ROAD_Y,
+            style.clearHeight(),
+            envelopeWidth,
+            style.sideClearance(),
+            style.liningThickness(),
+            new Vec2d(10, 0),
+            new Vec2d(0, 1),
+            1.0,
+            new RoadTerrainClearanceUtils.BlockColumnResolver() {
+                @Override
+                public int worldX(Vec2d planPoint) {
+                    return (int) Math.round(planPoint.x);
+                }
+
+                @Override
+                public int worldZ(Vec2d planPoint) {
+                    return (int) Math.round(planPoint.y);
+                }
+            },
+            stacked,
+            "minecraft:stone_bricks",
+            "minecraft:stone");
+
+        long stabilized = solids.primitives().stream()
+            .filter(p -> "minecraft:stone".equals(p.materialId())
+                && p.elevation() > roofTop
+                && p.elevation() <= roofTop + 3)
+            .count();
+        assertTrue(stabilized >= 3,
+            "sealer must stabilize multiple solid layers above roof against gravel collapse");
+    }
 }

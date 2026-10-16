@@ -9,10 +9,14 @@ import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.core.terrain.TerrainSampler;
 
 /**
- * Fills vertical air gaps between the tunnel lining roof and original terrain above.
+ * Fills vertical air gaps between the tunnel lining roof and original terrain above,
+ * and stabilizes a short band of solids so gravity blocks (gravel/sand) cannot cascade
+ * into the cavity through a thin or gapped roof shell.
  */
 public final class TunnelRoofGapSealer {
     private static final String DEFAULT_TERRAIN_RESTORE = "minecraft:stone";
+    /** Replace this many solid layers above the roof with stable stone (covers gravel stacks). */
+    private static final int STABILIZE_SOLID_LAYERS = 3;
 
     private TunnelRoofGapSealer() {
     }
@@ -65,6 +69,7 @@ public final class TunnelRoofGapSealer {
                 continue;
             }
             int columnTop = Math.min(terrain.sampleColumnTopY(point), surfaceY);
+            int solidsStabilized = 0;
             for (int y = roofTop + 1; y <= columnTop; y++) {
                 if (terrain.isRoadClearableDecoration(worldX, y, worldZ)) {
                     continue;
@@ -76,6 +81,14 @@ public final class TunnelRoofGapSealer {
                         RoadSolidLayer.TUNNEL,
                         restoreId,
                         RoadSolidMaterialPriority.STRUCTURAL);
+                    solidsStabilized++;
+                    if (solidsStabilized >= STABILIZE_SOLID_LAYERS) {
+                        break;
+                    }
+                    continue;
+                }
+                if (solidsStabilized > 0) {
+                    // Reached air after stabilizing solids — stop (do not fill caves above).
                     break;
                 }
                 solids.add(

@@ -204,37 +204,41 @@ public final class TunnelStructureGenerator {
             if (!terrain.isChunkLoaded(worldX, worldZ)) {
                 return;
             }
-            if (hasTerrainObstruction(terrain, worldX, y, worldZ)) {
-                cutHolder[0]++;
-                solids.add(point, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
-            }
             if (kind == TunnelCrossSectionMask.CellKind.AIR) {
+                // 洞室：清障为空气。不得对 LINING 格先写 air，否则 shouldPlaceLining 拒绝时会留下顶板破洞，
+                // 上方沙砾等重力方块会落到路面。
+                if (hasTerrainObstruction(terrain, worldX, y, worldZ)) {
+                    cutHolder[0]++;
+                }
                 solids.add(point, y, RoadSolidLayer.TUNNEL, "minecraft:air", RoadSolidMaterialPriority.AIR);
             } else if (shouldPlaceLining(terrain, worldX, y, worldZ, point)) {
+                if (hasTerrainObstruction(terrain, worldX, y, worldZ)
+                        || terrain.isSolidBlock(worldX, y, worldZ)) {
+                    cutHolder[0]++;
+                }
                 solids.add(point, y, RoadSolidLayer.TUNNEL, liningMaterialId, RoadSolidMaterialPriority.STRUCTURAL);
             }
         });
         int lining = portalFrame
             ? Math.min(TunnelStyle.MAX_LINING_THICKNESS, tunnelStyle.liningThickness() + 1)
             : tunnelStyle.liningThickness();
-        if (portalFrame) {
-            TunnelRoofGapSealer.sealAboveRoofShell(
-                solids,
-                mask,
-                tunnelStyle.shape(),
-                roadY,
-                tunnelStyle.clearHeight(),
-                roadEnvelopeWidth,
-                tunnelStyle.sideClearance(),
-                lining,
-                center,
-                normal,
-                scale,
-                columnResolver,
-                terrain,
-                liningMaterialId,
-                "minecraft:stone");
-        }
+        // 整段隧道都封洞顶与上方空隙；仅洞口封缝时，洞身顶板镂空会导致沙砾落入路面。
+        TunnelRoofGapSealer.sealAboveRoofShell(
+            solids,
+            mask,
+            tunnelStyle.shape(),
+            roadY,
+            tunnelStyle.clearHeight(),
+            roadEnvelopeWidth,
+            tunnelStyle.sideClearance(),
+            lining,
+            center,
+            normal,
+            scale,
+            columnResolver,
+            terrain,
+            liningMaterialId,
+            "minecraft:stone");
         return new RoadRoadbedGradingUtils.GradingVolumes(cutHolder[0], 0);
     }
 
@@ -453,8 +457,9 @@ public final class TunnelStructureGenerator {
     }
 
     /**
-     * Lining belongs in supporting ground below the engineering surface.
-     * Open air, canopy, and clearable decoration (trees) stay uncleared of lining.
+     * Lining seals the structural shell below the engineering surface.
+     * Air pockets in the shell still get lining so gravity blocks (gravel/sand) cannot fall through.
+     * Open air at/above the surface and clearable decoration (trees) stay without lining.
      */
     static boolean shouldPlaceLining(
             TerrainSampler terrain,
@@ -469,9 +474,6 @@ public final class TunnelStructureGenerator {
             return false;
         }
         int surfaceY = terrain.sampleSurfaceY(planPoint);
-        if (y >= surfaceY) {
-            return false;
-        }
-        return terrain.isSolidBlock(worldX, y, worldZ);
+        return y < surfaceY;
     }
 }

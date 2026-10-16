@@ -100,6 +100,118 @@ class TunnelStructureGeneratorTest {
     }
 
     @Test
+    void liningSealsAirPocketsInShellBelowSurface() {
+        RoadSolidModel solids = new RoadSolidModel();
+        ResolvedTunnelStyle style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.NONE);
+        // Roof lining Y for clearHeight=5, lining=1, roadY=64 is 70; leave Y=70 as air in terrain.
+        TerrainSampler pocketed = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return 80;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y != 70;
+            }
+        };
+
+        TunnelStructureGenerator.placeCrossSection(
+            solids,
+            style,
+            new Vec2d(0, 0),
+            new Vec2d(0, 1),
+            3,
+            64,
+            "minecraft:stone_bricks",
+            pocketed,
+            columnResolver(),
+            1.0,
+            false);
+
+        assertTrue(solids.primitives().stream().anyMatch(p ->
+                p.elevation() == 70 && "minecraft:stone_bricks".equals(p.materialId())),
+            "air pocket in roof shell must still receive lining");
+        assertTrue(solids.primitives().stream().noneMatch(p ->
+                p.elevation() == 70 && "minecraft:air".equals(p.materialId())),
+            "lining cells must not be left as air");
+    }
+
+    @Test
+    void liningCellsNearSurfaceAreNotClearedToAirWithoutLining() {
+        RoadSolidModel solids = new RoadSolidModel();
+        ResolvedTunnelStyle style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.NONE);
+        // Surface at roof lining Y: shouldPlaceLining is false, must not punch air holes.
+        TerrainSampler shallow = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return 70;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y <= 70;
+            }
+        };
+
+        TunnelStructureGenerator.placeCrossSection(
+            solids,
+            style,
+            new Vec2d(0, 0),
+            new Vec2d(0, 1),
+            3,
+            64,
+            "minecraft:stone_bricks",
+            shallow,
+            columnResolver(),
+            1.0,
+            false);
+
+        assertTrue(solids.primitives().stream().noneMatch(p ->
+                p.elevation() == 70 && "minecraft:air".equals(p.materialId())),
+            "near-surface lining cells must not be excavated to air without lining");
+    }
+
+    @Test
+    void nonPortalStationsAlsoSealRoofGaps() {
+        RoadSolidModel solids = new RoadSolidModel();
+        ResolvedTunnelStyle style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.NONE);
+        TerrainSampler sandwich = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d point) {
+                return 74;
+            }
+
+            @Override
+            public int sampleColumnTopY(Vec2d point) {
+                return 74;
+            }
+
+            @Override
+            public boolean isSolidBlock(int x, int y, int z) {
+                return y != 71;
+            }
+        };
+
+        TunnelStructureGenerator.placeCrossSection(
+            solids,
+            style,
+            new Vec2d(0, 0),
+            new Vec2d(0, 1),
+            3,
+            64,
+            "minecraft:stone_bricks",
+            sandwich,
+            columnResolver(),
+            1.0,
+            false);
+
+        assertTrue(solids.primitives().stream().anyMatch(p ->
+                p.elevation() == 71 && "minecraft:stone_bricks".equals(p.materialId())),
+            "interior tunnel stations must seal air above roof lining");
+    }
+
+    @Test
     void rectangularCrossSectionCreatesAirCavityAndLining() {
         RoadSolidModel solids = new RoadSolidModel();
         ResolvedTunnelStyle style = resolved(TunnelShape.RECTANGULAR, 5, 1, 1, TunnelLightingMode.NONE);
