@@ -208,12 +208,28 @@ public final class RoadVoxelRasterizer {
         }
         BlockPos pos = toBlockPos(primitive.planPoint(), primitive.elevation(), transformer);
         appendToResultBucket(result, primitive.layer(), pos);
+        // Plaza surface owns the junction footprint: edge TUNNEL clearance must not
+        // outrank ROAD/SIDEWALK via layer priority after edge→aggregate merge.
+        if (isJunctionPlazaSurface(primitive.layer())) {
+            result.recordPlacementOverride(pos, projectionHandler.getBlockIdAt(pos), blockId);
+            result.placementLayers.put(pos, primitive.layer());
+            result.placementMaterialPriorities.put(pos, primitive.materialPriority());
+            return;
+        }
         result.recordPlacementByLayerPriority(
             pos,
             projectionHandler.getBlockIdAt(pos),
             blockId,
             primitive.layer(),
             primitive.materialPriority());
+    }
+
+    private static boolean isJunctionPlazaSurface(RoadSolidLayer layer) {
+        return layer == RoadSolidLayer.ROAD
+            || layer == RoadSolidLayer.SIDEWALK
+            || layer == RoadSolidLayer.SHOULDER
+            || layer == RoadSolidLayer.BIKE_LANE
+            || layer == RoadSolidLayer.MEDIAN;
     }
 
     private static String resolveJunctionMaterialOverride(

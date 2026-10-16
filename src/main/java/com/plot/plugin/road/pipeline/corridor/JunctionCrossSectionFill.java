@@ -117,6 +117,47 @@ public final class JunctionCrossSectionFill {
         return true;
     }
 
+    /**
+     * Resolves the surface layer that {@link #fillCell} would stamp at this plan cell.
+     */
+    public static RoadSolidLayer resolveSurfaceLayer(
+            Vec2d cellPoint,
+            String nodeId,
+            List<RoadEdge> edges,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            double unitsPerBlock) {
+        if (cellPoint == null || nodeId == null || edges == null || edges.isEmpty()
+                || network == null || config == null) {
+            return RoadSolidLayer.ROAD;
+        }
+        Function<RoadEdge, List<Vec2d>> centerlineResolver = RoadJunctionCenterlineResolver.forNetwork(network);
+        EdgeProjection projection = nearestEdgeProjection(cellPoint, nodeId, edges, centerlineResolver);
+        if (projection == null) {
+            return RoadSolidLayer.ROAD;
+        }
+        ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(network, projection.edge(), config);
+        double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
+        Vec2d leftNormal = approachLeftNormal(projection.edge(), nodeId, centerlineResolver);
+        double lateralDistance = cellPoint.subtract(projection.projectedCenter()).dot(leftNormal);
+        int lateral = (int) Math.round(lateralDistance / scale);
+        Optional<ResolvedCrossSection.SurfaceBandSpec> band = crossSection.surfaceBandAtLateral(lateral);
+        if (band.isPresent()) {
+            return band.get().layer();
+        }
+        return RoadSolidLayer.ROAD;
+    }
+
+    public static BlockPos surfaceBlockPos(
+            Vec2d cellPoint,
+            int cellY,
+            MaterialResolver materials) {
+        if (materials == null) {
+            return new BlockPos((int) Math.round(cellPoint.x), cellY, (int) Math.round(cellPoint.y));
+        }
+        return materials.canvasToBlockPos(cellPoint).withY(cellY);
+    }
+
     public static void stampApproachSlopeBatters(
             RoadSolidModel solids,
             Vec2d junctionCenter,

@@ -3,14 +3,7 @@ package com.plot.plugin.road.pipeline.corridor;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.command.BlockRecord;
-import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGeometryUtils;
-import com.plot.plugin.road.RoadJunctionGeometry;
-import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
-import com.plot.plugin.road.model.RoadEdge;
-import com.plot.plugin.road.model.RoadModelUtils;
-import com.plot.plugin.road.model.RoadNetwork;
-import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import net.minecraft.util.math.BlockPos;
@@ -36,159 +29,187 @@ public final class JunctionFinalVoxelValidator {
     }
 
     public static PostMergeReport validateNode(
-            RoadNetwork network,
-            RoadNode node,
+            JunctionValidationManifest manifest,
             RoadGenerationResult aggregate,
-            int junctionY,
-            RoadSystemConfig config,
+            PlacementRecordColumnIndex index,
             ICoordinateService coordinateTransformer) {
-        if (network == null || node == null || aggregate == null || config == null) {
+        if (manifest == null || aggregate == null || index == null) {
             return PostMergeReport.CLEAN;
         }
-        List<RoadEdge> edges = connectedEdges(network, node);
-        if (edges.isEmpty()) {
-            return PostMergeReport.CLEAN;
-        }
-        List<Vec2d> polygon = buildPolygon(network, node, edges, config);
-        if (polygon.size() < 3) {
-            return PostMergeReport.CLEAN;
-        }
-        List<Vec2d> cells = RoadGeometryUtils.collectWorldCellPlanPoints(polygon, coordinateTransformer);
-        int missingSurface = 0;
-        int protectedLosses = 0;
-        Set<BlockPos> tunnelAir = new HashSet<>();
-        for (Vec2d cell : cells) {
-            BlockPos surfacePos = toBlockPos(cell, junctionY, coordinateTransformer);
-            if (!hasSurfaceLayer(aggregate, surfacePos)) {
-                missingSurface++;
-            }
-            collectTunnelAirInColumn(aggregate, surfacePos, tunnelAir);
-        }
-        protectedLosses = countProtectedLosses(aggregate, tunnelAir);
-        int crossLayerLeaks = countCrossLayerLeaks(aggregate, node, junctionY);
-        int disconnected = 0;
-        if (tunnelAir.size() > 1) {
-            TunnelJunctionAirConnectivityValidator.Result flood =
-                TunnelJunctionAirConnectivityValidator.validate(tunnelAir, new ArrayList<>(tunnelAir));
-            disconnected = flood.disconnectedComponentCount();
-        }
+        int missingSurface = countMissingSurfaceExpectations(manifest, aggregate);
+        int protectedLosses = countProtectedLosses(manifest, aggregate);
+        int crossLayerLeaks = countCrossLayerLeaks(manifest, aggregate, index, coordinateTransformer);
+        int disconnected = countDisconnectedTunnelComponents(manifest, aggregate, index, coordinateTransformer);
         return new PostMergeReport(missingSurface, protectedLosses, disconnected, crossLayerLeaks);
     }
 
-    private static boolean hasSurfaceLayer(RoadGenerationResult aggregate, BlockPos pos) {
+    private static int countMissingSurfaceExpectations(
+            JunctionValidationManifest manifest,
+            RoadGenerationResult aggregate) {
+        Set<ColumnKey> missingColumns = new HashSet<>();
+        for (JunctionSurfaceExpectation expectation : manifest.surfaceExpectations()) {
+            if (expectation == null || expectation.position() == null) {
+                continue;
+            }
+            if (!hasMatchingSurface(aggregate, expectation.position(), expectation.expectedLayer())) {
+                missingColumns.add(new ColumnKey(
+                    expectation.position().getX(),
+                    expectation.position().getZ()));
+            }
+        }
+        return missingColumns.size();
+    }
+
+    private static boolean hasMatchingSurface(
+            RoadGenerationResult aggregate,
+            BlockPos pos,
+            RoadSolidLayer expectedLayer) {
         BlockRecord record = aggregate.placementRecords.get(pos);
         if (record == null || "minecraft:air".equals(record.newBlockId)) {
             return false;
         }
         RoadSolidLayer layer = aggregate.placementLayers.get(pos);
+        if (layer == null) {
+            return expectedLayer == RoadSolidLayer.ROAD;
+        }
+        if (layer == expectedLayer) {
+            return true;
+        }
+        return isSurfaceFamily(layer) && isSurfaceFamily(expectedLayer);
+    }
+
+    private static boolean isSurfaceFamily(RoadSolidLayer layer) {
         return layer == RoadSolidLayer.ROAD
             || layer == RoadSolidLayer.SIDEWALK
             || layer == RoadSolidLayer.SHOULDER
             || layer == RoadSolidLayer.BIKE_LANE
-            || layer == RoadSolidLayer.MEDIAN;
+            || layer == RoadSolidLayer.MEDIAN
+            // Stop lines / markings overwrite plaza ROAD at the same BlockPos after stamp.
+            || layer == RoadSolidLayer.MARKING;
     }
 
-    private static void collectTunnelAirInColumn(
-            RoadGenerationResult aggregate,
-            BlockPos surfacePos,
-            Set<BlockPos> tunnelAir) {
-        for (var entry : aggregate.placementRecords.entrySet()) {
-            BlockPos pos = entry.getKey();
-            if (pos.getX() != surfacePos.getX() || pos.getZ() != surfacePos.getZ()) {
-                continue;
-            }
-            BlockRecord record = entry.getValue();
-            if (record != null && "minecraft:air".equals(record.newBlockId)) {
-                RoadSolidLayer layer = aggregate.placementLayers.get(pos);
-                if (layer == RoadSolidLayer.TUNNEL || aggregate.tunnelBlocks.contains(pos)) {
-                    tunnelAir.add(pos);
-                }
-            }
-        }
-    }
-
-    private static int countProtectedLosses(RoadGenerationResult aggregate, Set<BlockPos> tunnelAir) {
+    private static int countProtectedLosses(
+            JunctionValidationManifest manifest,
+            RoadGenerationResult aggregate) {
         int losses = 0;
-        for (BlockPos pos : tunnelAir) {
-            if (TunnelJunctionConnectivityPass.hasProtectedPlacement(List.of(aggregate), pos)) {
-                continue;
-            }
-            BlockRecord record = aggregate.placementRecords.get(pos);
-            if (record != null && "minecraft:air".equals(record.newBlockId)) {
-                RoadSolidLayer layer = aggregate.placementLayers.get(pos);
-                if (layer == RoadSolidLayer.ROAD || layer == RoadSolidLayer.BRIDGE) {
-                    losses++;
-                }
+        for (BlockPos expected : manifest.expectedProtectedBlocks()) {
+            BlockRecord record = aggregate.placementRecords.get(expected);
+            if (record == null || "minecraft:air".equals(record.newBlockId)) {
+                losses++;
             }
         }
         return losses;
     }
 
-    private static int countCrossLayerLeaks(RoadGenerationResult aggregate, RoadNode node, int junctionY) {
-        if (!node.isGradeSeparated() && !node.isStackGradeSeparated()) {
+    private static int countCrossLayerLeaks(
+            JunctionValidationManifest manifest,
+            RoadGenerationResult aggregate,
+            PlacementRecordColumnIndex index,
+            ICoordinateService coordinateTransformer) {
+        if (!manifest.hasGradeSeparation() || manifest.footprintPolygon().size() < 3) {
             return 0;
         }
+        int floorY = manifest.elevatedDeckY() != null
+            ? manifest.elevatedDeckY() - 1
+            : manifest.junctionY();
+        int upperBandEnd = manifest.elevatedDeckY() != null
+            ? manifest.elevatedDeckY() + 8
+            : Integer.MAX_VALUE;
+        Set<BlockPos> protectedVolume = new HashSet<>(manifest.expectedProtectedBlocks());
         int leaks = 0;
-        double clearance;
-        if (node.isStackGradeSeparated() && node.getStackCrossingClearance() != null) {
-            clearance = node.getStackCrossingClearance();
-        } else if (node.getCrossingClearance() != null) {
-            clearance = node.getCrossingClearance();
-        } else {
-            clearance = 6.0;
-        }
-        int upperBandStart = junctionY + (int) Math.ceil(Math.max(1.0, clearance));
-        for (var entry : aggregate.placementRecords.entrySet()) {
-            BlockPos pos = entry.getKey();
-            if (pos.getY() < upperBandStart) {
+        for (BlockPos pos : aggregate.placementRecords.keySet()) {
+            if (pos.getY() <= floorY || pos.getY() > upperBandEnd) {
                 continue;
             }
-            BlockRecord record = entry.getValue();
-            if (record == null || !"minecraft:air".equals(record.newBlockId)) {
+            Vec2d planPoint = blockToPlan(pos, coordinateTransformer);
+            if (!RoadGeometryUtils.pointInPolygon(planPoint, manifest.footprintPolygon())) {
                 continue;
             }
-            RoadSolidLayer layer = aggregate.placementLayers.get(pos);
-            if (layer == RoadSolidLayer.TUNNEL) {
+            if (!index.isTunnelAir(pos, aggregate)) {
+                continue;
+            }
+            if (protectedVolume.contains(pos) || isInUpperProtectedVolume(pos, protectedVolume, floorY)) {
                 leaks++;
             }
         }
         return leaks;
     }
 
-    private static List<Vec2d> buildPolygon(
-            RoadNetwork network,
-            RoadNode node,
-            List<RoadEdge> edges,
-            RoadSystemConfig config) {
-        double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
-            edges,
-            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
-            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
-        double cornerRadius = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
-        return RoadJunctionGeometry.buildJunctionFillPolygon(
-            node.getId(),
-            edges,
-            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
-            junctionRadius,
-            cornerRadius,
-            RoadJunctionCenterlineResolver.forNetwork(network, config.getPathSampleDistance()));
-    }
-
-    private static List<RoadEdge> connectedEdges(RoadNetwork network, RoadNode node) {
-        List<RoadEdge> edges = new ArrayList<>();
-        for (String edgeId : node.getConnectedEdgeIds()) {
-            RoadEdge edge = network.getEdge(edgeId);
-            if (edge != null) {
-                edges.add(edge);
+    private static boolean isInUpperProtectedVolume(
+            BlockPos pos,
+            Set<BlockPos> protectedBlocks,
+            int floorY) {
+        if (pos.getY() <= floorY) {
+            return false;
+        }
+        for (BlockPos protectedPos : protectedBlocks) {
+            if (protectedPos.getX() == pos.getX()
+                    && protectedPos.getZ() == pos.getZ()
+                    && pos.getY() >= protectedPos.getY() - 1
+                    && pos.getY() <= protectedPos.getY() + 3) {
+                return true;
             }
         }
-        return edges;
+        return false;
     }
 
-    private static BlockPos toBlockPos(Vec2d planPoint, int y, ICoordinateService coordinateTransformer) {
-        if (coordinateTransformer != null) {
-            return RoadGeometryUtils.canvasToBlockXZ(planPoint, coordinateTransformer).withY(y);
+    private static int countDisconnectedTunnelComponents(
+            JunctionValidationManifest manifest,
+            RoadGenerationResult aggregate,
+            PlacementRecordColumnIndex index,
+            ICoordinateService coordinateTransformer) {
+        if (!manifest.hasTunnelValidation() || manifest.footprintPolygon().size() < 3) {
+            return 0;
         }
-        return new BlockPos((int) Math.round(planPoint.x), y, (int) Math.round(planPoint.y));
+        Set<BlockPos> openVolume = collectPostMergeOpenVolume(manifest, aggregate, index, coordinateTransformer);
+        if (openVolume.isEmpty()) {
+            return 0;
+        }
+        List<BlockPos> seeds = new ArrayList<>();
+        for (TunnelPortalSeed seed : manifest.tunnelPortalSeeds()) {
+            seeds.add(seed.walkableAirPosition());
+        }
+        if (seeds.isEmpty()) {
+            return 0;
+        }
+        TunnelJunctionAirConnectivityValidator.Result flood =
+            TunnelJunctionAirConnectivityValidator.validate(openVolume, seeds);
+        return flood.disconnectedComponentCount();
+    }
+
+    private static Set<BlockPos> collectPostMergeOpenVolume(
+            JunctionValidationManifest manifest,
+            RoadGenerationResult aggregate,
+            PlacementRecordColumnIndex index,
+            ICoordinateService coordinateTransformer) {
+        Set<BlockPos> openVolume = new HashSet<>();
+        if (manifest.footprintPolygon().size() < 3) {
+            return openVolume;
+        }
+        for (var entry : aggregate.placementRecords.entrySet()) {
+            BlockPos pos = entry.getKey();
+            if (pos.getY() < manifest.underpassYMin() || pos.getY() > manifest.underpassYMax()) {
+                continue;
+            }
+            Vec2d planPoint = blockToPlan(pos, coordinateTransformer);
+            if (!RoadGeometryUtils.pointInPolygon(planPoint, manifest.footprintPolygon())) {
+                continue;
+            }
+            if (index.isTunnelAir(pos, aggregate)) {
+                openVolume.add(pos);
+            }
+        }
+        return openVolume;
+    }
+
+    private static Vec2d blockToPlan(BlockPos pos, ICoordinateService coordinateTransformer) {
+        if (coordinateTransformer != null) {
+            Vec2d world = new Vec2d(pos.getX(), pos.getZ());
+            var snapshot = coordinateTransformer.captureProjection();
+            if (snapshot != null && snapshot.isValid()) {
+                return snapshot.toCanvas(world);
+            }
+        }
+        return new Vec2d(pos.getX(), pos.getZ());
     }
 }

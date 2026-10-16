@@ -138,6 +138,7 @@ class RoadCorridorPlanBuilderTest {
             "bridge interior must not retain corridor slope cells");
 
         // Simulate later open-road envelope overlapping the deck column (higher clearTop).
+        // Structure envelope wins type and keeps its own clearTop (does not absorb open clearance).
         plan.putClearance(new ColumnKey(15, 0), new ClearanceCell(
             new Vec2d(15, 0), 64, midBridge.clearTopY() + 20,
             RoadCorridorConstructionMode.OPEN,
@@ -145,7 +146,8 @@ class RoadCorridorPlanBuilderTest {
         ClearanceCell afterOverlap = plan.clearanceCell(new ColumnKey(15, 0));
         assertEquals(RoadConstructionType.BRIDGE, afterOverlap.constructionType(),
             "open ROAD clearance must not overwrite structure interior type");
-        assertEquals(midBridge.clearTopY() + 20, afterOverlap.clearTopY());
+        assertEquals(midBridge.clearTopY(), afterOverlap.clearTopY(),
+            "bridge structure clearTop must not expand from overlapping open ROAD envelope");
     }
 
     @Test

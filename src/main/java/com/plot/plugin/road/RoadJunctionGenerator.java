@@ -7,9 +7,15 @@ import com.plot.plugin.road.pipeline.construction.RoadConstructionHeuristics;
 import com.plot.plugin.road.pipeline.corridor.JunctionCellElevationResolver;
 import com.plot.plugin.road.pipeline.corridor.JunctionConstructionReport;
 import com.plot.plugin.road.pipeline.corridor.JunctionCrossSectionFill;
+import com.plot.plugin.road.pipeline.corridor.JunctionExpectedProtectedCollector;
+import com.plot.plugin.road.pipeline.corridor.JunctionSurfaceExpectation;
 import com.plot.plugin.road.pipeline.corridor.JunctionSurfaceMask;
 import com.plot.plugin.road.pipeline.corridor.JunctionTerrainClearance;
+import com.plot.plugin.road.pipeline.corridor.JunctionValidationManifest;
+import com.plot.plugin.road.pipeline.corridor.TunnelJunctionSeedResolver;
+import com.plot.plugin.road.pipeline.corridor.TunnelPortalSeed;
 import com.plot.plugin.road.pipeline.corridor.ColumnKey;
+import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.model.RoadEdge;
@@ -39,6 +45,7 @@ public class RoadJunctionGenerator {
     public static class JunctionBlocks {
         private final RoadSolidModel solids = new RoadSolidModel();
         private JunctionConstructionReport report = JunctionConstructionReport.empty("");
+        private JunctionValidationManifest validationManifest = JunctionValidationManifest.empty("");
 
         public RoadSolidModel getSolids() {
             return solids;
@@ -48,8 +55,18 @@ public class RoadJunctionGenerator {
             return report;
         }
 
+        public JunctionValidationManifest validationManifest() {
+            return validationManifest;
+        }
+
         void setReport(JunctionConstructionReport report) {
             this.report = report != null ? report : JunctionConstructionReport.empty("");
+        }
+
+        void setValidationManifest(JunctionValidationManifest validationManifest) {
+            this.validationManifest = validationManifest != null
+                ? validationManifest
+                : JunctionValidationManifest.empty("");
         }
 
         public boolean isEmpty() {
@@ -125,7 +142,8 @@ public class RoadJunctionGenerator {
         }
 
         List<Vec2d> polygon = generatePolygonJunction(
-            blocks, node, network, connectedEdges, junctionY, terrain, edgeResults);
+            blocks, node, network, connectedEdges, junctionY, terrain, edgeResults,
+            networkNodeElevations);
         markingGenerator.generateStopLines(blocks, node, network, connectedEdges, junctionY);
         markingGenerator.generateMarkings(blocks, node, network, connectedEdges, polygon, junctionY);
         return blocks;
@@ -138,7 +156,8 @@ public class RoadJunctionGenerator {
             List<RoadEdge> edges,
             int junctionY,
             TerrainSampler terrain,
-            Map<String, RoadGenerationResult> edgeResults) {
+            Map<String, RoadGenerationResult> edgeResults,
+            Map<String, Integer> networkNodeElevations) {
         Vec2d center = node.getPosition();
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             edges,
@@ -155,11 +174,13 @@ public class RoadJunctionGenerator {
             RoadJunctionCenterlineResolver.forNetwork(network));
 
         if (polygon.size() < 3) {
-            generateSimpleEnvelope(blocks, node, network, center, edges, junctionY, terrain, edgeResults);
+            generateSimpleEnvelope(
+                blocks, node, network, center, edges, junctionY, terrain, edgeResults, networkNodeElevations);
             return List.of();
         }
 
-        fillPolygon(blocks, node, network, edges, polygon, center, junctionY, terrain, edgeResults);
+        fillPolygon(
+            blocks, node, network, edges, polygon, center, junctionY, terrain, edgeResults, networkNodeElevations);
         return polygon;
     }
 
@@ -171,12 +192,14 @@ public class RoadJunctionGenerator {
             List<RoadEdge> edges,
             int junctionY,
             TerrainSampler terrain,
-            Map<String, RoadGenerationResult> edgeResults) {
+            Map<String, RoadGenerationResult> edgeResults,
+            Map<String, Integer> networkNodeElevations) {
         // 边缘情况保护：如果边列表为空，至少生成节点位置的方块
         if (edges.isEmpty()) {
             LOGGER.warn("路口节点边列表为空，生成最小覆盖（中心点）");
             fillJunctionCells(
-                blocks, List.of(center), null, node, network, edges, junctionY, terrain, edgeResults);
+                blocks, List.of(center), null, node, network, edges, junctionY, terrain, edgeResults,
+                networkNodeElevations);
             return;
         }
 
@@ -192,7 +215,8 @@ public class RoadJunctionGenerator {
         if (envelopePoints.isEmpty()) {
             LOGGER.warn("路口简单包络点为空，回退到中心点");
             fillJunctionCells(
-                blocks, List.of(center), null, node, network, edges, junctionY, terrain, edgeResults);
+                blocks, List.of(center), null, node, network, edges, junctionY, terrain, edgeResults,
+                networkNodeElevations);
             return;
         }
 
@@ -201,10 +225,13 @@ public class RoadJunctionGenerator {
             generator.coordinateTransformer());
         List<Vec2d> circle = approximateCirclePolygon(center, radius);
         if (cells.isEmpty()) {
-            fillJunctionCells(blocks, envelopePoints, circle, node, network, edges, junctionY, terrain, edgeResults);
+            fillJunctionCells(
+                blocks, envelopePoints, circle, node, network, edges, junctionY, terrain, edgeResults,
+                networkNodeElevations);
             return;
         }
-        fillJunctionCells(blocks, cells, circle, node, network, edges, junctionY, terrain, edgeResults);
+        fillJunctionCells(
+            blocks, cells, circle, node, network, edges, junctionY, terrain, edgeResults, networkNodeElevations);
     }
 
     private static List<Vec2d> approximateCirclePolygon(Vec2d center, int radius) {
@@ -231,14 +258,16 @@ public class RoadJunctionGenerator {
             Vec2d center,
             int junctionY,
             TerrainSampler terrain,
-            Map<String, RoadGenerationResult> edgeResults) {
+            Map<String, RoadGenerationResult> edgeResults,
+            Map<String, Integer> networkNodeElevations) {
         List<Vec2d> cells = RoadGeometryUtils.collectWorldCellPlanPoints(
             polygon,
             generator.coordinateTransformer());
         if (cells.isEmpty() && center != null) {
             cells = List.of(center);
         }
-        fillJunctionCells(blocks, cells, polygon, node, network, edges, junctionY, terrain, edgeResults);
+        fillJunctionCells(
+            blocks, cells, polygon, node, network, edges, junctionY, terrain, edgeResults, networkNodeElevations);
     }
 
     private void fillJunctionCells(
@@ -250,7 +279,8 @@ public class RoadJunctionGenerator {
             List<RoadEdge> edges,
             int junctionY,
             TerrainSampler terrain,
-            Map<String, RoadGenerationResult> edgeResults) {
+            Map<String, RoadGenerationResult> edgeResults,
+            Map<String, Integer> networkNodeElevations) {
         if (cells == null || cells.isEmpty() || node == null || network == null || edges == null) {
             return;
         }
@@ -289,6 +319,7 @@ public class RoadJunctionGenerator {
             : resolveJunctionElevationBlendRadius(network, node, edges, unitsPerBlock);
         Map<ColumnKey, Integer> leftoverTops = JunctionTerrainClearance.leftoverTopByColumn(edgeResults);
         JunctionSurfaceMask surfaceMask = new JunctionSurfaceMask();
+        List<JunctionSurfaceExpectation> surfaceExpectations = new ArrayList<>();
         int unresolvedClearance = 0;
 
         for (Vec2d point : cells) {
@@ -323,6 +354,10 @@ public class RoadJunctionGenerator {
                 maxClearY);
             if (stamped) {
                 surfaceMask.markStamped(columnKey);
+                RoadSolidLayer surfaceLayer = JunctionCrossSectionFill.resolveSurfaceLayer(
+                    point, node.getId(), edges, network, generator.getConfig(), unitsPerBlock);
+                BlockPos surfacePos = JunctionCrossSectionFill.surfaceBlockPos(point, cellY, materials);
+                surfaceExpectations.add(new JunctionSurfaceExpectation(surfacePos, surfaceLayer));
             } else if (clearancePolygon != null && clearancePolygon.size() >= 3) {
                 unresolvedClearance++;
             }
@@ -370,6 +405,46 @@ public class RoadJunctionGenerator {
             terrain,
             bridgeThreshold,
             maxClearY);
+
+        List<Vec2d> footprint = clearancePolygon != null && clearancePolygon.size() >= 3
+            ? List.copyOf(clearancePolygon)
+            : List.of();
+        Map<String, Integer> elevations = networkNodeElevations != null
+            ? networkNodeElevations
+            : Map.of(node.getId(), junctionY);
+        Map<String, RoadGenerationResult> safeEdgeResults =
+            edgeResults != null ? edgeResults : Map.of();
+        List<TunnelJunctionSeedResolver.TunnelApproach> tunnelApproaches =
+            TunnelJunctionSeedResolver.collectTunnelApproaches(
+                network,
+                node,
+                safeEdgeResults,
+                elevations,
+                generator.getConfig(),
+                (path, segments) -> unitsPerBlock);
+        List<TunnelPortalSeed> portalSeeds = TunnelJunctionSeedResolver.collectPortalSeeds(
+            tunnelApproaches, footprint, generator.coordinateTransformer());
+        TunnelJunctionSeedResolver.UnderpassYBand underpassBand =
+            TunnelJunctionSeedResolver.resolveUnderpassYBand(tunnelApproaches);
+        List<BlockPos> expectedProtected = JunctionExpectedProtectedCollector.collect(
+            network,
+            node,
+            safeEdgeResults,
+            elevations,
+            generator.getConfig(),
+            generator.coordinateTransformer(),
+            (n, net) -> generator.resolveElevatedRoadId(n, net, terrain));
+
+        blocks.setValidationManifest(new JunctionValidationManifest(
+            node.getId(),
+            List.copyOf(surfaceExpectations),
+            expectedProtected,
+            portalSeeds,
+            footprint,
+            junctionY,
+            elevatedDeckY,
+            underpassBand.minY(),
+            underpassBand.maxY()));
     }
 
     private double resolveJunctionElevationBlendRadius(

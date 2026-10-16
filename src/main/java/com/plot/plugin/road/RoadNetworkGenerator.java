@@ -8,6 +8,7 @@ import com.plot.plugin.road.pipeline.RoadEdgeGenerationOrdering;
 import com.plot.plugin.road.pipeline.RoadGenerationResultAssembler;
 import com.plot.plugin.road.pipeline.corridor.JunctionConstructionReport;
 import com.plot.plugin.road.pipeline.corridor.JunctionFinalVoxelValidator;
+import com.plot.plugin.road.pipeline.corridor.PlacementRecordColumnIndex;
 import com.plot.plugin.road.pipeline.corridor.TunnelJunctionConnectivityPass;
 import com.plot.plugin.road.profile.RoadProfileChartData;
 import com.plot.plugin.road.profile.RoadProfileSamplingAssembler;
@@ -508,22 +509,23 @@ public class RoadNetworkGenerator {
         if (profileNetwork == null || networkResult == null || aggregate == null) {
             return;
         }
-        Map<String, Integer> elevations = networkResult.getNodeElevations();
+        PlacementRecordColumnIndex index = PlacementRecordColumnIndex.build(aggregate);
         for (RoadNode node : profileNetwork.getNodes().values()) {
             if (node.getDegree() < 3) {
                 continue;
             }
-            Integer junctionY = elevations.get(node.getId());
-            if (junctionY == null) {
+            RoadJunctionGenerator.JunctionBlocks junctionBlocks =
+                networkResult.getJunctionResults().get(node.getId());
+            if (junctionBlocks == null || junctionBlocks.validationManifest() == null) {
+                LOGGER.debug("Skipping post-merge validation for junction {}: no validation manifest", node.getId());
                 continue;
             }
-            JunctionFinalVoxelValidator.PostMergeReport postMerge = JunctionFinalVoxelValidator.validateNode(
-                profileNetwork,
-                node,
-                aggregate,
-                junctionY,
-                roadGenerator.getConfig(),
-                roadGenerator.coordinateTransformer());
+            JunctionFinalVoxelValidator.PostMergeReport postMerge =
+                JunctionFinalVoxelValidator.validateNode(
+                    junctionBlocks.validationManifest(),
+                    aggregate,
+                    index,
+                    roadGenerator.coordinateTransformer());
             networkResult.mergeJunctionReport(JunctionConstructionReport.empty(node.getId()).withPostMerge(
                 postMerge.missingSurfaceColumns(),
                 postMerge.protectedLosses(),

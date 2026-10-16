@@ -8,29 +8,20 @@ import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadJunctionGeometry;
 import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
-import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.geometry.RoadCorridorWidth;
-import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
-import com.plot.plugin.road.model.section.ResolvedCrossSection;
-import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
-import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidMaterialPriority;
-import com.plot.plugin.road.tunnel.ResolvedTunnelStyle;
-import com.plot.plugin.road.tunnel.TunnelCrossSectionMask;
-import com.plot.plugin.road.tunnel.TunnelStyle;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -102,7 +93,8 @@ public final class TunnelJunctionConnectivityPass {
             if (!qualifiesForConnectivity(node)) {
                 continue;
             }
-            List<TunnelApproach> approaches = collectTunnelApproaches(
+            List<TunnelJunctionSeedResolver.TunnelApproach> approaches =
+                TunnelJunctionSeedResolver.collectTunnelApproaches(
                 network,
                 node,
                 edgeResults,
@@ -124,10 +116,11 @@ public final class TunnelJunctionConnectivityPass {
             boolean connectivityApplied = false;
             int disconnectedComponents = 0;
 
-            for (List<TunnelApproach> layerApproaches : groupApproachesBySpatialBand(approaches)) {
+            for (List<TunnelJunctionSeedResolver.TunnelApproach> layerApproaches
+                    : groupApproachesBySpatialBand(approaches)) {
                 Collection<RoadGenerationResult> approachResults =
                     approachEdgeResults(layerApproaches, edgeResults);
-                Set<BlockPos> openVolume = collectOpenVolume(
+                Set<BlockPos> openVolume = TunnelJunctionSeedResolver.collectOpenVolume(
                     layerApproaches,
                     polygon,
                     approachResults,
@@ -141,7 +134,7 @@ public final class TunnelJunctionConnectivityPass {
                 blockedAir += stats.blockedByProtection;
                 protectedConflicts += stats.protectedConflicts;
 
-                List<BlockPos> seeds = collectApproachEntrySeeds(
+                List<BlockPos> seeds = TunnelJunctionSeedResolver.collectApproachEntrySeeds(
                     layerApproaches, polygon, coordinateTransformer);
                 TunnelJunctionAirConnectivityValidator.Result flood =
                     TunnelJunctionAirConnectivityValidator.validate(openVolume, seeds);
@@ -177,13 +170,14 @@ public final class TunnelJunctionConnectivityPass {
         reportSink.merge(nodeId, overlay, JunctionConstructionReport::merge);
     }
 
-    private static List<List<TunnelApproach>> groupApproachesBySpatialBand(List<TunnelApproach> approaches) {
-        List<List<TunnelApproach>> groups = new ArrayList<>();
-        for (TunnelApproach approach : approaches) {
-            int[] band = approachYBand(approach);
+    private static List<List<TunnelJunctionSeedResolver.TunnelApproach>> groupApproachesBySpatialBand(
+            List<TunnelJunctionSeedResolver.TunnelApproach> approaches) {
+        List<List<TunnelJunctionSeedResolver.TunnelApproach>> groups = new ArrayList<>();
+        for (TunnelJunctionSeedResolver.TunnelApproach approach : approaches) {
+            int[] band = TunnelJunctionSeedResolver.approachYBand(approach);
             int clearHeight = approach.tunnelStyle().clearHeight();
             boolean placed = false;
-            for (List<TunnelApproach> group : groups) {
+            for (List<TunnelJunctionSeedResolver.TunnelApproach> group : groups) {
                 if (groupSharesSpatialBand(approach, band, clearHeight, group)) {
                     group.add(approach);
                     placed = true;
@@ -191,7 +185,7 @@ public final class TunnelJunctionConnectivityPass {
                 }
             }
             if (!placed) {
-                List<TunnelApproach> newGroup = new ArrayList<>();
+                List<TunnelJunctionSeedResolver.TunnelApproach> newGroup = new ArrayList<>();
                 newGroup.add(approach);
                 groups.add(newGroup);
             }
@@ -199,21 +193,13 @@ public final class TunnelJunctionConnectivityPass {
         return groups.stream().filter(group -> group.size() >= 2).toList();
     }
 
-    private static int[] approachYBand(TunnelApproach approach) {
-        TunnelCrossSectionMask mask = buildMask(approach);
-        if (mask == null) {
-            return new int[] {approach.roadY(), approach.roadY()};
-        }
-        return new int[] {mask.minY(), mask.maxY()};
-    }
-
     private static boolean groupSharesSpatialBand(
-            TunnelApproach candidate,
+            TunnelJunctionSeedResolver.TunnelApproach candidate,
             int[] candidateBand,
             int candidateClearHeight,
-            List<TunnelApproach> group) {
-        for (TunnelApproach member : group) {
-            int[] memberBand = approachYBand(member);
+            List<TunnelJunctionSeedResolver.TunnelApproach> group) {
+        for (TunnelJunctionSeedResolver.TunnelApproach member : group) {
+            int[] memberBand = TunnelJunctionSeedResolver.approachYBand(member);
             int minOverlap = Math.min(candidateClearHeight, member.tunnelStyle().clearHeight());
             if (bandsOverlap(candidateBand, memberBand, minOverlap)) {
                 return true;
@@ -229,10 +215,10 @@ public final class TunnelJunctionConnectivityPass {
     }
 
     private static Collection<RoadGenerationResult> approachEdgeResults(
-            List<TunnelApproach> approaches,
+            List<TunnelJunctionSeedResolver.TunnelApproach> approaches,
             Map<String, RoadGenerationResult> edgeResults) {
         Set<RoadGenerationResult> results = new LinkedHashSet<>();
-        for (TunnelApproach approach : approaches) {
+        for (TunnelJunctionSeedResolver.TunnelApproach approach : approaches) {
             RoadGenerationResult result = edgeResults.get(approach.edge().getId());
             if (result != null) {
                 results.add(result);
@@ -243,88 +229,6 @@ public final class TunnelJunctionConnectivityPass {
 
     private static boolean qualifiesForConnectivity(RoadNode node) {
         return node != null && node.getDegree() >= 3;
-    }
-
-    private static List<TunnelApproach> collectTunnelApproaches(
-            RoadNetwork network,
-            RoadNode node,
-            Map<String, RoadGenerationResult> edgeResults,
-            Map<String, Integer> nodeElevations,
-            RoadSystemConfig config,
-            BiFunction<List<Vec2d>, List<PathSegment>, Double> unitsPerBlockEstimator) {
-        List<TunnelApproach> approaches = new ArrayList<>();
-        Integer junctionY = nodeElevations.get(node.getId());
-        if (junctionY == null) {
-            return approaches;
-        }
-        Vec2d nodeCenter = node.getPosition();
-        if (nodeCenter == null) {
-            return approaches;
-        }
-        String elevatedRoadId = node.isGradeSeparated() ? node.getElevatedRoadId() : null;
-        for (String edgeId : node.getConnectedEdgeIds()) {
-            RoadEdge edge = network.getEdge(edgeId);
-            RoadGenerationResult result = edgeResults.get(edgeId);
-            if (edge == null || result == null) {
-                continue;
-            }
-            List<Vec2d> centerline = RoadPlanGeometry.resolveEdgeCenterline(
-                network, edge, config.getPathSampleDistance());
-            if (centerline.size() < 2) {
-                continue;
-            }
-            List<PathSegment> segments = segmentsFromNode(centerline, edge, node.getId());
-            double unitsPerBlock = unitsPerBlockEstimator != null
-                ? unitsPerBlockEstimator.apply(centerline, segments)
-                : 1.0;
-            if (!Double.isFinite(unitsPerBlock) || unitsPerBlock <= EPSILON) {
-                unitsPerBlock = 1.0;
-            }
-            if (!tunnelAtNode(network, node, edge, result, config, centerline, segments, unitsPerBlock)) {
-                continue;
-            }
-            if (node.isStackGradeSeparated() && node.isStackUpperEdge(edgeId)) {
-                continue;
-            }
-            if (elevatedRoadId != null
-                    && edge.getRoadId() != null
-                    && elevatedRoadId.equals(edge.getRoadId())) {
-                continue;
-            }
-            CrossSectionBuildContext crossSections = CrossSectionBuildContext.forEdge(network, edge, config);
-            ResolvedCrossSection crossSection = crossSections.resolve(crossSections.segmentStartStation());
-            Road road = RoadModelUtils.resolveRoad(network, edge);
-            ResolvedTunnelStyle tunnelStyle = TunnelStyle.resolve(road, config);
-            approaches.add(new TunnelApproach(
-                edge,
-                node.getId(),
-                centerline,
-                crossSections,
-                unitsPerBlock,
-                crossSection,
-                tunnelStyle,
-                junctionY));
-        }
-        return approaches;
-    }
-
-    private static List<PathSegment> segmentsFromNode(
-            List<Vec2d> centerline,
-            RoadEdge edge,
-            String nodeId) {
-        List<PathSegment> segments = new ArrayList<>();
-        if (edge.getStartNodeId().equals(nodeId)) {
-            for (int i = 0; i < centerline.size() - 1; i++) {
-                segments.add(new PathSegment(centerline.get(i), centerline.get(i + 1)));
-            }
-            return segments;
-        }
-        if (edge.getEndNodeId().equals(nodeId)) {
-            for (int i = centerline.size() - 1; i > 0; i--) {
-                segments.add(new PathSegment(centerline.get(i), centerline.get(i - 1)));
-            }
-        }
-        return segments;
     }
 
     /**
@@ -401,204 +305,6 @@ public final class TunnelJunctionConnectivityPass {
             }
         }
         return edges;
-    }
-
-    private static Set<BlockPos> collectOpenVolume(
-            List<TunnelApproach> approaches,
-            List<Vec2d> polygon,
-            Collection<RoadGenerationResult> edgeResults,
-            ICoordinateService coordinateTransformer) {
-        Set<BlockPos> sampledAir = new HashSet<>();
-        for (TunnelApproach approach : approaches) {
-            sampledAir.addAll(collectSampledApproachAir(approach, polygon, coordinateTransformer));
-        }
-        Set<BlockPos> dilatedAir = dilateBlockPositions(sampledAir);
-        Set<BlockPos> openVolume = new HashSet<>(sampledAir);
-        openVolume.addAll(collectBlockingLining(
-            approaches, polygon, edgeResults, dilatedAir, coordinateTransformer));
-        return openVolume;
-    }
-
-    private static Set<BlockPos> dilateBlockPositions(Set<BlockPos> positions) {
-        if (positions == null || positions.isEmpty()) {
-            return Set.of();
-        }
-        Set<BlockPos> dilated = new HashSet<>(positions);
-        int[][] offsets = {
-            {-1, 0, 0}, {1, 0, 0}, {0, -1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1},
-            {-1, -1, 0}, {-1, 1, 0}, {1, -1, 0}, {1, 1, 0},
-            {-1, 0, -1}, {-1, 0, 1}, {1, 0, -1}, {1, 0, 1},
-            {0, -1, -1}, {0, -1, 1}, {0, 1, -1}, {0, 1, 1}
-        };
-        for (BlockPos pos : positions) {
-            for (int[] offset : offsets) {
-                dilated.add(pos.add(offset[0], offset[1], offset[2]));
-            }
-        }
-        return dilated;
-    }
-
-    private static Set<BlockPos> collectSampledApproachAir(
-            TunnelApproach approach,
-            List<Vec2d> polygon,
-            ICoordinateService coordinateTransformer) {
-        Set<BlockPos> positions = new HashSet<>();
-        TunnelCrossSectionMask mask = buildMask(approach);
-        if (mask == null) {
-            return positions;
-        }
-        boolean chainForward = approach.crossSections().samplingOriented().forward();
-        double scale = approach.unitsPerBlock();
-        boolean leftPolygon = false;
-        for (PathSegment segment : segmentsFromNode(approach.centerline(), approach.edge(), approach.nodeId())) {
-            if (leftPolygon) {
-                break;
-            }
-            Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, chainForward);
-            int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
-            for (int j = 0; j <= samples; j++) {
-                double t = (double) j / samples;
-                Vec2d center = segment.start.lerp(segment.end, t);
-                if (j > 0 && !RoadGeometryUtils.pointInPolygon(center, polygon)) {
-                    leftPolygon = true;
-                    break;
-                }
-                projectMaskAir(mask, center, leftNormal, scale, polygon, coordinateTransformer, positions);
-            }
-        }
-        return positions;
-    }
-
-    private static Set<BlockPos> collectBlockingLining(
-            List<TunnelApproach> approaches,
-            List<Vec2d> polygon,
-            Collection<RoadGenerationResult> edgeResults,
-            Set<BlockPos> dilatedAir,
-            ICoordinateService coordinateTransformer) {
-        Set<BlockPos> positions = new HashSet<>();
-        if (dilatedAir.isEmpty()) {
-            return positions;
-        }
-        for (RoadGenerationResult result : edgeResults) {
-            for (Map.Entry<BlockPos, BlockRecord> entry : result.placementRecords.entrySet()) {
-                BlockPos pos = entry.getKey();
-                if (!dilatedAir.contains(pos)) {
-                    continue;
-                }
-                if (!matchesAnyApproachYBand(approaches, pos.getY())) {
-                    continue;
-                }
-                if (!isTunnelLining(result, pos, entry.getValue())) {
-                    continue;
-                }
-                Vec2d planPoint = blockToPlan(pos, coordinateTransformer);
-                if (!RoadGeometryUtils.pointInPolygon(planPoint, polygon)) {
-                    continue;
-                }
-                positions.add(pos);
-            }
-        }
-        return positions;
-    }
-
-    private static boolean matchesAnyApproachYBand(List<TunnelApproach> approaches, int y) {
-        for (TunnelApproach approach : approaches) {
-            int[] band = approachYBand(approach);
-            if (y >= band[0] && y <= band[1]) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static List<BlockPos> collectApproachEntrySeeds(
-            List<TunnelApproach> approaches,
-            List<Vec2d> polygon,
-            ICoordinateService coordinateTransformer) {
-        List<BlockPos> seeds = new ArrayList<>();
-        for (TunnelApproach approach : approaches) {
-            seeds.addAll(collectFirstFrameApproachAir(approach, polygon, coordinateTransformer));
-        }
-        return seeds;
-    }
-
-    private static List<BlockPos> collectFirstFrameApproachAir(
-            TunnelApproach approach,
-            List<Vec2d> polygon,
-            ICoordinateService coordinateTransformer) {
-        List<BlockPos> positions = new ArrayList<>();
-        TunnelCrossSectionMask mask = buildMask(approach);
-        if (mask == null) {
-            return positions;
-        }
-        List<PathSegment> segments = segmentsFromNode(approach.centerline(), approach.edge(), approach.nodeId());
-        if (segments.isEmpty()) {
-            return positions;
-        }
-        PathSegment segment = segments.getFirst();
-        boolean chainForward = approach.crossSections().samplingOriented().forward();
-        Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, chainForward);
-        double scale = approach.unitsPerBlock();
-        Set<BlockPos> unique = new HashSet<>();
-        projectMaskAir(mask, segment.start, leftNormal, scale, polygon, coordinateTransformer, unique);
-        positions.addAll(unique);
-        return positions;
-    }
-
-    private static TunnelCrossSectionMask buildMask(TunnelApproach approach) {
-        int envelopeWidth = RoadCorridorWidth.gradingEnvelopeWidthBlocks(approach.crossSection());
-        if (envelopeWidth <= 0) {
-            return null;
-        }
-        return TunnelCrossSectionMask.build(
-            approach.tunnelStyle().shape(),
-            envelopeWidth,
-            approach.tunnelStyle().sideClearance(),
-            approach.tunnelStyle().clearHeight(),
-            approach.tunnelStyle().liningThickness(),
-            approach.roadY(),
-            false);
-    }
-
-    private static void projectMaskAir(
-            TunnelCrossSectionMask mask,
-            Vec2d center,
-            Vec2d leftNormal,
-            double scale,
-            List<Vec2d> polygon,
-            ICoordinateService coordinateTransformer,
-            Set<BlockPos> positions) {
-        Vec2d normal = leftNormal.lengthSquared() > 1e-12
-            ? leftNormal.normalize()
-            : new Vec2d(0, 1);
-        mask.forEach((lateral, y, kind) -> {
-            if (kind != TunnelCrossSectionMask.CellKind.AIR) {
-                return;
-            }
-            Vec2d planPoint = center.add(normal.multiply(lateral * scale));
-            if (!RoadGeometryUtils.pointInPolygon(planPoint, polygon)) {
-                return;
-            }
-            positions.add(toBlockPos(planPoint, y, coordinateTransformer));
-        });
-    }
-
-    private static BlockPos toBlockPos(Vec2d planPoint, int y, ICoordinateService coordinateTransformer) {
-        if (coordinateTransformer != null) {
-            return RoadGeometryUtils.canvasToBlockXZ(planPoint, coordinateTransformer).withY(y);
-        }
-        return new BlockPos((int) Math.round(planPoint.x), y, (int) Math.round(planPoint.y));
-    }
-
-    private static Vec2d blockToPlan(BlockPos pos, ICoordinateService coordinateTransformer) {
-        if (coordinateTransformer != null) {
-            Vec2d world = new Vec2d(pos.getX(), pos.getZ());
-            com.plot.api.world.WorldProjectionSnapshot snapshot = coordinateTransformer.captureProjection();
-            if (snapshot != null && snapshot.isValid()) {
-                return snapshot.toCanvas(world);
-            }
-        }
-        return new Vec2d(pos.getX(), pos.getZ());
     }
 
     private record OpenVolumeStats(int blockedByProtection, int protectedConflicts) {
@@ -685,7 +391,7 @@ public final class TunnelJunctionConnectivityPass {
         if (existing == null) {
             return false;
         }
-        if (!isTunnelLining(result, pos, existing)) {
+        if (!isTunnelLiningRecord(result, pos, existing)) {
             return "minecraft:air".equals(existing.newBlockId);
         }
         String previous = resolvePreviousBlockId(pos, existing, edgeResults, previousBlockResolver);
@@ -726,7 +432,7 @@ public final class TunnelJunctionConnectivityPass {
         return false;
     }
 
-    private static boolean isTunnelLining(
+    static boolean isTunnelLiningRecord(
             RoadGenerationResult result,
             BlockPos pos,
             BlockRecord record) {
@@ -752,16 +458,5 @@ public final class TunnelJunctionConnectivityPass {
             return true;
         }
         return result.tunnelBlocks.contains(pos);
-    }
-
-    private record TunnelApproach(
-            RoadEdge edge,
-            String nodeId,
-            List<Vec2d> centerline,
-            CrossSectionBuildContext crossSections,
-            double unitsPerBlock,
-            ResolvedCrossSection crossSection,
-            ResolvedTunnelStyle tunnelStyle,
-            int roadY) {
     }
 }
