@@ -518,9 +518,10 @@ public class LineToBlockHandler {
     }
 
     /**
-     * 画布世界坐标 → 画布屏幕坐标 → 冻结投影 → Minecraft XZ。
+     * 画布世界坐标 → 画布局部屏幕像素 → 冻结投影 → Minecraft XZ。
      * <p>
-     * {@link WorldProjectionSnapshot#toWorld} 期望画布屏幕像素坐标，而非画布世界坐标或窗口坐标。
+     * {@link WorldProjectionSnapshot#toWorld} 期望相对于画布视口的像素坐标 (0…宽, 0…高)，
+     * 不是画布世界坐标，也不是含 Dock 偏移的窗口绝对坐标。
      */
     private Vec2d convertCanvasWorldToMinecraft(Vec2d canvasWorldPos) {
         if (canvasWorldPos == null) {
@@ -546,11 +547,28 @@ public class LineToBlockHandler {
                 return null;
             }
 
-            Vec2d canvasScreenPos = camera.worldToScreen(canvasWorldPos);
+            Vec2d windowScreenPos = camera.worldToScreen(canvasWorldPos);
+            if (windowScreenPos == null) {
+                return null;
+            }
 
-            WorldProjectionSnapshot projection = activeProjection;
+            float canvasOriginX = canvas.getScreenX();
+            float canvasOriginY = canvas.getScreenY();
+            float canvasWidth = canvas.getScreenWidth();
+            float canvasHeight = canvas.getScreenHeight();
+
+            Vec2d canvasLocalScreen = new Vec2d(
+                    windowScreenPos.x - canvasOriginX,
+                    windowScreenPos.y - canvasOriginY
+            );
+
+            WorldProjectionSnapshot projection = resolveCanvasProjection(activeProjection, canvasWidth, canvasHeight);
             if (projection == null || !projection.isValid()) {
-                projection = CoordinateTransformer.getInstance().captureProjection();
+                projection = resolveCanvasProjection(
+                        CoordinateTransformer.getInstance().captureProjection(),
+                        canvasWidth,
+                        canvasHeight
+                );
             }
             if (projection == null || !projection.isValid()) {
                 LOGGER.error("World projection invalid, cannot convert canvas world ({}, {})",
@@ -558,7 +576,7 @@ public class LineToBlockHandler {
                 return null;
             }
 
-            Vec2d minecraftPos = projection.toWorld(canvasScreenPos);
+            Vec2d minecraftPos = projection.toWorld(canvasLocalScreen);
 
             if (coordinateCache.size() < MAX_CACHE_SIZE) {
                 coordinateCache.put(cacheKey, minecraftPos);
@@ -567,16 +585,44 @@ public class LineToBlockHandler {
                 coordinateCache.put(cacheKey, minecraftPos);
             }
 
-            LOGGER.debug("画布世界→Minecraft: 世界({}, {}) → 屏幕({}, {}) → MC({}, {})",
+            LOGGER.debug("画布世界→Minecraft: 世界({}, {}) → 局部屏幕({}, {}) → MC({}, {}), canvasOrigin=({}, {}), canvasSize=({}, {})",
                     canvasWorldPos.x, canvasWorldPos.y,
-                    canvasScreenPos.x, canvasScreenPos.y,
-                    minecraftPos.x, minecraftPos.y);
+                    canvasLocalScreen.x, canvasLocalScreen.y,
+                    minecraftPos.x, minecraftPos.y,
+                    canvasOriginX, canvasOriginY, canvasWidth, canvasHeight);
 
             return minecraftPos;
         } catch (Exception e) {
             LOGGER.error("画布世界坐标转Minecraft坐标失败", e);
             return null;
         }
+    }
+
+    /**
+     * 将投影快照的画布尺寸对齐到实际画布视口（Dock 布局下视口小于全窗口）。
+     */
+    private static WorldProjectionSnapshot resolveCanvasProjection(
+            WorldProjectionSnapshot base,
+            float canvasWidth,
+            float canvasHeight
+    ) {
+        if (base == null || !base.isValid()) {
+            return base;
+        }
+        if (canvasWidth <= 0f || canvasHeight <= 0f) {
+            return base;
+        }
+        if (Math.abs(base.canvasWidth() - canvasWidth) < 0.5f
+                && Math.abs(base.canvasHeight() - canvasHeight) < 0.5f) {
+            return base;
+        }
+        return new WorldProjectionSnapshot(
+                base.worldBounds(),
+                base.viewDistance(),
+                base.viewScale(),
+                canvasWidth,
+                canvasHeight
+        );
     }
 
     private List<BlockPos> rasterizeShapePathByPoints(List<Vec2d> canvasPoints, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
