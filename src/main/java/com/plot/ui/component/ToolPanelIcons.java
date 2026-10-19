@@ -39,6 +39,7 @@ public class ToolPanelIcons {
     public static final Identifier ROTATE = createIdentifier("rotate.png");
     public static final Identifier SCALE = createIdentifier("scale.png");
     public static final Identifier MIRROR = createIdentifier("mirror.png");
+    public static final Identifier COPY = createIdentifier("copy.png");
     public static final Identifier ARRAY = createIdentifier("array.png");
     
     // ??????

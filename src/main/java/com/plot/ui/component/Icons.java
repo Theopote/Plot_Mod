@@ -15,32 +15,15 @@ public class Icons {
     public static final String CHECK_SQUARE = "\uf14a";
     public static final String BRUSH = "\uf1fc";
     
-    // 编辑工具图标
-    public static final String SCISSORS = "\uf0c4";      // 修剪
-    
     // 标注工具图标
     public static final String TEXT = "\uf031";          // 文字
-    
-    // 土方工具图标
-    public static final String TERRAIN = "\uf6fb";        // 地形
-    public static final String TERRAIN_CUT = "\uf1b8";    // 挖方
-    public static final String TERRAIN_FILL = "\uf1b2";   // 填方
-    public static final String TERRAIN_LEVEL = "\uf0e4";  // 整平
-    public static final String RULER_VERTICAL = "\uf548"; // 垂直标尺
-    public static final String CALCULATOR = "\uf1ec";     // 计算器
-    public static final String FILE_EXPORT = "\uf56e";    // 导出文件
 
     // 道路系统图标
     public static final String ROAD = "\uf018";         // 道路
     public static final String ROAD_BRIDGE = "\uf21c";  // 桥梁
     public static final String ROAD_TUNNEL = "\uf552";  // 隧道
     public static final String ROAD_RAIL = "\uf238";    // 铁路
-    public static final String RULER = "\uf545";        // 标尺
-
-    // 插件图标
-    public static final String PLUGIN_ADD = "\uf067";     // 添加插件
-    public static final String PLUGIN_REMOVE = "\uf068";  // 移除插件
-    public static final String PLUGIN_SETTINGS = "\uf013"; // 插件设置
+    public static final String RULER = "\uf545";        // 标
 
 
     // 工具图标标识符
@@ -67,6 +50,7 @@ public class Icons {
     public static final Identifier ALIGN_IDENTIFIER = Identifier.of("plot", "textures/gui/tools/align.png");
     public static final Identifier ARRAY_IDENTIFIER = Identifier.of("plot", "textures/gui/tools/array.png");
     public static final Identifier MIRROR_IDENTIFIER = Identifier.of("plot", "textures/gui/tools/mirror.png");
+    public static final Identifier COPY_IDENTIFIER = Identifier.of("plot", "textures/gui/tools/copy.png");
     public static final Identifier MOVE_IDENTIFIER = Identifier.of("plot", "textures/gui/tools/move.png");
     public static final Identifier OFFSET_IDENTIFIER = Identifier.of("plot", "textures/gui/tools/offset.png");
     public static final Identifier ROTATE_IDENTIFIER = Identifier.of("plot", "textures/gui/tools/rotate.png");

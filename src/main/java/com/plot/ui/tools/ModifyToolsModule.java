@@ -165,6 +165,7 @@ public final class ModifyToolsModule {
             tools.add(new RotateTool(appState, snapManager));  // 旋转工具（依赖注入）
             tools.add(new ScaleTool(appState, snapManager));   // 缩放工具（依赖注入）
             tools.add(new MirrorTool(appState, snapManager));  // 镜像工具（依赖注入）
+            tools.add(new CopyTool(appState, snapManager));    // 复制工具（依赖注入）
             tools.add(new AlignTool(appState, snapManager));   // 对齐工具（依赖注入）
             tools.add(new ArrayTool(appState, snapManager));   // 阵列工具（依赖注入）
             tools.add(new OffsetTool(appState, snapManager));

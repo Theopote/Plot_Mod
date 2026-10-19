@@ -528,6 +528,7 @@ public class ToolPanel implements UIComponent {
             new Tool(ToolPanelIcons.ROTATE, "tool.plot.rotate", "rotate"),
             new Tool(ToolPanelIcons.SCALE, "tool.plot.scale", "scale"),
             new Tool(ToolPanelIcons.MIRROR, "tool.plot.mirror", "mirror"),
+            new Tool(ToolPanelIcons.COPY, "tool.plot.copy", "copy"),
             new Tool(ToolPanelIcons.ALIGN, "tool.plot.align", "align"),
             new Tool(ToolPanelIcons.ARRAY, "tool.plot.array", "array"),
             new Tool(ToolPanelIcons.OFFSET, "tool.plot.offset", "offset"),
