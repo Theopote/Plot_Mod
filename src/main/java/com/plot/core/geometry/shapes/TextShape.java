@@ -932,103 +932,70 @@ public class TextShape extends Shape {
     }
 
     /**
-     * 将AWT Shape转换为PathShape或PolylineShape
-     * @param awtShape AWT的Shape对象
-     * @return 转换后的形状，如果转换失败则返回null
+     * 将 AWT Shape 拆分为多条独立折线（每个 MOVETO 子路径一条），避免笔画之间被错误连线。
      */
-    private PolylineShape convertAwtShapeToPathShape(java.awt.Shape awtShape) {
+    private List<PolylineShape> convertAwtShapeToPolylineShapes(java.awt.Shape awtShape) {
+        List<PolylineShape> shapes = new ArrayList<>();
         if (awtShape == null) {
-            return null;
+            return shapes;
         }
-        
-        // 使用平坦化的PathIterator，将贝塞尔曲线转换为直线段
-        // 平坦度越小，精度越高，但点越多
-        // 对于文字轮廓，使用非常小的平坦度以获得更好的精度
-        // 注意：平坦度太小可能导致点过多，影响性能，但太小又会导致精度不够
-        double flatness = 0.01; // 进一步减小平坦度以提高精度（从0.1降到0.01）
-        // 使用null作为变换参数，表示使用单位变换（不进行任何变换）
+
+        double flatness = 0.01;
         PathIterator pathIterator = awtShape.getPathIterator(null, flatness);
-        List<Vec2d> points = new ArrayList<>();
+        List<Vec2d> currentSubpath = new ArrayList<>();
         double[] coords = new double[6];
-        Vec2d currentPoint = null;
-        int pointCount = 0;
 
         while (!pathIterator.isDone()) {
             int segmentType = pathIterator.currentSegment(coords);
             switch (segmentType) {
-                case PathIterator.SEG_MOVETO, PathIterator.SEG_LINETO:
-                    currentPoint = new Vec2d(coords[0], coords[1]);
-                    points.add(currentPoint);
-                    pointCount++;
-                    break;
-                case PathIterator.SEG_CLOSE:
-                    // 对于字符路径，SEG_CLOSE表示应该闭合，但通常字符路径不应该完全闭合
-                    // 这里我们检查是否需要闭合，如果当前点已经接近第一个点，就不需要添加
-                    if (!points.isEmpty()) {
-                        Vec2d firstPoint = points.getFirst();
-                        // 只有当当前点与第一个点距离较远时才添加闭合点
-                        double distance = currentPoint.distance(firstPoint);
-                        if (distance > 0.1) { // 如果距离大于0.1，添加闭合点
-                            points.add(new Vec2d(firstPoint.x, firstPoint.y));
-                            pointCount++;
+                case PathIterator.SEG_MOVETO -> {
+                    appendSubpathIfValid(shapes, currentSubpath);
+                    currentSubpath = new ArrayList<>();
+                    currentSubpath.add(new Vec2d(coords[0], coords[1]));
+                }
+                case PathIterator.SEG_LINETO ->
+                        currentSubpath.add(new Vec2d(coords[0], coords[1]));
+                case PathIterator.SEG_CLOSE -> {
+                    if (!currentSubpath.isEmpty()) {
+                        Vec2d firstPoint = currentSubpath.getFirst();
+                        Vec2d lastPoint = currentSubpath.getLast();
+                        if (lastPoint.distance(firstPoint) > 0.1) {
+                            currentSubpath.add(new Vec2d(firstPoint.x, firstPoint.y));
                         }
                     }
-                    break;
-                case PathIterator.SEG_QUADTO:
-                    // 如果平坦化后还有二次贝塞尔曲线，说明平坦度设置有问题
-                    // 手动添加控制点和终点（简化处理）
+                    appendSubpathIfValid(shapes, currentSubpath);
+                    currentSubpath = new ArrayList<>();
+                }
+                case PathIterator.SEG_QUADTO -> {
                     LOGGER.debug("遇到未平坦化的二次贝塞尔曲线，添加控制点和终点");
-                    points.add(new Vec2d(coords[0], coords[1])); // 控制点
-                    currentPoint = new Vec2d(coords[2], coords[3]); // 终点
-                    points.add(currentPoint);
-                    pointCount += 2;
-                    break;
-                case PathIterator.SEG_CUBICTO:
-                    // 如果平坦化后还有三次贝塞尔曲线，说明平坦度设置有问题
-                    // 手动添加控制点和终点（简化处理）
+                    currentSubpath.add(new Vec2d(coords[0], coords[1]));
+                    currentSubpath.add(new Vec2d(coords[2], coords[3]));
+                }
+                case PathIterator.SEG_CUBICTO -> {
                     LOGGER.debug("遇到未平坦化的三次贝塞尔曲线，添加控制点和终点");
-                    points.add(new Vec2d(coords[0], coords[1])); // 第一个控制点
-                    points.add(new Vec2d(coords[2], coords[3])); // 第二个控制点
-                    currentPoint = new Vec2d(coords[4], coords[5]); // 终点
-                    points.add(currentPoint);
-                    pointCount += 3;
-                    break;
+                    currentSubpath.add(new Vec2d(coords[0], coords[1]));
+                    currentSubpath.add(new Vec2d(coords[2], coords[3]));
+                    currentSubpath.add(new Vec2d(coords[4], coords[5]));
+                }
+                default -> {
+                }
             }
             pathIterator.next();
         }
-        
-        if (points.isEmpty()) {
-            LOGGER.warn("转换AWT Shape时未生成任何点");
-            return null;
-        }
-        
-        // 计算路径点的坐标范围
-        double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE;
-        double maxX = -Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
-        for (Vec2d p : points) {
-            minX = Math.min(minX, p.x);
-            minY = Math.min(minY, p.y);
-            maxX = Math.max(maxX, p.x);
-            maxY = Math.max(maxY, p.y);
-        }
-        double width = maxX - minX;
-        double height = maxY - minY;
 
-        if (pointCount < 3) {
-            LOGGER.warn("转换后的路径点太少 ({} 个点)，可能导致显示不正确。尺寸=({} x {})",
-                pointCount, String.format("%.2f", width), String.format("%.2f", height));
-        } else if (width < 0.1 || height < 0.1) {
-            LOGGER.warn("转换后的路径尺寸异常: 点数={}, 尺寸=({} x {}), 范围=({},{}) 到 ({},{})",
-                pointCount, String.format("%.2f", width), String.format("%.2f", height),
-                String.format("%.2f", minX), String.format("%.2f", minY),
-                String.format("%.2f", maxX), String.format("%.2f", maxY));
+        appendSubpathIfValid(shapes, currentSubpath);
+        if (shapes.isEmpty()) {
+            LOGGER.warn("转换 AWT Shape 时未生成任何独立笔画路径");
         } else {
-            LOGGER.debug("成功转换AWT Shape，生成 {} 个路径点，尺寸=({} x {})",
-                pointCount, String.format("%.2f", width), String.format("%.2f", height));
+            LOGGER.debug("成功转换 AWT Shape，生成 {} 条独立笔画路径", shapes.size());
         }
+        return shapes;
+    }
 
-        // 字符路径通常不闭合，除非是特殊字符
-        return new PolylineShape(points, false);
+    private static void appendSubpathIfValid(List<PolylineShape> shapes, List<Vec2d> subpath) {
+        if (subpath != null && subpath.size() >= 2) {
+            shapes.add(new PolylineShape(new ArrayList<>(subpath), false));
+        }
     }
 
     /**
@@ -1078,53 +1045,20 @@ public class TextShape extends Shape {
                     java.awt.Shape glyphShape = glyphVector.getGlyphOutline(i, (float) currentX, (float) currentY);
                     
                     if (glyphShape != null && !glyphShape.getBounds().isEmpty()) {
-                        // 将AWT Shape转换为我们的PathShape
-                        PolylineShape path = convertAwtShapeToPathShape(glyphShape);
-                        if (path != null && !path.getPoints().isEmpty()) {
-                            List<Vec2d> pathPoints = path.getPoints();
-                            int pathPointCount = pathPoints.size();
-                            
-                            // 计算路径点的坐标范围
-                            double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE;
-                            double maxX = -Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
-                            for (Vec2d p : pathPoints) {
-                                minX = Math.min(minX, p.x);
-                                minY = Math.min(minY, p.y);
-                                maxX = Math.max(maxX, p.x);
-                                maxY = Math.max(maxY, p.y);
-                            }
-                            double width = maxX - minX;
-                            double height = maxY - minY;
-                            
-                            // 应用文字样式
-                            ShapeStyle charStyle = new ShapeStyle();
-                            Color textColor = textStyle.getColor();
-                            if (textColor == null) {
-                                textColor = Color.BLACK;
-                            }
-                            charStyle.setLineStyle((ILineStyle) new LineStyle(LineType.SOLID, 1.0f).withColor(textColor));
-                            charStyle.setFillStyle((IFillStyle) new FillStyle(textColor, 1.0f));
-                            path.setStyle(charStyle);
-                            
-                            graphics.add(path);
-                            
-                            // 详细日志：显示字符和路径点信息
+                        List<PolylineShape> strokePaths = convertAwtShapeToPolylineShapes(glyphShape);
+                        if (!strokePaths.isEmpty()) {
+                            ShapeStyle charStyle = createTextGraphicStyle();
                             char ch = text.length() > i ? text.charAt(i) : '?';
-                            if (pathPointCount < 10) {
-                                LOGGER.warn("TextShape.convertToGraphics: 字符 '{}' (索引 {}) 路径点过少: {} 个点，可能显示不正确", 
-                                    ch, i, pathPointCount);
-                            } else if (width < 0.1 || height < 0.1) {
-                                LOGGER.warn("TextShape.convertToGraphics: 字符 '{}' (索引 {}) 路径尺寸异常: 点数={}, 尺寸=({} x {}), 范围=({},{}) 到 ({},{})", 
-                                    ch, i, pathPointCount, String.format("%.2f", width), String.format("%.2f", height), 
-                                    String.format("%.2f", minX), String.format("%.2f", minY), 
-                                    String.format("%.2f", maxX), String.format("%.2f", maxY));
-                            } else {
-                                LOGGER.info("TextShape.convertToGraphics: 字符 '{}' (索引 {}) 转换成功: 点数={}, 尺寸=({} x {}), 位置=({},{})", 
-                                    ch, i, pathPointCount, String.format("%.2f", width), String.format("%.2f", height), 
-                                    String.format("%.2f", minX), String.format("%.2f", minY));
+                            int totalPoints = 0;
+                            for (PolylineShape path : strokePaths) {
+                                path.setStyle(charStyle.clone());
+                                graphics.add(path);
+                                totalPoints += path.getPoints().size();
                             }
+                            LOGGER.debug("TextShape.convertToGraphics: 字符 '{}' (索引 {}) 转换成功: {} 条笔画, {} 个点",
+                                    ch, i, strokePaths.size(), totalPoints);
                         } else {
-                            LOGGER.warn("TextShape.convertToGraphics: 字符 '{}' (索引 {}) 转换后路径为空", 
+                            LOGGER.warn("TextShape.convertToGraphics: 字符 '{}' (索引 {}) 转换后路径为空",
                                 text.length() > i ? text.charAt(i) : '?', i);
                         }
                     } else {
@@ -1150,6 +1084,17 @@ public class TextShape extends Shape {
         }
         
         return graphics;
+    }
+
+    private ShapeStyle createTextGraphicStyle() {
+        ShapeStyle charStyle = new ShapeStyle();
+        Color textColor = textStyle.getColor();
+        if (textColor == null) {
+            textColor = Color.BLACK;
+        }
+        charStyle.setLineStyle((ILineStyle) new LineStyle(LineType.SOLID, 1.0f).withColor(textColor));
+        charStyle.setFillStyle((IFillStyle) new FillStyle(textColor, 1.0f));
+        return charStyle;
     }
     
     @Override
