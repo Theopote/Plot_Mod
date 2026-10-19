@@ -10,7 +10,7 @@ import java.util.Locale;
 
 /**
  * 绘制预览阶段的方块距离计算与标签渲染。
- * 与标注工具共享世界坐标转换逻辑，数值统一保留两位小数。
+ * 与标注工具共享世界坐标转换逻辑；数值精度与单位由 {@link DrawMeasureSettings} 控制。
  */
 public final class DrawMeasureHelper {
 
@@ -67,25 +67,59 @@ public final class DrawMeasureHelper {
         return distanceBlocks(center, circlePoint);
     }
 
+    public static double roundValue(double value) {
+        int places = DrawMeasureSettings.getDecimalPlaces();
+        double factor = Math.pow(10, places);
+        return Math.round(value * factor) / factor;
+    }
+
+    public static String formatValue(double value) {
+        int places = DrawMeasureSettings.getDecimalPlaces();
+        return String.format(Locale.ROOT, "%." + places + "f", roundValue(value));
+    }
+
     public static String formatBlocks(double value) {
-        String key = "status.plot.draw.measure.blocks";
-        String translated = PlotI18n.status(key, value);
-        if (translated == null || translated.contains(key)) {
-            return String.format(Locale.ROOT, "%.2f blocks", value);
+        String number = formatValue(value);
+        if (!DrawMeasureSettings.isShowUnit()) {
+            return number;
         }
-        return translated;
+        return translateOrFallback("status.plot.draw.measure.blocks", number, number + " blocks");
     }
 
     public static String formatDiameter(double value) {
-        return PlotI18n.status("status.plot.draw.measure.diameter", value);
+        String number = formatValue(value);
+        if (!DrawMeasureSettings.isShowUnit()) {
+            return number;
+        }
+        return translateOrFallback("status.plot.draw.measure.diameter", number, "Diameter " + number + " blocks");
     }
 
     public static String formatRadius(double value) {
-        return PlotI18n.status("status.plot.draw.preview.radius_value", value);
+        String number = formatValue(value);
+        if (!DrawMeasureSettings.isShowUnit()) {
+            return number;
+        }
+        return translateOrFallback("status.plot.draw.preview.radius_value", number, "Radius: " + number);
     }
 
     public static String formatTotal(double value) {
-        return PlotI18n.status("status.plot.draw.measure.total", value);
+        String number = formatValue(value);
+        if (!DrawMeasureSettings.isShowUnit()) {
+            return number;
+        }
+        return translateOrFallback("status.plot.draw.measure.total", number, "Total " + number + " blocks");
+    }
+
+    public static String formatLabeled(String i18nKey, double value) {
+        return translateOrFallback(i18nKey, formatValue(value), formatValue(value));
+    }
+
+    private static String translateOrFallback(String key, String number, String fallback) {
+        String translated = PlotI18n.status(key, number);
+        if (translated == null || translated.contains(key)) {
+            return fallback;
+        }
+        return translated;
     }
 
     public static double polylineLengthBlocks(java.util.List<Vec2d> points) {
@@ -103,43 +137,55 @@ public final class DrawMeasureHelper {
         return new Vec2d((p1.x + p2.x) / 2.0, (p1.y + p2.y) / 2.0);
     }
 
+    private static boolean shouldDrawLabels() {
+        return DrawMeasureSettings.isEnabled();
+    }
+
+    public static void drawTextLabel(DrawContext context, String text, Vec2d position, Color color) {
+        if (!shouldDrawLabels() || context == null || text == null || text.isBlank()
+                || position == null || color == null) {
+            return;
+        }
+        context.drawText(text, position, color);
+    }
+
     public static void drawSegmentLabel(DrawContext context, Vec2d p1, Vec2d p2, Color color) {
-        if (context == null || p1 == null || p2 == null || color == null) {
+        if (!shouldDrawLabels() || context == null || p1 == null || p2 == null || color == null) {
             return;
         }
         if (p1.distance(p2) < 1e-6) {
             return;
         }
-        context.drawText(formatBlocks(distanceBlocks(p1, p2)), midpoint(p1, p2), color);
+        drawTextLabel(context, formatBlocks(distanceBlocks(p1, p2)), midpoint(p1, p2), color);
     }
 
     public static void drawSegmentLabelAt(DrawContext context, Vec2d p1, Vec2d p2, Vec2d anchor, Color color) {
-        if (context == null || p1 == null || p2 == null || anchor == null || color == null) {
+        if (!shouldDrawLabels() || context == null || p1 == null || p2 == null || anchor == null || color == null) {
             return;
         }
         if (p1.distance(p2) < 1e-6) {
             return;
         }
-        context.drawText(formatBlocks(distanceBlocks(p1, p2)), anchor, color);
+        drawTextLabel(context, formatBlocks(distanceBlocks(p1, p2)), anchor, color);
     }
 
     public static void drawDiameterLabel(DrawContext context, Vec2d p1, Vec2d p2, Color color) {
-        if (context == null || p1 == null || p2 == null || color == null) {
+        if (!shouldDrawLabels() || context == null || p1 == null || p2 == null || color == null) {
             return;
         }
         if (p1.distance(p2) < 1e-6) {
             return;
         }
-        context.drawText(formatDiameter(distanceBlocks(p1, p2)), midpoint(p1, p2), color);
+        drawTextLabel(context, formatDiameter(distanceBlocks(p1, p2)), midpoint(p1, p2), color);
     }
 
     public static void drawRadiusLabel(DrawContext context, Vec2d center, Vec2d edge, Color color) {
-        if (context == null || center == null || edge == null || color == null) {
+        if (!shouldDrawLabels() || context == null || center == null || edge == null || color == null) {
             return;
         }
         if (center.distance(edge) < 1e-6) {
             return;
         }
-        context.drawText(formatRadius(distanceBlocks(center, edge)), midpoint(center, edge), color);
+        drawTextLabel(context, formatRadius(distanceBlocks(center, edge)), midpoint(center, edge), color);
     }
 }

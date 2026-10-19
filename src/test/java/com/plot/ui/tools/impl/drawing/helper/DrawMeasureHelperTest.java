@@ -1,14 +1,23 @@
 package com.plot.ui.tools.impl.drawing.helper;
 
 import com.plot.api.geometry.Vec2d;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DrawMeasureHelperTest {
+
+    @AfterEach
+    void restoreDefaults() {
+        DrawMeasureSettings.setEnabled(true);
+        DrawMeasureSettings.setDecimalPlaces(2);
+        DrawMeasureSettings.setShowUnit(true);
+    }
 
     @Test
     void distanceBlocksFallsBackToCanvasDistanceWhenWorldConversionUnavailable() {
@@ -19,9 +28,26 @@ class DrawMeasureHelperTest {
     }
 
     @Test
-    void formatBlocksAlwaysUsesTwoDecimalPlaces() {
+    void formatValueRespectsDecimalPlacesSetting() {
+        DrawMeasureSettings.setDecimalPlaces(2);
+        assertEquals("3.14", DrawMeasureHelper.formatValue(3.14159));
+
+        DrawMeasureSettings.setDecimalPlaces(0);
+        assertEquals("3", DrawMeasureHelper.formatValue(3.4));
+    }
+
+    @Test
+    void formatBlocksCanHideUnit() {
+        DrawMeasureSettings.setShowUnit(false);
+        assertEquals("12.35", DrawMeasureHelper.formatBlocks(12.345));
+    }
+
+    @Test
+    void formatBlocksIncludesUnitWhenEnabled() {
+        DrawMeasureSettings.setShowUnit(true);
         String formatted = DrawMeasureHelper.formatBlocks(3.0);
         assertTrue(formatted.matches(".*3\\.00.*"), () -> "expected two decimals, got: " + formatted);
+        assertFalse(formatted.equals("3.00"));
     }
 
     @Test

@@ -470,7 +470,7 @@ public class RectangleTool extends DrawingTool {
             context.drawLine(center, currentMousePoint, toColor(theme.warningText, 230));
 
             Color radiusColor = toColor(theme.warningText, 230);
-            context.drawText(
+            DrawMeasureHelper.drawTextLabel(context,
                     DrawMeasureHelper.formatRadius(DrawMeasureHelper.radiusBlocks(center, center.distance(currentMousePoint))),
                     currentMousePoint,
                     radiusColor);

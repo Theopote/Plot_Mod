@@ -372,8 +372,8 @@ public class SineCurveTool extends DrawingTool {
         if (controlPoints.size() >= 2) {
             // 绘制波长线（起点到波长点）
             context.drawLine(controlPoints.get(0), controlPoints.get(1), wavelengthLineColor);
-            context.drawText(
-                    PlotI18n.status("status.plot.draw.sine.wavelength",
+            DrawMeasureHelper.drawTextLabel(context,
+                    DrawMeasureHelper.formatLabeled("status.plot.draw.sine.wavelength",
                             DrawMeasureHelper.distanceBlocks(controlPoints.get(0), controlPoints.get(1))),
                     DrawMeasureHelper.midpoint(controlPoints.get(0), controlPoints.get(1)),
                     wavelengthLineColor);
@@ -381,16 +381,16 @@ public class SineCurveTool extends DrawingTool {
             if (controlPoints.size() >= 3) {
                 // 绘制长度线（起点到长度点）
                 context.drawLine(controlPoints.get(0), controlPoints.get(2), lengthLineColor);
-                context.drawText(
-                        PlotI18n.status("status.plot.draw.sine.length",
+                DrawMeasureHelper.drawTextLabel(context,
+                        DrawMeasureHelper.formatLabeled("status.plot.draw.sine.length",
                                 DrawMeasureHelper.distanceBlocks(controlPoints.get(0), controlPoints.get(2))),
                         DrawMeasureHelper.midpoint(controlPoints.get(0), controlPoints.get(2)),
                         lengthLineColor);
             } else if (currentMousePoint != null) {
                 // 预览长度线
                 context.drawLine(controlPoints.getFirst(), currentMousePoint, previewLengthLineColor);
-                context.drawText(
-                        PlotI18n.status("status.plot.draw.sine.length",
+                DrawMeasureHelper.drawTextLabel(context,
+                        DrawMeasureHelper.formatLabeled("status.plot.draw.sine.length",
                                 DrawMeasureHelper.distanceBlocks(controlPoints.getFirst(), currentMousePoint)),
                         DrawMeasureHelper.midpoint(controlPoints.getFirst(), currentMousePoint),
                         previewLengthLineColor);
@@ -414,8 +414,8 @@ public class SineCurveTool extends DrawingTool {
             Vec2d amplitudePoint = controlPoints.size() >= 4 ? controlPoints.get(3) : currentMousePoint;
             if (amplitudePoint != null) {
                 context.drawLine(midPoint, amplitudePoint, amplitudeLineColor);
-                context.drawText(
-                        PlotI18n.status("status.plot.draw.sine.amplitude",
+                DrawMeasureHelper.drawTextLabel(context,
+                        DrawMeasureHelper.formatLabeled("status.plot.draw.sine.amplitude",
                                 DrawMeasureHelper.distanceBlocks(midPoint, amplitudePoint)),
                         DrawMeasureHelper.midpoint(midPoint, amplitudePoint),
                         amplitudeLineColor);

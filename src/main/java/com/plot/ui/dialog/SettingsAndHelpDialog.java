@@ -4,6 +4,7 @@ import com.plot.core.shortcut.ShortcutManager;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.snap.SnapManager;
 import com.plot.core.snap.SnapPriorityEvaluator;
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureSettings;
 import com.plot.ui.tools.impl.modify.ControlPointEditTool;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
@@ -20,6 +21,7 @@ import imgui.flag.ImGuiTableFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 import imgui.type.ImBoolean;
+import imgui.type.ImInt;
 import imgui.flag.ImGuiKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -147,6 +149,9 @@ public class SettingsAndHelpDialog {
     private final ImBoolean centroidState = new ImBoolean();
     private final ImBoolean showControlPointsState = new ImBoolean();
     private final ImBoolean showPointIndexState = new ImBoolean();
+    private final ImBoolean drawMeasureEnabledState = new ImBoolean();
+    private final ImBoolean drawMeasureShowUnitState = new ImBoolean();
+    private final ImInt drawMeasureDecimalPlacesState = new ImInt();
 
     private SettingsAndHelpDialog() {}
 
@@ -568,6 +573,34 @@ public class SettingsAndHelpDialog {
                 }
 
                 DialogLayoutHelper.subsectionGap();
+                if (ImGui.treeNodeEx(PlotI18n.tr("settings.plot.draw_measure_settings") + "##draw_measure", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
+                    ImGui.indent(10);
+                    DialogLayoutHelper.helpText(PlotI18n.tr("settings.plot.draw_measure_hint"));
+
+                    if (ImGui.checkbox(PlotI18n.tr("settings.plot.draw_measure_enabled"), drawMeasureEnabledState)) {
+                        DrawMeasureSettings.setEnabled(drawMeasureEnabledState.get());
+                    }
+
+                    DialogLayoutHelper.rowGap();
+                    ImGui.beginDisabled(!drawMeasureEnabledState.get());
+                    int[] decimalPlaces = new int[] { drawMeasureDecimalPlacesState.get() };
+                    ImGui.setNextItemWidth(Math.min(220.0f, Math.max(160.0f, ImGui.getContentRegionAvailX() - 12.0f)));
+                    if (ImGui.sliderInt(PlotI18n.tr("settings.plot.draw_measure_decimal_places"), decimalPlaces, 0, 4)) {
+                        drawMeasureDecimalPlacesState.set(decimalPlaces[0]);
+                        DrawMeasureSettings.setDecimalPlaces(decimalPlaces[0]);
+                    }
+
+                    DialogLayoutHelper.rowGap();
+                    if (ImGui.checkbox(PlotI18n.tr("settings.plot.draw_measure_show_unit"), drawMeasureShowUnitState)) {
+                        DrawMeasureSettings.setShowUnit(drawMeasureShowUnitState.get());
+                    }
+                    ImGui.endDisabled();
+
+                    ImGui.unindent(10);
+                    ImGui.treePop();
+                }
+
+                DialogLayoutHelper.subsectionGap();
                 if (ImGui.treeNodeEx(PlotI18n.tr("settings.plot.display_color_custom") + "##display_color", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
                     ImGui.indent(10);
                     ImGui.textDisabled(PlotI18n.tr("settings.plot.display_color_hint"));
@@ -604,6 +637,9 @@ public class SettingsAndHelpDialog {
         centroidState.set(snapManager.isCentroidSnapEnabled());
         showControlPointsState.set(ControlPointEditTool.isDisplayEnabled());
         showPointIndexState.set(ControlPointEditTool.isShowPointIndex());
+        drawMeasureEnabledState.set(DrawMeasureSettings.isEnabled());
+        drawMeasureShowUnitState.set(DrawMeasureSettings.isShowUnit());
+        drawMeasureDecimalPlacesState.set(DrawMeasureSettings.getDecimalPlaces());
     }
 
     private void renderSnapColorEditor(String label, SnapPriorityEvaluator.SnapType type) {

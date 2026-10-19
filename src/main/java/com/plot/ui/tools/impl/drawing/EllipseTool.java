@@ -271,10 +271,10 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
             Vec2d minorEnd = new Vec2d(
                     center.x - radiusY * Math.sin(rotation),
                     center.y + radiusY * Math.cos(rotation));
-            context.drawText(
+            DrawMeasureHelper.drawTextLabel(context,
                     PlotI18n.status("status.plot.draw.preview.major_minor",
-                            DrawMeasureHelper.distanceBlocks(center, majorEnd),
-                            DrawMeasureHelper.distanceBlocks(center, minorEnd)),
+                            DrawMeasureHelper.formatValue(DrawMeasureHelper.distanceBlocks(center, majorEnd)),
+                            DrawMeasureHelper.formatValue(DrawMeasureHelper.distanceBlocks(center, minorEnd))),
                     DrawMeasureHelper.midpoint(center, majorEnd),
                     axisColor);
             return;
