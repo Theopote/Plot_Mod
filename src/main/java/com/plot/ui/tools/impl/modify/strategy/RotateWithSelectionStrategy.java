@@ -19,6 +19,7 @@ import com.plot.utils.ExceptionDebug;
 
 import java.awt.Color;
 import java.util.List;
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 import com.plot.utils.PlotI18n;
 
 /**
@@ -807,7 +808,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
                     centerPoint.x + textRadius * Math.cos(midAngle),
                     centerPoint.y + textRadius * Math.sin(midAngle)
                 );
-                context.drawText(PlotI18n.status("status.plot.draw.angle_label", angleDiff), textPos, angleColor);
+                DrawMeasureHelper.drawTextLabel(context, DrawMeasureHelper.formatAngle(angleDiff), textPos);
             }
         }
     }

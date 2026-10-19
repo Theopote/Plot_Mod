@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import java.awt.event.KeyEvent;
 import java.awt.Color;
 import java.util.List;
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 import com.plot.utils.PlotI18n;
 
 /**
@@ -381,7 +382,107 @@ public class ChamferStrategy implements IModifyStrategy {
             for (Shape shape : previewShapes) {
                 renderDashedPreviewShape(context, shape);
             }
+            renderChamferMeasureLabels(context, previewShapes);
         }
+    }
+
+    private void renderChamferMeasureLabels(DrawContext context, List<Shape> shapes) {
+        java.util.List<LineShape> lines = new java.util.ArrayList<>();
+        for (Shape shape : shapes) {
+            if (shape instanceof LineShape line) {
+                lines.add(line);
+            }
+        }
+        if (lines.isEmpty()) {
+            return;
+        }
+
+        LineShape chamferLine = findChamferConnectorLine(lines);
+        if (chamferLine == null) {
+            return;
+        }
+
+        Vec2d trim1 = chamferLine.getStart();
+        Vec2d trim2 = chamferLine.getEnd();
+        LineShape leg1 = findAdjacentLine(lines, chamferLine, trim1);
+        LineShape leg2 = findAdjacentLine(lines, chamferLine, trim2);
+        if (leg1 == null || leg2 == null) {
+            return;
+        }
+
+        Vec2d away1 = pointsNear(leg1.getStart(), trim1) ? leg1.getEnd() : leg1.getStart();
+        Vec2d away2 = pointsNear(leg2.getStart(), trim2) ? leg2.getEnd() : leg2.getStart();
+        Vec2d corner = lineIntersection(trim1, away1, trim2, away2);
+        if (corner == null) {
+            return;
+        }
+
+        DrawMeasureHelper.drawSegmentLabel(context, corner, trim1);
+        DrawMeasureHelper.drawSegmentLabel(context, corner, trim2);
+    }
+
+    private static LineShape findChamferConnectorLine(java.util.List<LineShape> lines) {
+        if (lines.size() == 1) {
+            return lines.getFirst();
+        }
+        for (LineShape candidate : lines) {
+            int connections = 0;
+            for (LineShape other : lines) {
+                if (other == candidate) {
+                    continue;
+                }
+                if (sharesEndpoint(candidate, other)) {
+                    connections++;
+                }
+            }
+            if (connections >= 2) {
+                return candidate;
+            }
+        }
+        LineShape shortest = lines.getFirst();
+        double shortestLength = shortest.getStart().distance(shortest.getEnd());
+        for (LineShape line : lines) {
+            double length = line.getStart().distance(line.getEnd());
+            if (length < shortestLength) {
+                shortest = line;
+                shortestLength = length;
+            }
+        }
+        return shortest;
+    }
+
+    private static LineShape findAdjacentLine(java.util.List<LineShape> lines, LineShape chamferLine, Vec2d endpoint) {
+        for (LineShape line : lines) {
+            if (line == chamferLine) {
+                continue;
+            }
+            if (pointsNear(line.getStart(), endpoint) || pointsNear(line.getEnd(), endpoint)) {
+                return line;
+            }
+        }
+        return null;
+    }
+
+    private static boolean sharesEndpoint(LineShape a, LineShape b) {
+        return pointsNear(a.getStart(), b.getStart()) || pointsNear(a.getStart(), b.getEnd())
+                || pointsNear(a.getEnd(), b.getStart()) || pointsNear(a.getEnd(), b.getEnd());
+    }
+
+    private static boolean pointsNear(Vec2d a, Vec2d b) {
+        return a != null && b != null && a.distance(b) < 1e-4;
+    }
+
+    private static Vec2d lineIntersection(Vec2d p1, Vec2d p2, Vec2d p3, Vec2d p4) {
+        double d1x = p2.x - p1.x;
+        double d1y = p2.y - p1.y;
+        double d2x = p4.x - p3.x;
+        double d2y = p4.y - p3.y;
+        double cross = d1x * d2y - d1y * d2x;
+        if (Math.abs(cross) < 1e-10) {
+            return null;
+        }
+        double t = ((p3.x - p1.x) * d2y - (p3.y - p1.y) * d2x) / cross;
+        return new Vec2d(p1.x + t * d1x, p1.y + t * d1y);
     }
 
     private void renderDashedPreviewShape(DrawContext context, Shape shape) {

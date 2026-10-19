@@ -20,6 +20,7 @@ import com.plot.utils.ExceptionDebug;
 
 import java.awt.Color;
 import java.util.List;
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 import com.plot.utils.PlotI18n;
 
 /**
@@ -517,6 +518,7 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
                 context.drawDashedLine(moveStartPoint, effectiveEnd, movePreviewColor);
                 context.drawCircle(moveStartPoint, 3.0f, movePreviewColor);
                 context.drawCircle(effectiveEnd, 3.0f, movePreviewColor);
+                DrawMeasureHelper.drawSegmentLabel(context, moveStartPoint, effectiveEnd);
             }
         }
     }

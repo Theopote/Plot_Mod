@@ -3,8 +3,12 @@ package com.plot.ui.tools.impl.modify.strategy;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.commands.CopyOffsetCommand;
 import com.plot.core.command.commands.ModifyCommand;
+import com.plot.core.graphics.DrawContext;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
+import com.plot.ui.theme.ThemeManager;
+import com.plot.ui.theme.UITheme;
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 import com.plot.ui.tools.impl.modify.helper.OffsetHandler;
 import com.plot.ui.tools.impl.modify.dto.ModifyParameters;
 import com.plot.core.geometry.shapes.LineShape;
@@ -22,6 +26,8 @@ import com.plot.utils.ExceptionDebug;
 // import org.slf4j.Logger;
 // import org.slf4j.LoggerFactory;
 
+import java.awt.Color;
+import java.util.ArrayList;
 import java.util.List;
 import com.plot.utils.PlotI18n;
 
@@ -43,6 +49,9 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
     private static final double HIT_TOLERANCE = 10.0;
     private static final double OUTLINE_PICK_TOLERANCE = 8.0;
     private boolean multipleMode = false;
+    private Vec2d currentMousePoint;
+    private Vec2d previewClosestPoint;
+    private List<Shape> previewShapes;
 
     @Override
     public ModifyResult onMouseDown(Vec2d pos, int button, ModifyToolContext context) {
@@ -140,7 +149,32 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
 
     @Override
     public ModifyResult onMouseMove(Vec2d pos, ModifyToolContext context) {
-        // 简化版不渲染预览
+        if (state != State.FIRST_POINT_SET || targetShape == null) {
+            return ModifyResult.CONTINUE;
+        }
+
+        Vec2d snapped = context.getSnapHandler().getSnappedWorldPoint(pos, context.getCamera());
+        currentMousePoint = snapped;
+        previewClosestPoint = targetShape.getClosestPoint(snapped);
+        double signedDistance = computeSignedOffsetDistance(targetShape, snapped);
+
+        try {
+            AppState appState = (AppState) context.getAppState();
+            OffsetHandler handler = new OffsetHandler(appState);
+            ModifyParameters params = new ModifyParameters();
+            params.setDouble("offsetDistance", signedDistance);
+            List<Shape> preview = handler.createPreviewShapes(List.of(targetShape), params);
+            previewShapes = preview == null ? null : new ArrayList<>(preview);
+        } catch (Exception e) {
+            ExceptionDebug.log("SimpleOffsetStrategy: update offset preview", e);
+            previewShapes = null;
+        }
+
+        if (previewClosestPoint != null && currentMousePoint != null) {
+            double blockDistance = DrawMeasureHelper.distanceBlocks(previewClosestPoint, currentMousePoint);
+            context.setStatusMessage(PlotI18n.status("status.plot.offset.distance_preview",
+                    DrawMeasureHelper.formatBlocks(blockDistance)));
+        }
         return ModifyResult.CONTINUE;
     }
 
@@ -158,7 +192,35 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
     public void reset() {
         state = State.IDLE;
         targetShape = null;
+        firstPoint = null;
         pendingCommand = null;
+        currentMousePoint = null;
+        previewClosestPoint = null;
+        previewShapes = null;
+    }
+
+    @Override
+    public void renderPreview(DrawContext context) {
+        if (state != State.FIRST_POINT_SET || targetShape == null || context == null) {
+            return;
+        }
+
+        if (previewShapes != null) {
+            for (Shape shape : previewShapes) {
+                shape.render(context);
+            }
+        }
+
+        if (previewClosestPoint != null && currentMousePoint != null) {
+            UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+            Color guideColor = new Color(
+                    (theme.warningText >> 16) & 0xFF,
+                    (theme.warningText >> 8) & 0xFF,
+                    theme.warningText & 0xFF,
+                    180);
+            context.drawDashedLine(previewClosestPoint, currentMousePoint, guideColor);
+            DrawMeasureHelper.drawSegmentLabel(context, previewClosestPoint, currentMousePoint);
+        }
     }
 
     @Override

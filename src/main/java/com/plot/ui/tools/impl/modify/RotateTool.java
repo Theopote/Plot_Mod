@@ -267,7 +267,10 @@ public class RotateTool extends ModifyTool {
         while (angleDiff > 180) angleDiff -= 360;
         while (angleDiff < -180) angleDiff += 360;
         
-        context.drawText(PlotI18n.status("status.plot.draw.angle_label", angleDiff), textPos, arcColor);
+        com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper.drawTextLabel(
+                context,
+                com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper.formatAngle(angleDiff),
+                textPos);
     }
 
     @Override

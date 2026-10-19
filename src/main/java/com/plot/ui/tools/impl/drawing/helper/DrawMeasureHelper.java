@@ -114,6 +114,14 @@ public final class DrawMeasureHelper {
         return translateOrFallback(i18nKey, formatValue(value), formatValue(value));
     }
 
+    public static String formatScale(double factor) {
+        return formatValue(factor) + "x";
+    }
+
+    public static String formatAngle(double degrees) {
+        return String.format(Locale.ROOT, "%.1f°", degrees);
+    }
+
     private static String translateOrFallback(String key, String number, String fallback) {
         String translated = PlotI18n.status(key, number);
         if (translated == null || translated.contains(key)) {

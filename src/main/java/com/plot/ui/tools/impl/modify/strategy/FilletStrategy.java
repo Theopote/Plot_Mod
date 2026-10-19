@@ -30,6 +30,7 @@ import com.plot.core.geometry.shapes.FreeDrawPath;
 import com.plot.core.geometry.shapes.SineCurveShape;
 import com.plot.core.geometry.shapes.SpiralShape;
 import com.plot.core.geometry.shapes.CableShape;
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 import com.plot.utils.PlotI18n;
 
 /**
@@ -294,6 +295,21 @@ public class FilletStrategy implements IModifyStrategy {
             for (Shape shape : previewShapes) {
                 // 修复：使用render方法而不是draw方法，确保应用正确的样式
                 shape.render(context);
+            }
+            renderFilletMeasureLabel(context, previewShapes);
+        }
+    }
+
+    private void renderFilletMeasureLabel(DrawContext context, List<Shape> shapes) {
+        for (Shape shape : shapes) {
+            if (shape instanceof ArcShape arc) {
+                Vec2d center = arc.getCenter();
+                double edgeAngle = arc.getStartAngle();
+                Vec2d edge = new Vec2d(
+                        center.x + arc.getRadius() * Math.cos(edgeAngle),
+                        center.y + arc.getRadius() * Math.sin(edgeAngle));
+                DrawMeasureHelper.drawRadiusLabel(context, center, edge);
+                return;
             }
         }
     }

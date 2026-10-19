@@ -68,7 +68,10 @@ public class OffsetTool extends ModifyTool {
 
     @Override
     protected void renderPreview(DrawContext context) {
-        // 简化策略不提供预览
+        IModifyStrategy strategy = getStrategy();
+        if (strategy != null) {
+            strategy.renderPreview(context);
+        }
     }
 
     @Override

@@ -91,6 +91,18 @@ class DrawMeasureHelperTest {
     }
 
     @Test
+    void formatScaleAppendsMultiplierSuffix() {
+        DrawMeasureSettings.setDecimalPlaces(2);
+        assertEquals("1.50x", DrawMeasureHelper.formatScale(1.5));
+    }
+
+    @Test
+    void formatAngleUsesOneDecimalDegree() {
+        assertEquals("45.0°", DrawMeasureHelper.formatAngle(45.0));
+        assertEquals("-12.3°", DrawMeasureHelper.formatAngle(-12.34));
+    }
+
+    @Test
     void resetLabelColorFallsBackToThemeDefault() {
         DrawMeasureSettings.setLabelColorRgb(0x123456);
         DrawMeasureSettings.resetLabelColor();

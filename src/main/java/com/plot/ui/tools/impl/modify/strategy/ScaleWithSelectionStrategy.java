@@ -19,6 +19,7 @@ import com.plot.utils.ExceptionDebug;
 
 import java.awt.Color;
 import java.util.List;
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 import com.plot.utils.PlotI18n;
 
 /**
@@ -566,6 +567,13 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
         // 渲染从中心点到当前点的虚线（在设置参考点和缩放时都显示）
         if (centerPoint != null && currentPoint != null && (currentState == ScaleState.SCALING || currentState == ScaleState.AWAITING_REFERENCE)) {
             context.drawDashedLine(centerPoint, currentPoint, scalePreviewColor);
+
+            if (currentState == ScaleState.SCALING && referencePoint != null && baseDistance > 0.001) {
+                double currentDistance = centerPoint.distance(currentPoint);
+                double scaleFactor = currentDistance / baseDistance;
+                Vec2d labelPos = DrawMeasureHelper.midpoint(centerPoint, currentPoint);
+                DrawMeasureHelper.drawTextLabel(context, DrawMeasureHelper.formatScale(scaleFactor), labelPos);
+            }
         }
     }
 
