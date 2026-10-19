@@ -1,6 +1,7 @@
 plugins {
 	id 'fabric-loom' version "${loom_version}"
 	id 'maven-publish'
+	id 'jacoco'
 }
 
 version = project.mod_version
@@ -215,6 +216,92 @@ tasks.test {
 	} else {
 		systemProperty "plot.road.benchmark", System.getProperty("plot.road.benchmark", "")
 	}
+}
+
+jacoco {
+	toolVersion = '0.8.12'
+}
+
+def jacocoScopedClasses(String includePattern) {
+	sourceSets.main.output.classesDirs.asFileTree.matching {
+		exclude 'com/plot/mixin/**'
+		exclude 'com/plot/client/**'
+		exclude '**/generated/**'
+		include includePattern
+	}
+}
+
+tasks.named('jacocoTestReport') {
+	dependsOn tasks.test
+	reports {
+		xml.required = true
+		html.required = true
+		csv.required = false
+	}
+}
+
+tasks.register('jacocoCoreUiCoverageReport', JacocoReport) {
+	group = 'verification'
+	description = 'HTML/XML coverage report scoped to com.plot.core and com.plot.ui'
+	dependsOn tasks.test
+
+	reports {
+		xml.required = true
+		html.required = true
+		html.outputLocation = layout.buildDirectory.dir('reports/jacoco/core-ui')
+		csv.required = false
+	}
+
+	classDirectories.setFrom(
+		jacocoScopedClasses('com/plot/core/**'),
+		jacocoScopedClasses('com/plot/ui/**')
+	)
+	sourceDirectories.from(sourceSets.main.allSource.srcDirs)
+	executionData.from(tasks.named('test').map { it.extensions.getByType(JacocoTaskExtension).destinationFile })
+}
+
+tasks.register('jacocoCoreCoverageVerification', JacocoCoverageVerification) {
+	group = 'verification'
+	description = 'Enforce minimum line coverage for com.plot.core'
+	dependsOn tasks.test
+
+	violationRules {
+		rule {
+			element = 'BUNDLE'
+			limit {
+				counter = 'LINE'
+				value = 'COVEREDRATIO'
+				minimum = 0.15d
+			}
+		}
+	}
+
+	classDirectories.setFrom(jacocoScopedClasses('com/plot/core/**'))
+	executionData.from(tasks.named('test').map { it.extensions.getByType(JacocoTaskExtension).destinationFile })
+}
+
+tasks.register('jacocoUiCoverageVerification', JacocoCoverageVerification) {
+	group = 'verification'
+	description = 'Enforce minimum line coverage for com.plot.ui'
+	dependsOn tasks.test
+
+	violationRules {
+		rule {
+			element = 'BUNDLE'
+			limit {
+				counter = 'LINE'
+				value = 'COVEREDRATIO'
+				minimum = 0.10d
+			}
+		}
+	}
+
+	classDirectories.setFrom(jacocoScopedClasses('com/plot/ui/**'))
+	executionData.from(tasks.named('test').map { it.extensions.getByType(JacocoTaskExtension).destinationFile })
+}
+
+tasks.named('check') {
+	dependsOn tasks.named('jacocoCoreCoverageVerification'), tasks.named('jacocoUiCoverageVerification')
 }
 
 tasks.register("roadBenchmarkBaseline", JavaExec) {

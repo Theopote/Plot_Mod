@@ -34,12 +34,24 @@ jobs:
         if: runner.os != 'Windows'
         run: chmod +x gradlew
 
-      - name: Build (clean test build)
+      - name: Build (clean test build + coverage gate)
         env:
           # Loom + Minecraft remapping needs headroom beyond default 1G
           GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2G"
         shell: bash
-        run: ./gradlew clean test build --stacktrace --no-daemon
+        run: >
+          ./gradlew clean test jacocoTestReport jacocoCoreUiCoverageReport
+          jacocoCoreCoverageVerification jacocoUiCoverageVerification build
+          --stacktrace --no-daemon
+
+      - name: Upload JaCoCo HTML reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-reports-${{ matrix.os }}
+          path: |
+            build/reports/jacoco/
+          if-no-files-found: ignore
 
   # Building 2.0 Stabilization：专属 check，便于 PR 上看到建筑套件状态
   building-suite:
