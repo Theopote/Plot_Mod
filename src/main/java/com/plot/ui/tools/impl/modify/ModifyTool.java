@@ -357,8 +357,9 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
                 IModifyStrategy strategy = getStrategy();
                 if (strategy != null) {
                     ModifyCommand command = strategy.getModifyCommand();
-                if (command != null) {
-                    executeModifyCommand(command);
+                    if (command != null) {
+                        executeModifyCommand(command);
+                        onModifyComplete();
                     }
                 }
                 return true;
@@ -378,6 +379,25 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
                 LOGGER.warn("ModifyTool [{}] 未知的修改结果: {}", toolId, result);
                 return false;
             }
+        }
+    }
+
+    /**
+     * 修改命令执行完成后的钩子，供单次命令类工具扩展（如炸开/合并后回到选择工具）。
+     */
+    protected void onModifyComplete() {
+    }
+
+    protected void returnToSelectionTool() {
+        try {
+            com.plot.core.tool.ToolManager toolManager = ApplicationContext.getInstance().getToolManager();
+            var selectTool = toolManager.getTool("select");
+            if (selectTool instanceof BaseTool baseTool) {
+                toolManager.setActiveTool(selectTool);
+                concreteAppState.setCurrentTool(baseTool);
+            }
+        } catch (Exception e) {
+            LOGGER.error("ModifyTool [{}]: 切换回选择工具失败", toolId, e);
         }
     }
 

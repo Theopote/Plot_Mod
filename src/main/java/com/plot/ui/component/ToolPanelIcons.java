@@ -47,6 +47,8 @@ public class ToolPanelIcons {
     public static final Identifier FILLET = createIdentifier("fillet.png");
     public static final Identifier CHAMFER = createIdentifier("chamfer.png");
     public static final Identifier TRANSFORM = createIdentifier("transform.png");
+    public static final Identifier EXPLODE = createIdentifier("explode.png");
+    public static final Identifier JOIN = createIdentifier("join.png");
     public static final Identifier OFFSET = createIdentifier("offset.png");
     
     private static Identifier createIdentifier(String name) {

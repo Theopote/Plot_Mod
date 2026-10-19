@@ -537,7 +537,9 @@ public class ToolPanel implements UIComponent {
             new Tool(ToolPanelIcons.CHAMFER, "tool.plot.chamfer", "chamfer"),
             new Tool(ToolPanelIcons.EXTEND, "tool.plot.extend", "extend"),
             new Tool(ToolPanelIcons.TRIM, "tool.plot.trim", "trim"),
-            new Tool(ToolPanelIcons.TRANSFORM, "tool.plot.transform", "transform")
+            new Tool(ToolPanelIcons.TRANSFORM, "tool.plot.transform", "transform"),
+            new Tool(ToolPanelIcons.EXPLODE, "tool.plot.explode", "explode"),
+            new Tool(ToolPanelIcons.JOIN, "tool.plot.join", "join")
         );
         groups.add(new ToolGroup("group.plot.edit_tools", editTools, true));
         

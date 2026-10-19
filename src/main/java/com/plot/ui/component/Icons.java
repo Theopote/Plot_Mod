@@ -74,6 +74,8 @@ public class Icons {
     public static final Identifier TRIM_IDENTIFIER = Identifier.of("plot", "textures/gui/tools/trim.png");
     public static final Identifier BREAK_IDENTIFIER = Identifier.of("plot", "textures/gui/tools/break.png");
     public static final Identifier EXTEND_IDENTIFIER = Identifier.of("plot", "textures/gui/tools/extend.png");
+    public static final Identifier EXPLODE_IDENTIFIER = Identifier.of("plot", "textures/gui/tools/explode.png");
+    public static final Identifier JOIN_IDENTIFIER = Identifier.of("plot", "textures/gui/tools/join.png");
     public static final Identifier CATENARY_IDENTIFIER = Identifier.of("plot", "textures/gui/tools/catenary.png");
 
     private static final Map<String, IconData> iconCache = new HashMap<>();

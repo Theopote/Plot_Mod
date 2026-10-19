@@ -176,7 +176,9 @@ public final class ModifyToolsModule {
             tools.add(new ExtendTool(appState, snapManager));
             tools.add(new TrimTool(appState, snapManager));
             tools.add(new TransformTool(appState, snapManager, eventBus));
-            
+            tools.add(new ExplodeTool(appState, snapManager));
+            tools.add(new JoinTool(appState, snapManager));
+
             // 标注工具
             tools.add(new AnnotationTool(appState, snapManager)); // 标注工具（依赖注入）
             
