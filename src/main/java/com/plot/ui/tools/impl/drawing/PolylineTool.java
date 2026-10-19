@@ -89,6 +89,7 @@ public class PolylineTool extends DrawingTool implements PolylineDrawingSession.
     // ====== 适配器实例 ======
     private final ReusableDrawContextAdapter drawContextAdapter = new ReusableDrawContextAdapter();
     private final ReusableImGuiAdapter imGuiAdapter = new ReusableImGuiAdapter();
+    private final DrawingToolContextAdapter drawingToolContextAdapter = new DrawingToolContextAdapter();
     
     // ====== 模式处理器 ======
     private IModeHandler currentModeHandler;
@@ -418,7 +419,7 @@ public class PolylineTool extends DrawingTool implements PolylineDrawingSession.
             // 直接将调用委托给当前激活的模式处理器
             if (currentModeHandler != null) {
                 LOGGER.debug("委托给模式处理器: {}", currentModeHandler.getClass().getSimpleName());
-                IInteractionStrategy.InteractionResult result = currentModeHandler.onMouseDown(pos, button, new DrawingToolContextAdapter());
+                IInteractionStrategy.InteractionResult result = currentModeHandler.onMouseDown(pos, button, drawingToolContextAdapter);
                 
                 LOGGER.debug("模式处理器返回结果: {}", result);
                 
@@ -444,7 +445,7 @@ public class PolylineTool extends DrawingTool implements PolylineDrawingSession.
         public IInteractionStrategy.InteractionResult onMouseMove(Vec2d pos, DrawingToolContext context) {
             // 直接委托给当前模式处理器
             if (currentModeHandler != null) {
-                return currentModeHandler.onMouseMove(pos, new DrawingToolContextAdapter());
+                return currentModeHandler.onMouseMove(pos, drawingToolContextAdapter);
             }
             return IInteractionStrategy.InteractionResult.IGNORED;
         }
@@ -455,7 +456,7 @@ public class PolylineTool extends DrawingTool implements PolylineDrawingSession.
             if (currentModeHandler != null) {
 
                 // 传递模式处理器的结果
-                return currentModeHandler.onMouseUp(pos, button, new DrawingToolContextAdapter());
+                return currentModeHandler.onMouseUp(pos, button, drawingToolContextAdapter);
             }
             return IInteractionStrategy.InteractionResult.CONTINUE;
         }
@@ -807,7 +808,7 @@ public class PolylineTool extends DrawingTool implements PolylineDrawingSession.
     public boolean onKeyDown(int key) {
         if (currentModeHandler != null) {
             IInteractionStrategy.InteractionResult result =
-                currentModeHandler.onKeyDown(key, new DrawingToolContextAdapter());
+                currentModeHandler.onKeyDown(key, drawingToolContextAdapter);
             if (handleModeKeyboardResult(result, "键盘按下")) {
                 return true;
             }
@@ -823,7 +824,7 @@ public class PolylineTool extends DrawingTool implements PolylineDrawingSession.
     public boolean onKeyTyped(char character) {
         if (currentModeHandler != null) {
             IInteractionStrategy.InteractionResult result =
-                currentModeHandler.onKeyTyped(character, new DrawingToolContextAdapter());
+                currentModeHandler.onKeyTyped(character, drawingToolContextAdapter);
             return handleModeKeyboardResult(result, "字符输入");
         }
         return false;
