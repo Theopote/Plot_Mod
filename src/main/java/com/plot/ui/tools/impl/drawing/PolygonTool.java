@@ -731,6 +731,7 @@ public class PolygonTool extends DrawingTool {
             LOGGER.debug("PolygonTool.onMouseDown: 点击位置={}, 转换后={}", pos, worldPoint);
             
             controlPoints.add(worldPoint);
+            currentMousePoint = worldPoint;
             currentStep++;
             
             // 所有模式都是两步完成
@@ -750,11 +751,11 @@ public class PolygonTool extends DrawingTool {
             if (controlPoints.size() == 1) {
                 currentMousePoint = constrainSecondPointToAxis(controlPoints.getFirst(), currentMousePoint);
             }
-
-            // 未开始绘制：仅显示捕捉指示器
-            // 触发重绘
-
-            // 无需手动更新预览，渲染循环会自动调用 updatePreviewGeometry()
+            if (segmentInput.hasInput()) {
+                applyPolygonSegmentDistance();
+            } else {
+                updatePreviewGeometry();
+            }
             return InteractionResult.CONTINUE;
         }
         

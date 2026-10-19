@@ -2494,6 +2494,8 @@
   "status.plot.draw.typing_radius_ready": "半径: %s — 回车完成",
   "status.plot.draw.typing_distance": "输入距离: %s （继续输入…）",
   "status.plot.draw.typing_distance_ready": "距离: %s — 回车完成",
+  "status.plot.draw.typing_dimensions": "输入宽,高: %s （继续输入…）",
+  "status.plot.draw.typing_dimensions_ready": "宽×高: %s — 回车完成",
   "status.plot.copy.typing_distance": "输入复制距离: %s （继续输入…）",
   "status.plot.copy.typing_distance_ready": "复制距离: %s — 回车完成",
   "status.plot.fillet.typing_radius": "输入圆角半径: %s （继续输入…）",

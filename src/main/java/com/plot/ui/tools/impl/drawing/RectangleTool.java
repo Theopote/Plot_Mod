@@ -23,6 +23,8 @@ import java.util.Arrays;
 import java.util.List;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
+import com.plot.ui.tools.helper.NumericInputSupport;
+import com.plot.ui.tools.helper.PairNumericInputHandler;
 import com.plot.ui.tools.helper.SegmentNumericInputHandler;
 import com.plot.ui.tools.helper.ToolPreviewRefresh;
 import com.plot.ui.tools.snap.SnapEnhancer;
@@ -96,6 +98,7 @@ public class RectangleTool extends DrawingTool {
     // 捕捉增强器
     private final SnapEnhancer snapEnhancer = new SnapEnhancer("RectangleTool");
     private final SegmentNumericInputHandler segmentInput = new SegmentNumericInputHandler();
+    private final PairNumericInputHandler pairInput = new PairNumericInputHandler();
 
     /**
      * 推荐构造函数（依赖注入）
@@ -225,6 +228,7 @@ public class RectangleTool extends DrawingTool {
         previewRectangle = null;
         currentMousePoint = null;
         segmentInput.clear();
+        pairInput.clear();
         snapEnhancer.reset(); // 重置捕捉状态
         updateStatusMessage();
         markDirty();
@@ -235,6 +239,18 @@ public class RectangleTool extends DrawingTool {
             case TWO_POINTS, CENTER_POINT -> 2;
             case THREE_POINTS, ROUNDED -> 3;
         };
+    }
+
+    private boolean usesPairInput() {
+        return currentMode == RectangleMode.TWO_POINTS && controlPoints.size() == 1;
+    }
+
+    private boolean hasActiveNumericInput() {
+        return usesPairInput() ? pairInput.hasInput() : segmentInput.hasInput();
+    }
+
+    private String getActiveNumericInputText() {
+        return usesPairInput() ? pairInput.getText() : segmentInput.getText();
     }
 
     // ====== DrawingTool基类抽象方法实现 ======
@@ -473,6 +489,13 @@ public class RectangleTool extends DrawingTool {
                 DrawMeasureHelper.drawSegmentLabel(context, baseStart, baseEnd);
                 DrawMeasureHelper.drawSegmentLabel(context, currentMousePoint, projectedPoint);
             }
+        }
+
+        if (currentMode == RectangleMode.TWO_POINTS && controlPoints.size() == 1
+            && currentMousePoint != null && hasActiveNumericInput()) {
+            DrawMeasureHelper.drawNumericInputOverlay(
+                context, DrawMeasureHelper.midpoint(controlPoints.getFirst(), currentMousePoint),
+                getActiveNumericInputText(), "");
         }
 
         // 圆角模式：绘制圆角半径指示线
@@ -848,6 +871,7 @@ public class RectangleTool extends DrawingTool {
             SnapEnhancer.SnapResult snapResult = snapEnhancer.performEnhancedSnap(pos, context);
             Vec2d snappedPoint = snapResult.point;
             controlPoints.add(snappedPoint);
+            currentMousePoint = snappedPoint;
 
             LOGGER.debug("RectangleTool: 添加控制点 - 位置={}, 捕捉={}, 类型={}",
                     snappedPoint, snapResult.snapped, snapResult.snapType);
@@ -902,8 +926,12 @@ public class RectangleTool extends DrawingTool {
                 return InteractionResult.CONTINUE; // 返回CONTINUE以触发重绘
             }
 
-            updatePreview();
-            context.setPreviewShape(previewShape); // 关键：每次同步
+            if (hasActiveNumericInput()) {
+                applySegmentDistance(context);
+            } else {
+                updatePreview();
+            }
+            context.setPreviewShape(previewShape);
             return InteractionResult.CONTINUE;
         }
 
@@ -915,6 +943,10 @@ public class RectangleTool extends DrawingTool {
         @Override
         public InteractionResult onKeyDown(int keyCode, DrawingToolContext context) {
             boolean active = !controlPoints.isEmpty() && currentMousePoint != null;
+            if (usesPairInput()) {
+                return pairInput.onKeyDown(keyCode, active, () -> applySegmentDistance(context),
+                    () -> confirmSegmentDistance(context));
+            }
             return segmentInput.onKeyDown(keyCode, active, () -> applySegmentDistance(context),
                 () -> confirmSegmentDistance(context));
         }
@@ -922,33 +954,65 @@ public class RectangleTool extends DrawingTool {
         @Override
         public InteractionResult onKeyTyped(char character, DrawingToolContext context) {
             boolean active = !controlPoints.isEmpty() && currentMousePoint != null;
+            if (usesPairInput()) {
+                return pairInput.onKeyTyped(character, active, () -> applySegmentDistance(context));
+            }
             return segmentInput.onKeyTyped(character, active, () -> applySegmentDistance(context));
         }
 
         private void applySegmentDistance(DrawingToolContext context) {
-            Double blocks = segmentInput.parsePositive();
-            if (blocks != null && !controlPoints.isEmpty() && currentMousePoint != null) {
-                currentMousePoint = segmentInput.pointAtDistance(
-                    controlPoints.getLast(), currentMousePoint, blocks);
+            if (usesPairInput()) {
+                double[] pair = pairInput.parsePairPositive();
+                if (pair != null) {
+                    currentMousePoint = NumericInputSupport.cornerFromWidthHeight(
+                        controlPoints.getFirst(), currentMousePoint, pair[0], pair[1]);
+                    setStatusMessage(PlotI18n.status("status.plot.draw.typing_dimensions_ready",
+                        pairInput.getText()));
+                } else {
+                    Double blocks = pairInput.parseSinglePositive();
+                    if (blocks != null) {
+                        currentMousePoint = pairInput.pointAtDistance(
+                            controlPoints.getFirst(), currentMousePoint, blocks);
+                        setStatusMessage(PlotI18n.status("status.plot.draw.typing_distance_ready",
+                            DrawMeasureHelper.formatBlocks(blocks)));
+                    } else if (pairInput.hasInput()) {
+                        String msg = pairInput.hasSeparator()
+                            ? PlotI18n.status("status.plot.draw.typing_dimensions", pairInput.getText())
+                            : PlotI18n.status("status.plot.draw.typing_distance", pairInput.getText());
+                        setStatusMessage(msg);
+                    }
+                }
+            } else {
+                Double blocks = segmentInput.parsePositive();
+                if (blocks != null && !controlPoints.isEmpty() && currentMousePoint != null) {
+                    currentMousePoint = segmentInput.pointAtDistance(
+                        controlPoints.getLast(), currentMousePoint, blocks);
+                }
+                if (blocks == null && segmentInput.hasInput()) {
+                    setStatusMessage(PlotI18n.status("status.plot.draw.typing_distance", segmentInput.getText()));
+                } else if (blocks != null) {
+                    setStatusMessage(PlotI18n.status("status.plot.draw.typing_distance_ready",
+                        DrawMeasureHelper.formatBlocks(blocks)));
+                }
             }
             updatePreview();
             context.setPreviewShape(previewShape);
-            if (blocks == null && segmentInput.hasInput()) {
-                setStatusMessage(PlotI18n.status("status.plot.draw.typing_distance", segmentInput.getText()));
-            } else if (blocks != null) {
-                setStatusMessage(PlotI18n.status("status.plot.draw.typing_distance_ready",
-                    DrawMeasureHelper.formatBlocks(blocks)));
-            }
             ToolPreviewRefresh.request();
         }
 
         private InteractionResult confirmSegmentDistance(DrawingToolContext context) {
             applySegmentDistance(context);
-            Double blocks = segmentInput.parsePositive();
-            if (blocks == null || currentMousePoint == null) {
+            boolean ready = usesPairInput()
+                ? pairInput.hasCompleteInput()
+                : segmentInput.parsePositive() != null;
+            if (!ready || currentMousePoint == null) {
                 return InteractionResult.CONTINUE;
             }
-            segmentInput.clear();
+            if (usesPairInput()) {
+                pairInput.clear();
+            } else {
+                segmentInput.clear();
+            }
             controlPoints.add(currentMousePoint);
             int required = requiredPointsForMode();
             if (controlPoints.size() >= required) {

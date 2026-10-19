@@ -122,6 +122,8 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
             new com.plot.ui.tools.snap.SnapEnhancer("EllipseTool");
     private final com.plot.ui.tools.helper.SegmentNumericInputHandler segmentInput =
             new com.plot.ui.tools.helper.SegmentNumericInputHandler();
+    private final com.plot.ui.tools.helper.PairNumericInputHandler pairInput =
+            new com.plot.ui.tools.helper.PairNumericInputHandler();
     private EllipseShape previewEllipse;
     private int currentStep = 0;
     
@@ -292,7 +294,14 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
                     drawSegmentOrInput(context, center, currentMousePoint, true);
                 }
             }
-            case THREE_POINTS_CENTER, TWO_POINTS -> {
+            case THREE_POINTS_CENTER -> {
+                if (controlPoints.size() >= 2 && currentMousePoint != null) {
+                    drawSegmentOrInput(context, controlPoints.getFirst(), currentMousePoint, true);
+                } else if (controlPoints.size() == 1 && currentMousePoint != null) {
+                    drawSegmentOrInput(context, controlPoints.getFirst(), currentMousePoint, true);
+                }
+            }
+            case TWO_POINTS -> {
                 if (controlPoints.size() >= 2) {
                     drawSegmentOrInput(context, controlPoints.get(0), controlPoints.get(1), false);
                 } else if (controlPoints.size() == 1 && currentMousePoint != null) {
@@ -770,21 +779,60 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
         previewEllipse = null;
         currentStep = 0;
         segmentInput.clear();
+        pairInput.clear();
         updateStatusMessageForCurrentMode();
         
         LOGGER.debug("椭圆工具状态已重置");
     }
 
+    private boolean usesPairInput() {
+        return currentMode == EllipseMode.TWO_POINTS && controlPoints.size() == 1;
+    }
+
+    private boolean hasActiveNumericInput() {
+        return usesPairInput() ? pairInput.hasInput() : segmentInput.hasInput();
+    }
+
+    private String getActiveNumericInputText() {
+        return usesPairInput() ? pairInput.getText() : segmentInput.getText();
+    }
+
+    private Vec2d getEllipseNumericAnchor() {
+        return switch (currentMode) {
+            case THREE_POINTS_AXIS -> controlPoints.size() >= 2
+                ? controlPoints.get(0).add(controlPoints.get(1)).multiply(0.5)
+                : controlPoints.getLast();
+            case THREE_POINTS_CENTER -> controlPoints.getFirst();
+            default -> controlPoints.getLast();
+        };
+    }
+
+    private Vec2d applyEllipseNumericPoint(Vec2d anchor, Vec2d toward, double blocks) {
+        boolean minorStep = switch (currentMode) {
+            case THREE_POINTS_AXIS, THREE_POINTS_CENTER -> controlPoints.size() >= 2;
+            default -> false;
+        };
+        if (minorStep) {
+            Vec2d axisPoint = controlPoints.get(1);
+            return com.plot.ui.tools.helper.NumericInputSupport.pointAtPerpendicularDistance(
+                anchor, axisPoint, toward, blocks);
+        }
+        return segmentInput.pointAtDistance(anchor, toward, blocks);
+    }
+
     private void applyEllipseSegmentDistance() {
+        if (usesPairInput()) {
+            applyPairInputForCorner();
+            return;
+        }
         Double blocks = segmentInput.parsePositive();
         if (blocks != null && !controlPoints.isEmpty() && currentMousePoint != null) {
-            currentMousePoint = segmentInput.pointAtDistance(
-                controlPoints.getLast(), currentMousePoint, blocks);
-            switch (currentMode) {
-                case THREE_POINTS_AXIS -> updateThreePointsAxisPreview();
-                case THREE_POINTS_CENTER -> updateThreePointsCenterPreview();
-                case TWO_POINTS -> updateTwoPointsEllipsePreview();
+            Vec2d anchor = getEllipseNumericAnchor();
+            currentMousePoint = applyEllipseNumericPoint(anchor, currentMousePoint, blocks);
+            if (shouldConstrainSecondPoint()) {
+                currentMousePoint = constrainSecondPointToAxis(controlPoints.getFirst(), currentMousePoint);
             }
+            refreshEllipsePreviewForMode();
         }
         if (blocks == null && segmentInput.hasInput()) {
             setStatusMessage(com.plot.utils.PlotI18n.status(
@@ -795,10 +843,43 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
         }
     }
 
+    private void applyPairInputForCorner() {
+        double[] pair = pairInput.parsePairPositive();
+        if (pair != null) {
+            currentMousePoint = com.plot.ui.tools.helper.NumericInputSupport.cornerFromWidthHeight(
+                controlPoints.getFirst(), currentMousePoint, pair[0], pair[1]);
+            updateTwoPointsEllipsePreview();
+            setStatusMessage(com.plot.utils.PlotI18n.status(
+                "status.plot.draw.typing_dimensions_ready", pairInput.getText()));
+            return;
+        }
+        Double blocks = pairInput.parseSinglePositive();
+        if (blocks != null) {
+            currentMousePoint = pairInput.pointAtDistance(
+                controlPoints.getFirst(), currentMousePoint, blocks);
+            updateTwoPointsEllipsePreview();
+            setStatusMessage(com.plot.utils.PlotI18n.status("status.plot.draw.typing_distance_ready",
+                DrawMeasureHelper.formatBlocks(blocks)));
+        } else if (pairInput.hasInput()) {
+            String msg = pairInput.hasSeparator()
+                ? com.plot.utils.PlotI18n.status("status.plot.draw.typing_dimensions", pairInput.getText())
+                : com.plot.utils.PlotI18n.status("status.plot.draw.typing_distance", pairInput.getText());
+            setStatusMessage(msg);
+        }
+    }
+
+    private void refreshEllipsePreviewForMode() {
+        switch (currentMode) {
+            case THREE_POINTS_AXIS -> updateThreePointsAxisPreview();
+            case THREE_POINTS_CENTER -> updateThreePointsCenterPreview();
+            case TWO_POINTS -> updateTwoPointsEllipsePreview();
+        }
+    }
+
     private void drawSegmentOrInput(DrawContext context, Vec2d from, Vec2d to, boolean active) {
-        if (active && segmentInput.hasInput()) {
+        if (active && hasActiveNumericInput()) {
             DrawMeasureHelper.drawNumericInputOverlay(
-                context, DrawMeasureHelper.midpoint(from, to), segmentInput.getText(), "");
+                context, DrawMeasureHelper.midpoint(from, to), getActiveNumericInputText(), "");
         } else {
             DrawMeasureHelper.drawSegmentLabel(context, from, to);
         }
@@ -905,6 +986,7 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
             
             // 根据当前模式处理点击
             controlPoints.add(worldPoint);
+            currentMousePoint = worldPoint;
             currentStep++;
             
             // 检查是否完成绘制
@@ -941,29 +1023,16 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
                 currentMousePoint = constrainSecondPointToAxis(controlPoints.getFirst(), currentMousePoint);
             }
             
-            // 即使没有控制点，也要更新鼠标位置以显示吸附效果
             if (controlPoints.isEmpty()) {
                 return InteractionResult.CONTINUE;
             }
-            
-            // 根据当前模式更新预览
-            return switch (currentMode) {
-                case THREE_POINTS_AXIS -> {
-                    updateThreePointsAxisPreview();
-                    yield InteractionResult.CONTINUE;
-                }
-                case THREE_POINTS_CENTER -> {
-                    updateThreePointsCenterPreview();
-                    yield InteractionResult.CONTINUE;
-                }
-                case TWO_POINTS -> {
-                    updateTwoPointsEllipsePreview();
-                    yield InteractionResult.CONTINUE;
-                }
-            };
-            
-            // 强制更新预览
 
+            if (hasActiveNumericInput()) {
+                applyEllipseSegmentDistance();
+            } else {
+                refreshEllipsePreviewForMode();
+            }
+            return InteractionResult.CONTINUE;
         }
         
         @Override
@@ -975,6 +1044,12 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
         @Override
         public InteractionResult onKeyDown(int keyCode, DrawingToolContext context) {
             boolean active = !controlPoints.isEmpty() && !isEllipseDrawingComplete() && currentMousePoint != null;
+            if (usesPairInput()) {
+                return pairInput.onKeyDown(keyCode, active, () -> {
+                    applyEllipseSegmentDistance();
+                    com.plot.ui.tools.helper.ToolPreviewRefresh.request();
+                }, () -> confirmEllipseSegment(context));
+            }
             return segmentInput.onKeyDown(keyCode, active, () -> {
                 applyEllipseSegmentDistance();
                 com.plot.ui.tools.helper.ToolPreviewRefresh.request();
@@ -984,6 +1059,12 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
         @Override
         public InteractionResult onKeyTyped(char character, DrawingToolContext context) {
             boolean active = !controlPoints.isEmpty() && !isEllipseDrawingComplete() && currentMousePoint != null;
+            if (usesPairInput()) {
+                return pairInput.onKeyTyped(character, active, () -> {
+                    applyEllipseSegmentDistance();
+                    com.plot.ui.tools.helper.ToolPreviewRefresh.request();
+                });
+            }
             return segmentInput.onKeyTyped(character, active, () -> {
                 applyEllipseSegmentDistance();
                 com.plot.ui.tools.helper.ToolPreviewRefresh.request();
@@ -992,10 +1073,17 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
 
         private InteractionResult confirmEllipseSegment(DrawingToolContext context) {
             applyEllipseSegmentDistance();
-            if (currentMousePoint == null || segmentInput.parsePositive() == null) {
+            boolean ready = usesPairInput()
+                ? pairInput.hasCompleteInput()
+                : segmentInput.parsePositive() != null;
+            if (currentMousePoint == null || !ready) {
                 return InteractionResult.CONTINUE;
             }
-            segmentInput.clear();
+            if (usesPairInput()) {
+                pairInput.clear();
+            } else {
+                segmentInput.clear();
+            }
             Vec2d worldPoint = currentMousePoint;
             if (shouldConstrainSecondPoint()) {
                 worldPoint = constrainSecondPointToAxis(controlPoints.getFirst(), worldPoint);

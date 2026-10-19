@@ -243,11 +243,20 @@ public class SemicircleTool extends DrawingTool {
         };
     }
 
+    private Vec2d getSemicircleNumericAnchor() {
+        if (currentMode == SemicircleMode.THREE_POINTS && controlPoints.size() >= 2) {
+            Vec2d p1 = controlPoints.get(0);
+            Vec2d p2 = controlPoints.get(1);
+            return new Vec2d((p1.x + p2.x) / 2.0, (p1.y + p2.y) / 2.0);
+        }
+        return controlPoints.getLast();
+    }
+
     private void applySemicircleSegmentDistance() {
         Double blocks = segmentInput.parsePositive();
         if (blocks != null && !controlPoints.isEmpty() && currentMousePoint != null) {
-            currentMousePoint = segmentInput.pointAtDistance(
-                controlPoints.getLast(), currentMousePoint, blocks);
+            Vec2d anchor = getSemicircleNumericAnchor();
+            currentMousePoint = segmentInput.pointAtDistance(anchor, currentMousePoint, blocks);
             if (controlPoints.size() == 1) {
                 currentMousePoint = constrainSecondPointToAxis(controlPoints.getFirst(), currentMousePoint);
             }
@@ -965,6 +974,7 @@ public class SemicircleTool extends DrawingTool {
 
             // 根据当前模式处理点击
             controlPoints.add(worldPoint);
+            currentMousePoint = worldPoint;
             currentStep++;
 
             // 检查是否完成绘制
@@ -1004,9 +1014,12 @@ public class SemicircleTool extends DrawingTool {
                 return InteractionResult.CONTINUE;
             }
 
-            // 更新预览和状态消息
-            updatePreview();
-            updateStatusMessageForCurrentMode();
+            if (segmentInput.hasInput()) {
+                applySemicircleSegmentDistance();
+            } else {
+                updatePreview();
+                updateStatusMessageForCurrentMode();
+            }
 
             return InteractionResult.CONTINUE;
         }
