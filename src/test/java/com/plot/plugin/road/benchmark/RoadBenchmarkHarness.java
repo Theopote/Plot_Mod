@@ -7,6 +7,7 @@ import com.plot.plugin.road.RoadJunctionGenerator;
 import com.plot.plugin.road.RoadNetworkEngineeringValidator;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadNetworkValidationReport;
+import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.solid.RoadGenerationResult;
@@ -90,7 +91,7 @@ public final class RoadBenchmarkHarness {
         // profile in the editor before previewing it.
         networkGenerator.setActiveManualProfileRoadIds(network.getRoads().values().stream()
             .filter(road -> road.getVerticalMode() == RoadVerticalMode.MANUAL_PROFILE)
-            .map(road -> road.getId())
+            .map(Road::getId)
             .toList());
         RoadNetworkGenerator.PreviewResult preview =
             networkGenerator.generatePreview(network, terrain);

@@ -65,8 +65,8 @@ public record RoadStackCrossing(
             ordered[0],
             ordered[1],
             CrossingType.GRADE_SEPARATED,
-            ordered[0],
-            ordered[1],
+            lowerStation,
+            upperStation,
             clearance,
             null);
     }
@@ -95,6 +95,9 @@ public record RoadStackCrossing(
             double newStationA,
             double newStationB,
             Vec2d newPosition) {
+        boolean lowerWasA = Math.abs(resolvedLowerStation() - stationA)
+            <= Math.abs(resolvedLowerStation() - stationB);
+        double[] ordered = orderStations(newStationA, newStationB);
         return new RoadStackCrossing(
             id,
             roadId,
@@ -102,8 +105,8 @@ public record RoadStackCrossing(
             newStationA,
             newStationB,
             type,
-            lowerStation,
-            upperStation,
+            lowerStation != null ? ordered[lowerWasA ? 0 : 1] : null,
+            upperStation != null ? ordered[lowerWasA ? 1 : 0] : null,
             crossingClearance,
             sharedElevation);
     }

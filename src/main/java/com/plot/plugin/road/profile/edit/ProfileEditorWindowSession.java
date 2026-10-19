@@ -9,6 +9,12 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.pipeline.profile.VoxelProfileCompileResult;
 import com.plot.plugin.road.profile.RoadProfileIntersection;
 import com.plot.plugin.road.ui.RoadUiContext;
+import com.plot.plugin.road.profile.RoadProfileChartAssembler;
+import com.plot.plugin.road.solid.RoadGenerationResult;
+import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
+import com.plot.plugin.road.vertical.RoadVerticalAlignment;
+import com.plot.plugin.road.vertical.RoadVerticalMode;
+import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -26,6 +32,8 @@ public final class ProfileEditorWindowSession {
         NO_CHANGES,
         /** 已写回 live */
         APPLIED,
+        /** Crossing constraints could not be satisfied; keep the editable transaction open. */
+        CONSTRAINT_CONFLICT,
         /** live 在外部被修改，拒绝覆盖 */
         CONFLICT
     }
@@ -38,6 +46,11 @@ public final class ProfileEditorWindowSession {
     private final Set<String> touchedCrossingIds = new LinkedHashSet<>();
     private final Map<String, VoxelProfilePreviewSlot> voxelPreviews = new LinkedHashMap<>();
     private final ProfileEditorUndoHistory undoHistory = new ProfileEditorUndoHistory();
+    private Set<String> unresolvedConstraints = Set.of();
+
+    public Set<String> unresolvedConstraints() {
+        return unresolvedConstraints;
+    }
 
     private ProfileEditorWindowSession(RoadNetwork openSnapshot, long openRevision) {
         this.openSnapshot = Objects.requireNonNull(openSnapshot, "openSnapshot");
@@ -61,6 +74,31 @@ public final class ProfileEditorWindowSession {
 
     public RoadNetwork editingNetwork() {
         return workingNetwork;
+    }
+
+    /** Adopt existing terrain samples as derived editor data, without making the window dirty. */
+    public void seedSampledProfiles(RoadSystemConfig config, Map<String, RoadGenerationResult> edgeResults) {
+        for (Road road : workingNetwork.getRoads().values()) {
+            if (VerticalAlignmentGeometry.isEvaluable(road.getVerticalAlignment())
+                    || road.getVerticalMode() == RoadVerticalMode.MANUAL_PROFILE
+                    || road.getVerticalMode() == RoadVerticalMode.FLAT) continue;
+            RoadProfileChartAssembler.assemble(workingNetwork, road, config, edgeResults).ifPresent(chart -> {
+                var points = new java.util.ArrayList<PointOfVerticalIntersection>();
+                for (int i = 0; i < chart.stations().size(); i++) {
+                    double elevation = chart.previewElevationAt(chart.stations().get(i));
+                    if (Double.isFinite(elevation)) points.add(
+                        PointOfVerticalIntersection.of(chart.stations().get(i), elevation));
+                }
+                var alignment = new RoadVerticalAlignment(points);
+                if (VerticalAlignmentGeometry.isEvaluable(alignment)) {
+                    RoadVerticalMode mode = road.getVerticalMode();
+                    road.setVerticalAlignment(alignment);
+                    road.setVerticalMode(mode);
+                    openSnapshot.getRoad(road.getId()).setVerticalAlignment(alignment.copy());
+                    openSnapshot.getRoad(road.getId()).setVerticalMode(mode);
+                }
+            });
+        }
     }
 
     public boolean isDirty() {
@@ -225,11 +263,22 @@ public final class ProfileEditorWindowSession {
         if (ctx.networkManager().getNetworkRevision() != openRevision) {
             return ConfirmResult.CONFLICT;
         }
-        Set<String> propagateSeeds = new LinkedHashSet<>(
-            ProfileEditorNetworkApplier.collectChangedRoadIds(openSnapshot, workingNetwork));
+        Set<String> changedRoadIds = ProfileEditorNetworkApplier.collectChangedRoadIds(openSnapshot, workingNetwork);
+        Set<String> propagateSeeds = new LinkedHashSet<>(changedRoadIds);
         propagateSeeds.addAll(touchedRoadIds);
-        ProfileEditorNetworkApplier.propagateTouchedRoads(
+        unresolvedConstraints = com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer.validate(
             workingNetwork, propagateSeeds, config);
+        // Normal editor gestures have already linked the working copy. For callers
+        // that directly edited one road, synchronize once. Never choose an arbitrary
+        // winner between several conflicting edited profiles at confirmation time.
+        if (!unresolvedConstraints.isEmpty() && changedRoadIds.size() == 1) {
+            ProfileEditorNetworkApplier.propagateTouchedRoads(workingNetwork, changedRoadIds, config);
+            unresolvedConstraints = com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer.validate(
+                workingNetwork, propagateSeeds, config);
+        }
+        if (!unresolvedConstraints.isEmpty()) {
+            return ConfirmResult.CONSTRAINT_CONFLICT;
+        }
 
         ProfileEditorNetworkApplier.VerticalStateDiff diff =
             ProfileEditorNetworkApplier.collectChangedEntities(openSnapshot, workingNetwork);

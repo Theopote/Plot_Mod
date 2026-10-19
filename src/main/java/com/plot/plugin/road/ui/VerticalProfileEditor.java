@@ -54,7 +54,6 @@ import com.plot.plugin.road.vertical.RoadVerticalStrategy;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
 import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
-import com.plot.plugin.road.vertical.VerticalProfileNetworkPropagator;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
@@ -266,6 +265,8 @@ final class VerticalProfileEditor {
         if (windowSession == null && liveNetwork != null) {
             windowSession = ProfileEditorWindowSession.open(
                 liveNetwork, ctx.networkManager().getNetworkRevision());
+            windowSession.seedSampledProfiles(ctx.networkManager().getConfig(),
+                ctx.previewManager().getLastEdgeResults());
         }
     }
 
@@ -314,10 +315,20 @@ final class VerticalProfileEditor {
         if (windowSession == null) {
             return true;
         }
+        if (profileEditSession.isActive()) {
+            Road current = windowSession.editingNetwork().getRoad(editorRoadId);
+            if (current != null) profileEditSession.commitEdit(windowSession.editingNetwork(), current,
+                ctx.networkManager().getConfig(), windowSession, null, this::notifyWorkingProfileChanged);
+        }
         ProfileEditorWindowSession.ConfirmResult result = windowSession.confirm(
             ctx, liveNetwork, ctx.networkManager().getConfig());
         if (result == ProfileEditorWindowSession.ConfirmResult.CONFLICT) {
             ctx.status().warning(PlotI18n.tr("plugin.road.profile_editor_confirm_conflict"));
+            return false;
+        }
+        if (result == ProfileEditorWindowSession.ConfirmResult.CONSTRAINT_CONFLICT) {
+            ctx.status().warning(PlotI18n.tr("plugin.road.vertical_alignment_network_unresolved",
+                windowSession.unresolvedConstraints().size()));
             return false;
         }
         if (notifyCommitted && onProfileConfirmed != null) {
@@ -357,10 +368,12 @@ final class VerticalProfileEditor {
         if (Objects.equals(editorRoadId, roadId)) {
             return;
         }
-        if (windowSession != null && windowSession.isDirty()) {
-            pendingRoadSwitchId = roadId;
-            roadSwitchConfirmPending = true;
-            return;
+        // All roads share one window transaction. Switching views must not commit
+        // or discard the other roads before the network design is finished.
+        if (windowSession != null && profileEditSession.isActive()) {
+            Road currentRoad = windowSession.editingNetwork().getRoad(editorRoadId);
+            if (currentRoad != null) profileEditSession.commitEdit(windowSession.editingNetwork(), currentRoad,
+                ctx.networkManager().getConfig(), windowSession, null, this::notifyWorkingProfileChanged);
         }
         applyEditorRoadSwitch(ctx, roadId, syncSelection);
     }
@@ -729,16 +742,16 @@ final class VerticalProfileEditor {
         }
         // Compile against a disposable snapshot so an active Draft is never written into the
         // window working copy by the preview button itself.
-        RoadNetwork compileNetwork = editingNetwork.snapshot();
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        RoadNetwork compileNetwork = profileEditSession.previewNetwork(editingNetwork, editingRoad, config).snapshot();
         Road compileRoad = compileNetwork.getRoad(road.getId());
         if (compileRoad == null) {
             return;
         }
-        RoadVerticalAlignment effective = profileEditSession.effectiveAlignment(editingRoad);
+        RoadVerticalAlignment effective = compileRoad.getVerticalAlignment();
         if (effective != null) {
             compileRoad.setVerticalAlignment(effective);
         }
-        RoadSystemConfig config = ctx.networkManager().getConfig();
         ProfileCompileOptions options = ProfileCompileOptions.defaults();
         RoadElevationBounds elevationBounds = resolveElevationBounds(ctx);
         RoadProfileChartData baseChart = resolveChartData(ctx, editingNetwork, editingRoad);
@@ -836,7 +849,13 @@ final class VerticalProfileEditor {
             VerticalAlignmentProfileOverlay design,
             float chartHeight,
             FlatElevationProfileOverlay flatOverlay) {
-        design = profileEditSession.effectiveDesignOverlay(editingNetwork, road).orElse(null);
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        RoadNetwork displayNetwork = profileEditSession.previewNetwork(editingNetwork, road, config);
+        Road displayRoad = displayNetwork.getRoad(road.getId());
+        design = displayNetwork == editingNetwork
+            ? profileEditSession.effectiveDesignOverlay(editingNetwork, road).orElse(null)
+            : VerticalAlignmentProfileOverlay.forAlignment(displayNetwork, displayRoad,
+                displayRoad.getVerticalAlignment()).orElse(null);
         boolean flatMode = RoadVerticalStrategy.fromRoad(road) == RoadVerticalStrategy.FLAT;
         RoadVerticalAlignment effectiveAlignment = profileEditSession.effectiveAlignment(road);
         RoadProfileChartData effectiveChart = resolveEffectiveChartData(road, chartData);
@@ -850,11 +869,10 @@ final class VerticalProfileEditor {
         float maxGrade = road.getMaxSlope() != null
             ? road.getMaxSlope()
             : ctx.networkManager().getConfig().getMaxSlope();
-        RoadSystemConfig config = ctx.networkManager().getConfig();
         List<RoadProfileIntersection> baseIntersections = resolveIntersections(
-            ctx, editingNetwork, road, config, effectiveChart, activeIntersectionDragIndex < 0);
-        List<RoadProfileIntersection> intersections =
-            profileEditSession.effectiveIntersections(baseIntersections);
+            ctx, displayNetwork, displayRoad, config, effectiveChart,
+            !profileEditSession.isActive() && activeIntersectionDragIndex < 0);
+        List<RoadProfileIntersection> intersections = baseIntersections;
         ProfileRenderCache renderCache = resolveRenderCache(
             ctx, liveNetwork, road, effectiveChart, flatOverlay, baseIntersections,
             windowSession != null ? windowSession.voxelPreview(road.getId()) : null);
@@ -1012,6 +1030,11 @@ final class VerticalProfileEditor {
             config,
             isChartDerivedDataStale(road) || ctx.previewManager().needsPreviewRecalc());
         renderAlignmentViolations(editingNetwork, road, flatMode);
+        if (profileEditSession.isActive() && !profileEditSession.constraintResult().unresolvedConstraints().isEmpty()) {
+            RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING, PlotI18n.tr(
+                "plugin.road.vertical_alignment_network_unresolved",
+                profileEditSession.constraintResult().unresolvedConstraints().size()));
+        }
         renderIntersectionDetail(ctx, editingNetwork, road, intersections, interaction, config, flatMode);
         if (flatMode) {
             flatProfileControls.render(
@@ -1021,7 +1044,10 @@ final class VerticalProfileEditor {
                 windowSession,
                 FlatElevationEditHooks.forProfileEditor(
                     this::recordUndoPointBeforeEdit,
-                    this::notifyWorkingProfileChanged),
+                    () -> {
+                        propagateJunctionGrades(ctx, editingNetwork, road);
+                        notifyWorkingProfileChanged();
+                    }),
                 FlatElevationRecommendationUi.terrainSupplier(ctx));
         } else {
             adaptiveProfileControls.render(
@@ -1095,8 +1121,9 @@ final class VerticalProfileEditor {
             PlotI18n.tr("plugin.road.profile_endpoint_constraint_infeasible_hint"));
     }
 
-    private static void renderBuildPreviewStaleBar(RoadUiContext ctx, RoadNetwork network) {
-        if (!ctx.previewManager().needsPreviewRecalc()) {
+    private void renderBuildPreviewStaleBar(RoadUiContext ctx, RoadNetwork network) {
+        boolean dirty = windowSession != null && windowSession.isDirty() || profileEditSession.isDirty();
+        if (!dirty && !ctx.previewManager().needsPreviewRecalc()) {
             return;
         }
         ImGui.separator();
@@ -1110,7 +1137,14 @@ final class VerticalProfileEditor {
                 PlotI18n.tr("plugin.road.update_road_preview") + "##profile_editor_update_preview",
                 ImGui.getContentRegionAvailX(),
                 0)) {
-            ctx.previewManager().startNetworkPreview(network);
+            if (dirty && windowSession != null) {
+                Road current = windowSession.editingNetwork().getRoad(editorRoadId);
+                if (current != null) profileEditSession.commitEdit(windowSession.editingNetwork(), current,
+                    ctx.networkManager().getConfig(), windowSession, null, this::notifyWorkingProfileChanged);
+                if (confirmWindowSession(ctx, network, true)) reopenWindowSession(ctx, network);
+            } else {
+                ctx.previewManager().startNetworkPreview(network);
+            }
         }
     }
 
@@ -1227,6 +1261,7 @@ final class VerticalProfileEditor {
                 PlotI18n.tr("plugin.road.profile_flat_junction_transition_warning"));
         }
         if (editable) {
+            boolean crossingChanged = false;
             if (gradeSeparationControls == null) {
                 gradeSeparationControls = new RoadGradeSeparationControls(ctx);
             }
@@ -1234,22 +1269,32 @@ final class VerticalProfileEditor {
                 com.plot.plugin.road.crossing.RoadCrossing crossing = network.getCrossing(
                     com.plot.plugin.road.crossing.RoadCrossingRef.crossingIdFromRef(intersection.nodeId()));
                 if (crossing != null) {
-                    gradeSeparationControls.renderCrossing(
+                    crossingChanged = gradeSeparationControls.renderCrossing(
                         crossing, network, config, RoadGradeSeparationControls.Layout.PROFILE, windowSession);
                 }
             } else if (com.plot.plugin.road.crossing.RoadStackCrossingRef.isStackCrossingRef(intersection.nodeId())) {
                 com.plot.plugin.road.crossing.RoadStackCrossing stack = network.getStackCrossing(
                     com.plot.plugin.road.crossing.RoadStackCrossingRef.stackCrossingIdFromRef(intersection.nodeId()));
                 if (stack != null) {
-                    gradeSeparationControls.renderStackCrossing(
+                    crossingChanged = gradeSeparationControls.renderStackCrossing(
                         stack, network, config, RoadGradeSeparationControls.Layout.PROFILE, windowSession);
                 }
             } else {
                 RoadNode node = network.getNode(intersection.nodeId());
                 if (node != null) {
-                    gradeSeparationControls.renderLegacyJunction(
+                    crossingChanged = gradeSeparationControls.renderLegacyJunction(
                         node, network, config, RoadGradeSeparationControls.Layout.PROFILE, windowSession);
                 }
+            }
+            if (crossingChanged) {
+                var result = com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer.synchronize(
+                    network, road, road.getVerticalAlignment(), config, resolveElevationBounds(ctx));
+                if (windowSession != null) windowSession.markPropagationAdjustedRoads(network);
+                if (!result.unresolvedConstraints().isEmpty()) {
+                    editorState.profileAutoFixMessage = PlotI18n.tr(
+                        "plugin.road.vertical_alignment_network_unresolved", result.unresolvedConstraints().size());
+                }
+                notifyWorkingProfileChanged();
             }
         }
         if (ImGui.collapsingHeader(
@@ -1284,6 +1329,12 @@ final class VerticalProfileEditor {
             RoadNetwork network,
             RoadProfileIntersection intersection,
             RoadSystemConfig config) {
+        if (com.plot.plugin.road.crossing.RoadStackCrossingRef.isStackCrossingRef(intersection.nodeId())) {
+            var stack = network.getStackCrossing(
+                com.plot.plugin.road.crossing.RoadStackCrossingRef.stackCrossingIdFromRef(intersection.nodeId()));
+            return stack != null && stack.crossingClearance() != null
+                ? stack.crossingClearance() : config.getDefaultCrossingClearance();
+        }
         if (com.plot.plugin.road.crossing.RoadCrossingRef.isCrossingRef(intersection.nodeId())) {
             com.plot.plugin.road.crossing.RoadCrossing crossing = network.getCrossing(
                 com.plot.plugin.road.crossing.RoadCrossingRef.crossingIdFromRef(intersection.nodeId()));
@@ -1305,14 +1356,16 @@ final class VerticalProfileEditor {
         if (profileRoad == null) {
             profileRoad = road;
         }
-        List<RoadProfileIntersection> intersections = chartData != null
+        List<RoadProfileIntersection> intersections = windowSession != null
+            ? RoadProfileIntersectionResolver.forRoadDesign(intersectionNetwork, profileRoad, config)
+            : chartData != null
             ? chartData.intersections()
             : RoadProfileIntersectionResolver.forRoad(
                 intersectionNetwork,
                 profileRoad,
                 config,
                 ctx.previewManager().getLastEdgeResults());
-        if (!enrichSteepGradeWarnings || intersections.isEmpty()) {
+        if (windowSession != null || !enrichSteepGradeWarnings || intersections.isEmpty()) {
             return intersections;
         }
         long cacheKey = intersectionsCacheKey(ctx, road.getId(), config);
@@ -1630,9 +1683,11 @@ final class VerticalProfileEditor {
         profileRenderCache = null;
         invalidateIntersectionCache();
         if (windowSession != null && editorRoadId != null && !editorRoadId.isBlank()) {
-            windowSession.markVoxelPreviewStale(editorRoadId);
+            windowSession.markAllVoxelPreviewsStale();
         }
-        scheduleAutoVoxelPreview();
+        // Geometry/clearance overlays update live. Defer terrain and voxel work
+        // until the user requests it after editing the connected set of roads.
+        autoVoxelPreviewCountdown = -1;
     }
 
     private boolean isChartDerivedDataStale(Road road) {
@@ -1695,25 +1750,22 @@ final class VerticalProfileEditor {
 
     private void propagateJunctionGrades(RoadUiContext ctx, RoadNetwork network, Road road) {
         RoadSystemConfig config = ctx.networkManager().getConfig();
-        VerticalProfileNetworkPropagator.Result result =
-            VerticalProfileNetworkPropagator.propagate(
-                network, road, connected -> connected.getEffectiveMaxSlope(config));
+        var result = profileEditSession.isActive() ? profileEditSession.constraintResult()
+            : com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer.synchronize(
+                network, road, windowSession != null && windowSession.openSnapshot().getRoad(road.getId()) != null
+                    ? windowSession.openSnapshot().getRoad(road.getId()).getVerticalAlignment() : null, config);
         if (windowSession != null) {
             windowSession.markTouched(road);
             windowSession.markPropagationAdjustedRoads(network);
         }
-        if (result.limitReached()) {
-            editorState.profileAutoFixMessage = PlotI18n.tr(
-                "plugin.road.vertical_alignment_network_limit",
-                VerticalProfileNetworkPropagator.MAX_PROPAGATION_PASSES);
-        } else if (result.unresolvedRoadCount() > 0) {
+        if (!result.unresolvedConstraints().isEmpty()) {
             editorState.profileAutoFixMessage = PlotI18n.tr(
                 "plugin.road.vertical_alignment_network_unresolved",
-                result.unresolvedRoadCount());
-        } else if (result.adjustedRoadCount() > 0) {
+                result.unresolvedConstraints().size());
+        } else if (!result.changedRoadIds().isEmpty()) {
             editorState.profileAutoFixMessage = PlotI18n.tr(
                 "plugin.road.vertical_alignment_network_adjusted",
-                result.adjustedRoadCount());
+                result.changedRoadIds().size());
         }
     }
 }

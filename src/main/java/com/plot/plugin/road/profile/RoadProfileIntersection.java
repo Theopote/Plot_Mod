@@ -21,6 +21,10 @@ public record RoadProfileIntersection(
         boolean steepGradeWarning) {
 
     public double clearanceGap() {
+        if (gradeSeparated) {
+            return currentRoadElevated ? currentRoadElevation - otherRoadElevation
+                : otherRoadElevation - currentRoadElevation;
+        }
         return Math.abs(currentRoadElevation - otherRoadElevation);
     }
 }

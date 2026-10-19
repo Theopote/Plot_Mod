@@ -360,7 +360,7 @@ public final class RoadCrossSectionPreviewRenderer {
         if (!options.compactSlopes) {
             return run;
         }
-        return Math.min(run, Math.max(6f, height * 0.2f));
+        return Math.clamp(height * 0.2f, 6f, run);
     }
 
     private static float resolveCutTopY(
@@ -398,7 +398,7 @@ public final class RoadCrossSectionPreviewRenderer {
             if (ratio == null) {
                 continue;
             }
-            float x = roadStartX + roadWidthPx * Math.max(0f, Math.min(1f, ratio));
+            float x = roadStartX + roadWidthPx * Math.clamp(ratio, 0f, 1f);
             drawList.addLine(x, deckY + 1f, x, deckY + deckH - 1f, markingColor, 1.8f);
         }
     }

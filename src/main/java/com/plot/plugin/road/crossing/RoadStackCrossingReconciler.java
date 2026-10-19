@@ -79,17 +79,8 @@ public final class RoadStackCrossingReconciler {
 
     private static RoadStackCrossing mergeWithExisting(RoadStackCrossing detected, RoadStackCrossing existing) {
         if (existing != null) {
-            return new RoadStackCrossing(
-                existing.id(),
-                existing.roadId(),
-                detected.position(),
-                detected.stationA(),
-                detected.stationB(),
-                existing.type(),
-                existing.lowerStation(),
-                existing.upperStation(),
-                existing.crossingClearance(),
-                existing.sharedElevation());
+            return existing.withRefreshedGeometry(
+                detected.stationA(), detected.stationB(), detected.position());
         }
         return new RoadStackCrossing(
             UUID.randomUUID().toString(),

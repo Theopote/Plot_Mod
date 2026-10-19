@@ -13,6 +13,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class VerticalAlignmentGradeSmootherTest {
 
     @Test
+    void cannotMoveCrossingLockToHideAnInfeasibleGrade() {
+        var profile = new RoadVerticalAlignment(java.util.List.of(
+            PointOfVerticalIntersection.of(0, 64),
+            new PointOfVerticalIntersection(20, 80, null, VerticalControlPointConstraint.JUNCTION_FIXED)));
+        var result = VerticalAlignmentGradeSmoother.smooth(profile, 5);
+        assertFalse(result.withinLimit());
+        assertEquals(80, result.alignment().getPvis().getLast().getElevation());
+        assertEquals(VerticalControlPointConstraint.JUNCTION_FIXED,
+            result.alignment().getPvis().getLast().getConstraint());
+    }
+
+    @Test
     void smoothsSteepTwoPviProfile() {
         RoadVerticalAlignment steep = new RoadVerticalAlignment(java.util.List.of(
             PointOfVerticalIntersection.of(0.0, 0.0),

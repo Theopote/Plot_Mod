@@ -18,6 +18,34 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GradeSeparationPolicyTest {
 
+    @Test
+    void minimumClearanceRoundsUpAndDoesNotLowerAnAlreadyHigherManualDeck() {
+        RoadNetwork network = new RoadNetwork();
+        var upper = network.createRoad("upper");
+        var lower = network.createRoad("lower");
+        var junction = network.createNode(new Vec2d(0, 0));
+        var north = network.createNode(new Vec2d(0, 40));
+        var east = network.createNode(new Vec2d(40, 0));
+        var edge = network.createEdge(junction.getId(), north.getId(),
+            List.of(junction.getPosition(), north.getPosition()), upper.getId());
+        network.createEdge(junction.getId(), east.getId(),
+            List.of(junction.getPosition(), east.getPosition()), lower.getId());
+        junction.setGradeSeparated(true);
+        junction.setElevatedRoadId(upper.getId());
+        junction.setCrossingClearance(4.1);
+        GradeSeparationPolicy policy = new GradeSeparationPolicy(STUB_CONTEXT);
+        TerrainSampler terrain = new FlatTerrainSampler(64);
+        assertEquals(69, policy.resolveElevatedCrossingHeight(edge, junction, network, terrain,
+            (n, net, t, roadId) -> 64, (e, n, net, t) -> 64, 64));
+
+        upper.setVerticalMode(com.plot.plugin.road.vertical.RoadVerticalMode.MANUAL_PROFILE);
+        upper.setVerticalAlignment(new com.plot.plugin.road.vertical.RoadVerticalAlignment(List.of(
+            com.plot.plugin.road.vertical.PointOfVerticalIntersection.of(0, 88),
+            com.plot.plugin.road.vertical.PointOfVerticalIntersection.of(40, 88))));
+        assertEquals(88, policy.resolveElevatedCrossingHeight(edge, junction, network, terrain,
+            (n, net, t, roadId) -> 64, (e, n, net, t) -> 64, 64));
+    }
+
     private static final ProfileEdgeContext STUB_CONTEXT = new ProfileEdgeContext() {
         @Override
         public List<PathSegment> samplePath(List<Vec2d> pathPoints) {

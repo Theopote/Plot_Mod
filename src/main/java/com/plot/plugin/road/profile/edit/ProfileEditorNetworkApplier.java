@@ -9,7 +9,7 @@ import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.FlatVerticalIntent;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
-import com.plot.plugin.road.vertical.VerticalProfileNetworkPropagator;
+import com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer;
 
 import java.util.LinkedHashSet;
 import java.util.Objects;
@@ -34,10 +34,7 @@ public final class ProfileEditorNetworkApplier {
             if (road == null) {
                 continue;
             }
-            VerticalProfileNetworkPropagator.propagate(
-                workingNetwork,
-                road,
-                connected -> connected.getEffectiveMaxSlope(config));
+            RoadProfileConstraintSynchronizer.synchronize(workingNetwork, road, null, config);
         }
     }
 

@@ -12,6 +12,7 @@ import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.RoadElevationBounds;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
+import com.plot.plugin.road.vertical.RoadProfileConstraintSynchronizer;
 import com.plot.plugin.road.vertical.RoadWorldElevationBounds;
 import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
 import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
@@ -26,9 +27,32 @@ public final class ProfileEditSession {
     private final ProfileEditDraft draft = new ProfileEditDraft();
     private int activeCurvePviIndex = -1;
     private RoadElevationBounds elevationBounds = RoadWorldElevationBounds.fallback();
+    private RoadNetwork previewNetwork;
+    private long draftRevision;
+    private long previewRevision = -1;
+    private RoadProfileConstraintSynchronizer.Result constraintResult =
+        new RoadProfileConstraintSynchronizer.Result(java.util.Set.of(), java.util.Set.of());
+
+    public RoadProfileConstraintSynchronizer.Result constraintResult() {
+        return constraintResult;
+    }
+
+    /** Disposable, cached network for live crossing overlays; cancellation cannot leak a drag. */
+    public RoadNetwork previewNetwork(RoadNetwork working, Road road, RoadSystemConfig config) {
+        if (!draft.isActive() || !draft.isDirty()) return working;
+        if (previewNetwork == null || previewRevision != draftRevision) {
+            previewNetwork = working.snapshot();
+            Road previewRoad = previewNetwork.getRoad(road.getId());
+            applyAndSynchronize(previewNetwork, previewRoad, config);
+            previewRevision = draftRevision;
+        }
+        return previewNetwork;
+    }
 
     public void setElevationBounds(RoadElevationBounds bounds) {
-        elevationBounds = bounds != null ? bounds : RoadWorldElevationBounds.fallback();
+        RoadElevationBounds next = bounds != null ? bounds : RoadWorldElevationBounds.fallback();
+        if (!next.equals(elevationBounds)) previewNetwork = null;
+        elevationBounds = next;
     }
 
     public RoadElevationBounds elevationBounds() {
@@ -46,6 +70,8 @@ public final class ProfileEditSession {
     public void cancelEdit() {
         draft.clear();
         activeCurvePviIndex = -1;
+        previewNetwork = null;
+        draftRevision++;
     }
 
     public void beginPviEdit(Road road) {
@@ -75,6 +101,7 @@ public final class ProfileEditSession {
             elevationBounds.clamp(elevation),
             RoadStationing.canonicalLength(network, road));
         draft.setDraftAlignment(updated);
+        draftRevision++;
     }
 
     public void beginCurveEdit(Road road, int pviIndex) {
@@ -120,6 +147,7 @@ public final class ProfileEditSession {
                 RoadStationing.canonicalLength(network, road));
         }
         draft.setDraftAlignment(updated);
+        draftRevision++;
     }
 
     public void updateCurveLength(double curveLength) {
@@ -128,6 +156,7 @@ public final class ProfileEditSession {
         }
         draft.setDraftAlignment(VerticalProfileControlPoints.withCurveLength(
             draft.draftAlignment(), activeCurvePviIndex, curveLength));
+        draftRevision++;
     }
 
     public void updateIntersectionDrag(
@@ -135,6 +164,7 @@ public final class ProfileEditSession {
             RoadProfileIntersectionDragEditor.DragTarget target,
             double elevation) {
         draft.updateIntersectionDraft(index, target, elevationBounds.clamp(elevation));
+        draftRevision++;
     }
 
     public RoadVerticalAlignment effectiveAlignment(Road road) {
@@ -181,9 +211,12 @@ public final class ProfileEditSession {
             cancelEdit();
             return;
         }
-        applyDraftToNetwork(workingNetwork, road, config);
+        applyAndSynchronize(workingNetwork, road, config);
         if (windowSession != null) {
             windowSession.markTouched(road);
+            for (String changedId : constraintResult.changedRoadIds()) {
+                windowSession.markTouched(workingNetwork.getRoad(changedId));
+            }
             if (draft.kind() == ProfileEditDraft.Kind.INTERSECTION) {
                 markIntersectionTouched(windowSession, workingNetwork, road);
             }
@@ -195,6 +228,20 @@ public final class ProfileEditSession {
             afterCommit.run();
         }
         cancelEdit();
+    }
+
+    private void applyAndSynchronize(RoadNetwork network, Road road, RoadSystemConfig config) {
+        Road driver = road;
+        if (draft.kind() == ProfileEditDraft.Kind.INTERSECTION
+                && draft.intersectionTarget() == RoadProfileIntersectionDragEditor.DragTarget.OTHER
+                && draft.intersectionIndex() >= 0) {
+            Road other = network.getRoad(draft.draftIntersections().get(draft.intersectionIndex()).otherRoadId());
+            if (other != null) driver = other;
+        }
+        RoadVerticalAlignment before = driver.getVerticalAlignment();
+        applyDraftToNetwork(network, road, config);
+        constraintResult = RoadProfileConstraintSynchronizer.synchronize(
+            network, driver, before, config, elevationBounds);
     }
 
     private void markIntersectionTouched(

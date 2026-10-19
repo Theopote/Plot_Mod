@@ -388,6 +388,7 @@ public final class RoadGradeSeparationControls {
 
     private void beginCrossingEdit(RoadCrossing crossing, RoadNetwork network) {
         if (deferredSession != null) {
+            deferredSession.recordUndoPoint();
             deferredSession.markTouchedCrossing(crossing.id());
             markCrossingRoads(crossing, network);
             return;
@@ -397,6 +398,7 @@ public final class RoadGradeSeparationControls {
 
     private void beginNodeEdit(RoadNode node, RoadNetwork network) {
         if (deferredSession != null) {
+            deferredSession.recordUndoPoint();
             deferredSession.markTouchedNode(node.getId());
             for (String roadId : network.getDistinctRoadIdsAtNode(node.getId())) {
                 Road road = network.getRoad(roadId);
@@ -662,6 +664,7 @@ public final class RoadGradeSeparationControls {
 
     private void beginStackEdit(RoadStackCrossing stack, RoadNetwork network) {
         if (deferredSession != null) {
+            deferredSession.recordUndoPoint();
             deferredSession.markTouchedCrossing(stack.id());
             Road road = network.getRoad(stack.roadId());
             if (road != null) {

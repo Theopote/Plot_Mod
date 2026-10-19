@@ -43,7 +43,7 @@ public final class RoadGeneratePanel {
         if (network == null || network.getEdges().isEmpty()) {
             return;
         }
-        if (ctx.previewManager() == null || ctx.previewManager().isPreviewJobRunning()) {
+        if (ctx.previewManager() == null) {
             return;
         }
         ctx.previewManager().startNetworkPreview(network);

@@ -45,6 +45,18 @@ public final class RoadProfileIntersectionResolver {
             Road road,
             RoadSystemConfig config,
             Map<String, RoadGenerationResult> edgeResults) {
+        return forRoad(network, road, config, edgeResults, false);
+    }
+
+    /** Working-copy heights for live editor overlays, independent of the last voxel build. */
+    public static List<RoadProfileIntersection> forRoadDesign(
+            RoadNetwork network, Road road, RoadSystemConfig config) {
+        return forRoad(network, road, config, Map.of(), true);
+    }
+
+    private static List<RoadProfileIntersection> forRoad(
+            RoadNetwork network, Road road, RoadSystemConfig config,
+            Map<String, RoadGenerationResult> edgeResults, boolean designOnly) {
         if (network == null || road == null || config == null || edgeResults == null) {
             return List.of();
         }
@@ -59,12 +71,12 @@ public final class RoadProfileIntersectionResolver {
             if (visitedNodes.add(segment.entryNodeId())) {
                 collectAtNodeRoad(
                     network, road, edge, segment, segment.entryNodeId(), segment.startStation(),
-                    config, edgeResult, intersections);
+                    config, edgeResult, intersections, designOnly);
             }
             if (visitedNodes.add(segment.exitNodeId())) {
                 collectAtNodeRoad(
                     network, road, edge, segment, segment.exitNodeId(), segment.endStation(),
-                    config, edgeResult, intersections);
+                    config, edgeResult, intersections, designOnly);
             }
         }
         collectFromCrossings(network, road, config, intersections);
@@ -99,7 +111,10 @@ public final class RoadProfileIntersectionResolver {
             boolean gradeSeparated = crossing.type() == CrossingType.GRADE_SEPARATED;
             String elevatedRoadId = crossing.elevatedRoadId();
             boolean currentElevated = gradeSeparated
-                && (elevatedRoadId == null || elevatedRoadId.equals(currentRoad.getId()));
+                && (elevatedRoadId != null ? elevatedRoadId.equals(currentRoad.getId())
+                    : currentElevation.getAsDouble() > otherElevation.getAsDouble()
+                        || currentElevation.getAsDouble() == otherElevation.getAsDouble()
+                            && crossing.roadBId().equals(currentRoad.getId()));
             double clearance = crossing.crossingClearance() != null
                 ? crossing.crossingClearance()
                 : config.getDefaultCrossingClearance();
@@ -217,10 +232,11 @@ public final class RoadProfileIntersectionResolver {
             double roadStation,
             RoadSystemConfig config,
             RoadGenerationResult edgeResult,
-            List<RoadProfileIntersection> out) {
+            List<RoadProfileIntersection> out,
+            boolean designOnly) {
         collectAtNode(
             network, currentRoad, currentEdge, segment, nodeId, roadStation,
-            config, edgeResult, out, true);
+            config, edgeResult, out, true, designOnly);
     }
 
     private static void collectAtNode(
@@ -235,7 +251,7 @@ public final class RoadProfileIntersectionResolver {
             List<RoadProfileIntersection> out) {
         collectAtNode(
             network, currentRoad, currentEdge, segment, nodeId, roadStation,
-            config, edgeResult, out, false);
+            config, edgeResult, out, false, false);
     }
 
     private static void collectAtNode(
@@ -248,7 +264,8 @@ public final class RoadProfileIntersectionResolver {
             RoadSystemConfig config,
             RoadGenerationResult edgeResult,
             List<RoadProfileIntersection> out,
-            boolean roadChart) {
+            boolean roadChart,
+            boolean designOnly) {
         RoadNode node = network.getNode(nodeId);
         if (node == null) {
             return;
@@ -263,15 +280,15 @@ public final class RoadProfileIntersectionResolver {
         }
         double geometryLocalDistance = geometryLocalOpt.getAsDouble();
         double chartDistance = roadChart ? roadStation : geometryLocalDistance;
-        OptionalDouble currentElevation = resolveCurrentElevation(
-            network, currentRoad, currentEdge, node, roadStation, geometryLocalDistance, edgeResult);
+        OptionalDouble currentElevation = designOnly
+            ? VerticalAlignmentGeometry.elevationAt(currentRoad.getVerticalAlignment(), roadStation)
+            : resolveCurrentElevation(
+                network, currentRoad, currentEdge, node, roadStation, geometryLocalDistance, edgeResult);
         if (currentElevation.isEmpty()) {
             return;
         }
         boolean gradeSeparated = node.isGradeSeparated();
         String elevatedRoadId = node.getElevatedRoadId();
-        boolean currentElevated = gradeSeparated
-            && (elevatedRoadId == null || elevatedRoadId.equals(currentRoad.getId()));
         double clearance = node.getCrossingClearance() != null
             ? node.getCrossingClearance()
             : config.getDefaultCrossingClearance();
@@ -284,10 +301,18 @@ public final class RoadProfileIntersectionResolver {
             if (otherRoad == null) {
                 continue;
             }
-            OptionalDouble otherElevation = resolveOtherElevation(network, otherRoad, nodeId);
+            OptionalDouble otherStationOpt = stationOnRoad(network, otherRoad, nodeId);
+            OptionalDouble otherElevation = designOnly && otherStationOpt.isPresent()
+                ? VerticalAlignmentGeometry.elevationAt(otherRoad.getVerticalAlignment(), otherStationOpt.getAsDouble())
+                : resolveOtherElevation(network, otherRoad, nodeId);
             if (otherElevation.isEmpty()) {
                 otherElevation = currentElevation;
             }
+            boolean currentElevated = gradeSeparated
+                && (elevatedRoadId != null ? elevatedRoadId.equals(currentRoad.getId())
+                    : currentElevation.getAsDouble() > otherElevation.getAsDouble()
+                        || currentElevation.getAsDouble() == otherElevation.getAsDouble()
+                            && currentRoad.getId().compareTo(otherRoadId) > 0);
             double otherStation = resolveOtherStation(network, otherRoad, nodeId).orElse(0.0);
             ResolvedCrossSection otherSection =
                 VariableCrossSectionResolver.resolve(network, otherRoad, otherStation, config);

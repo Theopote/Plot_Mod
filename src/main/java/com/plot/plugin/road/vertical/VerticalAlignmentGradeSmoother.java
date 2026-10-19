@@ -136,6 +136,9 @@ public final class VerticalAlignmentGradeSmoother {
             return false;
         }
         double clampedDelta = Math.copySign(maxDeltaElevation, deltaElevation);
+        if (!(forward ? to : from).getConstraint().isAutomaticallyMovable()) {
+            return false;
+        }
         if (forward) {
             pvis.set(toIndex, withElevation(to, from.getElevation() + clampedDelta));
         } else {
@@ -147,11 +150,8 @@ public final class VerticalAlignmentGradeSmoother {
     private static PointOfVerticalIntersection withElevation(
             PointOfVerticalIntersection pvi,
             double elevation) {
-        if (pvi.hasCurve()) {
-            return PointOfVerticalIntersection.withCurve(
-                pvi.getStation(), elevation, pvi.getCurveLength());
-        }
-        return PointOfVerticalIntersection.of(pvi.getStation(), elevation);
+        return new PointOfVerticalIntersection(
+            pvi.getStation(), elevation, pvi.getCurveLength(), pvi.getConstraint());
     }
 
     private static double maxSampledAbsGrade(RoadVerticalAlignment alignment) {

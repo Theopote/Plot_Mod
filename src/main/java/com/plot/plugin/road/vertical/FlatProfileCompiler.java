@@ -190,6 +190,13 @@ public final class FlatProfileCompiler {
             addGradeSeparatedStation(network, stations, segment.entryNodeId(), segment.startStation());
             addGradeSeparatedStation(network, stations, segment.exitNodeId(), segment.endStation());
         }
+        for (var crossing : network.crossingsForRoad(road.getId())) {
+            stations.put("crossing:" + crossing.id(), crossing.stationOn(road.getId()));
+        }
+        for (var stack : network.stackCrossingsForRoad(road.getId())) {
+            stations.put("stack:" + stack.id() + ":" + Double.toString(stack.stationA()), stack.stationA());
+            stations.put("stack:" + stack.id() + ":" + Double.toString(stack.stationB()), stack.stationB());
+        }
         if (intent != null) {
             for (String nodeId : intent.getIntersectionOverrides().keySet()) {
                 stationAtNode(network, road, nodeId).ifPresent(station -> stations.putIfAbsent(nodeId, station));
@@ -228,6 +235,13 @@ public final class FlatProfileCompiler {
         if (override != null) {
             return override;
         }
+        if (nodeId.startsWith("node:")) nodeId = nodeId.substring(5);
+        if (nodeId.startsWith("crossing:")) {
+            var crossing = network.getCrossing(nodeId.substring(9));
+            if (crossing != null && crossing.sharedElevation() != null) return crossing.sharedElevation();
+            return base;
+        }
+        if (nodeId.startsWith("stack:")) return base;
         RoadNode node = network.getNode(nodeId);
         if (node != null && node.getManualElevation() != null) {
             return node.getManualElevation();

@@ -97,7 +97,8 @@ public final class GradeSeparationPolicy {
             int baseHeight = networkUnderpassY != null
                 ? networkUnderpassY
                 : computeStackCrossingBaseHeight(node, network, terrain, naturalEdgeHeight);
-            return baseHeight + (int) Math.round(resolveStackCrossingClearance(node));
+            return retainDesignedUpperHeight(network, edge, node,
+                baseHeight + (int) Math.ceil(resolveStackCrossingClearance(node)));
         }
         if (!node.isGradeSeparated()) {
             return null;
@@ -109,7 +110,14 @@ public final class GradeSeparationPolicy {
         int baseHeight = networkUnderpassY != null
             ? networkUnderpassY
             : computeCrossingBaseHeight(node, network, terrain, elevatedRoadId, naturalEdgeHeight);
-        return baseHeight + (int) Math.round(resolveCrossingClearance(node));
+        return retainDesignedUpperHeight(network, edge, node,
+            baseHeight + (int) Math.ceil(resolveCrossingClearance(node)));
+    }
+
+    private static int retainDesignedUpperHeight(
+            RoadNetwork network, RoadEdge edge, RoadNode node, int minimumHeight) {
+        var designed = VerticalAlignmentEndpointHeight.atNode(network, edge, node);
+        return designed.isPresent() ? Math.max(minimumHeight, designed.getAsInt()) : minimumHeight;
     }
 
     /**

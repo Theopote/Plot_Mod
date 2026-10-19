@@ -101,10 +101,13 @@ public final class RoadVerticalJunctionService {
             return false;
         }
         double station = crossing.stationOn(road.getId());
-        if (crossing.type() == CrossingType.GRADE_SEPARATED) {
-            return syncManualProfileElevationAtStation(network, road, station, elevation);
+        if (road.getVerticalMode() == RoadVerticalMode.FLAT) {
+            var intent = FlatVerticalIntentSupport.resolveIntent(network, road);
+            if (intent == null) return false;
+            intent.setIntersectionOverride("crossing:" + crossing.id(), elevation);
+            FlatVerticalIntentSupport.syncCompiledAlignment(network, road, effectiveMaxGrade(road, config));
+            return true;
         }
-        road.getVerticalMode();
         return syncManualProfileElevationAtStation(network, road, station, elevation);
     }
 
@@ -176,19 +179,17 @@ public final class RoadVerticalJunctionService {
         return syncManualProfileElevationAtStation(network, road, station, elevation);
     }
 
-    private static boolean syncManualProfileElevationAtStation(
+    public static boolean syncManualProfileElevationAtStation(
             RoadNetwork network,
             Road road,
             double station,
             double elevation) {
-        OptionalInt pviIndex = pviIndexNearStation(road, station);
-        if (pviIndex.isEmpty() || road.getVerticalAlignment() == null) {
+        if (road == null || VerticalAlignmentGeometry.elevationAt(road.getVerticalAlignment(), station).isEmpty()
+                || !Double.isFinite(elevation)) {
             return false;
         }
-        road.setVerticalAlignment(VerticalProfileControlPoints.withElevation(
-            road.getVerticalAlignment(), pviIndex.getAsInt(), elevation));
+        RoadProfileConstraintSynchronizer.setElevation(road, station, elevation);
         road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
-        VerticalAlignmentJunctionSynchronizer.applySharedJunctionConstraints(network, road);
         return true;
     }
 

@@ -415,6 +415,36 @@ class ProfileEditorWindowSessionTest {
         return ProfileEditorWindowSession.open(live, manager.getNetworkRevision());
     }
 
+    @Test
+    void conflictingMultiRoadBatchCannotSilentlyOverwriteOneProfileOnConfirm() {
+        Road other = live.createRoad("other");
+        var start = live.createNode(new Vec2d(0, 10));
+        var end = live.createNode(new Vec2d(100, 10));
+        live.createEdge(start.getId(), end.getId(), List.of(start.getPosition(), end.getPosition()), other.getId());
+        other.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        other.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 64), PointOfVerticalIntersection.of(50, 64),
+            PointOfVerticalIntersection.of(100, 64))));
+        live.registerCrossing(com.plot.plugin.road.crossing.RoadCrossing.atGrade(
+            road.getId(), 50, other.getId(), 50, new Vec2d(50, 0)));
+        var session = openSession();
+        Road a = session.editingNetwork().getRoad(road.getId());
+        Road b = session.editingNetwork().getRoad(other.getId());
+        mutatePvi(a, 1, 80);
+        mutatePvi(b, 1, 90);
+        session.markTouched(a);
+        session.markTouched(b);
+        long revision = manager.getNetworkRevision();
+        assertEquals(ProfileEditorWindowSession.ConfirmResult.CONSTRAINT_CONFLICT,
+            session.confirm(testContext(), live, config));
+        assertEquals(80, a.getVerticalAlignment().getPvis().get(1).getElevation());
+        assertEquals(90, b.getVerticalAlignment().getPvis().get(1).getElevation());
+        assertEquals(68, road.getVerticalAlignment().getPvis().get(1).getElevation());
+        assertEquals(64, other.getVerticalAlignment().getPvis().get(1).getElevation());
+        assertEquals(revision, manager.getNetworkRevision());
+        assertFalse(manager.canUndo());
+    }
+
     private static void mutatePvi(Road road, int index, double elevation) {
         RoadVerticalAlignment updated = VerticalProfileControlPoints.withElevation(
             road.getVerticalAlignment(), index, elevation, road);

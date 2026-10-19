@@ -4,6 +4,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.crossing.RoadCrossing;
 import com.plot.plugin.road.crossing.RoadCrossingRef;
+import com.plot.plugin.road.crossing.RoadStackCrossingRef;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -32,6 +33,23 @@ public final class RoadProfileIntersectionDragEditor {
             return false;
         }
         double elevation = RoadParameterLimits.clampManualElevation(requestedElevation);
+        if (RoadStackCrossingRef.isStackCrossingRef(intersection.nodeId())) {
+            var stack = network.getStackCrossing(
+                RoadStackCrossingRef.stackCrossingIdFromRef(intersection.nodeId()));
+            if (stack == null || !stack.roadId().equals(currentRoad.getId())) return false;
+            double station = intersection.roadStation();
+            double otherStation = Math.abs(station - stack.stationA()) < Math.abs(station - stack.stationB())
+                ? stack.stationB() : stack.stationA();
+            if (!stack.isGradeSeparated()) {
+                boolean first = setStackElevation(network, currentRoad, stack.id(), station, elevation, config);
+                boolean second = setStackElevation(network, currentRoad, stack.id(), otherStation, elevation, config);
+                if (first && second) network.setStackCrossingSharedElevation(stack.id(), elevation);
+                return first && second;
+            }
+            if (target == DragTarget.SHARED) return false;
+            return setStackElevation(network, currentRoad, stack.id(),
+                target == DragTarget.OTHER ? otherStation : station, elevation, config);
+        }
         if (RoadCrossingRef.isCrossingRef(intersection.nodeId())) {
             return applyRegistryCrossingDrag(network, currentRoad, intersection, target, elevation, config);
         }
@@ -42,6 +60,19 @@ public final class RoadProfileIntersectionDragEditor {
             return applyOtherRoadElevation(network, currentRoad, intersection, elevation, config);
         }
         return applyCurrentRoadElevation(network, currentRoad, intersection, elevation, config);
+    }
+
+    private static boolean setStackElevation(RoadNetwork network, Road road, String stackId,
+            double station, double elevation, RoadSystemConfig config) {
+        if (road.getVerticalMode() == com.plot.plugin.road.vertical.RoadVerticalMode.FLAT) {
+            var intent = com.plot.plugin.road.vertical.FlatVerticalIntentSupport.resolveIntent(network, road);
+            if (intent == null) return false;
+            intent.setIntersectionOverride("stack:" + stackId + ":" + Double.toString(station), elevation);
+            com.plot.plugin.road.vertical.FlatVerticalIntentSupport.syncCompiledAlignment(
+                network, road, road.getEffectiveMaxSlope(config));
+            return true;
+        }
+        return RoadVerticalJunctionService.syncManualProfileElevationAtStation(network, road, station, elevation);
     }
 
     private static boolean applyRegistryCrossingDrag(
@@ -62,14 +93,6 @@ public final class RoadProfileIntersectionDragEditor {
             Road otherRoad = network.getRoad(intersection.otherRoadId());
             if (otherRoad == null) {
                 return false;
-            }
-            if (intersection.gradeSeparated()) {
-                double requiredClearance = requiredClearance(crossing, config);
-                elevation = clampOtherGradeSeparatedElevation(
-                    intersection.currentRoadElevation(),
-                    intersection.currentRoadElevated(),
-                    requiredClearance,
-                    elevation);
             }
             return RoadVerticalJunctionService.setRoadElevationAtRegistryCrossing(
                 network, otherRoad, crossing, elevation, config);
@@ -93,12 +116,6 @@ public final class RoadProfileIntersectionDragEditor {
             return false;
         }
         if (intersection.gradeSeparated()) {
-            double requiredClearance = requiredClearance(node, config);
-            elevation = clampOtherGradeSeparatedElevation(
-                intersection.currentRoadElevation(),
-                intersection.currentRoadElevated(),
-                requiredClearance,
-                elevation);
             return RoadVerticalJunctionService.setRoadElevationAtCrossing(
                 network, otherRoad, intersection.nodeId(), elevation, config);
         }
