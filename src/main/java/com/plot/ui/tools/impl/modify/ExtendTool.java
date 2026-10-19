@@ -166,6 +166,42 @@ public class ExtendTool extends ModifyTool {
     }
     
     @Override
+    public void executeModifyCommand(ModifyCommand command) {
+        if (command == null) {
+            return;
+        }
+        try {
+            concreteAppState.getCommandService().execute(command);
+            clearCommandShapeVisuals(command);
+            if (modifyStrategy instanceof ExtendWithSelectionStrategy extendStrategy) {
+                extendStrategy.prepareForNextExtend(this);
+            }
+            setModifyToolState(ModifyTool.ToolState.IDLE);
+            setPreviewEnabled(false);
+        } catch (Exception e) {
+            LOGGER.error("ExtendTool 执行延伸命令失败: {}", e.getMessage(), e);
+            resetModification("命令执行失败");
+        }
+    }
+
+    private void clearCommandShapeVisuals(ModifyCommand command) {
+        List<Shape> oldShapes = command.getOldShapes();
+        if (oldShapes != null) {
+            for (Shape shape : oldShapes) {
+                shape.setSelected(false);
+                shape.setHighlighted(false);
+            }
+        }
+        List<Shape> newShapes = command.getNewShapes();
+        if (newShapes != null) {
+            for (Shape shape : newShapes) {
+                shape.setSelected(false);
+                shape.setHighlighted(false);
+            }
+        }
+    }
+
+    @Override
     public void onActivate() {
         super.onActivate();
         

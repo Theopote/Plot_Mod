@@ -2,7 +2,9 @@ package com.plot.ui.tools.impl.modify;
 
 import com.plot.api.snap.ISnapManager;
 import com.plot.api.state.IAppState;
+import com.plot.core.command.commands.ModifyCommand;
 import com.plot.core.graphics.DrawContext;
+import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
@@ -76,6 +78,40 @@ public class TrimTool extends ModifyTool {
     protected void renderPreview(DrawContext context) {
         if (modifyStrategy instanceof TrimWithSelectionStrategy trimStrategy) {
             trimStrategy.renderPreview(context);
+        }
+    }
+
+    @Override
+    public void executeModifyCommand(ModifyCommand command) {
+        if (command == null) {
+            return;
+        }
+        try {
+            concreteAppState.getCommandService().execute(command);
+            clearCommandShapeVisuals(command);
+            if (modifyStrategy instanceof TrimWithSelectionStrategy trimStrategy) {
+                trimStrategy.onTrimCommandExecuted(this);
+            }
+            setModifyToolState(ModifyTool.ToolState.IDLE);
+            setPreviewEnabled(false);
+        } catch (Exception e) {
+            LOGGER.error("TrimTool 执行修剪命令失败: {}", e.getMessage(), e);
+            resetModification("命令执行失败");
+        }
+    }
+
+    private void clearCommandShapeVisuals(ModifyCommand command) {
+        if (command.getOldShapes() != null) {
+            for (Shape shape : command.getOldShapes()) {
+                shape.setSelected(false);
+                shape.setHighlighted(false);
+            }
+        }
+        if (command.getNewShapes() != null) {
+            for (Shape shape : command.getNewShapes()) {
+                shape.setSelected(false);
+                shape.setHighlighted(false);
+            }
         }
     }
 

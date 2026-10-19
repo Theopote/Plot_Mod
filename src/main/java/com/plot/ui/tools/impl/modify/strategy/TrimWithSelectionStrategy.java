@@ -212,7 +212,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
     private double trimTolerance = 5.0;
     private boolean previewEnabled = true;
     private boolean highlightEnabled = true;
-    private boolean continuousMode = false;
+    private boolean continuousMode = true;
     private FenceType fenceType = FenceType.POLYLINE;
     private int fencePolygonSides = 6;
 
@@ -795,16 +795,6 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 LOGGER.debug("修剪命令创建成功，开始执行");
                 // 执行命令
                 context.executeModifyCommand(pendingCommand);
-                context.setStatusMessage("status.plot.trim.complete");
-                
-                // 如果处于持续模式，回到持续状态；否则重置
-                if (isBoundaryModePersistent) {
-                    trimState = TrimState.BOUNDARY_READY;
-                    context.setStatusMessage("status.plot.trim.complete_continuous");
-                    LOGGER.debug("修剪完成，回到持续模式");
-                } else {
-                    resetClickTrimState();
-                }
                 return ModifyResult.CONTINUE;
             }
             
@@ -860,16 +850,6 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 LOGGER.debug("修剪命令创建成功，开始执行");
                 // 执行命令
                 context.executeModifyCommand(pendingCommand);
-                context.setStatusMessage("status.plot.trim.fence_complete");
-                
-                // 如果处于持续模式，回到持续状态；否则重置
-                if (isFenceModePersistent) {
-                    trimState = TrimState.FENCE_READY;
-                    context.setStatusMessage("status.plot.trim.fence_complete_continuous");
-                    LOGGER.debug("栅栏修剪完成，回到持续模式");
-                } else {
-                    initializeState();
-                }
                 return ModifyResult.CONTINUE;
             }
 
@@ -1185,6 +1165,40 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
     @Override
     public ModifyCommand getModifyCommand() {
         return pendingCommand;
+    }
+
+    /**
+     * 修剪命令执行完成后恢复连续修剪状态，保留边界/目标选择。
+     */
+    public void onTrimCommandExecuted(ModifyToolContext context) {
+        pendingCommand = null;
+        trimClickPoint = null;
+        if (highlightedShape != null) {
+            highlightedShape.setHighlighted(false);
+            highlightedShape = null;
+        }
+
+        if (trimType == TrimType.BOUNDARY && (isBoundaryModePersistent || continuousMode) && !boundaryShapes.isEmpty()) {
+            trimState = TrimState.BOUNDARY_READY;
+            context.setStatusMessage("status.plot.trim.complete_continuous");
+            LOGGER.debug("修剪完成，回到边界连续模式");
+            return;
+        }
+
+        if (trimType == TrimType.FENCE && (isFenceModePersistent || continuousMode) && !targetShapes.isEmpty()) {
+            fencePoints.clear();
+            fenceAnchorPoint = null;
+            trimState = TrimState.FENCE_READY;
+            context.setStatusMessage("status.plot.trim.fence_complete_continuous");
+            LOGGER.debug("栅栏修剪完成，回到连续模式");
+            return;
+        }
+
+        if (trimType == TrimType.BOUNDARY) {
+            resetClickTrimState();
+        } else {
+            initializeState();
+        }
     }
 
     @Override

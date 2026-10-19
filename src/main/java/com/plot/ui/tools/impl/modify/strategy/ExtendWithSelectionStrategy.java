@@ -469,9 +469,9 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
                 return ModifyResult.NEED_SELECTION;
             }
         } else if (extendState == ExtendState.EXTENDING) {
-            // 在延伸模式下，右键不执行任何操作，避免干扰延伸操作
-            LOGGER.debug("在延伸模式下右键，不执行任何操作");
-            return ModifyResult.IGNORED;
+            finishExtendSession(context);
+            LOGGER.info("右键结束连续延伸，返回边界选择");
+            return ModifyResult.CANCEL;
         }
 
         LOGGER.debug("右键按下未处理，返回IGNORED");
@@ -722,13 +722,9 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
             }
 
             if (successCount > 0) {
-                // 延伸框选成功后自动重置状态
-                resetExtendState();
-                extendState = ExtendState.SELECTING_BOUNDARY;
-                
-                context.setStatusMessage(PlotI18n.status("status.plot.extend.box_extend_done", successCount));
-                LOGGER.debug("延伸框选完成，工具已重置，准备下一次延伸");
-                return ModifyResult.COMPLETE;
+                context.setStatusMessage(PlotI18n.status("status.plot.extend.box_extend_done_continuous", successCount));
+                LOGGER.debug("延伸框选完成，保持边界继续延伸");
+                return ModifyResult.CONTINUE;
             } else {
                 context.setStatusMessage("status.plot.extend.box_no_endpoints");
                 return ModifyResult.CONTINUE;
@@ -894,20 +890,9 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
                 );
 
                 if (command != null) {
-                    // 立即执行命令，让用户看到延伸效果
                     context.executeModifyCommand(command);
-
-                    // 延伸成功后自动重置状态，开始下一次延伸
-                    resetExtendState();
-                    extendState = ExtendState.SELECTING_BOUNDARY;
-
-                    // 动态状态消息：提示用户延伸完成并已重置
-                    context.setStatusMessage(PlotI18n.status("status.plot.extend.success_reset",
-                            targetInfo.targetShape.getId()));
-
-                    LOGGER.debug("延伸操作完成并立即执行，工具已重置，准备下一次延伸");
-                    // 返回COMPLETE表示操作完成，状态已重置
-                    return ModifyResult.COMPLETE;
+                    LOGGER.debug("延伸操作完成，保持边界继续延伸");
+                    return ModifyResult.CONTINUE;
                 } else {
                     LOGGER.warn("创建延伸命令失败");
                     context.setStatusMessage("status.plot.extend.command_failed");
@@ -936,23 +921,16 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
         LOGGER.debug("ExtendWithSelectionStrategy.onKeyDown 被调用: keyCode={}, 当前状态={}", keyCode, extendState);
         
         if (isEscapeKey(keyCode)) {
-            // 无论当前处于什么状态，按Esc键都完全重置工具，回到初始状态
-            // 相当于重新激活延伸工具，需要重新选择边界图形
-            LOGGER.info("Esc键按下（keyCode={}），完全重置延伸工具到初始状态", keyCode);
-            
-            // 清除预览状态
-            clearPreview();
-            context.setPreviewEnabled(false);
-            
-            // 清空全局选择状态（清空AppState中的选择）
-            context.clearSelection();
-            
-            // 完全重置工具状态（就像刚激活工具一样）
-            reset();
-            
-            // 设置初始状态消息（与工具激活时的消息一致）
-            context.setStatusMessage("status.plot.extend.initial");
-            
+            LOGGER.info("Esc键按下（keyCode={}），结束延伸", keyCode);
+            if (extendState == ExtendState.EXTENDING) {
+                finishExtendSession(context);
+            } else {
+                clearPreview();
+                context.setPreviewEnabled(false);
+                context.clearSelection();
+                reset();
+                context.setStatusMessage("status.plot.extend.initial");
+            }
             return ModifyResult.CANCEL;
         }
 
@@ -1476,6 +1454,57 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
             targetPoint = null;
             previewShapes = null;
         }
+    }
+
+    /**
+     * 单次延伸完成后准备下一次延伸，保留边界图形。
+     */
+    public void prepareForNextExtend(ModifyToolContext context) {
+        clearPreview();
+        extendState = ExtendState.EXTENDING;
+        extendPoint = null;
+        targetPoint = null;
+        currentPoint = null;
+        previewShapes = null;
+        pendingCommand = null;
+        pendingOriginalShapes.clear();
+        pendingModifiedShapes.clear();
+        if (highlightedShape != null) {
+            highlightedShape.setHighlighted(false);
+            highlightedShape = null;
+        }
+        context.setStatusMessage(PlotI18n.status("status.plot.extend.continuous_next", boundaryShapes.size()));
+    }
+
+    /**
+     * 结束连续延伸，返回边界选择阶段。
+     */
+    public void finishExtendSession(ModifyToolContext context) {
+        clearPreview();
+        context.setPreviewEnabled(false);
+        boundaryShapes.clear();
+        cachedBoundaryShapes = null;
+        cachedBoundarySet = null;
+        boundarySpatialIndex = null;
+        extendPoint = null;
+        targetPoint = null;
+        currentPoint = null;
+        previewShapes = null;
+        pendingCommand = null;
+        pendingOriginalShapes.clear();
+        pendingModifiedShapes.clear();
+        if (highlightedShape != null) {
+            highlightedShape.setHighlighted(false);
+            highlightedShape = null;
+        }
+        selectedShapeIds.clear();
+        try {
+            context.clearSelection();
+        } catch (Exception e) {
+            LOGGER.debug("结束延伸时清空选择失败: {}", e.getMessage());
+        }
+        extendState = ExtendState.SELECTING_BOUNDARY;
+        context.setStatusMessage("status.plot.extend.session_ended");
     }
 
     /**
