@@ -20,6 +20,9 @@ import com.plot.utils.ExceptionDebug;
 import java.awt.Color;
 import java.util.List;
 import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
+import com.plot.ui.tools.helper.NumericInputBuffer;
+import com.plot.ui.tools.helper.NumericInputKeys;
+import com.plot.ui.tools.helper.ToolPreviewRefresh;
 import com.plot.utils.PlotI18n;
 
 /**
@@ -93,6 +96,8 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
     private Vec2d referencePoint;
     private Vec2d currentPoint;
     private double baseDistance = 1.0; // 参考距离
+
+    private final NumericInputBuffer scaleInput = new NumericInputBuffer();
 
     // 缩放处理器和参数
     private ScaleHandler scaleHandler;
@@ -252,6 +257,7 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
 
             // 启用预览
             context.setPreviewEnabled(true);
+            ToolPreviewRefresh.request();
 
             return ModifyResult.CONTINUE;
 
@@ -285,31 +291,83 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
 
     @Override
     public ModifyResult onKeyDown(int keyCode, ModifyToolContext context) {
-        switch (keyCode) {
-            case SHIFT_KEY -> {
-                isShiftPressed = true;
-                if (currentState == ScaleState.SCALING) {
-                    // 重新计算缩放预览以应用约束
-                    return onMouseMove(currentPoint, context);
+        if (keyCode == SHIFT_KEY) {
+            isShiftPressed = true;
+            if (currentState == ScaleState.SCALING) {
+                return onMouseMove(currentPoint, context);
+            }
+            return ModifyResult.CONTINUE;
+        }
+        if (keyCode == CTRL_KEY) {
+            isCtrlPressed = true;
+            if (currentState == ScaleState.SCALING) {
+                return onMouseMove(currentPoint, context);
+            }
+            return ModifyResult.CONTINUE;
+        }
+        boolean inputActive = currentMode == StrategyMode.SCALE && currentState == ScaleState.SCALING;
+        if (NumericInputKeys.isEscape(keyCode) && inputActive && !scaleInput.isEmpty()) {
+            scaleInput.clear();
+            return onMouseMove(currentPoint, context);
+        }
+        if (NumericInputKeys.isBackspace(keyCode) && inputActive && scaleInput.backspace()) {
+            return applyScaleInputPreview(context);
+        }
+        if (NumericInputKeys.isEnter(keyCode)) {
+            if (inputActive && !scaleInput.isEmpty()) {
+                Double factor = scaleInput.tryParse();
+                if (factor != null && factor > 0.0) {
+                    applyScaleFactor(factor);
+                    return completeScale(currentPoint, context);
                 }
                 return ModifyResult.CONTINUE;
             }
-            case CTRL_KEY -> {
-                isCtrlPressed = true;
-                if (currentState == ScaleState.SCALING) {
-                    return onMouseMove(currentPoint, context);
-                }
-                return ModifyResult.CONTINUE;
-            }
-            case ESC_KEY -> {
-                reset();
-                context.setStatusMessage("status.plot.common.operation_cancelled");
-                return ModifyResult.CANCEL;
-            }
-            default -> {
-                return ModifyResult.IGNORED;
+            if (currentState == ScaleState.SCALING && currentPoint != null) {
+                return completeScale(currentPoint, context);
             }
         }
+        if (keyCode == ESC_KEY) {
+            reset();
+            context.setStatusMessage("status.plot.common.operation_cancelled");
+            return ModifyResult.CANCEL;
+        }
+        return ModifyResult.IGNORED;
+    }
+
+    @Override
+    public ModifyResult onKeyTyped(char character, ModifyToolContext context) {
+        if (currentMode != StrategyMode.SCALE || currentState != ScaleState.SCALING
+            || !scaleInput.append(character)) {
+            return ModifyResult.IGNORED;
+        }
+        return applyScaleInputPreview(context);
+    }
+
+    private ModifyResult applyScaleInputPreview(ModifyToolContext context) {
+        Double factor = scaleInput.tryParse();
+        if (factor != null && factor > 0.0) {
+            applyScaleFactor(factor);
+        }
+        if (factor == null) {
+            context.setStatusMessage(PlotI18n.status("status.plot.scale.typing_factor", scaleInput.getText()));
+        } else {
+            context.setStatusMessage(PlotI18n.status("status.plot.scale.typing_factor_ready",
+                DrawMeasureHelper.formatScale(factor)));
+        }
+        return onMouseMove(currentPoint, context);
+    }
+
+    private void applyScaleFactor(double factor) {
+        if (centerPoint == null || referencePoint == null || baseDistance < 1e-9) {
+            return;
+        }
+        Vec2d dir = referencePoint.subtract(centerPoint);
+        double len = dir.length();
+        if (len < 1e-9) {
+            return;
+        }
+        dir = dir.multiply(1.0 / len);
+        currentPoint = centerPoint.add(dir.multiply(baseDistance * factor));
     }
 
     @Override
@@ -434,6 +492,7 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
         if (scaleParameters != null) {
             scaleParameters.clear();
         }
+        scaleInput.clear();
     }
 
     @Override
@@ -572,7 +631,11 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
                 double currentDistance = centerPoint.distance(currentPoint);
                 double scaleFactor = currentDistance / baseDistance;
                 Vec2d labelPos = DrawMeasureHelper.midpoint(centerPoint, currentPoint);
-                DrawMeasureHelper.drawTextLabel(context, DrawMeasureHelper.formatScale(scaleFactor), labelPos);
+                if (!scaleInput.isEmpty()) {
+                    DrawMeasureHelper.drawNumericInputOverlay(context, labelPos, scaleInput.getText(), "x");
+                } else {
+                    DrawMeasureHelper.drawTextLabel(context, DrawMeasureHelper.formatScale(scaleFactor), labelPos);
+                }
             }
         }
     }

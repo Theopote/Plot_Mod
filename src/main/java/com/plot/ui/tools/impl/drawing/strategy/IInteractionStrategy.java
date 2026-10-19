@@ -127,6 +127,20 @@ public interface IInteractionStrategy {
      * @return 当前鼠标位置，如果没有则返回null
      */
     Vec2d getCurrentMousePoint();
+
+    /**
+     * 处理键盘按下（Enter/Esc/Backspace 等）
+     */
+    default InteractionResult onKeyDown(int keyCode, DrawingToolContext context) {
+        return InteractionResult.IGNORED;
+    }
+
+    /**
+     * 处理字符输入（数值直输）
+     */
+    default InteractionResult onKeyTyped(char character, DrawingToolContext context) {
+        return InteractionResult.IGNORED;
+    }
     
     /**
      * 绘图工具上下文接口

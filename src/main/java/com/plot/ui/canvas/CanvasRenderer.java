@@ -358,7 +358,7 @@ public class CanvasRenderer implements EventListener {
                     if (core.isDirty(CanvasCore.DirtyType.CONTENT)) {
                         core.clearDirty(CanvasCore.DirtyType.CONTENT);
                     }
-                    if (core.isDirty(CanvasCore.DirtyType.TOOL_PREVIEW)) {
+                    if (shouldRenderToolPreview()) {
                         renderToolPreview(drawList);
                         core.clearDirty(CanvasCore.DirtyType.TOOL_PREVIEW);
                     }
@@ -448,8 +448,8 @@ public class CanvasRenderer implements EventListener {
                                     core.clearDirty(CanvasCore.DirtyType.CONTENT);
                                 }
 
-                                // 工具预览更新
-                                if (core.isDirty(CanvasCore.DirtyType.TOOL_PREVIEW)) {
+                                // 工具预览：活动工具存在时每帧渲染，键盘数值输入时也能实时反馈
+                                if (shouldRenderToolPreview()) {
                                     renderToolPreview(drawList);
                                     core.clearDirty(CanvasCore.DirtyType.TOOL_PREVIEW);
                                 }
@@ -528,6 +528,14 @@ public class CanvasRenderer implements EventListener {
         if (enabled) {
             grid.render(drawList, core.getCamera());
         }
+    }
+
+    private boolean shouldRenderToolPreview() {
+        if (core.isDirty(CanvasCore.DirtyType.TOOL_PREVIEW)) {
+            return true;
+        }
+        BaseTool currentTool = ApplicationContext.getInstance().getAppState().getCurrentTool();
+        return currentTool != null;
     }
 
     /**

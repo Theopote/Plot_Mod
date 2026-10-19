@@ -303,6 +303,36 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
         }
     }
 
+    @Override
+    public boolean onKeyDown(int keyCode) {
+        if (interactionStrategy == null) {
+            return super.onKeyDown(keyCode);
+        }
+        try {
+            IInteractionStrategy.InteractionResult result =
+                interactionStrategy.onKeyDown(keyCode, this);
+            return handleInteractionResult(result, "键盘按下");
+        } catch (Exception e) {
+            LOGGER.error("工具 [{}] 键盘按下处理失败: {}", toolId, e.getMessage(), e);
+            return super.onKeyDown(keyCode);
+        }
+    }
+
+    @Override
+    public boolean onKeyTyped(char character) {
+        if (interactionStrategy == null) {
+            return super.onKeyTyped(character);
+        }
+        try {
+            IInteractionStrategy.InteractionResult result =
+                interactionStrategy.onKeyTyped(character, this);
+            return handleInteractionResult(result, "字符输入");
+        } catch (Exception e) {
+            LOGGER.error("工具 [{}] 字符输入处理失败: {}", toolId, e.getMessage(), e);
+            return super.onKeyTyped(character);
+        }
+    }
+
     /**
      * 统一处理交互结果
      * 这是状态管理的核心方法，确保职责边界清晰
@@ -315,6 +345,7 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
                     this.currentState = ToolState.DRAWING;
                     LOGGER.debug("工具 [{}] 进入绘制状态", toolId);
                 }
+                com.plot.ui.tools.helper.ToolPreviewRefresh.request();
                 LOGGER.trace("工具 [{}] {} - 交互继续", toolId, eventType);
                 return true;
                 

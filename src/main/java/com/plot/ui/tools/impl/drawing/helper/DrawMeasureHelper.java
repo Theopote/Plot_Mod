@@ -199,4 +199,38 @@ public final class DrawMeasureHelper {
         }
         drawTextLabel(context, formatRadius(distanceBlocks(center, edge)), midpoint(center, edge));
     }
+
+    /**
+     * 沿 anchor → toward 方向，取与 toward 相同方块距离处的画布点。
+     */
+    public static Vec2d pointAtBlockDistance(Vec2d anchor, Vec2d toward, double blocks) {
+        if (anchor == null || toward == null || blocks <= 0.0) {
+            return toward;
+        }
+        double canvasLen = canvasDistance(anchor, toward);
+        if (canvasLen < 1e-9) {
+            return new Vec2d(anchor.x + blocks, anchor.y);
+        }
+        double blockLen = distanceBlocks(anchor, toward);
+        if (blockLen < 1e-9) {
+            Vec2d dir = toward.subtract(anchor).normalize();
+            return anchor.add(dir.multiply(blocks));
+        }
+        double scale = blocks / blockLen;
+        return anchor.add(toward.subtract(anchor).multiply(scale));
+    }
+
+    /**
+     * 在画布上显示正在输入的数值（带后缀，如 °、x）。
+     */
+    public static void drawNumericInputOverlay(DrawContext context, Vec2d position, String rawInput, String suffix) {
+        if (context == null || position == null || rawInput == null || rawInput.isBlank()) {
+            return;
+        }
+        String display = rawInput.trim();
+        if (suffix != null && !suffix.isBlank()) {
+            display = display + suffix;
+        }
+        drawTextLabel(context, display, position);
+    }
 }

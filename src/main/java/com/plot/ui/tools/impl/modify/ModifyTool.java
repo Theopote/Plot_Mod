@@ -350,6 +350,9 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
     private boolean handleModifyResult(IModifyStrategy.ModifyResult result, String eventType) {
         switch (result) {
             case CONTINUE -> {
+                if (isPreviewEnabled.get()) {
+                    com.plot.ui.tools.helper.ToolPreviewRefresh.request();
+                }
                 return true;
             }
             case COMPLETE -> {

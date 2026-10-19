@@ -103,6 +103,15 @@ class DrawMeasureHelperTest {
     }
 
     @Test
+    void pointAtBlockDistanceScalesAlongDirection() {
+        Vec2d anchor = new Vec2d(0, 0);
+        Vec2d toward = new Vec2d(10, 0);
+        Vec2d result = DrawMeasureHelper.pointAtBlockDistance(anchor, toward, 5.0);
+        assertEquals(5.0, result.x, 1e-6);
+        assertEquals(0.0, result.y, 1e-6);
+    }
+
+    @Test
     void resetLabelColorFallsBackToThemeDefault() {
         DrawMeasureSettings.setLabelColorRgb(0x123456);
         DrawMeasureSettings.resetLabelColor();

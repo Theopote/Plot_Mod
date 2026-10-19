@@ -20,6 +20,9 @@ import com.plot.utils.ExceptionDebug;
 import java.awt.Color;
 import java.util.List;
 import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
+import com.plot.ui.tools.helper.NumericInputBuffer;
+import com.plot.ui.tools.helper.NumericInputKeys;
+import com.plot.ui.tools.helper.ToolPreviewRefresh;
 import com.plot.utils.PlotI18n;
 
 /**
@@ -76,11 +79,6 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
 
     // 常量
     private static final double DEFAULT_ANGLE_STEP = Math.PI / 12.0; // 15度
-    private static final int ESC_KEY_AWT = 27;
-    private static final int ESC_KEY_GLFW = 256;
-    private static final int ENTER_KEY_GLFW = 257;
-    private static final int KP_ENTER_KEY_GLFW = 335;
-    private static final int BACKSPACE_KEY_GLFW = 259;
     private static final int SHIFT_KEY = 16;
     private static final int CTRL_KEY = 17;
 
@@ -103,7 +101,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
     private Vec2d constrainedCurrentPoint;
 
     /** 旋转过程中用户手动输入的角度（度），例如 "45" / "-30.5" */
-    private final StringBuilder angleInputBuffer = new StringBuilder();
+    private final NumericInputBuffer angleInput = new NumericInputBuffer();
 
     // 旋转处理器和参数
     private RotateHandler rotateHandler;
@@ -300,7 +298,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
             }
             return ModifyResult.CONTINUE;
         }
-        if (keyCode == ESC_KEY_AWT || keyCode == ESC_KEY_GLFW) {
+        if (NumericInputKeys.isEscape(keyCode)) {
             if (currentState == RotateState.ROTATING && hasTypedAngle()) {
                 clearAngleInput();
                 if (currentPoint != null) {
@@ -313,9 +311,8 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
             context.setStatusMessage("status.plot.common.operation_cancelled");
             return ModifyResult.CANCEL;
         }
-        if (keyCode == BACKSPACE_KEY_GLFW) {
-            if (currentState == RotateState.ROTATING && !angleInputBuffer.isEmpty()) {
-                angleInputBuffer.deleteCharAt(angleInputBuffer.length() - 1);
+        if (NumericInputKeys.isBackspace(keyCode)) {
+            if (currentState == RotateState.ROTATING && angleInput.backspace()) {
                 if (hasTypedAngle()) {
                     return updatePreviewFromTypedAngle(context);
                 }
@@ -327,7 +324,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
             }
             return ModifyResult.IGNORED;
         }
-        if (keyCode == ENTER_KEY_GLFW || keyCode == KP_ENTER_KEY_GLFW) {
+        if (NumericInputKeys.isEnter(keyCode)) {
             if (currentState == RotateState.ROTATING) {
                 if (hasTypedAngle()) {
                     return confirmTypedAngle(context);
@@ -346,7 +343,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
         if (currentMode != StrategyMode.ROTATE || currentState != RotateState.ROTATING) {
             return ModifyResult.IGNORED;
         }
-        if (!appendAngleInputChar(character)) {
+        if (!angleInput.append(character)) {
             return ModifyResult.IGNORED;
         }
         return updatePreviewFromTypedAngle(context);
@@ -413,7 +410,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
     private ModifyResult confirmTypedAngle(ModifyToolContext context) {
         Double angleDegrees = parseTypedAngleDegrees();
         if (angleDegrees == null) {
-            context.setStatusMessage(PlotI18n.status("status.plot.rotate.invalid_angle_input", angleInputBuffer.toString()));
+            context.setStatusMessage(PlotI18n.status("status.plot.rotate.invalid_angle_input", angleInput.getText()));
             return ModifyResult.CONTINUE;
         }
         LOGGER.debug("使用输入角度完成旋转: {}°", angleDegrees);
@@ -492,6 +489,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
         }
         context.setStatusMessage(statusMessage);
         context.setPreviewEnabled(true);
+        ToolPreviewRefresh.request();
         return ModifyResult.CONTINUE;
     }
 
@@ -503,8 +501,9 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
         Double angleDegrees = parseTypedAngleDegrees();
         if (angleDegrees == null) {
             context.setStatusMessage(PlotI18n.status(
-                "status.plot.rotate.typing_angle", angleInputBuffer.toString()));
+                "status.plot.rotate.typing_angle", angleInput.getText()));
             context.setPreviewEnabled(true);
+            ToolPreviewRefresh.request();
             return ModifyResult.CONTINUE;
         }
 
@@ -522,6 +521,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
         }
         context.setStatusMessage(statusMessage);
         context.setPreviewEnabled(true);
+        ToolPreviewRefresh.request();
         return ModifyResult.CONTINUE;
     }
 
@@ -566,50 +566,15 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
     }
 
     private boolean hasTypedAngle() {
-        return !angleInputBuffer.isEmpty();
+        return !angleInput.isEmpty();
     }
 
     private void clearAngleInput() {
-        angleInputBuffer.setLength(0);
-    }
-
-    private boolean appendAngleInputChar(char character) {
-        if (Character.isDigit(character)) {
-            angleInputBuffer.append(character);
-            return true;
-        }
-        if (character == '.' || character == ',') {
-            String current = angleInputBuffer.toString().replace(',', '.');
-            if (current.contains(".")) {
-                return false;
-            }
-            angleInputBuffer.append('.');
-            return true;
-        }
-        if (character == '-' || character == '+') {
-            if (!angleInputBuffer.isEmpty()) {
-                return false;
-            }
-            angleInputBuffer.append(character);
-            return true;
-        }
-        return false;
+        angleInput.clear();
     }
 
     private Double parseTypedAngleDegrees() {
-        if (angleInputBuffer.isEmpty()) {
-            return null;
-        }
-        String text = angleInputBuffer.toString().trim().replace(',', '.');
-        if (text.isEmpty() || "-".equals(text) || "+".equals(text) || ".".equals(text)
-            || "-.".equals(text) || "+.".equals(text)) {
-            return null;
-        }
-        try {
-            return Double.parseDouble(text);
-        } catch (NumberFormatException e) {
-            return null;
-        }
+        return angleInput.tryParse();
     }
 
     /**
@@ -808,8 +773,15 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
                     centerPoint.x + textRadius * Math.cos(midAngle),
                     centerPoint.y + textRadius * Math.sin(midAngle)
                 );
-                DrawMeasureHelper.drawTextLabel(context, DrawMeasureHelper.formatAngle(angleDiff), textPos);
+                if (hasTypedAngle()) {
+                    DrawMeasureHelper.drawNumericInputOverlay(
+                        context, textPos, angleInput.getText(), "°");
+                } else {
+                    DrawMeasureHelper.drawTextLabel(context, DrawMeasureHelper.formatAngle(angleDiff), textPos);
+                }
             }
+        } else if (hasTypedAngle() && centerPoint != null && currentState == RotateState.ROTATING) {
+            DrawMeasureHelper.drawNumericInputOverlay(context, centerPoint, angleInput.getText(), "°");
         }
     }
 

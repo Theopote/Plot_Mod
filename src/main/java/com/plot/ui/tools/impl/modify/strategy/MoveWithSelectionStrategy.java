@@ -21,6 +21,9 @@ import com.plot.utils.ExceptionDebug;
 import java.awt.Color;
 import java.util.List;
 import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
+import com.plot.ui.tools.helper.NumericInputBuffer;
+import com.plot.ui.tools.helper.NumericInputKeys;
+import com.plot.ui.tools.helper.ToolPreviewRefresh;
 import com.plot.utils.PlotI18n;
 
 /**
@@ -76,6 +79,8 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
     private Vec2d moveCurrentPoint;
     // 约束后用于渲染的终点（例如正交约束时）
     private Vec2d constrainedEndPoint;
+
+    private final NumericInputBuffer distanceInput = new NumericInputBuffer();
 
     // 移动处理器和参数
     private MoveHandler moveHandler;
@@ -248,6 +253,7 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
 
             // 启用预览
             context.setPreviewEnabled(true);
+            ToolPreviewRefresh.request();
 
             return ModifyResult.CONTINUE;
 
@@ -286,24 +292,63 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
 
     @Override
     public ModifyResult onKeyDown(int keyCode, ModifyToolContext context) {
-        switch (keyCode) {
-            case SHIFT_KEY -> {
-                isShiftPressed = true;
-                if (hasBasePoint) {
-                    // 重新计算移动预览以应用正交约束
-                    return onMouseMove(moveCurrentPoint, context);
+        if (keyCode == SHIFT_KEY) {
+            isShiftPressed = true;
+            if (hasBasePoint) {
+                return onMouseMove(moveCurrentPoint, context);
+            }
+            return ModifyResult.CONTINUE;
+        }
+        boolean inputActive = currentMode == StrategyMode.MOVE && hasBasePoint;
+        if (NumericInputKeys.isEscape(keyCode) && inputActive && !distanceInput.isEmpty()) {
+            distanceInput.clear();
+            return onMouseMove(moveCurrentPoint, context);
+        }
+        if (NumericInputKeys.isBackspace(keyCode) && inputActive && distanceInput.backspace()) {
+            return applyDistanceInputPreview(context);
+        }
+        if (NumericInputKeys.isEnter(keyCode)) {
+            if (inputActive && !distanceInput.isEmpty()) {
+                Double blocks = distanceInput.tryParse();
+                if (blocks != null && blocks > 0.0 && moveStartPoint != null && moveCurrentPoint != null) {
+                    return completeMove(
+                        DrawMeasureHelper.pointAtBlockDistance(moveStartPoint, moveCurrentPoint, blocks),
+                        context);
                 }
                 return ModifyResult.CONTINUE;
             }
-            case ESC_KEY -> {
-                reset();
-                context.setStatusMessage("status.plot.common.operation_cancelled");
-                return ModifyResult.CANCEL;
-            }
-            default -> {
-                return ModifyResult.IGNORED;
+            if (hasBasePoint && moveCurrentPoint != null) {
+                return completeMove(moveCurrentPoint, context);
             }
         }
+        if (keyCode == ESC_KEY) {
+            reset();
+            context.setStatusMessage("status.plot.common.operation_cancelled");
+            return ModifyResult.CANCEL;
+        }
+        return ModifyResult.IGNORED;
+    }
+
+    @Override
+    public ModifyResult onKeyTyped(char character, ModifyToolContext context) {
+        if (currentMode != StrategyMode.MOVE || !hasBasePoint || !distanceInput.append(character)) {
+            return ModifyResult.IGNORED;
+        }
+        return applyDistanceInputPreview(context);
+    }
+
+    private ModifyResult applyDistanceInputPreview(ModifyToolContext context) {
+        Double blocks = distanceInput.tryParse();
+        if (blocks != null && blocks > 0.0 && moveStartPoint != null && moveCurrentPoint != null) {
+            moveCurrentPoint = DrawMeasureHelper.pointAtBlockDistance(moveStartPoint, moveCurrentPoint, blocks);
+        }
+        if (blocks == null) {
+            context.setStatusMessage(PlotI18n.status("status.plot.move.typing_distance", distanceInput.getText()));
+        } else {
+            context.setStatusMessage(PlotI18n.status("status.plot.move.typing_distance_ready",
+                DrawMeasureHelper.formatBlocks(blocks)));
+        }
+        return onMouseMove(moveCurrentPoint, context);
     }
 
     @Override
@@ -387,6 +432,7 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
         if (moveParameters != null) {
             moveParameters.clear();
         }
+        distanceInput.clear();
     }
 
     @Override
@@ -518,7 +564,13 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
                 context.drawDashedLine(moveStartPoint, effectiveEnd, movePreviewColor);
                 context.drawCircle(moveStartPoint, 3.0f, movePreviewColor);
                 context.drawCircle(effectiveEnd, 3.0f, movePreviewColor);
-                DrawMeasureHelper.drawSegmentLabel(context, moveStartPoint, effectiveEnd);
+                if (!distanceInput.isEmpty()) {
+                    DrawMeasureHelper.drawNumericInputOverlay(
+                        context, DrawMeasureHelper.midpoint(moveStartPoint, effectiveEnd),
+                        distanceInput.getText(), "");
+                } else {
+                    DrawMeasureHelper.drawSegmentLabel(context, moveStartPoint, effectiveEnd);
+                }
             }
         }
     }

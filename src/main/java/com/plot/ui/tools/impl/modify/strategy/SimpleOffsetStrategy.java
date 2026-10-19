@@ -9,6 +9,9 @@ import com.plot.core.state.AppState;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
+import com.plot.ui.tools.helper.NumericInputBuffer;
+import com.plot.ui.tools.helper.NumericInputKeys;
+import com.plot.ui.tools.helper.ToolPreviewRefresh;
 import com.plot.ui.tools.impl.modify.helper.OffsetHandler;
 import com.plot.ui.tools.impl.modify.dto.ModifyParameters;
 import com.plot.core.geometry.shapes.LineShape;
@@ -52,6 +55,7 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
     private Vec2d currentMousePoint;
     private Vec2d previewClosestPoint;
     private List<Shape> previewShapes;
+    private final NumericInputBuffer offsetInput = new NumericInputBuffer();
 
     @Override
     public ModifyResult onMouseDown(Vec2d pos, int button, ModifyToolContext context) {
@@ -175,7 +179,115 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
             context.setStatusMessage(PlotI18n.status("status.plot.offset.distance_preview",
                     DrawMeasureHelper.formatBlocks(blockDistance)));
         }
+        context.setPreviewEnabled(true);
+        ToolPreviewRefresh.request();
         return ModifyResult.CONTINUE;
+    }
+
+    @Override
+    public ModifyResult onKeyDown(int keyCode, ModifyToolContext context) {
+        if (state != State.FIRST_POINT_SET || targetShape == null) {
+            return ModifyResult.IGNORED;
+        }
+        if (NumericInputKeys.isEscape(keyCode) && !offsetInput.isEmpty()) {
+            offsetInput.clear();
+            return onMouseMove(currentMousePoint != null ? currentMousePoint : firstPoint, context);
+        }
+        if (NumericInputKeys.isBackspace(keyCode) && offsetInput.backspace()) {
+            return applyOffsetInputPreview(context);
+        }
+        if (NumericInputKeys.isEnter(keyCode) && !offsetInput.isEmpty()) {
+            Double blocks = offsetInput.tryParse();
+            if (blocks != null && blocks > 0.0) {
+                return commitOffsetWithDistance(blocks, context);
+            }
+            return ModifyResult.CONTINUE;
+        }
+        return ModifyResult.IGNORED;
+    }
+
+    @Override
+    public ModifyResult onKeyTyped(char character, ModifyToolContext context) {
+        if (state != State.FIRST_POINT_SET || targetShape == null || !offsetInput.append(character)) {
+            return ModifyResult.IGNORED;
+        }
+        return applyOffsetInputPreview(context);
+    }
+
+    private ModifyResult applyOffsetInputPreview(ModifyToolContext context) {
+        Double blocks = offsetInput.tryParse();
+        if (blocks != null && blocks > 0.0 && currentMousePoint != null) {
+            updateOffsetPreviewWithSignedDistance(resolveSignedOffset(blocks), context);
+        }
+        if (blocks == null) {
+            context.setStatusMessage(PlotI18n.status("status.plot.offset.typing_distance", offsetInput.getText()));
+        } else {
+            context.setStatusMessage(PlotI18n.status("status.plot.offset.typing_distance_ready",
+                DrawMeasureHelper.formatBlocks(blocks)));
+        }
+        context.setPreviewEnabled(true);
+        ToolPreviewRefresh.request();
+        return ModifyResult.CONTINUE;
+    }
+
+    private double resolveSignedOffset(double blocks) {
+        if (currentMousePoint == null || targetShape == null) {
+            return blocks;
+        }
+        double signed = computeSignedOffsetDistance(targetShape, currentMousePoint);
+        return blocks * (signed >= 0.0 ? 1.0 : -1.0);
+    }
+
+    private void updateOffsetPreviewWithSignedDistance(double signedDistance, ModifyToolContext context) {
+        try {
+            AppState appState = (AppState) context.getAppState();
+            OffsetHandler handler = new OffsetHandler(appState);
+            ModifyParameters params = new ModifyParameters();
+            params.setDouble("offsetDistance", signedDistance);
+            List<Shape> preview = handler.createPreviewShapes(List.of(targetShape), params);
+            previewShapes = preview == null ? null : new ArrayList<>(preview);
+        } catch (Exception e) {
+            ExceptionDebug.log("SimpleOffsetStrategy: preview typed offset", e);
+            previewShapes = null;
+        }
+    }
+
+    private ModifyResult commitOffsetWithDistance(double blocks, ModifyToolContext context) {
+        if (firstPoint == null || targetShape == null) {
+            return ModifyResult.CANCEL;
+        }
+        double signedDistance = resolveSignedOffset(blocks);
+        AppState appState = (AppState) context.getAppState();
+        OffsetHandler handler = new OffsetHandler(appState);
+        ModifyParameters params = new ModifyParameters();
+        params.setDouble("offsetDistance", signedDistance);
+        List<Shape> originals = List.of(targetShape);
+        List<Shape> modified = handler.calculateModifiedShapes(originals, params);
+        if (modified == null || modified.isEmpty() || containsOriginalReference(originals, modified)) {
+            context.setStatusMessage("status.plot.offset.generate_failed");
+            reset();
+            return ModifyResult.CANCEL;
+        }
+        pendingCommand = new CopyOffsetCommand(originals, modified, appState);
+        context.executeModifyCommand(pendingCommand);
+        try {
+            context.clearSelection();
+            for (Shape s : modified) {
+                s.setSelected(true);
+                s.setHighlighted(false);
+                context.addSelectedShape(s);
+            }
+        } catch (Exception e) {
+            ExceptionDebug.log("SimpleOffsetStrategy: select offset result shapes", e);
+        }
+        offsetInput.clear();
+        if (multipleMode) {
+            reset();
+            context.setStatusMessage(PlotI18n.status("status.plot.offset.complete_continue", Math.abs(signedDistance)));
+            return ModifyResult.CONTINUE;
+        }
+        reset();
+        return ModifyResult.COMPLETE;
     }
 
     @Override
@@ -197,6 +309,7 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
         currentMousePoint = null;
         previewClosestPoint = null;
         previewShapes = null;
+        offsetInput.clear();
     }
 
     @Override
@@ -219,7 +332,13 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
                     theme.warningText & 0xFF,
                     180);
             context.drawDashedLine(previewClosestPoint, currentMousePoint, guideColor);
-            DrawMeasureHelper.drawSegmentLabel(context, previewClosestPoint, currentMousePoint);
+            if (!offsetInput.isEmpty()) {
+                DrawMeasureHelper.drawNumericInputOverlay(
+                    context, DrawMeasureHelper.midpoint(previewClosestPoint, currentMousePoint),
+                    offsetInput.getText(), "");
+            } else {
+                DrawMeasureHelper.drawSegmentLabel(context, previewClosestPoint, currentMousePoint);
+            }
         }
     }
 

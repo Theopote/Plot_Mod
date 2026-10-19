@@ -5,6 +5,10 @@ import com.plot.core.model.Shape;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.plot.ui.tools.helper.NumericInputBuffer;
+import com.plot.ui.tools.helper.NumericInputKeys;
+import com.plot.ui.tools.helper.ToolPreviewRefresh;
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 import com.plot.utils.PlotI18n;
 
 import java.util.ArrayList;
@@ -54,6 +58,7 @@ public class MultiStepInteractionStrategy implements IInteractionStrategy {
     private boolean isActive = false;
     private int currentStep = 0;
     private Shape finalShape; // 缓存最终图形
+    private final NumericInputBuffer numericInput = new NumericInputBuffer();
     
     /**
      * 构造函数（完整配置）
@@ -263,6 +268,69 @@ public class MultiStepInteractionStrategy implements IInteractionStrategy {
         // 所有逻辑都在onMouseDown中处理
         return InteractionResult.IGNORED;
     }
+
+    @Override
+    public InteractionResult onKeyDown(int keyCode, DrawingToolContext context) {
+        if (!isActive || controlPoints.isEmpty()) {
+            return InteractionResult.IGNORED;
+        }
+        if (NumericInputKeys.isEscape(keyCode)) {
+            if (numericInput.isEmpty()) {
+                return InteractionResult.IGNORED;
+            }
+            numericInput.clear();
+            updatePreview(context);
+            ToolPreviewRefresh.request();
+            return InteractionResult.CONTINUE;
+        }
+        if (NumericInputKeys.isBackspace(keyCode)) {
+            if (!numericInput.backspace()) {
+                return InteractionResult.IGNORED;
+            }
+            applyNumericDistanceIfPossible(context);
+            return InteractionResult.CONTINUE;
+        }
+        if (NumericInputKeys.isEnter(keyCode) && !numericInput.isEmpty()) {
+            Double blocks = numericInput.tryParse();
+            if (blocks == null || blocks <= 0.0 || currentMousePoint == null) {
+                return InteractionResult.CONTINUE;
+            }
+            Vec2d anchor = controlPoints.getLast();
+            Vec2d end = DrawMeasureHelper.pointAtBlockDistance(anchor, currentMousePoint, blocks);
+            numericInput.clear();
+            if (controlPoints.size() >= maxSteps - 1 && maxSteps > 0) {
+                controlPoints.add(end);
+                return finishInteraction(context);
+            }
+            controlPoints.add(end);
+            currentStep++;
+            updatePreview(context);
+            return InteractionResult.CONTINUE;
+        }
+        return InteractionResult.IGNORED;
+    }
+
+    @Override
+    public InteractionResult onKeyTyped(char character, DrawingToolContext context) {
+        if (!isActive || controlPoints.isEmpty() || currentMousePoint == null) {
+            return InteractionResult.IGNORED;
+        }
+        if (!numericInput.append(character)) {
+            return InteractionResult.IGNORED;
+        }
+        applyNumericDistanceIfPossible(context);
+        return InteractionResult.CONTINUE;
+    }
+
+    private void applyNumericDistanceIfPossible(DrawingToolContext context) {
+        Double blocks = numericInput.tryParse();
+        if (blocks != null && blocks > 0.0) {
+            Vec2d anchor = controlPoints.getLast();
+            currentMousePoint = DrawMeasureHelper.pointAtBlockDistance(anchor, currentMousePoint, blocks);
+        }
+        updatePreview(context);
+        ToolPreviewRefresh.request();
+    }
     
     /**
      * 更新预览图形
@@ -344,6 +412,7 @@ public class MultiStepInteractionStrategy implements IInteractionStrategy {
         isActive = false;
         currentStep = 0;
         finalShape = null;
+        numericInput.clear();
     }
     
     @Override
