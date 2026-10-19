@@ -273,13 +273,19 @@ class LineToBlockHandlerTest {
     }
 
     @Test
-    void resolvePreviewElevationUsesFootLevelWhenCameraIsElevated() {
-        assertEquals(64.0, LineToBlockHandler.resolvePreviewElevation(64.5, 214.0));
+    void resolveGhostPreviewYPlacesBlockAboveSampledGround() {
+        assertEquals(65, LineToBlockHandler.resolveGhostPreviewY(10, 20, Double.NaN, 64));
     }
 
     @Test
-    void resolvePreviewElevationClampsBelowCameraWhenFootLevelIsTooHigh() {
-        assertEquals(68.0, LineToBlockHandler.resolvePreviewElevation(70.0, 70.5));
+    void resolveGhostPreviewYUsesUserSpecifiedElevation() {
+        assertEquals(80, LineToBlockHandler.resolveGhostPreviewY(10, 20, 80.9, 64));
+    }
+
+    @Test
+    void resolveGhostPreviewYFollowsTerrainWhenColumnsDiffer() {
+        assertEquals(71, LineToBlockHandler.resolveGhostPreviewY(0, 0, Double.NaN, 70));
+        assertEquals(51, LineToBlockHandler.resolveGhostPreviewY(5, 5, Double.NaN, 50));
     }
 
     @Test

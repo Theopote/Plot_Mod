@@ -151,7 +151,7 @@ public class LineToBlockHandler {
             ghostBlockManager.clearGhostBlocks(GhostBlockOwners.LINE_TO_BLOCK);
 
             // 定义方块处理逻辑
-            BiConsumer<BlockPos, String> blockAction = getBlockPosStringBiConsumer(isPreview);
+            BiConsumer<BlockPos, String> blockAction = getBlockPosStringBiConsumer(isPreview, userSpecifiedYLevel);
 
             // 【优化】执行核心处理流程，带进度反馈
             int totalBlocks = processShapesToBlocksWithProgress(shapes, conversionMode, simplificationRatio, targetYLevel, fillClosedShapes, paletteBlocks, blockAction);
@@ -194,14 +194,14 @@ public class LineToBlockHandler {
         }
     }
 
-    private @NotNull BiConsumer<BlockPos, String> getBlockPosStringBiConsumer(boolean isPreview) {
+    private @NotNull BiConsumer<BlockPos, String> getBlockPosStringBiConsumer(boolean isPreview, double userSpecifiedYLevel) {
         BiConsumer<BlockPos, String> blockAction;
         if (isPreview) {
-            // 预览模式：添加幽灵方块
+            // 预览模式：按列抬升到地表上方，避免嵌入起伏地形
             blockAction = (pos, blockId) -> {
-                // 直接传递BlockPos，更清晰！
-                ghostBlockManager.addGhostBlock(GhostBlockOwners.LINE_TO_BLOCK, pos, blockId);
-                LOGGER.debug("创建幽灵方块: {} 在位置 {}", blockId, pos.toShortString());
+                BlockPos previewPos = resolveGhostPreviewBlockPos(pos, userSpecifiedYLevel);
+                ghostBlockManager.addGhostBlock(GhostBlockOwners.LINE_TO_BLOCK, previewPos, blockId);
+                LOGGER.debug("创建幽灵方块: {} 在位置 {} (光栅Y={})", blockId, previewPos.toShortString(), pos.getY());
             };
         } else {
             // 真实模式：发布投影事件
@@ -1234,8 +1234,8 @@ public class LineToBlockHandler {
      * 获取目标标高，用于方块转换。
      * <p>
      * 默认取玩家脚下地表高度，而非 {@code player.getY()}：Plot 打开时相机会被抬升到
-     * {@code terrain + 150} 俯视，若仍用玩家 Y 会导致幽灵方块飘在空中或落在错误高度。
-     * 预览模式额外保证标高严格低于相机 Y，以便顶视时可见。
+     * {@code terrain + 150} 俯视，若仍用玩家 Y 会导致预览落在错误高度。
+     * 预览模式的最终 Y 在 {@link #resolveGhostPreviewBlockPos} 中按列采样（地表上方一格）。
      *
      * @param userSpecifiedYLevel 用户指定的标高；{@link Double#NaN} 表示未指定
      * @return 网格对齐后的目标 Y
@@ -1264,10 +1264,9 @@ public class LineToBlockHandler {
                         EngineeringTerrainService.of(world).sampleGroundSurface(playerPos.getX(), playerPos.getZ()));
 
                 if (isPreview) {
-                    double previewY = resolvePreviewElevation(footLevel, player.getY());
-                    LOGGER.debug("预览模式标高: footLevel={}, cameraY={}, previewY={}",
-                            footLevel, player.getY(), previewY);
-                    return previewY;
+                    // 光栅化占位 Y；实际幽灵高度在 resolveGhostPreviewBlockPos 中按列采样
+                    LOGGER.debug("预览模式光栅占位标高: footLevel={}", footLevel);
+                    return footLevel;
                 }
 
                 LOGGER.debug("使用脚下地表标高: footLevel={}", footLevel);
@@ -1283,8 +1282,45 @@ public class LineToBlockHandler {
     }
 
     /**
-     * 计算幽灵预览标高：优先使用地表高度，且必须低于相机 Y（顶视时才能看到线框）。
+     * 解析幽灵预览方块位置：默认落在该列地表方块上方一格（空中），与「投影到地面」语义一致。
+     * 用户指定标高时使用统一 Y。
      */
+    private BlockPos resolveGhostPreviewBlockPos(BlockPos rasterPos, double userSpecifiedYLevel) {
+        int previewY = resolveGhostPreviewY(
+                rasterPos.getX(),
+                rasterPos.getZ(),
+                userSpecifiedYLevel,
+                sampleGroundSurfaceY(rasterPos.getX(), rasterPos.getZ())
+        );
+        return new BlockPos(rasterPos.getX(), previewY, rasterPos.getZ());
+    }
+
+    /**
+     * @param sampledGroundY {@link EngineeringTerrainService#sampleGroundSurface} 的工程地面方块 Y
+     */
+    static int resolveGhostPreviewY(int worldX, int worldZ, double userSpecifiedYLevel, int sampledGroundY) {
+        if (Double.isFinite(userSpecifiedYLevel)) {
+            return (int) Math.floor(userSpecifiedYLevel);
+        }
+        return sampledGroundY + 1;
+    }
+
+    private int sampleGroundSurfaceY(int worldX, int worldZ) {
+        try {
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client != null && client.world != null) {
+                return EngineeringTerrainService.of(client.world).sampleGroundSurface(worldX, worldZ);
+            }
+        } catch (Exception e) {
+            LOGGER.debug("采样 ({}, {}) 地表失败: {}", worldX, worldZ, e.getMessage());
+        }
+        return (int) DEFAULT_Y_LEVEL;
+    }
+
+    /**
+     * @deprecated 预览已改为按列 {@link #resolveGhostPreviewY}，保留供旧测试参考。
+     */
+    @Deprecated
     static double resolvePreviewElevation(double footLevel, double cameraY) {
         double alignedFoot = Math.floor(footLevel);
         double maxPreviewY = Math.floor(cameraY) - 2.0;
