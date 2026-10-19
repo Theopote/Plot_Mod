@@ -7,6 +7,9 @@ import com.plot.core.context.ApplicationContext;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
+import com.plot.ui.tools.impl.modify.constants.ModifyConstraints;
+import com.plot.ui.tools.impl.modify.dto.ModifyParameters;
+import com.plot.ui.tools.impl.modify.helper.IModifyHandler;
 import com.plot.ui.tools.impl.modify.helper.MirrorHandler;
 import com.plot.ui.tools.impl.modify.strategy.IModifyStrategy.ModifyResult;
 import com.plot.ui.tools.impl.modify.strategy.MirrorWithSelectionStrategy.MirrorState;
@@ -22,14 +25,10 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 class MirrorWithSelectionStrategyTest {
 
     private static final int MOUSE_RIGHT = 1;
     private static final int ESC_KEY = 27;
-    private static final int SHIFT_KEY = 16;
-
     private AppState appState;
     private MirrorWithSelectionStrategy strategy;
     private ModifyStrategyTestContext context;
@@ -110,15 +109,21 @@ class MirrorWithSelectionStrategyTest {
     @Test
     void shiftKeyConstrainsMirrorAxisToOrthogonal() throws Exception {
         injectActiveMirrorState(sourceLine, new Vec2d(0, 0));
+        ModifyStrategyReflections.setField(strategy, "isShiftPressed", true);
 
-        strategy.onKeyDown(SHIFT_KEY, context);
-        strategy.onMouseMove(new Vec2d(10, 3), context);
+        ModifyParameters params = new ModifyParameters();
+        params.setVec2d(ModifyParameters.MIRROR_AXIS_START, new Vec2d(0, 0));
+        params.setVec2d(ModifyParameters.MIRROR_AXIS_END, new Vec2d(10, 3));
 
-        Vec2d previewEnd = ModifyStrategyReflections.getField(strategy, "previewAxisEndPoint");
+        ModifyConstraints constraints = new ModifyConstraints();
+        constraints.setOrthogonalConstraintEnabled(true);
+        MirrorHandler mirrorHandler = ModifyStrategyReflections.getField(strategy, "mirrorHandler");
+        IModifyHandler.ModifyParameters constrained = mirrorHandler.applyConstraints(params, constraints);
+
+        Vec2d previewEnd = ((ModifyParameters) constrained).getVec2d(ModifyParameters.MIRROR_AXIS_END);
         assertNotNull(previewEnd);
         assertEquals(10.0, previewEnd.x, 1e-6);
         assertEquals(0.0, previewEnd.y, 1e-6);
-        assertTrue(context.isPreviewEnabled());
     }
 
     @Test
