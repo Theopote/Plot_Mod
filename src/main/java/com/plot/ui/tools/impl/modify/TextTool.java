@@ -12,6 +12,7 @@ import com.plot.core.graphics.DrawContext;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.log.LogManager;
 import com.plot.core.tool.BaseTool;
+import com.plot.core.tool.ToolManager;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.core.shortcut.ShortcutManager;
@@ -39,7 +40,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 增强文字工具 - 支持多行文字和性能优化
  * <p>
  * 功能特性：
- * 1. 点击画布直接输入文字（类似CAD的DTEXT命令）
+ * 1. 选中工具后弹出输入框，确认后在画布点击放置文字
  * 2. 支持字体大小调整（Shift+Plus/Minus）
  * 3. 支持转换为图形路径
  * 4. 双击现有文字进行编辑
@@ -377,27 +378,15 @@ public class TextTool extends BaseTool {
         
         if (button == 0) { // 左键
             if (currentState == ToolState.IDLE) {
-                // 点击画布时，如果启用了对话框，直接打开对话框
-                if (shouldUseDialog()) {
-                    LogManager.getInstance().debug("TextTool: 点击画布，打开文字输入对话框");
-                    showTextDialog(worldPoint);
-                } else {
-                    // 如果未启用对话框，使用默认文字模式
-                    startTextInput(worldPoint);
+                if (!shouldUseDialog()) {
+                    useDefaultText(worldPoint);
+                    return true;
                 }
+                return false;
+            } else if (currentState == ToolState.PLACING && pendingText != null && pendingTextStyle != null) {
+                ensurePreviewText(worldPoint);
+                finalizePlacement(worldPoint);
                 return true;
-            } else if (currentState == ToolState.PLACING) {
-                if (previewText == null && pendingText != null && pendingTextStyle != null) {
-                    // 第一次点击：创建预览文字
-                    previewText = new TextShape(worldPoint, pendingText);
-                    previewText.setTextStyle(pendingTextStyle);
-                    LogManager.getInstance().debug("TextTool: 创建预览文字在位置: {}", worldPoint);
-                    return true;
-                } else if (previewText != null) {
-                    // 第二次点击：完成放置
-                    finalizePlacement(worldPoint);
-                    return true;
-                }
             }
         }
         return false;
@@ -407,7 +396,8 @@ public class TextTool extends BaseTool {
     public boolean onMouseMove(Vec2d pos) {
         super.onMouseMove(pos);
 
-        if (currentState == ToolState.PLACING && previewText != null) {
+        if (currentState == ToolState.PLACING && pendingText != null && pendingTextStyle != null) {
+            ensurePreviewText(pos);
             previewText.setPosition(pos);
             canvas.refresh(); // 立即刷新，提供更好的用户体验
             return true;
@@ -438,7 +428,7 @@ public class TextTool extends BaseTool {
     public boolean onKeyDown(int keyCode) {
         if (currentState == ToolState.PLACING) {
             if (keyCode == KEY_ESCAPE) {
-                resetToIdle();
+                returnToSelectionTool();
                 return true;
             }
         } else if (currentState == ToolState.EDITING && activeText != null) {
@@ -495,27 +485,13 @@ public class TextTool extends BaseTool {
     }
 
     /**
-     * 开始文字输入
+     * 显示文字输入对话框；确认后进入放置模式，在画布点击完成放置。
      */
-    private void startTextInput(Vec2d point) {
-        LogManager.getInstance().debug("TextTool: 开始文字输入");
-        LogManager.getInstance().debug("TextTool: 当前配置状态 - {}", getDebugInfo());
-        
-        // 询问用户是否使用对话框输入
-        if (shouldUseDialog()) {
-            LogManager.getInstance().debug("TextTool: 使用对话框模式");
-            showTextDialog(point);
-        } else {
-            LogManager.getInstance().debug("TextTool: 使用默认文字模式");
-            // 使用默认文字开始
-            useDefaultText(point);
+    private void showTextDialogForPlacement() {
+        if (TextInputDialog.getInstance().isVisible()) {
+            return;
         }
-    }
 
-    /**
-     * 显示文字输入对话框 - 改进的父窗口获取方式
-     */
-    private void showTextDialog(Vec2d point) {
         LogManager.getInstance().debug("TextTool: 显示文字输入对话框");
         try {
             TextInputDialog.TextInputPreset preset = new TextInputDialog.TextInputPreset(
@@ -532,15 +508,14 @@ public class TextTool extends BaseTool {
                     preset,
                     result -> {
                         if (result == null) {
-                            resetToIdle();
+                            returnToSelectionTool();
                             return;
                         }
                         String text = result.text();
                         if (text == null || text.isEmpty()) {
-                            resetToIdle();
+                            returnToSelectionTool();
                             return;
                         }
-                        pendingText = text;
                         TextStyle finalStyle = new TextStyle.Builder()
                                 .fontSize(result.fontSize())
                                 .bold(result.bold())
@@ -550,20 +525,32 @@ public class TextTool extends BaseTool {
                                 .lineHeight(result.lineHeight())
                                 .color(getCurrentLayerColor())
                                 .build();
-                        TextShape newText = new TextShape(point, pendingText);
-                        newText.setTextStyle(finalStyle);
-                        this.previewShape = newText;
-                        commit();
-                        rebuildSpatialIndex();
-                        canvas.refresh();
-                        resetToIdle();
+                        beginPlacingMode(text, finalStyle);
                     },
-                    this::resetToIdle
+                    this::returnToSelectionTool
             );
         } catch (Exception ex) {
-            LogManager.getInstance().error("TextTool: ImGui 文字对话框不可用，使用默认文字", ex);
-            useDefaultText(point);
+            LogManager.getInstance().error("TextTool: ImGui 文字对话框不可用", ex);
+            returnToSelectionTool();
         }
+    }
+
+    private void beginPlacingMode(String text, TextStyle style) {
+        pendingText = text;
+        pendingTextStyle = style;
+        previewText = null;
+        currentState = ToolState.PLACING;
+        canvas.setCursor(CURSOR_CROSSHAIR);
+        canvas.refresh();
+        LogManager.getInstance().debug("TextTool: 等待在画布上放置文字");
+    }
+
+    private void ensurePreviewText(Vec2d point) {
+        if (previewText != null || pendingText == null || pendingTextStyle == null || point == null) {
+            return;
+        }
+        previewText = new TextShape(point, pendingText);
+        previewText.setTextStyle(pendingTextStyle);
     }
 
     /**
@@ -571,18 +558,9 @@ public class TextTool extends BaseTool {
      */
     private void useDefaultText(Vec2d point) {
         LogManager.getInstance().info("TextTool: 使用默认文字");
-        
-        pendingText = DEFAULT_TEXT;
-        currentState = ToolState.PLACING;
-        
-        // 创建预览文字
-        previewText = new TextShape(point, pendingText);
-        previewText.setTextStyle(createDefaultTextStyle());
-        
+        beginPlacingMode(DEFAULT_TEXT, createDefaultTextStyle());
+        ensurePreviewText(point);
         LogManager.getInstance().debug("TextTool: 使用默认文字: {}", pendingText);
-        
-        // 设置鼠标光标为文字放置模式
-        canvas.setCursor(CURSOR_CROSSHAIR);
     }
 
     /**
@@ -600,12 +578,27 @@ public class TextTool extends BaseTool {
         commit();
         // 提交后重建本地索引，保证双击编辑可及时命中
         rebuildSpatialIndex();
-        // 重置到可继续放置的空闲态
-        currentState = ToolState.IDLE;
-        previewText = null;
-        pendingText = null;
-        canvas.setCursor(CURSOR_TEXT);
-        canvas.refresh();
+        returnToSelectionTool();
+    }
+
+    /**
+     * 文字输入/放置流程结束后回到选择工具，避免停留在无法再次触发输入框的状态。
+     */
+    private void returnToSelectionTool() {
+        try {
+            ToolManager toolManager = ApplicationContext.getInstance().getToolManager();
+            var selectTool = toolManager.getTool("select");
+            if (selectTool instanceof BaseTool baseTool) {
+                toolManager.setActiveTool(selectTool);
+                if (appState instanceof AppState concreteAppState) {
+                    concreteAppState.setCurrentTool(baseTool);
+                }
+                return;
+            }
+        } catch (Exception e) {
+            LogManager.getInstance().error("TextTool: 切换回选择工具失败", e);
+        }
+        resetToIdle();
     }
 
     /**
@@ -1007,11 +1000,14 @@ public class TextTool extends BaseTool {
         super.onActivate();
         LogManager.getInstance().debug("TextTool: 激活文字工具");
         canvas.setCursor(CURSOR_TEXT);
-        
-        // 重建空间索引
+
         rebuildSpatialIndex();
-        
-        LogManager.getInstance().debug("TextTool: 文字工具已激活，点击画布开始输入文字");
+
+        if (shouldUseDialog()) {
+            showTextDialogForPlacement();
+        } else {
+            LogManager.getInstance().debug("TextTool: 文字工具已激活，点击画布放置默认文字");
+        }
     }
 
     @Override
