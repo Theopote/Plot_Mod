@@ -171,10 +171,10 @@ public class ControlPolygonSplineStrategy implements ISplineGenerationStrategy {
                     anchorPoints.add(anchorPoint);
                 }
                 
-                // 为每个段创建控制点对
-                for (int i = 0; i < inputPoints.size(); i++) {
+                // 为每个段创建控制点对（闭合段由 BezierCurveShape 追加）
+                for (int i = 0; i < inputPoints.size() - 1; i++) {
                     Vec2d currentAnchor = anchorPoints.get(i);
-                    Vec2d nextAnchor = anchorPoints.get((i + 1) % inputPoints.size());
+                    Vec2d nextAnchor = anchorPoints.get(i + 1);
                     
                     // 使用当前和下一个控制点作为贝塞尔曲线的控制点
                     Vec2d currentControl = inputPoints.get(i);

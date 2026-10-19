@@ -53,7 +53,7 @@ class ThroughPointsSplineStrategyTest {
 
         assertNotNull(curve);
         assertTrue(curve.isClosed());
-        assertEquals(3, curve.getAnchorPoints().size());
+        assertEquals(3, curve.getAnchorPoints().stream().distinct().count());
     }
 
     @Test

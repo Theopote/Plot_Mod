@@ -68,23 +68,15 @@ public class ThroughPointsSplineStrategy implements ISplineGenerationStrategy {
             List<Vec2d> anchorPoints = new ArrayList<>(inputPoints);
             List<Vec2d[]> controlPointPairs = new ArrayList<>();
             
-            // 为封闭曲线生成控制点对
-            for (int i = 0; i < anchorPoints.size(); i++) {
+            // 为封闭曲线生成控制点对（段数 = 锚点数 - 1，闭合段由 BezierCurveShape 追加）
+            int count = anchorPoints.size();
+            for (int i = 0; i < count - 1; i++) {
                 Vec2d current = anchorPoints.get(i);
-                Vec2d next = anchorPoints.get((i + 1) % anchorPoints.size()); // 封闭：最后一个点连接到第一个点
-                
-                // 计算切线（考虑封闭曲线的连续性）
-                Vec2d prev = anchorPoints.get((i - 1 + anchorPoints.size()) % anchorPoints.size());
-                Vec2d after = anchorPoints.get((i + 2) % anchorPoints.size());
-                
-                // 使用 Catmull-Rom 算法计算切线
-                Vec2d t0 = after.subtract(prev).multiply(0.5);
-                Vec2d t1 = anchorPoints.get((i + 2) % anchorPoints.size()).subtract(current).multiply(0.5);
-
-                // 生成控制点（增大系数以获得更长的控制柄，使曲线更平滑）
+                Vec2d next = anchorPoints.get(i + 1);
+                Vec2d t0 = calculateClosedTangent(anchorPoints, i);
+                Vec2d t1 = calculateClosedTangent(anchorPoints, i + 1);
                 Vec2d c1 = current.add(t0.multiply(config.getTension() * 0.5));
                 Vec2d c2 = next.subtract(t1.multiply(config.getTension() * 0.5));
-                
                 controlPointPairs.add(new Vec2d[]{c1, c2});
             }
             
@@ -161,5 +153,12 @@ public class ThroughPointsSplineStrategy implements ISplineGenerationStrategy {
             // 中间点：使用 Catmull-Rom 切线公式
             return points.get(index + 1).subtract(points.get(index - 1)).multiply(0.5);
         }
+    }
+
+    private static Vec2d calculateClosedTangent(List<Vec2d> points, int index) {
+        int count = points.size();
+        Vec2d prev = points.get((index - 1 + count) % count);
+        Vec2d next = points.get((index + 1) % count);
+        return next.subtract(prev).multiply(0.5);
     }
 }

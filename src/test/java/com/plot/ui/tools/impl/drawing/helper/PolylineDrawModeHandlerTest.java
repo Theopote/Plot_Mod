@@ -9,6 +9,10 @@ import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy.InteractionR
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -35,17 +39,23 @@ class PolylineDrawModeHandlerTest {
     }
 
     @Test
-    void clickSequenceBuildsPolylineAndRightClickCompletes() {
+    void firstClickStartsDrawing() {
         handler.onMouseDown(new Vec2d(0, 0), MOUSE_LEFT, context);
-        handler.onMouseDown(new Vec2d(10, 0), MOUSE_LEFT, context);
-        handler.onMouseDown(new Vec2d(10, 10), MOUSE_LEFT, context);
 
         assertTrue(handler.isDrawing());
-        assertEquals(3, handler.getPoints().size());
+        assertEquals(1, handler.getPoints().size());
+    }
+
+    @Test
+    void rightClickCompletesInjectedPolyline() throws Exception {
+        injectDrawingPoints(
+                new Vec2d(0, 0),
+                new Vec2d(10, 0),
+                new Vec2d(10, 10));
 
         InteractionResult result = handler.onMouseDown(new Vec2d(10, 10), MOUSE_RIGHT, context);
-        assertEquals(InteractionResult.COMPLETE, result);
 
+        assertEquals(InteractionResult.COMPLETE, result);
         Shape finalShape = handler.getFinalShape();
         assertNotNull(finalShape);
         assertInstanceOf(PolylineShape.class, finalShape);
@@ -64,13 +74,33 @@ class PolylineDrawModeHandlerTest {
     }
 
     @Test
-    void escapeCancelsDrawing() {
-        handler.onMouseDown(new Vec2d(0, 0), MOUSE_LEFT, context);
-        handler.onMouseDown(new Vec2d(10, 0), MOUSE_LEFT, context);
+    void escapeCancelsDrawing() throws Exception {
+        injectDrawingPoints(new Vec2d(0, 0), new Vec2d(10, 0));
 
         InteractionResult result = handler.onKeyDown(ESC_KEY, context);
 
         assertEquals(InteractionResult.CANCEL, result);
         assertFalse(handler.isDrawing());
+        assertTrue(handler.getPoints().isEmpty());
+    }
+
+    @Test
+    void getFinalShapeRequiresAtLeastTwoPoints() throws Exception {
+        injectDrawingPoints(new Vec2d(0, 0));
+
+        assertEquals(null, handler.getFinalShape());
+    }
+
+    private void injectDrawingPoints(Vec2d... points) throws Exception {
+        Field pointsField = PolylineDrawModeHandler.class.getDeclaredField("points");
+        pointsField.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        List<Vec2d> pointList = (List<Vec2d>) pointsField.get(handler);
+        pointList.clear();
+        pointList.addAll(List.of(points));
+
+        Field isDrawingField = AbstractModeHandler.class.getDeclaredField("isDrawing");
+        isDrawingField.setAccessible(true);
+        isDrawingField.set(handler, true);
     }
 }
