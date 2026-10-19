@@ -3,6 +3,7 @@ package com.plot.infrastructure.event.block;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.PlacementReadiness;
 import com.plot.core.block.BlockIdNormalizer;
+import com.plot.core.terrain.EngineeringTerrainService;
 import com.plot.core.block.BlockNormalizationResult;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.base.Event;
@@ -212,7 +213,8 @@ public class BlockProjectionHandler implements IBlockProjectionService {
             int targetY = elevation != null ? elevation : y;
             finalPos = new BlockPos(x, targetY, z);
         } else {
-            finalPos = findPlacementPosition(world, x, y, z);
+            // 地面模式：按列顶向下找落点，相当于从高处落到地表，不使用幽灵预览标高。
+            finalPos = findGroundPlacementPosition(world, x, z);
         }
 
         String validationError = validatePlacementContext(player, world, finalPos);
@@ -322,14 +324,21 @@ public class BlockProjectionHandler implements IBlockProjectionService {
     }
 
     /**
-     * 按规则寻找投影放置位置：
-     * - 水面：放在流体方块上方（表面）
-     * - 植物/装饰/积雪层：直接替换当前位置
-     * - 雪块：放在雪块上方
-     * - 其他实心方块：放在方块上方
+     * 地面投影落点：从该列最高可见方块向下扫描，相当于自高处落到地表。
+     * <p>
+     * 不依赖幽灵方块预览标高（预览标高会随相机高度变化，从该高度向下扫可能落到地下或错层）。
+     * <ul>
+     *   <li>水面：放在流体方块上方；</li>
+     *   <li>植物/装饰/积雪层：直接替换；</li>
+     *   <li>其他实心方块：放在方块上方。</li>
+     * </ul>
      */
-    private BlockPos findPlacementPosition(World world, int x, int y, int z) {
-        for (int currentY = y; currentY >= world.getBottomY(); currentY--) {
+    private BlockPos findGroundPlacementPosition(World world, int x, int z) {
+        EngineeringTerrainService terrain = EngineeringTerrainService.of(world);
+        int topY = terrain.sampleRawSurface(x, z);
+        int bottomY = world.getBottomY();
+
+        for (int currentY = topY; currentY >= bottomY; currentY--) {
             BlockPos checkPos = new BlockPos(x, currentY, z);
 
             try {
@@ -354,7 +363,7 @@ public class BlockProjectionHandler implements IBlockProjectionService {
             }
         }
 
-        BlockPos bottomPos = new BlockPos(x, world.getBottomY() + 1, z);
+        BlockPos bottomPos = new BlockPos(x, bottomY + 1, z);
         LOGGER.warn("未找到合适放置点，使用底部位置: {}", bottomPos);
         return bottomPos;
     }
