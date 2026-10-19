@@ -95,6 +95,13 @@ public interface IModeHandler {
     default IInteractionStrategy.InteractionResult onKeyDown(int key, DrawingToolContext context) {
         return IInteractionStrategy.InteractionResult.IGNORED;
     }
+
+    /**
+     * 处理字符输入（数值直输）
+     */
+    default IInteractionStrategy.InteractionResult onKeyTyped(char character, DrawingToolContext context) {
+        return IInteractionStrategy.InteractionResult.IGNORED;
+    }
     
     /**
      * 获取控制点列表

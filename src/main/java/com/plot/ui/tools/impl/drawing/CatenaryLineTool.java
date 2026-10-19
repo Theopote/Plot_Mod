@@ -19,6 +19,8 @@ import org.slf4j.LoggerFactory;
 import imgui.ImDrawList;
 import com.plot.ui.tools.snap.SnapEnhancer;
 import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
+import com.plot.ui.tools.helper.SegmentNumericInputHandler;
+import com.plot.ui.tools.helper.ToolPreviewRefresh;
 import com.plot.utils.PlotI18n;
 
 import java.awt.Color;
@@ -159,7 +161,12 @@ public class CatenaryLineTool extends DrawingTool {
             if (pts != null && pts.size() >= 2) {
                 // 使用与 ImGui 预览一致的辅助线颜色
                 context.drawDashedLine(pts.get(0), pts.get(1), measureColor);
-                DrawMeasureHelper.drawSegmentLabel(context, pts.get(0), pts.get(1));
+                if (interactionStrategy instanceof CatenaryInteractionStrategy catenaryStrategy
+                        && catenaryStrategy.hasSegmentInput()) {
+                    catenaryStrategy.drawSegmentNumericOverlay(context, pts.get(0), pts.get(1));
+                } else {
+                    DrawMeasureHelper.drawSegmentLabel(context, pts.get(0), pts.get(1));
+                }
             }
         }
     }
@@ -227,6 +234,16 @@ public class CatenaryLineTool extends DrawingTool {
         private Vec2d currentMousePoint;
         private CableShape previewCatenary;
         private boolean isActive = false;
+        private final SegmentNumericInputHandler segmentInput = new SegmentNumericInputHandler();
+
+        boolean hasSegmentInput() {
+            return segmentInput.hasInput();
+        }
+
+        void drawSegmentNumericOverlay(DrawContext context, Vec2d from, Vec2d to) {
+            DrawMeasureHelper.drawNumericInputOverlay(
+                context, DrawMeasureHelper.midpoint(from, to), segmentInput.getText(), "");
+        }
 
         @Override
         public InteractionResult onMouseDown(Vec2d pos, int button, DrawingToolContext context) {
@@ -329,6 +346,51 @@ public class CatenaryLineTool extends DrawingTool {
         @Override
         public InteractionResult onMouseUp(Vec2d pos, int button, DrawingToolContext context) {
             return InteractionResult.IGNORED; // 点击模式，不处理释放
+        }
+
+        @Override
+        public InteractionResult onKeyDown(int keyCode, DrawingToolContext context) {
+            boolean active = isActive && controlPoints.size() == 1 && currentMousePoint != null;
+            return segmentInput.onKeyDown(keyCode, active, () -> {
+                applySegmentDistance(context);
+                ToolPreviewRefresh.request();
+            }, () -> confirmSegmentDistance(context));
+        }
+
+        @Override
+        public InteractionResult onKeyTyped(char character, DrawingToolContext context) {
+            boolean active = isActive && controlPoints.size() == 1 && currentMousePoint != null;
+            return segmentInput.onKeyTyped(character, active, () -> {
+                applySegmentDistance(context);
+                ToolPreviewRefresh.request();
+            });
+        }
+
+        private void applySegmentDistance(DrawingToolContext context) {
+            Double blocks = segmentInput.parsePositive();
+            if (blocks != null && controlPoints.size() == 1 && currentMousePoint != null) {
+                currentMousePoint = segmentInput.pointAtDistance(
+                    controlPoints.getFirst(), currentMousePoint, blocks);
+                currentMousePoint = constrainSecondPointToAxis(controlPoints.getFirst(), currentMousePoint);
+                updatePreview(context);
+            }
+            if (blocks == null && segmentInput.hasInput()) {
+                CatenaryLineTool.this.setStatusMessage(PlotI18n.status(
+                    "status.plot.draw.typing_distance", segmentInput.getText()));
+            } else if (blocks != null) {
+                CatenaryLineTool.this.setStatusMessage(PlotI18n.status("status.plot.draw.typing_distance_ready",
+                    DrawMeasureHelper.formatBlocks(blocks)));
+            }
+        }
+
+        private InteractionResult confirmSegmentDistance(DrawingToolContext context) {
+            applySegmentDistance(context);
+            if (currentMousePoint == null || segmentInput.parsePositive() == null) {
+                return InteractionResult.CONTINUE;
+            }
+            segmentInput.clear();
+            addSecondPoint(currentMousePoint, context);
+            return InteractionResult.CONTINUE;
         }
 
         private void startInteraction(Vec2d firstPoint, DrawingToolContext context) {
@@ -563,6 +625,7 @@ public class CatenaryLineTool extends DrawingTool {
             controlPoints.clear();
             currentMousePoint = null;
             previewCatenary = null;
+            segmentInput.clear();
             LOGGER.debug("CatenaryLineTool 状态已重置");
         }
 

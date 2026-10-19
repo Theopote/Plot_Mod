@@ -22,6 +22,9 @@ import java.awt.event.KeyEvent;
 import java.awt.Color;
 import java.util.List;
 import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
+import com.plot.ui.tools.helper.NumericInputBuffer;
+import com.plot.ui.tools.helper.NumericInputKeys;
+import com.plot.ui.tools.helper.ToolPreviewRefresh;
 import com.plot.utils.PlotI18n;
 
 /**
@@ -105,7 +108,8 @@ public class ChamferStrategy implements IModifyStrategy {
     // 优化：使用ChamferTool的常量
     private static final double MIN_DISTANCE = ChamferTool.MIN_DISTANCE;
     private static final double DEFAULT_DISTANCE = ChamferTool.DEFAULT_DISTANCE;
-    
+    private final NumericInputBuffer distanceInput = new NumericInputBuffer();
+
     // ====== 框选相关方法 ======
     
     /**
@@ -219,6 +223,7 @@ public class ChamferStrategy implements IModifyStrategy {
         boxCurrentPoint = null;
         boxSelectedShapes.clear();
         clearHighlight();
+        distanceInput.clear();
     }
     
     @Override
@@ -307,23 +312,79 @@ public class ChamferStrategy implements IModifyStrategy {
     
     @Override
     public ModifyResult onKeyDown(int keyCode, ModifyToolContext context) {
+        if (NumericInputKeys.isEscape(keyCode) && !distanceInput.isEmpty()) {
+            distanceInput.clear();
+            context.setStatusMessage(getStatusMessage());
+            if (isReadyToApply()) {
+                updatePreviewWithContext(context);
+            }
+            ToolPreviewRefresh.request();
+            return ModifyResult.CONTINUE;
+        }
+        if (NumericInputKeys.isBackspace(keyCode) && distanceInput.backspace()) {
+            return applyDistanceInputPreview(context);
+        }
+        if (NumericInputKeys.isEnter(keyCode)) {
+            if (!distanceInput.isEmpty()) {
+                Double typed = distanceInput.tryParse();
+                if (typed != null && typed > 0.0) {
+                    distance = Math.max(MIN_DISTANCE, typed);
+                    distanceInput.clear();
+                    if (isReadyToApply()) {
+                        return applyChamfer(context);
+                    }
+                    context.setStatusMessage(getStatusMessage());
+                    return ModifyResult.CONTINUE;
+                }
+                return ModifyResult.CONTINUE;
+            }
+            if (isReadyToApply()) {
+                return applyChamfer(context);
+            }
+        }
         switch (keyCode) {
             case KEY_ESC:
                 reset();
                 context.setStatusMessage(getStatusMessage());
                 return ModifyResult.CANCEL;
-                
             case KEY_PLUS:
             case KEY_MINUS:
                 distance += (keyCode == KEY_PLUS ? 0.5 : -0.5);
                 distance = Math.max(MIN_DISTANCE, distance);
                 if (isReadyToApply()) {
-                    updatePreviewWithContext(context); // 更新预览
+                    updatePreviewWithContext(context);
                 }
                 context.setStatusMessage(getStatusMessage());
                 return ModifyResult.CONTINUE;
+            default:
+                return ModifyResult.IGNORED;
         }
-        return ModifyResult.IGNORED;
+    }
+
+    @Override
+    public ModifyResult onKeyTyped(char character, ModifyToolContext context) {
+        if (!distanceInput.append(character)) {
+            return ModifyResult.IGNORED;
+        }
+        return applyDistanceInputPreview(context);
+    }
+
+    private ModifyResult applyDistanceInputPreview(ModifyToolContext context) {
+        Double typed = distanceInput.tryParse();
+        if (typed != null && typed > 0.0) {
+            distance = Math.max(MIN_DISTANCE, typed);
+        }
+        if (isReadyToApply()) {
+            updatePreviewWithContext(context);
+        }
+        if (typed == null) {
+            context.setStatusMessage(PlotI18n.status("status.plot.chamfer.typing_distance", distanceInput.getText()));
+        } else {
+            context.setStatusMessage(PlotI18n.status("status.plot.chamfer.typing_distance_ready",
+                DrawMeasureHelper.formatBlocks(distance)));
+        }
+        ToolPreviewRefresh.request();
+        return ModifyResult.CONTINUE;
     }
 
     @Override
@@ -417,8 +478,13 @@ public class ChamferStrategy implements IModifyStrategy {
             return;
         }
 
-        DrawMeasureHelper.drawSegmentLabel(context, corner, trim1);
-        DrawMeasureHelper.drawSegmentLabel(context, corner, trim2);
+        if (!distanceInput.isEmpty()) {
+            DrawMeasureHelper.drawNumericInputOverlay(
+                context, DrawMeasureHelper.midpoint(corner, trim1), distanceInput.getText(), "");
+        } else {
+            DrawMeasureHelper.drawSegmentLabel(context, corner, trim1);
+            DrawMeasureHelper.drawSegmentLabel(context, corner, trim2);
+        }
     }
 
     private static LineShape findChamferConnectorLine(java.util.List<LineShape> lines) {

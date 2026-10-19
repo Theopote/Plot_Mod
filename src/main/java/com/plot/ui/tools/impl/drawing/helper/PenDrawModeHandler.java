@@ -7,6 +7,9 @@ import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.model.Shape;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureSettings;
+import com.plot.ui.tools.helper.SegmentNumericInputHandler;
+import com.plot.ui.tools.helper.ToolPreviewRefresh;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.plot.utils.PlotI18n;
@@ -44,6 +47,7 @@ public class PenDrawModeHandler extends AbstractModeHandler {
     private static final double NODE_HIT_TOLERANCE = 8.0;
     private int draggingNodeIndex = -1;
     private DrawingGeometrySnapshot dragBeforeSnapshot;
+    private final SegmentNumericInputHandler segmentInput = new SegmentNumericInputHandler();
     
     public PenDrawModeHandler(StyleHandler styleHandler) {
         super(styleHandler);
@@ -259,10 +263,17 @@ public class PenDrawModeHandler extends AbstractModeHandler {
                 adapter.drawLine(lastNode.getAnchor(), currentMousePoint, previewColor, Rendering.PREVIEW_LINE_THICKNESS);
                 adapter.drawCircle(currentMousePoint, Rendering.POINT_SIZE, previewColor, true);
                 if (DrawMeasureSettings.isEnabled()) {
-                    adapter.drawText(
-                            DrawMeasureHelper.formatBlocks(DrawMeasureHelper.distanceBlocks(lastNode.getAnchor(), currentMousePoint)),
-                            DrawMeasureHelper.midpoint(lastNode.getAnchor(), currentMousePoint),
-                            DrawMeasureHelper.getLabelColor());
+                    java.awt.Color measureColor = DrawMeasureHelper.getLabelColor();
+                    if (segmentInput.hasInput()) {
+                        adapter.drawText(segmentInput.getText(),
+                                DrawMeasureHelper.midpoint(lastNode.getAnchor(), currentMousePoint),
+                                measureColor);
+                    } else {
+                        adapter.drawText(
+                                DrawMeasureHelper.formatBlocks(DrawMeasureHelper.distanceBlocks(lastNode.getAnchor(), currentMousePoint)),
+                                DrawMeasureHelper.midpoint(lastNode.getAnchor(), currentMousePoint),
+                                measureColor);
+                    }
                 }
             } else if (state == PenDrawingState.DEFINING_HANDLE && currentNode != null) {
                 // 正在定义控制手柄，显示曲线预览
@@ -384,7 +395,48 @@ public class PenDrawModeHandler extends AbstractModeHandler {
         currentNode = null;
         draggingNodeIndex = -1;
         dragBeforeSnapshot = null;
+        segmentInput.clear();
         super.reset(); // 调用父类的 reset 方法
+    }
+
+    private boolean isSegmentInputActive() {
+        return state == PenDrawingState.WAITING_FOR_POINT
+            && isDrawing
+            && !pathNodes.isEmpty()
+            && currentMousePoint != null;
+    }
+
+    private void applySegmentDistance(DrawingToolContext context) {
+        Double blocks = segmentInput.parsePositive();
+        if (blocks != null && !pathNodes.isEmpty() && currentMousePoint != null) {
+            PathNode lastNode = pathNodes.getLast();
+            currentMousePoint = segmentInput.pointAtDistance(
+                lastNode.getAnchor(), currentMousePoint, blocks);
+            notifyPreviewUpdate(context);
+        }
+        if (blocks == null && segmentInput.hasInput()) {
+            context.updateStatusMessage(PlotI18n.status(
+                "status.plot.draw.typing_distance", segmentInput.getText()));
+        } else if (blocks != null) {
+            context.updateStatusMessage(PlotI18n.status("status.plot.draw.typing_distance_ready",
+                DrawMeasureHelper.formatBlocks(blocks)));
+        }
+    }
+
+    private IInteractionStrategy.InteractionResult confirmSegment(DrawingToolContext context) {
+        applySegmentDistance(context);
+        if (currentMousePoint == null || segmentInput.parsePositive() == null) {
+            return IInteractionStrategy.InteractionResult.CONTINUE;
+        }
+        segmentInput.clear();
+        PathNode newNode = new PathNode(currentMousePoint);
+        pathNodes.add(newNode);
+        currentNode = newNode;
+        dragBeforeSnapshot = captureGeometrySnapshot();
+        state = PenDrawingState.DEFINING_HANDLE;
+        context.updateStatusMessage(PenConstants.MSG_DRAG_FOR_CURVE);
+        notifyPreviewUpdate(context);
+        return IInteractionStrategy.InteractionResult.CONTINUE;
     }
 
     @Override
@@ -443,16 +495,38 @@ public class PenDrawModeHandler extends AbstractModeHandler {
     
     @Override
     public IInteractionStrategy.InteractionResult onKeyDown(int key, DrawingToolContext context) {
-        if (key == PenConstants.KEY_ESC) { // ESC键：总是取消绘制，遵循通用UI惯例
+        if (isSegmentInputActive()) {
+            IInteractionStrategy.InteractionResult numericResult = segmentInput.onKeyDown(
+                key, true, () -> {
+                    applySegmentDistance(context);
+                    ToolPreviewRefresh.request();
+                }, () -> confirmSegment(context));
+            if (numericResult != IInteractionStrategy.InteractionResult.IGNORED) {
+                return numericResult;
+            }
+        }
+        if (key == PenConstants.KEY_ESC) {
             LOGGER.debug("钢笔模式ESC键取消绘制");
             reset();
             context.resetDrawing(PenConstants.ERROR_CANCELLED);
             return IInteractionStrategy.InteractionResult.CANCEL;
-        } else if (key == PenConstants.KEY_ENTER && canCompleteDrawing()) { // Enter键：完成绘制
+        }
+        if (key == PenConstants.KEY_ENTER && canCompleteDrawing() && !segmentInput.hasInput()) {
             LOGGER.debug("钢笔模式Enter键完成绘制，当前节点数：{}", pathNodes.size());
             return IInteractionStrategy.InteractionResult.COMPLETE;
         }
-        return super.onKeyDown(key, context); // 处理其他键
+        return IInteractionStrategy.InteractionResult.IGNORED;
+    }
+
+    @Override
+    public IInteractionStrategy.InteractionResult onKeyTyped(char character, DrawingToolContext context) {
+        if (!isSegmentInputActive()) {
+            return IInteractionStrategy.InteractionResult.IGNORED;
+        }
+        return segmentInput.onKeyTyped(character, true, () -> {
+            applySegmentDistance(context);
+            ToolPreviewRefresh.request();
+        });
     }
 
     /**

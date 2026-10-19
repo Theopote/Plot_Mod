@@ -259,6 +259,9 @@ public class SnapManager implements ISnapManager, SnapService {
      * point 是世界坐标，需要转换为屏幕坐标后再绘制
      */
     private void renderSnapMarker(Vec2d point, SnapPriorityEvaluator.SnapType type) {
+        if (!com.plot.ui.tools.snap.SnapMarkerRenderGate.isAllowed()) {
+            return;
+        }
         ImDrawList drawList = ImGui.getBackgroundDrawList();
         if (drawList == null) {
             return; // 背景绘制列表不可用时跳过

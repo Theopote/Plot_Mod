@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import com.plot.ui.tools.impl.drawing.strategy.MultiStepInteractionStrategy;
+import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 
 /**
  * 星形工具 - 策略模式兼容版本 (三点绘制)
@@ -401,12 +402,13 @@ public class StarTool extends DrawingTool {
         Color measureColor = toColor(ThemeManager.getInstance().getCurrentTheme().warningText, 230);
         Color innerMeasureColor = toColor(ThemeManager.getInstance().getCurrentTheme().accent, 230);
 
+        MultiStepInteractionStrategy multiStep = findMultiStepStrategy();
         if (interactionPoints.size() == 1) {
             Vec2d center = interactionPoints.getFirst();
             Vec2d mouse = interactionStrategy.getCurrentMousePoint();
             if (mouse != null) {
                 context.drawLine(center, mouse, measureColor);
-                DrawMeasureHelper.drawRadiusLabel(context, center, mouse);
+                drawStarRadiusMeasure(context, center, mouse, multiStep, true);
             }
         } else if (interactionPoints.size() >= 2) {
             Vec2d center = interactionPoints.getFirst();
@@ -416,7 +418,7 @@ public class StarTool extends DrawingTool {
             Vec2d mouse = interactionStrategy.getCurrentMousePoint();
             if (mouse != null) {
                 context.drawLine(center, mouse, innerMeasureColor);
-                DrawMeasureHelper.drawRadiusLabel(context, center, mouse);
+                drawStarRadiusMeasure(context, center, mouse, multiStep, true);
             }
         }
 
@@ -432,6 +434,27 @@ public class StarTool extends DrawingTool {
         snapEnhancer.renderSnapIndicator(context);
     }
 
+
+    private MultiStepInteractionStrategy findMultiStepStrategy() {
+        IInteractionStrategy strategy = interactionStrategy;
+        while (strategy != null) {
+            if (strategy instanceof MultiStepInteractionStrategy multiStep) {
+                return multiStep;
+            }
+            strategy = null;
+        }
+        return null;
+    }
+
+    private void drawStarRadiusMeasure(DrawContext context, Vec2d center, Vec2d to,
+                                       MultiStepInteractionStrategy multiStep, boolean active) {
+        if (active && multiStep != null && multiStep.hasNumericInput()) {
+            DrawMeasureHelper.drawNumericInputOverlay(
+                context, DrawMeasureHelper.midpoint(center, to), multiStep.getNumericInputText(), "");
+        } else {
+            DrawMeasureHelper.drawRadiusLabel(context, center, to);
+        }
+    }
 
     // ====== 配置管理 (无需修改) ======
     @Override

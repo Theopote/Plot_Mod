@@ -31,6 +31,9 @@ import com.plot.core.geometry.shapes.SineCurveShape;
 import com.plot.core.geometry.shapes.SpiralShape;
 import com.plot.core.geometry.shapes.CableShape;
 import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
+import com.plot.ui.tools.helper.NumericInputBuffer;
+import com.plot.ui.tools.helper.NumericInputKeys;
+import com.plot.ui.tools.helper.ToolPreviewRefresh;
 import com.plot.utils.PlotI18n;
 
 /**
@@ -108,6 +111,7 @@ public class FilletStrategy implements IModifyStrategy {
     // 预览稳定性优化
     private long lastPreviewUpdate = 0;
     private static final long PREVIEW_DEBOUNCE_MS = 50; // 50ms防抖
+    private final NumericInputBuffer radiusInput = new NumericInputBuffer();
 
     public FilletStrategy(AppState appState) {
         this.radius = FilletConstants.DEFAULT_RADIUS;
@@ -132,6 +136,7 @@ public class FilletStrategy implements IModifyStrategy {
         boxCurrentPoint = null;
         boxSelectedShapes.clear();
         clearHighlight();
+        radiusInput.clear();
     }
     
     @Override
@@ -236,17 +241,77 @@ public class FilletStrategy implements IModifyStrategy {
     
     @Override
     public ModifyResult onKeyDown(int keyCode, ModifyToolContext context) {
+        if (NumericInputKeys.isEscape(keyCode) && !radiusInput.isEmpty()) {
+            radiusInput.clear();
+            context.setStatusMessage(getStatusMessage());
+            if (isReadyToApply()) {
+                updatePreviewWithDebounce(context);
+            }
+            ToolPreviewRefresh.request();
+            return ModifyResult.CONTINUE;
+        }
+        if (NumericInputKeys.isBackspace(keyCode) && radiusInput.backspace()) {
+            return applyRadiusInputPreview(context);
+        }
+        if (NumericInputKeys.isEnter(keyCode)) {
+            if (!radiusInput.isEmpty()) {
+                Double typed = radiusInput.tryParse();
+                if (typed != null && typed > 0.0) {
+                    radius = clampRadius(typed);
+                    radiusInput.clear();
+                    if (isReadyToApply()) {
+                        return applyFillet(context);
+                    }
+                    context.setStatusMessage(getStatusMessage());
+                    return ModifyResult.CONTINUE;
+                }
+                return ModifyResult.CONTINUE;
+            }
+            if (isReadyToApply()) {
+                return applyFillet(context);
+            }
+        }
         switch (keyCode) {
             case KEY_ESC:
                 reset();
                 context.setStatusMessage(getStatusMessage());
                 return ModifyResult.CANCEL;
-                
             case KEY_PLUS:
             case KEY_MINUS:
                 return handleKeyAdjustment(keyCode, context);
+            default:
+                return ModifyResult.IGNORED;
         }
-        return ModifyResult.IGNORED;
+    }
+
+    @Override
+    public ModifyResult onKeyTyped(char character, ModifyToolContext context) {
+        if (!radiusInput.append(character)) {
+            return ModifyResult.IGNORED;
+        }
+        return applyRadiusInputPreview(context);
+    }
+
+    private ModifyResult applyRadiusInputPreview(ModifyToolContext context) {
+        Double typed = radiusInput.tryParse();
+        if (typed != null && typed > 0.0) {
+            radius = clampRadius(typed);
+        }
+        if (isReadyToApply()) {
+            updatePreviewWithDebounce(context);
+        }
+        if (typed == null) {
+            context.setStatusMessage(PlotI18n.status("status.plot.fillet.typing_radius", radiusInput.getText()));
+        } else {
+            context.setStatusMessage(PlotI18n.status("status.plot.fillet.typing_radius_ready",
+                DrawMeasureHelper.formatRadius(radius)));
+        }
+        ToolPreviewRefresh.request();
+        return ModifyResult.CONTINUE;
+    }
+
+    private double clampRadius(double value) {
+        return Math.max(FilletConstants.MIN_RADIUS, Math.min(FilletConstants.MAX_RADIUS, value));
     }
     
     @Override
@@ -308,7 +373,11 @@ public class FilletStrategy implements IModifyStrategy {
                 Vec2d edge = new Vec2d(
                         center.x + arc.getRadius() * Math.cos(edgeAngle),
                         center.y + arc.getRadius() * Math.sin(edgeAngle));
-                DrawMeasureHelper.drawRadiusLabel(context, center, edge);
+                if (!radiusInput.isEmpty()) {
+                    DrawMeasureHelper.drawNumericInputOverlay(context, edge, radiusInput.getText(), "");
+                } else {
+                    DrawMeasureHelper.drawRadiusLabel(context, center, edge);
+                }
                 return;
             }
         }

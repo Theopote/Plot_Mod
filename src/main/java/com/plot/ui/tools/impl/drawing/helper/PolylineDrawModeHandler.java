@@ -7,6 +7,8 @@ import com.plot.core.model.Shape;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 import com.plot.ui.tools.impl.drawing.helper.DrawMeasureSettings;
+import com.plot.ui.tools.helper.SegmentNumericInputHandler;
+import com.plot.ui.tools.helper.ToolPreviewRefresh;
 import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +38,7 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
     private static final double VERTEX_HIT_TOLERANCE = 8.0;
     private int draggingVertexIndex = -1;
     private DrawingGeometrySnapshot dragBeforeSnapshot;
+    private final SegmentNumericInputHandler segmentInput = new SegmentNumericInputHandler();
     
     public PolylineDrawModeHandler(StyleHandler styleHandler) {
         super(styleHandler);
@@ -189,13 +192,18 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
             adapter.drawLine(lastPoint, currentMousePoint, previewColor, Rendering.PREVIEW_LINE_THICKNESS);
             if (DrawMeasureSettings.isEnabled()) {
                 java.awt.Color measureColor = DrawMeasureHelper.getLabelColor();
-                adapter.drawText(
-                        DrawMeasureHelper.formatBlocks(DrawMeasureHelper.distanceBlocks(lastPoint, currentMousePoint)),
-                        DrawMeasureHelper.midpoint(lastPoint, currentMousePoint),
-                        measureColor);
-                double total = DrawMeasureHelper.polylineLengthBlocks(points)
-                        + DrawMeasureHelper.distanceBlocks(lastPoint, currentMousePoint);
-                adapter.drawText(DrawMeasureHelper.formatTotal(total), currentMousePoint, measureColor);
+                if (segmentInput.hasInput()) {
+                    adapter.drawText(segmentInput.getText(),
+                            DrawMeasureHelper.midpoint(lastPoint, currentMousePoint), measureColor);
+                } else {
+                    adapter.drawText(
+                            DrawMeasureHelper.formatBlocks(DrawMeasureHelper.distanceBlocks(lastPoint, currentMousePoint)),
+                            DrawMeasureHelper.midpoint(lastPoint, currentMousePoint),
+                            measureColor);
+                    double total = DrawMeasureHelper.polylineLengthBlocks(points)
+                            + DrawMeasureHelper.distanceBlocks(lastPoint, currentMousePoint);
+                    adapter.drawText(DrawMeasureHelper.formatTotal(total), currentMousePoint, measureColor);
+                }
             }
         }
         
@@ -232,7 +240,36 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
         points.clear();
         draggingVertexIndex = -1;
         dragBeforeSnapshot = null;
+        segmentInput.clear();
         super.reset(); // 调用父类的 reset 方法
+    }
+
+    private void applySegmentDistance(DrawingToolContext context) {
+        Double blocks = segmentInput.parsePositive();
+        if (blocks != null && !points.isEmpty() && currentMousePoint != null) {
+            currentMousePoint = segmentInput.pointAtDistance(
+                points.getLast(), currentMousePoint, blocks);
+            notifyPreviewUpdate(context);
+        }
+        if (blocks == null && segmentInput.hasInput()) {
+            context.updateStatusMessage(PlotI18n.status(
+                "status.plot.draw.typing_distance", segmentInput.getText()));
+        } else if (blocks != null) {
+            context.updateStatusMessage(PlotI18n.status("status.plot.draw.typing_distance_ready",
+                DrawMeasureHelper.formatBlocks(blocks)));
+        }
+    }
+
+    private IInteractionStrategy.InteractionResult confirmSegment(DrawingToolContext context) {
+        applySegmentDistance(context);
+        if (currentMousePoint == null || segmentInput.parsePositive() == null) {
+            return IInteractionStrategy.InteractionResult.CONTINUE;
+        }
+        segmentInput.clear();
+        points.add(currentMousePoint);
+        context.updateStatusMessage("status.plot.draw.polyline_add_vertex");
+        notifyPreviewUpdate(context);
+        return IInteractionStrategy.InteractionResult.CONTINUE;
     }
 
     @Override
@@ -277,16 +314,38 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
     
     @Override
     public IInteractionStrategy.InteractionResult onKeyDown(int key, DrawingToolContext context) {
-        if (key == 27) { // ESC键：总是取消绘制，遵循通用UI惯例
+        if (isDrawing && !points.isEmpty() && currentMousePoint != null) {
+            IInteractionStrategy.InteractionResult numericResult = segmentInput.onKeyDown(
+                key, true, () -> {
+                    applySegmentDistance(context);
+                    ToolPreviewRefresh.request();
+                }, () -> confirmSegment(context));
+            if (numericResult != IInteractionStrategy.InteractionResult.IGNORED) {
+                return numericResult;
+            }
+        }
+        if (key == 27) {
             LOGGER.debug("折线模式ESC键取消绘制");
             reset();
             context.resetDrawing("ESC键取消");
             return IInteractionStrategy.InteractionResult.CANCEL;
-        } else if (key == 13 && isDrawing && points.size() >= 2) { // Enter键：完成绘制
+        }
+        if (key == 13 && isDrawing && points.size() >= 2 && !segmentInput.hasInput()) {
             LOGGER.debug("折线模式Enter键完成绘制，当前点数：{}", points.size());
             return IInteractionStrategy.InteractionResult.COMPLETE;
         }
-        return super.onKeyDown(key, context); // 处理其他键
+        return IInteractionStrategy.InteractionResult.IGNORED;
+    }
+
+    @Override
+    public IInteractionStrategy.InteractionResult onKeyTyped(char character, DrawingToolContext context) {
+        if (!isDrawing || points.isEmpty() || currentMousePoint == null) {
+            return IInteractionStrategy.InteractionResult.IGNORED;
+        }
+        return segmentInput.onKeyTyped(character, true, () -> {
+            applySegmentDistance(context);
+            ToolPreviewRefresh.request();
+        });
     }
 
     /**

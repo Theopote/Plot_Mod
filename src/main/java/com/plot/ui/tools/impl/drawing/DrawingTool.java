@@ -562,7 +562,8 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
         }
     }
 
-    protected void updateStatusMessage(String message) {
+    @Override
+    public void updateStatusMessage(String message) {
         setStatusMessage(message);
     }
 

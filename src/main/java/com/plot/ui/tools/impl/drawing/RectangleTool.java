@@ -23,6 +23,8 @@ import java.util.Arrays;
 import java.util.List;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
+import com.plot.ui.tools.helper.SegmentNumericInputHandler;
+import com.plot.ui.tools.helper.ToolPreviewRefresh;
 import com.plot.ui.tools.snap.SnapEnhancer;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.api.graphics.IShapeStyle;
@@ -93,6 +95,7 @@ public class RectangleTool extends DrawingTool {
 
     // 捕捉增强器
     private final SnapEnhancer snapEnhancer = new SnapEnhancer("RectangleTool");
+    private final SegmentNumericInputHandler segmentInput = new SegmentNumericInputHandler();
 
     /**
      * 推荐构造函数（依赖注入）
@@ -221,9 +224,17 @@ public class RectangleTool extends DrawingTool {
         controlPoints.clear();
         previewRectangle = null;
         currentMousePoint = null;
+        segmentInput.clear();
         snapEnhancer.reset(); // 重置捕捉状态
         updateStatusMessage();
         markDirty();
+    }
+
+    private int requiredPointsForMode() {
+        return switch (currentMode) {
+            case TWO_POINTS, CENTER_POINT -> 2;
+            case THREE_POINTS, ROUNDED -> 3;
+        };
     }
 
     // ====== DrawingTool基类抽象方法实现 ======
@@ -455,8 +466,13 @@ public class RectangleTool extends DrawingTool {
             context.drawLine(baseStart, baseEnd, baseColor);
             Vec2d projectedPoint = projectPointToBase(baseStart, baseEnd, currentMousePoint);
             context.drawLine(currentMousePoint, projectedPoint, heightColor);
-            DrawMeasureHelper.drawSegmentLabel(context, baseStart, baseEnd);
-            DrawMeasureHelper.drawSegmentLabel(context, currentMousePoint, projectedPoint);
+            if (segmentInput.hasInput()) {
+                DrawMeasureHelper.drawNumericInputOverlay(
+                    context, DrawMeasureHelper.midpoint(baseStart, baseEnd), segmentInput.getText(), "");
+            } else {
+                DrawMeasureHelper.drawSegmentLabel(context, baseStart, baseEnd);
+                DrawMeasureHelper.drawSegmentLabel(context, currentMousePoint, projectedPoint);
+            }
         }
 
         // 圆角模式：绘制圆角半径指示线
@@ -894,6 +910,61 @@ public class RectangleTool extends DrawingTool {
         @Override
         public InteractionResult onMouseUp(Vec2d pos, int button, DrawingToolContext context) {
             return InteractionResult.IGNORED;
+        }
+
+        @Override
+        public InteractionResult onKeyDown(int keyCode, DrawingToolContext context) {
+            boolean active = !controlPoints.isEmpty() && currentMousePoint != null;
+            return segmentInput.onKeyDown(keyCode, active, () -> applySegmentDistance(context),
+                () -> confirmSegmentDistance(context));
+        }
+
+        @Override
+        public InteractionResult onKeyTyped(char character, DrawingToolContext context) {
+            boolean active = !controlPoints.isEmpty() && currentMousePoint != null;
+            return segmentInput.onKeyTyped(character, active, () -> applySegmentDistance(context));
+        }
+
+        private void applySegmentDistance(DrawingToolContext context) {
+            Double blocks = segmentInput.parsePositive();
+            if (blocks != null && !controlPoints.isEmpty() && currentMousePoint != null) {
+                currentMousePoint = segmentInput.pointAtDistance(
+                    controlPoints.getLast(), currentMousePoint, blocks);
+            }
+            updatePreview();
+            context.setPreviewShape(previewShape);
+            if (blocks == null && segmentInput.hasInput()) {
+                setStatusMessage(PlotI18n.status("status.plot.draw.typing_distance", segmentInput.getText()));
+            } else if (blocks != null) {
+                setStatusMessage(PlotI18n.status("status.plot.draw.typing_distance_ready",
+                    DrawMeasureHelper.formatBlocks(blocks)));
+            }
+            ToolPreviewRefresh.request();
+        }
+
+        private InteractionResult confirmSegmentDistance(DrawingToolContext context) {
+            applySegmentDistance(context);
+            Double blocks = segmentInput.parsePositive();
+            if (blocks == null || currentMousePoint == null) {
+                return InteractionResult.CONTINUE;
+            }
+            segmentInput.clear();
+            controlPoints.add(currentMousePoint);
+            int required = requiredPointsForMode();
+            if (controlPoints.size() >= required) {
+                if (currentMode == RectangleMode.ROUNDED) {
+                    Vec2d[] bounds = calculateRoundedRectangleBounds();
+                    if (bounds != null) {
+                        finalShape = new RectangleShape(bounds[0],
+                            bounds[1].x - bounds[0].x, bounds[1].y - bounds[0].y, bounds[2].x);
+                    }
+                } else if (previewShape != null) {
+                    finalShape = previewShape;
+                }
+                return finalShape != null ? InteractionResult.COMPLETE : InteractionResult.CONTINUE;
+            }
+            updateStatusMessage();
+            return InteractionResult.CONTINUE;
         }
 
         @Override

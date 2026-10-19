@@ -805,51 +805,60 @@ public class PolylineTool extends DrawingTool implements PolylineDrawingSession.
 
     @Override
     public boolean onKeyDown(int key) {
-        // 委托给当前模式处理器
         if (currentModeHandler != null) {
-            IInteractionStrategy.InteractionResult result = 
+            IInteractionStrategy.InteractionResult result =
                 currentModeHandler.onKeyDown(key, new DrawingToolContextAdapter());
-            
-            // 处理模式处理器的返回结果
-            switch (result) {
-                case COMPLETE:
-                    // 完成绘制：获取最终图形并提交
-                    try {
-                        Shape finalShape = currentModeHandler.getFinalShape();
-                        if (finalShape != null) {
-                            commitShape(finalShape);
-                            LOGGER.debug("多段线工具：键盘事件完成绘制，图形已提交");
-                        } else {
-                            LOGGER.warn("多段线工具：键盘事件完成绘制，但无法获取最终图形");
-                            resetDrawingState();
-                        }
-                    } catch (Exception e) {
-                        LOGGER.error("多段线工具：键盘事件处理最终图形失败: {}", e.getMessage(), e);
-                        resetDrawingState();
-                    }
-                    return true;
-                    
-                case CANCEL:
-                    // 取消绘制：重置状态
-                    resetDrawingState();
-                    LOGGER.debug("多段线工具：键盘事件取消绘制");
-                    return true;
-                    
-                case CONTINUE:
-                    // 继续绘制：事件已处理但绘制继续
-                    LOGGER.debug("多段线工具：键盘事件已处理，绘制继续");
-                    return true;
-                    
-                case IGNORED:
-                    // 事件被忽略：继续处理其他按键
-                    break;
+            if (handleModeKeyboardResult(result, "键盘按下")) {
+                return true;
             }
         }
-        
-        // 如果模式处理器没有处理，执行默认行为
-        if (key == Constants.Keys.ESC) {  // ESC键
+        if (key == Constants.Keys.ESC) {
             resetDrawingState();
             return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean onKeyTyped(char character) {
+        if (currentModeHandler != null) {
+            IInteractionStrategy.InteractionResult result =
+                currentModeHandler.onKeyTyped(character, new DrawingToolContextAdapter());
+            return handleModeKeyboardResult(result, "字符输入");
+        }
+        return false;
+    }
+
+    private boolean handleModeKeyboardResult(IInteractionStrategy.InteractionResult result, String source) {
+        switch (result) {
+            case COMPLETE -> {
+                try {
+                    Shape finalShape = currentModeHandler.getFinalShape();
+                    if (finalShape != null) {
+                        commitShape(finalShape);
+                        LOGGER.debug("多段线工具：{}完成绘制，图形已提交", source);
+                    } else {
+                        LOGGER.warn("多段线工具：{}完成绘制，但无法获取最终图形", source);
+                        resetDrawingState();
+                    }
+                } catch (Exception e) {
+                    LOGGER.error("多段线工具：{}处理最终图形失败: {}", source, e.getMessage(), e);
+                    resetDrawingState();
+                }
+                return true;
+            }
+            case CANCEL -> {
+                resetDrawingState();
+                LOGGER.debug("多段线工具：{}取消绘制", source);
+                return true;
+            }
+            case CONTINUE -> {
+                LOGGER.debug("多段线工具：{}已处理，绘制继续", source);
+                return true;
+            }
+            case IGNORED -> {
+                return false;
+            }
         }
         return false;
     }

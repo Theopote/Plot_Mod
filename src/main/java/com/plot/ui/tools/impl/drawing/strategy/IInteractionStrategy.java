@@ -196,5 +196,11 @@ public interface IInteractionStrategy {
          * @return 相机对象
          */
         com.plot.ui.canvas.CanvasCamera getCamera();
+
+        /**
+         * 更新状态栏提示
+         */
+        default void updateStatusMessage(String message) {
+        }
     }
 } 

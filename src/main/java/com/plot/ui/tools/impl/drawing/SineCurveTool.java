@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.ArrayList;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
+import com.plot.ui.tools.helper.SegmentNumericInputHandler;
+import com.plot.ui.tools.helper.ToolPreviewRefresh;
 import com.plot.utils.PlotI18n;
 
 /**
@@ -79,6 +81,7 @@ public class SineCurveTool extends DrawingTool {
     private Vec2d currentMousePoint;
     private int currentStep = 0;
     private SineCurveShape previewCurve;
+    private final SegmentNumericInputHandler segmentInput = new SegmentNumericInputHandler();
     
     // 状态消息映射
     private static final List<String> STATUS_MESSAGES = List.of(
@@ -150,8 +153,39 @@ public class SineCurveTool extends DrawingTool {
         currentMousePoint = null;
         currentStep = 0;
         previewCurve = null;
+        segmentInput.clear();
         updateStatusMessage();
         LOGGER.debug("正弦曲线工具状态已重置");
+    }
+
+    private Vec2d sineSegmentAnchor() {
+        return switch (controlPoints.size()) {
+            case 1, 2 -> controlPoints.getFirst();
+            case 3 -> {
+                Vec2d start = controlPoints.get(0);
+                Vec2d length = controlPoints.get(2);
+                yield start.add(length).divide(2);
+            }
+            default -> controlPoints.isEmpty() ? null : controlPoints.getLast();
+        };
+    }
+
+    private void applySineSegmentDistance() {
+        Double blocks = segmentInput.parsePositive();
+        Vec2d anchor = sineSegmentAnchor();
+        if (blocks != null && anchor != null && currentMousePoint != null) {
+            currentMousePoint = segmentInput.pointAtDistance(anchor, currentMousePoint, blocks);
+            if (controlPoints.size() == 1) {
+                currentMousePoint = constrainSecondPointToAxis(controlPoints.getFirst(), currentMousePoint);
+            }
+            updatePreview();
+        }
+        if (blocks == null && segmentInput.hasInput()) {
+            setStatusMessage(PlotI18n.status("status.plot.draw.typing_distance", segmentInput.getText()));
+        } else if (blocks != null) {
+            setStatusMessage(PlotI18n.status("status.plot.draw.typing_distance_ready",
+                DrawMeasureHelper.formatBlocks(blocks)));
+        }
     }
     
     // ====== 基类重写方法 ======
@@ -387,14 +421,26 @@ public class SineCurveTool extends DrawingTool {
             } else if (currentMousePoint != null) {
                 // 预览长度线
                 context.drawLine(controlPoints.getFirst(), currentMousePoint, previewLengthLineColor);
-                DrawMeasureHelper.drawTextLabel(context,
-                        DrawMeasureHelper.formatLabeled("status.plot.draw.sine.length",
-                                DrawMeasureHelper.distanceBlocks(controlPoints.getFirst(), currentMousePoint)),
-                        DrawMeasureHelper.midpoint(controlPoints.getFirst(), currentMousePoint));
+                if (segmentInput.hasInput()) {
+                    DrawMeasureHelper.drawNumericInputOverlay(
+                        context, DrawMeasureHelper.midpoint(controlPoints.getFirst(), currentMousePoint),
+                        segmentInput.getText(), "");
+                } else {
+                    DrawMeasureHelper.drawTextLabel(context,
+                            DrawMeasureHelper.formatLabeled("status.plot.draw.sine.length",
+                                    DrawMeasureHelper.distanceBlocks(controlPoints.getFirst(), currentMousePoint)),
+                            DrawMeasureHelper.midpoint(controlPoints.getFirst(), currentMousePoint));
+                }
             }
         } else if (controlPoints.size() == 1 && currentMousePoint != null) {
             context.drawLine(controlPoints.getFirst(), currentMousePoint, seedLineColor);
-            DrawMeasureHelper.drawSegmentLabel(context, controlPoints.getFirst(), currentMousePoint);
+            if (segmentInput.hasInput()) {
+                DrawMeasureHelper.drawNumericInputOverlay(
+                    context, DrawMeasureHelper.midpoint(controlPoints.getFirst(), currentMousePoint),
+                    segmentInput.getText(), "");
+            } else {
+                DrawMeasureHelper.drawSegmentLabel(context, controlPoints.getFirst(), currentMousePoint);
+            }
         }
     }
     
@@ -411,10 +457,16 @@ public class SineCurveTool extends DrawingTool {
             Vec2d amplitudePoint = controlPoints.size() >= 4 ? controlPoints.get(3) : currentMousePoint;
             if (amplitudePoint != null) {
                 context.drawLine(midPoint, amplitudePoint, amplitudeLineColor);
-                DrawMeasureHelper.drawTextLabel(context,
-                        DrawMeasureHelper.formatLabeled("status.plot.draw.sine.amplitude",
-                                DrawMeasureHelper.distanceBlocks(midPoint, amplitudePoint)),
-                        DrawMeasureHelper.midpoint(midPoint, amplitudePoint));
+                if (segmentInput.hasInput() && controlPoints.size() == 3) {
+                    DrawMeasureHelper.drawNumericInputOverlay(
+                        context, DrawMeasureHelper.midpoint(midPoint, amplitudePoint),
+                        segmentInput.getText(), "");
+                } else {
+                    DrawMeasureHelper.drawTextLabel(context,
+                            DrawMeasureHelper.formatLabeled("status.plot.draw.sine.amplitude",
+                                    DrawMeasureHelper.distanceBlocks(midPoint, amplitudePoint)),
+                            DrawMeasureHelper.midpoint(midPoint, amplitudePoint));
+                }
             }
         }
     }
@@ -718,6 +770,43 @@ public class SineCurveTool extends DrawingTool {
         public InteractionResult onMouseUp(Vec2d pos, int button, DrawingToolContext context) {
             // 正弦曲线工具使用点击模式，不需要处理鼠标释放
             return InteractionResult.IGNORED;
+        }
+
+        @Override
+        public InteractionResult onKeyDown(int keyCode, DrawingToolContext context) {
+            boolean active = !controlPoints.isEmpty() && controlPoints.size() < 4 && currentMousePoint != null;
+            return segmentInput.onKeyDown(keyCode, active, () -> {
+                applySineSegmentDistance();
+                ToolPreviewRefresh.request();
+            }, () -> confirmSineSegment(context));
+        }
+
+        @Override
+        public InteractionResult onKeyTyped(char character, DrawingToolContext context) {
+            boolean active = !controlPoints.isEmpty() && controlPoints.size() < 4 && currentMousePoint != null;
+            return segmentInput.onKeyTyped(character, active, () -> {
+                applySineSegmentDistance();
+                ToolPreviewRefresh.request();
+            });
+        }
+
+        private InteractionResult confirmSineSegment(DrawingToolContext context) {
+            applySineSegmentDistance();
+            if (currentMousePoint == null || segmentInput.parsePositive() == null) {
+                return InteractionResult.CONTINUE;
+            }
+            segmentInput.clear();
+            Vec2d worldPoint = currentMousePoint;
+            if (controlPoints.size() == 1) {
+                worldPoint = constrainSecondPointToAxis(controlPoints.getFirst(), worldPoint);
+            }
+            controlPoints.add(worldPoint);
+            currentStep++;
+            if (currentStep >= 4) {
+                return InteractionResult.COMPLETE;
+            }
+            updateStatusMessage();
+            return InteractionResult.CONTINUE;
         }
         
         @Override

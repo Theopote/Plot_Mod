@@ -17,6 +17,8 @@ import org.slf4j.LoggerFactory;
 import imgui.ImDrawList;
 import imgui.ImColor;
 import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
+import com.plot.ui.tools.helper.SegmentNumericInputHandler;
+import com.plot.ui.tools.helper.ToolPreviewRefresh;
 import com.plot.utils.PlotI18n;
 
 import java.awt.Color;
@@ -92,6 +94,7 @@ public class ArcTool extends DrawingTool {
     private boolean angleSnap = false;
     private float snapAngle = 45.0f;
     private Vec2d currentMousePoint; // 当前鼠标位置，用于辅助线渲染
+    private final SegmentNumericInputHandler segmentInput = new SegmentNumericInputHandler();
 
     /**
      * 依赖注入构造函数（推荐）
@@ -167,6 +170,7 @@ public class ArcTool extends DrawingTool {
         controlPoints.clear();
         previewArc = null;
         currentMousePoint = null;
+        segmentInput.clear();
         updateStatusMessageForCurrentMode();
         LOGGER.debug("ArcTool: 重置绘制状态");
     }
@@ -405,7 +409,13 @@ public class ArcTool extends DrawingTool {
         if (currentMousePoint != null && !controlPoints.isEmpty() && controlPoints.size() < 3) {
             Vec2d lastPoint = controlPoints.getLast();
             context.drawLine(lastPoint, currentMousePoint, connectorLineColor);
-            DrawMeasureHelper.drawSegmentLabel(context, lastPoint, currentMousePoint);
+            if (segmentInput.hasInput()) {
+                DrawMeasureHelper.drawNumericInputOverlay(
+                    context, DrawMeasureHelper.midpoint(lastPoint, currentMousePoint),
+                    segmentInput.getText(), "");
+            } else {
+                DrawMeasureHelper.drawSegmentLabel(context, lastPoint, currentMousePoint);
+            }
         }
         renderGuideMeasureLabels(context);
     }
@@ -907,6 +917,58 @@ public class ArcTool extends DrawingTool {
         public InteractionResult onMouseUp(Vec2d pos, int button, DrawingToolContext context) {
             // 弧形工具使用点击模式，不需要处理鼠标释放
             return InteractionResult.IGNORED;
+        }
+
+        @Override
+        public InteractionResult onKeyDown(int keyCode, DrawingToolContext context) {
+            boolean active = !controlPoints.isEmpty() && controlPoints.size() < 3 && currentMousePoint != null;
+            return segmentInput.onKeyDown(keyCode, active, () -> applySegmentDistance(context),
+                () -> confirmSegmentDistance(context));
+        }
+
+        @Override
+        public InteractionResult onKeyTyped(char character, DrawingToolContext context) {
+            boolean active = !controlPoints.isEmpty() && controlPoints.size() < 3 && currentMousePoint != null;
+            return segmentInput.onKeyTyped(character, active, () -> applySegmentDistance(context));
+        }
+
+        private void applySegmentDistance(DrawingToolContext context) {
+            Double blocks = segmentInput.parsePositive();
+            if (blocks != null && !controlPoints.isEmpty() && currentMousePoint != null) {
+                currentMousePoint = segmentInput.pointAtDistance(
+                    controlPoints.getLast(), currentMousePoint, blocks);
+                if (controlPoints.size() >= 2) {
+                    updatePreviewWithMouse(currentMousePoint);
+                }
+            }
+            if (blocks == null && segmentInput.hasInput()) {
+                setStatusMessage(PlotI18n.status("status.plot.draw.typing_distance", segmentInput.getText()));
+            } else if (blocks != null) {
+                setStatusMessage(PlotI18n.status("status.plot.draw.typing_distance_ready",
+                    DrawMeasureHelper.formatBlocks(blocks)));
+            }
+            ToolPreviewRefresh.request();
+        }
+
+        private InteractionResult confirmSegmentDistance(DrawingToolContext context) {
+            applySegmentDistance(context);
+            if (currentMousePoint == null || segmentInput.parsePositive() == null) {
+                return InteractionResult.CONTINUE;
+            }
+            segmentInput.clear();
+            controlPoints.add(currentMousePoint);
+            updateStatusMessageForCurrentMode();
+            if (controlPoints.size() >= 3) {
+                updatePreview();
+                if (previewArc != null) {
+                    context.setToolState(DrawingTool.ToolState.DRAWING);
+                    return InteractionResult.COMPLETE;
+                }
+                resetDrawingState();
+                return InteractionResult.CANCEL;
+            }
+            context.setToolState(DrawingTool.ToolState.DRAWING);
+            return InteractionResult.CONTINUE;
         }
         
         @Override

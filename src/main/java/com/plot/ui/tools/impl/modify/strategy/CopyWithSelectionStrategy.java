@@ -10,6 +10,9 @@ import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.theme.UITheme;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
+import com.plot.ui.tools.helper.NumericInputBuffer;
+import com.plot.ui.tools.helper.NumericInputKeys;
+import com.plot.ui.tools.helper.ToolPreviewRefresh;
 import com.plot.ui.tools.impl.modify.constants.ModifyConstraints;
 import com.plot.ui.tools.impl.modify.dto.ModifyParameters;
 import com.plot.ui.tools.impl.modify.helper.IModifyHandler;
@@ -68,6 +71,7 @@ public class CopyWithSelectionStrategy extends BaseSelectionStrategy implements 
     private ModifyConstraints copyConstraints;
     private List<Shape> previewShapes;
     private ModifyCommand pendingCommand;
+    private final NumericInputBuffer distanceInput = new NumericInputBuffer();
 
     public CopyWithSelectionStrategy() {
         this.copyParameters = new ModifyParameters();
@@ -185,6 +189,7 @@ public class CopyWithSelectionStrategy extends BaseSelectionStrategy implements 
             context.setStatusMessage(PlotI18n.status("status.plot.common.click_finish_suffix",
                     PlotI18n.localizeStatus(statusMessage)));
             context.setPreviewEnabled(true);
+            ToolPreviewRefresh.request();
             return ModifyResult.CONTINUE;
         } catch (Exception e) {
             LOGGER.error("复制策略鼠标移动处理失败: {}", e.getMessage(), e);
@@ -212,12 +217,56 @@ public class CopyWithSelectionStrategy extends BaseSelectionStrategy implements 
             }
             return ModifyResult.CONTINUE;
         }
+        boolean inputActive = currentMode == StrategyMode.COPY && hasBasePoint;
+        if (NumericInputKeys.isEscape(keyCode) && inputActive && !distanceInput.isEmpty()) {
+            distanceInput.clear();
+            return onMouseMove(copyCurrentPoint, context);
+        }
+        if (NumericInputKeys.isBackspace(keyCode) && inputActive && distanceInput.backspace()) {
+            return applyDistanceInputPreview(context);
+        }
+        if (NumericInputKeys.isEnter(keyCode)) {
+            if (inputActive && !distanceInput.isEmpty()) {
+                Double blocks = distanceInput.tryParse();
+                if (blocks != null && blocks > 0.0 && copyStartPoint != null && copyCurrentPoint != null) {
+                    return completeCopy(
+                        DrawMeasureHelper.pointAtBlockDistance(copyStartPoint, copyCurrentPoint, blocks),
+                        context);
+                }
+                return ModifyResult.CONTINUE;
+            }
+            if (hasBasePoint && copyCurrentPoint != null) {
+                return completeCopy(copyCurrentPoint, context);
+            }
+        }
         if (keyCode == ESC_KEY) {
             reset();
             context.setStatusMessage("status.plot.copy.ended");
             return ModifyResult.CANCEL;
         }
         return ModifyResult.IGNORED;
+    }
+
+    @Override
+    public ModifyResult onKeyTyped(char character, ModifyToolContext context) {
+        if (currentMode != StrategyMode.COPY || !hasBasePoint || !distanceInput.append(character)) {
+            return ModifyResult.IGNORED;
+        }
+        return applyDistanceInputPreview(context);
+    }
+
+    private ModifyResult applyDistanceInputPreview(ModifyToolContext context) {
+        Double blocks = distanceInput.tryParse();
+        if (blocks != null && blocks > 0.0 && copyStartPoint != null && copyCurrentPoint != null) {
+            copyCurrentPoint = DrawMeasureHelper.pointAtBlockDistance(copyStartPoint, copyCurrentPoint, blocks);
+        }
+        if (blocks == null) {
+            context.setStatusMessage(PlotI18n.status("status.plot.copy.typing_distance", distanceInput.getText()));
+        } else {
+            context.setStatusMessage(PlotI18n.status("status.plot.copy.typing_distance_ready",
+                DrawMeasureHelper.formatBlocks(blocks)));
+        }
+        return onMouseMove(copyCurrentPoint, context);
     }
 
     @Override
@@ -291,6 +340,7 @@ public class CopyWithSelectionStrategy extends BaseSelectionStrategy implements 
         constrainedEndPoint = null;
         previewShapes = null;
         pendingCommand = null;
+        distanceInput.clear();
         if (copyParameters != null && copyStartPoint != null) {
             copyParameters.setStartPoint(copyStartPoint);
             copyParameters.setEndPoint(copyStartPoint);
@@ -391,7 +441,13 @@ public class CopyWithSelectionStrategy extends BaseSelectionStrategy implements 
                 context.drawDashedLine(copyStartPoint, effectiveEnd, previewColor);
                 context.drawCircle(copyStartPoint, 3.0f, previewColor);
                 context.drawCircle(effectiveEnd, 3.0f, previewColor);
-                DrawMeasureHelper.drawSegmentLabel(context, copyStartPoint, effectiveEnd);
+                if (!distanceInput.isEmpty()) {
+                    DrawMeasureHelper.drawNumericInputOverlay(
+                        context, DrawMeasureHelper.midpoint(copyStartPoint, effectiveEnd),
+                        distanceInput.getText(), "");
+                } else {
+                    DrawMeasureHelper.drawSegmentLabel(context, copyStartPoint, effectiveEnd);
+                }
             }
         }
     }

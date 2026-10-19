@@ -92,6 +92,22 @@ public class SpiralInteractionStrategy implements IInteractionStrategy {
         // 螺旋线工具不使用鼠标释放事件
         return InteractionResult.IGNORED;
     }
+
+    @Override
+    public InteractionResult onKeyDown(int keyCode, DrawingToolContext context) {
+        if (context instanceof SpiralTool spiralTool) {
+            return spiralTool.handleSegmentKeyDown(keyCode);
+        }
+        return InteractionResult.IGNORED;
+    }
+
+    @Override
+    public InteractionResult onKeyTyped(char character, DrawingToolContext context) {
+        if (context instanceof SpiralTool spiralTool) {
+            return spiralTool.handleSegmentKeyTyped(character);
+        }
+        return InteractionResult.IGNORED;
+    }
     
     @Override
     public Shape getFinalShape() {

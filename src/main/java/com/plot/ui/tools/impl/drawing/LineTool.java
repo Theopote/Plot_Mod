@@ -228,12 +228,12 @@ public class LineTool extends DrawingTool {
                     for (LineShape line : parallelLines) {
                         context.drawLine(line.getStart(), line.getEnd(), lineColor);
                     }
-                    DrawMeasureHelper.drawSegmentLabel(context, startPoint, finalEndPoint);
+                    drawLineSegmentMeasure(context, startPoint, finalEndPoint);
                 }
             } else if (previewShape instanceof LineShape line) {
                 // 单线模式：渲染主线
                 context.drawLine(line.getStart(), line.getEnd(), lineColor);
-                DrawMeasureHelper.drawSegmentLabel(context, line.getStart(), line.getEnd());
+                drawLineSegmentMeasure(context, line.getStart(), line.getEnd());
             } else if (previewShape instanceof MultiLineShape multiLine) {
                 // 如果预览图形是MultiLineShape，使用预览颜色渲染每条线
                 for (LineShape line : multiLine.getLines()) {
@@ -241,7 +241,7 @@ public class LineTool extends DrawingTool {
                 }
                 if (!multiLine.getLines().isEmpty()) {
                     LineShape ref = multiLine.getLines().getFirst();
-                    DrawMeasureHelper.drawSegmentLabel(context, ref.getStart(), ref.getEnd());
+                    drawLineSegmentMeasure(context, ref.getStart(), ref.getEnd());
                 }
             }
 
@@ -768,6 +768,40 @@ public class LineTool extends DrawingTool {
 
         @Override
         public Vec2d getCurrentMousePoint() { return delegate.getCurrentMousePoint(); }
+
+        @Override
+        public InteractionResult onKeyDown(int keyCode, DrawingToolContext context) {
+            return delegate.onKeyDown(keyCode, context);
+        }
+
+        @Override
+        public InteractionResult onKeyTyped(char character, DrawingToolContext context) {
+            return delegate.onKeyTyped(character, context);
+        }
+
+        IInteractionStrategy getDelegate() {
+            return delegate;
+        }
+    }
+
+    private MultiStepInteractionStrategy multiStepDelegate() {
+        if (interactionStrategy instanceof EnhancingLineStrategy wrapper) {
+            IInteractionStrategy delegate = wrapper.getDelegate();
+            if (delegate instanceof MultiStepInteractionStrategy multiStep) {
+                return multiStep;
+            }
+        }
+        return null;
+    }
+
+    private void drawLineSegmentMeasure(DrawContext context, Vec2d from, Vec2d to) {
+        MultiStepInteractionStrategy multiStep = multiStepDelegate();
+        if (multiStep != null && multiStep.hasNumericInput()) {
+            DrawMeasureHelper.drawNumericInputOverlay(
+                context, DrawMeasureHelper.midpoint(from, to), multiStep.getNumericInputText(), "");
+        } else {
+            DrawMeasureHelper.drawSegmentLabel(context, from, to);
+        }
     }
 
     public String getDrawingMode() {

@@ -13,6 +13,9 @@ import com.plot.ui.component.Icons;
 import com.plot.ui.tools.impl.drawing.config.SpiralConfigManager;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 import com.plot.ui.tools.impl.drawing.strategy.SpiralInteractionStrategy;
+import com.plot.ui.tools.helper.SegmentNumericInputHandler;
+import com.plot.ui.tools.helper.ToolPreviewRefresh;
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,6 +65,7 @@ public class SpiralTool extends DrawingTool {
     private final List<Vec2d> controlPoints = new ArrayList<>();
     private Vec2d currentMousePoint;
     private SpiralShape previewSpiral;
+    private final SegmentNumericInputHandler segmentInput = new SegmentNumericInputHandler();
     
     // 状态消息映射
     private static final java.util.Map<SpiralType, java.util.List<String>> TYPE_STATUS_MESSAGES = java.util.Map.of(
@@ -185,8 +189,67 @@ public class SpiralTool extends DrawingTool {
         controlPoints.clear();
         currentMousePoint = null;
         previewSpiral = null;
+        segmentInput.clear();
         updateStatusMessage();
         LOGGER.debug("螺旋线工具状态已重置");
+    }
+
+    public boolean hasSegmentInput() {
+        return segmentInput.hasInput();
+    }
+
+    public String getSegmentInputText() {
+        return segmentInput.getText();
+    }
+
+    private boolean isSegmentInputActive() {
+        return !controlPoints.isEmpty() && !isDrawingComplete() && currentMousePoint != null;
+    }
+
+    public IInteractionStrategy.InteractionResult handleSegmentKeyDown(int keyCode) {
+        return segmentInput.onKeyDown(keyCode, isSegmentInputActive(), () -> {
+            applySegmentDistance();
+            ToolPreviewRefresh.request();
+        }, this::confirmSegmentDistance);
+    }
+
+    public IInteractionStrategy.InteractionResult handleSegmentKeyTyped(char character) {
+        return segmentInput.onKeyTyped(character, isSegmentInputActive(), () -> {
+            applySegmentDistance();
+            ToolPreviewRefresh.request();
+        });
+    }
+
+    private void applySegmentDistance() {
+        Double blocks = segmentInput.parsePositive();
+        if (blocks != null && !controlPoints.isEmpty() && currentMousePoint != null) {
+            currentMousePoint = segmentInput.pointAtDistance(
+                controlPoints.getLast(), currentMousePoint, blocks);
+            updatePreview();
+        }
+        if (blocks == null && segmentInput.hasInput()) {
+            setStatusMessage(PlotI18n.status("status.plot.draw.typing_distance", segmentInput.getText()));
+        } else if (blocks != null) {
+            setStatusMessage(PlotI18n.status("status.plot.draw.typing_distance_ready",
+                DrawMeasureHelper.formatBlocks(blocks)));
+        }
+    }
+
+    private IInteractionStrategy.InteractionResult confirmSegmentDistance() {
+        applySegmentDistance();
+        if (currentMousePoint == null || segmentInput.parsePositive() == null) {
+            return IInteractionStrategy.InteractionResult.CONTINUE;
+        }
+        segmentInput.clear();
+        controlPoints.add(currentMousePoint);
+        if (isDrawingComplete()) {
+            completeDrawing();
+            // completeDrawing 已提交并重置，勿再返回 COMPLETE 以免重复提交
+            return IInteractionStrategy.InteractionResult.CONTINUE;
+        }
+        updateStatusMessage();
+        updatePreview();
+        return IInteractionStrategy.InteractionResult.CONTINUE;
     }
     
     // ====== 交互处理 - 通过策略模式处理 ======

@@ -146,7 +146,7 @@ public class SpiralPreviewRenderer {
                     default -> mutedColor;
                 };
                 context.drawLine(lastPoint, currentMousePoint, previewColor);
-                DrawMeasureHelper.drawSegmentLabel(context, lastPoint, currentMousePoint);
+                drawActiveSegmentMeasure(context, lastPoint, currentMousePoint);
             }
         } else {
             // 其它类型：保持原有逻辑
@@ -156,7 +156,7 @@ public class SpiralPreviewRenderer {
             } else if (controlPoints.size() == 1 && currentMousePoint != null) {
                 java.awt.Color previewColor = toColor(theme.mutedText, 220);
                 context.drawLine(controlPoints.getFirst(), currentMousePoint, previewColor);
-                DrawMeasureHelper.drawRadiusLabel(context, controlPoints.getFirst(), currentMousePoint);
+                drawActiveSegmentMeasure(context, controlPoints.getFirst(), currentMousePoint);
             }
         }
     }
@@ -564,5 +564,16 @@ public class SpiralPreviewRenderer {
         }
         
         return tempSpiral.solveTurnsForRadius(maxRadius);
+    }
+
+    private void drawActiveSegmentMeasure(DrawContext context, Vec2d from, Vec2d to) {
+        if (spiralTool.hasSegmentInput()) {
+            DrawMeasureHelper.drawNumericInputOverlay(
+                context, DrawMeasureHelper.midpoint(from, to), spiralTool.getSegmentInputText(), "");
+        } else if (spiralTool.getControlPoints().size() == 1) {
+            DrawMeasureHelper.drawRadiusLabel(context, from, to);
+        } else {
+            DrawMeasureHelper.drawSegmentLabel(context, from, to);
+        }
     }
 } 

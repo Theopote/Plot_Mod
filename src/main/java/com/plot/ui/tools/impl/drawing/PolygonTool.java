@@ -26,6 +26,8 @@ import com.plot.utils.PlotI18n;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 import com.plot.ui.tools.impl.drawing.strategy.MultiStepInteractionStrategy;
 import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
+import com.plot.ui.tools.helper.SegmentNumericInputHandler;
+import com.plot.ui.tools.helper.ToolPreviewRefresh;
 
 /**
  * 多边形工具 - 完整的策略模式实现
@@ -158,6 +160,7 @@ public class PolygonTool extends DrawingTool {
     private final List<Vec2d> controlPoints = new ArrayList<>();
     private Vec2d currentMousePoint;
     private int currentStep = 0;
+    private final SegmentNumericInputHandler segmentInput = new SegmentNumericInputHandler();
     
     // ====== 几何数据缓存 ======
     private final PreviewGeometry previewGeometry = new PreviewGeometry();
@@ -396,7 +399,13 @@ public class PolygonTool extends DrawingTool {
             if (!controlPoints.isEmpty() && currentMousePoint != null) {
                 Vec2d center = controlPoints.getFirst();
                 context.drawLine(center, currentMousePoint, GUIDE_LINE_COLOR);
-                DrawMeasureHelper.drawRadiusLabel(context, center, currentMousePoint);
+                if (segmentInput.hasInput()) {
+                    DrawMeasureHelper.drawNumericInputOverlay(
+                        context, DrawMeasureHelper.midpoint(center, currentMousePoint),
+                        segmentInput.getText(), "");
+                } else {
+                    DrawMeasureHelper.drawRadiusLabel(context, center, currentMousePoint);
+                }
             }
             return;
         }
@@ -658,9 +667,32 @@ public class PolygonTool extends DrawingTool {
         currentMousePoint = null;
         currentStep = 0;
         previewGeometry.clear();
+        segmentInput.clear();
         updateStatusMessageForCurrentMode();
         
         LOGGER.debug("多边形工具状态已重置");
+    }
+
+    private boolean isPolygonDrawingComplete() {
+        return currentStep >= 2;
+    }
+
+    private void applyPolygonSegmentDistance() {
+        Double blocks = segmentInput.parsePositive();
+        if (blocks != null && !controlPoints.isEmpty() && currentMousePoint != null) {
+            currentMousePoint = segmentInput.pointAtDistance(
+                controlPoints.getLast(), currentMousePoint, blocks);
+            if (controlPoints.size() == 1) {
+                currentMousePoint = constrainSecondPointToAxis(controlPoints.getFirst(), currentMousePoint);
+            }
+            updatePreviewGeometry();
+        }
+        if (blocks == null && segmentInput.hasInput()) {
+            setStatusMessage(PlotI18n.status("status.plot.draw.typing_distance", segmentInput.getText()));
+        } else if (blocks != null) {
+            setStatusMessage(PlotI18n.status("status.plot.draw.typing_distance_ready",
+                DrawMeasureHelper.formatBlocks(blocks)));
+        }
     }
     
     /**
@@ -730,6 +762,43 @@ public class PolygonTool extends DrawingTool {
         public InteractionResult onMouseUp(Vec2d pos, int button, DrawingToolContext context) {
             // 多边形工具使用点击模式，不需要处理鼠标释放
             return InteractionResult.IGNORED;
+        }
+
+        @Override
+        public InteractionResult onKeyDown(int keyCode, DrawingToolContext context) {
+            boolean active = !controlPoints.isEmpty() && !isPolygonDrawingComplete() && currentMousePoint != null;
+            return segmentInput.onKeyDown(keyCode, active, () -> {
+                applyPolygonSegmentDistance();
+                ToolPreviewRefresh.request();
+            }, () -> confirmPolygonSegment(context));
+        }
+
+        @Override
+        public InteractionResult onKeyTyped(char character, DrawingToolContext context) {
+            boolean active = !controlPoints.isEmpty() && !isPolygonDrawingComplete() && currentMousePoint != null;
+            return segmentInput.onKeyTyped(character, active, () -> {
+                applyPolygonSegmentDistance();
+                ToolPreviewRefresh.request();
+            });
+        }
+
+        private InteractionResult confirmPolygonSegment(DrawingToolContext context) {
+            applyPolygonSegmentDistance();
+            if (currentMousePoint == null || segmentInput.parsePositive() == null) {
+                return InteractionResult.CONTINUE;
+            }
+            segmentInput.clear();
+            Vec2d worldPoint = currentMousePoint;
+            if (controlPoints.size() == 1) {
+                worldPoint = constrainSecondPointToAxis(controlPoints.getFirst(), worldPoint);
+            }
+            controlPoints.add(worldPoint);
+            currentStep++;
+            if (isPolygonDrawingComplete()) {
+                return InteractionResult.COMPLETE;
+            }
+            updateStatusMessageForCurrentMode();
+            return InteractionResult.CONTINUE;
         }
         
         @Override

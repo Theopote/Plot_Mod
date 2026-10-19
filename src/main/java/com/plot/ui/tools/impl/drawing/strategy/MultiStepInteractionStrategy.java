@@ -330,6 +330,25 @@ public class MultiStepInteractionStrategy implements IInteractionStrategy {
         }
         updatePreview(context);
         ToolPreviewRefresh.request();
+        updateTypingStatus(context, blocks);
+    }
+
+    private void updateTypingStatus(DrawingToolContext context, Double blocks) {
+        if (blocks == null && !numericInput.isEmpty()) {
+            context.updateStatusMessage(PlotI18n.status(
+                "status.plot.draw.typing_distance", numericInput.getText()));
+        } else if (blocks != null) {
+            context.updateStatusMessage(PlotI18n.status("status.plot.draw.typing_distance_ready",
+                DrawMeasureHelper.formatBlocks(blocks)));
+        }
+    }
+
+    public boolean hasNumericInput() {
+        return !numericInput.isEmpty();
+    }
+
+    public String getNumericInputText() {
+        return numericInput.getText();
     }
     
     /**

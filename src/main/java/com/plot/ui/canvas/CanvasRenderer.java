@@ -12,6 +12,7 @@ import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.base.Event;
 import com.plot.ui.tools.impl.modify.SelectionTool;
 import com.plot.ui.theme.UITheme;
+import com.plot.ui.tools.snap.SnapMarkerRenderGate;
 import com.plot.utils.ExceptionDebug;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
@@ -308,7 +309,8 @@ public class CanvasRenderer implements EventListener {
         if (optimizer.shouldSkipFrame()) {
             return;
         }
-        
+
+        SnapMarkerRenderGate.setAllowed(true);
         try {
             // 检查ImGui是否已初始化并可用
             if (!isImGuiReady()) {
@@ -480,6 +482,8 @@ public class CanvasRenderer implements EventListener {
 
         } catch (Exception e) {
             LOGGER.error("渲染画布时发生错误", e);
+        } finally {
+            SnapMarkerRenderGate.setAllowed(false);
         }
     }
 

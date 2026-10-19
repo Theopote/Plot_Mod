@@ -21,6 +21,8 @@ import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
 
 import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
+import com.plot.ui.tools.helper.SegmentNumericInputHandler;
+import com.plot.ui.tools.helper.ToolPreviewRefresh;
 import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,6 +97,7 @@ public class SplineTool extends DrawingTool {
     private final List<Vec2d> controlPoints = new ArrayList<>();
     private Vec2d currentMousePoint;
     private int selectedPointIndex = -1;
+    private final SegmentNumericInputHandler segmentInput = new SegmentNumericInputHandler();
     
     // 4. 渲染常量 - 统一管理所有渲染参数
     // 尺寸常量
@@ -176,8 +179,30 @@ public class SplineTool extends DrawingTool {
         controlPoints.clear();
         currentMousePoint = null;
         selectedPointIndex = -1;
+        segmentInput.clear();
         updateStatusMessage();
         LOGGER.debug("样条工具状态已重置");
+    }
+
+    private boolean isSegmentInputActive() {
+        return getCurrentState() == ToolState.DRAWING
+            && !controlPoints.isEmpty()
+            && currentMousePoint != null;
+    }
+
+    private void applySplineSegmentDistance() {
+        Double blocks = segmentInput.parsePositive();
+        if (blocks != null && !controlPoints.isEmpty() && currentMousePoint != null) {
+            currentMousePoint = segmentInput.pointAtDistance(
+                controlPoints.getLast(), currentMousePoint, blocks);
+            updatePreview();
+        }
+        if (blocks == null && segmentInput.hasInput()) {
+            setStatusMessage(PlotI18n.status("status.plot.draw.typing_distance", segmentInput.getText()));
+        } else if (blocks != null) {
+            setStatusMessage(PlotI18n.status("status.plot.draw.typing_distance_ready",
+                DrawMeasureHelper.formatBlocks(blocks)));
+        }
     }
     
     // ====== 基类重写方法 ======
@@ -209,19 +234,18 @@ public class SplineTool extends DrawingTool {
     @Override
     public boolean onKeyDown(int keyCode) {
         try {
-            // 按C键封闭样条曲线
-            if (keyCode == KeyEvent.VK_C && controlPoints.size() >= 3) {
+            if (super.onKeyDown(keyCode)) {
+                return true;
+            }
+            if (keyCode == KeyEvent.VK_C && controlPoints.size() >= 3 && !segmentInput.hasInput()) {
                 closeSpline();
                 return true;
             }
-            
-            // 按ESC键取消绘制
-            if (keyCode == KeyEvent.VK_ESCAPE && !controlPoints.isEmpty()) {
+            if (keyCode == KeyEvent.VK_ESCAPE && !controlPoints.isEmpty() && !segmentInput.hasInput()) {
                 resetDrawingState();
                 return true;
             }
-            
-            return super.onKeyDown(keyCode);
+            return false;
         } catch (Exception e) {
             LOGGER.error("SplineTool 处理键盘事件失败: {}", e.getMessage(), e);
             return false;
@@ -231,7 +255,7 @@ public class SplineTool extends DrawingTool {
     @Override
     public boolean onKeyTyped(char character) {
         char normalized = Character.toLowerCase(character);
-        if (normalized == 'c' && controlPoints.size() >= 3) {
+        if (normalized == 'c' && controlPoints.size() >= 3 && !segmentInput.hasInput()) {
             closeSpline();
             return true;
         }
@@ -519,7 +543,13 @@ public class SplineTool extends DrawingTool {
         if (currentMousePoint != null && !controlPoints.isEmpty()) {
             Vec2d lastPoint = controlPoints.getLast();
             context.drawDashedLine(lastPoint, currentMousePoint, helperLineColor);
-            DrawMeasureHelper.drawSegmentLabel(context, lastPoint, currentMousePoint);
+            if (segmentInput.hasInput()) {
+                DrawMeasureHelper.drawNumericInputOverlay(
+                    context, DrawMeasureHelper.midpoint(lastPoint, currentMousePoint),
+                    segmentInput.getText(), "");
+            } else {
+                DrawMeasureHelper.drawSegmentLabel(context, lastPoint, currentMousePoint);
+            }
         }
     }
 
@@ -749,6 +779,7 @@ public class SplineTool extends DrawingTool {
             controlPoints.clear();
             currentMousePoint = null;
             selectedPointIndex = -1;
+            segmentInput.clear();
             updatePreview();
             updateStatusMessage();
         }
@@ -800,6 +831,34 @@ public class SplineTool extends DrawingTool {
         @Override
         public InteractionResult onMouseUp(Vec2d pos, int button, DrawingToolContext context) {
             return InteractionResult.IGNORED;
+        }
+
+        @Override
+        public InteractionResult onKeyDown(int keyCode, DrawingToolContext context) {
+            return segmentInput.onKeyDown(keyCode, isSegmentInputActive(), () -> {
+                applySplineSegmentDistance();
+                ToolPreviewRefresh.request();
+            }, () -> confirmSplineSegment(context));
+        }
+
+        @Override
+        public InteractionResult onKeyTyped(char character, DrawingToolContext context) {
+            return segmentInput.onKeyTyped(character, isSegmentInputActive(), () -> {
+                applySplineSegmentDistance();
+                ToolPreviewRefresh.request();
+            });
+        }
+
+        private InteractionResult confirmSplineSegment(DrawingToolContext context) {
+            applySplineSegmentDistance();
+            if (currentMousePoint == null || segmentInput.parsePositive() == null) {
+                return InteractionResult.CONTINUE;
+            }
+            segmentInput.clear();
+            controlPoints.add(currentMousePoint);
+            updatePreview();
+            updateStatusMessage();
+            return InteractionResult.CONTINUE;
         }
         
         @Override

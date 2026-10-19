@@ -24,7 +24,8 @@ import com.plot.utils.PlotI18n;
 import java.lang.reflect.Field;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
-import com.plot.utils.PlotI18n;
+import com.plot.ui.tools.helper.SegmentNumericInputHandler;
+import com.plot.ui.tools.helper.ToolPreviewRefresh;
 
 /**
  * 半圆工具 - 策略模式版本
@@ -98,6 +99,7 @@ public class SemicircleTool extends DrawingTool {
     private Vec2d currentMousePoint;
     private int currentStep = 0;
     private PolylineShape previewSemicircle;
+    private final SegmentNumericInputHandler segmentInput = new SegmentNumericInputHandler();
 
     // 状态消息映射
     private static final Map<SemicircleMode, List<String>> MODE_STATUS_MESSAGES = Map.of(
@@ -229,8 +231,34 @@ public class SemicircleTool extends DrawingTool {
         currentStep = 0;
         previewSemicircle = null;
         previewShape = null; // 清除预览形状
+        segmentInput.clear();
         updateStatusMessageForCurrentMode();
         LOGGER.debug("半圆工具状态已重置");
+    }
+
+    private boolean isSemicircleDrawingComplete() {
+        return switch (currentMode) {
+            case TWO_POINTS -> controlPoints.size() >= 2;
+            case THREE_POINTS -> controlPoints.size() >= 3;
+        };
+    }
+
+    private void applySemicircleSegmentDistance() {
+        Double blocks = segmentInput.parsePositive();
+        if (blocks != null && !controlPoints.isEmpty() && currentMousePoint != null) {
+            currentMousePoint = segmentInput.pointAtDistance(
+                controlPoints.getLast(), currentMousePoint, blocks);
+            if (controlPoints.size() == 1) {
+                currentMousePoint = constrainSecondPointToAxis(controlPoints.getFirst(), currentMousePoint);
+            }
+            updatePreview();
+        }
+        if (blocks == null && segmentInput.hasInput()) {
+            setStatusMessage(PlotI18n.status("status.plot.draw.typing_distance", segmentInput.getText()));
+        } else if (blocks != null) {
+            setStatusMessage(PlotI18n.status("status.plot.draw.typing_distance_ready",
+                DrawMeasureHelper.formatBlocks(blocks)));
+        }
     }
 
     // ====== 基类重写方法 ======
@@ -578,7 +606,13 @@ public class SemicircleTool extends DrawingTool {
         if (currentMousePoint != null) {
             // 绘制半径线（引导线）
             context.drawLine(center, currentMousePoint, guideColor);
-            DrawMeasureHelper.drawRadiusLabel(context, center, currentMousePoint);
+            if (segmentInput.hasInput()) {
+                DrawMeasureHelper.drawNumericInputOverlay(
+                    context, DrawMeasureHelper.midpoint(center, currentMousePoint),
+                    segmentInput.getText(), "");
+            } else {
+                DrawMeasureHelper.drawRadiusLabel(context, center, currentMousePoint);
+            }
 
             // 绘制预览半圆
             if (previewSemicircle != null) {
@@ -622,7 +656,13 @@ public class SemicircleTool extends DrawingTool {
             if (currentMousePoint != null) {
                 // 绘制方向线
                 context.drawLine(center, currentMousePoint, guideColor);
-                DrawMeasureHelper.drawRadiusLabel(context, center, currentMousePoint);
+                if (segmentInput.hasInput()) {
+                    DrawMeasureHelper.drawNumericInputOverlay(
+                        context, DrawMeasureHelper.midpoint(center, currentMousePoint),
+                        segmentInput.getText(), "");
+                } else {
+                    DrawMeasureHelper.drawRadiusLabel(context, center, currentMousePoint);
+                }
 
                 // 绘制预览半圆
                 if (previewSemicircle != null) {
@@ -637,7 +677,13 @@ public class SemicircleTool extends DrawingTool {
         } else if (currentMousePoint != null) {
             // 只有一个点时，显示引导线
             context.drawLine(p1, currentMousePoint, guideColor);
-            DrawMeasureHelper.drawSegmentLabel(context, p1, currentMousePoint);
+            if (segmentInput.hasInput()) {
+                DrawMeasureHelper.drawNumericInputOverlay(
+                    context, DrawMeasureHelper.midpoint(p1, currentMousePoint),
+                    segmentInput.getText(), "");
+            } else {
+                DrawMeasureHelper.drawSegmentLabel(context, p1, currentMousePoint);
+            }
         }
     }
 
@@ -971,7 +1017,44 @@ public class SemicircleTool extends DrawingTool {
             return InteractionResult.IGNORED;
         }
 
-    @Override
+        @Override
+        public InteractionResult onKeyDown(int keyCode, DrawingToolContext context) {
+            boolean active = !controlPoints.isEmpty() && !isSemicircleDrawingComplete() && currentMousePoint != null;
+            return segmentInput.onKeyDown(keyCode, active, () -> {
+                applySemicircleSegmentDistance();
+                ToolPreviewRefresh.request();
+            }, () -> confirmSemicircleSegment(context));
+        }
+
+        @Override
+        public InteractionResult onKeyTyped(char character, DrawingToolContext context) {
+            boolean active = !controlPoints.isEmpty() && !isSemicircleDrawingComplete() && currentMousePoint != null;
+            return segmentInput.onKeyTyped(character, active, () -> {
+                applySemicircleSegmentDistance();
+                ToolPreviewRefresh.request();
+            });
+        }
+
+        private InteractionResult confirmSemicircleSegment(DrawingToolContext context) {
+            applySemicircleSegmentDistance();
+            if (currentMousePoint == null || segmentInput.parsePositive() == null) {
+                return InteractionResult.CONTINUE;
+            }
+            segmentInput.clear();
+            Vec2d worldPoint = currentMousePoint;
+            if (controlPoints.size() == 1) {
+                worldPoint = constrainSecondPointToAxis(controlPoints.getFirst(), worldPoint);
+            }
+            controlPoints.add(worldPoint);
+            currentStep++;
+            if (isSemicircleDrawingComplete()) {
+                return InteractionResult.COMPLETE;
+            }
+            updateStatusMessageForCurrentMode();
+            return InteractionResult.CONTINUE;
+        }
+
+        @Override
         public com.plot.core.model.Shape getFinalShape() {
             if (previewSemicircle != null && !previewSemicircle.getPoints().isEmpty()) {
                 // 从半圆点计算圆弧参数

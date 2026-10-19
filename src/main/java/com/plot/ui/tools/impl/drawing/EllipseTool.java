@@ -120,6 +120,8 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
     // 捕捉增强器（统一可视化与类型识别）
     private final com.plot.ui.tools.snap.SnapEnhancer snapEnhancer =
             new com.plot.ui.tools.snap.SnapEnhancer("EllipseTool");
+    private final com.plot.ui.tools.helper.SegmentNumericInputHandler segmentInput =
+            new com.plot.ui.tools.helper.SegmentNumericInputHandler();
     private EllipseShape previewEllipse;
     private int currentStep = 0;
     
@@ -281,20 +283,20 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
         switch (currentMode) {
             case THREE_POINTS_AXIS -> {
                 if (controlPoints.size() >= 2) {
-                    DrawMeasureHelper.drawSegmentLabel(context, controlPoints.get(0), controlPoints.get(1));
+                    drawSegmentOrInput(context, controlPoints.get(0), controlPoints.get(1), false);
                 } else if (controlPoints.size() == 1 && currentMousePoint != null) {
-                    DrawMeasureHelper.drawSegmentLabel(context, controlPoints.getFirst(), currentMousePoint);
+                    drawSegmentOrInput(context, controlPoints.getFirst(), currentMousePoint, true);
                 }
                 if (controlPoints.size() >= 2 && currentMousePoint != null) {
                     Vec2d center = controlPoints.get(0).add(controlPoints.get(1)).multiply(0.5);
-                    DrawMeasureHelper.drawSegmentLabel(context, center, currentMousePoint);
+                    drawSegmentOrInput(context, center, currentMousePoint, true);
                 }
             }
             case THREE_POINTS_CENTER, TWO_POINTS -> {
                 if (controlPoints.size() >= 2) {
-                    DrawMeasureHelper.drawSegmentLabel(context, controlPoints.get(0), controlPoints.get(1));
+                    drawSegmentOrInput(context, controlPoints.get(0), controlPoints.get(1), false);
                 } else if (controlPoints.size() == 1 && currentMousePoint != null) {
-                    DrawMeasureHelper.drawSegmentLabel(context, controlPoints.getFirst(), currentMousePoint);
+                    drawSegmentOrInput(context, controlPoints.getFirst(), currentMousePoint, true);
                 }
             }
         }
@@ -767,9 +769,46 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
         currentMousePoint = null;
         previewEllipse = null;
         currentStep = 0;
+        segmentInput.clear();
         updateStatusMessageForCurrentMode();
         
         LOGGER.debug("椭圆工具状态已重置");
+    }
+
+    private void applyEllipseSegmentDistance() {
+        Double blocks = segmentInput.parsePositive();
+        if (blocks != null && !controlPoints.isEmpty() && currentMousePoint != null) {
+            currentMousePoint = segmentInput.pointAtDistance(
+                controlPoints.getLast(), currentMousePoint, blocks);
+            switch (currentMode) {
+                case THREE_POINTS_AXIS -> updateThreePointsAxisPreview();
+                case THREE_POINTS_CENTER -> updateThreePointsCenterPreview();
+                case TWO_POINTS -> updateTwoPointsEllipsePreview();
+            }
+        }
+        if (blocks == null && segmentInput.hasInput()) {
+            setStatusMessage(com.plot.utils.PlotI18n.status(
+                "status.plot.draw.typing_distance", segmentInput.getText()));
+        } else if (blocks != null) {
+            setStatusMessage(com.plot.utils.PlotI18n.status("status.plot.draw.typing_distance_ready",
+                DrawMeasureHelper.formatBlocks(blocks)));
+        }
+    }
+
+    private void drawSegmentOrInput(DrawContext context, Vec2d from, Vec2d to, boolean active) {
+        if (active && segmentInput.hasInput()) {
+            DrawMeasureHelper.drawNumericInputOverlay(
+                context, DrawMeasureHelper.midpoint(from, to), segmentInput.getText(), "");
+        } else {
+            DrawMeasureHelper.drawSegmentLabel(context, from, to);
+        }
+    }
+
+    private boolean isEllipseDrawingComplete() {
+        return switch (currentMode) {
+            case TWO_POINTS -> currentStep >= 2;
+            case THREE_POINTS_AXIS, THREE_POINTS_CENTER -> currentStep >= 3;
+        };
     }
     
     /**
@@ -931,6 +970,43 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
         public InteractionResult onMouseUp(Vec2d pos, int button, DrawingToolContext context) {
             // 椭圆工具使用点击模式，不需要处理鼠标释放
             return InteractionResult.IGNORED;
+        }
+
+        @Override
+        public InteractionResult onKeyDown(int keyCode, DrawingToolContext context) {
+            boolean active = !controlPoints.isEmpty() && !isEllipseDrawingComplete() && currentMousePoint != null;
+            return segmentInput.onKeyDown(keyCode, active, () -> {
+                applyEllipseSegmentDistance();
+                com.plot.ui.tools.helper.ToolPreviewRefresh.request();
+            }, () -> confirmEllipseSegment(context));
+        }
+
+        @Override
+        public InteractionResult onKeyTyped(char character, DrawingToolContext context) {
+            boolean active = !controlPoints.isEmpty() && !isEllipseDrawingComplete() && currentMousePoint != null;
+            return segmentInput.onKeyTyped(character, active, () -> {
+                applyEllipseSegmentDistance();
+                com.plot.ui.tools.helper.ToolPreviewRefresh.request();
+            });
+        }
+
+        private InteractionResult confirmEllipseSegment(DrawingToolContext context) {
+            applyEllipseSegmentDistance();
+            if (currentMousePoint == null || segmentInput.parsePositive() == null) {
+                return InteractionResult.CONTINUE;
+            }
+            segmentInput.clear();
+            Vec2d worldPoint = currentMousePoint;
+            if (shouldConstrainSecondPoint()) {
+                worldPoint = constrainSecondPointToAxis(controlPoints.getFirst(), worldPoint);
+            }
+            controlPoints.add(worldPoint);
+            currentStep++;
+            if (isEllipseDrawingComplete()) {
+                return InteractionResult.COMPLETE;
+            }
+            updateStatusMessageForCurrentMode();
+            return InteractionResult.CONTINUE;
         }
         
         @Override
