@@ -455,8 +455,8 @@ public class RectangleTool extends DrawingTool {
             context.drawLine(baseStart, baseEnd, baseColor);
             Vec2d projectedPoint = projectPointToBase(baseStart, baseEnd, currentMousePoint);
             context.drawLine(currentMousePoint, projectedPoint, heightColor);
-            DrawMeasureHelper.drawSegmentLabel(context, baseStart, baseEnd, baseColor);
-            DrawMeasureHelper.drawSegmentLabel(context, currentMousePoint, projectedPoint, heightColor);
+            DrawMeasureHelper.drawSegmentLabel(context, baseStart, baseEnd);
+            DrawMeasureHelper.drawSegmentLabel(context, currentMousePoint, projectedPoint);
         }
 
         // 圆角模式：绘制圆角半径指示线
@@ -469,11 +469,9 @@ public class RectangleTool extends DrawingTool {
             // 绘制从中心到第三点的连线，表示圆角半径
             context.drawLine(center, currentMousePoint, toColor(theme.warningText, 230));
 
-            Color radiusColor = toColor(theme.warningText, 230);
             DrawMeasureHelper.drawTextLabel(context,
                     DrawMeasureHelper.formatRadius(DrawMeasureHelper.radiusBlocks(center, center.distance(currentMousePoint))),
-                    currentMousePoint,
-                    radiusColor);
+                    currentMousePoint);
         }
 
         if (previewShape != null) {
@@ -613,8 +611,8 @@ public class RectangleTool extends DrawingTool {
         if (points.size() < 4) {
             return;
         }
-        DrawMeasureHelper.drawSegmentLabel(context, points.get(0), points.get(1), color);
-        DrawMeasureHelper.drawSegmentLabel(context, points.get(1), points.get(2), color);
+        DrawMeasureHelper.drawSegmentLabel(context, points.get(0), points.get(1));
+        DrawMeasureHelper.drawSegmentLabel(context, points.get(1), points.get(2));
     }
 
     private static Color toColor(int color, int alpha) {

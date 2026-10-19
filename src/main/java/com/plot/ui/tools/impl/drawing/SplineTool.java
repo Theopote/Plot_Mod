@@ -519,8 +519,7 @@ public class SplineTool extends DrawingTool {
         if (currentMousePoint != null && !controlPoints.isEmpty()) {
             Vec2d lastPoint = controlPoints.getLast();
             context.drawDashedLine(lastPoint, currentMousePoint, helperLineColor);
-            java.awt.Color measureColor = toColor(ThemeManager.getInstance().getCurrentTheme().warningText, 230);
-            DrawMeasureHelper.drawSegmentLabel(context, lastPoint, currentMousePoint, measureColor);
+            DrawMeasureHelper.drawSegmentLabel(context, lastPoint, currentMousePoint);
         }
     }
 

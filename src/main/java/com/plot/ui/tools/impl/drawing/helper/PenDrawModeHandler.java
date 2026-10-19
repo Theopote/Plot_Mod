@@ -259,11 +259,10 @@ public class PenDrawModeHandler extends AbstractModeHandler {
                 adapter.drawLine(lastNode.getAnchor(), currentMousePoint, previewColor, Rendering.PREVIEW_LINE_THICKNESS);
                 adapter.drawCircle(currentMousePoint, Rendering.POINT_SIZE, previewColor, true);
                 if (DrawMeasureSettings.isEnabled()) {
-                    java.awt.Color measureColor = new java.awt.Color(layerColor.getRed(), layerColor.getGreen(), layerColor.getBlue(), 230);
                     adapter.drawText(
                             DrawMeasureHelper.formatBlocks(DrawMeasureHelper.distanceBlocks(lastNode.getAnchor(), currentMousePoint)),
                             DrawMeasureHelper.midpoint(lastNode.getAnchor(), currentMousePoint),
-                            measureColor);
+                            DrawMeasureHelper.getLabelColor());
                 }
             } else if (state == PenDrawingState.DEFINING_HANDLE && currentNode != null) {
                 // 正在定义控制手柄，显示曲线预览

@@ -275,27 +275,26 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
                     PlotI18n.status("status.plot.draw.preview.major_minor",
                             DrawMeasureHelper.formatValue(DrawMeasureHelper.distanceBlocks(center, majorEnd)),
                             DrawMeasureHelper.formatValue(DrawMeasureHelper.distanceBlocks(center, minorEnd))),
-                    DrawMeasureHelper.midpoint(center, majorEnd),
-                    axisColor);
+                    DrawMeasureHelper.midpoint(center, majorEnd));
             return;
         }
         switch (currentMode) {
             case THREE_POINTS_AXIS -> {
                 if (controlPoints.size() >= 2) {
-                    DrawMeasureHelper.drawSegmentLabel(context, controlPoints.get(0), controlPoints.get(1), axisColor);
+                    DrawMeasureHelper.drawSegmentLabel(context, controlPoints.get(0), controlPoints.get(1));
                 } else if (controlPoints.size() == 1 && currentMousePoint != null) {
-                    DrawMeasureHelper.drawSegmentLabel(context, controlPoints.getFirst(), currentMousePoint, axisColor);
+                    DrawMeasureHelper.drawSegmentLabel(context, controlPoints.getFirst(), currentMousePoint);
                 }
                 if (controlPoints.size() >= 2 && currentMousePoint != null) {
                     Vec2d center = controlPoints.get(0).add(controlPoints.get(1)).multiply(0.5);
-                    DrawMeasureHelper.drawSegmentLabel(context, center, currentMousePoint, axisColor);
+                    DrawMeasureHelper.drawSegmentLabel(context, center, currentMousePoint);
                 }
             }
             case THREE_POINTS_CENTER, TWO_POINTS -> {
                 if (controlPoints.size() >= 2) {
-                    DrawMeasureHelper.drawSegmentLabel(context, controlPoints.get(0), controlPoints.get(1), axisColor);
+                    DrawMeasureHelper.drawSegmentLabel(context, controlPoints.get(0), controlPoints.get(1));
                 } else if (controlPoints.size() == 1 && currentMousePoint != null) {
-                    DrawMeasureHelper.drawSegmentLabel(context, controlPoints.getFirst(), currentMousePoint, axisColor);
+                    DrawMeasureHelper.drawSegmentLabel(context, controlPoints.getFirst(), currentMousePoint);
                 }
             }
         }

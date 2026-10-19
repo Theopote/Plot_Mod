@@ -137,55 +137,58 @@ public final class DrawMeasureHelper {
         return new Vec2d((p1.x + p2.x) / 2.0, (p1.y + p2.y) / 2.0);
     }
 
+    public static Color getLabelColor() {
+        return DrawMeasureSettings.getLabelColor();
+    }
+
     private static boolean shouldDrawLabels() {
         return DrawMeasureSettings.isEnabled();
     }
 
-    public static void drawTextLabel(DrawContext context, String text, Vec2d position, Color color) {
-        if (!shouldDrawLabels() || context == null || text == null || text.isBlank()
-                || position == null || color == null) {
+    public static void drawTextLabel(DrawContext context, String text, Vec2d position) {
+        if (!shouldDrawLabels() || context == null || text == null || text.isBlank() || position == null) {
             return;
         }
-        context.drawText(text, position, color);
+        context.drawText(text, position, getLabelColor());
     }
 
-    public static void drawSegmentLabel(DrawContext context, Vec2d p1, Vec2d p2, Color color) {
-        if (!shouldDrawLabels() || context == null || p1 == null || p2 == null || color == null) {
+    public static void drawSegmentLabel(DrawContext context, Vec2d p1, Vec2d p2) {
+        if (!shouldDrawLabels() || context == null || p1 == null || p2 == null) {
             return;
         }
         if (p1.distance(p2) < 1e-6) {
             return;
         }
-        drawTextLabel(context, formatBlocks(distanceBlocks(p1, p2)), midpoint(p1, p2), color);
+        drawTextLabel(context, formatBlocks(distanceBlocks(p1, p2)), midpoint(p1, p2));
     }
 
-    public static void drawSegmentLabelAt(DrawContext context, Vec2d p1, Vec2d p2, Vec2d anchor, Color color) {
-        if (!shouldDrawLabels() || context == null || p1 == null || p2 == null || anchor == null || color == null) {
+    public static void drawSegmentLabelAt(DrawContext context, Vec2d p1, Vec2d p2, Vec2d anchor) {
+        if (!shouldDrawLabels() || context == null || p1 == null || p2 == null || anchor == null) {
             return;
         }
         if (p1.distance(p2) < 1e-6) {
             return;
         }
-        drawTextLabel(context, formatBlocks(distanceBlocks(p1, p2)), anchor, color);
+        drawTextLabel(context, formatBlocks(distanceBlocks(p1, p2)), anchor);
     }
 
-    public static void drawDiameterLabel(DrawContext context, Vec2d p1, Vec2d p2, Color color) {
-        if (!shouldDrawLabels() || context == null || p1 == null || p2 == null || color == null) {
+    public static void drawDiameterLabel(DrawContext context, Vec2d p1, Vec2d p2) {
+        if (!shouldDrawLabels() || context == null || p1 == null || p2 == null) {
             return;
         }
         if (p1.distance(p2) < 1e-6) {
             return;
         }
-        drawTextLabel(context, formatDiameter(distanceBlocks(p1, p2)), midpoint(p1, p2), color);
+        drawTextLabel(context, formatDiameter(distanceBlocks(p1, p2)), midpoint(p1, p2));
     }
 
-    public static void drawRadiusLabel(DrawContext context, Vec2d center, Vec2d edge, Color color) {
-        if (!shouldDrawLabels() || context == null || center == null || edge == null || color == null) {
+    public static void drawRadiusLabel(DrawContext context, Vec2d center, Vec2d edge) {
+        if (!shouldDrawLabels() || context == null || center == null || edge == null) {
             return;
         }
         if (center.distance(edge) < 1e-6) {
             return;
         }
-        drawTextLabel(context, formatRadius(distanceBlocks(center, edge)), midpoint(center, edge), color);
+        drawTextLabel(context, formatRadius(distanceBlocks(center, edge)), midpoint(center, edge));
     }
 }

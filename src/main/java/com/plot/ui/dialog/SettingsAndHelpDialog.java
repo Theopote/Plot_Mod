@@ -22,6 +22,7 @@ import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
+import imgui.type.ImFloat;
 import imgui.flag.ImGuiKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -152,6 +153,7 @@ public class SettingsAndHelpDialog {
     private final ImBoolean drawMeasureEnabledState = new ImBoolean();
     private final ImBoolean drawMeasureShowUnitState = new ImBoolean();
     private final ImInt drawMeasureDecimalPlacesState = new ImInt();
+    private final ImFloat drawMeasureLabelOpacityState = new ImFloat();
 
     private SettingsAndHelpDialog() {}
 
@@ -594,6 +596,18 @@ public class SettingsAndHelpDialog {
                     if (ImGui.checkbox(PlotI18n.tr("settings.plot.draw_measure_show_unit"), drawMeasureShowUnitState)) {
                         DrawMeasureSettings.setShowUnit(drawMeasureShowUnitState.get());
                     }
+
+                    DialogLayoutHelper.rowGap();
+                    renderDrawMeasureLabelColorEditor();
+
+                    DialogLayoutHelper.rowGap();
+                    float[] opacityPercent = new float[] { drawMeasureLabelOpacityState.get() * 100.0f };
+                    ImGui.setNextItemWidth(Math.min(220.0f, Math.max(160.0f, ImGui.getContentRegionAvailX() - 12.0f)));
+                    if (ImGui.sliderFloat(PlotI18n.tr("settings.plot.draw_measure_label_opacity"), opacityPercent, 0.0f, 100.0f, "%.0f%%")) {
+                        float opacity = opacityPercent[0] / 100.0f;
+                        drawMeasureLabelOpacityState.set(opacity);
+                        DrawMeasureSettings.setLabelOpacity(opacity);
+                    }
                     ImGui.endDisabled();
 
                     ImGui.unindent(10);
@@ -640,6 +654,40 @@ public class SettingsAndHelpDialog {
         drawMeasureEnabledState.set(DrawMeasureSettings.isEnabled());
         drawMeasureShowUnitState.set(DrawMeasureSettings.isShowUnit());
         drawMeasureDecimalPlacesState.set(DrawMeasureSettings.getDecimalPlaces());
+        drawMeasureLabelOpacityState.set(DrawMeasureSettings.getLabelOpacity());
+    }
+
+    private void renderDrawMeasureLabelColorEditor() {
+        int previewArgb = DrawMeasureSettings.getEffectiveLabelColorArgb();
+        int rgb = DrawMeasureSettings.getLabelColorRgb();
+        float[] colorRgb = new float[] {
+                ((rgb >> 16) & 0xFF) / 255.0f,
+                ((rgb >> 8) & 0xFF) / 255.0f,
+                (rgb & 0xFF) / 255.0f
+        };
+
+        ImGui.pushStyleColor(ImGuiCol.Button, previewArgb);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, previewArgb);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, previewArgb);
+        ImGui.button("##draw_measure_label_preview", 16, 16);
+        ImGui.popStyleColor(3);
+
+        ImGui.sameLine();
+        float colorEditorWidth = Math.min(200.0f, Math.max(120.0f, ImGui.getContentRegionAvailX() - 70.0f));
+        ImGui.setNextItemWidth(colorEditorWidth);
+        if (ImGui.colorEdit3(PlotI18n.tr("settings.plot.draw_measure_label_color") + "##draw_measure_label_color", colorRgb)) {
+            int r = Math.max(0, Math.min(255, Math.round(colorRgb[0] * 255.0f)));
+            int g = Math.max(0, Math.min(255, Math.round(colorRgb[1] * 255.0f)));
+            int b = Math.max(0, Math.min(255, Math.round(colorRgb[2] * 255.0f)));
+            DrawMeasureSettings.setLabelColorRgb((r << 16) | (g << 8) | b);
+        }
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("button.plot.reset") + "##draw_measure_label_reset")) {
+            DrawMeasureSettings.resetLabelColor();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("settings.plot.draw_measure_label_color_reset_tooltip"));
+        }
     }
 
     private void renderSnapColorEditor(String label, SnapPriorityEvaluator.SnapType type) {

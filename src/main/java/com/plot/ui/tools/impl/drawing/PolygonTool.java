@@ -396,7 +396,7 @@ public class PolygonTool extends DrawingTool {
             if (!controlPoints.isEmpty() && currentMousePoint != null) {
                 Vec2d center = controlPoints.getFirst();
                 context.drawLine(center, currentMousePoint, GUIDE_LINE_COLOR);
-                DrawMeasureHelper.drawRadiusLabel(context, center, currentMousePoint, GUIDE_LINE_COLOR);
+                DrawMeasureHelper.drawRadiusLabel(context, center, currentMousePoint);
             }
             return;
         }
@@ -425,7 +425,7 @@ public class PolygonTool extends DrawingTool {
         if (previewGeometry.guideLines != null) {
             for (Line line : previewGeometry.guideLines) {
                 context.drawLine(line.start, line.end, GUIDE_LINE_COLOR);
-                DrawMeasureHelper.drawSegmentLabel(context, line.start, line.end, GUIDE_LINE_COLOR);
+                DrawMeasureHelper.drawSegmentLabel(context, line.start, line.end);
             }
         }
         
@@ -435,7 +435,7 @@ public class PolygonTool extends DrawingTool {
             Vec2d radiusPoint = new Vec2d(
                     previewGeometry.center.x + previewGeometry.radius,
                     previewGeometry.center.y);
-            DrawMeasureHelper.drawRadiusLabel(context, previewGeometry.center, radiusPoint, GUIDE_LINE_COLOR);
+            DrawMeasureHelper.drawRadiusLabel(context, previewGeometry.center, radiusPoint);
         }
     }
     

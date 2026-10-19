@@ -151,7 +151,7 @@ public class CatenaryLineTool extends DrawingTool {
             Vec2d start = catenary.getStart();
             Vec2d end = catenary.getEnd();
             if (start != null && end != null) {
-                DrawMeasureHelper.drawSegmentLabel(context, start, end, measureColor);
+                DrawMeasureHelper.drawSegmentLabel(context, start, end);
             }
         } else if (previewShape instanceof PolylineShape polyline) {
             // 第一步到第二步移动时的辅助线（起点 -> 当前鼠标位置）
@@ -159,7 +159,7 @@ public class CatenaryLineTool extends DrawingTool {
             if (pts != null && pts.size() >= 2) {
                 // 使用与 ImGui 预览一致的辅助线颜色
                 context.drawDashedLine(pts.get(0), pts.get(1), measureColor);
-                DrawMeasureHelper.drawSegmentLabel(context, pts.get(0), pts.get(1), measureColor);
+                DrawMeasureHelper.drawSegmentLabel(context, pts.get(0), pts.get(1));
             }
         }
     }

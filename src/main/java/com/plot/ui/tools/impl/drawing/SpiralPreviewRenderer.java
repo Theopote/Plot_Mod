@@ -133,7 +133,7 @@ public class SpiralPreviewRenderer {
                     default -> mutedColor;
                 };
                 context.drawLine(start, end, color);
-                DrawMeasureHelper.drawSegmentLabel(context, start, end, color);
+                DrawMeasureHelper.drawSegmentLabel(context, start, end);
             }
             
             // 渲染鼠标预览线
@@ -146,17 +146,17 @@ public class SpiralPreviewRenderer {
                     default -> mutedColor;
                 };
                 context.drawLine(lastPoint, currentMousePoint, previewColor);
-                DrawMeasureHelper.drawSegmentLabel(context, lastPoint, currentMousePoint, previewColor);
+                DrawMeasureHelper.drawSegmentLabel(context, lastPoint, currentMousePoint);
             }
         } else {
             // 其它类型：保持原有逻辑
             if (controlPoints.size() >= 2) {
                 context.drawLine(controlPoints.get(0), controlPoints.get(1), mutedColor);
-                DrawMeasureHelper.drawSegmentLabel(context, controlPoints.get(0), controlPoints.get(1), mutedColor);
+                DrawMeasureHelper.drawSegmentLabel(context, controlPoints.get(0), controlPoints.get(1));
             } else if (controlPoints.size() == 1 && currentMousePoint != null) {
                 java.awt.Color previewColor = toColor(theme.mutedText, 220);
                 context.drawLine(controlPoints.getFirst(), currentMousePoint, previewColor);
-                DrawMeasureHelper.drawRadiusLabel(context, controlPoints.getFirst(), currentMousePoint, previewColor);
+                DrawMeasureHelper.drawRadiusLabel(context, controlPoints.getFirst(), currentMousePoint);
             }
         }
     }

@@ -375,8 +375,7 @@ public class SineCurveTool extends DrawingTool {
             DrawMeasureHelper.drawTextLabel(context,
                     DrawMeasureHelper.formatLabeled("status.plot.draw.sine.wavelength",
                             DrawMeasureHelper.distanceBlocks(controlPoints.get(0), controlPoints.get(1))),
-                    DrawMeasureHelper.midpoint(controlPoints.get(0), controlPoints.get(1)),
-                    wavelengthLineColor);
+                    DrawMeasureHelper.midpoint(controlPoints.get(0), controlPoints.get(1)));
             
             if (controlPoints.size() >= 3) {
                 // 绘制长度线（起点到长度点）
@@ -384,20 +383,18 @@ public class SineCurveTool extends DrawingTool {
                 DrawMeasureHelper.drawTextLabel(context,
                         DrawMeasureHelper.formatLabeled("status.plot.draw.sine.length",
                                 DrawMeasureHelper.distanceBlocks(controlPoints.get(0), controlPoints.get(2))),
-                        DrawMeasureHelper.midpoint(controlPoints.get(0), controlPoints.get(2)),
-                        lengthLineColor);
+                        DrawMeasureHelper.midpoint(controlPoints.get(0), controlPoints.get(2)));
             } else if (currentMousePoint != null) {
                 // 预览长度线
                 context.drawLine(controlPoints.getFirst(), currentMousePoint, previewLengthLineColor);
                 DrawMeasureHelper.drawTextLabel(context,
                         DrawMeasureHelper.formatLabeled("status.plot.draw.sine.length",
                                 DrawMeasureHelper.distanceBlocks(controlPoints.getFirst(), currentMousePoint)),
-                        DrawMeasureHelper.midpoint(controlPoints.getFirst(), currentMousePoint),
-                        previewLengthLineColor);
+                        DrawMeasureHelper.midpoint(controlPoints.getFirst(), currentMousePoint));
             }
         } else if (controlPoints.size() == 1 && currentMousePoint != null) {
             context.drawLine(controlPoints.getFirst(), currentMousePoint, seedLineColor);
-            DrawMeasureHelper.drawSegmentLabel(context, controlPoints.getFirst(), currentMousePoint, seedLineColor);
+            DrawMeasureHelper.drawSegmentLabel(context, controlPoints.getFirst(), currentMousePoint);
         }
     }
     
@@ -417,8 +414,7 @@ public class SineCurveTool extends DrawingTool {
                 DrawMeasureHelper.drawTextLabel(context,
                         DrawMeasureHelper.formatLabeled("status.plot.draw.sine.amplitude",
                                 DrawMeasureHelper.distanceBlocks(midPoint, amplitudePoint)),
-                        DrawMeasureHelper.midpoint(midPoint, amplitudePoint),
-                        amplitudeLineColor);
+                        DrawMeasureHelper.midpoint(midPoint, amplitudePoint));
             }
         }
     }

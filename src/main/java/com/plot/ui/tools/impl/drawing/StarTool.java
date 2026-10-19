@@ -406,17 +406,17 @@ public class StarTool extends DrawingTool {
             Vec2d mouse = interactionStrategy.getCurrentMousePoint();
             if (mouse != null) {
                 context.drawLine(center, mouse, measureColor);
-                DrawMeasureHelper.drawRadiusLabel(context, center, mouse, measureColor);
+                DrawMeasureHelper.drawRadiusLabel(context, center, mouse);
             }
         } else if (interactionPoints.size() >= 2) {
             Vec2d center = interactionPoints.getFirst();
             Vec2d outerPoint = interactionPoints.get(1);
             context.drawLine(center, outerPoint, measureColor);
-            DrawMeasureHelper.drawRadiusLabel(context, center, outerPoint, measureColor);
+            DrawMeasureHelper.drawRadiusLabel(context, center, outerPoint);
             Vec2d mouse = interactionStrategy.getCurrentMousePoint();
             if (mouse != null) {
                 context.drawLine(center, mouse, innerMeasureColor);
-                DrawMeasureHelper.drawRadiusLabel(context, center, mouse, innerMeasureColor);
+                DrawMeasureHelper.drawRadiusLabel(context, center, mouse);
             }
         }
 

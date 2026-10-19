@@ -188,7 +188,7 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
             Color previewColor = new Color(layerColor.getRed(), layerColor.getGreen(), layerColor.getBlue(), 128);
             adapter.drawLine(lastPoint, currentMousePoint, previewColor, Rendering.PREVIEW_LINE_THICKNESS);
             if (DrawMeasureSettings.isEnabled()) {
-                java.awt.Color measureColor = new java.awt.Color(layerColor.getRed(), layerColor.getGreen(), layerColor.getBlue(), 230);
+                java.awt.Color measureColor = DrawMeasureHelper.getLabelColor();
                 adapter.drawText(
                         DrawMeasureHelper.formatBlocks(DrawMeasureHelper.distanceBlocks(lastPoint, currentMousePoint)),
                         DrawMeasureHelper.midpoint(lastPoint, currentMousePoint),

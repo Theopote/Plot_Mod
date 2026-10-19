@@ -578,7 +578,7 @@ public class SemicircleTool extends DrawingTool {
         if (currentMousePoint != null) {
             // 绘制半径线（引导线）
             context.drawLine(center, currentMousePoint, guideColor);
-            DrawMeasureHelper.drawRadiusLabel(context, center, currentMousePoint, guideColor);
+            DrawMeasureHelper.drawRadiusLabel(context, center, currentMousePoint);
 
             // 绘制预览半圆
             if (previewSemicircle != null) {
@@ -612,7 +612,7 @@ public class SemicircleTool extends DrawingTool {
             Vec2d p2 = controlPoints.get(1);
             context.drawCircleFilled(p2, 5.0f, controlColor);
             context.drawLine(p1, p2, guideColor);
-            DrawMeasureHelper.drawDiameterLabel(context, p1, p2, guideColor);
+            DrawMeasureHelper.drawDiameterLabel(context, p1, p2);
 
             // 绘制中心点
             Vec2d center = new Vec2d((p1.x + p2.x) / 2.0, (p1.y + p2.y) / 2.0);
@@ -622,7 +622,7 @@ public class SemicircleTool extends DrawingTool {
             if (currentMousePoint != null) {
                 // 绘制方向线
                 context.drawLine(center, currentMousePoint, guideColor);
-                DrawMeasureHelper.drawRadiusLabel(context, center, currentMousePoint, guideColor);
+                DrawMeasureHelper.drawRadiusLabel(context, center, currentMousePoint);
 
                 // 绘制预览半圆
                 if (previewSemicircle != null) {
@@ -637,7 +637,7 @@ public class SemicircleTool extends DrawingTool {
         } else if (currentMousePoint != null) {
             // 只有一个点时，显示引导线
             context.drawLine(p1, currentMousePoint, guideColor);
-            DrawMeasureHelper.drawSegmentLabel(context, p1, currentMousePoint, guideColor);
+            DrawMeasureHelper.drawSegmentLabel(context, p1, currentMousePoint);
         }
     }
 

@@ -17,6 +17,8 @@ class DrawMeasureHelperTest {
         DrawMeasureSettings.setEnabled(true);
         DrawMeasureSettings.setDecimalPlaces(2);
         DrawMeasureSettings.setShowUnit(true);
+        DrawMeasureSettings.resetLabelColor();
+        DrawMeasureSettings.setLabelOpacity(0.9f);
     }
 
     @Test
@@ -70,5 +72,30 @@ class DrawMeasureHelperTest {
     void radiusBlocksUsesSampledEdgeDistance() {
         double radius = DrawMeasureHelper.radiusBlocks(new Vec2d(10, 10), 5.0);
         assertEquals(5.0, radius, 1e-6);
+    }
+
+    @Test
+    void labelColorUsesCustomRgbAndOpacity() {
+        DrawMeasureSettings.setLabelColorRgb(0xFF8040);
+        DrawMeasureSettings.setLabelOpacity(0.5f);
+
+        assertTrue(DrawMeasureSettings.usesCustomLabelColor());
+        assertEquals(0xFF8040, DrawMeasureSettings.getLabelColorRgb());
+        assertEquals(0x80FF8040, DrawMeasureSettings.getEffectiveLabelColorArgb());
+
+        java.awt.Color color = DrawMeasureHelper.getLabelColor();
+        assertEquals(255, color.getRed());
+        assertEquals(128, color.getGreen());
+        assertEquals(64, color.getBlue());
+        assertEquals(128, color.getAlpha());
+    }
+
+    @Test
+    void resetLabelColorFallsBackToThemeDefault() {
+        DrawMeasureSettings.setLabelColorRgb(0x123456);
+        DrawMeasureSettings.resetLabelColor();
+
+        assertFalse(DrawMeasureSettings.usesCustomLabelColor());
+        assertEquals(DrawMeasureSettings.defaultLabelColorRgb(), DrawMeasureSettings.getLabelColorRgb());
     }
 }

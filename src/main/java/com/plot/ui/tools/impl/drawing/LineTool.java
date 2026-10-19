@@ -198,8 +198,6 @@ public class LineTool extends DrawingTool {
             ShapeStyle previewStyle = getStyleHandler().getPreviewStyle();
             Color lineColor = previewStyle != null ? previewStyle.getLineColor() :
                     toColor(ThemeManager.getInstance().getCurrentTheme().accent);
-            Color measureColor = toColor(ThemeManager.getInstance().getCurrentTheme().warningText);
-
             // 修复：对于多线模式，需要特殊处理预览渲染
             if (MODE_MULTI.equals(currentDrawingType)) {
                 // 多线模式：直接使用预览图形作为参考轴，在其两侧对称分布多条平行线
@@ -230,12 +228,12 @@ public class LineTool extends DrawingTool {
                     for (LineShape line : parallelLines) {
                         context.drawLine(line.getStart(), line.getEnd(), lineColor);
                     }
-                    DrawMeasureHelper.drawSegmentLabel(context, startPoint, finalEndPoint, measureColor);
+                    DrawMeasureHelper.drawSegmentLabel(context, startPoint, finalEndPoint);
                 }
             } else if (previewShape instanceof LineShape line) {
                 // 单线模式：渲染主线
                 context.drawLine(line.getStart(), line.getEnd(), lineColor);
-                DrawMeasureHelper.drawSegmentLabel(context, line.getStart(), line.getEnd(), measureColor);
+                DrawMeasureHelper.drawSegmentLabel(context, line.getStart(), line.getEnd());
             } else if (previewShape instanceof MultiLineShape multiLine) {
                 // 如果预览图形是MultiLineShape，使用预览颜色渲染每条线
                 for (LineShape line : multiLine.getLines()) {
@@ -243,7 +241,7 @@ public class LineTool extends DrawingTool {
                 }
                 if (!multiLine.getLines().isEmpty()) {
                     LineShape ref = multiLine.getLines().getFirst();
-                    DrawMeasureHelper.drawSegmentLabel(context, ref.getStart(), ref.getEnd(), measureColor);
+                    DrawMeasureHelper.drawSegmentLabel(context, ref.getStart(), ref.getEnd());
                 }
             }
 
