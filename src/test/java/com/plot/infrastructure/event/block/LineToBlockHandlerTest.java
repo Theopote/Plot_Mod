@@ -273,6 +273,16 @@ class LineToBlockHandlerTest {
     }
 
     @Test
+    void resolvePreviewElevationUsesFootLevelWhenCameraIsElevated() {
+        assertEquals(64.0, LineToBlockHandler.resolvePreviewElevation(64.5, 214.0));
+    }
+
+    @Test
+    void resolvePreviewElevationClampsBelowCameraWhenFootLevelIsTooHigh() {
+        assertEquals(68.0, LineToBlockHandler.resolvePreviewElevation(70.0, 70.5));
+    }
+
+    @Test
     void handleLineToBlockEventClearsCoordinateCacheBeforeProcessing() throws Exception {
         LineToBlockHandler handler = LineToBlockHandler.getInstance();
         ConcurrentHashMap<String, Vec2d> cache = getCoordinateCache(handler);

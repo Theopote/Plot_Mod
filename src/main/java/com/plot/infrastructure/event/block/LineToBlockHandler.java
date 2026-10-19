@@ -2,9 +2,12 @@ package com.plot.infrastructure.event.block;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.GhostBlockOwners;
+import com.plot.api.world.WorldProjectionSnapshot;
+import com.plot.ui.canvas.CanvasAccess;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
+import com.plot.core.terrain.EngineeringTerrainService;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.Events;
@@ -14,7 +17,9 @@ import com.plot.ui.dialog.BlockConfigDialog.BlockConfigManager;
 import com.plot.ui.dialog.LineToBlockSettingsDialog.ConversionMode;
 import com.plot.ui.canvas.Canvas;
 import com.plot.ui.canvas.CanvasCamera;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,6 +60,9 @@ public class LineToBlockHandler {
     // 【新增】坐标转换缓存
     private final ConcurrentHashMap<String, Vec2d> coordinateCache = new ConcurrentHashMap<>();
     private static final int MAX_CACHE_SIZE = 1000;
+
+    /** 单次线转方块处理期间冻结的 Canvas→World 投影，保证同批方块坐标一致。 */
+    private WorldProjectionSnapshot activeProjection;
 
     // 【新增】标高管理
     private static final double DEFAULT_Y_LEVEL = 64.0;
@@ -98,84 +106,92 @@ public class LineToBlockHandler {
 
         // 每次转换前清理坐标缓存，避免相机平移/缩放后复用旧结果导致坐标偏移
         clearCoordinateCache();
-
-        // 获取要转换的图形
-        List<Shape> shapes = lineToBlockEvent.getShapes();
-        if (shapes == null || shapes.isEmpty()) {
-            shapes = appState.getSelectedShapes();
+        activeProjection = CoordinateTransformer.getInstance().captureProjection();
+        if (activeProjection == null || !activeProjection.isValid()) {
+            LOGGER.warn("World projection snapshot invalid; canvas→world conversion may fail");
         }
 
-        if (shapes.isEmpty()) {
-            LOGGER.warn("没有选中的图形，无法执行操作");
-            eventBus.publish(new Events.WarningEvent("LineToBlockHandler",
-                    PlotI18n.status("status.plot.line_to_block.no_selection")));
-            return;
-        }
-
-        // 验证并获取方块调色盘
-        List<String> paletteBlocks = getPaletteBlockTypes();
-        if (paletteBlocks.isEmpty()) {
-            LOGGER.warn("方块配置无效或为空");
-            eventBus.publish(new Events.WarningEvent("LineToBlockHandler",
-                    PlotI18n.status("status.plot.line_to_block.no_palette")));
-            return;
-        }
-
-        // 获取转换参数
-        ConversionMode conversionMode = lineToBlockEvent.getConversionMode();
-        float simplificationRatio = lineToBlockEvent.getSimplificationRatio();
-        double userSpecifiedYLevel = lineToBlockEvent.getCanvasHeight();
-        boolean isPreview = lineToBlockEvent.isPreview();
-        boolean fillClosedShapes = lineToBlockEvent.isFillClosedShapes();
-
-        // 【优化】获取目标标高（优先使用用户指定，否则使用玩家位置）
-        double targetYLevel = getTargetYLevel(userSpecifiedYLevel, isPreview);
-
-        LOGGER.info("线转方块参数: 图形数量={}, 调色盘大小={}, 精简比率={}, 标高={}, 预览模式={}, 封闭填充={}",
-                shapes.size(), paletteBlocks.size(), simplificationRatio, targetYLevel, isPreview, fillClosedShapes);
-
-        // 仅清理本功能的幽灵方块，避免误伤插件预览
-        ghostBlockManager.clearGhostBlocks(GhostBlockOwners.LINE_TO_BLOCK);
-
-        // 定义方块处理逻辑
-        BiConsumer<BlockPos, String> blockAction = getBlockPosStringBiConsumer(isPreview);
-
-        // 【优化】执行核心处理流程，带进度反馈
-        int totalBlocks = processShapesToBlocksWithProgress(shapes, conversionMode, simplificationRatio, targetYLevel, fillClosedShapes, paletteBlocks, blockAction);
-
-        LOGGER.info("处理完成，共生成 {} 个方块", totalBlocks);
-
-        if (isPreview && totalBlocks > 0) {
-            try {
-                var previewBlocks = ghostBlockManager.getVisibleGhostBlocks();
-                if (!previewBlocks.isEmpty()) {
-                    var first = previewBlocks.getFirst();
-                    var player = MinecraftClient.getInstance() != null ? MinecraftClient.getInstance().player : null;
-                    if (player != null && first.getPosition() != null) {
-                        double dx = first.getPosition().x - player.getX();
-                        double dz = first.getPosition().y - player.getZ();
-                        double dist = Math.sqrt(dx * dx + dz * dz);
-                        LOGGER.info("幽灵方块诊断: count={}, first=({},{},{}), player=({},{},{}), horizontalDistance={}",
-                                previewBlocks.size(),
-                                first.getPosition().x, first.getHeight(), first.getPosition().y,
-                                player.getX(), player.getY(), player.getZ(),
-                                String.format("%.2f", dist));
-                    } else {
-                        LOGGER.info("幽灵方块诊断: count={}, first={}", previewBlocks.size(), first);
-                    }
-                }
-            } catch (Exception e) {
-                LOGGER.warn("幽灵方块诊断日志输出失败", e);
+        try {
+            // 获取要转换的图形
+            List<Shape> shapes = lineToBlockEvent.getShapes();
+            if (shapes == null || shapes.isEmpty()) {
+                shapes = appState.getSelectedShapes();
             }
-        }
 
-        // 发布成功事件
-        String blockKind = isPreview
-                ? PlotI18n.status("status.plot.line_to_block.block_kind.ghost")
-                : PlotI18n.status("status.plot.line_to_block.block_kind.real");
-        String message = PlotI18n.status("status.plot.line_to_block.result",
-                totalBlocks, blockKind, paletteBlocks.size(), targetYLevel);
-        eventBus.publish(new Events.WarningEvent("LineToBlockHandler", message));
+            if (shapes.isEmpty()) {
+                LOGGER.warn("没有选中的图形，无法执行操作");
+                eventBus.publish(new Events.WarningEvent("LineToBlockHandler",
+                        PlotI18n.status("status.plot.line_to_block.no_selection")));
+                return;
+            }
+
+            // 验证并获取方块调色盘
+            List<String> paletteBlocks = getPaletteBlockTypes();
+            if (paletteBlocks.isEmpty()) {
+                LOGGER.warn("方块配置无效或为空");
+                eventBus.publish(new Events.WarningEvent("LineToBlockHandler",
+                        PlotI18n.status("status.plot.line_to_block.no_palette")));
+                return;
+            }
+
+            // 获取转换参数
+            ConversionMode conversionMode = lineToBlockEvent.getConversionMode();
+            float simplificationRatio = lineToBlockEvent.getSimplificationRatio();
+            double userSpecifiedYLevel = lineToBlockEvent.getCanvasHeight();
+            boolean isPreview = lineToBlockEvent.isPreview();
+            boolean fillClosedShapes = lineToBlockEvent.isFillClosedShapes();
+
+            // 【优化】获取目标标高（优先使用用户指定，否则使用玩家位置）
+            double targetYLevel = getTargetYLevel(userSpecifiedYLevel, isPreview);
+
+            LOGGER.info("线转方块参数: 图形数量={}, 调色盘大小={}, 精简比率={}, 标高={}, 预览模式={}, 封闭填充={}",
+                    shapes.size(), paletteBlocks.size(), simplificationRatio, targetYLevel, isPreview, fillClosedShapes);
+
+            // 仅清理本功能的幽灵方块，避免误伤插件预览
+            ghostBlockManager.clearGhostBlocks(GhostBlockOwners.LINE_TO_BLOCK);
+
+            // 定义方块处理逻辑
+            BiConsumer<BlockPos, String> blockAction = getBlockPosStringBiConsumer(isPreview);
+
+            // 【优化】执行核心处理流程，带进度反馈
+            int totalBlocks = processShapesToBlocksWithProgress(shapes, conversionMode, simplificationRatio, targetYLevel, fillClosedShapes, paletteBlocks, blockAction);
+
+            LOGGER.info("处理完成，共生成 {} 个方块", totalBlocks);
+
+            if (isPreview && totalBlocks > 0) {
+                try {
+                    var previewBlocks = ghostBlockManager.getVisibleGhostBlocks();
+                    if (!previewBlocks.isEmpty()) {
+                        var first = previewBlocks.getFirst();
+                        var player = MinecraftClient.getInstance() != null ? MinecraftClient.getInstance().player : null;
+                        if (player != null && first.getPosition() != null) {
+                            double dx = first.getPosition().x - player.getX();
+                            double dz = first.getPosition().y - player.getZ();
+                            double dist = Math.sqrt(dx * dx + dz * dz);
+                            LOGGER.info("幽灵方块诊断: count={}, first=({},{},{}), player=({},{},{}), horizontalDistance={}",
+                                    previewBlocks.size(),
+                                    first.getPosition().x, first.getHeight(), first.getPosition().y,
+                                    player.getX(), player.getY(), player.getZ(),
+                                    String.format("%.2f", dist));
+                        } else {
+                            LOGGER.info("幽灵方块诊断: count={}, first={}", previewBlocks.size(), first);
+                        }
+                    }
+                } catch (Exception e) {
+                    LOGGER.warn("幽灵方块诊断日志输出失败", e);
+                }
+            }
+
+            // 发布成功事件
+            String blockKind = isPreview
+                    ? PlotI18n.status("status.plot.line_to_block.block_kind.ghost")
+                    : PlotI18n.status("status.plot.line_to_block.block_kind.real");
+            String message = PlotI18n.status("status.plot.line_to_block.result",
+                    totalBlocks, blockKind, paletteBlocks.size(), targetYLevel);
+            eventBus.publish(new Events.WarningEvent("LineToBlockHandler", message));
+        } finally {
+            activeProjection = null;
+        }
     }
 
     private @NotNull BiConsumer<BlockPos, String> getBlockPosStringBiConsumer(boolean isPreview) {
@@ -341,34 +357,19 @@ public class LineToBlockHandler {
         LOGGER.info("【调试】处理线条图形: 画布起点({}, {}), 画布终点({}, {})",
                 canvasStart.x, canvasStart.y, canvasEnd.x, canvasEnd.y);
 
-        // 【修复】先将画布世界坐标转换为窗口坐标，再转换为Minecraft坐标
-        LOGGER.info("【调试】开始画布坐标转换...");
-        Vec2d windowStart = canvasToWindowCoordinates(canvasStart);
-        Vec2d windowEnd = canvasToWindowCoordinates(canvasEnd);
+        Vec2d minecraftStart = convertCanvasWorldToMinecraft(canvasStart);
+        Vec2d minecraftEnd = convertCanvasWorldToMinecraft(canvasEnd);
 
-        if (windowStart != null && windowEnd != null) {
-            LOGGER.info("【调试】画布坐标转换为窗口坐标成功: 起点({}, {}) -> ({}, {}), 终点({}, {}) -> ({}, {})",
-                    canvasStart.x, canvasStart.y, windowStart.x, windowStart.y,
-                    canvasEnd.x, canvasEnd.y, windowEnd.x, windowEnd.y);
+        if (minecraftStart != null && minecraftEnd != null) {
+            LOGGER.info("【调试】坐标转换成功: 画布({}, {}) -> ({}, {}), 画布({}, {}) -> ({}, {}), 标高={}",
+                    canvasStart.x, canvasStart.y, minecraftStart.x, minecraftStart.y,
+                    canvasEnd.x, canvasEnd.y, minecraftEnd.x, minecraftEnd.y, yLevel);
 
-            // 使用增强的坐标转换器
-            LOGGER.info("【调试】开始窗口坐标到Minecraft坐标转换...");
-            Vec2d minecraftStart = CoordinateTransformer.getInstance().canvasToMinecraftWorld(windowStart);
-            Vec2d minecraftEnd = CoordinateTransformer.getInstance().canvasToMinecraftWorld(windowEnd);
-
-            if (minecraftStart != null && minecraftEnd != null) {
-                LOGGER.info("【调试】坐标转换成功: 窗口坐标({}, {}) -> ({}, {}) → Minecraft坐标({}, {}) -> ({}, {}), 标高={}",
-                        windowStart.x, windowStart.y, windowEnd.x, windowEnd.y,
-                        minecraftStart.x, minecraftStart.y, minecraftEnd.x, minecraftEnd.y, yLevel);
-
-                return rasterizeLineSegment(minecraftStart.x, minecraftStart.y,
-                        minecraftEnd.x, minecraftEnd.y, yLevel, conversionMode, simplificationRatio);
-            } else {
-                LOGGER.error("【调试】窗口坐标到Minecraft坐标转换失败，跳过线条: 起点={}, 终点={}", windowStart, windowEnd);
-            }
-        } else {
-            LOGGER.error("【调试】画布坐标到窗口坐标转换失败，跳过线条: 起点={}, 终点={}", canvasStart, canvasEnd);
+            return rasterizeLineSegment(minecraftStart.x, minecraftStart.y,
+                    minecraftEnd.x, minecraftEnd.y, yLevel, conversionMode, simplificationRatio);
         }
+
+        LOGGER.error("【调试】画布世界坐标到Minecraft坐标转换失败，跳过线条: 起点={}, 终点={}", canvasStart, canvasEnd);
 
         return new ArrayList<>();
     }
@@ -391,25 +392,7 @@ public class LineToBlockHandler {
 
         LOGGER.debug("处理折线图形: {}个画布点", canvasPoints.size());
 
-        // 转换所有点到窗口坐标，再转换为Minecraft坐标
-        List<Vec2d> minecraftPoints = new ArrayList<>();
-        for (int i = 0; i < canvasPoints.size(); i++) {
-            Vec2d canvasPoint = canvasPoints.get(i);
-            Vec2d windowPoint = canvasToWindowCoordinates(canvasPoint);
-            if (windowPoint != null) {
-                Vec2d minecraftPoint = CoordinateTransformer.getInstance().canvasToMinecraftWorld(windowPoint);
-                if (minecraftPoint != null) {
-                    minecraftPoints.add(minecraftPoint);
-                    LOGGER.debug("折线点{}转换成功: 画布({}, {}) → 窗口({}, {}) → Minecraft({}, {})",
-                            i + 1, canvasPoint.x, canvasPoint.y, windowPoint.x, windowPoint.y,
-                            minecraftPoint.x, minecraftPoint.y);
-                } else {
-                    LOGGER.warn("折线点{}窗口到Minecraft坐标转换失败: {}", i + 1, windowPoint);
-                }
-            } else {
-                LOGGER.warn("折线点{}画布到窗口坐标转换失败: {}", i + 1, canvasPoint);
-            }
-        }
+        List<Vec2d> minecraftPoints = convertCanvasPointsToMinecraftPoints(canvasPoints);
 
         if (minecraftPoints.size() < 2) {
             LOGGER.warn("转换后的Minecraft点数不足，跳过折线: 原始{}个点，转换后{}个点",
@@ -515,12 +498,7 @@ public class LineToBlockHandler {
 
         List<Vec2d> minecraftPoints = new ArrayList<>(canvasPoints.size());
         for (Vec2d canvasPoint : canvasPoints) {
-            Vec2d windowPoint = canvasToWindowCoordinates(canvasPoint);
-            if (windowPoint == null) {
-                continue;
-            }
-
-            Vec2d minecraftPoint = CoordinateTransformer.getInstance().canvasToMinecraftWorld(windowPoint);
+            Vec2d minecraftPoint = convertCanvasWorldToMinecraft(canvasPoint);
             if (minecraftPoint == null) {
                 continue;
             }
@@ -537,6 +515,68 @@ public class LineToBlockHandler {
         }
 
         return minecraftPoints;
+    }
+
+    /**
+     * 画布世界坐标 → 画布屏幕坐标 → 冻结投影 → Minecraft XZ。
+     * <p>
+     * {@link WorldProjectionSnapshot#toWorld} 期望画布屏幕像素坐标，而非画布世界坐标或窗口坐标。
+     */
+    private Vec2d convertCanvasWorldToMinecraft(Vec2d canvasWorldPos) {
+        if (canvasWorldPos == null) {
+            return null;
+        }
+
+        String cacheKey = Double.toHexString(canvasWorldPos.x) + "," + Double.toHexString(canvasWorldPos.y);
+        Vec2d cachedResult = coordinateCache.get(cacheKey);
+        if (cachedResult != null) {
+            return cachedResult;
+        }
+
+        try {
+            Canvas canvas = CanvasAccess.get();
+            if (canvas == null) {
+                LOGGER.error("Canvas未初始化");
+                return null;
+            }
+
+            CanvasCamera camera = canvas.getCamera();
+            if (camera == null) {
+                LOGGER.error("相机未初始化");
+                return null;
+            }
+
+            Vec2d canvasScreenPos = camera.worldToScreen(canvasWorldPos);
+
+            WorldProjectionSnapshot projection = activeProjection;
+            if (projection == null || !projection.isValid()) {
+                projection = CoordinateTransformer.getInstance().captureProjection();
+            }
+            if (projection == null || !projection.isValid()) {
+                LOGGER.error("World projection invalid, cannot convert canvas world ({}, {})",
+                        canvasWorldPos.x, canvasWorldPos.y);
+                return null;
+            }
+
+            Vec2d minecraftPos = projection.toWorld(canvasScreenPos);
+
+            if (coordinateCache.size() < MAX_CACHE_SIZE) {
+                coordinateCache.put(cacheKey, minecraftPos);
+            } else {
+                clearCoordinateCache();
+                coordinateCache.put(cacheKey, minecraftPos);
+            }
+
+            LOGGER.debug("画布世界→Minecraft: 世界({}, {}) → 屏幕({}, {}) → MC({}, {})",
+                    canvasWorldPos.x, canvasWorldPos.y,
+                    canvasScreenPos.x, canvasScreenPos.y,
+                    minecraftPos.x, minecraftPos.y);
+
+            return minecraftPos;
+        } catch (Exception e) {
+            LOGGER.error("画布世界坐标转Minecraft坐标失败", e);
+            return null;
+        }
     }
 
     private List<BlockPos> rasterizeShapePathByPoints(List<Vec2d> canvasPoints, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
@@ -567,17 +607,7 @@ public class LineToBlockHandler {
 
         LOGGER.debug("处理自由绘制路径: {}个画布点", canvasPoints.size());
 
-        // 转换所有点到Minecraft坐标
-        List<Vec2d> minecraftPoints = new ArrayList<>();
-        for (Vec2d canvasPoint : canvasPoints) {
-            Vec2d windowPoint = canvasToWindowCoordinates(canvasPoint);
-            if (windowPoint != null) {
-                Vec2d minecraftPoint = CoordinateTransformer.getInstance().canvasToMinecraftWorld(windowPoint);
-                if (minecraftPoint != null) {
-                    minecraftPoints.add(minecraftPoint);
-                }
-            }
-        }
+        List<Vec2d> minecraftPoints = convertCanvasPointsToMinecraftPoints(canvasPoints);
 
         if (minecraftPoints.size() < 2) {
             LOGGER.warn("转换后的Minecraft点数不足，跳过自由绘制路径: 原始{}个点，转换后{}个点",
@@ -609,17 +639,7 @@ public class LineToBlockHandler {
 
         LOGGER.debug("处理多边形图形: {}个画布点", canvasPoints.size());
 
-        // 转换所有点到Minecraft坐标
-        List<Vec2d> minecraftPoints = new ArrayList<>();
-        for (Vec2d canvasPoint : canvasPoints) {
-            Vec2d windowPoint = canvasToWindowCoordinates(canvasPoint);
-            if (windowPoint != null) {
-                Vec2d minecraftPoint = CoordinateTransformer.getInstance().canvasToMinecraftWorld(windowPoint);
-                if (minecraftPoint != null) {
-                    minecraftPoints.add(minecraftPoint);
-                }
-            }
-        }
+        List<Vec2d> minecraftPoints = convertCanvasPointsToMinecraftPoints(canvasPoints);
 
         if (minecraftPoints.size() < 3) {
             LOGGER.warn("转换后的Minecraft点数不足，跳过多边形: 原始{}个点，转换后{}个点",
@@ -754,20 +774,12 @@ public class LineToBlockHandler {
         if (controlPoints != null && controlPoints.size() >= 2) {
             // 将控制点转换为线段进行光栅化
             for (int i = 0; i < controlPoints.size() - 1; i++) {
-                Vec2d start = controlPoints.get(i);
-                Vec2d end = controlPoints.get(i + 1);
+                Vec2d minecraftStart = convertCanvasWorldToMinecraft(controlPoints.get(i));
+                Vec2d minecraftEnd = convertCanvasWorldToMinecraft(controlPoints.get(i + 1));
 
-                Vec2d windowStart = canvasToWindowCoordinates(start);
-                Vec2d windowEnd = canvasToWindowCoordinates(end);
-
-                if (windowStart != null && windowEnd != null) {
-                    Vec2d minecraftStart = CoordinateTransformer.getInstance().canvasToMinecraftWorld(windowStart);
-                    Vec2d minecraftEnd = CoordinateTransformer.getInstance().canvasToMinecraftWorld(windowEnd);
-
-                    if (minecraftStart != null && minecraftEnd != null) {
-                        result.addAll(rasterizeLineSegment(minecraftStart.x, minecraftStart.y,
-                                minecraftEnd.x, minecraftEnd.y, yLevel, conversionMode, simplificationRatio));
-                    }
+                if (minecraftStart != null && minecraftEnd != null) {
+                    result.addAll(rasterizeLineSegment(minecraftStart.x, minecraftStart.y,
+                            minecraftEnd.x, minecraftEnd.y, yLevel, conversionMode, simplificationRatio));
                 }
             }
         } else {
@@ -1173,22 +1185,23 @@ public class LineToBlockHandler {
     }
 
     /**
-     * 【优化】获取目标标高，用于方块转换
-     * 优先使用用户指定的标高，否则使用玩家位置
-     * 【新增】支持从UI获取用户指定标高
-     * @param userSpecifiedYLevel 用户指定的标高
-     * @return 目标Y坐标（网格对齐）
+     * 获取目标标高，用于方块转换。
+     * <p>
+     * 默认取玩家脚下地表高度，而非 {@code player.getY()}：Plot 打开时相机会被抬升到
+     * {@code terrain + 150} 俯视，若仍用玩家 Y 会导致幽灵方块飘在空中或落在错误高度。
+     * 预览模式额外保证标高严格低于相机 Y，以便顶视时可见。
+     *
+     * @param userSpecifiedYLevel 用户指定的标高；{@link Double#NaN} 表示未指定
+     * @return 网格对齐后的目标 Y
      */
     private double getTargetYLevel(double userSpecifiedYLevel, boolean isPreview) {
         try {
-            // 【优化】优先使用用户指定的标高
             if (Double.isFinite(userSpecifiedYLevel)) {
                 double alignedY = Math.floor(userSpecifiedYLevel);
                 LOGGER.debug("使用用户指定标高: 原始Y={}, 网格对齐Y={}", userSpecifiedYLevel, alignedY);
                 return alignedY;
             }
 
-            // 【新增】尝试从方块配置对话框获取用户指定标高
             double uiSpecifiedYLevel = getUserSpecifiedYLevelFromUI();
             if (uiSpecifiedYLevel != Double.MIN_VALUE) {
                 double alignedY = Math.floor(uiSpecifiedYLevel);
@@ -1196,19 +1209,23 @@ public class LineToBlockHandler {
                 return alignedY;
             }
 
-            // 使用玩家当前位置作为默认标高
             MinecraftClient client = MinecraftClient.getInstance();
-            if (client != null && client.player != null) {
-                double playerY = client.player.getY();
+            if (client != null && client.player != null && client.world != null) {
+                PlayerEntity player = client.player;
+                World world = client.world;
+                BlockPos playerPos = player.getBlockPos();
+                double footLevel = Math.floor(
+                        EngineeringTerrainService.of(world).sampleGroundSurface(playerPos.getX(), playerPos.getZ()));
+
                 if (isPreview) {
-                    double previewY = Math.floor(playerY - 5.0);
-                    LOGGER.debug("预览模式使用玩家下方5格标高: 原始Y={}, 预览Y={}", playerY, previewY);
+                    double previewY = resolvePreviewElevation(footLevel, player.getY());
+                    LOGGER.debug("预览模式标高: footLevel={}, cameraY={}, previewY={}",
+                            footLevel, player.getY(), previewY);
                     return previewY;
                 }
 
-                double alignedY = Math.floor(playerY);
-                LOGGER.debug("投影模式使用玩家标高: 原始Y={}, Y={}", playerY, alignedY);
-                return alignedY;
+                LOGGER.debug("使用脚下地表标高: footLevel={}", footLevel);
+                return footLevel;
             }
 
             LOGGER.debug("使用默认标高: {}", DEFAULT_Y_LEVEL);
@@ -1217,6 +1234,15 @@ public class LineToBlockHandler {
             LOGGER.warn("获取目标标高失败，使用默认值", e);
             return DEFAULT_Y_LEVEL;
         }
+    }
+
+    /**
+     * 计算幽灵预览标高：优先使用地表高度，且必须低于相机 Y（顶视时才能看到线框）。
+     */
+    static double resolvePreviewElevation(double footLevel, double cameraY) {
+        double alignedFoot = Math.floor(footLevel);
+        double maxPreviewY = Math.floor(cameraY) - 2.0;
+        return Math.min(alignedFoot, maxPreviewY);
     }
 
     /**
