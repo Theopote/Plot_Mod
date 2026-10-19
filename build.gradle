@@ -262,7 +262,7 @@ tasks.register('jacocoCoreUiCoverageReport', JacocoReport) {
 
 tasks.register('jacocoCoreCoverageVerification', JacocoCoverageVerification) {
 	group = 'verification'
-	description = 'Enforce minimum line coverage for com.plot.core'
+	description = 'Enforce minimum line coverage for com.plot.core (requires full test run)'
 	dependsOn tasks.test
 
 	violationRules {
@@ -282,7 +282,7 @@ tasks.register('jacocoCoreCoverageVerification', JacocoCoverageVerification) {
 
 tasks.register('jacocoUiCoverageVerification', JacocoCoverageVerification) {
 	group = 'verification'
-	description = 'Enforce minimum line coverage for com.plot.ui'
+	description = 'Enforce minimum line coverage for com.plot.ui (requires full test run)'
 	dependsOn tasks.test
 
 	violationRules {

@@ -1,6 +1,8 @@
 package com.plot.ui.tools.impl.modify.strategy;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.command.commands.CopyMoveCommand;
+import com.plot.core.command.commands.ModifyCommand;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.model.Shape;
@@ -15,12 +17,18 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MoveWithSelectionStrategyTest {
 
+    private static final int MOUSE_LEFT = 0;
+    private static final int MOUSE_RIGHT = 1;
     private static final int ESC_KEY = 27;
+    private static final int SHIFT_KEY = 16;
 
     private AppState appState;
     private MoveWithSelectionStrategy strategy;
@@ -54,39 +62,105 @@ class MoveWithSelectionStrategyTest {
     }
 
     @Test
-    void completeMoveCreatesModifyCommand() throws Exception {
+    void rightClickWithSelectionSwitchesToMoveMode() throws Exception {
+        injectSelection(sourceLine);
+
+        ModifyResult result = strategy.onMouseDown(new Vec2d(0, 0), MOUSE_RIGHT, context);
+
+        assertEquals(ModifyResult.CONTINUE, result);
+        assertEquals(StrategyMode.MOVE, strategy.getCurrentMode());
+    }
+
+    @Test
+    void rightClickWithoutSelectionNeedsSelection() {
+        ModifyResult result = strategy.onMouseDown(new Vec2d(0, 0), MOUSE_RIGHT, context);
+
+        assertEquals(ModifyResult.NEED_SELECTION, result);
+        assertEquals(StrategyMode.SELECTION, strategy.getCurrentMode());
+    }
+
+    @Test
+    void rightClickDuringMoveReturnsToSelectionMode() throws Exception {
         injectActiveMoveState(sourceLine, new Vec2d(0, 0));
 
-        ModifyResult result = (ModifyResult) ModifyStrategyReflections.invoke(
-                strategy,
-                "completeMove",
-                new Class<?>[] {Vec2d.class, IModifyStrategy.ModifyToolContext.class},
-                new Vec2d(5, 0),
-                context);
+        ModifyResult result = strategy.onMouseDown(new Vec2d(0, 0), MOUSE_RIGHT, context);
+
+        assertEquals(ModifyResult.CANCEL, result);
+        assertEquals(StrategyMode.SELECTION, strategy.getCurrentMode());
+        assertNull(strategy.getModifyCommand());
+    }
+
+    @Test
+    void completeMoveCreatesModifyCommandWithTranslation() throws Exception {
+        injectActiveMoveState(sourceLine, new Vec2d(0, 0));
+
+        ModifyResult result = invokeCompleteMove(new Vec2d(5, 0));
 
         assertEquals(ModifyResult.COMPLETE, result);
-        assertTrue(strategy.getModifyCommand() != null);
-        // TODO: 断言 MoveCommand 平移向量 (5,0)
+        ModifyCommand command = strategy.getModifyCommand();
+        assertInstanceOf(ModifyCommand.class, command);
+        assertFalse(command instanceof CopyMoveCommand);
+
+        LineShape moved = (LineShape) command.getNewShapes().getFirst();
+        assertEquals(5.0, moved.getStart().x, 1e-6);
+        assertEquals(0.0, moved.getStart().y, 1e-6);
+        assertEquals(15.0, moved.getEnd().x, 1e-6);
+        assertEquals(0.0, moved.getEnd().y, 1e-6);
     }
 
     @Test
     void completeMoveIgnoresTinyDisplacement() throws Exception {
         injectActiveMoveState(sourceLine, new Vec2d(0, 0));
 
-        ModifyResult result = (ModifyResult) ModifyStrategyReflections.invoke(
-                strategy,
-                "completeMove",
-                new Class<?>[] {Vec2d.class, IModifyStrategy.ModifyToolContext.class},
-                new Vec2d(0.05, 0),
-                context);
+        ModifyResult result = invokeCompleteMove(new Vec2d(0.05, 0));
 
         assertEquals(ModifyResult.COMPLETE, result);
         assertNull(strategy.getModifyCommand());
     }
 
-    // TODO: 右键 SELECTION→MOVE 模式切换
-    // TODO: Shift 正交约束预览
-    // TODO: Ctrl 复制移动 → CopyMoveCommand
+    @Test
+    void shiftKeyConstrainsPreviewToDominantAxis() throws Exception {
+        injectActiveMoveState(sourceLine, new Vec2d(0, 0));
+
+        strategy.onKeyDown(SHIFT_KEY, context);
+        strategy.onMouseMove(new Vec2d(10, 3), context);
+
+        Vec2d constrainedEnd = ModifyStrategyReflections.getField(strategy, "constrainedEndPoint");
+        assertEquals(10.0, constrainedEnd.x, 1e-6);
+        assertEquals(0.0, constrainedEnd.y, 1e-6);
+        assertTrue(context.isPreviewEnabled());
+    }
+
+    @Test
+    void ctrlCopyMoveCreatesCopyMoveCommand() throws Exception {
+        injectActiveMoveState(sourceLine, new Vec2d(0, 0));
+        ModifyStrategyReflections.setField(strategy, "isCtrlPressed", true);
+
+        ModifyResult result = invokeCompleteMove(new Vec2d(5, 0));
+
+        assertEquals(ModifyResult.COMPLETE, result);
+        assertInstanceOf(CopyMoveCommand.class, strategy.getModifyCommand());
+        assertSame(sourceLine, appState.getShapes().stream()
+                .filter(shape -> shape.getId().equals(sourceLine.getId()))
+                .findFirst()
+                .orElse(null));
+    }
+
+    private ModifyResult invokeCompleteMove(Vec2d target) throws Exception {
+        return (ModifyResult) ModifyStrategyReflections.invoke(
+                strategy,
+                "completeMove",
+                new Class<?>[] {Vec2d.class, IModifyStrategy.ModifyToolContext.class},
+                target,
+                context);
+    }
+
+    private void injectSelection(Shape shape) throws Exception {
+        @SuppressWarnings("unchecked")
+        Set<String> selectedIds = ModifyStrategyReflections.getField(strategy, "selectedShapeIds");
+        selectedIds.clear();
+        selectedIds.add(shape.getId());
+    }
 
     private void injectActiveMoveState(Shape shape, Vec2d basePoint) throws Exception {
         ModifyStrategyReflections.setField(strategy, "currentMode",
@@ -101,9 +175,6 @@ class MoveWithSelectionStrategyTest {
         ModifyStrategyReflections.setField(strategy, "moveParameters",
                 new com.plot.ui.tools.impl.modify.dto.ModifyParameters());
 
-        @SuppressWarnings("unchecked")
-        Set<String> selectedIds = ModifyStrategyReflections.getField(strategy, "selectedShapeIds");
-        selectedIds.clear();
-        selectedIds.add(shape.getId());
+        injectSelection(shape);
     }
 }
