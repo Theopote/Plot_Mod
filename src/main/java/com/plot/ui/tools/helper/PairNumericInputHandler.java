@@ -3,6 +3,8 @@ package com.plot.ui.tools.helper;
 import com.plot.api.geometry.Vec2d;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy.InteractionResult;
 
+import java.util.function.Supplier;
+
 /**
  * 支持单距离或「宽,高」双数值的键盘输入处理。
  */
@@ -29,7 +31,7 @@ public final class PairNumericInputHandler {
     public InteractionResult onKeyDown(int keyCode,
                                        boolean active,
                                        Runnable refreshPreview,
-                                       Runnable onConfirm) {
+                                       Supplier<InteractionResult> onConfirm) {
         if (!active) {
             return InteractionResult.IGNORED;
         }
@@ -48,7 +50,8 @@ public final class PairNumericInputHandler {
         }
         if (NumericInputKeys.isEnter(keyCode) && hasInput()) {
             if (onConfirm != null) {
-                onConfirm.run();
+                InteractionResult result = onConfirm.get();
+                return result != null ? result : InteractionResult.CONTINUE;
             }
             return InteractionResult.CONTINUE;
         }

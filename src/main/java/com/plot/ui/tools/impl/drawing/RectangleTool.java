@@ -964,7 +964,7 @@ public class RectangleTool extends DrawingTool {
             if (usesPairInput()) {
                 double[] pair = pairInput.parsePairPositive();
                 if (pair != null) {
-                    currentMousePoint = NumericInputSupport.cornerFromWidthHeight(
+                    currentMousePoint = NumericInputSupport.cornerFromBlockWidthHeight(
                         controlPoints.getFirst(), currentMousePoint, pair[0], pair[1]);
                     setStatusMessage(PlotI18n.status("status.plot.draw.typing_dimensions_ready",
                         pairInput.getText()));

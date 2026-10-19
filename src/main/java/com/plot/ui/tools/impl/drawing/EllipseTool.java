@@ -846,7 +846,7 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
     private void applyPairInputForCorner() {
         double[] pair = pairInput.parsePairPositive();
         if (pair != null) {
-            currentMousePoint = com.plot.ui.tools.helper.NumericInputSupport.cornerFromWidthHeight(
+            currentMousePoint = com.plot.ui.tools.helper.NumericInputSupport.cornerFromBlockWidthHeight(
                 controlPoints.getFirst(), currentMousePoint, pair[0], pair[1]);
             updateTwoPointsEllipsePreview();
             setStatusMessage(com.plot.utils.PlotI18n.status(

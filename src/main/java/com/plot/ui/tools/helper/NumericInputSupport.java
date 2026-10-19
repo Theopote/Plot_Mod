@@ -46,10 +46,18 @@ public final class NumericInputSupport {
     /**
      * 由第一角点、鼠标象限与宽/高（方块）计算对角点。
      */
-    public static Vec2d cornerFromWidthHeight(Vec2d anchor, Vec2d towardMouse, double width, double height) {
+    public static Vec2d cornerFromBlockWidthHeight(Vec2d anchor, Vec2d towardMouse,
+                                                   double blockWidth, double blockHeight) {
+        if (anchor == null || blockWidth <= 0.0 || blockHeight <= 0.0) {
+            return towardMouse;
+        }
         double signX = towardMouse != null && towardMouse.x < anchor.x ? -1.0 : 1.0;
         double signY = towardMouse != null && towardMouse.y < anchor.y ? -1.0 : 1.0;
-        return new Vec2d(anchor.x + signX * width, anchor.y + signY * height);
+        Vec2d xToward = new Vec2d(anchor.x + signX * 1000.0, anchor.y);
+        Vec2d yToward = new Vec2d(anchor.x, anchor.y + signY * 1000.0);
+        Vec2d xPoint = pointAtBlockDistance(anchor, xToward, blockWidth);
+        Vec2d yPoint = pointAtBlockDistance(anchor, yToward, blockHeight);
+        return new Vec2d(xPoint.x, yPoint.y);
     }
 
     /**

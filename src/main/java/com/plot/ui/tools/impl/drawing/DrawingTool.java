@@ -518,6 +518,11 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
     protected ToolState getCurrentState() {
         return currentState;
     }
+
+    /** 工具是否处于绘制中（用于数值键盘优先于 ImGui 捕获）。 */
+    public boolean isActivelyDrawing() {
+        return currentState == ToolState.DRAWING;
+    }
     
     protected boolean isInState() {
         return getCurrentState() == ToolState.DRAWING;

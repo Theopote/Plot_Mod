@@ -3,6 +3,8 @@ package com.plot.ui.tools.helper;
 import com.plot.api.geometry.Vec2d;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy.InteractionResult;
 
+import java.util.function.Supplier;
+
 /**
  * 绘制过程中「从锚点沿鼠标方向输入距离」的键盘处理。
  */
@@ -29,7 +31,7 @@ public final class SegmentNumericInputHandler {
     public InteractionResult onKeyDown(int keyCode,
                                        boolean active,
                                        Runnable refreshPreview,
-                                       Runnable onConfirm) {
+                                       Supplier<InteractionResult> onConfirm) {
         if (!active) {
             return InteractionResult.IGNORED;
         }
@@ -47,7 +49,8 @@ public final class SegmentNumericInputHandler {
         }
         if (NumericInputKeys.isEnter(keyCode) && hasInput()) {
             if (onConfirm != null) {
-                onConfirm.run();
+                InteractionResult result = onConfirm.get();
+                return result != null ? result : InteractionResult.CONTINUE;
             }
             return InteractionResult.CONTINUE;
         }

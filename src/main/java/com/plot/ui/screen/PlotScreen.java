@@ -40,6 +40,7 @@ import com.plot.ui.theme.ThemeManager;
 import com.plot.camera.CameraManager;
 import com.plot.PlotMod;
 import com.plot.core.tool.BaseTool;
+import com.plot.ui.tools.helper.ToolNumericKeyboardPolicy;
 import com.plot.utils.PlotI18n;
 import com.plot.core.shortcut.ShortcutManager;
 import com.plot.core.shortcut.KeyboardShortcutConverter;
@@ -980,6 +981,14 @@ public class PlotScreen extends Screen {
      * 键盘/文本事件需同时考虑普通键盘捕获与文本输入意图（IME/中文输入依赖 WantTextInput）。
      */
     private boolean isKeyboardCapturedByImGui() {
+        return isKeyboardCapturedByImGui(0, '\0');
+    }
+
+    private boolean isKeyboardCapturedByImGui(int keyCode, char character) {
+        BaseTool activeTool = appState.getCurrentTool();
+        if (activeTool != null && ToolNumericKeyboardPolicy.shouldBypassImGui(activeTool, keyCode, character)) {
+            return false;
+        }
         return ImGui.getIO().getWantCaptureKeyboard() || ImGui.getIO().getWantTextInput();
     }
 
@@ -1087,7 +1096,7 @@ public class PlotScreen extends Screen {
         }
         
         // 【优化】统一事件处理逻辑
-        if (isKeyboardCapturedByImGui()) {
+        if (isKeyboardCapturedByImGui(keyCode, '\0')) {
             LOGGER.debug("键盘事件被ImGui捕获，keyCode={}", keyCode);
             
             // 处理组合键（剪切复制粘贴等）
@@ -1211,7 +1220,7 @@ public class PlotScreen extends Screen {
         int modifiers = keyInput.modifiers();
         
         
-        if (isKeyboardCapturedByImGui()) {
+        if (isKeyboardCapturedByImGui(keyCode, '\0')) {
             ImGui.getIO().setKeysDown(keyCode, false);
             return true;
         }
@@ -1234,7 +1243,7 @@ public class PlotScreen extends Screen {
         char chr = text.isEmpty() ? '\0' : text.charAt(0);
 
         // 文本输入应优先尊重 ImGui 的 WantTextInput，IME/中文输入依赖这一分支。
-        if (isKeyboardCapturedByImGui()) {
+        if (isKeyboardCapturedByImGui(0, chr)) {
             PlotMod.LOGGER.debug("ImGui 捕获字符输入: text='{}', codepoint={}, modifiers={}", 
                 text, codepoint, modifiers);
             if (codepoint > 0 && !Character.isISOControl(codepoint)) {
