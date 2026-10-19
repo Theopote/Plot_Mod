@@ -16,13 +16,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import imgui.ImDrawList;
 import imgui.ImColor;
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 import com.plot.utils.PlotI18n;
 
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import com.plot.utils.PlotI18n;
 
 /**
  * 弧形工具 - 优化的策略模式版本
@@ -405,7 +405,9 @@ public class ArcTool extends DrawingTool {
         if (currentMousePoint != null && !controlPoints.isEmpty() && controlPoints.size() < 3) {
             Vec2d lastPoint = controlPoints.getLast();
             context.drawLine(lastPoint, currentMousePoint, connectorLineColor);
+            DrawMeasureHelper.drawSegmentLabel(context, lastPoint, currentMousePoint, connectorLineColor);
         }
+        renderGuideMeasureLabels(context);
     }
     
     private void renderControlPointsAndGuidesImGui(ImDrawList drawList, CanvasCamera camera) {
@@ -463,6 +465,33 @@ public class ArcTool extends DrawingTool {
                     context.drawLine(controlPoints.get(0), controlPoints.get(2), connectorLineColor);
                 }
                 break;
+        }
+    }
+
+    private void renderGuideMeasureLabels(DrawContext context) {
+        Color labelColor = toColor(ThemeManager.getInstance().getCurrentTheme().warningText, 180);
+        switch (currentMode) {
+            case START_END_DIRECTION -> {
+                if (controlPoints.size() >= 2) {
+                    DrawMeasureHelper.drawSegmentLabel(context, controlPoints.get(0), controlPoints.get(1), labelColor);
+                }
+            }
+            case THROUGH_POINT -> {
+                if (controlPoints.size() >= 2) {
+                    DrawMeasureHelper.drawSegmentLabel(context, controlPoints.get(0), controlPoints.get(1), labelColor);
+                }
+                if (controlPoints.size() >= 3) {
+                    DrawMeasureHelper.drawSegmentLabel(context, controlPoints.get(1), controlPoints.get(2), labelColor);
+                }
+            }
+            case CENTER_START_END -> {
+                if (controlPoints.size() >= 2) {
+                    DrawMeasureHelper.drawRadiusLabel(context, controlPoints.get(0), controlPoints.get(1), labelColor);
+                }
+                if (controlPoints.size() >= 3) {
+                    DrawMeasureHelper.drawRadiusLabel(context, controlPoints.get(0), controlPoints.get(2), labelColor);
+                }
+            }
         }
     }
     

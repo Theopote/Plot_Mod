@@ -27,6 +27,7 @@ import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 import com.plot.ui.tools.impl.drawing.strategy.MultiStepInteractionStrategy;
 import com.plot.core.geometry.visitor.IShapeVisitor;
 import com.plot.ui.tools.snap.SnapEnhancer;
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 import com.plot.utils.ExceptionDebug;
 
 import java.awt.Color;
@@ -195,8 +196,9 @@ public class LineTool extends DrawingTool {
         try {
             // 修复：使用StyleHandler统一管理样式，确保颜色一致性
             ShapeStyle previewStyle = getStyleHandler().getPreviewStyle();
-                Color lineColor = previewStyle != null ? previewStyle.getLineColor() :
+            Color lineColor = previewStyle != null ? previewStyle.getLineColor() :
                     toColor(ThemeManager.getInstance().getCurrentTheme().accent);
+            Color measureColor = toColor(ThemeManager.getInstance().getCurrentTheme().warningText);
 
             // 修复：对于多线模式，需要特殊处理预览渲染
             if (MODE_MULTI.equals(currentDrawingType)) {
@@ -228,14 +230,20 @@ public class LineTool extends DrawingTool {
                     for (LineShape line : parallelLines) {
                         context.drawLine(line.getStart(), line.getEnd(), lineColor);
                     }
+                    DrawMeasureHelper.drawSegmentLabel(context, startPoint, finalEndPoint, measureColor);
                 }
             } else if (previewShape instanceof LineShape line) {
                 // 单线模式：渲染主线
                 context.drawLine(line.getStart(), line.getEnd(), lineColor);
+                DrawMeasureHelper.drawSegmentLabel(context, line.getStart(), line.getEnd(), measureColor);
             } else if (previewShape instanceof MultiLineShape multiLine) {
                 // 如果预览图形是MultiLineShape，使用预览颜色渲染每条线
                 for (LineShape line : multiLine.getLines()) {
                     context.drawLine(line.getStart(), line.getEnd(), lineColor);
+                }
+                if (!multiLine.getLines().isEmpty()) {
+                    LineShape ref = multiLine.getLines().getFirst();
+                    DrawMeasureHelper.drawSegmentLabel(context, ref.getStart(), ref.getEnd(), measureColor);
                 }
             }
 

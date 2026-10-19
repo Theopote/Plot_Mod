@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 import com.plot.ui.tools.snap.SnapEnhancer;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.api.graphics.IShapeStyle;
@@ -449,9 +450,13 @@ public class RectangleTool extends DrawingTool {
             var theme = ThemeManager.getInstance().getCurrentTheme();
             Vec2d baseStart = controlPoints.get(0);
             Vec2d baseEnd = controlPoints.get(1);
-            context.drawLine(baseStart, baseEnd, toColor(theme.mutedText, 220));
+            Color baseColor = toColor(theme.mutedText, 220);
+            Color heightColor = toColor(theme.infoText, 230);
+            context.drawLine(baseStart, baseEnd, baseColor);
             Vec2d projectedPoint = projectPointToBase(baseStart, baseEnd, currentMousePoint);
-            context.drawLine(currentMousePoint, projectedPoint, toColor(theme.infoText, 230));
+            context.drawLine(currentMousePoint, projectedPoint, heightColor);
+            DrawMeasureHelper.drawSegmentLabel(context, baseStart, baseEnd, baseColor);
+            DrawMeasureHelper.drawSegmentLabel(context, currentMousePoint, projectedPoint, heightColor);
         }
 
         // 圆角模式：绘制圆角半径指示线
@@ -464,15 +469,20 @@ public class RectangleTool extends DrawingTool {
             // 绘制从中心到第三点的连线，表示圆角半径
             context.drawLine(center, currentMousePoint, toColor(theme.warningText, 230));
 
-            // 绘制圆角半径文本
-            double radius = calculateCornerRadiusFromThirdPoint(p1, p2, currentMousePoint);
-            context.drawText(PlotI18n.status("status.plot.draw.radius_label", radius), currentMousePoint, toColor(theme.warningText, 230));
+            Color radiusColor = toColor(theme.warningText, 230);
+            context.drawText(
+                    DrawMeasureHelper.formatRadius(DrawMeasureHelper.radiusBlocks(center, center.distance(currentMousePoint))),
+                    currentMousePoint,
+                    radiusColor);
         }
 
         if (previewShape != null) {
             // 确保预览图形强制应用无填充样式
             forceApplyNoFillStyle(previewShape, true);
             previewShape.render(context);
+            if (previewShape instanceof RectangleShape rect) {
+                renderRectangleEdgeLabels(context, rect, toColor(ThemeManager.getInstance().getCurrentTheme().warningText, 230));
+            }
         }
 
         // 渲染捕捉指示器
@@ -596,6 +606,15 @@ public class RectangleTool extends DrawingTool {
 
     private static int withAlpha(int color, int alpha) {
         return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
+    }
+
+    private void renderRectangleEdgeLabels(DrawContext context, RectangleShape rect, Color color) {
+        List<Vec2d> points = rect.getPoints();
+        if (points.size() < 4) {
+            return;
+        }
+        DrawMeasureHelper.drawSegmentLabel(context, points.get(0), points.get(1), color);
+        DrawMeasureHelper.drawSegmentLabel(context, points.get(1), points.get(2), color);
     }
 
     private static Color toColor(int color, int alpha) {

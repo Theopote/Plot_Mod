@@ -184,6 +184,9 @@ public interface IModeHandler {
         void drawLine(Vec2d p1, Vec2d p2, java.awt.Color color, float thickness);
         void drawCircle(Vec2d center, double radius, java.awt.Color color, boolean filled);
         void drawBezierCurve(Vec2d p0, Vec2d p1, Vec2d p2, Vec2d p3, java.awt.Color color, float thickness);
+
+        default void drawText(String text, Vec2d position, java.awt.Color color) {
+        }
     }
     
     /**

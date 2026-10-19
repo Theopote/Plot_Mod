@@ -13,6 +13,7 @@ import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.component.Icons;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.tools.snap.SnapEnhancer;
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 import com.plot.utils.PlotI18n;
 
 import org.slf4j.Logger;
@@ -295,9 +296,11 @@ public class CircleTool extends DrawingTool {
                     Vec2d radiusPoint = controlPoints.get(1);
                     context.drawCircleFilled(radiusPoint, CONTROL_POINT_SIZE, radiusPointColor);
                     context.drawLine(center, radiusPoint, connectorLineColor);
+                    DrawMeasureHelper.drawRadiusLabel(context, center, radiusPoint, connectorLineColor);
                 } else if (currentMousePoint != null) {
                     // 绘制到鼠标位置的半径线
                     context.drawLine(center, currentMousePoint, connectorLineColor);
+                    DrawMeasureHelper.drawRadiusLabel(context, center, currentMousePoint, connectorLineColor);
                 }
             }
         }
@@ -317,6 +320,7 @@ public class CircleTool extends DrawingTool {
                 Vec2d p2 = controlPoints.get(1);
                 context.drawCircleFilled(p2, CONTROL_POINT_SIZE, controlPointColor);
                 context.drawLine(p1, p2, connectorLineColor);
+                DrawMeasureHelper.drawDiameterLabel(context, p1, p2, connectorLineColor);
                 
                 if (previewCircle != null) {
                     Vec2d center = previewCircle.getCenter();
@@ -327,6 +331,7 @@ public class CircleTool extends DrawingTool {
             } else if (currentMousePoint != null) {
                 // 绘制到鼠标位置的线
                 context.drawLine(p1, currentMousePoint, connectorLineColor);
+                DrawMeasureHelper.drawDiameterLabel(context, p1, currentMousePoint, connectorLineColor);
                 
                 if (previewCircle != null) {
                     Vec2d center = previewCircle.getCenter();
@@ -359,14 +364,21 @@ public class CircleTool extends DrawingTool {
                 Vec2d p3 = controlPoints.get(2);
                 context.drawLine(p2, p3, connectorLineColor);
                 context.drawLine(p3, p1, connectorLineColor);
+                DrawMeasureHelper.drawSegmentLabel(context, p1, p2, connectorLineColor);
+                DrawMeasureHelper.drawSegmentLabel(context, p2, p3, connectorLineColor);
+                DrawMeasureHelper.drawSegmentLabel(context, p3, p1, connectorLineColor);
             } else if (currentMousePoint != null) {
                 // 绘制到鼠标位置的预览线
                 context.drawLine(p2, currentMousePoint, connectorLineColor);
                 context.drawLine(currentMousePoint, p1, connectorLineColor);
+                DrawMeasureHelper.drawSegmentLabel(context, p1, p2, connectorLineColor);
+                DrawMeasureHelper.drawSegmentLabel(context, p2, currentMousePoint, connectorLineColor);
+                DrawMeasureHelper.drawSegmentLabel(context, currentMousePoint, p1, connectorLineColor);
             }
         } else if (controlPoints.size() == 1 && currentMousePoint != null) {
             // 只有一个点时，绘制到鼠标的线
             context.drawLine(controlPoints.getFirst(), currentMousePoint, connectorLineColor);
+            DrawMeasureHelper.drawSegmentLabel(context, controlPoints.getFirst(), currentMousePoint, connectorLineColor);
         }
         
         // 绘制预览圆

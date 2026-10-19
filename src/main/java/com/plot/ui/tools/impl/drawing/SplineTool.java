@@ -20,6 +20,7 @@ import com.plot.ui.tools.event.SplineConfigChangedEvent;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
 
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -518,6 +519,8 @@ public class SplineTool extends DrawingTool {
         if (currentMousePoint != null && !controlPoints.isEmpty()) {
             Vec2d lastPoint = controlPoints.getLast();
             context.drawDashedLine(lastPoint, currentMousePoint, helperLineColor);
+            java.awt.Color measureColor = toColor(ThemeManager.getInstance().getCurrentTheme().warningText, 230);
+            DrawMeasureHelper.drawSegmentLabel(context, lastPoint, currentMousePoint, measureColor);
         }
     }
 

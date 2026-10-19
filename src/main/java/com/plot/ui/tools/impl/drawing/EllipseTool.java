@@ -22,6 +22,7 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 import com.plot.utils.PlotI18n;
 
 /**
@@ -252,8 +253,52 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
             drawEllipsePreview(context, center, radiusX, radiusY, rotation, previewColor);
         }
 
+        renderEllipseMeasureLabels(context, axisColor);
+
         // 渲染捕捉指示器（DrawContext版本）
         snapEnhancer.renderSnapIndicator(context);
+    }
+
+    private void renderEllipseMeasureLabels(DrawContext context, Color axisColor) {
+        if (previewEllipse != null) {
+            Vec2d center = previewEllipse.getCenter();
+            double radiusX = previewEllipse.getRadiusX();
+            double radiusY = previewEllipse.getRadiusY();
+            double rotation = previewEllipse.getRotation();
+            Vec2d majorEnd = new Vec2d(
+                    center.x + radiusX * Math.cos(rotation),
+                    center.y + radiusX * Math.sin(rotation));
+            Vec2d minorEnd = new Vec2d(
+                    center.x - radiusY * Math.sin(rotation),
+                    center.y + radiusY * Math.cos(rotation));
+            context.drawText(
+                    PlotI18n.status("status.plot.draw.preview.major_minor",
+                            DrawMeasureHelper.distanceBlocks(center, majorEnd),
+                            DrawMeasureHelper.distanceBlocks(center, minorEnd)),
+                    DrawMeasureHelper.midpoint(center, majorEnd),
+                    axisColor);
+            return;
+        }
+        switch (currentMode) {
+            case THREE_POINTS_AXIS -> {
+                if (controlPoints.size() >= 2) {
+                    DrawMeasureHelper.drawSegmentLabel(context, controlPoints.get(0), controlPoints.get(1), axisColor);
+                } else if (controlPoints.size() == 1 && currentMousePoint != null) {
+                    DrawMeasureHelper.drawSegmentLabel(context, controlPoints.getFirst(), currentMousePoint, axisColor);
+                }
+                if (controlPoints.size() >= 2 && currentMousePoint != null) {
+                    Vec2d center = controlPoints.get(0).add(controlPoints.get(1)).multiply(0.5);
+                    DrawMeasureHelper.drawSegmentLabel(context, center, currentMousePoint, axisColor);
+                }
+            }
+            case THREE_POINTS_CENTER, TWO_POINTS -> {
+                if (controlPoints.size() >= 2) {
+                    DrawMeasureHelper.drawSegmentLabel(context, controlPoints.get(0), controlPoints.get(1), axisColor);
+                } else if (controlPoints.size() == 1 && currentMousePoint != null) {
+                    DrawMeasureHelper.drawSegmentLabel(context, controlPoints.getFirst(), currentMousePoint, axisColor);
+                }
+            }
+        }
     }
 
     @Override

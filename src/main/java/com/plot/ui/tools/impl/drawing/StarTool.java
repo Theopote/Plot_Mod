@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import imgui.ImDrawList;
 import imgui.ImColor;
 import com.plot.ui.tools.snap.SnapEnhancer;
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 
 import java.awt.Color;
 import java.util.ArrayList;
@@ -396,10 +397,29 @@ public class StarTool extends DrawingTool {
 
     @Override
     protected void renderPreview(DrawContext context) {
-        // 始终渲染捕捉指示器（即使尚未开始绘制）
-        snapEnhancer.renderSnapIndicator(context);
+        List<Vec2d> interactionPoints = getInteractionPoints();
+        Color measureColor = toColor(ThemeManager.getInstance().getCurrentTheme().warningText, 230);
+        Color innerMeasureColor = toColor(ThemeManager.getInstance().getCurrentTheme().accent, 230);
 
-        // DrawContext 渲染可以保持简单，主要依赖 ImGui 渲染
+        if (interactionPoints.size() == 1) {
+            Vec2d center = interactionPoints.getFirst();
+            Vec2d mouse = interactionStrategy.getCurrentMousePoint();
+            if (mouse != null) {
+                context.drawLine(center, mouse, measureColor);
+                DrawMeasureHelper.drawRadiusLabel(context, center, mouse, measureColor);
+            }
+        } else if (interactionPoints.size() >= 2) {
+            Vec2d center = interactionPoints.getFirst();
+            Vec2d outerPoint = interactionPoints.get(1);
+            context.drawLine(center, outerPoint, measureColor);
+            DrawMeasureHelper.drawRadiusLabel(context, center, outerPoint, measureColor);
+            Vec2d mouse = interactionStrategy.getCurrentMousePoint();
+            if (mouse != null) {
+                context.drawLine(center, mouse, innerMeasureColor);
+                DrawMeasureHelper.drawRadiusLabel(context, center, mouse, innerMeasureColor);
+            }
+        }
+
         if (previewShape instanceof Polygon star) {
             Color lineColor = getStyleHandler().getPreviewStyle().getLineColor();
             List<Vec2d> vertices = star.getPoints();
@@ -407,6 +427,9 @@ public class StarTool extends DrawingTool {
                 context.drawLine(vertices.get(i), vertices.get((i + 1) % vertices.size()), lineColor);
             }
         }
+
+        // 始终渲染捕捉指示器（即使尚未开始绘制）
+        snapEnhancer.renderSnapIndicator(context);
     }
 
 

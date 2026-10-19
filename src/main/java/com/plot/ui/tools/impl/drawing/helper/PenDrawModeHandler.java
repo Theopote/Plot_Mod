@@ -6,6 +6,7 @@ import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.model.Shape;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.plot.utils.PlotI18n;
@@ -257,6 +258,11 @@ public class PenDrawModeHandler extends AbstractModeHandler {
                 // 等待下一个点，显示直线预览
                 adapter.drawLine(lastNode.getAnchor(), currentMousePoint, previewColor, Rendering.PREVIEW_LINE_THICKNESS);
                 adapter.drawCircle(currentMousePoint, Rendering.POINT_SIZE, previewColor, true);
+                java.awt.Color measureColor = new java.awt.Color(layerColor.getRed(), layerColor.getGreen(), layerColor.getBlue(), 230);
+                adapter.drawText(
+                        DrawMeasureHelper.formatBlocks(DrawMeasureHelper.distanceBlocks(lastNode.getAnchor(), currentMousePoint)),
+                        DrawMeasureHelper.midpoint(lastNode.getAnchor(), currentMousePoint),
+                        measureColor);
             } else if (state == PenDrawingState.DEFINING_HANDLE && currentNode != null) {
                 // 正在定义控制手柄，显示曲线预览
                 adapter.drawBezierCurve(lastNode.getAnchor(), lastNode.getControlNext(), 

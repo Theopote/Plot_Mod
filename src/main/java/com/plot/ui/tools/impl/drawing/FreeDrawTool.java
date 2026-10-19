@@ -14,6 +14,7 @@ import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
 import com.plot.ui.tools.snap.SnapEnhancer;
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 import com.plot.utils.ExceptionDebug;
 import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
@@ -284,9 +285,20 @@ public class FreeDrawTool extends DrawingTool {
         Color lineColor = previewStyle != null ? previewStyle.getLineColor() :
             toColor(ThemeManager.getInstance().getCurrentTheme().accent, 255);
         
+        Color measureColor = toColor(ThemeManager.getInstance().getCurrentTheme().warningText, 230);
+
         // 绘制路径
         for (int i = 0; i < currentPath.size() - 1; i++) {
             context.drawLine(currentPath.get(i), currentPath.get(i + 1), lineColor);
+        }
+        if (currentPath.size() >= 2) {
+            Vec2d last = currentPath.get(currentPath.size() - 2);
+            Vec2d end = currentPath.getLast();
+            DrawMeasureHelper.drawSegmentLabel(context, last, end, measureColor);
+            context.drawText(
+                    DrawMeasureHelper.formatTotal(DrawMeasureHelper.polylineLengthBlocks(currentPath)),
+                    end,
+                    measureColor);
         }
     }
 

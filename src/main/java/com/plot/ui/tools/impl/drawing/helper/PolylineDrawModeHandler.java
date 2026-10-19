@@ -5,6 +5,7 @@ import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.model.Shape;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -185,6 +186,14 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
             Vec2d lastPoint = points.getLast();
             Color previewColor = new Color(layerColor.getRed(), layerColor.getGreen(), layerColor.getBlue(), 128);
             adapter.drawLine(lastPoint, currentMousePoint, previewColor, Rendering.PREVIEW_LINE_THICKNESS);
+            java.awt.Color measureColor = new java.awt.Color(layerColor.getRed(), layerColor.getGreen(), layerColor.getBlue(), 230);
+            adapter.drawText(
+                    DrawMeasureHelper.formatBlocks(DrawMeasureHelper.distanceBlocks(lastPoint, currentMousePoint)),
+                    DrawMeasureHelper.midpoint(lastPoint, currentMousePoint),
+                    measureColor);
+            double total = DrawMeasureHelper.polylineLengthBlocks(points)
+                    + DrawMeasureHelper.distanceBlocks(lastPoint, currentMousePoint);
+            adapter.drawText(DrawMeasureHelper.formatTotal(total), currentMousePoint, measureColor);
         }
         
         // 绘制顶点（使用图层颜色）

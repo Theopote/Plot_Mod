@@ -7,6 +7,7 @@ import com.plot.core.graphics.DrawContext;
 import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.tools.impl.drawing.config.SpiralConfigManager;
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 
 import imgui.ImDrawList;
 import org.slf4j.Logger;
@@ -132,6 +133,7 @@ public class SpiralPreviewRenderer {
                     default -> mutedColor;
                 };
                 context.drawLine(start, end, color);
+                DrawMeasureHelper.drawSegmentLabel(context, start, end, color);
             }
             
             // 渲染鼠标预览线
@@ -144,13 +146,17 @@ public class SpiralPreviewRenderer {
                     default -> mutedColor;
                 };
                 context.drawLine(lastPoint, currentMousePoint, previewColor);
+                DrawMeasureHelper.drawSegmentLabel(context, lastPoint, currentMousePoint, previewColor);
             }
         } else {
             // 其它类型：保持原有逻辑
             if (controlPoints.size() >= 2) {
                 context.drawLine(controlPoints.get(0), controlPoints.get(1), mutedColor);
+                DrawMeasureHelper.drawSegmentLabel(context, controlPoints.get(0), controlPoints.get(1), mutedColor);
             } else if (controlPoints.size() == 1 && currentMousePoint != null) {
-                context.drawLine(controlPoints.getFirst(), currentMousePoint, toColor(theme.mutedText, 220));
+                java.awt.Color previewColor = toColor(theme.mutedText, 220);
+                context.drawLine(controlPoints.getFirst(), currentMousePoint, previewColor);
+                DrawMeasureHelper.drawRadiusLabel(context, controlPoints.getFirst(), currentMousePoint, previewColor);
             }
         }
     }

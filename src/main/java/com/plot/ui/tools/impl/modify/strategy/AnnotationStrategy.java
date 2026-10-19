@@ -8,6 +8,7 @@ import com.plot.core.graphics.DrawContext;
 import com.plot.core.model.Shape;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import com.plot.ui.theme.ThemeManager;
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 import com.plot.ui.tools.impl.modify.AnnotationTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,9 +32,8 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
     private Vec2d secondPoint = null;
     private boolean isMeasuringDistance = false;
     
-    // 坐标转换器
     private final CoordinateTransformer coordinateTransformer;
-    
+
     public AnnotationStrategy(AnnotationTool.AnnotationMode initialMode) {
         this.currentMode = initialMode;
         this.coordinateTransformer = CoordinateTransformer.getInstance();
@@ -674,20 +674,7 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
     }
     
     private String calculateDistance(Vec2d p1, Vec2d p2) {
-        Vec2d world1 = coordinateTransformer.canvasToMinecraftWorld(p1);
-        Vec2d world2 = coordinateTransformer.canvasToMinecraftWorld(p2);
-        
-        if (world1 == null || world2 == null) {
-            double dx = p2.x - p1.x;
-            double dy = p2.y - p1.y;
-            double distance = Math.sqrt(dx * dx + dy * dy);
-            return formatBlocks(distance);
-        }
-        
-        double dx = world2.x - world1.x;
-        double dz = world2.y - world1.y;
-        double distance = Math.sqrt(dx * dx + dz * dz);
-        return formatBlocks(distance);
+        return DrawMeasureHelper.formatBlocks(DrawMeasureHelper.distanceBlocks(p1, p2));
     }
     
     private String calculateAngle(LineShape line1, LineShape line2) {
@@ -734,63 +721,15 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
     }
     
     private String calculateRadius(CircleShape circle) {
-        Vec2d center = circle.getCenter();
-        double radius = circle.getRadius();
-        
-        // 计算半径在Minecraft世界坐标中的值
-        // 取圆心和圆周上一点，计算它们在Minecraft世界中的距离
-        Vec2d circlePoint = new Vec2d(center.x + radius, center.y);
-        Vec2d worldCenter = coordinateTransformer.canvasToMinecraftWorld(center);
-        Vec2d worldCirclePoint = coordinateTransformer.canvasToMinecraftWorld(circlePoint);
-        
-        if (worldCenter == null || worldCirclePoint == null) {
-            // 如果转换失败，使用原始半径值
-            return formatBlocks(radius);
-        }
-        
-        // 计算Minecraft世界中的半径
-        double dx = worldCirclePoint.x - worldCenter.x;
-        double dz = worldCirclePoint.y - worldCenter.y;
-        double worldRadius = Math.sqrt(dx * dx + dz * dz);
-        
-        return formatBlocks(worldRadius);
+        return formatBlocks(DrawMeasureHelper.radiusBlocks(circle.getCenter(), circle.getRadius()));
     }
     
     private String calculateRadius(ArcShape arc) {
-        Vec2d center = arc.getCenter();
-        double radius = arc.getRadius();
-        
-        // 计算半径在Minecraft世界坐标中的值
-        Vec2d circlePoint = new Vec2d(center.x + radius, center.y);
-        Vec2d worldCenter = coordinateTransformer.canvasToMinecraftWorld(center);
-        Vec2d worldCirclePoint = coordinateTransformer.canvasToMinecraftWorld(circlePoint);
-        
-        if (worldCenter == null || worldCirclePoint == null) {
-            // 如果转换失败，使用原始半径值
-            return formatBlocks(radius);
-        }
-        
-        // 计算Minecraft世界中的半径
-        double dx = worldCirclePoint.x - worldCenter.x;
-        double dz = worldCirclePoint.y - worldCenter.y;
-        double worldRadius = Math.sqrt(dx * dx + dz * dz);
-        
-        return formatBlocks(worldRadius);
+        return formatBlocks(DrawMeasureHelper.radiusBlocks(arc.getCenter(), arc.getRadius()));
     }
 
     private String calculateRadius(Vec2d center, double radius) {
-        Vec2d circlePoint = new Vec2d(center.x + radius, center.y);
-        Vec2d worldCenter = coordinateTransformer.canvasToMinecraftWorld(center);
-        Vec2d worldCirclePoint = coordinateTransformer.canvasToMinecraftWorld(circlePoint);
-
-        if (worldCenter == null || worldCirclePoint == null) {
-            return formatBlocks(radius);
-        }
-
-        double dx = worldCirclePoint.x - worldCenter.x;
-        double dz = worldCirclePoint.y - worldCenter.y;
-        double worldRadius = Math.sqrt(dx * dx + dz * dz);
-        return formatBlocks(worldRadius);
+        return formatBlocks(DrawMeasureHelper.radiusBlocks(center, radius));
     }
 
     private String calculateAngleFromThreePoints(Vec2d prev, Vec2d vertex, Vec2d next) {
@@ -810,10 +749,7 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
     }
 
     private static String formatBlocks(double value) {
-        if (Math.abs(value - Math.round(value)) < 0.001) {
-            return PlotI18n.status("annotation.plot.blocks_int", Math.round(value));
-        }
-        return PlotI18n.status("annotation.plot.blocks_float", value);
+        return DrawMeasureHelper.formatBlocks(value);
     }
 
     private static String formatDegrees(double degrees) {

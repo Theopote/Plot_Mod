@@ -25,6 +25,7 @@ import java.util.Map;
 import com.plot.utils.PlotI18n;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 import com.plot.ui.tools.impl.drawing.strategy.MultiStepInteractionStrategy;
+import com.plot.ui.tools.impl.drawing.helper.DrawMeasureHelper;
 
 /**
  * 多边形工具 - 完整的策略模式实现
@@ -395,6 +396,7 @@ public class PolygonTool extends DrawingTool {
             if (!controlPoints.isEmpty() && currentMousePoint != null) {
                 Vec2d center = controlPoints.getFirst();
                 context.drawLine(center, currentMousePoint, GUIDE_LINE_COLOR);
+                DrawMeasureHelper.drawRadiusLabel(context, center, currentMousePoint, GUIDE_LINE_COLOR);
             }
             return;
         }
@@ -423,12 +425,17 @@ public class PolygonTool extends DrawingTool {
         if (previewGeometry.guideLines != null) {
             for (Line line : previewGeometry.guideLines) {
                 context.drawLine(line.start, line.end, GUIDE_LINE_COLOR);
+                DrawMeasureHelper.drawSegmentLabel(context, line.start, line.end, GUIDE_LINE_COLOR);
             }
         }
         
         // 绘制外接圆
         if (previewGeometry.center != null && previewGeometry.radius > 0) {
             context.drawCircle(previewGeometry.center, previewGeometry.radius, GUIDE_LINE_COLOR);
+            Vec2d radiusPoint = new Vec2d(
+                    previewGeometry.center.x + previewGeometry.radius,
+                    previewGeometry.center.y);
+            DrawMeasureHelper.drawRadiusLabel(context, previewGeometry.center, radiusPoint, GUIDE_LINE_COLOR);
         }
     }
     

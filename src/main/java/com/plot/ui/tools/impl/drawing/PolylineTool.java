@@ -700,6 +700,13 @@ public class PolylineTool extends DrawingTool implements PolylineDrawingSession.
                 prev = current;
             }
         }
+
+        @Override
+        public void drawText(String text, Vec2d position, Color color) {
+            if (context != null && text != null && position != null && color != null) {
+                context.drawText(text, position, color);
+            }
+        }
     }
 
     private static Color toColor(int color) {
