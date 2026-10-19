@@ -20,11 +20,6 @@ public class Icons {
 
     // 道路系统图标
     public static final String ROAD = "\uf018";         // 道路
-    public static final String ROAD_BRIDGE = "\uf21c";  // 桥梁
-    public static final String ROAD_TUNNEL = "\uf552";  // 隧道
-    public static final String ROAD_RAIL = "\uf238";    // 铁路
-    public static final String RULER = "\uf545";        // 标
-
 
     // 工具图标标识符
     public static final Identifier SELECT_IDENTIFIER = Identifier.of("plot", "textures/gui/tools/select.png");

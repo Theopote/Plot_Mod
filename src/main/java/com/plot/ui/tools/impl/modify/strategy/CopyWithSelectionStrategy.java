@@ -236,7 +236,7 @@ public class CopyWithSelectionStrategy extends BaseSelectionStrategy implements 
         Vec2d offset = copyCurrentPoint.subtract(copyStartPoint);
         if (offset.length() < MIN_COPY_DISTANCE) {
             context.setStatusMessage("status.plot.copy.too_small");
-            resetCopyOperationState();
+            clearCopyPreviewState();
             return ModifyResult.CONTINUE;
         }
 
@@ -268,21 +268,32 @@ public class CopyWithSelectionStrategy extends BaseSelectionStrategy implements 
     }
 
     /**
-     * 单次复制完成后准备下一次复制，保留当前选择集。
+     * 单次复制完成后准备下一次复制，保留选择集与参考点，只需再点目标点。
      */
     public void prepareForNextCopy(ModifyToolContext context) {
-        resetCopyOperationState();
+        clearCopyPreviewState();
         currentMode = StrategyMode.COPY;
         selectedShapes = getSelectedShapesFromIds(context);
         for (Shape shape : selectedShapes) {
             shape.setSelected(true);
             context.addSelectedShape(shape);
         }
-        context.setStatusMessage(PlotI18n.status("status.plot.copy.next_base", selectedShapeIds.size()));
+        context.setStatusMessage(PlotI18n.status("status.plot.copy.next_target", selectedShapeIds.size()));
     }
 
     private void updateConstraints() {
         copyConstraints.setOrthogonalConstraintEnabled(isShiftPressed);
+    }
+
+    private void clearCopyPreviewState() {
+        copyCurrentPoint = copyStartPoint;
+        constrainedEndPoint = null;
+        previewShapes = null;
+        pendingCommand = null;
+        if (copyParameters != null && copyStartPoint != null) {
+            copyParameters.setStartPoint(copyStartPoint);
+            copyParameters.setEndPoint(copyStartPoint);
+        }
     }
 
     private void resetCopyOperationState() {
